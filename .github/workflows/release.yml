@@ -18,6 +18,18 @@ on:
 permissions:
   contents: read
 
+# never two runs of this workflow at once, and never a cancellation: the
+# other workflows cancel a superseded run because their subject is the
+# commit, and a newer commit supersedes the answer. Here the subject is a
+# publication -- a version on an index, a release -- so a second run is a
+# second attempt at the same side effects, and cancelling one halfway is how
+# a version reaches PyPI with no release cut for it.
+# Named literally, as everywhere else: github.workflow in a called workflow
+# is the caller's name, and this one calls four
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   # what a version cannot survive being wrong about, checked before
   # anything is built and long before anything is uploaded: a version is
@@ -150,6 +162,7 @@ jobs:
 
   # the whole build/test matrix, exactly as a pull request runs it
   test:
+    name: Run the test workflow
     needs: version-check
     uses: ./.github/workflows/test.yml
 
@@ -157,9 +170,27 @@ jobs:
   # push could publish code the pre-commit hooks reject. Not gated on
   # version-check: this is the cheap one, and it runs in parallel with it
   lint:
+    name: Run the lint workflow
     uses: ./.github/workflows/lint.yml
 
+  # and the documentation build, for the reason the lint call above gives: a
+  # tag publishes the docstrings read the docs will render from it, so the
+  # build that would fail there fails here first. It has a workflow of its
+  # own now, so calling lint.yml no longer covers it
+  docs:
+    name: Run the docs workflow
+    uses: ./.github/workflows/docs.yml
+
+  # and the platform the merge gate does not wait for: macos.yml runs
+  # weekly, so a regression there could otherwise sit on main until the
+  # Wednesday after the tag. Cheap in work and the slowest call here in wall
+  # clock, which a release is the one place worth paying for
+  macos:
+    name: Run the macos workflow
+    uses: ./.github/workflows/macos.yml
+
   build:
+    name: Build the wheel and the sdist
     needs: version-check
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -286,7 +317,8 @@ jobs:
                 dsa.sign(b'btclib', 1))"
 
   publish-testpypi:
-    needs: [test, lint, build]
+    name: Publish to TestPyPI
+    needs: [test, lint, docs, macos, build]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -309,7 +341,8 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   publish-pypi:
-    needs: [test, lint, build]
+    name: Publish to PyPI
+    needs: [test, lint, docs, macos, build]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -333,7 +366,22 @@ jobs:
 
   # only after PyPI has accepted the files: a GitHub release announces
   # what users can already install
+  # what RELEASING.md used to ask for by hand: the sentinel on what the
+  # index serves, against the version this run just published. It waits for
+  # the file to be served before installing, so it cannot pass by testing
+  # the previous release, and it runs beside github-release rather than
+  # before it -- a release announcing files that do not install is worse
+  # than a release announced a minute later, but the announcement is not
+  # what makes them installable
+  published:
+    name: Install the published version from PyPI
+    needs: publish-pypi
+    uses: ./.github/workflows/published.yml
+    with:
+      version: ${{ github.ref_name }}
+
   github-release:
+    name: Attach the files to the GitHub release
     needs: publish-pypi
     runs-on: ubuntu-latest
     timeout-minutes: 10

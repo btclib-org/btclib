@@ -43,7 +43,24 @@ on:
     # tree not yet released.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "31 4 * * 2"
+    - cron: "31 4 1 * *"
+  # after a release, which is the one moment this workflow's answer can
+  # change: RELEASING.md documented dispatching it by hand right there, and
+  # a call does not forget. Called by release.yml rather than triggered by
+  # workflow_run, which zizmor rates a dangerous trigger and rightly -- it
+  # runs the default branch's copy with the token of a push nobody reviewed
+  # -- where a call runs inside the release that gated it. The caller passes
+  # the tag, and only the caller does: the monthly run and a dispatch have
+  # no particular version in mind, which is the point of them
+  workflow_call:
+    inputs:
+      version:
+        description: >-
+          the tag whose version the index must serve before the matrix
+          installs anything, empty on a run with no release behind it
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
@@ -60,8 +77,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test-published:
-    name: "Install btclib ${{ matrix.python }} on ${{ matrix.os }}"
+  install-published:
+    name: "Install ${{ matrix.python }} from PyPI on ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -80,6 +97,30 @@ jobs:
         python: ["3.10", "3.14", "3.14t"]
     timeout-minutes: 20
     steps:
+      # the index does not serve a new file the instant the upload returns,
+      # and this workflow installs whatever the resolver picks: a run that
+      # starts too early tests the *previous* version and reports a pass for
+      # it, which is worse than reporting nothing. So the release path waits
+      # for the version its tag names, and fails if it never arrives rather
+      # than measuring the wrong thing. Only there: the input is empty on
+      # every other trigger
+      - name: Wait for the index to serve the released version
+        if: inputs.version != ''
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          version="${TAG#v}"
+          for attempt in $(seq 20); do
+            if curl -sf --max-time 10 -o /dev/null \
+                "https://pypi.org/pypi/btclib/${version}/json"; then
+              echo "the index serves ${version}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${version} is not served yet"
+            sleep 15
+          done
+          echo "::error::${version} never appeared on the index"
+          exit 1
       # uv rather than actions/setup-python, which is what every other
       # workflow here already uses and what this one has to use for a
       # reason of its own: setup-python installs from the runner tool

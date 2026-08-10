@@ -46,17 +46,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  vectors:
     name: Check vendored vectors against upstream
     # a draft pull request is work in progress and spends no runner
-    # here either, the release pull request excepted: dev -> master is
+    # here either: a draft is work its author is not asking anyone to
     # a draft from one release to the next, and its runs are what
-    # checks a commit merged into dev. The same condition lint.yml and
+    # read yet. The same condition lint.yml and
     # test.yml carry, and ready_for_review is a trigger type above for
     # the same reason
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

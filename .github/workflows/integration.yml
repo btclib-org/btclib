@@ -12,7 +12,7 @@ name: integration
 # mutation workflow gates nothing: what it can go red on is a release of
 # Bitcoin Core, an unreachable bitcoincore.org or a runner slow enough to
 # miss the node's startup timeout, and none of those is the branch's
-# fault. It therefore does not appear in master's required checks, and
+# fault. It therefore does not appear in main's required checks, and
 # must not -- that rule lives outside the repository and names its checks
 # as literal strings.
 #
@@ -34,11 +34,20 @@ on:
     # unattended questions is answered on a day of its own and a failure
     # notification names the workflow by the day it arrived.
     # Cron runs from the default branch only, so this file asks nothing
-    # until it reaches master -- on dev it is reachable through the
+    # until it reaches the default branch -- elsewhere it is reachable
+    # through the
     # dispatch button below and nowhere else
     - cron: "29 4 * * 5"
-  # the escape hatch, and the way to ask a node about a branch that
-  # touches the psbt or the descriptor path before merging it
+  # the same trigger set as the other gates: main so that the commit a
+  # merge creates is asked the question too -- and so that a cache is
+  # written where every pull request can read it -- the pull request so that
+  # the merge result is, and workflow_call so release.yml can reuse the
+  # answer
+  push:
+    branches: [main]
+  workflow_call:
+  # the escape hatch, and the way to ask a node about a Core version the
+  # matrix does not carry
   workflow_dispatch:
   # so a change to the tests this runs, or to this file, is checked by the
   # thing it configures -- links.yml does the same for its ignore list.
@@ -52,35 +61,11 @@ on:
     # types do not include it, and without it a readied pull request
     # would wait for its next push to be checked at all
     types: [opened, reopened, synchronize, ready_for_review]
-    paths:
-      - .github/workflows/integration.yml
-      - tests/integration/**
-      # and the implementation whose answer a node is what checks
-      # (issue #570). What the two regtest tests put in front of Core is
-      # a descriptor it imports, the request that carries it, a psbt it
-      # signs beside btclib, the transaction extracted from it and the
-      # script that spends: a change to any of those can be accepted by
-      # 18k offline vectors and refused by the node, which is the whole
-      # of why this workflow exists. Without them the job ran only when
-      # a test or this file changed, so the branch that could break the
-      # flow was the one branch it did not check.
-      - btclib/core_import.py
-      - btclib/descriptors/**
-      - btclib/psbt/**
-      - btclib/psbt_signer*.py
-      - btclib/script/**
-      - btclib/tx/**
-      # What is deliberately not here, both halves measured rather than
-      # guessed. `btclib/fetch/**` is imported by nothing under
-      # tests/integration: the tests drive the node through
-      # `bitcoin_core_rpc` directly, so a fetch backend has no answer of
-      # Core's to be checked against until issue #204 gives it one.
-      # And the cryptographic core -- curves, ecc, hashes, utils -- is in
-      # the transitive imports of the flow and stays out all the same:
-      # what it is held to is vectors, offline and on every push, so a
-      # change there is red in `test.yml` long before a node sees it,
-      # while listing it would spend a runner on nearly every pull
-      # request and leave "outside the covered paths" meaning nothing
+    # no `paths` filter any more: this workflow is a required check on
+    # main, and a required check that never runs blocks a merge where a
+    # skipped one satisfies it -- a filter and a required check cannot both
+    # be had. Every pull request pays it, documentation-only ones included,
+    # which is what 36 seconds of work buys
 
 # least privilege for the GITHUB_TOKEN: nothing here writes, and the
 # tarball is fetched from bitcoincore.org, which does not know this token
@@ -98,14 +83,12 @@ jobs:
   regtest:
     name: Regtest against Bitcoin Core
     # a draft pull request is work in progress and spends no runner
-    # here either, the release pull request excepted: dev -> master is
+    # here either: a draft is work its author is not asking anyone to
     # a draft from one release to the next, and its runs are what
-    # checks a commit merged into dev. The same condition lint.yml and
+    # read yet. The same condition lint.yml and
     # test.yml carry, and ready_for_review is a trigger type above for
     # the same reason
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     # the whole flow is seconds -- two tests, a node that answers its
     # first rpc call in well under a second, and a chain of a few blocks
