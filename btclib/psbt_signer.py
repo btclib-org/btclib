@@ -40,6 +40,12 @@ parsed. A psbt has no field for a private key at all.
 Selecting *which* device answers, the transport it answers over, and the
 timeouts and output limits a subprocess needs are the adapter's, not this
 module's: this is the contract such an adapter implements (issue #381).
+
+`SignerDecorator` is the other thing a caller writes against the contract:
+a signer wrapping a signer, for the rules that are the caller's own -- a
+whitelist of outputs, a limit on what may be spent, a prompt somebody has
+to confirm. The rule belongs nowhere near this library and the forwarding
+does, being what goes wrong when it is written by hand.
 """
 
 from __future__ import annotations
@@ -69,6 +75,7 @@ __all__ = [
     "MessageSigner",
     "PsbtSigner",
     "SignerCapabilities",
+    "SignerDecorator",
     "SignerDevice",
     "SoftwareSigner",
     "assert_public",
@@ -206,6 +213,95 @@ class SignerDevice(Protocol):
     def error(self) -> str:
         """Return why the device could not be asked, empty if it could."""
         ...
+
+
+# the operations of the two optional protocols above, which is what a
+# wrapper has to carry over from the signer it wraps -- one name each,
+# and the protocol is that name being there
+_OPTIONAL_OPERATIONS = ("display_address", "sign_message")
+
+
+class SignerDecorator:
+    """A signer that wraps a signer, for a caller adding a rule to one.
+
+    The shape every "sign, but only if" is: a rule of the caller's own in
+    front of `sign_psbt`, and everything else answered by the signer
+    underneath. A whitelist of outputs a device may pay to, a limit on
+    what a psbt may spend, a log of every request, a prompt somebody has
+    to confirm -- what those have in common is not the rule, which is the
+    caller's business and belongs nowhere near this library, but the four
+    other methods, which have to keep answering exactly what the wrapped
+    signer answers. A subclass overrides the one it is about::
+
+        class Whitelisted(SignerDecorator):
+            def sign_psbt(self, psbt: Psbt) -> Psbt:
+                for out in psbt.tx.vout:
+                    ...          # the caller's rule, before the device
+                return super().sign_psbt(psbt)
+
+    Written out here because forwarding is what goes wrong when it is
+    written by hand: a wrapper that answers `capabilities` for itself
+    tells a caller a taproot input cannot be signed by a signer that can,
+    and one that forgets `close` leaves a subprocess running after the
+    caller closed what it was holding.
+
+    **Wrapping does not hide what the signer offers.** `AddressDisplay`
+    and `MessageSigner` are optional protocols a caller asks about with
+    `isinstance`, so a wrapper that never carries them turns a device
+    that can show an address into one that cannot, and a wrapper that
+    always declares them turns a signer that cannot into one that fails
+    when asked. Each operation is therefore bound on the *instance*, and
+    only where the wrapped signer has it, so `isinstance` answers what
+    the signer offers -- and a subclass that writes one of its own keeps
+    it, an attribute written by a class being what says the subclass
+    means to answer that question itself.
+
+    On the instance rather than through `__getattr__`, which is the way
+    this is usually written and is wrong in a way nothing reports: since
+    3.12 a runtime-checkable protocol is checked with
+    `inspect.getattr_static`, which does not call `__getattr__`, so a
+    wrapper delegating that way satisfies `isinstance` on 3.10 and 3.11
+    and stops satisfying it on 3.12 and after -- the same wrapper, the
+    same signer, a different answer per interpreter.
+
+    Nothing else is forwarded. What this is is the contract, not the
+    surface of the adapter underneath: a caller that wants an attribute
+    of the signer it wrapped reads `.signer`, which is what it passed in.
+    """
+
+    def __init__(self, signer: PsbtSigner) -> None:
+        """Wrap a signer, carrying over the operations it offers.
+
+        Whether what is passed is a signer at all is `psbt_signer_contract
+        .check_psbt_signer`'s question, asked of the signer itself and not
+        of the wrapper around it: repeating a weaker form of it here would
+        answer "it has five methods" to a caller who needs to know what
+        they answer.
+        """
+        self.signer = signer
+        for operation in _OPTIONAL_OPERATIONS:
+            if hasattr(signer, operation) and not hasattr(type(self), operation):
+                setattr(self, operation, getattr(signer, operation))
+
+    def master_fingerprint(self) -> bytes:
+        """Return the wrapped signer's master fingerprint."""
+        return self.signer.master_fingerprint()
+
+    def xpub(self, der_path: DerPath) -> str:
+        """Return the wrapped signer's extended public key at a path."""
+        return self.signer.xpub(der_path)
+
+    def sign_psbt(self, psbt: Psbt) -> Psbt:
+        """Return what the wrapped signer answers, this adding no rule."""
+        return self.signer.sign_psbt(psbt)
+
+    def capabilities(self) -> SignerCapabilities:
+        """Return what the wrapped signer can be asked to sign."""
+        return self.signer.capabilities()
+
+    def close(self) -> None:
+        """Close the wrapped signer, and whatever it was holding open."""
+        self.signer.close()
 
 
 def _fingerprint(fingerprint: Octets) -> bytes:
