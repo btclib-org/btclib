@@ -2278,22 +2278,43 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
     )
 
 
+def _mapped_node(
+    node: Miniscript, key_map: Callable[[KeyExpression], KeyExpression]
+) -> Miniscript:
+    """Return the miniscript with `key_map` applied to every key in it.
+
+    The two fields of a node that can hold one: its own KEY expressions
+    and the subexpressions under it. What a node derives from those is
+    `init=False`, so rebuilding bottom-up is the whole of it -- `replace`
+    recomputes the type, the script size and the bounds from the keys
+    that are now there.
+    """
+    return replace(
+        node,
+        subs=tuple(_mapped_node(sub, key_map) for sub in node.subs),
+        keys=tuple(key_map(key) for key in node.keys),
+    )
+
+
 def _mapped_field(
     value: object, key_map: Callable[[KeyExpression], KeyExpression]
 ) -> object:
     """Return one field of a descriptor with every key in it mapped.
 
     Where a key can be: the field itself, a key of a ``multi_a()`` leaf, a
-    key of a fragment another one wraps, or an element of a script tree,
-    which is a tuple of tuples. Nothing else in a fragment holds one, and
-    a field added later that does will be walked here by construction --
-    which is the whole reason this is one function rather than a method
-    per fragment.
+    key of a miniscript node or of one nested under it, a key of a
+    fragment another one wraps, or an element of a script tree, which is a
+    tuple of tuples. Nothing else in a fragment holds one, and a field
+    added later that does will be walked here by construction -- which is
+    the whole reason this is one function rather than a method per
+    fragment.
     """
     if isinstance(value, KeyExpression):
         return key_map(value)
     if isinstance(value, MultiA):
         return replace(value, keys=tuple(key_map(key) for key in value.keys))
+    if isinstance(value, Miniscript):
+        return _mapped_node(value, key_map)
     if isinstance(value, Descriptor):
         return _mapped_keys(value, key_map)
     if isinstance(value, tuple):
