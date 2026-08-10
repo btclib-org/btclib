@@ -45,6 +45,7 @@ __all__ = [
     "op_code_spans",
     "op_int",
     "parse",
+    "push_int",
     "read_op_code",
     "script_from_dict",
     "script_to_dict",
@@ -322,6 +323,29 @@ def op_int(i: int) -> str:
     if 0 <= i <= 16:
         return f"OP_{i}"
     raise BTClibValueError(f"invalid OP_INT: {i}")
+
+
+def push_int(i: int) -> str:
+    """Return the shortest command that pushes the number i.
+
+    The op code where the number has one -- `op_int`, -1 to 16 -- and the
+    CScriptNum encoding of it otherwise, as the hex a data push is
+    written as. Both halves are here already; this is the choice between
+    them, which is what a caller assembling a script by hand writes out
+    every time it puts a number in one: a threshold, a relative timelock,
+    a size. Which half applies is a property of the value and not of what
+    the number means, so a script template holding 16 and one holding 17
+    are written the same way and serialize differently.
+
+    `serialize` reaches the same bytes from the integer itself for
+    everything above 16, and warns for -1 to 16 that the op code is one
+    byte shorter: this is that op code, so the warning is the caller
+    being told to write this instead. Minimal because the consumers are:
+    `miniscript.from_script` refuses a push written the long way, and the
+    interpreter refuses it too under MINIMALDATA, so a number pushed with
+    a byte to spare is a script that reads as nothing and may not spend.
+    """
+    return op_int(i) if -1 <= i <= 16 else encode_num(i).hex()
 
 
 def _serialize_int_command(command: int) -> bytes:

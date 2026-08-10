@@ -87,7 +87,7 @@ from btclib.script.limits import (
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     op_code_spans,
-    op_int,
+    push_int,
     serialize,
 )
 from btclib.utils import bytes_from_octets, decode_num, encode_num
@@ -482,11 +482,13 @@ def _computed_properties(node: Miniscript) -> frozenset[str]:
 def _pushed_number(number: int) -> ScriptList:
     """Return the minimal push of a script number, as a command.
 
-    An op code where one means the number, which is the push every
-    fragment's script uses: OP_16 and not the byte 0x10, so that what is
-    written is what `from_script` reads back.
+    `script.push_int`, which is that choice written once: an op code
+    where one means the number -- OP_16 and not the byte 0x10, so that
+    what is written is what `from_script` reads back -- and the
+    CScriptNum encoding above it. A list, because the callers are
+    building one.
     """
-    return [op_int(number)] if 0 <= number <= 16 else [number]
+    return [push_int(number)]
 
 
 def _pushed_size(number: int) -> int:
