@@ -85,6 +85,7 @@ __all__ = [
     "bip44",
     "bip322",
     "block",
+    "consensus",
     "core_import",
     "curves",
     "descriptors",

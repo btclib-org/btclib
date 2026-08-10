@@ -4,6 +4,13 @@ btclib.tx package
 Submodules
 ----------
 
+btclib.tx.limits module
+-----------------------
+
+.. automodule:: btclib.tx.limits
+   :members:
+   :show-inheritance:
+
 btclib.tx.out\_point module
 ---------------------------
 

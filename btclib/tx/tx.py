@@ -20,6 +20,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.script.sig_ops import sig_op_count as script_sig_op_count
 from btclib.script.witness import Witness
+from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
@@ -380,10 +381,18 @@ class Tx:  # noqa: PLW1641
             # Change stream position: seek to byte offset relative to position
             stream.seek(-len(marker), SEEK_CUR)  # current position
 
-        n = var_int.parse(stream)
+        # each count bounded by the block that would have to hold the
+        # transaction rather than by var_int's own MAX_SIZE, which answers
+        # whether a CompactSize is sane and not whether anything could
+        # hold this many (issue #569). What this adds to the short read
+        # that TxIn.parse and TxOut.parse already raise on is the message:
+        # a count above the bound is refused for what it says, before a
+        # byte of the first input is read, rather than for the bytes it
+        # turned out not to be followed by
+        n = var_int.parse(stream, MAX_TX_IN_COUNT)
         vin = [TxIn.parse(stream, check_validity=check_validity) for _ in range(n)]
 
-        n = var_int.parse(stream)
+        n = var_int.parse(stream, MAX_TX_OUT_COUNT)
         vout = [TxOut.parse(stream, check_validity=check_validity) for _ in range(n)]
 
         if segwit:

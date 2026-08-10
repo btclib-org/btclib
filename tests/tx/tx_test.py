@@ -19,9 +19,17 @@ from typing import Any
 
 import pytest
 
+from btclib import var_int
+from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join
+from btclib.tx.limits import (
+    MAX_TX_IN_COUNT,
+    MAX_TX_OUT_COUNT,
+    MIN_TX_IN_SIZE,
+    MIN_TX_OUT_SIZE,
+)
 from btclib.tx.tx import _assert_valid_coinbase
 from tests.conftest import JsonGolden
 
@@ -844,3 +852,79 @@ def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     # is about is the answer rather than the two types
     not_an_input: object = "not an input"
     assert tx_with().vin[0] != not_an_input
+
+
+def test_the_transaction_count_bounds_are_what_consensus_derives() -> None:
+    """Each bound is arithmetic on consensus rather than a choice.
+
+    MAX_BLOCK_WEIGHT divided by the weight of the smallest thing being
+    counted, so neither is a number this library picked: a count above
+    either names a transaction no miner could produce, which is what makes
+    refusing it before allocating for it safe.
+
+    The minimum sizes are checked against a serialization rather than
+    believed, an off-by-one in either being a bound too generous by the
+    same factor.
+    """
+    # a TxIn and a TxOut serialize to no less than this, and neither is
+    # witness data, so each weighs WITNESS_SCALE_FACTOR times its size
+    assert (
+        len(
+            TxIn(OutPoint(), b"", 0xFFFFFFFF, check_validity=False).serialize(
+                check_validity=False
+            )
+        )
+        == MIN_TX_IN_SIZE
+    )
+    assert (
+        len(
+            TxOut(0, ScriptPubKey(b""), check_validity=False).serialize(
+                check_validity=False
+            )
+        )
+        == MIN_TX_OUT_SIZE
+    )
+
+    assert MAX_TX_IN_COUNT == MAX_BLOCK_WEIGHT // (
+        MIN_TX_IN_SIZE * WITNESS_SCALE_FACTOR
+    )
+    assert MAX_TX_OUT_COUNT == MAX_BLOCK_WEIGHT // (
+        MIN_TX_OUT_SIZE * WITNESS_SCALE_FACTOR
+    )
+    # and they are what they compute to, so a change to either constant
+    # above is a change a reader of this test sees
+    assert MAX_TX_IN_COUNT == 24_390
+    assert MAX_TX_OUT_COUNT == 111_111
+
+
+def test_a_declared_input_or_output_count_is_bounded_before_allocation() -> None:
+    """A count no block could hold is refused where it is read (issue 569).
+
+    `var_int.parse`'s own MAX_SIZE answers whether a CompactSize is one a
+    sane protocol would write, and 33,554,432 inputs is a sane
+    CompactSize: nine octets asking for a list comprehension of 33 million
+    objects. What bounds each count instead is the block that would have
+    to hold the transaction.
+
+    TxIn.parse and TxOut.parse raise on the first short read, so a count
+    with nothing behind it never allocated much either; what the bound
+    adds is the answer given for the count itself, before a byte of the
+    first input is read, and a refusal that says which number was wrong
+    rather than reporting the bytes that failed to follow it.
+    """
+    version = (2).to_bytes(4, "little")
+
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT + 1))
+
+    # the output count is read after the inputs, so an empty input list is
+    # what gets the parser there
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Tx.parse(
+            version + var_int.serialize(0) + var_int.serialize(MAX_TX_OUT_COUNT + 1)
+        )
+
+    # and the bound is not off by one: the count itself is not refused,
+    # the first input's short read is what answers instead
+    with pytest.raises(BTClibValueError, match="not enough data for the outpoint"):
+        Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT))
