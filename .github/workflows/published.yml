@@ -67,14 +67,12 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            macos-26-intel,
-            macos-latest,
-            windows-latest,
-            windows-11-arm,
-          ]
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-26-intel
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
         # the two ends of the supported range, plus the free-threaded
         # interpreter: btclib itself ships one universal wheel, so what
         # varies across this matrix is entirely which wheel of

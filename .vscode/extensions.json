@@ -1,0 +1,55 @@
+{
+  // one entry per tool the lint gate already runs, so the editor reports
+  // what .pre-commit-config.yaml would report at commit time. Nothing here
+  // is a tool the gate does not have: an extension with no hook behind it
+  // is a second opinion, and a finding no workflow enforces is noise
+  "recommendations": [
+    // ruff-check and ruff-format
+    "charliermarsh.ruff",
+    // the local mypy hook, which runs the project environment's mypy
+    "ms-python.mypy-type-checker",
+    // the interpreter, the test explorer and the debugger under them
+    "ms-python.python",
+    "ms-python.debugpy",
+    // the markdownlint-cli2 hook, reading this repository's own
+    // .markdownlint.jsonc with no further configuration
+    "DavidAnson.vscode-markdownlint",
+    // the typos hook, the same tool as a language server, reading
+    // [tool.typos] in pyproject.toml. There is no equivalent for codespell,
+    // the other spell checker: what exists on the marketplace carries its
+    // own dictionary rather than codespell's builtin, and a different
+    // dictionary is a different set of findings
+    "tekumara.typos-vscode",
+    // check-yaml, and the schemas check-dependabot and check-readthedocs
+    // validate against: this attaches them by filename, so a key
+    // dependabot.yml or .readthedocs.yaml does not accept is flagged where
+    // it is typed
+    "redhat.vscode-yaml",
+    // the workflows: expression and syntax checking in the editor. Not
+    // actionlint, which the gate also runs and no maintained extension
+    // wraps -- shellcheck inside a `run:` block stays a hook finding
+    "github.vscode-github-actions",
+    // the prettier hook, so what formats yaml and jsonc on save is the tool
+    // that formats it at commit time and not the copy the yaml extension
+    // embeds
+    "esbenp.prettier-vscode",
+    // check-toml, the pyproject.toml schema over it, and the taplo hook:
+    // this extension *is* taplo, and it reads .taplo.toml
+    "tamasfe.even-better-toml",
+    // docs/source is reStructuredText and the lint workflow builds it with
+    // sphinx -W. Highlighting only, deliberately: the heavier
+    // reStructuredText extensions want esbonio, doc8 or rstcheck installed
+    // to say anything, none of which is in the gate
+    "trond-snekvik.simple-rst"
+  ],
+  // the reflex installs that would each fight a hook: ruff formats, ruff
+  // sorts the imports with "I", and ruff's "PL" set is the pylint rules the
+  // gate selected. A second formatter on save reformats what ruff-format
+  // just wrote, and the commit hook writes it back
+  "unwantedRecommendations": [
+    "ms-python.black-formatter",
+    "ms-python.isort",
+    "ms-python.flake8",
+    "ms-python.pylint"
+  ]
+}

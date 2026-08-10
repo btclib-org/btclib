@@ -108,8 +108,13 @@ ENV/
 # ruff
 .ruff_cache/
 
-# vscode
-.vscode/
+# vscode: the workspace files are tracked, and the rest of what the editor
+# writes there is not. The directory itself cannot be the pattern -- git does
+# not descend into an excluded directory, so a negation under `.vscode/` never
+# matches -- which is why this excludes the contents and re-admits two names
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # PyCharm
 .idea/

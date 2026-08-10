@@ -9,10 +9,10 @@
 
 [cosmic-ray]
 module-path = [
-  "btclib/fetch/transport.py",
-  "btclib/fetch/esplora.py",
-  "btclib/fetch/bitcoin_core.py",
-  "btclib/fetch/fetcher.py",
+    "btclib/fetch/transport.py",
+    "btclib/fetch/esplora.py",
+    "btclib/fetch/bitcoin_core.py",
+    "btclib/fetch/fetcher.py",
 ]
 
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/fetch"
