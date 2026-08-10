@@ -15,14 +15,14 @@
 # script-size bound is derived from the stack and element limits rather
 # than copied
 module-path = [
-  "btclib/script/script.py",
-  "btclib/script/script_pub_key.py",
-  "btclib/script/taproot.py",
-  "btclib/script/witness.py",
-  "btclib/script/sig_ops.py",
-  "btclib/script/op_codes_tapscript.py",
-  "btclib/script/limits.py",
-  "btclib/script/__init__.py",
+    "btclib/script/script.py",
+    "btclib/script/script_pub_key.py",
+    "btclib/script/taproot.py",
+    "btclib/script/witness.py",
+    "btclib/script/sig_ops.py",
+    "btclib/script/op_codes_tapscript.py",
+    "btclib/script/limits.py",
+    "btclib/script/__init__.py",
 ]
 
 # tests/script first, where nearly every mutant dies, and four files after

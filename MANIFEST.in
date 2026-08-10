@@ -7,6 +7,11 @@ include *.jsonc
 include pyproject.toml
 include uv.lock
 include .python-version
+# taplo's, for the same reason .secrets.baseline below is here: a hook the
+# gate runs reads it, and the gate has to be runnable from an unpacked sdist.
+# Named rather than covered by a glob, `include *.yaml` and `include *.jsonc`
+# above having no toml equivalent -- pyproject.toml is named on its own too
+include .taplo.toml
 # the sdist already carries .pre-commit-config.yaml, which points at this
 include .secrets.baseline
 # the Jekyll sources of btclib.org, which is served from this repository's

@@ -9,9 +9,9 @@
 
 [cosmic-ray]
 module-path = [
-  "btclib/amount.py",
-  "btclib/fee.py",
-  "btclib/ecc/dh.py",
+    "btclib/amount.py",
+    "btclib/fee.py",
+    "btclib/ecc/dh.py",
 ]
 
 test-command = """python -m pytest -x -q -n0 -p no:randomly \

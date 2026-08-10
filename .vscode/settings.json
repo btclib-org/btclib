@@ -1,0 +1,108 @@
+{
+  // this file mirrors .pre-commit-config.yaml, which is the lint gate: what
+  // the editor fixes on save is what the hook would have fixed, so nothing
+  // reaches `git commit` for the first time there. extensions.json beside it
+  // names the tool each setting drives. What no extension wraps --
+  // codespell, yamllint, actionlint, zizmor, detect-secrets, check-manifest,
+  // pyroma, toml-comment-width -- is only ever seen by
+  //
+  //   uv run pre-commit run --all-files
+  //
+  // A machine-local preference does not belong here, this file being tracked
+  // and read by every checkout: what belongs is a choice this project has
+  // made and an editor cannot read from pyproject.toml
+
+  // there is no pyright among the hooks and mypy is the type gate, so what
+  // Pylance reports is a second opinion nothing enforces. Off rather than at
+  // its own default, and that is measured: on this tree the default reports
+  // errors mypy strict does not, over __all__ re-exports and a handful of
+  // narrowing differences in the tests. Some of them may well be worth
+  // fixing, which is a separate question from what the editor should say
+  // while typing; the survey is
+  //
+  //   uvx pyright --pythonpath .venv/bin/python btclib tests
+  //
+  // Completion, hover and go-to-definition are unaffected by this setting
+  "python.analysis.typeCheckingMode": "off",
+
+  // the mypy hook is a local one, running the project environment's mypy
+  // rather than an isolated copy, and the editor has to use that same one:
+  // the mypy the extension bundles is older than the locked one, and an
+  // `enable_error_code` name it does not know is dropped with a warning no
+  // extension surfaces. The environment is the .venv uv sync creates, which
+  // is also what makes `import btclib` resolve, the install in it being
+  // editable
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  // reportingScope stays at its default: the extension checks the file in
+  // the editor, the hook checks btclib, tests and .github/scripts
+
+  // the two ruff hooks, `ruff-check --fix` and `ruff-format`, on save.
+  // "always" rather than "explicit" because an auto-save on focus change is
+  // not an explicit save -- with "explicit" the formatter would run there
+  // and the fixes would not. `source.organizeImports.ruff` is absent on
+  // purpose: "I" is in the selected rule set, so the import order is
+  // already one of the fixes
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "always"
+    },
+    // the one place here that copies a number instead of naming a tool, so
+    // it is the one to revisit when either moves: 88 is what ruff-format
+    // reflows code to, and 80 is [tool.ruff.lint.pycodestyle]
+    // max-doc-length, which W505 holds a comment and a docstring to
+    "editor.rulers": [80, 88]
+  },
+
+  // `markdownlint-cli2 --fix`, which arrives as a code action and not as a
+  // formatter: the extension registers no document formatter, and the fix
+  // corrects rule violations rather than reflowing a paragraph. The ruler is
+  // MD013, tables included, and it is where the wrapping stays a judgement
+  // -- markdownlint reports a long line and rewraps no prose
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": "always"
+    },
+    "editor.rulers": [80]
+  },
+
+  // the prettier and taplo hooks, on save and by the same two tools:
+  // prettier for yaml and for the jsonc that carries a comment, taplo for
+  // toml, reading the .taplo.toml the hook reads. `yaml.format.enable`
+  // stays off -- the yaml extension embeds a prettier of its own version,
+  // and two of them formatting one file is how a diff the hook did not ask
+  // for gets in
+  "yaml.format.enable": false,
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  // json and jsonc are two languages to the editor, and the difference is
+  // the one the hooks draw: the json under tests is golden-file output and
+  // vendored vectors, held by pretty-format-json at indent 4 and by the
+  // pins tests/_data/README.md records, so an editor formatting one on save
+  // would break a test or void a verdict
+  "[json]": {
+    "editor.formatOnSave": false
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tamasfe.even-better-toml",
+    "editor.formatOnSave": true
+  },
+
+  // trailing-whitespace, end-of-file-fixer and `mixed-line-ending --fix=lf`.
+  // The first hook passes no --markdown-linebreak-ext, so a hard break
+  // spelled as two trailing spaces does not survive it either, and trimming
+  // one here is no loss
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.eol": "\n",
+  // fix-byte-order-marker: "utf8bom" writes the mark that hook removes
+  "files.encoding": "utf8"
+}

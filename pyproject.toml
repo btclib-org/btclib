@@ -146,6 +146,10 @@ namespaces = true
 # exclude rules, which read as packaging decisions while matching nothing
 # any include has added
 ignore = [
+    # the editor's workspace: tracked, so that a checkout is told what the
+    # gate enforces, and no more part of a distribution than the website
+    # below is
+    ".vscode/*",
     "CNAME",
     "Gemfile",
     "_config.yml",
@@ -208,7 +212,9 @@ xfail_strict = true
 # BTCLIB_INTEGRATION in the environment, so the marker is for selecting
 # them (`-m integration`) and for excluding them from a run that has the
 # variable set for other reasons
-markers = ["integration: needs an external program, opt-in via BTCLIB_INTEGRATION"]
+markers = [
+    "integration: needs an external program, opt-in via BTCLIB_INTEGRATION",
+]
 # a deprecation warning is the early form of a break, emitted years before
 # the removal that will fail the suite: on a 3.10 to 3.14 spread, plus
 # pypy, there is time to act on it only if it is not silent.
@@ -280,13 +286,13 @@ ignore-regex = '`[^`]*`'
 # and the hook runs with --write-changes, so that is a rewrite of every
 # mnemonic derived from that list, not a report
 extend-exclude = [
-  "**/_data/*.json",
-  "**/_data/*.csv",
-  "**/_data/*.txt",
-  "**/_data/*.bin",
-  "**/_generated_files/*",
-  ".secrets.baseline",
-  "uv.lock",
+    "**/_data/*.json",
+    "**/_data/*.csv",
+    "**/_data/*.txt",
+    "**/_data/*.bin",
+    "**/_generated_files/*",
+    ".secrets.baseline",
+    "uv.lock",
 ]
 
 [tool.typos.default]
@@ -547,11 +553,11 @@ explicit-preview-rules = true
 # refusing them outright, and a codebase that finishes what it starts
 # wants the second
 select = [
-    "A",    # flake8-builtins: a name that shadows a builtin
-    "B",    # flake8-bugbear
-    "BLE",  # flake8-blind-except
-    "C4",   # flake8-comprehensions
-    "C90",  # mccabe, at ruff's default with noqa'd exceptions: see below
+    "A",   # flake8-builtins: a name that shadows a builtin
+    "B",   # flake8-bugbear
+    "BLE", # flake8-blind-except
+    "C4",  # flake8-comprehensions
+    "C90", # mccabe, at ruff's default with noqa'd exceptions: see below
     # flake8-copyright, replacing the copyright-notice pre-commit hook:
     # ed6e8014 found that hook checking only staged files unless given
     # --enforce-all, so "pre-commit run --all-files" -- what the lint

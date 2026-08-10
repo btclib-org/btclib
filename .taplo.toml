@@ -1,0 +1,23 @@
+# taplo's configuration, in a file of its own for the same reason
+# .yamllint.yaml is one: the reasoning below needs more room than a hook
+# argument has. taplo finds this file by name in the directory it runs from,
+# which for a pre-commit hook is the repository root, so the hook needs no
+# flag.
+#
+# What is *not* set matters as much: reorder_keys stays at its default of
+# false, the order of a table here being an argument rather than an accident
+# -- [project] reads top to bottom, and the ruff rule sets are grouped by
+# what they cover rather than sorted.
+[formatting]
+# four spaces, which is what pyproject.toml already uses and what
+# ruff-format writes in the Python beside it. The mutation configurations
+# under .github/mutation are the files this moves: they were written with
+# two, and one indent for every toml in the tree is the point of having a
+# formatter at all
+indent_string = "    "
+# an array that is exploded stays exploded: one entry per line is what makes
+# adding a module to a mutation session, or a rule set to ruff, a one-line
+# diff, and the default would collapse a short array onto one line and
+# expand it again when it outgrows the width -- churn driven by a column
+# count
+array_auto_collapse = false

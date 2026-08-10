@@ -19,8 +19,8 @@
 
 [cosmic-ray]
 module-path = [
-  "btclib/ecc/ssa.py",
-  "btclib/ecc/dsa.py",
+    "btclib/ecc/ssa.py",
+    "btclib/ecc/dsa.py",
 ]
 
 # anti_exfil_test.py and commit_nonce_test.py are the sign-to-contract

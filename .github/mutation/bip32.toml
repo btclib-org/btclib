@@ -7,9 +7,9 @@
 
 [cosmic-ray]
 module-path = [
-  "btclib/bip32/bip32.py",
-  "btclib/bip32/key_origin.py",
-  "btclib/bip32/der_path.py",
+    "btclib/bip32/bip32.py",
+    "btclib/bip32/key_origin.py",
+    "btclib/bip32/der_path.py",
 ]
 
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/bip32"
