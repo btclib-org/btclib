@@ -31,6 +31,7 @@ the parser test asks is that each one expands and that every address it
 produces is the address of that very script.
 """
 
+from dataclasses import fields, is_dataclass
 from typing import get_args
 
 import pytest
@@ -67,6 +68,7 @@ from btclib.descriptors import (
     strip_checksum,
 )
 from btclib.descriptors.descriptors import __descsum_expand
+from btclib.descriptors.miniscript import _ARITY, Miniscript
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
@@ -2731,6 +2733,126 @@ def test_the_index_of_a_musig_is_written_where_the_range_is() -> None:
     fixed = at_index(tree, 2)
     assert not fixed.is_ranged
     assert fixed.script_pub_key() == tree.script_pub_key(2)
+
+
+# a key that is ranged and hardened at once, which is the one shape both
+# functions have something to do to: `at_index` writes the index the
+# wildcard stands for, `normalized` re-roots at the hardened step
+RANGED_A = f"{XPRV_ROOT}/1h/0/*"
+RANGED_B = f"{XPRV_ROOT}/1h/1/*"
+RANGED_C = f"{XPRV_ROOT}/1h/2/*"
+DIGEST_32 = "00" * 32
+DIGEST_20 = "00" * 20
+
+# every miniscript fragment there is, spread over the descriptors that
+# can hold one: `multi()` is a p2wsh and `multi_a()` a tapscript, so it
+# takes both contexts, and a `tr()` puts a key outside the miniscript as
+# well as in it. What holds this list to "every" is the test below, which
+# reads the parser's own table rather than a copy of it written here
+MINISCRIPT_CORPUS = (
+    f"wsh(and_v(vn:pk({RANGED_A}),older(5)))",
+    f"wsh(or_d(pk({RANGED_A}),and_v(v:pkh({RANGED_B}),dv:after(500))))",
+    (
+        f"wsh(andor(pk({RANGED_A}),older(5),"
+        f"j:and_v(v:pk({RANGED_B}),sha256({DIGEST_32}))))"
+    ),
+    f"wsh(thresh(2,pk({RANGED_A}),s:pk({RANGED_B}),s:pk({RANGED_C})))",
+    f"wsh(and_v(v:multi(2,{RANGED_A},{RANGED_B}),hash256({DIGEST_32})))",
+    f"wsh(or_b(pk({RANGED_A}),a:pk({RANGED_B})))",
+    f"wsh(or_i(and_v(or_c(pk({RANGED_A}),v:pk({RANGED_B})),ripemd160({DIGEST_20})),0))",
+    f"wsh(and_b(pk({RANGED_A}),a:and_v(v:pk({RANGED_B}),1)))",
+    (
+        f"tr({RANGED_A},{{multi_a(2,{RANGED_B},{RANGED_C}),"
+        f"and_v(v:multi_a(2,{RANGED_B},{RANGED_C}),hash160({DIGEST_20}))}})"
+    ),
+)
+
+
+def _fragments(value: object) -> set[str]:
+    """Return the name of every miniscript fragment inside a descriptor.
+
+    A walk of its dataclass fields, so that it finds a node wherever one
+    sits -- under a `wsh()`, in a script tree, or nested in another
+    fragment -- without being told where to look.
+    """
+    if isinstance(value, Miniscript):
+        return {value.fragment, *_fragments(value.subs)}
+    if isinstance(value, tuple):
+        return {name for item in value for name in _fragments(item)}
+    if is_dataclass(value) and not isinstance(value, type):
+        return {
+            name
+            for field in fields(value)
+            for name in _fragments(getattr(value, field.name))
+        }
+    return set()
+
+
+def test_the_miniscript_corpus_covers_every_fragment() -> None:
+    """The corpus is taken from the parser's table, not written beside it.
+
+    `_ARITY` is what the parser reads a fragment name against -- thresh()
+    excepted, which takes one subexpression or more and is therefore not
+    in it -- so a fragment added to the language is a fragment this test
+    demands a descriptor for, and the two walks below then cover it or go
+    red. A list written here would have covered whatever it covered on
+    the day it was written.
+    """
+    covered: set[str] = set()
+    for descriptor in MINISCRIPT_CORPUS:
+        covered |= _fragments(parse(descriptor))
+    assert covered == {*_ARITY, "thresh"}
+
+
+def test_the_index_is_written_into_every_miniscript_key() -> None:
+    """Every key of a BIP379 expression, not the descriptor around it.
+
+    The post-condition of `at_index` is that no wildcard is left, and a
+    key inside a miniscript is a key like any other: the descriptor that
+    comes back names one script, and it is the script the ranged one
+    describes at that index.
+    """
+    for descriptor in MINISCRIPT_CORPUS:
+        prv_keys: dict[str, str] = {}
+        parsed = parse(descriptor, prv_keys=prv_keys)
+        assert parsed.is_ranged
+
+        fixed = at_index(parsed, 3)
+        assert not fixed.is_ranged
+        assert "*" not in str(fixed)
+        assert fixed.script_pub_keys(0, prv_keys) == parsed.script_pub_keys(3, prv_keys)
+        # and it is a descriptor like any other: written back and read again
+        assert str(parse(str(fixed))) == str(fixed)
+
+
+def test_the_normalized_form_re_roots_every_miniscript_key() -> None:
+    """The same walk, and what it is worth is the same claim as elsewhere.
+
+    Every key of the answer derives from an xpub, so the scripts are
+    computable with no private key at all -- which for a miniscript is a
+    claim `test_the_normalized_form_derives_from_an_xpub_alone` cannot
+    make, its descriptors having no fragment in them.
+    """
+    for descriptor in MINISCRIPT_CORPUS:
+        prv_keys: dict[str, str] = {}
+        parsed = parse(descriptor, prv_keys=prv_keys)
+        canonical = normalized(parsed, prv_keys)
+
+        # no prv_keys at all on the normalized side: that is the claim
+        assert canonical.script_pub_keys(3) == parsed.script_pub_keys(3, prv_keys)
+        assert str(parse(str(canonical))) == str(canonical)
+
+
+def test_normalizing_a_miniscript_without_the_key_says_so() -> None:
+    """A key the walk does not reach is a key that cannot be refused.
+
+    So the refusal is the evidence that it was visited: a hardened step
+    inside a fragment and no private key for it raises, where before the
+    descriptor came back quietly still needing one.
+    """
+    xpub = xpub_from_xprv(XPRV_ROOT)
+    with pytest.raises(BTClibValueError, match="no private key to normalize"):
+        normalized(parse(f"wsh(and_v(v:pk({xpub}/0h/1/*),older(5)))"))
 
 
 def test_the_account_descriptor_pair() -> None:
