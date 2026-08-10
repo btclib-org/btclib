@@ -50,6 +50,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     LEAF_HASH_SIZE,
+    MUSIG2_PUB_KEY_SIZE,
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
     assert_valid_unknown,
@@ -109,12 +110,14 @@ __all__ = [
     "KeyManager",
     "Psbt",
     "assert_signatures_only",
+    "assert_signed",
     "combine",
     "ecdsa_sig_hash",
     "extract_tx",
     "finalize",
     "join",
     "leaf_script",
+    "new_signers",
     "prevouts",
     "sign",
     "single_leaf_key",
@@ -2343,10 +2346,10 @@ def _assert_signatures_added_only(
             raise BTClibValueError(f"input {vin_i}: {name} was changed")
 
 
-def _assert_new_ecdsa_sigs_verify(
-    request_in: PsbtIn, returned_in: PsbtIn, tx: Tx, vin_i: int
+def _assert_ecdsa_sigs_verify(
+    psbt_in: PsbtIn, tx: Tx, vin_i: int, request_in: PsbtIn | None = None
 ) -> None:
-    """Raise unless each partial signature that arrived verifies.
+    """Raise unless each partial signature of the input verifies.
 
     Where `_assert_partial_sigs_verify` leaves an unverifiable signature
     alone, this refuses it, and the difference is who is asking: the
@@ -2354,14 +2357,21 @@ def _assert_new_ecdsa_sigs_verify(
     say what was signed, while here a signature that cannot be checked is
     the one thing that must not be merged.
 
+    request_in is what an answer was asked for, and its signatures are
+    skipped rather than checked again: `assert_signatures_only` holds them
+    from the request itself, so verifying them would be verifying the
+    caller's own psbt. None checks every signature the input carries,
+    which is what `assert_signed` asks of a psbt that is nobody's answer
+    in particular.
+
     lower_s=False for the Finalizer's reason: the question is whether that
     key made that signature, the low-s rule being policy the script engine
     applies under its flags.
     """
-    for pub_key, sig in returned_in.partial_sigs.items():
-        if pub_key in request_in.partial_sigs:
+    for pub_key, sig in psbt_in.partial_sigs.items():
+        if request_in is not None and pub_key in request_in.partial_sigs:
             continue
-        msg_hash = _sig_hash_from_psbt_in(returned_in, tx, vin_i, sig[-1])
+        msg_hash = _sig_hash_from_psbt_in(psbt_in, tx, vin_i, sig[-1])
         if msg_hash is None:
             err_msg = f"input {vin_i}: cannot verify the signature of "
             err_msg += f"{pub_key.hex()}, the psbt does not say what was signed"
@@ -2371,8 +2381,10 @@ def _assert_new_ecdsa_sigs_verify(
             raise BTClibValueError(err_msg)
 
 
-def _assert_new_taproot_sigs_verify(request: Psbt, returned: Psbt, vin_i: int) -> None:
-    """Raise unless each taproot signature that arrived verifies.
+def _assert_taproot_sigs_verify(
+    psbt: Psbt, vin_i: int, request_in: PsbtIn | None = None
+) -> None:
+    """Raise unless each taproot signature of the input verifies.
 
     The Finalizer's own checks, asked one role earlier: a key path
     signature against the output key being spent, a script path one
@@ -2380,49 +2392,55 @@ def _assert_new_taproot_sigs_verify(request: Psbt, returned: Psbt, vin_i: int) -
     commits to has to be the type the input asks for, which is what
     `_assert_taproot_sig_hash_type` answers and what decides the message.
 
+    request_in is `_assert_ecdsa_sigs_verify`'s, for the same reason: the
+    signatures an answer was sent are not checked against it, and None is
+    every signature the input carries.
+
     A taproot signature beside an input that does not spend a taproot
     output is refused rather than verified: there is no output key to
-    check it against, and an answer carrying one is describing some other
+    check it against, and a psbt carrying one is describing some other
     input.
+
+    The psbt and not the input alone, `taproot_sig_hash` committing to
+    every input's outpoint and amount: a schnorr signature of one input
+    is a signature of all of them.
     """
-    request_in, returned_in = request.inputs[vin_i], returned.inputs[vin_i]
-    new_key_sig = returned_in.taproot_key_spend_signature and (
-        not request_in.taproot_key_spend_signature
-    )
-    new_script_sigs = {
+    psbt_in = psbt.inputs[vin_i]
+    key_sig = psbt_in.taproot_key_spend_signature
+    if request_in is not None and request_in.taproot_key_spend_signature:
+        key_sig = b""
+    script_sigs = {
         key_data: sig
-        for key_data, sig in returned_in.taproot_script_spend_signatures.items()
-        if key_data not in request_in.taproot_script_spend_signatures
+        for key_data, sig in psbt_in.taproot_script_spend_signatures.items()
+        if request_in is None
+        or key_data not in request_in.taproot_script_spend_signatures
     }
-    if not new_key_sig and not new_script_sigs:
+    if not key_sig and not script_sigs:
         return
 
-    script = _spent_script(returned_in)
+    script = _spent_script(psbt_in)
     if not is_p2tr(script):
         err_msg = f"input {vin_i}: a taproot signature for an input spending "
         err_msg += "no taproot output"
         raise BTClibValueError(err_msg)
 
-    if new_key_sig:
-        sig = returned_in.taproot_key_spend_signature
+    if key_sig:
         hash_type = _assert_taproot_sig_hash_type(
-            sig, returned_in, "taproot key path signature"
+            key_sig, psbt_in, "taproot key path signature"
         )
-        msg = taproot_sig_hash(returned, vin_i, hash_type=hash_type)
+        msg = taproot_sig_hash(psbt, vin_i, hash_type=hash_type)
         output_key = type_and_payload(script)[1]
-        if not ssa.verify_(msg, output_key, sig[:64]):
+        if not ssa.verify_(msg, output_key, key_sig[:64]):
             err_msg = f"input {vin_i}: invalid taproot key path signature for "
             err_msg += f"output key {output_key.hex()}"
             raise BTClibValueError(err_msg)
 
-    for key_data, sig in new_script_sigs.items():
+    for key_data, sig in script_sigs.items():
         pub_key, leaf_hash = key_data[:LEAF_HASH_SIZE], key_data[LEAF_HASH_SIZE:]
         hash_type = _assert_taproot_sig_hash_type(
-            sig, returned_in, "taproot script path signature"
+            sig, psbt_in, "taproot script path signature"
         )
-        msg = taproot_sig_hash(
-            returned, vin_i, leaf_hash=leaf_hash, hash_type=hash_type
-        )
+        msg = taproot_sig_hash(psbt, vin_i, leaf_hash=leaf_hash, hash_type=hash_type)
         if not ssa.verify_(msg, pub_key, sig[:64]):
             err_msg = f"input {vin_i}: invalid taproot script path signature for "
             err_msg += f"key {pub_key.hex()}"
@@ -2493,13 +2511,225 @@ def assert_signatures_only(request: Psbt, returned: Psbt) -> None:
         _assert_unchanged(request_in, returned_in, f"input {vin_i}")
         _assert_signatures_added_only(request_in, returned_in, vin_i)
         _assert_sig_hash_type(returned_in)
-        _assert_new_ecdsa_sigs_verify(request_in, returned_in, tx, vin_i)
-        _assert_new_taproot_sigs_verify(request, returned, vin_i)
+        _assert_ecdsa_sigs_verify(returned_in, tx, vin_i, request_in)
+        _assert_taproot_sigs_verify(returned, vin_i, request_in)
 
     for vout_i, (request_out, returned_out) in enumerate(
         zip(request.outputs, returned.outputs, strict=True)
     ):
         _assert_unchanged(request_out, returned_out, f"output {vout_i}")
+
+
+def assert_signed(psbt: Psbt, *, allow_partial: bool = False) -> None:
+    """Raise unless every input is signed and every signature verifies.
+
+    The question between the two roles that read a signature and answer
+    something else. `assert_signatures_only` holds an answer to the
+    request it came from, and a request nobody signed comes back
+    unchanged and passes; `finalize` builds a spend out of whatever
+    satisfies the script, and reads a signature it cannot verify as one
+    that is not there. So a caller storing a psbt as complete, or about
+    to finalize one, has this to ask: is every signature this psbt
+    carries a signature of this transaction by the key it is filed
+    under, and does every input carry one.
+
+    Both halves matter and neither implies the other. A signature that
+    does not verify is a psbt built, merged or transcribed wrong,
+    whatever the count says; an input with no signature at all is a spend
+    that will not relay, however good the signatures beside it are.
+    allow_partial keeps the first half and drops the second, for a psbt
+    of a signing session still going round: a device holding keys for
+    some inputs only -- one psbt spanning several wallets -- leaves the
+    others untouched, and which of the two a psbt is is the caller's to
+    say and not this function's to guess.
+
+    What neither half asks is whether an input is *satisfied*: one
+    signature of a 2-of-2 is an input signed, and whether a spend can be
+    built out of what the input holds is `finalize`'s answer, over the
+    script and not over a count.
+
+    Verification is `_assert_ecdsa_sigs_verify`'s and
+    `_assert_taproot_sigs_verify`'s, so it covers every input kind either
+    signature kind belongs to, and the sig_hash type each commits to must
+    be the type the input asks for. An input that does not say what was
+    signed -- no utxo, no redeem script, no witness script -- is refused
+    here rather than skipped: the Finalizer's leniency is for a role that
+    has the finalized scripts to fall back on, while a caller asking this
+    is asking about the signatures themselves.
+
+    Two things are deliberately not a signature here. A BIP373 musig2
+    partial signature is not one until the session's are added up, which
+    is `musig2.partial_sigs_agg` and which writes the taproot signature
+    this then checks -- so an input holding a session mid-round is
+    unsigned, and saying so is the point. And a finalized input carries
+    no signature at all, BIP174 having the Finalizer clear them: it is
+    refused with that said rather than reported unsigned, what it now
+    carries being a spend for the script engine to verify.
+    """
+    if not psbt.inputs:
+        raise BTClibValueError("nothing is signed: no inputs")
+    psbt.assert_valid()
+
+    # read once, as `assert_signatures_only` reads it once: every
+    # signature of every input is against the same transaction
+    tx = psbt.tx
+    for vin_i, psbt_in in enumerate(psbt.inputs):
+        if psbt_in.final_script_sig or psbt_in.final_script_witness:
+            err_msg = f"input {vin_i} is finalized: its signatures are in the "
+            err_msg += "final script, for the script engine to verify"
+            raise BTClibValueError(err_msg)
+        _assert_sig_hash_type(psbt_in)
+        _assert_ecdsa_sigs_verify(psbt_in, tx, vin_i)
+        _assert_taproot_sigs_verify(psbt, vin_i)
+        signed = (
+            psbt_in.partial_sigs
+            or psbt_in.taproot_key_spend_signature
+            or psbt_in.taproot_script_spend_signatures
+        )
+        if not signed and not allow_partial:
+            raise BTClibValueError(f"input {vin_i}: not signed")
+
+
+def _master_fingerprint(origin: BIP32KeyOrigin | None, what: str, vin_i: int) -> bytes:
+    """Return the master fingerprint a key origin names.
+
+    None is a psbt that states no origin for the key, and it raises: the
+    question `new_signers` answers is which wallet signed, and a
+    signature nothing in the psbt attributes is not a thing to guess at
+    -- an empty answer would read as "nobody signed" and any other as a
+    key origin that is not there.
+    """
+    if origin is None:
+        raise BTClibValueError(f"input {vin_i}: no key origin for the {what}")
+    return origin.master_fingerprint
+
+
+def _plain_key_signers(
+    request_in: PsbtIn, returned_in: PsbtIn, vin_i: int
+) -> set[bytes]:
+    """Return the signers of the input's plain-key answers, `new_signers`'s.
+
+    The three fields whose key is a compressed public key, and whose
+    origin is therefore `PSBT_IN_BIP32_DERIVATION`'s: the ECDSA partial
+    signatures, and the two musig2 maps, whose participant key is the
+    first 33 bytes of the key data a round is filed under.
+    """
+    signers = set()
+    for pub_key in returned_in.partial_sigs:
+        if pub_key in request_in.partial_sigs:
+            continue
+        origin = returned_in.hd_key_paths.get(pub_key)
+        what = f"signature of {pub_key.hex()}"
+        signers.add(_master_fingerprint(origin, what, vin_i))
+
+    for name in ("musig2_pub_nonces", "musig2_partial_sigs"):
+        was, now = getattr(request_in, name), getattr(returned_in, name)
+        for key_data in now:
+            if key_data in was:
+                continue
+            pub_key = key_data[:MUSIG2_PUB_KEY_SIZE]
+            origin = returned_in.hd_key_paths.get(pub_key)
+            what = f"{name} entry of participant {pub_key.hex()}"
+            signers.add(_master_fingerprint(origin, what, vin_i))
+
+    return signers
+
+
+def _taproot_signers(request_in: PsbtIn, returned_in: PsbtIn, vin_i: int) -> set[bytes]:
+    """Return the signers of the input's taproot answers, `new_signers`'s.
+
+    Both paths, and `PSBT_IN_TAP_BIP32_DERIVATION` for both, under the
+    x-only key each signature is *for*: the internal key for a key path
+    signature, which is under the output key derived from it and which no
+    field states the origin of, and the key its own key data names for a
+    script path one.
+    """
+    signers = set()
+    if returned_in.taproot_key_spend_signature and (
+        not request_in.taproot_key_spend_signature
+    ):
+        internal_key = returned_in.taproot_internal_key
+        derivation = returned_in.taproot_hd_key_paths.get(internal_key)
+        what = f"taproot key path signature of internal key {internal_key.hex()}"
+        signers.add(
+            _master_fingerprint(derivation[1] if derivation else None, what, vin_i)
+        )
+
+    for key_data in returned_in.taproot_script_spend_signatures:
+        if key_data in request_in.taproot_script_spend_signatures:
+            continue
+        pub_key = key_data[:LEAF_HASH_SIZE]
+        derivation = returned_in.taproot_hd_key_paths.get(pub_key)
+        what = f"taproot script path signature of {pub_key.hex()}"
+        signers.add(
+            _master_fingerprint(derivation[1] if derivation else None, what, vin_i)
+        )
+
+    return signers
+
+
+def new_signers(request: Psbt, returned: Psbt) -> set[bytes]:
+    """Return the master fingerprints `returned` adds the signatures of.
+
+    Which wallets answered, read off an answer before it is merged. Every
+    signature names the key that made it -- as the key data it is filed
+    under, in BIP174's `PSBT_IN_PARTIAL_SIG` and BIP371's and BIP373's
+    fields alike -- and the psbt names the origin of that key, whose
+    master fingerprint is the wallet it was derived from. Asked before
+    `combine`, because a Combiner takes the union of what it is given and
+    records nothing of which side each entry came from: afterwards there
+    is nothing left to tell apart.
+
+    A fingerprint and not a key, four bytes of hash160 of a master public
+    key: it is what a psbt states about a key's provenance and all a psbt
+    states, so a device that answered for several keys of several inputs
+    is one signer here, and two devices sharing a seed are not
+    distinguishable at all. It is not evidence either -- a psbt is a file
+    and the origin fields in it are whatever was written there -- so what
+    this answers is "which wallet does this psbt say signed", which is
+    the question a caller filing an answer, or refusing one that came
+    from a device other than the one it asked, actually has.
+
+    The signature kinds are the ones a signer adds: ECDSA partial
+    signatures, attributed through `PSBT_IN_BIP32_DERIVATION`; a taproot
+    key path signature, through the internal key's
+    `PSBT_IN_TAP_BIP32_DERIVATION`, that being what says who holds the
+    key the output commits to; a taproot script path signature, through
+    the same field entry for the x-only key its key data names; and the
+    two musig2 rounds, whose participant key is the first 33 bytes of
+    their key data and whose origin is a plain key's, in
+    `PSBT_IN_BIP32_DERIVATION`. A BIP373 round is included because it is
+    what that participant's answer *is*, as `assert_signatures_only`
+    counts the two maps among the signature fields for the same reason.
+
+    Two of those attributions are honest but weaker than they look, and
+    both are the psbt's doing rather than this function's. A musig2
+    session whose internal key is BIP328-derived from the aggregate key
+    files that derivation under a synthetic fingerprint -- hash160 of the
+    aggregate key -- so the key path signature `partial_sigs_agg` writes
+    is attributed to the session rather than to any one participant,
+    which is exactly what it came from. And a psbt stating no origin for
+    a key it holds a signature of is refused: see `_master_fingerprint`.
+
+    Only the input counts are compared. That the two psbts are otherwise
+    the same request is `assert_signatures_only`'s question, which is the
+    call that belongs beside this one, and the order of the two is the
+    caller's: it is the merge that must not happen before both have
+    answered.
+    """
+    if len(returned.inputs) != len(request.inputs):
+        err_msg = "mismatched number of psbt inputs: "
+        err_msg += f"{len(returned.inputs)} vs {len(request.inputs)}"
+        raise BTClibValueError(err_msg)
+
+    signers: set[bytes] = set()
+    for vin_i, (request_in, returned_in) in enumerate(
+        zip(request.inputs, returned.inputs, strict=True)
+    ):
+        signers |= _plain_key_signers(request_in, returned_in, vin_i)
+        signers |= _taproot_signers(request_in, returned_in, vin_i)
+
+    return signers
 
 
 def _assert_sig_hash_type(psbt_in: PsbtIn) -> None:

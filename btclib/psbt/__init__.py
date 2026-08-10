@@ -15,7 +15,16 @@ the BIP373 role rather than one function, the way btclib.ecc names dsa.
 the psbt being merged came from somebody else. BIP174 gives the Combiner
 no such role -- it takes the union of what it is given and may resolve a
 conflict by picking either side -- so a caller merging an external
-signer's answer has to hold it to the request first.
+signer's answer has to hold it to the request first. `new_signers` is
+what the same caller reads off that answer before merging it: which
+wallets it adds the signatures of, which the union no longer says.
+
+`assert_signed` is the other question about a signature, and about the
+psbt rather than about an answer to a request: every signature it carries
+verifies, and every input carries one. Neither of the two roles that read
+a signature answers it -- a request nobody signed passes
+`assert_signatures_only` unchanged, and `finalize` reads a signature it
+cannot verify as one that is not there.
 
 `ecdsa_sig_hash` and `taproot_sig_hash` are here for the same reason
 `prevouts` is: `sign` needs the message before it needs anything else,
@@ -42,11 +51,13 @@ from btclib.psbt.psbt import (
     KeyManager,
     Psbt,
     assert_signatures_only,
+    assert_signed,
     combine,
     ecdsa_sig_hash,
     extract_tx,
     finalize,
     join,
+    new_signers,
     prevouts,
     sign,
     taproot_sig_hash,
@@ -63,6 +74,7 @@ __all__ = [
     "PsbtOut",
     "SolutionSizer",
     "assert_signatures_only",
+    "assert_signed",
     "combine",
     "ecdsa_sig_hash",
     "estimated_input_sizes",
@@ -70,6 +82,7 @@ __all__ = [
     "finalize",
     "join",
     "musig2",
+    "new_signers",
     "prevouts",
     "sign",
     "taproot_sig_hash",

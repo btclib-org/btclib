@@ -174,6 +174,53 @@ documented at release-notes length in the first place, and are still in
   where paying nothing is not what "no estimate" says. A zero a caller
   means is still a zero rate.
 
+- **`psbt.assert_signed` and `psbt.new_signers`: the two questions about a
+  signature that no BIP174 role answers.** `assert_signatures_only` holds
+  an answer to the request it came from and says nothing about the psbt
+  being complete -- a request nobody signed comes back unchanged and
+  passes it -- while `finalize` builds a spend out of whatever satisfies
+  the script and reads a signature it cannot verify as one that is not
+  there. So a caller storing a psbt as signed, or about to finalize one,
+  had both checks to write itself, over a hash whose computation is the
+  input's kind and the type byte appended to each signature.
+
+  `assert_signed(psbt, allow_partial=False)` asks that every signature the
+  psbt carries verifies against the key it is filed under and that every
+  input carries one. allow_partial keeps the first half and drops the
+  second, for a psbt of a signing session still going round: one psbt
+  spanning several wallets leaves each device the inputs it holds no key
+  for, and nothing in the psbt says which of the two it is. What it does
+  not ask is whether an input is *satisfied* -- one signature of a 2-of-2
+  is an input signed, and whether a spend can be built out of it is
+  `finalize`'s answer. Two more decisions, each visible in an error
+  message: a finalized input is refused rather than reported unsigned,
+  BIP174 having the Finalizer clear the partial signatures it built the
+  witness from; and a musig2 session mid-round is unsigned, a BIP373
+  partial signature being no signature of the input until
+  `partial_sigs_agg` adds the session up.
+
+  `new_signers(request, returned)` is which wallets an answer adds the
+  signatures of, as master fingerprints, and it has to be asked *before*
+  `combine`: the Combiner takes the union of what it is given and records
+  nothing of which side each entry came from, so afterwards there is
+  nothing left to tell apart. Every signature names the key that made it,
+  as the key data it is filed under, and the psbt names that key's
+  origin -- an ECDSA partial signature and a musig2 round through
+  `PSBT_IN_BIP32_DERIVATION`, a taproot key path signature through the
+  internal key's `PSBT_IN_TAP_BIP32_DERIVATION`, a script path one
+  through the entry for the x-only key its key data names. A signature the
+  psbt states no origin for is refused rather than attributed to nobody:
+  an empty answer reads as "nobody signed", and a caller filing an answer
+  under the device it asked would file this one under the wrong name.
+
+  What it cost is one parameter each on the two verifiers
+  `assert_signatures_only` already had. They took the request to compare
+  with; they take its input map as an optional argument now --
+  `_assert_ecdsa_sigs_verify` and `_assert_taproot_sigs_verify`, where
+  None means "verify every signature this input holds". One implementation
+  of a signature check, for the role that has a request and for the caller
+  that has none.
+
 ### Curves, signatures and keys
 
 - **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
