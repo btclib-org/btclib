@@ -168,6 +168,40 @@ documented at release-notes length in the first place, and are still in
   now repeats, the two parsers agreeing on the message as well as on the
   number.
 
+### Wallets
+
+- **`ScriptWallet` is BIP174's Updater for the scripts no descriptor
+  states** (#587). `DescriptorWallet` has `update_psbt_input` and
+  `update_psbt_output` and this class had neither, so a caller spending a
+  script outside BIP380-390 wrote the psbt fields by hand: the witness
+  script under each input, and, under every key of it, the origin a
+  hardware signer derives that key from. Both are what the wallet has
+  computed anyway -- `redeem_script` and `witness_script` are the two
+  pre-images, and the keys are the ones the script carries -- so what was
+  left to a caller was the writing and not the knowing.
+
+  Being an Updater is not being a signer, which is the line this holds:
+  no language says what satisfies such a script, so the satisfaction
+  stays the caller's and `psbt.finalize` still cannot assemble the
+  witness. The output half refuses unless the output being paid is the
+  very script the position derives, as `Descriptor.update_psbt_output`
+  does: marking an output as one's own is a claim about where money goes,
+  and the whole script is the only evidence for it. What it writes is
+  every key of the template and not the quorum a spend would use -- an
+  output is not a signing instruction, and a reader wants the whole
+  script, the branch nobody is spending included.
+
+  `KeyGroup(threshold, keys, origins=...)` is where an origin comes from,
+  one entry per key and `None` for a key without one. It has to be given:
+  BIP174 carries the master fingerprint and the path from the master key
+  down, and an extended key below the root records neither, which is the
+  same reason `descriptors.account_descriptors` takes the fingerprint
+  beside the key. What the key does record is checked -- its depth
+  against the path's length, its own index against the path's last step,
+  and, for a master key, the fingerprint itself -- so an origin that
+  would send a signer to derive another key is refused where it is
+  declared rather than written into a psbt.
+
 ## v2026.8.9
 
 ### Descriptors and miniscript
