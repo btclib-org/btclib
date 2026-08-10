@@ -15,9 +15,9 @@
 # sharing one command would make every mutant here pay for a fake
 # `hwi.py` being started twenty times
 module-path = [
-  "btclib/psbt_signer.py",
-  "btclib/psbt_signer_contract.py",
-  "btclib/tx_or_psbt.py",
+    "btclib/psbt_signer.py",
+    "btclib/psbt_signer_contract.py",
+    "btclib/tx_or_psbt.py",
 ]
 
 # the three modules' own files plus tests/software_signer_test.py, which

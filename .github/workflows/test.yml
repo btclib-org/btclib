@@ -84,14 +84,12 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          [
-            ubuntu-latest,
-            ubuntu-24.04-arm,
-            macos-26-intel,
-            macos-latest,
-            windows-latest,
-            windows-11-arm,
-          ]
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-26-intel
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it is in the matrix
         # for what it installs as much as for what it runs: the bindings
         # ship a py3-none dynamic wheel for it, and nothing else here
@@ -106,15 +104,13 @@ jobs:
         # inputs with a version nobody else runs, on the older of the two
         # PyPy releases; pypy3.11 covers the implementation
         python:
-          [
-            "3.10",
-            "3.11",
-            "3.12",
-            "3.13",
-            "3.14",
-            "3.14t",
-            "pypy3.11",
-          ]
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
     # far above what a run of the suite needs: what it bounds is a hung
     # job holding a runner for six hours
     timeout-minutes: 30

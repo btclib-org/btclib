@@ -77,6 +77,13 @@ repos:
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json
+        # `.vscode` is jsonc and not json: VSCode reads a comment in its own
+        # settings.json and extensions.json, and what those two files carry
+        # besides the settings is the reason for each of them. A json parser
+        # rejects the file at the first one. It is not a gap: prettier below
+        # is given that directory and fails on what it cannot parse, which
+        # is the question this hook asks
+        exclude: ^\.vscode/
       # both of this hook's defaults are wrong for this tree: at
       # --indent=2 nearly every json file here fails, the golden-file
       # fixture writing json.dumps(indent=4) (tests/conftest.py) -- so at
@@ -103,13 +110,19 @@ repos:
         # rather than a blob -- because the default for anything else in
         # that directory has to stay "not touched". (?x) is verbose mode,
         # i.e. the newlines below are not part of the pattern
+        # `.vscode` is the second name in the alternation and is there for
+        # the reason check-json above is given the same exclude: those files
+        # are jsonc, this hook parses json, and prettier below is what
+        # formats and parses them instead -- at its own indent, which is not
+        # this hook's 4 and does not have to be, no file being read by both
         exclude: |
-          (?x)^tests/([^/]+/)?_data/
-          (?!btclib_test_vectors\.json
-            |descriptor_checksums\.json
-            |rfc6979\.json
-            |electrum_test_vectors\.json
-            |unspendable_script_pub_keys\.json)
+          (?x)^(\.vscode/
+            |tests/([^/]+/)?_data/
+            (?!btclib_test_vectors\.json
+              |descriptor_checksums\.json
+              |rfc6979\.json
+              |electrum_test_vectors\.json
+              |unspendable_script_pub_keys\.json))
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key
@@ -237,6 +250,47 @@ repos:
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
+  # what ruff-format is for Python, on the structured files ruff does not
+  # read: yaml, and the jsonc that carries a comment. Before yamllint below,
+  # so the linter judges the formatted file and not the one that was typed.
+  #
+  # Not the archived pre-commit/mirrors-prettier, which stopped at prettier
+  # 2. The default configuration and no .prettierrc: what this tree already
+  # writes is what prettier writes, the exception being an inline sequence
+  # long enough to be exploded, and a block sequence -- which prettier
+  # leaves alone -- is the spelling that keeps one entry per line whatever
+  # the width.
+  #
+  # `files` is an allow list and not an exclude, because prettier reads more
+  # than it should be given here. markdown is markdownlint's, whose config
+  # settles the styles prettier would also have an opinion about; the json
+  # under tests is golden-file output and vendored vectors, which
+  # pretty-format-json above and tests/_data/README.md have the say over;
+  # .secrets.baseline is detect-secrets' own output. What is in scope is the
+  # yaml, `.vscode` and .markdownlint.jsonc, and prettier is also what
+  # parses the last two -- check-json cannot read a comment
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.6
+    hooks:
+      - id: prettier
+        name: prettier (yaml and jsonc, in place fixes)
+        files: ^(.*\.ya?ml|\.vscode/.*\.json|\.markdownlint\.jsonc)$
+  # the same for toml, which here is pyproject.toml and the mutation
+  # sessions under .github: .taplo.toml holds the formatting choices and the
+  # reasoning for them, as .yamllint.yaml does for the width of a yaml line.
+  # uv.lock is toml to identify and therefore matched by the hook's own
+  # types, and it is uv's file to write. It runs before toml-comment-width
+  # below, which reads a comment line and is the one thing here a formatter
+  # does not settle -- taplo aligns a comment that trails a value and
+  # rewraps none. taplo-lint is not enabled beside this: it validates
+  # against a schema catalogue it fetches, and pyroma and check-manifest
+  # below read the metadata offline
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+        name: taplo (toml, in place fixes)
+        exclude: ^uv\.lock$
   # the width of a yaml line, which nothing else here measured: the hook
   # above holds markdown to 80 columns and ruff holds Python comments and
   # docstrings to the same, and the workflows were a place prose could

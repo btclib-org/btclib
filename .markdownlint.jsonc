@@ -1,5 +1,4 @@
 {
-
   // rules https://github.com/DavidAnson/markdownlint
 
   // See https://github.com/DavidAnson/markdownlint-cli2 and
@@ -35,7 +34,7 @@
   // MD007/ul-indent - Unordered list indentation
   "MD007": {
     // Spaces for indent
-    "indent": 4
+    "indent": 4,
   },
 
   // MD029/ol-prefix - every item numbered "1.", the renderer numbering
@@ -57,6 +56,5 @@
   // MD049/MD050 - asterisks for both, so that *emphasis* and **strong**
   // are told apart by how many rather than by which character
   "MD049": { "style": "asterisk" },
-  "MD050": { "style": "asterisk" }
-
+  "MD050": { "style": "asterisk" },
 }
