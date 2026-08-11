@@ -481,6 +481,36 @@ documented at release-notes length in the first place, and are still in
   spellings were measured to agree on all 27 of the first and all of the
   second, which is why this is a correctness fix with no behaviour to
   record.
+- **An extended public key is validated by a predicate, not by a lift**
+  (#615). `_assert_valid_key` computed the y of the 33 bytes with
+  `secp256k1.y` and threw it away, the call being there for the
+  exception: the question asked is whether the x is an x-coordinate at
+  all, which is what `curves.curve._is_x_coordinate` answers --
+  `ec_pubkey_parse` of `0x02 || x`, 2.5 µs against the 75 of the Python
+  modular square root. `BIP32KeyData.b58decode` of an xpub is 12.4 µs
+  against 86.3, `derive(xpub, "m/0/1")` 65.9 against 288,
+  `slip132.address_from_xkey` 33.5 against 257, `xpub_from_xprv` 33.2
+  against 108. The check is paid once per extended key object, so every
+  level of every derivation path paid the root -- three of them for
+  `m/0/1` -- which is what makes this more than a microbenchmark: a
+  downstream suite deriving whitelists over multisig branches spent 56%
+  of its Python CPU in `mod_sqrt`.
+
+  Issue #288 delegated the same square root where a compressed key is
+  parsed into a point, and this call site did not come along with it
+  because it reaches `CurveGroup.y` directly rather than through
+  `point_from_octets`. `_y_even` would answer here too and is barely
+  dearer, but it materializes a point nobody wants and falls back to the
+  Python root to phrase a refusal: half of the field elements are not
+  x-coordinates, so that is the square root paid on exactly the inputs
+  meant to be cheap, which is the trade `_is_x_coordinate` exists not to
+  make. The refusal is unchanged, `invalid public key: 0x...` naming the
+  whole 33 bytes; what goes is its `__cause__`, a predicate having no
+  "invalid x-coordinate" to chain from. The private-key branch is a
+  scalar range check with no curve arithmetic and is untouched, and
+  `CurveGroup.y`/`y_even` are still reached directly from
+  `script.taproot` and `ecc.pedersen`, each with its own answer to
+  whether it wants a coordinate or a predicate.
 
 ### The public API and the module layout
 

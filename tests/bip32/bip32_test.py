@@ -27,6 +27,7 @@ from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import (
     bytes_from_point,
     bytes_from_prv_key_int,
+    curve_group,
     mult,
     point_from_octets,
 )
@@ -228,6 +229,43 @@ def test_invalid_bip32_xkeys(xkey: str, err_msg: str) -> None:
     """
     with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
         BIP32KeyData.b58decode(xkey)
+
+
+def test_public_key_validation_does_not_lift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Validating an extended public key asks for existence, not for y.
+
+    The y computed to validate an xpub was thrown away, and the modular
+    square root that found it was paid once per extended key -- so by
+    every level of every derivation path (issue 615). What pins the
+    predicate in place of the lift is reaching no square root at all,
+    not a stopwatch: mod_sqrt is patched to raise, and the accepted key
+    and the refused one both have to get their answer without it.
+    """
+
+    def refuse(*_: object) -> int:
+        # a green suite is one where this never runs, which is the pragma
+        # curve_test.no_bindings carries for the same reason
+        raise AssertionError(  # pragma: no cover
+            "the y of an extended public key was computed"
+        )
+
+    monkeypatch.setattr(curve_group, "mod_sqrt", refuse)
+
+    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    assert BIP32KeyData.b58decode(xpub).b58encode() == xpub
+    assert derive(xpub, "m/0/1")
+
+    # 0x02 || 7, the x of no point: BIP32 test vector #5's "invalid
+    # pubkey 0200...07", which bip32_invalid_keys.json carries in full
+    decoded = base58.decode(xpub)
+    bad_xpub = base58.encode(decoded[:45] + b"\x02" + (7).to_bytes(32, "big"), 78)
+    err_msg = "invalid public key: 0x02000000"
+    with pytest.raises(BTClibValueError, match=err_msg) as excinfo:
+        BIP32KeyData.b58decode(bad_xpub)
+    # a predicate has no exception to chain: the message is the whole error
+    assert excinfo.value.__cause__ is None
 
 
 def test_derive() -> None:
