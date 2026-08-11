@@ -12,7 +12,9 @@ name: codeql
 # unsafe checkouts in these very workflows was itself the part of CI
 # nobody could audit.
 #
-# What the setting held is reproduced rather than invented:
+# What the setting held is reproduced rather than invented. Read from the
+# API while it still held it -- the same command answers
+# `state: not-configured` now, the switch having been made:
 #
 #   gh api repos/btclib-org/btclib/code-scanning/default-setup
 #   # {"state":"configured","languages":["actions","python"],

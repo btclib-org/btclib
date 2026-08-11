@@ -118,7 +118,7 @@ rather than absent — which is why the exchange has an order. These five
 steps are the order that never leaves `main` unmergeable, and 1, 2 and 5
 are a token rather than a pull request, so only a human can perform them:
 
-1. patch the rule to drop the `CodeQL` context, the other four staying;
+1. patch the rule to drop the `CodeQL` context, every other one staying;
 1. disable default setup;
 1. re-run the pull request's checks: the upload that was refused is
    accepted now, so `codeql: every job passed` goes green;
@@ -129,6 +129,26 @@ Step 2 is what makes the setting let go of the analysis. It is not the
 command that enabled default setup and there is no need to keep that one:
 what a browser switched on, this switches off, and the tree is where the
 configuration lives afterwards.
+
+Two things survive step 2, and neither is explained by the endpoint this
+section tells you to read. A generated
+`dynamic/github-code-scanning/codeql` workflow stays `active` and keeps
+running `Analyze (ruby)` and `Analyze (python)`, but it uploads *code
+quality* results now — `ruby.quality.sarif` in its log, where the security
+analysis produced `python.sarif` and `actions.sarif`. Code quality is a
+separate setting, and `code-scanning/default-setup` does not report it:
+
+```shell
+gh api repos/btclib-org/btclib/actions/workflows \
+  --jq '.workflows[] | select(.path | startswith("dynamic/"))
+        | {name, path, state}'
+```
+
+And the `CodeQL` context itself does not stop: it still reports on a pull
+request's head, `neutral` where it was `success`, summarised
+`1 configuration not found`. Whether a rule naming it would be satisfied by
+that is untested, and testing it means deadlocking `main` to find out —
+which is an argument for the order above rather than against it.
 
 ```shell
 gh api -X PATCH \
