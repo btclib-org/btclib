@@ -87,6 +87,29 @@ documented at release-notes length in the first place, and are still in
   pull request's body is now written from, there being no pull request
   standing open for a cycle to write them into.
 
+- **CONTRIBUTING.md describes the CI that runs.** Read back from the
+  workflow files and the repository settings rather than remembered, it
+  was describing jobs and triggers that had moved: `Build the
+  documentation` as a second job of `lint.yml`, where it is `docs.yml`,
+  a workflow of its own; `test-py`, `coverage-py` and `dist-py`, since
+  renamed `suite`, `coverage` and `dist`, in RELEASING.md as well;
+  `published` as weekly, where its cron is monthly; `integration` as
+  gating nothing, where `Regtest against Bitcoin Core` is required on
+  `main` and runs on every pull request; and the declared bindings floor
+  as `>=0.7.1`, where `pyproject.toml` says `>=0.7.1.3`.
+
+  Three more follow from the same reading. The merge paragraph stated the
+  shape of the squash commit, and reads `squash_merge_commit_title` and
+  `squash_merge_commit_message` back from the repository instead: a
+  branch of one commit lands under that commit's own subject, with no
+  number appended. The names kept out of `__all__` gain `btclib.name`,
+  which `tests/all_test.py` records and the prose did not. And the
+  package counts in the `--python` warning are gone rather than
+  corrected: they had drifted, nothing checks them, and the mechanism
+  they illustrate does not need them. The "to do: document how to do it
+  in VS Code" line goes with them, "The editor" section below it being
+  that documentation.
+
 - **The links that named a branch name the one that is there.** The
   README's licence link and its pre-commit.ci badge, `pyproject.toml`'s
   `changelog` URL -- which PyPI publishes on the project page -- the

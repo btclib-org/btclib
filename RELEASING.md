@@ -97,7 +97,7 @@ Already done for btclib-org/btclib; kept here for the record.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-packaging checks of the `dist-py` job (twine, check-wheel-contents,
+packaging checks of the `dist` job (twine, check-wheel-contents,
 pyroma), build, wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/btclib/) instead of PyPI.
 
@@ -163,7 +163,7 @@ word, and step 1 asks it of both.
    btclib_libsecp256k1 and bitcoin-core-rpc — is the one this release
    should depend on, and that `pyproject.toml`'s pin says so. Two
    questions, not one: whether the pin *resolves*, which the wheel smoke
-   test of the `dist-py` job already answers on every pull request by
+   test of the `dist` job already answers on every pull request by
    failing when only an unreleased version satisfies it, and whether the
    floor should *move*, which nothing automates because only a person
    knows what the sibling's release was for. Both projects are pinned
