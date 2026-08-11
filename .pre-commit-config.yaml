@@ -368,9 +368,9 @@ repos:
   # and not this. A typo in a package-ecosystem or a directory is not an
   # error to GitHub -- it silently updates nothing, and the evidence is a
   # pull request that never arrives. That file is the whole of the answer
-  # to issue #158, both ecosystems targeting dev so that bot commits reach
-  # master through it, so "it stopped running and said nothing" is exactly
-  # the failure to guard against.
+  # to issue #158, both ecosystems reaching the default branch as a pull
+  # request, so "it stopped running and said nothing" is exactly the
+  # failure to guard against.
   # check-github-workflows is not added beside it: actionlint already
   # reads every workflow and goes further than the schema does, into
   # expressions, contexts and runner labels

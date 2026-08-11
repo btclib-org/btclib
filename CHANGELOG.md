@@ -67,6 +67,25 @@ documented at release-notes length in the first place, and are still in
   say so -- and listing it would spend a runner on nearly every pull
   request, which is the cost this filter exists to avoid. The job still
   gates nothing and is still absent from master's required checks.
+- **Both update bots open against the branch this repository has.**
+  `.github/dependabot.yml` named a `target-branch` for each of its two
+  ecosystems and `.pre-commit-config.yaml` named an `autoupdate_branch`,
+  three settings pointing at a branch that is not there -- and neither
+  service treats that as an error. Dependabot opens nothing, pre-commit.ci
+  updates nothing, and the evidence either way is a pull request that never
+  arrives, which is indistinguishable from a week in which no dependency
+  moved. All three are dropped rather than corrected: without them each bot
+  targets the default branch, which is the one branch here, so there is no
+  second place left to keep in step with a rename. Security updates were
+  part of what stopped, so this is not only about tooling drift.
+- **Read the docs builds on the interpreter `docs.yml` builds on**, 3.14,
+  which is what `.python-version` says. The same documentation is built
+  twice, once for the website and once as a required check, and two
+  interpreters make those two different questions -- a docstring that
+  renders under one and fails `-W` under the other is then found after the
+  merge, on the service whose failure is not a check on the pull request.
+  btclib_libsecp256k1's own file says it matches this one and moves with
+  it.
 
 - **The distribution files are reproducible**: two checkouts of one commit
   build the same wheel and the same sdist, so the provenance attestation
