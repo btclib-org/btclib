@@ -43,6 +43,30 @@ documented at release-notes length in the first place, and are still in
   now beside the claim -- some of the five are bound to Actions and the
   rest to nothing, which the `PATCH` above them cannot express.
 
+- **RELEASING.md cuts the release this repository can cut.** It still cut
+  one by merging `dev` into `master`: a "Rebase and merge" that the
+  100-commit limit refuses on a cycle's worth of commits, the
+  fast-forward push standing in for the button, and a "Realign `dev` onto
+  `master`" step that tagged the old tip, force-pushed the branch and
+  turned `allow_force_pushes` on and off around that push. None of it has
+  a branch to run on. What replaces it is one branch: the release commit
+  lands on `main` through a squash-merged pull request like any other,
+  the tag goes on the commit `main` ends up at, and the draft pull
+  request that used to accumulate the release notes over a cycle is
+  gone -- HISTORY.md's "work in progress" section is what the release
+  pull request's body is now written from, there being no pull request
+  standing open for a cycle to write them into.
+
+- **The links that named a branch name the one that is there.** The
+  README's licence link and its pre-commit.ci badge, `pyproject.toml`'s
+  `changelog` URL -- which PyPI publishes on the project page -- the
+  question issue template's link to the README, and `_config.yml`'s
+  account of where Pages serves the website from all said `master`. The
+  badge is the one that reported rather than redirected, pre-commit.ci
+  serving a result per branch, so it answered for whichever branch its
+  URL named. `_config.yml`'s exclude list also drops `RELEASE.md`,
+  `master`'s name for RELEASING.md, which no branch carries now.
+
 ### Packaging, linting and CI
 
 - **The Bitcoin Core regtest job runs for the code it checks** (#570).

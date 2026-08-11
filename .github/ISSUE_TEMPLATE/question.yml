@@ -10,7 +10,7 @@ body:
         Discussions are not enabled here, so a question is an issue: this
         form is what keeps one from having to be filed as a bug. The
         [documentation](https://btclib.readthedocs.io/) and the
-        [README](https://github.com/btclib-org/btclib/blob/master/README.md)
+        [README](https://github.com/btclib-org/btclib/blob/main/README.md)
         come first, and for a real-time answer there is the Slack channel
         linked from CONTRIBUTING.md.
 

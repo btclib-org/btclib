@@ -88,7 +88,7 @@ classifiers = [
 homepage = "https://btclib.org"
 documentation = "https://btclib.readthedocs.io/"
 download = "https://github.com/btclib-org/btclib/releases"
-changelog = "https://github.com/btclib-org/btclib/blob/master/HISTORY.md"
+changelog = "https://github.com/btclib-org/btclib/blob/main/HISTORY.md"
 repository = "https://github.com/btclib-org/btclib"
 issues = "https://github.com/btclib-org/btclib/issues"
 pull_requests = "https://github.com/btclib-org/btclib/pulls"
@@ -403,7 +403,7 @@ skip_covered = true
 precision = 2
 # a local threshold rather than a coveralls.io upload: no secret, no
 # third party service, and enforced on every run instead of only on
-# pull requests targeting master.
+# pull requests.
 # 100 is not the same rule with the bar raised: coverage special-cases
 # it, so `round(total, precision) < fail_under` does not apply and
 # nothing short of an exact 100.00% passes -- 99.999% is a red build,
