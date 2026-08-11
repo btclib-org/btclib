@@ -24,6 +24,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **Every required check names the app that produces it.** Three of the
+  five carried `app_id: 15368` and `Lint and type-check` and `Build the
+  documentation` carried none, which is not a weaker spelling of the same
+  rule: an unbound context is satisfied by *any* app that reports a check
+  run of that name, so anything installed on the organization with
+  `checks: write` could turn one green with no workflow having run. Both
+  are Actions checks -- `gh api
+  repos/btclib-org/btclib/commits/<sha>/check-runs` answers 15368 for each
+  -- so binding them changes nothing a run can see, and closes that.
+  REPOSITORY.md's rename recipe moves from `contexts` to `checks` with
+  them, and the two bodies in its code-scanning section carry the app on
+  every entry: `contexts` has no field for one, so a `PATCH` sending it
+  replaces the bound list with an unbound one, silently and with nothing
+  in a run to say so -- which is how the documented recipe would have
+  undone this the next time a check was renamed
 - **The website has a build that can fail.** btclib.org is this
   repository's own root, served by the classic Pages builder -- `gh api
   repos/btclib-org/btclib/pages` answers `build_type: legacy` -- which
