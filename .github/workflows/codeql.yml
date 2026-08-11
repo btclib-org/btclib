@@ -32,11 +32,13 @@ name: codeql
 # `threat_model: remote` is CodeQL's own default, so nothing here sets it;
 # it would take a `config:` block naming `threat-models` to depart from.
 #
-# REPOSITORY.md has the order in which the switch is thrown, and it
-# matters: while default setup is enabled GitHub refuses to run an
-# advanced workflow, so this file produces no check at all until the
-# setting is turned off, and the branch rule has to stop naming `CodeQL`
-# before that happens or nothing can merge in between.
+# REPOSITORY.md has the order in which the two are exchanged, and it
+# matters, because the setting does not refuse to let this file run: the
+# analysis completes and the SARIF uploads, and processing then answers
+# "CodeQL analyses from advanced configurations cannot be processed when
+# the default setup is enabled". Both jobs below are therefore red rather
+# than absent while the setting is on, so the branch rule stops naming
+# `CodeQL` before the setting goes off and names the aggregate after.
 
 on:
   push:

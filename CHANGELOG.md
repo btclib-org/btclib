@@ -153,13 +153,16 @@ documented at release-notes length in the first place, and are still in
   analyses this repository has received, every one is python or actions
   and none is ruby.
 
-  The switch cannot be thrown by a pull request, and REPOSITORY.md has the
-  order in which it is: GitHub refuses to run an advanced workflow while
-  default setup is enabled, so this file produced no check on the pull
-  request that added it, and the branch rule had to stop naming `CodeQL`
-  before the setting could be turned off. Dropping the context first costs
-  a window in which nothing scans; disabling the setting first costs a
-  required check that cannot report and a merge nobody can perform.
+  The exchange cannot be made by a pull request, and REPOSITORY.md has the
+  order it takes. The setting does not decline to let the workflow run:
+  the analysis completes and the SARIF uploads, and processing answers
+  that an advanced configuration cannot be processed while default setup
+  is enabled, so both jobs are red rather than absent until the setting
+  goes off. The branch rule therefore stops naming `CodeQL` first --
+  dropping the context costs a window in which nothing scans, where
+  disabling the setting first costs a required check that cannot report
+  and a merge nobody can perform -- and names `codeql: every job passed`
+  after the merge, that check not existing on `main` before it.
 
 ### Transactions, blocks and PSBT
 
