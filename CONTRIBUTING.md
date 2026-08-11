@@ -49,7 +49,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependency is `btclib_libsecp256k1>=0.7.1`, with no
+**The declared dependency is `btclib_libsecp256k1>=0.7.1.3`, with no
 upper bound**, and the absence of a ceiling is a decision. The bindings are
 a btclib-org project developed by the same people, and their whole purpose
 is to be the bindings this library calls, so a breaking change there is
@@ -68,12 +68,12 @@ promise is about that pair — a bindings release keeps the runtime API the
 supported btclib needs, and an older btclib may one day stop installing or
 running against the newest bindings.
 
-The bound is the oldest final release this version supports, and
-`0.7.1rc1` is below it: the candidate is what the pin named while nothing
-final satisfied it. What a resolver does with prereleases is its own
-policy — pip and uv alike prefer a stable candidate and reach for a
-prerelease only when no stable one satisfies the constraints — so the
-bound states support and nothing else. See the
+The bound is the oldest final release this version supports, and a
+prerelease of it sorts below it rather than satisfying it. What a
+resolver does with prereleases is its own policy — pip and uv alike
+prefer a stable candidate and reach for a prerelease only when no stable
+one satisfies the constraints — so the bound states support and nothing
+else. See the
 [version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
 and
 [uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
@@ -99,8 +99,8 @@ before it bites.** An interpreter other than the one already there makes uv
 report `Removed virtual environment at: .venv` and create it again — so
 whatever groups the command asks for are the only ones installed
 afterwards. With the group-restricted commands under "Reproducing what CI
-runs" below, that leaves an environment of 15 packages where `uv sync`
-leaves 84, and pre-commit is not among them. The git hook pre-commit
+runs" below, that leaves an environment holding one group where `uv sync`
+installs them all, and pre-commit is not in it. The git hook pre-commit
 installs `exec`s `.venv/bin/python -mpre_commit` by absolute path, and
 that python does exist, so the hook's own "did you forget to activate your
 virtualenv" fallback never runs: the next `git commit` dies with
@@ -188,8 +188,6 @@ formatter reflows it to 88 — and neither is yaml, at 100, an action
 pinned to a commit SHA being past 80 before anything else is said;
 `.yamllint.yaml` has that arithmetic.
 
-\[To do: document how to do it in VS Code\]
-
 One of those hooks needs maintenance, and only one. The test vectors under
 `tests/ecc/_data/` and `tests/script/_data/` are private keys by the
 hundred, so they are recorded in `.secrets.baseline` as already reviewed —
@@ -270,10 +268,10 @@ uv run --locked --only-group lint \
     pre-commit run --all-files --show-diff-on-failure
 ```
 
-That workflow has a second job, `Build the documentation`, whose command is
-the one below under "The documentation".
+`Build the documentation` is a workflow of its own, `docs.yml`, and its
+command is the one below under "The documentation".
 
-One cell of the `test-py` matrix. The interpreter is chosen with
+One cell of the `suite` matrix of `test.yml`. The interpreter is chosen with
 `--python`, which accepts any of the ones the matrix lists, `3.14t` and
 `pypy3.11` included, and downloads it if the machine has none:
 
@@ -287,7 +285,7 @@ started" above, and `UV_PROJECT_ENVIRONMENT` for running it without
 touching `.venv`. The command is what CI runs, verbatim, and CI has no
 `.venv` to lose.
 
-The `coverage-py` job, gated by `fail_under` in pyproject.toml:
+The `coverage` job, gated by `fail_under` in pyproject.toml:
 
 ```shell
 uv run --locked --no-default-groups --group test pytest --cov
@@ -298,7 +296,7 @@ What `--cov` measures and how it reports are `tool.coverage.run`'s
 and the `pytest --cov` above are the same measurement: the job cannot
 gate on a scope a contributor's run does not have.
 
-The `dist-py` job, which inspects what would be published and then
+The `dist` job, which inspects what would be published and then
 installs it. The last commands ask for the wheel and nothing else, so
 what pulls btclib_libsecp256k1 in is the `Requires-Dist` the wheel
 carries; the lock arrives as constraints, which bind a version without
@@ -334,7 +332,7 @@ uv version --short
 ```
 
 Its build job then repeats the smoke test above on the wheel it uploads,
-which is not the one `dist-py` built, and repeats it without the
+which is not the one `dist` built, and repeats it without the
 constraints. No pull request waits on that job and no branch rule names
 it, where `publish-testpypi` and `publish-pypi` both have it in `needs`:
 so it is the place to ask whether the newest published bindings satisfy
@@ -377,7 +375,8 @@ uv lock --upgrade-package btclib_libsecp256k1
 uv run --locked --no-default-groups --group test pytest
 ```
 
-The `published` workflow, weekly and on demand, installs btclib itself
+The `published` workflow, monthly, on demand and as part of a release,
+installs btclib itself
 from PyPI, nothing checked out, and asks whether it works rather than
 whether it installs: `import btclib` runs `__init__.py` alone, and the
 files under `btclib/*/_data/` — the wordlists among them — are opened by
@@ -478,9 +477,11 @@ exits non-zero for one, which is the only thing the workflow is red about.
 Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
-The `integration` workflow, weekly and on demand, which gates nothing
-either and asks the one question the rest of CI cannot: whether Bitcoin
-Core accepts what btclib built. It downloads a pinned Core release,
+The `integration` workflow, which gates and is the exception here: it
+runs on every pull request, weekly besides, and `Regtest against Bitcoin
+Core` is required on `main`. It asks the one question the rest of CI
+cannot, whether Bitcoin Core accepts what btclib built. It downloads a
+pinned Core release,
 verifies its published sha256, and runs the tests `tests/README.md`
 documents with the binary named rather than found on PATH:
 
@@ -496,7 +497,7 @@ fixture stopped finding the node would stay green while asking Core
 nothing. The HWI tests skip there by design, needing a device or an
 emulator, and are not counted.
 
-The documentation, which the `Build the documentation` job of `lint.yml`
+The documentation, which the `Build the documentation` job of `docs.yml`
 runs with this same command, as read the docs does. `-W` is what makes an
 `automodule` whose module does not import a failure rather than an empty
 page — and what catches invalid reStructuredText in a docstring, which no
@@ -677,8 +678,9 @@ parent decides whether it is reachable.
 
 **A public name kept out of the list is a decision, and the docstring
 says why.** The `datadir` of `btclib.network` and of
-`btclib.curves.curve`, and the three checksum tables of
-`btclib.descriptors`, are the ones in the tree today; each stays
+`btclib.curves.curve`, the three checksum tables of
+`btclib.descriptors`, and `btclib`'s own `name`, are the ones in the tree
+today; each stays
 importable from the module that defines it, which is where the test suite
 takes it from. `tests/all_test.py` checks all of this and finds the
 modules rather than listing them, so a new public name fails the suite
@@ -781,12 +783,24 @@ check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
 Nothing is lost in `main`'s history by doing so, because **a pull request
-is merged with "Squash and merge"**: the branch becomes one commit whose
-subject is the PR title with its number, so the review's commits are the
-record of the review and `main` keeps one commit per landed change. A
-merge commit would put the branch's steps into `main` and a rebase merge
-would replay them one by one — `main` is linear by branch rule, and one
-change is one commit there.
+is merged with "Squash and merge"**: the branch becomes one commit, so
+the review's commits are the record of the review and `main` keeps one
+commit per landed change. A merge commit would put the branch's steps
+into `main` and a rebase merge would replay them one by one — `main` is
+linear by branch rule, and one change is one commit there.
+
+What that commit says is the repository's to answer, not this file's:
+
+```shell
+gh api repos/btclib-org/btclib --jq \
+  '{t: .squash_merge_commit_title, m: .squash_merge_commit_message}'
+# {"t": "COMMIT_OR_PR_TITLE", "m": "COMMIT_MESSAGES"}
+```
+
+so a branch of one commit lands under that commit's own subject, a branch
+of several under the pull request's title with its number, and the body
+is the branch's commit messages either way — never the pull request's
+body, which stays on the pull request.
 
 **Read the button before clicking it.** All three methods are enabled on
 the repository and GitHub offers whichever was used last, so the squash is
