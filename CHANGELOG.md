@@ -22,6 +22,27 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **`main` is the only branch, and the three files a session reads say
+  so.** `REPOSITORY.md` documented a protected `master` fed by a `dev`
+  that carried no required check, `CONTRIBUTING.md` a website served from
+  `master` and a release merged into it with "Rebase and merge", and
+  `CLAUDE.md` a worktree based on `origin/dev` -- a base `git worktree
+  add` cannot resolve, in the one file whose job is to keep a session from
+  wasting itself. The branch rules live outside the tree, so nothing in a
+  checkout contradicts a file that describes them wrongly.
+
+  What replaces it is read from the repository rather than remembered:
+  `main` protected with the five checks and `strict`, one approving review
+  with `dismiss_stale_reviews`, required signatures, linear history,
+  resolved conversations and `enforce_admins` off; Pages serving `main`'s
+  root; both bots opening pull requests with no target branch named. Two
+  adjacent paragraphs of `REPOSITORY.md` claimed opposite things about the
+  required checks' app bindings, and the `gh api` call that answers it is
+  now beside the claim -- some of the five are bound to Actions and the
+  rest to nothing, which the `PATCH` above them cannot express.
+
 ### Packaging, linting and CI
 
 - **The Bitcoin Core regtest job runs for the code it checks** (#570).
