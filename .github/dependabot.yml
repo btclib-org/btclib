@@ -3,12 +3,15 @@
 # - the Gemfile is left out: GitHub builds the pages site on its own
 #   side, so github-pages is only ever resolved for a local preview
 # - the pre-commit hook revs are left out because dependabot has no
-#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly and
-#   onto dev, as configured in the ci: block of .pre-commit-config.yaml
+#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly, as
+#   configured in the ci: block of .pre-commit-config.yaml
 #
 # every pull request here runs the whole test matrix, so both ecosystems
-# group their updates into a single pull request; both target dev, master
-# only receiving merges from it.
+# group their updates into a single pull request. Neither declares a
+# target-branch: without one dependabot opens against the default branch,
+# which is the only branch a change lands on -- and a target-branch naming
+# a branch that is not there is not an error anywhere, it is a repository
+# where nothing is ever proposed.
 #
 # Weekly: the latest workflow upgrades everything uv resolves and runs
 # the suite, the lint gate and the packaging checks against it, on a
@@ -41,7 +44,6 @@ updates:
       # actions ecosystem nothing, which the sentinel does not cover, but
       # two schedules a day apart are one thing to remember instead of two
       day: thursday
-    target-branch: dev
     groups:
       actions:
         patterns: ["*"]
@@ -59,7 +61,6 @@ updates:
     schedule:
       interval: weekly
       day: thursday
-    target-branch: dev
     groups:
       dev-tooling:
         patterns: ["*"]

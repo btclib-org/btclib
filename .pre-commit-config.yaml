@@ -16,8 +16,9 @@ ci:
   # where no workflow token can write and every action is pinned to a
   # commit SHA: a failing hook is fixed by its author
   autofix_prs: false
-  # onto dev, as dependabot does: master only receives merges from it
-  autoupdate_branch: dev
+  # no autoupdate_branch, as dependabot declares no target-branch: the
+  # default is the default branch, which is the only branch a change
+  # lands on
   autoupdate_commit_msg: "Update the pinned pre-commit hook revisions"
   autoupdate_schedule: weekly
   # the hooks pre-commit.ci cannot run: they shell out to uv, which is not
