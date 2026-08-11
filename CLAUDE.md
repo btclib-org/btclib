@@ -84,7 +84,7 @@ lose. Reading it is fine — `git log`, `git show`, `git diff`, `gh`, and a
 
 ```shell
 WT=<scratchpad>/wt<issue>
-git worktree add -b <branch> "$WT" origin/dev
+git worktree add -b <branch> "$WT" origin/main
 cd "$WT" && uv sync --locked          # a second venv, about a minute
 # edit, gate and commit here, then
 git push origin HEAD:refs/heads/<branch>
@@ -92,8 +92,8 @@ git worktree remove --force "$WT"     # removing it is part of finishing
 ```
 
 The venv is the whole of the cost, and it buys the thing that matters: a
-commit cannot contain work that was never in it. Expect `origin/dev` to
-move while you work, so `git fetch && git rebase origin/dev` before
+commit cannot contain work that was never in it. Expect `origin/main` to
+move while you work, so `git fetch && git rebase origin/main` before
 pushing, resolving in favour of *both* sides (their change and yours,
 both CHANGELOG.md bullets).
 
@@ -107,24 +107,25 @@ the way the stash only looks to be. What is already lost is still in the
 object store — `git fsck --unreachable` names the commit and `git stash
 store <sha>` puts the ref back.
 
-**Do not rewrite `refs/heads/dev`, or advance it with work that is not
+**Do not rewrite `refs/heads/main`, or advance it with work that is not
 yours.** `git update-ref`, or a push carrying another session's commits,
 leaves every working tree's files alone and moves the base under them, so
 their next commit — built on the older copy — reverts what just landed.
 Your own branch is what you push, and the pull request is what moves
-`dev`: CONTRIBUTING.md's "Pull Request" section has how a branch under
+`main`: CONTRIBUTING.md's "Pull Request" section has how a branch under
 review is corrected and how it is merged.
 
 ## Non-obvious facts that will otherwise waste a session
 
-- **Work happens on `dev`**; `master` is the default branch and receives
-  merges from it. Dependabot and pre-commit.ci both target `dev`.
-- **A dev CI run is usually `cancelled`, not green.** `test.yml`'s
+- **`main` is the only branch**, and nothing is pushed to it directly:
+  every change lands through a pull request, Dependabot's and
+  pre-commit.ci's included, neither of them naming a branch. Branch
+  protection, and why it is what it is, is `REPOSITORY.md`.
+- **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
   concurrency group is `test-${{ github.ref }}` with cancel-in-progress,
-  so the next session's push to `dev` kills the run for the previous
-  commit. The local gates below are the evidence; `cancelled` is not
-  `failure`, and waiting for a busy afternoon to settle is waiting for
-  nothing.
+  so the next push kills the run for the previous commit. The local gates
+  below are the evidence; `cancelled` is not `failure`, and waiting for a
+  busy afternoon to settle is waiting for nothing.
 - **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
   job runs exactly it. Never add a second list of the same tools to a
   workflow. mypy is a *local* hook shelling out to uv on purpose: the

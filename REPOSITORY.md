@@ -64,52 +64,50 @@ gh api -X PATCH "$branch"/protection/required_status_checks \
   -f 'contexts[]=CodeQL'
 ```
 
-`contexts` rather than `checks` with an `app_id`, which is the shape the
-rule already has here: binding each context to the app that produces it is
-the stricter form, and adopting it is a separate decision from this list.
-
-Each check is bound to the app that produces it — `checks` with an
-`app_id` rather than the bare `contexts` list, 15368 for Actions and
-57789 for CodeQL — so nothing else can satisfy one.
+That `PATCH` sends `contexts`, which names no app, and what is there is
+not uniformly that: some of the five are bound to the app that produces
+them and the rest to nothing, which lets any app reporting one of those
+names satisfy it. Read it before assuming either shape:
 
 ```shell
-gh api repos/btclib-org/btclib/branches/master/protection \
-  --jq '.required_status_checks'   # PATCH that sub-endpoint to change
+gh api repos/btclib-org/btclib/branches/main/protection \
+  --jq '.required_status_checks.checks'   # PATCH that sub-endpoint
 ```
+
+Binding all five is the stricter form — `checks` with an `app_id` in the
+body, 15368 for Actions, rather than the bare `contexts` list — and
+adopting it is a decision separate from this list.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the reviews, the signatures and the rest. Repeat
 `strict: true` in the body, which replaces the object rather than merging
 into it.
 
-## Branch protection, both branches
+## Branch protection
 
-Both branches are protected, and differently on purpose.
-
-`master`: those four checks with `strict`, one approving review,
+`main` is the only branch, and everything reaches it through a pull
+request: the five checks above with `strict`, one approving review,
 `dismiss_stale_reviews`, **required signatures**, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-`dev`: no force pushes, no deletions, linear history, resolved
-conversations, and nothing beyond that — no required check, no review, no
-signature, so a direct push still works, which is what `uv run` and both
-bots rely on.
+That last one is what carries the review. A review cannot be satisfied by
+its author, GitHub not allowing self-approval, so on a solo-maintainer
+repository the rule as written stops every pull request the maintainer
+opens, and the bypass is what lets one merge at all. The trade is the
+review's other half: it is there for a contributor's pull request, where
+there *is* somebody else to ask.
 
-That asymmetry is the answer to issue #158, and it is a choice rather
-than a copy for two measured reasons. Commits on `dev` are **unsigned**
-(`git log --format='%G?'` prints `N`), so `required_signatures` there
-would reject every push, the bots' included. And one approving review
-cannot be satisfied by the author, GitHub not allowing self-approval, so
-on a solo-maintainer branch it is a stop rather than a speed bump.
+Required signatures cost the maintainer nothing for the same reason
+nothing here pushes to `main` directly: the only thing writing to it is a
+merge GitHub performs itself, and GitHub signs those with its web-flow
+key.
 
-What `dev` does buy is the thing the issue was about: Dependabot targets
-it for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
-security updates are on, so bot-authored commits reach `master` through
-it — and the branch cannot be rewritten or deleted under them.
-
-Requiring the four checks on `dev` as well is the next step if one is
-wanted, and it costs the direct push.
+Dependabot, its security updates and pre-commit.ci all open pull requests
+here, none of them naming a target branch: what they get is the default
+branch, and it is the only branch there is. Issue #158 was the other
+arrangement — two bots pushing through an integration branch that carried
+no protection at all — and one branch is what closed it.
 
 ## Head branches after a merge
 
@@ -123,14 +121,14 @@ GitHub deletes the head branch of a pull request when it is merged, which
 is what keeps the branch list a list of live work rather than a history of
 every change ever made. It was turned on after a sweep that removed nine
 merged head branches from here, none of which anybody could tell from live
-work without comparing each against `dev` commit by commit.
+work without comparing each against the trunk commit by commit.
 
 Two cases it does not cover, both deliberate. A protected branch is never
-deleted, protection winning over this setting, so the release pull request
-that merges `dev` into `master` leaves `dev` where it is. And a pull
-request **closed without merging** keeps its head branch: GitHub cannot
-know whether that work was abandoned or is waiting, so those are the ones
-still worth looking at now and then.
+deleted, protection winning over this setting, which is why `main` cannot
+be removed by anything — including a pull request that somehow had it as a
+head. And a pull request **closed without merging** keeps its head branch:
+GitHub cannot know whether that work was abandoned or is waiting, so those
+are the ones still worth looking at now and then.
 
 ## Token permissions
 

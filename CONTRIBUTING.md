@@ -537,14 +537,14 @@ its side; its findings appear under the Security tab.
 
 ### The website
 
-**btclib.org is this repository.** GitHub Pages serves it from `master`'s
+**btclib.org is this repository.** GitHub Pages serves it from `main`'s
 root, so a set of files at the top level are website sources rather than
 Jekyll leftovers, which is the opposite of the natural first assumption:
 
 ```shell
 gh api repos/btclib-org/btclib/pages
 # {"cname": "btclib.org", "build_type": "legacy",
-#  "source": {"branch": "master", "path": "/"}}
+#  "source": {"branch": "main", "path": "/"}}
 ```
 
 What that makes live:
@@ -563,7 +563,7 @@ Three consequences worth knowing before editing any of them:
 - **every README edit is a website deploy.** The README is also the PyPI
   long description, so a typo in it is visible in three places: GitHub,
   btclib.org and the PyPI project page.
-- **every other file in master's root is a URL under btclib.org** unless
+- **every other file in main's root is a URL under btclib.org** unless
   `_config.yml`'s `exclude:` says otherwise, the library itself included:
   drop that list's `btclib/` and `pyproject.toml` entries and
   `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` answer with
@@ -575,10 +575,10 @@ Three consequences worth knowing before editing any of them:
   `<script src="/%20/assets/js/scale.fix.js">` for as long as it took
   someone to fetch the page and read the HTML.
 
-Because Pages serves from `master`, a website-only commit there also
+Because Pages serves from `main`, a website-only commit there also
 triggers the full test matrix; `test.yml`'s `push` trigger carries a
 `paths-ignore` for these files so that it does not. The `pull_request`
-trigger deliberately does not: those checks are required on `master`, and a
+trigger deliberately does not: those checks are required on `main`, and a
 required check that produces no run blocks the merge.
 
 To preview locally, with Ruby and Bundler installed:
@@ -590,7 +590,7 @@ bundle exec jekyll serve
 
 That is the one part of this project not driven by `uv`, and it is only a
 preview: what btclib.org serves is whatever the classic builder makes of
-`master`.
+`main`.
 
 ### Issues
 
@@ -758,25 +758,20 @@ commits the review is attached to: the reviewer loses the diff they read,
 check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
-Nothing is lost in `dev`'s history by doing so, because **a pull request
-into `dev` is merged with "Squash and merge"**: the branch becomes one
-commit whose subject is the PR title with its number, so the review's
-commits are the record of the review and `dev` keeps one commit per landed
-change. A merge commit would put the branch's steps into `dev` and a
-rebase merge would replay them one by one — `dev` is linear by branch
-rule, and one change is one commit there.
+Nothing is lost in `main`'s history by doing so, because **a pull request
+is merged with "Squash and merge"**: the branch becomes one commit whose
+subject is the PR title with its number, so the review's commits are the
+record of the review and `main` keeps one commit per landed change. A
+merge commit would put the branch's steps into `main` and a rebase merge
+would replay them one by one — `main` is linear by branch rule, and one
+change is one commit there.
 
-**The pull request that takes `dev` into `master` is merged with "Rebase
-and merge"**. Read the button before clicking it: all three methods are
-enabled on the repository, and GitHub offers whichever was used last. A
-squash there would fold every change `dev` has landed since the previous
-merge into a single commit, and that history would then be on `dev` alone.
-The rebase replays those commits onto `master`, which is linear by branch
-rule as `dev` is — the same rule that bars a merge commit. And nothing is
-deleted afterwards: the branch merged is `dev`.
+**Read the button before clicking it.** All three methods are enabled on
+the repository and GitHub offers whichever was used last, so the squash is
+a choice made once per pull request rather than a setting.
 
 The one force-push that stays right is the one that carries no new work: a
-`git rebase origin/dev` on a branch whose base has moved, which is how a
+`git rebase origin/main` on a branch whose base has moved, which is how a
 stale pull request is refreshed. Re-run the gates after it, never only
 before it, and say in the pull request that the head moved and why.
 
