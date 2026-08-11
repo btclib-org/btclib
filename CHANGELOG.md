@@ -157,6 +157,37 @@ documented at release-notes length in the first place, and are still in
   `attest` in `needs`: naming `attest` alone would let a dispatch cut a
   release, that job running in a rehearsal too.
 
+- **CodeQL runs from a file in the tree**, `.github/workflows/codeql.yml`,
+  where it ran from default setup: a repository setting, edited in a
+  browser, leaving no history a reviewer sees. That made the analysis
+  looking for an injected expression or an unsafe checkout in these
+  workflows the one required check whose own definition no diff could
+  review, while every other one is a file with its actions pinned to
+  commit SHAs. What the setting held is reproduced rather than reinvented
+  -- `gh api repos/btclib-org/btclib/code-scanning/default-setup` reported
+  the `actions` and `python` languages, the `default` query suite and a
+  weekly schedule -- so the file adds one job per language, an aggregate
+  named `codeql: every job passed` for `main`'s rule to name, and a
+  Saturday cron, the one day the other schedules here leave free. The
+  query suite is expressed by adding nothing: `default` is precisely the
+  state in which no `queries`, `packs` or `query-filters` are named, and
+  neither CodeQL action takes an input that says it out loud. Ruby is not
+  in the matrix although default-setup runs here have carried an `Analyze
+  (ruby)` job, GitHub Pages putting a Gemfile beside the library: of the
+  analyses this repository has received, every one is python or actions
+  and none is ruby.
+
+  The exchange cannot be made by a pull request, and REPOSITORY.md has the
+  order it takes. The setting does not decline to let the workflow run:
+  the analysis completes and the SARIF uploads, and processing answers
+  that an advanced configuration cannot be processed while default setup
+  is enabled, so both jobs are red rather than absent until the setting
+  goes off. The branch rule therefore stops naming `CodeQL` first --
+  dropping the context costs a window in which nothing scans, where
+  disabling the setting first costs a required check that cannot report
+  and a merge nobody can perform -- and names `codeql: every job passed`
+  after the merge, that check not existing on `main` before it.
+
 ### Transactions, blocks and PSBT
 
 - **A declared count is bounded by what could hold it, before anything is

@@ -235,6 +235,7 @@ read by every checkout of this repository.
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a regtest node |
+| `codeql` | pull request, push, Saturday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
 | `latest` | Wednesday | platforms sampled, deps upgraded |
 | `links`, `mutation` | weekly | — |
@@ -242,14 +243,17 @@ read by every checkout of this repository.
 | `published` | monthly, a release | what PyPI serves |
 | `release` | a tag | calls test, lint, docs, macos, published |
 
-The first three rows are what a merge waits for. macOS is not among them on
-purpose: it is the platform whose runners queue — 29.4 and 23.2 minutes of
-mean wait against 0.5 to 1.6 elsewhere, on a run of 45 jobs that spent 93
-minutes working and 399 waiting — so it answers weekly, and before a
-release, rather than before a review. `macos` and `latest` share a morning
-half an hour apart, which is what makes the pair readable: red in both is
-the platform, red in `latest` alone is the upgrade. Everything but the
-first three rows also takes `workflow_dispatch`.
+The first four rows are what a merge waits for, and between them they report
+the five required checks: `lint` and `docs` share a row and report one
+each. macOS is not among them on purpose: it is the platform whose runners
+queue — 29.4 and 23.2 minutes of mean wait against 0.5 to 1.6 elsewhere, on
+a run of 45 jobs that spent 93 minutes working and 399 waiting — so it
+answers weekly, and before a release, rather than before a review. `macos`
+and `latest` share a morning half an hour apart, which is what makes the
+pair readable: red in both is the platform, red in `latest` alone is the
+upgrade. Every workflow in the table also takes `workflow_dispatch`, the
+gates included: a branch whose pull request is not open yet has no other way
+to ask.
 
 ### Reproducing what CI runs
 
@@ -532,8 +536,12 @@ to answer. Keep them deterministic, which for `ssa.sign` means passing
 those pages a published test vector, so that a reader who copies one copies
 something already known to the world.
 
-The only check with no local equivalent is CodeQL, which GitHub runs on
-its side; its findings appear under the Security tab.
+The only check with no local equivalent is `codeql`: the analysis needs the
+CodeQL bundle and a database, which is a download rather than a `uv`
+command, so `.github/workflows/codeql.yml` is where it is configured and
+GitHub's runners are where it happens. Its findings appear under the
+Security tab, and `REPOSITORY.md` has why the workflow is in the tree at
+all.
 
 ### The website
 
