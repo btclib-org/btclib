@@ -95,26 +95,33 @@ into it.
 
 ## Code scanning
 
-`codeql.yml` is the analysis; what keeps it in this file is that **GitHub
-refuses to run an advanced workflow while default setup is enabled**. The
-file produces no check at all until that setting is off — not even on the
-pull request that adds it — and the branch rule meanwhile cannot name a
-check nothing produces. Read the setting before touching either end of it:
+The analysis runs from `codeql.yml`, and default setup — the repository
+setting that used to hold it — is off:
 
 ```shell
 gh api repos/btclib-org/btclib/code-scanning/default-setup
+# {"state":"not-configured", ...}
 ```
 
-Five steps, and this order is the one that never leaves `main` unmergeable:
-dropping the context first costs a window in which nothing scans, where
-disabling the setting first costs a required check that cannot report and a
-merge nobody can perform. Steps 1, 2 and 5 are a token rather than a pull
-request, so only a human can perform them:
+**The two cannot both be on**, and what that costs is not a workflow that
+declines to run. The workflow runs, the analysis completes, the SARIF
+uploads, and processing answers:
+
+```text
+Code Scanning could not process the submitted SARIF file:
+CodeQL analyses from advanced configurations cannot be processed when the
+default setup is enabled
+```
+
+So while the setting is on, the analysing jobs and the aggregate are red
+rather than absent — which is why the exchange has an order. These five
+steps are the order that never leaves `main` unmergeable, and 1, 2 and 5
+are a token rather than a pull request, so only a human can perform them:
 
 1. patch the rule to drop the `CodeQL` context, the other four staying;
 1. disable default setup;
-1. re-run the checks on the pull request, which now execute `codeql.yml`
-   and report `codeql: every job passed`;
+1. re-run the pull request's checks: the upload that was refused is
+   accepted now, so `codeql: every job passed` goes green;
 1. merge;
 1. patch the rule to add `codeql: every job passed`.
 
