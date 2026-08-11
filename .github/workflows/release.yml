@@ -21,11 +21,11 @@ permissions:
 # never two runs of this workflow at once, and never a cancellation: the
 # other workflows cancel a superseded run because their subject is the
 # commit, and a newer commit supersedes the answer. Here the subject is a
-# publication -- a version on an index, a release -- so a second run is a
-# second attempt at the same side effects, and cancelling one halfway is how
-# a version reaches PyPI with no release cut for it.
+# publication -- a version on an index, an attestation, a release -- so a
+# second run is a second attempt at the same side effects, and cancelling one
+# halfway is how a version reaches PyPI with no release cut for it.
 # Named literally, as everywhere else: github.workflow in a called workflow
-# is the caller's name, and this one calls four
+# is the caller's name, and this workflow is a caller
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -205,6 +205,17 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: false
+      # what makes the wheel this job publishes reproducible: without it
+      # setuptools stamps the zip entries with the mtimes of the checkout,
+      # so the same commit built twice gives two digests and the
+      # attestation below vouches for bytes nobody else can obtain. The
+      # commit date, not the tag's: `git log -1` on a shallow clone reads
+      # the tip, which is the commit the tag points at, and a lightweight
+      # tag has no date of its own to prefer.
+      # RELEASING.md has the command that rebuilds a released tag and
+      # verifies it against the attestation
+      - name: Pin the build timestamp to the commit
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # TestPyPI refuses a version it has already seen: the rehearsal
       # appends .dev<run number>, unique per dispatch and sorted before
       # the release it rehearses (PEP 440). Re-running a finished
@@ -276,6 +287,20 @@ jobs:
       # too
       - name: Build the distribution files
         run: uv build
+      # SOURCE_DATE_EPOCH reaches every entry of the wheel and nothing at
+      # all in the sdist: setuptools honours it in the wheel writer it
+      # vendors and in no other place, so each member of the .tar.gz keeps
+      # a clock -- the checkout's for a file, the build's for the directory
+      # setuptools stages them in -- to sub-second precision, in a PAX
+      # record whose length changes with it. The script rewrites member
+      # metadata and no content, and its docstring has the measurement.
+      # --no-project, so this runs on the interpreter uv already fetched
+      # and installs nothing into the tree it is about to publish
+      - name: Make the sdist reproducible too
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/normalize_sdist.py dist/
+          sha256sum dist/*
       # before anything is installed, and that ordering is the point: the
       # step below runs third-party code -- a `.pth` file in a dependency
       # executes at interpreter startup, before the first import -- while
@@ -364,8 +389,6 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
-  # only after PyPI has accepted the files: a GitHub release announces
-  # what users can already install
   # what RELEASING.md used to ask for by hand: the sentinel on what the
   # index serves, against the version this run just published. It waits for
   # the file to be served before installing, so it cannot pass by testing
@@ -380,14 +403,95 @@ jobs:
     with:
       version: ${{ github.ref_name }}
 
-  github-release:
-    name: Attach the files to the GitHub release
-    needs: publish-pypi
+  # the same files reach users by two routes and only one of them carries
+  # provenance: the publish action above generates PEP 740 attestations for
+  # the copies on the index, while the copies attached to the GitHub release
+  # below carry nothing. This job signs them, and the digests are the
+  # index's own, the dist artifact being downloaded here rather than
+  # rebuilt.
+  # A job of its own rather than two more permissions on github-release:
+  # this workflow elevates one job at a time, and the one that writes
+  # releases has no reason to also hold an OIDC token. It is not in the
+  # build job for the stronger form of the same reason -- that job runs the
+  # build backend and installs the wheel it just built, and a token minted
+  # there would be minted beside third-party code.
+  # After a publish and not after the build, so that a run reaching here is
+  # a run the environment approval already let through: without that, a
+  # dispatch from any branch would sign whatever that branch built.
+  # Whichever publish ran, though -- the rehearsal signs its own .dev files,
+  # and that is the point of it: everything else in this job is a permission
+  # and an API that would otherwise be exercised for the first time on
+  # release day, where a failure lands after PyPI has the files and the tag
+  # can no longer be moved
+  attest:
+    name: Attest the distribution files
+    needs: [publish-pypi, publish-testpypi]
+    # always(), the other publish job being skipped rather than run, and a
+    # skipped job is one `needs` treats as failed
+    if: >-
+      always() && (needs.publish-pypi.result == 'success' ||
+      needs.publish-testpypi.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      # the one job that writes to the repository, and what it writes is a
-      # release
+      # OIDC for the short-lived Sigstore signing certificate, and the
+      # write that persists the attestation against the repository
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the distribution files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      # actions/attest and not the attest-build-provenance wrapper around
+      # it: as of v4 the wrapper is a composite that does nothing but call
+      # this, and its own README sends new callers here. No predicate input
+      # is what selects SLSA build provenance.
+      # One attestation, both files: the statement carries every subject the
+      # glob matched, so verifying either the wheel or the sdist against the
+      # bundle below works
+      - name: Attest the distribution files
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+      # the bundle is the signed statement itself, and the job below
+      # attaches it to the release: that is what lets `gh attestation verify
+      # --bundle` read it from disk instead of from the attestations API,
+      # for whoever mirrors the releases page rather than trusting it live.
+      # Copied into the workspace rather than uploaded where the action left
+      # it, under $RUNNER_TEMP: an upload takes its layout from the paths it
+      # matched, and one outside the workspace is one more thing to be right
+      # about than a fixed name here
+      - name: Collect the attestation bundle
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE_PATH" attestation.jsonl
+      - name: Upload the attestation bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: attestation
+          path: attestation.jsonl
+
+  # only after PyPI has accepted the files: a GitHub release announces what
+  # users can already install. Both jobs above it and not attest alone:
+  # attest runs in a rehearsal too, so naming it by itself would make this
+  # job -- which has no `if` of its own -- cut a release from a dispatch,
+  # where publish-pypi is skipped and a skipped need is what keeps this to
+  # the tag. attest earns its place in the list by producing the bundle
+  # attached below; a failure there leaves the version published and no
+  # release cut, which `gh run rerun --failed` finishes without rebuilding
+  # anything
+  github-release:
+    name: Attach the files to the GitHub release
+    needs: [publish-pypi, attest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # the one job that writes to the repository through its token, and
+      # what it writes is a release; the attestation the job above signed
+      # went to the attestations API under a permission of its own
       contents: write
     steps:
       - name: Checkout code
@@ -399,6 +503,13 @@ jobs:
         with:
           name: dist
           path: dist/
+      # into a directory of its own, so that the dist/* glob below stays the
+      # distribution files and nothing else
+      - name: Download the attestation bundle
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: attestation
+          path: attestation/
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -416,11 +527,16 @@ jobs:
             /^## / && found {exit}
             found {print}
           ' HISTORY.md > "$RUNNER_TEMP/notes.md"
+          # named for the tag only here, where the ref is one: nothing
+          # inside the bundle says which release it belongs to, the way the
+          # distribution files' own names do
+          bundle="$GITHUB_REF_NAME.attestation.jsonl"
+          cp attestation/attestation.jsonl "$bundle"
           if [ -s "$RUNNER_TEMP/notes.md" ]; then
-            gh release create "$GITHUB_REF_NAME" dist/* \
+            gh release create "$GITHUB_REF_NAME" dist/* "$bundle" \
               --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
           else
             echo "::warning::HISTORY.md has no $GITHUB_REF_NAME section"
-            gh release create "$GITHUB_REF_NAME" dist/* \
+            gh release create "$GITHUB_REF_NAME" dist/* "$bundle" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi

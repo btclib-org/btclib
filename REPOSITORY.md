@@ -135,10 +135,13 @@ still worth looking at now and then.
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-needing more must declare it. Only `release.yml`'s `github-release` does
-(`contents: write`), plus `id-token: write` on the two publish jobs. The
-workflow-level `permissions: contents: read` is belt and braces; keep it,
-it is what makes the intent readable in the file.
+needing more must declare it. Every job that does is in `release.yml`:
+`contents: write` on `github-release`, `id-token: write` on the two
+publish jobs, and `id-token: write` with `attestations: write` on
+`attest`. One elevation per job is the shape to keep — the job that writes
+releases holds no OIDC token, and the job that signs writes no release.
+The workflow-level `permissions: contents: read` is belt and braces; keep
+it, it is what makes the intent readable in the file.
 
 ## Publishing
 

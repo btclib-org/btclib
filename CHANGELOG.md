@@ -47,6 +47,52 @@ documented at release-notes length in the first place, and are still in
   request, which is the cost this filter exists to avoid. The job still
   gates nothing and is still absent from master's required checks.
 
+- **The distribution files are reproducible**: two checkouts of one commit
+  build the same wheel and the same sdist, so the provenance attestation
+  below can be verified against a file the verifier built rather than one
+  they downloaded. `release.yml`'s build job exports `SOURCE_DATE_EPOCH`
+  from the commit date, which is the whole of it for the wheel, and runs
+  `.github/scripts/normalize_sdist.py` for the sdist -- the variable
+  reaching nothing in that archive, setuptools honouring it in the wheel
+  writer it vendors and in no other place. So every member of the
+  `.tar.gz` keeps a clock, the checkout's for a file and the build's for
+  the directory setuptools stages them in, to sub-second precision and in
+  a PAX record whose length changes with it; the script rewrites member
+  metadata and no content. Two worktrees of one commit with `uv build` in
+  each is the measurement, in three rounds: plain, the two wheels and the
+  two sdists differ; with `SOURCE_DATE_EPOCH` exported, the wheels agree
+  and the sdists still differ in all of their members; with the script,
+  the sdists agree too. `btclib_libsecp256k1` plays no part in it, an
+  isolated build installing `[build-system] requires` and nothing else,
+  so neither rebuild above needed a `uv sync` first. RELEASING.md has the
+  rebuild command and the two bounds on the guarantee: the build backend
+  is resolved rather than pinned, and a TestPyPI rehearsal is a different
+  version by construction.
+
+- **The distribution files attached to a GitHub release carry
+  provenance**, where only the copies on PyPI did: the publish action
+  generates PEP 740 attestations for what it uploads to the index, and the
+  byte-identical wheel and sdist on the releases page carried nothing, so
+  whoever pinned to a release asset url or mirrored the page had no way to
+  check where the files came from. `release.yml` gains an `attest` job --
+  `actions/attest`, one SLSA build provenance statement covering both
+  files, signed with a short-lived Sigstore certificate -- and `gh
+  attestation verify <file> --repo btclib-org/btclib` is what checks it.
+  The signed bundle is attached to the release too, so `--bundle
+  <tag>.attestation.jsonl` verifies the same signature without asking the
+  attestations API for it. The digests are the index's own, the job
+  downloading the `dist` artifact rather than rebuilding it. A job of its
+  own and not two more permissions on `github-release`: `id-token: write`
+  and `attestations: write` stay off the job that writes releases, and
+  further off the job that runs the build backend. It runs after whichever
+  publish job ran, so a dispatch from an arbitrary branch signs nothing
+  the `testpypi` environment approval did not already let through -- and
+  the TestPyPI rehearsal exercises it, which on the release path would
+  otherwise happen for the first time after PyPI has the files and the tag
+  can no longer be moved. `github-release` names both `publish-pypi` and
+  `attest` in `needs`: naming `attest` alone would let a dispatch cut a
+  release, that job running in a rehearsal too.
+
 ### Transactions, blocks and PSBT
 
 - **A declared count is bounded by what could hold it, before anything is
