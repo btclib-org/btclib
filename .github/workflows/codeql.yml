@@ -119,18 +119,18 @@ jobs:
     timeout-minutes: 20
     # the elevation, on the job that needs it and nowhere else: the
     # aggregate below declares nothing and inherits the workflow default.
-    # No packages: read either, which fetching a private CodeQL pack would
-    # want and the default query suite does not
     # security-events: write is what uploading a SARIF to code scanning
-    # takes, and the whole reason this job cannot run on the default
-    # read-only token. actions: read is redundant while this repository is
-    # public -- it is what the CodeQL action needs to read run metadata in
-    # a *private* one -- and it is written down so that the file does not
-    # quietly stop working the day the repository stops being public.
-    # The trailing comments are not a second copy of that for its own sake:
-    # zizmor's undocumented-permissions audit reads the line a permission
-    # is on and not the paragraph above the block, so a comment here is
-    # what keeps `--persona=auditor` at zero findings for this file
+    # takes, and the whole reason this job cannot run on the read-only
+    # token. actions: read is redundant while this repository is public --
+    # it is what the CodeQL action needs to read run metadata in a
+    # *private* one -- and it is written down so that the file does not
+    # quietly stop working the day the repository stops being public. No
+    # packages: read, which fetching a private CodeQL pack would want and
+    # the default query suite does not.
+    # The trailing comments below are not that paragraph again for its own
+    # sake: zizmor's undocumented-permissions audit reads the line a
+    # permission is on and not the prose above the block, so one word there
+    # is what keeps `--persona=auditor` at zero findings for this file
     permissions:
       security-events: write # the SARIF upload, and nothing else needs it
       contents: read
