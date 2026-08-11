@@ -142,8 +142,11 @@ replaces passed everything above 99.985%, and the 99.9 before it ten
 times as much again. No slack, so a statement no test reaches is either
 covered by patching what stands in the way, as the ripemd160 fallback
 and electrum's round-trip check are, or marked `pragma: no cover` with
-the reason beside it. `pytest --cov` prints the total on every run, on
-the 3.14 the gate is checked on.
+the reason beside it. `--cov` is in pyproject.toml's addopts, so `uv run
+pytest` prints the total and enforces the ratchet on every whole run, on
+the 3.14 the gate is checked on — a run that selects a subset with paths,
+`-k` or `-m` reports without gating, since `fail_under` would otherwise
+fail it on the tree's coverage rather than on its own.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
@@ -293,8 +296,10 @@ uv run --locked --no-default-groups --group test pytest --cov
 
 What `--cov` measures and how it reports are `tool.coverage.run`'s
 `source` and `tool.coverage.report` in pyproject.toml, so this command
-and the `pytest --cov` above are the same measurement: the job cannot
-gate on a scope a contributor's run does not have.
+and the bare `uv run pytest` above are the same measurement: the job
+cannot gate on a scope a contributor's run does not have. The flag is
+written out here even though addopts already carries it, this being the
+job's command verbatim.
 
 The `dist` job, which inspects what would be published and then
 installs it. The last commands ask for the wheel and nothing else, so

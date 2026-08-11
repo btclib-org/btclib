@@ -221,7 +221,25 @@ testpaths = ["tests"]
 # dataclasses, a tuple witness stack and per-call defaults, which this
 # re-checks on every run instead of at the tests written for each. Three
 # seeds were measured green before it went in
-addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
+addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
+# --cov is here so that the ratchet below is what a bare `uv run pytest`
+# measures: it cost nothing to move (the suite is the same 37 seconds
+# either way on 3.14, coverage.py using sys.monitoring there), and a gate
+# only the coverage job runs is one a change meets after it is pushed.
+# What it does cost is that `fail_under` applies to a partial report too,
+# so a run of one file would fail on the tree's coverage rather than on
+# its own: tests/conftest.py's `coverage_fail_under` is where that is
+# answered, and why it is answered there.
+#
+# Its position is load-bearing, and this is the one line where that is
+# said: --cov takes an *optional* value, so as the last token here it
+# swallows the first argument the command line goes on to give. `pytest
+# tests/ecc/dsa_test.py` became `--cov=tests/ecc/dsa_test.py` with no
+# path left to select on -- the whole suite ran, measured a directory
+# that is in `omit` below, and reported 0.00% against a fail_under of
+# 100. Green under `pytest -q tests/...`, which is what hid it: a token
+# starting with `-` is not consumed. Anywhere but last is safe, and
+# --durations=8 after it is what keeps it that way
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true

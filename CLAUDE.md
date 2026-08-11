@@ -14,9 +14,9 @@ uv is the only tool that must be installed; it fetches interpreters,
 linters and packaging tools itself. `uv sync` creates the environment.
 
 ```shell
-uv run pytest                                   # the suite
-uv run pytest tests/ecc/dsa_test.py             # one file
-uv run pytest -k test_low_cardinality           # one test
+uv run pytest                                   # the suite, gated at 100%
+uv run pytest tests/ecc/dsa_test.py             # one file, not gated
+uv run pytest -k test_low_cardinality           # one test, not gated
 uv run pre-commit run --all-files               # every gate, see below
 uv run pre-commit run mypy --files btclib/curves/curve.py   # one hook
 uv run --python 3.10 pytest                     # another interpreter
@@ -126,6 +126,17 @@ review is corrected and how it is merged.
   so the next push kills the run for the previous commit. The local gates
   below are the evidence; `cancelled` is not `failure`, and waiting for a
   busy afternoon to settle is waiting for nothing.
+- **A bare `uv run pytest` is the coverage gate too**: `--cov` is in
+  addopts, so the 100% ratchet fails locally instead of only in the
+  `coverage` job. A run that selects a subset — paths, `-k`, `-m` — is
+  reported and not gated, `tests/conftest.py`'s `coverage_fail_under`
+  being what drops the threshold; `--lf`, `--deselect` and an early `-x`
+  are not selections and will fail on the tree's coverage. So a green
+  full run is the evidence, and a red partial one is worth re-reading
+  before believing. Setting the threshold from a plugin means writing to
+  `config.known_args_namespace`: pytest-cov reads that copy and never
+  `config.option`, so the obvious spelling changes nothing and fails
+  silently.
 - **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
   job runs exactly it. Never add a second list of the same tools to a
   workflow. mypy is a *local* hook shelling out to uv on purpose: the
