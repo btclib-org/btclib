@@ -235,6 +235,7 @@ read by every checkout of this repository.
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a regtest node |
+| `website` | pull request, push, on website files | — |
 | `codeql` | pull request, push, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
 | `latest` | Wednesday | platforms sampled, deps upgraded |
@@ -564,7 +565,7 @@ What that makes live:
 | `_layouts/default.html` | the page template, header and footer |
 | `assets/` | the logo, the stylesheet and `scale.fix.js` |
 | `CNAME` | the custom domain; Pages reads it from the built site |
-| `Gemfile` | the `github-pages` gem, for a local `bundle exec jekyll serve` |
+| `Gemfile` | the `github-pages` gem, pinned to what Pages runs |
 
 Three consequences worth knowing before editing any of them:
 
@@ -581,7 +582,11 @@ Three consequences worth knowing before editing any of them:
   there are no build logs and no control over the Jekyll or theme version.
   A broken template fails silently: the layout served
   `<script src="/%20/assets/js/scale.fix.js">` for as long as it took
-  someone to fetch the page and read the HTML.
+  someone to fetch the page and read the HTML. `website.yml` is the answer
+  to that: it builds the same site with the same gem on every pull request
+  touching a file above, and fails on a build error, on `%20` in a built
+  URL, and on a missing homepage. It is not a required check — it carries a
+  `paths` filter, and a required check that produces no run blocks a merge.
 
 Because Pages serves from `main`, a website-only commit there also
 triggers the full test matrix; `test.yml`'s `push` trigger carries a
@@ -589,12 +594,21 @@ triggers the full test matrix; `test.yml`'s `push` trigger carries a
 trigger deliberately does not: those checks are required on `main`, and a
 required check that produces no run blocks the merge.
 
-To preview locally, with Ruby and Bundler installed:
+To preview locally, with Ruby and Bundler installed — `bundle exec jekyll
+build` is what `website.yml` runs, and `serve` is the same build with a
+server in front of it:
 
 ```shell
 bundle install
 bundle exec jekyll serve
 ```
+
+The `github-pages` gem is pinned to the version GitHub's builder runs, and
+<https://pages.github.com/versions.json> is what says which that is: it
+carries the Ruby, the Jekyll and the theme too, and the gem pins its own
+dependency set exactly, so there is no `Gemfile.lock` here to keep in
+step. Dependabot's bundler ecosystem moves that pin, which turns a Pages
+upgrade into a pull request the build above runs against.
 
 That is the one part of this project not driven by `uv`, and it is only a
 preview: what btclib.org serves is whatever the classic builder makes of

@@ -1,13 +1,11 @@
 ---
-# two of the four ecosystems this repo has, deliberately:
-# - the Gemfile is left out: GitHub builds the pages site on its own
-#   side, so github-pages is only ever resolved for a local preview
-# - the pre-commit hook revs are left out because dependabot has no
+# three of the four ecosystems this repo has:
+# - the pre-commit hook revs are the one left out, because dependabot has no
 #   pre-commit ecosystem; pre-commit.ci updates them instead, weekly, as
 #   configured in the ci: block of .pre-commit-config.yaml
 #
-# every pull request here runs the whole test matrix, so both ecosystems
-# group their updates into a single pull request. Neither declares a
+# every pull request here runs the whole test matrix, so each ecosystem
+# groups its updates into a single pull request. None declares a
 # target-branch: without one dependabot opens against the default branch,
 # which is the only branch a change lands on -- and a target-branch naming
 # a branch that is not there is not an error anywhere, it is a repository
@@ -64,5 +62,22 @@ updates:
     groups:
       dev-tooling:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
+
+  # the Gemfile, which is btclib.org rather than the library: one gem,
+  # github-pages, pinned to the version GitHub's own Pages builder runs.
+  # Nothing installs it to serve the site -- that build happens on
+  # GitHub's side -- so what a bump means here is that the builder itself
+  # moved, and website.yml is what then answers whether the site still
+  # renders under it. Ungrouped, a single gem having nothing to group
+  # with, and the cooldown left at the default above: this one tracks a
+  # release GitHub has already deployed, so the week is a formality rather
+  # than a quarantine
+  - package-ecosystem: bundler
+    directory: /
+    schedule:
+      interval: weekly
+      day: thursday
     cooldown:
       default-days: 7

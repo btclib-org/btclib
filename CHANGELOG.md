@@ -24,6 +24,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The website has a build that can fail.** btclib.org is this
+  repository's own root, served by the classic Pages builder -- `gh api
+  repos/btclib-org/btclib/pages` answers `build_type: legacy` -- which
+  runs on GitHub's side, keeps no log a maintainer can read and reports a
+  failure nowhere: the layout served
+  `<script src="/%20/assets/js/scale.fix.js">` for as long as it took
+  somebody to fetch the page and read the HTML. `website.yml` builds the
+  same site with the same gem whenever a pull request touches `README.md`,
+  `_config.yml`, `_layouts/`, `assets/`, `CNAME` or the `Gemfile`, and
+  fails on a build error, on `%20` in a built URL, and on a homepage or a
+  logo missing from `_site`. Not a required check, deliberately: it
+  carries a `paths` filter, and a required check that produces no run
+  blocks a merge where a skipped one satisfies it
+- **The `Gemfile` pins `github-pages` to the version Pages runs**, 232,
+  and dependabot's bundler ecosystem is what moves it.
+  <https://pages.github.com/versions.json> is what says which version that
+  is -- it carries the ruby, 3.3.4, the jekyll, 3.10.0, and the
+  jekyll-theme-minimal 0.2.0 that `_config.yml` names -- and that gem pins
+  its own dependency set exactly, so the one line is the whole of the lock
+  and there is no `Gemfile.lock` here to keep in step. The ecosystem was
+  left out of `dependabot.yml` because GitHub builds the site on its own
+  side, which is still true and is now the reason to have it: a bump is
+  the news that the builder moved, and the pull request carrying it is
+  where the site is built under the new one before anything is served
+- **REPOSITORY.md records the Pages settings**, three of them, none in the
+  tree: the source branch and path, which are what make `README.md` the
+  homepage and every other root file a URL under btclib.org;
+  `build_type`, which decides whether a broken build is visible at all;
+  and the custom domain, whose `CNAME` file un-sets the setting on the
+  next push if it ever leaves the tree
 - **`main` is the only branch, and the three files a session reads say
   so.** `REPOSITORY.md` documented a protected `master` fed by a `dev`
   that carried no required check, `CONTRIBUTING.md` a website served from

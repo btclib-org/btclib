@@ -268,6 +268,38 @@ environments both require a review, and `pypi` is restricted to `v*`
 tags. `RELEASING.md` records the reasoning, including why self-review
 stays allowed.
 
+## Pages, which is btclib.org
+
+**The website is this repository's own root**, served by GitHub Pages, and
+the three things that decide it are settings rather than files:
+
+```shell
+gh api repos/btclib-org/btclib/pages \
+  --jq '{cname, build_type, source, https_enforced}'
+# {"cname": "btclib.org", "build_type": "legacy",
+#  "source": {"branch": "main", "path": "/"}, "https_enforced": true}
+```
+
+`source` is what makes `README.md` the homepage and every other file in
+the root a URL under btclib.org — CONTRIBUTING.md's "The website" section
+is what that costs and `_config.yml`'s `exclude:` is what limits it.
+Moving the source to `/docs` or to another branch would republish the site
+as whatever that path holds, silently and immediately.
+
+`build_type: legacy` is the classic Jekyll builder, and it is the reason
+`website.yml` exists. GitHub runs it on its own side, keeps no log a
+maintainer can read, and reports a failure nowhere: a layout it cannot
+render is served broken until somebody fetches the page. The workflow
+builds the same site with the same gem, where a failure is a red check.
+`build_type: workflow` would replace that builder with an Actions workflow
+and make the failure visible by itself; it is a change of its own, and
+what it costs is a deploy that no longer happens by pushing to `main`.
+
+`cname` is the custom domain, and `CNAME` in the root is the same value: A
+records for `btclib.org` and the `https_enforced` certificate hang off it.
+The file is what Pages reads on each build, so deleting it from the tree
+un-sets the setting on the next push.
+
 ## Plan-gated settings
 
 Some settings cannot be enabled and fail silently: secret scanning's
