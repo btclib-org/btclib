@@ -235,7 +235,7 @@ read by every checkout of this repository.
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a regtest node |
-| `codeql` | pull request, push, Saturday | 2 languages |
+| `codeql` | pull request, push, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
 | `latest` | Wednesday | platforms sampled, deps upgraded |
 | `links`, `mutation` | weekly | — |
