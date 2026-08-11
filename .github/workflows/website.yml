@@ -116,11 +116,20 @@ jobs:
       # baseurl is empty renders `{{ '/x' | relative_url }}` as `/%20/x`
       # and jekyll exits zero, so the page is served with a script tag
       # pointing at a path nothing answers. The build is the claim about
-      # the sources; this is the same claim made about the artifact
+      # the sources; this is the same claim made about the artifact.
+      #
+      # An attribute of a real tag, not the string anywhere on the page:
+      # CHANGELOG.md, HISTORY.md, SECURITY.md and AUTHORS.md all recount
+      # that defect and quote the broken tag, and a rendered page carries
+      # that prose with the `<` escaped as `&lt;` -- so requiring an
+      # unescaped `<tag ... src="` is what separates the page that has the
+      # bug from the page that describes it. Measured: the first run of
+      # this workflow failed on six such lines and no real URL
       - name: The built pages carry no encoded-space URL
         run: |
-          if grep -rn '%20' _site --include='*.html'; then
-            echo "::error::a built page carries %20 in a URL"
+          if grep -rEn '<[a-zA-Z]+[^>]+(src|href)="[^"]*%20' \
+              _site --include='*.html'; then
+            echo "::error::a built page carries %20 in a src or href"
             exit 1
           fi
       # the homepage is README.md rendered, and _config.yml's exclude list
