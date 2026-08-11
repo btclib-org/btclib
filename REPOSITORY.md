@@ -27,7 +27,7 @@ workflows with a job named the same thing produce one ambiguous check.
 | `Lint and type-check` | `lint.yml`, its only job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `Regtest against Bitcoin Core` | `integration.yml`, its only job |
-| `CodeQL` | CodeQL workflow |
+| `codeql: every job passed` | `codeql.yml`, aggregate over the languages |
 
 A workflow with one job needs no aggregate: the job *is* the context, which
 is why three of the five are job names. The day one of them grows a second
@@ -49,6 +49,16 @@ answers the one claim the recorded vectors cannot make. `integration.yml`
 therefore carries no `paths` filter: a required check that never runs blocks
 a merge, where a skipped one satisfies it.
 
+`codeql: every job passed` is the only one of the five whose predecessor was
+not a file at all. Code scanning ran from default setup, a repository
+setting, which made the check that reads these workflows for an injected
+expression the one part of CI no diff could review — while every other check
+is a workflow with its actions pinned to commit SHAs. `codeql.yml` holds it
+now, one job per language and an aggregate over them, for the reason
+`test.yml` has one; the section below has how the switch was thrown, because
+the two cannot be exchanged in either order without a step that blocks
+every merge.
+
 Renaming a required check is the one change that cannot be made in a pull
 request, so the rule moves first, against the branch, and the pull request
 that renames the job reports the name the rule now wants:
@@ -61,7 +71,7 @@ gh api -X PATCH "$branch"/protection/required_status_checks \
   -f 'contexts[]=Lint and type-check' \
   -f 'contexts[]=Build the documentation' \
   -f 'contexts[]=Regtest against Bitcoin Core' \
-  -f 'contexts[]=CodeQL'
+  -f 'contexts[]=codeql: every job passed'
 ```
 
 That `PATCH` sends `contexts`, which names no app, and what is there is
@@ -82,6 +92,82 @@ adopting it is a decision separate from this list.
 partial PUT drops the reviews, the signatures and the rest. Repeat
 `strict: true` in the body, which replaces the object rather than merging
 into it.
+
+## Code scanning
+
+`codeql.yml` is the analysis; what keeps it in this file is that **GitHub
+refuses to run an advanced workflow while default setup is enabled**. The
+file produces no check at all until that setting is off — not even on the
+pull request that adds it — and the branch rule meanwhile cannot name a
+check nothing produces. Read the setting before touching either end of it:
+
+```shell
+gh api repos/btclib-org/btclib/code-scanning/default-setup
+```
+
+Five steps, and this order is the one that never leaves `main` unmergeable:
+dropping the context first costs a window in which nothing scans, where
+disabling the setting first costs a required check that cannot report and a
+merge nobody can perform. Steps 1, 2 and 5 are a token rather than a pull
+request, so only a human can perform them:
+
+1. patch the rule to drop the `CodeQL` context, the other four staying;
+1. disable default setup;
+1. re-run the checks on the pull request, which now execute `codeql.yml`
+   and report `codeql: every job passed`;
+1. merge;
+1. patch the rule to add `codeql: every job passed`.
+
+Step 2 is what makes the setting let go of the analysis. It is not the
+command that enabled default setup and there is no need to keep that one:
+what a browser switched on, this switches off, and the tree is where the
+configuration lives afterwards.
+
+```shell
+gh api -X PATCH \
+  repos/btclib-org/btclib/code-scanning/default-setup \
+  -F state=not-configured
+```
+
+Steps 1 and 5 patch the `checks` array rather than `contexts`, so that the
+bindings the rule already has survive the edit, and **a JSON body on stdin
+is what that takes**: `-f` sends every value as a string and the endpoint
+answers 422 for a string `app_id`. Step 1:
+
+```shell
+branch=repos/btclib-org/btclib/branches/main
+gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
+{
+  "strict": true,
+  "checks": [
+    {"context": "test: every job passed", "app_id": 15368},
+    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
+    {"context": "Lint and type-check"},
+    {"context": "Build the documentation"}
+  ]
+}
+JSON
+```
+
+Step 5 is that body with one entry added, bound to Actions because Actions
+is what reports it — the `CodeQL` it replaces was unbound for the opposite
+reason, the app producing it not being Actions:
+
+```shell
+branch=repos/btclib-org/btclib/branches/main
+gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
+{
+  "strict": true,
+  "checks": [
+    {"context": "test: every job passed", "app_id": 15368},
+    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
+    {"context": "codeql: every job passed", "app_id": 15368},
+    {"context": "Lint and type-check"},
+    {"context": "Build the documentation"}
+  ]
+}
+JSON
+```
 
 ## Branch protection
 
@@ -133,11 +219,18 @@ are the ones still worth looking at now and then.
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-needing more must declare it. Every job that does is in `release.yml`:
-`contents: write` on `github-release`, `id-token: write` on the two
-publish jobs, and `id-token: write` with `attestations: write` on
-`attest`. One elevation per job is the shape to keep — the job that writes
-releases holds no OIDC token, and the job that signs writes no release.
+needing more must declare it. Four of those declarations are in
+`release.yml`: `contents: write` on `github-release`, `id-token: write` on
+the two publish jobs, and `id-token: write` with `attestations: write` on
+`attest`. The fifth is `codeql.yml`'s `analyze`, whose
+`security-events: write` is what uploading a SARIF to code scanning takes,
+with `actions: read` beside it — redundant while this repository is public,
+and written down so that the file does not quietly stop working the day it
+is not. Its aggregate job needs none of that and declares none of it: one
+elevation per job is the shape to keep — the job that writes releases holds
+no OIDC token, and the job that signs writes no release — and
+`vendored-vectors.yml` is the one place that departs from it, declaring
+`issues: write` at the workflow level where its only job would do.
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 
