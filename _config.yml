@@ -1,12 +1,12 @@
 ---
-# The btclib.org website, served by GitHub Pages from master's root.
+# The btclib.org website, served by GitHub Pages from main's root.
 #
 #   $ gh api repos/btclib-org/btclib/pages
 #   {"cname": "btclib.org", "build_type": "legacy",
-#    "source": {"branch": "master", "path": "/"}}
+#    "source": {"branch": "main", "path": "/"}}
 #
 # So this file, CNAME, Gemfile, _layouts/ and assets/ are website sources
-# and not Jekyll leftovers, and every other file in master's root is a URL
+# and not Jekyll leftovers, and every other file in main's root is a URL
 # under btclib.org whether it was meant to be one or not. CONTRIBUTING.md
 # has the section that says so.
 title: btclib
@@ -27,7 +27,7 @@ google_analytics:
 theme: jekyll-theme-minimal
 
 # There is no index.md, so Jekyll renders README.md as the homepage: a
-# README edit is a website deploy. Everything else in master's root is
+# README edit is a website deploy. Everything else in main's root is
 # published too unless this list stops it, the package itself included:
 # drop the btclib/ and pyproject.toml entries below and /pyproject.toml
 # and /btclib/alias.py answer with their own contents.
@@ -65,10 +65,7 @@ exclude:
   - MANIFEST.in
   - COPYRIGHT
   # repository process rather than pages for a visitor: agent instructions,
-  # the branch rules and settings, and the release procedure. RELEASE.md is
-  # master's name for RELEASING.md, and both are listed so that the rename
-  # can land in either order.
+  # the branch rules and settings, and the release procedure
   - CLAUDE.md
   - REPOSITORY.md
   - RELEASING.md
-  - RELEASE.md
