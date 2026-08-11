@@ -168,7 +168,9 @@ documented at release-notes length in the first place, and are still in
   the `actions` and `python` languages, the `default` query suite and a
   weekly schedule -- so the file adds one job per language, an aggregate
   named `codeql: every job passed` for `main`'s rule to name, and a
-  Saturday cron, the one day the other schedules here leave free. The
+  Tuesday cron: a day the other schedules here leave free, and the one
+  btclib-libsecp256k1 and bitcoin-core-rpc analyse on, so a red analysis
+  anywhere is one morning to read rather than three. The
   query suite is expressed by adding nothing: `default` is precisely the
   state in which no `queries`, `packs` or `query-filters` are named, and
   neither CodeQL action takes an input that says it out loud. Ruby is not
