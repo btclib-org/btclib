@@ -15,13 +15,33 @@ Test execution is distributed across multiple cores,
 with the number of cores being chosen automatically:
 this can be changed in the addopts option of pyproject.toml
 
-The ultimate comprehensive way of running the tests is
+`--cov` is in those addopts, so the whole of it is one command:
 
 ```shell
-uv run pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
+uv run pytest
 ```
 
-If you want to contribute to btclib, please ensure that it succeeds.
+That measures what `tool.coverage.run` in pyproject.toml names, reports
+how `tool.coverage.report` says, and is gated at the `fail_under` there.
+It is the same measurement the `coverage` job makes — the job cannot gate
+on a scope a contributor's run does not have — and it is what a change
+has to pass before it is pushed rather than after. It costs nothing to
+have it there: the suite takes the same time either way on the 3.14
+`.python-version` pins, coverage.py using `sys.monitoring` from 3.12 on.
+
+**A run that selects a subset is not gated.** `fail_under` applies to
+every report coverage writes, so `uv run pytest tests/bip32` would fail
+on the tree's coverage rather than on anything about that run. Naming
+paths, `-k` or `-m` therefore drops the threshold to zero:
+`coverage_fail_under` in `tests/conftest.py` is where that happens, and
+its docstring is why. The report still prints, which is what makes it
+worth reading while iterating on one module. Ways of shortening a run
+that are not a selection — `--lf`, `--deselect`, an `-x` that stops
+early — keep the full threshold and will report a shortfall the tree
+does not have.
+
+Passing `--cov-fail-under` names the threshold yourself, and outranks
+both of those.
 
 Coverage results can also be reported as html at htmlcov/index.html:
 
@@ -29,10 +49,11 @@ Coverage results can also be reported as html at htmlcov/index.html:
 uv run coverage html
 ```
 
-Finally, the fastest test execution can be accomplished running pytest only
+To run the tests without measuring anything, which is the one way to
+make them faster:
 
 ```shell
-uv run pytest
+uv run pytest --no-cov
 ```
 
 ## The integration tests, and why they are off by default

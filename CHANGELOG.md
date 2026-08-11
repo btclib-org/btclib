@@ -137,6 +137,57 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`--cov` is in pytest's addopts, so the ratchet is a local gate.** The
+  100% threshold was reached only by the `coverage` job, which means a
+  change met it after being pushed: the pull request that added
+  `test_public_key_validation_does_not_lift` (#615) passed the whole
+  suite, every pre-commit hook and the sphinx build locally, and was red
+  in CI for one line of the new test the run never executes. Measured
+  before moving it, twice on a quiet machine: 36.74 s without and 36.65 s
+  with, coverage.py using `sys.monitoring` on the 3.14 `.python-version`
+  pins. The flag stays written out in `CONTRIBUTING.md`'s coverage-job
+  command, that being the job's command verbatim.
+
+  Its price is that `fail_under` applies to a partial report too, so
+  `pytest tests/bip32/bip32_test.py` would have ended in `Required test
+  coverage of 100.0% not reached. Total coverage: 6.33%` -- true of that
+  run, silent about the tree, and printed under two commands CLAUDE.md
+  documents. `coverage_fail_under` in `tests/conftest.py` answers that: a
+  run that selects a subset -- paths, `-k` or `-m` -- is gated at zero
+  and still reports, which is what makes measuring worthwhile while
+  iterating on one module. Not by switching coverage off, which would
+  throw the report away with the gate; and not `None`, which is the value
+  pytest-cov reads the configured threshold into and would put the gate
+  straight back.
+
+  Where the flag sits in addopts is load-bearing, and cost a red run to
+  find out: `--cov` takes an optional value, so as the last token it is
+  handed the first thing the command line goes on to say. `pytest
+  tests/ecc/dsa_test.py` became `--cov=tests/ecc/dsa_test.py` with no
+  path left to select on -- the whole suite ran, measured a directory
+  `omit` excludes, and reported 0.00% against a `fail_under` of 100,
+  which is how the regtest job (`pytest tests/integration`) went red on a
+  branch that touched nothing it runs. `pytest -q tests/...` hides it,
+  since a token starting with `-` is not consumed, so the habitual
+  spelling was green and the two documented ones were not.
+  `test_cov_is_not_the_last_token_of_addopts` reads the file and asserts
+  only that, no run being able to report its own addopts. The name is
+  spelled the long way round because the `typos` hook rewrites a singular
+  `addopt` to `adopt`, in place and in a test name.
+
+  Three things it deliberately does not do. It does not read `--lf`,
+  `--deselect` or an `-x` that stopped early: those shorten a run without
+  asking for a subset, so they keep the full threshold and can report a
+  shortfall the tree does not have -- inferring intent from all of them
+  would make conftest a second definition of what a real run is. It does
+  not overrule an explicit `--cov-fail-under`, which is the caller naming
+  the number. And it writes to `config.known_args_namespace` rather than
+  to `config.option`: pytest builds the first by parsing the known
+  arguments into a copy of the second, pytest-cov holds that copy from
+  `pytest_load_initial_conftests` on, and the obvious spelling therefore
+  runs clean and changes nothing. Both branches are unit-tested in
+  `tests/conftest_test.py`, the one that matters being unreachable from a
+  whole run by construction.
 - **The Bitcoin Core regtest job runs for the code it checks** (#570).
   `integration.yml`'s `pull_request.paths` held the workflow file and
   `tests/integration/**` and nothing else, so a pull request changing the
