@@ -323,8 +323,13 @@ OP_SUCCESSx = "OP_SUCCESSx"
 # then be one this repository never mentions. Fixed upstream or not, the
 # pinned revision in tests/_data/README.md is what this has to match
 UNKNWON_DEVICE_TYPE = "UNKNWON_DEVICE_TYPE"
-# GitHub Pages' name-with-owner variable, read by the Jekyll layout
+# GitHub Pages' name-with-owner variable, read by the Jekyll layout, and
+# the environment variable website.yml passes the same value in. The hook
+# runs with --write-changes, so without these two lines it rewrites `NWO`
+# as `NOW` and the build loses the repository whose metadata it was
+# resolving
 repository_nwo = "repository_nwo"
+PAGES_REPO_NWO = "PAGES_REPO_NWO"
 
 [tool.typos.default.extend-words]
 # "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell
