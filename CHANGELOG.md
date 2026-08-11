@@ -188,7 +188,13 @@ documented at release-notes length in the first place, and are still in
   dropping the context costs a window in which nothing scans, where
   disabling the setting first costs a required check that cannot report
   and a merge nobody can perform -- and names `codeql: every job passed`
-  after the merge, that check not existing on `main` before it.
+  after the merge, that check not existing on `main` before it. Two things
+  survive the exchange: the `CodeQL` context still reports on a pull
+  request's head, `neutral` now and summarised `1 configuration not found`,
+  and a generated `dynamic/github-code-scanning/codeql` workflow keeps
+  running, uploading code quality results rather than security ones. Code
+  quality is a separate setting, which `code-scanning/default-setup` does
+  not report.
 
 ### Transactions, blocks and PSBT
 
