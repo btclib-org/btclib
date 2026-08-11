@@ -65,28 +65,37 @@ that renames the job reports the name the rule now wants:
 
 ```shell
 branch=repos/btclib-org/btclib/branches/main
-gh api -X PATCH "$branch"/protection/required_status_checks \
-  -F strict=true \
-  -f 'contexts[]=test: every job passed' \
-  -f 'contexts[]=Lint and type-check' \
-  -f 'contexts[]=Build the documentation' \
-  -f 'contexts[]=Regtest against Bitcoin Core' \
-  -f 'contexts[]=codeql: every job passed'
+gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
+{
+  "strict": true,
+  "checks": [
+    {"context": "test: every job passed", "app_id": 15368},
+    {"context": "Lint and type-check", "app_id": 15368},
+    {"context": "Build the documentation", "app_id": 15368},
+    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
+    {"context": "codeql: every job passed", "app_id": 15368}
+  ]
+}
+JSON
 ```
 
-That `PATCH` sends `contexts`, which names no app, and what is there is
-not uniformly that: some of the five are bound to the app that produces
-them and the rest to nothing, which lets any app reporting one of those
-names satisfy it. Read it before assuming either shape:
+**`checks` and not `contexts`, and that is not a style.** All five are
+bound to the app that produces them — 15368, Actions — so nothing else
+reporting one of those names can satisfy it. `contexts` has no field for
+an app, so a `PATCH` sending it replaces the bound list with an unbound
+one: the rule keeps working, silently accepting any app's check of that
+name, and nothing in a run says so. Read it back rather than assume:
 
 ```shell
 gh api repos/btclib-org/btclib/branches/main/protection \
-  --jq '.required_status_checks.checks'   # PATCH that sub-endpoint
+  --jq '.required_status_checks.checks'
 ```
 
-Binding all five is the stricter form — `checks` with an `app_id` in the
-body, 15368 for Actions, rather than the bare `contexts` list — and
-adopting it is a decision separate from this list.
+**A JSON body on stdin is what `app_id` takes**: `-f` sends every value as
+a string and the endpoint answers `422 Invalid request. For
+'properties/app_id', "15368" is not a null or integer`. A shell variable
+holds the path for the same reason the JSON is not on one line, which is
+80 columns.
 
 **PATCH that sub-endpoint, never PUT the whole protection object**: a
 partial PUT drops the reviews, the signatures and the rest. Repeat
@@ -169,16 +178,16 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
   "checks": [
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "Lint and type-check"},
-    {"context": "Build the documentation"}
+    {"context": "Lint and type-check", "app_id": 15368},
+    {"context": "Build the documentation", "app_id": 15368}
   ]
 }
 JSON
 ```
 
-Step 5 is that body with one entry added, bound to Actions because Actions
-is what reports it — the `CodeQL` it replaces was unbound for the opposite
-reason, the app producing it not being Actions:
+Step 5 is that body with one entry added, and every entry carries its app
+because every one of these checks is an Actions check — the `CodeQL` this
+replaces was the exception, the app producing it not being Actions:
 
 ```shell
 branch=repos/btclib-org/btclib/branches/main
@@ -189,8 +198,8 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Regtest against Bitcoin Core", "app_id": 15368},
     {"context": "codeql: every job passed", "app_id": 15368},
-    {"context": "Lint and type-check"},
-    {"context": "Build the documentation"}
+    {"context": "Lint and type-check", "app_id": 15368},
+    {"context": "Build the documentation", "app_id": 15368}
   ]
 }
 JSON
