@@ -41,6 +41,7 @@ from btclib.curves import (
     point_from_octets,
     secp256k1,
 )
+from btclib.curves.curve import _is_x_coordinate
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
@@ -118,11 +119,16 @@ def _assert_valid_key(version: bytes, key: bytes) -> None:
             err_msg = "invalid public key prefix not in (0x02, 0x03): "
             err_msg += f"0x{key[:1].hex()}"
             raise BTClibValueError(err_msg)
-        try:
-            secp256k1.y(int.from_bytes(key[1:], byteorder="big", signed=False))
-        except BTClibValueError as e:
-            err_msg = f"invalid public key: 0x{key.hex()}"
-            raise BTClibValueError(err_msg) from e
+        # existence and nothing else, the y having been computed and
+        # dropped: this is the caller _is_x_coordinate's docstring
+        # describes, and the square root it exists not to pay was paid
+        # once per extended key, so by every level of every derivation
+        # path (issue 615). A predicate has no exception to chain, so
+        # the message below is the whole of the error where it used to
+        # be raised from curve_group's "invalid x-coordinate"
+        x = int.from_bytes(key[1:], byteorder="big", signed=False)
+        if not _is_x_coordinate(x, secp256k1):
+            raise BTClibValueError(f"invalid public key: 0x{key.hex()}")
     else:
         raise BTClibValueError(f"unknown extended key version: 0x{version.hex()}")
 
