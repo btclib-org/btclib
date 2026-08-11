@@ -339,6 +339,19 @@ what the publish jobs download: installing a dependency executes its
 code, and a compromised one must not reach a `dist/` that has still to
 be handed on.
 
+What that job builds is reproducible, and the two steps that make it so
+are the two lines below — the first is why two checkouts of one commit
+produce the same wheel, the second why they produce the same sdist:
+
+```shell
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+```
+
+RELEASING.md's "Rebuild a release from its tag" has them in the order a
+verifier runs them, with the `gh attestation verify` that gives the
+rebuild a verdict and the two bounds on what that verdict means.
+
 The `latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade
 rewrites uv.lock, and here too `git checkout uv.lock` restores it; the

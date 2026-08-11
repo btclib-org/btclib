@@ -55,6 +55,25 @@ a workflow that no long-lived token can authenticate for (PyPI Trusted
 Publishing), so a distribution can be traced back to the workflow run and
 the commit it was built from.
 
+The same files are attached to the GitHub release, and those copies carry
+a build provenance attestation of their own, signed in the run that built
+them:
+
+```shell
+gh attestation verify btclib-<version>-py3-none-any.whl \
+  --repo btclib-org/btclib \
+  --signer-workflow btclib-org/btclib/.github/workflows/release.yml
+```
+
+`--signer-workflow` is what makes that say which workflow signed, rather
+than accepting any attestation this repository has. The signed statement
+is attached to the release as well, as `<tag>.attestation.jsonl`, so
+`--bundle <tag>.attestation.jsonl` runs the same check reading it from
+disk instead of asking GitHub for it; one attestation covers the wheel
+and the sdist both. Either file can also be rebuilt from its tag and
+verified without being downloaded at all, the build being reproducible:
+RELEASING.md has that command and the bounds on it.
+
 ## Limitations, not vulnerabilities
 
 These are known and inherent. They are worth stating because btclib is

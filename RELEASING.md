@@ -346,7 +346,8 @@ word, and step 1 asks it of both.
    already built, rather than the whole matrix again. The upload itself
    is the point of no return, PyPI accepting no file name twice even
    after deletion; the GitHub release follows it, with the distribution
-   files attached and the HISTORY.md section as its body. Read those notes
+   files attached, `<tag>.attestation.jsonl` beside them, and the
+   HISTORY.md section as its body. Read those notes
    once it lands: a run that logs
    `HISTORY.md has no v<version> section` generated them from the merged
    pull requests instead — the fallback `version-check` exists to make
@@ -511,6 +512,60 @@ word, and step 1 asks it of both.
    it. Marking it ready and pressing **Rebase and merge** is what that
    step still is; this one is what makes reaching it with a body already
    written the ordinary case rather than the exception.
+
+## Rebuild a release from its tag
+
+The `build` job exports `SOURCE_DATE_EPOCH` from the commit date and
+normalizes the sdist, so a rebuild of a released tag is the same bytes as
+what was published. Anyone can check that, and the check is one command
+short of the provenance one above: verify the *rebuilt* file rather than a
+downloaded one, and it can only pass if the digests agree. A release whose
+assets carry `<tag>.attestation.jsonl` has the signed statement on disk
+too, so `--bundle <that file>` asks the same question of it without
+reaching the attestations API — which is the form for whoever mirrors the
+releases page rather than trusting it live. `--signer-workflow` is the
+flag that makes either form say *which* workflow signed: without it a
+valid attestation from any workflow in the repository passes.
+
+A worktree and not `git checkout`, for the reason CLAUDE.md gives: the
+primary checkout is the maintainer's, and a rebuild wants a tree of its
+own regardless.
+
+```shell
+git worktree add --detach /tmp/btclib-rebuild v<version>
+cd /tmp/btclib-rebuild
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
+uv build
+uv run --no-project --python 3.14 \
+  .github/scripts/normalize_sdist.py dist/
+repo=btclib-org/btclib
+gh attestation verify dist/btclib-<version>-py3-none-any.whl \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+gh attestation verify dist/btclib-<version>.tar.gz \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+```
+
+Two things bound that guarantee, and both are worth knowing before reading
+a mismatch as tampering:
+
+- **the build backend is resolved, not pinned.** `[build-system] requires`
+  asks for `setuptools>=77` and an isolated build takes whatever is
+  current, so a rebuild months later runs a setuptools the release never
+  saw. A mismatch dates the rebuild before it accuses anyone; pinning the
+  backend to a version is the fix, and the cost is a floor that ages.
+- **the rehearsal is a different version, by construction.** A TestPyPI
+  dispatch appends `.dev<run number>` to the version, so its files are not
+  a second build of the release's — they are their own artifact, published
+  where they say they are. The attestation the rehearsal writes covers
+  those, and no digest is shared with the release.
+
+`btclib_libsecp256k1` is not a third bound. It is a runtime dependency,
+resolved by whoever installs the wheel, and the only trace of it in either
+distribution file is the `Requires-Dist` pyproject.toml already spells and
+the pin `uv.lock` carries into the sdist — both of them text belonging to
+the tag. Nothing the build resolves is a runtime dependency: an isolated
+build installs `[build-system] requires` and no more, and the rebuild
+above needs no `uv sync` to produce the published bytes.
 
 ## If something goes wrong
 
