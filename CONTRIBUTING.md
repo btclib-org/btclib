@@ -49,12 +49,13 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependency is `btclib_secp256k1>=0.7.1.3`, with no
-upper bound**, and the absence of a ceiling is a decision. The bindings are
-a btclib-org project developed by the same people, and their whole purpose
-is to be the bindings this library calls, so a breaking change there is
-coordinated with the release here — which is what a version ceiling
-substitutes for when it cannot be. A `<0.8` ceiling would cost a btclib
+**The declared dependencies are `btclib_secp256k1>=0.8.0` and
+`bitcoin-core-rpc>=2026.8.12`, with no upper bound**, and the absence of a
+ceiling is a decision. Both are btclib-org projects developed by the same
+people, and the bindings' whole purpose is to be the bindings this library
+calls, so a breaking change there is coordinated with the release here —
+which is what a version ceiling substitutes for when it cannot be. A
+`<0.9` ceiling would cost a btclib
 release for every bindings minor, the ones that break nothing included, and
 would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
