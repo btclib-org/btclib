@@ -147,8 +147,9 @@ from btclib.alias import BIP44ScriptType, Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
-    derive,
-    xpub_from_xprv,
+    _derive,
+    _key_data_from_bip32_key,
+    _xpub_from_xprv,
 )
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -2272,7 +2273,12 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
             key.origin.master_fingerprint if key.origin else fingerprint(key.xkey),
             [*(key.origin.der_path if key.origin else []), *prefix],
         ),
-        xkey=xpub_from_xprv(derive(xprv, prefix)),
+        # `xprv` is a string out of the caller's mapping, so the decode
+        # validates it; the base58 round trip the public pair would make
+        # between the two steps does not
+        xkey=_xpub_from_xprv(
+            _derive(_key_data_from_bip32_key(xprv), prefix)
+        ).b58encode(),
         der_path=key.der_path[last:],
         hardening=_HARDENING,
     )
@@ -2633,8 +2639,12 @@ def _account_xpub(xkey: BIP32KeyData, indexes: list[int]) -> str:
     """
     network = NETWORKS[network_from_xkeyversion(xkey.version)]
     version = network.bip32_prv if xkey.is_private else network.bip32_pub
-    derived = derive(xkey, _indexes_left_to_derive(xkey, indexes), version)
-    return xpub_from_xprv(derived) if xkey.is_private else derived
+    # the private pair, `xkey` being validated already: the public
+    # `derive` would serialize to base58 for `xpub_from_xprv` to decode
+    # straight back, and each of the four steps would validate
+    derived = _derive(xkey, _indexes_left_to_derive(xkey, indexes), version)
+    account = _xpub_from_xprv(derived) if xkey.is_private else derived
+    return account.b58encode()
 
 
 def _account_fingerprint(

@@ -914,6 +914,46 @@ documented at release-notes length in the first place, and are still in
 
 ### Wallets
 
+- **The private BIP32 functions validate nothing, which is what their
+  leading underscore says.** `derive(xpub, "m/0/1")` validated the same
+  extended key three times: on decoding it, on building the
+  `_BIP32KeyData` out of the object it had just decoded, and on
+  serializing the result. Two of the three are the rule — input
+  validation at the public boundary, and the check the wrapper makes on
+  what it hands back — and the third was `_derive` doing what a private
+  function does not. `_derive`, `_derive_from_account` and
+  `_xpub_from_xprv` now take a `BIP32KeyData` that is already decoded and
+  already valid, and the new `_key_data_from_bip32_key` is what each
+  public wrapper calls to produce one. Validating there rather than
+  inside `_derive` is also the only place it means anything: the
+  depth-zero rule is a statement about the index and the parent
+  fingerprint of the key as it arrives, and at the final depth of a path
+  a non-zero index is no longer a contradiction.
+
+  The composition is where it pays, a caller wanting the object back
+  having gone through base58 to get it. `descriptors._account_xpub` did
+  `xpub_from_xprv(derive(xkey, path))`, where `derive` serialized so that
+  `xpub_from_xprv` could decode straight back; `_normalized_key` did the
+  same for a key re-rooted at its last hardened step. Both now compose
+  the private pair and encode once, at the end:
+  `account_descriptors(rootxprv, "m/84h/0h/0h")` is 96.9 us against
+  113.8 with five validations against eight, and `normalized` of a
+  hardened descriptor 60.6 us against 75.4 with three against six.
+  `derive(xpub, "m/0/1")` and `derive_from_account` are 51.0 us against
+  54.4. `bip44`'s call site is deliberately left alone: it feeds the
+  string to an address encoder that takes one, so there is no round trip
+  there to remove.
+
+  `_xpub_from_xprv` builds its result rather than copying the key it
+  neuters, `copy.copy` of a `_BIP32KeyData` having carried that
+  subclass's `prv_key_int` — the one scalar the function exists to drop —
+  into an object whose key is public.
+
+  One refusal changes, and for the better: an invalid extended key handed
+  to `xpub_from_xprv` as a `BIP32KeyData` is now refused as the invalid
+  key it is, where it used to reach the neutering and be refused for not
+  being private.
+
 - **BIP32 derivation no longer builds a point nothing reads.**
   `_BIP32KeyData` exists to carry the intermediate results a multi-level
   derivation reuses, and `pub_key_point` stopped being one of them when

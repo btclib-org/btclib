@@ -352,31 +352,55 @@ def rootxprv_from_seed(
 BIP32Key = BIP32KeyData | String
 
 
-def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
+def _key_data_from_bip32_key(xkey: BIP32Key) -> BIP32KeyData:
+    """Return the key as a valid BIP32KeyData, however it was spelled.
+
+    What a public function taking a `BIP32Key` owes the private ones it
+    calls: a string is decoded, and either spelling is validated, once
+    and here. The private functions below then validate nothing, which
+    is what the leading underscore says of them -- so a caller reaching
+    past one of these wrappers owes its callee the same guarantee this
+    provides.
+
+    The key is validated as it stands, before `_derive` changes its
+    depth: the depth-zero rule is a statement about the index and the
+    parent fingerprint of *this* key, and at the final depth of a path
+    it no longer says anything.
+    """
+    if isinstance(xkey, BIP32KeyData):
+        xkey.assert_valid()
+        return xkey
+    return BIP32KeyData.b58decode(xkey)
+
+
+def _xpub_from_xprv(xprv: BIP32KeyData) -> BIP32KeyData:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
     private key (“neutered” as it removes the ability to sign
     transactions).
     """
-    if isinstance(xprv, BIP32KeyData):
-        xkey = copy.copy(xprv)
-    else:
-        xkey = BIP32KeyData.b58decode(xprv)
-
-    if xkey.key[0] != 0:
+    if xprv.key[0] != 0:
         # the offending key is public here, but never echo a
         # serialized xkey: the prefix already says what is wrong
-        err_msg = f"not a private key: prefix 0x{xkey.key[:1].hex()}"
+        err_msg = f"not a private key: prefix 0x{xprv.key[:1].hex()}"
         raise BTClibValueError(err_msg)
 
-    i = XPRV_VERSIONS_ALL.index(xkey.version)
-    xkey.version = XPUB_VERSIONS_ALL[i]
+    q = int.from_bytes(xprv.key[1:], byteorder="big", signed=False)
 
-    q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
-    xkey.key = bytes_from_prv_key_int(q)
-
-    return xkey
+    # built rather than copied: `copy.copy` of a `_BIP32KeyData` -- which
+    # is what `_derive` hands back -- would carry that subclass's
+    # `prv_key_int` into an object whose key is public, the one scalar
+    # this function exists to drop
+    return BIP32KeyData(
+        version=XPUB_VERSIONS_ALL[XPRV_VERSIONS_ALL.index(xprv.version)],
+        depth=xprv.depth,
+        parent_fingerprint=xprv.parent_fingerprint,
+        index=xprv.index,
+        chain_code=xprv.chain_code,
+        key=bytes_from_prv_key_int(q),
+        check_validity=False,
+    )
 
 
 def xpub_from_xprv(xprv: BIP32Key) -> str:
@@ -386,7 +410,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     private key (“neutered” as it removes the ability to sign
     transactions).
     """
-    xkey = _xpub_from_xprv(xprv)
+    xkey = _xpub_from_xprv(_key_data_from_bip32_key(xprv))
     return xkey.b58encode()
 
 
@@ -628,11 +652,8 @@ def _force_version(version: bytes, forced_version: Octets) -> bytes:
 
 
 def _derive(
-    xkey: BIP32Key, der_path: DerPath, forced_version: Octets | None = None
+    xkey: BIP32KeyData, der_path: DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
-    if not isinstance(xkey, BIP32KeyData):
-        xkey = BIP32KeyData.b58decode(xkey)
-
     indexes = indexes_from_der_path(der_path)
 
     final_depth = xkey.depth + len(indexes)
@@ -640,6 +661,10 @@ def _derive(
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
+    # `check_validity=False`: the six fields come from a key the caller
+    # has validated, and the one that changes here -- the depth -- is
+    # bounded on the line above. Validating again would also ask the
+    # depth-zero rule about `final_depth`, where it means nothing
     xkey = _BIP32KeyData(
         version=xkey.version,
         depth=final_depth,
@@ -647,6 +672,7 @@ def _derive(
         index=xkey.index,
         chain_code=xkey.chain_code,
         key=xkey.key,
+        check_validity=False,
     )
 
     if forced_version:
@@ -678,20 +704,19 @@ def derive(
     DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
-    xkey = _derive(xkey, der_path, forced_version)
-    return xkey.b58encode()
+    derived = _derive(_key_data_from_bip32_key(xkey), der_path, forced_version)
+    # the output check the wrapper is entitled to, and the only
+    # validation of the derived key: `serialize` makes it
+    return derived.b58encode()
 
 
 def _derive_from_account(
-    mxkey: BIP32Key,
+    mxkey: BIP32KeyData,
     branch: int,
     address_index: int,
     branches_0_1_only: bool = True,
     max_index: int = 0xFFFF,
 ) -> BIP32KeyData:
-    if not isinstance(mxkey, BIP32KeyData):
-        mxkey = BIP32KeyData.b58decode(mxkey)
-
     if not mxkey.is_hardened:
         raise BTClibValueError("unhardened account/master key")
 
@@ -726,7 +751,11 @@ def derive_from_account(
     high.
     """
     return _derive_from_account(
-        mxkey, branch, address_index, branches_0_1_only, max_index
+        _key_data_from_bip32_key(mxkey),
+        branch,
+        address_index,
+        branches_0_1_only,
+        max_index,
     ).b58encode()
 
 

@@ -297,7 +297,9 @@ def test_public_derivation_builds_no_point(
 
     monkeypatch.setattr(libsecp256k1_keys, "pubkey_tweak_add", record)
 
-    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    xpub = BIP32KeyData.b58decode(
+        "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    )
     parent = _derive(xpub, "m/0")
     compressed_asked.clear()
     child = _derive(xpub, "m/0/1")
@@ -308,6 +310,65 @@ def test_public_derivation_builds_no_point(
     (tweak,) = pub_key_derivation_tweaks(parent.key, parent.chain_code, "m/1")
     uncompressed = tweak_add(parent.key, tweak, False)
     assert child.key == bytes_from_point(point_from_octets(uncompressed))
+
+
+def test_private_functions_do_not_validate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The wrapper validates, the private function below it does not.
+
+    `derive` validated the same extended key three times: on decoding
+    it, on building the `_BIP32KeyData` out of the object it had just
+    decoded, and on serializing the result (issue 633). Two of the three
+    are the rule -- input validation at the boundary, and the check the
+    wrapper makes on what it hands back -- and the third was the private
+    function doing what a leading underscore says it does not.
+    """
+    validations = 0
+    real = BIP32KeyData.assert_valid
+
+    def counting(self: BIP32KeyData) -> None:
+        nonlocal validations
+        validations += 1
+        real(self)
+
+    monkeypatch.setattr(BIP32KeyData, "assert_valid", counting)
+
+    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    derive(xpub, "m/0/1")
+    assert validations == 2
+
+    xpub_data = BIP32KeyData.b58decode(xpub)
+    validations = 0
+    _derive(xpub_data, "m/0/1")
+    assert validations == 0
+
+    # and the wrapper validates the object spelling too, which nothing
+    # downstream would: `_derive` builds with `check_validity=False`
+    validations = 0
+    derive(xpub_data, "m/0/1")
+    assert validations == 2
+
+
+def test_derive_validates_before_it_changes_the_depth() -> None:
+    """The depth-zero rule is about the key handed in, not the one built.
+
+    It is the one check whose meaning depends on a field `_derive`
+    rewrites: at the final depth of a two-index path, an index of 7 is
+    no contradiction, so validating the key after that assignment would
+    accept what `b58decode` refuses.
+    """
+    root_xpub = xpub_from_xprv(rootxprv_from_seed("5b56c417303faa3fcba7e57400e120a0"))
+    raw = bytearray(base58.decode(root_xpub))
+    assert raw[4] == 0  # depth
+    raw[9:13] = (7).to_bytes(4, "big")  # a non-zero index at depth zero
+    bad = base58.encode(bytes(raw), 78)
+
+    err_msg = "zero depth with non-zero index: 7"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(bad, "m/0/1")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(BIP32KeyData.b58decode(bad, check_validity=False), "m/0/1")
 
 
 def test_derive() -> None:
@@ -903,9 +964,14 @@ def test_invalid_key_prefix_messages_show_exactly_one_byte() -> None:
         bad_pub.assert_valid()
     assert str(excinfo.value) == "invalid public key prefix not in (0x02, 0x03): 0x05"
 
+    # a valid xpub, not the malformed key above: `xpub_from_xprv`
+    # validates what it is given before handing it to `_xpub_from_xprv`,
+    # so a 0x05 prefix is refused as an invalid public key rather than as
+    # a public one, and the message below is reached by the key that
+    # really provokes it
     with pytest.raises(BTClibValueError) as excinfo:
-        xpub_from_xprv(bad_pub)
-    assert str(excinfo.value) == "not a private key: prefix 0x05"
+        xpub_from_xprv(xpub)
+    assert str(excinfo.value) == f"not a private key: prefix 0x{xpub.key[:1].hex()}"
 
     child_xpub_data = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
     prefix = f"0x{child_xpub_data.key[:1].hex()}"
