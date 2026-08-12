@@ -161,11 +161,11 @@ excluded-modules = []
 #   attribute`-style check in `dataclasses` never overwrites either way;
 #   `repr=False` already means "inherit the parent's", identical with or
 #   without the decorator; and the `__eq__` the decorator would add
-#   compares `prv_key_int`/`pub_key_point` beside the six inherited
-#   fields, but both are pure functions of `key` and `is_private`, values
-#   already in that comparison -- two instances equal on the six can
-#   never disagree on the two derived from them, so the wider or the
-#   narrower `__eq__` never differs in what it answers.
+#   compares `prv_key_int` beside the six inherited fields, but it is a
+#   pure function of `key` and `is_private`, values already in that
+#   comparison -- two instances equal on the six can never disagree on
+#   the one derived from them, so the wider or the narrower `__eq__`
+#   never differs in what it answers.
 # - `_rootxprv_from_seed`'s `bit_length < 128` and `> 512` widened by one
 #   to 127 and 513: `bit_length = len(seed) * 8` is always a multiple of
 #   8, so 127 and 513 are values no byte-sized seed can ever produce --

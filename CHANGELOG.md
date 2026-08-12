@@ -899,6 +899,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Wallets
 
+- **BIP32 derivation no longer builds a point nothing reads.**
+  `_BIP32KeyData` exists to carry the intermediate results a multi-level
+  derivation reuses, and `pub_key_point` stopped being one of them when
+  the arithmetic went to libsecp256k1 (#241): from then on it was written
+  in three places and read in none. It was not free to write.
+  Constructing the object lifted the key into a point --
+  `point_from_octets`, 3.7 us, one `ec_pubkey_parse` and one
+  `ec_pubkey_serialize` -- and `__pub_key_derivation` asked the bindings
+  for the *uncompressed* serialization at every level, so as to read a y
+  out of it, and then rebuilt the compressed spelling by hand from that
+  y's parity. Nothing looked at either. What the extended key holds is
+  the compressed form, which is now what the bindings are asked for and
+  what is stored unchanged.
+
+  The cost was one point per `_derive` call rather than one per level, so
+  it is a fixed 4 us off a derivation of any depth: `_derive(xpub_data,
+  "m/0/i")` is 34.0 us against 38.1, `derive(xpub, "m/0/i")` 55.1 against
+  58.8, and `derive(xpub, "m/0/0/0/0/0")` 98.8 against 101.7. Private
+  derivation is untouched at 39 us, its branch of the constructor having
+  set the field to the infinity point and stopped there.
+
+  `test_public_derivation_builds_no_point` pins the shape rather than a
+  stopwatch, as #615's test does: the class declares the one cache that
+  is read, the bindings are asked for the compressed form, and the key
+  that comes back is checked against the point the removed arithmetic
+  would have compressed by hand.
+
 - **`RangedWallet.assert_derives` reads a span of addresses back against
   the branch that derived it** (#596). A list of addresses written down
   -- a whitelist, a monitor's import, the deposit block a counterparty

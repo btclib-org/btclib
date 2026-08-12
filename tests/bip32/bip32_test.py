@@ -6,9 +6,11 @@
 
 import hmac
 import re
+from dataclasses import fields
 from typing import Any
 
 import pytest
+from btclib_libsecp256k1 import keys as libsecp256k1_keys
 
 from btclib import base58
 from btclib.b58 import p2pkh
@@ -266,6 +268,46 @@ def test_public_key_validation_does_not_lift(
         BIP32KeyData.b58decode(bad_xpub)
     # a predicate has no exception to chain: the message is the whole error
     assert excinfo.value.__cause__ is None
+
+
+def test_public_derivation_builds_no_point(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Public derivation keeps the key serialized, end to end.
+
+    `_BIP32KeyData` carries the intermediate results derivation reuses,
+    and a cached point stopped being one of them when the arithmetic went
+    to libsecp256k1: it was built for every public extended key, so at
+    every level of every path, and read nowhere. What pins its removal is
+    the shape of the calls rather than a stopwatch -- the class declares
+    the one cache that is read, and the bindings are asked for the
+    compressed spelling an extended key holds, not for the uncompressed
+    one whose y went into that point.
+    """
+    inherited = {field.name for field in fields(BIP32KeyData)}
+    cached = [f.name for f in fields(_BIP32KeyData) if f.name not in inherited]
+    assert cached == ["prv_key_int"]
+
+    compressed_asked: list[bool] = []
+    tweak_add = libsecp256k1_keys.pubkey_tweak_add
+
+    def record(pubkey_bytes: Any, tweak: Any, compressed: bool = True) -> bytes:
+        compressed_asked.append(compressed)
+        return tweak_add(pubkey_bytes, tweak, compressed)
+
+    monkeypatch.setattr(libsecp256k1_keys, "pubkey_tweak_add", record)
+
+    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    parent = _derive(xpub, "m/0")
+    compressed_asked.clear()
+    child = _derive(xpub, "m/0/1")
+    assert compressed_asked == [True, True]
+
+    # and it is the same key: what the bindings compress is what the
+    # parity of an uncompressed y used to be read off to rebuild
+    (tweak,) = pub_key_derivation_tweaks(parent.key, parent.chain_code, "m/1")
+    uncompressed = tweak_add(parent.key, tweak, False)
+    assert child.key == bytes_from_point(point_from_octets(uncompressed))
 
 
 def test_derive() -> None:
