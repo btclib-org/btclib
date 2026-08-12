@@ -171,3 +171,38 @@ def test_req_sigs_is_gone() -> None:
     # a dict that still carries it is read all the same: from_dict never
     # looked at the key, so dropping it breaks no stored dict
     assert TxOut.from_dict({**tx_out.to_dict(), "reqSigs": None}) == tx_out
+
+
+def test_a_pre_built_script_pub_key_is_validated_as_octets_are() -> None:
+    """The object branch of __init__ asks what octets are asked (issue 684).
+
+    A `TxOut` carries a script into a `Tx`'s outputs, a `Block`'s
+    transactions and `PsbtIn.witness_utxo`, and one that passes its own
+    `assert_valid` is taken as sound by all three. What is asked is the
+    network name and that the script is bytes -- not that the script
+    parses, which `Script.assert_valid` explains nothing asks, five
+    transactions in blocks carrying scripts a parse refuses.
+
+    The sibling constructors were audited with it and need nothing:
+    `Tx.assert_valid` walks every `TxIn` and `TxOut`, `Block.assert_valid`
+    the header and every transaction, `PsbtIn.assert_valid` both utxo
+    fields, and `PsbtOut.assert_valid` each of its own. `OutPoint` and
+    `TxIn` are the exceptions `btclib/utils.py` documents: their fields are
+    the widths the parse enforces, so the check is unreachable by design.
+    """
+    bad = ScriptPubKey(b"\x51", "notanetwork", check_validity=False)
+    err_msg = "unknown network: notanetwork"
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        TxOut(1000, bad)
+
+    # check_validity=False defers the question, and asking it later gets
+    # the same answer: the pair is what a caller building a TxOut by hand
+    # and validating it afterwards writes, and it used to pass what the
+    # constructor alone refused
+    tx_out = TxOut(1000, bad, check_validity=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        tx_out.assert_valid()
+
+    # and there is no third case, the class being frozen: a field
+    # reassigned behind either check is what `test_frozen` above refuses
