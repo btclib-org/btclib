@@ -588,6 +588,40 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Taproot takes no curve** (#618). `output_pubkey`,
+  `output_pubkey_from_merkle_root`, `output_prvkey`,
+  `output_prvkey_from_merkle_root` and `check_output_pubkey` ended in
+  `ec: Curve = secp256k1`, and none of the arithmetic behind them used
+  it. `mult(m)` defaults to secp256k1 and its generator, so
+  `_tweaked_pubkey` added a point of secp256k1 to a point of the
+  caller's curve and `_tweaked_prvkey` derived the internal point from
+  the wrong generator; `check_output_pubkey` did not even pretend,
+  naming `secp256k1` twice in a line reached for secp256k1 as well.
+  `_tweaked_prvkey(12345, b"", CURVES["secp256r1"])` therefore answered
+  with a number -- silently, computed against one curve and reduced
+  modulo another's `n` -- where the pubkey half at least raised `point
+  not on curve`.
+
+  Not honoured, because there is nothing to honour: BIP341 defines
+  taproot for secp256k1 and for no other curve, so "the taproot output
+  key" of secp256r1 names nothing this library could be right or wrong
+  about. None of the 57 call sites in `btclib/` and `tests/` passed a
+  curve. `secp256k1` is written out at each use instead, which is what
+  `btclib.bip32.bip32.ec` was replaced by for the same reason, and it is
+  a breaking change: HISTORY.md carries the bullet.
+
+  Two consequences worth naming. `_libsecp256k1_applicable(secp256k1)`
+  is now a constant, and the three guards keep the call rather than
+  saying so: it is the seam the suite patches to reach the Python
+  arithmetic, which is the reference implementation the bindings are
+  checked against and no longer a path any caller can take. And
+  `test_tweak_above_group_order` reached BIP341's `t >= n` refusal by
+  passing a toy curve, a 256-bit tweak always exceeding its order; on
+  secp256k1 that guard is a 2**-128 accident, so the test patches
+  `taproot.secp256k1` instead -- covering it by patching what stands in
+  the way, as CONTRIBUTING.md asks, rather than by a `pragma`. The same
+  toy curve does the same work from the other side of the call, and
+  `_tap_tweak` raises before any arithmetic can see the substitution.
 - **`psbt_signer.SignerDecorator` is a signer wrapping a signer** (#600).
   It forwards the five methods of the contract to the signer it holds, so
   that a caller adding one rule in front of `sign_psbt` -- a whitelist of
