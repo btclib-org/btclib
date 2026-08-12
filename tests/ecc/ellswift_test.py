@@ -16,7 +16,7 @@ import secrets
 from typing import Any
 
 import pytest
-from btclib_libsecp256k1 import ellswift as libsecp256k1_ellswift
+from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
 
 from btclib.curves import mult, secp256k1
 from btclib.curves.curve import CURVES

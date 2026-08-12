@@ -32,11 +32,11 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
-from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
-from btclib_libsecp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
-from btclib_libsecp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib_libsecp256k1.keys import serialize as libsecp256k1_pubkey_serialize
-from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
+from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
+from btclib_secp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
+from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib_secp256k1.keys import serialize as libsecp256k1_pubkey_serialize
+from btclib_secp256k1.mult import mult as libsecp256k1_mult
 
 from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (

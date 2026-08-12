@@ -10,7 +10,7 @@ from hashlib import sha256 as hf
 from typing import Any
 
 import pytest
-from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
+from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData

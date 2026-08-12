@@ -152,6 +152,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Their repository is renamed with them**, to
+  `btclib-org/btclib-secp256k1`, so the urls naming it here move: the
+  issue templates, `README.md`, `SECURITY.md`'s advisory link, and the
+  two comments that list the three repositories this file set is shared
+  with. GitHub redirects the old paths, so none of them was broken; an
+  address that answers through a redirect is still the wrong one to
+  publish. The entry below keeps `btclib-libsecp256k1#122` as written,
+  that being the number as it was announced.
+- **The secp256k1 bindings are required, and imported, as
+  `btclib_secp256k1`**, where they were `btclib_libsecp256k1`
+  (btclib-libsecp256k1#122). `lib` named the C library being wrapped, and
+  a python distribution is not that library: it is btclib's bindings to
+  secp256k1. The requirement moves to `>=0.8.0`, the first release under
+  the new name, and the twelve modules and four test files that import
+  them follow; the local aliases do not, `libsecp256k1_mult` and its
+  neighbours naming the C library, which is what they still call. Nothing
+  of btclib's own API moves, and nothing of the bindings' API does
+  either — the modules, every function, and the `ffi` and `lib` behind
+  them are what they were, so this is a name and nothing else.
+- **What this could not do until the bindings were published.** The lock
+  cannot name a distribution no index serves, so `uv lock` refuses the
+  requirement with `btclib-secp256k1 was not found in the package
+  registry` and every job that runs `uv sync --locked` fails on it. The
+  pull request therefore waited on the release of
+  `btclib_secp256k1` 0.8.0, and `uv lock` was the last commit on it. The
+  suite was run against the new name before that, from a wheel built out
+  of the bindings' own tree: 18586 passed.
 - **`--cov` is in pytest's addopts, so the ratchet is a local gate.** The
   100% threshold was reached only by the `coverage` job, which means a
   change met it after being pushed: the pull request that added

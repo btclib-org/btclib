@@ -9,7 +9,7 @@
   // and after the offending block
   // <!-- markdownlint-enable MD013 -->
 
-  // This file is the same in btclib, btclib-libsecp256k1 and
+  // This file is the same in btclib, btclib-secp256k1 and
   // bitcoin-core-rpc, deliberately: prose moves between the three, and a
   // paragraph that lints in one has to lint in the others. No rule is
   // disabled here -- what follows only names a style where markdownlint's

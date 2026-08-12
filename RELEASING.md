@@ -129,7 +129,7 @@ pyroma), build, wheel smoke test — and publishes to
 Wednesday cron, because what it answers is cheaper to know before a version
 is consumed than after. It gates nothing, so it will not stop you:
 reading it is the point. Its `test-bindings-latest` job is the one worth
-reading closely: it asks about the newest btclib_libsecp256k1 release
+reading closely: it asks about the newest btclib_secp256k1 release
 alone, precisely, rather than folding it into the broader upgrade the
 rest of the workflow makes — a release of the bindings is a release in
 another repository, which nothing here has to change for the pair to
@@ -160,7 +160,7 @@ above says exactly this about the bindings; it is true of both, word for
 word, and step 1 asks it of both.
 
 1. Make sure the newest release of **each btclib-org dependency** —
-   btclib_libsecp256k1 and bitcoin-core-rpc — is the one this release
+   btclib_secp256k1 and bitcoin-core-rpc — is the one this release
    should depend on, and that `pyproject.toml`'s pin says so. Two
    questions, not one: whether the pin *resolves*, which the wheel smoke
    test of the `dist` job already answers on every pull request by
@@ -438,7 +438,7 @@ a mismatch as tampering:
   where they say they are. The attestation the rehearsal writes covers
   those, and no digest is shared with the release.
 
-`btclib_libsecp256k1` is not a third bound. It is a runtime dependency,
+`btclib_secp256k1` is not a third bound. It is a runtime dependency,
 resolved by whoever installs the wheel, and the only trace of it in either
 distribution file is the `Requires-Dist` pyproject.toml already spells and
 the pin `uv.lock` carries into the sdist — both of them text belonging to
@@ -467,7 +467,7 @@ above needs no `uv sync` to produce the published bytes.
   nothing was uploaded, but retagging would rebuild what was never at
   fault. A registration that matched once goes stale on its own — a
   repository rename is enough — and nothing here flags it before the
-  upload tries; sibling repository btclib_libsecp256k1 hit exactly this
+  upload tries; sibling repository btclib_secp256k1 hit exactly this
   on a real tag rather than a rehearsal. Fix the registration and re-run
   the publish job alone against what is already built:
 

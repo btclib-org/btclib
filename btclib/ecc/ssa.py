@@ -59,7 +59,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import overload
 
-from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
+from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key

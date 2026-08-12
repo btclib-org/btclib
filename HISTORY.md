@@ -40,6 +40,20 @@ full year, short month, short day (YYYY-M-D)
   the arithmetic behind it having always used secp256k1's generator
   whatever was passed.
 
+### The bindings are now `btclib_secp256k1`
+
+- **The secp256k1 bindings were renamed, and btclib requires the new
+  name**: `btclib_secp256k1>=0.8.0`, where it required
+  `btclib_libsecp256k1>=0.7.1.3`. `lib` named the C library, and a python
+  distribution is not that library. Nothing in btclib's own API moves,
+  and an install of btclib picks the new dependency up on its own.
+  What to act on, and only if you name the bindings yourself: the old
+  distribution stops at 0.7.1.3 and nothing on PyPI bridges the two, so a
+  project that pins `btclib_libsecp256k1` beside btclib pins a package
+  btclib no longer uses. The two can be installed at once — the import
+  package was renamed with the distribution, so neither shadows the other
+  — which is what makes moving one requirement at a time possible.
+
 ## v2026.8.9
 
 ### Breaking changes

@@ -78,7 +78,7 @@ on:
     # and macos Wednesday, Dependabot Thursday, integration Friday, and
     # the mutation session Sunday -- so a failure notification still names
     # the workflow by the day it arrived; and it is the day
-    # btclib-libsecp256k1 and bitcoin-core-rpc analyse on, so "did CodeQL
+    # btclib-secp256k1 and bitcoin-core-rpc analyse on, so "did CodeQL
     # go red anywhere" has one morning to read rather than three. Weekly, as
     # default setup was: what a scheduled analysis catches is a query
     # CodeQL added since the last commit, which arrives with the bundle

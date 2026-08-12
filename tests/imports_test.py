@@ -38,7 +38,7 @@ MODULE_NAMES = [
 def btclib_modules() -> list[str]:
     """Return the btclib modules in sys.modules, the bindings excluded."""
     # not startswith("btclib"), which would also catch the
-    # btclib_libsecp256k1 bindings: they are not part of this package, and
+    # btclib_secp256k1 bindings: they are not part of this package, and
     # reimporting a cffi extension module is another matter entirely
     return [
         name for name in sys.modules if name == "btclib" or name.startswith("btclib.")

@@ -49,7 +49,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependency is `btclib_libsecp256k1>=0.7.1.3`, with no
+**The declared dependency is `btclib_secp256k1>=0.7.1.3`, with no
 upper bound**, and the absence of a ceiling is a decision. The bindings are
 a btclib-org project developed by the same people, and their whole purpose
 is to be the bindings this library calls, so a breaking change there is
@@ -303,7 +303,7 @@ job's command verbatim.
 
 The `dist` job, which inspects what would be published and then
 installs it. The last commands ask for the wheel and nothing else, so
-what pulls btclib_libsecp256k1 in is the `Requires-Dist` the wheel
+what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel
 carries; the lock arrives as constraints, which bind a version without
 requesting a package, so a release of the bindings cannot turn a required
 check red while the wheel's own metadata still does the work. They run
@@ -376,7 +376,7 @@ which moves every dependency, so a red run here names the one responsible
 instead of burying it behind a dozen others:
 
 ```shell
-uv lock --upgrade-package btclib_libsecp256k1
+uv lock --upgrade-package btclib_secp256k1
 uv run --locked --no-default-groups --group test pytest
 ```
 

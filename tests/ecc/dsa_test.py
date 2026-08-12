@@ -9,8 +9,8 @@ from hashlib import sha1, sha256, sha512
 from typing import Any
 
 import pytest
-from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
-from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
+from btclib_secp256k1 import dsa as libsecp256k1_dsa
+from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
 from btclib.alias import INF, Point
 from btclib.curves import (

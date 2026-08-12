@@ -28,7 +28,7 @@ if a workflow changes.
 ## Architecture
 
 Pure-Python bitcoin cryptography, with secp256k1 arithmetic delegated to
-the `btclib_libsecp256k1` cffi bindings — and delegated conditionally,
+the `btclib_secp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
 `btclib/curves/` or `btclib/ecc/`:
 
