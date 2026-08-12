@@ -281,6 +281,43 @@ documented at release-notes length in the first place, and are still in
   runs clean and changes nothing. Both branches are unit-tested in
   `tests/conftest_test.py`, the one that matters being unreachable from a
   whole run by construction.
+- **The matrix cells pass `--no-cov`, so coverage is measured once again**
+  (#686). The flag the entry above moved into addopts is inherited by
+  every command that does not say otherwise, and the suite step of
+  `test.yml` and of `macos.yml` is a bare `pytest`: so each cell of both
+  matrices began measuring the same lines the `coverage` job measures, and
+  the comment over that job -- "coverage is measured once, not once per
+  matrix job" -- stopped describing the file it sits in. What it costs is
+  not what the entry above measured on 3.14, where it is nearly free:
+  coverage.py collects with `sys.monitoring` there, `sys.settrace` on 3.10
+  and 3.11, and on PyPy through a trace hook the JIT cannot compile
+  through. The same `pypy3.11, ubuntu-24.04-arm` cell either side of it,
+  1.3 minutes at 17a47eed against 27.3 at 41bd4063, inside a
+  `timeout-minutes: 30` whose own comment says it is there to bound a hung
+  job. main at 72fbce69 is where that landed: every test passed, the job
+  was killed in teardown, and the run's conclusion is `cancelled`, which
+  is main red rather than a failure anybody gets told about. A pull
+  request hit the same wall on `windows-11-arm` and a re-run cleared it,
+  which is the shape of the problem -- nothing is broken, the cap is
+  simply where the suite now lands.
+
+  Three things this is not. Not raising the cap, the one option that keeps
+  paying the multiple for a number nothing reads, and that would leave the
+  bound useless for every cell that is not PyPy. Not dropping PyPy from
+  the slow platforms, which gives up what the matrix exists for. And not
+  taking `--cov` back out of addopts, which is the local gate the entry
+  above is. `fail_under` also goes back to being enforced only where
+  pyproject.toml's comment argues it belongs -- on the one interpreter the
+  statement count was checked against -- rather than on every cell that
+  inherited it.
+
+  `latest.yml` keeps `--cov`, which is not an oversight: its two matrices
+  run 3.10 and 3.14 and no PyPy at all, so the wall clock above is not
+  theirs, and it has no coverage job of its own. An upgraded coverage.py
+  meeting the ratchet is one of the things that workflow exists to find
+  out, and its header says so. The two blocks of CONTRIBUTING.md that
+  quote a matrix cell verbatim carry the flag with them, and the third,
+  the `coverage` job's, still spells out the `--cov` it always did.
 - **The Bitcoin Core regtest job runs for the code it checks** (#570).
   `integration.yml`'s `pull_request.paths` held the workflow file and
   `tests/integration/**` and nothing else, so a pull request changing the

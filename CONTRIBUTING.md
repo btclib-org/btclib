@@ -112,7 +112,8 @@ environment somewhere else:
 
 ```shell
 UV_PROJECT_ENVIRONMENT=.venv-3.10 \
-    uv run --locked --no-default-groups --group test --python 3.10 pytest
+    uv run --locked --no-default-groups --group test --python 3.10 pytest \
+    --no-cov
 ```
 
 `.gitignore` does not mention that directory and does not need to: uv
@@ -280,7 +281,7 @@ One cell of the `suite` matrix of `test.yml`. The interpreter is chosen with
 `pypy3.11` included, and downloads it if the machine has none:
 
 ```shell
-uv run --locked --no-default-groups --group test --python 3.10 pytest
+uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
 ```
 
 That one rebuilds `.venv` with the test group alone, which is what breaks
@@ -288,6 +289,14 @@ the pre-commit hook until the next `uv sync`: see the note under "Getting
 started" above, and `UV_PROJECT_ENVIRONMENT` for running it without
 touching `.venv`. The command is what CI runs, verbatim, and CI has no
 `.venv` to lose.
+
+`--no-cov` is the matrix asking about the platform and not about the
+number: it undoes the `--cov` addopts carries, so what a cell reports is
+whether that (os, architecture, interpreter) triple passes. The job below
+is where coverage is measured, and `macos.yml` passes the flag for the
+same reason. `latest.yml` does not: it runs no PyPy cell and has no
+coverage job of its own, so the ratchet meeting an upgraded coverage.py
+is one of the things that workflow exists to find out.
 
 The `coverage` job, gated by `fail_under` in pyproject.toml:
 
