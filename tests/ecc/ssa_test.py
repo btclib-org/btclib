@@ -531,22 +531,70 @@ def test_batch_validation() -> None:
     assert not ssa.batch_verify_(ms, Qs, sigs)
 
 
-def test_a_batch_of_one_takes_the_single_signature_shortcut() -> None:
+def test_a_batch_of_one_takes_the_single_signature_shortcut(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """`batch_size == 1` dispatches to `assert_as_valid_`, not the general sum.
 
-    A malformed `Sig` (built with `check_validity=False`) tells the two
-    apart: the shortcut validates it and names the field, where the
-    general multi_mult equation below has nothing that checks a lone
-    signature's own shape and would just fail the sum instead, `!= 1`
-    weakened to `< 1` routing every batch there since batch_size is
-    never below 1 by the point this check runs.
+    What the shortcut buys is one verification instead of a multi-scalar
+    sum over a single term. What it does not decide is the answer: both
+    paths validate every signature they are handed, so a malformed `Sig`
+    no longer tells them apart, and the dispatch is what is asserted here
+    -- a stand-in on the single-signature entry, reached by a batch of one
+    and not by a batch of two.
     """
+    reached: list[bool] = []
+
+    def spy(*_args: object, **_kwargs: object) -> None:
+        reached.append(True)
+
+    monkeypatch.setattr(ssa, "assert_as_valid_", spy)
+
     q, x_Q = ssa.gen_keys()
     sig = ssa.sign(b"msg", q)
-    bad_sig = ssa.Sig(sig.r, sig.ec.n + 5, sig.ec, check_validity=False)
+    # the reducing spelling, `sign` having reduced too: the underscored one
+    # takes a prepared message, and a batch of two would fail the sum here
+    # for that reason rather than for the dispatch under test
+    ssa.assert_batch_as_valid([b"msg"], [x_Q], [sig])
+    assert reached == [True]
+
+    q_2, x_Q_2 = ssa.gen_keys(2)
+    sig_2 = ssa.sign(b"msg_2", q_2)
+    ssa.assert_batch_as_valid([b"msg", b"msg_2"], [x_Q, x_Q_2], [sig, sig_2])
+    assert reached == [True]
+
+
+@pytest.mark.parametrize("batch_size", [1, 2, 3])
+def test_batch_and_single_verification_agree_about_a_non_canonical_s(
+    batch_size: int,
+) -> None:
+    """One question, one answer, whatever the batch size (issue 688).
+
+    `s` and `s + n` are congruent modulo the group order, so the
+    multi-scalar equation is satisfied by both while BIP340, and
+    `Sig.assert_valid` with it, admit only the canonical one. No 64-byte
+    signature can carry `s + n`, so this takes a caller building `Sig`
+    objects with `check_validity=False` -- which `tests/check_validity_test`
+    shows is supported, and is what the batch equation used to be asked
+    without anything checking.
+    """
+    keys = [ssa.gen_keys(i) for i in range(1, batch_size + 1)]
+    msgs: list[String] = [bytes([i]) * 16 for i in range(1, batch_size + 1)]
+    sigs = [ssa.sign(m, q) for m, (q, _) in zip(msgs, keys, strict=True)]
+    Qs = [x_Q for _, x_Q in keys]
+
+    assert ssa.batch_verify(msgs, Qs, sigs)
+    assert all(ssa.verify(m, Q, s) for m, Q, s in zip(msgs, Qs, sigs, strict=True))
+
+    # the last signature, with n added to its s
+    last = sigs[-1]
+    sigs[-1] = ssa.Sig(last.r, last.s + last.ec.n, last.ec, check_validity=False)
+
+    assert not ssa.verify(msgs[-1], Qs[-1], sigs[-1])
+    assert not ssa.batch_verify(msgs, Qs, sigs)
     err_msg = "scalar s not in 0..n-1: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.assert_batch_as_valid_([b"msg"], [x_Q], [bad_sig])
+        ssa.assert_batch_as_valid(msgs, Qs, sigs)
 
 
 def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) -> None:
