@@ -585,6 +585,30 @@ documented at release-notes length in the first place, and are still in
   `test_the_python_prvkey_tweak_lifts_nothing` patches `mod_sqrt` to
   raise and runs both parities, the branch being the one that decides a
   negation.
+- **Refusing a BIP340 r no longer costs more than verifying a good
+  signature** (#622). `ssa.Sig.assert_valid` asked whether r is an
+  x-coordinate by lifting it with `_y_even` and dropping the y. That is
+  the delegated lift, 2.9 µs against 75, on the *accepting* path only:
+  `_y_even` falls back to `ec.y_even` for an x the bindings refuse,
+  since that is where the message naming the value comes from, so a
+  refusal paid the whole Python square root. `Sig.parse` of a bad r was
+  78.70 µs and `verify_` of one 78.75, against the 22.43 of verifying a
+  good signature — the expensive answer for the cheap input, half of the
+  field elements being no x-coordinate and costing nothing to produce.
+  `_is_x_coordinate` makes both 3.8 µs. The accepting path saves 0.65 µs,
+  3% of a verification, and is not the reason.
+
+  The refusal is `Sig`'s to phrase now, which is the second half of the
+  change rather than its price: `r is not a valid x-coordinate: '0x…'`
+  says which of the two fields is wrong where `invalid x-coordinate` did
+  not, and matches the `scalar s not in 0..n-1` immediately below it and
+  the sentence `dsa.Sig` already phrases for the same reason — without
+  its `(congruent to)`, r being a field element here and not a scalar
+  reduced mod n. Two messages become one: an r outside the field used to
+  come back as `ec.y`'s `x-coordinate not in 0..p-1`, and `dsa.Sig`
+  already collapses that distinction.
+  `test_refusing_an_r_takes_no_square_root` patches `mod_sqrt` to raise
+  over five r, both kinds included.
 
 ### The public API and the module layout
 

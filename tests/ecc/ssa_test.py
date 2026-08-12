@@ -14,7 +14,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.curves import bytes_from_point, double_mult, mult, secp256k1
+from btclib.curves import bytes_from_point, curve_group, double_mult, mult, secp256k1
 from btclib.curves.curve import CURVES, Curve
 from btclib.curves.curve_group import jac_from_aff
 from btclib.ecc import second_generator, ssa
@@ -75,7 +75,11 @@ def test_signature() -> None:
 
     sig_invalid = ssa.Sig(sig.ec.p, sig.s, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
-    err_msg = "x-coordinate not in 0..p-1: "
+    # r outside the field and r inside it with no point are one refusal
+    # now, phrased by Sig rather than by the lift it no longer takes
+    # (issue 622): "x-coordinate not in 0..p-1" was ec.y's, reached
+    # through _y_even, and a predicate has no such message to pass on
+    err_msg = "r is not a valid x-coordinate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
@@ -192,6 +196,44 @@ def test_parse_takes_64_bytes_and_no_other_number(
         err_msg = f"{length - 64} bytes after the BIP340 signature"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.Sig.parse(truncated_or_extended, check_validity=check_validity)
+
+
+@pytest.mark.parametrize(
+    "r",
+    [5, secp256k1.p - 1, secp256k1.p, secp256k1.p + 1, 2**256],
+    ids=["no point has it", "the last field element", "p", "p + 1", "above 2**256"],
+)
+def test_refusing_an_r_takes_no_square_root(
+    r: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The r of a signature is refused by a predicate, not by a lift.
+
+    Refusing used to cost more than verifying: `_y_even` falls back to
+    `ec.y_even` for an x the bindings reject, that being where the
+    message naming the value came from, so a bad r paid the whole Python
+    square root -- 78.7 us against the 22.4 of verifying a good
+    signature (issue 622). Half of the field elements are no
+    x-coordinate and cost nothing to produce, so that was the expensive
+    answer for the cheap input.
+
+    mod_sqrt is patched to raise rather than timed: what the change has
+    to be is a refusal that reaches no square root, on this machine and
+    on a loaded one alike.
+
+    Five r, because the refusal now covers two messages that used to be
+    distinct: `invalid x-coordinate` for a field element no point has,
+    and `x-coordinate not in 0..p-1` for one outside the field, which
+    `Sig` never phrased itself. p - 1 is the last r that is inside it.
+    """
+
+    def refuse(*_: object) -> int:
+        raise AssertionError(  # pragma: no cover
+            "an r was lifted to a point in order to refuse it"
+        )
+
+    monkeypatch.setattr(curve_group, "mod_sqrt", refuse)
+    with pytest.raises(BTClibValueError, match="r is not a valid x-coordinate: "):
+        ssa.Sig(r, 1)
 
 
 def test_the_sighash_type_of_a_witness_signature_is_the_callers() -> None:
