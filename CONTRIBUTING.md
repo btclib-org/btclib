@@ -817,9 +817,10 @@ of several under the pull request's title with its number, and the body
 is the branch's commit messages either way — never the pull request's
 body, which stays on the pull request.
 
-**Read the button before clicking it.** All three methods are enabled on
-the repository and GitHub offers whichever was used last, so the squash is
-a choice made once per pull request rather than a setting.
+**It is a setting and not a choice made once per pull request.** Squash is
+the only method the repository enables, so there is no other button to
+read; REPOSITORY.md has that setting and what the other two would have
+cost.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

@@ -135,6 +135,21 @@ documented at release-notes length in the first place, and are still in
   URL named. `_config.yml`'s exclude list also drops `RELEASE.md`,
   `master`'s name for RELEASING.md, which no branch carries now.
 
+- **Squash is the only merge method the repository enables.** The merge
+  commit was refused by `main`'s required linear history already, so
+  turning it off takes away a button that could not have worked; the
+  rebase merge could have, and what it would have done is replay a
+  branch's commits onto a trunk where one change is one commit. What a
+  single method takes away is not the choice on a pull request in front of
+  somebody: GitHub preselects whichever was used last and offers the same
+  dropdown in the dialog that switches auto-merge on, hours before
+  anything merges and with nothing asking again -- so "read the button
+  before clicking it" was advice CONTRIBUTING.md and RELEASING.md gave and
+  neither could enforce. REPOSITORY.md gains the section, and points at
+  CONTRIBUTING.md for what the commit a squash writes says, that being
+  where a contributor meets those two fields. `bitcoin-core-rpc` and
+  `btclib-libsecp256k1` carry the same setting and the same prose.
+
 ### Packaging, linting and CI
 
 - **`--cov` is in pytest's addopts, so the ratchet is a local gate.** The
