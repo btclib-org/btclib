@@ -42,10 +42,29 @@ from btclib.bech32 import (
     _ALPHABET,
     _BECH32_1_CONST,
     _BECH32_M_CONST,
+    _GENERATOR,
+    _TAPS,
     decode,
     encode,
 )
 from btclib.exceptions import BTClibValueError
+
+
+def test_the_tap_table_holds_the_taps_it_replaces() -> None:
+    """Each entry is the XOR of the generator constants its bits select.
+
+    What `_polymod` reads from `_TAPS` once per character, the reference
+    computes with the five conditional XORs written out below. `chk >> 25`
+    is five bits wide, so the 32 entries are the whole domain: this is
+    exhaustive rather than a sample, which is what a table of constants no
+    reader can check by eye asks for.
+    """
+    assert len(_TAPS) == 32
+    for top in range(32):
+        taps = 0
+        for i in range(5):
+            taps ^= _GENERATOR[i] if ((top >> i) & 1) else 0
+        assert _TAPS[top] == taps
 
 
 def test_bech32() -> None:

@@ -280,6 +280,36 @@ git log --format='%h %G?' origin/main..      # every commit G, none N
 git push origin <branch>:main
 ```
 
+## Merge methods
+
+**Squash is the only method enabled**, so it is a setting and not only the
+convention CONTRIBUTING.md states:
+
+```shell
+gh api repos/btclib-org/btclib \
+  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
+```
+
+answers `true` for the first and `false` for the other two.
+
+The merge commit was refused by the required linear history above already,
+so turning it off takes away a button that could not have worked. The
+rebase merge could have, and that is the one this removes: it replays a
+branch's commits onto `main`, where one change is one commit and the steps
+of a review belong to the pull request that carries them.
+
+What a single method buys is not the button on a pull request somebody is
+looking at. GitHub preselects whichever method was used last, and the
+dialog that switches auto-merge on carries the same dropdown — so the
+answer can be given hours before anything merges, by whoever switched it
+on, with nothing asking again. One method is one entry: there is no wrong
+one to preselect, and nothing to read before pressing.
+
+What the commit a squash writes then says is
+`squash_merge_commit_title` and `squash_merge_commit_message`, which
+CONTRIBUTING.md reads back and explains, both being where a contributor
+meets them.
+
 ## Head branches after a merge
 
 `delete_branch_on_merge` is on, since 7 August 2026:

@@ -135,6 +135,21 @@ documented at release-notes length in the first place, and are still in
   URL named. `_config.yml`'s exclude list also drops `RELEASE.md`,
   `master`'s name for RELEASING.md, which no branch carries now.
 
+- **Squash is the only merge method the repository enables.** The merge
+  commit was refused by `main`'s required linear history already, so
+  turning it off takes away a button that could not have worked; the
+  rebase merge could have, and what it would have done is replay a
+  branch's commits onto a trunk where one change is one commit. What a
+  single method takes away is not the choice on a pull request in front of
+  somebody: GitHub preselects whichever was used last and offers the same
+  dropdown in the dialog that switches auto-merge on, hours before
+  anything merges and with nothing asking again -- so "read the button
+  before clicking it" was advice CONTRIBUTING.md and RELEASING.md gave and
+  neither could enforce. REPOSITORY.md gains the section, and points at
+  CONTRIBUTING.md for what the commit a squash writes says, that being
+  where a contributor meets those two fields. `bitcoin-core-rpc` and
+  `btclib-libsecp256k1` carry the same setting and the same prose.
+
 ### Packaging, linting and CI
 
 - **Their repository is renamed with them**, to
@@ -669,6 +684,71 @@ documented at release-notes length in the first place, and are still in
   tuple `(5, 0)` and has to go on being refused as invalid characters
   rather than as a missing method, which
   `tests/to_prv_key_test.py::test_from_prv_key` is what says.
+- **bech32's checksum selects its taps from a table, not with five
+  conditional XORs per character** (#634). `_polymod` rebuilt its
+  `generator` list on every call and then, for each input character, ran
+  five iterations of five shifts, five masks and five conditional XORs --
+  to compute a value that depends on nothing but the top five bits of
+  `chk`. There are 32 of those, so `_TAPS` holds all 32 sums, computed
+  once at import time, and the inner loop becomes one lookup:
+  `chk = (chk & 0x1FFFFFF) << 5 ^ value ^ _TAPS[chk >> 25]`. Bitcoin
+  Core's `PolyMod` unrolls the same five lines instead of tabulating
+  them, which is what C makes cheap and Python does not.
+
+  macOS arm64, CPython 3.14, best of five alternating rounds: `_polymod`
+  is 3.35 µs against 16.87 on a 90-character address and 1.49 against 7.29
+  on a 42-character p2wpkh, 5.0x and 4.9x. It runs once per encode and
+  once per decode and is the larger part of both, so the total moves with
+  it, which an alphabet lookup does not: `bech32.decode` 4.11 µs against
+  11.22 on that p2wpkh, 5.70 against 16.12 on a p2tr address and 7.66
+  against 22.80 at 90 characters; `bech32.encode` 3.33 against 10.25 and
+  6.40 against 21.66. Through the address semantics on top,
+  `b32.witness_from_address` is 6.59 µs against 13.81 and
+  `b32.address_from_witness` 5.45 against 12.60. The ratio is a little
+  larger on the interpreter that makes the bytecode cost more, 6.0x for
+  `_polymod` on 3.10, and `_hrp_expand` -- timed as the control, this
+  change reaching nothing in it -- is flat.
+
+  Nothing else moves. The checksums are the same for bech32 and bech32m
+  alike, the constant `m` being XORed outside `_polymod`; the
+  `Iterable[int]` signature and the single pass are unchanged, which is
+  what `_create_checksum`'s six appended zeros and `_verify_checksum`'s
+  concatenation still need. It is a departure from sipa's
+  `bech32_polymod`, so it joins the list of modifications in the module
+  docstring, and `test_the_tap_table_holds_the_taps_it_replaces` checks
+  all 32 entries against the conditional XORs they replace -- exhaustive
+  rather than a sample, `chk >> 25` being five bits wide. The descriptor
+  checksum is a different polymod with its own constants
+  (`descriptors.__descsum_polymod`) and is untouched.
+
+- **bech32's `_decode` looks up the alphabet once, not three times**
+  (#627). `x not in _ALPHABET` scanned all 32 characters to validate a
+  character, once over the checksum's last six and once over the whole
+  data portion for the two distinct error messages, and `_ALPHABET.find(x)`
+  scanned them again for the index -- the same shape as base58's and
+  descriptors.py's above, on a shorter alphabet. `_INDEX_OF`, a dict built
+  once, answers all three: `-1` for a character outside the alphabet,
+  doubling as both validity checks, so one pass over the data replaces
+  three scans.
+
+  Smaller than base58's fix and shaped like descriptors.py's: `_decode`
+  builds nothing beyond the `data`/`checksum` split, so there is no
+  big-integer accumulation to chunk. Measured on valid bech32 strings, no
+  address semantics: `_decode` 2.48 us against 2.13 us on 90 characters,
+  2.55 us against 1.58 us on 60 -- 14% and 38% faster on the function
+  itself. `_verify_checksum`'s `_polymod`, unchanged, is what the rest of
+  `decode()` costs and dwarfs `_decode` at both lengths, 41.93 us and
+  16.26 us total, so the win end to end is a few percent: worth doing for
+  what it runs on -- every address and Lightning invoice decoded -- and
+  because three scans collapsing into one lookup is a simplification on
+  its own terms, not because the total moves by much.
+
+  Nothing else moves: both refusals keep their messages and scope,
+  `invalid character in checksum` for the last six and `invalid data
+  character` otherwise, the two already agreeing when the data portion is
+  exactly six characters long; the alphabet stays lowercase-only, built
+  once at import time, because `_decode` already lowers `bech` before
+  reaching the lookup.
 
 ### The public API and the module layout
 
@@ -924,7 +1004,83 @@ documented at release-notes length in the first place, and are still in
   now repeats, the two parsers agreeing on the message as well as on the
   number.
 
+- **The checksum charset is a dict lookup, not two scans** (#626).
+  `__descsum_expand` paid for `INPUT_CHARSET` twice per character:
+  `char not in INPUT_CHARSET` to validate it and `INPUT_CHARSET.find(char)`
+  to find its index, both a linear scan of 92 characters -- the same
+  shape #624 found in base58's alphabet, fixed above it in this same
+  release. `_INPUT_INDEX`, a dict built once, answers both: `-1` for a
+  character outside the charset, doubling as the validity check, so
+  `.get(char, -1)` replaces both scans with one lookup.
+
+  It is a smaller win than base58's, and differently shaped.
+  `__descsum_expand` builds `symbols` and `groups` one character at a
+  time regardless of the charset lookup -- there is no `bytes.translate`
+  doing the whole string in one C pass here, and no big-integer
+  accumulation to chunk, `symbols` staying a list of small fixed-width
+  ints -- so the fix removes one of the two scans, not the per-character
+  loop itself. Measured on `wsh(sortedmulti(2,<xpub>/0/*,<xpub>/1/*,
+  <xpub>/2/*))` (367 characters): `__descsum_expand` 24.43 us against
+  8.71 us on `wpkh(<xpub>/0/*)` (121 characters), each falling by about a
+  fifth with the dict. `__descsum_polymod` -- the checksum's own five-tap
+  loop over every symbol, unchanged -- is 85% of `checksum()`'s time at
+  both lengths, so the total moves by about 3%: worth doing because
+  `checksum()` runs on every descriptor parse and serialization and the
+  fix is a net simplification, not because the polymod loop is the actual
+  cost and a different algorithm.
+
 ### Wallets
+
+- **The private BIP32 functions validate nothing, which is what their
+  leading underscore says.** `derive(xpub, "m/0/1")` validated the same
+  extended key three times: on decoding it, on building the
+  `_BIP32KeyData` out of the object it had just decoded, and on
+  serializing the result. Two of the three are the rule — input
+  validation at the public boundary, and the check the wrapper makes on
+  what it hands back — and the third was `_derive` doing what a private
+  function does not. `_derive`, `_derive_from_account` and
+  `_xpub_from_xprv` now take a `BIP32KeyData` that is already decoded and
+  already valid, and the new `_key_data_from_bip32_key` is what each
+  public wrapper calls to produce one. Validating there rather than
+  inside `_derive` is also the only place it means anything: the
+  depth-zero rule is a statement about the index and the parent
+  fingerprint of the key as it arrives, and at the final depth of a path
+  a non-zero index is no longer a contradiction.
+
+  The composition is where it pays, a caller wanting the object back
+  having gone through base58 to get it. `descriptors._account_xpub` did
+  `xpub_from_xprv(derive(xkey, path))`, where `derive` serialized so that
+  `xpub_from_xprv` could decode straight back; `_normalized_key` did the
+  same for a key re-rooted at its last hardened step. Both now compose
+  the private pair and encode once, at the end:
+  `account_descriptors(rootxprv, "m/84h/0h/0h")` is 96.9 us against
+  113.8 with five validations against eight, and `normalized` of a
+  hardened descriptor 60.6 us against 75.4 with three against six.
+  `derive(xpub, "m/0/1")` and `derive_from_account` are 51.0 us against
+  54.4.
+
+  **`bip44.address_from_der_path` is the same round trip, and the
+  largest of them.** It serialized the derived key to base58 for the
+  address encoder to decode straight back, on the belief that the string
+  was what the encoder took — where the note above `bip44`'s own encoder
+  table says the opposite, the four of them taking a `Key`, which a
+  `BIP32KeyData` is, and `wallet` already reaching for that table with a
+  key that has never been through b58. Passing the derived key as it
+  stands drops one base58 encode, one decode and two validations from
+  every BIP44 address: p2wpkh from an account xpub is 63.8 us against
+  86.0, from an account xprv 61.6 against 94.6, p2pkh 54.4 against 73.3,
+  p2tr 86.1 against 109.5, and the whole five-level path from a root
+  xprv 67.4 against 101.4.
+
+  `_xpub_from_xprv` builds its result rather than copying the key it
+  neuters, `copy.copy` of a `_BIP32KeyData` having carried that
+  subclass's `prv_key_int` — the one scalar the function exists to drop —
+  into an object whose key is public.
+
+  One refusal changes, and for the better: an invalid extended key handed
+  to `xpub_from_xprv` as a `BIP32KeyData` is now refused as the invalid
+  key it is, where it used to reach the neutering and be refused for not
+  being private.
 
 - **BIP32 derivation no longer builds a point nothing reads.**
   `_BIP32KeyData` exists to carry the intermediate results a multi-level

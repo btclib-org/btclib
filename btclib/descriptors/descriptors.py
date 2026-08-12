@@ -147,8 +147,9 @@ from btclib.alias import BIP44ScriptType, Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
-    derive,
-    xpub_from_xprv,
+    _derive,
+    _key_data_from_bip32_key,
+    _xpub_from_xprv,
 )
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -237,6 +238,13 @@ INPUT_CHARSET = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|
 CHECKSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FFD]
 
+# a digit for every character, built once: `char not in INPUT_CHARSET`
+# and `INPUT_CHARSET.find(char)` were each a scan of all 92 characters,
+# one to validate and one to find the index. -1 rather than None keeps
+# the lookup a plain int and doubles as the validity check, since a
+# digit is never negative
+_INPUT_INDEX = {c: i for i, c in enumerate(INPUT_CHARSET)}
+
 
 def __descsum_polymod(symbols: list[int]) -> int:
     """Compute the descriptor checksum polymod."""
@@ -254,9 +262,9 @@ def __descsum_expand(descriptor_string: str) -> list[int]:
     groups: list[int] = []
     symbols: list[int] = []
     for char in descriptor_string:
-        if char not in INPUT_CHARSET:
+        index = _INPUT_INDEX.get(char, -1)
+        if index == -1:
             raise BTClibValueError(f"invalid descriptor character: {char!r}")
-        index = INPUT_CHARSET.find(char)
         symbols.append(index & 31)
         groups.append(index >> 5)
         if len(groups) == 3:
@@ -2272,7 +2280,12 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
             key.origin.master_fingerprint if key.origin else fingerprint(key.xkey),
             [*(key.origin.der_path if key.origin else []), *prefix],
         ),
-        xkey=xpub_from_xprv(derive(xprv, prefix)),
+        # `xprv` is a string out of the caller's mapping, so the decode
+        # validates it; the base58 round trip the public pair would make
+        # between the two steps does not
+        xkey=_xpub_from_xprv(
+            _derive(_key_data_from_bip32_key(xprv), prefix)
+        ).b58encode(),
         der_path=key.der_path[last:],
         hardening=_HARDENING,
     )
@@ -2633,8 +2646,12 @@ def _account_xpub(xkey: BIP32KeyData, indexes: list[int]) -> str:
     """
     network = NETWORKS[network_from_xkeyversion(xkey.version)]
     version = network.bip32_prv if xkey.is_private else network.bip32_pub
-    derived = derive(xkey, _indexes_left_to_derive(xkey, indexes), version)
-    return xpub_from_xprv(derived) if xkey.is_private else derived
+    # the private pair, `xkey` being validated already: the public
+    # `derive` would serialize to base58 for `xpub_from_xprv` to decode
+    # straight back, and each of the four steps would validate
+    derived = _derive(xkey, _indexes_left_to_derive(xkey, indexes), version)
+    account = _xpub_from_xprv(derived) if xkey.is_private else derived
+    return account.b58encode()
 
 
 def _account_fingerprint(

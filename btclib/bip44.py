@@ -37,7 +37,12 @@ from pathlib import Path
 
 from btclib import b32, b58
 from btclib.alias import BIP44ScriptType, NetworkType
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    _derive,
+    _key_data_from_bip32_key,
+)
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
     DerPath,
@@ -274,8 +279,7 @@ def address_from_der_path(
     with it, 0 for mainnet and 1 for any test network, or the path and
     the key are describing different chains and neither wins.
     """
-    if not isinstance(xkey, BIP32KeyData):
-        xkey = BIP32KeyData.b58decode(xkey)
+    xkey = _key_data_from_bip32_key(xkey)
 
     indexes = indexes_from_der_path(der_path)
     _assert_valid_path(indexes)
@@ -296,8 +300,10 @@ def address_from_der_path(
 
     _assert_valid_coin_type(indexes[1] - _HARDENED_OFFSET, xkey)
 
-    # derive returns the b58-encoded key, which is what every encoder in
-    # the table takes: the composition is the whole point, so nothing
-    # reaches for the _derive that would keep it decoded
-    key = derive(xkey, _indexes_left_to_derive(xkey, indexes))
+    # the derived key stays decoded: every encoder in the table takes a
+    # `Key`, which a `BIP32KeyData` is -- the note above the table says so,
+    # `wallet` reaching for it with a key that has never been through b58.
+    # The public `derive` would serialize this one here for
+    # `pub_keyinfo_from_key` to decode straight back
+    key = _derive(xkey, _indexes_left_to_derive(xkey, indexes))
     return address_funct(key, network_from_xkeyversion(xkey.version))

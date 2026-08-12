@@ -278,12 +278,11 @@ word, and step 1 asks it of both.
 
    And merge it the way every pull request here is merged, with **"Squash
    and merge"**: this branch carries a version bump and two retitles, not
-   a cycle of work, and CONTRIBUTING.md gives the rest of the reason. All
-   three methods are enabled and GitHub preselects whichever was used
-   last, so which button it is has to be read before it is pressed — a
-   merge commit is refused by `main`'s required linear history, and a
-   rebase merge would replay the branch's steps into a history whose rule
-   is one commit per landed change.
+   a cycle of work, and CONTRIBUTING.md gives the rest of the reason. It
+   is the only method the repository enables, so the button offers no
+   other — a merge commit was refused by `main`'s required linear history
+   anyway, and a rebase merge would have replayed the branch's steps into
+   a history whose rule is one commit per landed change.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
