@@ -138,8 +138,19 @@ jobs:
           # fetching the same ones on every run of every commit
           enable-cache: true
           python-version: ${{ matrix.python }}
+      # --no-cov, against the --cov that pyproject.toml's addopts carries:
+      # what this matrix asks is whether every (os, architecture,
+      # interpreter) triple passes, and the job below is where coverage is
+      # measured and gated. Instrumenting these cells measures the same
+      # lines over again -- that job's comment is why they are the same
+      # lines -- and on the PyPy cells it costs enough wall clock to reach
+      # the timeout above with every test passed, coverage.py collecting
+      # there through a trace hook the JIT cannot compile through. It also
+      # keeps `fail_under` where pyproject.toml's comment argues it
+      # belongs, on the one interpreter the statement count was checked
+      # against, rather than enforced on every cell of the matrix
       - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
 
   # coverage is measured once, not once per matrix job: the code base has
   # no platform- or version-conditional branch (no sys.platform, no
