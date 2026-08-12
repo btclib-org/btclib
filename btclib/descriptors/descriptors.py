@@ -238,6 +238,13 @@ INPUT_CHARSET = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|
 CHECKSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FFD]
 
+# a digit for every character, built once: `char not in INPUT_CHARSET`
+# and `INPUT_CHARSET.find(char)` were each a scan of all 92 characters,
+# one to validate and one to find the index. -1 rather than None keeps
+# the lookup a plain int and doubles as the validity check, since a
+# digit is never negative
+_INPUT_INDEX = {c: i for i, c in enumerate(INPUT_CHARSET)}
+
 
 def __descsum_polymod(symbols: list[int]) -> int:
     """Compute the descriptor checksum polymod."""
@@ -255,9 +262,9 @@ def __descsum_expand(descriptor_string: str) -> list[int]:
     groups: list[int] = []
     symbols: list[int] = []
     for char in descriptor_string:
-        if char not in INPUT_CHARSET:
+        index = _INPUT_INDEX.get(char, -1)
+        if index == -1:
             raise BTClibValueError(f"invalid descriptor character: {char!r}")
-        index = INPUT_CHARSET.find(char)
         symbols.append(index & 31)
         groups.append(index >> 5)
         if len(groups) == 3:

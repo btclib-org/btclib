@@ -912,6 +912,31 @@ documented at release-notes length in the first place, and are still in
   now repeats, the two parsers agreeing on the message as well as on the
   number.
 
+- **The checksum charset is a dict lookup, not two scans** (#626).
+  `__descsum_expand` paid for `INPUT_CHARSET` twice per character:
+  `char not in INPUT_CHARSET` to validate it and `INPUT_CHARSET.find(char)`
+  to find its index, both a linear scan of 92 characters -- the same
+  shape #624 found in base58's alphabet, fixed above it in this same
+  release. `_INPUT_INDEX`, a dict built once, answers both: `-1` for a
+  character outside the charset, doubling as the validity check, so
+  `.get(char, -1)` replaces both scans with one lookup.
+
+  It is a smaller win than base58's, and differently shaped.
+  `__descsum_expand` builds `symbols` and `groups` one character at a
+  time regardless of the charset lookup -- there is no `bytes.translate`
+  doing the whole string in one C pass here, and no big-integer
+  accumulation to chunk, `symbols` staying a list of small fixed-width
+  ints -- so the fix removes one of the two scans, not the per-character
+  loop itself. Measured on `wsh(sortedmulti(2,<xpub>/0/*,<xpub>/1/*,
+  <xpub>/2/*))` (367 characters): `__descsum_expand` 24.43 us against
+  8.71 us on `wpkh(<xpub>/0/*)` (121 characters), each falling by about a
+  fifth with the dict. `__descsum_polymod` -- the checksum's own five-tap
+  loop over every symbol, unchanged -- is 85% of `checksum()`'s time at
+  both lengths, so the total moves by about 3%: worth doing because
+  `checksum()` runs on every descriptor parse and serialization and the
+  fix is a net simplification, not because the polymod loop is the actual
+  cost and a different algorithm.
+
 ### Wallets
 
 - **The private BIP32 functions validate nothing, which is what their
