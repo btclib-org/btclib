@@ -637,6 +637,10 @@ first if an
 also known as a PR) already exists.
 If a related issue/PR does not exist, please open a new issue.
 
+**Every change starts with an issue.** Open one before a pull request,
+even a small one — `Closes #N` in the pull request's description is
+what closes it once a pull request carrying an approving review merges.
+
 #### Solve an issue
 
 Scan through our
@@ -755,7 +759,13 @@ present. History has two files of its own, `CHANGELOG.md` and
 
 ### Commit your update
 
-Commit the changes to your fork once you are happy with them.
+Commit the changes to your fork once you are happy with them. **Every
+commit needs a verified signature** — GPG, SSH or S/MIME, [any of the
+three GitHub
+verifies](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
+— because the branch rule requires one on every commit that reaches
+`main`, not only on the pull request as a whole: an unsigned commit is
+rejected before review even starts.
 
 ### Pull Request
 
@@ -815,6 +825,15 @@ The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a
 stale pull request is refreshed. Re-run the gates after it, never only
 before it, and say in the pull request that the head moved and why.
+
+**A pull request needs an approving review from somebody other than its
+author before it can merge** — GitHub does not allow a self-approval.
+
+**`main` enforces four things on every commit that reaches it, not only
+on review**: a verified signature, linear history, no force push, no
+branch deletion. These are a GitHub ruleset with no bypass actor, not a
+rule trusted to hold on its own — a commit that is unsigned or that
+rewrites history is rejected before it is something to review.
 
 ### Your PR is merged
 
