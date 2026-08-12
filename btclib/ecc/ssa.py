@@ -65,6 +65,7 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import (
+    _is_x_coordinate,
     _jac_double_mult,
     _libsecp256k1_applicable,
     _y_even,
@@ -150,13 +151,27 @@ class Sig:
     def assert_valid(self) -> None:
         """Refuse an r that is no x-coordinate, or an s outside 0..n-1."""
         # r is a field element, fail if r is not a valid x-coordinate.
-        # Asking for the y is how that is asked, and the y is discarded:
-        # BIP340 fixes it even, and verification recomputes the point from
-        # the scalars rather than lifting this r. Through the delegating
-        # lift of curves.curve, 2.9 us against 75 -- and no congruence
-        # loop, r being a field element here and not a scalar reduced mod
-        # n as it is in dsa.Sig
-        _y_even(self.r, self.ec)
+        # The question is existence: BIP340 fixes the y even, and
+        # verification recomputes the point from the scalars rather than
+        # lifting this r, so _is_x_coordinate and not the _y_even that
+        # was here (issue 622). The delegated lift was already 2.9 us
+        # against 75 on the accepting path, and 0.65 of that is not the
+        # reason: _y_even falls back to ec.y_even for an x the bindings
+        # refuse -- that being where the message naming the value comes
+        # from -- so refusing cost the whole Python square root, 78.7 us
+        # against the 22.4 of verifying a good signature. The expensive
+        # answer was the one an attacker picks, half of the field
+        # elements being no x-coordinate and costing nothing to produce.
+        #
+        # A bool leaves the message here, which is where it belongs: r is
+        # this signature's, and "invalid x-coordinate" did not say which
+        # of the two fields was wrong. dsa.Sig phrases its own for the
+        # same reason, with the congruence this one has no use for -- r
+        # is a field element here, not a scalar reduced mod n
+        if not _is_x_coordinate(self.r, self.ec):
+            err_msg = "r is not a valid x-coordinate: "
+            err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
+            raise BTClibValueError(err_msg)
 
         # s is a scalar, fail if s is not in [0, n-1]
         if not 0 <= self.s < self.ec.n:
