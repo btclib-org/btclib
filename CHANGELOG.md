@@ -175,10 +175,36 @@ documented at release-notes length in the first place, and are still in
   cannot name a distribution no index serves, so `uv lock` refuses the
   requirement with `btclib-secp256k1 was not found in the package
   registry` and every job that runs `uv sync --locked` fails on it. The
-  pull request therefore waited on the release of
-  `btclib_secp256k1` 0.8.0, and `uv lock` was the last commit on it. The
-  suite was run against the new name before that, from a wheel built out
-  of the bindings' own tree: 18586 passed.
+  suite was run against the new name before the release, from a wheel
+  built out of the bindings' own tree: 18586 passed.
+
+  The rename merged before that release and without the lock commit it was
+  waiting for, so `main` at 6ae24401 required `btclib_secp256k1>=0.8.0`
+  while `uv.lock` still named `btclib-libsecp256k1>=0.7.1.3`: `test`,
+  `lint`, `docs` and `integration` all failed on the error above, none of
+  them reaching a test. The entry below is the repair. What it costs to
+  know is that a requirement and its lock are one commit — a lock left for
+  afterwards is a red default branch, not a follow-up — and that no gate
+  covers that ordering: the `uv-lock` hook does catch the inconsistency,
+  on the machine of whoever commits.
+
+- **Every dependency re-resolved, which is how `main` was put back
+  together** (#699). `uv lock --upgrade` rather than a lock of the one
+  entry that broke: the file had to be rewritten either way, and this is
+  the refresh `latest.yml` rehearses weekly. It removed
+  `btclib-libsecp256k1` 0.7.1.3, added `btclib_secp256k1` 0.8.0, carried
+  `bitcoin-core-rpc` from 2026.8.8 to 2026.8.12, and moved
+  `charset-normalizer`, `hypothesis`, `python-discovery`, `sqlalchemy` and
+  `typing-inspection`. The declared bound follows the release it names, so
+  `bitcoin-core-rpc>=2026.8.12`; the bindings' `>=0.8.0` already did.
+
+  CONTRIBUTING.md's dependency paragraph is corrected with it. It stated
+  `btclib_secp256k1>=0.7.1.3` — the new name carrying the old version, the
+  half of the rename that did not reach the prose — and named no bound for
+  `bitcoin-core-rpc` at all, though the no-ceiling argument it makes covers
+  both: they are btclib-org projects developed by the same people, which
+  is what a version ceiling substitutes for when it cannot be. Its `<0.8`
+  example moves to `<0.9`, the floor having passed it.
 - **`--cov` is in pytest's addopts, so the ratchet is a local gate.** The
   100% threshold was reached only by the `coverage` job, which means a
   change met it after being pushed: the pull request that added
