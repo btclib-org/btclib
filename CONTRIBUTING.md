@@ -705,6 +705,40 @@ takes it from. `tests/all_test.py` checks all of this and finds the
 modules rather than listing them, so a new public name fails the suite
 until it is exported or recorded in that file's `UNEXPORTED` table.
 
+**Every public function validates its inputs.** Whatever it is handed — a
+string, octets, or an object somebody built earlier — a name a caller can
+reach checks it before acting on it, and a malformed argument leaves as a
+`BTClibTypeError` or a `BTClibValueError`, which is what the callers of
+this library are written to catch. The work itself may be deferred to a
+private twin that does not validate; that twin is then what the library
+composes internally, where the inputs have already been checked and
+checking them a second time buys nothing.
+
+`check_validity=False` is not an exemption from this. It says "do not
+check *now*", not "this object is exempt from here on": these are mutable
+dataclasses whose fields are public and get reassigned in place, so
+validity at construction is not validity at use. Passing it is supported —
+`tests/check_validity_test.py` exercises the flag across the library — so
+a public function that takes an already-built object and asks it nothing
+is one a caller can reach with an object the library itself would refuse.
+
+`btclib.bip32` is the shape to copy. `derive` validates and calls
+`_derive`, which does not, and `_key_data_from_bip32_key` is the one place
+a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
+public wrapper going through it. `descriptors` then composes the twins
+directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
+prefix))` — paying one validation instead of three, and no base58 round
+trip between them. So a leading underscore says a second thing here,
+beside what `__all__` already decides about publicity: the twin does not
+validate, and calling it asserts that its caller did.
+
+The exception is a boundary at which nothing can be invalid, and it is
+named rather than passed over: where a class's invariants are exactly the
+widths of its fields, the decoding enforces them by construction and the
+check is unreachable by design rather than missing. `btclib/utils.py`'s
+docstring is where that rule is written down, `OutPoint` and `TxIn` being
+the classes it holds for.
+
 #### Documentation and comments
 
 What "satisfied" means for the prose — docstrings, comments, the

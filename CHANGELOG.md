@@ -150,6 +150,31 @@ documented at release-notes length in the first place, and are still in
   where a contributor meets those two fields. `bitcoin-core-rpc` and
   `btclib-libsecp256k1` carry the same setting and the same prose.
 
+- **CONTRIBUTING.md states the input-validation rule** (#684), under "The
+  public surface", where the `__all__` rule beside it already says what
+  being public means: every public function validates what it is handed,
+  deferring the work if it likes to a private twin that does not, and that
+  twin is what the library composes internally. Three things the section
+  had to say beyond the rule itself. That `check_validity=False` is not an
+  exemption -- it says "do not check *now*", and these are mutable
+  dataclasses whose fields are public and get reassigned in place, so
+  validity at construction is not validity at use, while passing the flag
+  is supported and `tests/check_validity_test.py` exercises it. That
+  `btclib.bip32` is the shape to copy, `derive` validating and `_derive`
+  not, with `_key_data_from_bip32_key` the one place a `BIP32Key` becomes a
+  validated `BIP32KeyData` and `descriptors` composing the twins directly.
+  And that a leading underscore therefore says a second thing here, beside
+  what `__all__` decides about publicity: the twin does not validate, and
+  calling it asserts that its caller did.
+
+  The exception is named rather than passed over, because a reader finding
+  a class that asks nothing needs to know which kind it is: where a
+  class's invariants are exactly the widths of its fields the decoding
+  enforces them by construction, so the check is unreachable by design
+  rather than missing. `btclib/utils.py`'s docstring is where that rule
+  lives and `OutPoint` and `TxIn` are the classes it holds for, so the new
+  paragraph points at it instead of restating it.
+
 ### Packaging, linting and CI
 
 - **Their repository is renamed with them**, to
