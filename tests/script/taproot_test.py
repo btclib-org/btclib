@@ -18,7 +18,7 @@ import pytest
 
 from btclib import b32
 from btclib.alias import ScriptList
-from btclib.curves import bytes_from_point, mult
+from btclib.curves import bytes_from_point, curve_group, mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
     TaprootScriptTree,
@@ -130,6 +130,45 @@ def test_the_python_tweak_is_the_bindings_tweak(
             no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
             assert output_pubkey(pub_key, script_tree) == delegated
             assert output_prvkey(prv_key, script_tree) == delegated_prvkey
+
+
+@pytest.mark.parametrize(
+    "prv_key, parity", [(0xC0FFEE, 1), (3, 0)], ids=["odd y", "even y"]
+)
+def test_the_python_prvkey_tweak_lifts_nothing(
+    prv_key: int, parity: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The internal key's parity is read off its y, not recomputed.
+
+    BIP341 negates the key whose public point has an odd y, and the
+    point is one `mult` has just returned: the y is in hand, so the
+    parity is a `%` and not a lift of the x back to the point it came
+    from (issue 619). What pins that is reaching no modular square root
+    at all, which is stronger than a stopwatch and does not depend on
+    the machine: mod_sqrt is patched to raise.
+
+    Both parities, because the branch this reads decides a negation:
+    with only the even key the answer would be right for a run that
+    never took it. The parity is asserted rather than trusted to the
+    id, a key whose point moved being a test that stopped testing.
+
+    The Python path is what the patch reaches -- the bindings answer the
+    whole tweak for secp256k1, and taproot is defined over no other
+    curve -- and its answer still has to be the bindings' answer.
+    """
+    assert mult(prv_key)[1] % 2 == parity
+    delegated = [output_prvkey(prv_key, tree) for tree in SCRIPT_TREES]
+
+    def refuse(*_: object) -> int:
+        raise AssertionError(  # pragma: no cover
+            "the internal point's x was lifted to read a parity"
+        )
+
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(curve_group, "mod_sqrt", refuse)
+        for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
+            assert output_prvkey(prv_key, tree) == expected
 
 
 def test_the_python_commitment_check_is_the_bindings_one(

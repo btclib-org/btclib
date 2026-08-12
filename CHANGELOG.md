@@ -562,6 +562,29 @@ documented at release-notes length in the first place, and are still in
   `CurveGroup.y`/`y_even` are still reached directly from
   `script.taproot` and `ecc.pedersen`, each with its own answer to
   whether it wants a coordinate or a predicate.
+- **The parity of a y in hand is a `%`, not a lift** (#619).
+  `_tweaked_prvkey` decided whether BIP341 wants the internal key
+  negated with `ec.y_even(P[0]) == P[1]`: a modular square root taking
+  the x of a point back to that point, to compare the y it recovers with
+  the y sitting beside it. `P[1] % 2 == 0` is the question, 0.032 µs
+  against 74.561 (min of nine repeats, secp256k1).
+
+  Unlike #615 and #288 this is a deletion and not a delegation, which is
+  what makes it worth having: the line is in the Python fallback,
+  reached when `_libsecp256k1_applicable` is False, so it is the one path
+  no amount of dispatching could have helped. Nothing changes for
+  secp256k1 with the bindings present, where `xonly.prvkey_tweak_add`
+  answers the whole function.
+
+  The two spellings agree on every point of the eight low-cardinality
+  curves and on the first 199 multiples of G on secp256r1 and secp256k1,
+  and differ on exactly one input: the infinity btclib writes as
+  `y == 0`, which `is_on_curve` accepts and `y_even` has no answer for.
+  `mult` of a key `int_from_prv_key` has refused zero for cannot be it,
+  so that is a comment rather than a guard.
+  `test_the_python_prvkey_tweak_lifts_nothing` patches `mod_sqrt` to
+  raise and runs both parities, the branch being the one that decides a
+  negation.
 
 ### The public API and the module layout
 

@@ -330,7 +330,15 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes, ec: Curve) -> int:
         return int.from_bytes(tweaked, "big")
 
     P = mult(internal_prvkey)
-    has_even_y = ec.y_even(P[0]) == P[1]
+    # the parity of a y already in hand: ec.y_even(P[0]) lifted the x
+    # back to the point P is -- 74.6 us of modular square root against
+    # 0.03 -- to compare its y with the one beside it (issue 619). Not a
+    # delegation but a deletion, which is what this path needed: it runs
+    # where the bindings do not, so there was nothing here to dispatch
+    # to. The two spellings differ on the infinity btclib writes as
+    # y == 0, and mult of a key int_from_prv_key has refused zero for
+    # cannot be it
+    has_even_y = P[1] % 2 == 0
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
     t = _tap_tweak(P[0].to_bytes(32, "big"), h, ec)
     return (internal_prvkey + t) % ec.n
