@@ -940,9 +940,20 @@ documented at release-notes length in the first place, and are still in
   113.8 with five validations against eight, and `normalized` of a
   hardened descriptor 60.6 us against 75.4 with three against six.
   `derive(xpub, "m/0/1")` and `derive_from_account` are 51.0 us against
-  54.4. `bip44`'s call site is deliberately left alone: it feeds the
-  string to an address encoder that takes one, so there is no round trip
-  there to remove.
+  54.4.
+
+  **`bip44.address_from_der_path` is the same round trip, and the
+  largest of them.** It serialized the derived key to base58 for the
+  address encoder to decode straight back, on the belief that the string
+  was what the encoder took — where the note above `bip44`'s own encoder
+  table says the opposite, the four of them taking a `Key`, which a
+  `BIP32KeyData` is, and `wallet` already reaching for that table with a
+  key that has never been through b58. Passing the derived key as it
+  stands drops one base58 encode, one decode and two validations from
+  every BIP44 address: p2wpkh from an account xpub is 63.8 us against
+  86.0, from an account xprv 61.6 against 94.6, p2pkh 54.4 against 73.3,
+  p2tr 86.1 against 109.5, and the whole five-level path from a root
+  xprv 67.4 against 101.4.
 
   `_xpub_from_xprv` builds its result rather than copying the key it
   neuters, `copy.copy` of a `_BIP32KeyData` having carried that
