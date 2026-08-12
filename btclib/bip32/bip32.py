@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from btclib_libsecp256k1 import keys as libsecp256k1_keys
 
 from btclib import base58
-from btclib.alias import INF, BinaryData, Octets, Point, String
+from btclib.alias import BinaryData, Octets, String
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
     DerPath,
@@ -38,7 +38,6 @@ from btclib.bip32.der_path import (
 )
 from btclib.curves import (
     bytes_from_prv_key_int,
-    point_from_octets,
     secp256k1,
 )
 from btclib.curves.curve import _is_x_coordinate
@@ -395,11 +394,14 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 # scalar the inherited masking __repr__ exists to hide
 @dataclass(repr=False)
 class _BIP32KeyData(BIP32KeyData):
-    # extensions that cache intermediate results
-    # in multi-level derivation: do not rely on them elsewhere
+    # the one intermediate result multi-level derivation reuses: do not
+    # rely on it elsewhere. The public counterpart a private key needs is
+    # not cached beside it -- __prv_key_path_derivation computes it once,
+    # for the fingerprint, and hands it to the step that would recompute
+    # it; a point cached here would instead be built for every key,
+    # including the public ones that never look at it
 
     prv_key_int: int  # non-zero for private key only
-    pub_key_point: Point  # non-Infinity for public key only
 
     def __init__(
         self,
@@ -422,12 +424,9 @@ class _BIP32KeyData(BIP32KeyData):
             check_validity=False,
         )
 
-        if self.is_private:
-            self.prv_key_int = int.from_bytes(self.key[1:], "big", signed=False)
-            self.pub_key_point = INF
-        else:
-            self.prv_key_int = 0
-            self.pub_key_point = point_from_octets(self.key, secp256k1)
+        self.prv_key_int = (
+            int.from_bytes(self.key[1:], "big", signed=False) if self.is_private else 0
+        )
 
         if check_validity:
             self.assert_valid()
@@ -560,16 +559,14 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     # 33.4 of mult(offset) followed by a Python point addition, and the
     # key stays serialized throughout -- the parent's 33 bytes go in and
     # the child's come out, with no point built on either side.
-    # Uncompressed on the way out, deliberately: the y coordinate is
-    # what the cached point needs, and recovering it from a compressed
-    # key would be the lift of point_from_octets, 3.2 us against the 1.2
-    # of reading the y out of octets libsecp256k1 has already written --
-    # a lift the bindings answer rather than a modular square root, which
-    # is what makes the two comparable at all.
+    # Compressed on the way out, which is the spelling an extended key
+    # holds: asking for the uncompressed form to read a y out of it costs
+    # a second serialize and the parity arithmetic that follows, for a
+    # coordinate nothing here goes on to use.
     #
     # Not gated on the curve, BIP32 being defined for secp256k1 alone
     try:
-        sec = libsecp256k1_keys.pubkey_tweak_add(xkey.key, offset, compressed=False)
+        sec = libsecp256k1_keys.pubkey_tweak_add(xkey.key, offset, compressed=True)
     except ValueError as e:
         # past the range check above, the one sum libsecp256k1 refuses
         # is the point at infinity BIP32 refuses too
@@ -578,11 +575,7 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
         ) from e
 
     xkey.chain_code = chain_code
-    y = int.from_bytes(sec[33:], byteorder="big", signed=False)
-    xkey.pub_key_point = (int.from_bytes(sec[1:33], byteorder="big", signed=False), y)
-    # the compressed spelling of what came back, as bytes_from_point
-    # writes it: the prefix is the parity of the y being dropped
-    xkey.key = (b"\x03" if y & 1 else b"\x02") + sec[1:33]
+    xkey.key = sec
 
 
 def __prv_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:
