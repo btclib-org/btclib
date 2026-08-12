@@ -42,6 +42,9 @@ with the following modifications:
 * avoided returning (None, None), throwing Exceptions instead
 * no 90-character string limit, a bitcoin address bound that b32
   enforces instead
+* the checksum's inner loop is a 32-entry table of tap combinations,
+  the same taps selected by a lookup rather than by five conditional
+  XORs per character
 * detailed error messages
 * interface mimics the native Python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
@@ -51,6 +54,8 @@ with the following modifications:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from functools import reduce
+from operator import xor
 
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
@@ -64,16 +69,25 @@ _ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 _BECH32_1_CONST = 1
 _BECH32_M_CONST = 0x2BC830A3
 
+# BIP173's five generator constants, and the XOR of the ones each 5-bit
+# selection picks. What a step of _polymod applies depends on nothing but
+# the top five bits of chk, of which there are 32, so the table computed
+# once here is the whole of the reference's inner loop -- five shifts,
+# five masks and five conditional XORs per input character. Bitcoin
+# Core's PolyMod unrolls those five lines instead of tabulating them,
+# which is what C makes cheap and Python does not
+_GENERATOR = (0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3)
+_TAPS = [
+    reduce(xor, [g for i, g in enumerate(_GENERATOR) if top >> i & 1], 0)
+    for top in range(32)
+]
+
 
 def _polymod(values: Iterable[int]) -> int:
     """Return the bech32 checksum."""
-    generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
-        top = chk >> 25
-        chk = (chk & 0x1FFFFFF) << 5 ^ value
-        for i in range(5):
-            chk ^= generator[i] if ((top >> i) & 1) else 0
+        chk = (chk & 0x1FFFFFF) << 5 ^ value ^ _TAPS[chk >> 25]
     return chk
 
 

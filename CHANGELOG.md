@@ -657,6 +657,42 @@ documented at release-notes length in the first place, and are still in
   tuple `(5, 0)` and has to go on being refused as invalid characters
   rather than as a missing method, which
   `tests/to_prv_key_test.py::test_from_prv_key` is what says.
+- **bech32's checksum selects its taps from a table, not with five
+  conditional XORs per character** (#634). `_polymod` rebuilt its
+  `generator` list on every call and then, for each input character, ran
+  five iterations of five shifts, five masks and five conditional XORs --
+  to compute a value that depends on nothing but the top five bits of
+  `chk`. There are 32 of those, so `_TAPS` holds all 32 sums, computed
+  once at import time, and the inner loop becomes one lookup:
+  `chk = (chk & 0x1FFFFFF) << 5 ^ value ^ _TAPS[chk >> 25]`. Bitcoin
+  Core's `PolyMod` unrolls the same five lines instead of tabulating
+  them, which is what C makes cheap and Python does not.
+
+  macOS arm64, CPython 3.14, best of five alternating rounds: `_polymod`
+  is 3.35 µs against 16.87 on a 90-character address and 1.49 against 7.29
+  on a 42-character p2wpkh, 5.0x and 4.9x. It runs once per encode and
+  once per decode and is the larger part of both, so the total moves with
+  it, which an alphabet lookup does not: `bech32.decode` 4.11 µs against
+  11.22 on that p2wpkh, 5.70 against 16.12 on a p2tr address and 7.66
+  against 22.80 at 90 characters; `bech32.encode` 3.33 against 10.25 and
+  6.40 against 21.66. Through the address semantics on top,
+  `b32.witness_from_address` is 6.59 µs against 13.81 and
+  `b32.address_from_witness` 5.45 against 12.60. The ratio is a little
+  larger on the interpreter that makes the bytecode cost more, 6.0x for
+  `_polymod` on 3.10, and `_hrp_expand` -- timed as the control, this
+  change reaching nothing in it -- is flat.
+
+  Nothing else moves. The checksums are the same for bech32 and bech32m
+  alike, the constant `m` being XORed outside `_polymod`; the
+  `Iterable[int]` signature and the single pass are unchanged, which is
+  what `_create_checksum`'s six appended zeros and `_verify_checksum`'s
+  concatenation still need. It is a departure from sipa's
+  `bech32_polymod`, so it joins the list of modifications in the module
+  docstring, and `test_the_tap_table_holds_the_taps_it_replaces` checks
+  all 32 entries against the conditional XORs they replace -- exhaustive
+  rather than a sample, `chk >> 25` being five bits wide. The descriptor
+  checksum is a different polymod with its own constants
+  (`descriptors.__descsum_polymod`) and is untouched.
 
 ### The public API and the module layout
 
