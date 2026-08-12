@@ -447,6 +447,55 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A pre-built `ScriptPubKey` is asked what octets are asked** (#694, under
+  the rule of #684). `TxOut.__init__` validated the octets branch --
+  `ScriptPubKey(script_bytes)` defaults to `check_validity=True` -- and
+  stored the object branch as it came, so
+  `TxOut(1000, ScriptPubKey(b"\x51", "notanetwork", check_validity=False))`
+  was accepted with the default check on. A `TxOut` carries a script into a
+  `Tx`'s outputs, a `Block`'s transactions and `PsbtIn.witness_utxo`, and one
+  that passes its own `assert_valid` is taken as sound by all three. What is
+  asked is the network name and that the script is bytes, never that the
+  script parses: `Script.assert_valid` explains why nothing asks that, five
+  transactions in blocks 251718 to 299571 carrying scripts a parse refuses,
+  which is what issue #123 settled. In `assert_valid` as well as in the
+  constructor, so that deferring the check and asking it later answers the
+  same question; the class is frozen, so a field reassigned behind it is not
+  the reason.
+
+  The sibling constructors were audited with it and need nothing:
+  `Tx.assert_valid` walks every `TxIn` and `TxOut`, `Block.assert_valid` the
+  header and every transaction, `PsbtIn.assert_valid` both utxo fields, and
+  `PsbtOut.assert_valid` each of its own. `OutPoint` and `TxIn` are the
+  exceptions `btclib/utils.py` documents, their fields being the widths the
+  parse enforces.
+- **Five of the eight exception-contract leaks of #690.** A public function
+  handed an object its own `assert_valid` refuses raised what is not a
+  `ValueError` -- `OverflowError` is an `ArithmeticError` and
+  `AttributeError` neither -- so it flew past exactly the handler
+  `BTClibValueError` exists to be caught by. In the `sig_hash` family the
+  leak is a *width* and not a semantic rule, and that is what decides the
+  check: BIP143's amount is Core's `CAmount`, so `-1` is what eight `ff`
+  octets mean and the preimage commits to them either way (issue #388,
+  asserted both ways), which makes `valid_sats_amount` the wrong instrument
+  -- it would refuse a preimage Core writes. What is refused is an integer
+  no eight-byte signed field can hold, for `segwit_v0`'s amount and for
+  every prevout amount `taproot` and `from_tx` commit to, every prevout and
+  not only the one being signed. `Block.assert_valid_contextual` and
+  `psbt.ecdsa_sig_hash` take the object check instead,
+  `BlockContext.assert_valid` and `Psbt.assert_valid` being what they had no
+  call to.
+
+  Two are left, and neither is a line to add:
+  `merkle_root_and_mutated_from_transactions` serializes with
+  `check_validity=False` deliberately, which
+  `test_merkle_root_and_witness_commitment_serialize_without_judging` pins
+  -- a block's validity is `Block.assert_valid`'s, once, outside the loop --
+  and `legacy` leaks on `tx.version`, where `Tx.assert_valid` is the wrong
+  instrument too, eight tests handing it synthetic transactions to exercise
+  the script code. Refusing the width at the serialization boundary is what
+  those two want, and it is a decision of its own.
+
 - **A declared count is bounded by what could hold it, before anything is
   allocated for it** (#569). `var_int.parse`'s `MAX_SIZE` is Core's
   `ReadCompactSize` range check and answers whether a CompactSize is one
@@ -620,6 +669,23 @@ documented at release-notes length in the first place, and are still in
   that has none.
 
 ### Curves, signatures and keys
+
+- **Batch verification validates every signature it is handed** (#688).
+  `ssa.batch_verify_` answered `True` for a signature `ssa.verify_` answers
+  `False` for and `Sig.assert_valid` refuses outright: `assert_batch_as_valid_`
+  read `sig.r`, `sig.s` and `sig.ec` into the multi-scalar equation without
+  asking any of them whether they were a signature, and `s` and `s + n` are
+  congruent modulo the group order, so `mult(t)` cannot tell them apart.
+  Only the `batch_size == 1` shortcut was safe, and by accident, delegating
+  to `assert_as_valid_`. The check goes after the curve check rather than
+  before it, so a batch mixing curves is still told that. Nothing reaches it
+  from the wire -- `s + n` does not fit in 32 bytes, and an `r >= p` is
+  refused by `Sig.parse` and by the lift the equation needs -- so it takes a
+  caller building `Sig` objects with `check_validity=False`, which is
+  supported and is the case the rule of #684 exists for.
+  `test_a_batch_of_one_takes_the_single_signature_shortcut` asserted the
+  dispatch through a malformed `Sig` the general path let through, which is
+  what stops being true: it now asserts the dispatch itself.
 
 - **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
   nine kinds of unusable parameter and eight of them raise the class the

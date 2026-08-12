@@ -721,6 +721,11 @@ def assert_batch_as_valid_(
     -- and which signature failed is not in the answer, only that one
     did. Messages enter as they are; every signature must share one
     curve.
+
+    Every signature is asked whether it is one, this being a public
+    function handed objects somebody else built: the equation below is
+    not that question, and answers a different one for an s outside
+    0..n-1.
     """
     batch_size = len(Qs)
     if batch_size == 0:
@@ -737,6 +742,22 @@ def assert_batch_as_valid_(
     ec = sigs[0].ec
     if any(sig.ec != ec for sig in sigs):
         raise BTClibValueError("not the same curve for all signatures")
+
+    # from two upward the equation is what answers, and it is satisfied by
+    # a signature BIP340 calls invalid: s and s + n are congruent modulo
+    # the group order, so `mult(t)` cannot tell them apart, while
+    # assert_as_valid_ -- and the batch_size == 1 shortcut above with it --
+    # refuses the second. Nothing reaches this from the wire, a
+    # non-canonical s not fitting in 32 bytes, so what it takes is a caller
+    # building Sig objects with check_validity=False; that is supported,
+    # which is why the check belongs here rather than nowhere. The half of
+    # assert_valid the equation would catch anyway is r, whose lift below
+    # fails for a field element that is no x-coordinate.
+    # After the curve check and not before it, so a batch mixing curves is
+    # still told that, rather than being asked whether one signature's r is
+    # an x-coordinate of a curve the batch has no business holding
+    for sig in sigs:
+        sig.assert_valid()
     t = 0
     scalars: list[int] = []
     points: list[Point] = []

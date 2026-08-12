@@ -70,6 +70,18 @@ class TxOut:
         if not isinstance(script_pub_key, ScriptPubKey):
             script_bytes = bytes_from_octets(script_pub_key)
             script_pub_key = ScriptPubKey(script_bytes)
+        elif check_validity:
+            # the object branch asks what the octets branch asks. Building
+            # one from octets validates it -- ScriptPubKey's own default --
+            # so without this a network name the class refuses enters here
+            # and travels on: a TxOut is what carries a script into a Tx's
+            # outputs, a Block's transactions and PsbtIn.witness_utxo, and
+            # assert_valid below judges the amount alone, on purpose.
+            # What it asks is the network name and that the script is
+            # bytes, not that the script parses -- Script.assert_valid
+            # explains why nothing asks that, and why this cannot refuse a
+            # script that is in a block
+            script_pub_key.assert_valid()
         object.__setattr__(self, "script_pub_key", script_pub_key)
 
         if check_validity:
@@ -78,9 +90,19 @@ class TxOut:
     def assert_valid(self) -> None:
         """Refuse a value that is not a valid satoshi amount."""
         valid_sats_amount(self.value)
-        # the amount and not the script: a script_pub_key on chain need
-        # not parse, and validating it here would refuse transactions
-        # that are in blocks -- bitcoin/bitcoin#320, and issue #123
+        # the amount and not the script's *contents*: a script_pub_key on
+        # chain need not parse, and validating that here would refuse
+        # transactions that are in blocks -- bitcoin/bitcoin#320, and issue
+        # #123. What the object is asked is what ScriptPubKey asks itself,
+        # the network name and that the script is bytes, neither of which
+        # is a property of anything on chain. Here as well as in the
+        # constructor, so that deferring the check and making it later
+        # answer the same question: `check_validity=False` followed by
+        # `assert_valid()` is the spelling every caller that builds a
+        # TxOut by hand and validates it afterwards uses, and without this
+        # that pair passed what the constructor alone refuses. The class is
+        # frozen, so a field reassigned behind it is not the reason
+        self.script_pub_key.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         """Return the output as a dict of json-friendly values.

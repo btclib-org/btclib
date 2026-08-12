@@ -284,6 +284,33 @@ def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
             txin.sequence = 0
 
 
+# Core's CAmount is int64_t and the preimages here commit to the eight bytes
+# it serializes to, so what those bytes cannot stand for is what this
+# refuses. Not the money range: -1 is a signed CAmount and BIP143 hashes it
+# (issue 388), so `valid_sats_amount` would refuse a preimage Core writes
+_CAMOUNT = range(-(2**63), 2**63)
+
+
+def _assert_valid_camount(amount: int, name: str) -> None:
+    """Refuse an amount no eight-byte signed field can hold."""
+    if amount not in _CAMOUNT:
+        raise BTClibValueError(f"invalid {name}: {amount}")
+
+
+def _assert_valid_prevouts(prevouts: list[TxOut]) -> None:
+    """Ask every prevout what a preimage committing to all of them needs.
+
+    BIP341 commits to every spent amount and script_pub_key, so all of
+    them reach the serialization and not only the one being signed. The
+    amount by its field's width and not by the money range, for the reason
+    above; the script by what ScriptPubKey asks of itself, which is its
+    network name and that the script is bytes.
+    """
+    for prevout in prevouts:
+        _assert_valid_camount(prevout.value, "spent amount")
+        prevout.script_pub_key.assert_valid()
+
+
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     """Return the pre-segwit hash one input's signature commits to.
 
@@ -467,6 +494,13 @@ def segwit_v0(
     `hash_type` is Core's `int32_t nHashType`, as `legacy`'s is, and every
     32-bit word has a preimage for the same reason.
     """
+    # the width of the field and not the money range: BIP143's amount is
+    # Core's CAmount, so -1 is what eight `ff` octets mean and the preimage
+    # commits to them either way (issue 388). What no reading of eight
+    # bytes can stand for is what leaked an OverflowError out of the
+    # serialization, where the contract promises a BTClibValueError
+    _assert_valid_camount(amount, "amount")
+
     script_code = bytes_from_octets(script_code)
 
     # precomputed, when given, must describe this very tx: it is the
@@ -547,6 +581,8 @@ def taproot(
     path -- empty for the key path. SIGHASH_SINGLE with no matching
     output is an error here, per BIP341, where legacy keeps the bug.
     """
+    _assert_valid_prevouts(prevouts)
+
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
@@ -681,6 +717,8 @@ def from_tx(
     first. A verifier does not need the parameter and does not have the
     problem — the interpreter advances Core's `pbegincodehash` as it goes.
     """
+    _assert_valid_prevouts(prevouts)
+
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
