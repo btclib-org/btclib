@@ -137,6 +137,14 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Their repository is renamed with them**, to
+  `btclib-org/btclib-secp256k1`, so the urls naming it here move: the
+  issue templates, `README.md`, `SECURITY.md`'s advisory link, and the
+  two comments that list the three repositories this file set is shared
+  with. GitHub redirects the old paths, so none of them was broken; an
+  address that answers through a redirect is still the wrong one to
+  publish. The entry below keeps `btclib-libsecp256k1#122` as written,
+  that being the number as it was announced.
 - **The secp256k1 bindings are required, and imported, as
   `btclib_secp256k1`**, where they were `btclib_libsecp256k1`
   (btclib-libsecp256k1#122). `lib` named the C library being wrapped, and
