@@ -12,7 +12,7 @@ name: latest
 # uv.lock moves on a weekly dependabot pull request. A break upstream
 # therefore surfaces a week or more later, inside a pull request that has
 # to be reviewed anyway, and its cause is one entry in a diff of many.
-# btclib_libsecp256k1 is the entry that matters most here: a release of
+# btclib_secp256k1 is the entry that matters most here: a release of
 # the bindings is a release in another repository, which nothing in this
 # one has to change for the pair to stop working. test-bindings-latest
 # below asks about that one entry alone, precisely, rather than folding
@@ -112,7 +112,7 @@ jobs:
           # something did is the week this job has work to do anyway
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --upgrade re-resolves every entry, btclib_libsecp256k1 included:
+      # --upgrade re-resolves every entry, btclib_secp256k1 included:
       # this is what carries the bindings to their newest release, which
       # nothing else off a pull request does.
       # It prints one "Update <pkg> vA -> vB" line per package it moves,
@@ -131,7 +131,7 @@ jobs:
 
   # narrower than test-latest above, and for a different reason: that
   # job upgrades every dependency, so a red run there buries a release
-  # of btclib_libsecp256k1 behind a dozen other candidates. This
+  # of btclib_secp256k1 behind a dozen other candidates. This
   # upgrades only that one, so a red run here names it without a
   # bisect -- worth a job of its own because it is a sibling project
   # under the same org, released by the same maintainer, which makes
@@ -162,12 +162,12 @@ jobs:
           python-version: ${{ matrix.python }}
       # upgrades one entry rather than every one of them, which is the
       # whole difference from test-latest above: it prints "Update
-      # btclib_libsecp256k1 vA -> vB" when a release moved it and
+      # btclib_secp256k1 vA -> vB" when a release moved it and
       # nothing when it did not, so the log names the suspect without a
       # diff of uv.lock. Harmless on an ephemeral checkout; worth
       # knowing before running the same command in a working tree
       - name: Upgrade the bindings to their latest release
-        run: uv lock --upgrade-package btclib_libsecp256k1
+        run: uv lock --upgrade-package btclib_secp256k1
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest
 

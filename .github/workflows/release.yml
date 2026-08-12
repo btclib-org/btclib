@@ -322,7 +322,7 @@ jobs:
       # Unconstrained, where dist-py pins the runtime dependencies to
       # uv.lock: no pull request waits on this job, so it can afford the
       # question a required check cannot -- whether the newest published
-      # btclib_libsecp256k1 satisfies the wheel about to be published,
+      # btclib_secp256k1 satisfies the wheel about to be published,
       # which is what a user installing it resolves. A release stopping
       # on that answer is the outcome wanted.
       # The three assertions are dist-py's, and there for the same

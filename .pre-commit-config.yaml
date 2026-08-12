@@ -453,7 +453,7 @@ repos:
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where every
-  # import of the btclib_libsecp256k1 bindings is exactly that. Declaring
+  # import of the btclib_secp256k1 bindings is exactly that. Declaring
   # them there would pin the bindings a second time, in additional
   # dependencies beside uv.lock and by hand, so the hook could type check
   # against a version the suite never ran. This is the very command the

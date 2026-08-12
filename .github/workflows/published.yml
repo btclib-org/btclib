@@ -26,7 +26,7 @@ name: published
 # from it is worth a look at the Actions tab before it is read as
 # green.
 #
-# What this is not: a sentinel for whether the newest btclib_libsecp256k1
+# What this is not: a sentinel for whether the newest btclib_secp256k1
 # breaks this tree. That question -- issue #397 -- belongs to latest.yml's
 # test-bindings-latest job instead: it is about drift against a tree not
 # yet published, asked before publication rather than after, and asking
@@ -93,7 +93,7 @@ jobs:
         # the two ends of the supported range, plus the free-threaded
         # interpreter: btclib itself ships one universal wheel, so what
         # varies across this matrix is entirely which wheel of
-        # btclib_libsecp256k1 each cell resolves to
+        # btclib_secp256k1 each cell resolves to
         python: ["3.10", "3.14", "3.14t"]
     timeout-minutes: 20
     steps:
@@ -137,7 +137,7 @@ jobs:
       # Nothing about btclib is arm64-specific here, and the gap is not
       # one a user falls into: 3.10 on a Windows arm64 machine *is* the
       # emulated x86-64 build, there being no other, so the resolver
-      # takes btclib_libsecp256k1's cp310-win_amd64 wheel and it runs
+      # takes btclib_secp256k1's cp310-win_amd64 wheel and it runs
       # under the same emulation the interpreter does. The bindings'
       # own wheel matrix says the same thing from the other side --
       # win_arm64 from cp311 up, cp310 win_amd64 alone -- because a
@@ -148,7 +148,7 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: ${{ matrix.python }}
-      # --verbose so the log names the btclib_libsecp256k1 wheel this cell
+      # --verbose so the log names the btclib_secp256k1 wheel this cell
       # resolved to, which is the whole of what varies across the matrix.
       # A venv of its own, and every step below runs --no-project against
       # it: there is no checkout, so nothing of this repository is on the

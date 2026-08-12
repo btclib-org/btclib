@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
+from btclib_secp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
 from btclib.alias import ScriptList
 from btclib.ecc.dsa import Sig

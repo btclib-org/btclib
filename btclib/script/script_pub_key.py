@@ -689,7 +689,7 @@ class ScriptPubKey(Script):
             pub_keyinfo_from_key(k, network, compressed)[0] for k in keys[1:]
         ]
         if lexicographic_sorting:
-            # btclib_libsecp256k1's keys.pubkey_sort is not called here:
+            # btclib_secp256k1's keys.pubkey_sort is not called here:
             # on compressed keys it gives the identical order, byte for
             # byte, at 11.0 us against sorted()'s 0.062 on three keys --
             # 180 times the cost for the same answer -- and it re-

@@ -6,8 +6,8 @@
 
 import contextlib
 
-from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
-from btclib_libsecp256k1.keys import (
+from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
+from btclib_secp256k1.keys import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
 

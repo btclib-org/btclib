@@ -10,7 +10,7 @@ from dataclasses import fields
 from typing import Any
 
 import pytest
-from btclib_libsecp256k1 import keys as libsecp256k1_keys
+from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib import base58
 from btclib.b58 import p2pkh
