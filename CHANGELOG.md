@@ -694,6 +694,35 @@ documented at release-notes length in the first place, and are still in
   checksum is a different polymod with its own constants
   (`descriptors.__descsum_polymod`) and is untouched.
 
+- **bech32's `_decode` looks up the alphabet once, not three times**
+  (#627). `x not in _ALPHABET` scanned all 32 characters to validate a
+  character, once over the checksum's last six and once over the whole
+  data portion for the two distinct error messages, and `_ALPHABET.find(x)`
+  scanned them again for the index -- the same shape as base58's and
+  descriptors.py's above, on a shorter alphabet. `_INDEX_OF`, a dict built
+  once, answers all three: `-1` for a character outside the alphabet,
+  doubling as both validity checks, so one pass over the data replaces
+  three scans.
+
+  Smaller than base58's fix and shaped like descriptors.py's: `_decode`
+  builds nothing beyond the `data`/`checksum` split, so there is no
+  big-integer accumulation to chunk. Measured on valid bech32 strings, no
+  address semantics: `_decode` 2.48 us against 2.13 us on 90 characters,
+  2.55 us against 1.58 us on 60 -- 14% and 38% faster on the function
+  itself. `_verify_checksum`'s `_polymod`, unchanged, is what the rest of
+  `decode()` costs and dwarfs `_decode` at both lengths, 41.93 us and
+  16.26 us total, so the win end to end is a few percent: worth doing for
+  what it runs on -- every address and Lightning invoice decoded -- and
+  because three scans collapsing into one lookup is a simplification on
+  its own terms, not because the total moves by much.
+
+  Nothing else moves: both refusals keep their messages and scope,
+  `invalid character in checksum` for the last six and `invalid data
+  character` otherwise, the two already agreeing when the data portion is
+  exactly six characters long; the alphabet stays lowercase-only, built
+  once at import time, because `_decode` already lowers `bech` before
+  reaching the lookup.
+
 ### The public API and the module layout
 
 - **Taproot takes no curve** (#618). `output_pubkey`,

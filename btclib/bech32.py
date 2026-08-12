@@ -82,6 +82,13 @@ _TAPS = [
     for top in range(32)
 ]
 
+# a digit for every character, built once: `x not in _ALPHABET` and
+# `_ALPHABET.find(x)` were each a scan of all 32 characters. -1 rather
+# than None keeps a lookup a plain int and doubles as the validity
+# check, since a digit is never negative; lowercase-only because
+# `_decode` already lowers `bech` before reaching the lookup
+_INDEX_OF = {c: i for i, c in enumerate(_ALPHABET)}
+
 
 def _polymod(values: Iterable[int]) -> int:
     """Return the bech32 checksum."""
@@ -149,11 +156,12 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     bech = bech.lower()
     hrp = bech[:pos]
 
-    if any(x not in _ALPHABET for x in bech[-6:]):
+    indices = [_INDEX_OF.get(x, -1) for x in bech[pos + 1 :]]
+    if -1 in indices[-6:]:
         raise BTClibValueError(f"invalid character in checksum: {bech}")
-    if any(x not in _ALPHABET for x in bech[pos + 1 :]):
+    if -1 in indices:
         raise BTClibValueError(f"invalid data character: {bech}")
-    data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
+    data = indices
 
     return hrp, data[:-6], data[-6:]
 
