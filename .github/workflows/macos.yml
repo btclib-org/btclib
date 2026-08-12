@@ -105,5 +105,9 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
+      # --no-cov for the reason test.yml's suite job gives beside its own
+      # step: this matrix carries the same PyPy cells behind the same
+      # timeout, and the coverage job there is the one place the number is
+      # measured and gated
       - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
