@@ -609,6 +609,39 @@ documented at release-notes length in the first place, and are still in
   already collapses that distinction.
   `test_refusing_an_r_takes_no_square_root` patches `mod_sqrt` to raise
   over five r, both kinds included.
+- **base58 translates and chunks, where it scanned the alphabet twice per
+  character** (#624). `_ALPHABET.index(char)` was 58 comparisons to find a
+  digit and `x not in _ALPHABET` 58 more to validate it, both per
+  character, and `result = _ALPHABET[idx : idx + 1] + result` copied the
+  whole string per digit. Two `bytes.maketrans` tables do the mapping in
+  one C pass each -- and the validity check becomes
+  `v.translate(None, _ALPHABET)`, every alphabet byte deleted so that
+  whatever is left is what is not one -- while the big-integer arithmetic
+  moves ten digits at a time: `58**10 < 2**64`, so a chunk's digits come
+  out of a machine int and the multiplication that costs O(size of the
+  accumulator) is paid once per ten. Digits go into a bytearray and are
+  reversed once, instead of being prepended to bytes.
+
+  Decoding an xpub is 4.32 µs against 7.86, encoding its payload 5.64
+  against 10.63, an address 1.40 against 2.24 and its payload 1.65 against
+  2.33. On the long strings the coefficient shows: 2.2 ms at 10k
+  characters against 12.8, 32 ms at 40k against 197, 510 ms at 160k
+  against 3193. Both loops are still quadratic in the length of the
+  string, the accumulator growing as it always did, so `MAX_LENGTH` and
+  the argument in the comment above it are unchanged -- what the comment
+  carries is a smaller coefficient, remeasured.
+
+  Nothing else moves. The two refusals are the same, `Base58 string
+  contains invalid characters` included; zero is still written as one
+  leading digit, which is what the `while i or not digits` of the second
+  loop is for; leading zeros are still counted before the integer
+  conversion rather than in it. And what the character-by-character check
+  accepted without saying so -- any iterable of byte values -- is kept by
+  one `v = bytes(v)`, free where it is already bytes: `to_prv_key` tries a
+  WIF before it gives up, so a Point handed to it arrives here as the
+  tuple `(5, 0)` and has to go on being refused as invalid characters
+  rather than as a missing method, which
+  `tests/to_prv_key_test.py::test_from_prv_key` is what says.
 
 ### The public API and the module layout
 

@@ -57,14 +57,36 @@ __all__ = [
 _ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(_ALPHABET)
 
+# a digit for every byte value, and a byte value for every digit, so that
+# a whole string is translated in one C pass where reading it character by
+# character was a scan of the 58-byte alphabet per character:
+# `_ALPHABET.index(char)` for each of them, and `x not in _ALPHABET` for
+# each of them again to validate. maketrans leaves every byte it is not
+# given alone, which is why the validity check has to come first: a
+# character outside the alphabet would otherwise decode as itself
+_DIGIT_OF = bytes.maketrans(_ALPHABET, bytes(range(__BASE)))
+_CHAR_OF = bytes.maketrans(bytes(range(__BASE)), _ALPHABET)
+
+# how many digits are carried through the big-integer arithmetic at a
+# time. 58**10 < 2**64, so a chunk's ten digits come out of an int the
+# machine holds in a register, and the multiplication or division that
+# costs O(size of the number) is paid once per ten digits instead of once
+# per digit. Both loops stay quadratic in the length of the string -- the
+# accumulator grows -- with a tenth of the coefficient
+_CHUNK = 10
+_CHUNK_BASE = __BASE**_CHUNK
+
 # The longest string btclib legitimately decodes is a BIP32 extended
 # key: 78 bytes of payload plus 4 of checksum, which base58 writes in at
 # most 112 characters (an address takes 35, a WIF 52). The cap is what
 # keeps the quadratic accumulation of _b58decode_to_int away from
-# attacker-supplied text: measured 13 ms at 10k characters, 198 ms at
-# 40k and 3312 ms at 160k, four times the cost per doubling of the
-# input, and the checksum that would reject it is verified only once
-# the decoding has been paid for.
+# attacker-supplied text: measured 2.2 ms at 10k characters, 32 ms at
+# 40k and 510 ms at 160k, four times the cost per doubling of the input,
+# and the checksum that would reject it is verified only once the
+# decoding has been paid for. A sixth of what those three cost before
+# the chunking below -- 12.8 ms, 197 ms and 3193 ms -- which is a
+# smaller coefficient and the same curve, so the cap answers the same
+# argument it always did.
 # The encoder is deliberately left uncapped, being quadratic too: what
 # it is handed is data the caller already holds, not a string that
 # arrived from the network.
@@ -72,12 +94,25 @@ MAX_LENGTH = 112
 
 
 def _b58encode_from_int(i: int) -> bytes:
-    result = b""
-    while i or not result:
-        i, idx = divmod(i, __BASE)
-        result = _ALPHABET[idx : idx + 1] + result
-
-    return result
+    # least significant digit first into a bytearray, reversed once at the
+    # end, where prepending to a bytes object copied the whole string per
+    # digit -- and the digits translated to characters in one pass rather
+    # than sliced out of the alphabet one at a time
+    digits = bytearray()
+    while i >= _CHUNK_BASE:
+        # ten digits of a number whose higher part is not zero yet, so all
+        # ten are significant and the leading zeros among them are real
+        i, chunk = divmod(i, _CHUNK_BASE)
+        for _ in range(_CHUNK):
+            chunk, digit = divmod(chunk, __BASE)
+            digits.append(digit)
+    while i or not digits:
+        # the most significant digits, and `not digits` is zero itself:
+        # base58 writes it as one leading digit rather than as nothing
+        i, digit = divmod(i, __BASE)
+        digits.append(digit)
+    digits.reverse()
+    return bytes(digits).translate(_CHAR_OF)
 
 
 def _b58encode(v: bytes) -> bytes:
@@ -104,15 +139,34 @@ def encode(v: Octets, in_size: int | None = None) -> bytes:
 
 
 def _b58decode_to_int(v: bytes) -> int:
+    digits = v.translate(_DIGIT_OF)
     i = 0
-    for char in v:
-        i *= __BASE
-        i += _ALPHABET.index(char)
+    for start in range(0, len(digits), _CHUNK):
+        chunk = digits[start : start + _CHUNK]
+        value = 0
+        for digit in chunk:
+            value = value * __BASE + digit
+        # one multiplication of the accumulator per ten digits, by the
+        # power that matches the chunk actually read: the last one is
+        # shorter unless the string divides by ten
+        i = i * __BASE ** len(chunk) + value
     return i
 
 
 def _b58decode(v: bytes) -> bytes:
-    if any(x not in _ALPHABET for x in v):
+    # bytes for what the character-by-character check took without ever
+    # saying so: any iterable of byte values. That is how a caller's
+    # garbage reaches here -- `to_prv_key` tries a WIF before it gives up,
+    # so a Point handed to it arrives as the tuple (5, 0) -- and it has to
+    # go on being refused below as characters outside the alphabet, which
+    # is a BTClibValueError, rather than as a missing method. Free on the
+    # path that matters: bytes(b) is b for a bytes object, 29 ns
+    v = bytes(v)
+    # every alphabet byte deleted, so what is left is what is not one:
+    # the same question as `any(x not in _ALPHABET for x in v)` asked in
+    # one C pass instead of a 58-byte scan per character, and it has to be
+    # asked before _DIGIT_OF translates anything
+    if v.translate(None, _ALPHABET):
         msg = "Base58 string contains invalid characters"
         raise BTClibValueError(msg)
 
