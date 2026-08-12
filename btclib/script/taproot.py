@@ -27,7 +27,7 @@ from btclib.alias import (
     TaprootLeafPaths,
     TaprootScriptTree,
 )
-from btclib.curves import Curve, bytes_from_prv_key_int, mult, secp256k1
+from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable, _y_even
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
@@ -207,7 +207,7 @@ def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, byte
     return ([((leaf_version, script), b"")], h)
 
 
-def _tap_tweak(pub_key: bytes, h: bytes, ec: Curve) -> int:
+def _tap_tweak(pub_key: bytes, h: bytes) -> int:
     """Return the BIP341 tweak an x-only key and a tree hash commit to.
 
     One function for the three tweaks, the two that build an output and
@@ -216,7 +216,7 @@ def _tap_tweak(pub_key: bytes, h: bytes, ec: Curve) -> int:
     """
     t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
     # BIP341: fail if t is not smaller than the group order
-    if t >= ec.n:
+    if t >= secp256k1.n:
         raise BTClibValueError("Invalid script tree hash")
     return t
 
@@ -224,7 +224,6 @@ def _tap_tweak(pub_key: bytes, h: bytes, ec: Curve) -> int:
 def output_pubkey(
     internal_pubkey: Key | None = None,
     script_tree: TaprootScriptTree | None = None,
-    ec: Curve = secp256k1,
 ) -> tuple[bytes, int]:
     """Return a taproot output key and its parity, per BIP341.
 
@@ -245,34 +244,41 @@ def output_pubkey(
         _, h = tree_helper(script_tree)
     else:
         h = b""
-    return _tweaked_pubkey(pub_key, h, ec)
+    return _tweaked_pubkey(pub_key, h)
 
 
-def _tweaked_pubkey(pub_key: bytes, h: bytes, ec: Curve) -> tuple[bytes, int]:
+def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
     """Return the x-only key an internal key tweaked by h, and its parity.
 
     The half of BIP341's output key that does not care where h came
     from: a tree the caller built, or the merkle root a psbt carries.
     """
-    t = _tap_tweak(pub_key, h, ec)
+    t = _tap_tweak(pub_key, h)
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
     # against 109.3 for the three lines below, over 2000 tweaks: the
-    # Python path lifts the x-only key to a point with
-    # ec.y_even, i.e. a modular square root, which is 74 us of that on
-    # its own -- while libsecp256k1 needs no such lift, having the
-    # y coordinate as it goes
-    if _libsecp256k1_applicable(ec):
+    # Python path lifts the x-only key to a point with secp256k1.y_even,
+    # i.e. a modular square root, which is 74 us of that on its own --
+    # while libsecp256k1 needs no such lift, having the y coordinate as
+    # it goes.
+    #
+    # The predicate is a constant now that the curve is, and the three
+    # guards in this module keep it rather than saying so: it is the
+    # seam the suite patches -- taproot._libsecp256k1_applicable set to
+    # False -- to reach the Python arithmetic below, which is the
+    # reference implementation the bindings are checked against and not
+    # a path any caller takes. Stated here for all three
+    if _libsecp256k1_applicable(secp256k1):
         return libsecp256k1_xonly.tweak_add(pub_key, t)
 
     P_x = int.from_bytes(pub_key, "big")
-    Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
+    Q = secp256k1.add((P_x, secp256k1.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
 def output_pubkey_from_merkle_root(
-    internal_pubkey: Octets, merkle_root: Octets = b"", ec: Curve = secp256k1
+    internal_pubkey: Octets, merkle_root: Octets = b""
 ) -> tuple[bytes, int]:
     """Return a taproot output key from a merkle root, per BIP341.
 
@@ -289,13 +295,12 @@ def output_pubkey_from_merkle_root(
     reached them in.
     """
     internal_pubkey = bytes_from_octets(internal_pubkey, 32)
-    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root), ec)
+    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root))
 
 
 def output_prvkey(
     prv_key: PrvKey,
     script_tree: TaprootScriptTree | None = None,
-    ec: Curve = secp256k1,
 ) -> int:
     """Return the private key of the taproot output key, per BIP341.
 
@@ -305,10 +310,10 @@ def output_prvkey(
     exactly.
     """
     h = tree_helper(script_tree)[1] if script_tree else b""
-    return _tweaked_prvkey(int_from_prv_key(prv_key), h, ec)
+    return _tweaked_prvkey(int_from_prv_key(prv_key), h)
 
 
-def _tweaked_prvkey(internal_prvkey: int, h: bytes, ec: Curve) -> int:
+def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     """Return the private key an internal one tweaked by h.
 
     The private half of `_tweaked_pubkey`, h coming from the same two
@@ -323,30 +328,28 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes, ec: Curve) -> int:
     # for themselves: 32.0 us against 82.3 over 2000 tweaks, the
     # difference being the point this path never materializes and
     # the square root it never takes to check that point's parity
-    if _libsecp256k1_applicable(ec):
-        pub_key = bytes_from_prv_key_int(internal_prvkey, ec)[1:]
-        t = _tap_tweak(pub_key, h, ec)
+    if _libsecp256k1_applicable(secp256k1):
+        pub_key = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
+        t = _tap_tweak(pub_key, h)
         tweaked = libsecp256k1_xonly.prvkey_tweak_add(internal_prvkey, t)
         return int.from_bytes(tweaked, "big")
 
     P = mult(internal_prvkey)
-    # the parity of a y already in hand: ec.y_even(P[0]) lifted the x
-    # back to the point P is -- 74.6 us of modular square root against
-    # 0.03 -- to compare its y with the one beside it (issue 619). Not a
-    # delegation but a deletion, which is what this path needed: it runs
-    # where the bindings do not, so there was nothing here to dispatch
-    # to. The two spellings differ on the infinity btclib writes as
-    # y == 0, and mult of a key int_from_prv_key has refused zero for
-    # cannot be it
+    # the parity of a y already in hand: secp256k1.y_even(P[0]) lifted
+    # the x back to the point P is -- 74.6 us of modular square root
+    # against 0.03 -- to compare its y with the one beside it (issue
+    # 619). Not a delegation but a deletion, which is what this path
+    # needed: it runs where the bindings do not, so there was nothing
+    # here to dispatch to. The two spellings differ on the infinity
+    # btclib writes as y == 0, and mult of a key int_from_prv_key has
+    # refused zero for cannot be it
     has_even_y = P[1] % 2 == 0
-    internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
-    t = _tap_tweak(P[0].to_bytes(32, "big"), h, ec)
-    return (internal_prvkey + t) % ec.n
+    internal_prvkey = internal_prvkey if has_even_y else secp256k1.n - internal_prvkey
+    t = _tap_tweak(P[0].to_bytes(32, "big"), h)
+    return (internal_prvkey + t) % secp256k1.n
 
 
-def output_prvkey_from_merkle_root(
-    prv_key: PrvKey, merkle_root: Octets = b"", ec: Curve = secp256k1
-) -> int:
+def output_prvkey_from_merkle_root(prv_key: PrvKey, merkle_root: Octets = b"") -> int:
     """Return the private key of a taproot output from a merkle root.
 
     `output_prvkey` with the root already in hand, the shape
@@ -355,9 +358,7 @@ def output_prvkey_from_merkle_root(
     field, never the script tree that produced the root, a psbt naming
     a script path by its leaf and control block instead.
     """
-    return _tweaked_prvkey(
-        int_from_prv_key(prv_key), bytes_from_octets(merkle_root), ec
-    )
+    return _tweaked_prvkey(int_from_prv_key(prv_key), bytes_from_octets(merkle_root))
 
 
 def input_script_sig(
@@ -383,9 +384,7 @@ def input_script_sig(
     return script, control
 
 
-def check_output_pubkey(
-    q: Octets, script: Octets, control: Octets, ec: Curve = secp256k1
-) -> bool:
+def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     """Answer whether the control block proves the script against the key.
 
     BIP341's control-block verification: the leaf hash is folded up
@@ -411,7 +410,7 @@ def check_output_pubkey(
             k = tagged_hash(b"TapBranch", e + k)
     p_bytes = control[1:33]
     p = int.from_bytes(p_bytes, "big")
-    t = _tap_tweak(p_bytes, k, ec)
+    t = _tap_tweak(p_bytes, k)
 
     # secp256k1_xonly_pubkey_tweak_add_check is the call libsecp256k1
     # provides for this very question, and it compares the serialized
@@ -421,7 +420,7 @@ def check_output_pubkey(
     # unequal either -- b"\x00" + 32 bytes reads as the same integer the
     # comparison below makes -- so the answer for it stays the Python
     # one rather than becoming an exception
-    if _libsecp256k1_applicable(ec) and len(q) == 32:
+    if _libsecp256k1_applicable(secp256k1) and len(q) == 32:
         try:
             return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
         except ValueError as e:
@@ -432,7 +431,7 @@ def check_output_pubkey(
             # what they raise as well as on what they answer
             raise BTClibValueError(f"invalid internal public key: {e}") from e
 
-    # _y_even, i.e. ec.y_even with the lift delegated: this is the path a
+    # _y_even, i.e. secp256k1.y_even with the lift delegated: this is the path a
     # q of any other length takes, secp256k1 included, so the modular
     # square root is worth not taking here either
     P = (p, _y_even(p, secp256k1))

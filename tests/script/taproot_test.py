@@ -400,25 +400,32 @@ def test_serialization() -> None:
         assert parse(serialize([x])) == [f"{x:02X}"]
 
 
-def test_tweak_above_group_order() -> None:
+def test_tweak_above_group_order(monkeypatch: pytest.MonkeyPatch) -> None:
     """BIP341 rejects a tweak t that is not below the curve order.
 
-    With secp256k1 that is a 2**-128 tagged-hash accident; a toy curve
-    makes the same guard fire deterministically, since the 256-bit
-    tweak always exceeds its order. Not output_prvkey, though: there
-    the toy curve fails earlier, on the y parity of a secp256k1 point.
+    On secp256k1 that is a 2**-128 tagged-hash accident, so the guard is
+    reached by patching what stands in the way rather than left
+    uncovered: a toy curve, whose order a 256-bit tweak always exceeds,
+    put where `_tap_tweak` reads `secp256k1.n`.
+
+    The patch replaced an `ec` argument these functions used to take
+    (issue #618). It is the same toy curve doing the same work, from the
+    other side of the call, and it stops there: `_tap_tweak` raises
+    before any arithmetic, so nothing downstream sees the substitution.
+    `output_prvkey` is still not among them, its own path reaching the y
+    parity of a secp256k1 point first.
     """
-    ec = low_card_curves["ec13_11"]
+    monkeypatch.setattr(taproot, "secp256k1", low_card_curves["ec13_11"])
     err_msg = "Invalid script tree hash"
 
     script_tree: TaprootScriptTree = [(0xC0, ["OP_1"])]
     with pytest.raises(BTClibValueError, match=err_msg):
-        output_pubkey(None, script_tree, ec)
+        output_pubkey(None, script_tree)
 
     q = bytes(31) + b"\x01"
     control = b"\xc0" + bytes(32)
     with pytest.raises(BTClibValueError, match=err_msg):
-        check_output_pubkey(q, "51", control, ec)
+        check_output_pubkey(q, "51", control)
 
 
 def test_the_element_size_limit_is_reachable_not_only_crossable() -> None:

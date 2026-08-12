@@ -29,6 +29,16 @@ full year, short month, short day (YYYY-M-D)
   `UserWarning` has to catch `BTClibValueError` instead. The catalogued
   curves are unaffected: they are built with `weakness_check=False`, the
   check having been paid once in `test_catalogued_curves`.
+- **taproot takes no curve.** `output_pubkey`,
+  `output_pubkey_from_merkle_root`, `output_prvkey`,
+  `output_prvkey_from_merkle_root` and `check_output_pubkey` used to end
+  in `ec: Curve = secp256k1`, and a caller passing one positionally --
+  `output_pubkey(internal_key, script_tree, ec)`,
+  `check_output_pubkey(q, script, control, ec)` -- now gets a
+  `TypeError`. Dropping the argument is the whole of the change: BIP341
+  is defined for secp256k1 alone, and the parameter was never honoured,
+  the arithmetic behind it having always used secp256k1's generator
+  whatever was passed.
 
 ## v2026.8.9
 
