@@ -220,16 +220,65 @@ opens, and the bypass is what lets one merge at all. The trade is the
 review's other half: it is there for a contributor's pull request, where
 there *is* somebody else to ask.
 
-Required signatures cost the maintainer nothing for the same reason
-nothing here pushes to `main` directly: the only thing writing to it is a
-merge GitHub performs itself, and GitHub signs those with its web-flow
-key.
+Required signatures cost the maintainer nothing when a pull request is
+what lands on `main`: the only thing writing to it is a merge GitHub
+performs itself, and GitHub signs those with its web-flow key — true of
+a merge commit and a squash, and worse for a rebase, which GitHub
+disables on a branch requiring signed commits because it has no access
+to the original signer's key to re-sign what it recreates.
 
 Dependabot, its security updates and pre-commit.ci all open pull requests
 here, none of them naming a target branch: what they get is the default
 branch, and it is the only branch there is. Issue #158 was the other
 arrangement — two bots pushing through an integration branch that carried
 no protection at all — and one branch is what closed it.
+
+### The maintainer's second path: two rulesets beside the classic rule
+
+`enforce_admins` off is one switch that exempts an administrator from
+every rule above at once — there is no way, inside the classic rule
+alone, to relax the review requirement for a solo merge while keeping
+signatures and linear history unconditional. Every issue tracking a
+change to the library gets one of two endings: a pull request that
+carries a real review from somebody else, which closes it automatically
+on merge (`Closes #N`); or, when the maintainer is working alone, this
+second path, which closes it by hand, referencing the commit that
+landed.
+
+Two rulesets carry that split, additive to the classic rule rather than
+replacing it — rules aggregate across rulesets and classic protection,
+taking the most restrictive combination wherever they overlap:
+
+- `main-integrity`: required signatures, required linear history, no
+  force pushes, no deletions. No bypass actor, for anyone, ever.
+- `main-self-merge`: require a pull request (one approving review,
+  dismiss stale reviews, conversation resolution). Bypass: the
+  maintainer, "Always" mode.
+
+"Always" is what permits a direct push rather than only a PR merge
+without review, and it is scoped to `main-self-merge` alone: being
+bypassed there does not exempt from `main-integrity`, which has no
+bypass entry for anyone. Verified on a disposable branch before either
+ruleset touched `main`: a direct push with no bypass was rejected
+("Changes must be made through a pull request"); the same push,
+bypassed, was accepted as a fast-forward with no new commit created
+("Bypassed rule violations"); a force-push under that same bypass was
+still rejected ("Cannot force-push to this branch"), which is the proof
+that the isolation holds rather than an assumption about it.
+
+What the maintainer cannot do, with or without the bypass, is land
+something on `main` that is unsigned or that rewrites history:
+`main-integrity` answers that question the same way for every push,
+admin or not. Exercising the bypass is therefore always the same
+sequence — the fast-forward is what has to hold, not a force push
+standing in for one:
+
+```shell
+git fetch origin && git rebase origin/main   # must end fast-forwardable
+git log --format='%h %G?' origin/main..      # every commit G, none N
+# local gates: pytest, pre-commit run --all-files, the sphinx -W build
+git push origin <branch>:main
+```
 
 ## Head branches after a merge
 
