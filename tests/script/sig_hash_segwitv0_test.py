@@ -376,3 +376,36 @@ def test_hash_type_too_wide_for_its_four_bytes(hash_type: int) -> None:
     script_code = bytes.fromhex(_WITNESS_SCRIPT)
     with pytest.raises(BTClibValueError, match="sig_hash type too wide"):
         sig_hash.segwit_v0(script_code, tx, 0, hash_type, _AMOUNT)
+
+
+def test_an_amount_no_field_can_hold_is_refused_rather_than_overflowing() -> None:
+    """The contract is a ValueError, and OverflowError is not one (issue 690).
+
+    `BTClibValueError` subclasses `ValueError`, which is what a caller is
+    told to catch; `OverflowError` is an `ArithmeticError` and flies past
+    that handler. What leaked it was an integer too wide for the eight
+    bytes the preimage commits to -- reachable only from a caller building
+    the objects itself, `parse` and the constructors validating by default.
+
+    The width and not the money range: the test above asserts that -1 is a
+    signed CAmount whose octets the preimage carries, so `valid_sats_amount`
+    would refuse a preimage Core writes.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    err_msg = "invalid amount: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, 2**63)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, -(2**63) - 1)
+
+    # the widest each way is still hashed, as a signed field's value
+    assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, 2**63 - 1)
+    assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, -(2**63))
+
+    # the same rule for every prevout a taproot preimage commits to, and
+    # for their script_pub_keys
+    prevouts = [TxOut(2**63, tx.vout[0].script_pub_key, check_validity=False)]
+    with pytest.raises(BTClibValueError, match="invalid spent amount: "):
+        sig_hash.from_tx(prevouts, tx, 0, sig_hash.ALL)

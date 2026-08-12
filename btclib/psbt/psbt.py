@@ -2026,6 +2026,7 @@ def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> b
     a witness utxo alone -- every caller stops, that being an input no
     role may sign, verify or finalize.
     """
+    psbt.assert_valid()
     psbt_in = psbt.inputs[vin_i]
     if hash_type is None:
         hash_type = ALL if psbt_in.sig_hash_type is None else psbt_in.sig_hash_type

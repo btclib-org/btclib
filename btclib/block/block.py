@@ -453,6 +453,12 @@ class Block:
         median time past. Each is a field of BlockContext away, once the
         chain state it reads is there to put in one.
         """
+        # the context is an object a caller builds, and `now` reaches
+        # datetime arithmetic below: unasked, a str for it raised
+        # AttributeError, which is no ValueError and flies past the handler
+        # the contract asks for
+        context.assert_valid()
+
         self.header.assert_valid_time(context.now)
 
         if context.bip34_active:
