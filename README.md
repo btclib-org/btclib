@@ -137,6 +137,9 @@ Included features are:
   [BIP371](https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki)
   and the MuSig2 ones of
   [BIP373](https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki)
+- PsbtView, the same psbt read a map at a time out of a stream, for a
+  signer with less memory than the psbt takes: the maps it is asked for,
+  the transaction being built, the outputs being spent and both sig_hashes
 - [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
   PSBT version 2, the unsigned transaction computed from the fields rather
   than carried as one: the lock time its inputs require, the identifier
