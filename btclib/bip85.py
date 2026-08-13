@@ -401,6 +401,10 @@ def rolls_from_root_key(
     Nothing bounds `rolls` from above here beyond what a path level can
     hold, and the wait is the caller's: a session is `rolls` reads of a
     stream and takes as long as it takes.
+
+    `mnemonic.entropy.bin_str_entropy_from_rolls` is the other direction,
+    dice into entropy for a wallet that does not exist yet; its docstring
+    says how the two number a die's faces.
     """
     if rolls < _MIN_ROLLS:
         raise BTClibValueError(f"invalid number of rolls: {rolls}")

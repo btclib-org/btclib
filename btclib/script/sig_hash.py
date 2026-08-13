@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 from btclib import var_bytes
 from btclib.alias import Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, hash256, sha256, tagged_hash
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
@@ -37,7 +37,7 @@ from btclib.script.script_pub_key import (
     type_and_payload,
 )
 from btclib.tx import Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "ALL",
@@ -311,6 +311,22 @@ def _assert_valid_prevouts(prevouts: list[TxOut]) -> None:
         prevout.script_pub_key.assert_valid()
 
 
+def _assert_valid_vin_i(tx: Tx, vin_i: int) -> None:
+    """Refuse an index naming no input of the transaction being signed.
+
+    Every sig_hash here is the hash of *one* input's spend, so an index
+    outside the vin names nothing to sign. Left to the list it would be
+    an `IndexError` on the paths that dereference it -- a `LookupError`,
+    which no `except BTClibValueError` catches -- and on the paths that
+    only write the index into the preimage it would be no error at all,
+    just a 32-byte hash of a transaction position that does not exist.
+    """
+    if not is_integer(vin_i):
+        raise BTClibTypeError(f"invalid input index type: {type(vin_i).__name__}")
+    if not 0 <= vin_i < len(tx.vin):
+        raise BTClibValueError(f"invalid input index: {vin_i}")
+
+
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     """Return the pre-segwit hash one input's signature commits to.
 
@@ -582,6 +598,7 @@ def taproot(
     output is an error here, per BIP341, where legacy keeps the bug.
     """
     _assert_valid_prevouts(prevouts)
+    _assert_valid_vin_i(transaction, input_index)
 
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")

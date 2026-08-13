@@ -188,7 +188,7 @@ CHILD_MODULES = {
         "unpublished": [],
     },
     "btclib.psbt": {
-        "groups": ["musig2"],
+        "groups": ["musig2", "silent_payments"],
         "unpublished": [
             "psbt",
             "psbt_in",
@@ -527,6 +527,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "new_signers",
         "prevouts",
         "sign",
+        "silent_payments",
         "taproot_sig_hash",
     ]
 

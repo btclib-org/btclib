@@ -1194,6 +1194,25 @@ def test_the_solver_answers_for_what_is_its_business_and_no_more() -> None:
     assert miniscript_solver(psbt, 0) is None
 
 
+def test_the_solver_names_an_input_that_exists() -> None:
+    """A negative index solved the input at the other end, and said nothing.
+
+    `psbt.inputs[vin_i]` is a list index, so -1 was the last input: the
+    solver read another input's witness script and preimages and
+    answered a witness for it, which the caller then attaches to the
+    input it did ask about. Its siblings `update_psbt_input` and
+    `update_psbt_output` carry this guard already, with the comment
+    saying why.
+    """
+    node = parse(f"and_v(v:pk({KEYS[0]}),older(36))")
+    psbt, _ = signed_psbt(node, [KEYS[0]], 499999999, 36)
+    assert miniscript_solver(psbt, 0) is not None
+
+    for out_of_range in (-1, 1, 99):
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            miniscript_solver(psbt, out_of_range)
+
+
 def test_the_solver_reads_a_key_the_input_knows_by_its_hash() -> None:
     """Recognize a pkh() fragment, whose script holds no key.
 

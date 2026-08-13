@@ -4,6 +4,13 @@ btclib.psbt package
 Submodules
 ----------
 
+btclib.psbt.silent\_payments module
+-----------------------------------
+
+.. automodule:: btclib.psbt.silent_payments
+   :members:
+   :show-inheritance:
+
 btclib.psbt.psbt module
 -----------------------
 

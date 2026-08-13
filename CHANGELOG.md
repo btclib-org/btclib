@@ -710,6 +710,60 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **BIP375's Signer and Transaction Extractor** (#760, following #641).
+  `btclib.psbt.silent_payments` is the new module, and it is the half of
+  BIP375 that makes the fields worth carrying: a silent payment output
+  script is *derived* rather than signed, so getting it wrong produces a
+  consensus-valid transaction that pays a script nobody scans for -- and
+  the Extractor is the last party that can notice.
+
+  The Signer's side: `set_input_share` writes the ECDH share and its
+  BIP374 proof for one input, `set_global_share` the single pair that
+  stands for every eligible input, and `set_output_scripts` derives what
+  the recipients are paid and clears the two modifiable flags with it --
+  the scripts depend on the input set, so a psbt that publishes one and
+  still invites inputs invites its own scripts to become wrong. Both
+  writers refuse a key that is not the one they would be proving against,
+  which is where such an error is cheap.
+
+  The Extractor's side is `assert_as_valid`: the four checks BIP375's own
+  validator publishes, in its order, each naming what failed --
+  `assert_shares_as_valid` for the proofs, `assert_eligibility_as_valid`
+  for the inputs a silent payment forbids (a witness version above 1, and
+  any sighash type but `SIGHASH_ALL`), `assert_output_scripts_as_valid`
+  for the derivation. `input_pub_key` is what all of it stands on, and is
+  the piece that was missing: `btclib.silent_payments.pub_key_from_input`
+  reads a *signed* input's key out of the witness or the scriptSig, where
+  an unsigned one has neither and BIP375 asks an Updater for
+  `PSBT_IN_BIP32_DERIVATION` instead.
+
+  With that, `bip375_test_vectors.json` is answered in full: all 22
+  invalid psbts refused and all 19 valid ones accepted, where the codec
+  alone refused five. Each case is held to the check its own category
+  names, so a psbt refused for the wrong reason is a failure rather than a
+  pass.
+
+  **One rule where the BIP and its own vectors disagree**, and it is
+  load-bearing rather than cosmetic. BIP375 says the codes of one scan key
+  are sorted lexicographically to determine the ordering of `k`; the
+  vectors' scripts are the ones *output index* order derives. The case
+  that decides it is published as valid -- "two sp outputs - output 0 uses
+  label=3 / output 1 uses label=1" -- and its spend keys are in descending
+  order, so the two rules assign `k` the other way round and only index
+  order reproduces the file. Neither reading of "the codes" rescues the
+  prose: the 66-byte info fields and the bech32m address strings sort that
+  pair the same wrong way. Upstream's own validator walks index order too,
+  so index order is what interoperates and what is implemented; both
+  directions are asserted, so a revision settling it the other way fails
+  here rather than passing quietly. The two invalid vectors named after
+  ordering turn out not to decide it -- their candidate orderings all
+  agree, and their scripts match no assignment at all.
+
+  `btclib.silent_payments` gains `output_key` in passing: the last step of
+  BIP352's derivation, which the psbt path reaches from an ECDH share
+  rather than from a private key, so it is what the two paths share
+  instead of `output_keys`.
+
 - **A psbt can be read a map at a time, out of a stream** (#647).
   `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
   it: `Psbt.parse` reads every map before anything can be inspected or
@@ -1092,6 +1146,34 @@ documented at release-notes length in the first place, and are still in
   that has none.
 
 ### Curves, signatures and keys
+
+- **The bits a digit holds are counted in integers** (issue #759).
+  `bin_str_entropy_from_rolls` and `collect_rolls` computed
+  `math.floor(math.log2(dice_sides))`, which is exact until `2**49 - 1`:
+  there the float rounds up to 49, so the usable range became
+  `[1-2**49]` -- wider than the die itself -- and a roll the die does not
+  have was counted as carrying 49 bits. `_bits_per_digit` is
+  `base.bit_length() - 1`, exact for every base, and
+  `wordlist_indexes_from_bin_str_entropy` takes it as well;
+  `bin_str_entropy_from_wordlist_indexes` beside it already computed its
+  own width that way, and `bip85.rolls_from_root_key` computes the
+  complementary ceiling as `(sides - 1).bit_length()`, which is what put
+  the two directions under one reading.
+
+  A die of that size is absurd, and the function accepted it:
+  `dice_sides` is validated at `>= 2` and at nothing else. What that
+  validation now also refuses is a `dice_sides` that is not an integer.
+  A float used to work by accident -- `math.log2` takes one -- and
+  `bit_length` does not, so the refusal is a `BTClibTypeError` rather
+  than an `AttributeError` from inside the bit accounting.
+
+  The three functions now say what the other direction is, which nothing
+  did: BIP85's application 89101' derives rolls *from* entropy and
+  numbers a die's faces from zero, while these read dice *into* entropy
+  and number them from one, so rolls carried across are shifted by one by
+  whoever carries them. And `collect_rolls`' automated mode stays
+  `secrets`: rolls reproducible from a root key are what the entropy of a
+  seed that does not exist yet must never be.
 
 - **an `hf` that is not a hash function is refused, where it used to be
   reported as a signature that does not verify** (issue #745).
@@ -1657,6 +1739,70 @@ documented at release-notes length in the first place, and are still in
   track.
 
 ### The public API and the module layout
+
+- **Twelve places answered a malformed argument instead of refusing it**
+  (issue #744): no exception of the wrong class, no exception at all --
+  a hash, an address, an entropy, a weight, a residue, handed back for an
+  input that names nothing. They are unrelated bugs of one shape, which
+  is why they are one entry: a check written for one spelling of an
+  argument, or one branch of a function, and not for the others.
+
+    - `script.sig_hash.taproot` hashed an `input_index` past the end of the
+    vin. BIP341's SigMsg commits to the index itself, and outside the
+    ANYONECANPAY branch nothing dereferences it, so indexes 99 and 100 on
+    a two-input transaction produced two *different* 32-byte hashes, both
+    returned. The bound existed in the SIGHASH_SINGLE branch alone, and
+    against the vout.
+    - `script.taproot.input_script_sig` read `script_num` as a list index,
+    so -1 selected the last leaf and -2 the one before it, each with a
+    control block that correctly proves the leaf nobody asked for.
+    - `script.taproot.assert_valid_control_block` measured `len` of
+    whatever it was handed: `"é" * 33` is 33 characters and 66 octets of
+    UTF-8, and passed as a control block size. The octets are taken first
+    now, as `check_output_pubkey` takes them on the same argument.
+    - `bech32.encode` indexed its alphabet with the digits it was given, so
+    a negative one counted from the end of the alphabet and wrote a
+    different address, correctly checksummed and silent. A digit above 31
+    raised `IndexError`, a `LookupError` and so outside every `except
+    BTClibValueError`.
+    - `bip32.der_path.indexes_from_der_path` enforced `0 <= index <
+    0x80000000` for the text spelling of a path and nothing for the
+    others: `indexes_from_der_path([-5])` answered `[-5]`. The
+    `OverflowError` that `derive`, `bytes_from_der_path` and
+    `BIP32KeyOrigin.serialize` then raised is fixed with it, an
+    `ArithmeticError` being no better than a wrong answer for a caller
+    filtering bad input.
+    - `bip32.pub_key_derivation_tweaks` skipped its whole body for a path
+    of no steps, so 33 bytes that are no public key came back as `[]` --
+    the answer a caller reads as "derived, nothing to apply". `[]` is
+    right for an empty path and wrong for a non-point.
+    - `descriptors.miniscript_solver` read `psbt.inputs[vin_i]` unchecked,
+    so a negative index solved the input at the other end and answered a
+    witness for it. Its siblings `update_psbt_input` and
+    `update_psbt_output` carry the guard, with the comment saying why.
+    - `Psbt.weight_estimate` -- and `estimated_weight` and
+    `estimated_vsize` through it -- estimated an incoherent psbt rather
+    than refusing, alone among the public methods that read a psbt's own
+    data. A weight is what a fee is computed from.
+    - `number_theory`'s `xgcd`, `mod_inv`, `legendre_symbol`, `mod_sqrt`
+    and `tonelli` ran on a float and answered one: `mod_inv(3.0, 7)` was
+    `5.0`, out of a signature that says `int`. A modulus of zero raised
+    `ZeroDivisionError`, which `except ValueError` does not catch. The
+    guard is `var_int.serialize`'s, and it costs a fraction of a percent
+    of the arithmetic it stands in front of.
+    - `utils.int_from_json_number` truncated: `1.5` was 1, silently and to
+    a number the caller did write. 1.0 is the json spelling of 1 and
+    still coerces; `nan` and `inf` are no more whole than 1.5.
+    - `mnemonic.entropy.bin_str_entropy_from_wordlist_indexes` accepted an
+    index no word answers to. Base-`base` arithmetic has no out of range:
+    2048 in a 2048-word list is a carry into the digit above it, so the
+    entropy came back wrong rather than refused.
+    - `fetch.fetcher.tx_for_network` compared the name against `"mainnet"`
+    as text and labelled every output with whatever else it was given,
+    `check_validity=False` throughout: a network no table has was baked
+    into the transaction handed back, to surface far from the call. The
+    name is resolved now, which also makes `" MainNet "` the
+    short-circuit it always should have been.
 
 - **`network_from_name` is the one place a network name becomes a
   `Network`** (issue #744), and fourteen call sites that indexed

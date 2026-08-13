@@ -22,8 +22,8 @@ from collections.abc import Iterable, Sequence
 from hashlib import sha512
 
 from btclib.alias import Octets
-from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "BinStr",
@@ -49,6 +49,25 @@ BinStr = str
 Entropy = BinStr | int | bytes
 
 
+def _bits_per_digit(base: int) -> int:
+    """Return the whole bits one digit of that base holds, floor(log2).
+
+    In integer arithmetic, where `math.floor(math.log2(base))` is the
+    obvious spelling and is the one that is wrong at the edge: the float
+    stops being exact at 2**49 - 1, where `log2` rounds up to 49 and the
+    caller then reads one bit more per digit than the base holds -- a
+    roll a die does not have, counted as usable.
+
+        math.floor(math.log2(2**49 - 1))  # 49
+        (2**49 - 1).bit_length() - 1      # 48
+
+    `bin_str_entropy_from_wordlist_indexes` computes its own width the
+    same integer way, and `bip85.rolls_from_root_key` computes the
+    complementary ceiling as `(sides - 1).bit_length()`.
+    """
+    return base.bit_length() - 1
+
+
 def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[int]:
     """Return the digit indexes for the provided raw entropy.
 
@@ -64,7 +83,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
         indexes.append(index)
 
     # do not lose leading zeros entropy
-    bits_per_digit = int(math.log2(base))
+    bits_per_digit = _bits_per_digit(base)
     nwords = math.ceil(bits / bits_per_digit)
     indexes += [0] * (nwords - len(indexes))
 
@@ -76,19 +95,29 @@ def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> 
 
     Return the raw (i.e. binary 0/1 string) entropy from the provided
     list of integer indexes into a given language word-list.
+
+    An index the word list has no word for is refused rather than
+    carried: base-`base` arithmetic accepts any number as a digit, so
+    2048 in a 2048-word list is not an error but a carry into the digit
+    above it -- entropy nothing spells, out of a function whose whole
+    job is to say what a mnemonic means.
     """
     entropy = 0
     for index in indexes:
+        if not is_integer(index):
+            raise BTClibTypeError(f"invalid index type: {type(index).__name__}")
+        if not 0 <= index < base:
+            raise BTClibValueError(f"invalid index: {index}, not in [0, {base})")
         entropy = entropy * base + index
 
     binentropy = f"{entropy:b}"
 
     # do not lose leading zeros entropy. The width is that of the largest
     # value the digits can spell, in integer arithmetic: for a base that
-    # is a power of two that is the bits per digit times the digit count,
-    # exactly as int(math.log2(base)) gave, and for electrum's 1626-word
-    # Portuguese -- 10.667 bits a word -- it is the 139 bits thirteen
-    # words hold rather than the 130 that rounding down claims
+    # is a power of two that is `_bits_per_digit` times the digit count,
+    # and for electrum's 1626-word Portuguese -- 10.667 bits a word -- it
+    # is the 139 bits thirteen words hold rather than the 130 that
+    # rounding down claims
     bits = (base ** len(indexes) - 1).bit_length()
     return binentropy.zfill(bits)
 
@@ -249,6 +278,11 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
     the caller gets (dice sides, the rolls that count). Rolls beyond
     a power of two are discarded and asked again, carrying no whole
     bits.
+
+    The automated mode rolls with `secrets`, and must keep doing so.
+    `bip85.rolls_from_root_key` derives rolls as well, and derives them
+    reproducibly from a root key -- which is what the entropy of a seed
+    that does not exist yet must never be.
     """
     automate = False
     dice_sides = 0
@@ -271,7 +305,7 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
             except ValueError:
                 dice_sides = 0
 
-    bits_per_roll = math.floor(math.log2(dice_sides))
+    bits_per_roll = _bits_per_digit(dice_sides)
     base = 2**bits_per_roll
     if not automate:
         print(f"rolls are used only if in 1..{base}")
@@ -311,10 +345,24 @@ def bin_str_entropy_from_rolls(
 
     If more bits than required are provided, the leftmost ones are
     retained.
+
+    This reads dice into entropy; `bip85.rolls_from_root_key` writes
+    rolls out of entropy, which is the opposite direction and not an
+    inverse. It numbers a die's faces from zero and draws again for a
+    trial the die has no face for, where this reads them from one and
+    keeps only the rolls below the largest power of two -- so rolls
+    carried from there to a wallet that reads dice are shifted by one,
+    by whoever carries them.
     """
+    # a float used to work by accident, `math.log2` taking one: the
+    # integer arithmetic below does not, and an AttributeError on
+    # `bit_length` is not what a caller passing 6.0 should hear
+    if not is_integer(dice_sides):
+        err_msg = f"invalid dice base type: {type(dice_sides).__name__}"
+        raise BTClibTypeError(err_msg)
     if dice_sides < 2:
         raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")
-    bits_per_roll = math.floor(math.log2(dice_sides))
+    bits_per_roll = _bits_per_digit(dice_sides)
     # used base
     base = 2**bits_per_roll
 

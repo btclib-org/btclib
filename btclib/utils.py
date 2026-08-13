@@ -214,11 +214,28 @@ def int_from_json_number(value: Any, what: str) -> int:
     schema mistake would become a version, a depth or an index instead of
     an error beside the input that caused it.
 
+    A *whole* number: 1.0 is the json spelling of 1 and coerces, 1.5 is
+    the spelling of nothing this library has a field for, and `int`
+    truncates it to 1 rather than refusing -- silently, and to a number
+    the caller did write, which is what makes it worse than a type error.
+    `float.is_integer()` asks that of the value, `nan` and `inf` being no
+    more whole than 1.5 is.
+
     `is_integer` is the same decision where there is nothing to coerce.
     """
     if isinstance(value, bool):
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
-    return int(value)
+    if isinstance(value, float) and not value.is_integer():
+        raise BTClibValueError(f"invalid {what}: {value}")
+    try:
+        return int(value)
+    # what is left is anything at all, this taking Any: a str that is no
+    # number, a None, an object. Neither error is btclib's as it stands,
+    # and `except ValueError` is what a caller of a json reader writes
+    except TypeError as e:
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
+    except ValueError as e:
+        raise BTClibValueError(f"invalid {what}: {value!r}") from e
 
 
 def int_from_bits(octets: Octets, nlen: int) -> int:

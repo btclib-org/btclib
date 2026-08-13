@@ -464,8 +464,12 @@ def test_derive_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="index are not a multiple of 4-bytes: "):
         derive(xprv, b"\x00" * 5)
 
-    for index in (2**32, 0x8000000000):
-        with pytest.raises(OverflowError, match="int too big to convert"):
+    # an index no path step can hold, refused by the reader rather than
+    # by the `to_bytes(4, signed=False)` that used to answer it with an
+    # OverflowError -- an ArithmeticError, outside every `except
+    # ValueError` a caller of this library writes
+    for index in (2**32, 0x8000000000, -1):
+        with pytest.raises(BTClibValueError, match="invalid index: "):
             derive(xprv, index)
 
     # the boundary itself, not only one past it: `> 255` weakened to
@@ -1037,6 +1041,31 @@ def test_pub_key_derivation_tweaks_are_32_bytes_each() -> None:
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
     tweaks = pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2")
     assert all(len(tweak) == 32 for tweak in tweaks)
+
+
+def test_a_path_of_no_steps_still_looks_at_the_public_key() -> None:
+    """[] is the right answer for an empty path, and not for a non-point.
+
+    `if indexes:` around the whole body made the empty path the one
+    spelling of this call that validated nothing: 33 bytes that are no
+    public key -- a prefix of 0x00, an x above p, x = 0 -- all came back
+    as `[]`, the answer a caller reads as "derivation succeeded, nothing
+    to apply".
+    """
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
+
+    assert pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m") == []
+
+    for not_a_point in (
+        b"\x02" + b"\xff" * 32,  # x above the field prime
+        b"\x02" + b"\x00" * 32,  # x = 0
+        b"\x05" + b"\x01" * 32,  # no such prefix
+        b"\x00" + b"\x01" * 32,  # the xprv prefix, not a public key
+    ):
+        for der_path in ("m", "m/1/2"):
+            with pytest.raises(BTClibValueError, match="invalid public key: "):
+                pub_key_derivation_tweaks(not_a_point, xpub.chain_code, der_path)
 
 
 def test_derive_with_a_forced_version() -> None:

@@ -2563,6 +2563,12 @@ def miniscript_solver(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness] | None:
     network refuses after the transaction is broadcast rather than one
     this refuses while it is built.
     """
+    # the guard `update_psbt_input` carries, for the same reason: an
+    # IndexError out of a public function is not an answer, and a
+    # negative index would quietly solve the input at the other end --
+    # with a witness this one's script does not satisfy
+    if not 0 <= vin_i < len(psbt.inputs):
+        raise BTClibValueError(f"invalid input index: {vin_i}")
     psbt_in = psbt.inputs[vin_i]
     if not psbt_in.witness_script:
         return None

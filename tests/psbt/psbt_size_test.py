@@ -246,6 +246,28 @@ def test_the_bip174_example_is_bounded_by_its_signed_transaction() -> None:
     assert psbt.estimated_weight - signed.weight == 6
 
 
+def test_an_incoherent_psbt_is_not_estimated() -> None:
+    """A weight is a number, and a number is what a fee is computed from.
+
+    Every other public method of `Psbt` that reads this psbt's data
+    validates it first; this one did not, so a psbt BIP174 calls invalid
+    -- here a v0 carrying the v2-only PSBT_GLOBAL_TX_MODIFIABLE -- came
+    back with an estimate rather than with the refusal `assert_valid`
+    was there to give.
+    """
+    psbt = unsigned(Psbt.b64decode(BIP174_SIGNED_PSBT))
+    assert psbt.weight_estimate() > 0
+
+    psbt.tx_modifiable = 1
+    err_msg = "PSBT_GLOBAL_TX_MODIFIABLE is not allowed in a v0 psbt"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.weight_estimate()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _ = psbt.estimated_weight
+    with pytest.raises(BTClibValueError, match=err_msg):
+        _ = psbt.estimated_vsize
+
+
 def test_a_finalized_input_is_not_estimated() -> None:
     """What the Finalizer produced is what the transaction will carry."""
     psbt = Psbt.b64decode(BIP174_FINALIZED_PSBT)

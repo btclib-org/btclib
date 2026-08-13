@@ -721,18 +721,28 @@ level up: the maps read out of upstream's bytes and the maps read out of
 btclib's hold the same set of pairs, and btclib's own bytes are stable
 under a second parse. Measured on all 36 psbts that parse.
 
-Five of the 22 invalid psbts are refused. They are five of BIP375's six
-"PSBT Structure" cases, which are the ones a codec can answer: a label
-without the info field beside it, and four wrong lengths. The sixth is
-not a field's shape -- "PSBT_GLOBAL_TX_MODIFIABLE field is non-zero when
-PSBT_OUT_SCRIPT set for sp output" is an obligation on the Signer that
-computed that script -- and neither are the other sixteen, whose
-categories are ECDH coverage, input eligibility and output script
-derivation. Those are the Signer's and the Transaction Extractor's roles,
-which btclib does not play: each needs every input's public key, which
-for an unsigned input comes from PSBT_IN_BIP32_DERIVATION rather than
-from the input, and one of the invalid cases is that field missing. The
-test module says so where a reader of it would ask.
+All 22 invalid psbts are refused and all 19 valid ones pass, and it takes
+two test modules to say so: `tests/psbt/bip375_test.py` holds the codec to
+the file -- the field shapes, which is five of the six "PSBT Structure"
+cases -- and `tests/psbt/silent_payments_test.py` holds the two roles to
+it, which is the other seventeen. Each case's category is read off its own
+description, so a psbt refused by the wrong check fails there rather than
+counting as a pass.
+
+**The file and the BIP disagree about one rule, and the file wins here.**
+BIP375 says the codes of one scan key are sorted lexicographically to
+determine the ordering of `k`; the vectors' output scripts are the ones
+*output index* order derives. The case that decides it is published as
+valid -- "two sp outputs - output 0 uses label=3 / output 1 uses label=1"
+-- and its two spend keys are in descending order, so the two rules assign
+`k` the other way round and only one of them reproduces the scripts the
+file carries. Neither reading of "the codes" rescues the prose: sorting
+the 66-byte info fields and sorting the bech32m address strings both order
+that pair the same wrong way. Upstream's own
+`bip-0375/validator/validate_psbt.py` walks index order too, so two of its
+three artefacts agree and the prose is the outlier.
+`test_the_k_ordering_is_the_output_index` pins that in both directions, so
+a revision settling it the other way fails rather than passing quietly.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 

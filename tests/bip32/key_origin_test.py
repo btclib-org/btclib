@@ -5,6 +5,7 @@
 """Tests for the `btclib.bip32.key_origin` module."""
 
 import dataclasses
+from typing import cast
 
 import pytest
 
@@ -37,13 +38,24 @@ def test_bip32_key_origin() -> None:
     # already carries a shorter version of
     assert len(BIP32KeyOrigin("deadbeef", [0] * 255)) == 255
 
-    with pytest.raises(BTClibValueError, match="invalid der_path element"):
+    # the path reader refuses these before the constructor stores them,
+    # so this is its message and not assert_valid's
+    with pytest.raises(BTClibValueError, match="invalid index: "):
         BIP32KeyOrigin("deadbeef", [0xFFFFFFFF + 1])
-    with pytest.raises(BTClibValueError, match="invalid der_path element"):
+    with pytest.raises(BTClibValueError, match="invalid index: "):
         BIP32KeyOrigin("deadbeef", [-1])
     # the upper boundary itself: `<= 0xffffffff` weakened to `<
     # 0xffffffff` or to `<= 0xfffffffe` would refuse it
     assert BIP32KeyOrigin("deadbeef", [0xFFFFFFFF]).der_path == [0xFFFFFFFF]
+
+    # and assert_valid still asks. The field is annotated Sequence[int]
+    # and holds the list `indexes_from_der_path` built, so the dataclass
+    # being frozen stops a rebinding and not an append: the constructor
+    # is not the only way an out-of-range index reaches the field
+    key_origin = BIP32KeyOrigin("deadbeef", [0])
+    cast("list[int]", key_origin.der_path).append(0xFFFFFFFF + 1)
+    with pytest.raises(BTClibValueError, match="invalid der_path element"):
+        key_origin.assert_valid()
 
     description = master_fingerprint = "deadbeef"
     key_origin = BIP32KeyOrigin.from_description(description)

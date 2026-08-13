@@ -91,6 +91,27 @@ def _index_and_hardening_from_str(s: str, *, bip380_enforced: bool) -> tuple[int
     return index + (_HARDENED_OFFSET if hardening else 0), hardening
 
 
+def _assert_valid_index(i: int) -> None:
+    """Refuse anything one step of a BIP32 path cannot be.
+
+    A step is one of the 2**32 indexes, hardened or not. What makes the
+    check worth its own name is that the two places needing it fail
+    differently without it: writing a path out reaches
+    `int.to_bytes(4, signed=False)` and an out-of-range index surfaces
+    there as `OverflowError`, which is an `ArithmeticError` and so
+    outside every `except ValueError` written against this library,
+    while `indexes_from_der_path` hands its list straight back and
+    answers `[-5]` for `[-5]` -- no error at all.
+
+    A bool is no index either: `True` is not the first child of
+    anything, and `str(True)` is "True" where a path step wants "1".
+    """
+    if not is_integer(i):
+        raise BTClibTypeError(f"invalid derivation index type: {type(i).__name__}")
+    if not 0 <= i <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid index: {i}")
+
+
 def int_from_index_str(s: str, *, bip380_enforced: bool = False) -> int:
     """Return one path step as its index: "0h" is 0x80000000.
 
@@ -113,17 +134,12 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
     """
     if hardening not in _BIP380_HARDENINGS:
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
-    # reachable without indexes_from_der_path, and str(True) is "True": a
-    # path step of a boolean would be a path nothing derives
-    if not is_integer(i):
-        raise BTClibTypeError(f"invalid derivation index type: {type(i).__name__}")
+    _assert_valid_index(i)
     # int() of an int, because an IntEnum is one and str() of an IntEnum is
     # its *name* up to Python 3.10 -- "Sighash.ALL" where a path step wants
     # "1". Accepting a deliberate integer subclass, which is what
-    # is_integer above is for, means answering with the number it is
+    # `is_integer` is for, means answering with the number it is
     index = int(i)
-    if not 0 <= index <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid index: {index}")
     if index < _HARDENED_OFFSET:
         return str(index)
     return str(index - _HARDENED_OFFSET) + hardening
@@ -208,9 +224,7 @@ def hardenings_from_der_path(
 def _indexes_from_der_path(der_path: Sequence[int] | int | bytes) -> list[int]:
     """Return the indexes of every DerPath spelling that is not a string."""
     if isinstance(der_path, int):
-        if not is_integer(der_path):
-            err_msg = f"invalid derivation index type: {type(der_path).__name__}"
-            raise BTClibTypeError(err_msg)
+        _assert_valid_index(der_path)
         return [der_path]
 
     if isinstance(der_path, bytes):
@@ -224,12 +238,9 @@ def _indexes_from_der_path(der_path: Sequence[int] | int | bytes) -> list[int]:
 
     # an iterable of int, and of int alone: int() here would coerce a bool
     # into the index one, where the annotation already says Sequence[int]
-    # and a bool is no index -- `True` is not the first child of anything
     indexes = list(der_path)
     for index in indexes:
-        if not is_integer(index):
-            err_msg = f"invalid derivation index type: {type(index).__name__}"
-            raise BTClibTypeError(err_msg)
+        _assert_valid_index(index)
     return indexes
 
 

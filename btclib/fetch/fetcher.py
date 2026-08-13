@@ -32,7 +32,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.network import NETWORKS
+from btclib.network import NETWORKS, network_from_name
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
 from btclib.utils import bytes_from_octets
@@ -125,8 +125,15 @@ def tx_for_network(tx: Tx, network: str) -> Tx:
     transaction equal to its argument, the label being the only thing it
     touches. The bytes are untouched in every case, `ScriptPubKey`
     serializing the script alone.
+
+    The name is resolved and not compared as text. Resolving refuses a
+    network no table has, which every `check_validity=False` below would
+    otherwise write into the transaction handed back, to surface far
+    from here as whatever went on to render an address; and it answers
+    the same for " MainNet " as for "mainnet", where a comparison would
+    relabel every output instead of returning the transaction as it is.
     """
-    if network == "mainnet":
+    if network_from_name(network) == NETWORKS["mainnet"]:
         return tx
     vout = [
         TxOut(

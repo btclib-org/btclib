@@ -228,3 +228,33 @@ def test_an_iterable_of_indexes_is_checked_element_by_element() -> None:
     assert hardenings_from_der_path("0h/1", bip380_enforced=True) == ["h", ""]
     with pytest.raises(BTClibValueError, match="invalid derivation index: "):
         hardenings_from_der_path("0H/1", bip380_enforced=True)
+
+
+def test_an_index_outside_the_32_bits_a_step_holds_is_refused() -> None:
+    """The bound the text spelling enforces, on the spellings that are not.
+
+    A step is one of 2**32 indexes however the path was written, and
+    only the string spelling said so: it parses each step against
+    `0 <= index < 0x80000000` and adds the offset for a hardening
+    symbol, while the 4-byte spelling cannot go out of range by
+    construction. The int and the iterable had nothing, so
+    `indexes_from_der_path([-5])` answered `[-5]` -- the malformed index
+    handed straight back, no exception, and an OverflowError far away in
+    whatever went on to serialize it.
+    """
+    for out_of_range in (-1, 2**32, 2**40):
+        with pytest.raises(BTClibValueError, match="invalid index: "):
+            indexes_from_der_path(out_of_range)
+        with pytest.raises(BTClibValueError, match="invalid index: "):
+            indexes_from_der_path([0, out_of_range])
+        with pytest.raises(BTClibValueError, match="invalid index: "):
+            bytes_from_der_path([out_of_range])
+
+    # the boundaries themselves: `<= 0xffffffff` weakened to `<`, or
+    # `0 <=` to `0 <`, would refuse a step every hardened path holds
+    assert indexes_from_der_path([0, 0xFFFFFFFF]) == [0, 0xFFFFFFFF]
+    assert indexes_from_der_path(0xFFFFFFFF) == [0xFFFFFFFF]
+
+    # the two spellings that were already bounded, unchanged
+    assert indexes_from_der_path("m/0h") == [0x80000000]
+    assert indexes_from_der_path(bytes.fromhex("ffffffff")) == [0xFFFFFFFF]
