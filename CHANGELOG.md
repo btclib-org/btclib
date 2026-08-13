@@ -1518,6 +1518,43 @@ documented at release-notes length in the first place, and are still in
   **identical**, leaving no file there carrying an edit of ours, and the
   verdict list says so as the rule it now is: a case of btclib's own is
   written in the test module that reads the file, never inside the file.
+- **Wycheproof's secp256k1 vectors are vendored, ECDSA and ECDH** (#637),
+  which is the adversarial half the BIP and RFC vectors here do not have:
+  those are what a correct signer produces, these are what an attacker
+  sends. Four files under `tests/ecc/_data/`, from the same project
+  bitcoin-core/secp256k1 takes its own from, read by
+  `tests/ecc/wycheproof_test.py` and pinned in `tests/_data/README.md`
+  like every other vendored file; `WYCHEPROOF_COPYING` beside them is the
+  Apache-2.0 licence, btclib being MIT and the data being redistributed
+  rather than written here.
+
+  Two of the four are the same algorithm over the same curve and hash,
+  and that is the point of taking both: `EcdsaBitcoinVerify` is
+  `lower_s=True` and refuses the malleable high-s twin, `EcdsaVerify` is
+  `lower_s=False` and accepts it, and their tcId 5 is the same key and the
+  same signature -- `invalid` in one file and `valid` in the other. A
+  `lower_s` wired the wrong way round now fails one of the two whichever
+  way it is wired, which neither file could report on its own. The third
+  is IEEE P1363, raw `r` and `s` side by side with no DER in front, so
+  `Sig` answers for the pair directly: r and s at zero, at n, and at n
+  plus a valid value. The fourth is ECDH, where the public key arrives
+  X.509-encoded and the point offered is off the curve, on another curve,
+  or on no curve at all -- an invalid-curve attack being a private key
+  multiplied into a group the sender chose.
+
+  Every vector runs twice, against the bindings and against the Python
+  arithmetic underneath them, which is what puts the path that serves
+  every other curve, hash and caller-supplied nonce in front of the same
+  adversary. Nothing was found: all four files pass as they are, so this
+  is coverage of a class rather than a fix, and it is the class the
+  existing vectors leave out -- malleated DER, boundary r and s, hashes
+  chosen for long runs of equal bits, and an r that makes the
+  Strauss-Shamir sum inside `_jac_double_mult` land on infinity.
+
+  BIP340 gains nothing here: Wycheproof publishes no Schnorr vectors for
+  secp256k1. The sha512, sha3 and shake variants of ECDSA are left for
+  later -- `dsa.sign` and `dsa.verify` take any hash function, so they are
+  a further file each and not a further question.
 
 ## v2026.8.9
 

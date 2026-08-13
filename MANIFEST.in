@@ -47,6 +47,13 @@ recursive-include tests *.py
 exclude tests/mutation_counts_test.py
 recursive-exclude tests *.pyc
 recursive-include tests *.txt
+# the Apache-2.0 text of C2SP/wycheproof, whose vectors sit beside it: an
+# sdist redistributes them, which is the act the licence attaches the
+# condition to, so the file it asks to be carried has to be in there.
+# Named rather than reached by a pattern -- it is the one file under
+# tests/ with no extension, upstream calling it LICENSE, and a rule wide
+# enough to match it would sweep in whatever lands there next
+include tests/ecc/_data/WYCHEPROOF_COPYING
 
 recursive-exclude docs/build *
 recursive-include docs *.bat
