@@ -559,6 +559,12 @@ bip32         rootxprv-from-seed  xpub-from-xprv  derive
 slip132       address-from-xkey  address-from-xpub  p2pkh-xkey
               p2wpkh-xkey  p2wpkh-p2sh-xkey
 bip44         address-from-der-path
+bip85         entropy-from-der-path  mnemonic-from-root-key
+              wif-from-root-key  xprv-from-root-key
+              bytes-entropy-from-root-key  rolls-from-root-key
+              base64-password-from-root-key
+              base85-password-from-root-key
+              drng-from-der-path  rsa-drng-from-root-key
 mnemonic bip39
               mnemonic-from-entropy  entropy-from-mnemonic
               seed-from-mnemonic  mxprv-from-mnemonic
@@ -581,6 +587,13 @@ mnemonic      collect-rolls  bin-str-entropy-from-rolls
 module already prompts with `input()` and already has the T201 exemption
 that says so. It is the exception the rest of the design is measured
 against, not a precedent.
+
+`bip85` is where the class rule above meets a type with no text form of
+its own. `BIP85DRNG` is a reader over a SHAKE256 stream, so its receiver
+is the 64 entropy bytes as hex and its one method is `read`; and
+`drng-from-der-path` and `rsa-drng-from-root-key` return that reader
+rather than a value, which no rule in "Output, streams and exit codes"
+prints. The decision below is how much of the stream a command squeezes.
 
 ### Phase 3: signatures, PSBT, the script engine
 
@@ -765,6 +778,12 @@ repository, not this one, releases and versions.
    function. Either the CLI keeps a private one — the only CLI-only
    vocabulary in the design — or `btclib.hashes` grows one, which the
    library itself could then use in its own error messages.
+1. **What does a command that returns a stream print?** BIP85's DRNG is
+   the first published type that is neither a value nor a dataclass:
+   `btclib bip85 drng-from-der-path` has nothing to print until a length
+   is named. Either those two commands take a `--num-bytes`, which is an
+   option no parameter of the function corresponds to, or the group
+   exposes `BIP85DRNG.read` alone and the path is spelled twice.
 1. **Is `--json` off by default, or on?** Off reads better for a human
    and pipes better for `$(...)`; on gives a script one shape everywhere.
 1. **Does `fetch` get a write path?** `broadcast` is one method, and it

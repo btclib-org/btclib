@@ -117,6 +117,12 @@ Included features are:
   key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
   with corresponding mapping to
   p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
+- [BIP85](https://github.com/bitcoin/bips/blob/master/bip-0085.mediawiki)
+  deterministic entropy: one root key behind many wallets, a hardened
+  path saying which, and each application taking what it needs of the 512
+  bits it reaches — a BIP39 mnemonic, the Bitcoin Core `hdseed` WIF, an
+  xprv, raw bytes, a base64 or base85 password, dice rolls, and the
+  SHAKE256 stream an RSA key generator reads
 - [BIP352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki)
   silent payments: one reusable bech32m address, and a different taproot
   output for every payment to it — the sender's outputs, the receiver's
