@@ -239,29 +239,45 @@ read by every checkout of this repository.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
-| `test` | pull request, push | 4 platforms × 7 interpreters |
+| `test` | pull request, push | 2 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a node, two device emulators |
 | `website` | pull request, push, on website files | — |
-| `codeql` | pull request, push, Tuesday | 2 languages |
+| `codeql` | push to main, Tuesday | 2 languages |
+| `windows` | Saturday, a release | 2 Windows images × 7 interpreters |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
 | `latest` | Wednesday | platforms sampled, deps upgraded |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | monthly | upstream's vectors |
 | `published` | monthly, a release | what PyPI serves |
-| `release` | a tag | calls test, lint, docs, macos, published |
+| `release` | a tag | calls test, lint, docs, macos, windows, published |
 
 The first four rows are what a merge waits for, and between them they report
-the five required checks: `lint` and `docs` share a row and report one
-each. macOS is not among them on purpose: it is the platform whose runners
-queue — 29.4 and 23.2 minutes of mean wait against 0.5 to 1.6 elsewhere, on
-a run of 45 jobs that spent 93 minutes working and 399 waiting — so it
-answers weekly, and before a release, rather than before a review. `macos`
-and `latest` share a morning half an hour apart, which is what makes the
-pair readable: red in both is the platform, red in `latest` alone is the
-upgrade. Every workflow in the table also takes `workflow_dispatch`, the
-gates included: a branch whose pull request is not open yet has no other way
-to ask.
+the four required checks: `lint` and `docs` share a row and report one each.
+
+What the other rows have in common is that a pull request does not wait for
+them, and the reason is one number: GitHub Free gives an organization twenty
+concurrent jobs. A commit used to ask for thirty-nine, and a repository at
+that ceiling spends a pull request's wall clock waiting for a slot rather
+than running the suite — measured over a working afternoon, nineteen or
+twenty jobs were running for 1375 of 2100 seconds. So a platform row earns
+its place before a review only if it is cheap to wait for: macOS queued 29.4
+and 23.2 minutes on average against 0.5 to 1.6 elsewhere, and the fourteen
+Windows cells were 2357 of the 3556 seconds of matrix work per commit, the
+slowest rows and the longest queues. Both answer weekly and before a
+release instead, which is a regression sitting on `main` for at most a week
+against every review paying for it. `codeql` is there for the same
+arithmetic, with `zizmor` in `lint` still reading these workflows on every
+pull request; REPOSITORY.md has that trade in full.
+
+`macos` and `latest` share a morning half an hour apart, which is what makes
+the pair readable: red in both is the platform, red in `latest` alone is the
+upgrade. `windows` takes a morning of its own, Saturday being the day
+nothing else here asks for — fourteen jobs beside those two would rebuild on
+Wednesday the queue this arrangement exists to remove. Every workflow in the
+table also takes `workflow_dispatch`, the gates included: a branch whose
+pull request is not open yet has no other way to ask, and for `codeql` and
+the two platform workflows it is the only way to ask about a branch at all.
 
 ### Reproducing what CI runs
 
@@ -297,10 +313,15 @@ touching `.venv`. The command is what CI runs, verbatim, and CI has no
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
 whether that (os, architecture, interpreter) triple passes. The job below
-is where coverage is measured, and `macos.yml` passes the flag for the
-same reason. `latest.yml` does not: it runs no PyPy cell and has no
-coverage job of its own, so the ratchet meeting an upgraded coverage.py
-is one of the things that workflow exists to find out.
+is where coverage is measured, and `macos.yml` and `windows.yml` pass the
+flag for the same reason. `latest.yml` does not: it runs no PyPy cell and
+has no coverage job of its own, so the ratchet meeting an upgraded
+coverage.py is one of the things that workflow exists to find out.
+
+One pair is missing from that matrix, `(3.14, ubuntu-latest)`, and the
+coverage job below is it: same image, same interpreter, same suite, and the
+only difference is the instrumentation. Reproducing that cell is therefore
+the coverage command rather than this one.
 
 The `coverage` job, gated by `fail_under` in pyproject.toml:
 
@@ -644,9 +665,11 @@ something already known to the world.
 The only check with no local equivalent is `codeql`: the analysis needs the
 CodeQL bundle and a database, which is a download rather than a `uv`
 command, so `.github/workflows/codeql.yml` is where it is configured and
-GitHub's runners are where it happens. Its findings appear under the
-Security tab, and `REPOSITORY.md` has why the workflow is in the tree at
-all.
+GitHub's runners are where it happens. It is also the one check no pull
+request runs — `workflow_dispatch` is how a branch asks — so its findings
+arrive under the Security tab after a merge rather than before it, and
+`REPOSITORY.md` has both why the workflow is in the tree and what that
+timing was traded for.
 
 ### The website
 

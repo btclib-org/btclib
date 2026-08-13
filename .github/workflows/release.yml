@@ -219,13 +219,17 @@ jobs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
 
-  # and the platform the merge gate does not wait for: macos.yml runs
+  # and the two platforms the merge gate does not wait for: each runs
   # weekly, so a regression there could otherwise sit on main until the
-  # Wednesday after the tag. Cheap in work and the slowest call here in wall
+  # morning after the tag. Cheap in work and the slowest calls here in wall
   # clock, which a release is the one place worth paying for
   macos:
     name: Run the macos workflow
     uses: ./.github/workflows/macos.yml
+
+  windows:
+    name: Run the windows workflow
+    uses: ./.github/workflows/windows.yml
 
   build:
     name: Build the wheel and the sdist
@@ -415,7 +419,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, build]
+    needs: [test, lint, docs, macos, windows, build]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -439,7 +443,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, build]
+    needs: [test, lint, docs, macos, windows, build]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -1,0 +1,125 @@
+---
+name: windows
+
+# the second platform the merge gate does not wait for, and it is here for
+# the reason macos.yml is, measured on this repository rather than assumed.
+# GitHub Free gives an organization twenty concurrent jobs, and a commit used
+# to ask for thirty-nine: measured over a working afternoon, the repository
+# sat at nineteen or twenty running jobs for 1375 of 2100 seconds, so a pull
+# request's wall clock was set by waiting for a slot and not by the suite.
+# The fourteen Windows cells were 2357 of the 3556 seconds of matrix work per
+# commit -- windows-11-arm alone 1250, the slowest row and the one with the
+# longest queue -- and they also carry the largest fixed cost per cell, some
+# 50 to 75 seconds of checkout, uv and wheel build against 17 on ubuntu.
+# Moving them here took a commit from 66 runner-minutes to 25. To re-derive:
+#
+#     id=$(gh run list --workflow=test.yml --limit 1 \
+#         --json databaseId --jq '.[0].databaseId')
+#     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
+#
+# What these cells buy is what macos.yml's comment says of its own: there is
+# no platform-conditional branch in this library -- no sys.platform and no
+# sys.version_info anywhere, which is the property the coverage job of
+# test.yml records from the other side -- so every cell walks the same lines.
+# What runs here is the standard library under them, the published
+# btclib_secp256k1 wheel for each interpreter, and the one path separator
+# and line ending this library never sees otherwise.
+#
+# windows-11-arm needs no special handling, and that is worth a word: which
+# architecture the interpreter targets there is up to the runner image,
+# native arm64 for the versions it caches and emulated x86-64 for the ones
+# uv has to download, and the wheel is selected for the interpreter rather
+# than for the host, so either one links.
+#
+# A workflow of its own rather than a row in macos.yml, which is the same
+# design that file argues for itself: one variable each, so a red cell names
+# a platform. On its own morning too, and that is this workflow's whole
+# point -- macos.yml and latest.yml already share Wednesday, and fourteen
+# more jobs against twenty slots would rebuild on that morning the queue
+# this file exists to take out of a pull request.
+#
+# It gates no commit and no merge -- a Windows regression sits on main for at
+# most a week -- but release.yml calls it, so one cannot be published
+
+on:
+  schedule:
+    # Saturday, the one day nothing else here asks for -- the mutation
+    # session Sunday, links Monday, codeql Tuesday, latest and macos
+    # Wednesday, Dependabot Thursday, integration Friday -- so a failure
+    # notification still names the workflow by the day it arrived, which is
+    # the convention codeql.yml states at its own cron. A minute that is not
+    # the hour, as every schedule here, so the run does not queue behind
+    # everything else cron starts; 19 is unused by the others.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "19 4 * * 6"
+  # lets release.yml gate a publication on this platform too, which is what
+  # keeps a weekly sentinel from being the only thing that ever asks
+  workflow_call:
+  # the escape hatch: the platform on demand, for a branch that touches a
+  # path, a line ending or anything a subprocess reaches
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs: the subject here is the commit, which a newer one
+# supersedes. Named literally rather than with github.workflow, which in a
+# called workflow is the caller's name -- release.yml calls this one
+# alongside test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-windows:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # every cell to the end: which interpreter fails on which image is the
+      # whole answer, and stopping at the first one hides the rest
+      fail-fast: false
+      matrix:
+        # the two images test.yml no longer carries. Both, and not the
+        # newest alone: what differs between them is the architecture the
+        # interpreter and the bindings wheel target
+        os:
+          - windows-latest
+          - windows-11-arm
+        # the interpreter set test.yml runs, unchanged: this workflow moves
+        # the platform and nothing else, so a difference between the two is
+        # attributable to the platform
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
+    # far above what a run of the suite needs, and it bounds a hung job
+    # rather than a slow one: the queueing this workflow exists to move
+    # happens before a job starts and is not counted here
+    timeout-minutes: 30
+    steps:
+      # the three steps of test.yml's suite job, and each `with:` there
+      # carries the reason for itself
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # --no-cov for the reason test.yml's suite job gives beside its own
+      # step: this matrix carries the same PyPy cells behind the same
+      # timeout, and the coverage job there is the one place the number is
+      # measured and gated
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov

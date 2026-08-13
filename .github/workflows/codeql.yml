@@ -3,14 +3,14 @@ name: codeql
 
 # the static analysis GitHub runs on its side, moved into the tree.
 #
-# It ran from default setup, a repository setting, which made it the one
-# required check whose definition no diff could review: every other check
-# in main's rule is a file here, with its actions pinned to commit SHAs
-# that a pull request can be read for. A setting is edited in a browser by
-# whoever holds the token, leaves no history a reviewer sees, and cannot
-# be branched -- so the analysis that looks for injected expressions and
-# unsafe checkouts in these very workflows was itself the part of CI
-# nobody could audit.
+# A repository setting is edited in a browser by whoever holds the token,
+# leaves no history a reviewer sees, and cannot be branched -- so while
+# default setup held this analysis, the thing that looks for injected
+# expressions and unsafe checkouts in these very workflows was itself the
+# one part of CI no diff could review. It is a file now, with its actions
+# pinned to commit SHAs a pull request can be read for, which is the
+# property that had to hold whether or not it gates: the `on:` block below
+# is where it stopped gating, and why.
 #
 # What the setting held is reproduced rather than invented. Read from the
 # API while it still held it -- the same command answers
@@ -40,44 +40,42 @@ name: codeql
 # "CodeQL analyses from advanced configurations cannot be processed when
 # the default setup is enabled". Both jobs below are therefore red rather
 # than absent while the setting is on, so the branch rule stops naming
-# `CodeQL` before the setting goes off and names the aggregate after.
+# `CodeQL` before the setting goes off rather than after.
 
 on:
+  # main and the schedule below, and no pull_request trigger: this analysis
+  # is the one gate that was worth trading for the queue it held. GitHub
+  # Free gives an organization twenty concurrent jobs, a commit used to ask
+  # for thirty-nine, and this workflow's three of them were held while a
+  # pull request waited for a slot -- so the analysis now lands on the merge
+  # commit rather than before it, and the aggregate below is no longer a
+  # required check on main. REPOSITORY.md's "Required checks on main" is
+  # where that rule is written down, and dropping the context there is a
+  # token operation that had to come first.
+  # What still reads a branch before it merges is lint.yml: zizmor is a
+  # pre-commit hook and reads exactly these files for an injected
+  # expression, which is the finding this workflow would otherwise be alone
+  # in making. What is deferred by a merge is the rest -- the python
+  # queries, and whatever zizmor does not model -- and the window is the
+  # time between a merge and the next run of this workflow, which for main
+  # is that merge itself.
+  # No `paths` filter, on either trigger: a filter buys nothing now that
+  # nothing waits on the answer, and it would have to name every path a
+  # query reads
   push:
-    # main only: a push to a branch that has an open pull request would
-    # run this workflow twice, once per event, and the two runs land in
-    # different concurrency groups (refs/heads/<branch> against
-    # refs/pull/N/merge) so neither cancels the other. The pull_request
-    # run is the one worth keeping, because it analyses the merge commit
-    # and is the only run a fork's pull request produces at all.
-    # main keeps a trigger of its own because a merge creates a commit
-    # that is not the one the pull request analysed, and because code
-    # scanning compares a pull request's alerts against the default
-    # branch's: without a run here every alert on every branch reads as
-    # new
+    # a merge creates a commit that no pull request analysed, and code
+    # scanning compares a branch's alerts against the default branch's, so
+    # without a run here there is no baseline for any other run to be read
+    # against
     branches: [main]
-  pull_request:
-    # ready_for_review, so a pull request marked ready gets the run the
-    # draft condition below withheld while it was a draft: the default
-    # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all
-    types: [opened, reopened, synchronize, ready_for_review]
-    # no `paths` filter, on either trigger: the aggregate at the end of
-    # this file is a required check on main, and a required check that
-    # never runs blocks a merge where a skipped one satisfies it -- the
-    # same trade integration.yml makes, and for the same reason. Every
-    # pull request pays it, documentation-only ones included, and what
-    # that costs was read off the runs default setup produced rather than
-    # guessed: a mean of 40 seconds for the actions job and 72 for the
-    # python one, the command in the aggregate's comment below
   schedule:
     # Tuesdays, 04:23 UTC. Not on the hour: GitHub queues scheduled
     # workflows across every repository that asked for the same minute,
     # and the run can be dropped outright when the queue is long.
     # Tuesday is a day nothing else here asks for -- links Monday, latest
-    # and macos Wednesday, Dependabot Thursday, integration Friday, and
-    # the mutation session Sunday -- so a failure notification still names
-    # the workflow by the day it arrived; and it is the day
+    # and macos Wednesday, Dependabot Thursday, integration Friday, windows
+    # Saturday and the mutation session Sunday -- so a failure notification
+    # still names the workflow by the day it arrived; and it is the day
     # btclib-secp256k1 and bitcoin-core-rpc analyse on, so "did CodeQL
     # go red anywhere" has one morning to read rather than three. Weekly, as
     # default setup was: what a scheduled analysis catches is a query
@@ -86,8 +84,9 @@ on:
     # Cron runs from the default branch only, so this asks nothing until
     # it reaches main; elsewhere the dispatch below is the way in
     - cron: "23 4 * * 2"
-  # the escape hatch: an analysis on demand for a branch whose pull
-  # request is not open yet
+  # the escape hatch, and with no pull_request trigger above it is the only
+  # way to analyse a branch before it is merged: worth reaching for on one
+  # that touches a workflow, which is what the actions queries read
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
@@ -98,7 +97,8 @@ on:
 permissions:
   contents: read
 
-# cancel superseded runs on the same branch/PR.
+# cancel superseded runs on the same branch, which is main or whatever a
+# dispatch names.
 # The group is named literally rather than with github.workflow, which in
 # a called workflow is the caller's name: nothing calls this one today,
 # and the expression would be a trap for whatever does
@@ -113,12 +113,10 @@ jobs:
     # reader into the log to find out which half broke -- and so the two
     # run in parallel, which is what default setup did too
     name: Analyze ${{ matrix.language }}
-    # a draft pull request is work in progress: every push to one spends
-    # runners on a tree its author is not asking anyone to review yet.
-    # The gate below carries the same condition, so a draft skips
-    # uniformly and the gate does not read that skip as a job that should
-    # have run
-    if: ${{ !github.event.pull_request.draft }}
+    # no draft condition, where every job of test.yml carries one: this
+    # workflow no longer runs on a pull request at all, so there is no draft
+    # to skip and `github.event.pull_request.draft` is an expression that
+    # could only read empty here
     runs-on: ubuntu-latest
     # far above what either language needs; what it bounds is a hung job
     # holding a runner for six hours
@@ -192,30 +190,29 @@ jobs:
           # rather than starting again
           category: "/language:${{ matrix.language }}"
 
-  # the single check main's branch protection requires from this
-  # workflow, and it exists because that rule names its checks as literal
-  # strings, stored outside the repository. The matrix above produces one
-  # check per language, so naming those directly would mean a rule to
-  # edit -- in a setting no pull request can review -- every time the
-  # matrix moves, and a name that stops being produced becomes a required
-  # check that never reports, which blocks every merge until somebody
-  # remembers where the rule lives.
-  # This job depends on the matrix instead, so the rule names one thing
-  # that never changes and adding a language here is enough to gate on it
+  # one answer to read per commit rather than one per language, which is
+  # what this job is for now that main's branch protection does not require
+  # it -- REPOSITORY.md's table is where that changed, and why. Kept rather
+  # than deleted because the name is then still produced: requiring this
+  # workflow again is a patch to the rule and nothing in the tree, which is
+  # the half of the exchange that cannot be made in a pull request.
+  # The matrix above produces one check per language, and a rule naming
+  # those directly would mean a setting to edit -- one no pull request can
+  # review -- every time the matrix moves. This job depends on the matrix
+  # instead, so adding a language is enough to be covered by it
   codeql-passed:
-    # the name and not the id is what branch protection matches, and it
-    # carries the workflow on purpose: a context is keyed by name alone,
-    # so two workflows with a job named "every job passed" would produce
-    # one ambiguous check. The pattern, and the reasoning behind every
-    # line of it, is test.yml's own aggregate
+    # the name is what branch protection matches, and it carries the
+    # workflow on purpose: a context is keyed by name alone, so two
+    # workflows with a job named "every job passed" would produce one
+    # ambiguous check. The pattern, and the reasoning behind every line of
+    # it, is test.yml's own aggregate -- which is still required, so the two
+    # names must not converge
     name: "codeql: every job passed"
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
-    # skipped check reports "skipped", which branch protection counts as
-    # satisfied. The gate has to run to be able to fail.
-    # And the draft condition the matrix carries, so a draft skips
-    # uniformly rather than tripping the skip check below
-    if: ${{ always() && !github.event.pull_request.draft }}
+    # skipped check reports "skipped", which reads as satisfied wherever a
+    # check is read at all. The gate has to run to be able to fail
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
