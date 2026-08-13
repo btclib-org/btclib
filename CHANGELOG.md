@@ -1817,6 +1817,40 @@ documented at release-notes length in the first place, and are still in
   landed on the bindings' `main` before any release carries it, which is
   what the entry above this one already moved this tree's requirement to
   track.
+- **`aff_from_jac` inverts once, where it inverted twice.** x is X/Z^2
+  and y is Y/Z^3, and the two denominators were inverted separately --
+  two extended Euclids for one point. Z^-1 gives both: Z^-2 is a
+  multiplication away from it and Z^-3 another, and an inverse costs
+  what about a hundred products cost.
+
+  The conversion is where scalar multiplication ends, so it is what
+  `mult` and `double_mult` pay once per call on every curve the bindings
+  do not answer. Measured against `3f7873db` on Python 3.14.6, best of
+  15 alternating rounds, with the order of the two sides alternating too
+  and three cases that make no conversion at all as the noise detector:
+
+  | | two inverses | one inverse | |
+  | --- | ---: | ---: | ---: |
+  | `aff_from_jac`, random z | 49.00 us | 25.10 us | **1.95x** |
+  | `aff_from_jac`, z == 1 | 0.837 us | 0.484 us | **1.73x** |
+  | `mult`, secp256r1 | 1003 us | 977 us | 1.03x |
+  | `mult`, ec23_31 | 8.21 us | 7.78 us | 1.05x |
+  | `dsa.assert_as_valid`, secp256r1 | 1264 us | 1266 us | 1.00x |
+  | `dsa.assert_as_valid`, secp256k1 | 20.7 us | 20.7 us | 1.00x |
+  | control, `mult` secp256k1 | 8.23 us | 8.27 us | 0.99x |
+
+  A 256-bit multiplication is a thousand microseconds of doublings and
+  additions with one conversion at the end, so halving the conversion
+  moves it by what the table says and no more. Signature verification
+  does not appear because it makes no conversion: `dsa` and `ssa` verify
+  in Jacobian coordinates and ask `x_aff_from_jac` for the one
+  coordinate they compare.
+
+  `x_aff_from_jac` and `y_aff_from_jac` still invert Z^2 and Z^3
+  directly: for a single coordinate that is the same one inverse, and
+  the power wanted is the one inverted. Their docstrings said they made
+  one inversion where `aff_from_jac` made two, which is no longer what
+  tells them apart; each now says what it does not compute.
 
 ### The public API and the module layout
 
