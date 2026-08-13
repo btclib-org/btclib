@@ -54,7 +54,7 @@ from btclib.curves.curve import (
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt
+from btclib.number_theory import mod_inv, mod_sqrt
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
@@ -102,13 +102,16 @@ def _try_sqrt(a: int, p: int) -> int | None:
     mod_sqrt raises instead, which is the wrong shape for the map: a
     non-square is one of the branches, taken for about half the inputs,
     and not an error to phrase.
+
+    That refusal is the whole of the test, rather than a legendre_symbol
+    asked before it: mod_sqrt squares its candidate back to compare with
+    a, which is the same question answered, and on a 256-bit prime the
+    symbol is an exponentiation the size of the root's.
     """
-    a %= p
-    if a == 0:
-        return 0
-    if legendre_symbol(a, p) != 1:
+    try:
+        return mod_sqrt(a, p)
+    except BTClibValueError:
         return None
-    return mod_sqrt(a, p)
 
 
 def _xswiftec(u: int, t: int, ec: Curve) -> int:

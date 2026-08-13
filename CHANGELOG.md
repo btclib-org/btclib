@@ -1205,6 +1205,27 @@ documented at release-notes length in the first place, and are still in
   the integer it subclasses. `xgcd` is unchanged, still exported and
   still tested as the Bezout identity it is named after -- it stops
   being what `mod_inv` is built on, and stays what it was.
+- **The two square roots that asked for a Legendre symbol first stop
+  asking** (issue #783). `curve_group.y_quadratic_residue` and
+  `ellswift._try_sqrt` each ran `legendre_symbol` before `mod_sqrt`,
+  which on a 256-bit prime is not a cheap test in front of the work but
+  the work twice: the symbol is `pow(a, (p - 1) // 2, p)` and the root of
+  a p == 3 mod 4 field is `pow(a, (p + 1) // 4, p)`, one exponent the
+  size of the other. 154 us against 78 for the first, 153 against 77 for
+  the second, measured beside a modular multiplication that no change
+  touches.
+
+  `y_quadratic_residue` is `ec.y` and nothing else, for the p == 3 mod 4
+  it already requires: that root is `a ** ((p + 1) // 4)`, a power of the
+  square a and so a square itself, which leaves `p - root` the
+  non-residue, -1 being one modulo such a p. The symbol could not have
+  corrected it either way -- `legendre_symbol` answers 1 or -1, both
+  truthy, so the `p - root` branch was unreachable as written.
+
+  `_try_sqrt` returns `None` where `mod_sqrt` raises: the candidate
+  `mod_sqrt` squares back to compare with a is the same question the
+  symbol was asked. The non-square half of its inputs pays that squaring
+  and an exception in place of the symbol, and measures the same 78 us.
 
 - **The bits a digit holds are counted in integers** (issue #759).
   `bin_str_entropy_from_rolls` and `collect_rolls` computed
