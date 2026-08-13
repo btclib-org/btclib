@@ -193,8 +193,10 @@ def tonelli(a: int, p: int) -> int:
     if s == 1:
         return pow(a, (p + 1) // 4, p)
 
-    # Select a z which is a quadratic non residue modulo p
-    z = 1
+    # Select a z which is a quadratic non residue modulo p, from the
+    # first value that can be one: 1 is a square modulo every prime, so
+    # its symbol is known before the loop asks for it
+    z = 2
     while legendre_symbol(z, p) != -1:
         z += 1
     c = pow(z, q, p)
