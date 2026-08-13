@@ -685,11 +685,13 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     it answers the z == 0 both functions already recognize, so each still
     raises what it raised before, from the same line.
 
-    The two conversions in cost 0.39 us each on the z == 1 that a parsed
-    key and a lifted r arrive as, and a shortcut for that case -- the
-    affine point being the same pair of coordinates, no inversion at all
-    -- saves 0.75 us of the 28. Not worth a branch, and neither is the
-    caller's own mod_inv(1) on the way back out, 0.14 us.
+    The two conversions in are one modular inversion each on the z == 1
+    that a parsed key and a lifted r arrive as, and a shortcut for that
+    case -- the affine point being the same pair of coordinates, no
+    inversion at all -- saves both of them, 3% of the 28 us the call
+    costs. Not worth a branch, and neither is the caller's own
+    mod_inv(1) on the way back out, the same inversion again on the
+    cheapest operand it has.
     """
     if not _libsecp256k1_applicable(ec, None):
         return _double_mult_python(u, HJ, v, QJ, ec)

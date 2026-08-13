@@ -241,7 +241,7 @@ class CurveGroup:
         raise BTClibTypeError("not a Jacobian point")
 
     def aff_from_jac(self, Q: JacPoint) -> Point:
-        """Return the affine point: two modular inversions.
+        """Return the affine point: one modular inversion.
 
         The input point is assumed to be on the curve; infinity comes
         back as INF, its affine spelling.
@@ -249,14 +249,21 @@ class CurveGroup:
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
 
-        Z2 = Q[2] * Q[2]
-        x = Q[0] * mod_inv(Z2, self.p)
-        y = Q[1] * mod_inv(Z2 * Q[2], self.p)
-        return x % self.p, y % self.p
+        # x is X/Z^2 and y is Y/Z^3, and both powers are built from one
+        # inverse: Z^-2 is a product away from Z^-1, and Z^-3 another.
+        # Inverting Z^2 and Z^3 separately is two extended Euclids where
+        # this is one and two multiplications, and an inverse costs what
+        # a hundred products cost
+        p = self.p
+        z_inv = mod_inv(Q[2], p)
+        z_inv2 = z_inv * z_inv % p
+        return Q[0] * z_inv2 % p, Q[1] * z_inv2 % p * z_inv % p
 
     def x_aff_from_jac(self, Q: JacPoint) -> int:
-        """Return the affine x alone: one modular inversion, not two.
+        """Return the affine x alone, without the products y costs.
 
+        One inversion, as `aff_from_jac`, of Z^2 rather than of Z: the
+        power x wants is the one inverted, so nothing is rebuilt from it.
         The input point is assumed to be on the curve; infinity has no
         x and is refused.
         """
@@ -267,8 +274,10 @@ class CurveGroup:
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
     def y_aff_from_jac(self, Q: JacPoint) -> int:
-        """Return the affine y alone: one modular inversion, not two.
+        """Return the affine y alone, without the product x costs.
 
+        One inversion, as `aff_from_jac`, of Z^3 rather than of Z, for
+        the same reason `x_aff_from_jac` inverts Z^2.
         The input point is assumed to be on the curve; infinity has no
         y and is refused.
         """
@@ -301,8 +310,10 @@ class CurveGroup:
         """
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
-        # no Jacobian coordinates here as aff_from_jac would cost 2 mod_inv
-        # while add_aff costs only one mod_inv
+        # affine arithmetic, and it is not the inversion that decides it:
+        # aff_from_jac makes one, add_aff makes one. The products decide,
+        # and reaching this sum through Jacobian coordinates and back
+        # makes more of them than add_aff does
         return self.add_aff(Q1, Q2)
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
