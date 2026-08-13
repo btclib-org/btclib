@@ -2492,6 +2492,21 @@ documented at release-notes length in the first place, and are still in
   format of its own; the direction that was refused for being ambiguous is
   the one that stays refused.
 
+### Documentation and the website
+
+- **The feature list advertises BIP85**, which it had not: README.md is
+  the btclib.org homepage and the PyPI long description, so the list
+  under "Included features are" is where a reader learns what is here,
+  and the only two mentions of `bip85` in that file were in the module
+  layout underneath it. `docs/proposals/cli.md` had the converse gap and
+  the same cause: its command tree is `__all__` minus the recorded
+  exclusions, and a published module of eleven names appeared in neither
+  its Phase 2 inventory nor that list. It carries the `bip85` group now,
+  and one decision the group is the first to raise -- `BIP85DRNG` is a
+  reader over a stream, so `drng-from-der-path` and
+  `rsa-drng-from-root-key` return a value that nothing in the output
+  rules prints until a length is named.
+
 ### Tests
 
 - **The 88 high-s vectors are pinned, not assumed** (#695). Every vector
