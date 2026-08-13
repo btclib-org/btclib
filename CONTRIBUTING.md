@@ -49,19 +49,8 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**Both declared dependencies are direct references to their own `main`**,
-`btclib_secp256k1` and `bitcoin-core-rpc`: what a branch here needs of
-them lands there first, and waiting for a release of another repository to
-call it is a wait two projects developed together do not have to take.
-`uv.lock` pins the commit, so what CI installs is still one resolution
-someone locked, and it moves when that branch does. The price is paid
-twice: the bindings are built from source wherever a published wheel used
-to be resolved — cmake and cffi come from their own `[build-system]
-requires`, a C toolchain is the machine's — and PyPI refuses a direct
-reference, so a release replaces each line with a floor before the tag
-(RELEASING.md's step 1).
-
-**Those floors carry no upper bound**, and the absence of a
+**The declared dependencies are `btclib_secp256k1>=0.8.0.1` and
+`bitcoin-core-rpc>=2026.8.13`, with no upper bound**, and the absence of a
 ceiling is a decision. Both are btclib-org projects developed by the same
 people, and the bindings' whole purpose is to be the bindings this library
 calls, so a breaking change there is coordinated with the release here —
@@ -338,10 +327,9 @@ which the suite compares against the script's own constants, so changing
 a rule means changing both. The last
 commands ask for the wheel and nothing else, so
 what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel
-carries; the lock arrives as constraints, which pin without
-requesting a package — a commit, for a direct reference — so nothing
-pushed or published in the bindings can turn a required check red while
-the wheel's own metadata still does the work. They run
+carries; the lock arrives as constraints, which bind a version without
+requesting a package, so a release of the bindings cannot turn a required
+check red while the wheel's own metadata still does the work. They run
 from an empty directory, or the import finds the source tree instead of
 the wheel:
 
@@ -381,11 +369,9 @@ Its build job then repeats the smoke test above on the wheel it uploads,
 which is not the one `dist` built, and repeats it without the
 constraints. No pull request waits on that job and no branch rule names
 it, where `publish-testpypi` and `publish-pypi` both have it in `needs`:
-so it is the place to ask whether what those requirements resolve to
-unpinned satisfies the artifact — the newest published release of each,
-once the direct references are floors again — and a release stopping on
-that answer is the outcome wanted. It runs after the upload rather than
-before, the artifact being
+so it is the place to ask whether the newest published bindings satisfy
+the artifact, and a release stopping on that answer is the outcome
+wanted. It runs after the upload rather than before, the artifact being
 what the publish jobs download: installing a dependency executes its
 code, and a compromised one must not reach a `dist/` that has still to
 be handed on.
@@ -418,10 +404,9 @@ uv lock --upgrade
 ```
 
 That workflow has a second job, `suite-bindings-latest`, upgrading only
-the bindings — to the tip of their `main`, that being what the
-requirement points at — and re-running the suite: narrower than the
-upgrade above, which moves every dependency, so a red run here names the
-one responsible instead of burying it behind a dozen others:
+the bindings and re-running the suite — narrower than the upgrade above,
+which moves every dependency, so a red run here names the one responsible
+instead of burying it behind a dozen others:
 
 ```shell
 uv lock --upgrade-package btclib_secp256k1
