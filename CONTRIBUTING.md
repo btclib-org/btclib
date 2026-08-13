@@ -212,7 +212,10 @@ for a credential that has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a
 narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
 digits, so the block's own signatures match the detector wherever a script
-is rendered as upper-case hex. Adding a vector to one of those files, or
+is rendered as upper-case hex. `tests/_data/bip85_test_vectors.json` is
+there for a third reason again, and the narrowest: the detector reads the
+field name, and BIP85 prints the password of its two password
+applications as DERIVED PWD. Adding a vector to one of those files, or
 changing what a golden file holds, means regenerating the baseline:
 
 ```shell

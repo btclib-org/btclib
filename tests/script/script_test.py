@@ -111,6 +111,46 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == (length + 1) + 3
 
 
+def test_a_data_command_is_never_a_numeric_op_code() -> None:
+    """Verify the values with an op code are still pushed as data.
+
+    The set Core's `CheckMinimalPush` names -- the empty push, 1 to 16
+    and 0x81 -- is the set with a one-byte op code of its own, and
+    `serialize` reaches for none of them from a bytes command, a hex
+    string or an integer: data is data, and `push_int` is where a caller
+    that means a number says so (issue #646). The empty push is the one
+    place the two spellings are the same byte, a zero-length push being
+    OP_0 already.
+    """
+    assert serialize([b""]) == BYTE_FROM_OP_CODE_NAME["OP_0"]
+    for i in range(1, 17):
+        assert serialize([bytes([i])]) == bytes([1, i])
+        assert serialize([bytes([i]).hex()]) == bytes([1, i])
+        assert serialize_non_canonical([i]) == bytes([1, i])
+        assert serialize([push_int(i)]) == BYTE_FROM_OP_CODE_NAME[f"OP_{i}"]
+    assert serialize([b"\x81"]) == b"\x01\x81"
+    assert serialize_non_canonical([-1]) == b"\x01\x81"
+    assert serialize([push_int(-1)]) == BYTE_FROM_OP_CODE_NAME["OP_1NEGATE"]
+
+    # a push of one zero byte is data of one byte, which is what Core's
+    # CheckMinimalPush measures it as: OP_0 pushes no bytes at all, so
+    # the two are not the same push and this one is minimal already --
+    # the only value in the set for which reaching for the op code would
+    # change what lands on the stack, and not merely how it is spelled
+    assert serialize([b"\x00"]) == b"\x01\x00"
+
+    # the integer zero is not that push: its encoding is the empty
+    # vector, whose push is OP_0, so the data and the op code coincide
+    # and the warning the rest of the range gets has nothing to say
+    assert serialize([0]) == BYTE_FROM_OP_CODE_NAME["OP_0"]
+
+    # what parse hands back for such a push is its hex, and serializing
+    # that writes the push it read: the round trip is what a substitution
+    # would break, silently and for every one-byte push in a script
+    assert parse(b"\x01\x01") == ["01"]
+    assert serialize(parse(b"\x01\x01")) == b"\x01\x01"
+
+
 def test_add_and_eq() -> None:
     """Verify Script + Script concatenates and refuses raw bytes."""
     script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
@@ -272,6 +312,7 @@ def test_regressions() -> None:
         ["AAAA"],
         [""],
         [b""],
+        [0],
         ["OP_0"],
         ["OP_1NEGATE"],
         [0x81],
@@ -281,11 +322,12 @@ def test_regressions() -> None:
         serialized = serialize(s)
         assert serialize(parse(serialized)) == serialized
 
-    # the three regressions that serialize() warns about, kept apart from
+    # the two regressions that serialize() warns about, kept apart from
     # the others so that the warning is asserted rather than ignored: a
     # simplefilter("ignore") around the loop above would hide it, and
-    # with it any other warning the loop raises
-    non_canonical: list[ScriptList] = [[1], [0], [-1]]
+    # with it any other warning the loop raises. Zero is not one of them
+    # any more, OP_0 being what its empty encoding is pushed as
+    non_canonical: list[ScriptList] = [[1], [-1]]
     for s in non_canonical:
         serialized = serialize_non_canonical(s)
         assert serialize(parse(serialized)) == serialized
@@ -302,10 +344,12 @@ def test_null_serialization() -> None:
     assert parse(serialize([b""])) == ["OP_0"]
     assert parse(serialize([b" "])) == ["20"]
 
-    # 0 and 16 have a one-byte op code, so pushing them as data warns
-    assert serialize_non_canonical([0]) == b"\x01\x00"
-    assert parse(serialize_non_canonical([0])) == ["00"]
+    # zero is the empty vector, so pushing it as data is OP_0 and warns
+    # not: the op code and the push are the same byte
+    assert serialize([0]) == b"\x00"
+    assert parse(serialize([0])) == ["OP_0"]
 
+    # 16 has a one-byte op code the data push is not, so it warns
     assert serialize_non_canonical([16]) == b"\x01\x10"
     assert parse(serialize_non_canonical([16])) == ["10"]
 
@@ -333,9 +377,10 @@ def test_integer_serialization() -> None:
     """Verify integers parse back as data, warned only in [0, 16]."""
     assert parse(b"\x00") == ["OP_0"]
 
-    # [0, 16] is exactly the range with a shorter op code form, so every
-    # serialize() below warns; from 17 on, none does
-    assert serialize_non_canonical([0]) != b"\x00"
+    # [1, 16] is exactly the range with a shorter op code form, so every
+    # serialize() below warns; from 17 on, none does, and zero is the op
+    # code itself
+    assert serialize([0]) == b"\x00"
     for i in range(1, 17):
         serialized_int = serialize_non_canonical([i])
         assert [hex_string(i)] == parse(serialized_int)

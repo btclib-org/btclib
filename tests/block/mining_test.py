@@ -77,7 +77,7 @@ def test_a_mined_block_is_a_block() -> None:
 
     header = mine(candidate)
     assert header is not None
-    assert header.nonce == 373
+    assert header.nonce == 278
     assert header.hash <= header.target
     header.assert_valid_pow(REGTEST_POW_LIMIT_BITS)
 
@@ -152,12 +152,12 @@ def test_a_bounded_search_can_find_nothing() -> None:
     transactions = [_coinbase(1)]
     candidate = candidate_block_header(_PREVIOUS, transactions, _TIME, _EASY_BITS)
 
-    # the nonce that solves this one is 53, so a search of 53 -- nonces
-    # 0 to 52 -- stops one short of it
-    assert mine(candidate, 53) is None
-    solved = mine(candidate, 54)
+    # the nonce that solves this one is 126, so a search of 126 --
+    # nonces 0 to 125 -- stops one short of it
+    assert mine(candidate, 126) is None
+    solved = mine(candidate, 127)
     assert solved is not None
-    assert solved.nonce == 53
+    assert solved.nonce == 126
 
     # a mainnet-grade target is not found either, and the bound is what
     # makes that a return rather than a hang

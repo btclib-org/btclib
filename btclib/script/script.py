@@ -349,11 +349,13 @@ def push_int(i: int) -> str:
 
 
 def _serialize_int_command(command: int) -> bytes:
-    if -1 <= command <= 16:
+    if -1 <= command <= 16 and command != 0:
         # not a DeprecationWarning: nothing is going away, the push is
-        # merely one byte longer than the op code that means the same
+        # merely one byte longer than the op code that means the same.
+        # Zero is not among them: its encoding is the empty vector, so
+        # the push of it is OP_0 already and there is nothing to suggest
         warn(
-            f"consider using OP_{command} instead",
+            f"consider using {op_int(command)} instead",
             BTClibUserWarning,
             stacklevel=2,
         )
@@ -376,6 +378,29 @@ def _serialize_bytes_command(command: bytes) -> bytes:
 
     According to standardness rules (BIP62) the minimum possible
     PUSHDATA operator must be used.
+
+    The minimal push *operator*, and never the one-byte op code that
+    pushes the same value: a bytes command holding the single byte 0x01
+    is written ``0101``, as every other one-byte push is, and not OP_1
+    (issue #646). Core's own split, and for Core's reason: its
+    `AppendDataSize` writes a length for whatever vector it is handed,
+    and `push_int64` -- reached from `CScriptNum` and from an integer,
+    never from a byte vector -- is the only thing that reaches for OP_0,
+    OP_1NEGATE or OP_1..OP_16. It has to be that way here too, because
+    only the caller knows whether those bytes mean a number: `push_int`
+    is where one that means a number says so, and `op_int` is the op
+    code it names.
+
+    Three readers depend on it, each measuring a push against what this
+    writes for its data: `engine.script_op_codes.check_minimal_push`,
+    `miniscript._assert_minimal_push`, and -- differently --
+    `engine.script.calculate_script_code`, which builds the needle
+    FindAndDelete searches for as Core builds it, `CScript() << vchSig`.
+    A one-byte push of 0x00 is what the first two hand this, Core's
+    `CheckMinimalPush` accepting it as data of one byte where OP_0
+    pushes no bytes at all; substituting the op code would refuse the
+    push Core accepts, and would have FindAndDelete search for bytes the
+    script code cannot hold.
 
     All four widths, OP_PUSHDATA4 included, because what parse reads
     serialize must be able to write back: a push over 520 bytes is one
@@ -416,9 +441,21 @@ def serialize(script: Sequence[Command]) -> bytes:
     where a one-byte op code means the same, and a refusal outside the
     int64 a script number is -- a string is an op code name, an
     UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data; data is
-    always the minimal push, per BIP62. What parse returns round-trips,
-    ERROR_COMMAND excepted, that marker being a place in the bytes
-    rather than an instruction.
+    always the minimal push operator, per BIP62. What parse returns
+    round-trips, ERROR_COMMAND excepted, that marker being a place in
+    the bytes rather than an instruction.
+
+    The minimal *operator* and not the minimal *command*: data is data,
+    so the bytes 0x01 are pushed with a length of one and not with OP_1,
+    and the same goes for an integer command, which is the number's
+    bytes and is warned about for exactly this. `push_int` is what
+    writes a number the shortest way there is, and what every caller in
+    this library that means one uses.
+
+    Zero is where the two coincide and the warning therefore stops: the
+    empty vector is what `encode_num` writes for it, and the push of an
+    empty vector is OP_0, so `serialize([0])` is the op code -- as Core's
+    `CScript() << 0` is -- with nothing shorter left to suggest.
     """
     r: list[bytes] = []
     for command in script:

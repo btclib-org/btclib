@@ -16,7 +16,7 @@ kramdown having hard_wrap off. -->
 [![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
-[![documentation build](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
+[![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
 [![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 [![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
@@ -137,6 +137,9 @@ Included features are:
   [BIP371](https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki)
   and the MuSig2 ones of
   [BIP373](https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki)
+- PsbtView, the same psbt read a map at a time out of a stream, for a
+  signer with less memory than the psbt takes: the maps it is asked for,
+  the transaction being built, the outputs being spent and both sig_hashes
 - [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
   PSBT version 2, the unsigned transaction computed from the fields rather
   than carried as one: the lock time its inputs require, the identifier
@@ -237,15 +240,18 @@ satisfying one. `psbt_signer`
 is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
-Nothing in the library imports `bip21`, `bip322`, `slip132`, `fee`,
-`wallet`, `hwi` or `fetch`: they are the top of the stack, and `fetch`
-is the only one that goes out to the network. `wallet` remembers which
-addresses it has handed out — over `bip44`, over `descriptors` or over a
-script template of its own — and its key wallets sign for one with
+Nothing in the library imports `bip21`, `bip322`, `bip85`, `slip132`,
+`fee`, `wallet`, `hwi` or `fetch`: they are the top of the stack, and
+`fetch` is the only one that goes out to the network. `wallet` remembers
+which addresses it has handed out — over `bip44`, over `descriptors` or
+over a script template of its own — and its key wallets sign for one with
 `ecc.bms`.
 `bip322` is the other message signing, and it is at the top rather than
 beside `ecc.bms` because it needs everything below it: a script, a
-transaction, a psbt and the engine that runs them.
+transaction, a psbt and the engine that runs them. `bip85` derives the
+entropy behind another wallet's seed from one root key, and is up here
+because a BIP39 sentence and a WIF are two of the formats it hands
+back.
 
 The rpc client `fetch` speaks through is not in that stack: it is
 [bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a

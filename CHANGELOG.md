@@ -190,6 +190,44 @@ documented at release-notes length in the first place, and are still in
   lives and `OutPoint` and `TxIn` are the classes it holds for, so the new
   paragraph points at it instead of restating it.
 
+- **Each new release gets a documentation URL of its own, and a check that
+  says so.** btclib.readthedocs.io was serving neither of the last two
+  releases: `latest` followed a branch this repository no longer has, so
+  every push was answered without a build being triggered, and the site
+  kept the last build that had succeeded -- a placeholder version, from a
+  commit squashed away months earlier. That is issue #574, and the half of
+  it that is settings is now written down: `latest` follows `main`,
+  `stable` is the newest release tag, and an automation rule activates each
+  new tag, which is what makes `/en/v<version>/` exist and stay that
+  version rather than becoming the next one. REPOSITORY.md's "Read the
+  Docs" section is where they live, that file being the whole of what
+  cannot be recovered by reading the tree.
+  The other half is a job: `release.yml`'s `documented` waits for the
+  tag's page to be served and is red if it never is, where until now
+  nothing failed when a build never started. It polls the rendered URL and
+  not the v3 API, which the `published` job's PyPI check is the reverse of:
+  read the docs throttles an unauthenticated caller to five requests a
+  minute and blocks cloud-provider addresses outright without a token, so
+  asking the API from a runner would mean keeping a credential for a check
+  that gates nothing. It starts with the next release and reaches no
+  release behind it: a rule applies to the versions created after it, so
+  `v2026.8.9` has no page of its own and is not getting one, and anything
+  before `v2026.8.7` could not have one — a build needs `.readthedocs.yaml`
+  and would fail without it. `/en/stable/` is the last release either way,
+  which is what makes the backfill not worth doing.
+
+- **The release documentation says what the release workflow does.** Three
+  places described a `published` workflow that has moved on: RELEASING.md
+  asked for a dispatch by hand after the release, where `release.yml` calls
+  the workflow with the tag and waits for the index to serve that version
+  -- so the step is a verdict to read, and a dispatch is for a question
+  between runs; and it, along with the workflow's own schedule comment and
+  links.yml's list of weekday sentinels, called the run weekly and put it
+  on a Tuesday, where the cron says the first of the month. Prose only, and
+  the two workflow files change in their comments alone: an instruction
+  nobody needs and a day that is not the day are read as facts by whoever
+  finds them, and there is nothing in a run to say otherwise.
+
 ### Packaging, linting and CI
 
 - **A tag is refused unless the default branch contains its commit**
@@ -632,6 +670,78 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A psbt can be read a map at a time, out of a stream** (#647).
+  `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
+  it: `Psbt.parse` reads every map before anything can be inspected or
+  signed, so a psbt whose inputs each carry the previous transaction they
+  spend costs all of them at once, and a signer with less memory than that
+  cannot read the psbt at all. A view walks the stream once to learn where
+  each map begins and reads one when it is asked for it, which is
+  `diybitcoinhardware/embit`'s `psbtview.PSBTView` idea and its audience:
+  hardware wallets and airgapped signers. What it offers is the global
+  fields, `input` and `output` one map at a time, the transaction being
+  built, the outputs being spent and both sig_hashes; what it does not is
+  any of the roles that rewrite a psbt, the stream being read-only, so a
+  signer assembles its own answer out of the maps it was handed and
+  `PsbtIn.serialize` writes each.
+
+  It holds the global map, an integer per map saying where that map
+  starts, and -- once a sig_hash is asked for -- the unsigned transaction,
+  the output each input spends, and `sig_hash.PrecomputedTxData`: BIP143
+  and BIP341 commit every input to all three, so signing N inputs hashes
+  the whole transaction once rather than N times, which is issue #164's
+  arithmetic for a psbt whose N inputs are exactly what does not fit. What
+  it therefore never holds is two input maps at once, and that is where a
+  psbt's size is -- a witness utxo is an amount and a script, a
+  non-witness utxo is a whole transaction, and the derivation paths, leaf
+  scripts and signatures of every input are as large as the wallet that
+  wrote them. Measured rather than asserted: a test counts the octets read
+  from the stream and reads none of the large utxo it does not ask for.
+
+  The stream must not change while a view is alive, and the module
+  docstring says so at length rather than leaving it implicit, embit's own
+  docstring being where that candour comes from: a view answers from the
+  bytes that were there when it read them, nothing re-reads a map to check
+  that it still says what it said, and an amount or a script that changes
+  between two reads is a sig_hash committing to a transaction the signer
+  was never shown -- a time-of-check to time-of-use attack rather than a
+  stale read. So a psbt on removable or untrusted storage is copied into
+  memory the caller controls first, and a stream that has legitimately
+  changed is read by building a new view.
+
+  A view takes any seekable binary stream, a file object as much as a
+  `BytesIO`, which is wider than `alias.BinaryData` on purpose: a `parse`
+  consumes what it is given, so a `BytesIO` is all it can want, while a
+  view over a `BytesIO` holds the whole psbt in memory and answers the
+  question it exists for with "buy more memory". Octets are taken too and
+  read as one whole psbt, what follows the last map in them being refused.
+  It is not a `parse` classmethod, and the docstring records that as a
+  decision: what it returns is not the psbt those bytes encode but a
+  handle on the stream holding it, and the second is only valid while the
+  first is unchanged.
+
+  Every question about what a psbt's bytes mean is the object model's,
+  imported rather than restated -- which type byte is a field of which
+  version, what the global map holds, what fields each version requires of
+  a map, what the transaction being built is, what a sig_hash commits to.
+  So five answers in `psbt.py` that were written inside a loop over a
+  whole psbt are now written per map beside it: `_tx_in` and `_tx_out`,
+  `_read_tx_in` and `_read_tx_out`, `_assert_valid_utxo`, `_spent_outputs`
+  and the two sig_hash bodies. `_lock_time` takes the pairs of required
+  lock times rather than the inputs, those two fields being all of an
+  input BIP370's algorithm depends on, so a caller with one input at a
+  time streams them past it. The suite holds the two readers to each other
+  over every psbt it has, valid and invalid: the globals, each map, the
+  transaction, its lock time, the outputs spent and both sig_hashes. One
+  published psbt is refused for a different reason by each, and the test
+  names it -- BIP174's two-octet `PSBT_IN_SIGHASH_TYPE` key carries 104
+  octets after its last map as well, and a view walks the maps before it
+  parses any of them.
+
+  `utils.read_exactly` now annotates its stream `BinaryIO` where it said
+  `BytesIO`: `.read` is the whole of what a short read is about, so a file
+  object is as much an answer there, and a view is the one reader in this
+  library that does not consume the stream it is handed.
 - **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
   `combine` merged the maps and returned a psbt with neither the inputs nor
   the result validated anywhere, so an invalid psbt in gave an invalid psbt
@@ -1334,6 +1444,80 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`BTClibException`, one name to catch for everything btclib raises**
+  (issue #743). `btclib.exceptions` says its classes "exist only to tell
+  an exception raised by btclib from one raised by any other code", and
+  could not do it: telling them apart took a tuple of three --
+  `BTClibValueError`, `BTClibTypeError`, `BTClibRuntimeError` -- that a
+  caller had to keep in step with this hierarchy. Those three now inherit
+  the new base, and the eleven classes under them get it transitively.
+
+  Inherited *beside* the built-in and not instead of it, which is the half
+  that matters: `BTClibValueError` is a `ValueError` as it always was, so
+  every `except ValueError` already written keeps catching what it caught.
+  That is the standard library's own shape -- `json.JSONDecodeError` is a
+  `ValueError` -- and what requests, sqlalchemy and httpx give up by
+  deriving their bases from `Exception` alone, which leaves an `except
+  ValueError` not catching their value errors.
+
+  It is caught and never raised: every raise is one of the three, and
+  which one answers what the base cannot carry -- whether the value was
+  wrong, the type was, or neither was and a check failed anyway. A caller
+  with something to do about that names the specific class.
+  `BTClibUserWarning` stays out, a warning being filtered rather than
+  caught: with `filterwarnings = ["error"]` an `except BTClibException`
+  would otherwise catch a call that worked.
+
+  The docstring says what is not yet true, rather than promising it: issue
+  #744 counts the public functions still letting a native `KeyError`,
+  `IndexError` or `OverflowError` through, so catching this class catches
+  most of what the library raises and not all of it. The test that will
+  close that gap wants a single predicate to assert, which is why the base
+  lands before the fixes rather than after them.
+
+- **BIP85 deterministic entropy from a BIP32 keychain** (issue #644), as
+  `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
+  fully hardened path off a root key, then
+  `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
+  key -- and it answers for any path, including one no function here
+  formats. Every application the BIP defines is formatted beside it:
+  `mnemonic_from_root_key` (39', BIP85's ten languages and all five
+  sentence lengths of its Words Table), `wif_from_root_key` (2', the
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32'),
+  `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
+  which hands back the bytes), `base64_password_from_root_key` (707764'),
+  `base85_password_from_root_key` (707785'), `rolls_from_root_key`
+  (89101') and `rsa_drng_from_root_key` (828365').
+
+  The last two read `BIP85DRNG`, which is BIP85-DRNG-SHAKE256: 64 bytes
+  are not enough for a function whose appetite is not known until it has
+  finished, so they seed a SHAKE256 stream and `read` squeezes it. RSA is
+  where that matters and where btclib stops -- the BIP defines the path
+  and the stream to feed a key generator, not how the primes are found,
+  so what comes back is the reader an RSA library is to be given. It is
+  also the one application the BIP publishes no vector for, and the
+  reason is the same: two libraries handed the same stream need not
+  agree on the key.
+
+  `rolls_from_root_key` computes the width of a roll as
+  `(sides - 1).bit_length()` where the BIP writes `ceil(log_2(sides))`,
+  which is the same number and not the same operation: a float logarithm
+  rounds at a power of two, and a roll one bit too wide is one the
+  rejection step then drops far more often than it should.
+
+  The module is at the top level rather than under `btclib/bip32/`, for
+  the reason `bip44` and `slip132` are: the applications need `b58` for a
+  WIF and `mnemonic.bip39` for a sentence, and both of those import
+  `bip32`, which may not import them back.
+
+  Two of BIP85's own fields are not what their name reads as, and
+  `tests/bip85_test.py` says so where it asserts them: application 32'
+  prints its *private key* half as DERIVED ENTROPY, the chain code being
+  the first half that the BIP32 order would have put the key in, and 39'
+  prints the entropy already truncated to what the sentence encodes. The
+  vectors are transcribed into `tests/_data/bip85_test_vectors.json` and
+  pinned in `tests/_data/README.md`.
+
 - **the point-arithmetic variants of `curve_group` and `curve_group_2` are
   private** (issue #728). Eighteen names in the first and six in the
   second: `_mult_aff`, `_mult_jac`, `_mult_base_3`, `_mult_mont_ladder`,
@@ -1619,6 +1803,66 @@ documented at release-notes length in the first place, and are still in
   one it computes: an inverted `(20, 5)` unioned with the keypool is a
   valid range and not the one asked for, which would be a caller's
   arithmetic reported as a successful import of something else.
+
+- **`serialize` says which minimal it means** (issue #646). "Data is
+  always the minimal push, per BIP62" reads as the minimal *command*,
+  which would make a bytes command holding the single byte `0x01` come
+  out as OP_1; what it has always meant, and now says, is the minimal
+  push *operator* -- the narrowest of the four widths -- with the data
+  pushed by length whatever it is. Which is Core's split: its
+  `AppendDataSize` writes a length for whatever vector it is handed, and
+  `push_int64` -- reached from a `CScriptNum` and from an integer, never
+  from a byte vector -- is the only thing that reaches for OP_0,
+  OP_1NEGATE or OP_1..OP_16. Only the caller knows whether bytes mean a
+  number, so `push_int` is where one that means a number says so, and
+  the integer command warns that it is one byte longer than the op code.
+
+  Not a gap left open: every place in this library that pushes a number
+  already calls `push_int` or `op_int`, and three readers positively
+  require the current spelling, each measuring a push against what
+  `serialize` writes for its data --
+  `engine.script_op_codes.check_minimal_push`,
+  `miniscript._assert_minimal_push` and, differently,
+  `engine.script.calculate_script_code`, which builds the needle
+  FindAndDelete searches for as Core builds it, `CScript() << vchSig`. A
+  push of the single byte `0x00` is the one Core's `CheckMinimalPush`
+  accepts as data of one byte where OP_0 pushes no bytes at all, so it is
+  also the one value for which the substitution would change what lands
+  on the stack rather than how it is spelled. Nothing changes in what
+  `serialize` writes; the docstring says the rule and the test pins it,
+  over the whole set of values that could have been written otherwise.
+
+- **the script number zero is the empty vector** (issue #746).
+  `encode_num(0)` wrote `b"\x00"` where Core's `CScriptNum::serialize`
+  returns the empty vector, and zero was the only value where the two
+  disagreed. Not a spelling: `b"\x00"` is not a minimally encoded script
+  number, so the interpreter refuses it as one under MINIMALDATA --
+  `(vch.back() & 0x7f) == 0` with nothing before it is what Core's
+  `CScriptNum` throws on, and `_to_num(b"\x00", MINIMALDATA, 4)` is what
+  this library answers `non-minimal encoding of 0: 00`. So
+  `serialize([0])` wrote `0100`, a push btclib's own engine will not
+  read as a number, and warned "consider using OP_0" as if the op code
+  were merely one byte shorter.
+
+  `encode_num(0)` is `b""` and `decode_num(b"")` is `0`, which are
+  `CScriptNum::serialize` and `CScriptNum::set_vch`; `serialize([0])` is
+  therefore OP_0, by the same path as every other value, a zero-length
+  push being that op code already. The engine had written Core's
+  function a second time to get around this -- `_from_num` was `b"" if x
+  == 0 else encode_num(x)`, with a matching empty-element branch in
+  `_to_num` -- and both are gone, every call site of the wrapper now
+  calling `encode_num`. The warning goes for zero and stays for the rest,
+  there being nothing shorter left to suggest, and it names
+  `op_int(command)` rather than interpolating the number: for -1 it read
+  "consider using OP_-1 instead", which is no op code.
+
+  `decode_num` keeps reading `00` and `80` as zero -- refusing them is
+  the interpreter's rule, and `_to_num` is where MINIMALDATA is known.
+  What follows from the pair being Core's is that
+  `miniscript.from_script` no longer reads a `0100` push as the number
+  0: a `thresh` whose threshold is written that way closes no fragment
+  where it used to be refused for the threshold's value, both being a
+  refusal and the second being the accurate one.
 
 ### Descriptors and miniscript
 

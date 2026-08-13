@@ -188,7 +188,14 @@ CHILD_MODULES = {
     },
     "btclib.psbt": {
         "groups": ["musig2"],
-        "unpublished": ["psbt", "psbt_in", "psbt_out", "psbt_size", "psbt_utils"],
+        "unpublished": [
+            "psbt",
+            "psbt_in",
+            "psbt_out",
+            "psbt_size",
+            "psbt_utils",
+            "psbt_view",
+        ],
     },
     "btclib.script": {
         "groups": ["engine", "sig_hash", "taproot"],
@@ -503,6 +510,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "Psbt",
         "PsbtIn",
         "PsbtOut",
+        "PsbtView",
         "SolutionSizer",
         "assert_signatures_only",
         "assert_signed",
