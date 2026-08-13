@@ -121,8 +121,8 @@ what their `pulled` says: the eight BIP327 files, the three Core files
 and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
-two BIP322 files on 2026-08-08, and the seven Wycheproof files with the
-licence beside them on 2026-08-13.
+two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
+beside them on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1324,7 +1324,7 @@ regenerates each of the four mnemonics word for word from the master
 secret. The other 11 are recovery only, a 2-of-3 share being random by
 construction.
 
-### C2SP/wycheproof: eight files under `tests/ecc/_data/`
+### C2SP/wycheproof: the ECDSA and ECDH files under `tests/ecc/_data/`
 
 The adversarial vectors, and the one upstream here published under a
 licence that is not MIT: Apache-2.0, whose condition on redistribution
@@ -1336,10 +1336,19 @@ All are pinned to the same commit, `5722833c` of 2026-08-11, and all
 live in `testvectors_v1/`. Not `testvectors/`, which upstream removed
 on 2025-09-02 and which no refresh can reach again. They are read by
 `tests/ecc/wycheproof_test.py`, which is also where the split between
-the two ECDSA profiles is explained, and where the sha512 and SHA3
-files' one difference from the rest is: `_libsecp256k1_applicable`
+the two ECDSA profiles is explained, and where the difference the files
+under a hash other than sha256 make is: `_libsecp256k1_applicable`
 admits sha256 alone, so those reach the Python arithmetic without the
 dispatch being patched off, and are run once rather than twice.
+
+The SHAKE files need one thing the others do not, and it is a type
+rather than a reader: `hashlib.shake_128` is not a `HashF`, an
+extendable-output function having no output length of its own, so
+`_PinnedXof` in that module pins one and `btclib/alias.py` says why the
+library does not. The pinned length is `n_size` and any length above it
+is the same test, `challenge_` reading the leftmost `nlen` bits of a
+digest whose longer forms have these very bytes as their prefix --
+measured, all four files verify identically at 32 and at 64.
 
 `ecdsa_secp256k1_sha256_bitcoin_test.json` is the one file of the four
 with no schema in upstream's `schemas/`, its own README listing it among
@@ -1450,6 +1459,70 @@ Verdict: **identical**. The wide digest without DER around it, which is
 what says the P1363 size rule is the encoding's and not the hash's: r
 and s stay `n_size` each while the message hash doubles.
 
+### `tests/ecc/_data/ecdsa_secp256k1_shake128_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_shake128_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    bffa63ed0097e4910a5d99381f88a4b1c12db757
+pulled  2026-08-13
+behind  0 revisions; last changed at e0df04e0, 2025-10-07
+```
+
+Verdict: **identical**. An extendable-output function read as a hash of
+fixed size, which is the one thing here that needed something built for
+it: `_PinnedXof` in the test module, because `HashF` is a constructor of
+digests that report their own length and a SHAKE's is 0.
+
+### `tests/ecc/_data/ecdsa_secp256k1_shake256_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_shake256_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    5bfb394cf971b3c9a68862f23b1251f3d3e7b1c0
+pulled  2026-08-13
+behind  0 revisions; last changed at e0df04e0, 2025-10-07
+```
+
+Verdict: **identical**. The same stream read at the same `n_size`, over
+a sponge of a different rate. Its tcId 425 is upstream's
+`Untruncatedhash` case, a signature made over the whole digest instead
+of its leftmost `nlen` bits and therefore `invalid` -- which is also the
+evidence that upstream generated this file at a length wider than the
+order, and that reading the stream at `n_size` reads the leftmost bits
+it read.
+
+### `tests/ecc/_data/ecdsa_secp256k1_shake128_p1363_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_shake128_p1363_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    3f63208d4cbeaed6a8c46c430678199bd52d0e50
+pulled  2026-08-13
+behind  0 revisions; last changed at e0df04e0, 2025-10-07
+```
+
+Verdict: **identical**. The XOF with no DER around it: `Sig` answers for
+r and s alone, as under sha256 and sha512, the adapter changing what the
+message hashes to and nothing about the encoding.
+
+### `tests/ecc/_data/ecdsa_secp256k1_shake256_p1363_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_shake256_p1363_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    c2b431b5d76016a8da19fdc1aab1ecaa5cfe12f1
+pulled  2026-08-13
+behind  0 revisions; last changed at e0df04e0, 2025-10-07
+```
+
+Verdict: **identical**. The fourth corner, and it carries the
+`Untruncatedhash` case of the pair as tcId 190.
+
 ### `tests/ecc/_data/ecdh_secp256k1_test.json`
 
 ```text
@@ -1514,27 +1587,6 @@ no arithmetic btclib does not already answer for. Recorded here rather
 than left silent because "we did not take it" and "we did not notice
 it" look the same in a directory listing, and a later refresh would
 otherwise have to measure this again.
-
-### Not vendored: the four SHAKE files
-
-`ecdsa_secp256k1_shake128_test.json`,
-`ecdsa_secp256k1_shake128_p1363_test.json`,
-`ecdsa_secp256k1_shake256_test.json` and
-`ecdsa_secp256k1_shake256_p1363_test.json`, at the same pin.
-
-Verdict: **not vendored, blocked on the type rather than on the data**.
-`hashlib.shake_128` is not a `HashF`: an XOF has no fixed output, so
-`digest_size` reads 0 and `digest()` takes the length as an argument,
-which `alias.HashObject.digest()` does not declare -- mypy refuses the
-assignment, and at run time `challenge_` asks
-`bytes_from_octets(msg_hash, 0)` and rejects every message hash. The
-failure is quiet where it matters most: `verify_` catches that
-`ValueError` and answers `False`, so every `valid` vector of those files
-would read as a bad signature rather than as an unsupported hash.
-
-Whether `HashF` should admit an XOF is a public-surface question, and
-answering it inside a test module would answer it in the one place
-`btclib/alias.py` cannot see. Left to the issue that raised it.
 
 ## Chain data, not a repository
 
@@ -1850,7 +1902,7 @@ Against a pinned upstream blob:
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
   `bip39_test_vectors.json`, the eight BIP327 vector files, and the
-  seven Wycheproof vector files.
+  Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv` and the
@@ -1874,9 +1926,8 @@ No upstream blob exists for the rest:
 - response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- deliberately not vendored, each with an entry saying why it was
-  measured and left: Wycheproof's `ecdh_secp256k1_webcrypto_test.json`
-  and its four SHAKE files.
+- deliberately not vendored, with an entry saying why it was measured
+  and left: Wycheproof's `ecdh_secp256k1_webcrypto_test.json`.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt` and
   `btclib_test_vectors.json` (btclib's own). The last is the only one
