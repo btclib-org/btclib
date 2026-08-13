@@ -54,7 +54,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from io import BytesIO
-from typing import Any
+from typing import Any, BinaryIO
 
 from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -130,7 +130,7 @@ def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
     return stream
 
 
-def read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
+def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:
     """Return size octets from the stream, or raise: a short read is truncation.
 
     `BytesIO.read` answers with whatever is left when the buffer holds
@@ -141,6 +141,13 @@ def read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
 
     `what` names the field in the error message, the caller knowing which
     one it was reading and the stream not.
+
+    `BinaryIO` and not the `BytesIO` of `alias.BinaryData`: `.read` is
+    the whole of what a short read is about, so a file object is as much
+    an answer here as a buffer, and `btclib.psbt.psbt_view` reads from
+    one -- a view over a psbt is the one reader in this library that does
+    not consume the stream it is given, so it does not need one the rest
+    of the library can also `getbuffer()`.
     """
     data = stream.read(size)
     if len(data) != size:

@@ -11,6 +11,13 @@ which plays the role over a `KeyManager`'s answers, and the size
 estimation a fee rate is applied to. `musig2` is named as a module, being
 the BIP373 role rather than one function, the way btclib.ecc names dsa.
 
+`PsbtView` is the same psbt read a map at a time out of a stream, for a
+signer with less memory than the psbt takes (issue #647). It is beside
+`Psbt` and not another way to spell it: it reads, where every role above
+rewrites, and what it hands back is the psbt's maps one by one rather
+than the psbt. Its module docstring states what it holds between calls
+and what a stream that changes underneath it costs.
+
 `assert_signatures_only` is the check that belongs before `combine` when
 the psbt being merged came from somebody else. BIP174 gives the Combiner
 no such role -- it takes the union of what it is given and may resolve a
@@ -65,6 +72,7 @@ from btclib.psbt.psbt import (
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
+from btclib.psbt.psbt_view import PsbtView
 
 __all__ = [
     "InputSolver",
@@ -72,6 +80,7 @@ __all__ = [
     "Psbt",
     "PsbtIn",
     "PsbtOut",
+    "PsbtView",
     "SolutionSizer",
     "assert_signatures_only",
     "assert_signed",

@@ -757,6 +757,41 @@ single-key segwit input, build the witness yourself as the previous
 section does — two stack items, signature then public key — and use
 ``verify_transaction`` to check the result.
 
+**A psbt too large to hold.** Everything above reads the whole psbt into
+memory first, which for a psbt whose inputs each carry the previous
+transaction they spend is all of them at once. ``PsbtView`` reads the same
+psbt out of a seekable stream — a file as much as a ``BytesIO`` — and
+keeps no map at all: it learns where each one begins and reads one when
+it is asked for it.
+
+>>> from io import BytesIO
+>>> from btclib.psbt import PsbtView
+>>> view = PsbtView(BytesIO(psbt.serialize()))
+>>> view.input_count, view.output_count
+(1, 1)
+>>> view.input(0).witness_utxo.value
+600000000
+>>> view.ecdsa_sig_hash(0) == msg_hash
+True
+
+It is a reader: the stream is never written, so a signer assembles its own
+answer out of the maps the view hands it, one ``PsbtIn`` per input signed.
+
+>>> from btclib.psbt import PsbtIn
+>>> psbt_in = view.input(0)
+>>> psbt_in.partial_sigs = {pub_key: der + b"\x01"}
+>>> answer = PsbtIn.parse(psbt_in.serialize())
+>>> answer.partial_sigs == psbt.inputs[0].partial_sigs
+True
+
+What it holds between calls is in the module docstring of
+:mod:`btclib.psbt.psbt_view`, and so is the one rule using it imposes:
+the stream must not change while the view is alive. A view answers from
+the bytes that were there when it read them, and an amount or a script
+that changes between two reads is a sighash committing to a transaction
+the signer was never shown — so a psbt on removable or untrusted storage
+is copied into memory you control before it is viewed.
+
 Where to go next
 ----------------
 
