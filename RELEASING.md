@@ -129,12 +129,12 @@ pyroma), build, wheel smoke test — and publishes to
 Wednesday cron, because what it answers is cheaper to know before a version
 is consumed than after. It gates nothing, so it will not stop you:
 reading it is the point. Its `suite-bindings-latest` job is the one worth
-reading closely: it asks about btclib_secp256k1
+reading closely: it asks about the newest btclib_secp256k1 release
 alone, precisely, rather than folding it into the broader upgrade the
-rest of the workflow makes — a commit there is a change in another
-repository, which nothing here has to make for the pair to
+rest of the workflow makes — a release of the bindings is a release in
+another repository, which nothing here has to change for the pair to
 stop working, and this release is the moment to find out before shipping
-against a pin about to be behind.
+against a pin about to be a version behind.
 
 **Read it per job, not as a verdict.** A red run means either "one
 dependency moved and this tree has not caught up" or "the bindings are
@@ -169,15 +169,14 @@ word, and step 1 asks it of both.
    knows what the sibling's release was for. Both projects are pinned
    without a ceiling and both can publish on the morning of a release.
 
-   **A direct reference is not a pin this release may carry.** Between
-   releases each of the two is `<name> @ git+…@main`, so that a branch
-   here can call what just landed there; PyPI refuses a direct reference
-   in metadata, and nothing before `publish-pypi` does — the whole matrix
-   builds, the artifacts upload, and the upload fails at the end. So the
-   answer to the two questions above is a floor written back over each
-   reference, `>=` the release that carries what this tree calls: the
-   sibling has to be released first, and there is no shipping against a
-   commit.
+   **A direct reference is not a pin this release may carry.** Either
+   line can be `<name> @ git+…@main` while a branch here calls what has
+   just landed there and no release of it carries that yet; PyPI refuses
+   a direct reference in metadata, and nothing before `publish-pypi`
+   does — the whole matrix builds, the artifacts upload, and the upload
+   fails at the end. So a floor is written back over the reference, `>=`
+   the release that carries what this tree calls: the sibling has to be
+   released first, and there is no shipping against a commit.
 
 1. Set the release version (calendar versioning, `YYYY.M.D`) in
    pyproject.toml, the only place it is declared, and re-lock (the

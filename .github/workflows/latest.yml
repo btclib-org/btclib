@@ -12,13 +12,11 @@ name: latest
 # uv.lock moves on a weekly dependabot pull request. A break upstream
 # therefore surfaces a week or more later, inside a pull request that has
 # to be reviewed anyway, and its cause is one entry in a diff of many.
-# btclib_secp256k1 is the entry that matters most here, and it is not a
-# release but a branch: pyproject.toml asks for that repository's main
-# through a direct reference, so any commit there -- not only a release of
-# it -- is a change in another repository that nothing in this one has to
-# make for the pair to stop working. suite-bindings-latest below asks
-# about that one entry alone, precisely, rather than folding it into
-# suite-latest's broader upgrade -- see that job for why.
+# btclib_secp256k1 is the entry that matters most here: a release of
+# the bindings is a release in another repository, which nothing in this
+# one has to change for the pair to stop working. suite-bindings-latest
+# below asks about that one entry alone, precisely, rather than folding
+# it into suite-latest's broader upgrade -- see that job for why.
 #
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
@@ -115,9 +113,8 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       # --upgrade re-resolves every entry, btclib_secp256k1 included:
-      # this is what carries the bindings to the tip of their main, and
-      # every other dependency to its newest release, which nothing else
-      # off a pull request does.
+      # this is what carries the bindings to their newest release, which
+      # nothing else off a pull request does.
       # It prints one "Update <pkg> vA -> vB" line per package it moves,
       # so the log names the suspects without a diff of uv.lock; a run
       # that moved nothing says so, and its green means nothing new.
@@ -133,13 +130,13 @@ jobs:
         run: uv run --locked --no-default-groups --group test pytest
 
   # narrower than suite-latest above, and for a different reason: that
-  # job upgrades every dependency, so a red run there buries a commit
+  # job upgrades every dependency, so a red run there buries a release
   # of btclib_secp256k1 behind a dozen other candidates. This
   # upgrades only that one, so a red run here names it without a
   # bisect -- worth a job of its own because it is a sibling project
-  # under the same org, written by the same people for this library,
-  # which makes "did my own other commit just break this one" a distinct
-  # and likely enough question to ask separately from "did some
+  # under the same org, released by the same maintainer, which makes
+  # "did my own other release just break this one" a distinct and
+  # likely enough question to ask separately from "did some
   # third-party wheel". Moved here from published.yml (issue #397): it
   # is a question about drift against a tree not yet published, which
   # belongs before publication rather than after
@@ -164,14 +161,12 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       # upgrades one entry rather than every one of them, which is the
-      # whole difference from suite-latest above: it prints "Updated
-      # btclib_secp256k1 vA (sha) -> vB (sha)" when main moved and
+      # whole difference from suite-latest above: it prints "Update
+      # btclib_secp256k1 vA -> vB" when a release moved it and
       # nothing when it did not, so the log names the suspect without a
-      # diff of uv.lock -- and with a direct reference the version can be
-      # the same on both sides, the commit in parentheses being what
-      # moved. Harmless on an ephemeral checkout; worth
+      # diff of uv.lock. Harmless on an ephemeral checkout; worth
       # knowing before running the same command in a working tree
-      - name: Upgrade the bindings to the tip of their main
+      - name: Upgrade the bindings to their latest release
         run: uv lock --upgrade-package btclib_secp256k1
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest

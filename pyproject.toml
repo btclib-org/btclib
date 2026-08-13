@@ -25,25 +25,8 @@ license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
-    # main, not a release, as the line below already is: the bindings
-    # exist for this library, so what a branch here needs of them lands
-    # there first and waits for a release of another repository to be
-    # callable -- `keys.PubkeyTweakChain`, written for issue #685, is in
-    # main and in no release. A direct reference is what PyPI refuses to
-    # publish, so the next release of that package replaces this line with
-    # a floor -- `btclib_secp256k1>=<that version>` -- and nothing else
-    # here changes. The lock pins the commit, and moves when main does.
-    # What it costs is a build from source wherever a published wheel used
-    # to be resolved: cmake and cffi come from the bindings' own
-    # [build-system] requires, a C toolchain is the machine's
-    "btclib_secp256k1 @ git+https://github.com/btclib-org/btclib-secp256k1.git@main",
-    # main, not a release: `assert_chain` and the two magic lookups are
-    # there first, and this tree stops carrying the check and the p2p
-    # constant it was made of. A direct reference is what PyPI refuses to
-    # publish, so the next release of that package replaces this line with
-    # a floor -- `bitcoin-core-rpc>=<that version>` -- and nothing else
-    # here changes. The lock pins the commit, and moves when main does
-    "bitcoin-core-rpc @ git+https://github.com/btclib-org/bitcoin-core-rpc.git@main",
+    "btclib_secp256k1>=0.8.0.1",
+    "bitcoin-core-rpc>=2026.8.13",
 ]
 keywords = [
     # The GitHub repository topics, in the same order, and the order is by
