@@ -283,6 +283,11 @@ class BlockHeader:
         one, and it stays out of reach: it is the median time past of
         eleven ancestors, i.e. the chain.
         """
+        # the type before the time zone: `.tzinfo` on anything else is an
+        # AttributeError, which is neither a ValueError nor a TypeError
+        # and so is caught by nothing this library tells a caller to catch
+        if not isinstance(now, datetime):
+            raise BTClibTypeError(f"invalid current time type: {type(now).__name__}")
         if now.tzinfo is None or now.tzinfo.utcoffset(now) is None:
             raise BTClibValueError(f"naive current time (no time zone): {now}")
 
@@ -296,6 +301,35 @@ class BlockHeader:
             err_msg += f" > {now} + {MAX_FUTURE_BLOCK_TIME} seconds"
             raise BTClibValueError(err_msg)
 
+    def _assert_valid_types(self) -> None:
+        """Refuse a field the eighty bytes could not be built from.
+
+        The type check the bytes fields get from bytes() below, for the
+        three that get none. Not a coercion, which would repair the
+        mistake by rewriting the header being inspected (__init__
+        coerces, this reports); not dropped either, which would let a
+        float reach to_bytes and leave the library through an
+        AttributeError, and a str reach `.tzinfo` and leave through
+        another one -- neither of them a half of this library's
+        exception contract.
+
+        The timestamp is the one field __init__ coerces nothing into: a
+        moment has no single spelling to coerce from,
+        `datetime.fromtimestamp` needing a time zone the caller has not
+        given.
+        """
+        for key in ("version", "nonce"):
+            value = getattr(self, key)
+            if not is_integer(value):
+                err_msg = f"invalid {key} type: {type(value).__name__}"
+                raise BTClibTypeError(err_msg)
+
+        if not isinstance(self.time, datetime):
+            # unreachable to mypy, the field being annotated: the caller
+            # this is here for is the one mypy never sees
+            err_msg = f"invalid timestamp type: {type(self.time).__name__}"  # type: ignore[unreachable]
+            raise BTClibTypeError(err_msg)
+
     def assert_valid(self) -> None:
         """Refuse a header the eighty bytes could not hold.
 
@@ -305,16 +339,7 @@ class BlockHeader:
         are assert_valid_time and assert_valid_pow, whose docstrings
         say why they are separate.
         """
-        # the type check the bytes fields get from bytes() below, for the
-        # two int ones. Not a coercion, which would repair the mistake by
-        # rewriting the header being inspected (__init__ coerces, this
-        # reports); not dropped either, which would let a float reach
-        # to_bytes and leave the library through an AttributeError
-        for key in ("version", "nonce"):
-            value = getattr(self, key)
-            if not is_integer(value):
-                err_msg = f"invalid {key} type: {type(value).__name__}"
-                raise BTClibTypeError(err_msg)
+        self._assert_valid_types()
 
         # must be a 4-bytes _signed_ integer
         if not 0 < self.version <= 0x7FFFFFFF:

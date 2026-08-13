@@ -37,8 +37,8 @@ def test_der_size() -> None:
 
 def test_der_deserialize() -> None:
     """Refuse each malformed DER field with its own message."""
-    err_msg = "non-hexadecimal number found "
-    with pytest.raises(ValueError, match=err_msg):
+    err_msg = "invalid hex string: non-hexadecimal number found "
+    with pytest.raises(BTClibValueError, match=err_msg):
         Sig.parse("not a sig")
 
     sig = Sig(2**255 - 4, 2**247 - 1)

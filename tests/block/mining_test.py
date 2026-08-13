@@ -30,7 +30,7 @@ from btclib import var_bytes
 from btclib.block import Block, BlockHeader
 from btclib.block.mining import VERSION, candidate_block_header, mine
 from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import encode_num
@@ -202,6 +202,25 @@ def test_mine_exceptions() -> None:
     candidate.bits = bytes.fromhex("22ffffff")
     with pytest.raises(BTClibValueError, match="invalid proof-of-work target: "):
         mine(candidate)
+
+
+def test_mine_refuses_what_is_no_header_and_no_count() -> None:
+    """`replace()` complained about dataclasses, from the standard library.
+
+    "should be called on dataclass instances", raised by `dataclasses`
+    about a call the caller never made -- and `max_tries < 1` was a bare
+    TypeError about the operands, with a float passing it to fail at
+    `range` a few lines further down.
+    """
+    transactions = [_coinbase(1)]
+    candidate = candidate_block_header(_PREVIOUS, transactions, _TIME, _EASY_BITS)
+
+    for not_a_header in ("not a header", None, 1):
+        with pytest.raises(BTClibTypeError, match="invalid header type: "):
+            mine(not_a_header)  # type: ignore[arg-type]
+    for not_a_count in ("lots", None, 1.5):
+        with pytest.raises(BTClibTypeError, match="invalid max_tries type: "):
+            mine(candidate, not_a_count)  # type: ignore[arg-type]
 
 
 def test_candidate_version() -> None:

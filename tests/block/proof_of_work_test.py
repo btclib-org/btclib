@@ -36,7 +36,7 @@ from btclib.block.proof_of_work import (
     retarget_first_height,
     target_from_bits,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def _time(timestamp: int) -> datetime:
@@ -313,6 +313,31 @@ def test_retarget_first_height() -> None:
     for last in (0, 1, 2014, 2016, 32256):
         with pytest.raises(BTClibValueError, match="invalid retarget height: "):
             retarget_first_height(last)
+
+    # and what is no height at all is refused before the arithmetic:
+    # `"2015" + 1` complained about concatenating a str to an int
+    for not_a_height in ("2015", None, 1.5):
+        with pytest.raises(BTClibTypeError, match="invalid height type: "):
+            retarget_first_height(not_a_height)  # type: ignore[arg-type]
+
+
+def test_next_bits_takes_two_datetimes_and_says_so() -> None:
+    """Two ints subtract to an int, which has no `total_seconds`.
+
+    So the timespan of a retarget window given as two unix timestamps --
+    the spelling a caller reading a header's own field would reach for --
+    left through an `AttributeError`, which is neither half of this
+    library's exception contract; a str left through a TypeError about
+    the operands of a subtraction.
+    """
+    first, last = _time(1279008237), _time(1279297671)
+    assert next_bits("1c05a3f4", first, last) == bytes.fromhex("1c0168fd")
+
+    for not_a_time in ("nope", 1279008237, None, first.date()):
+        with pytest.raises(BTClibTypeError, match="invalid first block time type: "):
+            next_bits("1c05a3f4", not_a_time, last)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="invalid last block time type: "):
+            next_bits("1c05a3f4", first, not_a_time)  # type: ignore[arg-type]
 
 
 def test_next_bits_mainnet_history() -> None:

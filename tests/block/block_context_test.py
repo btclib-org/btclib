@@ -227,6 +227,13 @@ def test_a_timestamp_may_be_two_hours_ahead_and_no_more() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid_time(header.time.replace(tzinfo=None))
 
+    # and what is no datetime at all reaches `.tzinfo` no longer: an
+    # AttributeError is neither a ValueError nor a TypeError, so nothing
+    # this library tells a caller to catch would have caught it
+    for not_a_datetime in ("nope", 12345, None, header.time.date()):
+        with pytest.raises(BTClibTypeError, match="invalid current time type: "):
+            header.assert_valid_time(not_a_datetime)  # type: ignore[arg-type]
+
 
 def test_the_contextual_rules_are_not_asked_by_assert_valid() -> None:
     """Two questions, and a block answers the first one on its own.

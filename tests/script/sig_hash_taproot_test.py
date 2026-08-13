@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from btclib.alias import ScriptList, TaprootScriptTree
+from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.exceptions import (
     BTClibRuntimeError,
@@ -665,3 +665,130 @@ def test_an_input_index_outside_the_vin_is_refused() -> None:
     for not_an_index in (1.0, "0", True):
         with pytest.raises(BTClibTypeError, match="invalid input index type: "):
             sig_hash_of(not_an_index)  # type: ignore[arg-type]
+
+
+def _two_input_p2tr() -> tuple[Tx, list[TxOut]]:
+    """Return a two-input p2tr spend and the prevouts it spends."""
+    utxo = TxOut(
+        100000000,
+        serialize(
+            ["OP_1", "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"]
+        ),
+    )
+    vin = [
+        TxIn(OutPoint("01" * 32, 0), "", 1, Witness(["00" * 64])),
+        TxIn(OutPoint("02" * 32, 1), "", 1, Witness(["00" * 64])),
+    ]
+    tx = Tx(vin=vin, vout=[TxOut(100000000, ""), TxOut(1, "")])
+    return tx, [utxo, utxo]
+
+
+def test_every_width_the_bip341_preimage_writes_is_checked() -> None:
+    """SigMsg is assembled here too, and never through `Tx.serialize`.
+
+    The sequence and the outpoint are written only under ANYONECANPAY,
+    which commits to the signed input alone; without it they reach the
+    preimage through `sha_sequences` and `sha_prevouts`, so both hash
+    types are asked.
+    """
+    tx, prevouts = _two_input_p2tr()
+
+    def sig_hash_of(transaction: Tx, hashtype: int) -> bytes:
+        return sig_hash.taproot(transaction, 0, prevouts, hashtype, 0, b"", b"")
+
+    for field, err_msg in (
+        ("version", "invalid version: "),
+        ("lock_time", "invalid lock time: "),
+    ):
+        bad, _ = _two_input_p2tr()
+        setattr(bad, field, 2**32)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            sig_hash_of(bad, sig_hash.ALL)
+
+    for hashtype in (sig_hash.ALL, sig_hash.ALL | sig_hash.ANYONECANPAY):
+        bad, _ = _two_input_p2tr()
+        bad.vin[0].sequence = 2**32
+        with pytest.raises(BTClibValueError, match="invalid sequence: "):
+            sig_hash_of(bad, hashtype)
+
+        bad, _ = _two_input_p2tr()
+        bad.vin[0] = TxIn(
+            OutPoint(b"\x01" * 32, 2**32, check_validity=False),
+            b"",
+            1,
+            Witness(["00" * 64]),
+            check_validity=False,
+        )
+        with pytest.raises(BTClibValueError, match="invalid vout: "):
+            sig_hash_of(bad, hashtype)
+
+    bad, _ = _two_input_p2tr()
+    bad.vout[0] = TxOut(2**63, bad.vout[0].script_pub_key, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid output value: "):
+        sig_hash_of(bad, sig_hash.SINGLE)
+
+    assert len(sig_hash_of(tx, sig_hash.ALL)) == 32
+
+
+def test_the_spend_type_byte_holds_seven_bits_of_extension_flag() -> None:
+    """`(2 * ext_flag + annex_present).to_bytes(1)` was an OverflowError.
+
+    BIP341's spend type is one byte, so the flag is 0 for a key path, 1
+    for BIP342's tapscript, and nothing wider has anywhere to go.
+    """
+    tx, prevouts = _two_input_p2tr()
+
+    def sig_hash_with(ext_flag: int) -> bytes:
+        return sig_hash.taproot(tx, 0, prevouts, sig_hash.ALL, ext_flag, b"", b"")
+
+    # the boundary itself, not only one past it
+    assert len(sig_hash_with(0x7F)) == 32
+    for out_of_range in (-1, 0x80, 2**40):
+        with pytest.raises(BTClibValueError, match="invalid extension flag: "):
+            sig_hash_with(out_of_range)
+    for not_a_flag in (1.0, "0", True):
+        with pytest.raises(BTClibTypeError, match="invalid extension flag type: "):
+            sig_hash_with(not_a_flag)  # type: ignore[arg-type]
+
+
+def test_the_message_extension_is_octets_like_every_other_field() -> None:
+    """It is concatenated raw, where the annex goes through var_bytes.
+
+    So a hex string -- which every other octets parameter of this library
+    takes -- met `b"".join` and answered `TypeError: sequence item 11`,
+    from underneath the library and about the join rather than about the
+    argument.
+    """
+    tx, prevouts = _two_input_p2tr()
+    ext = b"\x01" * 37
+
+    def sig_hash_with(message_extension: Octets) -> bytes:
+        return sig_hash.taproot(
+            tx, 0, prevouts, sig_hash.ALL, 1, b"", message_extension
+        )
+
+    assert sig_hash_with(ext) == sig_hash_with(ext.hex())
+    with pytest.raises(BTClibValueError, match="invalid hex string: "):
+        sig_hash_with("not hex at all")
+
+
+def test_from_tx_names_an_input_both_lists_have() -> None:
+    """`prevouts[vin_i]` and `tx.vin[vin_i]` were two unchecked indexes.
+
+    And nothing asked whether the two lists were of one length, which
+    `PrecomputedTxData` does refuse and `verify_transaction` before it: a
+    prevout list shorter than the vin hashes the amounts of one
+    transaction into the sig_hash of another.
+    """
+    tx, prevouts = _two_input_p2tr()
+    assert len(sig_hash.from_tx(prevouts, tx, 1, sig_hash.ALL)) == 32
+
+    for out_of_range in (-1, 2, 99):
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            sig_hash.from_tx(prevouts, tx, out_of_range, sig_hash.ALL)
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            sig_hash.taproot_annex_and_ext(tx, out_of_range)
+
+    err_msg = "1 prevouts for 2 transaction inputs"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.from_tx(prevouts[:1], tx, 0, sig_hash.ALL)

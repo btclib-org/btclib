@@ -33,6 +33,29 @@ full year, short month, short day (YYYY-M-D)
   spaces around it -- `"MAINNET"` to `b32.address_from_witness` -- is
   accepted now where it used to raise.
 
+- **a malformed argument raises a btclib error, not a native one.** The
+  rest of issue #744's census, and the same move the network name above
+  made: an out-of-range derivation index was an `OverflowError`, an
+  out-of-range `vin_i` an `IndexError`, a header timestamp that is no
+  datetime an `AttributeError`, a hex string that is not one a bare
+  `ValueError`. Each is a `BTClibValueError` or a `BTClibTypeError` now.
+  Code catching `ValueError` or `TypeError` keeps working, the two
+  deriving from those; code catching `OverflowError`, `IndexError` or
+  `AttributeError` around one of these has to catch `BTClibException`,
+  or one of the two builtins, instead.
+
+  Two of them are not a narrowing, and are what to act on. What is
+  neither `bytes` nor a hex `str` is a `BTClibTypeError` where
+  `bytes_from_octets` used to return it untouched -- a tuple of 33 ints
+  passed `taproot.assert_valid_control_block` as a control block size,
+  and `bin_str_entropy_from_entropy(())` was reported as zero bits. And
+  a dozen calls that answered a malformed argument with a *number*
+  refuse it: `sig_hash.taproot` with an `input_index` past the end of
+  the vin, `taproot.input_script_sig` with a negative leaf index,
+  `bech32.encode` with a negative digit, `mod_inv` with a float,
+  `int_from_json_number` with 1.5, `Psbt.weight_estimate` on an
+  incoherent psbt. CHANGELOG.md lists all twelve.
+
 - **the individual point multiplications are private.** `from
   btclib.curves.curve_group import mult_jac` is an `ImportError` now, and
   so is every other variant of `curve_group` and `curve_group_2`: the

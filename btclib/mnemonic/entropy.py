@@ -68,6 +68,27 @@ def _bits_per_digit(base: int) -> int:
     return base.bit_length() - 1
 
 
+def _int_from_bin_str(entropy: BinStr) -> int:
+    """Return the number a binary 0/1 string spells, or refuse the string.
+
+    `int(x, 2)` answers what is no binary string with the bare
+    ValueError "invalid literal for int() with base 2", which names
+    neither the parameter nor this library, and what is no string at all
+    with a bare TypeError.
+
+    Neither message carries the value, and neither does this one: raw
+    entropy is seed material, and every error in this module says a
+    length or a count and never the digits (issue #137).
+    """
+    try:
+        return int(entropy, 2)
+    except TypeError as e:
+        err_msg = f"invalid entropy type: {type(entropy).__name__}"
+        raise BTClibTypeError(err_msg) from e
+    except ValueError as e:
+        raise BTClibValueError("invalid entropy: not a binary 0/1 string") from e
+
+
 def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[int]:
     """Return the digit indexes for the provided raw entropy.
 
@@ -76,7 +97,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
     entropy; leading zeros are not considered redundant padding.
     """
     bits = len(entropy)
-    int_entropy = int(entropy, 2)
+    int_entropy = _int_from_bin_str(entropy)
     indexes = []
     while int_entropy:
         int_entropy, index = divmod(int_entropy, base)
@@ -194,7 +215,7 @@ def bytes_entropy_from_str(bin_str_entropy: BinStr) -> bytes:
         err_msg = f"invalid number of bits: {n_bits} instead of {_bits}"
         raise BTClibValueError(err_msg)
     nbytes = (n_bits + 7) // 8
-    int_entropy = int(bin_str_entropy, 2)
+    int_entropy = _int_from_bin_str(bin_str_entropy)
     return int_entropy.to_bytes(nbytes, byteorder="big", signed=False)
 
 
@@ -215,11 +236,18 @@ def bin_str_entropy_from_int(
     if isinstance(int_entropy, str):
         int_entropy = int_entropy.strip().lower()
         if int_entropy[:2] == "0b":
-            int_entropy = int(int_entropy, 2)
-        elif int_entropy[:2] == "0x":
-            int_entropy = int(int_entropy, 16)
+            int_entropy = _int_from_bin_str(int_entropy)
         else:
-            int_entropy = int(int_entropy)
+            # the two `int` readings left, and the same bare ValueError
+            # out of both: "invalid literal for int() with base 16",
+            # naming neither the parameter nor this library -- and
+            # carrying the digits, which the message here does not
+            base = 16 if int_entropy[:2] == "0x" else 10
+            try:
+                int_entropy = int(int_entropy, base)
+            except ValueError as e:
+                err_msg = f"invalid entropy: not a base {base} number"
+                raise BTClibValueError(err_msg) from e
 
     if int_entropy < 0:
         raise BTClibValueError(f"negative entropy: {int_entropy}")
@@ -253,7 +281,7 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
-    int(str_entropy, 2)
+    _int_from_bin_str(str_entropy)
 
     # if a single int, make it a tuple
     if isinstance(bits, int):
@@ -410,7 +438,7 @@ def bin_str_entropy_from_random(
         if len(entropy) > bits:
             # only the leftmost bits are retained
             entropy = entropy[:bits]
-        i = int(entropy, 2)
+        i = _int_from_bin_str(entropy)
 
     # XOR the current entropy with CSPRNG system entropy
     i ^= secrets.randbits(bits)
