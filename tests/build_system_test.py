@@ -24,6 +24,16 @@ and what is checked: one requirement, named setuptools, bounded from
 below and nothing else -- which is also how a direct reference to a url,
 an extra and an environment marker are refused, each of them a way to
 name a package that resolves to somebody else's code.
+
+Regex rather than `tomllib` for the two keys wanted out of
+pyproject.toml: the floor here is 3.10, and `tomllib` is 3.11, so a test
+module importing it fails to collect on the oldest interpreter the
+matrix runs, with every other cell green. `tests/copyright_test.py` reads
+the same file the same way and for the same reason; once 3.10 is dropped,
+both can parse it. What the regex costs is that it reads text and not a
+table, so it is anchored on the `[build-system]` header and stops at the
+next one: a `requires` belonging to some `[tool.*]` below is a different
+key, and a second build requirement is what has to be seen.
 """
 
 from __future__ import annotations
@@ -31,21 +41,38 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import tomllib
-
 _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 
 # a name, `>=` and a release: no `@ <url>`, no `[extra]`, no `; marker`
 _LOWER_BOUND = re.compile(r"setuptools>=[0-9]+(?:\.[0-9]+)*")
 
-# the table pip and uv build with, read at import: the file is the
-# project's own and a test module that cannot read it has nothing to say
-_BUILD_SYSTEM = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["build-system"]
+# the table pip and uv build with, up to whichever table follows it
+_TABLE = re.compile(r"^\[build-system\]$(.*?)(?=^\[)", re.MULTILINE | re.DOTALL)
+_REQUIRES = re.compile(r"^requires\s*=\s*\[(.*?)\]", re.MULTILINE | re.DOTALL)
+_BACKEND = re.compile(r'^build-backend\s*=\s*"(.*?)"', re.MULTILINE)
+_QUOTED = re.compile(r'"(.*?)"')
+
+
+def _build_system() -> str:
+    """Return the text of pyproject.toml's `[build-system]` table.
+
+    Called at import: the file is the project's own and a test module
+    that cannot read it has nothing to say.
+    """
+    text = _PYPROJECT.read_text(encoding="utf-8")
+    match = _TABLE.search(text)
+    assert match, "pyproject.toml has no [build-system] table"
+    return match.group(1)
+
+
+_BUILD_SYSTEM = _build_system()
 
 
 def test_the_build_requires_setuptools_and_nothing_else() -> None:
     """One requirement, and a lower bound is the whole of what it says."""
-    (requirement,) = _BUILD_SYSTEM["requires"]
+    match = _REQUIRES.search(_BUILD_SYSTEM)
+    assert match, "[build-system] declares no requires"
+    (requirement,) = _QUOTED.findall(match.group(1))
 
     assert _LOWER_BOUND.fullmatch(requirement)
 
@@ -57,4 +84,7 @@ def test_the_backend_is_the_declarative_one() -> None:
     imports the file and runs it, which is the install-time hook the
     package-content policy is about, one stage earlier and in the build.
     """
-    assert _BUILD_SYSTEM["build-backend"] == "setuptools.build_meta"
+    match = _BACKEND.search(_BUILD_SYSTEM)
+    assert match, "[build-system] declares no build-backend"
+
+    assert match.group(1) == "setuptools.build_meta"

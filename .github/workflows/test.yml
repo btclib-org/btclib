@@ -285,13 +285,20 @@ jobs:
       # The lock arrives as constraints and not as requirements: a
       # requirements file installs the bindings whether or not the wheel
       # asks for them, so a wheel declaring nothing would pass. A
-      # constraint pins and requests no package, which leaves
-      # the wheel's metadata doing the work while pinning the outcome to
-      # what uv.lock resolved -- the commit, for a direct reference -- and
-      # pinning it is what keeps a required check deterministic, since
-      # unpinned uv takes whatever the branch is at, and a commit pushed
-      # this morning would redden every open pull request, none of which
-      # caused it.
+      # constraint pins and requests no package, which leaves the wheel's
+      # metadata doing the work while pinning the outcome to what uv.lock
+      # resolved.
+      # Every package but the two direct references, which is what
+      # --no-emit-package is for here: the lock exports those as the
+      # commit it resolved, the wheel asks for `main`, and uv unifies a
+      # branch with a commit only while the branch is still at it --
+      # after which it refuses the two urls as conflicting and the job
+      # fails on nothing this repository did. Those branches are where
+      # this tree's own dependencies are developed, so they move on their
+      # own schedule, and a pin that has to be refreshed within the hour
+      # is not determinism. Unpinned, this step resolves what a user
+      # installing the wheel today resolves, which is the question it
+      # asks; the rest of the workflow runs --locked and is unaffected.
       # Whether the newest bindings still work is asked on a schedule by
       # latest.yml, and again by the release workflow before it publishes.
       # The assertions are three, because each catches what the others
@@ -306,6 +313,8 @@ jobs:
       - name: Smoke-test the wheel, with the dependencies its metadata asks for
         run: |
           uv export --locked --no-dev --no-emit-project --no-hashes \
+            --no-emit-package btclib-secp256k1 \
+            --no-emit-package bitcoin-core-rpc \
             -o "$RUNNER_TEMP"/constraints.txt
           cd "$RUNNER_TEMP"
           uv venv
