@@ -36,14 +36,26 @@ key and the same signature under both, `invalid` in the first file and
 of the two files whichever way it is wired -- which neither file could
 report on its own.
 
-Four hash functions, for the same reason in a second direction. Bitcoin
-signs with sha256 and nothing else, so the sha512 and SHA3 files are not
-bitcoin signatures and are not here pretending to be: what they hold to
-account is the *generic* ECDSA `dsa.verify_` promises, and they are the
-only adversarial vectors that reach it. `_libsecp256k1_applicable`
-declines every hash but sha256, so those files land on the Python path
-by construction rather than by a patch -- the path `SECURITY.md`
-publishes as not constant-time, under an adversary for the first time.
+Hash functions beyond sha256, for the same reason in a second direction.
+Bitcoin signs with sha256 and nothing else, so the sha512, SHA3 and SHAKE
+files are not bitcoin signatures and are not here pretending to be: what
+they hold to account is the *generic* ECDSA `dsa.verify_` promises, and
+they are the only adversarial vectors that reach it.
+`_libsecp256k1_applicable` declines every hash but sha256, so those files
+land on the Python path by construction rather than by a patch -- the
+path `SECURITY.md` publishes as not constant-time, under an adversary for
+the first time.
+
+The SHAKE files arrive through an adapter, `_PinnedXof` below, because an
+extendable-output function is not a `HashF` and `btclib/alias.py` states
+that it is not: a SHAKE's `digest()` takes the output length that a
+`HashObject`'s does not declare, and its `digest_size` reads 0. The
+adapter pins a length rather than the library growing one, and it is
+`n_size` here because that is the width `challenge_` reads: any length
+from there up is the same test, a SHAKE's output being a stream whose
+longer forms have these very bytes as their prefix. What the adapter is
+not is a route to signing with SHAKE -- `dsa.sign` derives its nonce
+through RFC6979, which is HMAC, and HMAC over an XOF is not defined.
 
 Which implementations answer is therefore read off the hash rather than
 asserted: `_paths` below. Under sha256 a vector runs twice, against the
@@ -55,14 +67,15 @@ so it runs once.
 
 from __future__ import annotations
 
-from hashlib import sha3_256, sha3_512, sha256, sha512
+from collections.abc import Callable
+from hashlib import sha3_256, sha3_512, sha256, sha512, shake_128, shake_256
 from io import BytesIO
 from types import ModuleType
-from typing import Any
+from typing import Any, Protocol
 
 import pytest
 
-from btclib.alias import HashF, Point
+from btclib.alias import HashF, HashObject, Point
 from btclib.curves import mult, point_from_octets, secp256k1
 from btclib.ecc import dh, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -74,8 +87,12 @@ _ECDSA = "ecdsa_secp256k1_sha256_test.json"
 _ECDSA_SHA512 = "ecdsa_secp256k1_sha512_test.json"
 _ECDSA_SHA3_256 = "ecdsa_secp256k1_sha3_256_test.json"
 _ECDSA_SHA3_512 = "ecdsa_secp256k1_sha3_512_test.json"
+_ECDSA_SHAKE128 = "ecdsa_secp256k1_shake128_test.json"
+_ECDSA_SHAKE256 = "ecdsa_secp256k1_shake256_test.json"
 _ECDSA_P1363 = "ecdsa_secp256k1_sha256_p1363_test.json"
 _ECDSA_SHA512_P1363 = "ecdsa_secp256k1_sha512_p1363_test.json"
+_ECDSA_SHAKE128_P1363 = "ecdsa_secp256k1_shake128_p1363_test.json"
+_ECDSA_SHAKE256_P1363 = "ecdsa_secp256k1_shake256_p1363_test.json"
 _ECDH = "ecdh_secp256k1_test.json"
 
 # the DER tags the SubjectPublicKeyInfo below is made of
@@ -204,6 +221,111 @@ def _digest(hf: HashF, data: bytes) -> bytes:
     return hash_object.digest()
 
 
+class _Xof(Protocol):
+    """What a SHAKE offers: a digest of the length asked of it.
+
+    `hashlib.shake_128` and `shake_256` satisfy this and not
+    `alias.HashObject`, and the argument of `digest` is the whole of the
+    difference -- an XOF has no output length of its own to report, which
+    is why its `digest_size` is 0 rather than a size.
+    """
+
+    @property
+    def block_size(self) -> int:
+        """Return the internal block length in bytes."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """Return the name hashlib.new would accept."""
+        ...
+
+    def update(self, data: Any, /) -> None:
+        """Absorb more data, as hashlib's update does."""
+        ...
+
+    def digest(self, length: int, /) -> bytes:
+        """Return that many bytes of output."""
+        ...
+
+    def hexdigest(self, length: int, /) -> str:
+        """Return that many bytes of output, as a hex string."""
+        ...
+
+    def copy(self) -> _Xof:
+        """Return a clone that can absorb independently."""
+        ...
+
+
+class _PinnedXof:
+    """A SHAKE at a pinned output length, which is a `HashObject`.
+
+    The one thing it adds is the length, and it adds it where the length
+    is missing: everything else is the wrapped SHAKE answering for
+    itself, `name` and `block_size` included, so a failure names the
+    function that computed the digest rather than this class.
+
+    A test's adapter, deliberately not a library one. `HashF` admitting
+    an XOF would admit it to `dsa.sign` as well, whose nonce is RFC6979
+    -- HMAC, which over an XOF is not defined -- and would answer inside
+    a test module a question `btclib/alias.py` states the answer to.
+    """
+
+    def __init__(self, xof: _Xof, size: int) -> None:
+        self.xof = xof
+        self.size = size
+
+    @property
+    def digest_size(self) -> int:
+        """Return the pinned digest length in bytes."""
+        return self.size
+
+    @property
+    def block_size(self) -> int:
+        """Return the wrapped function's internal block length."""
+        return self.xof.block_size
+
+    @property
+    def name(self) -> str:
+        """Return the wrapped function's name."""
+        return self.xof.name
+
+    def update(self, data: Any, /) -> None:
+        """Absorb more data."""
+        self.xof.update(data)
+
+    def digest(self) -> bytes:
+        """Return the digest, at the pinned length."""
+        return self.xof.digest(self.size)
+
+    def hexdigest(self) -> str:
+        """Return the digest as a hex string, at the pinned length."""
+        return self.xof.hexdigest(self.size)
+
+    def copy(self) -> HashObject:
+        """Return a clone that can absorb independently."""
+        return _PinnedXof(self.xof.copy(), self.size)
+
+
+def _pinned(xof: Callable[[], _Xof], size: int) -> HashF:
+    """Return the `HashF` an XOF is not: a constructor of sized objects.
+
+    A fresh SHAKE per call, not one shared by every caller: a `HashF` is
+    a constructor, and two signatures verified out of one hash object
+    would absorb each other's messages.
+    """
+    return lambda: _PinnedXof(xof(), size)
+
+
+# the pinned length: n_size, and any length from there up is the same
+# test. `challenge_` takes the leftmost `nlen` bits of the message hash,
+# and a SHAKE's output is a stream, so a longer digest has these very
+# bytes as its prefix -- measured, all four files verify identically at
+# 32 and at 64
+_SHAKE128 = _pinned(shake_128, secp256k1.n_size)
+_SHAKE256 = _pinned(shake_256, secp256k1.n_size)
+
+
 def _paths(hf: HashF) -> list[bool]:
     """Say which implementations answer a vector: both, or Python alone.
 
@@ -252,13 +374,44 @@ def _signature_vectors(fname: str, prefix: str, hf: HashF, *extra: Any) -> list[
     ]
 
 
+def test_pinned_xof() -> None:
+    """The adapter pins the output length and answers for nothing else.
+
+    A test of the harness rather than of btclib, and it earns its place
+    twice: the SHAKE files below are read through this class, so a class
+    that quietly hashed something else would make them pass while
+    testing nothing; and the pinned length is only free because a SHAKE's
+    output is a stream, which is asserted here rather than asserted by
+    running every vector a second time at another length.
+    """
+    hash_object = _SHAKE128()
+    hash_object.update(b"btclib")
+    reference = shake_128(b"btclib")
+
+    assert hash_object.digest_size == secp256k1.n_size
+    assert hash_object.block_size == reference.block_size
+    assert hash_object.name == reference.name
+    assert hash_object.digest() == reference.digest(secp256k1.n_size)
+    assert hash_object.hexdigest() == reference.hexdigest(secp256k1.n_size)
+
+    clone = hash_object.copy()
+    clone.update(b"!")
+    assert clone.digest() != hash_object.digest()
+
+    wider = _pinned(shake_128, 2 * secp256k1.n_size)()
+    wider.update(b"btclib")
+    assert wider.digest()[: secp256k1.n_size] == hash_object.digest()
+
+
 @pytest.mark.parametrize(
     "key, vector, lower_s, hf, bindings",
     _signature_vectors(_ECDSA_BITCOIN, "bitcoin", sha256, True)
     + _signature_vectors(_ECDSA, "ecdsa", sha256, False)
     + _signature_vectors(_ECDSA_SHA512, "sha512", sha512, False)
     + _signature_vectors(_ECDSA_SHA3_256, "sha3-256", sha3_256, False)
-    + _signature_vectors(_ECDSA_SHA3_512, "sha3-512", sha3_512, False),
+    + _signature_vectors(_ECDSA_SHA3_512, "sha3-512", sha3_512, False)
+    + _signature_vectors(_ECDSA_SHAKE128, "shake128", _SHAKE128, False)
+    + _signature_vectors(_ECDSA_SHAKE256, "shake256", _SHAKE256, False),
 )
 def test_ecdsa_der(
     key: str,
@@ -297,7 +450,9 @@ def test_ecdsa_der(
 @pytest.mark.parametrize(
     "key, vector, hf, bindings",
     _signature_vectors(_ECDSA_P1363, "p1363", sha256)
-    + _signature_vectors(_ECDSA_SHA512_P1363, "p1363-sha512", sha512),
+    + _signature_vectors(_ECDSA_SHA512_P1363, "p1363-sha512", sha512)
+    + _signature_vectors(_ECDSA_SHAKE128_P1363, "p1363-shake128", _SHAKE128)
+    + _signature_vectors(_ECDSA_SHAKE256_P1363, "p1363-shake256", _SHAKE256),
 )
 def test_ecdsa_p1363(
     key: str,
