@@ -1112,6 +1112,38 @@ documented at release-notes length in the first place, and are still in
   take `None` alone -- 32 bytes or no argument, a shorter one being a
   caller mistake and not less entropy.
 
+- **A public derivation path parses its key once, not once per level**
+  (#685). `__pub_key_derivation` called `libsecp256k1_keys.pubkey_tweak_add`
+  at every unhardened index, which parses its argument and serializes its
+  result; each step's own result is what the next step's tweak is a hash
+  of, so the bytes are needed at every level, but the point they get
+  parsed back into there is the one the step before had already built,
+  and had only serialized because *that* step's caller -- this same loop
+  -- needed the bytes. `cProfile` over a BIP44 address counted
+  `secp256k1_ec_pubkey_parse` four times, two of them there; measured on
+  a synthetic chain, 12 to 19% for a path of two to five.
+
+  Two ways to it were weighed: btclib holding the parsed key itself and
+  calling `lib`/`ctx` directly, or the bindings growing a wrapper for it.
+  The first would have been the first place in this library to reach for
+  the raw bindings rather than a wrapper function, and it would have put
+  a cffi object in `_BIP32KeyData`'s hands, or in a local across the
+  derivation loop, where "the key is its serialization" is what currently
+  keeps that loop readable. The decision (btclib-secp256k1#138) was the
+  second: `keys.PubkeyTweakChain` parses a public key once and
+  holds the point across a sequence of `tweak_add` calls, each still
+  returning the bytes its caller needs. `__pub_key_derivation` and
+  `pub_key_derivation_tweaks` -- BIP328's tweaks for a MuSig2 aggregate
+  key, walking the same kind of path -- both hold one chain across their
+  loop now, in place of one `pubkey_tweak_add` call per index.
+  `pubkey_tweak_add` itself is unchanged in behaviour and cost, still the
+  right call for tweaking a key once.
+
+  `PubkeyTweakChain` is why this needs no requirement bump of its own: it
+  landed on the bindings' `main` before any release carries it, which is
+  what the entry above this one already moved this tree's requirement to
+  track.
+
 ### The public API and the module layout
 
 - **`btclib.ecc`'s docstring stops crediting the trailing underscore** for
