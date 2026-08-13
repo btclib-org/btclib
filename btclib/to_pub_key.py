@@ -22,8 +22,8 @@ from btclib.curves.sec_point import _sec_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
-    NETWORKS,
     curve_from_xkeyversion,
+    network_from_name,
     network_from_xkeyversion,
     xpubversions_from_network,
 )
@@ -84,7 +84,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     except BTClibValueError:
         pass
     else:
-        if ec != NETWORKS[net].curve:
+        if ec != network_from_name(net).curve:
             raise BTClibValueError("Curve mismatch")
         return mult(q, ec.G, ec)
 
@@ -184,7 +184,7 @@ def pub_keyinfo_from_pub_key(
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
-    ec = NETWORKS[net].curve
+    ec = network_from_name(net).curve
 
     if isinstance(pub_key, tuple):
         return bytes_from_point(pub_key, ec, compr), net
@@ -215,7 +215,7 @@ def pub_keyinfo_from_prv_key(
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a private key."""
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
-    ec = NETWORKS[net].curve
+    ec = network_from_name(net).curve
     return bytes_from_prv_key_int(q, ec, compr), net
 
 

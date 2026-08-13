@@ -24,7 +24,7 @@ from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.network import NETWORKS, network_from_key_value
+from btclib.network import network_from_key_value, network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
@@ -51,10 +51,10 @@ def wif_from_prv_key(
     network = net if network is None else network
     compressed = compr if compressed is None else compressed
 
-    ec = NETWORKS[network].curve
+    ec = network_from_name(network).curve
     payload = b"".join(
         [
-            NETWORKS[network].wif,
+            network_from_name(network).wif,
             q.to_bytes(ec.n_size, byteorder="big", signed=False),
             b"\x01" if compressed else b"",
         ]
@@ -79,9 +79,9 @@ def address_from_h160(
     # spell it makes that a cast at every call site rather than a
     # message from here
     if script_type == "p2sh":
-        prefix = NETWORKS[network].p2sh
+        prefix = network_from_name(network).p2sh
     elif script_type == "p2pkh":
-        prefix = NETWORKS[network].p2pkh
+        prefix = network_from_name(network).p2pkh
     else:
         raise BTClibValueError(f"invalid script type: {script_type}")
 

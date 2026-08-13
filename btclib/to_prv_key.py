@@ -16,8 +16,8 @@ from btclib.exceptions import (
     NotAPrvKeyError,
 )
 from btclib.network import (
-    NETWORKS,
     network_from_key_value,
+    network_from_name,
     network_from_xkeyversion,
     xprvversions_from_network,
 )
@@ -97,7 +97,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
 
 def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
     # q has been validated on the xprv/wif network
-    ec2 = NETWORKS[network].curve
+    ec2 = network_from_name(network).curve
     if ec != ec2:
         raise BTClibValueError(f"ec / network ({network}) mismatch")
     return q
@@ -127,7 +127,7 @@ def _wif_network(prefix: bytes, network: str | None) -> str:
     # reject a signet WIF as "not a signet wif: prefix 0xef" --
     # naming the very prefix signet asks for (issue #207).
     # _prv_keyinfo_from_xprv below makes the same membership check
-    if prefix != NETWORKS[network].wif:
+    if prefix != network_from_name(network).wif:
         raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
     # the declared network, not the lookup's guess: for a caller who
     # said "signet" the answer is signet, and it is the one that ends
@@ -198,7 +198,7 @@ def _prv_keyinfo_from_wif(
     # is a fault in a WIF: InvalidPrvKeyError, which the format-guessing
     # callers let through instead of trying the input as something else
     net = _wif_network(payload[:1], network)
-    ec = NETWORKS[net].curve
+    ec = network_from_name(net).curve
     prv_key, compr = _wif_prv_key_and_compression(payload, ec.n_size, compressed)
 
     q = int.from_bytes(prv_key, byteorder="big")
@@ -296,7 +296,7 @@ def prv_keyinfo_from_prv_key(
     """
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
-    ec = NETWORKS[net].curve
+    ec = network_from_name(net).curve
 
     if isinstance(prv_key, int):
         q = prv_key

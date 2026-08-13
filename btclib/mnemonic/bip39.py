@@ -73,7 +73,7 @@ from btclib.mnemonic.mnemonic import (
     mnemonic_from_indexes,
     normalize_mnemonic,
 )
-from btclib.network import NETWORKS
+from btclib.network import network_from_name
 
 __all__ = [
     "entropy_from_mnemonic",
@@ -302,5 +302,5 @@ def mxprv_from_mnemonic(
 ) -> str:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
     seed = seed_from_mnemonic(mnemonic, passphrase or "", verify_checksum)
-    version = NETWORKS[network].bip32_prv
+    version = network_from_name(network).bip32_prv
     return rootxprv_from_seed(seed, version)

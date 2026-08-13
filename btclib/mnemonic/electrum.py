@@ -81,7 +81,7 @@ from btclib.mnemonic.mnemonic import (
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
-from btclib.network import NETWORKS
+from btclib.network import network_from_name
 from btclib.to_prv_key import int_from_prv_key
 
 __all__ = [
@@ -571,10 +571,10 @@ def mxprv_from_mnemonic(
     version, seed = _seed_from_mnemonic(mnemonic, passphrase or "")
 
     if version == "standard":
-        xversion = NETWORKS[network].bip32_prv
+        xversion = network_from_name(network).bip32_prv
         return rootxprv_from_seed(seed, xversion)
     if version == "segwit":
-        xversion = NETWORKS[network].slip132_p2wpkh_prv
+        xversion = network_from_name(network).slip132_p2wpkh_prv
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, _HARDENED_OFFSET)  # "m/0h"
     err_msg = f"unmanaged electrum mnemonic version: {version}"

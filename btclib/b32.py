@@ -58,7 +58,7 @@ from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.network import NETWORKS, network_from_key_value
+from btclib.network import NETWORKS, network_from_key_value, network_from_name
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
@@ -152,7 +152,7 @@ def address_from_witness(
     wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> str:
     """Encode a bech32 native segwit address from the witness."""
-    hrp = NETWORKS[network].hrp
+    hrp = network_from_name(network).hrp
     return _address_from_witness(wit_ver, wit_prg, hrp)
 
 

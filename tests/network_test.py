@@ -17,6 +17,7 @@ from btclib.network import (
     Network,
     curve_from_xkeyversion,
     network_from_key_value,
+    network_from_name,
     network_from_xkeyversion,
     network_type_from_key_value,
     network_type_from_network,
@@ -106,9 +107,18 @@ def test_space_and_caps() -> None:
     net = " MainNet "
     assert xpubversions_from_network(net), f"unknown network: {net}"
 
-    with pytest.raises(KeyError):
+    # a BTClibValueError and not the bare KeyError of an unguarded
+    # NETWORKS[...]: a LookupError is not caught by an `except
+    # BTClibValueError` written against this library (issue #744)
+    with pytest.raises(BTClibValueError, match="unknown network"):
         net = " MainNet2 "
         xpubversions_from_network(net)
+
+    with pytest.raises(BTClibValueError, match="unknown network"):
+        xprvversions_from_network("nosuchnet")
+
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        xpubversions_from_network(42)  # type: ignore[arg-type]
 
 
 def test_numbers_of_networks() -> None:
@@ -299,7 +309,7 @@ def test_network_type_from_network() -> None:
     assert network_type_from_network(" MainNet ") == "main"
     for name in ("testnet", "regtest", "signet", "testnet4"):
         assert network_type_from_network(name) == "test"
-    with pytest.raises(KeyError):
+    with pytest.raises(BTClibValueError, match="unknown network"):
         network_type_from_network("nosuchnet")
 
 
@@ -351,3 +361,51 @@ def test_the_literal_vocabularies_name_the_data() -> None:
     """
     assert set(get_args(NetworkField)) == {field.name for field in fields(Network)}
     assert set(get_args(NetworkName)) == set(NETWORKS)
+
+
+def test_a_network_name_no_network_has_is_refused() -> None:
+    """`network_from_name` is the one place a name becomes a Network.
+
+    A BTClibValueError and not the bare KeyError of `NETWORKS[name]`:
+    KeyError is a LookupError, so a caller filtering bad input with an
+    `except BTClibValueError` -- which is what this library's own
+    docstrings tell it to write -- did not catch it (issue #744). The
+    message names the five, a typo being the case it exists for.
+    """
+    for name in NETWORKS:
+        assert network_from_name(name) is NETWORKS[name]
+    # the tolerance issue #216 decided to keep
+    assert network_from_name(" MainNet ") is NETWORKS["mainnet"]
+    assert network_from_name() is NETWORKS["mainnet"]
+
+    with pytest.raises(BTClibValueError, match="unknown network"):
+        network_from_name("nosuchnet")
+    with pytest.raises(BTClibValueError, match="mainnet"):
+        network_from_name("")
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        network_from_name(42)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        network_from_name(None)  # type: ignore[arg-type]
+
+
+def test_a_field_no_network_has_is_refused_rather_than_scanned_for() -> None:
+    """A misspelled field name is not the fact that no network carries it.
+
+    `getattr` raised AttributeError, and answering `[]` instead would have
+    been worse: `alias.py` claimed that was the behaviour -- "a misspelled
+    field name matches no network, so the lookup answers None" -- which
+    would make a typo read as a statement about the prefix (issue #744).
+    """
+    err_msg = "unknown network field"
+    for key in ("nosuchfield", "", "Curve", "datadir"):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            networks_from_key_value(key, b"\x00")  # type: ignore[arg-type]
+        with pytest.raises(BTClibValueError, match=err_msg):
+            network_from_key_value(key, b"\x00")  # type: ignore[arg-type]
+        with pytest.raises(BTClibValueError, match=err_msg):
+            network_type_from_key_value(key, b"\x00")  # type: ignore[arg-type]
+
+    # every field of the dataclass is one, which is the set the run-time
+    # check is built from and the one NetworkField names for mypy
+    for field in fields(Network):
+        assert networks_from_key_value(field.name, object()) == []  # type: ignore[arg-type]

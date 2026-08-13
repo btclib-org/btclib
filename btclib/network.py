@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -51,6 +51,7 @@ __all__ = [
     "Network",
     "curve_from_xkeyversion",
     "network_from_key_value",
+    "network_from_name",
     "network_from_xkeyversion",
     "network_type_from_key_value",
     "network_type_from_network",
@@ -324,6 +325,12 @@ for _net in _network_names:
 # callers do with it, and all four are what a mapping is
 NETWORKS: Mapping[str, Network] = MappingProxyType(_networks)
 
+# what a `key: NetworkField` may name, off the dataclass rather than off
+# alias.NetworkField's Literal: the Literal is what mypy holds a caller
+# to, and this is the same vocabulary at run time, for the callers mypy
+# never sees. network_test.py asserts the two are the same set
+_NETWORK_FIELDS = frozenset(field.name for field in fields(Network))
+
 
 # Everything below is derived from NETWORKS, in one pass over it, because
 # every one of these questions is "which network carries these bytes" asked
@@ -419,7 +426,17 @@ def networks_from_key_value(
     unhashable one with a TypeError where the comparison answers "no
     network carries this". Five networks and one `getattr` each is what
     that costs.
+
+    A `key` that names no field of Network is refused rather than scanned
+    for: `getattr` would raise `AttributeError`, which is neither a
+    `ValueError` nor something a caller of this library is told to catch,
+    and answering `[]` instead -- "no network carries this prefix" -- would
+    be worse, a typo in a field name reading as a fact about the prefix.
     """
+    if key not in _NETWORK_FIELDS:
+        err_msg = f"unknown network field: '{key}'"
+        err_msg += f"; it must be one of {sorted(_NETWORK_FIELDS)}"
+        raise BTClibValueError(err_msg)
     return [
         network_str
         for network_str, network in NETWORKS.items()
@@ -458,10 +475,45 @@ def network_type_from_key_value(
     return NETWORKS[networks[0]].network_type if networks else None
 
 
+def _validated_network_name(network: str) -> str:
+    """Return the name of a network, normalized, or refuse it.
+
+    `strip().lower()` is the tolerance issue #216 decided to keep, and the
+    reason `alias.NetworkName` is not the annotation of a `network`
+    parameter: the set accepted is wider than the five spellings it
+    names.
+    """
+    if not isinstance(network, str):
+        raise BTClibTypeError(f"not a network name: {network!r}")
+    name = network.strip().lower()
+    if name not in NETWORKS:
+        err_msg = f"unknown network: '{network}'"
+        err_msg += f"; it must be one of {sorted(NETWORKS)}"
+        raise BTClibValueError(err_msg)
+    return name
+
+
+def network_from_name(network: str = "mainnet") -> Network:
+    """Return the Network a name names, in any case and spaced how it likes.
+
+    The one place a `network: str` becomes a `Network`, and what every
+    caller of a network name should reach for rather than indexing
+    `NETWORKS` itself: a name no network has is refused here, where
+    `NETWORKS[network]` answers a bare `KeyError`. That matters beyond
+    tidiness, `KeyError` being a `LookupError` -- so no `except
+    BTClibValueError` written against this library catches it, and a
+    caller filtering bad input sees an exception nothing told it to
+    expect.
+
+    `NETWORKS` stays exported for a caller iterating the five, which is a
+    different question from resolving one name.
+    """
+    return NETWORKS[_validated_network_name(network)]
+
+
 def network_type_from_network(network: str = "mainnet") -> NetworkType:
     """Return the "main"/"test" type of a network name."""
-    network = network.strip().lower()
-    return NETWORKS[network].network_type
+    return network_from_name(network).network_type
 
 
 def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
@@ -471,12 +523,12 @@ def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
     or trimming the answer is not editing the table every other lookup
     reads.
     """
-    return list(_XPUB_VERSIONS[network.strip().lower()])
+    return list(_XPUB_VERSIONS[_validated_network_name(network)])
 
 
 def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     """Return every xprv version of the network, BIP32 and SLIP132."""
-    return list(_XPRV_VERSIONS[network.strip().lower()])
+    return list(_XPRV_VERSIONS[_validated_network_name(network)])
 
 
 def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:

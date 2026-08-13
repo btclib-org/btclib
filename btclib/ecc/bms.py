@@ -124,7 +124,7 @@ from btclib.ecc import dsa
 from btclib.ecc.dsa import _libsecp256k1_recover_sec_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, reduce_to_hlen
-from btclib.network import NETWORKS
+from btclib.network import network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import assert_no_trailing, bytesio_from_binarydata
 
@@ -266,7 +266,7 @@ def gen_keys(
     if prv_key is None:
         if network is None:
             network = "mainnet"
-        ec = NETWORKS[network].curve
+        ec = network_from_name(network).curve
         # q in the range [1, ec.n-1]
         prv_key = 1 + secrets.randbelow(ec.n - 1)
 

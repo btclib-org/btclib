@@ -1525,6 +1525,42 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`network_from_name` is the one place a network name becomes a
+  `Network`** (issue #744), and fourteen call sites that indexed
+  `NETWORKS[network]` raw go through it. A name no network has was a bare
+  `KeyError`, which is a `LookupError`: no `except BTClibValueError`
+  written against this library caught it, so a caller filtering bad input
+  saw an exception nothing told it to expect. It is a `BTClibValueError`
+  naming the five now, and a non-string is a `BTClibTypeError` where
+  `network.strip()` used to raise `AttributeError`.
+
+  The call sites are `b58`'s `wif_from_prv_key` and `address_from_h160`,
+  `b32`'s `address_from_witness`, `to_prv_key.prv_keyinfo_from_prv_key`,
+  `to_pub_key`'s `pub_keyinfo_from_pub_key` and
+  `pub_keyinfo_from_prv_key`, the three `mxprv_from_mnemonic(s)` of
+  `bip39`, `electrum` and `slip39`, `bip85`, `descriptors.key_expression`
+  and `ecc.bms` -- and, through them, `p2pkh`, `p2sh`, `p2wpkh`, `p2wsh`,
+  `p2tr`, `p2wpkh_p2sh`, `p2wsh_p2sh`, `pub_keyinfo_from_key` and
+  `fingerprint`, which add no check of their own and are correct once
+  their root is.
+
+  **A name in any case, and spaced how it likes, is accepted where it used
+  to be refused.** `alias.py` said every `network: str` parameter runs
+  through `strip().lower()`; only `network.py`'s own three lookups did, so
+  `b32.address_from_witness(0, prog, "MAINNET")` raised where
+  `xpubversions_from_network("MAINNET")` worked. One converter is what
+  makes the promise true rather than repeated -- and that paragraph of
+  `alias.py`, along with its claim that a misspelled field name "matches
+  no network, so the lookup answers None", is corrected: it does not, and
+  it now raises.
+
+  `networks_from_key_value` refuses a `key` naming no field of `Network`
+  rather than scanning for it, `getattr` having raised `AttributeError`.
+  Answering `[]` was the alternative and is worse: a typo in a field name
+  would read as a fact about the prefix. `_NETWORK_FIELDS` is built from
+  `dataclasses.fields(Network)`, so it is `alias.NetworkField`'s Literal
+  at run time, for the callers mypy never sees.
+
 - **`BTClibException`, one name to catch for everything btclib raises**
   (issue #743). `btclib.exceptions` says its classes "exist only to tell
   an exception raised by btclib from one raised by any other code", and
