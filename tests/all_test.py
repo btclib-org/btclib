@@ -316,7 +316,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
     """One multiplication, not fourteen ways to spell it.
 
     mult dispatches to libsecp256k1 for secp256k1 and the generator, which
-    is exactly what a caller choosing mult_jac from the same namespace --
+    is exactly what a caller choosing _mult_jac from the same namespace --
     on the strength of its name -- gives up.
     """
     assert sorted(btclib.curves.__all__) == [
@@ -336,20 +336,20 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
 
     # the implementations are still there, in the module that defines them
     variants = [
-        (curve_group, "mult_aff"),
-        (curve_group, "mult_base_3"),
-        (curve_group, "mult_fixed_window"),
-        (curve_group, "mult_fixed_window_cached"),
-        (curve_group, "mult_jac"),
-        (curve_group, "mult_mont_ladder"),
-        (curve_group, "mult_recursive_aff"),
-        (curve_group, "mult_recursive_jac"),
-        (curve_group, "cached_multiples"),
-        (curve_group, "jac_from_aff"),
-        (curve_group, "multiples"),
-        (curve_group_2, "mult_endomorphism_secp256k1"),
-        (curve_group_2, "mult_sliding_window"),
-        (curve_group_2, "mult_w_NAF"),
+        (curve_group, "_mult_aff"),
+        (curve_group, "_mult_base_3"),
+        (curve_group, "_mult_fixed_window"),
+        (curve_group, "_mult_fixed_window_cached"),
+        (curve_group, "_mult_jac"),
+        (curve_group, "_mult_mont_ladder"),
+        (curve_group, "_mult_recursive_aff"),
+        (curve_group, "_mult_recursive_jac"),
+        (curve_group, "_cached_multiples"),
+        (curve_group, "_jac_from_aff"),
+        (curve_group, "_multiples"),
+        (curve_group_2, "_mult_endomorphism_secp256k1"),
+        (curve_group_2, "_mult_sliding_window"),
+        (curve_group_2, "_mult_w_NAF"),
     ]
     for module, name in variants:
         assert hasattr(module, name), f"{module.__name__}.{name} went missing"

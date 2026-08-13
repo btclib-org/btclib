@@ -1146,6 +1146,52 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **the point-arithmetic variants of `curve_group` and `curve_group_2` are
+  private** (issue #728). Eighteen names in the first and six in the
+  second: `_mult_aff`, `_mult_jac`, `_mult_base_3`, `_mult_mont_ladder`,
+  the two `_mult_recursive_*`, the two `_mult_fixed_window*`,
+  `_mult_regular_window`, `_mult_sliding_window`, `_mult_w_NAF`, the two
+  `_double_mult_*`, `_mult_endomorphism_secp256k1`, and the `_multiples`,
+  `_cached_multiples`, `_cached_multiples_fixwind`, `_odd_multiples`,
+  `_signed_odd_multiples`, `_jac_from_aff`, `_mods`, `_wNAF_of_m`,
+  `_convert_number_to_base` and `_multiplier_decomposer` they are built on.
+  `curve_group_2`'s `__all__` is empty as a result, which is the answer for
+  a module with nothing public of its own.
+
+  Each took a point it assumed to be on the curve and checked nothing, so a
+  malformed one was answered with a point rather than refused -- the one
+  shape of missing validation that produces a wrong answer instead of an
+  exception, and the reason this was worth acting on rather than recording.
+  Validating inside them was the alternative and is the wrong fix: they
+  exist to be measured against each other, so a check in each would be
+  measured with the arithmetic. `mult`, `double_mult` and `multi_mult`
+  already call `require_on_curve` on every point on every path,
+  libsecp256k1 dispatch included, and `btclib.curves` already declined to
+  export the variants; the underscore finishes that decision in the one
+  place a caller could still reach them, and states it in the name rather
+  than in a paragraph. What stays open is named rather than claimed shut:
+  the private name is still importable, so the wrong-answer path is
+  narrower, not closed.
+
+  Nine of them carried a default -- `w=4` on seven, with `cached=False`,
+  `scalar_len=0` and `regular=True` beside it -- which a private signature
+  may not, so each call site states the width it used to inherit.
+  `curve_group._mult` becomes a function rather than an alias of
+  `_mult_regular_window` for that reason, carrying `_MULT_W`; `curve.py`
+  gains `_ENDOMORPHISM_W` and `_DOUBLE_MULT_W`, two constants and not one
+  because they are two algorithms, a window of the endomorphism's
+  half-length scalars not being a window of an interleaved wNAF's
+  full-length ones. Each sits next to the caller that chose it, as
+  `_MULTI_MULT_W` does, and the measurement behind each is in the docstring
+  of the function it is passed to.
+
+  `CurveGroup`'s six group-law methods have the same gap and are not part
+  of this: `aff_from_jac`, `jac_equality`, `add_jac`, `double_jac`,
+  `add_aff` and `double_aff` are methods on a public class rather than
+  names in an `__all__`, and `ecc/dsa.py` calls two of them across the
+  `curves` -> `ecc` boundary, which makes them a decision of their own.
+  `signed_odd_digits` stays public, validating `m`, `w` and `size` in full.
+
 - **`btclib.ecc`'s docstring stops crediting the trailing underscore** for
   a decision it has no part in (issue #721). The paragraph said that what
   is not in the package's `__all__` is "any name ending in an underscore",

@@ -1348,7 +1348,7 @@ def test_verify_with_another_hash_function_on_both_arithmetics(
     The two must not disagree, about a valid signature or an invalid one,
     and least of all about the infinity point: a libsecp256k1 pubkey is
     never the identity, so the K that is INF is answered on this side of
-    the boundary -- from the z == 0 of `jac_from_aff`, in the same line
+    the boundary -- from the z == 0 of `_jac_from_aff`, in the same line
     that answered it before.
     """
     msg = b"a message to sign"
