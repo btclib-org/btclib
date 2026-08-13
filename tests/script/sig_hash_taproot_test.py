@@ -768,7 +768,7 @@ def test_the_message_extension_is_octets_like_every_other_field() -> None:
         )
 
     assert sig_hash_with(ext) == sig_hash_with(ext.hex())
-    with pytest.raises(ValueError, match="fromhex"):
+    with pytest.raises(BTClibValueError, match="invalid hex string: "):
         sig_hash_with("not hex at all")
 
 

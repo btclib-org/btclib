@@ -12,6 +12,7 @@ import pytest
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     assert_no_trailing,
+    bytes_from_octets,
     decode_num,
     encode_num,
     hex_string,
@@ -97,8 +98,9 @@ def test_int_from_integer_reads_a_str_as_hex() -> None:
     assert int_from_integer(1234) == 1234
 
     # and an odd number of digits is not a one-digit decimal either
-    # (Python 3.14 rephrased the message bytes.fromhex raises)
-    with pytest.raises(ValueError, match="fromhex"):
+    # (the message is bytes.fromhex's own, which Python 3.14 rephrased,
+    # inside the class this library promises)
+    with pytest.raises(BTClibValueError, match="invalid hex string: "):
         int_from_integer("9")
 
 
@@ -116,7 +118,7 @@ def test_hex_string() -> None:
     # invalid hex-string: odd number of hex digits
     # (Python 3.14 rephrased the message bytes.fromhex raises)
     a_str = "1deadbeef00000000"
-    with pytest.raises(ValueError, match="fromhex"):
+    with pytest.raises(BTClibValueError, match="invalid hex string: "):
         hex_string(a_str)
 
     int_ = -1
@@ -250,3 +252,44 @@ def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
     for not_a_number in (None, object(), [1]):
         with pytest.raises(BTClibTypeError, match="invalid version type: "):
             int_from_json_number(not_a_number, "version")
+
+
+def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
+    """A tuple went through untouched, to be measured as if it were octets.
+
+    `bytes_from_octets` returned anything that was not a `str`
+    unchanged, so `len` of a tuple of 33 ints was 33 and
+    `taproot.assert_valid_control_block` accepted it as a control block
+    size. Every buffer is still taken, and returned as it came: a read
+    must not rewrite the field it reads, which is what `bytes()` here
+    would do to a bytearray a caller built.
+    """
+    assert bytes_from_octets(b"\x00\x01") == b"\x00\x01"
+    assert bytes_from_octets("0001") == b"\x00\x01"
+    # every buffer, though `Octets` names only the two spellings a caller
+    # writes: what reaches this is whatever a field was built from
+    assert bytes_from_octets(bytearray(b"\x00\x01")) == b"\x00\x01"  # type: ignore[arg-type]
+    assert bytes_from_octets(memoryview(b"\x00\x01")) == b"\x00\x01"  # type: ignore[arg-type]
+    # unchanged, and not merely equal
+    buffer: object = bytes_from_octets(bytearray(b"\x00"))  # type: ignore[arg-type]
+    assert isinstance(buffer, bytearray)
+
+    for not_octets in (tuple(range(33)), [1, 2], None, 1.5):
+        with pytest.raises(BTClibTypeError, match="invalid octets type: "):
+            bytes_from_octets(not_octets)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="invalid octets type: "):
+            int_from_integer(not_octets)  # type: ignore[arg-type]
+    # an int is an `Integer` and no `Octets`, so the two differ on it
+    assert int_from_integer(1) == 1
+    with pytest.raises(BTClibTypeError, match="invalid octets type: int"):
+        bytes_from_octets(1)  # type: ignore[arg-type]
+
+    # the hex string that is not one, in both, with the message
+    # `bytes.fromhex` gives: a position, and never the string itself
+    for not_hex in ("9", "zz", "not hex at all"):
+        with pytest.raises(BTClibValueError, match="invalid hex string: "):
+            bytes_from_octets(not_hex)
+        with pytest.raises(BTClibValueError, match="invalid hex string: "):
+            int_from_integer(not_hex)
+    with pytest.raises(BTClibValueError, match="invalid hex integer: "):
+        int_from_integer("0xzz")
