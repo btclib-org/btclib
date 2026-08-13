@@ -49,9 +49,6 @@ def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     temp = b"".join(
         [m, R, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
     )
-    # hf() then update(), which is how HashF is spelled everywhere else in
-    # the package: the alias is Callable[[], Any], a constructor, so hf(temp)
-    # does not type check even though hashlib.sha256 accepts it
     hasher = hf()
     hasher.update(temp)
     return bytes(hasher.digest())
