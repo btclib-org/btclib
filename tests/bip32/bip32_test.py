@@ -6,7 +6,7 @@
 
 import hmac
 import re
-from dataclasses import fields
+from dataclasses import FrozenInstanceError, fields, replace
 from typing import Any
 
 import pytest
@@ -39,7 +39,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS
 from btclib.to_pub_key import pub_keyinfo_from_key
-from tests import load, vector_id
+from tests import load, replace_unchecked, vector_id
 
 
 def test_exceptions() -> None:
@@ -72,90 +72,127 @@ def test_exceptions() -> None:
     assert rootxprv_from_seed("00" * 64)
 
 
+def test_bip32keydata_is_still_a_dataclass() -> None:
+    """Frozen trades the hand-written __init__ for object.__setattr__.
+
+    The same shape `test_dsa_sig_is_still_a_dataclass` checks for the
+    three `Sig` classes (issue 727): what `dataclasses` generates around
+    a written-out `__init__` is what is left to check once the
+    generated one is gone, and it must not go missing too.
+    """
+    xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+    xkey_data = BIP32KeyData.b58decode(xkey)
+
+    assert [f.name for f in fields(xkey_data)] == [
+        "version",
+        "depth",
+        "parent_fingerprint",
+        "index",
+        "chain_code",
+        "key",
+    ]
+    assert xkey_data == BIP32KeyData.b58decode(xkey)
+    assert hash(xkey_data) == hash(BIP32KeyData.b58decode(xkey))
+    assert replace(xkey_data, index=xkey_data.index) == xkey_data
+    assert "check_validity" not in repr(xkey_data)
+
+    # frozen: the hand-written __init__ assigns through
+    # object.__setattr__, which must not leave the class writable
+    with pytest.raises(FrozenInstanceError):
+        xkey_data.index = 1  # type: ignore[misc]
+
+
 def test_assert_valid2() -> None:
-    """Corrupt each BIP32KeyData field and check the error it raises."""
+    """Corrupt each BIP32KeyData field and check the error it raises.
+
+    Frozen, so `object.__setattr__` and not a plain attribute write: a
+    fixture built to fail `assert_valid` on purpose is the one reason to
+    reach past the guard `__init__` puts there for everyone else.
+    """
     xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.version = (xkey_data.version)[:-1]
+    object.__setattr__(xkey_data, "version", xkey_data.version[:-1])
     with pytest.raises(BTClibValueError, match="invalid version length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.version = "1234"  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "version", "1234")
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = -1
+    object.__setattr__(xkey_data, "depth", -1)
     with pytest.raises(BTClibValueError, match="invalid depth: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = 256
+    object.__setattr__(xkey_data, "depth", 256)
     with pytest.raises(BTClibValueError, match="invalid depth: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = ()  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "depth", ())
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.parent_fingerprint = (xkey_data.parent_fingerprint)[:-1]
+    object.__setattr__(
+        xkey_data, "parent_fingerprint", xkey_data.parent_fingerprint[:-1]
+    )
     with pytest.raises(BTClibValueError, match="invalid parent_fingerprint length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.parent_fingerprint = "1234"  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "parent_fingerprint", "1234")
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = -1
+    object.__setattr__(xkey_data, "index", -1)
     with pytest.raises(BTClibValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = 0xFFFFFFFF + 1
+    object.__setattr__(xkey_data, "index", 0xFFFFFFFF + 1)
     with pytest.raises(BTClibValueError, match="invalid index: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = ()  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "index", ())
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.chain_code = (xkey_data.chain_code)[:-1]
+    object.__setattr__(xkey_data, "chain_code", xkey_data.chain_code[:-1])
     with pytest.raises(BTClibValueError, match="invalid chain_code length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "chain_code", "length is 32 but not a chaincode")
     assert len(xkey_data.chain_code) == 32
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.key = (xkey_data.key)[:-1]
+    object.__setattr__(xkey_data, "key", xkey_data.key[:-1])
     with pytest.raises(BTClibValueError, match="invalid key length: "):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.key = "length is 33, but not a key      "  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "key", "length is 33, but not a key      ")
     assert len(xkey_data.key) == 33
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.parent_fingerprint = bytes.fromhex("deadbeef")
+    object.__setattr__(xkey_data, "parent_fingerprint", bytes.fromhex("deadbeef"))
     err_msg = "zero depth with non-zero parent fingerprint: "
     with pytest.raises(BTClibValueError, match=err_msg):
         xkey_data.b58encode()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = 1
+    object.__setattr__(xkey_data, "index", 1)
     with pytest.raises(BTClibValueError, match="zero depth with non-zero index: "):
         xkey_data.b58encode()
 
@@ -401,12 +438,9 @@ def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
-    # not `xprv == _derive(xprv, "m")`: `_derive` returns the private
-    # `_BIP32KeyData`, whose two caching fields the class tells the reader
-    # not to rely on, and a dataclass __eq__ answers False across classes
-    # however equal the six fields are. What that would mean to assert --
-    # the empty path derives the key itself -- is the line below, in the
-    # encoding that compares all six
+    # the empty path derives the key itself, both as the object _derive
+    # hands back and as the string derive encodes it to
+    assert xprv == _derive(xprv, "m", None)
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
 
@@ -584,8 +618,9 @@ def test_pub_key_derivation() -> None:
     parent_fingerprint = hash160(parent_key)[:4]
     assert BIP32KeyData.b58decode(proper_child).parent_fingerprint == parent_fingerprint
 
-    orphan_child_key = BIP32KeyData.b58decode(proper_child)
-    orphan_child_key.parent_fingerprint = b"\x00" * 4
+    orphan_child_key = replace_unchecked(
+        BIP32KeyData.b58decode(proper_child), parent_fingerprint=b"\x00" * 4
+    )
     orphan_child = "xpub6DXuQW1FgeHbhsSchbuDWE9Bj8mPiPUpiroAmAvRdRqYbGHXHTyEkttkxSvtCac64QzpasL1Tvd5Znvn5GQMswQUrpRBsPRz7npvyZ8ExWi"
     assert orphan_child_key.b58encode() == orphan_child
 
@@ -748,7 +783,7 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
     # function for unreachable and checks none of it -- warn_unreachable
     # being off, in silence. Measured: with the assertion written directly
     # on the attribute, a reveal_type below it prints nothing at all
-    xkey_data.chain_code = bytearray(xkey_data.chain_code)  # type: ignore[assignment]
+    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
     chain_code: object = xkey_data.chain_code
     assert isinstance(chain_code, bytearray)
 
@@ -760,7 +795,7 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
 def test_assert_valid_does_not_rewrite_on_a_read() -> None:
     """Keep b58encode and serialize from coercing fields in place."""
     xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data.chain_code = bytearray(xkey_data.chain_code)  # type: ignore[assignment]
+    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
 
     xkey_data.b58encode()
     after_b58encode: object = xkey_data.chain_code
@@ -778,14 +813,14 @@ def test_assert_valid_reports_a_float_field_instead_of_coercing_it() -> None:
     to_bytes and leave the library through an AttributeError.
     """
     xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data.index = float(xkey_data.index)  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "index", float(xkey_data.index))
     with pytest.raises(BTClibTypeError, match="invalid index type: float"):
         xkey_data.assert_valid()
     index: object = xkey_data.index
     assert isinstance(index, float)
 
     xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data.depth = float(xkey_data.depth)  # type: ignore[assignment]
+    object.__setattr__(xkey_data, "depth", float(xkey_data.depth))
     with pytest.raises(BTClibTypeError, match="invalid depth type: float"):
         xkey_data.assert_valid()
 
@@ -939,8 +974,10 @@ def test_assert_valid_key_refuses_a_scalar_above_n_too() -> None:
     `q != n` alone would already refuse either one; only a scalar
     strictly above n tells `q < n` apart from it.
     """
-    xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data.key = b"\x00" + (ec.n + 1).to_bytes(32, byteorder="big", signed=False)
+    xkey_data = replace_unchecked(
+        BIP32KeyData.b58decode(XKEY),
+        key=b"\x00" + (ec.n + 1).to_bytes(32, byteorder="big", signed=False),
+    )
     with pytest.raises(BTClibValueError, match="invalid private key not in 1..n-1"):
         xkey_data.assert_valid()
 
@@ -955,15 +992,17 @@ def test_invalid_key_prefix_messages_show_exactly_one_byte() -> None:
     """
     root = BIP32KeyData.b58decode(XKEY)
 
-    bad_prv = BIP32KeyData.b58decode(XKEY)
-    bad_prv.key = b"\x05" + root.key[1:]
+    bad_prv = replace_unchecked(
+        BIP32KeyData.b58decode(XKEY), key=b"\x05" + root.key[1:]
+    )
     with pytest.raises(BTClibValueError) as excinfo:
         bad_prv.assert_valid()
     assert str(excinfo.value) == "invalid private key prefix: 0x05"
 
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
-    bad_pub = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
-    bad_pub.key = b"\x05" + xpub.key[1:]
+    bad_pub = replace_unchecked(
+        BIP32KeyData.b58decode(xpub_from_xprv(XKEY)), key=b"\x05" + xpub.key[1:]
+    )
     with pytest.raises(BTClibValueError) as excinfo:
         bad_pub.assert_valid()
     assert str(excinfo.value) == "invalid public key prefix not in (0x02, 0x03): 0x05"
@@ -1074,37 +1113,6 @@ def test_check_validity_defaults_to_true() -> None:
     assert BIP32KeyData.parse(as_bytes, check_validity=False) == invalid
 
 
-def test_bip32keydata_init_check_validity_guard_is_not_negated() -> None:
-    """`_BIP32KeyData`'s own check_validity guard, not just its parent's.
-
-    `_derive` always builds one from an already-valid key, so nothing
-    through the public API ever constructs an invalid `_BIP32KeyData`;
-    the private class itself has to be called directly to reach `if
-    check_validity` negated to `if not check_validity`, which would
-    validate exactly backwards.
-    """
-    root = BIP32KeyData.b58decode(XKEY)
-    with pytest.raises(BTClibValueError, match="invalid depth: "):
-        _BIP32KeyData(
-            version=root.version,
-            depth=256,
-            parent_fingerprint=root.parent_fingerprint,
-            index=root.index,
-            chain_code=root.chain_code,
-            key=root.key,
-        )
-    unchecked = _BIP32KeyData(
-        version=root.version,
-        depth=256,
-        parent_fingerprint=root.parent_fingerprint,
-        index=root.index,
-        chain_code=root.chain_code,
-        key=root.key,
-        check_validity=False,
-    )
-    assert unchecked.depth == 256
-
-
 def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
     """The scalars a path adds up to, against the key the path derives.
 
@@ -1207,16 +1215,18 @@ def test_cracking_refuses_a_child_its_own_assert_valid_refuses() -> None:
     This function exists to demonstrate a known BIP32 weakness, so an
     answer it gives for a child the library itself refuses is a wrong
     lesson: it subtracted the offset from a key set to the zero scalar and
-    returned an xprv. The parent is affected too, going through
-    `copy.copy` with only its `key[0]` prefix looked at.
+    returned an xprv. The parent is affected too, its `key[0]` prefix
+    the only field looked at before the answer is built.
     """
     root = rootxprv_from_seed("0102030405060708090a0b0c0d0e0f10")
     parent_xpub = xpub_from_xprv(root)
     child_xprv = derive(root, "m/0")
     assert crack_prv_key(parent_xpub, child_xprv) == root
 
-    bad_child = BIP32KeyData.b58decode(child_xprv)
-    bad_child.key = b"\x00" * 33  # the zero scalar
+    bad_child = replace_unchecked(
+        BIP32KeyData.b58decode(child_xprv),
+        key=b"\x00" * 33,  # the zero scalar
+    )
     err_msg = "invalid private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad_child.assert_valid()

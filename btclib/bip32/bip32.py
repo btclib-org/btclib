@@ -23,7 +23,6 @@ A BIP32 extended key is 78 bytes:
 
 from __future__ import annotations
 
-import copy
 import hmac
 from dataclasses import dataclass
 
@@ -137,7 +136,7 @@ def _assert_valid_key(version: bytes, key: bytes) -> None:
         raise BTClibValueError(f"unknown extended key version: 0x{version.hex()}")
 
 
-@dataclass
+@dataclass(frozen=True, init=False)
 class BIP32KeyData:
     """A BIP32 extended key, decoded into its six fields.
 
@@ -146,6 +145,14 @@ class BIP32KeyData:
     carrying their 0x00 prefix. The wire form is the 78-byte serialize
     and parse; b58encode and b58decode add the customary Base58Check
     spelling. repr masks the key material of a private one.
+
+    Frozen, so that a public function handed one can trust it rather
+    than revalidate it: `check_validity=False` says "not checked yet",
+    and a mutable field would let that stay true forever, one attribute
+    write after the check that never came (issue 727). `_BIP32KeyData`
+    below is where derivation still needs to mutate one field at a
+    time -- a sibling struct now, and not a subclass, frozen and
+    non-frozen dataclasses refusing to mix in one inheritance chain.
     """
 
     version: bytes
@@ -203,7 +210,7 @@ class BIP32KeyData:
         *,
         check_validity: bool = True,
     ) -> None:
-        self.version = bytes_from_octets(version)
+        object.__setattr__(self, "version", bytes_from_octets(version))
         # a coercion, where the annotation already says int, for the same
         # reason bytes_from_octets is called on the four Octets fields:
         # from_dict feeds this constructor a json object, where a whole
@@ -212,11 +219,13 @@ class BIP32KeyData:
         # called by serialize() and to_dict(), so reading a key would
         # mutate it. A bool is refused rather than coerced: `true` out of
         # json is a schema error, not depth one
-        self.depth = int_from_json_number(depth, "depth")
-        self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
-        self.index = int_from_json_number(index, "index")
-        self.chain_code = bytes_from_octets(chain_code)
-        self.key = bytes_from_octets(key)
+        object.__setattr__(self, "depth", int_from_json_number(depth, "depth"))
+        object.__setattr__(
+            self, "parent_fingerprint", bytes_from_octets(parent_fingerprint)
+        )
+        object.__setattr__(self, "index", int_from_json_number(index, "index"))
+        object.__setattr__(self, "chain_code", bytes_from_octets(chain_code))
+        object.__setattr__(self, "key", bytes_from_octets(key))
 
         if check_validity:
             self.assert_valid()
@@ -391,10 +400,6 @@ def _xpub_from_xprv(xprv: BIP32KeyData) -> BIP32KeyData:
 
     q = int.from_bytes(xprv.key[1:], byteorder="big", signed=False)
 
-    # built rather than copied: `copy.copy` of a `_BIP32KeyData` -- which
-    # is what `_derive` hands back -- would carry that subclass's
-    # `prv_key_int` into an object whose key is public, the one scalar
-    # this function exists to drop
     return BIP32KeyData(
         version=xpubversion_from_xprvversion(xprv.version),
         depth=xprv.depth,
@@ -417,46 +422,47 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     return xkey.b58encode()
 
 
-# repr=False: a generated __repr__ would print prv_key_int, the very
-# scalar the inherited masking __repr__ exists to hide
+# repr=False: a generated __repr__ would print key and prv_key_int, the
+# private scalar and the key material BIP32KeyData's own masking repr
+# exists to hide -- this struct has no repr of its own to mask with, so
+# it takes the default's silence instead
 @dataclass(repr=False)
-class _BIP32KeyData(BIP32KeyData):
-    # the one intermediate result multi-level derivation reuses: do not
-    # rely on it elsewhere. The public counterpart a private key needs is
-    # not cached beside it -- __prv_key_path_derivation computes it once,
-    # for the fingerprint, and hands it to the step that would recompute
-    # it; a point cached here would instead be built for every key,
-    # including the public ones that never look at it
+class _BIP32KeyData:
+    """The mutable working copy the derivation loop rewrites in place.
 
+    Not a `BIP32KeyData`, and deliberately: that class is frozen so a
+    public function can trust one it is handed (issue 727), and
+    `dataclasses` refuses a mutable dataclass inheriting from a frozen
+    one. `__prv_key_derivation`, `__pub_key_derivation` and the two
+    path-walkers below mutate `chain_code`, `key`, `prv_key_int` and
+    `parent_fingerprint` field by field across up to 255 levels of a
+    path, for the measured performance reasons their own comments give;
+    `_derive` builds one, mutates it, and hands a real `BIP32KeyData`
+    back built from its final fields -- one allocation for the whole
+    path, not one per level. Never validates and never coerces: every
+    field always comes from a `BIP32KeyData` already valid or from this
+    same loop, so there is nothing here for `check_validity` to gate.
+
+    `prv_key_int` is the one intermediate result multi-level derivation
+    reuses: do not rely on it elsewhere. The public counterpart a
+    private key needs is not cached beside it -- `__prv_key_path_derivation`
+    computes it once, for the fingerprint, and hands it to the step that
+    would recompute it; a point cached here would instead be built for
+    every key, including the public ones that never look at it.
+    """
+
+    version: bytes
+    depth: int
+    parent_fingerprint: bytes
+    index: int
+    chain_code: bytes
+    key: bytes
     prv_key_int: int  # non-zero for private key only
 
-    def __init__(
-        self,
-        version: Octets,
-        depth: int,
-        parent_fingerprint: Octets,
-        index: int,
-        chain_code: Octets,
-        key: Octets,
-        *,
-        check_validity: bool = True,
-    ) -> None:
-        super().__init__(
-            version,
-            depth,
-            parent_fingerprint,
-            index,
-            chain_code,
-            key,
-            check_validity=False,
-        )
-
-        self.prv_key_int = (
-            int.from_bytes(self.key[1:], "big", signed=False) if self.is_private else 0
-        )
-
-        if check_validity:
-            self.assert_valid()
+    @property
+    def is_private(self) -> bool:
+        """Answer whether the key is private, by its 0x00 prefix."""
+        return self.key[0] == 0
 
 
 def _invalid_child(index: int, reason: str) -> BTClibValueError:
@@ -672,32 +678,45 @@ def _derive(
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
-    # `check_validity=False`: the six fields come from a key the caller
-    # has validated, and the one that changes here -- the depth -- is
-    # bounded on the line above. Validating again would also ask the
-    # depth-zero rule about `final_depth`, where it means nothing
-    xkey = _BIP32KeyData(
+    # the mutable working copy the loop below rewrites field by field:
+    # the six fields come from a key the caller has validated, and the
+    # one that changes here -- the depth -- is bounded on the line above
+    working = _BIP32KeyData(
         version=xkey.version,
         depth=final_depth,
         parent_fingerprint=xkey.parent_fingerprint,
         index=xkey.index,
         chain_code=xkey.chain_code,
         key=xkey.key,
-        check_validity=False,
+        prv_key_int=(
+            int.from_bytes(xkey.key[1:], "big", signed=False) if xkey.is_private else 0
+        ),
     )
 
     if forced_version:
-        xkey.version = _force_version(xkey.version, forced_version)
+        working.version = _force_version(working.version, forced_version)
 
     if indexes:
-        if xkey.is_private:
-            __prv_key_path_derivation(xkey, indexes)
+        if working.is_private:
+            __prv_key_path_derivation(working, indexes)
         else:
-            __pub_key_path_derivation(xkey, indexes)
+            __pub_key_path_derivation(working, indexes)
 
-        xkey.index = indexes[-1]
+        working.index = indexes[-1]
 
-    return xkey
+    # `check_validity=False`: validating here would also ask the
+    # depth-zero rule about the depth this just walked to, where it no
+    # longer means anything; the one validation the wrapper is entitled
+    # to is its own, on what this hands back
+    return BIP32KeyData(
+        version=working.version,
+        depth=working.depth,
+        parent_fingerprint=working.parent_fingerprint,
+        index=working.index,
+        chain_code=working.chain_code,
+        key=working.key,
+        check_validity=False,
+    )
 
 
 def derive(
@@ -782,10 +801,9 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     # both arguments through the one place a BIP32Key becomes a validated
     # BIP32KeyData: this function exists to demonstrate a known BIP32
     # weakness, so an answer it gives for a child its own assert_valid
-    # refuses is a wrong lesson. Copied because the parent is mutated
-    # below into the answer, and the caller's object is not this
-    # function's to write to
-    p = copy.copy(_key_data_from_bip32_key(parent_xpub))
+    # refuses is a wrong lesson. Frozen, so aliased rather than copied --
+    # there is nothing in it for a copy to protect any more
+    p = _key_data_from_bip32_key(parent_xpub)
 
     if p.key[0] not in {2, 3}:
         raise BTClibValueError(_err_msg("parent", "not a public", p))
@@ -804,8 +822,6 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     if c.is_hardened:
         raise BTClibValueError("hardened child derivation")
 
-    p.version = c.version
-
     hmac_ = hmac.new(
         p.chain_code,
         p.key + c.index.to_bytes(4, byteorder="big", signed=False),
@@ -814,9 +830,17 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     child_q = int.from_bytes(c.key[1:], byteorder="big", signed=False)
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     parent_q = (child_q - offset) % secp256k1.n
-    p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
-    return p.b58encode()
+    parent = BIP32KeyData(
+        version=c.version,
+        depth=p.depth,
+        parent_fingerprint=p.parent_fingerprint,
+        index=p.index,
+        chain_code=p.chain_code,
+        key=b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False),
+        check_validity=False,
+    )
+    return parent.b58encode()
 
 
 def _err_msg(

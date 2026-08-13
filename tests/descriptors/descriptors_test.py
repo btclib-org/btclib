@@ -88,7 +88,7 @@ from btclib.script.witness import Witness
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests import load, vector_id
+from tests import load, replace_unchecked, vector_id
 
 DOC_DESCRIPTORS = [
     descriptor_data["desc"]
@@ -2955,8 +2955,7 @@ def test_account_descriptors_validates_an_already_built_key_too() -> None:
     receive, _ = account_descriptors(good, "m/84h/0h/0h")
     assert str(receive) == str(account_descriptors(XPRV_ROOT, "m/84h/0h/0h")[0])
 
-    bad = BIP32KeyData.b58decode(XPRV_ROOT)
-    bad.index = -1
+    bad = replace_unchecked(BIP32KeyData.b58decode(XPRV_ROOT), index=-1)
     err_msg = "invalid index: -1"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad.assert_valid()

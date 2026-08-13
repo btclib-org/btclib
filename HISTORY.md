@@ -114,6 +114,13 @@ full year, short month, short day (YYYY-M-D)
   the arithmetic behind it having always used secp256k1's generator
   whatever was passed.
 
+- **`BIP32KeyData` is frozen.** `xkey.index = 0` on an already-built
+  extended key, or on one `b58decode`/`parse` returned, now raises
+  `dataclasses.FrozenInstanceError` instead of silently taking effect. A
+  caller that needs a modified copy uses `dataclasses.replace(xkey,
+  index=0)`, which re-validates by default -- the same function
+  `BIP32KeyData(...)` still takes, and still defaulting to `True`.
+
 ### The bindings are now `btclib_secp256k1`
 
 - **The secp256k1 bindings were renamed, and btclib requires the new

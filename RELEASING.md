@@ -326,6 +326,14 @@ word, and step 1 asks it of both.
    is the guard doing its job. The `git show` above is the same check one
    step earlier, where it costs nothing.
 
+   The commit has to be one `main` contains, and `version-check` refuses
+   the tag otherwise: `git merge-base --is-ancestor` against the default
+   branch is the first thing it asks, before it has read a version at all.
+   What that catches is the other half of the same mistake — the right
+   version on a commit nobody merged, a branch whose pull request is still
+   open, or the pre-squash commit of one that landed, which the squash left
+   on no branch at all.
+
 1. The workflow builds the full matrix and the distribution files, then
    pauses at the `pypi` environment for the review "One-time setup"
    describes. Approve it. That approval is not the point of no return:
@@ -338,7 +346,8 @@ word, and step 1 asks it of both.
    already built, rather than the whole matrix again. The upload itself
    is the point of no return, PyPI accepting no file name twice even
    after deletion; the GitHub release follows it, with the distribution
-   files attached, `<tag>.attestation.jsonl` beside them, and the
+   files attached, `btclib-<version>.cdx.json` and
+   `<tag>.attestation.jsonl` beside them, and the
    HISTORY.md section as its body. Read those notes
    once it lands: a run that logs
    `HISTORY.md has no v<version> section` generated them from the merged
@@ -378,6 +387,17 @@ word, and step 1 asks it of both.
      pypi-attestations verify pypi <file> \
      --repository https://github.com/btclib-org/btclib
    ```
+
+1. Read the bill of materials attached to the release,
+   `btclib-<version>.cdx.json`: a CycloneDX 1.6 document naming the
+   distribution, its licence, the two files with their SHA-256, and one
+   component per dependency the wheel's metadata declares. What is worth
+   reading rather than assuming is that list — it is `Requires-Dist` as
+   published, so a `git+https://` still in it is a release that should not
+   have got this far, and each component carries a `version` only where the
+   requirement is a `==` pin, a floor being a range and not a version.
+   Attested with the distribution files, so `gh attestation verify` below
+   covers it too.
 
 1. Dispatch the `published` workflow (Actions → published → Run workflow)
    and expect it green: no checkout, so it resolves to what PyPI actually
@@ -427,12 +447,21 @@ export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
 uv run --no-project --python 3.14 \
   .github/scripts/normalize_sdist.py dist/
+uv run --no-project --python 3.14 \
+  .github/scripts/generate_sbom.py dist/ sbom/
 repo=btclib-org/btclib
 gh attestation verify dist/btclib-<version>-py3-none-any.whl \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 gh attestation verify dist/btclib-<version>.tar.gz \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+gh attestation verify sbom/btclib-<version>.cdx.json \
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 ```
+
+The bill of materials is rebuilt with them and verified like them: its
+timestamp is `SOURCE_DATE_EPOCH` and its serial number is derived from the
+two digests, so it is the same bytes as the released copy — which is the
+only reason a third `gh attestation verify` can pass at all.
 
 Two things bound that guarantee, and both are worth knowing before reading
 a mismatch as tampering:

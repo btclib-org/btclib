@@ -13,6 +13,7 @@ from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
 from btclib.network import NETWORKS
+from tests import replace_unchecked
 
 
 def test_slip132() -> None:
@@ -87,8 +88,7 @@ def test_an_already_built_key_is_validated_too() -> None:
     good = bip32.BIP32KeyData.b58decode(xpub)
     assert slip132.address_from_xpub(good) == slip132.address_from_xpub(xpub)
 
-    bad = bip32.BIP32KeyData.b58decode(xpub)
-    bad.index = -1
+    bad = replace_unchecked(bip32.BIP32KeyData.b58decode(xpub), index=-1)
     err_msg = "invalid index: -1"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad.assert_valid()
@@ -277,6 +277,8 @@ def test_unknown_xpub_version() -> None:
     xpub = bip32.xpub_from_xprv(slip132.p2pkh_xkey(mxprv))
     xpub_data = bip32.BIP32KeyData.b58decode(xpub)
     for version in ("slip132_p2wsh_pub", "slip132_p2wsh_p2sh_pub"):
-        xpub_data.version = getattr(NETWORKS["mainnet"], version)
+        reversioned = replace_unchecked(
+            xpub_data, version=getattr(NETWORKS["mainnet"], version)
+        )
         with pytest.raises(BTClibValueError, match="unknown xpub version: "):
-            slip132.address_from_xpub(xpub_data)
+            slip132.address_from_xpub(reversioned)
