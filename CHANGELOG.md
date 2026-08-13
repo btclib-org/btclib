@@ -710,6 +710,60 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **BIP375's Signer and Transaction Extractor** (#760, following #641).
+  `btclib.psbt.silent_payments` is the new module, and it is the half of
+  BIP375 that makes the fields worth carrying: a silent payment output
+  script is *derived* rather than signed, so getting it wrong produces a
+  consensus-valid transaction that pays a script nobody scans for -- and
+  the Extractor is the last party that can notice.
+
+  The Signer's side: `set_input_share` writes the ECDH share and its
+  BIP374 proof for one input, `set_global_share` the single pair that
+  stands for every eligible input, and `set_output_scripts` derives what
+  the recipients are paid and clears the two modifiable flags with it --
+  the scripts depend on the input set, so a psbt that publishes one and
+  still invites inputs invites its own scripts to become wrong. Both
+  writers refuse a key that is not the one they would be proving against,
+  which is where such an error is cheap.
+
+  The Extractor's side is `assert_as_valid`: the four checks BIP375's own
+  validator publishes, in its order, each naming what failed --
+  `assert_shares_as_valid` for the proofs, `assert_eligibility_as_valid`
+  for the inputs a silent payment forbids (a witness version above 1, and
+  any sighash type but `SIGHASH_ALL`), `assert_output_scripts_as_valid`
+  for the derivation. `input_pub_key` is what all of it stands on, and is
+  the piece that was missing: `btclib.silent_payments.pub_key_from_input`
+  reads a *signed* input's key out of the witness or the scriptSig, where
+  an unsigned one has neither and BIP375 asks an Updater for
+  `PSBT_IN_BIP32_DERIVATION` instead.
+
+  With that, `bip375_test_vectors.json` is answered in full: all 22
+  invalid psbts refused and all 19 valid ones accepted, where the codec
+  alone refused five. Each case is held to the check its own category
+  names, so a psbt refused for the wrong reason is a failure rather than a
+  pass.
+
+  **One rule where the BIP and its own vectors disagree**, and it is
+  load-bearing rather than cosmetic. BIP375 says the codes of one scan key
+  are sorted lexicographically to determine the ordering of `k`; the
+  vectors' scripts are the ones *output index* order derives. The case
+  that decides it is published as valid -- "two sp outputs - output 0 uses
+  label=3 / output 1 uses label=1" -- and its spend keys are in descending
+  order, so the two rules assign `k` the other way round and only index
+  order reproduces the file. Neither reading of "the codes" rescues the
+  prose: the 66-byte info fields and the bech32m address strings sort that
+  pair the same wrong way. Upstream's own validator walks index order too,
+  so index order is what interoperates and what is implemented; both
+  directions are asserted, so a revision settling it the other way fails
+  here rather than passing quietly. The two invalid vectors named after
+  ordering turn out not to decide it -- their candidate orderings all
+  agree, and their scripts match no assignment at all.
+
+  `btclib.silent_payments` gains `output_key` in passing: the last step of
+  BIP352's derivation, which the psbt path reaches from an ECDH share
+  rather than from a private key, so it is what the two paths share
+  instead of `output_keys`.
+
 - **A psbt can be read a map at a time, out of a stream** (#647).
   `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
   it: `Psbt.parse` reads every map before anything can be inspected or

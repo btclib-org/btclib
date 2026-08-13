@@ -9,7 +9,10 @@ psbt is made of, the Combiner, the Finalizer, the Extractor, the outputs
 an unsigned psbt spends, the two messages a Signer signs and `sign`
 which plays the role over a `KeyManager`'s answers, and the size
 estimation a fee rate is applied to. `musig2` is named as a module, being
-the BIP373 role rather than one function, the way btclib.ecc names dsa.
+the BIP373 role rather than one function, the way btclib.ecc names dsa; so
+is `silent_payments`, BIP375's two roles over the fields BIP375 adds --
+what a Signer writes into a psbt paying a silent payment address, and what
+a Transaction Extractor has to recompute before it hands the bytes over.
 
 `PsbtView` is the same psbt read a map at a time out of a stream, for a
 signer with less memory than the psbt takes (issue #647). It is beside
@@ -52,7 +55,7 @@ the module that defines it, which is where the test suite takes the other
 half of that module from already.
 """
 
-from btclib.psbt import musig2
+from btclib.psbt import musig2, silent_payments
 from btclib.psbt.psbt import (
     InputSolver,
     KeyManager,
@@ -94,5 +97,6 @@ __all__ = [
     "new_signers",
     "prevouts",
     "sign",
+    "silent_payments",
     "taproot_sig_hash",
 ]
