@@ -190,6 +190,32 @@ documented at release-notes length in the first place, and are still in
   lives and `OutPoint` and `TxIn` are the classes it holds for, so the new
   paragraph points at it instead of restating it.
 
+- **Each new release gets a documentation URL of its own, and a check that
+  says so.** btclib.readthedocs.io was serving neither of the last two
+  releases: `latest` followed a branch this repository no longer has, so
+  every push was answered without a build being triggered, and the site
+  kept the last build that had succeeded -- a placeholder version, from a
+  commit squashed away months earlier. That is issue #574, and the half of
+  it that is settings is now written down: `latest` follows `main`,
+  `stable` is the newest release tag, and an automation rule activates each
+  new tag, which is what makes `/en/v<version>/` exist and stay that
+  version rather than becoming the next one. REPOSITORY.md's "Read the
+  Docs" section is where they live, that file being the whole of what
+  cannot be recovered by reading the tree.
+  The other half is a job: `release.yml`'s `documented` waits for the
+  tag's page to be served and is red if it never is, where until now
+  nothing failed when a build never started. It polls the rendered URL and
+  not the v3 API, which the `published` job's PyPI check is the reverse of:
+  read the docs throttles an unauthenticated caller to five requests a
+  minute and blocks cloud-provider addresses outright without a token, so
+  asking the API from a runner would mean keeping a credential for a check
+  that gates nothing. It starts with the next release and reaches no
+  release behind it: a rule applies to the versions created after it, so
+  `v2026.8.9` has no page of its own and is not getting one, and anything
+  before `v2026.8.7` could not have one — a build needs `.readthedocs.yaml`
+  and would fail without it. `/en/stable/` is the last release either way,
+  which is what makes the backfill not worth doing.
+
 ### Packaging, linting and CI
 
 - **A tag is refused unless the default branch contains its commit**
@@ -598,6 +624,78 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A psbt can be read a map at a time, out of a stream** (#647).
+  `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
+  it: `Psbt.parse` reads every map before anything can be inspected or
+  signed, so a psbt whose inputs each carry the previous transaction they
+  spend costs all of them at once, and a signer with less memory than that
+  cannot read the psbt at all. A view walks the stream once to learn where
+  each map begins and reads one when it is asked for it, which is
+  `diybitcoinhardware/embit`'s `psbtview.PSBTView` idea and its audience:
+  hardware wallets and airgapped signers. What it offers is the global
+  fields, `input` and `output` one map at a time, the transaction being
+  built, the outputs being spent and both sig_hashes; what it does not is
+  any of the roles that rewrite a psbt, the stream being read-only, so a
+  signer assembles its own answer out of the maps it was handed and
+  `PsbtIn.serialize` writes each.
+
+  It holds the global map, an integer per map saying where that map
+  starts, and -- once a sig_hash is asked for -- the unsigned transaction,
+  the output each input spends, and `sig_hash.PrecomputedTxData`: BIP143
+  and BIP341 commit every input to all three, so signing N inputs hashes
+  the whole transaction once rather than N times, which is issue #164's
+  arithmetic for a psbt whose N inputs are exactly what does not fit. What
+  it therefore never holds is two input maps at once, and that is where a
+  psbt's size is -- a witness utxo is an amount and a script, a
+  non-witness utxo is a whole transaction, and the derivation paths, leaf
+  scripts and signatures of every input are as large as the wallet that
+  wrote them. Measured rather than asserted: a test counts the octets read
+  from the stream and reads none of the large utxo it does not ask for.
+
+  The stream must not change while a view is alive, and the module
+  docstring says so at length rather than leaving it implicit, embit's own
+  docstring being where that candour comes from: a view answers from the
+  bytes that were there when it read them, nothing re-reads a map to check
+  that it still says what it said, and an amount or a script that changes
+  between two reads is a sig_hash committing to a transaction the signer
+  was never shown -- a time-of-check to time-of-use attack rather than a
+  stale read. So a psbt on removable or untrusted storage is copied into
+  memory the caller controls first, and a stream that has legitimately
+  changed is read by building a new view.
+
+  A view takes any seekable binary stream, a file object as much as a
+  `BytesIO`, which is wider than `alias.BinaryData` on purpose: a `parse`
+  consumes what it is given, so a `BytesIO` is all it can want, while a
+  view over a `BytesIO` holds the whole psbt in memory and answers the
+  question it exists for with "buy more memory". Octets are taken too and
+  read as one whole psbt, what follows the last map in them being refused.
+  It is not a `parse` classmethod, and the docstring records that as a
+  decision: what it returns is not the psbt those bytes encode but a
+  handle on the stream holding it, and the second is only valid while the
+  first is unchanged.
+
+  Every question about what a psbt's bytes mean is the object model's,
+  imported rather than restated -- which type byte is a field of which
+  version, what the global map holds, what fields each version requires of
+  a map, what the transaction being built is, what a sig_hash commits to.
+  So five answers in `psbt.py` that were written inside a loop over a
+  whole psbt are now written per map beside it: `_tx_in` and `_tx_out`,
+  `_read_tx_in` and `_read_tx_out`, `_assert_valid_utxo`, `_spent_outputs`
+  and the two sig_hash bodies. `_lock_time` takes the pairs of required
+  lock times rather than the inputs, those two fields being all of an
+  input BIP370's algorithm depends on, so a caller with one input at a
+  time streams them past it. The suite holds the two readers to each other
+  over every psbt it has, valid and invalid: the globals, each map, the
+  transaction, its lock time, the outputs spent and both sig_hashes. One
+  published psbt is refused for a different reason by each, and the test
+  names it -- BIP174's two-octet `PSBT_IN_SIGHASH_TYPE` key carries 104
+  octets after its last map as well, and a view walks the maps before it
+  parses any of them.
+
+  `utils.read_exactly` now annotates its stream `BinaryIO` where it said
+  `BytesIO`: `.read` is the whole of what a short read is about, so a file
+  object is as much an answer there, and a view is the one reader in this
+  library that does not consume the stream it is handed.
 - **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
   `combine` merged the maps and returned a psbt with neither the inputs nor
   the result validated anywhere, so an invalid psbt in gave an invalid psbt
