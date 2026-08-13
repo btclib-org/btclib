@@ -310,13 +310,16 @@ def decode_num(data: bytes) -> int:
     * 0x01 is 1
     * 0x81 is -1
 
-    Therefore, there are two representations of zero:
+    Therefore, there are three spellings of zero, and all three decode
+    to it:
 
-    * 0x00 is "positive" zero
-    * 0x80 is "negative" zero
+    * the null-length byte vector, the canonical one and the only
+      minimally encoded one, which is what `encode_num` writes
+    * 0x00, "positive" zero
+    * 0x80, "negative" zero
 
-    Positive zero is also represented by a null-length byte vector,
-    which is considered the canonical one.
+    The first is Core's `CScriptNum::set_vch` answering 0 for an empty
+    vector rather than refusing it (issue #746).
 
     Not bounded the way `encode_num` is: this is the reader, and its two
     callers ask different things of it. The engine's `_to_num` caps an
@@ -327,7 +330,7 @@ def decode_num(data: bytes) -> int:
     """
     length = len(data)
     if length == 0:
-        raise BTClibValueError("empty byte string")
+        return 0
     i = int.from_bytes(data, byteorder="little", signed=False)
     if data[-1] >= 0x80:  # negative number
         # mask for all but the highest bit
@@ -355,13 +358,12 @@ def encode_num(i: int) -> bytes:
     * 0x01 is 1
     * 0x81 is -1
 
-    Therefore, there are two representations of zero:
-
-    * 0x00 is "positive" zero
-    * 0x80 is "negative" zero
-
-    Positive zero is also represented by a null-length byte vector,
-    which is considered the canonical one.
+    Zero is the null-length byte vector, as Core's
+    `CScriptNum::serialize` writes it: 0x00 and 0x80 decode to zero too,
+    and neither is minimally encoded, so the interpreter refuses either
+    as a number wherever MINIMALDATA is in force -- and a zero-length
+    push is OP_0's byte already, which is what `serialize([0])` writes
+    through this (issue #746).
 
     The number is a CScriptNum, i.e. an int64, and a Python int outside
     that range is refused rather than encoded: what it would write is a
@@ -378,6 +380,9 @@ def encode_num(i: int) -> bytes:
         err_msg = f"script number out of range: {i}"
         err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"
         raise BTClibValueError(err_msg)
+
+    if i == 0:
+        return b""
 
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1

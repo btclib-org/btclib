@@ -121,6 +121,20 @@ full year, short month, short day (YYYY-M-D)
   index=0)`, which re-validates by default -- the same function
   `BIP32KeyData(...)` still takes, and still defaulting to `True`.
 
+- **the script number zero is no bytes at all.** `utils.encode_num(0)`
+  returns `b""` where it returned `b"\x00"`, and `utils.decode_num(b"")`
+  returns 0 where it raised `BTClibValueError("empty byte string")`:
+  Core's `CScriptNum::serialize` and `set_vch`, which is what the rest of
+  this library already had to work around. Two things move with them.
+  `script.serialize([0])` is the single byte OP_0 rather than the push
+  `0100`, so a caller pinning those bytes -- a script, a coinbase
+  script_sig, a txid over either -- gets a different answer; and that
+  call no longer warns "consider using OP_0 instead", there being nothing
+  shorter left to suggest. `b"\x00"` still decodes to zero, being a
+  non-minimal spelling of it and not an invalid one, which is why the
+  interpreter refuses it as a number under MINIMALDATA and why writing it
+  was the defect.
+
 ### The bindings are now `btclib_secp256k1`
 
 - **The secp256k1 bindings were renamed, and btclib requires the new

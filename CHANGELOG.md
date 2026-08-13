@@ -1741,6 +1741,36 @@ documented at release-notes length in the first place, and are still in
   `serialize` writes; the docstring says the rule and the test pins it,
   over the whole set of values that could have been written otherwise.
 
+- **zero is the empty byte vector, in both directions** (issue #746).
+  `encode_num(0)` wrote `b"\x00"` where Core's `CScriptNum::serialize`
+  returns an empty vector, and `decode_num(b"")` raised "empty byte
+  string" where Core's `set_vch` answers 0. Zero was the only value where
+  the two libraries disagreed, and the disagreement was not cosmetic:
+  `b"\x00"` is not a minimally encoded script number, so the interpreter
+  refuses it as one wherever MINIMALDATA is in force -- Core's
+  `CScriptNum(vch, fRequireMinimal)` on "non-minimally encoded script
+  number", and btclib's own engine on "non-minimal encoding of 0: 00". So
+  `serialize([0])` wrote the push `0100`, carrying a number this library
+  would not read back, where Core's `CScript() << 0` writes OP_0.
+
+  It writes that OP_0 now, and by the ordinary path rather than a case of
+  its own: a zero-length push is OP_0's byte already, which is what
+  issue #646's test calls the one place the two spellings coincide. The
+  warning goes with it for zero alone -- with nothing shorter to suggest,
+  "consider using OP_0 instead" would name what was just written -- and
+  stays from 1 to 16 and at -1, where the push really is one byte longer
+  than the op code.
+
+  The engine had `CScriptNum::serialize` written a second time to work
+  around this, `_from_num` being `b"" if x == 0 else encode_num(x)` and
+  `_to_num` carrying the matching empty-element branch; both are gone,
+  `encode_num` and `decode_num` now being the pair the engine needed.
+  `miniscript._script_number` stops reading a `0100` push back as the
+  number 0, which is what Core's miniscript parser refuses. Visible in
+  the tests too: two mined blocks in `tests/block/mining_test.py` carry a
+  coinbase whose extranonce is `encode_num(0)`, so the nonces solving
+  them moved.
+
 ### Descriptors and miniscript
 
 - **An invalid output is refused, not answered about** (#691). `index_of`

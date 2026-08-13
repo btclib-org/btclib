@@ -149,10 +149,11 @@ def test_int_from_bits() -> None:
 
 def test_encode_num() -> None:
     """Round-trip script numbers across sign, zero and length boundaries."""
-    with pytest.raises(BTClibValueError, match="empty byte string"):
-        decode_num(b"")
-
-    # different representations of zero
+    # the three spellings of zero, and the null-length one is canonical:
+    # it is what encode_num writes, so the round trip closes at zero the
+    # way it closes everywhere else (issue #746)
+    assert encode_num(0) == b""
+    assert decode_num(b"") == 0
     assert decode_num(b"\x00") == 0  # "positive" zero
     assert decode_num(b"\x80") == 0  # "negative" zero
 
@@ -189,6 +190,26 @@ def test_encode_num() -> None:
     # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
     i = 0b1111111111111111
     assert len(encode_num(i)) == 3
+
+
+def test_zero_is_the_empty_vector_core_writes() -> None:
+    """Zero is no bytes at all, in both directions (issue #746).
+
+    Core's `CScriptNum::serialize` returns an empty vector for zero and
+    its `set_vch` answers zero for one, and the pair has to be that way
+    round: a single 0x00 is not a minimally encoded script number, so the
+    interpreter refuses it as one wherever MINIMALDATA is in force, and a
+    serializer writing it would be writing a number nothing can read
+    back.
+    """
+    assert encode_num(0) == b""
+    assert decode_num(b"") == 0
+
+    # what makes the other two spellings non-minimal is exactly this:
+    # they decode to zero and re-encode to something shorter
+    for non_minimal in (b"\x00", b"\x80"):
+        assert decode_num(non_minimal) == 0
+        assert encode_num(decode_num(non_minimal)) != non_minimal
 
 
 def test_encode_num_is_bounded_by_the_int64_of_a_script_number() -> None:

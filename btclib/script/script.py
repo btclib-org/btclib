@@ -338,9 +338,10 @@ def push_int(i: int) -> str:
     are written the same way and serialize differently.
 
     `serialize` reaches the same bytes from the integer itself for
-    everything above 16, and warns for -1 to 16 that the op code is one
-    byte shorter: this is that op code, so the warning is the caller
-    being told to write this instead. Minimal because the consumers are:
+    everything above 16, and warns for -1 to 16 -- 0 excepted, where the
+    two spellings are the same byte -- that the op code is one byte
+    shorter: this is that op code, so the warning is the caller being
+    told to write this instead. Minimal because the consumers are:
     `miniscript.from_script` refuses a push written the long way, and the
     interpreter refuses it too under MINIMALDATA, so a number pushed with
     a byte to spare is a script that reads as nothing and may not spend.
@@ -349,7 +350,10 @@ def push_int(i: int) -> str:
 
 
 def _serialize_int_command(command: int) -> bytes:
-    if -1 <= command <= 16:
+    # zero excepted: `encode_num` writes it as no bytes at all, so the
+    # push of it is the single byte OP_0 already and there is nothing
+    # shorter to suggest -- the warning would name what was just written
+    if -1 <= command <= 16 and command != 0:
         # not a DeprecationWarning: nothing is going away, the push is
         # merely one byte longer than the op code that means the same
         warn(
@@ -449,6 +453,12 @@ def serialize(script: Sequence[Command]) -> bytes:
     bytes and is warned about for exactly this. `push_int` is what
     writes a number the shortest way there is, and what every caller in
     this library that means one uses.
+
+    The integer 0 is the one exception, and it needs no exception in the
+    code: `encode_num` writes it as no bytes at all, so its minimal push
+    is the single byte OP_0 -- which is what Core's `CScript() << 0`
+    writes, and what the interpreter reads back as a number, `0100`
+    being a push MINIMALDATA refuses (issue #746).
     """
     r: list[bytes] = []
     for command in script:

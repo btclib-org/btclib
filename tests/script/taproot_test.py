@@ -390,11 +390,17 @@ def test_serialization() -> None:
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 
-    # -1 and [0, 16] are the integers with a one-byte op code, so every
-    # serialize() below pushes data where an op code would do and warns
+    # -1 and [1, 16] are the integers whose push is one byte longer than
+    # the op code meaning the same, so every serialize() below pushes
+    # data where an op code would do and warns
     assert parse(serialize_non_canonical([-1], serialize)) == ["81"]
-    for x in range(17):
+    for x in range(1, 17):
         assert parse(serialize_non_canonical([x], serialize)) == [f"{x:02X}"]
+
+    # 0 is not among them: encode_num writes it as no bytes, so its push
+    # is OP_0's own byte and there is nothing to warn about (issue #746)
+    assert serialize([0]) == b"\x00"
+    assert parse(serialize([0])) == ["OP_0"]
 
     for x in range(17, 100):
         assert parse(serialize([x])) == [f"{x:02X}"]

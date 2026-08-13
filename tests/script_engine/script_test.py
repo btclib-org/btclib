@@ -305,6 +305,34 @@ def test_ifdup_casts_to_bool() -> None:
     verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False, True)
 
 
+def test_a_serialized_zero_is_a_number_the_interpreter_reads() -> None:
+    """What `serialize` writes for 0, the engine reads back as 0.
+
+    Which it did not: `encode_num(0)` was a single 0x00, so
+    `serialize([0])` wrote the push `0100` -- accepted as *data* by
+    CheckMinimalPush, and refused as a *number* by the very next op code
+    that reads one, both here and in Core (issue #746). It is OP_0 now,
+    by the ordinary path, a zero-length push being that op code's byte.
+    """
+    tx = Tx(check_validity=False)
+
+    # 0, OP_1ADD, OP_1, OP_NUMEQUAL: the number goes in through serialize
+    # and comes out through _to_num, with MINIMALDATA judging it
+    script_bytes = serialize([0, "OP_1ADD", "OP_1", "OP_NUMEQUAL"])
+    assert script_bytes == b"\x00\x8b\x51\x9c"
+    verify_script(script_bytes, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
+
+    # the push it used to write, one byte longer and unspendable under a
+    # flag every relay path sets
+    non_minimal = b"\x01\x00" + script_bytes[1:]
+    with pytest.raises(ScriptError, match="non-minimal encoding of 0: 00"):
+        verify_script(non_minimal, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
+
+    # a script number all the same where nothing asks for minimality,
+    # which is why the old spelling passed the vectors it passed
+    verify_script(non_minimal, [], 0, tx, 0, NO_FLAGS, False, True)
+
+
 @pytest.mark.parametrize(
     "script, message",
     [

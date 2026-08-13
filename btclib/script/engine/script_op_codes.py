@@ -118,16 +118,10 @@ def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
         raise BTClibValueError("non-minimal encoding of zero")
     if len(element) > max_size:
         raise BTClibValueError(f"number longer than {max_size} bytes: {len(element)}")
-    if element == b"":
-        return 0
     x = decode_num(element)
-    if minimaldata and _from_num(x) != element:
+    if minimaldata and encode_num(x) != element:
         raise BTClibValueError(f"non-minimal encoding of {x}: {element.hex()}")
     return x
-
-
-def _from_num(x: int) -> bytes:
-    return b"" if x == 0 else encode_num(x)
 
 
 def _to_bool(element: bytes) -> bool:
@@ -381,7 +375,7 @@ def op_swap(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
 
 def op_1negate(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push the number -1."""
-    stack.append(_from_num(-1))
+    stack.append(encode_num(-1))
 
 
 def op_verify(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -439,7 +433,7 @@ def op_checkmultisigverify(
 
 def op_size(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push the byte length of the top element, leaving it in place."""
-    stack.append(_from_num(len(stack[-1])))
+    stack.append(encode_num(len(stack[-1])))
 
 
 def op_ripemd160(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -470,25 +464,25 @@ def op_hash256(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> 
 def op_1add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push it incremented by one."""
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(a + 1))
+    stack.append(encode_num(a + 1))
 
 
 def op_1sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push it decremented by one."""
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(a - 1))
+    stack.append(encode_num(a - 1))
 
 
 def op_negate(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push its negation."""
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(-a))
+    stack.append(encode_num(-a))
 
 
 def op_abs(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push its absolute value."""
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(abs(a)))
+    stack.append(encode_num(abs(a)))
 
 
 def op_not(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -512,14 +506,14 @@ def op_add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
     """Pop two numbers and push their sum."""
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(a + b))
+    stack.append(encode_num(a + b))
 
 
 def op_sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the deeper one minus the top one."""
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(a - b))
+    stack.append(encode_num(a - b))
 
 
 def op_booland(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -625,14 +619,14 @@ def op_min(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
     """Pop two numbers and push the smaller."""
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(min(a, b)))
+    stack.append(encode_num(min(a, b)))
 
 
 def op_max(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the larger."""
     b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-    stack.append(_from_num(max(a, b)))
+    stack.append(encode_num(max(a, b)))
 
 
 def op_within(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -673,7 +667,7 @@ def op_ifdup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> No
 
 def op_depth(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Push the number of elements on the stack."""
-    stack.append(_from_num(len(stack)))
+    stack.append(encode_num(len(stack)))
 
 
 def op_nip(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:

@@ -18,6 +18,10 @@ def serialize_non_canonical(
 ) -> bytes:
     """Serialize a number in [-1, 16] as data, asserting the warning.
 
+    Zero excepted: its push is OP_0's byte already, so `serialize` writes
+    it without a word and calling this for it would fail on the missing
+    warning (issue #746).
+
     Both serializers suggest the one-byte op code that means the same,
     and the tests calling this push the number as data on purpose;
     `serializer` says which of the two is under test. Asserting the
