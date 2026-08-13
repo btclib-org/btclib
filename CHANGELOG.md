@@ -2781,6 +2781,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **`python_path_test.py` leaves the arithmetic delegated.** It patches
+  the bindings off for `dsa` and `ssa`, which is what puts the Python
+  verdict in front of the vendored consensus vectors, and no longer for
+  `curves.curve`, which is one layer further down: that third patch sent
+  the `double_mult` of `_assert_as_valid_` and the two square roots that
+  lift a key and answer for an r into Python as well, on every vector of
+  the module -- 1.02 ms against 28 µs for the multiplication, 75 µs
+  against 2.9 and 2.4 for the roots, and the module 8.6x of what it now
+  costs, the largest single item in the suite by a wide margin. What it
+  bought was a comparison `tests/curves/curve_test.py` already makes
+  against the bindings, and makes on a chosen spread of inputs rather
+  than on whatever these vectors happen to carry:
+  `test_libsecp256k1_arbitrary_point` for the multiplications,
+  `test_x_coordinate_lift` for the roots. What the module is for is
+  untouched, both #129 defects being `Sig.parse` and `point_from_octets`
+  -- neither of them arithmetic, and both still on the path the two
+  remaining patches open. Coverage is unchanged.
+
 - **The input-validation rule has a gate, and the gate enumerates by
   running** (issues #743, #744). `tests/input_validation_test.py` holds
   every public module-level function whose required parameters are all
