@@ -35,15 +35,25 @@ full year, short month, short day (YYYY-M-D)
   lower_s=True)`. `dsa.sign` is unchanged, `lower_s=True` and all, the
   rule being the signer's: a high-s signature in a transaction is
   non-standard and does not relay.
-- **an ECDSA signature is low-R now.** `dsa.sign` and `dsa.sign_` grind
-  for it wherever the nonce is theirs to derive, as Core has done since
-  its 0.17, so the signature of a given key and message is a different one
-  for about half of all messages -- and one DER byte shorter. `grind=False`
-  is the plain RFC6979 signature, which is what a caller pinning btclib's
-  bytes has to pass now. `dsa.sign_recoverable` and with it `bms.sign` are
-  unaffected, a compact signature having no DER pad to save, and so is
-  `bip322.sign`, which asks for the plain signature to keep reproducing
-  the BIP's own vectors.
+- **an ECDSA signature is low-R now, and signing with your own nonce asks
+  for `grind=False`.** `dsa.sign` and `dsa.sign_` grind by default, as
+  Core has done since its 0.17, so the signature of a given key and
+  message is a different one for about half of all messages -- and one DER
+  byte shorter. `grind=False` is the plain RFC6979 signature, which is
+  what a caller pinning btclib's bytes has to pass now.
+
+  Two things to act on rather than one, because grinding is a search over
+  nonces and its default pairs with `nonce=None`: `dsa.sign(msg, key,
+  nonce)` and `dsa.sign_(msg_hash, key, nonce)` raise
+  `BTClibValueError("grinding derives its own nonce")`, as does either
+  with a sign-to-contract `commit`. Pass `grind=False` beside the nonce.
+  The pair is refused rather than resolved in the caller's favour or the
+  library's: which of the two won would not be readable back out of the
+  signature.
+
+  `dsa.sign_recoverable` and with it `bms.sign` are unaffected, a compact
+  signature having no DER pad to save, and so is `bip322.sign`, which asks
+  for the plain signature to keep reproducing the BIP's own vectors.
 - **a MOV-weak curve is refused with `BTClibValueError`, not
   `UserWarning`.** `Curve(p, a, b, G, n, cofactor)` with the default
   `weakness_check=True` used to raise `UserWarning("weak curve")` for a

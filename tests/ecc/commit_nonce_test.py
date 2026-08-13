@@ -83,7 +83,14 @@ def test_dsa_commitment() -> None:
             pub_key = mult(_PRV_KEY, ec.G, ec)
             for lower_s in (True, False):
                 sig, receipt = dsa.sign(
-                    _MSG, _PRV_KEY, None, lower_s, ec, hf, commit=_COMMIT
+                    _MSG,
+                    _PRV_KEY,
+                    None,
+                    lower_s,
+                    ec,
+                    hf,
+                    grind=False,
+                    commit=_COMMIT,
                 )
                 # an ordinary signature, whether or not it commits
                 dsa.assert_as_valid(_MSG, pub_key, sig, hf)
@@ -146,7 +153,7 @@ def test_the_python_path_is_the_committing_one() -> None:
     commit_hash = reduce_to_hlen(_COMMIT, hf)
     msg_hash = reduce_to_hlen(_MSG, hf)
 
-    sig, receipt = dsa.sign_(msg_hash, _PRV_KEY, commit_hash=commit_hash)
+    sig, receipt = dsa.sign_(msg_hash, _PRV_KEY, grind=False, commit_hash=commit_hash)
 
     entropy = commit_entropy_(commit_hash, _S2C_DATA_TAG, hf)
     nonce = rfc6979_nonce_(msg_hash, _PRV_KEY, ec, hf, entropy)
@@ -155,7 +162,7 @@ def test_the_python_path_is_the_committing_one() -> None:
         commit_hash, nonce, _S2C_POINT_TAG, ec, hf
     )
     assert tweaked_receipt == receipt
-    assert sig == dsa.sign_(msg_hash, _PRV_KEY, tweaked_nonce)
+    assert sig == dsa.sign_(msg_hash, _PRV_KEY, tweaked_nonce, grind=False)
     # and the point a verifier recomputes is the tweaked nonce's
     assert commit_point_(commit_hash, receipt, _S2C_POINT_TAG, ec, hf) == mult(
         tweaked_nonce, ec.G, ec
@@ -190,7 +197,9 @@ _ZKP_VECTORS = [
 @pytest.mark.parametrize("commit_hash, opening", _ZKP_VECTORS)
 def test_libsecp256k1_zkp_fixed_vectors(commit_hash: str, opening: str) -> None:
     """The receipt is the opening libsecp256k1-zkp's own fixture expects."""
-    sig, receipt = dsa.sign_(_ZKP_MSG_HASH, _ZKP_PRV_KEY, commit_hash=commit_hash)
+    sig, receipt = dsa.sign_(
+        _ZKP_MSG_HASH, _ZKP_PRV_KEY, grind=False, commit_hash=commit_hash
+    )
     assert bytes_from_point(receipt, secp256k1).hex() == opening
 
     # and the commitment opens, which is what the fixture asserts next
@@ -270,8 +279,8 @@ def test_the_commitment_reaches_the_nonce() -> None:
     a plain signature's nonce must be a third value again.
     """
     hf = sha256
-    _, receipt_a = dsa.sign(_MSG, _PRV_KEY, commit=b"contract A")
-    _, receipt_b = dsa.sign(_MSG, _PRV_KEY, commit=b"contract B")
+    _, receipt_a = dsa.sign(_MSG, _PRV_KEY, grind=False, commit=b"contract A")
+    _, receipt_b = dsa.sign(_MSG, _PRV_KEY, grind=False, commit=b"contract B")
     plain_nonce = rfc6979_nonce_(reduce_to_hlen(_MSG, hf), _PRV_KEY)
     plain_point = mult(plain_nonce, secp256k1.G, secp256k1)
     assert receipt_a != receipt_b
@@ -308,7 +317,7 @@ def test_a_plain_signature_opens_no_commitment() -> None:
     nonce = 1 + random.randrange(ec.n - 1)
     receipt = mult(nonce, ec.G, ec)
     pub_key = mult(_PRV_KEY, ec.G, ec)
-    sig = dsa.sign(_MSG, _PRV_KEY, nonce)
+    sig = dsa.sign(_MSG, _PRV_KEY, nonce, grind=False)
     with pytest.raises(BTClibRuntimeError, match="commitment verification failed"):
         dsa.assert_as_valid(_MSG, pub_key, sig, commit=_COMMIT, receipt=receipt)
 
@@ -325,7 +334,7 @@ def test_commitment_needs_the_receipt() -> None:
     "nothing here opens this" is not an answer about one.
     """
     pub_key = mult(_PRV_KEY, secp256k1.G, secp256k1)
-    sig, receipt = dsa.sign(_MSG, _PRV_KEY, commit=_COMMIT)
+    sig, receipt = dsa.sign(_MSG, _PRV_KEY, grind=False, commit=_COMMIT)
     with pytest.raises(BTClibTypeError, match="commitment without the receipt"):
         dsa.verify(_MSG, pub_key, sig, commit=_COMMIT)
     with pytest.raises(BTClibTypeError, match="receipt without the commitment"):

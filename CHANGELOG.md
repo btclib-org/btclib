@@ -1021,39 +1021,41 @@ documented at release-notes length in the first place, and are still in
   own, retries included. No attempt cap, as in Core: one would answer an
   event of probability `2**-k` with an error a caller can do nothing about.
 
-  `grind` has three states, not two, and it is on when left unsaid: a
-  btclib signature is the one Core would have made. `grind=None` is that
-  default, `grind=True` is a caller asking outright and `grind=False` is
-  the plain RFC6979 signature -- which is what a test pinning deterministic
-  bytes now asks for, the five python-bitcoinlib vectors among them, four
-  of the five having a high `r` so that grinding departs from exactly those
-  four (`test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`, beside
-  the test that counts the four `s` values normalization moves).
-  Keyword-only, `ec` and `hf` being positional and a flag inserted before
-  them renumbering both.
+  `grind=True` is the default, as it is in Core, so a btclib signature is
+  the one Core would have made; `grind=False` is the plain RFC6979
+  signature, which is what a test pinning deterministic bytes asks for --
+  the five python-bitcoinlib vectors among them, four of the five having a
+  high `r` so that grinding departs from exactly those four
+  (`test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`, beside the
+  test that counts the four `s` values normalization moves). Keyword-only,
+  `ec` and `hf` being positional and a flag inserted before them
+  renumbering both.
 
-  Grinding is refused with a nonce of the caller's and with a
-  sign-to-contract commitment, each of which already owns what grinding
-  needs -- the nonce itself, and the extra entropy the counter travels
-  through -- and the third state is why the refusal is a refusal rather
-  than a footgun: `grind=True` beside either of those is a caller asking
-  for both halves of a contradiction, while the default is a library
-  preference and gives way, so `sign(msg, key, nonce)` signs instead of
-  raising. For the commitment the refusal is more than a clash of
-  encodings: grinding a nonce is exactly the freedom the ECDSA anti-exfil
-  protocol takes away from a signing device, and `sign_` is the call that
-  protocol signs through -- `anti_exfil_sign` therefore grinds nothing,
-  without having to say so. `sign_recoverable` takes no `grind` at all,
-  and there it is not a matter of what owns the nonce: 65 bytes of `r`, `s`
-  and the recovery flag have no pad for a low `r` to save, which is why
-  Core's `SignCompact` does not grind and why a message signature is
-  unaffected. `bip322.sign` asks for `grind=False` in so many words: the
-  BIP's reference implementation signs plain, its vectors are the whole
-  interoperability claim, and nothing there is broadcast for the byte to
-  matter. What grinding chooses is `r` and not the encoded length: embit
-  stops its loop at `len(sig.serialize()) > 70`, which is the same
-  question only for a low `s`, and with `lower_s=False` btclib produces
-  the 71-byte low-R signature Core cannot reach.
+  Its default pairs with the nonce's, `grind=True` beside `nonce=None`:
+  grinding is a search over nonces, so a nonce that is given leaves
+  nothing to search, and a sign-to-contract commitment already owns the
+  extra entropy the counter travels through. The two together are refused
+  rather than one of them quietly winning, at the default exactly as when
+  `grind=True` is passed -- which one would have won is precisely what a
+  caller pinning a signature could not have read back out of the bytes --
+  so signing with a nonce of one's own means asking for `grind=False`, and
+  `sign(msg, key, nonce)` now raises instead. For the commitment the
+  refusal is more than a clash of encodings: grinding a nonce is exactly
+  the freedom the ECDSA anti-exfil protocol takes away from a signing
+  device, and `sign_` is the call that protocol signs through, so
+  `anti_exfil_sign` says `grind=False` where the protocol requires it.
+
+  `sign_recoverable` takes no `grind` at all, and there it is not a matter
+  of what owns the nonce: 65 bytes of `r`, `s` and the recovery flag have
+  no pad for a low `r` to save, which is why Core's `SignCompact` does not
+  grind and why a message signature is unaffected. `bip322.sign` asks for
+  `grind=False` in so many words: the BIP's reference implementation signs
+  plain, its vectors are the whole interoperability claim, and nothing
+  there is broadcast for the byte to matter. What grinding chooses is `r`
+  and not the encoded length: embit stops its loop at
+  `len(sig.serialize()) > 70`, which is the same question only for a low
+  `s`, and with `lower_s=False` btclib produces the 71-byte low-R
+  signature Core cannot reach.
 
   The private `_rfc6979_nonce_` takes `None` for no additional data now,
   where it took `b""`, so one counter value travels down either path
