@@ -23,7 +23,12 @@ from typing import Any
 
 import pytest
 
+from btclib import exceptions
 from btclib.exceptions import (
+    BTClibException,
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibUserWarning,
     BTClibValueError,
     FetchError,
     HttpError,
@@ -159,6 +164,77 @@ def test_an_exception_adding_nothing_round_trips_too(error: BaseException) -> No
         assert type(back) is type(error)
         assert str(back) == str(error)
         assert back.args == error.args
+
+
+def test_every_exception_of_the_module_is_one_base_to_catch() -> None:
+    """`except BTClibException` is what tells a btclib failure from any other.
+
+    The classes are found rather than listed, so one added to the module
+    is one this covers: a new exception that forgot the base would be a
+    failure a caller catching it could not catch, and nothing else in the
+    suite would say so.
+
+    `BTClibUserWarning` is the exception, and the assertion says which way:
+    a warning is filtered, not caught, so it stays out of the class an
+    `except` names.
+    """
+    classes = [
+        getattr(exceptions, name)
+        for name in exceptions.__all__
+        if isinstance(getattr(exceptions, name), type)
+    ]
+    assert len(classes) == len(exceptions.__all__), "a non-class in __all__"
+
+    warnings = [c for c in classes if issubclass(c, Warning)]
+    assert warnings == [BTClibUserWarning]
+
+    for cls in classes:
+        if cls is BTClibUserWarning:
+            assert not issubclass(cls, BTClibException)
+            continue
+        assert issubclass(cls, BTClibException), f"{cls.__name__} is not catchable"
+
+
+@pytest.mark.parametrize(
+    "cls, builtin",
+    [
+        (BTClibValueError, ValueError),
+        (BTClibTypeError, TypeError),
+        (BTClibRuntimeError, RuntimeError),
+    ],
+    ids=["ValueError", "TypeError", "RuntimeError"],
+)
+def test_the_base_is_inherited_beside_the_builtin_not_instead_of_it(
+    cls: type[BTClibException], builtin: type[Exception]
+) -> None:
+    """The half that keeps every `except ValueError` already written working.
+
+    requests, sqlalchemy and httpx derive their bases from `Exception`
+    alone, so an `except ValueError` does not catch their value errors.
+    Asserted on the subclasses too, since they are what modules raise:
+    inheriting the base transitively must not cost them the built-in.
+    """
+    assert issubclass(cls, builtin)
+    assert issubclass(cls, BTClibException)
+    for sub in cls.__subclasses__():
+        assert issubclass(sub, builtin), f"{sub.__name__} lost {builtin.__name__}"
+        assert issubclass(sub, BTClibException)
+
+
+def test_the_base_carries_no_behaviour_of_its_own() -> None:
+    """It adds a name to catch and nothing else, which is the whole design.
+
+    A base that composed a message, or took a field, would be a second
+    thing to keep true in every subclass -- and the four subclasses that
+    do carry a field compose in `__str__` for the pickling reason the
+    module docstring gives, which a base doing its own would undo.
+    """
+    assert BTClibException.__init__ is Exception.__init__
+    assert BTClibException.__str__ is Exception.__str__
+    error = BTClibValueError("bad")
+    assert str(error) == "bad"
+    assert error.args == ("bad",)
+    assert type(pickle.loads(pickle.dumps(error))) is BTClibValueError  # noqa: S301
 
 
 def _raise_http_error() -> None:
