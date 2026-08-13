@@ -23,7 +23,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
-from tests import load_csv, vector_id
+from tests import load_csv, replace_unchecked, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 
 
@@ -287,7 +287,7 @@ def test_point_from_bip340pub_key() -> None:
     xpub_data = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
-    xpub_data.key = bytes_from_point(Q)
+    xpub_data = replace_unchecked(xpub_data, key=bytes_from_point(Q))
     # BIP32KeyData
     assert ssa.point_from_bip340pub_key(xpub_data) == Q
     # BIP32Key encoded str

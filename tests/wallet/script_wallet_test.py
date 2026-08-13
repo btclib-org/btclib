@@ -48,6 +48,7 @@ from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.wallet import DescriptorWallet, KeyGroup, ScriptWallet
 from btclib.wallet import script_wallet as script_wallet_module
+from tests import replace_unchecked
 
 # the "abandon abandon ... about" seed, and three account keys of it in an
 # order that none of the sorts below answers: the account keys sort one
@@ -330,8 +331,7 @@ def test_a_decoded_key_is_validated_too() -> None:
     which validates by default, but trusted an already-built
     `BIP32KeyData` in `keys` unasked.
     """
-    bad = BIP32KeyData.b58decode(_XPUBS[0])
-    bad.index = -1
+    bad = replace_unchecked(BIP32KeyData.b58decode(_XPUBS[0]), index=-1)
     err_msg = "invalid index: -1"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad.assert_valid()
