@@ -75,7 +75,7 @@ from btclib.curves.curve import (
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.hashes import reduce_to_hlen, tagged_hash
+from btclib.hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import point_from_pub_key
@@ -564,6 +564,12 @@ def assert_as_valid_(
     sign-to-contract commitment is opened as well, an independent
     check of the same r.
     """
+    # ahead of everything, and the one input whose refusal has to be a
+    # TypeError: verify_ below turns a ValueError into False, so an hf
+    # checked any later than this would be reported as a signature that
+    # does not verify. hashes._assert_valid_hf has the rest
+    _assert_valid_hf(hf)
+
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -643,12 +649,10 @@ def verify_(
     signature that does not commit to that value is False as a forged one
     is: the answer is about this signature and this commitment, both.
     """
-    # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed, but
-    # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error: raise, rather than report an invalid signature.
-    # BTClibRuntimeError by name and not RuntimeError, because
-    # RecursionError is one and is not an answer about a signature
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states: what is not a valid signature
+    # is False, and a caller's own mistake is refused before this rather
+    # than excluded from the except
     try:
         assert_as_valid_(msg, Q, sig, hf, commit_hash=commit_hash, receipt=receipt)
     except (ValueError, BTClibRuntimeError):
@@ -727,6 +731,10 @@ def assert_batch_as_valid_(
     not that question, and answers a different one for an s outside
     0..n-1.
     """
+    # ahead of everything, as in assert_as_valid_ and for the same reason:
+    # batch_verify_ turns a ValueError into False
+    _assert_valid_hf(hf)
+
     batch_size = len(Qs)
     if batch_size == 0:
         raise BTClibValueError("no signatures provided")
@@ -823,12 +831,10 @@ def batch_verify_(
     verification and a malformed input are both False, a caller error
     still raises.
     """
-    # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed, but
-    # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error: raise, rather than report an invalid signature.
-    # BTClibRuntimeError by name and not RuntimeError, because
-    # RecursionError is one and is not an answer about a signature
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states: what is not a valid signature
+    # is False, and a caller's own mistake is refused before this rather
+    # than excluded from the except
     try:
         assert_batch_as_valid_(msgs, Qs, sigs, hf)
     except (ValueError, BTClibRuntimeError):

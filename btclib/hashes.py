@@ -17,7 +17,7 @@ from collections.abc import Callable, Sequence
 from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, HashF, Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -118,6 +118,37 @@ def hash256(octets: Octets) -> bytes:
     return sha256(sha256(octets))
 
 
+def _assert_valid_hf(hf: HashF) -> None:
+    """Refuse an hf that is not a hash constructor.
+
+    The mistake it catches is `sha256()` written where `sha256` belongs --
+    the digest object instead of the class that makes one -- which is a
+    caller's own error and not a statement about the message or the
+    signature it was passed with.
+
+    `callable` and not a trial call: a digest object is not callable, so
+    the check is a slot lookup rather than the hash it would otherwise
+    have to build, which matters where it sits in front of a verification
+    the bindings answer in 22 us.
+
+    So it is not exhaustive, and does not need to be: a callable of the
+    wrong shape -- `hashes.hash256`, which takes the message rather than
+    making a digest -- still fails at the `hf()` that follows, with the
+    plain TypeError `tests/alias_test.py` pins there on purpose. What
+    matters for the verifications is not the class but that neither one is
+    a ValueError, so neither is mistaken for a signature that does not
+    verify.
+
+    A `BTClibTypeError` for the reason the class exists, and with a
+    consequence the boolean verifications depend on: it is a `TypeError`,
+    so their `except (ValueError, BTClibRuntimeError)` does not catch it
+    and a caller's mistake reaches the caller instead of being reported as
+    a signature that does not verify.
+    """
+    if not callable(hf):
+        raise BTClibTypeError(f"not a hash function: {hf!r} is not callable")
+
+
 def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
     """Return the message digested by hf, one digest long.
 
@@ -125,6 +156,11 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
     signing and verifying spellings do to a message before handing it
     to their trailing-underscore twins.
     """
+    # here as well as in the verifications this feeds, and not only there:
+    # they take the message already reduced, so this is where an hf of
+    # theirs is first called and where a bad one would otherwise leave as
+    # the bare TypeError of `hf()`
+    _assert_valid_hf(hf)
     msg = bytes_from_octets(msg)
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()

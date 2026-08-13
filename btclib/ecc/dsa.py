@@ -56,7 +56,7 @@ from btclib.curves.curve import (
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.hashes import reduce_to_hlen
+from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
@@ -840,6 +840,12 @@ def assert_as_valid_(
     to make. The low-s rule belongs to the signer -- ``sign`` applies it --
     and to the script engine, which reads it off its own flags.
     """
+    # ahead of everything, and the one input whose refusal has to be a
+    # TypeError: verify_ below turns a ValueError into False, so an hf
+    # checked any later than this would be reported as a signature that
+    # does not verify. hashes._assert_valid_hf has the rest
+    _assert_valid_hf(hf)
+
     # key is a PubKey, not a Key: verification is where a private key
     # accepted for a public one does real harm, silently checking a
     # signature against a public key derived from the very secret handed
@@ -916,9 +922,12 @@ def verify_(
     is: the answer is about this signature and this commitment, both.
     """
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed, but
-    # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error: raise, rather than report an invalid signature.
+    # a valid signature is False, and so is a verification that failed. A
+    # caller's own mistake is neither, and is kept out by being refused
+    # before this rather than by being excluded from the except: an hf
+    # passed as sha256() instead of sha256 leaves assert_as_valid_ as the
+    # BTClibTypeError hashes._assert_valid_hf raises, which a TypeError is,
+    # so it arrives here uncaught and reaches the caller.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:

@@ -528,9 +528,10 @@ def verify(
     the two states are worth telling apart, and `assert_as_valid` is
     where they are, but neither of them is a signature that verified.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.bms.verify` catches them
-    # and for its reasons: malformed input is not a valid signature, and
-    # a TypeError is a caller's own mistake rather than an answer
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states: what is not a valid signature
+    # is False, and a caller's own mistake is refused before this rather
+    # than excluded from the except
     try:
         assert_as_valid(msg, addr, sig, legacy=legacy)
     except (ValueError, BTClibRuntimeError):

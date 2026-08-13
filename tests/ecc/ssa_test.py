@@ -1062,3 +1062,40 @@ def test_recovery_multiplies_in_libsecp256k1(
         with monkeypatch.context() as patch:
             no_bindings(patch)
             assert ssa._recover_pub_key_(c, sig.r, sig.s, ec) == x_Q
+
+
+def test_a_bad_hf_raises_rather_than_answering_about_the_signature() -> None:
+    """As `ecc.dsa`'s twin of this test, and for `batch_verify_` as well.
+
+    The batch is the one that has to be checked on its own: it validates
+    its own lengths before delegating, so an hf refused only inside
+    `assert_as_valid_` would be reported as an invalid batch for every
+    size but one (issue #745).
+    """
+    msg = b"Satoshi Nakamoto"
+    q, x_Q = ssa.gen_keys(0x1)
+    sig = ssa.sign(msg, q)
+    msg_hash = reduce_to_hlen(msg, hf)
+    assert ssa.verify_(msg_hash, x_Q, sig)
+
+    err_msg = "not a hash function"
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        ssa.verify_(msg_hash, x_Q, sig, hf())  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        ssa.assert_as_valid_(msg_hash, x_Q, sig, hf())  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        ssa.verify(msg, x_Q, sig, hf())  # type: ignore[arg-type]
+
+    # the batch, at both sizes: one signature shortcuts to assert_as_valid_
+    # and two or more take the multi-scalar equation
+    assert ssa.batch_verify_([msg_hash], [x_Q], [sig])
+    for size in (1, 2):
+        with pytest.raises(BTClibTypeError, match=err_msg):
+            ssa.batch_verify_([msg_hash] * size, [x_Q] * size, [sig] * size, hf())  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match=err_msg):
+            ssa.assert_batch_as_valid_(
+                [msg_hash] * size,
+                [x_Q] * size,
+                [sig] * size,
+                hf(),  # type: ignore[arg-type]
+            )
