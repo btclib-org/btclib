@@ -115,10 +115,25 @@ class Block:
     header: BlockHeader
     transactions: list[Tx]
 
+    def _serialized_size(self, include_witness: bool) -> int:
+        """Return what serialize writes, without writing it.
+
+        `Tx._serialized_size` says why the sizes are summed rather than
+        measured on the bytes; a block is where it matters, being what
+        `assert_valid` bounds three times over -- once for the length
+        and twice for the weight -- each of which built a copy of the
+        whole block to take its length.
+        """
+        return (
+            self.header._serialized_size()
+            + var_int._size(len(self.transactions))
+            + sum(t._serialized_size(include_witness) for t in self.transactions)
+        )
+
     @property
     def size(self) -> int:
         """Return the serialized size, witnesses included."""
-        return len(self.serialize(check_validity=False))
+        return self._serialized_size(include_witness=True)
 
     @property
     def stripped_size(self) -> int:
@@ -129,7 +144,7 @@ class Block:
         left out, which is the serialization the witness discount is
         expressed against and what `getblock` reports under this name.
         """
-        return len(self.serialize(include_witness=False, check_validity=False))
+        return self._serialized_size(include_witness=False)
 
     @property
     def weight(self) -> int:

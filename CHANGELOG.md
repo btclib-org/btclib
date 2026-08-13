@@ -1171,6 +1171,45 @@ documented at release-notes length in the first place, and are still in
   None means "verify every signature this input holds". One implementation
   of a signature check, for the role that has a request and for the caller
   that has none.
+- **A size is summed from the field widths, not measured on a copy of
+  the bytes** (issue #785). `Block.size` and `Block.stripped_size` were
+  `len(self.serialize(...))`, and `Block.weight` asked for both, so
+  validating a block built the whole block three times over to read
+  three integers: `assert_valid_length` takes the stripped size and
+  `assert_valid_weight` takes the weight, which is the other two. For
+  block 481,824 that is close to a megabyte allocated and dropped, three
+  times, per `assert_valid` -- and `Block.__init__` calls `assert_valid`,
+  so parsing one pays it.
+
+  `_serialized_size` beside each `serialize` answers the same question by
+  addition: `var_int._size` and `var_bytes._size` for the widths a codec
+  writes, then `OutPoint`, `TxIn`, `TxOut`, `Witness`, `BlockHeader`,
+  `Tx` and `Block` each summing what their own serialization would have
+  written. It is what Core does in `GetSerializeSize`, which serializes
+  into a `SizeComputer` -- a stream whose `write` adds to a counter
+  rather than to a buffer.
+
+  Two ways of computing one quantity can drift apart, and a size that is
+  wrong by a byte is a consensus answer that is wrong, so the pair is
+  held together by tests rather than by care:
+  `test_the_size_and_the_serialization_agree` compares them on every
+  block vector in the tree and on a segwit transaction and a legacy one,
+  and `var_int`'s own compares the width with the encoding on both sides
+  of each threshold, under hypothesis and at the boundaries by name.
+
+  Measured against `98931dd1` on Python 3.14.6, best of 11 alternating
+  rounds, order of the two sides alternating too, with a case that
+  computes no size as the noise detector:
+
+  | | serialized | summed | |
+  | --- | ---: | ---: | ---: |
+  | `Block.weight`, block 481,824 | 8880 us | 3612 us | **2.46x** |
+  | `Tx.weight`, a segwit transaction | 18.23 us | 8.70 us | **2.10x** |
+  | control, `hash256` | 3.50 us | 3.50 us | 1.00x |
+
+  Not a cache: `Tx` and `Block` are mutable dataclasses, so a stored
+  length is a field that goes stale the first time a caller appends an
+  input.
 
 ### Curves, signatures and keys
 

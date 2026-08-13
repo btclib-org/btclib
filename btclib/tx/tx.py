@@ -138,10 +138,39 @@ class Tx:  # noqa: PLW1641
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
 
+    def _serialized_size(self, include_witness: bool) -> int:
+        """Return what serialize writes, without writing it.
+
+        The sum of the widths, field by field, and no bytes built: a
+        caller that wants a length gets one, where `len(serialize(...))`
+        answered it with a copy of the whole transaction -- of the whole
+        block, for the rules that bound a block by its size. It is
+        Core's `GetSerializeSize`, which serializes into a
+        `SizeComputer`: a stream whose write adds to a counter.
+
+        Two ways of computing one quantity can disagree, and a size that
+        is wrong by a byte is a consensus answer that is wrong, so this
+        mirrors `serialize` line for line and
+        `test_the_size_and_the_serialization_agree` holds the two
+        together over every vector the suite carries.
+        """
+        segwit = include_witness and self.is_segwit()
+
+        size = 4 + 4  # version and lock_time
+        if segwit:
+            size += len(_SEGWIT_MARKER)
+        size += var_int._size(len(self.vin))
+        size += sum(tx_in._serialized_size() for tx_in in self.vin)
+        size += var_int._size(len(self.vout))
+        size += sum(tx_out._serialized_size() for tx_out in self.vout)
+        if segwit:
+            size += sum(tx_in.script_witness._serialized_size() for tx_in in self.vin)
+        return size
+
     @property
     def size(self) -> int:
         """Return the transaction size."""
-        return len(self.serialize(include_witness=True, check_validity=False))
+        return self._serialized_size(include_witness=True)
 
     @property
     def vsize(self) -> int:
@@ -154,9 +183,9 @@ class Tx:  # noqa: PLW1641
     @property
     def weight(self) -> int:
         """Return the BIP141 weight: 3x the stripped size plus the size."""
-        no_wit = len(self.serialize(include_witness=False, check_validity=False)) * 3
-        wit = len(self.serialize(include_witness=True, check_validity=False))
-        return no_wit + wit
+        return 3 * self._serialized_size(include_witness=False) + self._serialized_size(
+            include_witness=True
+        )
 
     @property
     def sig_op_count(self) -> int:

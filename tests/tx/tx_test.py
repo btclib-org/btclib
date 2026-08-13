@@ -928,3 +928,38 @@ def test_a_declared_input_or_output_count_is_bounded_before_allocation() -> None
     # the first input's short read is what answers instead
     with pytest.raises(BTClibValueError, match="not enough data for the outpoint"):
         Tx.parse(version + var_int.serialize(MAX_TX_IN_COUNT))
+
+
+def test_the_size_and_the_serialization_agree() -> None:
+    """The summed widths are the bytes, for a segwit transaction and not.
+
+    `Tx.size` and `Tx.weight` add the widths up rather than take the
+    length of a serialization: two ways of computing one quantity, and
+    the block rules are checked against the sizes. The segwit case is
+    the one with fields the stripped serialization leaves out -- the
+    marker, the flag and every witness -- so it is where the two
+    spellings have something to disagree about.
+    """
+    fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as binary_file_:
+        segwit = Tx.parse(binary_file_.read())
+    assert segwit.is_segwit()
+
+    legacy = Tx(
+        version=1,
+        lock_time=0,
+        vin=[TxIn(OutPoint(b"\x01" * 32, 0), b"\x02" * 253, 0xFFFFFFFF)],
+        vout=[TxOut(1000, ScriptPubKey(b"\x03" * 25))],
+    )
+    assert not legacy.is_segwit()
+
+    for tx in (segwit, legacy):
+        for include_witness in (True, False):
+            assert tx._serialized_size(include_witness) == len(
+                tx.serialize(include_witness, check_validity=False)
+            )
+        assert tx.size == len(tx.serialize(include_witness=True, check_validity=False))
+        assert tx.weight == 3 * len(
+            tx.serialize(include_witness=False, check_validity=False)
+        ) + len(tx.serialize(include_witness=True, check_validity=False))

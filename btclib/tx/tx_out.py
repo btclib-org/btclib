@@ -145,6 +145,10 @@ class TxOut:
             value, ScriptPubKey(script_bin, network), check_validity=check_validity
         )
 
+    def _serialized_size(self) -> int:
+        """Return what serialize writes, without writing it."""
+        return 8 + var_bytes._size(self.script_pub_key.script)
+
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the wire serialization: the value, then the script.
 
