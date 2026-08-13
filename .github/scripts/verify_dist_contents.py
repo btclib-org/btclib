@@ -10,7 +10,14 @@ description renders, whether the classifiers and urls are the ones a
 package should declare. None of them reads the members, so what is in the
 archive was checked by nothing -- and the archive is what a user installs.
 
-Three questions, one per section below.
+Three questions, one per section below, and the constants that answer
+them are the policy: `docs/source/package-content-policy.md` states it in
+prose, for a reader who has an unpacked sdist -- which carries that page
+and not this file -- and for the rules no member list can carry at all.
+`tests/verify_dist_contents_test.py` compares the page against these
+constants in both directions, so neither is free to drift from the other,
+which is what makes the second copy safe rather than one more thing to
+be wrong.
 
 **What may be in there.** The wheel gets a strict allowlist, it being what
 lands on `sys.path`: Python source under `btclib/`, `btclib/py.typed`,

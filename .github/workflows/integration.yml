@@ -8,13 +8,22 @@ name: integration
 # question is asked: a disposable regtest bitcoind, the account export,
 # the funding, the spend and the broadcast, against Core itself.
 #
-# It gates nothing, for the reason links.yml gates nothing and the
-# mutation workflow gates nothing: what it can go red on is a release of
-# Bitcoin Core, an unreachable bitcoincore.org or a runner slow enough to
-# miss the node's startup timeout, and none of those is the branch's
-# fault. It therefore does not appear in main's required checks, and
-# must not -- that rule lives outside the repository and names its checks
-# as literal strings.
+# The two jobs below sit on either side of one line, which is what a
+# check gates for: a red run that is the branch's fault gates, and a red
+# run that is somebody else's release does not. `Regtest against Bitcoin
+# Core` is on the first side and is a required check on main -- what it
+# asks is whether Core accepts what this branch built, and the node is a
+# pinned release verified against a published sha256, so the answer is
+# about btclib. A run of it can still go red on an unreachable
+# bitcoincore.org or a runner slow enough to miss the node's startup
+# timeout; that is a re-run, and it is the price of the question. The
+# job below it is on the other side and gates nothing, for the reason
+# links.yml gates nothing and the mutation workflow gates nothing.
+#
+# Which of the two is required lives outside the repository, in main's
+# protection, and names its checks as literal strings: renaming either
+# job is therefore a change to make there first, and REPOSITORY.md has
+# the recipe and the reason it cannot be done in one pull request.
 #
 # The HWI half of `tests/integration/` is the second job, and it needs a
 # device: a pinned Trezor emulator stands in for one, with a pinned HWI
@@ -65,11 +74,11 @@ on:
     # types do not include it, and without it a readied pull request
     # would wait for its next push to be checked at all
     types: [opened, reopened, synchronize, ready_for_review]
-    # no `paths` filter any more: this workflow is a required check on
-    # main, and a required check that never runs blocks a merge where a
-    # skipped one satisfies it -- a filter and a required check cannot both
-    # be had. Every pull request pays it, documentation-only ones included,
-    # which is what 36 seconds of work buys
+    # no `paths` filter any more: the regtest job below is a required
+    # check on main, and a required check that never runs blocks a merge
+    # where a skipped one satisfies it -- a filter and a required check
+    # cannot both be had. Every pull request pays it, documentation-only
+    # ones included, which is what 36 seconds of work buys
 
 # least privilege for the GITHUB_TOKEN: nothing here writes, and the
 # tarballs are fetched from bitcoincore.org and data.trezor.io, neither of
@@ -101,10 +110,8 @@ jobs:
     name: Regtest against Bitcoin Core
     # a draft pull request is work in progress and spends no runner
     # here either: a draft is work its author is not asking anyone to
-    # a draft from one release to the next, and its runs are what
-    # read yet. The same condition lint.yml and
-    # test.yml carry, and ready_for_review is a trigger type above for
-    # the same reason
+    # read yet. The same condition lint.yml and test.yml carry, and
+    # ready_for_review is a trigger type above for the same reason
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     # the whole flow is seconds -- two tests, a node that answers its

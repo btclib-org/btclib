@@ -12,6 +12,7 @@ btclib documentation
    PYTHON PACKAGE <modules>
    CONTRIBUTING <contributing_link.md>
    SECURITY <security_link.md>
+   PACKAGE CONTENT POLICY <package-content-policy.md>
    HISTORY <history_link.md>
    CHANGELOG <changelog_link.md>
 

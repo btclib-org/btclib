@@ -327,7 +327,11 @@ installs it. The first two commands after the build read the *members* of
 the two archives, which the three that follow do not: an allowlist of what
 may be in a wheel and an sdist, and the bill of materials a release
 attaches — written here into a temporary directory and thrown away, this
-being the copy that says the script still reads a real wheel. The last
+being the copy that says the script still reads a real wheel. That
+allowlist is stated in prose in
+[the package-content policy](./docs/source/package-content-policy.md),
+which the suite compares against the script's own constants, so changing
+a rule means changing both. The last
 commands ask for the wheel and nothing else, so
 what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel
 carries; the lock arrives as constraints, which pin without

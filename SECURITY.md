@@ -84,6 +84,14 @@ only what whoever wrote it wanted said. What it records of a dependency is
 the requirement as published, so a component carries a version only where
 that requirement is an exact pin.
 
+What may be inside those two files is stated in
+[the package-content policy](./docs/source/package-content-policy.md),
+and a build carrying anything else is refused before it can be published:
+an allowlist of the members of a wheel and an sdist, the suffixes and
+names neither may ever hold, and — named as policy, because no list of
+members can show them — the rules about what runs while the package is
+built and installed.
+
 ## Limitations, not vulnerabilities
 
 These are known and inherent. They are worth stating because btclib is
