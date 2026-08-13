@@ -160,7 +160,7 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
         ],
         capture_output=True,
         check=True,
-        text=True,
+        encoding="utf-8",
     )
     commits = json.loads(result.stdout)
     if not commits:
@@ -227,7 +227,7 @@ def _open_issue_number() -> str | None:
         ],
         capture_output=True,
         check=True,
-        text=True,
+        encoding="utf-8",
     )
     issues = json.loads(result.stdout)
     return str(issues[0]["number"]) if issues else None

@@ -107,7 +107,7 @@ def test_exceptions_imports_nothing_of_btclibs_and_no_client(
     # whole of what runs in it
     probe = "import btclib.exceptions, sys; print(sorted(sys.modules))"
     loaded = subprocess.run(  # noqa: S603
-        [sys.executable, "-c", probe], check=True, capture_output=True, text=True
+        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
     ).stdout
     assert "'bitcoin_core_rpc'" not in loaded
     assert "'urllib.request'" not in loaded

@@ -244,6 +244,32 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The lint gate refuses a read that names no encoding** (issue #784).
+  A call that omits it takes the locale's, which is UTF-8 wherever this
+  suite is usually read and cp1252 on Windows, where a typographic quote
+  in a docstring is a byte that maps to nothing and the module holding it
+  fails to load rather than fails a test. Windows answers on Saturday and
+  before a release, so nothing else asks in between. Two rules, because
+  one tool covers one half:
+    - `unspecified-encoding` in `pyproject.toml`, ruff's transcription of
+    pylint's PLW1514, which reads `open`, `Path.open`, `read_text`,
+    `write_text` and the tempfile factories. It is a preview rule, so it
+    goes in `extend-select` and not in `select`, which holds families and
+    reaches no preview rule through any of them; `explicit-preview-rules`
+    keeps the rest of preview out. Zero findings when it was selected.
+    - a pygrep hook refusing `text=True` and `universal_newlines=True`,
+    which is the same defect one layer out: a decoded child process takes
+    the locale's encoding too, and no linter here has an opinion on that
+    keyword. `.github/scripts/check_vendored_vectors.py`,
+    `tests/imports_test.py` and `tests/mutation_counts_test.py` pass
+    `encoding="utf-8"` instead, which puts subprocess in text mode by
+    itself.
+
+  `PYTHONWARNDEFAULTENCODING=1` is not the guard: pytest turns the warning
+  into an error, but the variable is inherited by every subprocess a test
+  spawns, and two test files then fail on what the child wrote rather than
+  on what they assert.
+
 - **A pull request asks for twenty-one jobs instead of thirty-nine**, and
   the number that decided it is not a wall clock but a ceiling: GitHub Free
   gives an organization twenty concurrent jobs. Measured over a working

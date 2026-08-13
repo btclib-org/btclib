@@ -454,6 +454,26 @@ repos:
         args: [--fix]
       - id: ruff-format
         name: ruff format (in place fixes)
+  # the other half of pyproject.toml's unspecified-encoding, which reads
+  # `open` and the pathlib and tempfile spellings and stops there. A child
+  # process decoded through `text=True` takes the locale's encoding by
+  # exactly the same rule -- what a test asserts then depends on what
+  # Windows decoded the child's stdout as -- and no linter here has an
+  # opinion on that keyword.
+  # `encoding=` is what the call wanted anyway: passing it puts subprocess
+  # in text mode, so the fix is one keyword in place of another and never
+  # a mode change.
+  # A literal keyword rather than a call-shaped pattern, because pygrep is
+  # line based and every such call here spans several lines. It costs
+  # nothing to be that blunt: there is no reason to write `text=True` that
+  # `encoding="utf-8"` does not answer
+  - repo: local
+    hooks:
+      - id: decoded-subprocess-encoding
+        name: a decoded subprocess names its encoding, not text=True
+        language: pygrep
+        entry: '\b(text|universal_newlines)=True'
+        files: \.py$
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where every
