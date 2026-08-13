@@ -301,7 +301,9 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                         # a candidate x_K off the curve, or a key that
                         # does not verify, is "not this key_id"
                         try:
-                            QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
+                            QJ = dsa._recover_pub_key_(
+                                key_id, e, r, s, ec, lower_s=False
+                            )
                         except (BTClibValueError, BTClibRuntimeError):
                             continue
                         recovered.append((key_id, ec.aff_from_jac(QJ)))
@@ -312,7 +314,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                     assert all(key_id >> 1 == 1 for key_id in key_ids)
 
                     # and the plural is that range, less what dropped out
-                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec)
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=False)
                     assert [ec.aff_from_jac(QJ) for QJ in jac_keys] == [
                         Q_ for _, Q_ in recovered
                     ]
@@ -357,7 +359,7 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
                 key_ids = []
                 for key_id in range(2 * (ec.cofactor + 1)):
                     try:
-                        QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
+                        QJ = dsa._recover_pub_key_(key_id, e, r, s, ec, lower_s=False)
                     except (BTClibValueError, BTClibRuntimeError):
                         continue
                     if ec.aff_from_jac(QJ) == Q:
@@ -1312,7 +1314,7 @@ def test_verify_infinity_point() -> None:
     ec = CURVES["secp256k1"]
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec)
+        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec, lower_s=False)
 
 
 def test_verify_with_another_hash_function_on_both_arithmetics(
@@ -1345,7 +1347,7 @@ def test_verify_with_another_hash_function_on_both_arithmetics(
         assert not dsa.verify(b"another message", Q, sig, hf=sha512)
         # K = u*G + v*Q is INF for Q = G, r = s = 1 and c = n-1
         with pytest.raises(BTClibRuntimeError, match=r"invalid \(INF\) key"):
-            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec)
+            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec, lower_s=False)
 
     checks()
     no_bindings(monkeypatch)

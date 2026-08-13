@@ -395,7 +395,7 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     # itself and 2.4 the r-congruence check of the Sig validation above
     if _libsecp256k1_applicable(secp256k1, None):
         pub_key = _libsecp256k1_recover_sec_(
-            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed
+            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed, lower_s=False
         )
     else:
         Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, sha256)
