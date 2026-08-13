@@ -560,13 +560,23 @@ jobs:
       # is the difference between diagnosing that and guessing at it.
       #
       # .github/speculos-automation.json is HWI's own
-      # test/data/speculos-automation.json, vendored at 3.2.0 (blob
-      # f17a9c668191b2ac4a0e74ba4995c6926cb3b763, last moved upstream in
-      # d27d196def0b24b9f0a1a1c15cad755907583221), and it is a copy
-      # rather than a smaller file written here because the screens it
-      # answers are this app's: what a rule has to match is a string
-      # nobody can check without running the app, and upstream runs
-      # these very flows against these very versions
+      # test/data/speculos-automation.json, and it is a copy rather than
+      # a smaller file written here because the screens it answers are
+      # this app's: what a rule has to match is a string nobody can check
+      # without running the app, and upstream runs these very flows
+      # against these very versions.
+      #
+      # Vendored from commit d27d196def0b24b9f0a1a1c15cad755907583221
+      # (blob 41cc061295df2a92e11605398991c3e097f8231f, reindented here
+      # by pretty-format-json, so the rules are upstream's and the bytes
+      # are not -- `python -m json.tool` on both is how the two are
+      # compared), which is the
+      # copy that goes with app 2.5.0 and not the one released in HWI
+      # 3.2.0: that older file matches `Verify Bitcoin`, this app draws
+      # `Verify bitcoin`, and the run where that rule missed spent 120
+      # seconds waiting for a button. So the file moves with
+      # LEDGER_APP_VERSION, and raising one without re-reading the other
+      # is what a hang here will mean
 
       - name: Start the emulator with the mainnet app
         run: |
