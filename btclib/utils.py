@@ -391,6 +391,12 @@ def encode_num(i: int) -> bytes:
     room for its magnitude in eight, which is what Core's
     `CScriptNum::serialize` writes for it as well.
     """
+    # before the bound, which is a comparison: `"5" <= 2**63 - 1` is a
+    # bare TypeError about the operands, from underneath the library
+    # rather than through its exception contract, and True would be the
+    # script number one -- the reason `is_integer` names bool
+    if not is_integer(i):
+        raise BTClibTypeError(f"non-integer script number: {type(i).__name__}")
     if not _MIN_SCRIPT_NUM <= i <= _MAX_SCRIPT_NUM:
         err_msg = f"script number out of range: {i}"
         err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"

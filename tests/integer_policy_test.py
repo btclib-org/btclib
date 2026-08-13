@@ -32,14 +32,18 @@ from btclib.bip32.der_path import (
     str_from_index_int,
 )
 from btclib.block import BlockHeader
+from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
+from btclib.block.mining import mine
+from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
+from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv
 from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import bytes_from_octets, encode_num, is_integer
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
@@ -121,6 +125,17 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
         "sig_hash input index",
         lambda v: sig_hash.taproot(_tx(), v, _PREVOUTS, 1, 0, b"", b""),
     ),
+    ("script number", encode_num),
+    (
+        "merkle leaf index",
+        lambda v: merkle_root_from_branch(b"\x00" * 32, [], v, sha256),
+    ),
+    ("bip34 commitment height", bip34_commitment),
+    ("retarget height", retarget_first_height),
+    ("mining max tries", lambda v: mine(_header(), v)),
+    ("hash rate difficulty", lambda v: hash_rate(v, 600.0)),
+    ("hash rate timespan", lambda v: hash_rate(1.0, v)),
+    ("hash rate block count", lambda v: hash_rate(1.0, 600.0, v)),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -174,6 +189,15 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert mod_inv(3, 7) == 5
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
+    assert encode_num(1) == b"\x01"
+    assert merkle_root_from_branch(b"\x00" * 32, [], 0, sha256) == b"\x00" * 32
+    assert bip34_commitment(1) == b"Q"
+    assert retarget_first_height(2015) == 0
+    assert mine(_header(), 1) is None
+    assert hash_rate(1.0, 600.0, 1) == 2**32 / 600.0
+    # an integer difficulty and an integer timespan are numbers too: the
+    # bool refusal must not take the int with it where a float is annotated
+    assert hash_rate(1, 600) == hash_rate(1.0, 600.0)
 
     # the str and bytes spellings of a path are untouched by any of it
     assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]

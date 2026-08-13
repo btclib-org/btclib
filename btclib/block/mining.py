@@ -28,8 +28,9 @@ from datetime import datetime
 from btclib.alias import Octets
 from btclib.block.block import merkle_root_and_mutated_from_transactions
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.tx import Tx
+from btclib.utils import is_integer
 
 __all__ = [
     "NONCE_SPACE",
@@ -101,6 +102,14 @@ def mine(header: BlockHeader, max_tries: int = 1 << 20) -> BlockHeader | None:
 
     The caller's header is left alone: what comes back is a copy.
     """
+    # `replace()` says "should be called on dataclass instances" for
+    # anything else, from the standard library and about a call the caller
+    # never made; `max_tries < 1` is a bare TypeError about the operands,
+    # and a float passes it to fail at `range` a few lines down
+    if not isinstance(header, BlockHeader):
+        raise BTClibTypeError(f"invalid header type: {type(header).__name__}")
+    if not is_integer(max_tries):
+        raise BTClibTypeError(f"invalid max_tries type: {type(max_tries).__name__}")
     if max_tries < 1:
         raise BTClibValueError(f"invalid max_tries: {max_tries}")
 

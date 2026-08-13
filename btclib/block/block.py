@@ -22,7 +22,7 @@ from btclib.block.limits import (
     WITNESS_SCALE_FACTOR,
 )
 from btclib.block.proof_of_work import MAINNET_POW_LIMIT_BITS
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import (
     hash256,
     merkle_root_and_mutated,
@@ -31,7 +31,12 @@ from btclib.hashes import (
 from btclib.script.script import op_int
 from btclib.script.script import serialize as serialize_script
 from btclib.tx import Tx
-from btclib.utils import assert_no_trailing, bytesio_from_binarydata, decode_num
+from btclib.utils import (
+    assert_no_trailing,
+    bytesio_from_binarydata,
+    decode_num,
+    is_integer,
+)
 
 __all__ = [
     "Block",
@@ -86,6 +91,12 @@ def bip34_commitment(height: int) -> bytes:
     binds first and every node on such a chain compares against the op
     code.
     """
+    # before the comparison below, which is what a non-number reaches:
+    # `-1 <= "5"` is a bare TypeError about the operands rather than
+    # about the height, and `True` is the height one
+    if not is_integer(height):
+        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+
     # Core's push_int64 has three branches -- OP_0 for zero, OP_1..OP_16
     # for 1 to 16, OP_1NEGATE for -1 -- and op_int names all three
     command: Command = op_int(height) if -1 <= height <= 16 else height

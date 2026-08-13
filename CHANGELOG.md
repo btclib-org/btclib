@@ -1658,6 +1658,32 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Ten places in `block/`, `hashes` and `utils` asked a value what it
+  is not** (issue #744): a comparison, an arithmetic operation or an
+  attribute lookup on an argument nothing had checked. `"5" <= 16`,
+  `"2015" + 1` and `"hard" <= 0` are bare `TypeError`s about operands,
+  raised from underneath the library and naming neither the parameter
+  nor the function; `.tzinfo` on a str is an `AttributeError`, which is
+  outside *both* halves of this library's exception contract, so nothing
+  a caller is told to catch would have caught it; and two datetimes
+  given as unix timestamps subtracted to an int, whose missing
+  `total_seconds` is an `AttributeError` again.
+
+  The guard is `var_int.serialize`'s, and the vocabulary is
+  `utils.is_integer`'s: a bool is not a number, because it would be the
+  height one, the block count one, the leaf index one.
+
+  `bip34_commitment` and, through it, `Block.assert_valid_coinbase_height`;
+  `BlockHeader.assert_valid`'s timestamp and `assert_valid_time`'s `now`
+  -- the default `check_validity=True` path being as exposed as the
+  explicit one; `mining.mine`'s `max_tries` *and* its header, which
+  `dataclasses.replace` used to complain about; `next_bits`'s two
+  datetimes; `retarget_first_height`; all three numbers of `hash_rate`,
+  where a difficulty and a timespan are `float` and an integer is one of
+  those; `hashes.merkle_root_from_branch`'s leaf index, which is what
+  `merkle_proof.assert_as_valid` and `merkle_proof.verify` reach it
+  through; and `utils.encode_num`.
+
 - **Every field a sig_hash preimage writes is checked as a width, and
   every `vin_i` as an index** (issue #744). `int.to_bytes` answers a
   field too wide for it with an `OverflowError`, which is an
