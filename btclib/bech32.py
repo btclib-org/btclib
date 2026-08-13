@@ -59,7 +59,7 @@ from operator import xor
 
 from btclib.alias import String
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import is_integer, str_from_string
 
 __all__ = [
     "decode",
@@ -125,15 +125,10 @@ def _verify_checksum(hrp: str, data: list[int], m: int) -> bool:
 
 def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     """Determine a bech32 string HRP, data and checksum."""
-    if isinstance(bech, bytes):
-        # bech32 is an ascii encoding, so a byte outside it is an
-        # invalid character like any other and gets the same answer:
-        # a UnicodeDecodeError let out would fly past every caller
-        # written to catch BTClibValueError
-        try:
-            bech = bech.decode("ascii")
-        except UnicodeDecodeError as e:
-            raise BTClibValueError(f"non-ascii character in bech32 string: {e}") from e
+    # bech32 is an ascii encoding, so a byte outside it is an invalid
+    # character like any other, and what is neither text nor bytes is
+    # refused here rather than reaching `rfind` as a missing method
+    text = str_from_string(bech, "bech32 string")
 
     # no 90-character limit here: that bound belongs to bitcoin
     # addresses and not to bech32, which the Lightning Network uses
@@ -141,27 +136,27 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     # intended -- b32.witness_from_address enforces it, and the module
     # docstring there lists it among the rules b32 adds on top
 
-    pos = bech.rfind("1")  # find the separator between hrp and data
+    pos = text.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise BTClibValueError(f"no separator character: {bech}")
+        raise BTClibValueError(f"no separator character: {text}")
     if pos == 0:
-        raise BTClibValueError(f"empty HRP: {bech}")
-    if pos + 7 > len(bech):
-        raise BTClibValueError(f"too short checksum: {bech}")
+        raise BTClibValueError(f"empty HRP: {text}")
+    if pos + 7 > len(text):
+        raise BTClibValueError(f"too short checksum: {text}")
 
-    if not all(47 < ord(x) < 123 for x in bech[:pos]):
-        raise BTClibValueError(f"HRP character out of range: {bech}")
-    if bech.lower() != bech and bech.upper() != bech:
-        raise BTClibValueError(f"mixed case: {bech}")
+    if not all(47 < ord(x) < 123 for x in text[:pos]):
+        raise BTClibValueError(f"HRP character out of range: {text}")
+    if text.lower() != text and text.upper() != text:
+        raise BTClibValueError(f"mixed case: {text}")
 
-    bech = bech.lower()
-    hrp = bech[:pos]
+    text = text.lower()
+    hrp = text[:pos]
 
-    indices = [_INDEX_OF.get(x, -1) for x in bech[pos + 1 :]]
+    indices = [_INDEX_OF.get(x, -1) for x in text[pos + 1 :]]
     if -1 in indices[-6:]:
-        raise BTClibValueError(f"invalid character in checksum: {bech}")
+        raise BTClibValueError(f"invalid character in checksum: {text}")
     if -1 in indices:
-        raise BTClibValueError(f"invalid data character: {bech}")
+        raise BTClibValueError(f"invalid data character: {text}")
     data = indices
 
     return hrp, data[:-6], data[-6:]

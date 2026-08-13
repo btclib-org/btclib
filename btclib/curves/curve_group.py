@@ -528,6 +528,10 @@ class CurveGroup:
 
     def is_on_curve(self, Q: Point) -> bool:
         """Return True if the point is on the curve."""
+        # the type before the length: `len` of what is not sized is a
+        # TypeError about a builtin, where a Point is what this asks for
+        if not isinstance(Q, tuple):
+            raise BTClibTypeError(f"invalid point type: {type(Q).__name__}")
         if len(Q) != 2:
             raise BTClibValueError("point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates

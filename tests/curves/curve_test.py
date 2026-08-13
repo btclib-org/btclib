@@ -758,8 +758,13 @@ def test_libsecp256k1_applicable() -> None:
 def test_is_on_curve() -> None:
     """Refuse non-tuples and out-of-range coordinates, on every curve."""
     for ec in all_curves.values():
-        with pytest.raises(BTClibValueError, match="point must be a tuple"):
+        # the type first, `len` of what is not sized being a TypeError
+        # about a builtin rather than a word about the argument
+        with pytest.raises(BTClibTypeError, match="invalid point type: str"):
             ec.is_on_curve("not a point")  # type: ignore[arg-type]
+
+        with pytest.raises(BTClibValueError, match="point must be a tuple"):
+            ec.is_on_curve((1, 2, 3))  # type: ignore[arg-type]
 
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)

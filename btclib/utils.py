@@ -56,7 +56,7 @@ from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, BinaryIO
 
-from btclib.alias import BinaryData, Integer, Octets
+from btclib.alias import BinaryData, Integer, Octets, String
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 __all__ = [
@@ -72,6 +72,7 @@ __all__ = [
     "int_from_json_number",
     "is_integer",
     "read_exactly",
+    "str_from_string",
 ]
 
 NoneOneOrMoreInt = int | Iterable[int] | None
@@ -137,19 +138,58 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     raise BTClibValueError(err_msg)
 
 
-def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
-    """Return a BytesIO stream object from BinaryIO or Octets.
+def str_from_string(s: String, what: str) -> str:
+    """Return the text of a String, whether it came as text or as ascii bytes.
 
-    If the input is not Octets (i.e. str or bytes), then it goes
-    untouched.
+    What `bytes_from_octets` is to the other `bytes | str` alias, in the
+    direction the addresses go: an address, a WIF and an xkey are ascii,
+    so a byte outside it is an invalid character like any other and gets
+    the same answer -- a UnicodeDecodeError let out would fly past every
+    caller written to catch a BTClibValueError.
+
+    `what` names the string in both messages, the caller knowing what it
+    was reading and this not, exactly as `read_exactly` names a field.
+
+    Nothing is stripped and nothing is lowered: which of those is right
+    is the caller's to know, a message to be signed being the one String
+    whose blanks are part of it.
     """
-    if isinstance(stream, str):  # hex string
-        stream = bytes_from_octets(stream)
+    if isinstance(s, str):
+        return s
 
-    if isinstance(stream, bytes):
-        stream = BytesIO(stream)
+    if not isinstance(s, (bytes, bytearray, memoryview)):
+        # what is neither went through untouched, to fail on `len` or on
+        # a method of str that the value does not have -- a complaint
+        # about a builtin rather than about the argument
+        err_msg = f"invalid {what} type: {type(s).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
 
-    return stream
+    try:
+        return bytes(s).decode("ascii")
+    except UnicodeDecodeError as e:
+        raise BTClibValueError(f"non-ascii character in {what}: {e}") from e
+
+
+def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
+    """Return a BytesIO stream object from a BytesIO or from Octets.
+
+    A `BytesIO` is the caller's own and is handed back as it came, the
+    position it is left at being how a transaction is read out of a
+    block. Anything else is octets, and is wrapped in one.
+
+    A `BytesIO` and not any binary stream: `deserialize_map` asks the
+    result for `getbuffer()`, which a file object does not have, so
+    accepting one here would only move the failure. `read_exactly` is
+    the one that takes a `BinaryIO`, and its docstring says why.
+    """
+    if isinstance(stream, BytesIO):
+        return stream
+
+    # the refusal of what is neither a stream nor octets is
+    # bytes_from_octets's to give: what is neither used to go through
+    # untouched and be returned as it came, so `parse` answered a None
+    # with a None and the caller failed on `.read`
+    return BytesIO(bytes_from_octets(stream))
 
 
 def read_exactly(stream: BinaryIO, size: int, what: str) -> bytes:

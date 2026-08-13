@@ -25,8 +25,8 @@ caller with something to do about that difference names the specific
 class; `except BTClibException` is for the caller who only needs to know
 it came from here.
 
-That every failure of btclib's *is* one is not yet true: issue #744
-counts the public functions still letting a native `KeyError`,
+That every failure of btclib's *is* one is not yet true: issue #776
+carries the public functions still letting a native `KeyError`,
 `IndexError` or `OverflowError` through, and until that is closed this
 class catches most of what the library raises rather than all of it.
 

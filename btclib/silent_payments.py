@@ -77,7 +77,7 @@ from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.tx.out_point import OutPoint
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import bytes_from_octets, is_integer, str_from_string
 
 __all__ = [
     "K_MAX",
@@ -247,13 +247,15 @@ def keys_from_address(address: String) -> tuple[Point, Point, NetworkType]:
     pay a later address. v31 is refused instead, being the version BIP352
     reserves for a change that breaks exactly that.
     """
-    if isinstance(address, str):
-        address = address.strip().lower()
-    if len(address) > _MAX_ADDRESS_SIZE:
-        err_msg = f"invalid address length: {len(address)} > {_MAX_ADDRESS_SIZE}"
+    # the coercion before the length, as in b32.witness_from_address:
+    # `len` of what is neither text nor bytes is a TypeError about a
+    # builtin, where the codec below would have named the argument
+    addr = str_from_string(address, "address").strip().lower()
+    if len(addr) > _MAX_ADDRESS_SIZE:
+        err_msg = f"invalid address length: {len(addr)} > {_MAX_ADDRESS_SIZE}"
         raise BTClibValueError(err_msg)
 
-    hrp, data = decode(address, _BECH32_M_CONST)
+    hrp, data = decode(addr, _BECH32_M_CONST)
     if hrp == _MAINNET_HRP:
         network_type: NetworkType = "main"
     elif hrp == _TESTNET_HRP:

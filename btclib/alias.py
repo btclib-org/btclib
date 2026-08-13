@@ -8,9 +8,9 @@ Octets and String below are both `bytes | str`, so mypy cannot tell
 one from the other: passing a text string where a hex-string is expected
 is a type error this file names but no checker can catch. The distinction
 is enforced at run time instead, by the converter each function calls on
-its way in -- bytes_from_octets for Octets, encode() for String -- and it
-is documented here because that is the only place it can be read as one
-piece.
+its way in -- bytes_from_octets for Octets, str_from_string for String --
+and it is documented here because that is the only place it can be read
+as one piece.
 
 Making them NewTypes would let mypy separate them, at the cost of every
 caller having to wrap its literals: Octets("deadbeef") instead of

@@ -188,13 +188,13 @@ def _prv_keyinfo_from_wif(
     # echoes the input, which is candidate key material -- a checksum, a
     # prefix and a size are not secret.
     #
-    # ValueError and not BTClibValueError: b58decode leaks a plain one,
-    # "byte must be in range(0, 256)", for an input that is neither str nor
-    # bytes -- a Point tuple, say. That leak is base58's to fix; whatever
-    # it is, it means this input is not a WIF
+    # both classes, as the octets branch of the two public converters
+    # catches both: what is neither a base58 string nor bytes is a
+    # TypeError, and it means here what a bad checksum means -- this input
+    # is not a WIF, and the caller is free to try it as something else
     try:
         payload = b58decode(wif)
-    except ValueError as e:
+    except (TypeError, ValueError) as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
     # from here on the version prefix says WIF, so a fault in what follows
@@ -226,10 +226,13 @@ def _prv_keyinfo_from_xprv(
     else:
         # base58, 78 bytes, and a known xkey version or not: a negative
         # answer leaves the input free to be octets or an int, so it is
-        # NotAPrvKeyError, carrying the reason rather than discarding it
+        # NotAPrvKeyError, carrying the reason rather than discarding it.
+        # Both classes, as everywhere a format is guessed here: a type the
+        # decode refuses says this is not an xkey, not that the caller is
+        # owed a TypeError from inside the guessing
         try:
             xprv = _key_data_from_bip32_key(xprv)
-        except ValueError as e:
+        except (TypeError, ValueError) as e:
             raise NotAPrvKeyError(f"not a BIP32 xkey ({e})") from e
 
     # a BIP32 key is always compressed, so a caller asking for uncompressed
