@@ -7,7 +7,7 @@
 import pytest
 
 from btclib.curves import CurveGroup, find_all_points, find_subgroup_points
-from btclib.curves.curve_group import mult_aff
+from btclib.curves.curve_group import _mult_aff
 from btclib.exceptions import BTClibValueError
 
 
@@ -36,9 +36,9 @@ def test_ecf() -> None:
 
     # Scalar Multiplication
     X = (5323, 5438)
-    assert mult_aff(1337, X, ec) == (1089, 6931)
+    assert _mult_aff(1337, X, ec) == (1089, 6931)
     P = (2339, 2213)
-    S = mult_aff(7863, P, ec)
+    S = _mult_aff(7863, P, ec)
     ec.require_on_curve(S)
     S_exp = (9467, 2742)
     assert S_exp == S

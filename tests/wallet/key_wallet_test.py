@@ -14,6 +14,7 @@ from btclib.bip32 import bip32
 from btclib.ecc import bms
 from btclib.exceptions import BTClibValueError
 from btclib.wallet import AddressInfo, BIP32KeyWallet, KeyWallet
+from tests import replace_unchecked
 
 # the "abandon abandon ... about" seed, whose master key BIP84 and BIP86
 # both publish as their rootpriv and whose addresses SLIP132, BIP49,
@@ -166,8 +167,7 @@ def test_a_bip32keydata_is_validated_even_when_already_one() -> None:
     unlike the four `to_prv_key`/`to_pub_key`/`bip32` functions the same
     census names as compliant.
     """
-    bad = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPUB)
-    bad.index = -1
+    bad = replace_unchecked(bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPUB), index=-1)
     err_msg = "invalid index: -1"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad.assert_valid()

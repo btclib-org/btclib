@@ -20,6 +20,17 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **the individual point multiplications are private.** `from
+  btclib.curves.curve_group import mult_jac` is an `ImportError` now, and
+  so is every other variant of `curve_group` and `curve_group_2`: the
+  `mult_*`, the two `double_mult_*`, `multiples`, `cached_multiples`,
+  `cached_multiples_fixwind`, `odd_multiples`, `signed_odd_multiples`,
+  `jac_from_aff`, `mods`, `wNAF_of_m`, `convert_number_to_base` and
+  `multiplier_decomposer` each carry a leading underscore. Use `mult`,
+  `double_mult` and `multi_mult`, which are where they were and are the
+  three that check a point is on the curve before multiplying it -- which
+  is what the variants never did and what made them worth hiding. A variant
+  that used to default to `w=4` takes the width from its caller.
 - **verifying and recovering no longer take `lower_s`.**
   `dsa.assert_as_valid`, `dsa.verify`, `dsa.recover_pub_keys`,
   `dsa.recover_pub_key` and their four trailing-underscore twins used to
@@ -102,6 +113,13 @@ full year, short month, short day (YYYY-M-D)
   is defined for secp256k1 alone, and the parameter was never honoured,
   the arithmetic behind it having always used secp256k1's generator
   whatever was passed.
+
+- **`BIP32KeyData` is frozen.** `xkey.index = 0` on an already-built
+  extended key, or on one `b58decode`/`parse` returned, now raises
+  `dataclasses.FrozenInstanceError` instead of silently taking effect. A
+  caller that needs a modified copy uses `dataclasses.replace(xkey,
+  index=0)`, which re-validates by default -- the same function
+  `BIP32KeyData(...)` still takes, and still defaulting to `True`.
 
 ### The bindings are now `btclib_secp256k1`
 

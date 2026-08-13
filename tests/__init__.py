@@ -31,6 +31,7 @@ beside the helpers of `tests/script/__init__.py` and
 import csv
 import json
 import re
+from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
@@ -92,3 +93,19 @@ def vector_id(index: int, *description: object) -> str:
     text = "-".join(str(d) for d in description if d)
     text = _NOT_IN_AN_ID.sub("-", text).strip("-")
     return f"{index}-{text[:60]}" if text else str(index)
+
+
+def replace_unchecked(instance: Any, **changes: Any) -> Any:
+    """Return `instance` with the given fields changed, validation skipped.
+
+    `dataclasses.replace` always re-validates through `__init__` -- right
+    for a modified copy meant to stay valid, wrong for a fixture built to
+    fail its own `assert_valid` on purpose. Every frozen, validating
+    dataclass in this project takes `check_validity` the same
+    keyword-only way (`CONTRIBUTING.md`'s "The public surface"), so this
+    is the one helper any of them can use in place of the direct field
+    mutation a frozen instance now refuses.
+    """
+    current = {field.name: getattr(instance, field.name) for field in fields(instance)}
+    current.update(changes)
+    return type(instance)(**current, check_validity=False)
