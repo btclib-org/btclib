@@ -2813,6 +2813,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **Every test that reads a source file names its encoding.** Four
+  `read_text()` calls took the locale's, which is UTF-8 on the runners this
+  suite is usually read on and cp1252 on the Windows ones: the walk in
+  `input_validation_test.py` parses every module under `btclib/`, one of
+  them has a typographic quote in a docstring, and 0x9d is a byte cp1252
+  maps to nothing. Twelve of the fourteen Windows cells therefore ended in
+  a collection error with every other test passed, and the two that did not
+  are the PyPy ones, which collected the module and ran its 132 tests: what
+  a locale answers is the interpreter's to decide, which is the argument for
+  never asking it. The pair in
+  `input_validation_test.py`, `flags_test.py`'s engine scan and
+  `hwi_test.py`'s recorded argv now all pass `encoding="utf-8"`. Nothing
+  else in `btclib`, `tests` or `.github/scripts` opens a file without
+  one, measured with a rule ruff has in preview:
+
+  ```shell
+  uv run ruff check --isolated --preview --select PLW1514 \
+      btclib tests .github/scripts
+  ```
+
 - **`python_path_test.py` leaves the arithmetic delegated.** It patches
   the bindings off for `dsa` and `ssa`, which is what puts the Python
   verdict in front of the vendored consensus vectors, and no longer for

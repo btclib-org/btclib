@@ -300,7 +300,7 @@ def last_argv(hwi: list[str]) -> list[str]:
     adapter would have built.
     """
     recorded = Path(hwi[-1]).with_suffix(".argv.json")
-    return json.loads(recorded.read_text())  # type: ignore[no-any-return]
+    return json.loads(recorded.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 def test_the_network_is_the_chain_hwi_is_told(tmp_path: Path) -> None:

@@ -198,7 +198,7 @@ def _drivable() -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
-        for node in ast.parse(path.read_text()).body:
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
             if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
                 continue
             positional = [*node.args.posonlyargs, *node.args.args]
@@ -271,7 +271,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
     in_alias_py: set[str] = set()
     annotated: set[str] = set()
     for path in sorted(_LIBRARY.rglob("*.py")):
-        tree = ast.parse(path.read_text())
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         names = {
             node.targets[0].id
             for node in tree.body
