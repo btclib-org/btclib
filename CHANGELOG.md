@@ -529,6 +529,19 @@ documented at release-notes length in the first place, and are still in
   the script code. Refusing the width at the serialization boundary is what
   those two want, and it is a decision of its own.
 
+- **The last two of #690, closed at the serialization boundary rather than
+  the object's.** Neither wants the transaction judged whole -- the decision
+  the entry above left open -- so `Tx.serialize` now refuses a `version` or
+  `lock_time` outside the four bytes it writes them in on its own account,
+  regardless of `check_validity`: the same range `assert_valid` already
+  enforced, asked again where `check_validity=False` skips it, rather than
+  left to `int.to_bytes`'s `OverflowError`.
+  `merkle_root_and_mutated_from_transactions` and `legacy`'s own
+  transaction copy both reach it that way, and both are fixed by the one
+  check. The range itself was already written twice, inline, in
+  `assert_valid`; a named helper is what the two call sites now share
+  instead of a third copy of it.
+
 - **A declared count is bounded by what could hold it, before anything is
   allocated for it** (#569). `var_int.parse`'s `MAX_SIZE` is Core's
   `ReadCompactSize` range check and answers whether a CompactSize is one
