@@ -323,7 +323,12 @@ written out here even though addopts already carries it, this being the
 job's command verbatim.
 
 The `dist` job, which inspects what would be published and then
-installs it. The last commands ask for the wheel and nothing else, so
+installs it. The first two commands after the build read the *members* of
+the two archives, which the three that follow do not: an allowlist of what
+may be in a wheel and an sdist, and the bill of materials a release
+attaches — written here into a temporary directory and thrown away, this
+being the copy that says the script still reads a real wheel. The last
+commands ask for the wheel and nothing else, so
 what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel
 carries; the lock arrives as constraints, which pin without
 requesting a package — a commit, for a direct reference — so nothing
@@ -334,6 +339,10 @@ the wheel:
 
 ```shell
 uv build
+uv run --no-project --python 3.14 \
+    .github/scripts/verify_dist_contents.py dist/
+SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv run --no-project \
+    --python 3.14 .github/scripts/generate_sbom.py dist/ "$(mktemp -d)"
 uv run --locked --only-group build twine check --strict dist/*
 uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
@@ -351,9 +360,11 @@ cd "$tmp" && uv venv &&
         dsa.sign(b'btclib', 1))"
 ```
 
-The checks the `release` workflow runs before building anything:
+The checks the `release` workflow runs before building anything, the
+first of them being where the tag came from rather than what it says:
 
 ```shell
+git merge-base --is-ancestor HEAD origin/main
 uv lock --check
 uv version --short
 ```
@@ -379,6 +390,10 @@ produce the same wheel, the second why they produce the same sdist:
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
 ```
+
+The bill of materials that job writes is reproducible for the same reason,
+that variable being its timestamp, so a rebuild verifies against the
+attestation exactly as the two distribution files do.
 
 RELEASING.md's "Rebuild a release from its tag" has them in the order a
 verifier runs them, with the `gh attestation verify` that gives the

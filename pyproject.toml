@@ -178,11 +178,14 @@ ignore = [
     # .secrets.baseline, which it does carry, because the lint gate is
     # runnable from an unpacked sdist
     ".lycheeignore",
-    # the test of the mutation workflow's counter, whose subject is under
+    # the tests of what .github/scripts holds, whose subject is under
     # .github and therefore not shipped either. The suite an sdist carries
     # has to be runnable from it, and a test whose subject is absent is not
-    # a test but four errors; MANIFEST.in excludes it and says the same
+    # a test but a fixture error; MANIFEST.in excludes them and says the same
+    "tests/check_vendored_vectors_test.py",
+    "tests/generate_sbom_test.py",
     "tests/mutation_counts_test.py",
+    "tests/verify_dist_contents_test.py",
 ]
 
 [tool.pytest.ini_options]
