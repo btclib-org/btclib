@@ -735,6 +735,10 @@ ignore = [
 # are what a monthly run's log says happened, the issue it opens or
 # closes being the same report a second way
 ".github/scripts/check_vendored_vectors.py" = ["T201"]
+# and the device wait, whose whole output is one line for the log of the
+# job that started an emulator: what it saw and how long it took, or the
+# ::error:: annotation naming what it saw instead
+".github/scripts/wait_for_hwi_device.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

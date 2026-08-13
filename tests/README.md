@@ -98,20 +98,32 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-Both halves run unattended, in a job each of the `integration` workflow,
+Both halves run unattended, in three jobs of the `integration` workflow,
 and each job fails if its tests skipped rather than ran. The regtest one
 downloads a pinned Core release on every pull request and weekly. The
-HWI one downloads a pinned Trezor emulator and a pinned HWI, loads the
-seed HWI's own suite uses, and runs this module with both switches set:
-an emulator reached over udp is driven through DebugLink, which answers
-the confirmation a person would press, so even the signing test needs
-nobody. It is not on a pull request — a firmware release or an emulator
-that stopped starting headless is not the branch's fault — so it runs
+other two are this module against an emulator, one vendor each, and
+neither is on a pull request — a firmware release or an emulator that
+stopped starting headless is not the branch's fault — so they run
 weekly, on a push to `main`, and on demand:
 
 ```shell
 gh workflow run integration.yml --ref <branch>
 ```
+
+`HWI against a Trezor emulator` downloads a pinned Model T binary and a
+pinned HWI, loads the seed HWI's own suite uses, and sets both switches:
+an emulator reached over udp is driven through DebugLink, which answers
+the confirmation a person would press, so even the signing test needs
+nobody.
+
+`HWI against a Ledger emulator` builds the Bitcoin app from a pinned tag
+in Ledger's own builder image and runs it under Speculos. It is the same
+module twice, because a Ledger app has its coin compiled in and this
+module asks about two: the mainnet build answers the xpub and the
+address on the screen, the testnet one signs the regtest spend. What
+presses the buttons there is `--automation`, matching the text the app
+draws, since Speculos has no DebugLink — the fragile part of that job,
+and why its Speculos logs are uploaded with the reports.
 
 ## There is no `slow` marker, and that is a measurement
 
