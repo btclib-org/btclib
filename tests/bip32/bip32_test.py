@@ -282,20 +282,22 @@ def test_public_derivation_builds_no_point(
     the shape of the calls rather than a stopwatch -- the class declares
     the one cache that is read, and the bindings are asked for the
     compressed spelling an extended key holds, not for the uncompressed
-    one whose y went into that point.
+    one whose y went into that point. `PubkeyTweakChain.tweak_add` is
+    where that ask is made, one call per level of the path, its own
+    parsed point never surfacing above the bindings that hold it.
     """
     inherited = {field.name for field in fields(BIP32KeyData)}
     cached = [f.name for f in fields(_BIP32KeyData) if f.name not in inherited]
     assert cached == ["prv_key_int"]
 
     compressed_asked: list[bool] = []
-    tweak_add = libsecp256k1_keys.pubkey_tweak_add
+    chain_tweak_add = libsecp256k1_keys.PubkeyTweakChain.tweak_add
 
-    def record(pubkey_bytes: Any, tweak: Any, compressed: bool = True) -> bytes:
+    def record(chain: Any, tweak: Any, compressed: bool = True) -> bytes:
         compressed_asked.append(compressed)
-        return tweak_add(pubkey_bytes, tweak, compressed)
+        return chain_tweak_add(chain, tweak, compressed)
 
-    monkeypatch.setattr(libsecp256k1_keys, "pubkey_tweak_add", record)
+    monkeypatch.setattr(libsecp256k1_keys.PubkeyTweakChain, "tweak_add", record)
 
     xpub = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
@@ -308,7 +310,7 @@ def test_public_derivation_builds_no_point(
     # and it is the same key: what the bindings compress is what the
     # parity of an uncompressed y used to be read off to rebuild
     (tweak,) = pub_key_derivation_tweaks(parent.key, parent.chain_code, "m/1")
-    uncompressed = tweak_add(parent.key, tweak, False)
+    uncompressed = libsecp256k1_keys.pubkey_tweak_add(parent.key, tweak, False)
     assert child.key == bytes_from_point(point_from_octets(uncompressed))
 
 

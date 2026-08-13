@@ -568,32 +568,39 @@ def pub_key_derivation_tweaks(
         raise BTClibValueError("invalid hardened derivation from public key")
 
     tweaks: list[bytes] = []
-    for index in indexes:
-        offset, code = _pub_key_offset(code, key, index)
-        tweaks.append(offset.to_bytes(32, byteorder="big"))
-        # the child key, which the next index hashes: the point is not
-        # needed here and libsecp256k1 adds the tweak to the serialized
-        # key, as __pub_key_derivation does one function below
-        key = libsecp256k1_keys.pubkey_tweak_add(key, offset, compressed=True)
+    if indexes:
+        # one parse for the whole path rather than one per index: each
+        # step still needs its own serialized key, to hash into the next
+        # tweak, but not a fresh parse of the bytes the step before it
+        # just serialized -- PubkeyTweakChain holds the point in between
+        chain = libsecp256k1_keys.PubkeyTweakChain(key)
+        for index in indexes:
+            offset, code = _pub_key_offset(code, key, index)
+            tweaks.append(offset.to_bytes(32, byteorder="big"))
+            key = chain.tweak_add(offset, compressed=True)
     return tweaks
 
 
-def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
+def __pub_key_derivation(
+    xkey: _BIP32KeyData, index: int, chain: libsecp256k1_keys.PubkeyTweakChain
+) -> None:
     offset, chain_code = _pub_key_offset(xkey.chain_code, xkey.key, index)
 
     # the parent point plus the generator times the offset, which is
     # what secp256k1_ec_pubkey_tweak_add computes: 12.4 us against the
-    # 33.4 of mult(offset) followed by a Python point addition, and the
-    # key stays serialized throughout -- the parent's 33 bytes go in and
-    # the child's come out, with no point built on either side.
+    # 33.4 of mult(offset) followed by a Python point addition, and xkey
+    # holds the key serialized throughout -- no point of btclib's own is
+    # ever built, ffi.new's raw C struct staying inside the bindings.
     # Compressed on the way out, which is the spelling an extended key
     # holds: asking for the uncompressed form to read a y out of it costs
     # a second serialize and the parity arithmetic that follows, for a
-    # coordinate nothing here goes on to use.
+    # coordinate nothing here goes on to use. `chain` is __pub_key_path_
+    # derivation's, held across every index of the path so that only the
+    # first of them pays for parsing xkey.key rather than every one.
     #
     # Not gated on the curve, BIP32 being defined for secp256k1 alone
     try:
-        sec = libsecp256k1_keys.pubkey_tweak_add(xkey.key, offset, compressed=True)
+        sec = chain.tweak_add(offset, compressed=True)
     except ValueError as e:
         # past the range check above, the one sum libsecp256k1 refuses
         # is the point at infinity BIP32 refuses too
@@ -630,10 +637,11 @@ def __pub_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:
     """
     if any(index >= _HARDENED_OFFSET for index in indexes):
         raise BTClibValueError("invalid hardened derivation from public key")
+    chain = libsecp256k1_keys.PubkeyTweakChain(xkey.key)
     for index in indexes[:-1]:
-        __pub_key_derivation(xkey, index)
+        __pub_key_derivation(xkey, index, chain)
     xkey.parent_fingerprint = hash160(xkey.key)[:4]
-    __pub_key_derivation(xkey, indexes[-1])
+    __pub_key_derivation(xkey, indexes[-1], chain)
 
 
 def _force_version(version: bytes, forced_version: Octets) -> bytes:
