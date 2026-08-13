@@ -216,6 +216,18 @@ documented at release-notes length in the first place, and are still in
   and would fail without it. `/en/stable/` is the last release either way,
   which is what makes the backfill not worth doing.
 
+- **The release documentation says what the release workflow does.** Three
+  places described a `published` workflow that has moved on: RELEASING.md
+  asked for a dispatch by hand after the release, where `release.yml` calls
+  the workflow with the tag and waits for the index to serve that version
+  -- so the step is a verdict to read, and a dispatch is for a question
+  between runs; and it, along with the workflow's own schedule comment and
+  links.yml's list of weekday sentinels, called the run weekly and put it
+  on a Tuesday, where the cron says the first of the month. Prose only, and
+  the two workflow files change in their comments alone: an instruction
+  nobody needs and a day that is not the day are read as facts by whoever
+  finds them, and there is nothing in a run to say otherwise.
+
 ### Packaging, linting and CI
 
 - **A tag is refused unless the default branch contains its commit**
@@ -1398,26 +1410,71 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`BTClibException`, one name to catch for everything btclib raises**
+  (issue #743). `btclib.exceptions` says its classes "exist only to tell
+  an exception raised by btclib from one raised by any other code", and
+  could not do it: telling them apart took a tuple of three --
+  `BTClibValueError`, `BTClibTypeError`, `BTClibRuntimeError` -- that a
+  caller had to keep in step with this hierarchy. Those three now inherit
+  the new base, and the eleven classes under them get it transitively.
+
+  Inherited *beside* the built-in and not instead of it, which is the half
+  that matters: `BTClibValueError` is a `ValueError` as it always was, so
+  every `except ValueError` already written keeps catching what it caught.
+  That is the standard library's own shape -- `json.JSONDecodeError` is a
+  `ValueError` -- and what requests, sqlalchemy and httpx give up by
+  deriving their bases from `Exception` alone, which leaves an `except
+  ValueError` not catching their value errors.
+
+  It is caught and never raised: every raise is one of the three, and
+  which one answers what the base cannot carry -- whether the value was
+  wrong, the type was, or neither was and a check failed anyway. A caller
+  with something to do about that names the specific class.
+  `BTClibUserWarning` stays out, a warning being filtered rather than
+  caught: with `filterwarnings = ["error"]` an `except BTClibException`
+  would otherwise catch a call that worked.
+
+  The docstring says what is not yet true, rather than promising it: issue
+  #744 counts the public functions still letting a native `KeyError`,
+  `IndexError` or `OverflowError` through, so catching this class catches
+  most of what the library raises and not all of it. The test that will
+  close that gap wants a single predicate to assert, which is why the base
+  lands before the fixes rather than after them.
+
 - **BIP85 deterministic entropy from a BIP32 keychain** (issue #644), as
   `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
   fully hardened path off a root key, then
   `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
-  key -- and it answers for any path, including the applications no
-  function here formats. Four of them are formatted:
+  key -- and it answers for any path, including one no function here
+  formats. Every application the BIP defines is formatted beside it:
   `mnemonic_from_root_key` (39', BIP85's ten languages and all five
   sentence lengths of its Words Table), `wif_from_root_key` (2', the
-  Bitcoin Core `hdseed`), `xprv_from_root_key` (32') and
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32'),
   `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
-  which hands back the bytes).
+  which hands back the bytes), `base64_password_from_root_key` (707764'),
+  `base85_password_from_root_key` (707785'), `rolls_from_root_key`
+  (89101') and `rsa_drng_from_root_key` (828365').
+
+  The last two read `BIP85DRNG`, which is BIP85-DRNG-SHAKE256: 64 bytes
+  are not enough for a function whose appetite is not known until it has
+  finished, so they seed a SHAKE256 stream and `read` squeezes it. RSA is
+  where that matters and where btclib stops -- the BIP defines the path
+  and the stream to feed a key generator, not how the primes are found,
+  so what comes back is the reader an RSA library is to be given. It is
+  also the one application the BIP publishes no vector for, and the
+  reason is the same: two libraries handed the same stream need not
+  agree on the key.
+
+  `rolls_from_root_key` computes the width of a roll as
+  `(sides - 1).bit_length()` where the BIP writes `ceil(log_2(sides))`,
+  which is the same number and not the same operation: a float logarithm
+  rounds at a power of two, and a roll one bit too wide is one the
+  rejection step then drops far more often than it should.
 
   The module is at the top level rather than under `btclib/bip32/`, for
   the reason `bip44` and `slip132` are: the applications need `b58` for a
   WIF and `mnemonic.bip39` for a sentence, and both of those import
-  `bip32`, which may not import them back. What is left out is the rest
-  of the BIP, and the line is BIP85-DRNG-SHAKE256: 707764' and 707785'
-  are a base64 and a base85 slice of the same 64 bytes, while 828365'
-  (RSA) and 89101' (dice) read a stream seeded with them rather than the
-  bytes themselves.
+  `bip32`, which may not import them back.
 
   Two of BIP85's own fields are not what their name reads as, and
   `tests/bip85_test.py` says so where it asserts them: application 32'

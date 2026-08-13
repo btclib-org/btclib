@@ -35,18 +35,20 @@ name: published
 
 on:
   schedule:
-    # Tuesday, a minute that is not the hour: everything scheduled on the
-    # hour queues together, and a run that waits is a run whose failure
-    # is noticed later. The day after links.yml's Monday: a fixed,
-    # already-released artifact is checked here, before latest.yml asks
-    # the more volatile question of what the newest dependency does to a
-    # tree not yet released.
+    # The first of the month, at a minute that is not the hour: everything
+    # scheduled on the hour queues together, and a run that waits is a run
+    # whose failure is noticed later. Monthly and not weekly because the
+    # subject does not change: an already-released artifact is fixed, and
+    # what can move under it -- a new interpreter, an index serving a file
+    # that does not match its own hash -- moves on nobody's week. The one
+    # moment the answer can change is a release, and that is a call from
+    # release.yml rather than a day on the calendar.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "31 4 1 * *"
   # after a release, which is the one moment this workflow's answer can
-  # change: RELEASING.md documented dispatching it by hand right there, and
-  # a call does not forget. Called by release.yml rather than triggered by
+  # change: a call does not forget, where RELEASING.md's step is a verdict
+  # to read. Called by release.yml rather than triggered by
   # workflow_run, which zizmor rates a dangerous trigger and rightly -- it
   # runs the default branch's copy with the token of a push nobody reviewed
   # -- where a call runs inside the release that gated it. The caller passes
