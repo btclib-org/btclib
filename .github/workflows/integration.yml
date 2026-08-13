@@ -16,16 +16,22 @@ name: integration
 # must not -- that rule lives outside the repository and names its checks
 # as literal strings.
 #
-# The HWI half of `tests/integration/` is the second job, and it needs a
-# device: a pinned Trezor emulator stands in for one, with a pinned HWI
-# in an interpreter of its own. That job is not on a pull request, which
-# is the whole difference between the two -- it can go red on a firmware
-# release, on data.trezor.io, or on an emulator that stopped starting
-# headless, so it is asked on the schedule and on demand, where the run
-# is read by somebody who wanted the answer, rather than in front of a
-# review that has nothing to do with it. What checks the HWI command line
-# on every commit stays tests/hwi_test.py, whose stand-in device is a
-# subprocess answering HWI's own json.
+# The HWI half of `tests/integration/` is the other two jobs, and it
+# needs a device: a pinned Trezor emulator stands in for one, a pinned
+# Ledger under Speculos for another, each with a pinned HWI in an
+# interpreter of its own. Two vendors rather than one because HWI is two
+# clients: the protobuf one the Trezor speaks, and the app-2.x one behind
+# a Ledger's wallet policies and psbt exchange, and a green run of either
+# says nothing about the other.
+#
+# Neither is on a pull request, which is the whole difference between
+# them and the job above -- they can go red on a firmware release, on
+# data.trezor.io, on an app whose screens changed wording, so they are
+# asked on the schedule and on demand, where the run is read by somebody
+# who wanted the answer, rather than in front of a review that has
+# nothing to do with it. What checks the HWI command line on every commit
+# stays tests/hwi_test.py, whose stand-in device is a subprocess
+# answering HWI's own json.
 
 on:
   schedule:
@@ -429,5 +435,242 @@ jobs:
           path: |
             hwi.xml
             emulator.log
+          if-no-files-found: error
+          retention-days: 90
+
+  hwi-ledger:
+    name: HWI against a Ledger emulator
+    # the same rule as the trezor job, and the reasons are stronger here:
+    # this one compiles an app somebody else releases, in an image
+    # somebody else publishes, and confirms its screens by matching the
+    # text on them. None of that is a claim about the branch, so it is
+    # asked on the schedule and on demand and not in front of a review
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    # the docker pull and two app builds are the minutes; the tests
+    # themselves are the same seconds as the trezor job's
+    timeout-minutes: 45
+    env:
+      # the app, its builder image, and the emulator, each pinned.
+      #
+      # Two builds of one source tree, which is what a Ledger costs where
+      # a Trezor costs none: the coin is compiled in -- `COIN=bitcoin`
+      # gives "Bitcoin" with bech32 prefix `bc`, `COIN=bitcoin_testnet`
+      # gives "Bitcoin Test" with `tb` -- so one binary cannot answer the
+      # mainnet questions of `hwi_device_test.py` and its regtest spend
+      # both. The Trezor firmware takes the chain as an argument and does
+      # both from one image.
+      #
+      # No sha256 of an artifact to pin, either, the app being built here
+      # and not downloaded: what is pinned instead is the source tag, the
+      # builder image by digest -- the tag beside it is what that digest
+      # was -- and the SDK, which the image provides. HWI's own CI builds
+      # this same pair, and 2.5.0 with builder 5.3.17 is the combination
+      # it uses
+      LEDGER_APP_VERSION: "2.5.0"
+      LEDGER_APP_BUILDER: >-
+        ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder@sha256:036d9fd1a264a068ea20f2d0edc962ecdbf1bf5861ef75215924abd77f93bf29
+      # nanox, as HWI's suite runs the 2.x app on, and the model the
+      # speculos wheel carries a cx library for
+      SPECULOS_MODEL: nanox
+      # from PyPI, where it brings its own launcher and cx libraries and
+      # wants only qemu from the system. HWI still clones and cmakes it,
+      # pinned at 0.25.10 -- the last release supporting python 3.9,
+      # which is HWI's floor and not this repository's
+      SPECULOS_VERSION: "0.26.10"
+      HWI_VERSION: "3.2.0"
+      HWI_PYTHON: "3.12"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      - name: Install bitcoind
+        id: bitcoind
+        uses: ./.github/actions/install-bitcoind
+        with:
+          version: ${{ env.BITCOIND_VERSION }}
+          sha256: ${{ env.BITCOIND_SHA256 }}
+      # speculos runs an ARM binary through qemu's user-mode emulation,
+      # and the wheel does not carry qemu: it execs `qemu-arm-static` off
+      # the PATH
+      - name: Install what the emulator needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends qemu-user-static
+      # the app, twice, in the image its SDK comes from. `git clone` on
+      # the runner rather than in the container, so the checkout is the
+      # runner's own and the container only compiles; `docker run` rather
+      # than a job `container:`, because everything else in this job
+      # wants the runner's uv and its python and not the builder's
+      - name: Build the Bitcoin app
+        run: |
+          git clone --branch "$LEDGER_APP_VERSION" --depth 1 \
+            https://github.com/LedgerHQ/app-bitcoin.git
+          docker run --rm --volume "$PWD/app-bitcoin:/app" --workdir /app \
+            "$LEDGER_APP_BUILDER" bash -c '
+              set -e
+              make DEBUG=1 COIN=bitcoin BOLOS_SDK=$NANOX_SDK
+              cp bin/app.elf /app/bitcoin.elf
+              make clean
+              make DEBUG=1 COIN=bitcoin_testnet BOLOS_SDK=$NANOX_SDK
+              cp bin/app.elf /app/bitcoin-test.elf'
+          # docker wrote them as root, and everything after this reads
+          # them as the runner
+          sudo chown "$(id -u):$(id -g)" \
+            app-bitcoin/bitcoin.elf app-bitcoin/bitcoin-test.elf
+      - name: Install HWI and Speculos
+        run: |
+          uv venv --python "$HWI_PYTHON" hwi-env
+          uv pip install --python hwi-env/bin/python "hwi==$HWI_VERSION"
+          # an environment of its own: speculos wants pyqt6 and pygame
+          # even to run headless, and none of that belongs beside the
+          # command under test
+          uv venv --python "$HWI_PYTHON" speculos-env
+          uv pip install --python speculos-env/bin/python \
+            "speculos==$SPECULOS_VERSION"
+          echo "BTCLIB_HWI=$PWD/hwi-env/bin/hwi --emulators" >> "$GITHUB_ENV"
+          hwi-env/bin/hwi --version
+          # speculos takes no --version: what it answers to is the
+          # module, and the app's own version is in the two steps below
+          speculos-env/bin/python -c \
+            'from speculos.__version__ import __version__; print(__version__)'
+      # mainnet first, because two of the three tests ask the mainnet
+      # fixture and this app is the only one that can answer them: the
+      # `bc` prefix is compiled into it, and `display_address` compares
+      # the address the device shows with the one the descriptor
+      # describes.
+      #
+      # SPECULOS_APPNAME is what the emulator reports as the running app,
+      # which is where HWI reads the version it gates its features on --
+      # 2.1.0 and above is the descriptor-and-psbt client rather than the
+      # legacy one.
+      #
+      # --automation is how a Ledger is confirmed: there is no DebugLink
+      # here, so nothing answers a ButtonRequest by itself the way the
+      # trezor emulator does. The rules match the text drawn on the
+      # screen, which makes them the fragile part of this job -- an
+      # upstream wording change is a rule that stops matching and a test
+      # that waits out btclib's timeout. `automation:DEBUG` is therefore
+      # on: the log names every screen and every rule that fired, which
+      # is the difference between diagnosing that and guessing at it.
+      #
+      # .github/speculos-automation.json is HWI's own
+      # test/data/speculos-automation.json, and it is a copy rather than
+      # a smaller file written here because the screens it answers are
+      # this app's: what a rule has to match is a string nobody can check
+      # without running the app, and upstream runs these very flows
+      # against these very versions.
+      #
+      # Vendored from commit d27d196def0b24b9f0a1a1c15cad755907583221
+      # (blob 41cc061295df2a92e11605398991c3e097f8231f, reindented here
+      # by pretty-format-json, so the rules are upstream's and the bytes
+      # are not -- `python -m json.tool` on both is how the two are
+      # compared), which is the
+      # copy that goes with app 2.5.0 and not the one released in HWI
+      # 3.2.0: that older file matches `Verify Bitcoin`, this app draws
+      # `Verify bitcoin`, and the run where that rule missed spent 120
+      # seconds waiting for a button. So the file moves with
+      # LEDGER_APP_VERSION, and raising one without re-reading the other
+      # is what a hang here will mean
+
+      - name: Start the emulator with the mainnet app
+        run: |
+          SPECULOS_APPNAME="Bitcoin:$LEDGER_APP_VERSION" \
+            speculos-env/bin/speculos --display headless --api-port 0 \
+              --model "$SPECULOS_MODEL" \
+              --automation "file:$PWD/.github/speculos-automation.json" \
+              --log-level automation:DEBUG \
+              app-bitcoin/bitcoin.elf > speculos-mainnet.log 2>&1 &
+          echo "EMULATOR_PID=$!" >> "$GITHUB_ENV"
+          uv run --locked --no-default-groups --group test \
+            python .github/scripts/wait_for_hwi_device.py
+      # every test but the spend, which needs the other app. -n0 for the
+      # reason the trezor job passes it: one device, one session
+      - name: Run the read-only device tests
+        env:
+          BTCLIB_INTEGRATION: "1"
+        run: |
+          uv run --locked --no-default-groups --group test \
+            pytest tests/integration/hwi_device_test.py -n0 \
+            -k "not signs_what_btclib_built" --junitxml=ledger-mainnet.xml
+      - name: Stop the mainnet emulator
+        run: |
+          kill "$EMULATOR_PID"
+          echo "EMULATOR_PID=" >> "$GITHUB_ENV"
+      # and the spend, against the app whose coin the regtest fixture
+      # asks for. BTCLIB_HWI_SIGN is on for the reason it is on in the
+      # trezor job: the automation file is what would otherwise be a
+      # thumb on a button
+      - name: Start the emulator with the testnet app
+        run: |
+          SPECULOS_APPNAME="Bitcoin Test:$LEDGER_APP_VERSION" \
+            speculos-env/bin/speculos --display headless --api-port 0 \
+              --model "$SPECULOS_MODEL" \
+              --automation "file:$PWD/.github/speculos-automation.json" \
+              --log-level automation:DEBUG \
+              app-bitcoin/bitcoin-test.elf > speculos-testnet.log 2>&1 &
+          echo "EMULATOR_PID=$!" >> "$GITHUB_ENV"
+          uv run --locked --no-default-groups --group test \
+            python .github/scripts/wait_for_hwi_device.py --network regtest
+      - name: Run the signing test
+        env:
+          BTCLIB_INTEGRATION: "1"
+          BTCLIB_HWI_SIGN: "1"
+          BTCLIB_BITCOIND: ${{ steps.bitcoind.outputs.path }}
+        run: |
+          uv run --locked --no-default-groups --group test \
+            pytest tests/integration/hwi_device_test.py -n0 \
+            -k signs_what_btclib_built --junitxml=ledger-testnet.xml
+      # both reports, and the same guard: three tests over the two apps,
+      # none of them skipped. A phase that ran nothing is what a
+      # deselection typo looks like, and it would otherwise be green
+      - name: Fail if the device tests did not run
+        run: |
+          uv run --locked --no-default-groups --group test python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          ran = []
+          for report in ("ledger-mainnet.xml", "ledger-testnet.xml"):
+              cases = ET.parse(report).getroot().iter("testcase")
+              here = [one for one in cases
+                      if "hwi_device" in one.get("classname", "")]
+              if not here:
+                  print(f"::error::{report} holds no device test")
+                  sys.exit(1)
+              ran.extend(here)
+          skipped = [one for one in ran if one.find("skipped") is not None]
+          for one in skipped:
+              reason = one.find("skipped").get("message", "")
+              print(f"::error::{one.get('name')} skipped: {reason}")
+          if len(ran) != 3 or skipped:
+              print(f"::error::{len(ran)} device tests, {len(skipped)} skipped")
+              sys.exit(1)
+          print(f"{len(ran)} device tests ran against the emulator")
+          PY
+      - name: Stop the emulator
+        if: always()
+        run: |
+          if [ -n "${EMULATOR_PID:-}" ]; then
+            kill "$EMULATOR_PID" || true
+          fi
+      # the two speculos logs are the artifact that matters here: with
+      # automation:DEBUG they carry every screen the app drew and every
+      # rule that answered it, which is where a hang is read
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hwi-ledger-report
+          path: |
+            ledger-mainnet.xml
+            ledger-testnet.xml
+            speculos-mainnet.log
+            speculos-testnet.log
           if-no-files-found: error
           retention-days: 90

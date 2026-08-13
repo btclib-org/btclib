@@ -337,7 +337,41 @@ documented at release-notes length in the first place, and are still in
   `gh workflow run integration.yml --ref <branch>`, which is how a branch
   touching `btclib/hwi.py` gets the answer before it lands. Physical
   devices stay manual, as issue #524 said they should.
-- **The node both jobs need is installed by one file**,
+- **A Ledger emulator beside the Trezor one** (#738). `HWI against a
+  Ledger emulator` builds the Bitcoin app from a pinned tag of
+  `LedgerHQ/app-bitcoin` inside Ledger's own builder image, pinned by
+  digest, and runs it under a pinned Speculos from PyPI. It is a second
+  vendor because it is a second HWI: the Trezor job drives the protobuf
+  client, this one the app-2.x client with the wallet policy behind
+  `displayaddress` and its own psbt exchange, and a green run of either
+  says nothing about the other.
+
+  What it costs over the Trezor job, and none of it is incidental. The
+  app is compiled rather than downloaded — Ledger publishes no binary,
+  so what is pinned is a source tag, an image digest and the SDK that
+  image carries, where the Trezor emulator is a published file with a
+  sha256 checked before it runs. It is compiled *twice*, the coin being
+  built into a Ledger app: `COIN=bitcoin` has the `bc` prefix and
+  answers `hwi_device_test.py`'s two mainnet questions, `COIN=bitcoin_testnet`
+  has `tb` and signs the regtest spend, and one binary cannot do both —
+  Trezor firmware takes the chain as an argument. And nothing answers a
+  button: Speculos has no DebugLink, so approvals come from an
+  `--automation` file whose rules match the text the app draws.
+  `.github/speculos-automation.json` is HWI's own, vendored rather than
+  rewritten smaller, because what a rule has to match is a string nobody
+  can check without running the app. It is the part that will break on
+  an upstream wording change, and it breaks as a test waiting out
+  btclib's timeout — so `automation:DEBUG` is on and both Speculos logs
+  are uploaded beside the reports.
+- **What stands between starting an emulator and testing against it**,
+  `.github/scripts/wait_for_hwi_device.py`: the Trezor emulator answers
+  a ping on its own socket and Speculos answers none, so the question
+  asked is the real one — btclib's own `enumerate_devices` until one
+  device is `is_usable`, which a port check cannot tell from a Speculos
+  that is up with no app loaded. A failure names the device types and
+  the errors of the last answer, which is where an app built for another
+  model shows up.
+- **The node all three jobs need is installed by one file**,
   `.github/actions/install-bitcoind`, this repository's first composite
   action: the download, the checksum and the unpacking were about to be
   a second copy, and a duplicated pin is one that drifts — the copy
