@@ -20,7 +20,7 @@ from math import ceil
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt
+from btclib.number_theory import mod_inv, mod_sqrt
 from btclib.utils import hex_string, int_from_integer
 
 __all__ = [
@@ -546,9 +546,13 @@ class CurveGroup:
                 f"'{hex_string(self.p)}'" if self.p > HEX_THRESHOLD else f"{self.p}"
             )
             raise BTClibValueError(err_msg)
-        root = self.y(x)
-        legendre = legendre_symbol(root, self.p)
-        return root if legendre else self.p - root
+        # for a p of this form self.y answers the residue root already:
+        # it is a ** ((p + 1) // 4), a power of the square a and so a
+        # square itself, which leaves p - root the non-residue, -1 being
+        # one modulo such a p. Asking legendre_symbol which of the two
+        # this is would spend a second exponentiation the size of the
+        # first to be told what the exponent settles
+        return self.y(x)
 
 
 def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
