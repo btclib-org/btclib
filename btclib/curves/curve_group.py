@@ -1225,9 +1225,14 @@ def _multi_mult_w_NAF(
     55.1 at w=6). In milliseconds over 10 scalars: 7.81 at w=4, 7.27 at
     w=5, 7.38 at w=6, 8.68 at w=7.
 
-    No GLV splitting of the scalars, which would halve the doublings on
+    No GLV splitting of its own, which would halve the doublings on
     secp256k1: the split is curve-specific, this function serves every
-    curve, and the doublings it would halve are already shared.
+    curve, and with many scalars the doublings it would halve are already
+    shared. A caller that has only two of them has the opposite balance,
+    and curve_group_2's _double_mult_endomorphism_secp256k1 is that
+    caller: it splits both coefficients itself and hands the four halves
+    here, so the split lives with the curve that has it and the
+    interleaving stays one implementation.
 
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic

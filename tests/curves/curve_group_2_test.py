@@ -18,6 +18,7 @@ from btclib.curves.curve_group_2 import (
     _HALF_LEN,
     _LAM,
     _N,
+    _double_mult_endomorphism_secp256k1,
     _double_mult_regular_window,
     _double_mult_w_NAF,
     _mult_endomorphism_secp256k1,
@@ -219,6 +220,66 @@ def test_double_mult_w_NAF() -> None:
         _double_mult_w_NAF(1, ec.GJ, -1, ec.GJ, ec, w=4)
     with pytest.raises(BTClibValueError, match="non positive w: "):
         _double_mult_w_NAF(1, ec.GJ, 1, ec.GJ, ec, 0)
+
+
+def test_double_mult_endomorphism_secp256k1() -> None:
+    """The GLV double mult against the Shamir-Strauss one it replaces.
+
+    secp256k1 only, the endomorphism being its own, so there is no
+    low-cardinality curve to be exhaustive over and the pairs are chosen
+    instead: the boundaries, the two cube roots whose decompositions are
+    the lattice identities, and the 2^127 line issue #215 was about, where
+    a decomposition reduced mod p rather than mod n starts answering
+    wrongly. A coefficient at or above n is reduced by the decomposer, so
+    the reference is taken on the residue.
+
+    Every w, not only the one `curve.py` passes: w=1 collapses each table
+    to the point itself and is where an off-by-one in the interleaving
+    would show.
+    """
+    ec = secp256k1
+    HJ = ec.GJ
+    QJ = _mult(3, ec.GJ, ec)
+
+    def dm(u: int, v: int, H: JacPoint, Q: JacPoint, w: int = 4) -> JacPoint:
+        return _double_mult_endomorphism_secp256k1(u, H, v, Q, ec, w)
+
+    pairs = [
+        (0, 0),
+        (0, 1),
+        (1, 0),
+        (1, 1),
+        (1, 2),
+        (1, _N - 1),
+        (_N - 1, 1),
+        (_N - 1, _N - 2),
+        ((1 << 127) - 1, 1 << 127),  # the last scalar the mod-p split survived
+        ((1 << 128) - 1, (1 << 128) - 1),  # all four halves negative
+        (_LAM, _N - _LAM),  # (0, 1) and (0, -1): the endomorphism itself
+        (_N, _N + 42),  # reduced mod n before anything else
+    ] + [(secrets.randbelow(_N), secrets.randbelow(_N)) for _ in range(8)]
+    for u, v in pairs:
+        expected = _double_mult(u % _N, HJ, v % _N, QJ, ec)
+        for w in (1, 2, 4, 5):
+            assert ec.jac_equality(dm(u, v, HJ, QJ, w), expected), (u, v, w)
+
+    # infinity on either side, and the coefficient that contributes nothing:
+    # what `curves.double_mult` sends down this path on secp256k1, the
+    # bindings taking no zero scalar and no infinity
+    for u, v in ((7, 5), (0, 5), (7, 0), (0, 0)):
+        for H, Q in ((INFJ, QJ), (HJ, INFJ), (INFJ, INFJ)):
+            assert ec.jac_equality(dm(u, v, H, Q), _double_mult(u, H, v, Q, ec)), (u, v)
+
+    # the same point twice, and a sum that lands on infinity
+    assert ec.jac_equality(dm(7, 5, HJ, HJ), _double_mult(7, HJ, 5, HJ, ec))
+    assert ec.jac_equality(dm(3, _N - 3, HJ, HJ), INFJ)
+
+    with pytest.raises(BTClibValueError, match="negative first coefficient: "):
+        dm(-1, 1, HJ, QJ)
+    with pytest.raises(BTClibValueError, match="negative second coefficient: "):
+        dm(1, -1, HJ, QJ)
+    with pytest.raises(BTClibValueError, match="non positive w: "):
+        dm(1, 1, HJ, QJ, 0)
 
 
 def test_double_mult_regular_window() -> None:

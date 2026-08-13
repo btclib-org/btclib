@@ -15,6 +15,7 @@ The implemented algorithms are:
     - Interleaved-wNAF double multiplication (HMV algorithm 3.51)
     - Regular-window double multiplication
     - GLV endomorphism multiplication for secp256k1 (HMV algorithm 3.77)
+    - GLV endomorphism double multiplication for secp256k1
 
 References:
     - https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
@@ -72,6 +73,7 @@ from btclib.alias import INFJ, JacPoint
 from btclib.curves.curve_group import (
     CurveGroup,
     _convert_number_to_base,
+    _multi_mult_w_NAF,
     _odd_multiples,
     _signed_odd_multiples,
     _wNAF_of_m,
@@ -225,16 +227,17 @@ def _double_mult_w_NAF(
     additions drop from one per bit to ~2/(w+1) per bit, the negative
     digits costing only an on-the-fly negation.
 
-    This is the one the library calls: `curves.double_mult`, `dsa` and
-    `ssa` verification and public key recovery all reach it, which on
-    secp256k1 means every signature the bindings do not answer -- another
-    curve, another hash function, a caller-supplied nonce, or the test
-    suite holding the Python path against them. Measured over random
-    256-bit coefficients, best of seven: 1.03 ms against the 1.53 ms of
-    curve_group's _double_mult, which stays as the reference the tests
-    compare this against. w=5 measures 0.99 ms and w=3 1.10, so the w=4
-    `curve.py` passes is within 4% of the best window and its table is
-    half the size of w=5's.
+    This is the one the library calls on every curve without the GLV
+    endomorphism: `curves.double_mult`, `dsa` and `ssa` verification and
+    public key recovery all reach it through `curve`'s
+    _double_mult_python, which sends secp256k1 to
+    _double_mult_endomorphism_secp256k1 instead -- four half-length
+    coefficients where this takes two full-length ones, and 0.81 ms where
+    this is 1.02. Measured over random 256-bit coefficients, best of
+    seven: 1.03 ms against the 1.53 ms of curve_group's _double_mult,
+    which stays as the reference the tests compare this against. w=5
+    measures 0.99 ms and w=3 1.10, so the w=4 `curve.py` passes is within
+    4% of the best window and its table is half the size of w=5's.
 
     The gap over _double_mult is the wider since add_jac stopped
     shortcutting infinity: fewer additions is worth the more when an
@@ -420,6 +423,35 @@ def _multiplier_decomposer(m: int) -> tuple[int, int]:
 _HALF_LEN = 128
 
 
+def _endomorphism_split_secp256k1(
+    m: int, Q: JacPoint, ec: CurveGroup
+) -> tuple[int, JacPoint, int, JacPoint]:
+    """Return (m1, P, m2, K) with m1*P + m2*K == m*Q and both halves short.
+
+    The half of algorithm 3.77 that is not the double multiplication:
+    `_multiplier_decomposer`'s two signed halves, the endomorphism's image
+    of Q, and the signs moved off the coefficients and onto the points.
+    Both multiplications built on it want exactly this, and the sign
+    handling is what neither should own a second copy of.
+
+    m1 and m2 come back non-negative, which is what the double
+    multiplications require; the caller owes them nothing else.
+    """
+    m1, m2 = _multiplier_decomposer(m)
+
+    K = ((Q[0] * _BETA) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
+
+    # the decomposition is signed on purpose -- balance is what makes the
+    # halves short -- and the sign belongs to the point: -m1*Q is m1*(-Q),
+    # one modular negation of a y-coordinate. Negated whatever the sign and
+    # selected afterwards, rather than under an `if`: the sign of a half is
+    # a bit of the scalar, and a modular subtraction is what a branch on it
+    # would put on the clock
+    P = (Q, ec.negate_jac(Q))[m1 < 0]
+    K = (K, ec.negate_jac(K))[m2 < 0]
+    return abs(m1), P, abs(m2), K
+
+
 def _mult_endomorphism_secp256k1(
     m: int, Q: JacPoint, ec: CurveGroup, w: int, regular: bool
 ) -> JacPoint:
@@ -448,7 +480,9 @@ def _mult_endomorphism_secp256k1(
     `curves.mult` is a private key or a nonce in every caller btclib has,
     and 16% of a multiplication that libsecp256k1 answers in 13 us is not
     what this path is for. Both stay: the wNAF is what verification wants,
-    its coefficients being public, and `double_mult` reaches it directly.
+    its coefficients being public, and verification arrives at
+    `_double_mult_endomorphism_secp256k1` below, which splits two
+    coefficients rather than one and interleaves the four halves.
 
     w=4 by measurement for both: the regular windows give 0.610 ms at
     w=5, and the wNAFs 0.527 at w=3 and 0.510 at w=5, which is w=4's own
@@ -457,20 +491,54 @@ def _mult_endomorphism_secp256k1(
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
-    m1, m2 = _multiplier_decomposer(m)
-
-    K = ((Q[0] * _BETA) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
-
-    # the decomposition is signed on purpose -- balance is what makes the
-    # halves short -- and the sign belongs to the point: -m1*Q is m1*(-Q),
-    # one modular negation of a y-coordinate. Negated whatever the sign and
-    # selected afterwards, rather than under an `if`: the sign of a half is
-    # a bit of the scalar, and a modular subtraction is what a branch on it
-    # would put on the clock
-    P = (Q, ec.negate_jac(Q))[m1 < 0]
-    K = (K, ec.negate_jac(K))[m2 < 0]
-    m1, m2 = abs(m1), abs(m2)
+    m1, P, m2, K = _endomorphism_split_secp256k1(m, Q, ec)
 
     if regular:
         return _double_mult_regular_window(m1, P, m2, K, ec, w, _HALF_LEN)
     return _double_mult_w_NAF(m1, P, m2, K, ec, w)
+
+
+def _double_mult_endomorphism_secp256k1(
+    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup, w: int
+) -> JacPoint:
+    """Double scalar multiplication (u*H + v*Q) through the endomorphism.
+
+    Algorithm 3.77 for two coefficients: each is split into a pair of
+    half-length halves over its own point and the endomorphism's image of
+    it, and the four terms go through one interleaved wNAF, which shares
+    one doubling per bit position among all of them. So the ~256 doublings
+    the two full-length coefficients need become the ~128 of four halves,
+    at the price of two more tables of odd multiples and the two field
+    multiplications the images cost.
+
+    That trade is the whole of the gain, and it is the same one
+    `_mult_endomorphism_secp256k1` makes for a single coefficient: 0.81 ms
+    against `_double_mult_w_NAF`'s 1.02, measured over 30 random pairs of
+    256-bit coefficients, best of three, alternating the two so that
+    neither is always warm. Both answer the same point on every pair the
+    tests compare, boundary coefficients and infinities included.
+
+    The interleaved wNAF rather than the regular windows: the coefficients
+    of a double multiplication are public, being a verification's, which is
+    the same reason `curve.double_mult` reaches `_double_mult_w_NAF`
+    directly and not through `_mult_endomorphism_secp256k1`'s regular
+    default. A scalar that is a secret goes through `mult`.
+
+    w=4 by measurement over the same pairs: 0.88 ms at w=3, 0.81 at w=4,
+    0.82 at w=5, 0.91 at w=6 -- so w=4 and w=5 measure the same and the
+    smaller table decides, as it does for `_double_mult_w_NAF`.
+
+    The input points are assumed to be on curve. Either coefficient may be
+    zero and either point may be infinity: the interleaved wNAF drops a
+    zero half rather than building a table it would never index, and the
+    empty sum is infinity, which is what the term of a zero coefficient
+    contributes.
+    """
+    if u < 0:
+        raise BTClibValueError(f"negative first coefficient: {hex(u)}")
+    if v < 0:
+        raise BTClibValueError(f"negative second coefficient: {hex(v)}")
+
+    u1, U1, u2, U2 = _endomorphism_split_secp256k1(u, HJ, ec)
+    v1, V1, v2, V2 = _endomorphism_split_secp256k1(v, QJ, ec)
+    return _multi_mult_w_NAF([u1, u2, v1, v2], [U1, U2, V1, V2], ec, w)
