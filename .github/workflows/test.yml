@@ -63,12 +63,7 @@ jobs:
   # what the matrix buys: every (os, architecture, interpreter) triple
   # selects a different published wheel of btclib_secp256k1, each with
   # its own compiled libsecp256k1 inside, and the pure Python code meets a
-  # distinct hashlib and OpenSSL.
-  # windows-11-arm needs no special handling, and that is worth a word:
-  # which architecture the interpreter targets there is up to the runner
-  # image, native arm64 for the versions it caches and emulated x86-64
-  # for the ones uv has to download, and the wheel is selected for the
-  # interpreter rather than for the host, so either one links
+  # distinct hashlib and OpenSSL
   suite:
     name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     # a draft pull request is work in progress: every push to one spends
@@ -81,24 +76,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # four, and macos.yml carries the other two: on one run of the
-        # full six every macOS cell waited 29.4 and 23.2 minutes on average
-        # for a runner, against 0.5 to 1.6 here, so two rows of twelve set
-        # most of the wait of a pull request -- 45 jobs, 93 minutes of work
-        # and 399 minutes of queueing. What they sample is a platform this
-        # library has no branch for, which is worth a week rather than
-        # worth a review's patience
+        # two, and macos.yml and windows.yml carry the other four, each with
+        # its measurement in its own header: what a platform row costs a
+        # pull request is the wait for a runner, and what it buys is a
+        # standard library under code this library writes no
+        # platform-conditional branch in. The two cheapest and fastest rows
+        # stay, because something has to run the suite before a merge; the
+        # rest answer weekly and before a release
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - windows-latest
-          - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it is in the matrix
         # for what it installs as much as for what it runs: the bindings
         # ship a py3-none dynamic wheel for it, and nothing else here
         # exercises a build without the GIL. python-build-standalone has a
-        # freethreaded build for all six platforms below, so it needs no
-        # exclusion.
+        # freethreaded build for every platform this repository runs, the
+        # two here and the four of macos.yml and windows.yml, so it needs no
+        # exclusion of its own.
         # no pypy3.10, and PyPy is still tested: hypothesis ships
         # compiled wheels from 6.160 on and publishes none for pypy3.10, so
         # uv falls back to its sdist, whose maturin build needs a PyO3 that
@@ -114,6 +108,17 @@ jobs:
           - "3.14"
           - "3.14t"
           - "pypy3.11"
+        # the one cell the coverage job below already is: same runner image,
+        # same interpreter, the same suite, and the only difference is the
+        # instrumentation. Running both asks one question twice and holds two
+        # of the twenty concurrent jobs GitHub Free gives an organization,
+        # which is what a pull request's wall clock is made of here. Nothing
+        # else in the matrix is excluded: that job is pinned to this pair,
+        # for the reason its own comment gives, so this is the only overlap
+        # there can be
+        exclude:
+          - os: ubuntu-latest
+            python: "3.14"
     # far above what a run of the suite needs: what it bounds is a hung
     # job holding a runner for six hours
     timeout-minutes: 30
@@ -165,7 +170,10 @@ jobs:
   # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no
   # secret and no third party, and it applies to every run, where a
-  # coveralls.io upload happens only on a pull request
+  # coveralls.io upload happens only on a pull request.
+  # It is also the (3.14, ubuntu-latest) cell of the matrix above, which is
+  # why that pair is excluded there: a suite that passes is what this job
+  # reports before it reads a number, so the pair needs no job of its own
   coverage:
     name: Measure coverage, gated at 100%
     if: ${{ !github.event.pull_request.draft }}

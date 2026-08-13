@@ -244,6 +244,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **A pull request asks for twenty-one jobs instead of thirty-nine**, and
+  the number that decided it is not a wall clock but a ceiling: GitHub Free
+  gives an organization twenty concurrent jobs. Measured over a working
+  afternoon of eight branches, the repository sat at nineteen or twenty
+  running jobs for 1375 of 2100 seconds, 328 jobs asked for and 552
+  runner-minutes to drain, so a pull request's wall clock was the wait for
+  a slot; a run of `test.yml` spent 476 to 1083 seconds of it, against 65
+  to 320 seconds of work in its slowest cell. Three changes, and each is
+  the same trade -- an answer moved off the review path, none dropped:
+    - the fourteen Windows cells become `windows.yml`, weekly on Saturday
+    and called by `release.yml`, exactly as `macos.yml` already holds the
+    macOS ones and for the reason its header gives. They were 2357 of the
+    3556 seconds of matrix work per commit, `windows-11-arm` alone 1250 --
+    the slowest row, the longest queue, and some 50 to 75 seconds of fixed
+    cost per cell against 17 on ubuntu.
+    - `codeql.yml` loses its `pull_request` trigger and keeps `main` and its
+    Tuesday schedule, so `codeql: every job passed` is no longer one of
+    main's required checks -- four now, and REPOSITORY.md is where the
+    rule and the `gh api` patch that dropped the context are written down.
+    What still reads a branch before it merges is `zizmor`, a pre-commit
+    hook, which audits these workflows for an injected expression on every
+    pull request as part of a check that does gate.
+    - the `(3.14, ubuntu-latest)` cell of `test.yml`'s matrix is excluded,
+    because the `coverage` job beside it is that cell: same image, same
+    interpreter, the same suite, and the only difference is the
+    instrumentation.
+
 - **`tests/build_system_test.py` collects on 3.10** (#767), where it read
   pyproject.toml with `tomllib` -- standard library from 3.11 up, and the
   floor here is 3.10: the module failed to collect on the four 3.10 cells

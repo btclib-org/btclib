@@ -19,7 +19,7 @@ aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
 carries the workflow because a context is keyed by name alone: two
 workflows with a job named the same thing produce one ambiguous check.
 
-`main` requires five checks, and only five:
+`main` requires four checks, and only four:
 
 | Check | Produced by |
 | --- | --- |
@@ -27,19 +27,17 @@ workflows with a job named the same thing produce one ambiguous check.
 | `Lint and type-check` | `lint.yml`, its only job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `Regtest against Bitcoin Core` | `integration.yml`, its regtest job |
-| `codeql: every job passed` | `codeql.yml`, aggregate over the languages |
 
 A workflow needs an aggregate when every one of its jobs has to gate: the
-matrix of `test.yml` and the languages of `codeql.yml` are the two, and a
-context naming one cell of either would leave the rest outside the rule.
-Where a single job is what gates, that job *is* the context, which is why
-three of the five are job names — and why `integration.yml` naming a
-second job changed nothing here: `HWI against a Trezor emulator` runs
-beside the regtest one and must not gate, an emulator being a service to
-keep working rather than a claim about the branch, so the context stays
-the name of the job that does. What a second job would cost is a rename:
-a workflow whose *whole* answer becomes required needs an aggregate, and
-this table with it.
+matrix of `test.yml` is the one, and a context naming one cell of it would
+leave the rest outside the rule. Where a single job is what gates, that job
+*is* the context, which is why three of the four are job names — and why
+`integration.yml` naming a second job changed nothing here: `HWI against a
+Trezor emulator` runs beside the regtest one and must not gate, an emulator
+being a service to keep working rather than a claim about the branch, so
+the context stays the name of the job that does. What a second job would
+cost is a rename: a workflow whose *whole* answer becomes required needs an
+aggregate, and this table with it.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -50,26 +48,33 @@ moving a job is free and renaming one is not — the pull request that renames
 a required check stops producing the old name and never produces one the
 rule is waiting for.
 
-`Regtest against Bitcoin Core` is the newest of the five, and it is here
+`Regtest against Bitcoin Core` is the newest of the four, and it is here
 because its cost was measured rather than assumed: 36 seconds of work for a
 disposable regtest node, which is less than the matrix it runs beside. It
 answers the one claim the recorded vectors cannot make. `integration.yml`
 therefore carries no `paths` filter: a required check that never runs blocks
 a merge, where a skipped one satisfies it.
 
-`codeql: every job passed` is the only one of the five whose predecessor was
-not a file at all. Code scanning ran from default setup, a repository
-setting, which made the check that reads these workflows for an injected
-expression the one part of CI no diff could review — while every other check
-is a workflow with its actions pinned to commit SHAs. `codeql.yml` holds it
-now, one job per language and an aggregate over them, for the reason
-`test.yml` has one; the section below has how the switch was thrown, because
-the two cannot be exchanged in either order without a step that blocks
-every merge.
+`codeql: every job passed` is not among them, and that is the one place a
+check was traded for the wait it cost. GitHub Free gives an organization
+twenty concurrent jobs; a commit here asked for thirty-nine, and measured
+over a working afternoon the repository sat at nineteen or twenty running
+jobs for 1375 of 2100 seconds — so a pull request's wall clock was the wait
+for a slot and not the work. `codeql.yml` now runs on `main` and on its
+schedule, the analysis landing on the merge commit rather than ahead of it,
+and it still produces that aggregate: the name is available, so requiring it
+again is a patch to the rule and nothing in the tree.
 
-Renaming a required check is the one change that cannot be made in a pull
-request, so the rule moves first, against the branch, and the pull request
-that renames the job reports the name the rule now wants:
+What still reads a branch before it merges is the workflow half of the same
+question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
+files for an injected expression on every pull request, and that check is
+required. What a merge now defers is the rest of the analysis, for the time
+between that merge and the next run — which for `main` is the merge itself.
+
+Renaming or dropping a required check is the one change that cannot be made
+in a pull request: the workflow in the branch stops producing the name while
+the rule outside still waits for it, so nothing merges. The rule moves
+first, against the branch, and the pull request follows:
 
 ```shell
 branch=repos/btclib-org/btclib/branches/main
@@ -80,14 +85,13 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Lint and type-check", "app_id": 15368},
     {"context": "Build the documentation", "app_id": 15368},
-    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "codeql: every job passed", "app_id": 15368}
+    {"context": "Regtest against Bitcoin Core", "app_id": 15368}
   ]
 }
 JSON
 ```
 
-**`checks` and not `contexts`, and that is not a style.** All five are
+**`checks` and not `contexts`, and that is not a style.** All four are
 bound to the app that produces them — 15368, Actions — so nothing else
 reporting one of those names can satisfy it. `contexts` has no field for
 an app, so a `PATCH` sending it replaces the bound list with an unbound
@@ -131,16 +135,19 @@ default setup is enabled
 ```
 
 So while the setting is on, the analysing jobs and the aggregate are red
-rather than absent — which is why the exchange has an order. These five
-steps are the order that never leaves `main` unmergeable, and 1, 2 and 5
-are a token rather than a pull request, so only a human can perform them:
+rather than absent — which is why the exchange has an order. These four
+steps are the order that never leaves `main` unmergeable, and 1 and 2 are a
+token rather than a pull request, so only a human can perform them:
 
 1. patch the rule to drop the `CodeQL` context, every other one staying;
 1. disable default setup;
 1. re-run the pull request's checks: the upload that was refused is
    accepted now, so `codeql: every job passed` goes green;
-1. merge;
-1. patch the rule to add `codeql: every job passed`.
+1. merge.
+
+There is no fifth step adding `codeql: every job passed` to the rule, and
+the section above is why: that context is not required, so what the rule
+holds is what step 1 leaves it with.
 
 Step 2 is what makes the setting let go of the analysis. It is not the
 command that enabled default setup and there is no need to keep that one:
@@ -173,50 +180,18 @@ gh api -X PATCH \
   -F state=not-configured
 ```
 
-Steps 1 and 5 patch the `checks` array rather than `contexts`, so that the
+Step 1 patches the `checks` array rather than `contexts`, so that the
 bindings the rule already has survive the edit, and **a JSON body on stdin
 is what that takes**: `-f` sends every value as a string and the endpoint
-answers 422 for a string `app_id`. Step 1:
-
-```shell
-branch=repos/btclib-org/btclib/branches/main
-gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
-{
-  "strict": true,
-  "checks": [
-    {"context": "test: every job passed", "app_id": 15368},
-    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "Lint and type-check", "app_id": 15368},
-    {"context": "Build the documentation", "app_id": 15368}
-  ]
-}
-JSON
-```
-
-Step 5 is that body with one entry added, and every entry carries its app
-because every one of these checks is an Actions check — the `CodeQL` this
-replaces was the exception, the app producing it not being Actions:
-
-```shell
-branch=repos/btclib-org/btclib/branches/main
-gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
-{
-  "strict": true,
-  "checks": [
-    {"context": "test: every job passed", "app_id": 15368},
-    {"context": "Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "codeql: every job passed", "app_id": 15368},
-    {"context": "Lint and type-check", "app_id": 15368},
-    {"context": "Build the documentation", "app_id": 15368}
-  ]
-}
-JSON
-```
+answers 422 for a string `app_id`. Its body is the four-check one the
+section above carries, every entry naming its app because every one of these
+is an Actions check — the `CodeQL` it drops was the exception, the app
+producing it not being Actions.
 
 ## Branch protection
 
 `main` is the only branch, and everything reaches it through a pull
-request: the five checks above with `strict`, one approving review,
+request: the four checks above with `strict`, one approving review,
 `dismiss_stale_reviews`, **required signatures**, linear history, no force
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.

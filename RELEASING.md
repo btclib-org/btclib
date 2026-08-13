@@ -13,14 +13,14 @@ rehearsal against TestPyPI. A rehearsal is never tagged.
 
 **A workflow GitHub has not registered cannot be dispatched, and it
 registers one only once its file has reached the default branch.** That
-makes `release.yml`, `latest.yml` and `published.yml` — `schedule` and
-`workflow_dispatch` only, so nothing else ever triggers them — answer
-`gh: Not Found (HTTP 404)` until the release pull request is merged. It
-bites once, on the first release after any of them is written, and it
-inverts the order below: the TestPyPI rehearsal and the `latest` run
-that this file asks for *before* the merge can only happen after it,
-still before the tag. It also means such a workflow reaches `main`
-having never run, which is how `published.yml` shipped a
+makes `release.yml`, `latest.yml`, `published.yml`, `macos.yml` and
+`windows.yml` — `schedule` and `workflow_dispatch` only, so nothing else
+ever triggers them — answer `gh: Not Found (HTTP 404)` until the release
+pull request is merged. It bites once, on the first release after any of
+them is written, and it inverts the order below: the TestPyPI rehearsal
+and the `latest` run that this file asks for *before* the merge can only
+happen after it, still before the tag. It also means such a workflow
+reaches `main` having never run, which is how `published.yml` shipped a
 `windows-11-arm` cell that failed at setup.
 
 ## Which version string is which
