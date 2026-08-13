@@ -1445,22 +1445,36 @@ documented at release-notes length in the first place, and are still in
   `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
   fully hardened path off a root key, then
   `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
-  key -- and it answers for any path, including the applications no
-  function here formats. Four of them are formatted:
+  key -- and it answers for any path, including one no function here
+  formats. Every application the BIP defines is formatted beside it:
   `mnemonic_from_root_key` (39', BIP85's ten languages and all five
   sentence lengths of its Words Table), `wif_from_root_key` (2', the
-  Bitcoin Core `hdseed`), `xprv_from_root_key` (32') and
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32'),
   `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
-  which hands back the bytes).
+  which hands back the bytes), `base64_password_from_root_key` (707764'),
+  `base85_password_from_root_key` (707785'), `rolls_from_root_key`
+  (89101') and `rsa_drng_from_root_key` (828365').
+
+  The last two read `BIP85DRNG`, which is BIP85-DRNG-SHAKE256: 64 bytes
+  are not enough for a function whose appetite is not known until it has
+  finished, so they seed a SHAKE256 stream and `read` squeezes it. RSA is
+  where that matters and where btclib stops -- the BIP defines the path
+  and the stream to feed a key generator, not how the primes are found,
+  so what comes back is the reader an RSA library is to be given. It is
+  also the one application the BIP publishes no vector for, and the
+  reason is the same: two libraries handed the same stream need not
+  agree on the key.
+
+  `rolls_from_root_key` computes the width of a roll as
+  `(sides - 1).bit_length()` where the BIP writes `ceil(log_2(sides))`,
+  which is the same number and not the same operation: a float logarithm
+  rounds at a power of two, and a roll one bit too wide is one the
+  rejection step then drops far more often than it should.
 
   The module is at the top level rather than under `btclib/bip32/`, for
   the reason `bip44` and `slip132` are: the applications need `b58` for a
   WIF and `mnemonic.bip39` for a sentence, and both of those import
-  `bip32`, which may not import them back. What is left out is the rest
-  of the BIP, and the line is BIP85-DRNG-SHAKE256: 707764' and 707785'
-  are a base64 and a base85 slice of the same 64 bytes, while 828365'
-  (RSA) and 89101' (dice) read a stream seeded with them rather than the
-  bytes themselves.
+  `bip32`, which may not import them back.
 
   Two of BIP85's own fields are not what their name reads as, and
   `tests/bip85_test.py` says so where it asserts them: application 32'
