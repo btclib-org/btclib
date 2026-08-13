@@ -816,6 +816,44 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`BIP32KeyData` is frozen** (#727). It was the last mutable wire-value
+  class in the tree -- `Sig`, `Witness`, `OutPoint`, `TxOut`,
+  `ScriptPubKey`, `BIP32KeyOrigin`, `Network` and every descriptor and
+  miniscript node are already `frozen=True`, the same `object.__setattr__`
+  shape as the rewritten `__init__` here -- and being the exception is
+  what made every fix in the #684 family necessary: a public function
+  could not trust an already-built `BIP32KeyData` because a caller could
+  build one with `check_validity=False` and never ask again, or ask once
+  and then reassign a field afterward. Frozen closes that as a category:
+  the only way to hold one is through `__init__`, which always coerces
+  and optionally checks, so a public function taking one can trust it
+  the way it already trusts a `TxOut` it did not just decode itself.
+
+  `_BIP32KeyData`, the mutable working copy the derivation loop rewrites
+  field by field across up to 255 levels of a path, stops being a
+  subclass -- `dataclasses` refuses a mutable dataclass inheriting from a
+  frozen one -- and becomes a standalone struct with the same six fields
+  plus `prv_key_int`; `_derive` builds one, mutates it in the loop as
+  before, and returns a real `BIP32KeyData` built from its final fields.
+  One allocation for the whole path rather than one per level: measured
+  on a five-level path, 29.5 us against 29.6 before, the two indistinguishable
+  from run to run against a 0.7 us noise floor. `crack_prv_key`, the one
+  production function that mutated a `BIP32KeyData` outside that loop,
+  now builds its answer the same way `_xpub_from_xprv` already did rather
+  than mutating a copy of the parent.
+
+  Every fixture across the suite that built an invalid key by decoding a
+  good one and then reassigning a field -- `tests/bip32/bip32_test.py`'s
+  systematic corruption of each field, `tests/to_key_test.py`'s bad BIP32
+  vectors, and the five fixtures #723 added for the census this issue
+  grew out of -- now either constructs the invalid object directly
+  (`tests/__init__.py`'s new `replace_unchecked`, `dataclasses.replace`
+  with `check_validity` unset not being able to build one on purpose) or,
+  for the handful of type-mismatches no constructor can produce any more
+  -- a string surviving as a string where `bytes_from_octets` would have
+  turned it into bytes -- reaches past the frozen guard with
+  `object.__setattr__`, the same escape `__init__` itself uses.
+
 - **Nothing that reads a signature takes `lower_s` any more** (#695, #645).
   `dsa.assert_as_valid`, `verify`, `recover_pub_keys`, `recover_pub_key`,
   their four trailing-underscore twins, `dsa.anti_exfil_host_verify` and

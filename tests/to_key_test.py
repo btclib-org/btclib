@@ -10,12 +10,11 @@ Test vectors do include str only: no int, point tuble, or BIP32KeyData.
 
 from __future__ import annotations
 
-import copy
-
 from btclib.alias import INF
 from btclib.base58 import encode as b58encode
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import mult, secp256k1
+from tests import replace_unchecked
 
 ec = secp256k1
 
@@ -133,50 +132,43 @@ net_unaware_pub_keys = (
 # all bad BIP32 keys
 bad_bip32_keys: list[bytes | str] = []
 # version / key mismatch
-xprv_data_bad = copy.copy(xprv_data)
-xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.version = bytes.fromhex("04 88 b2 1e")
-xpub_data_bad.version = bytes.fromhex("04 88 ad e4")
+xprv_data_bad = replace_unchecked(xprv_data, version=bytes.fromhex("04 88 b2 1e"))
+xpub_data_bad = replace_unchecked(xpub_data, version=bytes.fromhex("04 88 ad e4"))
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
 ]
 # key starts with 04
-xprv_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
-xpub_data_bad.key = b"\x04" + xprv_data_bad.key[1:]
+xprv_data_bad = replace_unchecked(xprv_data_bad, key=b"\x04" + xprv_data_bad.key[1:])
+xpub_data_bad = replace_unchecked(xpub_data_bad, key=b"\x04" + xprv_data_bad.key[1:])
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
 ]
 # key starts with 01
-xprv_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
-xpub_data_bad.key = b"\x01" + xprv_data_bad.key[1:]
+xprv_data_bad = replace_unchecked(xprv_data_bad, key=b"\x01" + xprv_data_bad.key[1:])
+xpub_data_bad = replace_unchecked(xpub_data_bad, key=b"\x01" + xprv_data_bad.key[1:])
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
 ]
 # depth_pfp_index mismatch
-xprv_data_bad = copy.copy(xprv_data)
-xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
-xpub_data_bad.parent_fingerprint = b"\x01\x01\x01\x01"
+xprv_data_bad = replace_unchecked(xprv_data, parent_fingerprint=b"\x01\x01\x01\x01")
+xpub_data_bad = replace_unchecked(xpub_data, parent_fingerprint=b"\x01\x01\x01\x01")
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
 ]
 # depth_pfp_index mismatch
-xprv_data_bad = copy.copy(xprv_data)
-xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.index = xpub_data_bad.index = 101
+xprv_data_bad = replace_unchecked(xprv_data, index=101)
+xpub_data_bad = replace_unchecked(xpub_data, index=101)
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
 ]
 # unknown version
-xprv_data_bad = copy.copy(xprv_data)
-xpub_data_bad = copy.copy(xpub_data)
-xprv_data_bad.version = b"\x01\x01\x01\x01"
-xpub_data_bad.version = b"\x01\x01\x01\x01"
+xprv_data_bad = replace_unchecked(xprv_data, version=b"\x01\x01\x01\x01")
+xpub_data_bad = replace_unchecked(xpub_data, version=b"\x01\x01\x01\x01")
 bad_bip32_keys += [
     xprv_data_bad.b58encode(check_validity=False),
     xpub_data_bad.b58encode(check_validity=False),
