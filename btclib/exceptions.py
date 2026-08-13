@@ -8,6 +8,28 @@ These exist only to tell an exception raised by btclib from one raised by
 any other code: each derives from the built-in that says what kind of
 failure it is, and adds nothing to it.
 
+`BTClibException` is what makes that telling apart a single `except`
+rather than a tuple of three a caller has to keep in step with this
+hierarchy. It is inherited *beside* the built-in and not instead of it,
+which is the half that matters: `BTClibValueError` is a `ValueError` as
+it always was, so code catching the built-in keeps catching what it
+caught, and `json.JSONDecodeError` is the standard library doing the
+same. Libraries that give up the built-in -- requests, sqlalchemy and
+httpx among them -- leave an `except ValueError` not catching their value
+errors, which is the cost this avoids by inheriting from both.
+
+It is caught and never raised: every raise below is one of the three, and
+which one answers a question the base cannot carry -- whether the value
+was wrong, the type was, or neither was and a check failed anyway. A
+caller with something to do about that difference names the specific
+class; `except BTClibException` is for the caller who only needs to know
+it came from here.
+
+That every failure of btclib's *is* one is not yet true: issue #744
+counts the public functions still letting a native `KeyError`,
+`IndexError` or `OverflowError` through, and until that is closed this
+class catches most of what the library raises rather than all of it.
+
 So a caller is usually better off catching the regular ValueError,
 TypeError or RuntimeError, and does not lose anything by doing so.
 
@@ -40,6 +62,7 @@ from __future__ import annotations
 from typing import Any
 
 __all__ = [
+    "BTClibException",
     "BTClibRuntimeError",
     "BTClibTypeError",
     "BTClibUserWarning",
@@ -58,15 +81,25 @@ __all__ = [
 ]
 
 
-class BTClibValueError(ValueError):
+class BTClibException(Exception):
+    """Anything btclib raised, whatever kind of failure it is.
+
+    The one name to catch for a caller who handles the standard library's
+    exceptions anyway and needs to know which came from here. Never
+    raised: the three below it are, and each says which kind of failure
+    it was.
+    """
+
+
+class BTClibValueError(BTClibException, ValueError):
     """A value no valid input could carry; the library's usual refusal."""
 
 
-class BTClibTypeError(TypeError):
+class BTClibTypeError(BTClibException, TypeError):
     """An input of a type no conversion accepts: a caller error."""
 
 
-class BTClibRuntimeError(RuntimeError):
+class BTClibRuntimeError(BTClibException, RuntimeError):
     """A check that failed on valid inputs, e.g. a failed verification."""
 
 
@@ -330,4 +363,10 @@ class BTClibUserWarning(UserWarning):
     The test suite relies on it too: `filterwarnings = ["error"]` is only
     worth having if the places that provoke a btclib warning silence that
     warning and nothing else.
+
+    Not a `BTClibException`, though it comes from btclib as much as any
+    of them: a warning is not a failure and is not caught but filtered,
+    so an `except BTClibException` sweeping one up -- which
+    `filterwarnings = ["error"]` is enough to make happen -- would catch
+    a call that worked as if it had not.
     """
