@@ -1183,7 +1183,9 @@ def recover_pub_keys_(
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
     QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec, lower_s=False)
-    return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
+    # the candidates converted together: one extended Euclid for the list
+    # where one per candidate is what the loop above would have paid
+    return sig.ec.aff_from_jac_batch(QJs)
 
 
 def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list[Point]:

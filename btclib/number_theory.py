@@ -17,12 +17,15 @@ with the following modifications:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import hex_string, is_integer
 
 __all__ = [
     "legendre_symbol",
     "mod_inv",
+    "mod_inv_batch",
     "mod_sqrt",
     "tonelli",
     "xgcd",
@@ -109,6 +112,56 @@ def mod_inv(a: int, m: int) -> int:
         err_msg += " mod "
         err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
         raise BTClibValueError(err_msg) from None
+
+
+def mod_inv_batch(a: Sequence[int], m: int) -> list[int]:
+    """Return the inverse of every element of a (mod m), in its order.
+
+    m does not have to be a prime, and every element has to be invertible
+    modulo it, as `mod_inv` requires of its one operand.
+
+    Montgomery's trick, which libsecp256k1 spells `secp256k1_fe_inv_all_var`:
+    the running products a[0], a[0]*a[1], ..., a[0]*...*a[n-1] are formed,
+    the last of them is inverted once, and the individual inverses are
+    peeled back off it. So n inverses cost one inverse and 3(n-1)
+    products, where n calls to `mod_inv` are n extended Euclids -- an
+    inverse modulo a 256-bit prime being some thirty times a product.
+
+    An empty sequence has no inverses and is not an error: it is what a
+    caller that filtered its own input is left with.
+    """
+    _assert_valid_modulus(m)
+    for x in a:
+        _assert_valid_operand(x)
+
+    if not a:
+        return []
+
+    # the running products, the last of which is the one to invert
+    acc: list[int] = []
+    product = 1
+    for x in a:
+        product = product * x % m
+        acc.append(product)
+
+    try:
+        inv = pow(product, -1, m)
+    except ValueError:
+        # a product is invertible only if every factor is, so at least one
+        # element is not: inverting them one at a time reaches it and
+        # answers `mod_inv`'s own message, naming the operand rather than
+        # the product a caller never formed
+        return [mod_inv(x, m) for x in a]
+
+    # and peeled back off it, from the last element to the first: the
+    # inverse of the whole product times the product of everything before
+    # element i is the inverse of element i
+    inverses = [0] * len(a)
+    for i in range(len(a) - 1, 0, -1):
+        inverses[i] = inv * acc[i - 1] % m
+        inv = inv * a[i] % m
+    inverses[0] = inv
+    return inverses
 
 
 def legendre_symbol(a: int, p: int) -> int:
