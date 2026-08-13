@@ -349,11 +349,13 @@ def push_int(i: int) -> str:
 
 
 def _serialize_int_command(command: int) -> bytes:
-    if -1 <= command <= 16:
+    if -1 <= command <= 16 and command != 0:
         # not a DeprecationWarning: nothing is going away, the push is
-        # merely one byte longer than the op code that means the same
+        # merely one byte longer than the op code that means the same.
+        # Zero is not among them: its encoding is the empty vector, so
+        # the push of it is OP_0 already and there is nothing to suggest
         warn(
-            f"consider using OP_{command} instead",
+            f"consider using {op_int(command)} instead",
             BTClibUserWarning,
             stacklevel=2,
         )
@@ -449,6 +451,11 @@ def serialize(script: Sequence[Command]) -> bytes:
     bytes and is warned about for exactly this. `push_int` is what
     writes a number the shortest way there is, and what every caller in
     this library that means one uses.
+
+    Zero is where the two coincide and the warning therefore stops: the
+    empty vector is what `encode_num` writes for it, and the push of an
+    empty vector is OP_0, so `serialize([0])` is the op code -- as Core's
+    `CScript() << 0` is -- with nothing shorter left to suggest.
     """
     r: list[bytes] = []
     for command in script:

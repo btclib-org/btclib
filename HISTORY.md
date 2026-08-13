@@ -121,6 +121,19 @@ full year, short month, short day (YYYY-M-D)
   index=0)`, which re-validates by default -- the same function
   `BIP32KeyData(...)` still takes, and still defaulting to `True`.
 
+- **the script number zero is the empty vector.** `encode_num(0)` was
+  `b"\x00"` and is `b""`; `decode_num(b"")` was a `BTClibValueError` and
+  is `0`; and `script.serialize([0])`, which pushes what `encode_num`
+  writes, was `0100` and is `00` -- OP_0, with no "consider using OP_0"
+  warning left to raise. A caller pinning any of those bytes has one
+  substitution to make, and a caller reading a script number back has one
+  refusal fewer to catch. `push_int(0)`, `op_int(0)` and the engine are
+  unchanged, all three having answered OP_0 and the empty vector all
+  along. The reason to act rather than to keep the old spelling: `0100`
+  is not a minimally encoded script number, so the interpreter refuses
+  it as one wherever MINIMALDATA is in force -- btclib's own engine
+  included.
+
 ### The bindings are now `btclib_secp256k1`
 
 - **The secp256k1 bindings were renamed, and btclib requires the new
