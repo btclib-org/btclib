@@ -13,7 +13,7 @@ otherwise Core's file untouched; tests/_data/README.md pins the revision.
 import pytest
 
 from btclib.ecc import dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, hash256
 from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
@@ -359,3 +359,60 @@ def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
     tx.version = 2**32
     with pytest.raises(BTClibValueError, match="invalid version: "):
         sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
+
+
+def test_the_other_two_widths_of_the_copy_are_refused_as_well() -> None:
+    """#724 closed the version and the lock time; these are the rest.
+
+    `Tx.serialize` checks its own two fields regardless of
+    `check_validity`, which is what the test above asserts -- and it hands
+    the sequence to `TxIn.serialize` and the value to `TxOut.serialize`,
+    neither of which checks anything when told not to. So the same
+    `OverflowError` survived on a different field, and on the vout of the
+    outpoint each input names.
+
+    What is left after the branches, and only that: NONE drops every
+    output, so a value no CAmount can hold is refused for the hash types
+    that commit to it and hashed by the one that does not.
+    """
+    tx = _two_in_one_out()
+    tx.vin[0].sequence = 2**32
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
+
+    tx = _two_in_one_out()
+    # built rather than assigned into, OutPoint being frozen: what
+    # `check_validity=False` lets past the constructor is what the
+    # serialization is then handed
+    bad_out_point = OutPoint(b"\x01" * 32, 2**32, check_validity=False)
+    tx.vin[0] = TxIn(bad_out_point, b"", 0xFFFFFFFE, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid vout: "):
+        sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
+
+    tx = _two_in_one_out()
+    tx.vout[0] = TxOut(2**63, _SCRIPT_CODE, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid output value: "):
+        sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)
+    # NONE commits to no output at all, so this one is nothing the
+    # preimage carries and nothing to refuse
+    assert len(sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.NONE)) == 32
+
+
+def test_the_input_index_names_an_input_that_exists() -> None:
+    """`new_tx.vin[vin_i]` was an IndexError, which is a LookupError.
+
+    So no `except BTClibValueError` written against this library caught
+    it. A negative index would have blanked and signed the input at the
+    other end, which the SINGLE bug's early return reaches too: `vin_i >=
+    len(new_tx.vout)` is False for -5, and the copy then rebuilds the
+    outputs from `range(-5)`, i.e. from none.
+    """
+    tx = _two_in_one_out()
+    assert len(sig_hash.legacy(_SCRIPT_CODE, tx, 1, sig_hash.ALL)) == 32
+
+    for out_of_range in (-1, -5, 2, 99):
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            sig_hash.legacy(_SCRIPT_CODE, tx, out_of_range, sig_hash.ALL)
+    for not_an_index in (1.0, "0", True):
+        with pytest.raises(BTClibTypeError, match="invalid input index type: "):
+            sig_hash.legacy(_SCRIPT_CODE, tx, not_an_index, sig_hash.ALL)  # type: ignore[arg-type]

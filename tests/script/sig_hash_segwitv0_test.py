@@ -409,3 +409,58 @@ def test_an_amount_no_field_can_hold_is_refused_rather_than_overflowing() -> Non
     prevouts = [TxOut(2**63, tx.vout[0].script_pub_key, check_validity=False)]
     with pytest.raises(BTClibValueError, match="invalid spent amount: "):
         sig_hash.from_tx(prevouts, tx, 0, sig_hash.ALL)
+
+
+def test_every_width_the_bip143_preimage_writes_is_checked() -> None:
+    """This preimage never reaches `Tx.serialize`, so #724 left it alone.
+
+    It is assembled from its own `int.to_bytes` calls, and each of them
+    answered a field too wide for it with an `OverflowError` -- an
+    `ArithmeticError`, outside the `except BTClibValueError` this library
+    invites. The version and the lock time are the two `Tx.serialize`
+    checks unconditionally for `legacy`; the sequence and the outpoint's
+    vout are written here and nowhere else.
+    """
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    for field, err_msg in (
+        ("version", "invalid version: "),
+        ("lock_time", "invalid lock time: "),
+    ):
+        tx = Tx.parse(_BIP143_TX)
+        setattr(tx, field, 2**32)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            sig_hash.segwit_v0(script_code, tx, 1, sig_hash.ALL, _AMOUNT)
+
+    tx = Tx.parse(_BIP143_TX)
+    tx.vin[1].sequence = 2**32
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        sig_hash.segwit_v0(script_code, tx, 1, sig_hash.ALL, _AMOUNT)
+
+    tx = Tx.parse(_BIP143_TX)
+    tx.vin[1] = TxIn(
+        OutPoint(b"\x01" * 32, 2**32, check_validity=False),
+        b"",
+        0xFFFFFFFF,
+        check_validity=False,
+    )
+    with pytest.raises(BTClibValueError, match="invalid vout: "):
+        sig_hash.segwit_v0(script_code, tx, 1, sig_hash.ALL, _AMOUNT)
+
+    # the output the SINGLE branch hashes on its own, which no
+    # precomputation serves and no whole-transaction walk reaches
+    tx = Tx.parse(_BIP143_TX)
+    tx.vout[0] = TxOut(2**63, tx.vout[0].script_pub_key, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid output value: "):
+        sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, _AMOUNT)
+
+
+def test_the_segwit_input_index_names_an_input_that_exists() -> None:
+    """`tx.vin[vin_i]` in the preimage was an IndexError, a LookupError."""
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+    assert len(sig_hash.segwit_v0(script_code, tx, 1, sig_hash.ALL, _AMOUNT)) == 32
+
+    for out_of_range in (-1, 2, 99):
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            sig_hash.segwit_v0(script_code, tx, out_of_range, sig_hash.ALL, _AMOUNT)
