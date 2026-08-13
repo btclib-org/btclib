@@ -1147,6 +1147,34 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The bits a digit holds are counted in integers** (issue #759).
+  `bin_str_entropy_from_rolls` and `collect_rolls` computed
+  `math.floor(math.log2(dice_sides))`, which is exact until `2**49 - 1`:
+  there the float rounds up to 49, so the usable range became
+  `[1-2**49]` -- wider than the die itself -- and a roll the die does not
+  have was counted as carrying 49 bits. `_bits_per_digit` is
+  `base.bit_length() - 1`, exact for every base, and
+  `wordlist_indexes_from_bin_str_entropy` takes it as well;
+  `bin_str_entropy_from_wordlist_indexes` beside it already computed its
+  own width that way, and `bip85.rolls_from_root_key` computes the
+  complementary ceiling as `(sides - 1).bit_length()`, which is what put
+  the two directions under one reading.
+
+  A die of that size is absurd, and the function accepted it:
+  `dice_sides` is validated at `>= 2` and at nothing else. What that
+  validation now also refuses is a `dice_sides` that is not an integer.
+  A float used to work by accident -- `math.log2` takes one -- and
+  `bit_length` does not, so the refusal is a `BTClibTypeError` rather
+  than an `AttributeError` from inside the bit accounting.
+
+  The three functions now say what the other direction is, which nothing
+  did: BIP85's application 89101' derives rolls *from* entropy and
+  numbers a die's faces from zero, while these read dice *into* entropy
+  and number them from one, so rolls carried across are shifted by one by
+  whoever carries them. And `collect_rolls`' automated mode stays
+  `secrets`: rolls reproducible from a root key are what the entropy of a
+  seed that does not exist yet must never be.
+
 - **an `hf` that is not a hash function is refused, where it used to be
   reported as a signature that does not verify** (issue #745).
   `dsa.verify_`, `ssa.verify_`, `ssa.batch_verify_`, `bms.verify` and

@@ -23,7 +23,7 @@ from btclib.mnemonic import (
     collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
-from btclib.mnemonic.entropy import _bits
+from btclib.mnemonic.entropy import _bits, _bits_per_digit
 
 
 def test_indexes() -> None:
@@ -390,6 +390,57 @@ def test_bin_str_entropy_from_rolls() -> None:
     # the boundary itself, not 1: `< 2` weakened to `<= 2` still refuses
     # 1 and would also refuse 2, the smallest base the function accepts
     assert bin_str_entropy_from_rolls(4, 2, [1, 2, 1, 2], shuffle=False) == "0101"
+
+
+@pytest.mark.parametrize("base", [2, 3, 6, 20, 1024, 1626, 2048, 2**48, 2**49])
+def test_the_bits_a_digit_holds_are_counted_exactly(base: int) -> None:
+    """The integer floor(log2), against the float it replaces.
+
+    Both spellings agree over every base a word-list or a die plausibly
+    has, which is what makes the difference easy to miss; the case below
+    is where they part.
+    """
+    assert _bits_per_digit(base) == math.floor(math.log2(base))
+
+
+def test_a_die_of_2_49_minus_one_faces_does_not_gain_a_bit() -> None:
+    """Where `math.floor(math.log2(x))` stops being exact.
+
+    At 2**49 - 1 the float rounds up to 49, so the usable range would
+    become [1-2**49] -- larger than the die -- and a roll the die does
+    not have would be counted as carrying 49 bits. The integer spelling
+    answers 48, so the same rolls are the shortfall they are.
+    """
+    sides = 2**49 - 1
+    assert math.floor(math.log2(sides)) == 49
+    assert _bits_per_digit(sides) == 48
+
+    base = 2**48
+    rolls = [base + 1] * math.ceil(128 / 48)
+    err_msg = "too few rolls in the usable "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bin_str_entropy_from_rolls(128, sides, rolls)
+
+    usable = [base] * math.ceil(128 / 48)
+    assert len(bin_str_entropy_from_rolls(128, sides, usable, shuffle=False)) == 128
+
+
+def test_a_dice_base_that_is_not_an_integer() -> None:
+    """A float used to work by accident, `math.log2` taking one.
+
+    `bit_length` does not, so the refusal is explicit rather than an
+    AttributeError from inside the bit accounting.
+    """
+    err_msg = "invalid dice base type: float"
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        bin_str_entropy_from_rolls(4, 2.0, [1, 2, 1, 2])  # type: ignore[arg-type]
+
+    # a bool is not another spelling of the number one either
+    err_msg = "invalid dice base type: bool"
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        # no `type: ignore` here, and that is the point: `bool` is an
+        # `int` to the type checker, so only this refusal catches it
+        bin_str_entropy_from_rolls(4, True, [1, 2, 1, 2])
 
 
 def test_bin_str_entropy_from_random() -> None:
