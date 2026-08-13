@@ -70,13 +70,38 @@ LANGUAGES = {
     "turkish": "tr",
 }
 
+VECTORS = load("mnemonic", "_data", "bip39_test_vectors.json", encoding="utf-8")
+
 BIP39_VECTORS = [
     pytest.param(lang, *vector, id=vector_id(index, lang, vector[0]))
     for name, lang in LANGUAGES.items()
-    for index, vector in enumerate(
-        load("mnemonic", "_data", "bip39_test_vectors.json", encoding="utf-8")[name]
-    )
+    for index, vector in enumerate(VECTORS[name])
 ]
+
+# btclib's own case, and the only one not in the file: the last english
+# vector again, its mnemonic respaced with everything split() treats as a
+# separator -- doubled spaces, a tab, a newline, a CRLF, a form feed, a
+# bare CR, and a run of spaces at each end. It is written here rather
+# than appended to the vendored array so that the file stays upstream's
+# bytes and a refresh stays a fetch; a case of ours inside it would have
+# to be put back by hand every time, and would go missing the once
+# nobody remembered
+RESPACED = (
+    " void come  effort suffer   camp survey\nwarrior heavy  shoot"
+    " primary\tclutch crush\r\nopen amazing\fscreen patrol\rgroup space"
+    " point ten exist slush involve unfold  "
+)
+ENTROPY, _, SEED, XPRV = VECTORS["english"][-1]
+BIP39_VECTORS.append(
+    pytest.param(
+        "en",
+        ENTROPY,
+        RESPACED,
+        SEED,
+        XPRV,
+        id=vector_id(len(VECTORS["english"]), "en", "respaced"),
+    )
+)
 
 
 @pytest.mark.parametrize("lang, entr, mnemonic, seed, xprv", BIP39_VECTORS)
@@ -85,13 +110,13 @@ def test_vectors(lang: str, entr: str, mnemonic: str, seed: str, xprv: str) -> N
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
 
-    Upstream's arrays, in order and value for value, plus a 25th English
-    case that is btclib's own: the last one repeated with tabs, newlines
-    and doubled spaces through the mnemonic. tests/_data/README.md pins
-    the revision.
+    Upstream's arrays, in order and value for value: the vendored file is
+    that file byte for byte, blob id included, and tests/_data/README.md
+    pins the revision. The one case that is btclib's own is appended
+    above, outside it.
 
-    The sentence a vector holds is what the library is handed, that 25th
-    one included: rejoining it here first would ask
+    The sentence a vector holds is what the library is handed, the
+    respaced one included: rejoining it here first would ask
     `" ".join(mnemonic.split())` whether it collapses whitespace, and
     never ask btclib. Only the *expected* sentence is rejoined, and on
     the language's own separator -- the ideographic space for japanese,

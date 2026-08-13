@@ -54,10 +54,11 @@ the same in each: there is no upstream file whose name they could take
   `bip371_test_vectors.json`, `bip373_test_vectors.json` and
   `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
   no upstream file, so the name is ours by necessity.
-- `bip39_test_vectors.json` holds all twelve language arrays of trezor's
-  `vectors.json`, plus one btclib case, and keeps the btclib name anyway:
-  `vectors.json` is taken in the very same directory, by SLIP-0039's own
-  file of that name, which is a different upstream's.
+- `bip39_test_vectors.json` is trezor's `vectors.json` byte for byte, and
+  keeps the btclib name anyway: `vectors.json` is taken in the very same
+  directory, by SLIP-0039's own file of that name, which is a different
+  upstream's. The blob id in its entry is what the naming cannot fool
+  here.
 - `descriptor_checksums.json` and `rfc6979.json` are transcribed from
   prose, and `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `btclib_test_vectors.json` and
@@ -92,7 +93,11 @@ verdict. The verdicts used:
 - **transcribed** — the upstream is prose (a BIP, an RFC), so there is no
   file to compare; the check is that every value in our copy appears
   verbatim in the pinned text.
-- **extended**, **edited** — characterised in the entry.
+- **extended**, **edited** — characterised in the entry. No file here
+  carries one, and that is the discipline rather than an accident: a case
+  of btclib's own is written in the test module that reads the file,
+  never inside the file, so refreshing a pin is a fetch and never a
+  merge.
 
 `pulled` is the date of the btclib commit that put the current content in
 the tree, from `git log --follow --diff-filter=A`. That is a fact in this
@@ -1183,21 +1188,37 @@ pulled  2018-06-01, refreshed 2026-08-02
 behind  0 revisions
 ```
 
-Verdict: **extended**, and reformatted. All twelve language arrays are
-ours, in order, value for value; ours has one vector upstream does not,
-a 25th English case repeating the last with tabs, newlines and doubled
-spaces sprinkled through the mnemonic, to exercise whitespace
-normalisation. btclib's, not upstream's.
+Verdict: **identical**. All twelve language arrays, in order and value
+for value, at the indentation upstream writes them with, so
+`git hash-object` on our copy answers the blob id above and a refresh is
+the fetch itself:
 
-Held to the `english` array alone until 2026-08-02, when the other eleven
-word-lists became languages btclib reads: the pin was the earliest
-revision providing that array, since it has not changed in any of them,
-and the pin is now the current revision because the arrays taken are all
-of them.
+```shell
+gh api -H 'Accept: application/vnd.github.raw' \
+    '/repos/trezor/python-mnemonic/contents/vectors.json?ref=master' \
+    > tests/mnemonic/_data/bip39_test_vectors.json
+```
 
-The name is btclib's rather than upstream's, and stays so now that all
-twelve arrays are here: `vectors.json` is taken in this very directory,
-by SLIP-0039's own file of that name, which is a different upstream's.
+Upstream generates the file with its own `tools/generate_vectors.py`
+rather than maintaining it by hand, which is what makes that one command
+the whole of a refresh -- and why nothing of btclib's is inside it. The
+one case that is ours, the last English vector with tabs, newlines,
+doubled spaces and a form feed through the mnemonic, is a `pytest.param`
+in `tests/mnemonic/bip39_test.py` beside the ones the file feeds: in the
+array it would have to be re-added by hand at every refresh, and would
+go missing the once nobody remembered.
+
+Two `pulled` dates because the `english` array was here on its own for
+as long as english was the only BIP39 language btclib read; that array
+has not changed in any revision, so the earlier pull and this one hold
+the same file for it, and `behind 0 revisions` is now about the whole of
+the file rather than about one array of it.
+
+The name is btclib's rather than upstream's, which the naming rule above
+allows for one reason and this is it: `vectors.json` is taken in this
+very directory, by SLIP-0039's own file of that name, which is a
+different upstream's. The blob id is what checks the file behind the
+name.
 
 ### `tests/mnemonic/_data/test_JP_BIP39.json`
 
@@ -1610,8 +1631,8 @@ Against a pinned upstream blob:
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
-  `checkblock_valid.json`, `checkblock_invalid.json`, and the eight
-  BIP327 vector files.
+  `checkblock_valid.json`, `checkblock_invalid.json`,
+  `bip39_test_vectors.json`, and the eight BIP327 vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv` and the
@@ -1619,7 +1640,6 @@ Against a pinned upstream blob:
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
   `test_JP_BIP39.json`.
-- upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
 
