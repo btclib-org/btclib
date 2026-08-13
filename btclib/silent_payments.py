@@ -89,6 +89,7 @@ __all__ = [
     "label_lookup",
     "label_tweak",
     "labeled_address_from_keys",
+    "output_key",
     "output_keys",
     "prv_key_from_tweak",
     "prv_key_sum",
@@ -523,6 +524,24 @@ def _output_tweak(secret: Point, k: int) -> int:
     return _scalar(tagged_hash(_SHARED_SECRET_TAG, hash_input), f"tweak for k={k}")
 
 
+def output_key(secret: PubKey, B_m: PubKey, k: int) -> bytes:
+    """Return the x-only taproot output key of one recipient of a group.
+
+    The last step of BIP352's derivation, and the one a caller that
+    already holds the shared secret needs on its own:
+    `btclib.psbt.silent_payments` reaches this point from an ECDH share a
+    psbt carries rather than from a private key, so what the two paths
+    share is this and not `output_keys`.
+
+    `k` is the recipient's position in its group, which is what stops two
+    payments to one scan key landing on one output.
+    """
+    P = secp256k1.add(
+        point_from_pub_key(B_m), mult(_output_tweak(point_from_pub_key(secret), k))
+    )
+    return _x_only(P)
+
+
 def output_keys(
     prv_keys: Sequence[tuple[PrvKey, Octets]],
     outpoints: Sequence[OutPoint],
@@ -570,12 +589,10 @@ def output_keys(
             err_msg += f" > K_MAX ({K_MAX})"
             raise BTClibValueError(err_msg)
 
-    keys = []
+    keys: list[bytes] = []
     for B_scan, B_m_values in groups.items():
         secret = shared_secret((h * a) % secp256k1.n, B_scan)
-        for k, B_m in enumerate(B_m_values):
-            P = secp256k1.add(B_m, mult(_output_tweak(secret, k)))
-            keys.append(_x_only(P))
+        keys.extend(output_key(secret, B_m, k) for k, B_m in enumerate(B_m_values))
     return keys
 
 

@@ -19,7 +19,7 @@ import pytest
 from btclib import b32
 from btclib.alias import ScriptList
 from btclib.curves import bytes_from_point, curve_group, mult
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (
     TaprootScriptTree,
     Witness,
@@ -34,7 +34,12 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.script.taproot import parse, serialize, tree_helper
+from btclib.script.taproot import (
+    assert_valid_control_block,
+    parse,
+    serialize,
+    tree_helper,
+)
 from btclib.tx import TxOut
 from tests import load, vector_id
 from tests.curves.curve_test import low_card_curves
@@ -243,6 +248,55 @@ def test_invalid_control_block() -> None:
     err_msg = "invalid control block length"
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 100)
+
+
+def test_a_control_block_size_is_octets_and_not_characters() -> None:
+    """`len` of the text spelling counted characters, and let two sizes in.
+
+    The residue check is `(len - 1) % 32`, and it ran on whatever it was
+    handed: `"é" * 33` is 33 characters and 66 octets of UTF-8, and
+    passed as a control block size; 66 characters of hex are 33 octets
+    and were refused. The coercion `check_output_pubkey` does on the
+    same argument is what makes the number octets.
+    """
+    # 33 octets, one leading byte and a merkle path of none, in both
+    # spellings of the same block
+    assert_valid_control_block(b"\x00" * 33)
+    assert_valid_control_block("00" * 33)
+    # 65: one byte and one 32-byte merkle path
+    assert_valid_control_block(b"\x00" * 65)
+
+    err_msg = "invalid control block size"
+    for wrong_size in (b"\x00" * 34, "00" * 34, b"", b"\x00" * 66):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            assert_valid_control_block(wrong_size)
+
+    # a str that is no hex string reaches the size check no longer; the
+    # class is `bytes_from_octets`'s to tighten, which issue 744's last
+    # slice is about
+    for not_octets in ("é" * 33, "a" * 33):
+        with pytest.raises(ValueError, match="fromhex"):
+            assert_valid_control_block(not_octets)
+
+
+def test_a_leaf_is_named_from_the_start_of_the_tree() -> None:
+    """-1 is the last leaf to Python, and was answered as one.
+
+    `tree_helper(script_tree)[0][script_num]` is a list index, so a
+    negative one selected a leaf from the other end and built a control
+    block that correctly proves it: the caller asked for a leaf that
+    does not exist and got a valid script-path spend of another one.
+    """
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    assert input_script_sig(None, script_tree, 0)[0] == ["OP_2"]
+    assert input_script_sig(None, script_tree, 1)[0] == ["OP_3"]
+
+    for out_of_range in (-1, -2, 2, 99):
+        with pytest.raises(BTClibValueError, match="invalid leaf index: "):
+            input_script_sig(None, script_tree, out_of_range)
+    for not_an_index in (1.0, "1", True):
+        with pytest.raises(BTClibTypeError, match="invalid leaf index type: "):
+            input_script_sig(None, script_tree, not_an_index)  # type: ignore[arg-type]
 
 
 def test_unspendable_script() -> None:

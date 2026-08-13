@@ -28,7 +28,7 @@ name: published
 #
 # What this is not: a sentinel for whether the newest btclib_secp256k1
 # breaks this tree. That question -- issue #397 -- belongs to latest.yml's
-# test-bindings-latest job instead: it is about drift against a tree not
+# suite-bindings-latest job instead: it is about drift against a tree not
 # yet published, asked before publication rather than after, and asking
 # it here would be asking it one step too late to matter to what gets
 # published next

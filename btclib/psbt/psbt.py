@@ -982,7 +982,13 @@ class Psbt:
         refuses to estimate because what they will push is knowledge only
         the caller has -- a script of no standard type, a taproot script
         path. Without one this is that property exactly.
+
+        Validated first, as every other method that reads this psbt's
+        data is: an estimate off an incoherent psbt is a number, and a
+        number is what a caller sizes a fee with.
         """
+        self.assert_valid()
+
         vin: list[TxIn] = []
         # read once: the transaction is computed at every access, being
         # the psbt's fields put together rather than a field of its own

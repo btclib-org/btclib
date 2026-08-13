@@ -244,34 +244,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
-- **`main` is green again, after two failures of one run that have
-  nothing to do with each other.** `tests/build_system_test.py` read
-  pyproject.toml with `tomllib`, which is standard library from 3.11 up
-  and the floor here is 3.10: the module failed to collect on the four
-  3.10 cells of the matrix and passed everywhere else, so the pull
-  request that added it (#754) merged with every other cell green. It
-  reads the `[build-system]` table by regex now, anchored on the header
-  and stopping at the next one, which is what `tests/copyright_test.py`
+- **`tests/build_system_test.py` collects on 3.10** (#767), where it read
+  pyproject.toml with `tomllib` -- standard library from 3.11 up, and the
+  floor here is 3.10: the module failed to collect on the four 3.10 cells
+  of the matrix and passed everywhere else, so the pull request that
+  added it (#754) merged with every other cell green. It reads the
+  `[build-system]` table by regex now, anchored on the header and
+  stopping at the next one, which is what `tests/copyright_test.py`
   already does with the same file and for the same reason; both tests
   assert what they asserted before.
-
-  The `dist` job's smoke test is the other one, and what it failed on was
-  a design that could only hold for as long as nothing moved. It installs
-  the wheel with `uv.lock` exported as constraints, and the wheel asks
-  for `btclib_secp256k1` and `bitcoin-core-rpc` from their repositories'
-  `main` while the export pins the commit the lock resolved: uv unifies a
-  branch with a commit while the branch is still at it, and refuses the
-  two urls as conflicting once it is not. Both repositories had moved, so
-  the job failed here and in every open pull request, none of which
-  caused it -- and a lock refresh would only have bought the time until
-  the next push, which for `bitcoin-core-rpc` was fifteen minutes.
-  The export now passes `--no-emit-package` for those two, which is the
-  whole of the fix: everything else stays pinned to the lock, and the two
-  direct references resolve the way a user installing this wheel resolves
-  them. Nothing here is left unasked -- `uv run --locked` is what the
-  rest of the workflow runs, and whether the newest bindings still work
-  is `latest.yml`'s weekly question and the release workflow's before it
-  publishes.
 
 - **The package-content policy is stated where an unpacked sdist carries
   it** (#735, #734). `docs/source/package-content-policy.md` says what
@@ -453,26 +434,6 @@ documented at release-notes length in the first place, and are still in
   rather than by commit SHA, which every third-party action here is: it
   is read from the same commit as the workflow calling it, so there is
   no owner who could move it.
-- **The bindings are required from their `main` rather than from a
-  release**, which is what `bitcoin-core-rpc` already was: a direct
-  reference to `btclib-org/btclib-secp256k1@main` in place of
-  `btclib_secp256k1>=0.8.0`, with `uv.lock` pinning the commit and moving
-  when that branch does. They exist for this library, so what a branch
-  here needs of them lands there first and then waits for a release of
-  another repository to be callable at all — `keys.PubkeyTweakChain`,
-  written for issue #685, is in `main` and in no release.
-
-  Three things it costs. Every environment builds libsecp256k1 from source
-  where a published wheel used to be resolved: cmake and cffi come from
-  the bindings' own `[build-system] requires`, a C toolchain is the
-  machine's, and a cold `uv pip install --no-cache` of the reference takes
-  about ten seconds on an arm64 laptop, the submodule fetch included. The
-  test matrix stops selecting a different published wheel per cell and
-  compiles one instead, so whether the published wheels install and answer
-  correctly is `published.yml`'s question and now only its. And PyPI
-  refuses a direct reference in metadata, so a release has to write a
-  floor back over each of the two — nothing before the upload catches it,
-  which RELEASING.md's step 1 now says.
 - **Their repository is renamed with them**, to
   `btclib-org/btclib-secp256k1`, so the urls naming it here move: the
   issue templates, `README.md`, `SECURITY.md`'s advisory link, and the
@@ -526,6 +487,12 @@ documented at release-notes length in the first place, and are still in
   both: they are btclib-org projects developed by the same people, which
   is what a version ceiling substitutes for when it cannot be. Its `<0.8`
   example moves to `<0.9`, the floor having passed it.
+- **Both bounds move to the sibling releases of 13 August**,
+  `btclib_secp256k1>=0.8.0.1` and `bitcoin-core-rpc>=2026.8.13`, each
+  naming the release that carries what this tree calls of it:
+  `keys.PubkeyTweakChain` (issue #685) in the first, `assert_chain` and
+  the two magic lookups `network.py` stopped carrying in the second.
+  `uv.lock` follows both.
 - **`--cov` is in pytest's addopts, so the ratchet is a local gate.** The
   100% threshold was reached only by the `coverage` job, which means a
   change met it after being pushed: the pull request that added
@@ -742,6 +709,60 @@ documented at release-notes length in the first place, and are still in
   not report.
 
 ### Transactions, blocks and PSBT
+
+- **BIP375's Signer and Transaction Extractor** (#760, following #641).
+  `btclib.psbt.silent_payments` is the new module, and it is the half of
+  BIP375 that makes the fields worth carrying: a silent payment output
+  script is *derived* rather than signed, so getting it wrong produces a
+  consensus-valid transaction that pays a script nobody scans for -- and
+  the Extractor is the last party that can notice.
+
+  The Signer's side: `set_input_share` writes the ECDH share and its
+  BIP374 proof for one input, `set_global_share` the single pair that
+  stands for every eligible input, and `set_output_scripts` derives what
+  the recipients are paid and clears the two modifiable flags with it --
+  the scripts depend on the input set, so a psbt that publishes one and
+  still invites inputs invites its own scripts to become wrong. Both
+  writers refuse a key that is not the one they would be proving against,
+  which is where such an error is cheap.
+
+  The Extractor's side is `assert_as_valid`: the four checks BIP375's own
+  validator publishes, in its order, each naming what failed --
+  `assert_shares_as_valid` for the proofs, `assert_eligibility_as_valid`
+  for the inputs a silent payment forbids (a witness version above 1, and
+  any sighash type but `SIGHASH_ALL`), `assert_output_scripts_as_valid`
+  for the derivation. `input_pub_key` is what all of it stands on, and is
+  the piece that was missing: `btclib.silent_payments.pub_key_from_input`
+  reads a *signed* input's key out of the witness or the scriptSig, where
+  an unsigned one has neither and BIP375 asks an Updater for
+  `PSBT_IN_BIP32_DERIVATION` instead.
+
+  With that, `bip375_test_vectors.json` is answered in full: all 22
+  invalid psbts refused and all 19 valid ones accepted, where the codec
+  alone refused five. Each case is held to the check its own category
+  names, so a psbt refused for the wrong reason is a failure rather than a
+  pass.
+
+  **One rule where the BIP and its own vectors disagree**, and it is
+  load-bearing rather than cosmetic. BIP375 says the codes of one scan key
+  are sorted lexicographically to determine the ordering of `k`; the
+  vectors' scripts are the ones *output index* order derives. The case
+  that decides it is published as valid -- "two sp outputs - output 0 uses
+  label=3 / output 1 uses label=1" -- and its spend keys are in descending
+  order, so the two rules assign `k` the other way round and only index
+  order reproduces the file. Neither reading of "the codes" rescues the
+  prose: the 66-byte info fields and the bech32m address strings sort that
+  pair the same wrong way. Upstream's own validator walks index order too,
+  so index order is what interoperates and what is implemented; both
+  directions are asserted, so a revision settling it the other way fails
+  here rather than passing quietly. The two invalid vectors named after
+  ordering turn out not to decide it -- their candidate orderings all
+  agree, and their scripts match no assignment at all.
+
+  `btclib.silent_payments` gains `output_key` in passing: the last step of
+  BIP352's derivation, which the psbt path reaches from an ECDH share
+  rather than from a private key, so it is what the two paths share
+  instead of `output_keys`.
 
 - **A psbt can be read a map at a time, out of a stream** (#647).
   `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
@@ -1718,6 +1739,70 @@ documented at release-notes length in the first place, and are still in
   track.
 
 ### The public API and the module layout
+
+- **Twelve places answered a malformed argument instead of refusing it**
+  (issue #744): no exception of the wrong class, no exception at all --
+  a hash, an address, an entropy, a weight, a residue, handed back for an
+  input that names nothing. They are unrelated bugs of one shape, which
+  is why they are one entry: a check written for one spelling of an
+  argument, or one branch of a function, and not for the others.
+
+    - `script.sig_hash.taproot` hashed an `input_index` past the end of the
+    vin. BIP341's SigMsg commits to the index itself, and outside the
+    ANYONECANPAY branch nothing dereferences it, so indexes 99 and 100 on
+    a two-input transaction produced two *different* 32-byte hashes, both
+    returned. The bound existed in the SIGHASH_SINGLE branch alone, and
+    against the vout.
+    - `script.taproot.input_script_sig` read `script_num` as a list index,
+    so -1 selected the last leaf and -2 the one before it, each with a
+    control block that correctly proves the leaf nobody asked for.
+    - `script.taproot.assert_valid_control_block` measured `len` of
+    whatever it was handed: `"é" * 33` is 33 characters and 66 octets of
+    UTF-8, and passed as a control block size. The octets are taken first
+    now, as `check_output_pubkey` takes them on the same argument.
+    - `bech32.encode` indexed its alphabet with the digits it was given, so
+    a negative one counted from the end of the alphabet and wrote a
+    different address, correctly checksummed and silent. A digit above 31
+    raised `IndexError`, a `LookupError` and so outside every `except
+    BTClibValueError`.
+    - `bip32.der_path.indexes_from_der_path` enforced `0 <= index <
+    0x80000000` for the text spelling of a path and nothing for the
+    others: `indexes_from_der_path([-5])` answered `[-5]`. The
+    `OverflowError` that `derive`, `bytes_from_der_path` and
+    `BIP32KeyOrigin.serialize` then raised is fixed with it, an
+    `ArithmeticError` being no better than a wrong answer for a caller
+    filtering bad input.
+    - `bip32.pub_key_derivation_tweaks` skipped its whole body for a path
+    of no steps, so 33 bytes that are no public key came back as `[]` --
+    the answer a caller reads as "derived, nothing to apply". `[]` is
+    right for an empty path and wrong for a non-point.
+    - `descriptors.miniscript_solver` read `psbt.inputs[vin_i]` unchecked,
+    so a negative index solved the input at the other end and answered a
+    witness for it. Its siblings `update_psbt_input` and
+    `update_psbt_output` carry the guard, with the comment saying why.
+    - `Psbt.weight_estimate` -- and `estimated_weight` and
+    `estimated_vsize` through it -- estimated an incoherent psbt rather
+    than refusing, alone among the public methods that read a psbt's own
+    data. A weight is what a fee is computed from.
+    - `number_theory`'s `xgcd`, `mod_inv`, `legendre_symbol`, `mod_sqrt`
+    and `tonelli` ran on a float and answered one: `mod_inv(3.0, 7)` was
+    `5.0`, out of a signature that says `int`. A modulus of zero raised
+    `ZeroDivisionError`, which `except ValueError` does not catch. The
+    guard is `var_int.serialize`'s, and it costs a fraction of a percent
+    of the arithmetic it stands in front of.
+    - `utils.int_from_json_number` truncated: `1.5` was 1, silently and to
+    a number the caller did write. 1.0 is the json spelling of 1 and
+    still coerces; `nan` and `inf` are no more whole than 1.5.
+    - `mnemonic.entropy.bin_str_entropy_from_wordlist_indexes` accepted an
+    index no word answers to. Base-`base` arithmetic has no out of range:
+    2048 in a 2048-word list is a carry into the digit above it, so the
+    entropy came back wrong rather than refused.
+    - `fetch.fetcher.tx_for_network` compared the name against `"mainnet"`
+    as text and labelled every output with whatever else it was given,
+    `check_validity=False` throughout: a network no table has was baked
+    into the transaction handed back, to surface far from the call. The
+    name is resolved now, which also makes `" MainNet "` the
+    short-circuit it always should have been.
 
 - **`network_from_name` is the one place a network name becomes a
   `Network`** (issue #744), and fourteen call sites that indexed

@@ -573,17 +573,24 @@ def pub_key_derivation_tweaks(
     if any(index >= _HARDENED_OFFSET for index in indexes):
         raise BTClibValueError("invalid hardened derivation from public key")
 
-    tweaks: list[bytes] = []
-    if indexes:
-        # one parse for the whole path rather than one per index: each
-        # step still needs its own serialized key, to hash into the next
-        # tweak, but not a fresh parse of the bytes the step before it
-        # just serialized -- PubkeyTweakChain holds the point in between
+    # one parse for the whole path rather than one per index: each step
+    # still needs its own serialized key, to hash into the next tweak,
+    # but not a fresh parse of the bytes the step before it just
+    # serialized -- PubkeyTweakChain holds the point in between.
+    # Outside the loop and not inside an `if indexes:`, so that a path of
+    # no steps is the one spelling of this call that still looks at the
+    # key it was handed: [] is the right answer for it, and the right
+    # answer for 33 bytes that are not a point is no answer
+    try:
         chain = libsecp256k1_keys.PubkeyTweakChain(key)
-        for index in indexes:
-            offset, code = _pub_key_offset(code, key, index)
-            tweaks.append(offset.to_bytes(32, byteorder="big"))
-            key = chain.tweak_add(offset, compressed=True)
+    except ValueError as e:
+        raise BTClibValueError(f"invalid public key: {key.hex()}") from e
+
+    tweaks: list[bytes] = []
+    for index in indexes:
+        offset, code = _pub_key_offset(code, key, index)
+        tweaks.append(offset.to_bytes(32, byteorder="big"))
+        key = chain.tweak_add(offset, compressed=True)
     return tweaks
 
 

@@ -163,7 +163,10 @@ Included features are:
 - [BIP375](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki)
   silent payments in a PSBT: the six fields that carry an ECDH share, its
   BIP374 proof and the address being paid, the output script that may not
-  exist yet, and the identifier that reads the address in its place
+  exist yet, and the identifier that reads the address in its place — with
+  both roles the BIP adds, the Signer that writes the shares and derives
+  the scripts and the Transaction Extractor that recomputes every one of
+  them before the transaction goes out
 - [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
   `bitcoin:` payment URIs
 - fee rates carrying their unit (sat/kvB, sat/vB, and the BTC/kvB Bitcoin

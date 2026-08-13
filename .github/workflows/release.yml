@@ -393,20 +393,15 @@ jobs:
       # wheel and not to the btclib/ source tree.
       # Unconstrained, where dist-py pins the runtime dependencies to
       # uv.lock: no pull request waits on this job, so it can afford the
-      # question a required check cannot -- whether what the wheel's own
-      # requirements resolve to, unpinned, satisfies the wheel about to be
-      # published, which is what a user installing it resolves. A release
-      # stopping on that answer is the outcome wanted. Unpinned is the
-      # newest published release of each once pyproject.toml carries
-      # floors, and the tip of a branch while it carries a direct
-      # reference -- which no release may carry: PyPI refuses one, so an
-      # upload would fail in publish-pypi below, past everything this job
-      # guards. RELEASING.md's step 1 is where that is caught.
+      # question a required check cannot -- whether the newest published
+      # btclib_secp256k1 satisfies the wheel about to be published,
+      # which is what a user installing it resolves. A release stopping
+      # on that answer is the outcome wanted.
       # The three assertions are dist-py's, and there for the same
       # reasons: metadata can be missing (issue #150), `import btclib`
       # runs only __init__.py and touches no binding, and a bindings
       # release can install and still answer wrongly
-      - name: Smoke-test the wheel, with its dependencies unpinned
+      - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           cd "$RUNNER_TEMP"
           uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
