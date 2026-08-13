@@ -703,6 +703,47 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Nothing that reads a signature takes `lower_s` any more** (#695, #645).
+  `dsa.assert_as_valid`, `verify`, `recover_pub_keys`, `recover_pub_key`,
+  their four trailing-underscore twins, `dsa.anti_exfil_host_verify` and
+  `bms.assert_as_valid` and `bms.verify` all had it, defaulting to `True`,
+  and all nine have lost it: whether `s` is the low one of the two was
+  decided by whoever signed, so a verifier refusing the other is refusing a
+  signature that signer was free to make. Bitcoin Core's `MessageVerify`
+  never applied the rule, and its `CPubKey::Verify` normalizes `s` before
+  verifying for this very reason.
+
+  What that measured, on the 200 vectors of
+  `tests/ecc/_data/signmessage.json`: Core v31.1.0's `verifymessage`
+  accepts every one, btclib's default refused the 88 that are high-s, and
+  the low-s rule was the whole of the disagreement. Two library callers of
+  `bms.assert_as_valid` sat on that default and are fixed by losing it --
+  `bip322`'s legacy path, the compatibility spelling BIP322 keeps, and
+  `psbt_signer.sign_message`, checking what an *external* signer returned
+  through HWI, which is not btclib's to normalize. The two `dsa.verify_`
+  calls inside `psbt` had already reached the conclusion the other way
+  round: both passed `lower_s=False`, with a docstring saying the rule is
+  the script engine's and not the Finalizer's.
+
+  The rule itself is not gone, and none of this makes a high-s signature a
+  good idea: `SCRIPT_VERIFY_LOW_S` is in Core's
+  `STANDARD_SCRIPT_VERIFY_FLAGS` (`src/policy/policy.h`), so one inside a
+  transaction is non-standard and does not relay. `sign` therefore keeps
+  `lower_s=True`, which is where the rule belongs, and the script engine
+  keeps reading it off its own flags. Asking a verifier for it is what the
+  leading-underscore functions are for -- `_assert_as_valid_`,
+  `_recover_pub_key_`, `_recover_pub_keys_` and the two
+  `_libsecp256k1_recover_*` -- each taking `lower_s: bool = False`
+  keyword-only, so the strict answer is asked for rather than assumed, and
+  the bindings path and the Python path can be held to one answer under it.
+  A trailing underscore does not enter into it: those functions are public,
+  offered beside the plain name so a caller can skip work already paid, and
+  a keyword on one and not the other would make them two functions instead
+  of a bypass.
+
+  On the bindings path `assert_as_valid_` now normalizes unconditionally --
+  libsecp256k1 rejects what is not in lower-s form -- where it normalized
+  only when the rule was switched off.
 - **Cracking refuses a child the library itself refuses** (#693).
   `crack_prv_key` exists to demonstrate a known BIP32 weakness, so a wrong
   answer from it is a wrong lesson: it subtracted the derivation offset
@@ -980,29 +1021,39 @@ documented at release-notes length in the first place, and are still in
   own, retries included. No attempt cap, as in Core: one would answer an
   event of probability `2**-k` with an error a caller can do nothing about.
 
-  `grind=False` is the default, where Core has it on. A ground signature is
-  not the RFC6979 one for about half of all messages, and a caller pinning
-  btclib's deterministic signatures is entitled to keep getting them; the
-  five python-bitcoinlib vectors say the same thing from the other side,
-  four of the five having a high `r`, so grinding departs from exactly
-  those four -- `test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`
-  beside the test that counts the four `s` values normalization moves.
+  `grind` has three states, not two, and it is on when left unsaid: a
+  btclib signature is the one Core would have made. `grind=None` is that
+  default, `grind=True` is a caller asking outright and `grind=False` is
+  the plain RFC6979 signature -- which is what a test pinning deterministic
+  bytes now asks for, the five python-bitcoinlib vectors among them, four
+  of the five having a high `r` so that grinding departs from exactly those
+  four (`test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`, beside
+  the test that counts the four `s` values normalization moves).
   Keyword-only, `ec` and `hf` being positional and a flag inserted before
   them renumbering both.
 
   Grinding is refused with a nonce of the caller's and with a
   sign-to-contract commitment, each of which already owns what grinding
   needs -- the nonce itself, and the extra entropy the counter travels
-  through. For the commitment that is more than a clash of encodings:
-  grinding a nonce is exactly the freedom the ECDSA anti-exfil protocol
-  takes away from a signing device, and `sign_` is the call that protocol
-  signs through. `sign_recoverable` takes no `grind` either, and there it
-  is not a matter of what owns the nonce: 65 bytes of `r`, `s` and the
-  recovery flag have no pad for a low `r` to save, which is why Core's
-  `SignCompact` does not grind. What grinding chooses is `r` and not the
-  encoded length: embit stops its loop at `len(sig.serialize()) > 70`,
-  which is the same question only for a low `s`, and with `lower_s=False`
-  btclib produces the 71-byte low-R signature Core cannot reach.
+  through -- and the third state is why the refusal is a refusal rather
+  than a footgun: `grind=True` beside either of those is a caller asking
+  for both halves of a contradiction, while the default is a library
+  preference and gives way, so `sign(msg, key, nonce)` signs instead of
+  raising. For the commitment the refusal is more than a clash of
+  encodings: grinding a nonce is exactly the freedom the ECDSA anti-exfil
+  protocol takes away from a signing device, and `sign_` is the call that
+  protocol signs through -- `anti_exfil_sign` therefore grinds nothing,
+  without having to say so. `sign_recoverable` takes no `grind` at all,
+  and there it is not a matter of what owns the nonce: 65 bytes of `r`, `s`
+  and the recovery flag have no pad for a low `r` to save, which is why
+  Core's `SignCompact` does not grind and why a message signature is
+  unaffected. `bip322.sign` asks for `grind=False` in so many words: the
+  BIP's reference implementation signs plain, its vectors are the whole
+  interoperability claim, and nothing there is broadcast for the byte to
+  matter. What grinding chooses is `r` and not the encoded length: embit
+  stops its loop at `len(sig.serialize()) > 70`, which is the same
+  question only for a low `s`, and with `lower_s=False` btclib produces
+  the 71-byte low-R signature Core cannot reach.
 
   The private `_rfc6979_nonce_` takes `None` for no additional data now,
   where it took `b""`, so one counter value travels down either path
@@ -1544,12 +1595,17 @@ documented at release-notes length in the first place, and are still in
   rather than written here.
 
   Two of the four are the same algorithm over the same curve and hash,
-  and that is the point of taking both: `EcdsaBitcoinVerify` is
-  `lower_s=True` and refuses the malleable high-s twin, `EcdsaVerify` is
-  `lower_s=False` and accepts it, and their tcId 5 is the same key and the
-  same signature -- `invalid` in one file and `valid` in the other. A
-  `lower_s` wired the wrong way round now fails one of the two whichever
-  way it is wired, which neither file could report on its own. The third
+  and that is the point of taking both: `EcdsaBitcoinVerify` requires the
+  strict DER encoding and the low-s rule where `EcdsaVerify` requires
+  neither, so the same key and the same signature is `invalid` in one file
+  and `valid` in the other -- twice over, tcId 1 and tcId 388 of the
+  bitcoin file being tcId 5 and tcId 392 of the generic one. btclib's
+  parser is the strict one and its verifier applies no low-s rule, so those
+  two verdicts are exempted, and the exemption is read out of the second
+  file rather than written down: `invalid` there and `valid` here is a case
+  whose only defect is the form of `s`. A flag would find one of the two,
+  tcId 388 carrying `ArithmeticError` beside six cases that are invalid for
+  their arithmetic. The third
   is IEEE P1363, raw `r` and `s` side by side with no DER in front, so
   `Sig` answers for the pair directly: r and s at zero, at n, and at n
   plus a valid value. The fourth is ECDH, where the public key arrives

@@ -28,13 +28,20 @@ of how strict a parser is, and pinning it here would make a legitimate
 loosening or tightening of one look like a regression.
 
 Two profiles of ECDSA, which is why two of the files are the same
-algorithm over the same curve and hash. `EcdsaBitcoinVerify` is btclib's
-`lower_s=True` default and refuses the malleable high-s twin;
-`EcdsaVerify` is `lower_s=False` and accepts it. Their tcId 5 is the same
-key and the same signature under both, `invalid` in the first file and
-`valid` in the second, so a `lower_s` wired the wrong way round fails one
-of the two files whichever way it is wired -- which neither file could
-report on its own.
+algorithm over the same curve and hash. `EcdsaBitcoinVerify` requires the
+strict DER encoding bitcoin requires, where `EcdsaVerify` accepts the BER
+forms a generic parser takes, and `Sig.parse` is the strict one: the
+`BerEncodedSignature` and `InvalidEncoding` cases are `invalid` in the
+first file and `valid` in the second, and btclib answers with the first.
+
+What it does not share is the low-s rule, and the two files say so by
+naming the same signature twice: tcId 1 and tcId 388 of the bitcoin file
+are tcId 5 and tcId 392 of the generic one -- one key and one signature
+each time, `invalid` there and `valid` here. btclib answers `valid` for
+all four, which form s took having been the signer's choice, so a verifier
+has no standing to refuse it (issue 695); the rule itself lives on in
+`sign` and in the leading-underscore spellings. `_generic_valid` below is
+how those two are found, and says why a flag would find only one.
 
 Hash functions beyond sha256, for the same reason in a second direction.
 Bitcoin signs with sha256 and nothing else, so the sha512, SHA3 and SHAKE
@@ -403,20 +410,41 @@ def test_pinned_xof() -> None:
     assert wider.digest()[: secp256k1.n_size] == hash_object.digest()
 
 
+def _generic_valid() -> frozenset[tuple[str, str]]:
+    """Return the (key, signature) pairs the generic profile calls valid.
+
+    Which is how the two verdicts btclib no longer shares with the bitcoin
+    profile are found, rather than by naming their numbers: one key, one
+    signature, `invalid` under the bitcoin profile and `valid` under the
+    generic one is a case whose only defect is the form of s, and that is
+    the rule a verifier no longer applies (issue 695). There are two of
+    them, and a flag reaches only the first -- tcId 1 is
+    `SignatureMalleabilityBitcoin`, while tcId 388, "edge case for
+    signature malleability", is flagged `ArithmeticError` along with six
+    cases that are invalid for their arithmetic and not for their s.
+    """
+    return frozenset(
+        (group["publicKey"]["uncompressed"], test["sig"])
+        for group in load("ecc", "_data", _ECDSA)["testGroups"]
+        for test in group["tests"]
+        if test["result"] == "valid"
+    )
+
+
 @pytest.mark.parametrize(
-    "key, vector, lower_s, hf, bindings",
-    _signature_vectors(_ECDSA_BITCOIN, "bitcoin", sha256, True)
-    + _signature_vectors(_ECDSA, "ecdsa", sha256, False)
-    + _signature_vectors(_ECDSA_SHA512, "sha512", sha512, False)
-    + _signature_vectors(_ECDSA_SHA3_256, "sha3-256", sha3_256, False)
-    + _signature_vectors(_ECDSA_SHA3_512, "sha3-512", sha3_512, False)
-    + _signature_vectors(_ECDSA_SHAKE128, "shake128", _SHAKE128, False)
-    + _signature_vectors(_ECDSA_SHAKE256, "shake256", _SHAKE256, False),
+    "key, vector, low_s_exempt, hf, bindings",
+    _signature_vectors(_ECDSA_BITCOIN, "bitcoin", sha256, _generic_valid())
+    + _signature_vectors(_ECDSA, "ecdsa", sha256, frozenset())
+    + _signature_vectors(_ECDSA_SHA512, "sha512", sha512, frozenset())
+    + _signature_vectors(_ECDSA_SHA3_256, "sha3-256", sha3_256, frozenset())
+    + _signature_vectors(_ECDSA_SHA3_512, "sha3-512", sha3_512, frozenset())
+    + _signature_vectors(_ECDSA_SHAKE128, "shake128", _SHAKE128, frozenset())
+    + _signature_vectors(_ECDSA_SHAKE256, "shake256", _SHAKE256, frozenset()),
 )
 def test_ecdsa_der(
     key: str,
     vector: dict[str, Any],
-    lower_s: bool,
+    low_s_exempt: frozenset[tuple[str, str]],
     hf: HashF,
     bindings: bool,
     monkeypatch: pytest.MonkeyPatch,
@@ -443,8 +471,10 @@ def test_ecdsa_der(
 
     msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
     sig = bytes.fromhex(vector["sig"])
-    verified = dsa.verify_(msg_hash, key, sig, lower_s, hf)
-    assert verified == (vector["result"] == "valid")
+    verified = dsa.verify_(msg_hash, key, sig, hf)
+    # `_generic_valid` above is where the exemption comes from, and why it
+    # is not a flag and not a list of tcIds
+    assert verified == (vector["result"] == "valid" or (key, sig.hex()) in low_s_exempt)
 
 
 @pytest.mark.parametrize(
@@ -471,8 +501,9 @@ def test_ecdsa_p1363(
     `RangeCheck` and `InvalidSignature` cases are r and s at 0, at n, and
     at n plus a valid value, none of which any DER framing can hide.
 
-    `lower_s=False` for both files, neither having a bitcoin profile: the
-    sha256 one's tcId 1 is the malleable high-s signature and is `valid`.
+    No exemption is needed here, none of these files having a bitcoin
+    profile: the sha256 one's tcId 1 is the malleable high-s signature and
+    is `valid`, which is the answer `verify_` gives everywhere now.
 
     The size rule is the encoding's and not the hash's, so it is `n_size`
     twice over under sha512 as under sha256: P1363 pads each of r and s
@@ -496,7 +527,7 @@ def test_ecdsa_p1363(
         return
 
     msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
-    assert dsa.verify_(msg_hash, key, sig, False, hf) == (vector["result"] == "valid")
+    assert dsa.verify_(msg_hash, key, sig, hf) == (vector["result"] == "valid")
 
 
 @pytest.mark.parametrize(

@@ -2864,7 +2864,7 @@ def test_the_sig_hash_of_every_input_kind_a_partial_signature_signs() -> None:
             for pub_key, sig in psbt_in.partial_sigs.items():
                 msg_hash = _sig_hash_from_psbt_in(psbt_in, psbt.tx, vin_i, sig[-1])
                 assert msg_hash is not None
-                assert dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False)
+                assert dsa.verify_(msg_hash, pub_key, sig[:-1])
                 checked += 1
     # a count, so that a loop that stops finding signatures is a failure
     # and not a green run over nothing

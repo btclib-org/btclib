@@ -2378,9 +2378,10 @@ def _assert_ecdsa_sigs_verify(
     which is what `assert_signed` asks of a psbt that is nobody's answer
     in particular.
 
-    lower_s=False for the Finalizer's reason: the question is whether that
-    key made that signature, the low-s rule being policy the script engine
-    applies under its flags.
+    `verify_` asks whether that key made that signature and nothing about
+    which form its s took, the low-s rule being policy the script engine
+    applies under its flags -- which is the Finalizer's reason, and is now
+    the only answer that function gives.
     """
     for pub_key, sig in psbt_in.partial_sigs.items():
         if request_in is not None and pub_key in request_in.partial_sigs:
@@ -2390,7 +2391,7 @@ def _assert_ecdsa_sigs_verify(
             err_msg = f"input {vin_i}: cannot verify the signature of "
             err_msg += f"{pub_key.hex()}, the psbt does not say what was signed"
             raise BTClibValueError(err_msg)
-        if not dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False):
+        if not dsa.verify_(msg_hash, pub_key, sig[:-1]):
             err_msg = f"input {vin_i}: invalid signature for pub_key {pub_key.hex()}"
             raise BTClibValueError(err_msg)
 
@@ -2795,9 +2796,9 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
     on bytes nothing vouches for, so skipping the check would finalize
     exactly the input whose signature cannot be believed.
 
-    lower_s=False because the question here is whether that key made that
-    signature: the low-s rule is policy, applied by the script engine
-    under its flags, and Bitcoin Core's CPubKey::Verify normalizes s
+    The question here is whether that key made that signature, and not
+    which form its s took: the low-s rule is policy, applied by the script
+    engine under its flags, and Bitcoin Core's CPubKey::Verify normalizes s
     before verifying for this very reason.
     """
     # the hash is the input's and the hash type's, never the key's, so an
@@ -2815,7 +2816,7 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
         msg_hash = sig_hashes[hash_type]
         if msg_hash is None:
             continue
-        if not dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False):
+        if not dsa.verify_(msg_hash, pub_key, sig[:-1]):
             err_msg = f"invalid partial signature for pub_key {pub_key.hex()}"
             raise BTClibValueError(err_msg)
 
