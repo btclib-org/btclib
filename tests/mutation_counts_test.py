@@ -207,7 +207,7 @@ def test_the_script_reads_a_session_and_exits_on_an_unsound_one(
     done = subprocess.run(  # noqa: S603
         [sys.executable, str(_SCRIPT), str(sound)],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=True,
     )
     assert "killed 3, survived 0, skipped 0" in done.stdout
@@ -216,7 +216,7 @@ def test_the_script_reads_a_session_and_exits_on_an_unsound_one(
     failed = subprocess.run(  # noqa: S603
         [sys.executable, str(_SCRIPT), str(broken)],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         check=False,
     )
     assert failed.returncode == 1

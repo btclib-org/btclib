@@ -556,10 +556,9 @@ exclude = [
 # feature, so the first line is what buys the second -- and alone it
 # would also turn on every rule ruff is still designing. The second
 # takes that back off: a preview rule then runs only where this file
-# names it exactly, and every entry of `select` below is a family, which
-# no preview rule can be reached through. The rule set stays the stable
-# one it already was; what preview changes here is only how `ignore`
-# spells its own entries
+# names it exactly, and a family name reaches none of them, which is why
+# `extend-select` below exists at all. The rule set stays the stable one
+# it already was, plus what that key spells out one rule at a time
 preview = true
 explicit-preview-rules = true
 # A, BLE, C90, FA, FIX, FLY, RSE, SLOT, T10, T20 and TID are here by
@@ -639,6 +638,21 @@ select = [
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
 ]
+# a rule and not a family, so it is here rather than in `select` above,
+# which holds families and reaches no preview rule through any of them --
+# pylint's unspecified-encoding is PLW1514 and preview is where ruff
+# keeps it.
+# It asks that `open`, `Path.open`, `read_text`, `write_text` and the
+# tempfile factories name an encoding, because a call that omits it takes
+# the locale's: UTF-8 wherever this suite is usually read, cp1252 on
+# Windows, where a typographic quote in a docstring is a byte that maps
+# to nothing and the module holding it fails to load rather than fails a
+# test. windows.yml answers on Saturday and before a release, so nothing
+# else asks in between.
+# Zero findings when it was selected, which makes it a ratchet and not a
+# cleanup. .pre-commit-config.yaml carries the other half, `text=True`
+# being the same locale-dependent decode one layer out
+extend-select = ["unspecified-encoding"]
 # named rather than coded, here and in per-file-ignores below: `select`
 # above has no choice, a family having no name of its own, but an entry
 # that suppresses a single rule can say which -- so the reason sits in
