@@ -16,12 +16,16 @@ name: integration
 # must not -- that rule lives outside the repository and names its checks
 # as literal strings.
 #
-# The HWI half of `tests/integration/` does not run here and skips with
-# its reason: it needs a device to press a button on, or an emulator to
-# stand in for one, which is a service to pin and keep working rather
-# than a tarball to download. Issue #529 is where that is decided; what
-# runs against the actual HWI command line meanwhile is tests/hwi_test.py,
-# whose stand-in device is a subprocess answering HWI's own json.
+# The HWI half of `tests/integration/` is the second job, and it needs a
+# device: a pinned Trezor emulator stands in for one, with a pinned HWI
+# in an interpreter of its own. That job is not on a pull request, which
+# is the whole difference between the two -- it can go red on a firmware
+# release, on data.trezor.io, or on an emulator that stopped starting
+# headless, so it is asked on the schedule and on demand, where the run
+# is read by somebody who wanted the answer, rather than in front of a
+# review that has nothing to do with it. What checks the HWI command line
+# on every commit stays tests/hwi_test.py, whose stand-in device is a
+# subprocess answering HWI's own json.
 
 on:
   schedule:
@@ -68,9 +72,22 @@ on:
     # which is what 36 seconds of work buys
 
 # least privilege for the GITHUB_TOKEN: nothing here writes, and the
-# tarball is fetched from bitcoincore.org, which does not know this token
+# tarballs are fetched from bitcoincore.org and data.trezor.io, neither of
+# which knows this token
 permissions:
   contents: read
+
+# the node both jobs run, here rather than in either of them: the release
+# under test, and the sha256 of its linux tarball as four independent
+# guix builders attested it in bitcoin-core/guix.sigs. Pinned rather than
+# resolved to "latest": a run that installs whatever is newest reports
+# the day Core released rather than the day btclib changed, and the
+# version that answered is then unknowable from a green run. Raising it
+# is a commit, with the new sha read from the same place
+env:
+  BITCOIND_VERSION: "31.1"
+  BITCOIND_SHA256: >-
+    b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
 
 # cancel superseded runs. Named literally rather than through
 # github.workflow, as everywhere else here: in a called workflow that
@@ -95,17 +112,6 @@ jobs:
     # -- so this bounds the download and the failure cases rather than
     # the work
     timeout-minutes: 20
-    env:
-      # the release under test, and the sha256 of its linux tarball as
-      # four independent guix builders attested it in
-      # bitcoin-core/guix.sigs. Pinned rather than resolved to "latest":
-      # a run that installs whatever is newest reports the day Core
-      # released rather than the day btclib changed, and the version that
-      # answered is then unknowable from a green run. Raising it is a
-      # commit, with the new sha read from the same place
-      BITCOIND_VERSION: "31.1"
-      BITCOIND_SHA256: >-
-        b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
@@ -120,41 +126,22 @@ jobs:
           # the wheels uv.lock pins do not change between runs, so the
           # cache is the difference between a download and a copy
           enable-cache: true
-      # the release tarball rather than a package or a third-party action:
-      # ubuntu's archive carries no bitcoind, and an action would be a
-      # fourth party between this job and a binary whose checksum is
-      # published and attested. --fail so an html error page is not
-      # unpacked as a tarball, and the checksum before the unpacking, not
-      # after
+      # the repository's own composite action, which the emulator job
+      # calls with the same two values: the reasoning for the download is
+      # in the file
       - name: Install bitcoind
-        run: |
-          base="https://bitcoincore.org/bin/bitcoin-core-$BITCOIND_VERSION"
-          tarball="bitcoin-$BITCOIND_VERSION-x86_64-linux-gnu.tar.gz"
-          # --proto/--proto-redir: --location follows redirects, and a
-          # redirect to http:// would be followed too. The checksum below
-          # protects the integrity either way, so this is not a hole it
-          # closes -- it is the download refusing to leave https at all
-          curl --proto '=https' --proto-redir '=https' \
-            --fail --silent --show-error --location --retry 3 \
-            --output "$tarball" "$base/$tarball"
-          echo "$BITCOIND_SHA256  $tarball" | sha256sum --check --strict
-          # the daemon alone: the tarball carries the cli, the wallet tool
-          # and the gui's libraries, and the tests speak rpc
-          tar -xzf "$tarball" "bitcoin-$BITCOIND_VERSION/bin/bitcoind"
-          echo "BTCLIB_BITCOIND=$PWD/bitcoin-$BITCOIND_VERSION/bin/bitcoind" \
-            >> "$GITHUB_ENV"
-      # what answered, in the log of the run that used it: a green run
-      # whose node version is only in this file is one nobody can date,
-      # and the version string carries the build the sha256 above pinned
-      - name: Record the node version
-        run: |
-          "$BTCLIB_BITCOIND" -version | head -n 1
+        id: bitcoind
+        uses: ./.github/actions/install-bitcoind
+        with:
+          version: ${{ env.BITCOIND_VERSION }}
+          sha256: ${{ env.BITCOIND_SHA256 }}
       # the same command tests/README.md documents, with the binary named
       # rather than found on PATH. The junit report is for the step below,
       # the run itself being read from the log
       - name: Run the integration tests
         env:
           BTCLIB_INTEGRATION: "1"
+          BTCLIB_BITCOIND: ${{ steps.bitcoind.outputs.path }}
         run: |
           uv run --locked --no-default-groups --group test \
             pytest tests/integration --junitxml=integration.xml
@@ -195,4 +182,252 @@ jobs:
           if-no-files-found: error
           # long enough to compare a run with the one before it, short
           # enough that a weekly job does not accumulate a year of xml
+          retention-days: 90
+
+  hwi-emulator:
+    name: HWI against a Trezor emulator
+    # not on a pull request, where the job above runs and is required:
+    # this one drives a device somebody else builds, publishes and
+    # releases, so a red run is more often trezor's day than the branch's
+    # -- and it is exactly the shape of check that gets ignored when it
+    # sits next to a review. The schedule asks it weekly with the node,
+    # the push to main asks it of the commit a merge created, and the
+    # dispatch button is how a branch touching btclib/hwi.py gets the
+    # answer before it lands: `gh workflow run integration.yml --ref
+    # <branch>` runs that branch's copy of this file
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    # the tests are seconds; the emulator, HWI and the node are a few
+    # minutes of downloading and installing, and this bounds the failure
+    # cases -- an emulator that starts and never answers is the one that
+    # would otherwise hold a runner
+    timeout-minutes: 30
+    env:
+      # the emulator, and the sha256 of the binary trezor publishes.
+      # T2T1 is the Trezor Model T, whose emulator HWI's own test suite
+      # runs, and the version is a released firmware rather than a build
+      # of a branch: `common/releases.json` in trezor/trezor-firmware is
+      # what says which versions exist per model, and the binary of each
+      # is under emulators-new/<model>/ at the url below.
+      #
+      # 2.9.4 rather than the newest: from 2.12.2 the emulator links
+      # SDL3, which ubuntu's archive does not carry yet, and HWI's own
+      # CI builds core/v2.9.6 -- so this is the newest released firmware
+      # that is both installable here and inside the range upstream
+      # tests. Raising it is a commit, with the new sha read from the
+      # same url
+      TREZOR_MODEL: T2T1
+      TREZOR_VERSION: "2.9.4"
+      TREZOR_SHA256: >-
+        a286b20cd33f2fbff30cc46f16c756a25e7cbeaeab9714913746d6826b923c08
+      # the seed the emulator is loaded with: HWI's test suite uses it,
+      # trezor's device tests before it, and it is published in both. An
+      # emulator has no secure element and no owner, so this is a test
+      # fixture and not a key -- what it must never be is a mnemonic
+      # anybody generated for use
+      TREZOR_MNEMONIC: >-
+        alcohol woman abuse must during monitor noble actual mixed trade
+        anger aisle
+      # HWI declares ^3.9,<3.13 and is run as a program rather than
+      # imported (btclib/hwi.py says why, and issue #469 why there is no
+      # extra), so it gets an interpreter of its own here: uv fetches
+      # 3.12, and nothing about the environment the tests run in changes
+      HWI_VERSION: "3.2.0"
+      HWI_PYTHON: "3.12"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      # the signing test spends a regtest coin, so this job needs the
+      # node the one above needs, from the same pin
+      - name: Install bitcoind
+        id: bitcoind
+        uses: ./.github/actions/install-bitcoind
+        with:
+          version: ${{ env.BITCOIND_VERSION }}
+          sha256: ${{ env.BITCOIND_SHA256 }}
+      # what the emulator is linked against, and patchelf to make it
+      # runnable at all: the published binary is built under nix, so its
+      # interpreter and its RUNPATH name /nix/store paths that exist on
+      # no ubuntu. libjpeg62 is the soname SDL2_image was built against
+      # and is not the libjpeg ubuntu installs by default; libusb is
+      # HWI's, which loads it by name at import for the transports this
+      # job does not use
+      - name: Install what the emulator needs
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libjpeg62 libsdl2-2.0-0 libsdl2-image-2.0-0 libusb-1.0-0 \
+            patchelf
+      # the same shape as the node's download: pinned version, published
+      # checksum, https that cannot be redirected off https
+      - name: Install the Trezor emulator
+        run: |
+          base="https://data.trezor.io/dev/firmware/releases/emulators-new"
+          name="trezor-emu-core-$TREZOR_MODEL-v$TREZOR_VERSION"
+          curl --proto '=https' --proto-redir '=https' \
+            --fail --silent --show-error --location --retry 3 \
+            --output trezor-emulator "$base/$TREZOR_MODEL/$name"
+          echo "$TREZOR_SHA256  trezor-emulator" | sha256sum --check --strict
+          chmod +x trezor-emulator
+          # the loader ubuntu has, and no RUNPATH, so the libraries
+          # installed above are the ones found
+          patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 \
+            --remove-rpath trezor-emulator
+      # in an environment of its own, and named by path: BTCLIB_HWI is
+      # split on spaces, which is how the flags of a command reach it,
+      # and --emulators is what makes HWI look at 127.0.0.1:21324 at all.
+      # btclib passes that flag to `enumerate` itself, and to nothing
+      # else -- every other command is selected by fingerprint -- so it
+      # belongs here rather than in the test
+      - name: Install HWI
+        run: |
+          uv venv --python "$HWI_PYTHON" hwi-env
+          uv pip install --python hwi-env/bin/python "hwi==$HWI_VERSION"
+          echo "BTCLIB_HWI=$PWD/hwi-env/bin/hwi --emulators" >> "$GITHUB_ENV"
+          hwi-env/bin/hwi --version
+      # the emulator, then the seed, and both versions in the log: what a
+      # green run is evidence about is a firmware and an HWI, and neither
+      # is readable from this file six months later.
+      #
+      # The seed goes in over DebugLink, which is also how the button
+      # gets pressed: HWI opens a udp path with TrezorClientDebugLink
+      # rather than the ordinary client, and that one answers a
+      # ButtonRequest itself. That is what BTCLIB_HWI_SIGN guards
+      # against, and why it can be set here -- there is no screen and
+      # nobody in front of it.
+      #
+      # trezorlib comes from HWI's own vendored copy rather than from
+      # PyPI: it is the library that will talk to this emulator half a
+      # second later, so a protocol it accepts is one HWI accepts
+      - name: Start the emulator and load its seed
+        run: |
+          mkdir -p emulator-profile
+          TREZOR_PROFILE_DIR="$PWD/emulator-profile" SDL_VIDEODRIVER=dummy \
+            ./trezor-emulator > emulator.log 2>&1 &
+          echo "EMULATOR_PID=$!" >> "$GITHUB_ENV"
+          hwi-env/bin/python - <<'PY'
+          import os
+          import socket
+          import sys
+          import time
+
+          from hwilib.devices.trezorlib.debuglink import (
+              TrezorClientDebugLink,
+              load_device_by_mnemonic,
+          )
+          from hwilib.devices.trezorlib.transport.udp import UdpTransport
+
+          # the ping the firmware's own wait_for_emulator.py sends, and
+          # the answer that says the udp transport is up
+          deadline = time.monotonic() + 60
+          sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+          sock.connect(("127.0.0.1", 21324))
+          sock.settimeout(0.5)
+          while True:
+              try:
+                  sock.send(b"PINGPING")
+                  if sock.recv(8) == b"PONGPONG":
+                      break
+              # every failure before it is listening is the same one:
+              # nothing is bound to the port yet, so the datagram is
+              # refused or the answer times out
+              except OSError:
+                  pass
+              if time.monotonic() > deadline:
+                  sys.exit("::error::the emulator did not answer in 60 s")
+              time.sleep(0.1)
+
+          client = TrezorClientDebugLink(UdpTransport.enumerate()[0])
+          client.init_device()
+          features = client.features
+          version = ".".join(
+              str(part)
+              for part in (
+                  features.major_version,
+                  features.minor_version,
+                  features.patch_version,
+              )
+          )
+          revision = features.revision.hex() if features.revision else "none"
+          print(f"{features.model} firmware {version}, revision {revision}")
+          load_device_by_mnemonic(
+              client=client,
+              mnemonic=os.environ["TREZOR_MNEMONIC"],
+              pin="",
+              passphrase_protection=False,
+              label="btclib",
+          )
+          PY
+      # the module tests/README.md documents, with both switches set and
+      # the node from the step above. Only that module: the regtest tests
+      # beside it are the other job's, and running them again here would
+      # report a Core failure twice.
+      #
+      # -n0 because there is one device. pyproject.toml's addopts pass
+      # `-n auto`, which is right for everything else here and wrong for
+      # a signer: three workers are three HWI processes on one udp port,
+      # and the one that finds the emulator mid-exchange waits for an
+      # answer to somebody else's command until btclib's timeout ends it.
+      # Measured, and it is displayaddress that lost the race
+      - name: Run the HWI integration tests
+        env:
+          BTCLIB_INTEGRATION: "1"
+          BTCLIB_HWI_SIGN: "1"
+          BTCLIB_BITCOIND: ${{ steps.bitcoind.outputs.path }}
+        run: |
+          uv run --locked --no-default-groups --group test \
+            pytest tests/integration/hwi_device_test.py -n0 --junitxml=hwi.xml
+      # the same guard the node job carries, for the same reason: every
+      # one of these tests skips itself when a switch is off or when
+      # enumerate answers something other than one usable device, so a
+      # job whose emulator stopped being seen would pass while asking HWI
+      # nothing
+      - name: Fail if the device tests did not run
+        run: |
+          uv run --locked --no-default-groups --group test python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          cases = ET.parse("hwi.xml").getroot().iter("testcase")
+          ran = [one for one in cases
+                 if "hwi_device" in one.get("classname", "")]
+          skipped = [one for one in ran if one.find("skipped") is not None]
+          for one in skipped:
+              reason = one.find("skipped").get("message", "")
+              print(f"::error::{one.get('name')} skipped: {reason}")
+          if not ran or skipped:
+              print(f"::error::{len(ran)} device tests, {len(skipped)} skipped")
+              sys.exit(1)
+          print(f"{len(ran)} device tests ran against the emulator")
+          PY
+      # before the upload, so the log is complete and the runner is not
+      # tearing down a process that still holds the file. Both guards
+      # matter: a step that failed before the emulator started leaves
+      # EMULATOR_PID unset, and `kill 0` -- what a default would spell --
+      # signals the whole process group, this shell included
+      - name: Stop the emulator
+        if: always()
+        run: |
+          if [ -n "${EMULATOR_PID:-}" ]; then
+            kill "$EMULATOR_PID" || true
+          fi
+      # the emulator's own log beside the report: a device that refused
+      # says so there and nowhere else, the psbt failure and the button
+      # that was never pressed looking alike from pytest
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hwi-emulator-report
+          path: |
+            hwi.xml
+            emulator.log
+          if-no-files-found: error
           retention-days: 90

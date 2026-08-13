@@ -1,0 +1,76 @@
+---
+# The two jobs of integration.yml both need a node, and a checksum
+# duplicated is a checksum that drifts: the one that is raised is the one
+# somebody was reading, and the other stays on the release before it
+# while its job keeps reporting green. A composite action is the only
+# thing GitHub Actions offers to say this once -- there are no yaml
+# anchors across jobs -- so the download, the verification and the
+# unpacking live here and the version is an input.
+#
+# Referenced by path (`uses: ./.github/actions/install-bitcoind`) and not
+# by commit SHA, which is the rule for every third-party action: this one
+# is the repository's own file, read from the same commit as the workflow
+# that calls it, so there is no owner who could move it.
+name: Install bitcoind
+description: >-
+  Download a pinned Bitcoin Core release, check its published sha256 and
+  answer with the path of the daemon.
+
+inputs:
+  version:
+    description: 'The release to download, "31.1" rather than "v31.1"'
+    required: true
+  sha256:
+    description: The sha256 of that release's x86_64 linux tarball
+    required: true
+
+# an output rather than a line appended to GITHUB_ENV, which is what a
+# job would write for itself: an action is called with values it does not
+# choose, and a file that becomes the environment of every later step is
+# the one place where a crafted input would be more than a failed
+# download -- zizmor's github-env audit is about exactly that. The caller
+# names the path where it needs it
+outputs:
+  path:
+    description: The path of the bitcoind this installed
+    value: ${{ steps.install.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    # the release tarball rather than a package or a third-party action:
+    # ubuntu's archive carries no bitcoind, and an action would be a
+    # fourth party between this job and a binary whose checksum is
+    # published and attested. --fail so an html error page is not
+    # unpacked as a tarball, and the checksum before the unpacking, not
+    # after
+    - name: Install bitcoind
+      id: install
+      shell: bash
+      # through the environment rather than interpolated into the script:
+      # an input is caller-controlled text, and `${{ }}` in a run body is
+      # pasted in before bash reads a line of it
+      env:
+        BITCOIND_VERSION: ${{ inputs.version }}
+        BITCOIND_SHA256: ${{ inputs.sha256 }}
+      run: |
+        base="https://bitcoincore.org/bin/bitcoin-core-$BITCOIND_VERSION"
+        tarball="bitcoin-$BITCOIND_VERSION-x86_64-linux-gnu.tar.gz"
+        # --proto/--proto-redir: --location follows redirects, and a
+        # redirect to http:// would be followed too. The checksum below
+        # protects the integrity either way, so this is not a hole it
+        # closes -- it is the download refusing to leave https at all
+        curl --proto '=https' --proto-redir '=https' \
+          --fail --silent --show-error --location --retry 3 \
+          --output "$tarball" "$base/$tarball"
+        echo "$BITCOIND_SHA256  $tarball" | sha256sum --check --strict
+        # the daemon alone: the tarball carries the cli, the wallet tool
+        # and the gui's libraries, and the tests speak rpc
+        tar -xzf "$tarball" "bitcoin-$BITCOIND_VERSION/bin/bitcoind"
+        daemon="$PWD/bitcoin-$BITCOIND_VERSION/bin/bitcoind"
+        echo "path=$daemon" >> "$GITHUB_OUTPUT"
+        # what answered, in the log of the run that used it: a green run
+        # whose node version is only in a workflow file is one nobody can
+        # date, and the version string carries the build the sha256
+        # pinned
+        "$daemon" -version | head -n 1
