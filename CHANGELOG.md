@@ -786,6 +786,63 @@ documented at release-notes length in the first place, and are still in
   `BytesIO`: `.read` is the whole of what a short read is about, so a file
   object is as much an answer there, and a view is the one reader in this
   library that does not consume the stream it is handed.
+- **BIP375's silent payment fields of a psbt** (#641). Six of them:
+  `PSBT_GLOBAL_SP_ECDH_SHARE` and `PSBT_GLOBAL_SP_DLEQ`, keyed by a
+  recipient's scan key, for a Signer that holds every input key;
+  `PSBT_IN_SP_ECDH_SHARE` and `PSBT_IN_SP_DLEQ` for one that holds some;
+  and `PSBT_OUT_SP_V0_INFO` and `PSBT_OUT_SP_V0_LABEL`, the address an
+  output pays and the label of it. Each is parsed, serialized, validated,
+  merged by the Combiner and written into `to_dict`, alongside the BIP371
+  taproot fields and the BIP373 musig2 ones.
+
+  Two rules come with them. `PSBT_OUT_SCRIPT` stops being required, and
+  only for the outputs that cannot have one: a silent payment output
+  script depends on every eligible input, so it does not exist while
+  inputs may still be added, and an output with neither field is the
+  missing script BIP370 already refuses. And `unique_id` reads
+  `PSBT_OUT_SP_V0_INFO` in place of the script wherever the field is
+  there -- BIP375's "Unique Identification", for the reason BIP370 zeroes
+  the sequences: the same psbt is valid before and after a Signer computes
+  that script, so an identifier built from the script would call one psbt
+  two and a Combiner would refuse to merge the halves of one session.
+
+  All six are excluded from version 0, which is BIP375's own table, and
+  the exclusion is enforced twice: `parse` refuses the type byte, and
+  `assert_valid` refuses the field. Without the second, a psbt *built*
+  with one and then declared version 0 would serialize into bytes this
+  library cannot read back, and `to_v0` would hand back exactly that. It
+  raises instead: an address is not what version 0 can drop and keep the
+  transaction, which is what it drops the lock times for.
+
+  The two input fields survive finalization, where Bitcoin Core's list
+  drops everything a Finalizer consumed. BIP375 gives the Transaction
+  Extractor the job of recomputing every silent payment output script and
+  verifying it against the share and the proof, which it cannot do if
+  finalizing threw them away.
+
+  `PsbtView` keeps the two globals as it keeps every other one, and
+  `_tx_out` gained the keyword that says which transaction is being built:
+  the identifier reads the address, and the streaming view, which builds
+  the transaction to broadcast, reads the script. No default on that
+  keyword, as `_tx_in`'s has none -- a caller must not reach the
+  identifier by forgetting to say which it wanted.
+
+  `bip375_test_vectors.json` is vendored whole, 41 psbts. It is the only
+  psbt vector file here with an upstream file to be compared against --
+  the other five are transcribed from prose -- and it is *not* compared
+  byte for byte, which is the file's doing rather than btclib's: its
+  generator writes the keys of a map in an order of its own, and a psbt
+  map has no normative order at all. The comparison is one level up, on
+  the maps themselves, plus stability under a second parse.
+
+  Five of its 22 invalid psbts are refused, which is five of BIP375's six
+  "PSBT Structure" cases -- a label with no address, and four wrong
+  lengths. The sixth and the other sixteen are the Signer's and the
+  Transaction Extractor's to refuse, roles BIP375 adds and this change
+  does not: each needs every input's public key, which for an unsigned
+  input comes from `PSBT_IN_BIP32_DERIVATION` rather than from the input.
+  `btclib.ecc.dleq.verify_proof` and `btclib.silent_payments.output_keys`
+  are what such a role would be built from, and both are now here.
 - **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
   `combine` merged the maps and returned a psbt with neither the inputs nor
   the result validated anywhere, so an invalid psbt in gave an invalid psbt
@@ -1115,6 +1172,86 @@ documented at release-notes length in the first place, and are still in
   turned it into bytes -- reaches past the frozen guard with
   `object.__setattr__`, the same escape `__init__` itself uses.
 
+- **BIP352 silent payments** (#640). `btclib.silent_payments` is the new
+  module, and it is a top-level one because it stands on nearly everything
+  below: the curve arithmetic, `bech32` for the address, `script_pub_key`
+  for the input types and `tx.out_point` for what the input hash binds to.
+  One reusable address, published once, and a different taproot output for
+  every payment to it -- so two payments to one recipient are unlinkable on
+  chain, with nothing extra in the transaction and no interaction.
+
+  The surface is one function per step of BIP352, which is what lets the
+  vector file's intermediate values be asserted where they are produced
+  rather than only at the end: `pub_key_from_input` reads one input's key
+  and answers None where BIP352 skips the input, `prv_key_sum` and
+  `pub_key_sum` are the two sides of the same sum with the taproot negation
+  in it, `input_hash` binds that sum to the transaction's smallest
+  outpoint, `tweak_data` is what a light-client server publishes per
+  transaction, `shared_secret` is the multiplication both ends do,
+  `output_keys` is the sender's whole operation and `scan_outputs` the
+  receiver's. `label_tweak`, `labeled_address_from_keys` and `label_lookup`
+  are the optional labels, and `prv_key_from_tweak` is what spends a found
+  output.
+
+  BIP352's own `send_and_receive_test_vectors.json` is vendored whole, all
+  28 cases from both ends. The revision matters: the 2026 one added
+  `input_private_key_sum`, `shared_secrets`, `tweak` and
+  `input_pub_key_sum`, so an outpoint sorted wrongly, a missed taproot
+  negation and a wrong label are three failures instead of one "wrong
+  output". Every found output is also signed and the signature verified
+  against the output key, which the file does not ask for and is the only
+  assertion that says the output is spendable rather than predicted.
+
+  Two things had to be got right that no reference note prepares you for.
+  The address is bech32m *by the constant*: `bech32.encode` reads a segwit
+  witness version off the first data value to choose between bech32 and
+  bech32m, and a silent payment version 0 would pick the bech32 constant
+  and produce a string no other implementation accepts. And the public key
+  sum is folded one addition at a time rather than through `multi_mult`:
+  an intermediate sum at infinity is a BIP352 vector, and infinity is
+  exactly what libsecp256k1 has no public key for.
+
+  The address's hrp comes from `network_type_from_network`, BIP352 having
+  one for mainnet and one for every test network, so a name no network has
+  is refused where indexing `NETWORKS` would have answered a bare
+  `KeyError`.
+
+  What is *not* here is the transaction-level policy: which transactions
+  are worth scanning, and which sighash flags a sender may use
+  (`SIGHASH_ANYONECANPAY` breaks the protocol, the inputs being what the
+  secret derives from). Those are a wallet's, and the module docstring
+  states all three rather than half-implementing them.
+- **BIP374 discrete logarithm equality proofs** (#639). `btclib.ecc.dleq`
+  is the new module: `generate_proof` answers the 64 bytes that tie A = a\*G
+  and C = a\*B to one scalar a, `verify_proof` says whether they hold, and
+  `assert_proof_as_valid` beside it says why they do not. Both csv files of
+  `bip-0374/` are vendored under upstream's own names, all 11 generation
+  cases and all 15 verification cases, and a generated proof is compared
+  byte for byte against the file rather than merely verified -- the nonce
+  being deterministic, a proof that verifies and differs is a proof no
+  other implementation would produce.
+
+  What it attests is narrow and worth stating: the same scalar relates A
+  to G and C to B, and nothing about the scalar's value, its holder, or
+  whether C is the point either party wanted. That is exactly the gap
+  BIP352 has: a wrongly derived silent-payment output script is
+  consensus-valid, so a signature catches nothing and the funds are gone,
+  where a DLEQ proof over the shared secret is checkable before the
+  broadcast.
+
+  The generator is an argument, which no other BIP in this library makes
+  it -- BIP374 passes G in so the algorithm serves another curve, and five
+  of its generation vectors use a generator that is not secp256k1's. The
+  curve and the hash function are *not* arguments, as in
+  `btclib.ecc.musig2`: BIP374 is defined for secp256k1 with sha256, and
+  there is no other pair a vector exists for. The message is optional and
+  exactly 32 bytes when present, which is BIP374's own restriction rather
+  than the arbitrary size `btclib.ecc.ssa` takes; `b""` is refused instead
+  of being read as "no message", the two hashing to the same input.
+
+  Three of BIP374's failure conditions have no vector, upstream's
+  generator being unable to produce one: an `s` at or above n, and R1 or
+  R2 landing on infinity. `tests/ecc/dleq_test.py` builds each.
 - **Nothing that reads a signature takes `lower_s` any more** (#695, #645).
   `dsa.assert_as_valid`, `verify`, `recover_pub_keys`, `recover_pub_key`,
   their four trailing-underscore twins, `dsa.anti_exfil_host_verify` and

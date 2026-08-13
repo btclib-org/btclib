@@ -88,6 +88,10 @@ Included features are:
 - Diffie-Hellman, and the x-only ECDH on the
   [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki)
   ElligatorSwift encoding of a public key
+- [BIP374](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki)
+  discrete logarithm equality proofs: 64 bytes proving that an ECDH shared
+  secret was computed from the key that signed, without revealing that key,
+  over an arbitrary generator and an optional message
 - ECIES in the BIE1 layout, the block cipher supplied by the caller
 - Pedersen commitment
 - Base58 encoding/decoding
@@ -113,6 +117,11 @@ Included features are:
   key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
   with corresponding mapping to
   p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
+- [BIP352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki)
+  silent payments: one reusable bech32m address, and a different taproot
+  output for every payment to it — the sender's outputs, the receiver's
+  scan, the labels that give one wallet many published addresses, and the
+  tweak data a light client scans from
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - a script engine: a transaction verified against the consensus rules,
@@ -145,6 +154,10 @@ Included features are:
   than carried as one: the lock time its inputs require, the identifier
   that ignores their sequences, the modifiable flags a Constructor must
   obey, and conversion either way
+- [BIP375](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki)
+  silent payments in a PSBT: the six fields that carry an ECDH share, its
+  BIP374 proof and the address being paid, the output script that may not
+  exist yet, and the identifier that reads the address in its place
 - [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
   `bitcoin:` payment URIs
 - fee rates carrying their unit (sat/kvB, sat/vB, and the BTC/kvB Bitcoin

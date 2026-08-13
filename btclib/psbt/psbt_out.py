@@ -24,11 +24,13 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
+from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
     assert_valid_musig2_participant_pub_keys,
     assert_valid_redeem_script,
+    assert_valid_sp_v0_info,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
     assert_valid_unknown,
@@ -69,6 +71,8 @@ __all__ = [
     "PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS",
     "PSBT_OUT_REDEEM_SCRIPT",
     "PSBT_OUT_SCRIPT",
+    "PSBT_OUT_SP_V0_INFO",
+    "PSBT_OUT_SP_V0_LABEL",
     "PSBT_OUT_TAP_BIP32_DERIVATION",
     "PSBT_OUT_TAP_INTERNAL_KEY",
     "PSBT_OUT_TAP_TREE",
@@ -85,13 +89,20 @@ PSBT_OUT_TAP_INTERNAL_KEY = b"\x05"
 PSBT_OUT_TAP_TREE = b"\x06"
 PSBT_OUT_TAP_BIP32_DERIVATION = b"\x07"
 PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS = b"\x08"
+PSBT_OUT_SP_V0_INFO = b"\x09"
+PSBT_OUT_SP_V0_LABEL = b"\x0a"
 
-# the output fields BIP370 defines, which a version 0 output must not
-# carry: the amount and the script_pub_key, which a v0 output reads from
-# the unsigned transaction. See psbt_utils.assert_not_a_v2_field
+# the output fields a version 0 output must not carry. Two are BIP370's:
+# the amount and the script_pub_key, which a v0 output reads from the
+# unsigned transaction. The other two are BIP375's, and are excluded from
+# version 0 because what they are for cannot happen there -- a silent
+# payment output has no script until the inputs are fixed, and a version 0
+# psbt has no field to write the script into once they are
 _V2_FIELDS = {
     PSBT_OUT_AMOUNT: "PSBT_OUT_AMOUNT",
     PSBT_OUT_SCRIPT: "PSBT_OUT_SCRIPT",
+    PSBT_OUT_SP_V0_INFO: "PSBT_OUT_SP_V0_INFO",
+    PSBT_OUT_SP_V0_LABEL: "PSBT_OUT_SP_V0_LABEL",
 }
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
@@ -114,6 +125,37 @@ def _serialized_v2_fields(psbt_out: PsbtOut) -> list[bytes]:
         )
     if psbt_out.script_pub_key:
         serialized.append(serialize_bytes(PSBT_OUT_SCRIPT, psbt_out.script_pub_key))
+    return serialized
+
+
+# BIP375's two output fields, each of them one key-value pair with no key
+# data: the name an error message reports, and the deserializer of the
+# whole value. A table because they differ in nothing else, and because
+# `parse` had no branch to spare
+_SP_FIELDS: dict[bytes, tuple[str, Callable[[bytes, bytes, str], Any]]] = {
+    PSBT_OUT_SP_V0_INFO: ("silent payment info", deserialize_bytes),
+    PSBT_OUT_SP_V0_LABEL: (
+        "silent payment label",
+        lambda k, v, what: deserialize_sized_int(k, v, what, 4),
+    ),
+}
+
+
+def _serialized_sp_fields(psbt_out: PsbtOut) -> list[bytes]:
+    """Return the two BIP375 fields of an output map, in type-byte order.
+
+    The label is `is not None` and not truthiness: 0 is the change label,
+    which BIP352 reserves for the outputs a wallet pays to itself and
+    asks a scanner to check always, so an output labelled 0 is the one
+    output most likely to carry the field.
+    """
+    serialized: list[bytes] = []
+    if psbt_out.sp_v0_info:
+        serialized.append(serialize_bytes(PSBT_OUT_SP_V0_INFO, psbt_out.sp_v0_info))
+    if psbt_out.sp_v0_label is not None:
+        serialized.append(
+            serialize_sized_int(PSBT_OUT_SP_V0_LABEL, psbt_out.sp_v0_label, 4)
+        )
     return serialized
 
 
@@ -162,6 +204,8 @@ class PsbtOut:
     amount: int | None
     script_pub_key: bytes
     musig2_participant_pub_keys: dict[bytes, list[bytes]]
+    sp_v0_info: bytes
+    sp_v0_label: int | None
 
     def __init__(
         self,
@@ -176,6 +220,8 @@ class PsbtOut:
         amount: int | None = None,
         script_pub_key: Octets = b"",
         musig2_participant_pub_keys: Mapping[Octets, Sequence[Octets]] | None = None,
+        sp_v0_info: Octets = b"",
+        sp_v0_label: int | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -191,6 +237,8 @@ class PsbtOut:
         self.musig2_participant_pub_keys = decode_musig2_participant_pub_keys(
             musig2_participant_pub_keys
         )
+        self.sp_v0_info = bytes_from_octets(sp_v0_info)
+        self.sp_v0_label = sp_v0_label
 
         if check_validity:
             self.assert_valid()
@@ -217,6 +265,20 @@ class PsbtOut:
         assert_valid_taproot_internal_key(self.taproot_internal_key)
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
         assert_valid_musig2_participant_pub_keys(self.musig2_participant_pub_keys)
+
+        assert_valid_sp_v0_info(self.sp_v0_info)
+        if self.sp_v0_label is not None and not 0 <= self.sp_v0_label <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid silent payment label: {self.sp_v0_label}")
+        # BIP375: "If this field is not included in the output, then the
+        # field PSBT_OUT_SP_V0_INFO must be included" is said of the
+        # script, and the label is the other way round -- it names the
+        # label of an address the info field is the keys of, so a label
+        # without an address labels nothing. One of BIP375's own invalid
+        # vectors is exactly this
+        if self.sp_v0_label is not None and not self.sp_v0_info:
+            err_msg = "PSBT_OUT_SP_V0_LABEL without PSBT_OUT_SP_V0_INFO"
+            raise BTClibValueError(err_msg)
+
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
@@ -241,6 +303,8 @@ class PsbtOut:
             "musig2_participant_pub_keys": encode_musig2_participant_pub_keys(
                 self.musig2_participant_pub_keys
             ),
+            "sp_v0_info": self.sp_v0_info.hex(),
+            "sp_v0_label": self.sp_v0_label,
         }
 
     @classmethod
@@ -272,6 +336,8 @@ class PsbtOut:
             dict_["amount"],
             script_from_dict(dict_["script_pub_key"]),
             dict_["musig2_participant_pub_keys"],
+            dict_["sp_v0_info"],
+            dict_["sp_v0_label"],
             check_validity=check_validity,
         )
 
@@ -321,6 +387,10 @@ class PsbtOut:
                 )
             )
 
+        # 0x09 and 0x0a, so after the musig2 field and before `unknown`
+        if psbt_version == 2:
+            psbt_out_bin.extend(_serialized_sp_fields(self))
+
         if self.unknown:
             psbt_out_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
@@ -365,6 +435,7 @@ class PsbtOut:
         amount: int | None = None
         script_pub_key = b""
         musig2_participant_pub_keys: dict[Octets, Sequence[Octets]] = {}
+        sp_fields: dict[bytes, Any] = {}
 
         # the three fields whose key carries key data, each of them as many
         # map entries as it has keys: the map they accumulate into, and the
@@ -397,6 +468,12 @@ class PsbtOut:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_OUT_TAP_TREE:
                 taproot_tree = parse_taproot_tree(v)
+            elif (sp_field := _SP_FIELDS.get(k[:1])) is not None:
+                # one branch for BIP375's pair, and a table beside it: the
+                # dispatch was at C901's limit, and the two differ in
+                # nothing but the parser of a value with no key data
+                what, deserialize = sp_field
+                sp_fields[k[:1]] = deserialize(k, v, what)
             elif (key_data_field := key_data_fields.get(k[:1])) is not None:
                 # one key at a time, a field of this kind being as many map
                 # entries as it has keys
@@ -416,5 +493,7 @@ class PsbtOut:
             amount,
             script_pub_key,
             musig2_participant_pub_keys,
+            sp_fields.get(PSBT_OUT_SP_V0_INFO, b""),
+            sp_fields.get(PSBT_OUT_SP_V0_LABEL),
             check_validity=check_validity,
         )

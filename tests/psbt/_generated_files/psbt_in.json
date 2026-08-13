@@ -101,5 +101,7 @@
     "required_height_lock_time": null,
     "musig2_participant_pub_keys": {},
     "musig2_pub_nonces": {},
-    "musig2_partial_sigs": {}
+    "musig2_partial_sigs": {},
+    "sp_ecdh_shares": {},
+    "sp_dleq_proofs": {}
 }

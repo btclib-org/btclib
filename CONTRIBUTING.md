@@ -205,8 +205,9 @@ pinned to a commit SHA being past 80 before anything else is said;
 `.yamllint.yaml` has that arithmetic.
 
 One of those hooks needs maintenance, and only one. The test vectors under
-`tests/ecc/_data/` and `tests/script/_data/` are private keys by the
-hundred, so they are recorded in `.secrets.baseline` as already reviewed —
+`tests/_data/`, `tests/ecc/_data/` and `tests/script/_data/` are private
+keys by the hundred, so they are recorded in `.secrets.baseline` as
+already reviewed —
 rather than excluded from the scan, which would leave those files unwatched
 for a credential that has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a

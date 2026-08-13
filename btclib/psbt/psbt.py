@@ -52,7 +52,11 @@ from btclib.psbt.psbt_utils import (
     LEAF_HASH_SIZE,
     MUSIG2_PUB_KEY_SIZE,
     PSBT_SEPARATOR,
+    SP_DLEQ_PROOF_SIZE,
+    SP_ECDH_SHARE_SIZE,
+    SP_V0_INFO_VERSION,
     assert_not_a_v2_field,
+    assert_valid_sp_scan_key_map,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_bytes,
@@ -98,6 +102,8 @@ __all__ = [
     "PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE",
     "PSBT_GLOBAL_INPUT_COUNT",
     "PSBT_GLOBAL_OUTPUT_COUNT",
+    "PSBT_GLOBAL_SP_DLEQ",
+    "PSBT_GLOBAL_SP_ECDH_SHARE",
     "PSBT_GLOBAL_TX_MODIFIABLE",
     "PSBT_GLOBAL_TX_VERSION",
     "PSBT_GLOBAL_UNSIGNED_TX",
@@ -138,6 +144,13 @@ PSBT_GLOBAL_FALLBACK_LOCKTIME = b"\x03"
 PSBT_GLOBAL_INPUT_COUNT = b"\x04"
 PSBT_GLOBAL_OUTPUT_COUNT = b"\x05"
 PSBT_GLOBAL_TX_MODIFIABLE = b"\x06"
+# BIP375's two globals: an ECDH share against a recipient's scan key,
+# computed from the sum of every eligible input's private key, and the
+# BIP374 proof that it was. A Signer holding every input key writes these
+# instead of the per-input pair, and the other signers verify the proof
+# rather than being asked to trust the share
+PSBT_GLOBAL_SP_ECDH_SHARE = b"\x07"
+PSBT_GLOBAL_SP_DLEQ = b"\x08"
 # BIP322's addition to BIP174's registry, and the only global field of
 # the eight that is not about the transaction being built: the message a
 # BIP322 signature is *for*, which the transaction says nothing about --
@@ -169,6 +182,11 @@ _V2_GLOBAL_FIELDS = {
     PSBT_GLOBAL_INPUT_COUNT: "PSBT_GLOBAL_INPUT_COUNT",
     PSBT_GLOBAL_OUTPUT_COUNT: "PSBT_GLOBAL_OUTPUT_COUNT",
     PSBT_GLOBAL_TX_MODIFIABLE: "PSBT_GLOBAL_TX_MODIFIABLE",
+    # BIP375's two, excluded from version 0 for its own reason: a silent
+    # payment output has no script until the inputs are fixed, and only
+    # version 2 has a field to write one into afterwards
+    PSBT_GLOBAL_SP_ECDH_SHARE: "PSBT_GLOBAL_SP_ECDH_SHARE",
+    PSBT_GLOBAL_SP_DLEQ: "PSBT_GLOBAL_SP_DLEQ",
 }
 
 # the three bits BIP370 defines in PSBT_GLOBAL_TX_MODIFIABLE. The other
@@ -274,6 +292,43 @@ def _lock_time(
     raise BTClibValueError(err_msg)
 
 
+def _identifying_script(psbt_out: PsbtOut) -> bytes:
+    """Return what stands in for an output's script in the identifier.
+
+    BIP375's "Unique Identification": an output paying a silent payment
+    address is identified by that address and not by the script, because
+    the same psbt is valid with the script and without it -- a Signer
+    computes it once every eligible input is in -- so an identifier built
+    from the script would name two psbts where there is one. The
+    substitution is the version byte and the address's two keys, 67
+    octets, which no output script can be mistaken for.
+    """
+    if psbt_out.sp_v0_info:
+        return SP_V0_INFO_VERSION + psbt_out.sp_v0_info
+    return psbt_out.script_pub_key
+
+
+def _serialized_sp_globals(psbt: Psbt) -> list[bytes]:
+    """Return the two BIP375 globals, in type-byte order.
+
+    Here rather than inline in `serialize`, which is where PsbtOut keeps
+    its own BIP375 pair and for the same two reasons: what a version 2
+    psbt writes is one list per BIP in ascending order of type byte, and
+    the branch these two would add is one the dispatch has no room for --
+    `serialize` was at C901's limit already.
+    """
+    serialized: list[bytes] = []
+    if psbt.sp_ecdh_shares:
+        serialized.append(
+            serialize_dict_bytes_bytes(PSBT_GLOBAL_SP_ECDH_SHARE, psbt.sp_ecdh_shares)
+        )
+    if psbt.sp_dleq_proofs:
+        serialized.append(
+            serialize_dict_bytes_bytes(PSBT_GLOBAL_SP_DLEQ, psbt.sp_dleq_proofs)
+        )
+    return serialized
+
+
 def _tx_in(psbt_in: PsbtIn, *, zeroed_sequence: bool) -> TxIn:
     """Return the transaction input one psbt input describes.
 
@@ -295,21 +350,46 @@ def _tx_in(psbt_in: PsbtIn, *, zeroed_sequence: bool) -> TxIn:
     )
 
 
-def _tx_out(psbt_out: PsbtOut) -> TxOut:
-    """Return the transaction output one psbt output describes."""
-    return TxOut(psbt_out.amount or 0, psbt_out.script_pub_key, check_validity=False)
+def _tx_out(psbt_out: PsbtOut, *, for_identifier: bool) -> TxOut:
+    """Return the transaction output one psbt output describes.
+
+    for_identifier=True is BIP375's half of the same "Unique
+    Identification" that zeroes the sequence above: an output paying a
+    silent payment address enters the identifier as that address, the
+    script being computed later. `_identifying_script` is the
+    substitution, and a caller building the transaction to broadcast --
+    `btclib.psbt.psbt_view` -- passes False.
+
+    No default for the keyword, as `_tx_in`'s has none: a private
+    signature states what it is being asked, so that a caller cannot get
+    the identifier by forgetting to say which it wanted.
+    """
+    return TxOut(
+        psbt_out.amount or 0,
+        _identifying_script(psbt_out) if for_identifier else psbt_out.script_pub_key,
+        check_validity=False,
+    )
 
 
-def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool) -> Tx:
+def _unsigned_tx(psbt: Psbt, *, for_identifier: bool) -> Tx:
     """Return the transaction a psbt's fields describe.
 
     One `_tx_in` per input and one `_tx_out` per output, which is where
     what each of the two says about the transaction is written down: a
     caller reading the maps one at a time -- `btclib.psbt.psbt_view` --
     builds the same transaction out of the same two answers.
+
+    for_identifier=True is the transaction the psbt is *identified* by
+    rather than the one it builds, and the two BIPs that define that
+    identifier each change one thing about it: BIP370 zeroes every
+    sequence and BIP375 puts a silent payment address in place of the
+    output script it does not yet have. Neither is the transaction that
+    gets broadcast, which is why `tx` asks for neither.
     """
-    vin = [_tx_in(psbt_in, zeroed_sequence=zeroed_sequences) for psbt_in in psbt.inputs]
-    vout = [_tx_out(psbt_out) for psbt_out in psbt.outputs]
+    vin = [_tx_in(psbt_in, zeroed_sequence=for_identifier) for psbt_in in psbt.inputs]
+    vout = [
+        _tx_out(psbt_out, for_identifier=for_identifier) for psbt_out in psbt.outputs
+    ]
     return Tx(psbt.tx_version, psbt.lock_time, vin, vout, check_validity=False)
 
 
@@ -360,6 +440,8 @@ def _parse_global_map(
     dict[Octets, BIP32KeyOrigin],
     dict[Octets, Octets],
     bytes | None,
+    dict[Octets, Octets],
+    dict[Octets, Octets],
 ]:
     """Return what the global map holds: the transaction, if any, and the rest.
 
@@ -383,6 +465,8 @@ def _parse_global_map(
     hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
     unknown: dict[Octets, Octets] = {}
     signed_message: bytes | None = None
+    sp_ecdh_shares: dict[Octets, Octets] = {}
+    sp_dleq_proofs: dict[Octets, Octets] = {}
 
     for k, v in global_map.items():
         type_ = k[:1]
@@ -406,10 +490,25 @@ def _parse_global_map(
             pass  # read before this loop, the map having no order
         elif type_ == PSBT_GLOBAL_XPUB:
             hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
+        elif type_ == PSBT_GLOBAL_SP_ECDH_SHARE:
+            # the key data is the recipient's scan key, so a psbt paying
+            # two silent payment addresses with different scan keys
+            # carries two of these -- one map entry each
+            sp_ecdh_shares[k[1:]] = v
+        elif type_ == PSBT_GLOBAL_SP_DLEQ:
+            sp_dleq_proofs[k[1:]] = v
         else:  # unknown
             unknown[k] = v
 
-    return tx, globals_, hd_key_paths, unknown, signed_message
+    return (
+        tx,
+        globals_,
+        hd_key_paths,
+        unknown,
+        signed_message,
+        sp_ecdh_shares,
+        sp_dleq_proofs,
+    )
 
 
 def _settle_globals(
@@ -562,6 +661,12 @@ def _assert_valid_input_fields(psbt_in: PsbtIn, version: int, i: int) -> None:
     for value, name in (
         (psbt_in.required_time_lock_time, "PSBT_IN_REQUIRED_TIME_LOCKTIME"),
         (psbt_in.required_height_lock_time, "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME"),
+        # BIP375's pair, refused here as well as on the way in: `parse`
+        # refuses the type byte, and a psbt *built* with these fields and
+        # then declared version 0 would otherwise serialize into a psbt
+        # this library cannot read back
+        (psbt_in.sp_ecdh_shares or None, "PSBT_IN_SP_ECDH_SHARE"),
+        (psbt_in.sp_dleq_proofs or None, "PSBT_IN_SP_DLEQ"),
     ):
         if value is not None:
             err_msg = f"input {i}: {name} is not allowed in a v0 psbt"
@@ -601,10 +706,28 @@ def _assert_valid_output_fields(psbt_out: PsbtOut, version: int, i: int) -> None
     a field that is not there.
     """
     if version != PSBT_V2:
+        # the two BIP375 fields, for the reason the input pair above is
+        # refused: version 0 excludes them, and a psbt that carries them
+        # and calls itself version 0 has no serialization it could be
+        # read back from
+        for value, name in (
+            (psbt_out.sp_v0_info or None, "PSBT_OUT_SP_V0_INFO"),
+            (psbt_out.sp_v0_label, "PSBT_OUT_SP_V0_LABEL"),
+        ):
+            if value is not None:
+                err_msg = f"output {i}: {name} is not allowed in a v0 psbt"
+                raise BTClibValueError(err_msg)
         return
     if psbt_out.amount is None:
         raise BTClibValueError(f"output {i}: missing PSBT_OUT_AMOUNT")
-    if not psbt_out.script_pub_key:
+    # BIP375 makes the script optional, and only for the outputs that
+    # cannot have one yet: "If this field is not included in the output,
+    # then the field PSBT_OUT_SP_V0_INFO must be included". A silent
+    # payment output script depends on every eligible input, so it does
+    # not exist while inputs may still be added; an output with neither
+    # field is the same missing script BIP370 refuses, and one of BIP375's
+    # own invalid vectors
+    if not psbt_out.script_pub_key and not psbt_out.sp_v0_info:
         raise BTClibValueError(f"output {i}: missing PSBT_OUT_SCRIPT")
 
 
@@ -747,6 +870,8 @@ class Psbt:
     fallback_lock_time: int | None
     tx_modifiable: int | None
     signed_message: bytes | None
+    sp_ecdh_shares: dict[bytes, bytes]
+    sp_dleq_proofs: dict[bytes, bytes]
 
     @property
     def lock_time(self) -> int:
@@ -774,7 +899,7 @@ class Psbt:
         nowhere at all in version 2, which is why it cannot be the field
         the rest hangs off.
         """
-        return _unsigned_tx(self, zeroed_sequences=False)
+        return _unsigned_tx(self, for_identifier=False)
 
     @property
     def unique_id(self) -> bytes:
@@ -786,8 +911,14 @@ class Psbt:
         It is what a Combiner compares -- `combine` does -- rather
         than `tx.id`, which for a version 2 psbt would call the same
         transaction two.
+
+        A silent payment output enters it as its address rather than as
+        its script, which BIP375 adds for the same reason BIP370 zeroes
+        the sequences: the script is computed later, so a psbt before and
+        after that computation would otherwise be two.
+        `_identifying_script` is the substitution.
         """
-        return _unsigned_tx(self, zeroed_sequences=True).id
+        return _unsigned_tx(self, for_identifier=True).id
 
     @property
     def inputs_modifiable(self) -> bool:
@@ -909,6 +1040,8 @@ class Psbt:
         fallback_lock_time: int | None = None,
         tx_modifiable: int | None = None,
         signed_message: Octets | None = None,
+        sp_ecdh_shares: Mapping[Octets, Octets] | None = None,
+        sp_dleq_proofs: Mapping[Octets, Octets] | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -925,6 +1058,8 @@ class Psbt:
         self.signed_message = (
             None if signed_message is None else bytes_from_octets(signed_message)
         )
+        self.sp_ecdh_shares = decode_dict_bytes_bytes(sp_ecdh_shares)
+        self.sp_dleq_proofs = decode_dict_bytes_bytes(sp_dleq_proofs)
 
         if check_validity:
             self.assert_valid()
@@ -951,10 +1086,14 @@ class Psbt:
             _assert_valid_output_fields(psbt_out, self.version, i)
             psbt_out.assert_valid()
 
-        if self.version == PSBT_V0 and self.tx_modifiable is not None:
-            raise BTClibValueError(
-                "PSBT_GLOBAL_TX_MODIFIABLE is not allowed in a v0 psbt"
-            )
+        if self.version == PSBT_V0:
+            for value, name in (
+                (self.tx_modifiable, "PSBT_GLOBAL_TX_MODIFIABLE"),
+                (self.sp_ecdh_shares or None, "PSBT_GLOBAL_SP_ECDH_SHARE"),
+                (self.sp_dleq_proofs or None, "PSBT_GLOBAL_SP_DLEQ"),
+            ):
+                if value is not None:
+                    raise BTClibValueError(f"{name} is not allowed in a v0 psbt")
         if self.tx_modifiable is not None and not 0 <= self.tx_modifiable <= 0xFF:
             raise BTClibValueError(f"invalid tx modifiable: {self.tx_modifiable}")
 
@@ -977,6 +1116,12 @@ class Psbt:
             _assert_valid_utxo(psbt_in)
 
         assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_sp_scan_key_map(
+            self.sp_ecdh_shares, SP_ECDH_SHARE_SIZE, "silent payment global ecdh share"
+        )
+        assert_valid_sp_scan_key_map(
+            self.sp_dleq_proofs, SP_DLEQ_PROOF_SIZE, "silent payment global dleq proof"
+        )
         assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
@@ -1030,6 +1175,8 @@ class Psbt:
             "signed_message": (
                 None if self.signed_message is None else self.signed_message.hex()
             ),
+            "sp_ecdh_shares": encode_dict_bytes_bytes(self.sp_ecdh_shares),
+            "sp_dleq_proofs": encode_dict_bytes_bytes(self.sp_dleq_proofs),
             # what the fields above make, for whoever is reading rather
             # than round-tripping: from_dict ignores it, as it must --
             # two ways in would let a dict say two different things.
@@ -1070,6 +1217,8 @@ class Psbt:
             dict_["fallback_lock_time"],
             dict_["tx_modifiable"],
             dict_["signed_message"],
+            dict_["sp_ecdh_shares"],
+            dict_["sp_dleq_proofs"],
             check_validity=check_validity,
         )
 
@@ -1126,6 +1275,9 @@ class Psbt:
                         PSBT_GLOBAL_TX_MODIFIABLE, self.tx_modifiable, 1
                     )
                 )
+            # 0x07 and 0x08, so after PSBT_GLOBAL_TX_MODIFIABLE and
+            # before the BIP322 message below, which is 0x09
+            psbt_bin.extend(_serialized_sp_globals(self))
         else:
             # asked even when the caller asked for no validation: which
             # fields are written *is* the version, so a version with no
@@ -1187,9 +1339,15 @@ class Psbt:
         # a map has no order to put the version first in
         version = _global_version(global_map)
         _assert_valid_version(version)
-        tx, globals_, hd_key_paths, unknown, signed_message = _parse_global_map(
-            global_map, version
-        )
+        (
+            tx,
+            globals_,
+            hd_key_paths,
+            unknown,
+            signed_message,
+            sp_ecdh_shares,
+            sp_dleq_proofs,
+        ) = _parse_global_map(global_map, version)
         _settle_globals(tx, globals_, version)
         input_count = cast(int, globals_["input_count"])
         output_count = cast(int, globals_["output_count"])
@@ -1231,6 +1389,8 @@ class Psbt:
             globals_["fallback_lock_time"],
             globals_["tx_modifiable"],
             signed_message,
+            sp_ecdh_shares,
+            sp_dleq_proofs,
             check_validity=check_validity,
         )
 
@@ -1566,6 +1726,12 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
             _combine_musig2_participants(psbt.inputs[i], inp)
             _combine_field(psbt.inputs[i], inp, "musig2_pub_nonces")
             _combine_field(psbt.inputs[i], inp, "musig2_partial_sigs")
+            # and the same for BIP375's pair, for the same reason: a
+            # Signer holding one input's key writes the share and the
+            # proof for that input alone, so the shares of a transaction
+            # arrive in as many psbts as there are signers
+            _combine_field(psbt.inputs[i], inp, "sp_ecdh_shares")
+            _combine_field(psbt.inputs[i], inp, "sp_dleq_proofs")
             # the two lock times an input may require are not part of
             # what identifies the psbt -- the identifier holds the lock
             # time they compute, not which input asked for it -- so a
@@ -1589,6 +1755,11 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
             _combine_field(psbt.outputs[i], out, "taproot_tree")
             _combine_field(psbt.outputs[i], out, "taproot_hd_key_paths")
             _combine_musig2_participants(psbt.outputs[i], out)
+            # the address being paid, which every copy of the psbt carries
+            # already: taken when this copy is the one that has it, which
+            # is what a Combiner merging a Constructor's output does
+            _combine_field(psbt.outputs[i], out, "sp_v0_info")
+            _combine_optional_field(psbt.outputs[i], out, "sp_v0_label")
 
         _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
@@ -1603,6 +1774,8 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
         # only when it is non-empty would answer one thing for
         # combine([a, b]) and another for combine([b, a])
         _combine_optional_field(psbt, final_psbt, "signed_message")
+        _combine_field(psbt, final_psbt, "sp_ecdh_shares")
+        _combine_field(psbt, final_psbt, "sp_dleq_proofs")
 
     return final_psbt
 

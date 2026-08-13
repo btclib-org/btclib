@@ -8,7 +8,8 @@
 dsa, ssa, bms and borromean signatures, the MuSig2 aggregation of many
 ssa signers into one, pedersen commitments, the Diffie-Hellman key
 agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
-of a public key with the x-only ECDH on it, and the RFC6979, BIP340 and
+of a public key with the x-only ECDH on it, the BIP374 proof that two
+points share one discrete logarithm, and the RFC6979, BIP340 and
 sign-to-contract nonces. The curve arithmetic underneath is
 btclib.curves, and the rule between the two is that direction: ecc
 imports curves, never the other way round.
@@ -65,6 +66,7 @@ from btclib.ecc import (
     borromean,
     commit_nonce,
     dh,
+    dleq,
     dsa,
     ecies,
     ellswift,
@@ -84,6 +86,7 @@ __all__ = [
     "commit_nonce",
     "dh",
     "diffie_hellman",
+    "dleq",
     "dsa",
     "ecies",
     "ellswift",

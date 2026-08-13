@@ -39,6 +39,13 @@ btclib.ecc.dh module
    :members:
    :show-inheritance:
 
+btclib.ecc.dleq module
+----------------------
+
+.. automodule:: btclib.ecc.dleq
+   :members:
+   :show-inheritance:
+
 btclib.ecc.dsa module
 ---------------------
 
