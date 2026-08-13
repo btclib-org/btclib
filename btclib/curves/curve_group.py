@@ -1181,8 +1181,13 @@ def _multi_mult_pairs(
     return pairs
 
 
+# the width _multi_mult hands the interleaved wNAF; the measurement
+# behind it is in the docstring of the function it is passed to
+_MULTI_MULT_W = 5
+
+
 def _multi_mult_w_NAF(
-    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup, w: int = 5
+    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup, w: int
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
@@ -1358,5 +1363,5 @@ def _multi_mult(
     groups of order n).
     """
     if sum(1 for n in scalars if n) < BOS_COSTER_THRESHOLD:
-        return _multi_mult_w_NAF(scalars, jac_points, ec)
+        return _multi_mult_w_NAF(scalars, jac_points, ec, _MULTI_MULT_W)
     return _multi_mult_bos_coster(scalars, jac_points, ec)

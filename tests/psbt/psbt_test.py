@@ -2034,7 +2034,8 @@ def test_shuffle_sort() -> None:
     # 10 attempts should be enough to reduce to zero the probability
     # of having (all) shuffled ones identical to the original one
     assert any(
-        _sort_or_shuffle(list_a) != list_a and list_a == [2, 1, 4, 3] for _ in range(10)
+        _sort_or_shuffle(list_a, None) != list_a and list_a == [2, 1, 4, 3]
+        for _ in range(10)
     )
 
 

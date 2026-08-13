@@ -129,7 +129,7 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 # it cannot be inverted because of the hash performed by p2sh
 
 
-def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
+def _address_from_v0_witness(wit_prg: Octets, network: str) -> str:
     """Return the legacy base58 p2sh-wrapped segwit v0 address."""
     # check witness program
     wit_prg = b32.check_witness(0, wit_prg)

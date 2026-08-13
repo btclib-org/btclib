@@ -274,7 +274,7 @@ def _expression(name: str, *args: str) -> str:
 
 
 def _offered_signature(
-    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool = False
+    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool
 ) -> bytes | None:
     """Return the signature offered for a public key, None where none is.
 
@@ -548,7 +548,14 @@ def _parse_musig(expression: str, prv_keys: dict[str, str]) -> KeyExpression:
         raise BTClibValueError("musig() takes at least one key")
     try:
         participants = tuple(
-            _parse_key(key, prv_keys, compressed=True) for key in arguments
+            _parse_key(
+                key,
+                prv_keys,
+                x_only=False,
+                compressed=True,
+                musig_allowed=False,
+            )
+            for key in arguments
         )
     # which of several participants was wrong is half the answer, and the
     # inner message names neither the function nor the position. Bitcoin
@@ -572,9 +579,9 @@ def _parse_key(
     expression: str,
     prv_keys: dict[str, str],
     *,
-    x_only: bool = False,
-    compressed: bool = False,
-    musig_allowed: bool = False,
+    x_only: bool,
+    compressed: bool,
+    musig_allowed: bool,
 ) -> KeyExpression:
     """Return the KeyExpression of a BIP380 KEY expression.
 

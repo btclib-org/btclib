@@ -334,7 +334,7 @@ def test_neither_nonce_derivation_reduces_modulo_n() -> None:
     for c in range(_EC.n):
         for q in range(1, _EC.n):
             hf = CountingSha256()
-            nonce = _rfc6979_nonce_(c, q, _EC, hf)
+            nonce = _rfc6979_nonce_(c, q, _EC, hf, None)
             assert 0 < nonce < _EC.n
             rfc_rounds[hf.calls] += 1
 
@@ -348,7 +348,7 @@ def test_neither_nonce_derivation_reduces_modulo_n() -> None:
     # them, none out of range -- which a mod-n reduction would also
     # manage, hence the round count above and not this line alone
     assert {
-        _rfc6979_nonce_(c, q, _EC, hashlib.sha256)
+        _rfc6979_nonce_(c, q, _EC, hashlib.sha256, None)
         for c in range(_EC.n)
         for q in range(1, _EC.n)
     } == set(range(1, _EC.n))

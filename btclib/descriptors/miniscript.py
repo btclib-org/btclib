@@ -1396,7 +1396,14 @@ class Miniscript:
 
         def up(_state: None, node: Miniscript, subs: list[_Inputs]) -> _Inputs:
             return _computed_input(
-                node, subs, context, offered, index, network, prv_keys
+                node,
+                subs,
+                context,
+                offered,
+                index,
+                network,
+                prv_keys,
+                estimate=False,
             )
 
         satisfaction = _tree_eval(self, None, lambda *_: None, up).sat
@@ -2247,10 +2254,10 @@ class _Decoder:
     def _remaining(self) -> int:
         return len(self.entries) - self.pos
 
-    def _op_code(self, offset: int = 0) -> int:
+    def _op_code(self, offset: int) -> int:
         return self.entries[self.pos + offset][0]
 
-    def _data(self, offset: int = 0) -> bytes:
+    def _data(self, offset: int) -> bytes:
         return self.entries[self.pos + offset][1]
 
     def _expect(self, *states: str) -> None:
@@ -2258,7 +2265,7 @@ class _Decoder:
         self.to_parse.extend((state, 0, 0) for state in reversed(states))
 
     def _constant(self) -> Miniscript | None:
-        fragment = {_OP_1: "1", _OP_0: "0"}.get(self._op_code())
+        fragment = {_OP_1: "1", _OP_0: "0"}.get(self._op_code(0))
         if fragment is None:
             return None
         self.pos += 1
@@ -2273,7 +2280,7 @@ class _Decoder:
         which is Bitcoin Core's answer too, its own inference asking a
         signing provider for the key behind the hash.
         """
-        data = self._data()
+        data = self._data(0)
         if len(data) in {32, 33}:
             expected = 32 if self.context == TAPSCRIPT else 33
             if len(data) != expected:
@@ -2285,7 +2292,7 @@ class _Decoder:
             )
         if (
             self._remaining() >= 5
-            and self._op_code() == _OP_VERIFY
+            and self._op_code(0) == _OP_VERIFY
             and self._op_code(1) == _OP_EQUAL
             and self._op_code(3) == _OP_HASH160
             and self._op_code(4) == _OP_DUP
@@ -2315,7 +2322,7 @@ class _Decoder:
             _OP_CHECKSEQUENCEVERIFY: "older",
             _OP_CHECKLOCKTIMEVERIFY: "after",
         }
-        fragment = locks.get(self._op_code())
+        fragment = locks.get(self._op_code(0))
         if fragment is None or self._remaining() < 2:
             return None
         number = _script_number(self.entries[self.pos + 1])
@@ -2326,7 +2333,7 @@ class _Decoder:
 
     def _hash(self) -> Miniscript | None:
         """Read a hash fragment: the size check, the digest, the comparison."""
-        if self._remaining() < 7 or self._op_code() != _OP_EQUAL:
+        if self._remaining() < 7 or self._op_code(0) != _OP_EQUAL:
             return None
         if not (
             self._op_code(3) == _OP_VERIFY
@@ -2343,7 +2350,7 @@ class _Decoder:
         return Miniscript(fragment, self.context, data=digest)
 
     def _multi(self) -> Miniscript | None:
-        if self._remaining() < 3 or self._op_code() != _OP_CHECKMULTISIG:
+        if self._remaining() < 3 or self._op_code(0) != _OP_CHECKMULTISIG:
             return None
         if self.context == TAPSCRIPT:
             raise BTClibValueError("multi() is not allowed in a tapscript")
@@ -2367,7 +2374,7 @@ class _Decoder:
 
     def _multi_a(self) -> Miniscript | None:
         """Read a multi_a(): a CHECKSIG, then a CHECKSIGADD per further key."""
-        if self._remaining() < 4 or self._op_code() != _OP_NUMEQUAL:
+        if self._remaining() < 4 or self._op_code(0) != _OP_NUMEQUAL:
             return None
         if self.context != TAPSCRIPT:
             raise BTClibValueError("multi_a() is only allowed in a tapscript")
@@ -2420,7 +2427,7 @@ class _Decoder:
         what and_v() commutes with: ``c:and_v(X,Y)`` and ``and_v(X,c:Y)``
         have the same script, and the second is the one that is valid.
         """
-        op_code = self._op_code()
+        op_code = self._op_code(0)
         wrappers = {_OP_CHECKSIG: "c:", _OP_VERIFY: "v:", _OP_0NOTEQUAL: "n:"}
         if op_code in wrappers:
             self.pos += 1
@@ -2455,7 +2462,7 @@ class _Decoder:
         """Read a W expression, which is an ``a:`` or an ``s:``."""
         if not self._remaining():
             raise BTClibValueError("the script ends where a W expression is expected")
-        if self._op_code() == _OP_FROMALTSTACK:
+        if self._op_code(0) == _OP_FROMALTSTACK:
             self.pos += 1
             self._expect(*_BKV, "a:")
         else:
@@ -2469,13 +2476,13 @@ class _Decoder:
         an and_v() but the branch or the wrapper they belong to.
         """
         ends = {_OP_IF, _OP_ELSE, _OP_NOTIF, _OP_TOALTSTACK, _OP_SWAP}
-        if self._remaining() and self._op_code() not in ends:
+        if self._remaining() and self._op_code(0) not in ends:
             self._expect(*_BKV, "and_v")
 
     def _thresh_branch(self, count: int, threshold: int) -> None:
         if not self._remaining():
             raise BTClibValueError("the script ends inside a thresh()")
-        if self._op_code() == _OP_ADD:
+        if self._op_code(0) == _OP_ADD:
             self.pos += 1
             self.to_parse.append((_THRESH_BRANCH, count + 1, threshold))
             self.to_parse.append((_W_EXPR, 0, 0))
@@ -2499,7 +2506,7 @@ class _Decoder:
         """Read what an OP_ENDIF closed, once its first argument is read."""
         if not self._remaining():
             raise BTClibValueError("the script ends inside an OP_IF")
-        op_code = self._op_code()
+        op_code = self._op_code(0)
         if op_code == _OP_ELSE:
             self.pos += 1
             self._expect(*_BKV, _ENDIF_ELSE)
@@ -2529,7 +2536,7 @@ class _Decoder:
         """Tell an or_d() from an or_c(): the first duplicates what it read."""
         if not self._remaining():
             raise BTClibValueError("the script ends inside an OP_NOTIF")
-        if self._op_code() == _OP_IFDUP:
+        if self._op_code(0) == _OP_IFDUP:
             self.pos += 1
             self.to_parse.append(("or_d", 0, 0))
         else:
@@ -2541,12 +2548,14 @@ class _Decoder:
         """Tell an or_i() from an andor(), which tests its first argument."""
         if not self._remaining():
             raise BTClibValueError("the script ends inside an OP_ELSE")
-        if self._op_code() == _OP_IF:
+        if self._op_code(0) == _OP_IF:
             self.pos += 1
             self._build("or_i", 2)
             return
-        if self._op_code() != _OP_NOTIF:
-            err_msg = f"not a miniscript: op code {hex(self._op_code())} before OP_ELSE"
+        if self._op_code(0) != _OP_NOTIF:
+            err_msg = (
+                f"not a miniscript: op code {hex(self._op_code(0))} before OP_ELSE"
+            )
             raise BTClibValueError(err_msg)
         self.pos += 1
         self.to_parse.append(("andor", 0, 0))
@@ -2561,7 +2570,7 @@ class _Decoder:
         script being read backwards.
         """
         expected = _OP_TOALTSTACK if fragment == "a:" else _OP_SWAP
-        if not self._remaining() or self._op_code() != expected:
+        if not self._remaining() or self._op_code(0) != expected:
             err_msg = f"not a {fragment} wrapper: its first op code is missing"
             raise BTClibValueError(err_msg)
         self.pos += 1
@@ -2947,7 +2956,7 @@ def _key_input(
     network: str,
     prv_keys: PrvKeys | None,
     *,
-    estimate: bool = False,
+    estimate: bool,
 ) -> _Inputs:
     """Return the stacks of a ``pk_k()`` or a ``pk_h()``.
 
@@ -2978,7 +2987,7 @@ def _multi_input(
     prv_keys: PrvKeys | None,
     choose: _Choice,
     *,
-    estimate: bool = False,
+    estimate: bool,
 ) -> _Inputs:
     """Return the stacks of a ``multi()`` or a ``multi_a()``.
 
@@ -3031,7 +3040,7 @@ def _leaf_input(
     prv_keys: PrvKeys | None,
     choose: _Choice,
     *,
-    estimate: bool = False,
+    estimate: bool,
 ) -> _Inputs:
     """Return the stacks of a fragment with no subexpressions.
 
@@ -3192,7 +3201,7 @@ def _computed_input(
     network: str,
     prv_keys: PrvKeys | None,
     *,
-    estimate: bool = False,
+    estimate: bool,
 ) -> _Inputs:
     """Return the best stacks of one fragment, from its subexpressions'."""
     choose = _larger if estimate else _better

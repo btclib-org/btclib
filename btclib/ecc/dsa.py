@@ -119,7 +119,7 @@ def _parse_der_value(stream: BytesIO) -> bytes:
         raise BTClibValueError(f"invalid DER length: {e}") from e
 
 
-def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
+def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool) -> int:
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
@@ -737,7 +737,7 @@ def sign_recoverable_(
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
+        nonce = _rfc6979_nonce_(c, q, ec, hf, None)  # 1
     else:
         nonce = int_from_prv_key(nonce, ec)
     # second part delegated to helper function
@@ -762,7 +762,7 @@ def sign_recoverable(
 
 
 def _assert_as_valid_(
-    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool
 ) -> None:
     # Private function for test/dev purposes
 
@@ -882,7 +882,7 @@ def assert_as_valid_(
     Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
     # second part delegated to helper function
-    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec)
+    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec, lower_s=False)
 
 
 def assert_as_valid(
@@ -1089,7 +1089,7 @@ def anti_exfil_host_verify(
 
 
 def _recover_pub_keys_(
-    c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    c: int, r: int, s: int, ec: Curve, *, lower_s: bool
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
@@ -1166,12 +1166,14 @@ def recover_pub_keys_(
             # arrives as the BTClibValueError _libsecp256k1_recover_sec_
             # maps it to
             with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-                keys.append(_libsecp256k1_recover_point_(key_id, msg_hash, sig))
+                keys.append(
+                    _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
+                )
         return keys
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec)
+    QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec, lower_s=False)
     return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
@@ -1187,7 +1189,7 @@ def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list
 
 
 def _recover_pub_key_(
-    key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool
 ) -> JacPoint:
     # Private function provided for testing purposes only.
 
@@ -1241,7 +1243,7 @@ def _recover_pub_key_(
 
 
 def _libsecp256k1_recover_sec_(
-    key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool = False
+    key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool
 ) -> bytes:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1293,7 +1295,7 @@ def _libsecp256k1_recover_sec_(
 
 
 def _libsecp256k1_recover_point_(
-    key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool = False
+    key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool
 ) -> Point:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1344,11 +1346,11 @@ def recover_pub_key_(
     # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
     # -- passing it would need ec.p ≡ 0 mod ec.n
     if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
-        return _libsecp256k1_recover_point_(key_id, msg_hash, sig)
+        return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec)
+    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec, lower_s=False)
     return sig.ec.aff_from_jac(QJ)
 
 

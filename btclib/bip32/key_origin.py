@@ -199,7 +199,7 @@ def encode_to_bip32_derivs(
 def _decode_from_bip32_deriv(
     bip32_deriv: Mapping[str, str],
     *,
-    check_validity: bool = True,
+    check_validity: bool,
 ) -> tuple[bytes, BIP32KeyOrigin]:
     master_fingerprint = bytes_from_octets(
         bip32_deriv["master_fingerprint"], 4 if check_validity else None

@@ -103,7 +103,16 @@ __all__ = [
 ]
 
 
-def _to_num(element: bytes, flags: ScriptFlag, max_size: int = 4) -> int:
+# CScriptNum's nDefaultMaxNumSize: an arithmetic op code reads a number
+# from four octets at most, so that a script cannot compute with a value
+# outside the signed 32-bit range. The two lock-time op codes are the
+# exception consensus makes, five octets being what a lock time at or
+# above 500000000 needs -- Core spells the same 5 out at each of them
+_MAX_NUM_SIZE = 4
+_MAX_LOCK_TIME_NUM_SIZE = 5
+
+
+def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
     minimaldata = ScriptFlag.MINIMALDATA in flags
     if minimaldata and element == b"\x80":
         raise BTClibValueError("non-minimal encoding of zero")
@@ -460,31 +469,31 @@ def op_hash256(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> 
 
 def op_1add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push it incremented by one."""
-    a = _to_num(stack.pop(), flags)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(a + 1))
 
 
 def op_1sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push it decremented by one."""
-    a = _to_num(stack.pop(), flags)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(a - 1))
 
 
 def op_negate(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push its negation."""
-    a = _to_num(stack.pop(), flags)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(-a))
 
 
 def op_abs(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push its absolute value."""
-    a = _to_num(stack.pop(), flags)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(abs(a)))
 
 
 def op_not(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push whether it is zero."""
-    if _to_num(stack.pop(), flags) == 0:
+    if _to_num(stack.pop(), flags, _MAX_NUM_SIZE) == 0:
         stack.append(b"\x01")
     else:
         stack.append(b"")
@@ -492,7 +501,7 @@ def op_not(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
 
 def op_0notequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop a number and push whether it is non-zero."""
-    a = _to_num(stack.pop(), flags)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a == 0:
         stack.append(b"")
     else:
@@ -501,22 +510,22 @@ def op_0notequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -
 
 def op_add(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push their sum."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(a + b))
 
 
 def op_sub(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the deeper one minus the top one."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(a - b))
 
 
 def op_booland(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether both are non-zero."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != 0 and b != 0:
         stack.append(b"\x01")
     else:
@@ -525,8 +534,8 @@ def op_booland(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> 
 
 def op_boolor(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether either is non-zero."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != 0 or b != 0:
         stack.append(b"\x01")
     else:
@@ -539,8 +548,8 @@ def op_numequal(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) ->
     Numeric equality, not byte equality: without MINIMALDATA, 0x00
     equals the empty element here and not in op_equal.
     """
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a == b:
         stack.append(b"\x01")
     else:
@@ -558,8 +567,8 @@ def op_numnotequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether they differ."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a != b:
         stack.append(b"\x01")
     else:
@@ -568,8 +577,8 @@ def op_numnotequal(
 
 def op_lessthan(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push whether the deeper is below the top."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a < b:
         stack.append(b"\x01")
     else:
@@ -580,8 +589,8 @@ def op_greaterthan(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is above the top."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a > b:
         stack.append(b"\x01")
     else:
@@ -592,8 +601,8 @@ def op_lessthanorequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is at most the top."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a <= b:
         stack.append(b"\x01")
     else:
@@ -604,8 +613,8 @@ def op_greaterthanorequal(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> None:
     """Pop two numbers and push whether the deeper is at least the top."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if a >= b:
         stack.append(b"\x01")
     else:
@@ -614,15 +623,15 @@ def op_greaterthanorequal(
 
 def op_min(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the smaller."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(min(a, b)))
 
 
 def op_max(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Pop two numbers and push the larger."""
-    b = _to_num(stack.pop(), flags)
-    a = _to_num(stack.pop(), flags)
+    b = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    a = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     stack.append(_from_num(max(a, b)))
 
 
@@ -631,9 +640,9 @@ def op_within(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> N
 
     Left-closed and right-open, which is Core's comparison.
     """
-    M = _to_num(stack.pop(), flags)
-    m = _to_num(stack.pop(), flags)
-    x = _to_num(stack.pop(), flags)
+    M = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    m = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
+    x = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if m <= x < M:
         stack.append(b"\x01")
     else:
@@ -685,7 +694,7 @@ def op_pick(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     Zero is the top; a negative depth is refused, one past the stack
     underflows.
     """
-    n = _to_num(stack.pop(), flags)
+    n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
         raise BTClibValueError(f"negative OP_PICK depth: {n}")
     stack.append(stack[-n - 1])
@@ -697,7 +706,7 @@ def op_roll(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     Zero is the top and leaves the stack as it is; a negative depth or
     one past the stack is refused.
     """
-    n = _to_num(stack.pop(), flags)
+    n = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
     if n < 0:
         raise BTClibValueError(f"negative OP_ROLL depth: {n}")
     if len(stack) < n + 1:
@@ -774,7 +783,7 @@ def op_checklocktimeverify(
         return
     if not stack:
         raise BTClibValueError("OP_CHECKLOCKTIMEVERIFY on an empty stack")
-    lock_time = _to_num(stack[-1], flags, max_size=5)
+    lock_time = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if lock_time < 0:
         raise BTClibValueError(f"negative lock time: {lock_time}")
 
@@ -813,7 +822,7 @@ def op_checksequenceverify(
         return
     if not stack:
         raise BTClibValueError("OP_CHECKSEQUENCEVERIFY on an empty stack")
-    sequence = _to_num(stack[-1], flags, max_size=5)
+    sequence = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if sequence < 0:
         raise BTClibValueError(f"negative sequence: {sequence}")
     if not sequence & (1 << 31):

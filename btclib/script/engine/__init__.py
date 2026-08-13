@@ -18,7 +18,7 @@ from btclib.script.engine.flags import (
     to_script_flags,
 )
 from btclib.script.engine.script import verify_script as verify_script_legacy
-from btclib.script.engine.script_op_codes import _to_num
+from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, _to_num
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import op_code_spans, parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
@@ -463,7 +463,9 @@ def verify_input(
     # NO_FLAGS: this reads the version out of a witness program, it does
     # not execute a script, and MINIMALDATA is the only flag _to_num looks
     # at
-    segwit_version = _to_num(stack[-1], NO_FLAGS) if is_segwit(script) else -1
+    segwit_version = (
+        _to_num(stack[-1], NO_FLAGS, _MAX_NUM_SIZE) if is_segwit(script) else -1
+    )
     # both under the flag, where Core keeps them: they are the
     # malleability rules BIP141 came with, so a caller not enforcing
     # BIP141 is not owed them and reads the script_pub_key alone

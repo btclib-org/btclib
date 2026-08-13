@@ -56,13 +56,13 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     if isinstance(prv_key, int):
         q = prv_key
     elif isinstance(prv_key, BIP32KeyData):
-        q, network, _ = _prv_keyinfo_from_xprv(prv_key)
+        q, network, _ = _prv_keyinfo_from_xprv(prv_key, None, None)
         # q has been validated on the xprv/wif network
         return _q_if_network_and_ec_match(q, network, ec)
     else:
         reasons = []
         try:
-            q, network, _ = _prv_keyinfo_from_xprvwif(prv_key)
+            q, network, _ = _prv_keyinfo_from_xprvwif(prv_key, None, None)
         except NotAPrvKeyError as e:
             # an InvalidPrvKeyError is not caught: the format was
             # recognised, so trying the input as octets and reporting "not
@@ -162,7 +162,7 @@ def _wif_prv_key_and_compression(
 
 
 def _prv_keyinfo_from_wif(
-    wif: String, network: str | None = None, compressed: bool | None = None
+    wif: String, network: str | None, compressed: bool | None
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
 
@@ -209,7 +209,7 @@ def _prv_keyinfo_from_wif(
 
 
 def _prv_keyinfo_from_xprv(
-    xprv: BIP32Key, network: str | None = None, compressed: bool | None = None
+    xprv: BIP32Key, network: str | None, compressed: bool | None
 ) -> PrvkeyInfo:
     """Return prv_key tuple (int, compressed, network) from BIP32 xprv.
 
@@ -260,7 +260,7 @@ def _prv_keyinfo_from_xprv(
 
 
 def _prv_keyinfo_from_xprvwif(
-    xprvwif: BIP32Key, network: str | None = None, compressed: bool | None = None
+    xprvwif: BIP32Key, network: str | None, compressed: bool | None
 ) -> PrvkeyInfo:
     """Return prv_key tuple (int, compressed, network) from WIF/BIP32.
 

@@ -266,7 +266,7 @@ def create(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
 
     # the bindings hold the private key to the same 1..n-1 int_from_prv_key
     # does, so what reaches them is a key they take
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         return libsecp256k1_ellswift.create(q)
 
     _constants(ec)  # the curve is refused here rather than after a mult
@@ -283,7 +283,7 @@ def encode(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
     """
     Q = point_from_pub_key(pub_key, ec)
 
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         return libsecp256k1_ellswift.encode(bytes_from_point(Q, ec))
 
     _constants(ec)
@@ -301,7 +301,7 @@ def decode(ell: Octets, ec: Curve = secp256k1) -> Point:
     # the bindings answer with a compressed public key, whose y is the
     # one the prefix names: _y_even lifts the x and the prefix picks the
     # root, which is a parse rather than the square root it looks like
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         sec = libsecp256k1_ellswift.decode(ell)
         x = int.from_bytes(sec[1:], byteorder="big", signed=False)
         y = _y_even(x, ec)
@@ -333,7 +333,7 @@ def xdh(
         raise BTClibValueError(err_msg)
     q = int_from_prv_key(prv_key, ec)
 
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         return libsecp256k1_ellswift.xdh(ell_a, ell_b, q, party)
 
     # the shared x-coordinate is the same for either y of the decoded

@@ -118,7 +118,7 @@ PubkeyInfo = tuple[bytes, str]
 
 
 def _pub_keyinfo_from_xpub(
-    xpub: BIP32Key, network: str | None = None, compressed: bool | None = None
+    xpub: BIP32Key, network: str | None, compressed: bool | None
 ) -> PubkeyInfo:
     """Return the pub_key tuple (SEC-bytes, network) from a BIP32 xpub.
 

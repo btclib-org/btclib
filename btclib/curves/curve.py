@@ -378,7 +378,7 @@ CURVES = SEC2v1 | NIST | Brainpool
 secp256k1 = CURVES["secp256k1"]
 
 
-def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
+def _libsecp256k1_applicable(ec: Curve, hf: HashF | None) -> bool:
     """Return True if the libsecp256k1 bindings can serve ec and hf.
 
     Every dispatch to the bindings asks here, so that the predicates
@@ -406,12 +406,12 @@ def _compressed_sec(x: int, ec: Curve) -> bytes | None:
     element, ec_pubkey_parse taking no x-coordinate at or above ec.p and
     x.to_bytes raising OverflowError rather than answering for one.
     """
-    if not _libsecp256k1_applicable(ec) or not 0 <= x < ec.p:
+    if not _libsecp256k1_applicable(ec, None) or not 0 <= x < ec.p:
         return None
     return b"\x02" + x.to_bytes(ec.p_size, "big")
 
 
-def _is_x_coordinate(x: int, ec: Curve = secp256k1) -> bool:
+def _is_x_coordinate(x: int, ec: Curve) -> bool:
     """Return True if x is the x-coordinate of a point of the curve.
 
     Existence and nothing else, which is what a caller with no use for
@@ -443,7 +443,7 @@ def _is_x_coordinate(x: int, ec: Curve = secp256k1) -> bool:
     return True
 
 
-def _y_even(x: int, ec: Curve = secp256k1) -> int:
+def _y_even(x: int, ec: Curve) -> int:
     """Return the even y-coordinate associated to x.
 
     ec.y_even, delegated for secp256k1: the parity a compressed public
@@ -556,7 +556,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     m: int = int_from_integer(m_int) % ec.n
 
     # m == 0 is the infinity point, which the bindings reject as a scalar
-    if m and _libsecp256k1_applicable(ec):
+    if m and _libsecp256k1_applicable(ec, None):
         # the generator is ec_pubkey_create, with no point to parse first
         if Q is None or Q == ec.G:
             return libsecp256k1_mult(m)
@@ -605,7 +605,7 @@ def double_mult(
     # term they make is nothing: dropping it here would leave the empty
     # sum -- infinity -- to answer for as well, which the Python path
     # below answers already, so the whole call goes there instead
-    if u and v and H[1] and Q[1] and _libsecp256k1_applicable(ec):
+    if u and v and H[1] and Q[1] and _libsecp256k1_applicable(ec, None):
         return _libsecp256k1_multi_mult([u, v], [H, Q])
 
     HJ = jac_from_aff(H)
@@ -640,7 +640,7 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     -- saves 0.75 us of the 28. Not worth a branch, and neither is the
     caller's own mod_inv(1) on the way back out, 0.14 us.
     """
-    if not _libsecp256k1_applicable(ec):
+    if not _libsecp256k1_applicable(ec, None):
         return double_mult_w_NAF(u, HJ, v, QJ, ec)
 
     R = double_mult(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
@@ -671,7 +671,7 @@ def multi_mult(
     # all, an error the Python path below is the one to raise
     if (
         len(points) > 1
-        and _libsecp256k1_applicable(ec)
+        and _libsecp256k1_applicable(ec, None)
         and all(m and Q[1] for m, Q in zip(ints, points, strict=True))
     ):
         return _libsecp256k1_multi_mult(ints, points)

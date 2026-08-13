@@ -727,12 +727,23 @@ is one a caller can reach with an object the library itself would refuse.
 a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
 public wrapper going through it. `descriptors` then composes the twins
 directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
-prefix))` — paying one validation instead of three, and no base58 round
-trip between them. The leading underscore those three carry means what it
-means anywhere in Python: private. `__all__` is what decides publicity, so
-it is a reader's hint rather than the rule, but an unvalidating twin
-belongs on the private side of that list, and calling one asserts that its
-caller validated.
+prefix, None))` — paying one validation instead of three, and no base58
+round trip between them. The leading underscore those three carry means
+what it means anywhere in Python: private. `__all__` is what decides
+publicity, so it is a reader's hint rather than the rule, but an
+unvalidating twin belongs on the private side of that list, and calling one
+asserts that its caller validated.
+
+**A private function takes no default argument either**, which is the same
+absence of an outside caller read the other way: a default is written for
+one the author cannot see, and there is none here. So the value the call is
+made with is at the call site, where it is read — `_derive`'s `None` above
+is the version it forces on the derived key, and `_deserialize_scalar`'s
+`strict` decides whether BIP66's minimal encoding is enforced at all. A
+flag added to a private function is then a question asked again at each of
+its call sites, instead of answered for the ones nobody revisited.
+`tests/private_defaults_test.py` is the gate, and its docstring carries
+what the rule does not reach.
 
 **A trailing underscore is the other convention, and it is public.** It
 marks the spelling whose input the caller has already prepared: `dsa.sign_`

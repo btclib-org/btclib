@@ -305,5 +305,5 @@ def address_from_der_path(
     # `wallet` reaching for it with a key that has never been through b58.
     # The public `derive` would serialize this one here for
     # `pub_keyinfo_from_key` to decode straight back
-    key = _derive(xkey, _indexes_left_to_derive(xkey, indexes))
+    key = _derive(xkey, _indexes_left_to_derive(xkey, indexes), None)
     return address_funct(key, network_from_xkeyversion(xkey.version))

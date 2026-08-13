@@ -130,7 +130,7 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
 
 
 def _pairs_from_der_path_str(
-    der_path: str, skip_m: bool = True, *, bip380_enforced: bool = False
+    der_path: str, skip_m: bool, *, bip380_enforced: bool
 ) -> tuple[list[int], list[str]]:
     """Return a path string's indexes, and the symbols it spelled them with.
 
@@ -155,15 +155,15 @@ def _pairs_from_der_path_str(
     return [index for index, _ in pairs], [hardening for _, hardening in pairs]
 
 
-def _indexes_from_der_path_str(der_path: str, skip_m: bool = True) -> list[int]:
-    return _pairs_from_der_path_str(der_path, skip_m)[0]
+def _indexes_from_der_path_str(der_path: str, skip_m: bool) -> list[int]:
+    return _pairs_from_der_path_str(der_path, skip_m, bip380_enforced=False)[0]
 
 
 DerPath = str | Sequence[int] | int | bytes
 
 
 def _pairs_from_der_path(
-    der_path: DerPath, *, bip380_enforced: bool = False
+    der_path: DerPath, *, bip380_enforced: bool
 ) -> tuple[list[int], list[str]]:
     """Return the indexes of a path, and the symbols it spelled them with.
 
@@ -172,7 +172,7 @@ def _pairs_from_der_path(
     caller writing it out again defaults for.
     """
     if isinstance(der_path, str):
-        return _pairs_from_der_path_str(der_path, bip380_enforced=bip380_enforced)
+        return _pairs_from_der_path_str(der_path, True, bip380_enforced=bip380_enforced)
     indexes = _indexes_from_der_path(der_path)
     return indexes, [""] * len(indexes)
 
@@ -233,7 +233,7 @@ def _indexes_from_der_path(der_path: Sequence[int] | int | bytes) -> list[int]:
     return indexes
 
 
-def _str_from_der_path(der_path: DerPath, hardening: str = _HARDENING) -> str:
+def _str_from_der_path(der_path: DerPath, hardening: str) -> str:
     indexes = indexes_from_der_path(der_path)
     return "/".join(str_from_index_int(i, hardening) for i in indexes)
 

@@ -16,7 +16,12 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError, ScriptError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
+from btclib.script.engine.script_op_codes import (
+    _MAX_NUM_SIZE,
+    ScriptOp,
+    _from_num,
+    _to_num,
+)
 from btclib.script.limits import (
     MAX_OPS_PER_SCRIPT,
     MAX_PUBKEYS_PER_MULTISIG,
@@ -558,11 +563,11 @@ def _run_ops(  # noqa: C901, PLR0912
             # Core's order, and it is the order that makes the two
             # counts safe to build a `range` out of: each is bounded
             # before anything is popped with it
-            pub_key_num = _to_num(stack.pop(), flags)
+            pub_key_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
             check_pub_key_num(pub_key_num)
             op_code_num = script_op_count(op_code_num, pub_key_num)
             pub_keys = [stack.pop() for _ in range(pub_key_num)]
-            signature_num = _to_num(stack.pop(), flags)
+            signature_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
             check_signature_num(signature_num, pub_key_num)
             signatures = [stack.pop() for _ in range(signature_num)]
 
