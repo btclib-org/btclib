@@ -216,6 +216,18 @@ documented at release-notes length in the first place, and are still in
   and would fail without it. `/en/stable/` is the last release either way,
   which is what makes the backfill not worth doing.
 
+- **The release documentation says what the release workflow does.** Three
+  places described a `published` workflow that has moved on: RELEASING.md
+  asked for a dispatch by hand after the release, where `release.yml` calls
+  the workflow with the tag and waits for the index to serve that version
+  -- so the step is a verdict to read, and a dispatch is for a question
+  between runs; and it, along with the workflow's own schedule comment and
+  links.yml's list of weekday sentinels, called the run weekly and put it
+  on a Tuesday, where the cron says the first of the month. Prose only, and
+  the two workflow files change in their comments alone: an instruction
+  nobody needs and a day that is not the day are read as facts by whoever
+  finds them, and there is nothing in a run to say otherwise.
+
 ### Packaging, linting and CI
 
 - **A tag is refused unless the default branch contains its commit**
