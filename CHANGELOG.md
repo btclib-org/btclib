@@ -1436,6 +1436,31 @@ documented at release-notes length in the first place, and are still in
   format of its own; the direction that was refused for being ambiguous is
   the one that stays refused.
 
+### Tests
+
+- **The BIP39 vector file is upstream's file byte for byte** (#652).
+  `tests/mnemonic/_data/bip39_test_vectors.json` held all twelve language
+  arrays of `trezor/python-mnemonic`'s `vectors.json` plus a 25th english
+  case that is btclib's own -- the last vector respaced with tabs,
+  newlines, doubled spaces and a form feed, which is what says the
+  library normalises whitespace rather than `str.split` saying it. One
+  case of ours inside an upstream array is what makes a refresh a merge:
+  upstream regenerates that file whole with its own
+  `tools/generate_vectors.py`, so the obvious refresh is a copy over the
+  top, and a copy over the top drops the case without a word. It is now a
+  `pytest.param` in `tests/mnemonic/bip39_test.py`, appended to the list
+  the file feeds, so it runs in the same test against the same four
+  fields under the id `24-en-respaced`, and the refresh is the fetch
+  itself -- the command is in the entry.
+
+  `git hash-object` on the vendored copy now answers
+  `d362a5d4eb1ba800a52aec30116915cd4576e1fd`, the blob id its pin already
+  recorded, which is the check `tests/_data/README.md` describes and the
+  one an edited copy cannot pass. Its verdict moves from **extended** to
+  **identical**, leaving no file there carrying an edit of ours, and the
+  verdict list says so as the rule it now is: a case of btclib's own is
+  written in the test module that reads the file, never inside the file.
+
 ## v2026.8.9
 
 ### Descriptors and miniscript
