@@ -1115,6 +1115,37 @@ documented at release-notes length in the first place, and are still in
   turned it into bytes -- reaches past the frozen guard with
   `object.__setattr__`, the same escape `__init__` itself uses.
 
+- **BIP374 discrete logarithm equality proofs** (#639). `btclib.ecc.dleq`
+  is the new module: `generate_proof` answers the 64 bytes that tie A = a\*G
+  and C = a\*B to one scalar a, `verify_proof` says whether they hold, and
+  `assert_proof_as_valid` beside it says why they do not. Both csv files of
+  `bip-0374/` are vendored under upstream's own names, all 11 generation
+  cases and all 15 verification cases, and a generated proof is compared
+  byte for byte against the file rather than merely verified -- the nonce
+  being deterministic, a proof that verifies and differs is a proof no
+  other implementation would produce.
+
+  What it attests is narrow and worth stating: the same scalar relates A
+  to G and C to B, and nothing about the scalar's value, its holder, or
+  whether C is the point either party wanted. That is exactly the gap
+  BIP352 has: a wrongly derived silent-payment output script is
+  consensus-valid, so a signature catches nothing and the funds are gone,
+  where a DLEQ proof over the shared secret is checkable before the
+  broadcast.
+
+  The generator is an argument, which no other BIP in this library makes
+  it -- BIP374 passes G in so the algorithm serves another curve, and five
+  of its generation vectors use a generator that is not secp256k1's. The
+  curve and the hash function are *not* arguments, as in
+  `btclib.ecc.musig2`: BIP374 is defined for secp256k1 with sha256, and
+  there is no other pair a vector exists for. The message is optional and
+  exactly 32 bytes when present, which is BIP374's own restriction rather
+  than the arbitrary size `btclib.ecc.ssa` takes; `b""` is refused instead
+  of being read as "no message", the two hashing to the same input.
+
+  Three of BIP374's failure conditions have no vector, upstream's
+  generator being unable to produce one: an `s` at or above n, and R1 or
+  R2 landing on infinity. `tests/ecc/dleq_test.py` builds each.
 - **Nothing that reads a signature takes `lower_s` any more** (#695, #645).
   `dsa.assert_as_valid`, `verify`, `recover_pub_keys`, `recover_pub_key`,
   their four trailing-underscore twins, `dsa.anti_exfil_host_verify` and

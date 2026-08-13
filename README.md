@@ -88,6 +88,10 @@ Included features are:
 - Diffie-Hellman, and the x-only ECDH on the
   [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki)
   ElligatorSwift encoding of a public key
+- [BIP374](https://github.com/bitcoin/bips/blob/master/bip-0374.mediawiki)
+  discrete logarithm equality proofs: 64 bytes proving that an ECDH shared
+  secret was computed from the key that signed, without revealing that key,
+  over an arbitrary generator and an optional message
 - ECIES in the BIE1 layout, the block cipher supplied by the caller
 - Pedersen commitment
 - Base58 encoding/decoding

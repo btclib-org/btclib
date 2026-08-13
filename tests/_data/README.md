@@ -123,7 +123,7 @@ and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
 two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
-beside them on 2026-08-13.
+beside them and the two BIP374 csv files on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -387,6 +387,62 @@ authority named in the entry that has no file to cite.
 `bip-0324/packet_encoding_test_vectors.csv` is the third file of that
 directory and is **not** vendored: it is the v2 transport's, which btclib
 does not implement.
+
+### BIP374 (DLEQ): two files under `tests/ecc/_data/`
+
+`test_vectors_generate_proof.csv` and `test_vectors_verify_proof.csv`,
+under upstream's own names, which is the whole of `bip-0374/`'s vector
+set. The two are pinned separately below and their pins differ, which is
+the reason a shared one is not offered: the verification file was
+regenerated seven weeks after the generation file, and one pin would have
+had to be wrong about one of them.
+
+The names are unusually bare for a vendored file -- nothing in either
+says BIP374 -- and they keep them anyway, the naming rule above being
+that upstream's name is the one thing a citation cannot drift away from.
+
+### `tests/ecc/_data/test_vectors_generate_proof.csv`
+
+```text
+repo    bitcoin/bips
+path    bip-0374/test_vectors_generate_proof.csv
+commit  24b4354e64e162ad0154d54f12b29602fe562d9f  2025-02-27
+blob    f913508df1ed633e9dde3de30b49f3c8c4e595d1
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. All 11 vectors, all eight columns: five over a
+generator that is not secp256k1's, three over secp256k1's own, and three
+failure cases -- a zero scalar, a scalar equal to n, and a B at
+infinity, which the file spells `INVALID` in the proof column and
+`INFINITY` in the point column. Unlike the two csv files above this one
+is LF upstream, so the blob comparison is the plain one.
+
+### `tests/ecc/_data/test_vectors_verify_proof.csv`
+
+```text
+repo    bitcoin/bips
+path    bip-0374/test_vectors_verify_proof.csv
+commit  6ceafc51b17665f7cb13c8e2b9ee6354b9d374bd  2025-04-16
+blob    8076e8136ff1b5e03601ba7a339bb161029026ad
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. All 15 vectors: the eight successes are the eight
+proofs of the file above, read back, and the seven failures are five
+permutations of A, B and C, a bit flipped in the proof, and a bit flipped
+in the message -- so the pair covers both directions over one set of
+keys, and a permutation the challenge would have accepted is a defect the
+generation file alone could not show.
+
+Three BIP374 failure conditions have no vector in either file and are
+covered by `tests/ecc/dleq_test.py` instead: `s >= n`, and R1 or R2
+landing on infinity. None of the three is a proof anybody generates --
+s is computed mod n, and an infinite R needs s == e over A == G or
+B == C -- so upstream's generator produces none of them and the test
+builds each.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -1937,8 +1993,8 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, the eight BIP327 vector files, and the
-  Wycheproof vector files.
+  `bip39_test_vectors.json`, the eight BIP327 vector files, the two
+  BIP374 vector files, and the Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv` and the
