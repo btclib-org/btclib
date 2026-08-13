@@ -1798,6 +1798,38 @@ documented at release-notes length in the first place, and are still in
   `serialize` writes; the docstring says the rule and the test pins it,
   over the whole set of values that could have been written otherwise.
 
+- **the script number zero is the empty vector** (issue #746).
+  `encode_num(0)` wrote `b"\x00"` where Core's `CScriptNum::serialize`
+  returns the empty vector, and zero was the only value where the two
+  disagreed. Not a spelling: `b"\x00"` is not a minimally encoded script
+  number, so the interpreter refuses it as one under MINIMALDATA --
+  `(vch.back() & 0x7f) == 0` with nothing before it is what Core's
+  `CScriptNum` throws on, and `_to_num(b"\x00", MINIMALDATA, 4)` is what
+  this library answers `non-minimal encoding of 0: 00`. So
+  `serialize([0])` wrote `0100`, a push btclib's own engine will not
+  read as a number, and warned "consider using OP_0" as if the op code
+  were merely one byte shorter.
+
+  `encode_num(0)` is `b""` and `decode_num(b"")` is `0`, which are
+  `CScriptNum::serialize` and `CScriptNum::set_vch`; `serialize([0])` is
+  therefore OP_0, by the same path as every other value, a zero-length
+  push being that op code already. The engine had written Core's
+  function a second time to get around this -- `_from_num` was `b"" if x
+  == 0 else encode_num(x)`, with a matching empty-element branch in
+  `_to_num` -- and both are gone, every call site of the wrapper now
+  calling `encode_num`. The warning goes for zero and stays for the rest,
+  there being nothing shorter left to suggest, and it names
+  `op_int(command)` rather than interpolating the number: for -1 it read
+  "consider using OP_-1 instead", which is no op code.
+
+  `decode_num` keeps reading `00` and `80` as zero -- refusing them is
+  the interpreter's rule, and `_to_num` is where MINIMALDATA is known.
+  What follows from the pair being Core's is that
+  `miniscript.from_script` no longer reads a `0100` push as the number
+  0: a `thresh` whose threshold is written that way closes no fragment
+  where it used to be refused for the threshold's value, both being a
+  refusal and the second being the accurate one.
+
 ### Descriptors and miniscript
 
 - **An invalid output is refused, not answered about** (#691). `index_of`

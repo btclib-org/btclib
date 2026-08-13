@@ -16,12 +16,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError, ScriptError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script_op_codes import (
-    _MAX_NUM_SIZE,
-    ScriptOp,
-    _from_num,
-    _to_num,
-)
+from btclib.script.engine.script_op_codes import _MAX_NUM_SIZE, ScriptOp, _to_num
 from btclib.script.limits import (
     MAX_OPS_PER_SCRIPT,
     MAX_PUBKEYS_PER_MULTISIG,
@@ -37,7 +32,7 @@ from btclib.script.script import (
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata, encode_num
 
 __all__ = [
     "DISABLED_OP_CODES",
@@ -557,7 +552,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 hash_types,
             )
             check_nullfail(flags, result, [signature], "OP_CHECKSIG")
-            stack.append(_from_num(int(result)))
+            stack.append(encode_num(int(result)))
 
         elif op == "OP_CHECKMULTISIG":
             # Core's order, and it is the order that makes the two
@@ -606,7 +601,7 @@ def _run_ops(  # noqa: C901, PLR0912
         elif op == "OP_CHECKSEQUENCEVERIFY":
             script_op_codes.op_checksequenceverify(stack, tx, i, flags)
         elif op[3:].isdigit():
-            stack.append(_from_num(int(op[3:])))
+            stack.append(encode_num(int(op[3:])))
         elif op == "OP_CODESEPARATOR":
             codesep_offset = op_code_stops[script_index]
         elif op == "OP_IF":
