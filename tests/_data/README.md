@@ -1368,8 +1368,11 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The bitcoin profile, `EcdsaBitcoinVerify`: the
-`lower_s=True` default, where the malleable high-s twin of a valid
-signature is `invalid`.
+strict DER encoding, and the low-s rule, under which the malleable high-s
+twin of a valid signature is `invalid`. btclib's parser is the strict one
+and its verifier no longer applies that rule, so two of these verdicts
+are exempted rather than asserted — `wycheproof_test.py` reads which two
+out of the file below.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_test.json`
 
@@ -1383,8 +1386,10 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The same algorithm, curve and hash as the file
-above, under `lower_s=False`: what a general-purpose ECDSA verifier must
-accept and the bitcoin one must not.
+above, without the bitcoin profile's two extra rules: what a
+general-purpose ECDSA verifier must accept. It is therefore also the
+oracle for the exemption named above — a key and a signature `valid` here
+and `invalid` there differ by the low-s rule and by nothing else.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_p1363_test.json`
 

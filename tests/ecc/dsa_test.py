@@ -25,6 +25,7 @@ from btclib.curves import (
 from btclib.curves.curve import CURVES
 from btclib.curves.curve_group import _mult
 from btclib.ecc import dsa
+from btclib.ecc.rfc6979_nonce import challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
@@ -101,19 +102,22 @@ def test_signature() -> None:
     # Deterministic Usage of DSA and ECDSA (RFC 6979)
     r = 0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8
     s = 0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5
-    assert sig.r == r
-    assert sig.s in {s, sig.ec.n - s}
+    # the vector is the plain RFC6979 signature, and grinding is a search
+    # over nonces: this message's first draw has a high r, so the default
+    # signs it again with a counter and lands somewhere else
+    plain = dsa.sign(msg, q, grind=False)
+    assert plain.r == r
+    assert plain.s in {s, sig.ec.n - s}
+    assert sig != plain
+    assert dsa.verify(msg, Q, plain)
 
-    # malleability
+    # malleability: the high-s twin is a valid signature of the same
+    # message under the same key, and verification says so -- which form s
+    # took was the signer's choice, so nothing that only reads the
+    # signature has standing to refuse it (issue 695)
     malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
-    assert dsa.verify(msg, Q, malleated_sig, lower_s=False)
-    # lower_s defaults to True on both assert_as_valid and verify, refusing
-    # the same high-s twin the line above accepts by asking not to --
-    # libsecp256k1's own verify does the refusing here, lower_s deciding
-    # only whether the signature is normalized in front of it first
-    assert not dsa.verify(msg, Q, malleated_sig)
-    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
-        dsa.assert_as_valid(msg, Q, malleated_sig)
+    assert dsa.verify(msg, Q, malleated_sig)
+    dsa.assert_as_valid(msg, Q, malleated_sig)
 
     keys = dsa.recover_pub_keys(msg, sig)
     assert len(keys) == 2
@@ -209,8 +213,8 @@ def test_gec() -> None:
     assert sig.ec == ec
 
     # 2.1.4 Verifying Operation for V
-    dsa.assert_as_valid(msg, QU, sig, lower_s, hf)
-    assert dsa.verify(msg, QU, sig, lower_s, hf)
+    dsa.assert_as_valid(msg, QU, sig, hf)
+    assert dsa.verify(msg, QU, sig, hf)
 
 
 @pytest.mark.parametrize("name", list(low_card_curves))
@@ -238,10 +242,11 @@ def test_low_cardinality(name: str) -> None:
                     assert r == sig.r
                     assert s == sig.s
                     assert ec == sig.ec
-                    # valid signature must pass verification
-                    dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
+                    # valid signature must pass verification, and here even
+                    # under the strict rule: every s above was normalized
+                    dsa._assert_as_valid_(e, QJ, r, s, ec, lower_s=lower_s)
 
-                    jac_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=lower_s)
                     Qs = [ec.aff_from_jac(key) for key in jac_keys]
                     assert ec.aff_from_jac(QJ) in Qs
                     assert len(jac_keys) in {2, 4}
@@ -296,7 +301,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                         # a candidate x_K off the curve, or a key that
                         # does not verify, is "not this key_id"
                         try:
-                            QJ = dsa._recover_pub_key_(key_id, e, r, s, False, ec)
+                            QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
                         except (BTClibValueError, BTClibRuntimeError):
                             continue
                         recovered.append((key_id, ec.aff_from_jac(QJ)))
@@ -307,7 +312,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                     assert all(key_id >> 1 == 1 for key_id in key_ids)
 
                     # and the plural is that range, less what dropped out
-                    jac_keys = dsa._recover_pub_keys_(e, r, s, False, ec)
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec)
                     assert [ec.aff_from_jac(QJ) for QJ in jac_keys] == [
                         Q_ for _, Q_ in recovered
                     ]
@@ -352,7 +357,7 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
                 key_ids = []
                 for key_id in range(2 * (ec.cofactor + 1)):
                     try:
-                        QJ = dsa._recover_pub_key_(key_id, e, r, s, False, ec)
+                        QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
                     except (BTClibValueError, BTClibRuntimeError):
                         continue
                     if ec.aff_from_jac(QJ) == Q:
@@ -521,7 +526,10 @@ def test_libsecp256k1() -> None:
     """Verify btclib and the bindings sign and verify byte-for-byte."""
     msg = b"Satoshi Nakamoto"
     prvkey_int, pubkey_point = dsa.gen_keys(0x1)
-    btclib_sig = dsa.sign(msg, prvkey_int)
+    # grind=False on both sides: the bindings' sign() with no extra
+    # entropy is the plain RFC6979 signature, which is what byte-for-byte
+    # means here
+    btclib_sig = dsa.sign(msg, prvkey_int, grind=False)
     pub_key = bytes_from_point(pubkey_point)
     assert dsa.verify(msg, pub_key, btclib_sig)
     assert dsa.verify(msg, pub_key, btclib_sig.serialize())
@@ -560,7 +568,7 @@ def test_grinding_lands_on_a_low_r() -> None:
     unchanged = 0
     for i in range(64):
         msg = f"btclib grind {i}".encode()
-        plain = dsa.sign(msg, q)
+        plain = dsa.sign(msg, q, grind=False)
         ground = dsa.sign(msg, q, grind=True)
         assert ground.r < _LOW_R
         assert len(ground.serialize()) <= 70
@@ -651,7 +659,7 @@ def test_grinding_is_about_r_and_not_about_the_encoded_length() -> None:
         msg = f"btclib grind {i}".encode()
         sig = dsa.sign(msg, q, lower_s=False, grind=True)
         assert sig.r < _LOW_R
-        assert dsa.verify(msg, Q, sig, lower_s=False)
+        assert dsa.verify(msg, Q, sig)
         lengths.add(len(sig.serialize()))
     # both, and the 71 is the byte s asked for: grinding did not go looking
     # for another s, and a loop on the length would have
@@ -769,18 +777,16 @@ def test_core_grinds_the_same_signatures(
     # the retry count is a claim about which element of Core's sequence
     # this is, so it is checked and not merely recorded: the plain
     # signature for a count of zero, the counter's own signature otherwise
-    plain = dsa.sign_(sig_hash, prv_key)
+    plain = dsa.sign_(sig_hash, prv_key, grind=False)
     assert (plain == sig) == (retries == 0)
     ndata = None if retries == 0 else retries.to_bytes(32, "little")
     assert sig.serialize() == libsecp256k1_dsa.sign(sig_hash, prv_key, ndata)
 
 
-def _recovered(
-    key_id: int, msg: bytes, sig: dsa.Sig, lower_s: bool = True
-) -> Point | None:
+def _recovered(key_id: int, msg: bytes, sig: dsa.Sig) -> Point | None:
     """Return the recovered key, None for a candidate recovering nothing."""
     try:
-        return dsa.recover_pub_key(key_id, msg, sig, lower_s)
+        return dsa.recover_pub_key(key_id, msg, sig)
     except (BTClibValueError, BTClibRuntimeError):
         return None
 
@@ -830,14 +836,76 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
         # 2^-127 of signatures, and both implementations require it
         assert recovering == [0, 1]
 
-        # the lower-s rule is the caller's, and it is btclib that applies
-        # it: the recoverable parser takes any s in [1, n-1]
+        # negating s mirrors the nonce's point, so the candidate that
+        # recovers the signer is the one whose parity bit flipped -- and
+        # the malleated signature does recover it, on both
+        # implementations, no lower-s rule refusing what the signer was
+        # free to produce (issue 695). The recoverable parser takes any s
+        # in [1, n-1] and that is now the whole of the rule
         key_id = next(k for k in recovering if _recovered(k, msg, sig) == Q)
         malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
-        err_msg = "not a low s"
-        with pytest.raises(BTClibValueError, match=err_msg):
-            dsa.recover_pub_key(key_id ^ 1, msg, malleated)
-        assert _recovered(key_id ^ 1, msg, malleated, lower_s=False) == Q
+        assert _recovered(key_id ^ 1, msg, malleated) == Q
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            assert _recovered(key_id ^ 1, msg, malleated) == Q
+
+
+def test_the_low_s_rule_is_asked_for_and_not_assumed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Where the strict rule lives once the public surface drops it (issue 695).
+
+    The rule is not gone: `SCRIPT_VERIFY_LOW_S` is in Core's
+    `STANDARD_SCRIPT_VERIFY_FLAGS`, so a high-s signature inside a
+    transaction is non-standard and does not relay, and `sign` normalizes
+    for that reason. What is gone is a verifier refusing one -- so the
+    strict answer is what a leading-underscore function gives when asked
+    for it, `lower_s=False` being the default there too.
+
+    Both implementations of the recovery are asked, being one step written
+    twice: the bindings answer the named candidate and the Python path
+    answers all four, and a rule enforced by one and not the other would
+    make the two disagree about a signature neither made.
+    """
+    msg = b"Satoshi Nakamoto"
+    prv_key, Q = dsa.gen_keys(prv_key_int)
+    msg_hash = reduce_to_hlen(msg)
+    sig = dsa.sign(msg, prv_key)
+    malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
+    key_id = _search_key_id(msg, sig, Q)
+    c = challenge_(msg_hash, secp256k1, sha256)
+    QJ = Q[0], Q[1], 1
+    err_msg = "not a low s"
+
+    # the public spellings take the malleated signature, both of them
+    assert dsa.verify(msg, Q, malleated)
+    assert dsa.recover_pub_key(key_id ^ 1, msg, malleated) == Q
+
+    # and every private spelling refuses it when told to
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa._assert_as_valid_(c, QJ, malleated.r, malleated.s, secp256k1, lower_s=True)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa._libsecp256k1_recover_point_(key_id ^ 1, msg_hash, malleated, lower_s=True)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa._recover_pub_key_(
+            key_id ^ 1, c, malleated.r, malleated.s, secp256k1, lower_s=True
+        )
+    # the enumeration drops a candidate that fails rather than report it,
+    # so there the same refusal is an empty list: every one of the four
+    # fails the one rule at once
+    assert (
+        dsa._recover_pub_keys_(c, malleated.r, malleated.s, secp256k1, lower_s=True)
+        == []
+    )
+
+    # the signature as signed passes the strict rule on both paths, which
+    # is what says the refusals above are about the malleation and not
+    # about the arguments being threaded wrongly
+    dsa._assert_as_valid_(c, QJ, sig.r, sig.s, secp256k1, lower_s=True)
+    assert dsa._libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=True) == Q
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        assert dsa.recover_pub_key(key_id, msg, sig) == Q
 
 
 def test_recover_pub_keys_takes_the_hash_that_recover_pub_keys_reduces() -> None:
@@ -850,13 +918,12 @@ def test_recover_pub_keys_takes_the_hash_that_recover_pub_keys_reduces() -> None
     Nothing in btclib calls either, bms naming its own key_id since issue
     269, so this is what holds the pairing that justifies both.
 
-    The malleated signature is the plural's answer where the singular
-    raises: a candidate that fails is dropped rather than reported, and
-    every candidate fails the lower-s rule at once, so the enumeration of
-    a high-s signature is empty and not an error. Both spellings say so on
-    both implementations -- sha256 here is the four recover calls, sha512
-    the Python loop -- the rule being btclib's either way, since the
-    recoverable parser takes any s in [1, n-1].
+    The malleated signature is enumerated exactly as the signature it was
+    made from: negating s mirrors the nonce's point, so the same keys come
+    back with the parity bit of each candidate flipped, and the signer's
+    own is among them. Both spellings say so on both implementations --
+    sha256 here is the four recover calls, sha512 the Python loop -- which
+    form s took having been the signer's choice (issue 695).
     """
     msg = b"Satoshi Nakamoto"
     for q in (0x1, 0x2, prv_key_int, secp256k1.n - 1):
@@ -875,8 +942,9 @@ def test_recover_pub_keys_takes_the_hash_that_recover_pub_keys_reduces() -> None
             assert dsa.recover_pub_keys_(msg_hash.hex(), sig.serialize(), hf=hf) == keys
 
             malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
-            assert dsa.recover_pub_keys_(msg_hash, malleated, hf=hf) == []
-            assert Q in dsa.recover_pub_keys_(msg_hash, malleated, lower_s=False, hf=hf)
+            malleated_keys = dsa.recover_pub_keys_(msg_hash, malleated, hf=hf)
+            assert Q in malleated_keys
+            assert dsa.recover_pub_keys(msg, malleated, hf=hf) == malleated_keys
 
 
 def test_recovery_multiplies_in_libsecp256k1(
@@ -968,7 +1036,7 @@ def test_the_enumeration_asks_for_the_j_one_candidates(
         assert dsa.recover_pub_keys_(msg_hash, sig) == keys
 
 
-def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> int:
+def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point) -> int:
     """Find the key_id by recovering and comparing, not by signing.
 
     The derivation `sign_recoverable` exists not to run: it is here as the
@@ -976,7 +1044,7 @@ def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> 
     candidate until one is the signer's own key.
     """
     for key_id in range(2 * (sig.ec.cofactor + 1)):
-        if _recovered(key_id, msg, sig, lower_s) == Q:
+        if _recovered(key_id, msg, sig) == Q:
             return key_id
     raise AssertionError("no key_id recovers the public key")
 
@@ -1015,6 +1083,11 @@ def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
     for all three too, the dispatch patched off, because that is where the
     key_id is derived rather than reported -- read off the nonce's point at
     signing time, which is the whole of issue 285.
+
+    `sign` is asked with `grind=False`, that being the signature the
+    recoverable spelling makes: it takes no `grind` at all, a compact
+    signature having no DER pad for a low r to save, so the plain one is
+    what the two have in common.
     """
     for i in range(20):
         msg = f"message {i}".encode()
@@ -1022,7 +1095,7 @@ def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
         msg_hash = reduce_to_hlen(msg)
 
         sig, key_id = dsa.sign_recoverable(msg, prv_key)
-        assert sig == dsa.sign(msg, prv_key)
+        assert sig == dsa.sign(msg, prv_key, grind=False)
         assert (sig, key_id) == dsa.sign_recoverable_(msg_hash, prv_key)
         assert dsa.recover_pub_key(key_id, msg, sig) == Q
         assert key_id == _search_key_id(msg, sig, Q)
@@ -1061,10 +1134,9 @@ def test_the_key_id_survives_what_the_bindings_decline(
         {"hf": sha512},
     ]
     for kwargs in cases:
-        lower_s = bool(kwargs.get("lower_s", True))
         sig, key_id = dsa.sign_recoverable(msg, prv_key, **kwargs)
         hf = kwargs.get("hf", sha256)
-        assert dsa.recover_pub_key(key_id, msg, sig, lower_s, hf) == Q
+        assert dsa.recover_pub_key(key_id, msg, sig, hf) == Q
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
             assert dsa.sign_recoverable(msg, prv_key, **kwargs) == (sig, key_id)
@@ -1089,7 +1161,9 @@ def test_recover_pub_key_dispatches_to_the_bindings_for_0_to_3_only() -> None:
     ways this guard survived moved.
     """
     q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCD
-    sig = dsa.sign(b"msg", q)
+    # grind=False: this signature is the fixture, chosen for the four
+    # answers below, and another r is another set of candidates
+    sig = dsa.sign(b"msg", q, grind=False)
     msg_hash = b"\x00" * 32
 
     cases = {
@@ -1158,7 +1232,9 @@ def test_the_key_id_names_j_where_j_is_reachable() -> None:
                             sig, key_id = dsa._sign_recoverable_(c, q, k, lower_s, ec)
                         except BTClibRuntimeError:  # r == 0 or s == 0
                             continue
-                        QJ = dsa._recover_pub_key_(key_id, c, sig.r, sig.s, lower_s, ec)
+                        QJ = dsa._recover_pub_key_(
+                            key_id, c, sig.r, sig.s, ec, lower_s=lower_s
+                        )
                         assert ec.aff_from_jac(QJ) == Q
                         cases += 1
                         j_reached += key_id >> 1
@@ -1190,7 +1266,9 @@ def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
     prv_key = bytes.fromhex(vector["privkey"])
     assert len(prv_key) == 32
 
-    sig = dsa.sign_(msg_hash, prv_key)
+    # the vectors are libsecp256k1's own plain signatures, as the
+    # comparison below says in the same breath
+    sig = dsa.sign_(msg_hash, prv_key, grind=False)
     assert sig.serialize() == sig_raw[:-1]
     pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
     assert dsa.verify_(msg_hash, pub_key, sig)
@@ -1234,7 +1312,7 @@ def test_verify_infinity_point() -> None:
     ec = CURVES["secp256k1"]
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
+        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec)
 
 
 def test_verify_with_another_hash_function_on_both_arithmetics(
@@ -1267,7 +1345,7 @@ def test_verify_with_another_hash_function_on_both_arithmetics(
         assert not dsa.verify(b"another message", Q, sig, hf=sha512)
         # K = u*G + v*Q is INF for Q = G, r = s = 1 and c = n-1
         with pytest.raises(BTClibRuntimeError, match=r"invalid \(INF\) key"):
-            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
+            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec)
 
     checks()
     no_bindings(monkeypatch)

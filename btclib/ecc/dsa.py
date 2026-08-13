@@ -8,12 +8,18 @@ Implementation according to SEC 1 v.2:
 
 http://www.secg.org/sec1-v2.pdf
 
-specialized with bitcoin canonical 'lower-s' form
-to avoid accepting malleable signatures.
+specialized with bitcoin canonical 'lower-s' form, which is what ``sign``
+produces: a high-s signature is non-standard and does not relay, so
+normalizing is the signer's job. Verification and recovery take both
+forms and offer no flag to refuse either -- which form s carries was
+decided by whoever signed, and refusing one refuses a signature that
+signer was free to make. The rule survives where it belongs: in ``sign``,
+in the script engine's own flags, and in the leading-underscore functions
+a test asks for it with.
 
-``sign`` grinds for a low-R signature -- one byte shorter in DER -- when
-asked to, which is Core's default and not this library's: ``_grind_low_r``
-is the loop and says why.
+``sign`` also grinds for a low-R signature -- one byte shorter in DER --
+wherever the nonce is its own to derive, as Core does; ``_grind_low_r`` is
+the loop and says why.
 
 ``sign`` also takes a value to commit to inside the nonce,
 sign-to-contract style (see btclib.ecc.commit_nonce for the tweak), and
@@ -456,7 +462,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool = ...,
+    grind: bool | None = ...,
     commit_hash: None = None,
 ) -> Sig: ...
 
@@ -470,7 +476,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool = ...,
+    grind: bool | None = ...,
     commit_hash: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -483,7 +489,7 @@ def sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
-    grind: bool = False,
+    grind: bool | None = None,
     commit_hash: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
@@ -491,14 +497,17 @@ def sign_(
     If the deterministic nonce is not provided, the RFC6979
     specification is used.
 
-    grind asks for a low-R signature, one byte shorter in DER: `_grind_low_r`
-    is the loop, Core's since its 0.17. Off by default, where Core has it
-    on, because it is a departure from RFC6979 for about half of all
-    messages -- the nonce of a ground signature is derived with a counter
-    in it -- and a caller pinning this library's deterministic signatures
-    is entitled to keep getting them. Keyword-only, rather than beside
-    lower_s where it belongs by subject: ec and hf are positional here and
-    a flag inserted before them would renumber both.
+    grind asks for a low-R signature, one byte shorter in DER:
+    `_grind_low_r` is the loop, Core's since its 0.17 and its default
+    there. Left unsaid it is on wherever the nonce is this library's to
+    derive, so that a btclib signature is the one Core would have made;
+    asked for outright it is refused beside a nonce or a commitment, which
+    is the difference the three states carry -- a default is a library
+    preference and cannot contradict a caller, where `grind=True` beside
+    either of those two is a caller asking for both halves of a
+    contradiction. Keyword-only, rather than beside lower_s where it
+    belongs by subject: ec and hf are positional here and a flag inserted
+    before them would renumber both.
 
     commit_hash is a value to commit to inside the nonce, sign-to-contract
     style: the signature is an ordinary one, and the receipt returned
@@ -534,8 +543,15 @@ def sign_(
     # protocol takes away from a signing device, see
     # anti_exfil_host_commit, and this is the call that protocol signs
     # through
-    if grind and (nonce is not None or commit_hash is not None):
+    owns_the_nonce = nonce is not None or commit_hash is not None
+    if grind and owns_the_nonce:
         raise BTClibValueError("grinding derives its own nonce")
+    # and None is the caller not having said: grind where there is a nonce
+    # to grind and stay out of the way where there is not. Refusing those
+    # two by default would refuse `sign(msg, key, nonce)` itself -- a
+    # caller who asked for one thing, told they asked for two
+    if grind is None:
+        grind = not owns_the_nonce
 
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
@@ -599,7 +615,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool = ...,
+    grind: bool | None = ...,
     commit: None = None,
 ) -> Sig: ...
 
@@ -613,7 +629,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool = ...,
+    grind: bool | None = ...,
     commit: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -626,7 +642,7 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
-    grind: bool = False,
+    grind: bool | None = None,
     commit: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """ECDSA signature with canonical low-s preference.
@@ -746,7 +762,7 @@ def sign_recoverable(
 
 
 def _assert_as_valid_(
-    c: int, QJ: JacPoint, r: int, s: int, lower_s: bool, ec: Curve
+    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool = False
 ) -> None:
     # Private function for test/dev purposes
 
@@ -805,7 +821,6 @@ def assert_as_valid_(
     msg_hash: Octets,
     key: PubKey,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
     *,
     commit_hash: Octets | None = None,
@@ -816,9 +831,14 @@ def assert_as_valid_(
     The message enters already reduced -- msg_hash, not the message --
     which is what the trailing underscore says; assert_as_valid is the
     spelling that reduces with hf first. Errors carry the reason,
-    ``verify_`` being the boolean answer; lower_s asks for the BIP62 rule
-    that refuses the malleable high-s twin. With commit_hash and
-    receipt the sign-to-contract commitment is opened as well.
+    ``verify_`` being the boolean answer. With commit_hash and receipt the
+    sign-to-contract commitment is opened as well.
+
+    Both forms of s are accepted, and there is no flag to ask otherwise:
+    which of the two a signature carries was decided by whoever signed it,
+    so a verifier refusing one is refusing a signature the signer was free
+    to make. The low-s rule belongs to the signer -- ``sign`` applies it --
+    and to the script engine, which reads it off its own flags.
     """
     # key is a PubKey, not a Key: verification is where a private key
     # accepted for a public one does real harm, silently checking a
@@ -850,10 +870,10 @@ def assert_as_valid_(
         # not free even delegated: 0.54 us against 3.1, of a verification
         # that is 22 in total
         sig_bytes = sig.serialize(check_validity=False)
-        # libsecp256k1 rejects what is not in the lower-s form: if it is
-        # not to be enforced, then normalize
-        if not lower_s:
-            sig_bytes = libsecp256k1_dsa.normalize(sig_bytes)
+        # libsecp256k1 rejects what is not in the lower-s form, and which
+        # form a signature is in was the signer's choice: normalize, rather
+        # than refuse what the signer was free to produce
+        sig_bytes = libsecp256k1_dsa.normalize(sig_bytes)
         if not libsecp256k1_dsa.verify(msg_hash_bytes, pubkey_bytes, sig_bytes):
             raise BTClibRuntimeError("signature verification failed")
         return
@@ -862,14 +882,13 @@ def assert_as_valid_(
     Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
     # second part delegated to helper function
-    _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)
+    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec)
 
 
 def assert_as_valid(
     msg: Octets,
     key: PubKey,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
     *,
     commit: Octets | None = None,
@@ -878,16 +897,13 @@ def assert_as_valid(
     """Refuse an invalid ECDSA signature, reducing the message with hf."""
     msg_hash = reduce_to_hlen(msg, hf)
     commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
-    assert_as_valid_(
-        msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
-    )
+    assert_as_valid_(msg_hash, key, sig, hf, commit_hash=commit_hash, receipt=receipt)
 
 
 def verify_(
     msg_hash: Octets,
     key: PubKey,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
     *,
     commit_hash: Octets | None = None,
@@ -907,7 +923,7 @@ def verify_(
     # RecursionError is one and is not an answer about a signature
     try:
         assert_as_valid_(
-            msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
+            msg_hash, key, sig, hf, commit_hash=commit_hash, receipt=receipt
         )
     except (ValueError, BTClibRuntimeError):
         return False
@@ -919,7 +935,6 @@ def verify(
     msg: Octets,
     key: PubKey,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
     *,
     commit: Octets | None = None,
@@ -932,9 +947,7 @@ def verify(
     """
     msg_hash = reduce_to_hlen(msg, hf)
     commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
-    return verify_(
-        msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
-    )
+    return verify_(msg_hash, key, sig, hf, commit_hash=commit_hash, receipt=receipt)
 
 
 def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
@@ -1048,7 +1061,6 @@ def anti_exfil_host_verify(
     sig: Sig | Octets,
     rho: Octets,
     receipt: Point,
-    lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
     """Check the signature against R and rho: step 5 of the anti-exfil protocol.
@@ -1066,11 +1078,11 @@ def anti_exfil_host_verify(
     answers: a rho of the wrong size is a rho this commitment does
     not open to.
     """
-    return verify_(msg_hash, key, sig, lower_s, hf, commit_hash=rho, receipt=receipt)
+    return verify_(msg_hash, key, sig, hf, commit_hash=rho, receipt=receipt)
 
 
 def _recover_pub_keys_(
-    c: int, r: int, s: int, lower_s: bool, ec: Curve
+    c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
@@ -1109,12 +1121,12 @@ def _recover_pub_keys_(
         # range: it is what a caller indexes to name a key_id, which is
         # only that key_id when no earlier candidate dropped out
         with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-            keys.append(_recover_pub_key_(key_id, c, r, s, lower_s, ec))
+            keys.append(_recover_pub_key_(key_id, c, r, s, ec, lower_s=lower_s))
     return keys
 
 
 def recover_pub_keys_(
-    msg_hash: Octets, sig: Sig | Octets, lower_s: bool = True, hf: HashF = sha256
+    msg_hash: Octets, sig: Sig | Octets, hf: HashF = sha256
 ) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
@@ -1145,23 +1157,18 @@ def recover_pub_keys_(
             # a candidate that recovers nothing is dropped rather than
             # reported, as in _recover_pub_keys_: the bindings' refusal
             # arrives as the BTClibValueError _libsecp256k1_recover_sec_
-            # maps it to, and a high-s signature under lower_s enumerates
-            # to the empty list, every candidate failing the same rule
+            # maps it to
             with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-                keys.append(
-                    _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s)
-                )
+                keys.append(_libsecp256k1_recover_point_(key_id, msg_hash, sig))
         return keys
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJs = _recover_pub_keys_(c, sig.r, sig.s, lower_s, sig.ec)
+    QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec)
     return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
-def recover_pub_keys(
-    msg: Octets, sig: Sig | Octets, lower_s: bool = True, hf: HashF = sha256
-) -> list[Point]:
+def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See Also:
@@ -1169,11 +1176,11 @@ def recover_pub_keys(
 
     """
     msg_hash = reduce_to_hlen(msg, hf)
-    return recover_pub_keys_(msg_hash, sig, lower_s, hf)
+    return recover_pub_keys_(msg_hash, sig, hf)
 
 
 def _recover_pub_key_(
-    key_id: int, c: int, r: int, s: int, lower_s: bool, ec: Curve
+    key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
 ) -> JacPoint:
     # Private function provided for testing purposes only.
 
@@ -1222,12 +1229,12 @@ def _recover_pub_key_(
     # representative its ladder reached. Every caller converts with
     # aff_from_jac, which is what a Jacobian coordinate is for
     QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
+    _assert_as_valid_(c, QJ, r, s, ec, lower_s=lower_s)  # 1.6.2
     return QJ
 
 
 def _libsecp256k1_recover_sec_(
-    key_id: int, msg_hash: bytes, sig: Sig, lower_s: bool, compressed: bool
+    key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool = False
 ) -> bytes:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1244,11 +1251,13 @@ def _libsecp256k1_recover_sec_(
     # equation by construction, and a candidate whose x-coordinate is not
     # on the curve is the failure caught below.
     #
-    # The lower-s rule is checked here and not there. The recoverable
-    # parser takes any s in [1, n-1], as it must: a malleated signature
-    # recovers a key too, and lower_s is the caller saying whether that
-    # answer is wanted -- the same question _assert_as_valid_ answers with
-    # this very message
+    # The lower-s rule is checked here and not there, and only when asked
+    # for: the recoverable parser takes any s in [1, n-1], as it must, a
+    # malleated signature recovering a key too. Nothing in the public
+    # surface asks -- which form s took was the signer's choice -- so this
+    # is the private spelling of the same question _assert_as_valid_
+    # answers with this very message, and it exists so that the two
+    # implementations of the step can be held to one answer under it
     if lower_s and sig.s > sig.ec.n // 2:
         raise BTClibValueError("not a low s")
 
@@ -1277,7 +1286,7 @@ def _libsecp256k1_recover_sec_(
 
 
 def _libsecp256k1_recover_point_(
-    key_id: int, msg_hash: bytes, sig: Sig, lower_s: bool
+    key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool = False
 ) -> Point:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1288,7 +1297,9 @@ def _libsecp256k1_recover_point_(
     # answer. The two callers are the named candidate and the enumeration
     # over all four of them, which is the only reason this is a function:
     # bms wants the octets and never builds the point at all.
-    sec = _libsecp256k1_recover_sec_(key_id, msg_hash, sig, lower_s, compressed=False)
+    sec = _libsecp256k1_recover_sec_(
+        key_id, msg_hash, sig, compressed=False, lower_s=lower_s
+    )
     p_size = sig.ec.p_size
     return (
         int.from_bytes(sec[1 : 1 + p_size], byteorder="big", signed=False),
@@ -1300,7 +1311,6 @@ def recover_pub_key_(
     key_id: int,
     msg_hash: Octets,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
 ) -> Point:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
@@ -1327,11 +1337,11 @@ def recover_pub_key_(
     # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
     # -- passing it would need ec.p ≡ 0 mod ec.n
     if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
-        return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s)
+        return _libsecp256k1_recover_point_(key_id, msg_hash, sig)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, lower_s, sig.ec)
+    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec)
     return sig.ec.aff_from_jac(QJ)
 
 
@@ -1339,7 +1349,6 @@ def recover_pub_key(
     key_id: int,
     msg: Octets,
     sig: Sig | Octets,
-    lower_s: bool = True,
     hf: HashF = sha256,
 ) -> Point:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
@@ -1349,7 +1358,7 @@ def recover_pub_key(
 
     """
     msg_hash = reduce_to_hlen(msg, hf)
-    return recover_pub_key_(key_id, msg_hash, sig, lower_s, hf)
+    return recover_pub_key_(key_id, msg_hash, sig, hf)
 
 
 def crack_prv_key_(
