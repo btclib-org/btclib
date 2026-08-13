@@ -117,6 +117,11 @@ Included features are:
   key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
   with corresponding mapping to
   p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
+- [BIP352](https://github.com/bitcoin/bips/blob/master/bip-0352.mediawiki)
+  silent payments: one reusable bech32m address, and a different taproot
+  output for every payment to it — the sender's outputs, the receiver's
+  scan, the labels that give one wallet many published addresses, and the
+  tweak data a light client scans from
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - a script engine: a transaction verified against the consensus rules,

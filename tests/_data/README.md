@@ -123,7 +123,8 @@ and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
 two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
-beside them and the two BIP374 csv files on 2026-08-13.
+beside them, the two BIP374 csv files and BIP352's
+`send_and_receive_test_vectors.json` on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -453,6 +454,48 @@ landing on infinity. None of the three is a proof anybody generates --
 s is computed mod n, and an infinite R needs s == e over A == G or
 B == C -- so upstream's generator produces none of them and the test
 builds each.
+
+### `tests/_data/send_and_receive_test_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0352/send_and_receive_test_vectors.json
+commit  c2ac36f48f71615984087fd151f410457edfed72  2026-04-16
+blob    3a189757ddbc90e5ec538d643f7ac238a51704e8
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. All 28 cases, both halves of each: one sending
+sub-test and one receiving sub-test per case, except "use silent payments
+for sender change", which has two receiving sub-tests -- the change output
+and the payment.
+
+The revision matters more here than the pin usually does. This file used
+to publish the inputs and the final outputs and nothing between, and the
+2026 revision added `input_private_key_sum`, `shared_secrets`, `tweak` and
+`input_pub_key_sum`: an implementation can now be held to the value at
+each step rather than told that its output was wrong.
+`tests/silent_payments_test.py` asserts every one of them, which is why an
+outpoint sorted wrongly, a missed taproot negation and a wrong label are
+three different failures there instead of one.
+
+Two of the 28 publish a null where a value would be: the sending half of
+"input keys sum up to zero" has no private key sum, and the K_MAX case has
+a sum and then a null shared secret, sending having failed before one was
+derived. Both are the file saying that the step was never reached, and the
+test reads them that way.
+
+The K_MAX case is the largest by far and worth naming: 2324 recipients
+sharing one scan key, which is one more than BIP352 allows, so sending
+fails and the receiving half finds 2323 of the 2324 outputs -- the file
+counting them with `n_outputs` rather than listing them, and it is the
+only case that does.
+
+Three BIP352 rules have no vector here and are covered by the test module
+instead: the address versions (v31 refused, v1 through v30 read as far as
+v0 defines them), the 1023-character bound, and the label range. The
+vectors are all v0 addresses on mainnet.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -2003,8 +2046,8 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, the eight BIP327 vector files, and the
-  Wycheproof vector files.
+  `bip39_test_vectors.json`, the eight BIP327 vector files,
+  `send_and_receive_test_vectors.json`, and the Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`, the two

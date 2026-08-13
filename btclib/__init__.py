@@ -103,6 +103,7 @@ __all__ = [
     "psbt_signer",
     "psbt_signer_contract",
     "script",
+    "silent_payments",
     "slip132",
     "to_prv_key",
     "to_pub_key",

@@ -1115,6 +1115,50 @@ documented at release-notes length in the first place, and are still in
   turned it into bytes -- reaches past the frozen guard with
   `object.__setattr__`, the same escape `__init__` itself uses.
 
+- **BIP352 silent payments** (#640). `btclib.silent_payments` is the new
+  module, and it is a top-level one because it stands on nearly everything
+  below: the curve arithmetic, `bech32` for the address, `script_pub_key`
+  for the input types and `tx.out_point` for what the input hash binds to.
+  One reusable address, published once, and a different taproot output for
+  every payment to it -- so two payments to one recipient are unlinkable on
+  chain, with nothing extra in the transaction and no interaction.
+
+  The surface is one function per step of BIP352, which is what lets the
+  vector file's intermediate values be asserted where they are produced
+  rather than only at the end: `pub_key_from_input` reads one input's key
+  and answers None where BIP352 skips the input, `prv_key_sum` and
+  `pub_key_sum` are the two sides of the same sum with the taproot negation
+  in it, `input_hash` binds that sum to the transaction's smallest
+  outpoint, `tweak_data` is what a light-client server publishes per
+  transaction, `shared_secret` is the multiplication both ends do,
+  `output_keys` is the sender's whole operation and `scan_outputs` the
+  receiver's. `label_tweak`, `labeled_address_from_keys` and `label_lookup`
+  are the optional labels, and `prv_key_from_tweak` is what spends a found
+  output.
+
+  BIP352's own `send_and_receive_test_vectors.json` is vendored whole, all
+  28 cases from both ends. The revision matters: the 2026 one added
+  `input_private_key_sum`, `shared_secrets`, `tweak` and
+  `input_pub_key_sum`, so an outpoint sorted wrongly, a missed taproot
+  negation and a wrong label are three failures instead of one "wrong
+  output". Every found output is also signed and the signature verified
+  against the output key, which the file does not ask for and is the only
+  assertion that says the output is spendable rather than predicted.
+
+  Two things had to be got right that no reference note prepares you for.
+  The address is bech32m *by the constant*: `bech32.encode` reads a segwit
+  witness version off the first data value to choose between bech32 and
+  bech32m, and a silent payment version 0 would pick the bech32 constant
+  and produce a string no other implementation accepts. And the public key
+  sum is folded one addition at a time rather than through `multi_mult`:
+  an intermediate sum at infinity is a BIP352 vector, and infinity is
+  exactly what libsecp256k1 has no public key for.
+
+  What is *not* here is the transaction-level policy: which transactions
+  are worth scanning, and which sighash flags a sender may use
+  (`SIGHASH_ANYONECANPAY` breaks the protocol, the inputs being what the
+  secret derives from). Those are a wallet's, and the module docstring
+  states all three rather than half-implementing them.
 - **BIP374 discrete logarithm equality proofs** (#639). `btclib.ecc.dleq`
   is the new module: `generate_proof` answers the 64 bytes that tie A = a\*G
   and C = a\*B to one scalar a, `verify_proof` says whether they hold, and

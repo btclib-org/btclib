@@ -162,6 +162,13 @@ btclib.psbt\_signer\_contract module
    :members:
    :show-inheritance:
 
+btclib.silent\_payments module
+------------------------------
+
+.. automodule:: btclib.silent_payments
+   :members:
+   :show-inheritance:
+
 btclib.slip132 module
 ---------------------
 
