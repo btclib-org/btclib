@@ -64,6 +64,10 @@ the same in each: there is no upstream file whose name they could take
   `electrum_language_vectors.json`, `btclib_test_vectors.json` and
   `fakeenglish.txt` are btclib's own: no upstream file for any of them,
   so no upstream name to take.
+- `WYCHEPROOF_COPYING` is upstream's `LICENSE`, renamed because a file
+  of that name inside a directory of vendored vectors would read as
+  licensing all of them. Its entry says so, and carries the upstream
+  name.
 - the seven under `tests/fetch/_data/` are response bodies, and a
   response has no name at all. Each takes the rpc method or the endpoint
   path that produces it, which is the closest thing to an upstream name
@@ -116,8 +120,9 @@ what their `pulled` says: the eight BIP327 files, the three Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
 and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
-csv files followed on 2026-08-03, at the tip of their paths too, and the
-two BIP322 files on 2026-08-08.
+csv files followed on 2026-08-03, at the tip of their paths too, the
+two BIP322 files on 2026-08-08, and the four Wycheproof files with the
+licence beside them on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1319,6 +1324,111 @@ regenerates each of the four mnemonics word for word from the master
 secret. The other 11 are recovery only, a 2-of-3 share being random by
 construction.
 
+### C2SP/wycheproof: four files under `tests/ecc/_data/`
+
+The adversarial vectors, and the one upstream here published under a
+licence that is not MIT: Apache-2.0, whose condition on redistribution
+is a copy of the licence, so `WYCHEPROOF_COPYING` is vendored beside the
+four and has its own entry below. There is no `NOTICE` file at the pin
+to carry with it.
+
+All four are pinned to the same commit, `5722833c` of 2026-08-11, and
+all four live in `testvectors_v1/`. Not `testvectors/`, which upstream
+removed on 2025-09-02 and which no refresh can reach again. They are
+read by `tests/ecc/wycheproof_test.py`, which is also where the split
+between the two ECDSA profiles is explained.
+
+`ecdsa_secp256k1_sha256_bitcoin_test.json` is the one file of the four
+with no schema in upstream's `schemas/`, its own README listing it among
+those still missing one, and it is frozen at `generatorVersion 0.9rc5`.
+Vendored as it is regardless, which is what bitcoin-core/secp256k1 and
+secp256k1lab both do with it.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha256_bitcoin_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha256_bitcoin_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    f737aabce273eb9485f21b84d32aa01d3e8b0246
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. The bitcoin profile, `EcdsaBitcoinVerify`: the
+`lower_s=True` default, where the malleable high-s twin of a valid
+signature is `invalid`.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha256_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha256_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    48797ce3b697f47175bdf4dc93976c2dc94438c5
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. The same algorithm, curve and hash as the file
+above, under `lower_s=False`: what a general-purpose ECDSA verifier must
+accept and the bitcoin one must not.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha256_p1363_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha256_p1363_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    3c59b142ede26ecbafecf83341e907dd3bfda40f
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. IEEE P1363 encoding, raw `r` and `s` side by
+side, which reaches `Sig` with no DER in front of it.
+
+### `tests/ecc/_data/ecdh_secp256k1_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdh_secp256k1_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    3ed5207460f29a270e024d0f3c0e1b57d1fa52a9
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Key agreement, with the public key X.509-encoded
+rather than a bare point: the invalid-curve, twist and wrong-curve cases
+`btclib.ecc.dh` has no other vectors for.
+
+### `tests/ecc/_data/WYCHEPROOF_COPYING`
+
+```text
+repo    C2SP/wycheproof
+path    LICENSE
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    7a4a3ea2424c09fbe48d455aed1eaa94d9124835
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- upstream ends
+without one and the `end-of-file-fixer` hook added it, so our blob is
+`d6456956`, which is the Apache-2.0 text as most repositories carry it.
+The stock text, with no copyright line filled in and no `NOTICE` beside
+it, so this file is the whole of what the licence asks a redistributor
+to carry.
+
+Renamed, against the naming rule above, and the reason is what the rule
+is for. Upstream calls it `LICENSE`, and a file of that name inside
+`tests/ecc/_data/` would read as licensing the directory it sits in --
+which is false, the BIP and rustyrussell files beside it having their
+own terms and btclib's own `LICENSE` being at the root. The upstream
+name is in the entry above instead, where the pin already is. It is the
+name bitcoin-core/secp256k1 gives its copy for the same reason.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -1632,9 +1742,10 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, and the eight BIP327 vector files.
+  `bip39_test_vectors.json`, the eight BIP327 vector files, and the four
+  Wycheproof vector files.
 - identical but for a trailing newline:
-  `script_assets_test.json`, `vectors.json`.
+  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv` and the
   two BIP324 vector files.
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
