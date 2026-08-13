@@ -26,7 +26,13 @@ authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
     "btclib_secp256k1>=0.8.0",
-    "bitcoin-core-rpc>=2026.8.12",
+    # main, not a release: `assert_chain` and the two magic lookups are
+    # there first, and this tree stops carrying the check and the p2p
+    # constant it was made of. A direct reference is what PyPI refuses to
+    # publish, so the next release of that package replaces this line with
+    # a floor -- `bitcoin-core-rpc>=<that version>` -- and nothing else
+    # here changes. The lock pins the commit, and moves when main does
+    "bitcoin-core-rpc @ git+https://github.com/btclib-org/bitcoin-core-rpc.git@main",
 ]
 keywords = [
     # The GitHub repository topics, in the same order, and the order is by

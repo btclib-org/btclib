@@ -29,18 +29,18 @@ from urllib.request import Request
 import bitcoin_core_rpc as rpc
 import pytest
 from bitcoin_core_rpc import (
+    DEFAULT_SIGNET_CHALLENGE,
     BitcoinCoreRpcClient,
     chain_from_network,
     network_from_chain,
 )
 
 from btclib.exceptions import BTClibValueError, FetchError, HttpError, RpcError
-from btclib.fetch.bitcoin_core import BitcoinCoreFetcher, _signet_magic
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
-from btclib.network import NETWORKS, Network
+from btclib.network import NETWORKS
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
-from tests.network_test import SIGNET_CHALLENGE
 
 # the rpc credentials every test here passes. Named once rather than
 # written at each call, which is what keeps the string out of a
@@ -115,8 +115,13 @@ def fetcher(
     assert isinstance(network, str)
     verify_network = kwargs.pop("verify_network", False)
     assert isinstance(verify_network, bool)
+    challenge = kwargs.pop("signet_challenge", None)
+    assert challenge is None or isinstance(challenge, (str, bytes))
     return BitcoinCoreFetcher(
-        client(*answers, **kwargs), network, verify_network=verify_network
+        client(*answers, **kwargs),
+        network,
+        verify_network=verify_network,
+        signet_challenge=challenge,
     )
 
 
@@ -201,35 +206,6 @@ def blockchaininfo(**members: object) -> tuple[int, bytes]:
     return 200, body
 
 
-def custom_signet(challenge: str) -> Network:
-    """Return a Network like the default signet, with this challenge's magic.
-
-    What a caller registers for a signet of their own -- issue #207 -- and
-    the magic is derived by the function the check itself uses. What that
-    derivation is worth is settled elsewhere, in
-    `tests/network_test.py`, against the magic Core publishes for its own
-    signet; here it is the pairing of a challenge with a Network that
-    matters.
-    """
-    return Network.from_dict(
-        {**NETWORKS["signet"].to_dict(), "magic_bytes": _signet_magic(challenge).hex()}
-    )
-
-
-def test_signet_magic_is_the_reverse_of_the_digest_and_not_the_digest() -> None:
-    """`_signet_magic` itself, not the independent computation beside it.
-
-    `tests/network_test.py` computes the default signet's magic by its own
-    route and pins it to `0a03cf40` reversed; that is a fact about the
-    constant, not a call into this function, so a mutant of the slice this
-    function ends on -- dropped, or read forwards -- is not what that test
-    would notice. `custom_signet`'s docstring says the derivation is
-    "settled elsewhere", which is only true once this test exists.
-    """
-    assert _signet_magic(SIGNET_CHALLENGE).hex() == "40cf030a"
-    assert _signet_magic(SIGNET_CHALLENGE) == NETWORKS["signet"].magic_bytes
-
-
 def test_every_network_btclib_ships_has_a_chain_name() -> None:
     """The coupling between two vocabularies kept in two repositories.
 
@@ -240,8 +216,9 @@ def test_every_network_btclib_ships_has_a_chain_name() -> None:
     round trip is what says the two tables agree in both directions rather
     than merely having an entry each.
 
-    `NETWORKS` is a dict a caller adds to, so this reads the shipped
-    registry: the four names of `_data/`, not whatever a test registered.
+    `assert_network` relies on this: `NETWORKS` is fixed at import, so a
+    name a fetcher is allowed to carry is one `chain_from_network` can
+    translate, and there is no branch there for a name it cannot.
     """
     for network in NETWORKS:
         assert network_from_chain(chain_from_network(network)) == network
@@ -263,9 +240,7 @@ def test_assert_network_refuses_a_node_on_another_chain() -> None:
     returns is then a mainnet address for coins that are not there.
     Nothing else in the exchange says so.
     """
-    with pytest.raises(
-        BTClibValueError, match="node is on test, this fetcher on mainnet"
-    ):
+    with pytest.raises(BTClibValueError, match="reports chain 'test', not the 'main'"):
         fetcher(blockchaininfo(chain="test"), network="mainnet").assert_network()
 
 
@@ -277,9 +252,7 @@ def test_assert_network_refuses_a_chain_that_sorts_before_the_label() -> None:
     still refuse that one. Asking for testnet and getting `main`, which
     sorts before it, is the half only a real inequality catches.
     """
-    with pytest.raises(
-        BTClibValueError, match="node is on main, this fetcher on testnet"
-    ):
+    with pytest.raises(BTClibValueError, match="reports chain 'main', not the 'test'"):
         fetcher(blockchaininfo(chain="main"), network="testnet").assert_network()
 
 
@@ -292,62 +265,100 @@ def test_assert_network_tells_two_signets_apart() -> None:
     signet does not share with a node on someone else's.
     """
     answer = blockchaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE)
-    with pytest.raises(BTClibValueError, match="signet this fetcher is not"):
+    with pytest.raises(BTClibValueError, match="signet this client is not"):
         fetcher(answer, network="signet").assert_network()
 
+    default = blockchaininfo(chain="signet", signet_challenge=DEFAULT_SIGNET_CHALLENGE)
+    fetcher(default, network="signet").assert_network()
 
-def test_assert_network_checks_a_caller_registered_signet(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A Network a caller built is checkable, which is what the magic buys.
 
-    Its name is btclib's alone and means nothing to a node, so the name is
-    not what is compared. `NETWORKS` is a dict a caller adds to, and
-    `monkeypatch.setitem` is how this one is taken back out.
+def test_assert_network_checks_the_signet_the_fetcher_was_given() -> None:
+    """A signet of the caller's own, which is what `signet_challenge` is for.
+
+    No entry in `NETWORKS` and no `Network` built by hand: a custom signet
+    differs from the default one in its p2p magic alone, which is a fact
+    about the node and not about how an address is spelled -- so the
+    challenge is an argument to this class, and the encoding table stays
+    signet's.
     """
-    monkeypatch.setitem(NETWORKS, "custom-signet", custom_signet(CUSTOM_CHALLENGE))
-
     answer = blockchaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE)
-    fetcher(answer, network="custom-signet").assert_network()
+    endpoint = fetcher(
+        answer, network="signet", verify_network=True, signet_challenge=CUSTOM_CHALLENGE
+    )
+    endpoint.assert_network()
 
     other = blockchaininfo(chain="signet", signet_challenge=OTHER_CHALLENGE)
-    with pytest.raises(BTClibValueError, match="signet this fetcher is not"):
-        fetcher(other, network="custom-signet").assert_network()
+    with pytest.raises(BTClibValueError, match="signet this client is not"):
+        fetcher(
+            other,
+            network="signet",
+            verify_network=True,
+            signet_challenge=CUSTOM_CHALLENGE,
+        ).assert_network()
 
 
-def test_assert_network_has_nothing_to_compare_for_a_custom_name_off_signet(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A caller's own network against a node on main: a refusal, not a pass.
+def test_a_challenge_is_refused_where_it_would_check_nothing() -> None:
+    """Two combinations that are a check the caller expects and would not get.
 
-    Only a signet answers with an identity, so a name Core never heard of
-    has nothing to be held against -- and passing silently is the failure
-    this method exists to catch.
+    A network that is no signet has no challenge to be held to, and
+    `verify_network` off is the comparison not being made -- so both are
+    refused at construction, where the mistake was written, rather than at
+    a fetch that would pass.
     """
-    monkeypatch.setitem(NETWORKS, "custom-signet", custom_signet(CUSTOM_CHALLENGE))
-    with pytest.raises(BTClibValueError, match="no chain of Core's"):
-        fetcher(blockchaininfo(chain="main"), network="custom-signet").assert_network()
+    with pytest.raises(BTClibValueError, match="challenge for mainnet"):
+        fetcher(
+            network="mainnet", verify_network=True, signet_challenge=CUSTOM_CHALLENGE
+        )
+    with pytest.raises(BTClibValueError, match="checks nothing with it off"):
+        fetcher(network="signet", signet_challenge=CUSTOM_CHALLENGE)
+
+
+def test_a_challenge_that_is_no_script_is_refused_at_construction() -> None:
+    """Derived once here, so that the failure is at the line that wrote it.
+
+    A challenge is hex or the bytes it spells; anything else would
+    otherwise reach the node's reply and be reported as the *node*
+    answering something unreadable.
+    """
+    with pytest.raises(BTClibValueError, match="no hex"):
+        fetcher(network="signet", verify_network=True, signet_challenge="not hex")
 
 
 @pytest.mark.parametrize(
-    "result, message",
+    "result, message, network",
     [
-        pytest.param(3, "not a JSON object: int", id="not-an-object"),
-        pytest.param({}, "no chain name in the reply: None", id="no-chain"),
         pytest.param(
-            {"chain": 5}, "no chain name in the reply: 5", id="chain-not-a-string"
+            3, "no string chain in the int result", "mainnet", id="not-an-object"
         ),
         pytest.param(
-            {"chain": "signet"}, "no signet_challenge", id="signet-with-no-challenge"
+            {}, "no string chain in the dict result", "mainnet", id="no-chain"
+        ),
+        pytest.param(
+            {"chain": 5},
+            "no string chain in the dict result",
+            "mainnet",
+            id="chain-not-a-string",
+        ),
+        # a signet fetcher for the two below: the chain name is compared
+        # first, so a mainnet one would disagree about the name and never
+        # read the member these are about
+        pytest.param(
+            {"chain": "signet"},
+            "no string signet_challenge",
+            "signet",
+            id="signet-no-challenge",
         ),
         pytest.param(
             {"chain": "signet", "signet_challenge": "not hex"},
-            "getblockchaininfo",
+            "unreadable signet_challenge",
+            "signet",
             id="challenge-that-is-not-hex",
         ),
     ],
 )
-def test_assert_network_refuses_a_malformed_reply(result: object, message: str) -> None:
+def test_assert_network_refuses_a_malformed_reply(
+    result: object, message: str, network: str
+) -> None:
     """A reply that is not an answer is a FetchError naming the method.
 
     The same treatment every other answer here gets, and what tells it
@@ -357,7 +368,7 @@ def test_assert_network_refuses_a_malformed_reply(result: object, message: str) 
     """
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "x"}).encode()
     with pytest.raises(FetchError, match=message):
-        fetcher((200, body), network="mainnet").assert_network()
+        fetcher((200, body), network=network).assert_network()
 
 
 def test_the_first_fetch_asks_the_node_which_chain_it_serves() -> None:
@@ -393,7 +404,7 @@ def test_a_node_on_another_chain_answers_no_fetch_at_all() -> None:
     endpoint = client(blockchaininfo(chain="test"))
     core = BitcoinCoreFetcher(endpoint, "mainnet")
     for _ in range(2):
-        with pytest.raises(BTClibValueError, match="node is on test"):
+        with pytest.raises(BTClibValueError, match="reports chain 'test'"):
             core.get_tx(TX_ID)
     assert asked(endpoint) == ["getblockchaininfo"]
 

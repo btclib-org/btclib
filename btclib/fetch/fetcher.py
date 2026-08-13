@@ -78,6 +78,12 @@ def client_errors() -> Iterator[None]:
         raise HttpError(e.args[0], e.status) from e
     except rpc.FetchError as e:
         raise FetchError(str(e)) from e
+    except rpc.BtcRpcValueError as e:
+        # what `assert_chain` raises for a node serving another chain: a
+        # refusal on valid inputs, so `BTClibValueError` and not a
+        # `FetchError`. Its message names the node's chain and the client's,
+        # which is the whole of what a caller has to act on
+        raise BTClibValueError(str(e)) from e
 
 
 @contextmanager

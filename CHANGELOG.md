@@ -1066,6 +1066,62 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`NETWORKS` is fixed at import, and read-only** (issue #683). A
+  `MappingProxyType` over the dict the five json files fill, so
+  `NETWORKS["custom"] = ...` is a `TypeError` where it used to be a
+  registration nothing else here would honour: `XPRV_VERSIONS_ALL` and
+  `XPUB_VERSIONS_ALL` were built at import from the same data, so a
+  network registered afterwards was named by `network_from_xkeyversion`
+  and refused by `bip32._assert_valid_key` -- one of the two being wrong
+  about what the catalogue meant. What settles it is that a `Network` is
+  an encoding table: every field of one is the same for every deployment
+  of that network, so there is nothing left for a caller to register.
+- **`Network.magic_bytes` is gone**, with it. The p2p message start
+  identifies a *node*, is a function of the challenge for a signet
+  therefore not a constant per name, and had exactly one reader in this
+  library -- `BitcoinCoreFetcher.assert_network`, inside the rpc adapter.
+  It now comes from the package that speaks that protocol and already
+  owns the ports, the datadir subdirectories and the chain names from the
+  same file of Core's: `bitcoin_core_rpc.magic_from_chain` and
+  `magic_from_signet_challenge`. The five `_data/*.json` files lose the
+  field, `to_dict` and `from_dict` with them, and `alias.NetworkField` is
+  seventeen names.
+- **`BitcoinCoreFetcher` takes `signet_challenge`**, which is how a
+  custom signet is now spelled: no entry in `NETWORKS` and no `Network`
+  built by hand, the addresses of one being signet's. Hex or the bytes it
+  spells, as `-signetchallenge` takes it. Refused with a network that is
+  no signet, and refused with `verify_network=False`, either being a
+  check the caller expects and would not get; a challenge that is no
+  script is refused at construction rather than at the first fetch.
+  `assert_network` is now the client's `assert_chain` plus the
+  translation into btclib's vocabulary and exceptions --
+  `chain_from_network` in, `client_errors` out -- so the comparison lives
+  beside the protocol it reads. `_signet_magic` is gone from this tree.
+- **`XPRV_VERSIONS_ALL` and `XPUB_VERSIONS_ALL` are frozensets**, not
+  lists: they answer one question -- is this a private version, is it a
+  public one -- and four of the five networks carry testnet's versions,
+  so a list of them was four fifths repetition in an order that meant
+  nothing. Code indexing them, or reading `.index()`, has
+  `xpubversion_from_xprvversion` for the one thing the parallel positions
+  were used for.
+- **`xpubversion_from_xprvversion`** is that pairing, published: same
+  network, same script type, xprv to xpub and Zprv to Zpub. What
+  `bip32._xpub_from_xprv` re-labels a key with, where it read
+  `XPUB_VERSIONS_ALL[XPRV_VERSIONS_ALL.index(version)]` -- a scan of
+  twenty-five entries per neuter, and a pair of parallel lists a caller
+  had to know were parallel. `BTClibValueError` for anything that is not
+  an xprv version, an xpub version included.
+- **the reverse lookups by xkey version are a table** (issue #683), built
+  in one pass over `NETWORKS` beside the two sets above and the pairing:
+  `networks_from_xkeyversion` was asking every network in turn whether it
+  carried the version, and each question rebuilt two five-element lists,
+  which the issue measured at 21 calls into the builders per address
+  derived and encoded (1.40 us to 0.03 us for the lookup, about 5% off an
+  address end to end). `networks_from_key_value` stays a scan, and not
+  for want of a key: `prefix` is whatever a caller passes, so a dict
+  would answer an unhashable one with a `TypeError` where the comparison
+  answers "no network carries this".
+
 - **Taproot takes no curve** (#618). `output_pubkey`,
   `output_pubkey_from_merkle_root`, `output_prvkey`,
   `output_prvkey_from_merkle_root` and `check_output_pubkey` ended in

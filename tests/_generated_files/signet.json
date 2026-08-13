@@ -1,7 +1,6 @@
 {
     "curve": "secp256k1",
     "network_type": "test",
-    "magic_bytes": "40cf030a",
     "genesis_block": "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6",
     "wif": "ef",
     "p2pkh": "6f",

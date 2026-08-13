@@ -22,16 +22,15 @@ true.
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import bitcoin_core_rpc as rpc
 from bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
     BitcoinCoreRpcClient,
     chain_from_network,
     cookie_auth,
+    magic_from_signet_challenge,
 )
 
-from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.fetch.fetcher import (
@@ -41,8 +40,6 @@ from btclib.fetch.fetcher import (
     tx_from_raw,
     tx_id_hex,
 )
-from btclib.hashes import hash256
-from btclib.network import NETWORKS
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets
 
@@ -59,19 +56,6 @@ __all__ = [
 # value of a few dozen octets. `getrawtransaction` is the one answer here that
 # is not small, and it keeps the client's default.
 _MAX_SMALL_REPLY = 1024
-
-
-def _signet_magic(challenge: str) -> bytes:
-    """Return the p2p magic a signet's block challenge determines.
-
-    Core: the message start is the first four bytes of the sha256d of the
-    block script, serialized with its CompactSize length, taken in the
-    order the digest produces them -- which is the reverse of how this
-    library writes `magic_bytes`, hence the slice reversed here.
-    `tests/network_test.py` checks the default signet's own magic against
-    this same computation, from the challenge in Core's chainparams.
-    """
-    return hash256(var_bytes.serialize(challenge))[:4][::-1]
 
 
 class BitcoinCoreFetcher(Fetcher):
@@ -93,8 +77,17 @@ class BitcoinCoreFetcher(Fetcher):
     built and never used, and a node that is merely down should not be a
     failure to *construct* anything. The answer is then kept -- a node
     does not change chain under a client that goes on pointing at it --
-    and a caller that would rather not ask says `verify_network=False`,
-    which is what this class did before the option existed.
+    and a caller that would rather not ask says `verify_network=False`.
+
+    `signet_challenge` is which signet, for the one label that names more
+    than one chain: Core answers `signet` for the default signet and for
+    every custom one alike, so a fetcher on a signet of its own passes the
+    challenge and `assert_network` holds the node to it. Hex or the bytes
+    it spells, as `-signetchallenge` takes it. It is what a custom signet
+    needs from this class and the whole of it -- the addresses of one are
+    signet's, `NETWORKS` describing the encoding and not the chain -- so it
+    is refused with a network that is no signet, and refused with
+    `verify_network` off, either being a check that would not be made.
     """
 
     def __init__(
@@ -103,10 +96,27 @@ class BitcoinCoreFetcher(Fetcher):
         network: str = "mainnet",
         *,
         verify_network: bool = True,
+        signet_challenge: str | bytes | None = None,
     ) -> None:
         super().__init__(network)
+        if signet_challenge is not None:
+            if chain_from_network(self.network) != "signet":
+                err_msg = f"a signet_challenge for {self.network},"
+                err_msg += " which is no signet"
+                raise BTClibValueError(err_msg)
+            if not verify_network:
+                err_msg = "a signet_challenge is what verify_network"
+                err_msg += " compares, and checks nothing with it off"
+                raise BTClibValueError(err_msg)
+            # derived here and thrown away, so that a challenge that is no
+            # script fails at the line that wrote it rather than at the
+            # first fetch: what the check itself uses is the challenge, the
+            # comparison being of the node's derived magic against this one
+            with client_errors():
+                magic_from_signet_challenge(signet_challenge)
         self.client = client
         self.verify_network = verify_network
+        self.signet_challenge = signet_challenge
         self._agreed = False
         self._disagreement = ""
 
@@ -208,68 +218,26 @@ class BitcoinCoreFetcher(Fetcher):
         Signet is the case a name cannot settle: Core reports `signet` for
         the default one and for every custom one alike, so two nodes
         sharing nothing but the shape of a challenge answer the same
-        string. `signet_challenge` is what tells them apart, and the p2p
-        magic derived from it is compared with the network's own -- which
-        also checks a caller-registered custom signet, `NETWORKS` being a
-        dict a caller adds to, and issue #207 the reason they do.
+        string. The challenge is what tells them apart, and this fetcher's
+        is the constructor's `signet_challenge`, or the default signet with
+        none given.
 
-        A malformed reply is a `FetchError` naming the method. A
-        disagreement is a `BTClibValueError`: the node is the authority on
-        which chain it serves, so the fetcher's label is the thing to fix.
+        Both comparisons are the client's `assert_chain`, this method being
+        the translation into btclib's vocabulary and btclib's exceptions:
+        `chain_from_network` on the way in, `client_errors` on the way out.
+        The check itself belongs beside the protocol it reads, and lived
+        here only while `bitcoin_core_rpc` did not have it.
+
+        A malformed reply is a `FetchError`. A disagreement is a
+        `BTClibValueError`: the node is the authority on which chain it
+        serves, so the fetcher's label is the thing to fix.
         """
-        with fetch_errors("getblockchaininfo"):
-            info: Any = self._call("getblockchaininfo", None, max_body_size=None)
-            if not isinstance(info, Mapping):
-                err_msg = f"not a JSON object: {type(info).__name__}"
-                raise BTClibValueError(err_msg)
-            chain = info.get("chain")
-            if not isinstance(chain, str):
-                err_msg = f"no chain name in the reply: {chain!r}"
-                raise BTClibValueError(err_msg)
-            # None off signet, and the reason the comparison below is
-            # written against it rather than against the name a second
-            # time: what the node answered is read here, in one place,
-            # and what it is worth is decided there
-            node_magic: bytes | None = None
-            if chain == "signet":
-                challenge = info.get("signet_challenge")
-                if not isinstance(challenge, str):
-                    err_msg = f"no signet_challenge in the reply: {challenge!r}"
-                    raise BTClibValueError(err_msg)
-                node_magic = _signet_magic(challenge)
-
-        # outside the block above, so that a node that answered a
-        # well-formed disagreement is not reported as a failure to fetch
-        if node_magic is not None:
-            expected_magic = NETWORKS[self.network].magic_bytes
-            if node_magic != expected_magic:
-                # worded for both mismatches it catches: another signet,
-                # and a fetcher that is on no signet at all
-                err_msg = "the node is on a signet this fetcher is not:"
-                err_msg += f" its challenge derives magic {node_magic.hex()},"
-                err_msg += f" where {self.network} has {expected_magic.hex()}"
-                raise BTClibValueError(err_msg)
-            return
-        try:
-            expected_chain = chain_from_network(self.network)
-        except rpc.BtcRpcValueError as e:
-            # `BtcRpcValueError` and not btclib's `BTClibValueError`:
-            # `chain_from_network` is the package's function and raises
-            # the package's class, so catching btclib's here would let a
-            # name it does not know escape as something no caller of
-            # `assert_network` is told to expect. The two were spelled
-            # alike until the package renamed its own, and this line is
-            # why -- it read correct and was wrong.
-            #
-            # A Network the caller registered: its name is btclib's alone,
-            # so there is nothing to compare a chain name with, and only a
-            # signet carries an identity a node can be asked for
-            err_msg = f"the node is on {chain}, and {self.network} is no"
-            err_msg += " chain of Core's to compare that with: a custom"
-            err_msg += " network is identified by its challenge, so only a"
-            err_msg += " signet node can answer for one"
-            raise BTClibValueError(err_msg) from e
-        if chain != expected_chain:
-            err_msg = f"the node is on {chain}, this fetcher on"
-            err_msg += f" {self.network}, which is Core's {expected_chain}"
-            raise BTClibValueError(err_msg)
+        # every network of NETWORKS is a chain of Core's -- the catalogue is
+        # fixed at import and `tests/fetch/bitcoin_core_test.py` holds the
+        # two vocabularies to covering each other -- so the translation
+        # cannot fail for a name this fetcher was allowed to carry
+        with client_errors():
+            self.client.assert_chain(
+                chain_from_network(self.network),
+                signet_challenge=self.signet_challenge,
+            )

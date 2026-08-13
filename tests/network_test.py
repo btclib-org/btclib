@@ -5,15 +5,13 @@
 """Tests for the `btclib.network` module."""
 
 from dataclasses import fields
-from typing import get_args
+from typing import Any, get_args
 
 import pytest
 
-from btclib import var_bytes
 from btclib.alias import NetworkField, NetworkName
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.hashes import hash256
 from btclib.network import (
     NETWORKS,
     Network,
@@ -26,6 +24,7 @@ from btclib.network import (
     networks_from_key_value,
     networks_from_xkeyversion,
     xprvversions_from_network,
+    xpubversion_from_xprvversion,
     xpubversions_from_network,
 )
 from tests.conftest import JsonGolden
@@ -36,7 +35,6 @@ def test_bad_network() -> None:
     with pytest.raises(BTClibValueError, match="invalid genesis_block length: "):
         Network(
             curve=CURVES["secp256k1"],
-            magic_bytes="d9b4bef9",
             genesis_block="000000000019d6689c08",  # too short
             wif=b"\x80",
             p2pkh=b"\x00",
@@ -73,6 +71,36 @@ def test_curve_from_xkeyversion() -> None:
             assert net.network_type == network_type_from_xkeyversion(version)
 
 
+def test_the_xpub_version_paired_with_an_xprv_one() -> None:
+    """What neutering re-labels a key with: same network, same script type.
+
+    The pairing is by position within a network -- bip32_prv with
+    bip32_pub, and so on for the four SLIP132 pairs -- which is what
+    `xprvversions_from_network` and `xpubversions_from_network` spell out,
+    one network at a time. Four networks share testnet's versions, so a
+    shared xprv version answers with the shared xpub version, the same
+    bytes for all four.
+    """
+    for name in NETWORKS:
+        prv_versions = xprvversions_from_network(name)
+        pub_versions = xpubversions_from_network(name)
+        for prv, pub in zip(prv_versions, pub_versions, strict=True):
+            assert xpubversion_from_xprvversion(prv) == pub
+
+
+def test_only_an_xprv_version_has_a_paired_xpub_one() -> None:
+    """Keyed by the private versions, so a public one is not a key at all.
+
+    Which is the refusal that matters: `xpubversion_from_xprvversion` of
+    an xpub version would otherwise have to invent an answer for a key
+    that is already public, where neutering is what this serves.
+    """
+    with pytest.raises(BTClibValueError, match="unknown xprv version: 0x0488b21e"):
+        xpubversion_from_xprvversion(NETWORKS["mainnet"].bip32_pub)
+    with pytest.raises(BTClibValueError, match="unknown xprv version: 0xdeadbeef"):
+        xpubversion_from_xprvversion(bytes.fromhex("deadbeef"))
+
+
 def test_space_and_caps() -> None:
     """Verify network names are stripped and lowercased before lookup."""
     net = " MainNet "
@@ -88,6 +116,30 @@ def test_numbers_of_networks() -> None:
     assert len(NETWORKS) == 5
 
 
+def test_the_catalogue_is_read_only() -> None:
+    """Adding a network is refused, which is what the tables below rest on.
+
+    `networks_from_xkeyversion` and the two version sets are built once
+    from `NETWORKS`, so an entry added afterwards would be in the
+    catalogue and in none of them -- the disagreement issue 683 recorded,
+    where the scan found a registered network and the frozen lists did
+    not. A `Network` is an encoding table and every field of one is the
+    same for every deployment of that network, so there is nothing left
+    for a caller to register: a custom signet differs in its p2p magic,
+    which identifies a node and is `bitcoin_core_rpc`'s.
+    """
+    mutable: Any = NETWORKS
+    with pytest.raises(TypeError, match="does not support item assignment"):
+        mutable["custom-signet"] = NETWORKS["signet"]
+    with pytest.raises(AttributeError):
+        mutable.pop("signet")
+
+    # a mapping is what the library asks of it, and all of it
+    assert NETWORKS["mainnet"].hrp == "bc"
+    assert "mainnet" in NETWORKS
+    assert set(NETWORKS) == set(get_args(NetworkName))
+
+
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     """Round-trip every Network through its dict and golden json."""
     for network_name, net in NETWORKS.items():
@@ -96,43 +148,14 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
         json_golden(f"{network_name}.json", net.to_dict())
 
 
-# Bitcoin Core's default signet challenge, kernel/chainparams.cpp: a
-# 1-of-2 multisig, and the only input to the p2p magic below
-SIGNET_CHALLENGE = (
-    "512103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430"
-    "210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae"
-)
-
-
-def test_the_signet_magic_is_derived_and_not_copied() -> None:
-    """Signet's p2p magic is a function of its challenge, so compute it.
-
-    Core: "message start is defined as the first 4 bytes of the sha256d
-    of the block script", the script being serialized with its
-    CompactSize length, and the four bytes taken in the order the digest
-    produces them -- which is the reverse of how this library writes
-    magic_bytes, as the other four networks show.
-
-    Which is also the limitation to record: a *custom* signet has a
-    different challenge and therefore a different magic, so
-    NETWORKS["signet"] describes the default signet alone. Anything else
-    is a Network built by the caller, with this computation for the one
-    field that changes.
-    """
-    challenge = bytes.fromhex(SIGNET_CHALLENGE)
-    assert len(challenge) == 71
-    core_message_start = hash256(var_bytes.serialize(challenge))[:4]
-    assert core_message_start.hex() == "0a03cf40"
-    assert NETWORKS["signet"].magic_bytes == core_message_start[::-1]
-
-
-def test_the_test_networks_differ_from_testnet_in_two_fields() -> None:
-    """Signet and testnet4 reuse everything of testnet but chain identity.
+def test_the_test_networks_differ_from_testnet_in_the_genesis_block() -> None:
+    """Signet and testnet4 reuse everything of testnet but the chain.
 
     The wif, p2pkh, p2sh, hrp and bip32 version bytes are testnet's,
     which is the whole reason the reverse lookups have an ambiguity to
-    answer for; what a network of its own buys them is a genesis block
-    and a p2p magic.
+    answer for; what a network of its own buys them is a genesis block --
+    and, outside this table, a p2p magic, which identifies a *node* and
+    lives in `bitcoin_core_rpc` with the rest of what Core reports.
     """
     testnet = NETWORKS["testnet"].to_dict()
     for name in ("signet", "testnet4", "regtest"):
@@ -141,7 +164,7 @@ def test_the_test_networks_differ_from_testnet_in_two_fields() -> None:
             for key, value in NETWORKS[name].to_dict().items()
             if testnet[key] != value
         }
-        expected = {"magic_bytes", "genesis_block"}
+        expected = {"genesis_block"}
         if name == "regtest":
             expected.add("hrp")  # bcrt, where signet and testnet4 are tb
         assert differing == expected, name
@@ -157,8 +180,6 @@ def test_the_test_networks_differ_from_testnet_in_two_fields() -> None:
     # every network is a distinct chain, and the genesis block says so
     genesis = {net.genesis_block for net in NETWORKS.values()}
     assert len(genesis) == len(NETWORKS)
-    magics = {net.magic_bytes for net in NETWORKS.values()}
-    assert len(magics) == len(NETWORKS)
 
 
 # the prefix fields, i.e. every field a reverse lookup is asked about:
@@ -285,9 +306,10 @@ def test_network_type_from_network() -> None:
 def test_the_network_type_default_is_test() -> None:
     """A Network built without one is a test network, not the real chain.
 
-    Issue #207 filed this as the case that matters: a caller who needs a
-    custom signet builds a Network by hand, and a forgotten argument
-    must not let it claim to be mainnet.
+    `from_dict` is where it matters, a dict serialized before the field
+    existed having no `network_type` to read: the safe direction for what
+    is missing is "test", a forgotten field being no reason to claim the
+    real chain.
     """
     mainnet = NETWORKS["mainnet"].to_dict()
     del mainnet["network_type"]
