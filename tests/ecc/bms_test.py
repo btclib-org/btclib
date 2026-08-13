@@ -87,26 +87,21 @@ def test_signature() -> None:
 
     # malleated signature
     dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.ec.n - bms_sig.dsa_sig.s)
-    # without updating rf verification will fail, even with lower_s=False
+    # the recovery flag names which candidate the key is, and negating s
+    # mirrors the nonce's point: without updating rf the signature opens
+    # to a different key, hence to a different address
     bms_sig = bms.Sig(bms_sig.rf, dsa_sig)
     err_msg = "invalid p2pkh address: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr, bms_sig, lower_s=False)
+        bms.assert_as_valid(msg, addr, bms_sig)
     # update rf to satisfy above malleation
     i = 1 if bms_sig.rf % 2 else -1
     bms_sig = bms.Sig(bms_sig.rf + i, dsa_sig)
-    bms.assert_as_valid(msg, addr, bms_sig, lower_s=False)
-    assert bms.verify(msg, addr, bms_sig, lower_s=False)
-    # anyway, with lower_s=True malleation does fail verification
-    err_msg = "not a low s"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr, bms_sig, lower_s=True)
-    # and the same is true left to the default: assert_as_valid's and
-    # verify's lower_s both default to True, and every other call in
-    # this file passes the keyword explicitly
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, addr, bms_sig)
-    assert not bms.verify(msg, addr, bms_sig)
+    # and then it opens to the address, which is the whole answer: which
+    # form s took was the signer's choice, and Core's verifymessage
+    # accepts the high one too (issue 695)
+    bms.assert_as_valid(msg, addr, bms_sig)
+    assert bms.verify(msg, addr, bms_sig)
 
     # bms_sig taken from (Electrum and) Bitcoin Core
     wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
@@ -470,19 +465,14 @@ def test_msgsign_p2pkh() -> None:
     # malleate s
     s = ec.n - bms_sig1c.dsa_sig.s
     dsa_sig = dsa.Sig(bms_sig1c.dsa_sig.r, s, bms_sig1c.dsa_sig.ec)
-    # without updating rf verification will fail, even with lower_s=False
+    # without updating rf the signature opens to a different key
     bms_sig = bms.Sig(bms_sig1c.rf, dsa_sig)
-    assert not bms.verify(msg, add1c, bms_sig, lower_s=False)
+    assert not bms.verify(msg, add1c, bms_sig)
 
-    # update rf to satisfy above malleation
+    # update rf to satisfy above malleation, and it is accepted
     i = 1 if bms_sig1c.rf % 2 else -1
     bms_sig = bms.Sig(bms_sig1c.rf + i, dsa_sig)
-    assert bms.verify(msg, add1c, bms_sig, lower_s=False)
-
-    # anyway, with lower_s=True malleation does fail verification
-    err_msg = "not a low s"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, add1c, bms_sig, lower_s=True)
+    assert bms.verify(msg, add1c, bms_sig)
 
 
 def test_msgsign_p2pkh_2() -> None:
@@ -544,7 +534,7 @@ def test_verify_p2pkh() -> None:
     msg = b"test message"
     address = "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce"
     exp_sig = "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50="
-    assert bms.verify(msg, address, exp_sig, lower_s=False)
+    assert bms.verify(msg, address, exp_sig)
 
     msg = b"test message 2"
     assert not bms.verify(msg, address, exp_sig)
@@ -562,7 +552,7 @@ def test_verify_p2pkh() -> None:
     msg = b"testtest"
     address = "18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX"
     exp_sig = "IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc="
-    assert bms.verify(msg, address, exp_sig, lower_s=False)
+    assert bms.verify(msg, address, exp_sig)
 
     msg = b"testtest"
     address = "1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv"
@@ -709,11 +699,12 @@ def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     # Core/Electrum/btclib provide identical signature
     # they use "low-s" canonical signature
     assert bms_sig.dsa_sig.s < ec.n - bms_sig.dsa_sig.s
-    assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=True)
 
     # python-bitcoinlib provides a valid signature
-    # but does not respect low-s
-    assert bms.verify(msg, vector["address"], vector["signature"], lower_s=False)
+    # but does not respect low-s, and it is accepted all the same: this
+    # is the disagreement with Core's verifymessage that issue 645
+    # measured over all 200 of these vectors, and issue 695 settled
+    assert bms.verify(msg, vector["address"], vector["signature"])
 
     # python-bitcoinlib has a signature different from Core/Electrum/btclib
     assert bms_sig_encoded != vector["signature"]
@@ -725,9 +716,9 @@ def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     # properly malleated fixing also rf
     i = 1 if bms_sig.rf % 2 else -1
     bms_sig_malleated = bms.Sig(bms_sig.rf + i, dsa_sig)
-    assert bms.verify(msg, vector["address"], bms_sig_malleated, lower_s=False)
+    assert bms.verify(msg, vector["address"], bms_sig_malleated)
     bms_sig_encoded = bms_sig_malleated.b64encode()
-    assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=False)
+    assert bms.verify(msg, vector["address"], bms_sig_encoded)
 
     # the malleated signature is still not equal to the python-bitcoinlib one
     assert bms_sig_encoded != vector["signature"]
@@ -801,7 +792,7 @@ def test_ledger() -> None:
     # ECDSA signature verification of the patched dersig;
     # the xpub, verification taking public keys alone
     xpub = bip32.xpub_from_xprv(xprv)
-    dsa.assert_as_valid(magic_msg, xpub, dsa_sig, lower_s=True)
+    dsa.assert_as_valid(magic_msg, xpub, dsa_sig)
     assert dsa.verify(magic_msg, xpub, dsa_sig)
 
     # compressed address
@@ -825,10 +816,8 @@ def test_recover_pub_key_input_type() -> None:
 
     key_id = bms_sig.rf - 27 & 0b11
     magic_msg = magic_message(msg)
-    Q = dsa.recover_pub_key(
-        key_id, magic_msg, bms_sig.dsa_sig.serialize(), True, sha256
-    )
-    Q2 = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig, True, sha256)
+    Q = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig.serialize(), sha256)
+    Q2 = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig, sha256)
     assert Q == Q2
 
 
@@ -959,7 +948,10 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
 
         magic_msg = magic_message(msg)
         q = prv_keyinfo_from_prv_key(wif)[0]
-        dsa_sig = dsa.sign(magic_msg, q)
+        # grind=False is what `sign_recoverable` does and cannot do
+        # otherwise: a message signature is the fixed 65-byte compact form,
+        # where a low r saves no DER pad, so there is nothing to grind for
+        dsa_sig = dsa.sign(magic_msg, q, grind=False)
         assert bms_sig.dsa_sig == dsa_sig
         key_id = bms_sig.rf - 27 & 0b11
         assert key_id == _search_key_id(magic_msg, dsa_sig, q)

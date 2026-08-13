@@ -365,9 +365,7 @@ def _assert_p2wpkh_p2sh(addr: String, rf: int, pub_key: bytes, h160: bytes) -> N
         raise BTClibValueError(f"invalid p2wpkh-p2sh address: {addr!r}")
 
 
-def assert_as_valid(
-    msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True
-) -> None:
+def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     """Refuse a signature that does not open to the address.
 
     The public key is recovered from the signature under the magic
@@ -397,10 +395,10 @@ def assert_as_valid(
     # itself and 2.4 the r-congruence check of the Sig validation above
     if _libsecp256k1_applicable(secp256k1):
         pub_key = _libsecp256k1_recover_sec_(
-            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, lower_s, compressed
+            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed
         )
     else:
-        Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, lower_s, sha256)
+        Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, sha256)
         pub_key = bytes_from_point(Q, compressed=compressed)
 
     # the address says which of the three checks applies, and each of them
@@ -421,7 +419,7 @@ def assert_as_valid(
     _assert_p2wpkh_p2sh(addr, sig.rf, pub_key, h160)
 
 
-def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:
+def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
     """Verify address-based compact signature for the provided message."""
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
@@ -430,7 +428,7 @@ def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_as_valid(msg, addr, sig, lower_s)
+        assert_as_valid(msg, addr, sig)
     except (ValueError, BTClibRuntimeError):
         return False
 
