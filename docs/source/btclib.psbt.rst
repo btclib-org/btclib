@@ -46,6 +46,13 @@ btclib.psbt.psbt\_utils module
    :members:
    :show-inheritance:
 
+btclib.psbt.psbt\_view module
+-----------------------------
+
+.. automodule:: btclib.psbt.psbt_view
+   :members:
+   :show-inheritance:
+
 Module contents
 ---------------
 
