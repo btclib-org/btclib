@@ -6,8 +6,9 @@
 
 https://github.com/C2SP/wycheproof, which is where bitcoin-core/secp256k1
 takes the same two algorithms' vectors from; `tests/_data/README.md` pins
-the revision of each of the four files, and `WYCHEPROOF_COPYING` beside
-them is the Apache-2.0 licence they arrive under.
+the revision of every file read here, names the ones deliberately left
+out and why, and `WYCHEPROOF_COPYING` beside them is the Apache-2.0
+licence they arrive under.
 
 What they add to the BIP and RFC vectors already here is the adversarial
 half. Those are what a correct signer produces; these are what an
@@ -26,7 +27,7 @@ one of the other two: which way an `acceptable` case falls is a property
 of how strict a parser is, and pinning it here would make a legitimate
 loosening or tightening of one look like a regression.
 
-Two profiles of ECDSA, which is why two of the four files are the same
+Two profiles of ECDSA, which is why two of the files are the same
 algorithm over the same curve and hash. `EcdsaBitcoinVerify` is btclib's
 `lower_s=True` default and refuses the malleable high-s twin;
 `EcdsaVerify` is `lower_s=False` and accepts it. Their tcId 5 is the same
@@ -35,24 +36,33 @@ key and the same signature under both, `invalid` in the first file and
 of the two files whichever way it is wired -- which neither file could
 report on its own.
 
-Every vector runs twice, against the bindings and against the Python
-arithmetic underneath them. The bindings are the authority on the answer,
-Wycheproof is the authority on what the answer should be, and the second
-run is what puts the Python path -- which serves every other curve, hash
-and caller-supplied nonce, and which no ordinary secp256k1 call reaches
-any more -- in front of the same adversary.
+Four hash functions, for the same reason in a second direction. Bitcoin
+signs with sha256 and nothing else, so the sha512 and SHA3 files are not
+bitcoin signatures and are not here pretending to be: what they hold to
+account is the *generic* ECDSA `dsa.verify_` promises, and they are the
+only adversarial vectors that reach it. `_libsecp256k1_applicable`
+declines every hash but sha256, so those files land on the Python path
+by construction rather than by a patch -- the path `SECURITY.md`
+publishes as not constant-time, under an adversary for the first time.
+
+Which implementations answer is therefore read off the hash rather than
+asserted: `_paths` below. Under sha256 a vector runs twice, against the
+bindings and against the Python arithmetic underneath them -- the
+bindings being the authority on the answer, Wycheproof on what the
+answer should be. Under any other hash the bindings never answer at all,
+so it runs once.
 """
 
 from __future__ import annotations
 
-from hashlib import sha256
+from hashlib import sha3_256, sha3_512, sha256, sha512
 from io import BytesIO
 from types import ModuleType
 from typing import Any
 
 import pytest
 
-from btclib.alias import Point
+from btclib.alias import HashF, Point
 from btclib.curves import mult, point_from_octets, secp256k1
 from btclib.ecc import dh, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -61,7 +71,11 @@ from tests.curves.curve_test import no_bindings
 
 _ECDSA_BITCOIN = "ecdsa_secp256k1_sha256_bitcoin_test.json"
 _ECDSA = "ecdsa_secp256k1_sha256_test.json"
+_ECDSA_SHA512 = "ecdsa_secp256k1_sha512_test.json"
+_ECDSA_SHA3_256 = "ecdsa_secp256k1_sha3_256_test.json"
+_ECDSA_SHA3_512 = "ecdsa_secp256k1_sha3_512_test.json"
 _ECDSA_P1363 = "ecdsa_secp256k1_sha256_p1363_test.json"
+_ECDSA_SHA512_P1363 = "ecdsa_secp256k1_sha512_p1363_test.json"
 _ECDH = "ecdh_secp256k1_test.json"
 
 # the DER tags the SubjectPublicKeyInfo below is made of
@@ -174,37 +188,83 @@ def _point_from_spki(der: bytes) -> Point:
     return point_from_octets(key[1:], secp256k1)
 
 
-def _signature_vectors(fname: str, prefix: str, *extra: Any) -> list[Any]:
+def _digest(hf: HashF, data: bytes) -> bytes:
+    """Hash `data` once, through the two calls a `HashF` actually offers.
+
+    Not `hf(data)`, which is what hashlib allows and what the alias does
+    not: `HashF` is `Callable[[], HashObject]` on purpose, so that a
+    one-shot digest function cannot be passed where an updatable one is
+    meant. `hashlib.sha256` accepts the argument anyway, which is what
+    makes the distinction invisible until mypy is asked -- and a test
+    module reaching around a type the library states is a test of
+    something else.
+    """
+    hash_object = hf()
+    hash_object.update(data)
+    return hash_object.digest()
+
+
+def _paths(hf: HashF) -> list[bool]:
+    """Say which implementations answer a vector: both, or Python alone.
+
+    `_libsecp256k1_applicable` compares the hash function by identity and
+    admits sha256 alone, so under sha512 or SHA3 the bindings decline
+    before the dispatch is even reached. Running such a vector a second
+    time with the dispatch patched off would be the same Python
+    arithmetic twice, the first of the two named `bindings` and saying
+    what did not happen -- and a report whose ids are not true is worse
+    than a shorter one.
+    """
+    return [True, False] if hf is sha256 else [False]
+
+
+def _vector_id(prefix: str, test: dict[str, Any], *, bindings: bool) -> str:
+    """Name a case: which file, upstream's own numbering, which path.
+
+    `tcId` is unique within a file and is what a reader greps for in it;
+    the prefix is what keeps two files' tcId 5 apart. The path is part of
+    the name rather than a second `parametrize` because it is not a free
+    axis: `_paths` decides it per file.
+    """
+    path = "bindings" if bindings else "python"
+    return f"{prefix}-{vector_id(test['tcId'], test['comment'])}-{path}"
+
+
+def _signature_vectors(fname: str, prefix: str, hf: HashF, *extra: Any) -> list[Any]:
     """Flatten the groups of a verification file: a key, then a case.
 
     A Wycheproof group is a public key and the cases made against it, so
     the key is repeated into each parameter rather than the group being
     the unit of the test: what a failure has to name is the case.
-    `tcId` is upstream's own numbering of them, unique within the file
-    and what a reader greps for in it.
     """
     return [
         pytest.param(
             group["publicKey"]["uncompressed"],
             test,
             *extra,
-            id=f"{prefix}-{vector_id(test['tcId'], test['comment'])}",
+            hf,
+            bindings,
+            id=_vector_id(prefix, test, bindings=bindings),
         )
         for group in load("ecc", "_data", fname)["testGroups"]
         for test in group["tests"]
+        for bindings in _paths(hf)
     ]
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
 @pytest.mark.parametrize(
-    "key, vector, lower_s",
-    _signature_vectors(_ECDSA_BITCOIN, "bitcoin", True)
-    + _signature_vectors(_ECDSA, "ecdsa", False),
+    "key, vector, lower_s, hf, bindings",
+    _signature_vectors(_ECDSA_BITCOIN, "bitcoin", sha256, True)
+    + _signature_vectors(_ECDSA, "ecdsa", sha256, False)
+    + _signature_vectors(_ECDSA_SHA512, "sha512", sha512, False)
+    + _signature_vectors(_ECDSA_SHA3_256, "sha3-256", sha3_256, False)
+    + _signature_vectors(_ECDSA_SHA3_512, "sha3-512", sha3_512, False),
 )
 def test_ecdsa_der(
     key: str,
     vector: dict[str, Any],
     lower_s: bool,
+    hf: HashF,
     bindings: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -219,20 +279,30 @@ def test_ecdsa_der(
     is malformed is invalid, and the file's `InvalidEncoding`,
     `BerEncodedSignature` and `MissingZero` cases are all of them cases
     where nothing but the encoding is wrong.
+
+    `hf` is the file's own, and it reaches `challenge_` as well as the
+    message: a digest wider than the order is truncated to the leftmost
+    `nlen` bits there, which is what the sha512 and SHA3-512 files
+    exercise and what the sha256 ones cannot.
     """
     if not bindings:
         _python_path(monkeypatch, dsa)
 
-    msg_hash = sha256(bytes.fromhex(vector["msg"])).digest()
-    verified = dsa.verify_(msg_hash, key, bytes.fromhex(vector["sig"]), lower_s)
+    msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
+    sig = bytes.fromhex(vector["sig"])
+    verified = dsa.verify_(msg_hash, key, sig, lower_s, hf)
     assert verified == (vector["result"] == "valid")
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
-@pytest.mark.parametrize("key, vector", _signature_vectors(_ECDSA_P1363, "p1363"))
+@pytest.mark.parametrize(
+    "key, vector, hf, bindings",
+    _signature_vectors(_ECDSA_P1363, "p1363", sha256)
+    + _signature_vectors(_ECDSA_SHA512_P1363, "p1363-sha512", sha512),
+)
 def test_ecdsa_p1363(
     key: str,
     vector: dict[str, Any],
+    hf: HashF,
     bindings: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -246,8 +316,12 @@ def test_ecdsa_p1363(
     `RangeCheck` and `InvalidSignature` cases are r and s at 0, at n, and
     at n plus a valid value, none of which any DER framing can hide.
 
-    `lower_s=False`, this file having no bitcoin profile: its tcId 1 is
-    the malleable high-s signature and is `valid`.
+    `lower_s=False` for both files, neither having a bitcoin profile: the
+    sha256 one's tcId 1 is the malleable high-s signature and is `valid`.
+
+    The size rule is the encoding's and not the hash's, so it is `n_size`
+    twice over under sha512 as under sha256: P1363 pads each of r and s
+    to the width of the order, which no wider digest changes.
     """
     if not bindings:
         _python_path(monkeypatch, dsa)
@@ -266,19 +340,19 @@ def test_ecdsa_p1363(
         assert vector["result"] != "valid"
         return
 
-    msg_hash = sha256(bytes.fromhex(vector["msg"])).digest()
-    assert dsa.verify_(msg_hash, key, sig, lower_s=False) == (
-        vector["result"] == "valid"
-    )
+    msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
+    assert dsa.verify_(msg_hash, key, sig, False, hf) == (vector["result"] == "valid")
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
 @pytest.mark.parametrize(
-    "vector",
+    "vector, bindings",
     [
-        pytest.param(test, id=vector_id(test["tcId"], test["comment"]))
+        pytest.param(test, bindings, id=_vector_id("ecdh", test, bindings=bindings))
         for group in load("ecc", "_data", _ECDH)["testGroups"]
         for test in group["tests"]
+        # sha256, so both: the KDF below is SEC 1's over sha256 and the
+        # agreement itself is a multiplication the bindings do answer
+        for bindings in _paths(sha256)
     ],
 )
 def test_ecdh(
