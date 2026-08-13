@@ -163,9 +163,24 @@ documented at release-notes length in the first place, and are still in
   `btclib.bip32` is the shape to copy, `derive` validating and `_derive`
   not, with `_key_data_from_bip32_key` the one place a `BIP32Key` becomes a
   validated `BIP32KeyData` and `descriptors` composing the twins directly.
-  And that a leading underscore therefore says a second thing here, beside
-  what `__all__` decides about publicity: the twin does not validate, and
-  calling it asserts that its caller did.
+  And that the leading underscore those twins carry means what it means
+  anywhere in Python: private, `__all__` deciding publicity, so that an
+  unvalidating twin belongs on the private side of that list and calling
+  one asserts that its caller validated.
+
+  **Both underscore conventions, each with what it means** (#711). The two
+  spellings are different things, and the section named only one of them: a
+  *trailing* underscore is public -- `dsa.sign_`, `musig2.nonce_gen_` and
+  `musig2.partial_sig_verify_` are all in their module's `__all__` -- and
+  marks the spelling whose input the caller has already prepared, not one
+  that skips the validation. `btclib.ecc.dsa._assert_as_valid_` carries
+  both underscores, which is what shows the conventions to be independent.
+  Publishing both names of a pair is then what makes their agreement a
+  promise: a keyword added to `verify` goes on `verify_` too, with the same
+  default, the prepared argument being the one difference the pair exists
+  for. Left unsaid, the wording invited exactly the mistake #695's first
+  design made, giving the trailing-underscore spellings a default their
+  plain siblings did not have.
 
   The exception is named rather than passed over, because a reader finding
   a class that asks nothing needs to know which kind it is: where a
