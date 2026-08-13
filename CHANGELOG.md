@@ -1552,9 +1552,41 @@ documented at release-notes length in the first place, and are still in
   Strauss-Shamir sum inside `_jac_double_mult` land on infinity.
 
   BIP340 gains nothing here: Wycheproof publishes no Schnorr vectors for
-  secp256k1. The sha512, sha3 and shake variants of ECDSA are left for
-  later -- `dsa.sign` and `dsa.verify` take any hash function, so they are
-  a further file each and not a further question.
+  secp256k1.
+- **Wycheproof's sha512 and SHA3 files follow, and reach the Python path
+  without a patch** (#706). `dsa.verify_` takes any hash function, so
+  these are the same call with a different `hf`: sha512, SHA3-256 and
+  SHA3-512 in DER, and sha512 in P1363. None of them is a bitcoin
+  signature -- bitcoin signs with sha256 and nothing else -- and that is
+  the point of taking them: what they hold to account is the generic
+  ECDSA the API promises, and they are the only adversarial vectors that
+  reach it.
+
+  `_libsecp256k1_applicable` compares the hash by identity and admits
+  sha256 alone, so every one of these lands on the Python arithmetic by
+  construction rather than by patching the dispatch off -- the path
+  `SECURITY.md` publishes as not constant-time, under an adversary for
+  the first time. Which is also why they run once where the sha256 files
+  run twice: a second run named `bindings` would be the same Python
+  arithmetic under a name saying what did not happen, and `_paths` in
+  the test module reads that off the hash instead of asserting it. The
+  wide digests are the other half: `challenge_` truncates to the
+  leftmost `nlen` bits, which sha256 vectors cannot exercise at all.
+
+  Two sets were measured and deliberately left out, each with an entry in
+  `tests/_data/README.md` saying so -- "not taken" and "not noticed" look
+  the same in a directory listing otherwise.
+  `ecdh_secp256k1_webcrypto_test.json` is the ECDH file already vendored,
+  re-encoded as JWK: its valid cases yield 468 distinct shared secrets and
+  all 468 are that file's, its invalid classes a strict subset, so it
+  would add a base64url reader and no arithmetic. The four SHAKE files are
+  blocked on a type rather than on their data: an XOF has no fixed output,
+  so `hashlib.shake_128` fails `alias.HashObject` under mypy and, at run
+  time, makes `challenge_` demand a zero-length message hash -- which
+  `verify_` catches and reports as `False`, so every valid vector would
+  read as a bad signature rather than as an unsupported hash. Whether
+  `HashF` should admit an XOF is a public-surface question and is left
+  open.
 
 ## v2026.8.9
 

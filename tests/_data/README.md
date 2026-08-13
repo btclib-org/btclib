@@ -121,7 +121,7 @@ what their `pulled` says: the eight BIP327 files, the three Core files
 and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
-two BIP322 files on 2026-08-08, and the four Wycheproof files with the
+two BIP322 files on 2026-08-08, and the seven Wycheproof files with the
 licence beside them on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
@@ -1324,19 +1324,22 @@ regenerates each of the four mnemonics word for word from the master
 secret. The other 11 are recovery only, a 2-of-3 share being random by
 construction.
 
-### C2SP/wycheproof: four files under `tests/ecc/_data/`
+### C2SP/wycheproof: eight files under `tests/ecc/_data/`
 
 The adversarial vectors, and the one upstream here published under a
 licence that is not MIT: Apache-2.0, whose condition on redistribution
-is a copy of the licence, so `WYCHEPROOF_COPYING` is vendored beside the
-four and has its own entry below. There is no `NOTICE` file at the pin
+is a copy of the licence, so `WYCHEPROOF_COPYING` is vendored beside
+them and has its own entry below. There is no `NOTICE` file at the pin
 to carry with it.
 
-All four are pinned to the same commit, `5722833c` of 2026-08-11, and
-all four live in `testvectors_v1/`. Not `testvectors/`, which upstream
-removed on 2025-09-02 and which no refresh can reach again. They are
-read by `tests/ecc/wycheproof_test.py`, which is also where the split
-between the two ECDSA profiles is explained.
+All are pinned to the same commit, `5722833c` of 2026-08-11, and all
+live in `testvectors_v1/`. Not `testvectors/`, which upstream removed
+on 2025-09-02 and which no refresh can reach again. They are read by
+`tests/ecc/wycheproof_test.py`, which is also where the split between
+the two ECDSA profiles is explained, and where the sha512 and SHA3
+files' one difference from the rest is: `_libsecp256k1_applicable`
+admits sha256 alone, so those reach the Python arithmetic without the
+dispatch being patched off, and are run once rather than twice.
 
 `ecdsa_secp256k1_sha256_bitcoin_test.json` is the one file of the four
 with no schema in upstream's `schemas/`, its own README listing it among
@@ -1388,6 +1391,65 @@ behind  0 revisions; that commit is the tip of the path
 Verdict: **identical**. IEEE P1363 encoding, raw `r` and `s` side by
 side, which reaches `Sig` with no DER in front of it.
 
+### `tests/ecc/_data/ecdsa_secp256k1_sha512_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha512_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    612e1912bfb5e523fbe8183e0d12f468e8309a08
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. A digest wider than the order, so `challenge_`'s
+truncation to the leftmost `nlen` bits is under adversarial input here
+and nowhere else.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha3_256_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha3_256_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    5c6c5901f4d41af8a992cafc4aa31b6bc7b87163
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. A Keccak digest of the order's own width, which
+is the pair to the file above: same width as sha256, different function,
+so what it varies is the dispatch and not the arithmetic.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha3_512_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha3_512_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    2a5770e00be1c4d1218b79e8a805f52a0a1c7f26
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Wide digest and Keccak both, the fourth corner
+of the two the files above vary one at a time.
+
+### `tests/ecc/_data/ecdsa_secp256k1_sha512_p1363_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdsa_secp256k1_sha512_p1363_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    089040205b9d99313d284154cdcdc646079d1d43
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. The wide digest without DER around it, which is
+what says the P1363 size rule is the encoding's and not the hash's: r
+and s stay `n_size` each while the message hash doubles.
+
 ### `tests/ecc/_data/ecdh_secp256k1_test.json`
 
 ```text
@@ -1428,6 +1490,51 @@ which is false, the BIP and rustyrussell files beside it having their
 own terms and btclib's own `LICENSE` being at the root. The upstream
 name is in the entry above instead, where the pin already is. It is the
 name bitcoin-core/secp256k1 gives its copy for the same reason.
+
+### Not vendored: `ecdh_secp256k1_webcrypto_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdh_secp256k1_webcrypto_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+pulled  never
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **not vendored, measured to be a re-encoding**. It is the same
+agreement as `ecdh_secp256k1_test.json` above with the keys written as
+JWK -- `crv: "P-256K"`, base64url `x`, `y` and `d` -- rather than as
+X.509. Its valid cases yield 468 distinct shared secrets, and all 468
+are exactly that file's; its invalid cases are a strict subset of that
+file's classes, JWK having no ASN.1 for `InvalidAsn` or
+`InvalidEncoding` to attack.
+
+So what it would add is a base64url and JWK reader under `tests/`, and
+no arithmetic btclib does not already answer for. Recorded here rather
+than left silent because "we did not take it" and "we did not notice
+it" look the same in a directory listing, and a later refresh would
+otherwise have to measure this again.
+
+### Not vendored: the four SHAKE files
+
+`ecdsa_secp256k1_shake128_test.json`,
+`ecdsa_secp256k1_shake128_p1363_test.json`,
+`ecdsa_secp256k1_shake256_test.json` and
+`ecdsa_secp256k1_shake256_p1363_test.json`, at the same pin.
+
+Verdict: **not vendored, blocked on the type rather than on the data**.
+`hashlib.shake_128` is not a `HashF`: an XOF has no fixed output, so
+`digest_size` reads 0 and `digest()` takes the length as an argument,
+which `alias.HashObject.digest()` does not declare -- mypy refuses the
+assignment, and at run time `challenge_` asks
+`bytes_from_octets(msg_hash, 0)` and rejects every message hash. The
+failure is quiet where it matters most: `verify_` catches that
+`ValueError` and answers `False`, so every `valid` vector of those files
+would read as a bad signature rather than as an unsupported hash.
+
+Whether `HashF` should admit an XOF is a public-surface question, and
+answering it inside a test module would answer it in the one place
+`btclib/alias.py` cannot see. Left to the issue that raised it.
 
 ## Chain data, not a repository
 
@@ -1742,8 +1849,8 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, the eight BIP327 vector files, and the four
-  Wycheproof vector files.
+  `bip39_test_vectors.json`, the eight BIP327 vector files, and the
+  seven Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv` and the
@@ -1767,6 +1874,9 @@ No upstream blob exists for the rest:
 - response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
+- deliberately not vendored, each with an entry saying why it was
+  measured and left: Wycheproof's `ecdh_secp256k1_webcrypto_test.json`
+  and its four SHAKE files.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt` and
   `btclib_test_vectors.json` (btclib's own). The last is the only one
