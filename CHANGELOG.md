@@ -192,6 +192,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The bindings are required from their `main` rather than from a
+  release**, which is what `bitcoin-core-rpc` already was: a direct
+  reference to `btclib-org/btclib-secp256k1@main` in place of
+  `btclib_secp256k1>=0.8.0`, with `uv.lock` pinning the commit and moving
+  when that branch does. They exist for this library, so what a branch
+  here needs of them lands there first and then waits for a release of
+  another repository to be callable at all — `keys.PubkeyTweakChain`,
+  written for issue #685, is in `main` and in no release.
+
+  Three things it costs. Every environment builds libsecp256k1 from source
+  where a published wheel used to be resolved: cmake and cffi come from
+  the bindings' own `[build-system] requires`, a C toolchain is the
+  machine's, and a cold `uv pip install --no-cache` of the reference takes
+  about ten seconds on an arm64 laptop, the submodule fetch included. The
+  test matrix stops selecting a different published wheel per cell and
+  compiles one instead, so whether the published wheels install and answer
+  correctly is `published.yml`'s question and now only its. And PyPI
+  refuses a direct reference in metadata, so a release has to write a
+  floor back over each of the two — nothing before the upload catches it,
+  which RELEASING.md's step 1 now says.
 - **Their repository is renamed with them**, to
   `btclib-org/btclib-secp256k1`, so the urls naming it here move: the
   issue templates, `README.md`, `SECURITY.md`'s advisory link, and the

@@ -61,14 +61,19 @@ concurrency:
 
 jobs:
   # what the matrix buys: every (os, architecture, interpreter) triple
-  # selects a different published wheel of btclib_secp256k1, each with
-  # its own compiled libsecp256k1 inside, and the pure Python code meets a
-  # distinct hashlib and OpenSSL.
+  # builds btclib_secp256k1 from the commit uv.lock pins -- pyproject.toml
+  # asks for that repository's main through a direct reference -- so each
+  # cell compiles its own libsecp256k1 with the toolchain of its runner,
+  # and the pure Python code meets a distinct hashlib and OpenSSL. What
+  # the same triples used to buy was a different *published* wheel per
+  # cell; that question is published.yml's now, which installs btclib from
+  # the index and resolves the wheels a user gets, and it is the one this
+  # matrix stopped asking when the direct reference went in.
   # windows-11-arm needs no special handling, and that is worth a word:
   # which architecture the interpreter targets there is up to the runner
   # image, native arm64 for the versions it caches and emulated x86-64
-  # for the ones uv has to download, and the wheel is selected for the
-  # interpreter rather than for the host, so either one links
+  # for the ones uv has to download, and cffi builds for the interpreter
+  # rather than for the host, so either one links
   suite:
     name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     # a draft pull request is work in progress: every push to one spends
@@ -250,18 +255,23 @@ jobs:
       # what none of the three above does: install the wheel, and install
       # it alone, from an empty directory. The wheel is the only thing
       # asked for, so what pulls btclib_secp256k1 in is the
-      # `Requires-Dist` the wheel itself carries, resolved from the index
-      # -- which is the question, metadata being what the three checks
-      # above only read.
+      # `Requires-Dist` the wheel itself carries -- which is the question,
+      # metadata being what the three checks above only read. That
+      # requirement is a direct reference while pyproject.toml says so, so
+      # what answers it is the bindings' repository rather than the index,
+      # and the bindings are built from source here; the metadata is doing
+      # the same work either way, and does it against the index again once
+      # a release replaces the reference with a floor.
       # The lock arrives as constraints and not as requirements: a
       # requirements file installs the bindings whether or not the wheel
       # asks for them, so a wheel declaring nothing would pass. A
-      # constraint binds a version and requests no package, which leaves
+      # constraint pins and requests no package, which leaves
       # the wheel's metadata doing the work while pinning the outcome to
-      # what uv.lock resolved -- and pinning it is what keeps a required
-      # check deterministic, since with `>=0.7.1` alone uv takes the
-      # newest release and a btclib_secp256k1 published this morning
-      # would redden every open pull request, none of which caused it.
+      # what uv.lock resolved -- the commit, for a direct reference -- and
+      # pinning it is what keeps a required check deterministic, since
+      # unpinned uv takes whatever the branch is at, and a commit pushed
+      # this morning would redden every open pull request, none of which
+      # caused it.
       # Whether the newest bindings still work is asked on a schedule by
       # latest.yml, and again by the release workflow before it publishes.
       # The assertions are three, because each catches what the others
@@ -273,7 +283,7 @@ jobs:
       # binding, so the bindings could be missing entirely; and a
       # signature is verified because an installable release of them with
       # an incompatible API imports fine and answers wrongly
-      - name: Smoke-test the wheel, with its dependencies from PyPI
+      - name: Smoke-test the wheel, with the dependencies its metadata asks for
         run: |
           uv export --locked --no-dev --no-emit-project --no-hashes \
             -o "$RUNNER_TEMP"/constraints.txt
