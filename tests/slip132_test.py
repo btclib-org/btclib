@@ -75,6 +75,29 @@ def test_slip132() -> None:
         slip132.p2wpkh_xkey(xprv)
 
 
+def test_an_already_built_key_is_validated_too() -> None:
+    """`address_from_xpub` and `_helper_checks` (rule of #684).
+
+    A string went through `BIP32KeyData.b58decode`, which validates by
+    default; an already-built `BIP32KeyData` was trusted as it stood,
+    unlike the four `to_prv_key`/`to_pub_key`/`bip32` functions the same
+    census names as compliant.
+    """
+    xpub = "xpub6C6uNUWrxKLNyNLy6CJgx2SkUvx7yynLVrZ79zrCseWHyGKtj8sUGZUq3dw9fqJGETSEeX1iztXAfRvxh6Gk2m7yVjDCx5cbRP2So559Hb5"
+    good = bip32.BIP32KeyData.b58decode(xpub)
+    assert slip132.address_from_xpub(good) == slip132.address_from_xpub(xpub)
+
+    bad = bip32.BIP32KeyData.b58decode(xpub)
+    bad.index = -1
+    err_msg = "invalid index: -1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        slip132.address_from_xpub(bad)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        slip132.p2pkh_xkey(bad)
+
+
 def test_slip132_test_vectors() -> None:
     """SLIP132 test vector.
 
