@@ -9,7 +9,7 @@ from __future__ import annotations
 import contextlib
 
 from btclib.alias import Point
-from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import (
     Curve,
     bytes_from_point,
@@ -53,10 +53,7 @@ Key = int | bytes | str | BIP32KeyData | Point
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     """Return an elliptic curve point tuple from a xpub key."""
-    if isinstance(xpub, BIP32KeyData):
-        xpub.assert_valid()
-    else:
-        xpub = BIP32KeyData.b58decode(xpub)
+    xpub = _key_data_from_bip32_key(xpub)
 
     if xpub.is_private:
         # never echo the key, which is private here:
@@ -130,10 +127,7 @@ def _pub_keyinfo_from_xpub(
     if not compressed:
         raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
-    if isinstance(xpub, BIP32KeyData):
-        xpub.assert_valid()
-    else:
-        xpub = BIP32KeyData.b58decode(xpub)
+    xpub = _key_data_from_bip32_key(xpub)
 
     if xpub.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,

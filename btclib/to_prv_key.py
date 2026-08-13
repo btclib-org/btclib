@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from btclib.alias import String
 from btclib.base58 import decode as b58decode
-from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import Curve, secp256k1
 from btclib.exceptions import (
     BTClibValueError,
@@ -219,13 +219,13 @@ def _prv_keyinfo_from_xprv(
     """
     if isinstance(xprv, BIP32KeyData):
         # the caller has already committed to the format by building one
-        xprv.assert_valid()
+        xprv = _key_data_from_bip32_key(xprv)
     else:
         # base58, 78 bytes, and a known xkey version or not: a negative
         # answer leaves the input free to be octets or an int, so it is
         # NotAPrvKeyError, carrying the reason rather than discarding it
         try:
-            xprv = BIP32KeyData.b58decode(xprv)
+            xprv = _key_data_from_bip32_key(xprv)
         except ValueError as e:
             raise NotAPrvKeyError(f"not a BIP32 xkey ({e})") from e
 

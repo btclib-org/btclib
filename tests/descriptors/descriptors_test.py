@@ -40,7 +40,7 @@ from hypothesis import strategies as st
 
 from btclib.alias import BIP44ScriptType, Octets
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.bip32.bip32 import derive, xpub_from_xprv
+from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.der_path import _HARDENING
 from btclib.bip44 import SCRIPT_TYPE_FROM_PURPOSE
 from btclib.descriptors import (
@@ -2943,6 +2943,25 @@ def test_an_account_descriptor_needs_a_fingerprint_it_cannot_compute() -> None:
     ) == (str(computed[0]))
     with pytest.raises(BTClibValueError, match="is not the key's own"):
         account_descriptors(XPRV_ROOT, "m/84h/0h/0h", "deadbeef")
+
+
+def test_account_descriptors_validates_an_already_built_key_too() -> None:
+    """The rule of #684: an object is validated as a string is.
+
+    A string went through `BIP32KeyData.b58decode`, which validates by
+    default; an already-built `BIP32KeyData` was trusted as it stood.
+    """
+    good = BIP32KeyData.b58decode(XPRV_ROOT)
+    receive, _ = account_descriptors(good, "m/84h/0h/0h")
+    assert str(receive) == str(account_descriptors(XPRV_ROOT, "m/84h/0h/0h")[0])
+
+    bad = BIP32KeyData.b58decode(XPRV_ROOT)
+    bad.index = -1
+    err_msg = "invalid index: -1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        account_descriptors(bad, "m/84h/0h/0h")
 
 
 def test_an_account_descriptor_holds_a_bip32_version() -> None:

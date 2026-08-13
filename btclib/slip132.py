@@ -15,7 +15,13 @@ from typing import Any
 
 from btclib import b32, b58
 from btclib.alias import NetworkField
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    _key_data_from_bip32_key,
+    derive,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import DerPath
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
@@ -51,8 +57,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     The address is always derived from the compressed public key, as
     this is the default public key representation in BIP32.
     """
-    if not isinstance(xpub, BIP32KeyData):
-        xpub = BIP32KeyData.b58decode(xpub)
+    xpub = _key_data_from_bip32_key(xpub)
 
     if xpub.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,
@@ -83,8 +88,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
 def _helper_checks(
     xkey: BIP32Key, check_root_xkey: bool
 ) -> tuple[BIP32KeyData, Network]:
-    if not isinstance(xkey, BIP32KeyData):
-        xkey = BIP32KeyData.b58decode(xkey)
+    xkey = _key_data_from_bip32_key(xkey)
     if check_root_xkey and not xkey.is_root:
         # xkey may be an xprv: never echo it; depth and
         # parent fingerprint are the non-root, non-secret, parts

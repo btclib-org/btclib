@@ -50,6 +50,7 @@ from btclib.alias import BIP44ScriptType, Octets, String
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
+    _key_data_from_bip32_key,
     derive,
     derive_from_account,
 )
@@ -258,8 +259,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         der_path: DerPath = _DEFAULT_ACCOUNT,
         script_type: BIP44ScriptType | None = None,
     ) -> None:
-        if not isinstance(xkey, BIP32KeyData):
-            xkey = BIP32KeyData.b58decode(xkey)
+        xkey = _key_data_from_bip32_key(xkey)
 
         indexes = indexes_from_der_path(der_path)
         if len(indexes) != _ACCOUNT_LEVELS:

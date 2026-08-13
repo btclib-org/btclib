@@ -759,6 +759,21 @@ documented at release-notes length in the first place, and are still in
   `encode_to_bip32_derivs` then wrote `master_fingerprint.hex()` of whatever
   it held into the json. `assert_valid_hd_key_paths`, the validating
   counterpart, was already sitting beside both.
+- **`slip132`'s two public entries validate an already-built key too**
+  (#684). `address_from_xpub` and the `_helper_checks` behind the three
+  `*_xkey` functions checked a string by decoding it -- which validates by
+  default -- and trusted an already-built `BIP32KeyData` as it stood. Both
+  now go through `_key_data_from_bip32_key`, the one place either spelling
+  becomes a validated key.
+- **Three hand-rolled copies of that same validate-or-decode step, gone**
+  (#684). `to_pub_key._point_from_xpub`, `to_pub_key._pub_keyinfo_from_xpub`
+  and `to_prv_key._prv_keyinfo_from_xprv` each repeated the isinstance
+  check, the `assert_valid` and the `b58decode` that
+  `_key_data_from_bip32_key` already is -- validating an object correctly,
+  three times over, rather than composing the one place that does it. All
+  three now call it; `_prv_keyinfo_from_xprv` keeps its own remapping of a
+  decode failure to `NotAPrvKeyError` around the call, that being this
+  caller's decision and not the shared function's to make.
 
 - **Batch verification validates every signature it is handed** (#688).
   `ssa.batch_verify_` answered `True` for a signature `ssa.verify_` answers
@@ -1321,6 +1336,12 @@ documented at release-notes length in the first place, and are still in
   exists to be believed about a list of addresses somebody wrote down
   (#596). One helper and not three copies, for the reason `_script_from`
   gives about itself.
+- **`account_descriptors` validates an already-built key too** (#684). A
+  string went through `BIP32KeyData.b58decode`, which validates by
+  default; an already-built `BIP32KeyData` was trusted as it stood, its
+  depth and version read before anything asked whether it was a valid
+  key. It now goes through `_key_data_from_bip32_key`, the one place
+  either spelling becomes one.
 
 - **`at_index()` and `normalized()` reach the keys inside a miniscript**
   (#592). `_mapped_keys` is the one walk both are written in terms of,
@@ -1432,6 +1453,15 @@ documented at release-notes length in the first place, and are still in
   cost and a different algorithm.
 
 ### Wallets
+
+- **`BIP32KeyWallet` and `KeyGroup` validate an already-built key too**
+  (#684). Both took a `BIP32Key`: a string went through
+  `BIP32KeyData.b58decode`, which validates by default, and an
+  already-built `BIP32KeyData` was trusted as it stood -- read for its
+  depth and index, or mapped straight into the group's `keys`, before
+  anything asked whether it was one. Both now go through
+  `_key_data_from_bip32_key`, the one place either spelling becomes a
+  validated key.
 
 - **The private BIP32 functions validate nothing, which is what their
   leading underscore says.** `derive(xpub, "m/0/1")` validated the same
