@@ -192,6 +192,86 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **A tag is refused unless the default branch contains its commit**
+  (#650). Every other check in `version-check` reads the tree the tag
+  names and none asked where that tree came from, so a tag pushed from a
+  stale worktree, from a branch whose pull request is still open, or from
+  the pre-squash commit of one that landed -- which the squash leaves on
+  no branch at all -- would have published code no review approved and
+  `main` does not contain. `git merge-base --is-ancestor` against
+  `github.event.repository.default_branch` is the whole of it, before the
+  version comparison and long before anything is built; the checkout of
+  that job takes `fetch-depth: 0`, where every other checkout in these
+  workflows takes the default single commit, because otherwise there is no
+  ancestry to answer with and no `origin/<default branch>` to answer
+  against. Release-only, like the two checks beside it: a rehearsal is
+  dispatched from a branch on purpose. It is issue #574's failure mode one
+  pipeline over -- a build running something unreachable from where it is
+  supposed to be -- and `embit`'s `release.yml` guards it the same way.
+- **What the distribution files contain is checked against an allowlist**
+  (#649). `twine check --strict`, `check-wheel-contents` and `pyroma --min
+  10` all read metadata; nothing read the members, and the members are
+  what a user installs. `.github/scripts/verify_dist_contents.py` holds
+  the allowlist, and the `dist` job of `test.yml` runs it on every pull
+  request while the `build` job of `release.yml` runs it on the files it
+  is about to publish -- the same command on two trees, which in a
+  rehearsal are two versions. Three questions, and the asymmetry between
+  the two archives is the substance of it. The wheel gets a strict
+  allowlist, being what lands on `sys.path`: Python source under
+  `btclib/`, `py.typed`, whatever sits in a `_data/` directory, and the
+  `.dist-info` metadata setuptools writes -- so a `.pth` file, a stray
+  top-level module, a bundled shared object and an `entry_points.txt`
+  nothing declared are one rule and not four. The sdist gets a structural
+  check instead of an extension allowlist, because MANIFEST.in already is
+  one and a second copy here would be an edit per vendored vector while
+  catching nothing that file lets through; what it adds is what MANIFEST.in
+  cannot say -- that every member is under the archive's own root, that
+  every member is a regular file or a directory (a tar can carry a symlink,
+  a hardlink or a device node, where a zip cannot), that no directory holds
+  another distribution's metadata, and which files may sit at the root,
+  where `include *.md` and `include *.yaml` ship whatever lands beside
+  them. And the completeness half, which needs nothing kept in step:
+  `uv build` builds the sdist and then the wheel from it, so the two carry
+  one `btclib/` payload and the check is that they do, member by member,
+  with no list of names to maintain here. Measured on a real build: the
+  two sets are equal today, in both directions.
+  A data file in the tree and not in the wheel is #393, so
+  check-manifest gates the tree against the sdist, this gates the sdist
+  against the wheel, and #393's own smoke test gates what PyPI serves.
+  `py.typed` is required by name because PEP 561 makes its absence silent.
+  Every offending member is reported rather than the first. A policy
+  document beside the script was the alternative, as `embit` has, and the
+  allowlist is in the script instead: two copies of a list are one that
+  can be wrong.
+- **Each release carries a CycloneDX bill of materials** (#648),
+  `btclib-<version>.cdx.json`, attached to the GitHub release beside the
+  distribution files and covered by the same attestation -- a bill of
+  materials whose provenance nobody can check says only what whoever wrote
+  it wanted said, which is the gap #557 closed for the other assets.
+  `.github/scripts/generate_sbom.py` writes it from the *built wheel* and
+  not from pyproject.toml: the two agree on a release and not in a
+  rehearsal, where the version carries a `.dev<run number>` the build job
+  patched in, and the document has to describe the files beside it. Which
+  also decides what it can say about a dependency -- the requirement as
+  published, so a component gets a `version` where that requirement is a
+  `==` pin and none where it is a floor, a resolution recorded here being
+  a claim the wheel does not make. It is reproducible like the files it
+  describes: `SOURCE_DATE_EPOCH` is the timestamp and a UUID5 over the purl
+  and the two digests is the serial number, so a rebuild of the tag writes
+  the same bytes and RELEASING.md's rebuild command verifies it with a
+  third `gh attestation verify`. Validated once against the published
+  CycloneDX 1.6 schema and its two `$ref` files, rather than a validator
+  installed in the release path. Hand-written, where the official
+  `cyclonedx-py` takes an environment or a requirements file as its
+  subject: neither is these two archives, and the build job installs
+  nothing before the artifact it publishes is uploaded.
+- **The sdist ships no test whose subject it omits.** What
+  `.github/scripts` holds is not shipped, and three of the four tests that
+  load a script from there by path were in the archive --
+  `check_vendored_vectors_test.py` was, and every one of its tests would
+  raise `FileNotFoundError` from an unpacked sdist, where
+  `mutation_counts_test.py` had been excluded for exactly that. MANIFEST.in
+  and `[tool.check-manifest]` name all four now.
 - **The bindings are required from their `main` rather than from a
   release**, which is what `bitcoin-core-rpc` already was: a direct
   reference to `btclib-org/btclib-secp256k1@main` in place of

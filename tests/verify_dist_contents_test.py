@@ -1,0 +1,396 @@
+# Copyright (c) The btclib developers
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
+
+"""Tests for the distribution-content check of `.github/scripts`.
+
+What CI can show is that a real build passes: the `dist` job of test.yml
+runs the script on every pull request, and the `build` job of release.yml
+on the files it is about to publish. What CI cannot show is that anything
+*fails* -- a wheel with a shared object in it is not something a workflow
+can produce on purpose -- so the archives here are synthetic, one member
+planted per rule, and the assertion is the complaint.
+
+The script is loaded by path, `.github/scripts` being no package, as the
+mutation-counter and vendored-vector tests do. It has no dataclass, so
+registering the module before `exec_module` is not needed here.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import io
+import runpy
+import sys
+import tarfile
+import zipfile
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+
+_SCRIPT = Path(__file__).parents[1] / ".github" / "scripts" / "verify_dist_contents.py"
+
+_VERSION = "1.0"
+_ROOT = f"btclib-{_VERSION}"
+_DIST_INFO = f"btclib-{_VERSION}.dist-info"
+
+# the smallest pair that passes: the package, one data file, the metadata
+# setuptools writes, and the licences it copies
+_PAYLOAD = ("btclib/__init__.py", "btclib/py.typed", "btclib/_data/mainnet.json")
+_WHEEL_MEMBERS = (
+    *_PAYLOAD,
+    f"{_DIST_INFO}/METADATA",
+    f"{_DIST_INFO}/RECORD",
+    f"{_DIST_INFO}/WHEEL",
+    f"{_DIST_INFO}/top_level.txt",
+    f"{_DIST_INFO}/licenses/LICENSE",
+)
+_SDIST_MEMBERS = (
+    *_PAYLOAD,
+    "PKG-INFO",
+    "pyproject.toml",
+    "README.md",
+    "uv.lock",
+    ".python-version",
+    "btclib.egg-info/PKG-INFO",
+    "btclib.egg-info/SOURCES.txt",
+    "docs/index.rst",
+    "tests/btclib_test.py",
+)
+_SDIST_DIRECTORIES = ("btclib", "btclib/_data", "btclib.egg-info", "docs", "tests")
+
+
+@pytest.fixture
+def script() -> ModuleType:
+    """Return the script, imported by path."""
+    spec = importlib.util.spec_from_file_location("verify_dist_contents", _SCRIPT)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def write_wheel(
+    directory: Path,
+    *,
+    extra: tuple[str, ...] = (),
+    omit: tuple[str, ...] = (),
+    version: str = _VERSION,
+) -> Path:
+    """Write a wheel carrying the default members, plus and minus these."""
+    path = directory / f"btclib-{version}-py3-none-any.whl"
+    with zipfile.ZipFile(path, "w") as archive:
+        for name in (*(m for m in _WHEEL_MEMBERS if m not in omit), *extra):
+            archive.writestr(name, "content")
+    return path
+
+
+def write_sdist(
+    directory: Path,
+    *,
+    extra: tuple[str, ...] = (),
+    omit: tuple[str, ...] = (),
+    raw: tuple[str, ...] = (),
+    specials: tuple[tarfile.TarInfo, ...] = (),
+) -> Path:
+    """Write an sdist: the default members, plus and minus, raw, special.
+
+    `extra` and `omit` name members relative to the archive's own root
+    directory, `raw` names them verbatim -- which is how a member outside
+    that root is planted -- and `specials` are `TarInfo` objects passed
+    through, for the member types a tar can carry and a zip cannot.
+    """
+    path = directory / f"{_ROOT}.tar.gz"
+    with tarfile.open(path, "w:gz") as archive:
+        for name in ("", *(f"/{d}" for d in _SDIST_DIRECTORIES)):
+            info = tarfile.TarInfo(f"{_ROOT}{name}")
+            info.type = tarfile.DIRTYPE
+            archive.addfile(info)
+        names = (
+            *(f"{_ROOT}/{m}" for m in _SDIST_MEMBERS if m not in omit),
+            *(f"{_ROOT}/{m}" for m in extra),
+            *raw,
+        )
+        for name in names:
+            info = tarfile.TarInfo(name)
+            info.size = len(b"content")
+            archive.addfile(info, io.BytesIO(b"content"))
+        for info in specials:
+            archive.addfile(info)
+    return path
+
+
+def one_complaint(script: ModuleType, directory: Path) -> str:
+    """Verify the directory, asserting there is exactly one complaint."""
+    (complaint,) = script.verify(directory)
+    return str(complaint)
+
+
+def test_a_clean_pair_passes(
+    script: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Nothing to complain about, and the payload is reported once."""
+    write_wheel(tmp_path)
+    write_sdist(tmp_path)
+
+    assert script.verify(tmp_path) == []
+
+    out = capsys.readouterr().out
+    assert "carry what they may and no more" in out
+    assert f"one payload of {len(_PAYLOAD)} files, in both" in out
+
+
+@pytest.mark.parametrize(
+    "member, expected",
+    [
+        # the limit of the `_data/` amnesty, which admits by directory and
+        # not by extension
+        ("btclib/_data/libsecp256k1.so", "carries the forbidden suffix .so"),
+        ("btclib/_data/vectors.tar.gz", "carries the forbidden suffix .tar.gz"),
+        ("btclib/sitecustomize.py", "is sitecustomize.py, which Python imports"),
+        ("btclib/usercustomize.py", "is usercustomize.py, which Python imports"),
+        (
+            "btclib/__pycache__/utils.cpython-314.pyc",
+            "carries the forbidden suffix .pyc",
+        ),
+        # a `.py` the allowlist would otherwise take, in the one place a
+        # wheel must not put one
+        ("stray.py", "is neither package code nor package metadata"),
+        ("btclib/curves/notes.rst", "is neither Python source nor a _data file"),
+        (f"{_DIST_INFO}/entry_points.txt", "is not one of its files"),
+        (f"{_DIST_INFO}/nested/METADATA", "is not one of its files"),
+    ],
+)
+def test_a_planted_wheel_member_is_named(
+    script: ModuleType, tmp_path: Path, member: str, expected: str
+) -> None:
+    """One member per rule, and the complaint says which rule it broke."""
+    write_wheel(tmp_path, extra=(member,))
+    write_sdist(tmp_path)
+
+    complaints = script.verify(tmp_path)
+
+    assert any(expected in complaint for complaint in complaints)
+
+
+@pytest.mark.parametrize(
+    "member", ["btclib/py.typed", "btclib/__init__.py", f"{_DIST_INFO}/RECORD"]
+)
+def test_a_missing_wheel_member_is_named(
+    script: ModuleType, tmp_path: Path, member: str
+) -> None:
+    """PEP 561's marker, the package itself and the metadata are required.
+
+    Each is absent in a way that installs and imports cleanly: a wheel
+    with no `py.typed` type checks as `Any`, and one with no metadata
+    reports `btclib.__version__` as "unknown" (issue #150).
+    """
+    write_wheel(tmp_path, omit=(member,))
+    write_sdist(tmp_path, omit=(member,))
+
+    complaints = script.verify(tmp_path)
+
+    assert any(f"{member} is missing" in complaint for complaint in complaints)
+
+
+@pytest.mark.parametrize(
+    "extra, omit, raw, expected",
+    [
+        ((".editorconfig",), (), (), "is a root file the sdist does not ship"),
+        (
+            ("benchmarks/timing.py",),
+            (),
+            (),
+            "is not under one of the directories the sdist ships",
+        ),
+        (
+            ("tests/vendored.dist-info/METADATA",),
+            (),
+            (),
+            "holds the metadata of another distribution",
+        ),
+        (
+            ("btclib.egg-info/build.log",),
+            (),
+            (),
+            "is under btclib.egg-info/ and is not metadata",
+        ),
+        (("tests/_data/wheel.whl",), (), (), "carries the forbidden suffix .whl"),
+        ((), (), ("elsewhere/setup.py",), "is outside the archive's own"),
+        ((), (), (f"{_ROOT}/../escape.py",), "is not a relative path"),
+        ((), (), ("/etc/passwd",), "is not a relative path"),
+        ((), ("PKG-INFO",), (), "PKG-INFO is missing"),
+        ((), ("pyproject.toml",), (), "pyproject.toml is missing"),
+    ],
+)
+def test_a_planted_sdist_member_is_named(
+    script: ModuleType,
+    tmp_path: Path,
+    extra: tuple[str, ...],
+    omit: tuple[str, ...],
+    raw: tuple[str, ...],
+    expected: str,
+) -> None:
+    """One member per structural rule, and the complaint names the rule."""
+    # the wheel omits what the sdist omits, so that the two payloads still
+    # agree and the complaint under test is the only one
+    write_wheel(tmp_path, omit=omit)
+    write_sdist(tmp_path, extra=extra, omit=omit, raw=raw)
+
+    complaints = script.verify(tmp_path)
+
+    assert any(expected in complaint for complaint in complaints)
+
+
+@pytest.mark.parametrize(
+    "directory, expected",
+    [
+        ("benchmarks", "is a directory the sdist does not ship"),
+        # the one case the forbidden suffixes do not reach: an empty
+        # bytecode directory is a directory member and no `.pyc`
+        ("btclib/__pycache__", "is under __pycache__"),
+    ],
+)
+def test_a_directory_member_is_judged_too(
+    script: ModuleType, tmp_path: Path, directory: str, expected: str
+) -> None:
+    """A directory with no file under it is a member in its own right."""
+    info = tarfile.TarInfo(f"{_ROOT}/{directory}")
+    info.type = tarfile.DIRTYPE
+    write_wheel(tmp_path)
+    write_sdist(tmp_path, specials=(info,))
+
+    complaints = script.verify(tmp_path)
+
+    assert any(expected in complaint for complaint in complaints)
+
+
+def test_a_member_that_is_not_a_file_or_a_directory_is_named(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A symlink is a member type a tar can carry and a zip cannot.
+
+    Which is the whole reason the sdist is checked for it and the wheel is
+    not: what a symlink in an sdist points at is decided when it is
+    unpacked, so it is the one member whose content is not in the archive.
+    """
+    info = tarfile.TarInfo(f"{_ROOT}/tests/link.py")
+    info.type = tarfile.SYMTYPE
+    info.linkname = "../../../etc/passwd"
+    write_wheel(tmp_path)
+    write_sdist(tmp_path, specials=(info,))
+
+    complaints = script.verify(tmp_path)
+
+    assert any("is neither a regular file nor a directory" in c for c in complaints)
+
+
+def test_a_payload_the_wheel_drops_is_named(script: ModuleType, tmp_path: Path) -> None:
+    """A data file in the sdist and not in the wheel, which is issue #393."""
+    write_wheel(tmp_path)
+    write_sdist(tmp_path, extra=("btclib/_data/testnet.json",))
+
+    assert "ships btclib/_data/testnet.json" in one_complaint(script, tmp_path)
+
+
+def test_a_payload_only_the_wheel_has_is_named(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """And the other direction: a file the sdist, hence the tree, lacks."""
+    write_wheel(tmp_path, extra=("btclib/_data/testnet.json",))
+    write_sdist(tmp_path)
+
+    assert "ships btclib/_data/testnet.json" in one_complaint(script, tmp_path)
+
+
+def test_a_directory_entry_in_the_wheel_is_not_a_member(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A zip may carry an entry per directory; setuptools writes none."""
+    write_wheel(tmp_path, extra=("btclib/curves/",))
+    write_sdist(tmp_path)
+
+    assert script.verify(tmp_path) == []
+
+
+@pytest.mark.parametrize("pattern", ["*.whl", "*.tar.gz"])
+def test_no_artifact_of_a_kind_is_named(
+    script: ModuleType, tmp_path: Path, pattern: str
+) -> None:
+    """A dist directory with only one of the two is not half checked."""
+    if pattern == "*.tar.gz":
+        write_wheel(tmp_path)
+    else:
+        write_sdist(tmp_path)
+
+    assert f"expected one {pattern}, found none" in one_complaint(script, tmp_path)
+
+
+def test_a_second_artifact_of_a_kind_is_named(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """Two wheels are refused rather than the newer one being picked.
+
+    A stale artifact from an earlier build in the same directory is
+    precisely what a check on the files about to be published must not
+    skip over -- and it is the file the *other* one that gets uploaded.
+    """
+    write_wheel(tmp_path)
+    write_wheel(tmp_path, version="0.9")
+    write_sdist(tmp_path)
+
+    complaints = script.verify(tmp_path)
+
+    assert any("expected one *.whl, found" in complaint for complaint in complaints)
+
+
+def test_main_says_how_to_be_called_when_it_is_not(
+    script: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No dist directory, or two of them, is the usage rather than a crash."""
+    assert script.main(["prog"]) == 2
+    assert capsys.readouterr().err == "usage: prog <dist directory>\n"
+
+
+def test_main_annotates_every_complaint_and_fails(
+    script: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Each complaint is a workflow annotation, so the run summary has it."""
+    write_wheel(tmp_path, extra=("stray.py",))
+    write_sdist(tmp_path, extra=(".editorconfig",))
+
+    assert script.main(["prog", str(tmp_path)]) == 1
+
+    err = capsys.readouterr().err
+    assert "::error::" in err
+    assert err.count("::error::") == 2
+
+
+def test_main_passes_on_a_clean_pair(script: ModuleType, tmp_path: Path) -> None:
+    """The exit code a green workflow step reads."""
+    write_wheel(tmp_path)
+    write_sdist(tmp_path)
+
+    assert script.main(["prog", str(tmp_path)]) == 0
+
+
+def test_the_main_guard_runs_the_script_as___main__(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Cover `if __name__ == "__main__":` without a subprocess.
+
+    This project collects no coverage from a child interpreter, so a real
+    subprocess would leave the guard as uncovered as it is in
+    `mutation_counts.py`. `runpy.run_path` executes the file fresh with
+    `__name__` set to `"__main__"` in this one.
+    """
+    write_wheel(tmp_path)
+    write_sdist(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["prog", str(tmp_path)])
+
+    with pytest.raises(SystemExit) as excinfo:
+        runpy.run_path(str(_SCRIPT), run_name="__main__")
+
+    assert excinfo.value.code == 0
