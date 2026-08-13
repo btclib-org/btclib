@@ -533,6 +533,248 @@ def test_libsecp256k1() -> None:
     assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
 
+# Core's low-R grinding (issue #638): the loop is `dsa._grind_low_r`, and
+# what follows holds it to the three implementations that have it -- Core's
+# `CKey::Sign` since its PR 13666, electrum-ecc's `ECPrivkey.ecdsa_sign`
+# and embit's `PrivateKey.sign`. 2**255 is the bound all three grind
+# towards: r at or above it has its highest bit set, and DER then pays a
+# 0x00 byte to keep it from reading as negative
+_LOW_R = 2**255
+
+
+def test_grinding_lands_on_a_low_r() -> None:
+    """Every ground signature is low-R, and half of them were already.
+
+    Which is the whole of what grinding buys and what it costs: a 70-byte
+    DER encoding instead of 71, for the price of one extra signature on
+    average. Grinding starts from the plain RFC6979 signature and no extra
+    entropy at all, so a message whose r is low already is signed exactly
+    as `grind=False` signs it -- and that is about half of them, which is
+    what the count checks: an implementation whose first attempt carried a
+    counter would satisfy every other assertion here.
+
+    69 bytes is a scalar below 2**248, one draw in 256 for each of r and s,
+    hence the inequality rather than an equality on the length.
+    """
+    q, Q = dsa.gen_keys(0x1)
+    unchanged = 0
+    for i in range(64):
+        msg = f"btclib grind {i}".encode()
+        plain = dsa.sign(msg, q)
+        ground = dsa.sign(msg, q, grind=True)
+        assert ground.r < _LOW_R
+        assert len(ground.serialize()) <= 70
+        assert dsa.verify(msg, Q, ground)
+        # the two agree exactly where the plain signature is low-R
+        assert (plain == ground) == (plain.r < _LOW_R)
+        unchanged += plain == ground
+    # 32 expected, and the interval is what a fair coin gives over 64
+    # draws with room to spare: a one-sided implementation lands at 0 or 64
+    assert 20 < unchanged < 44
+
+
+def test_grinding_retries_with_cores_own_counter() -> None:
+    """The retry sequence, rebuilt from the bindings beside the loop.
+
+    Core signs with a null ndata and then re-signs with
+    `WriteLE32(extra_entropy, ++counter)` into a zeroed 32-byte buffer,
+    which is electrum-ecc's and embit's `counter.to_bytes(32, "little")`:
+    so the ground signature is the first low-R element of that sequence,
+    and nothing weaker says so. An off-by-one in the counter, or a
+    big-endian encoding, or 32 zero bytes for the first attempt, each
+    produces a valid low-R signature that no other assertion in this file
+    would object to.
+    """
+    q = prv_key_int
+    retries = []
+    for i in range(24):
+        msg_hash = reduce_to_hlen(f"btclib grind {i}".encode())
+        sequence = [
+            dsa.Sig.parse(
+                libsecp256k1_dsa.sign(
+                    msg_hash,
+                    q,
+                    None if counter == 0 else counter.to_bytes(32, "little"),
+                )
+            )
+            for counter in range(16)
+        ]
+        first_low = next(i for i, sig in enumerate(sequence) if sig.r < _LOW_R)
+        assert dsa.sign_(msg_hash, q, grind=True) == sequence[first_low]
+        retries.append(first_low)
+
+    # a signature that grinds and one that does not are both here, and so
+    # is a counter past its first value: the increment is asserted, not
+    # only the first step off zero
+    assert min(retries) == 0
+    assert max(retries) > 1
+
+
+def test_grinding_agrees_on_both_arithmetics(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The counter reaches the same nonce through ndata and through RFC6979.
+
+    libsecp256k1's nonce function appends its 32 bytes of ndata to the key
+    and the message inside HMAC-DRBG, which is where RFC6979's section 3.6
+    additional data goes, so the two grinds walk the same sequence of
+    nonces. They must agree byte for byte, or a ground signature would
+    depend on which arithmetic made it -- and the Python path is what
+    signs for every other curve and hash function, where there are no
+    bindings to fall back on.
+    """
+    q, Q = dsa.gen_keys(prv_key_int)
+    for i in range(16):
+        msg = f"btclib grind {i}".encode()
+        delegated = dsa.sign(msg, q, grind=True)
+        with monkeypatch.context() as no_dsa_bindings:
+            no_dsa_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            python = dsa.sign(msg, q, grind=True)
+        assert delegated == python
+        assert delegated.r < _LOW_R
+        assert dsa.verify(msg, Q, python)
+
+
+def test_grinding_is_about_r_and_not_about_the_encoded_length() -> None:
+    """Grinding chooses r, and the encoded length is what follows from it.
+
+    embit stops its loop at `len(sig.serialize()) > 70` where Core asks for
+    r < 2**255, and the two are one question only for a low s. With
+    `lower_s=False` the s that was computed stays, its own highest bit set
+    half of the time, so a ground signature is 71 bytes with a low r --
+    which is not a case Core can reach, libsecp256k1 handing back the low s
+    always, and is one btclib reaches on purpose. `lower_s=False` is also
+    one of the reasons the bindings are not asked, so this is the Python
+    grind, and sha512 below is another of those reasons.
+    """
+    q, Q = dsa.gen_keys(prv_key_int)
+    lengths = set()
+    for i in range(32):
+        msg = f"btclib grind {i}".encode()
+        sig = dsa.sign(msg, q, lower_s=False, grind=True)
+        assert sig.r < _LOW_R
+        assert dsa.verify(msg, Q, sig, lower_s=False)
+        lengths.add(len(sig.serialize()))
+    # both, and the 71 is the byte s asked for: grinding did not go looking
+    # for another s, and a loop on the length would have
+    assert lengths == {70, 71}
+
+    for i in range(8):
+        msg = f"btclib grind {i}".encode()
+        sig = dsa.sign(msg, q, hf=sha512, grind=True)
+        assert sig.r < _LOW_R
+        assert dsa.verify(msg, Q, sig, hf=sha512)
+
+
+def test_grinding_refuses_what_already_owns_the_nonce() -> None:
+    """A nonce of the caller's and a commitment leave nothing to grind.
+
+    Grinding is a search over nonces: with the nonce given there is nothing
+    to search, and a commitment already occupies the extra entropy the
+    counter travels through. The second is not only a clash of encodings --
+    grinding a nonce is exactly the freedom the anti-exfil protocol takes
+    away from a signing device -- and neither is refused without `grind`.
+    """
+    msg = b"Satoshi Nakamoto"
+    nonce = 0x9E5755E5A8FCC1B0A2FD1E0AD9E8D6B29B67D67E6C6A0DEE01E7E1F30DB9A0BE
+    err_msg = "grinding derives its own nonce"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign(msg, prv_key_int, nonce, grind=True)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign(msg, prv_key_int, grind=True, commit=b"a commitment")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign_(reduce_to_hlen(msg), prv_key_int, grind=True, commit_hash=bytes(32))
+
+    _, Q = dsa.gen_keys(prv_key_int)
+    assert dsa.verify(msg, Q, dsa.sign(msg, prv_key_int, nonce))
+    sig, receipt = dsa.sign(msg, prv_key_int, commit=b"a commitment")
+    assert dsa.verify(msg, Q, sig, commit=b"a commitment", receipt=receipt)
+
+
+# Bitcoin Core v31.1.0 as the oracle, on a regtest node with no wallet:
+# `createrawtransaction` spends outpoint 0101..01:0 -- a p2wpkh output of
+# the key, worth 1 BTC -- into a p2wpkh output of the same key worth the
+# value named below, and `signrawtransactionwithkey` signs that with the
+# key's WIF and that prevout. Core grinds by default, so the witness item
+# it produces is its ground signature; `msg_hash` is btclib's own segwit v0
+# `sig_hash.from_tx` for the transaction Core built, which is what the
+# signature verifying under it confirms.
+#
+# Private key, message hash, DER signature with Core's sighash byte
+# dropped, and the number of retries grinding cost. That last field is
+# what makes these five more than one vector five times over: 0 is the
+# draw grinding leaves alone, and 2 and 7 pin the counter well past its
+# first value. The output values that re-derive them, in this order:
+# 0.999, 0.997, 0.998, 0.987 and 0.993 BTC.
+#
+# A list of pytest.param rather than a tuple of tuples: a DER signature is
+# two source lines wide, and implicit concatenation inside a collection
+# literal is what ruff's ISC004 objects to -- a missing comma away from
+# being one element instead of two
+_CORE_VECTORS = [
+    pytest.param(
+        0x1,
+        "133bf859d57c50cb522cff0ac5300f639c90a089914ff6103d095615b1d844f2",
+        "304402205a9cc47c9c726331dfe114f1f5d83800b0f3c67a70ac3d373e1a31bd8b6c6f11"
+        "0220734109a45cbc732e999c988842531dc1f20b2e5f590aed7732fa304e4ba27ee3",
+        0,
+        id=vector_id(0, "0-retries"),
+    ),
+    pytest.param(
+        0x1,
+        "d14c29beb26e63426a41b36a11183b54f5b22c33115d8e7f0ba49a58b336149e",
+        "30440220353bdc7e3946c2b75b87b5587677794c55533275fd129c6ef26d877ff37f7032"
+        "0220182f97be35ab386b1adea91a224876b1f00d43966f1b8de6517af8ed33f56c95",
+        1,
+        id=vector_id(1, "1-retry"),
+    ),
+    pytest.param(
+        0x1,
+        "e4a96c927ca0fb2a09bd17cb86aea29917199b304d075d23a191566a8cf61b09",
+        "3044022052b0cd32b4171b77bb22e83bc450d5123d257f961aa21521fa3a4eda7639e63b"
+        "022047e4aa600baaab959f5a460f0124a7153ccda22459775ccf8ac6ecc3c9326c09",
+        2,
+        id=vector_id(2, "2-retries"),
+    ),
+    pytest.param(
+        0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D,
+        "f56caf9a85d192163762c9f99d39992c68e987c929ed859efc6a890c75012d8b",
+        "304402201b7fb7e26572ebc9c3613513b672fed24a81e3e98a76739f67ac457be0c47cd4"
+        "022028e43694137339433c0d40f68a1ae48293a5629f8fe08b9bb1722e8d0f951b4e",
+        3,
+        id=vector_id(3, "3-retries"),
+    ),
+    pytest.param(
+        0x1,
+        "367edb7a74cf12d6111efa368624d599a44fdda82a028059091f0967b61adba9",
+        "304402202efab9db55ab5abb9d78b5617ad5ec5117efdb36f5ba3150b462acf0297cd052"
+        "0220178fbc4d9f9817ddb0f35a2ed9cf9e0437f3ea261c00b4a176201b6558b722da",
+        7,
+        id=vector_id(4, "7-retries"),
+    ),
+]
+
+
+@pytest.mark.parametrize("prv_key, msg_hash, der, retries", _CORE_VECTORS)
+def test_core_grinds_the_same_signatures(
+    prv_key: int, msg_hash: str, der: str, retries: int
+) -> None:
+    """Reproduce Bitcoin Core's own low-R signatures, byte for byte."""
+    sig_hash = bytes.fromhex(msg_hash)
+    sig = dsa.sign_(sig_hash, prv_key, grind=True)
+    assert sig.serialize().hex() == der
+    assert sig.r < _LOW_R
+
+    _, Q = dsa.gen_keys(prv_key)
+    assert dsa.verify_(sig_hash, Q, sig)
+
+    # the retry count is a claim about which element of Core's sequence
+    # this is, so it is checked and not merely recorded: the plain
+    # signature for a count of zero, the counter's own signature otherwise
+    plain = dsa.sign_(sig_hash, prv_key)
+    assert (plain == sig) == (retries == 0)
+    ndata = None if retries == 0 else retries.to_bytes(32, "little")
+    assert sig.serialize() == libsecp256k1_dsa.sign(sig_hash, prv_key, ndata)
+
+
 def _recovered(
     key_id: int, msg: bytes, sig: dsa.Sig, lower_s: bool = True
 ) -> Point | None:

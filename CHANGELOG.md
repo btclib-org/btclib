@@ -937,6 +937,64 @@ documented at release-notes length in the first place, and are still in
   exactly six characters long; the alphabet stays lowercase-only, built
   once at import time, because `_decode` already lowers `bech` before
   reaching the lookup.
+- **`dsa.sign` grinds for a low-R signature when asked to** (#638). An `r`
+  with its highest bit set costs a `0x00` byte of DER pad, to keep it from
+  reading as negative, so a signer that does not like the `r` it drew signs
+  again with a counter as extra entropy until it draws one below `2**255`:
+  70 bytes of DER instead of 71, a byte off every input that carries the
+  signature, for one extra signature on average -- half of the draws are
+  low already. Core has done this by default since 0.17 (its PR 13666),
+  `electrum-ecc`'s `ECPrivkey.ecdsa_sign` and embit's `PrivateKey.sign` do
+  it too, and btclib ground nothing but `s`.
+
+  The retry sequence is Core's `CKey::Sign`, byte for byte, a ground
+  signature that reproduced only under btclib being worth nothing: attempt
+  0 passes no extra entropy at all -- so a first draw that is already low
+  is the plain RFC6979 signature, grinding or not -- and attempt i passes i
+  as 32 little-endian bytes, which is Core's `WriteLE32` into a zeroed
+  `extra_entropy[32]`, `counter.to_bytes(32, "little")` in the other two.
+  The counter reaches libsecp256k1 as `ndata` on the bindings path and
+  RFC6979's section 3.6 additional data on the Python one, which are the
+  same bytes in the same place, so the two arithmetics walk the same
+  nonces: `test_grinding_agrees_on_both_arithmetics` holds them to each
+  other byte for byte, `test_grinding_retries_with_cores_own_counter`
+  rebuilds the sequence from the bindings beside the loop -- an off-by-one,
+  a big-endian counter or 32 zero bytes for the first attempt all produce a
+  valid low-R signature and nothing else would notice -- and
+  `test_core_grinds_the_same_signatures` reproduces five of Core v31.1.0's
+  own, retries included. No attempt cap, as in Core: one would answer an
+  event of probability `2**-k` with an error a caller can do nothing about.
+
+  `grind=False` is the default, where Core has it on. A ground signature is
+  not the RFC6979 one for about half of all messages, and a caller pinning
+  btclib's deterministic signatures is entitled to keep getting them; the
+  five python-bitcoinlib vectors say the same thing from the other side,
+  four of the five having a high `r`, so grinding departs from exactly
+  those four -- `test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`
+  beside the test that counts the four `s` values normalization moves.
+  Keyword-only, `ec` and `hf` being positional and a flag inserted before
+  them renumbering both.
+
+  Grinding is refused with a nonce of the caller's and with a
+  sign-to-contract commitment, each of which already owns what grinding
+  needs -- the nonce itself, and the extra entropy the counter travels
+  through. For the commitment that is more than a clash of encodings:
+  grinding a nonce is exactly the freedom the ECDSA anti-exfil protocol
+  takes away from a signing device, and `sign_` is the call that protocol
+  signs through. `sign_recoverable` takes no `grind` either, and there it
+  is not a matter of what owns the nonce: 65 bytes of `r`, `s` and the
+  recovery flag have no pad for a low `r` to save, which is why Core's
+  `SignCompact` does not grind. What grinding chooses is `r` and not the
+  encoded length: embit stops its loop at `len(sig.serialize()) > 70`,
+  which is the same question only for a low `s`, and with `lower_s=False`
+  btclib produces the 71-byte low-R signature Core cannot reach.
+
+  The private `_rfc6979_nonce_` takes `None` for no additional data now,
+  where it took `b""`, so one counter value travels down either path
+  unchanged: `None` and `b""` are the same absence in the Python
+  derivation, appending nothing being appending nothing, and the bindings
+  take `None` alone -- 32 bytes or no argument, a shorter one being a
+  caller mistake and not less entropy.
 
 ### The public API and the module layout
 

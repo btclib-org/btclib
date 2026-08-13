@@ -57,7 +57,7 @@ def challenge_(
 
 
 def _rfc6979_nonce_(
-    c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes = b""
+    c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes | None = None
 ) -> int:
     # https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
 
@@ -68,8 +68,12 @@ def _rfc6979_nonce_(
     # section 3.6 additional data k', appended to the key and the message
     # rather than mixed in: the RFC leaves the encoding to the caller and
     # libsecp256k1 appends its 32-byte ndata here, which is what makes the
-    # sign-to-contract vectors of commit_nonce reproducible
-    bprvbm = q_bytes + c_bytes + extra_entropy
+    # sign-to-contract vectors of commit_nonce reproducible.
+    # None and b"" are the same absence of additional data here, appending
+    # nothing being appending nothing; the bindings take None alone -- 32
+    # bytes or no argument, a shorter one being a caller mistake and not
+    # less entropy -- so a caller holding either passes it unchanged
+    bprvbm = q_bytes + c_bytes + (extra_entropy or b"")
 
     hf_size = hf().digest_size
     v = b"\x01" * hf_size  # 3.2.b
@@ -115,11 +119,12 @@ def rfc6979_nonce_(
     extra_entropy is the section 3.6 additional data: two callers with
     the same key and message reach different nonces by passing different
     values, and the derivation stays deterministic in all of its inputs.
-    It is what a commitment travels through in commit_nonce, and what
+    It is what a commitment travels through in commit_nonce, what the
+    low-R grinding of ``dsa.sign_`` puts its counter in, and what
     libsecp256k1 calls ndata.
     """
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)
-    extra = b"" if extra_entropy is None else bytes_from_octets(extra_entropy)
+    extra = None if extra_entropy is None else bytes_from_octets(extra_entropy)
 
     return _rfc6979_nonce_(c, q, ec, hf, extra)
