@@ -28,11 +28,18 @@ The three nonces are named the same way, as modules. A nonce derivation
 is a scheme of its own -- RFC6979 has test vectors, BIP340's auxiliary
 randomness is part of the signing standard, and sign-to-contract has its
 commitment and its opening -- so `btclib.ecc.rfc6979_nonce` is the
-spelling, as `btclib.ecc.dsa` is. What is *not* here is any name ending
-in an underscore: `bip340_nonce_`, `rfc6979_nonce_`, `commit_nonce_` and
-`challenge_` take a message already reduced to a scalar and an explicit
-curve, which is the expert door of the module that defines them, and
-`dsa.sign_` and `ssa.sign_` are not exported either.
+spelling, as `btclib.ecc.dsa` is.
+
+What is *not* here is a module's own functions, plain or prepared:
+`dsa.sign` and `dsa.sign_` are both in `dsa.__all__` and neither is in
+this one, and nor are `musig2.key_agg`, `ecies.encrypt` or
+`ellswift.xdh`. The three loose helpers ``__all__`` names above are the
+whole of the exception. So the trailing underscore is no part of the
+decision, and for four names there is no decision to make: dsa and ssa
+both define `sign_`, `verify_` and `assert_as_valid_`, ssa and
+rfc6979_nonce both define `challenge_`, and a package-level export of
+any of the four would collide -- as one of `sign` would, which five of
+these modules define, or of `gen_keys`, which three do.
 
 bms does `from btclib.ecc import dsa`, i.e. it imports a name from the
 package that is importing it, and the order of the line below does not
