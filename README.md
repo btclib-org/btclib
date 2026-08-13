@@ -154,6 +154,10 @@ Included features are:
   than carried as one: the lock time its inputs require, the identifier
   that ignores their sequences, the modifiable flags a Constructor must
   obey, and conversion either way
+- [BIP375](https://github.com/bitcoin/bips/blob/master/bip-0375.mediawiki)
+  silent payments in a PSBT: the six fields that carry an ECDH share, its
+  BIP374 proof and the address being paid, the output script that may not
+  exist yet, and the identifier that reads the address in its place
 - [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
   `bitcoin:` payment URIs
 - fee rates carrying their unit (sat/kvB, sat/vB, and the BTC/kvB Bitcoin

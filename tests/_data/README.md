@@ -55,6 +55,9 @@ the same in each: there is no upstream file whose name they could take
   `bip67_test_vectors.json` and `bip85_test_vectors.json` are transcribed
   from mediawiki prose. There is no upstream file, so the name is ours by
   necessity.
+  `bip375_test_vectors.json` beside them is the exception that shows the
+  rule holds: BIP375 does publish a file, and its name is that one, so
+  there the convention below and the convention above agree.
 - `bip39_test_vectors.json` is trezor's `vectors.json` byte for byte, and
   keeps the btclib name anyway: `vectors.json` is taken in the very same
   directory, by SLIP-0039's own file of that name, which is a different
@@ -78,9 +81,11 @@ the same in each: there is no upstream file whose name they could take
 `btclib_test_vectors.json` is where that convention says the most, and it
 is a naming rule of its own: the prefix of a psbt vector file names the
 authority the cases answer to — `bip174_`, `bip370_`, `bip371_`,
-`bip373_`, and `btclib_` for the ones btclib composed, which no BIP
-publishes and no refresh will ever reach. A file so named cannot be
-mistaken for a copy of something.
+`bip373_`, `bip375_`, and `btclib_` for the ones btclib composed, which no
+BIP publishes and no refresh will ever reach. A file so named cannot be
+mistaken for a copy of something — and `bip375_test_vectors.json` is the
+one of the five that *is* a copy, upstream publishing a file of that very
+name.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -123,8 +128,9 @@ and the two python-bitcoinlib block files added here; Core's
 `blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
 two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
-beside them, the two BIP374 csv files and BIP352's
-`send_and_receive_test_vectors.json` on 2026-08-13.
+beside them, the two BIP374 csv files, BIP352's
+`send_and_receive_test_vectors.json` and BIP375's
+`bip375_test_vectors.json` on 2026-08-13.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -676,6 +682,57 @@ every key of every one of these fields: no vector of the BIP carries a
 key of the right size that is on no curve, and
 `test_a_musig2_key_must_be_a_point_and_not_merely_33_bytes` is where that
 one is.
+
+### `tests/psbt/_data/bip375_test_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0375/bip375_test_vectors.json
+commit  b217897a628e3d5db369497d2697f76e5bab7f4d  2026-04-09
+blob    3f16f51b23dfa36940737bfb80a8465421237ec0
+pulled  2026-08-13
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- upstream's file ends
+on its closing brace, `end-of-file-fixer` adds the newline as it is
+staged, so our blob is `54929764` rather than the one above. The same
+exception `script_assets_test.json` and `vectors.json` document.
+
+The only psbt vector file here that has an upstream file at all -- the
+other five are transcribed from mediawiki prose -- so the `bip375_` prefix
+is upstream's own name and this repository's naming rule at once, which is
+the one place the two coincide. 41 psbts, 22 invalid and 19 valid, the
+valid ones split between "can finalize" and "in progress".
+
+Each case carries a `supplementary` object of private keys, public keys
+and prevouts, and upstream's own notes say it is "for diagnostics and
+should not be used for validation". `tests/psbt/bip375_test.py` does not
+read it: what it reads is the psbt, and what it compares each field
+against is the raw map entry the field came out of.
+
+**Not compared byte for byte**, unlike every other psbt vector here, and
+the reason is the file rather than btclib: the generator that produced it
+writes the keys of a map in an order of its own -- PSBT_GLOBAL_VERSION
+first where BIP370's psbts put it last, and an input map's outpoint fields
+ahead of the rest -- while a psbt map has no normative order at all,
+BIP174 requiring only that a key not repeat. So the comparison is one
+level up: the maps read out of upstream's bytes and the maps read out of
+btclib's hold the same set of pairs, and btclib's own bytes are stable
+under a second parse. Measured on all 36 psbts that parse.
+
+Five of the 22 invalid psbts are refused. They are five of BIP375's six
+"PSBT Structure" cases, which are the ones a codec can answer: a label
+without the info field beside it, and four wrong lengths. The sixth is
+not a field's shape -- "PSBT_GLOBAL_TX_MODIFIABLE field is non-zero when
+PSBT_OUT_SCRIPT set for sp output" is an obligation on the Signer that
+computed that script -- and neither are the other sixteen, whose
+categories are ECDH coverage, input eligibility and output script
+derivation. Those are the Signer's and the Transaction Extractor's roles,
+which btclib does not play: each needs every input's public key, which
+for an unsigned input comes from PSBT_IN_BIP32_DERIVATION rather than
+from the input, and one of the invalid cases is that field missing. The
+test module says so where a reader of it would ask.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -2049,7 +2106,8 @@ Against a pinned upstream blob:
   `bip39_test_vectors.json`, the eight BIP327 vector files,
   `send_and_receive_test_vectors.json`, and the Wycheproof vector files.
 - identical but for a trailing newline:
-  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
+  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`,
+  `bip375_test_vectors.json`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`, the two
   BIP324 vector files and the two BIP374 vector files -- every csv
   vendored from bitcoin/bips, so far.

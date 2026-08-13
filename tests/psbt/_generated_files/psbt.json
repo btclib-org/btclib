@@ -104,7 +104,9 @@
             "required_height_lock_time": null,
             "musig2_participant_pub_keys": {},
             "musig2_pub_nonces": {},
-            "musig2_partial_sigs": {}
+            "musig2_partial_sigs": {},
+            "sp_ecdh_shares": {},
+            "sp_dleq_proofs": {}
         },
         {
             "non_witness_utxo": null,
@@ -170,7 +172,9 @@
             "required_height_lock_time": null,
             "musig2_participant_pub_keys": {},
             "musig2_pub_nonces": {},
-            "musig2_partial_sigs": {}
+            "musig2_partial_sigs": {},
+            "sp_ecdh_shares": {},
+            "sp_dleq_proofs": {}
         }
     ],
     "outputs": [
@@ -199,7 +203,9 @@
                 "asm": "OP_0 D85C2B71D0060B09C9886AEB815E50991DDA124D",
                 "hex": "0014d85c2b71d0060b09c9886aeb815e50991dda124d"
             },
-            "musig2_participant_pub_keys": {}
+            "musig2_participant_pub_keys": {},
+            "sp_v0_info": "",
+            "sp_v0_label": null
         },
         {
             "redeem_script": {
@@ -226,7 +232,9 @@
                 "asm": "OP_0 00AEA9A2E5F0F876A588DF5546E8742D1D87008F",
                 "hex": "001400aea9a2e5f0f876a588df5546e8742d1d87008f"
             },
-            "musig2_participant_pub_keys": {}
+            "musig2_participant_pub_keys": {},
+            "sp_v0_info": "",
+            "sp_v0_label": null
         }
     ],
     "version": 0,
@@ -235,6 +243,8 @@
     "fallback_lock_time": 0,
     "tx_modifiable": null,
     "signed_message": null,
+    "sp_ecdh_shares": {},
+    "sp_dleq_proofs": {},
     "tx": {
         "txid": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",
         "hash": "82efd652d7ab1197f01a5f4d9a30cb4c68bb79ab6fec58dfa1bf112291d1617b",

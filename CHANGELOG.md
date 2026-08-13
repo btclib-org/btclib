@@ -786,6 +786,63 @@ documented at release-notes length in the first place, and are still in
   `BytesIO`: `.read` is the whole of what a short read is about, so a file
   object is as much an answer there, and a view is the one reader in this
   library that does not consume the stream it is handed.
+- **BIP375's silent payment fields of a psbt** (#641). Six of them:
+  `PSBT_GLOBAL_SP_ECDH_SHARE` and `PSBT_GLOBAL_SP_DLEQ`, keyed by a
+  recipient's scan key, for a Signer that holds every input key;
+  `PSBT_IN_SP_ECDH_SHARE` and `PSBT_IN_SP_DLEQ` for one that holds some;
+  and `PSBT_OUT_SP_V0_INFO` and `PSBT_OUT_SP_V0_LABEL`, the address an
+  output pays and the label of it. Each is parsed, serialized, validated,
+  merged by the Combiner and written into `to_dict`, alongside the BIP371
+  taproot fields and the BIP373 musig2 ones.
+
+  Two rules come with them. `PSBT_OUT_SCRIPT` stops being required, and
+  only for the outputs that cannot have one: a silent payment output
+  script depends on every eligible input, so it does not exist while
+  inputs may still be added, and an output with neither field is the
+  missing script BIP370 already refuses. And `unique_id` reads
+  `PSBT_OUT_SP_V0_INFO` in place of the script wherever the field is
+  there -- BIP375's "Unique Identification", for the reason BIP370 zeroes
+  the sequences: the same psbt is valid before and after a Signer computes
+  that script, so an identifier built from the script would call one psbt
+  two and a Combiner would refuse to merge the halves of one session.
+
+  All six are excluded from version 0, which is BIP375's own table, and
+  the exclusion is enforced twice: `parse` refuses the type byte, and
+  `assert_valid` refuses the field. Without the second, a psbt *built*
+  with one and then declared version 0 would serialize into bytes this
+  library cannot read back, and `to_v0` would hand back exactly that. It
+  raises instead: an address is not what version 0 can drop and keep the
+  transaction, which is what it drops the lock times for.
+
+  The two input fields survive finalization, where Bitcoin Core's list
+  drops everything a Finalizer consumed. BIP375 gives the Transaction
+  Extractor the job of recomputing every silent payment output script and
+  verifying it against the share and the proof, which it cannot do if
+  finalizing threw them away.
+
+  `PsbtView` keeps the two globals as it keeps every other one, and
+  `_tx_out` gained the keyword that says which transaction is being built:
+  the identifier reads the address, and the streaming view, which builds
+  the transaction to broadcast, reads the script. No default on that
+  keyword, as `_tx_in`'s has none -- a caller must not reach the
+  identifier by forgetting to say which it wanted.
+
+  `bip375_test_vectors.json` is vendored whole, 41 psbts. It is the only
+  psbt vector file here with an upstream file to be compared against --
+  the other five are transcribed from prose -- and it is *not* compared
+  byte for byte, which is the file's doing rather than btclib's: its
+  generator writes the keys of a map in an order of its own, and a psbt
+  map has no normative order at all. The comparison is one level up, on
+  the maps themselves, plus stability under a second parse.
+
+  Five of its 22 invalid psbts are refused, which is five of BIP375's six
+  "PSBT Structure" cases -- a label with no address, and four wrong
+  lengths. The sixth and the other sixteen are the Signer's and the
+  Transaction Extractor's to refuse, roles BIP375 adds and this change
+  does not: each needs every input's public key, which for an unsigned
+  input comes from `PSBT_IN_BIP32_DERIVATION` rather than from the input.
+  `btclib.ecc.dleq.verify_proof` and `btclib.silent_payments.output_keys`
+  are what such a role would be built from, and both are now here.
 - **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
   `combine` merged the maps and returned a psbt with neither the inputs nor
   the result validated anywhere, so an invalid psbt in gave an invalid psbt
@@ -1153,6 +1210,11 @@ documented at release-notes length in the first place, and are still in
   sum is folded one addition at a time rather than through `multi_mult`:
   an intermediate sum at infinity is a BIP352 vector, and infinity is
   exactly what libsecp256k1 has no public key for.
+
+  The address's hrp comes from `network_type_from_network`, BIP352 having
+  one for mainnet and one for every test network, so a name no network has
+  is refused where indexing `NETWORKS` would have answered a bare
+  `KeyError`.
 
   What is *not* here is the transaction-level policy: which transactions
   are worth scanning, and which sighash flags a sender may use

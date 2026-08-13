@@ -359,6 +359,21 @@ def test_lock_time_bip370(test_vector: dict[str, Any]) -> None:
     assert psbt.b64encode() == test_vector["encoded psbt"]
 
 
+# what BIP375 excludes from version 0, on top of BIP370's twelve: a
+# silent payment output has no script until the inputs are fixed, and
+# only version 2 has a field to write one into afterwards. Listed here
+# because BIP375 publishes no invalid-psbt vector per field to derive
+# them from, the way bip370_test_vectors.json does
+_BIP375_V2_FIELDS = {
+    "PSBT_GLOBAL_SP_ECDH_SHARE",
+    "PSBT_GLOBAL_SP_DLEQ",
+    "PSBT_IN_SP_ECDH_SHARE",
+    "PSBT_IN_SP_DLEQ",
+    "PSBT_OUT_SP_V0_INFO",
+    "PSBT_OUT_SP_V0_LABEL",
+}
+
+
 def test_the_v2_field_tables_hold_bip370s_twelve() -> None:
     """The three tables are the whole of what version 0 must exclude.
 
@@ -367,6 +382,10 @@ def test_the_v2_field_tables_hold_bip370s_twelve() -> None:
     invalid -- which is what all twelve of these were. Derived from the
     vector file rather than listed again here: each of those cases is
     named after the one field it carries.
+
+    BIP375's six are added to the expectation rather than derived:
+    bip375_test_vectors.json has no case per field for them, so a list is
+    the only statement there is.
     """
     named_by_the_bip = {
         test_vector["description"].removeprefix("PSBTv0 but with ")
@@ -384,7 +403,7 @@ def test_the_v2_field_tables_hold_bip370s_twelve() -> None:
         | set(_V2_INPUT_FIELDS.values())
         | set(_V2_OUTPUT_FIELDS.values())
     )
-    assert tabulated == named_by_the_bip
+    assert tabulated == named_by_the_bip | _BIP375_V2_FIELDS
 
 
 def test_a_v2_field_is_refused_wherever_it_sits() -> None:

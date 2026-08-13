@@ -32,12 +32,20 @@ __all__ = [
     "MUSIG2_PUB_NONCE_SIZE",
     "MUSIG2_SESSION_KEY_SIZES",
     "PSBT_SEPARATOR",
+    "SP_DLEQ_PROOF_SIZE",
+    "SP_ECDH_SHARE_SIZE",
+    "SP_SCAN_KEY_SIZE",
+    "SP_V0_INFO_SIZE",
+    "SP_V0_INFO_VERSION",
+    "SP_V0_LABEL_SIZE",
     "assert_not_a_v2_field",
     "assert_valid_leaf_scripts",
     "assert_valid_musig2_participant_pub_keys",
     "assert_valid_musig2_pub_key",
     "assert_valid_musig2_session_data",
     "assert_valid_redeem_script",
+    "assert_valid_sp_scan_key_map",
+    "assert_valid_sp_v0_info",
     "assert_valid_taproot_bip32_derivation",
     "assert_valid_taproot_internal_key",
     "assert_valid_taproot_script_keys",
@@ -102,6 +110,23 @@ MUSIG2_SESSION_KEY_SIZES = (
 # Sign one scalar
 MUSIG2_PUB_NONCE_SIZE = 66
 MUSIG2_PARTIAL_SIG_SIZE = 32
+
+# BIP375's four sizes. The scan key that keys the two ECDH fields is a
+# compressed point, as the musig2 keys above are and for the same reason:
+# a silent payment address publishes both keys in that form, so the psbt
+# carries what the address carried
+SP_SCAN_KEY_SIZE = MUSIG2_PUB_KEY_SIZE
+# a share is one point, and a BIP374 proof is two scalars
+SP_ECDH_SHARE_SIZE = MUSIG2_PUB_KEY_SIZE
+SP_DLEQ_PROOF_SIZE = 64
+# the two published keys of the address being paid, concatenated
+SP_V0_INFO_SIZE = 2 * MUSIG2_PUB_KEY_SIZE
+# the label as four bytes, little-endian here where BIP352 hashes it
+# big-endian
+SP_V0_LABEL_SIZE = 4
+# the version byte the unique identifier prefixes the info with, so that
+# what stands in for an output script cannot collide with a real one
+SP_V0_INFO_VERSION = b"\x00"
 
 # what ends every map of a psbt: a key of length zero, which no real key
 # can be. It lives here, and not next to the magic bytes, because all
@@ -529,6 +554,51 @@ def assert_valid_musig2_participant_pub_keys(
             assert_valid_musig2_pub_key(
                 participant_pub_key, "musig2 participant pub key"
             )
+
+
+def assert_valid_sp_scan_key_map(
+    map_: Mapping[bytes, bytes], value_size: int, what: str
+) -> None:
+    """Raise unless every entry is a scan key against a value of its size.
+
+    One rule for the four BIP375 fields keyed that way -- the global and
+    per-input ECDH share, and the BIP374 proof of each -- because they
+    differ in nothing but the size of the value: a share is a point and a
+    proof is two scalars.
+
+    The scan key is parsed and not merely measured, as the musig2 keys
+    above are: a psbt filing a share under 33 octets that are no point
+    names a recipient no address ever published, and the ECDH the value
+    claims to be could not have been computed against it.
+
+    What is *not* checked here is that the value is the share it claims to
+    be. That is BIP374's answer, `btclib.ecc.dleq.verify_proof` over the
+    input keys, and asking it here would make a codec verify a proof.
+    """
+    for scan_key, value in map_.items():
+        assert_valid_musig2_pub_key(scan_key, f"{what} scan key")
+        if len(value) != value_size:
+            err_msg = f"invalid {what} length: {len(value)} bytes "
+            err_msg += f"instead of {value_size}"
+            raise BTClibValueError(err_msg)
+
+
+def assert_valid_sp_v0_info(info: bytes) -> None:
+    """Raise unless the octets are a silent payment address's two keys.
+
+    The scan key and the spend key of the address being paid, in the
+    compressed form the address itself carries them in, and both parsed:
+    an output whose keys are not points is an output no Signer can derive
+    a script for, and the field is what a Signer derives it from.
+    """
+    if not info:
+        return
+    if len(info) != SP_V0_INFO_SIZE:
+        err_msg = f"invalid silent payment info length: {len(info)} bytes "
+        err_msg += f"instead of {SP_V0_INFO_SIZE}"
+        raise BTClibValueError(err_msg)
+    assert_valid_musig2_pub_key(info[:SP_SCAN_KEY_SIZE], "silent payment scan key")
+    assert_valid_musig2_pub_key(info[SP_SCAN_KEY_SIZE:], "silent payment spend key")
 
 
 def assert_valid_musig2_session_data(

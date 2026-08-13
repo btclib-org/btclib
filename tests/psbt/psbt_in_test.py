@@ -190,6 +190,12 @@ def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
         "witness_utxo": TxOut(1, b"\x51"),
         "final_script_witness": Witness([b"\x01"]),
         "unknown": {b"\xfc\x01": b"\x02"},
+        # BIP375's pair is kept for the utxos' reason and not by omission:
+        # the Transaction Extractor recomputes every silent payment output
+        # script and verifies it against the share and the proof, which it
+        # cannot do if finalizing threw them away
+        "sp_ecdh_shares": {b"\x02" + b"\x01" * 32: b"\x02" + b"\x03" * 32},
+        "sp_dleq_proofs": {b"\x02" + b"\x01" * 32: b"\x04" * 64},
     }
     # the five BIP370 fields are in neither set, and finalization is not
     # what decides them: an input writes them when its psbt is version 2

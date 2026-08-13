@@ -71,7 +71,7 @@ from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
-from btclib.network import NETWORKS
+from btclib.network import network_type_from_network
 from btclib.script.script_pub_key import is_p2pkh, is_p2sh, is_p2tr, is_p2wpkh
 from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -205,8 +205,16 @@ def _compressed_point(octets: Octets) -> Point | None:
 
 
 def _hrp_from_network(network: str) -> str:
-    """Return BIP352's hrp for a network: mainnet's, or every testnet's."""
-    return _MAINNET_HRP if NETWORKS[network].network_type == "main" else _TESTNET_HRP
+    """Return BIP352's hrp for a network: mainnet's, or every testnet's.
+
+    Through `network_type_from_network` and not `NETWORKS[network]`: a
+    name no network has is refused there, where indexing the table answers
+    a bare `KeyError` -- which, being a `LookupError`, no `except
+    BTClibValueError` written against this library would catch.
+    """
+    return (
+        _MAINNET_HRP if network_type_from_network(network) == "main" else _TESTNET_HRP
+    )
 
 
 def address_from_keys(B_scan: PubKey, B_m: PubKey, network: str = "mainnet") -> str:

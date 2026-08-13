@@ -287,6 +287,26 @@ def test_the_address_round_trip_on_every_network() -> None:
     )
 
 
+def test_a_network_no_network_has_is_refused() -> None:
+    """The hrp comes from the network, so the name has to be one.
+
+    Through `network_type_from_network`, which is what refuses it: indexing
+    `NETWORKS` would answer a bare `KeyError`, and being a `LookupError`
+    that is an exception no caller filtering this library's bad input is
+    told to expect.
+    """
+    B_scan, B_spend = mult(_B_SCAN_PRV), mult(_B_SPEND_PRV)
+    for network in ("mainet", "", "bitcoin"):
+        with pytest.raises(BTClibValueError, match="unknown network"):
+            silent_payments.address_from_keys(B_scan, B_spend, network)
+        with pytest.raises(BTClibValueError, match="unknown network"):
+            silent_payments.labeled_address_from_keys(_B_SCAN_PRV, B_spend, 0, network)
+    # and the tolerance every other network name gets is this one's too
+    assert silent_payments.address_from_keys(
+        B_scan, B_spend, "  MainNet "
+    ) == silent_payments.address_from_keys(B_scan, B_spend)
+
+
 def test_a_labeled_address_differs_in_the_spend_key_alone() -> None:
     """The scan key is shared, which is what one wallet means."""
     B_scan, B_spend, _ = silent_payments.keys_from_address(_address())

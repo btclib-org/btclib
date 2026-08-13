@@ -107,6 +107,9 @@ from btclib.psbt.psbt import (
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
+    SP_DLEQ_PROOF_SIZE,
+    SP_ECDH_SHARE_SIZE,
+    assert_valid_sp_scan_key_map,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_map,
@@ -211,6 +214,8 @@ class PsbtView:
     hd_key_paths: HdKeyPaths
     unknown: dict[bytes, bytes]
     signed_message: bytes | None
+    sp_ecdh_shares: dict[bytes, bytes]
+    sp_dleq_proofs: dict[bytes, bytes]
 
     def __init__(self, data: BinaryIO | Octets) -> None:
         stream: BinaryIO = (
@@ -235,9 +240,15 @@ class PsbtView:
         # dependent, and a map has no order to put the version first in
         version = _global_version(global_map)
         _assert_valid_version(version)
-        tx, globals_, hd_key_paths, unknown, signed_message = _parse_global_map(
-            global_map, version
-        )
+        (
+            tx,
+            globals_,
+            hd_key_paths,
+            unknown,
+            signed_message,
+            sp_ecdh_shares,
+            sp_dleq_proofs,
+        ) = _parse_global_map(global_map, version)
         _settle_globals(tx, globals_, version)
 
         self.version = version
@@ -249,7 +260,20 @@ class PsbtView:
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
         self.signed_message = signed_message
+        # BIP375's two globals are kept and checked as every other global
+        # here is: a view of a psbt that pays a silent payment address is
+        # a view of the shares that derive its output scripts, and a
+        # caller reading the maps one at a time has the same need of them
+        # as `Psbt` does
+        self.sp_ecdh_shares = decode_dict_bytes_bytes(sp_ecdh_shares)
+        self.sp_dleq_proofs = decode_dict_bytes_bytes(sp_dleq_proofs)
         assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_sp_scan_key_map(
+            self.sp_ecdh_shares, SP_ECDH_SHARE_SIZE, "silent payment global ecdh share"
+        )
+        assert_valid_sp_scan_key_map(
+            self.sp_dleq_proofs, SP_DLEQ_PROOF_SIZE, "silent payment global dleq proof"
+        )
         assert_valid_unknown(self.unknown)
 
         # the same bound `Psbt.parse` applies, and for the same reason one
@@ -385,7 +409,10 @@ class PsbtView:
             psbt_in = self.input(i)
             vin.append(_tx_in(psbt_in, zeroed_sequence=False))
             required.append(_required_lock_times(psbt_in))
-        vout = [_tx_out(self.output(i)) for i in range(self.output_count)]
+        vout = [
+            _tx_out(self.output(i), for_identifier=False)
+            for i in range(self.output_count)
+        ]
         lock_time = _lock_time(required, self.fallback_lock_time)
         return Tx(self.tx_version, lock_time, vin, vout, check_validity=False)
 

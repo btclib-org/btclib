@@ -32,11 +32,14 @@ from btclib.psbt.psbt_utils import (
     MUSIG2_PARTIAL_SIG_SIZE,
     MUSIG2_PUB_NONCE_SIZE,
     PSBT_SEPARATOR,
+    SP_DLEQ_PROOF_SIZE,
+    SP_ECDH_SHARE_SIZE,
     assert_not_a_v2_field,
     assert_valid_leaf_scripts,
     assert_valid_musig2_participant_pub_keys,
     assert_valid_musig2_session_data,
     assert_valid_redeem_script,
+    assert_valid_sp_scan_key_map,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
     assert_valid_taproot_script_keys,
@@ -96,6 +99,8 @@ __all__ = [
     "PSBT_IN_SEQUENCE",
     "PSBT_IN_SHA256",
     "PSBT_IN_SIG_HASH_TYPE",
+    "PSBT_IN_SP_DLEQ",
+    "PSBT_IN_SP_ECDH_SHARE",
     "PSBT_IN_TAP_BIP32_DERIVATION",
     "PSBT_IN_TAP_INTERNAL_KEY",
     "PSBT_IN_TAP_KEY_SIG",
@@ -134,17 +139,24 @@ PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
 PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS = b"\x1a"
 PSBT_IN_MUSIG2_PUB_NONCE = b"\x1b"
 PSBT_IN_MUSIG2_PARTIAL_SIG = b"\x1c"
+PSBT_IN_SP_ECDH_SHARE = b"\x1d"
+PSBT_IN_SP_DLEQ = b"\x1e"
 
-# the input fields BIP370 defines, which a version 0 input must not
-# carry: the outpoint and sequence a v0 input reads from the unsigned
+# the input fields a version 0 input must not carry. Five of them are
+# BIP370's: the outpoint and sequence a v0 input reads from the unsigned
 # transaction, and the two locktimes that transaction's own is computed
-# from. See psbt_utils.assert_not_a_v2_field
+# from. The last two are BIP375's, excluded from version 0 for a reason of
+# its own -- a silent payment output has no script until the inputs are
+# fixed, and only version 2 has a field to write one into afterwards.
+# See psbt_utils.assert_not_a_v2_field
 _V2_FIELDS = {
     PSBT_IN_PREVIOUS_TXID: "PSBT_IN_PREVIOUS_TXID",
     PSBT_IN_OUTPUT_INDEX: "PSBT_IN_OUTPUT_INDEX",
     PSBT_IN_SEQUENCE: "PSBT_IN_SEQUENCE",
     PSBT_IN_REQUIRED_TIME_LOCKTIME: "PSBT_IN_REQUIRED_TIME_LOCKTIME",
     PSBT_IN_REQUIRED_HEIGHT_LOCKTIME: "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
+    PSBT_IN_SP_ECDH_SHARE: "PSBT_IN_SP_ECDH_SHARE",
+    PSBT_IN_SP_DLEQ: "PSBT_IN_SP_DLEQ",
 }
 
 # the boundary BIP65 draws between the two kinds of lock time, and BIP370
@@ -350,6 +362,11 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
     ),
     (PSBT_IN_MUSIG2_PUB_NONCE, "musig2_pub_nonces", serialize_dict_bytes_bytes),
     (PSBT_IN_MUSIG2_PARTIAL_SIG, "musig2_partial_sigs", serialize_dict_bytes_bytes),
+    # the two of BIP375, last as their type bytes are: an ECDH share for
+    # one recipient's scan key, and the BIP374 proof that it was computed
+    # with the private key of this input's own public key
+    (PSBT_IN_SP_ECDH_SHARE, "sp_ecdh_shares", serialize_dict_bytes_bytes),
+    (PSBT_IN_SP_DLEQ, "sp_dleq_proofs", serialize_dict_bytes_bytes),
 ]
 
 # the fields of the table above that only a version 2 input writes. They
@@ -392,7 +409,12 @@ _PRESENT_IF_NOT_NONE = frozenset(
 # signed -- a MuSig2 session most of all, its nonces being single use.
 # The utxo fields are outside it there and here, an Extractor needing
 # them to check the transaction it builds; so are the unknown ones,
-# which no role understands well enough to drop
+# which no role understands well enough to drop.
+# BIP375's ECDH share and DLEQ proof are outside it too, and for the
+# utxo's reason rather than by omission: BIP375 gives the Transaction
+# Extractor the job of recomputing every silent payment output script and
+# verifying it against those two, which it cannot do if finalizing threw
+# them away. Core's list predates that BIP and says nothing about them
 _DROPPED_ONCE_FINALIZED = frozenset(
     {
         "partial_sigs",
@@ -498,6 +520,10 @@ _KEY_DATA_FIELDS: dict[bytes, tuple[str, Callable[[bytes], Any]]] = {
     # the whole of their key data, and it is the same key data for the two
     PSBT_IN_MUSIG2_PUB_NONCE: ("musig2_pub_nonces", bytes),
     PSBT_IN_MUSIG2_PARTIAL_SIG: ("musig2_partial_sigs", bytes),
+    # bytes for both again: the key data of each is the scan key of the
+    # recipient the share is for, and the value is a point or a proof
+    PSBT_IN_SP_ECDH_SHARE: ("sp_ecdh_shares", bytes),
+    PSBT_IN_SP_DLEQ: ("sp_dleq_proofs", bytes),
 }
 
 
@@ -540,6 +566,8 @@ class PsbtIn:
     musig2_participant_pub_keys: dict[bytes, list[bytes]]
     musig2_pub_nonces: dict[bytes, bytes]
     musig2_partial_sigs: dict[bytes, bytes]
+    sp_ecdh_shares: dict[bytes, bytes]
+    sp_dleq_proofs: dict[bytes, bytes]
 
     @property
     def prev_out(self) -> OutPoint:
@@ -590,6 +618,8 @@ class PsbtIn:
         musig2_participant_pub_keys: Mapping[Octets, Sequence[Octets]] | None = None,
         musig2_pub_nonces: Mapping[Octets, Octets] | None = None,
         musig2_partial_sigs: Mapping[Octets, Octets] | None = None,
+        sp_ecdh_shares: Mapping[Octets, Octets] | None = None,
+        sp_dleq_proofs: Mapping[Octets, Octets] | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -632,6 +662,8 @@ class PsbtIn:
         )
         self.musig2_pub_nonces = decode_dict_bytes_bytes(musig2_pub_nonces)
         self.musig2_partial_sigs = decode_dict_bytes_bytes(musig2_partial_sigs)
+        self.sp_ecdh_shares = decode_dict_bytes_bytes(sp_ecdh_shares)
+        self.sp_dleq_proofs = decode_dict_bytes_bytes(sp_dleq_proofs)
 
         if check_validity:
             self.assert_valid()
@@ -723,6 +755,13 @@ class PsbtIn:
             "musig2 partial signature",
         )
 
+        assert_valid_sp_scan_key_map(
+            self.sp_ecdh_shares, SP_ECDH_SHARE_SIZE, "silent payment input ecdh share"
+        )
+        assert_valid_sp_scan_key_map(
+            self.sp_dleq_proofs, SP_DLEQ_PROOF_SIZE, "silent payment input dleq proof"
+        )
+
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
@@ -773,6 +812,8 @@ class PsbtIn:
             ),
             "musig2_pub_nonces": encode_dict_bytes_bytes(self.musig2_pub_nonces),
             "musig2_partial_sigs": encode_dict_bytes_bytes(self.musig2_partial_sigs),
+            "sp_ecdh_shares": encode_dict_bytes_bytes(self.sp_ecdh_shares),
+            "sp_dleq_proofs": encode_dict_bytes_bytes(self.sp_dleq_proofs),
         }
 
     @classmethod
@@ -825,6 +866,8 @@ class PsbtIn:
             dict_["musig2_participant_pub_keys"],
             dict_["musig2_pub_nonces"],
             dict_["musig2_partial_sigs"],
+            dict_["sp_ecdh_shares"],
+            dict_["sp_dleq_proofs"],
             check_validity=check_validity,
         )
 
