@@ -323,6 +323,22 @@ def test_a_quorum_is_bounded_by_what_op_int_spells() -> None:
     assert repr(KeyGroup(2, _XPUBS)) == "KeyGroup(2, 3 keys)"
 
 
+def test_a_decoded_key_is_validated_too() -> None:
+    """The rule of #684: an object is validated as a string is.
+
+    `KeyGroup.__init__` mapped every key through `BIP32KeyData.b58decode`,
+    which validates by default, but trusted an already-built
+    `BIP32KeyData` in `keys` unasked.
+    """
+    bad = BIP32KeyData.b58decode(_XPUBS[0])
+    bad.index = -1
+    err_msg = "invalid index: -1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        KeyGroup(1, [bad])
+
+
 def test_verify_writes_checkmultisigverify_and_nothing_else() -> None:
     """The required-quorum form miniscript's `v:` wrapper compiles to.
 

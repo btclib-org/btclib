@@ -132,6 +132,7 @@ from btclib.alias import Command, EmbeddedScriptType, KeyOrder, ScriptList
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
+    _key_data_from_bip32_key,
     derive_from_account,
     xpub_from_xprv,
 )
@@ -322,10 +323,7 @@ class KeyGroup:
         verify: bool = False,
         origins: Sequence[BIP32KeyOrigin | None] | None = None,
     ) -> None:
-        self.keys = tuple(
-            key if isinstance(key, BIP32KeyData) else BIP32KeyData.b58decode(key)
-            for key in keys
-        )
+        self.keys = tuple(_key_data_from_bip32_key(key) for key in keys)
         # one per key, so that the pairing is positional and stays so
         # through the account order, which sorts the keys and not this
         self.origins: tuple[BIP32KeyOrigin | None, ...] = (

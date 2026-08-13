@@ -2744,8 +2744,7 @@ def account_descriptors(
     is text and not a parsed descriptor: `multipath_descriptors` expands
     one and `parse` refuses one, so what this returns is the two.
     """
-    if not isinstance(xkey, BIP32KeyData):
-        xkey = BIP32KeyData.b58decode(xkey)
+    xkey = _key_data_from_bip32_key(xkey)
 
     indexes = indexes_from_der_path(der_path)
     _assert_valid_account_path(indexes)
