@@ -214,6 +214,79 @@ The root extended private key is the seed run through BIP32, and
 btclib does not store that anywhere. It is a string in your process, and
 what happens to it next is entirely yours.
 
+One backup behind many wallets
+------------------------------
+
+A second wallet means a second seed, and a second seed means a second
+paper backup — which is the part of this that goes wrong. BIP85 removes
+the second backup rather than the second wallet: a fully hardened path
+off one root key derives the *entropy* another wallet is seeded from, so
+what you keep is still one root key. :mod:`btclib.bip85` is that
+derivation and the formats the BIP defines on top of it.
+
+The examples here use a key of the BIP's own rather than the
+``rootxprv`` above, so the values below are the ones the specification
+publishes:
+
+>>> from btclib import bip85
+>>> master = "xprv9s21ZrQH143K2LBWUUQRFXhucrQqBpKdRRxNVq2zBqsx8HVqFk2uYo8kmbaLLHRdqtQpUm98uKfu3vca1LqdGhUtyoFnCNkfmXRyPXLjbKb"
+>>> bip85.mnemonic_from_root_key(master)
+'girl mad pet galaxy egg matter matrix prison refuse sense ordinary nose'
+
+That is a BIP39 mnemonic like any other: type it into any wallet that
+reads one. What it is not is random — it is a function of the root key
+and the path, so it comes back the same forever, and the index is how
+you ask for the next one:
+
+>>> bip85.mnemonic_from_root_key(master, index=1).split()[:3]
+['mystery', 'car', 'occur']
+
+The length and the language are path levels too, not formatting:
+another word count is another wallet, and so is another language.
+
+>>> len(bip85.mnemonic_from_root_key(master, 24).split())
+24
+>>> bip85.mnemonic_from_root_key(master, 12, "it").split()[:2]
+['smilzo', 'opinione']
+
+A wallet that does not read BIP39 takes one of the other formats: the
+WIF is what Bitcoin Core imports as an ``hdseed``, taking the leading
+256 bits as a private key, and the xprv is a BIP32 root of its own,
+taking all 512 as a chain code and a key.
+
+>>> bip85.wif_from_root_key(master)
+'Kzyv4uF39d4Jrw2W7UryTHwZr1zQVNk4dAFyqE6BuMrMh1Za7uhp'
+>>> bip85.xprv_from_root_key(master)[:14]
+'xprv9s21ZrQH14'
+
+Not everything derived this way is a wallet. A password is a slice of
+the same entropy in base64 or base85, and dice rolls are drawn from a
+SHAKE256 stream seeded with it — useful where a die is what a wallet
+asks you for, and reproducible where a real die is not:
+
+>>> bip85.base64_password_from_root_key(master, 21)
+'dKLoepugzdVJvdL56ogNV'
+>>> bip85.rolls_from_root_key(master, 10)
+[1, 0, 0, 2, 0, 1, 5, 5, 2, 4]
+
+For a path no function here formats, ``entropy_from_der_path`` is the
+derivation itself and the truncation is yours:
+
+>>> bip85.entropy_from_der_path(master, "m/83696968h/0h/0h").hex()[:32]
+'efecfbccffea313214232d29e71563d9'
+
+RSA is where the BIP stops rather than btclib: it says a key generator
+should read BIP85's own SHAKE256 stream and says nothing about how the
+primes are found, so ``rsa_drng_from_root_key`` hands back that stream
+and the key belongs to whatever library reads it.
+
+What this costs is worth stating plainly. Every wallet derived here
+hangs off the one root key: back it up and you have backed up all of
+them; lose it and they go together, none of them being re-derivable
+from anything else. A passphrase on the BIP39 mnemonic underneath the
+root key is what changes the answer, because it changes the root key
+itself.
+
 An account, its xpub, and the addresses under it
 ------------------------------------------------
 
