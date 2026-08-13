@@ -86,7 +86,29 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     and say it had checked a size.
     """
     if isinstance(octets, str):  # hex string
-        octets = bytes.fromhex(octets)
+        # `bytes.fromhex` raises a bare ValueError -- the same class the
+        # contract promises, so what was lost is only that it came from
+        # here. This is the one coercion every `Octets` parameter of the
+        # library runs through, so it is the one place worth saying it in.
+        # The message is fromhex's own, which names a position and never
+        # the string: an Octets parameter is candidate key material as
+        # often as not, and `to_prv_key` puts this very message inside its
+        # own "not a private key" (issue #137)
+        try:
+            octets = bytes.fromhex(octets)
+        except ValueError as e:
+            raise BTClibValueError(f"invalid hex string: {e}") from e
+    elif not isinstance(octets, (bytes, bytearray, memoryview)):
+        # what is neither went through untouched and reached whatever the
+        # caller went on to do with it: `len` of a tuple of 33 ints is 33,
+        # so `taproot.assert_valid_control_block` accepted one as a
+        # control block size.
+        # Every buffer and not `bytes` alone, and returned as it came:
+        # `assert_valid` is a read and must not rewrite the field it
+        # reads, which is what `bytes()` here would do to a bytearray a
+        # caller built (`tests/bip32/bip32_test.py` pins it)
+        err_msg = f"invalid octets type: {type(octets).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
 
     if out_size is None:
         return octets
@@ -290,11 +312,16 @@ def int_from_integer(i: Integer) -> int:
     if isinstance(i, str):
         i = i.strip().lower()
         if i.startswith(("0x", "-0x")):
-            return int(i, 16)
-        i = bytes.fromhex(i)
+            # the same bare ValueError bytes_from_octets names below, out
+            # of the one spelling that does not reach it
+            try:
+                return int(i, 16)
+            except ValueError as e:
+                raise BTClibValueError(f"invalid hex integer: {i!r}") from e
 
-    # must be bytes
-    return int.from_bytes(i, "big", signed=False)
+    # the hex string, and the refusal of what is neither that nor bytes,
+    # both being bytes_from_octets's to give
+    return int.from_bytes(bytes_from_octets(i), "big", signed=False)
 
 
 def hex_string(i: Integer) -> str:

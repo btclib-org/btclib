@@ -21,7 +21,7 @@ from hashlib import sha256
 
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, double_mult, mult, secp256k1
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.utils import bytes_from_octets, int_from_bits
 
 __all__ = [
@@ -107,15 +107,20 @@ def sign(
         for pubk_ring in pubk_rings
     ]
 
+    # one entry per ring in each of the three, checked here rather than
+    # left to the `strict=True` of the two loops below: a short ks would
+    # truncate them silently and sign a subset of the rings -- a signature
+    # over fewer rings than the caller asked for, which is the one thing a
+    # ring signature must not do quietly. zip's own message is a
+    # BTClibValueError's class with none of its content, naming "argument
+    # 3" and no parameter of this function; strict=True stays, as the
+    # assertion that this check and those loops cannot drift apart
+    if not len(pubk_rings) == len(sign_key_idx) == len(ks):
+        err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes"
+        err_msg += f" and {len(ks)} nonces"
+        raise BTClibValueError(err_msg)
+
     # step 1
-    # strict=True, and it is the one zip in this package that changes what
-    # an argument does rather than documenting an invariant already checked:
-    # nothing validates that ks, sign_key_idx and pubk_rings have one entry
-    # per ring, so a short ks would truncate the loop silently and sign a
-    # subset of the rings -- a signature over fewer rings than the caller
-    # asked for, which is the one thing a ring signature must not do
-    # quietly. ValueError, and BTClibValueError is a ValueError, so a caller
-    # already catching this package's errors catches it
     for i, (pubk_ring, j_star, k) in enumerate(
         zip(pubk_rings, sign_key_idx, ks, strict=True)
     ):

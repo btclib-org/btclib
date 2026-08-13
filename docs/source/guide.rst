@@ -89,7 +89,7 @@ with ``bytes.fromhex``. Passing text where hex is expected fails:
 >>> from btclib.ecc import dsa
 >>> dsa.sign("hello world", 1)
 Traceback (most recent call last):
-ValueError: non-hexadecimal number found in fromhex() arg at position 0
+btclib.exceptions.BTClibValueError: invalid hex string: non-hexadecimal number found in fromhex() arg at position 0
 
 Pass ``bytes`` when you mean text, and let the hex spelling be for
 things that are bytes:
