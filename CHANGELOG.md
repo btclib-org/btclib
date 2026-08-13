@@ -24,6 +24,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`integration.yml` says which of its jobs gates** (#736). Its header
+  claimed the workflow gates nothing and "must not" appear in main's
+  required checks, which two paragraphs of the same file, three of
+  REPOSITORY.md and one of CONTRIBUTING.md contradict: `Regtest against
+  Bitcoin Core` has been required since the workflow was put on pull
+  requests, and the `pull_request` block forty lines below explains that
+  it carries no `paths` filter for exactly that reason. Deleting the
+  paragraph would have cost the reasoning in it, which is still why the
+  *other* job does not gate, so it says the line instead -- a red run
+  that is the branch's fault gates, a red run that is somebody else's
+  release does not -- and the two jobs are named on either side of it.
+  The `pull_request` block now says "the regtest job below", the
+  workflow not being what is required, a job being.
+
 - **Every required check names the app that produces it.** Three of the
   five carried `app_id: 15368` and `Lint and type-check` and `Build the
   documentation` carried none, which is not a weaker spelling of the same
@@ -229,6 +243,36 @@ documented at release-notes length in the first place, and are still in
   finds them, and there is nothing in a run to say otherwise.
 
 ### Packaging, linting and CI
+
+- **The package-content policy is stated where an unpacked sdist carries
+  it** (#735, #734). `docs/source/package-content-policy.md` says what
+  may be in the wheel and the sdist, what may never be, and what has to
+  be; `.github/scripts/verify_dist_contents.py` goes on being the thing
+  that enforces it. Two copies of one list are one that can be wrong --
+  the page saying `.so` is forbidden while the tuple says otherwise, with
+  nothing to notice -- which is why the script was written without a
+  page: `tests/verify_dist_contents_test.py` now compares the two in both
+  directions instead, list by list against the script's own constants, so
+  the page cannot state a rule the script does not have and the script
+  cannot grow one the page does not state. `.github` is not shipped and
+  `docs/` is, so what travels with an installed sdist is the statement
+  rather than nothing.
+  The page also carries what no member list can carry, which nothing
+  checked and nothing said: no install-time execution hook, no network
+  access while the package installs, no code generated from the network
+  while a release is built. The first two are already refused by rules
+  written for other reasons -- `setup.py` is not a root file the sdist
+  ships, `entry_points.txt` is not one of the wheel's metadata files, a
+  `.pth` carries a forbidden suffix -- and the page names those rules, so
+  that trimming an allowlist to what a build happens to produce is a
+  visible choice rather than the silent loss of a guard. The third had no
+  guard at all: `[build-system] requires` is one line that puts somebody
+  else's code in the build, and `tests/build_system_test.py` is what a
+  second requirement now has to get past, with the backend beside it --
+  `setuptools.build_meta`, not the `:__legacy__` that imports and runs a
+  `setup.py`. What is *not* claimed is that a build makes no network
+  request: proving that needs a sandboxed build, and naming it as policy
+  is the honest version.
 
 - **A tag is refused unless the default branch contains its commit**
   (#650). Every other check in `version-check` reads the tree the tag
