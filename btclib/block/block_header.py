@@ -401,6 +401,23 @@ class BlockHeader:
         if not 0 <= self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 
+    def _serialized_size(self) -> int:
+        """Return what serialize writes, without writing it.
+
+        The eighty bytes of a header, taken from the fields rather than
+        stated: `assert_valid` is what fixes the two hashes and the bits
+        at their widths, and this is asked by callers that pass
+        `check_validity=False`.
+        """
+        return (
+            4
+            + len(self.previous_block_hash)
+            + len(self.merkle_root)
+            + 4
+            + len(self.bits)
+            + 4
+        )
+
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return a BlockHeader binary serialization."""
         if check_validity:

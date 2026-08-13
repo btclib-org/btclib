@@ -214,3 +214,25 @@ def test_truncated_encoding_is_rejected(i: int) -> None:
         err_msg = "not enough binary data for var_int"
         with pytest.raises(BTClibValueError, match=err_msg):
             var_int.parse(encoded[:length], max_size=0xFFFFFFFFFFFFFFFF)
+
+
+@given(i=st.integers(min_value=0, max_value=0xFFFFFFFFFFFFFFFF))
+def test_the_size_and_the_encoding_agree(i: int) -> None:
+    """`_size` answers what `serialize` would have written."""
+    assert var_int._size(i) == len(var_int.serialize(i))
+
+
+def test_the_size_agrees_at_every_width_boundary() -> None:
+    """Both sides of each threshold, which is where an off-by-one lands."""
+    for i in (
+        0,
+        1,
+        0xFC,
+        0xFD,
+        0xFFFF,
+        0x10000,
+        0xFFFFFFFF,
+        0x100000000,
+        0xFFFFFFFFFFFFFFFF,
+    ):
+        assert var_int._size(i) == len(var_int.serialize(i))

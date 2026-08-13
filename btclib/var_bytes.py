@@ -28,6 +28,18 @@ def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
     return result
 
 
+def _size(octets: Octets) -> int:
+    """Return the width `serialize` writes, without writing it.
+
+    The coercion is `serialize`'s and is not skipped: a hex string is
+    half its own length in bytes, and reading `len` off the string would
+    answer twice the width for the one input the codec accepts as text.
+    What it does not do is build the concatenation.
+    """
+    size = len(bytes_from_octets(octets))
+    return var_int._size(size) + size
+
+
 def serialize(octets: Octets) -> bytes:
     """Return the var_int(len(octets)) + octets serialization of octets."""
     bytes_ = bytes_from_octets(octets)

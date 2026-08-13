@@ -125,6 +125,10 @@ class OutPoint:
         """Build an OutPoint from the dict shape to_dict writes."""
         return cls(dict_["txid"], dict_["vout"], check_validity=check_validity)
 
+    def _serialized_size(self) -> int:
+        """Return what serialize writes, without writing it."""
+        return len(self.tx_id) + 4
+
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the 36 bytes serialization of the OutPoint."""
         if check_validity:

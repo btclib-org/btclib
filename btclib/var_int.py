@@ -90,6 +90,28 @@ def parse(stream: BinaryData, max_size: int = MAX_SIZE) -> int:
     return i
 
 
+def _size(i: int) -> int:
+    """Return the width `serialize` writes for i, without writing it.
+
+    The four thresholds below are `serialize`'s own, and a test asserts
+    the two agree on both sides of each: a size and a serialization that
+    disagree are a consensus answer that is wrong by a byte.
+
+    Private, and unvalidated as a private twin is: every caller hands it
+    the length of a list or of a byte string, which is the non-negative
+    integer `serialize` checks for. The range `serialize` refuses is
+    unreachable from there -- a count that large counts more items than
+    the block holding them could carry.
+    """
+    if i < 0xFD:
+        return 1
+    if i <= 0xFFFF:
+        return 3
+    if i <= 0xFFFFFFFF:
+        return 5
+    return 9
+
+
 def serialize(i: int) -> bytes:
     """Return the var_int bytes encoding of an integer.
 

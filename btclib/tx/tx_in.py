@@ -178,6 +178,14 @@ class TxIn:
             check_validity=check_validity,
         )
 
+    def _serialized_size(self) -> int:
+        """Return what serialize writes, without writing it.
+
+        The witness is not counted here, for the reason serialize does
+        not write it: Tx puts every witness after the outputs.
+        """
+        return self.prev_out._serialized_size() + var_bytes._size(self.script_sig) + 4
+
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the wire serialization: prev_out, script_sig, sequence.
 

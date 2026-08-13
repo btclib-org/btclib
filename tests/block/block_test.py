@@ -1407,3 +1407,38 @@ def test_a_declared_transaction_count_is_bounded_by_what_a_block_holds() -> None
 
     with pytest.raises(BTClibValueError, match="var_int too big"):
         Block.parse(header + var_int.serialize(maximum + 1), check_validity=False)
+
+
+@pytest.mark.parametrize(
+    "fname",
+    [
+        "block_1.bin",
+        "block_170.bin",
+        "block_200000.bin",
+        "block_481824.bin",
+        "block_481824_complete.bin",
+    ],
+)
+def test_the_size_and_the_serialization_agree(fname: str) -> None:
+    """The summed widths are the bytes, witnesses in and witnesses out.
+
+    `Block.size` and `Block.stripped_size` add the widths up rather than
+    take the length of a serialization, so there are two ways of
+    computing one quantity and they can drift apart. What is measured
+    here is what `assert_valid_length` and `assert_valid_weight` bound,
+    so a byte of disagreement is a block accepted or refused wrongly.
+    """
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
+        block = Block.parse(file_.read())
+
+    for include_witness in (True, False):
+        assert block._serialized_size(include_witness) == len(
+            block.serialize(include_witness, check_validity=False)
+        )
+
+    assert block.size == len(block.serialize(check_validity=False))
+    assert block.stripped_size == len(
+        block.serialize(include_witness=False, check_validity=False)
+    )
+    assert block.weight == 3 * block.stripped_size + block.size

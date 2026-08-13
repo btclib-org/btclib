@@ -91,6 +91,12 @@ class Witness:
         """Build a Witness from the dict shape to_dict writes."""
         return cls(dict_["stack"], check_validity=check_validity)
 
+    def _serialized_size(self) -> int:
+        """Return what serialize writes, without writing it."""
+        return var_int._size(len(self.stack)) + sum(
+            var_bytes._size(w) for w in self.stack
+        )
+
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the serialization of the Witness."""
         if check_validity:

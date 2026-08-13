@@ -57,3 +57,13 @@ def test_forbid_zero_size(octets: bytes) -> None:
     else:
         with pytest.raises(BTClibRuntimeError, match="zero size"):
             var_bytes.parse(serialized, forbid_zero_size=True)
+
+
+def test_the_size_and_the_serialization_agree() -> None:
+    """`_size` is what `serialize` writes, the hex spelling included.
+
+    The string case is the one a length cannot be read off: `len` of
+    "deadbeef" is eight and the codec writes four bytes and a prefix.
+    """
+    for octets in (b"", b"\x00", b"\xff" * 0xFC, b"\xff" * 0xFD, "deadbeef"):
+        assert var_bytes._size(octets) == len(var_bytes.serialize(octets))
