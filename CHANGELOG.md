@@ -1066,6 +1066,24 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.ecc`'s docstring stops crediting the trailing underscore** for
+  a decision it has no part in (issue #721). The paragraph said that what
+  is not in the package's `__all__` is "any name ending in an underscore",
+  which reads as the misconception #711 was about: a trailing underscore
+  is public, and each of those names is exported by the module that
+  defines it. What the package keeps out is a module's own functions,
+  plain or prepared alike -- `dsa.sign` and `dsa.sign_` are both in
+  `dsa.__all__` and neither is in the package's, as `musig2.key_agg`,
+  `ecies.encrypt` and `ellswift.xdh` are not -- with the three loose
+  helpers named there the whole of the exception. For four of them there
+  is no decision to make at all: `sign_`, `verify_` and `assert_as_valid_`
+  are defined by both dsa and ssa, `challenge_` by both ssa and
+  rfc6979_nonce, so a package-level export would collide, exactly as one
+  of `sign` or `gen_keys` would. Nothing else changes: `__all__` is the
+  same list, and the census behind the wording found every
+  trailing-underscore name in the library already exported, which
+  `tests/all_test.py` is what enforces.
+
 - **`NETWORKS` is fixed at import, and read-only** (issue #683). A
   `MappingProxyType` over the dict the five json files fill, so
   `NETWORKS["custom"] = ...` is a `TypeError` where it used to be a
