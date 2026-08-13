@@ -305,6 +305,35 @@ def test_ifdup_casts_to_bool() -> None:
     verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False, True)
 
 
+def test_a_serialized_zero_is_a_number_the_interpreter_reads() -> None:
+    """What `serialize` writes for the integer 0, the engine reads as 0.
+
+    The writer and the reader are `encode_num` and `_to_num`, and no
+    vector puts the two together: the vendored sets spell their zero
+    OP_0, so a `serialize` that wrote the push `0100` instead would pass
+    every one of them and still be refused -- by btclib's own engine and
+    by Core's -- at the first op code that reads a number under
+    MINIMALDATA, a flag every relay path sets (issue #746).
+    """
+    tx = Tx(check_validity=False)
+
+    # 0, OP_1ADD, OP_1, OP_NUMEQUAL: the number goes in through serialize
+    # and comes out through _to_num, with MINIMALDATA judging it
+    script_bytes = serialize([0, "OP_1ADD", "OP_1", "OP_NUMEQUAL"])
+    assert script_bytes == b"\x00\x8b\x51\x9c"
+    verify_script(script_bytes, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
+
+    # the same script with the zero pushed as one byte of data: a number
+    # nowhere the flag is in force, and unspendable there
+    non_minimal = b"\x01\x00" + script_bytes[1:]
+    with pytest.raises(ScriptError, match="non-minimal encoding of 0: 00"):
+        verify_script(non_minimal, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
+
+    # a script number all the same where nothing asks for minimality,
+    # which is why that spelling passes the vectors it passes
+    verify_script(non_minimal, [], 0, tx, 0, NO_FLAGS, False, True)
+
+
 @pytest.mark.parametrize(
     "script, message",
     [
