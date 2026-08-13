@@ -1564,6 +1564,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **The 88 high-s vectors are pinned, not assumed** (#695). Every vector
+  of `tests/ecc/_data/signmessage.json` verifies, which is the answer
+  Bitcoin Core's `verifymessage` gives for all 200 of them and the whole
+  of what the low-s rule used to cost -- but a file of low-s signatures
+  alone would satisfy that assertion too, and say nothing about the rule.
+  `test_the_file_carries_the_high_s_vectors_the_case_rests_on` measures
+  the split instead: 88 of the 200 carry the `s` btclib refused, which is
+  a property of the vendored file and is what makes its neighbour
+  evidence.
 - **The BIP39 vector file is upstream's file byte for byte** (#652).
   `tests/mnemonic/_data/bip39_test_vectors.json` held all twelve language
   arrays of `trezor/python-mnemonic`'s `vectors.json` plus a 25th english
