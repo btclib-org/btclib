@@ -114,11 +114,12 @@ _MAX_LOCK_TIME_NUM_SIZE = 5
 
 def _to_num(element: bytes, flags: ScriptFlag, max_size: int) -> int:
     minimaldata = ScriptFlag.MINIMALDATA in flags
-    if minimaldata and element == b"\x80":
-        raise BTClibValueError("non-minimal encoding of zero")
     if len(element) > max_size:
         raise BTClibValueError(f"number longer than {max_size} bytes: {len(element)}")
     x = decode_num(element)
+    # one comparison covers every non-minimal spelling, negative zero
+    # included: `encode_num` writes zero as the empty vector, so `80` and
+    # `00` are both something it does not write
     if minimaldata and encode_num(x) != element:
         raise BTClibValueError(f"non-minimal encoding of {x}: {element.hex()}")
     return x
