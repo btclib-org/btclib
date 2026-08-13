@@ -46,7 +46,12 @@ from btclib.bip32.bip32 import (
     _derive,
     _key_data_from_bip32_key,
 )
-from btclib.bip32.der_path import _HARDENED_OFFSET, DerPath, indexes_from_der_path
+from btclib.bip32.der_path import (
+    _HARDENED_OFFSET,
+    DerPath,
+    indexes_from_der_path,
+    str_from_index_int,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import mnemonic_from_entropy
 from btclib.mnemonic.mnemonic import Mnemonic
@@ -116,7 +121,11 @@ def _assert_valid_der_path(indexes: list[int]) -> None:
         err_msg += f" instead of {_MIN_INDEXES} or more"
         raise BTClibValueError(err_msg)
     if indexes[0] != _PURPOSE + _HARDENED_OFFSET:
-        raise BTClibValueError(f"not a bip85 derivation path: {indexes[0]}")
+        # the level as a path step and not as the index it is: an
+        # unhardened 83696968 and a hardened one are 2**31 apart as
+        # numbers and one apostrophe apart in what the caller wrote
+        err_msg = f"not a bip85 derivation path: {str_from_index_int(indexes[0])}"
+        raise BTClibValueError(err_msg)
     if any(index < _HARDENED_OFFSET for index in indexes):
         raise BTClibValueError("unhardened bip85 derivation path")
 

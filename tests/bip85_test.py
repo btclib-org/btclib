@@ -217,9 +217,9 @@ def test_a_public_root_key_is_refused() -> None:
     [
         ("m/83696968h/0h", "too few bip85 path levels: 2"),
         ("m", "too few bip85 path levels: 0"),
-        ("m/44h/0h/0h", "not a bip85 derivation path: "),
+        ("m/44h/0h/0h", "not a bip85 derivation path: 44h"),
         ("m/83696968h/0h/0", "unhardened bip85 derivation path"),
-        ("m/83696968/0h/0h", "not a bip85 derivation path: "),
+        ("m/83696968/0h/0h", "not a bip85 derivation path: 83696968"),
     ],
 )
 def test_a_path_bip85_defines_no_entropy_for(der_path: str, err_msg: str) -> None:
