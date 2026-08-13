@@ -728,9 +728,29 @@ a `BIP32Key` of any spelling becomes a validated `BIP32KeyData`, every
 public wrapper going through it. `descriptors` then composes the twins
 directly — `_xpub_from_xprv(_derive(_key_data_from_bip32_key(xprv),
 prefix))` — paying one validation instead of three, and no base58 round
-trip between them. So a leading underscore says a second thing here,
-beside what `__all__` already decides about publicity: the twin does not
-validate, and calling it asserts that its caller did.
+trip between them. The leading underscore those three carry means what it
+means anywhere in Python: private. `__all__` is what decides publicity, so
+it is a reader's hint rather than the rule, but an unvalidating twin
+belongs on the private side of that list, and calling one asserts that its
+caller validated.
+
+**A trailing underscore is the other convention, and it is public.** It
+marks the spelling whose input the caller has already prepared: `dsa.sign_`
+takes the hash `sign` would compute, `musig2.nonce_gen_` the randomness
+`nonce_gen` draws, `musig2.partial_sig_verify_` the session context
+`partial_sig_verify` aggregates. Both names of the pair are in `__all__`,
+so it is an offer to skip work the caller has already paid for, not a way
+past the validation above: `sign_` checks its `msg_hash` as `sign` checks
+its `msg`. The two conventions are independent, and
+`btclib.ecc.dsa._assert_as_valid_` carries both.
+
+Publishing both names is what makes their agreement a promise rather than
+a tidiness. A keyword added to `verify` is added to `verify_` or to
+neither, with the same default in both: a flag that changes the answer on
+one and is missing or defaulted differently on the other makes the pair
+two functions instead of two spellings, and a caller who reduced the
+message first quietly gets a different rule. The prepared argument is the
+one difference the pair exists for.
 
 The exception is a boundary at which nothing can be invalid, and it is
 named rather than passed over: where a class's invariants are exactly the

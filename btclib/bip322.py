@@ -693,7 +693,12 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String) -> Sig:
         return Sig(Witness([ssa.sign_(msg_hash, tweaked).serialize()]))
 
     msg_hash = from_tx(spend.vout, tx, 0, ALL)
-    signature = dsa.sign_(msg_hash, q).serialize() + ALL.to_bytes(1, "big")
+    # grind=False, against `sign_`'s own default: the BIP's reference
+    # implementation signs the plain RFC6979 signature, and its vectors are
+    # the whole interoperability claim of this function -- a ground one
+    # would be valid, a byte shorter, and equal to nobody's published bytes.
+    # Nothing is broadcast here either, so that byte buys nothing
+    signature = dsa.sign_(msg_hash, q, grind=False).serialize() + ALL.to_bytes(1, "big")
 
     if script_type == "p2pkh":
         tx.vin[0].script_sig = serialize([signature, pub_key])
