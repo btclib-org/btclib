@@ -1291,6 +1291,30 @@ documented at release-notes length in the first place, and are still in
   `mod_sqrt` squares back to compare with a is the same question the
   symbol was asked. The non-square half of its inputs pays that squaring
   and an exception in place of the symbol, and measures the same 78 us.
+- **`tonelli` looks for its non-residue from the first value that can be
+  one** (issue #794). The search ran from z = 1, whose Legendre symbol
+  is 1 by definition, so its first iteration could not succeed. It runs
+  from z = 2, and the roots are the same.
+
+  What that iteration costs is not what counting it suggests, which is
+  why the measurement is recorded rather than the count: `pow(1, (p - 1)
+  // 2, p)` is an exponentiation of full length whose every intermediate
+  value is the single digit 1, so each of its squarings multiplies one
+  digit by one digit. On secp224r1's p it is 1.21 us, against the 43.46
+  of the symbol on 2 and the 43.91 on 11. Beside a `tonelli` call of 258
+  us on secp224k1 and 1117 us on secp224r1 -- 200 random squares per
+  curve, five alternating rounds, a modular multiplication as the
+  control at 0.22 us -- the two spellings measure the same number twice.
+  So this is a shape defect and not a saving: a loop whose first
+  candidate is excluded by the definition of the thing it searches for.
+
+  Who reaches the search is a p == 1 mod 4: for p == 3 mod 4 the 2-adic
+  valuation of p - 1 is 1 and `tonelli` returns `pow(a, (p + 1) // 4,
+  p)` above it. Of the catalogue that is `secp224k1`, whose least
+  non-residue is 2, and `secp224r1` and `nistp224`, which share a p
+  whose least non-residue is 11. What stays is the search's own cost,
+  the symbols on the values between 2 and z that are squares -- nine of
+  them for that shared p -- which is Tonelli-Shanks asking its question.
 - **The Python `double_mult` splits both coefficients through the GLV
   endomorphism on secp256k1**. `mult` has had algorithm 3.77 since the
   endomorphism went in, and `double_mult` did not: it ran two full-length
