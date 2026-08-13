@@ -160,7 +160,8 @@ section tells you to read. A generated
 running `Analyze (ruby)` and `Analyze (python)`, but it uploads *code
 quality* results now — `ruby.quality.sarif` in its log, where the security
 analysis produced `python.sarif` and `actions.sarif`. Code quality is a
-separate setting, and `code-scanning/default-setup` does not report it:
+separate setting with an endpoint of its own, the section below, and
+`code-scanning/default-setup` reports nothing about it:
 
 ```shell
 gh api repos/btclib-org/btclib/actions/workflows \
@@ -187,6 +188,57 @@ answers 422 for a string `app_id`. Its body is the four-check one the
 section above carries, every entry naming its app because every one of these
 is an Actions check — the `CodeQL` it drops was the exception, the app
 producing it not being Actions.
+
+## Code quality
+
+The analysis the section above leaves behind, and it is off. Its setting
+is not `code-scanning/default-setup`, and the Actions API refuses to be
+the way in — `actions/workflows/<id>/disable` answers 422, `Unable to
+disable this workflow`, a generated workflow not being one this repository
+owns. The endpoint that reports it is the one that sets it:
+
+```shell
+gh api repos/btclib-org/btclib/code-quality/setup
+# {"state":"not-configured","languages":["python","ruby"], ...}
+
+gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
+  -F state=not-configured
+```
+
+What decided it is the concurrency ceiling and not the queries. GitHub
+Free gives an organization twenty concurrent jobs, a pull request here
+asks for twenty-one on purpose, and `Analyze (python)` and `Analyze
+(ruby)` were two more on every pull request and every push to `main` —
+`Code Quality: PR #N` in the run list, 80 seconds and 32.
+
+What they produced in exchange cannot be read from here at all. There is
+no `code-quality/alerts` and no `code-quality/analyses`, both 404, and a
+quality upload appears in neither of the endpoints that do answer: the
+alert list is empty, and every analysis is `codeql.yml`'s own, by
+category.
+
+```shell
+gh api "repos/btclib-org/btclib/code-scanning/alerts?per_page=100" \
+  --jq length
+gh api "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \
+  --jq '[.[] | .category] | unique'
+```
+
+So the repository's Code quality tab is the only place the python quality
+queries have ever spoken — the run log lists them one by one as they
+evaluate — and nothing outside a browser can say what they said, which is
+most of the reason nobody read them.
+
+`Analyze (ruby)` is the plainest half of it: there is no Ruby in this
+library. Pages serves btclib.org from `main`'s root, so a `Gemfile` sits
+beside the package and autodetection reads a Ruby project; `codeql.yml`
+excludes Ruby from its own matrix for that same reason.
+
+`state=configured` is the way back, and the argument for it is that these
+queries are a class of finding nothing else here makes: ruff, mypy and the
+two spell checkers are the cover, and they are not the same questions. The
+trade against them is above, and it is the ceiling, so a fleet that is not
+waiting for slots is what would change it.
 
 ## Branch protection
 
