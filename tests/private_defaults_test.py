@@ -30,6 +30,13 @@ and a public method of a private class, the rule being about the name a
 call site reads. A name-mangled `__two_leading_underscores` is private and
 is reached.
 
+The library and not this directory, which is a scope and not an oversight:
+a test helper's default is doing the opposite work. `_tx(version=1,
+lock_time=0)` of `integer_policy_test.py` is a valid transaction with one
+field overridden per case, so the defaults *are* the fixture, and what a
+caller states is the field under test -- naming the other one at each site
+would bury it.
+
 The walk reads the sources instead of importing the modules, so that a
 method and a nested function are reached as well; the two tests after the
 gate are what keep it from passing on a walk that found nothing.
