@@ -129,7 +129,7 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
     h.update(msg)
-    return bytes(h.digest())
+    return h.digest()
 
 
 def magic_message(msg: Octets) -> bytes:
@@ -310,4 +310,4 @@ def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
     # it could be sped up by storing the above midstate
 
     h2.update(m)
-    return bytes(h2.digest())
+    return h2.digest()
