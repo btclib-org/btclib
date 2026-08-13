@@ -10,7 +10,7 @@ from io import StringIO
 
 import pytest
 
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.mnemonic import (
     bin_str_entropy_from_bytes,
     bin_str_entropy_from_entropy,
@@ -44,6 +44,31 @@ def test_indexes() -> None:
         entropy = bin_str_entropy_from_wordlist_indexes(expected, 2048)
         indexes = wordlist_indexes_from_bin_str_entropy(entropy, 2048)
         assert indexes == expected
+
+
+def test_an_index_no_word_answers_to_is_refused() -> None:
+    """Out of range is a carry in base-`base`, not an error, and so was wrong.
+
+    `entropy * base + index` accepts any number as a digit: 2048 in a
+    2048-word list is the same accumulation as a 1 carried into the
+    digit above it, and a negative index subtracts. What came back was
+    entropy no mnemonic spells, from the function whose whole job is to
+    say what one means -- and it came back with no exception at all.
+    """
+    good = [0, 1, 2046, 2047]
+    assert int(bin_str_entropy_from_wordlist_indexes(good, 2048), 2) == (
+        ((1 * 2048) + 2046) * 2048 + 2047
+    )
+
+    for out_of_range in (-1, 2048, 2**32):
+        with pytest.raises(BTClibValueError, match="invalid index: "):
+            bin_str_entropy_from_wordlist_indexes([*good, out_of_range], 2048)
+    # the same index, in the base that does have a word for it
+    assert bin_str_entropy_from_wordlist_indexes([2048], 4096)
+
+    for not_an_index in (1.0, "1", True):
+        with pytest.raises(BTClibTypeError, match="invalid index type: "):
+            bin_str_entropy_from_wordlist_indexes([not_an_index], 2048)  # type: ignore[list-item]
 
 
 def test_indexes_round_trip_a_base_that_is_not_a_power_of_two() -> None:

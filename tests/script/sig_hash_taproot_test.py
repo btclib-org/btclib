@@ -23,7 +23,11 @@ import pytest
 
 from btclib.alias import ScriptList, TaprootScriptTree
 from btclib.ecc import ssa
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 from btclib.hashes import hash160, sha256
 from btclib.script import (
     ScriptPubKey,
@@ -623,3 +627,41 @@ def test_the_spent_amounts_are_signed_camounts() -> None:
     assert sig_hash.taproot(
         tx, 0, [prevout], sig_hash.ANYONECANPAY | sig_hash.ALL, 0, b"", b""
     )
+
+
+def test_an_input_index_outside_the_vin_is_refused() -> None:
+    """Two indexes of no input gave two hashes, both accepted as answers.
+
+    BIP341's SigMsg commits to the index itself, and outside the
+    ANYONECANPAY branch that is all it does with it: nothing dereferences
+    `transaction.vin[input_index]`, so an index past the end was written
+    into the preimage and hashed. 99 and 100 on a two-input transaction
+    therefore produced two *different* 32-byte hashes, each a valid
+    answer to a question about an input that does not exist. The bound
+    was checked in the SIGHASH_SINGLE branch alone, against the vout.
+    """
+    utxo = TxOut(
+        100000000,
+        serialize(
+            ["OP_1", "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"]
+        ),
+    )
+    vin = [
+        TxIn(OutPoint("01" * 32, 0), "", 1, Witness(["00" * 64])),
+        TxIn(OutPoint("02" * 32, 1), "", 1, Witness(["00" * 64])),
+    ]
+    tx = Tx(vin=vin, vout=[TxOut(100000000, ""), TxOut(1, "")])
+    prevouts = [utxo, utxo]
+
+    def sig_hash_of(input_index: int) -> bytes:
+        return sig_hash.taproot(tx, input_index, prevouts, 0x01, 0, b"", b"")
+
+    assert len(sig_hash_of(0)) == 32
+    assert sig_hash_of(0) != sig_hash_of(1)
+
+    for out_of_range in (-1, 2, 99, 100):
+        with pytest.raises(BTClibValueError, match="invalid input index: "):
+            sig_hash_of(out_of_range)
+    for not_an_index in (1.0, "0", True):
+        with pytest.raises(BTClibTypeError, match="invalid input index type: "):
+            sig_hash_of(not_an_index)  # type: ignore[arg-type]

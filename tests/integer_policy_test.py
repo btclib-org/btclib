@@ -21,7 +21,8 @@ from typing import Any
 
 import pytest
 
-from btclib import base58, var_int
+from btclib import base58, bech32, var_int
+from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
 from btclib.bip32 import BIP32KeyData
 from btclib.bip32.der_path import (
@@ -34,12 +35,19 @@ from btclib.block import BlockHeader
 from btclib.block.block_context import BlockContext
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
+from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
+from btclib.number_theory import mod_inv
+from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets, is_integer
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
 _NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
+# a one-leaf tree and the prevout of the one input `_tx` builds: what the
+# two index parameters below have to be handed something valid to index
+_SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
+_PREVOUTS = [TxOut(1, b"")]
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -104,6 +112,15 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("base58 output size", lambda v: base58.decode(base58.encode(b"x"), v)),
     ("var_int", var_int.serialize),
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
+    ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
+    ("word-list index", lambda v: bin_str_entropy_from_wordlist_indexes([v], 2048)),
+    ("modular operand", lambda v: mod_inv(v, 7)),
+    ("modulus", lambda v: mod_inv(3, v)),
+    ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
+    (
+        "sig_hash input index",
+        lambda v: sig_hash.taproot(_tx(), v, _PREVOUTS, 1, 0, b"", b""),
+    ),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -152,6 +169,11 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert base58.decode(base58.encode(b"x"), 1) == b"x"
     assert var_int.serialize(1) == b"\x01"
     assert var_int.parse(b"\x01", max_size=1) == 1
+    assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
+    assert bin_str_entropy_from_wordlist_indexes([1], 2048) == "00000000001"
+    assert mod_inv(3, 7) == 5
+    assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
+    assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
 
     # the str and bytes spellings of a path are untouched by any of it
     assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]

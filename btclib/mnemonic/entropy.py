@@ -22,8 +22,8 @@ from collections.abc import Iterable, Sequence
 from hashlib import sha512
 
 from btclib.alias import Octets
-from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "BinStr",
@@ -76,9 +76,19 @@ def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> 
 
     Return the raw (i.e. binary 0/1 string) entropy from the provided
     list of integer indexes into a given language word-list.
+
+    An index the word list has no word for is refused rather than
+    carried: base-`base` arithmetic accepts any number as a digit, so
+    2048 in a 2048-word list is not an error but a carry into the digit
+    above it -- entropy nothing spells, out of a function whose whole
+    job is to say what a mnemonic means.
     """
     entropy = 0
     for index in indexes:
+        if not is_integer(index):
+            raise BTClibTypeError(f"invalid index type: {type(index).__name__}")
+        if not 0 <= index < base:
+            raise BTClibValueError(f"invalid index: {index}, not in [0, {base})")
         entropy = entropy * base + index
 
     binentropy = f"{entropy:b}"

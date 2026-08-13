@@ -47,7 +47,7 @@ from btclib.bech32 import (
     decode,
     encode,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_the_tap_table_holds_the_taps_it_replaces() -> None:
@@ -224,3 +224,28 @@ def test_a_changed_character_fails_the_checksum(
         return
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
         decode(f"{hrp}1{mutated}")
+
+
+def test_a_value_that_is_no_5_bit_digit_is_refused() -> None:
+    """A negative digit wrapped around the alphabet into another address.
+
+    `_ALPHABET[d]` is a plain string index, so Python read -1 as the
+    last character and -32 as the first: `encode` answered a bech32
+    string, correctly checksummed and decodable, spelling a payload
+    nobody asked for. A digit above 31 raised `IndexError` instead,
+    which is a `LookupError` and outside every `except BTClibValueError`
+    written against this library, and a float raised `TypeError`.
+    """
+    valid = [0, 1, 30, 31]
+    assert decode(encode("bc", valid)) == ("bc", valid)
+
+    for out_of_range in (-1, -32, 32, 2**32):
+        with pytest.raises(BTClibValueError, match="invalid 5-bit value: "):
+            encode("bc", [*valid, out_of_range])
+    for not_a_digit in (1.0, "1", None, True):
+        with pytest.raises(BTClibTypeError, match="invalid 5-bit value type: "):
+            encode("bc", [*valid, not_a_digit])  # type: ignore[list-item]
+
+    # the boundaries themselves: `< 32` weakened to `<= 32`, or `0 <=`
+    # to `-1 <=`, would accept a digit the alphabet has no character for
+    assert encode("bc", [31]) != encode("bc", [0])

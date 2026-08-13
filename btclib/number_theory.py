@@ -17,8 +17,8 @@ with the following modifications:
 
 from __future__ import annotations
 
-from btclib.exceptions import BTClibValueError
-from btclib.utils import hex_string
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import hex_string, is_integer
 
 __all__ = [
     "legendre_symbol",
@@ -29,12 +29,49 @@ __all__ = [
 ]
 
 
+def _assert_valid_operand(a: int) -> None:
+    """Refuse an operand that is not an integer, a bool not being one.
+
+    A float goes through every function here without complaint --
+    `//`, `%` and `*` are all defined for it -- and comes back out of a
+    signature that says `int`: `mod_inv(3.0, 7)` answers `5.0`, which is
+    not a residue and not an error either. `var_int.serialize` checks the
+    same way and its docstring says why a bool is excluded.
+    """
+    if not is_integer(a):
+        raise BTClibTypeError(f"not an integer: {a!r}")
+
+
+def _assert_valid_modulus(m: int) -> None:
+    """Refuse a modulus nothing is a residue of.
+
+    Positive, not merely non-zero: zero is the `ZeroDivisionError` of
+    `a %= m` and the `ValueError` `pow` raises for a third argument of
+    zero, neither of which a caller writing `except BTClibValueError`
+    catches, and a negative modulus would answer with a negative residue
+    class that no caller of this module has a use for.
+    """
+    _assert_valid_operand(m)
+    if m < 1:
+        raise BTClibValueError(f"non-positive modulus: {m}")
+
+
+# every public function here checks its own arguments, rather than five
+# private twins doing the work unchecked for the ones that call each
+# other: a pair of isinstance calls is a fraction of a percent of the
+# arithmetic it stands in front of, an inverse modulo a 256-bit prime
+# being an extended Euclid, so the re-checking mod_sqrt does through
+# tonelli and legendre_symbol costs less than five more names would
+
+
 def xgcd(a: int, b: int) -> tuple[int, int, int]:
     """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).
 
     based on Extended Euclidean Algorithm, see
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
+    _assert_valid_operand(a)
+    _assert_valid_operand(b)
     x0, x1, y0, y1 = 0, 1, 1, 0
     while a != 0:
         q, b, a = b // a, a, b % a
@@ -51,6 +88,8 @@ def mod_inv(a: int, m: int) -> int:
     Based on Extended Euclidean Algorithm, see:
     - https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
+    _assert_valid_operand(a)
+    _assert_valid_modulus(m)
     a %= m
     g, x, _ = xgcd(a, m)
     if g == 1:
@@ -70,6 +109,8 @@ def legendre_symbol(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
+    _assert_valid_operand(a)
+    _assert_valid_modulus(p)
     ls = pow(a, p >> 1, p)
     return -1 if ls == p - 1 else ls
 
@@ -87,6 +128,8 @@ def mod_sqrt(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
+    _assert_valid_operand(a)
+    _assert_valid_modulus(p)
     a %= p
 
     if p % 4 == 3:  # secp256k1 case
@@ -118,6 +161,8 @@ def tonelli(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
+    _assert_valid_operand(a)
+    _assert_valid_modulus(p)
     a %= p
     if a == 0 or p == 2:
         return a

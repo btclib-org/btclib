@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import pytest
 
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError, FetchError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+    FetchError,
+)
 from btclib.fetch.fetcher import (
     Fetcher,
     fetch_errors,
@@ -78,6 +83,26 @@ def test_tx_for_network_leaves_mainnet_alone() -> None:
     """Return the very same object for mainnet, not a relabelled copy."""
     tx = Tx.parse(RAW)
     assert tx_for_network(tx, "mainnet") is tx
+    # and for every other spelling of it, the name being resolved and not
+    # compared: " MainNet " used to fall through to the relabelling branch
+    assert tx_for_network(tx, " MainNet ") is tx
+
+
+def test_tx_for_network_refuses_a_network_no_table_has() -> None:
+    """The label is written with check_validity=False, so nothing caught it.
+
+    Every `ScriptPubKey`, `TxOut` and `Tx` built here is built unchecked
+    -- deliberately, the relabelling touching nothing else -- so a
+    network name that names nothing was baked into the transaction
+    handed back, to surface as a `KeyError` from whatever went on to
+    render an address, a long way from the call that caused it.
+    """
+    tx = Tx.parse(RAW)
+    for unknown in ("mainet", "", "bitcoin"):
+        with pytest.raises(BTClibValueError, match="unknown network: "):
+            tx_for_network(tx, unknown)
+    with pytest.raises(BTClibTypeError, match="not a network name: "):
+        tx_for_network(tx, None)  # type: ignore[arg-type]
 
 
 def test_tx_for_network_labels_the_outputs_and_touches_nothing_else() -> None:

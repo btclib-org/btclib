@@ -58,7 +58,8 @@ from functools import reduce
 from operator import xor
 
 from btclib.alias import String
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import is_integer
 
 __all__ = [
     "decode",
@@ -180,7 +181,26 @@ def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
 
 
 def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
-    """Compute a bech32 string given HRP and data values."""
+    """Compute a bech32 string given HRP and data values.
+
+    Every value is one 5-bit digit, and each is checked rather than left
+    to the alphabet lookup to fail: ``_ALPHABET[-1]`` is "l" and
+    ``_ALPHABET[-32]`` is "q", Python indexing from the end, so a
+    negative digit writes a *different address* and says nothing at all.
+    A digit above 31 at least raises, and raises `IndexError`; a float
+    raises `TypeError`. Neither is caught by the `except
+    BTClibValueError` this library invites.
+
+    The pair of checks walks the digits a second time, which is a
+    fraction of what encoding them costs and a smaller fraction of the
+    key derivation that produced them -- an address is encoded once,
+    never in an inner loop.
+    """
+    for d in data:
+        if not is_integer(d):
+            raise BTClibTypeError(f"invalid 5-bit value type: {type(d).__name__}")
+        if not 0 <= d < 32:
+            raise BTClibValueError(f"invalid 5-bit value: {d}")
     m = _m_from_wit_ver(data) if m is None else m
     combined = data + _create_checksum(hrp, data, m)
     s = f"{hrp}1" + "".join(_ALPHABET[d] for d in combined)

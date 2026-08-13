@@ -1658,6 +1658,70 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Twelve places answered a malformed argument instead of refusing it**
+  (issue #744): no exception of the wrong class, no exception at all --
+  a hash, an address, an entropy, a weight, a residue, handed back for an
+  input that names nothing. They are unrelated bugs of one shape, which
+  is why they are one entry: a check written for one spelling of an
+  argument, or one branch of a function, and not for the others.
+
+    - `script.sig_hash.taproot` hashed an `input_index` past the end of the
+    vin. BIP341's SigMsg commits to the index itself, and outside the
+    ANYONECANPAY branch nothing dereferences it, so indexes 99 and 100 on
+    a two-input transaction produced two *different* 32-byte hashes, both
+    returned. The bound existed in the SIGHASH_SINGLE branch alone, and
+    against the vout.
+    - `script.taproot.input_script_sig` read `script_num` as a list index,
+    so -1 selected the last leaf and -2 the one before it, each with a
+    control block that correctly proves the leaf nobody asked for.
+    - `script.taproot.assert_valid_control_block` measured `len` of
+    whatever it was handed: `"é" * 33` is 33 characters and 66 octets of
+    UTF-8, and passed as a control block size. The octets are taken first
+    now, as `check_output_pubkey` takes them on the same argument.
+    - `bech32.encode` indexed its alphabet with the digits it was given, so
+    a negative one counted from the end of the alphabet and wrote a
+    different address, correctly checksummed and silent. A digit above 31
+    raised `IndexError`, a `LookupError` and so outside every `except
+    BTClibValueError`.
+    - `bip32.der_path.indexes_from_der_path` enforced `0 <= index <
+    0x80000000` for the text spelling of a path and nothing for the
+    others: `indexes_from_der_path([-5])` answered `[-5]`. The
+    `OverflowError` that `derive`, `bytes_from_der_path` and
+    `BIP32KeyOrigin.serialize` then raised is fixed with it, an
+    `ArithmeticError` being no better than a wrong answer for a caller
+    filtering bad input.
+    - `bip32.pub_key_derivation_tweaks` skipped its whole body for a path
+    of no steps, so 33 bytes that are no public key came back as `[]` --
+    the answer a caller reads as "derived, nothing to apply". `[]` is
+    right for an empty path and wrong for a non-point.
+    - `descriptors.miniscript_solver` read `psbt.inputs[vin_i]` unchecked,
+    so a negative index solved the input at the other end and answered a
+    witness for it. Its siblings `update_psbt_input` and
+    `update_psbt_output` carry the guard, with the comment saying why.
+    - `Psbt.weight_estimate` -- and `estimated_weight` and
+    `estimated_vsize` through it -- estimated an incoherent psbt rather
+    than refusing, alone among the public methods that read a psbt's own
+    data. A weight is what a fee is computed from.
+    - `number_theory`'s `xgcd`, `mod_inv`, `legendre_symbol`, `mod_sqrt`
+    and `tonelli` ran on a float and answered one: `mod_inv(3.0, 7)` was
+    `5.0`, out of a signature that says `int`. A modulus of zero raised
+    `ZeroDivisionError`, which `except ValueError` does not catch. The
+    guard is `var_int.serialize`'s, and it costs a fraction of a percent
+    of the arithmetic it stands in front of.
+    - `utils.int_from_json_number` truncated: `1.5` was 1, silently and to
+    a number the caller did write. 1.0 is the json spelling of 1 and
+    still coerces; `nan` and `inf` are no more whole than 1.5.
+    - `mnemonic.entropy.bin_str_entropy_from_wordlist_indexes` accepted an
+    index no word answers to. Base-`base` arithmetic has no out of range:
+    2048 in a 2048-word list is a carry into the digit above it, so the
+    entropy came back wrong rather than refused.
+    - `fetch.fetcher.tx_for_network` compared the name against `"mainnet"`
+    as text and labelled every output with whatever else it was given,
+    `check_validity=False` throughout: a network no table has was baked
+    into the transaction handed back, to surface far from the call. The
+    name is resolved now, which also makes `" MainNet "` the
+    short-circuit it always should have been.
+
 - **`network_from_name` is the one place a network name becomes a
   `Network`** (issue #744), and fourteen call sites that indexed
   `NETWORKS[network]` raw go through it. A name no network has was a bare
