@@ -209,10 +209,43 @@ the number describes the machine rather than pytest.
 
 ## Profiling
 
-Profiling can be obtained with:
-
 ```shell
-uv run python -m cProfile -s time -m pytest
-uv run python -m cProfile -s cumtime -m pytest
-uv run python -m cProfile -o btclib.prof -m pytest
+uv run python -m cProfile -o btclib.prof -m pytest \
+    -n0 --no-cov -p no:randomly
+uv run python -m pstats btclib.prof   # sort time, stats 30, callers add_jac
 ```
+
+Every flag after `-m pytest` undoes something `addopts` asked for, and
+none of them is decoration. `-n0` because xdist runs the tests in child
+processes while cProfile measures the parent, which then reports the
+suite as time spent waiting on them. `--no-cov` because coverage's
+callback is charged to whichever function is running under it. `-p
+no:randomly` because two profiles are comparable only if the order that
+produced them was.
+
+`-s time` and `-s cumtime` in place of `-o` sort the run and keep
+nothing. Saving the file answers both sorts from one run, and answers
+what neither of them asks — who called the expensive function, which is
+the browser's `callers` on the second line.
+
+What to know before reading one:
+
+- **the point arithmetic of `curves/curve_group.py` dominates the self
+  time**, and what drives it is the two places that ask for the
+  arithmetic the bindings do not do: `python_path_test.py` patches the
+  delegation away on purpose, and the low-cardinality tests of `dsa` and
+  `ssa` run toy curves `_libsecp256k1_applicable` refuses by definition.
+  The profile therefore ranks the fallback, and a change meant for what
+  a user's secp256k1 call reaches has to be measured on a run that is
+  not denying it the bindings.
+- **a wrapper is billed for being called.** `double_jac` does nothing but
+  call the helper beneath it, and every one of those calls is charged to
+  it; `isinstance`, `len` and `list.append` are the same entry from the
+  other side, large because everything calls them.
+- **`time.sleep` high in the self time is not work**: it is
+  `subprocess._wait`, the tests that shell out, and `callers` is what
+  says so rather than guesswork.
+- **cost per call is a sort the profile does not offer**, and the sort by
+  self time buries it: something called a handful of times can be
+  expensive in each of them and rank nowhere. Read `ncalls` beside
+  `tottime`, or divide one by the other.
