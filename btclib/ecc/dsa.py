@@ -11,6 +11,10 @@ http://www.secg.org/sec1-v2.pdf
 specialized with bitcoin canonical 'lower-s' form
 to avoid accepting malleable signatures.
 
+``sign`` grinds for a low-R signature -- one byte shorter in DER -- when
+asked to, which is Core's default and not this library's: ``_grind_low_r``
+is the loop and says why.
+
 ``sign`` also takes a value to commit to inside the nonce,
 sign-to-contract style (see btclib.ecc.commit_nonce for the tweak), and
 the four ``anti_exfil_*`` functions here are the protocol that
@@ -22,6 +26,7 @@ from __future__ import annotations
 
 import contextlib
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
@@ -391,6 +396,57 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     return _sign_recoverable_(c, q, nonce, lower_s, ec)[0]
 
 
+def _is_low_r(r: int, ec: Curve) -> bool:
+    # Core's SigHasLowR, read off the scalar rather than off the 32 bytes
+    # it takes the top byte of: DER prepends a 0x00 to a value whose
+    # highest bit is set, to keep it from reading as negative, so r costs
+    # the pad exactly when it does not fit n_size bytes as a signed
+    # integer. On secp256k1 that is r < 2**255, and it is the size
+    # _serialize_scalar arrives at from the same bit_length
+    return r.bit_length() < 8 * ec.n_size
+
+
+def _grind_entropy(counter: int) -> bytes | None:
+    # None, not 32 zero bytes, for the first attempt: ndata is appended
+    # to the key and the message, so zeros are additional data like any
+    # other and the nonce would not be RFC6979's
+    return None if counter == 0 else counter.to_bytes(32, byteorder="little")
+
+
+def _grind_low_r(attempt: Callable[[int], Sig], grind: bool, ec: Curve) -> Sig:
+    """Sign until r is low, `attempt(counter)` being one signature.
+
+    Core's low-R grinding, from its PR 13666 and its default since 0.17:
+    an r with its highest bit set costs a byte of DER pad, in every input
+    that carries the signature, and re-signing with different extra
+    entropy draws another r. Half of the draws are low already, so the
+    expected cost is one extra signature and the expected saving half a
+    byte.
+
+    The sequence is Core's `CKey::Sign`, and it has to be, or a signature
+    is reproducible only against this library: attempt 0 passes no extra
+    entropy at all -- so a first draw that is already low is the plain
+    RFC6979 signature, grinding or not -- and attempt i passes i as 32
+    little-endian bytes, which is Core's `WriteLE32` into a zeroed
+    `extra_entropy[32]` for every counter it reaches, electrum-ecc's
+    `counter.to_bytes(32, "little")` and embit's the same.
+
+    No attempt cap. Core has none, and one would answer an event of
+    probability 2**-k with an error a caller can do nothing about; embit
+    breaks its loop at 200, which is a 2**-200 signature that is not low-R
+    rather than a refusal.
+    """
+    sig = attempt(0)
+    if not grind:
+        return sig
+
+    counter = 0
+    while not _is_low_r(sig.r, ec):
+        counter += 1
+        sig = attempt(counter)
+    return sig
+
+
 @overload
 def sign_(
     msg_hash: Octets,
@@ -400,6 +456,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    grind: bool = ...,
     commit_hash: None = None,
 ) -> Sig: ...
 
@@ -413,6 +470,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    grind: bool = ...,
     commit_hash: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -425,12 +483,22 @@ def sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
+    grind: bool = False,
     commit_hash: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
 
     If the deterministic nonce is not provided, the RFC6979
     specification is used.
+
+    grind asks for a low-R signature, one byte shorter in DER: `_grind_low_r`
+    is the loop, Core's since its 0.17. Off by default, where Core has it
+    on, because it is a departure from RFC6979 for about half of all
+    messages -- the nonce of a ground signature is derived with a counter
+    in it -- and a caller pinning this library's deterministic signatures
+    is entitled to keep getting them. Keyword-only, rather than beside
+    lower_s where it belongs by subject: ec and hf are positional here and
+    a flag inserted before them would renumber both.
 
     commit_hash is a value to commit to inside the nonce, sign-to-contract
     style: the signature is an ordinary one, and the receipt returned
@@ -458,31 +526,59 @@ def sign_(
     if commit_hash is not None and nonce is not None:
         raise BTClibValueError("a commitment derives its own nonce")
 
+    # grinding is a search over nonces, so it needs the derivation to be
+    # its own: a nonce the caller chose is the nonce and there is nothing
+    # left to draw, and a commitment already owns the extra entropy the
+    # counter would travel through. The second is not only an encoding
+    # clash -- grinding a nonce is exactly the freedom the anti-exfil
+    # protocol takes away from a signing device, see
+    # anti_exfil_host_commit, and this is the call that protocol signs
+    # through
+    if grind and (nonce is not None or commit_hash is not None):
+        raise BTClibValueError("grinding derives its own nonce")
+
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
     # requested nonce is for the Python implementation below to use.
     # A commitment is that same entropy, and the bindings' sign() does
-    # not expose it either, so it is the Python path that commits
+    # not expose it either, so it is the Python path that commits.
+    # A grinding counter is that entropy too, and this is the one place
+    # it is not the reason to decline: `ndata` is what the bindings take
+    # it as, so grinding stays where the signing is
     if (
         _libsecp256k1_applicable(ec, hf)
         and nonce is None
         and lower_s
         and commit_hash is None
     ):
-        return Sig.parse(libsecp256k1_dsa.sign(msg_hash, q))
+        return _grind_low_r(
+            lambda counter: Sig.parse(
+                libsecp256k1_dsa.sign(msg_hash, q, _grind_entropy(counter))
+            ),
+            grind,
+            ec,
+        )
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
 
     if commit_hash is None:
         # nonce: an integer in the range 1..n-1.
-        if nonce is None:
-            nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
-        else:
-            nonce = int_from_prv_key(nonce, ec)
-        # second part delegated to helper function
-        return _sign_(c, q, nonce, lower_s, ec)
+        if nonce is not None:
+            # second part delegated to helper function
+            return _sign_(c, q, int_from_prv_key(nonce, ec), lower_s, ec)
+        return _grind_low_r(
+            lambda counter: _sign_(
+                c,
+                q,
+                _rfc6979_nonce_(c, q, ec, hf, _grind_entropy(counter)),  # 1
+                lower_s,
+                ec,
+            ),
+            grind,
+            ec,
+        )
 
     # the commitment enters twice: once as RFC6979 additional data, so
     # that this nonce belongs to this commitment, and once as the tweak.
@@ -503,6 +599,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    grind: bool = ...,
     commit: None = None,
 ) -> Sig: ...
 
@@ -516,6 +613,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    grind: bool = ...,
     commit: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -528,6 +626,7 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
+    grind: bool = False,
     commit: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """ECDSA signature with canonical low-s preference.
@@ -547,6 +646,9 @@ def sign(
 
     RFC6979 is used for deterministic nonce.
 
+    grind asks for a low-R signature, as in `sign_`, which is where the
+    loop and the default are explained.
+
     commit is a value to commit to inside the nonce, and is reduced by hf
     as msg is: `sign_` is the spelling that takes the two hashes.
 
@@ -555,9 +657,11 @@ def sign(
     """
     msg_hash = reduce_to_hlen(msg, hf)
     if commit is None:
-        return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
+        return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf, grind=grind)
     commit_hash = reduce_to_hlen(commit, hf)
-    return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf, commit_hash=commit_hash)
+    return sign_(
+        msg_hash, prv_key, nonce, lower_s, ec, hf, grind=grind, commit_hash=commit_hash
+    )
 
 
 def sign_recoverable_(
@@ -582,6 +686,12 @@ def sign_recoverable_(
     keeps: the key_id is derivable from any signature by recovering the
     four candidates and seeing which is the signer's, so what this saves
     is that search and not a secret.
+
+    No `grind` either, and here it is not a matter of the shape: a
+    recoverable signature is 65 bytes of r, s and the flag, with no DER
+    pad for a low r to save. Core has the same asymmetry, `CKey::Sign`
+    grinding and `CKey::SignCompact` passing a null ndata and looping over
+    nothing.
     """
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
