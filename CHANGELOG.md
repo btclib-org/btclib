@@ -24,6 +24,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The generated Code Quality analysis is off** (issue #788). A second
+  CodeQL run that no file in this tree declares — `Analyze (python)` and
+  `Analyze (ruby)`, on every pull request and every push to `main` — took
+  two of the twenty concurrent jobs GitHub Free gives an organization, on
+  top of the twenty-one a pull request asks for on purpose, and produced
+  nothing anybody read: there is no `code-quality/alerts` endpoint and no
+  `code-quality/analyses`, both 404, so the repository's Code quality tab
+  is the only place those queries have ever spoken. `Analyze (ruby)` had
+  no Ruby to read either — Pages serves btclib.org from `main`'s root, so
+  a `Gemfile` sits beside the package and autodetection saw a Ruby
+  project, which is why `codeql.yml` excludes Ruby from its own matrix.
+  REPOSITORY.md gains the section and the endpoint that reports and sets
+  it, `code-quality/setup`: not `code-scanning/default-setup`, and not the
+  Actions API, which answers 422 for a workflow the repository does not
+  own.
+
 - **`integration.yml` says which of its jobs gates** (#736). Its header
   claimed the workflow gates nothing and "must not" appear in main's
   required checks, which two paragraphs of the same file, three of
