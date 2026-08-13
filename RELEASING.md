@@ -413,16 +413,20 @@ word, and step 1 asks it of both.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
 
-1. Dispatch the `published` workflow (Actions → published → Run workflow)
-   and expect it green: no checkout, so it resolves to what PyPI actually
-   serves rather than to a source tree. It checks a BIP39 vector against
-   the twenty-five `_data/` files a wheel missing one would still install
-   and import cleanly, and a BIP340 vector besides -- both fixed forever,
-   so neither needs an edit after a release the way a version-pinned
-   assertion would. From then on it runs weekly on its own, and a failure
-   means the outside world moved, not this repository — a new interpreter
-   release, PyPI serving a file that does not match its own hash — which
-   is why it is a workflow of its own rather than a job of this one.
+1. Read the release run's `published` job, which is this workflow called
+   with the tag rather than a dispatch to remember: it has no checkout, so
+   it resolves to what PyPI actually serves rather than to a source tree,
+   and it waits for the version the tag names before installing anything,
+   so it cannot pass by testing the release before it. It checks a BIP39
+   vector against the `_data/` files a wheel missing one would still
+   install and import cleanly, and a BIP340 vector besides — both fixed
+   forever, so neither needs an edit after a release the way a
+   version-pinned assertion would. From then on it runs monthly on its
+   own, and a failure means the outside world moved, not this repository —
+   a new interpreter release, PyPI serving a file that does not match its
+   own hash — which is why it is a workflow of its own rather than a job
+   of this one. Actions → published → Run workflow is for asking between
+   those runs, with no particular version in mind.
 
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new

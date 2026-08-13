@@ -649,15 +649,19 @@ pulled  2026-08-13
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, and not complete. Every value in our copy
-appears verbatim in the pinned text — the master root key, the two
-entropy cases of the specification's own section with the derived key of
-each, the three BIP39 mnemonics, the hdseed WIF, the xprv and the 64 hex
-bytes — and what is left out is the applications `btclib/bip85.py` does
-not implement: BIP85-DRNG-SHAKE256's 80-byte read, the base64 and base85
-passwords of 707764' and 707785', and the dice rolls of 89101'. RSA
-(828365') publishes no vector to leave out. That module's docstring says
-why each is absent from it.
+Verdict: **transcribed**, complete. Every value in our copy appears
+verbatim in the pinned text, and every vector the BIP publishes is in
+our copy: the master root key, the two entropy cases of the
+specification's own section with the derived key of each, the 80-byte
+BIP85-DRNG read, the three BIP39 mnemonics, the hdseed WIF, the xprv,
+the 64 hex bytes, the base64 and base85 passwords, and the ten dice
+rolls. `tests/bip85_test.py` runs all of them.
+
+RSA (828365') is the one application with no vector here, because the
+BIP publishes none for it: it defines the path and says the key
+generator should read BIP85-DRNG, leaving how the primes are found to
+whatever library generates the key. `btclib.bip85` stops at the same
+place, so there is nothing further to compare against.
 
 Two of the BIP's fields are not what their name reads as, and
 `tests/bip85_test.py` asserts them as the BIP prints them rather than as

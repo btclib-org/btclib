@@ -202,10 +202,12 @@ repos:
         name: detect-secrets (credentials of other systems)
         # the test data of a signing library is private keys by the
         # hundred, published upstream and vendored to be compared against,
-        # so four json files account for 430 findings on their own: three
-        # vector files, and one golden file whose 18 are the same accident
-        # -- ACCA is one of the AWS key prefixes and is also four hex
-        # digits, so any run of upper-case hex holding it matches.
+        # so a handful of json files account for nearly every finding in
+        # the tree: three vector files, one golden file whose findings are
+        # the same accident -- ACCA is one of the AWS key prefixes and is
+        # also four hex digits, so any run of upper-case hex holding it
+        # matches -- and BIP85's vectors, where it is a field name rather
+        # than a value, the BIP printing a password as DERIVED PWD.
         # They are recorded in .secrets.baseline as already reviewed rather
         # than excluded from the scan: an exclusion makes a file blind for
         # good, and the difference is not theoretical -- an AWS key planted

@@ -149,10 +149,12 @@ def test_int_from_bits() -> None:
 
 def test_encode_num() -> None:
     """Round-trip script numbers across sign, zero and length boundaries."""
-    with pytest.raises(BTClibValueError, match="empty byte string"):
-        decode_num(b"")
-
-    # different representations of zero
+    # zero is the empty vector, as Core's CScriptNum::serialize writes it
+    # and its set_vch reads it back, and the only spelling the
+    # interpreter accepts as a number: the engine's `_to_num` refuses the
+    # other two under MINIMALDATA, which is where that rule belongs
+    assert encode_num(0) == b""
+    assert decode_num(b"") == 0
     assert decode_num(b"\x00") == 0  # "positive" zero
     assert decode_num(b"\x80") == 0  # "negative" zero
 

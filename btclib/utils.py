@@ -310,13 +310,12 @@ def decode_num(data: bytes) -> int:
     * 0x01 is 1
     * 0x81 is -1
 
-    Therefore, there are two representations of zero:
-
-    * 0x00 is "positive" zero
-    * 0x80 is "negative" zero
-
-    Positive zero is also represented by a null-length byte vector,
-    which is considered the canonical one.
+    Zero has three spellings, and this reads all three: the empty vector
+    that `encode_num` writes and Core's `CScriptNum::set_vch` answers 0
+    for, 0x00 -- "positive" zero -- and 0x80, "negative" zero. Only the
+    first is minimal; refusing the other two belongs to the reader that
+    knows whether MINIMALDATA is in force, which is the engine's
+    `_to_num`, and not here.
 
     Not bounded the way `encode_num` is: this is the reader, and its two
     callers ask different things of it. The engine's `_to_num` caps an
@@ -327,7 +326,7 @@ def decode_num(data: bytes) -> int:
     """
     length = len(data)
     if length == 0:
-        raise BTClibValueError("empty byte string")
+        return 0
     i = int.from_bytes(data, byteorder="little", signed=False)
     if data[-1] >= 0x80:  # negative number
         # mask for all but the highest bit
@@ -355,13 +354,14 @@ def encode_num(i: int) -> bytes:
     * 0x01 is 1
     * 0x81 is -1
 
-    Therefore, there are two representations of zero:
-
-    * 0x00 is "positive" zero
-    * 0x80 is "negative" zero
-
-    Positive zero is also represented by a null-length byte vector,
-    which is considered the canonical one.
+    Zero is the empty vector, which is Core's `CScriptNum::serialize`
+    and is the only spelling of it the interpreter reads back as a
+    number: 0x00 and 0x80 -- "positive" and "negative" zero -- decode to
+    zero and are refused as operands under MINIMALDATA, `(vch.back() &
+    0x7f) == 0` with nothing before it being what Core's `CScriptNum`
+    throws on. A push of the empty vector is OP_0, so the shortest
+    command and the encoded number agree here and nowhere else (issue
+    #646).
 
     The number is a CScriptNum, i.e. an int64, and a Python int outside
     that range is refused rather than encoded: what it would write is a
@@ -379,6 +379,8 @@ def encode_num(i: int) -> bytes:
         err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"
         raise BTClibValueError(err_msg)
 
+    if i == 0:
+        return b""
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accommodate n_bits

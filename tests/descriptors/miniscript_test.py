@@ -600,6 +600,10 @@ REFUSED_SCRIPTS = [
     ("51ac", "ill-typed miniscript"),
     ("87", "closes no fragment"),
     ("510087", "invalid thresh.. threshold"),
+    # the same threshold pushed as data rather than as OP_0: zero is the
+    # empty vector, so a push of one zero byte is not the number and the
+    # script closes no thresh at all
+    ("51010087", "closes no fragment"),
     # a script that is two expressions and not one
     ("515193", "closes no fragment"),
     # every op code that must be there and is not

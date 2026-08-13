@@ -230,6 +230,18 @@ documented at release-notes length in the first place, and are still in
   and would fail without it. `/en/stable/` is the last release either way,
   which is what makes the backfill not worth doing.
 
+- **The release documentation says what the release workflow does.** Three
+  places described a `published` workflow that has moved on: RELEASING.md
+  asked for a dispatch by hand after the release, where `release.yml` calls
+  the workflow with the tag and waits for the index to serve that version
+  -- so the step is a verdict to read, and a dispatch is for a question
+  between runs; and it, along with the workflow's own schedule comment and
+  links.yml's list of weekday sentinels, called the run weekly and put it
+  on a Tuesday, where the cron says the first of the month. Prose only, and
+  the two workflow files change in their comments alone: an instruction
+  nobody needs and a day that is not the day are read as facts by whoever
+  finds them, and there is nothing in a run to say otherwise.
+
 ### Packaging, linting and CI
 
 - **The package-content policy is stated where an unpacked sdist carries
@@ -369,7 +381,41 @@ documented at release-notes length in the first place, and are still in
   `gh workflow run integration.yml --ref <branch>`, which is how a branch
   touching `btclib/hwi.py` gets the answer before it lands. Physical
   devices stay manual, as issue #524 said they should.
-- **The node both jobs need is installed by one file**,
+- **A Ledger emulator beside the Trezor one** (#738). `HWI against a
+  Ledger emulator` builds the Bitcoin app from a pinned tag of
+  `LedgerHQ/app-bitcoin` inside Ledger's own builder image, pinned by
+  digest, and runs it under a pinned Speculos from PyPI. It is a second
+  vendor because it is a second HWI: the Trezor job drives the protobuf
+  client, this one the app-2.x client with the wallet policy behind
+  `displayaddress` and its own psbt exchange, and a green run of either
+  says nothing about the other.
+
+  What it costs over the Trezor job, and none of it is incidental. The
+  app is compiled rather than downloaded — Ledger publishes no binary,
+  so what is pinned is a source tag, an image digest and the SDK that
+  image carries, where the Trezor emulator is a published file with a
+  sha256 checked before it runs. It is compiled *twice*, the coin being
+  built into a Ledger app: `COIN=bitcoin` has the `bc` prefix and
+  answers `hwi_device_test.py`'s two mainnet questions, `COIN=bitcoin_testnet`
+  has `tb` and signs the regtest spend, and one binary cannot do both —
+  Trezor firmware takes the chain as an argument. And nothing answers a
+  button: Speculos has no DebugLink, so approvals come from an
+  `--automation` file whose rules match the text the app draws.
+  `.github/speculos-automation.json` is HWI's own, vendored rather than
+  rewritten smaller, because what a rule has to match is a string nobody
+  can check without running the app. It is the part that will break on
+  an upstream wording change, and it breaks as a test waiting out
+  btclib's timeout — so `automation:DEBUG` is on and both Speculos logs
+  are uploaded beside the reports.
+- **What stands between starting an emulator and testing against it**,
+  `.github/scripts/wait_for_hwi_device.py`: the Trezor emulator answers
+  a ping on its own socket and Speculos answers none, so the question
+  asked is the real one — btclib's own `enumerate_devices` until one
+  device is `is_usable`, which a port check cannot tell from a Speculos
+  that is up with no app loaded. A failure names the device types and
+  the errors of the last answer, which is where an app built for another
+  model shows up.
+- **The node all three jobs need is installed by one file**,
   `.github/actions/install-bitcoind`, this repository's first composite
   action: the download, the checksum and the unpacking were about to be
   a second copy, and a duplicated pin is one that drifts — the copy
@@ -1442,26 +1488,71 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`BTClibException`, one name to catch for everything btclib raises**
+  (issue #743). `btclib.exceptions` says its classes "exist only to tell
+  an exception raised by btclib from one raised by any other code", and
+  could not do it: telling them apart took a tuple of three --
+  `BTClibValueError`, `BTClibTypeError`, `BTClibRuntimeError` -- that a
+  caller had to keep in step with this hierarchy. Those three now inherit
+  the new base, and the eleven classes under them get it transitively.
+
+  Inherited *beside* the built-in and not instead of it, which is the half
+  that matters: `BTClibValueError` is a `ValueError` as it always was, so
+  every `except ValueError` already written keeps catching what it caught.
+  That is the standard library's own shape -- `json.JSONDecodeError` is a
+  `ValueError` -- and what requests, sqlalchemy and httpx give up by
+  deriving their bases from `Exception` alone, which leaves an `except
+  ValueError` not catching their value errors.
+
+  It is caught and never raised: every raise is one of the three, and
+  which one answers what the base cannot carry -- whether the value was
+  wrong, the type was, or neither was and a check failed anyway. A caller
+  with something to do about that names the specific class.
+  `BTClibUserWarning` stays out, a warning being filtered rather than
+  caught: with `filterwarnings = ["error"]` an `except BTClibException`
+  would otherwise catch a call that worked.
+
+  The docstring says what is not yet true, rather than promising it: issue
+  #744 counts the public functions still letting a native `KeyError`,
+  `IndexError` or `OverflowError` through, so catching this class catches
+  most of what the library raises and not all of it. The test that will
+  close that gap wants a single predicate to assert, which is why the base
+  lands before the fixes rather than after them.
+
 - **BIP85 deterministic entropy from a BIP32 keychain** (issue #644), as
   `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
   fully hardened path off a root key, then
   `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
-  key -- and it answers for any path, including the applications no
-  function here formats. Four of them are formatted:
+  key -- and it answers for any path, including one no function here
+  formats. Every application the BIP defines is formatted beside it:
   `mnemonic_from_root_key` (39', BIP85's ten languages and all five
   sentence lengths of its Words Table), `wif_from_root_key` (2', the
-  Bitcoin Core `hdseed`), `xprv_from_root_key` (32') and
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32'),
   `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
-  which hands back the bytes).
+  which hands back the bytes), `base64_password_from_root_key` (707764'),
+  `base85_password_from_root_key` (707785'), `rolls_from_root_key`
+  (89101') and `rsa_drng_from_root_key` (828365').
+
+  The last two read `BIP85DRNG`, which is BIP85-DRNG-SHAKE256: 64 bytes
+  are not enough for a function whose appetite is not known until it has
+  finished, so they seed a SHAKE256 stream and `read` squeezes it. RSA is
+  where that matters and where btclib stops -- the BIP defines the path
+  and the stream to feed a key generator, not how the primes are found,
+  so what comes back is the reader an RSA library is to be given. It is
+  also the one application the BIP publishes no vector for, and the
+  reason is the same: two libraries handed the same stream need not
+  agree on the key.
+
+  `rolls_from_root_key` computes the width of a roll as
+  `(sides - 1).bit_length()` where the BIP writes `ceil(log_2(sides))`,
+  which is the same number and not the same operation: a float logarithm
+  rounds at a power of two, and a roll one bit too wide is one the
+  rejection step then drops far more often than it should.
 
   The module is at the top level rather than under `btclib/bip32/`, for
   the reason `bip44` and `slip132` are: the applications need `b58` for a
   WIF and `mnemonic.bip39` for a sentence, and both of those import
-  `bip32`, which may not import them back. What is left out is the rest
-  of the BIP, and the line is BIP85-DRNG-SHAKE256: 707764' and 707785'
-  are a base64 and a base85 slice of the same 64 bytes, while 828365'
-  (RSA) and 89101' (dice) read a stream seeded with them rather than the
-  bytes themselves.
+  `bip32`, which may not import them back.
 
   Two of BIP85's own fields are not what their name reads as, and
   `tests/bip85_test.py` says so where it asserts them: application 32'
@@ -1784,6 +1875,38 @@ documented at release-notes length in the first place, and are still in
   on the stack rather than how it is spelled. Nothing changes in what
   `serialize` writes; the docstring says the rule and the test pins it,
   over the whole set of values that could have been written otherwise.
+
+- **the script number zero is the empty vector** (issue #746).
+  `encode_num(0)` wrote `b"\x00"` where Core's `CScriptNum::serialize`
+  returns the empty vector, and zero was the only value where the two
+  disagreed. Not a spelling: `b"\x00"` is not a minimally encoded script
+  number, so the interpreter refuses it as one under MINIMALDATA --
+  `(vch.back() & 0x7f) == 0` with nothing before it is what Core's
+  `CScriptNum` throws on, and `_to_num(b"\x00", MINIMALDATA, 4)` is what
+  this library answers `non-minimal encoding of 0: 00`. So
+  `serialize([0])` wrote `0100`, a push btclib's own engine will not
+  read as a number, and warned "consider using OP_0" as if the op code
+  were merely one byte shorter.
+
+  `encode_num(0)` is `b""` and `decode_num(b"")` is `0`, which are
+  `CScriptNum::serialize` and `CScriptNum::set_vch`; `serialize([0])` is
+  therefore OP_0, by the same path as every other value, a zero-length
+  push being that op code already. The engine had written Core's
+  function a second time to get around this -- `_from_num` was `b"" if x
+  == 0 else encode_num(x)`, with a matching empty-element branch in
+  `_to_num` -- and both are gone, every call site of the wrapper now
+  calling `encode_num`. The warning goes for zero and stays for the rest,
+  there being nothing shorter left to suggest, and it names
+  `op_int(command)` rather than interpolating the number: for -1 it read
+  "consider using OP_-1 instead", which is no op code.
+
+  `decode_num` keeps reading `00` and `80` as zero -- refusing them is
+  the interpreter's rule, and `_to_num` is where MINIMALDATA is known.
+  What follows from the pair being Core's is that
+  `miniscript.from_script` no longer reads a `0100` push as the number
+  0: a `thresh` whose threshold is written that way closes no fragment
+  where it used to be refused for the threshold's value, both being a
+  refusal and the second being the accurate one.
 
 ### Descriptors and miniscript
 

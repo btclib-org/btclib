@@ -212,7 +212,10 @@ for a credential that has no business being there.
 `tests/block/_generated_files/block_481824.json` is in the baseline for a
 narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
 digits, so the block's own signatures match the detector wherever a script
-is rendered as upper-case hex. Adding a vector to one of those files, or
+is rendered as upper-case hex. `tests/_data/bip85_test_vectors.json` is
+there for a third reason again, and the narrowest: the detector reads the
+field name, and BIP85 prints the password of its two password
+applications as DERIVED PWD. Adding a vector to one of those files, or
 changing what a golden file holds, means regenerating the baseline:
 
 ```shell
@@ -248,7 +251,7 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
-| `integration` | pull request, push | a regtest node, a Trezor emulator |
+| `integration` | pull request, push | a node, two device emulators |
 | `website` | pull request, push, on website files | — |
 | `codeql` | pull request, push, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
@@ -571,7 +574,43 @@ job is not on a pull request: a firmware release, an unreachable
 trezor's day rather than the branch's, so it runs weekly, on a push to
 `main`, and on `gh workflow run integration.yml --ref <branch>` — which
 is how a branch touching `btclib/hwi.py` is checked before it lands.
-Both jobs install the node through `.github/actions/install-bitcoind`,
+
+`HWI against a Ledger emulator` is the second of the two, and it costs
+more because a Ledger does. There is no published app binary, so the job
+compiles one from a pinned tag of `LedgerHQ/app-bitcoin` inside Ledger's
+own builder image, pinned by digest — and compiles it twice, the coin
+being built in: `COIN=bitcoin` answers the mainnet questions of the
+module, `COIN=bitcoin_testnet` signs the regtest spend, and one binary
+cannot do both. Speculos comes from PyPI, where it carries its launcher
+and wants only `qemu-user-static` from the system, and it runs the two
+apps in turn:
+
+```shell
+SPECULOS_APPNAME="Bitcoin:2.5.0" speculos --display headless \
+    --api-port 0 --model nanox \
+    --automation file:.github/speculos-automation.json \
+    --log-level automation:DEBUG bitcoin.elf
+BTCLIB_INTEGRATION=1 BTCLIB_HWI="/path/to/hwi --emulators" \
+    uv run --locked --no-default-groups --group test \
+    pytest tests/integration/hwi_device_test.py -n0 \
+    -k "not signs_what_btclib_built" --junitxml=ledger-mainnet.xml
+```
+
+and again with `Bitcoin Test:2.5.0`, `bitcoin-test.elf`,
+`BTCLIB_HWI_SIGN=1` and `-k signs_what_btclib_built`. Nothing answers a
+button there the way DebugLink does on a Trezor, so `--automation` does:
+`.github/speculos-automation.json` is HWI's own file, vendored, and its
+rules match the text the app draws. That is the part that breaks when
+the app changes wording, and it breaks as a test waiting out btclib's
+timeout, which is why `automation:DEBUG` is on and both Speculos logs
+are uploaded with the reports.
+
+`.github/scripts/wait_for_hwi_device.py` is what stands between starting
+an emulator and running a test against it: Speculos answers no ping, so
+the question asked is the real one — `enumerate_devices` until one
+device is usable, or an `::error::` naming what was seen instead.
+
+All three jobs install the node through `.github/actions/install-bitcoind`,
 the repository's own composite action, so the release and its checksum
 are pinned once.
 
