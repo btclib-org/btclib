@@ -43,10 +43,10 @@ from btclib.curves.curve import (
     _y_even,
 )
 
-# cached_multiples and jac_from_aff are implementation helpers of
+# _cached_multiples and _jac_from_aff are implementation helpers of
 # curve_group, not part of what btclib.curves exports: they are taken from the
 # module that defines them
-from btclib.curves.curve_group import cached_multiples, jac_from_aff, mult_jac
+from btclib.curves.curve_group import _cached_multiples, _jac_from_aff, _mult_jac
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv, mod_sqrt
@@ -231,7 +231,7 @@ def test_curves_with_n_above_p() -> None:
         ec = low_card_curves[name]
         # every point of the curve, x below n, so nothing to reduce
         for q in range(1, ec.n):
-            x_K = ec.x_aff_from_jac(mult_jac(q, ec.GJ, ec))
+            x_K = ec.x_aff_from_jac(_mult_jac(q, ec.GJ, ec))
             assert x_K < ec.n
             assert x_K % ec.n == x_K
 
@@ -302,14 +302,14 @@ def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
         # just a point, not INF
         Q = ec.G
-        QJ = jac_from_aff(Q)
+        QJ = _jac_from_aff(Q)
         assert ec.aff_from_jac(QJ) == Q
         x_Q = ec.x_aff_from_jac(QJ)
         assert Q[0] == x_Q
         y_Q = ec.y_aff_from_jac(QJ)
         assert Q[1] == y_Q
 
-        assert ec.aff_from_jac(jac_from_aff(INF)) == INF
+        assert ec.aff_from_jac(_jac_from_aff(INF)) == INF
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec.x_aff_from_jac(INFJ)
@@ -367,7 +367,7 @@ def test_add_double_aff_jac() -> None:
     for ec in all_curves.values():
         # just a point, not INF
         Q = ec.G
-        QJ = jac_from_aff(Q)
+        QJ = _jac_from_aff(Q)
 
         # add Q and G
         R = ec.add_aff(Q, ec.G)
@@ -410,12 +410,12 @@ def _jac_spellings(ec: CurveGroup, P: Point | None) -> list[JacPoint]:
     (x*z^2, y*z^3, z) is the same affine point for every z != 0, and
     add_jac compares coordinates that only a common frame makes
     comparable, so one frame would not exercise the comparison. Infinity
-    is any Z == 0 triple: the INFJ constant, what `jac_from_aff` turns
+    is any Z == 0 triple: the INFJ constant, what `_jac_from_aff` turns
     the affine INF into, and the all-zero triple that `jac_equality`
     reads as equal to everything.
     """
     if P is None:
-        return [INFJ, jac_from_aff(INF), (0, 0, 0)]
+        return [INFJ, _jac_from_aff(INF), (0, 0, 0)]
     return [(P[0] * z * z % ec.p, P[1] * z**3 % ec.p, z) for z in (1, 2)]
 
 
@@ -462,7 +462,7 @@ def test_add_jac_infinity_is_not_a_doubling() -> None:
 
     add_jac's doubling test compares affine coordinates, and Z == 0
     leaves X and Y free to be anything at all: INFJ is (7, 0, 0) and
-    `jac_from_aff(INF)` is (5, 0, 0), those x-coordinates picked for
+    `_jac_from_aff(INF)` is (5, 0, 0), those x-coordinates picked for
     being invalid rather than for being zero. On a curve of
     characteristic 7 or 5 they reduce to zero, the test reads "same x,
     same y" and doubles -- issue 171, where P + INFJ answered 2*P. The
@@ -473,7 +473,7 @@ def test_add_jac_infinity_is_not_a_doubling() -> None:
         Curve(5, 2, 1, (0, 1), 7, 1, False),
         secp256k1,
     ):
-        for infinity in (INFJ, jac_from_aff(INF), (0, 0, 0)):
+        for infinity in (INFJ, _jac_from_aff(INF), (0, 0, 0)):
             assert ec.aff_from_jac(ec.add_jac(ec.GJ, infinity)) == ec.G
             assert ec.aff_from_jac(ec.add_jac(infinity, ec.GJ)) == ec.G
             assert ec.add_jac(infinity, infinity)[2] == 0
@@ -678,7 +678,7 @@ def test_curve_equality() -> None:
     assert mult(3, None, secp256k1_bis) == mult(3)
 
     # equal curves are equal lru_cache keys, so they share the entries
-    assert cached_multiples(secp256k1.GJ, secp256k1_bis) is cached_multiples(
+    assert _cached_multiples(secp256k1.GJ, secp256k1_bis) is _cached_multiples(
         secp256k1.GJ, secp256k1
     )
 
@@ -779,7 +779,7 @@ def test_negate() -> None:
         assert ec.add(Q, minus_Q) == INF
 
         # Jacobian coordinates
-        QJ = jac_from_aff(Q)
+        QJ = _jac_from_aff(Q)
         minus_QJ = ec.negate_jac(QJ)
         assert ec.jac_equality(ec.add_jac(QJ, minus_QJ), INFJ)
 

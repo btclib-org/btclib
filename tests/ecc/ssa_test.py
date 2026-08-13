@@ -16,7 +16,7 @@ from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import bytes_from_point, curve_group, double_mult, mult, secp256k1
 from btclib.curves.curve import CURVES, Curve
-from btclib.curves.curve_group import jac_from_aff
+from btclib.curves.curve_group import _jac_from_aff
 from btclib.ecc import second_generator, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -317,7 +317,7 @@ def test_low_cardinality() -> None:
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
             q_fixed, x_Q = ssa.gen_keys(q, ec)
-            QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
+            QJ = _jac_from_aff((x_Q, ec.y_even(x_Q)))
             sig: ssa.Sig | None = None
             while sig is None:
                 try:
@@ -371,7 +371,7 @@ def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
     """
     ec = secp256k1
     q, x_Q = ssa.gen_keys()
-    QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
+    QJ = _jac_from_aff((x_Q, ec.y_even(x_Q)))
     k, r = ssa.gen_keys()  # k's point has even y, by gen_keys' own normalization
     e = 5
 

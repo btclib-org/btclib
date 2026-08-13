@@ -43,13 +43,13 @@ from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
     _is_prime,
+    _jac_from_aff,
     _mult,
     _multi_mult,
-    jac_from_aff,
 )
 from btclib.curves.curve_group_2 import (
-    double_mult_w_NAF,
-    mult_endomorphism_secp256k1,
+    _double_mult_w_NAF,
+    _mult_endomorphism_secp256k1,
 )
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
@@ -183,7 +183,7 @@ class Curve(CurveGroup):
         # curve, so nlen is a tighter bound than the plen + 1 CurveGroup
         # took from Hasse -- one window less at w=4 on secp256k1, and
         # log2(cofactor) bits less on a curve with a cofactor.
-        # mult_regular_window fixes its digit count to it, and reads it
+        # _mult_regular_window fixes its digit count to it, and reads it
         # under this name rather than as nlen so that a CurveGroup, which
         # has no n, can be multiplied in as well
         self.scalar_len = self.nlen
@@ -551,6 +551,15 @@ def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) ->
     )
 
 
+# the widths mult and double_mult hand the two variants below them; the
+# measurement behind each is in the docstring of the function it is passed
+# to, and they are two constants rather than one because they are two
+# algorithms: a window of the GLV endomorphism's half-length scalars is
+# not a window of an interleaved wNAF's full-length ones
+_ENDOMORPHISM_W = 4
+_DOUBLE_MULT_W = 4
+
+
 def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point:
     """Elliptic curve scalar multiplication."""
     m: int = int_from_integer(m_int) % ec.n
@@ -570,7 +579,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         QJ = ec.GJ
     else:
         ec.require_on_curve(Q)
-        QJ = jac_from_aff(Q)
+        QJ = _jac_from_aff(Q)
 
     # what reaches here on secp256k1 is the arguments the bindings decline
     # -- a zero scalar, or infinity -- and, with the dispatch
@@ -587,7 +596,11 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     # endomorphism, so patching the bindings off must leave this arm --
     # python_path_test.py's pattern, which otherwise would compare the
     # bindings against the generic double-and-add of every other curve
-    R = mult_endomorphism_secp256k1(m, QJ, ec) if ec == secp256k1 else _mult(m, QJ, ec)
+    R = (
+        _mult_endomorphism_secp256k1(m, QJ, ec, _ENDOMORPHISM_W, regular=True)
+        if ec == secp256k1
+        else _mult(m, QJ, ec)
+    )
     return ec.aff_from_jac(R)
 
 
@@ -608,9 +621,9 @@ def double_mult(
     if u and v and H[1] and Q[1] and _libsecp256k1_applicable(ec, None):
         return _libsecp256k1_multi_mult([u, v], [H, Q])
 
-    HJ = jac_from_aff(H)
-    QJ = jac_from_aff(Q)
-    R = double_mult_w_NAF(u, HJ, v, QJ, ec)
+    HJ = _jac_from_aff(H)
+    QJ = _jac_from_aff(Q)
+    R = _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
     return ec.aff_from_jac(R)
 
 
@@ -629,7 +642,7 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     affine coordinates, because it is not only their arithmetic that is
     projective: so are the infinity test, the y parity and the x
     comparison each makes, and so is the QJ that public key recovery
-    threads through dsa's. jac_from_aff is what keeps that exact --
+    threads through dsa's. _jac_from_aff is what keeps that exact --
     infinity has no serialization on the other side of the boundary, and
     it answers the z == 0 both functions already recognize, so each still
     raises what it raised before, from the same line.
@@ -641,10 +654,10 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     caller's own mod_inv(1) on the way back out, 0.14 us.
     """
     if not _libsecp256k1_applicable(ec, None):
-        return double_mult_w_NAF(u, HJ, v, QJ, ec)
+        return _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
 
     R = double_mult(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
-    return jac_from_aff(R)
+    return _jac_from_aff(R)
 
 
 def multi_mult(
@@ -676,6 +689,6 @@ def multi_mult(
     ):
         return _libsecp256k1_multi_mult(ints, points)
 
-    jac_points = [jac_from_aff(Q) for Q in points]
+    jac_points = [_jac_from_aff(Q) for Q in points]
     R = _multi_mult(ints, jac_points, ec)
     return ec.aff_from_jac(R)

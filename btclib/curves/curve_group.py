@@ -28,25 +28,7 @@ __all__ = [
     "HEX_THRESHOLD",
     "MAX_W",
     "CurveGroup",
-    "cached_multiples",
-    "cached_multiples_fixwind",
-    "convert_number_to_base",
-    "jac_from_aff",
-    "mods",
-    "mult_aff",
-    "mult_base_3",
-    "mult_fixed_window",
-    "mult_fixed_window_cached",
-    "mult_jac",
-    "mult_mont_ladder",
-    "mult_recursive_aff",
-    "mult_recursive_jac",
-    "mult_regular_window",
-    "multiples",
-    "odd_multiples",
     "signed_odd_digits",
-    "signed_odd_multiples",
-    "wNAF_of_m",
 ]
 
 HEX_THRESHOLD = 0xFFFFFFFF
@@ -72,7 +54,7 @@ def _is_prime(x: int) -> bool:
     return x >= 2 and x % 2 != 0 and pow(2, x - 1, x) == 1
 
 
-def jac_from_aff(Q: Point) -> JacPoint:
+def _jac_from_aff(Q: Point) -> JacPoint:
     """Return the Jacobian representation of the affine point.
 
     The input point is assumed to be on curve.
@@ -125,7 +107,7 @@ class CurveGroup:
         self.p = p
 
         # how many bits a scalar of this group has, which is what fixes
-        # the digit count of mult_regular_window below -- the quantity a
+        # the digit count of _mult_regular_window below -- the quantity a
         # loop running once per digit of the scalar in hand puts on the
         # clock. Hasse bounds the order of the group by p + 1 + 2*sqrt(p),
         # so a scalar reduced mod that order is under 2^(plen+1); Curve
@@ -230,7 +212,7 @@ class CurveGroup:
 
     def __hash__(self) -> int:
         # __eq__ without __hash__ would set __hash__ to None, and curves
-        # are lru_cache keys in cached_multiples below; equal curves
+        # are lru_cache keys in _cached_multiples below; equal curves
         # share those cache entries rather than each filling its own
         return hash(self._eq_key())
 
@@ -339,7 +321,7 @@ class CurveGroup:
         # random -- over 2000 random scalars _mult reached it 3.98 times
         # on average and only 23 of them not at all, and the count *is*
         # the secret: exactly the number of zero base-16 digits of the
-        # scalar, or for mult_jac the number of its low zero bits. An
+        # scalar, or for _mult_jac the number of its low zero bits. An
         # early return there put that on the clock, 0.03 us against the
         # 3.7 us of a generic addition, and _mult measured 0.93 ms with no
         # zero digit against 0.55 ms with 63.
@@ -355,7 +337,7 @@ class CurveGroup:
         # the additions an early return answers for free, at the price of
         # putting their count on the clock. Dropping the early return
         # without the stand-ins is not enough: P + INFJ still costs
-        # 1.8 us against 5.4, and mult_jac is still 25% faster on a
+        # 1.8 us against 5.4, and _mult_jac is still 25% faster on a
         # scalar with 128 low zero bits
         QS = (Q, self._stand_in_q)[Q[2] == 0]
         RS = (R, self._stand_in_r)[R[2] == 0]
@@ -405,7 +387,7 @@ class CurveGroup:
         #
         # Q[2] and R[2] because V says nothing when either is zero: Z == 0
         # leaves X and Y unconstrained, and the x of INFJ is 7 while the x
-        # of jac_from_aff(INF) is 5, picked for being invalid rather than
+        # of _jac_from_aff(INF) is 5, picked for being invalid rather than
         # for being zero, so on a curve of characteristic 7 or 5 they
         # reduce to zero and V vanishes for an operand that is not a point
         # at all -- P + INFJ answered 2*P, and eight of the ten scalar
@@ -487,7 +469,7 @@ class CurveGroup:
 
         p = self.p
         # lam reduced before it is squared, as in add_jac, though here it
-        # is worth 6% of mult_aff rather than a factor of two: mod_inv is
+        # is worth 6% of _mult_aff rather than a factor of two: mod_inv is
         # what affine coordinates cost, and is why the ladders are not
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], p) % p
         x = (lam * lam - Q[0] - R[0]) % p
@@ -569,7 +551,7 @@ class CurveGroup:
         return root if legendre else self.p - root
 
 
-def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses a recursive version of 'double & add',
@@ -586,12 +568,12 @@ def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         return INF
 
     if m % 2 == 1:
-        return ec.add_aff(Q, mult_recursive_aff((m - 1), Q, ec))
+        return ec.add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
 
-    return mult_recursive_aff((m // 2), ec.double_aff(Q), ec)
+    return _mult_recursive_aff((m // 2), ec.double_aff(Q), ec)
 
 
-def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses a recursive version of 'double & add',
@@ -608,12 +590,12 @@ def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         return INFJ
 
     if m % 2 == 1:
-        return ec.add_jac(Q, mult_recursive_jac((m - 1), Q, ec))
+        return ec.add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
 
-    return mult_recursive_jac((m // 2), ec.double_jac(Q), ec)
+    return _mult_recursive_jac((m // 2), ec.double_jac(Q), ec)
 
 
-def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses 'double & add' algorithm, 'right-to-left'
@@ -636,7 +618,7 @@ def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         # the doubling part of 'double & add'
         Q = ec.double_aff(Q)
         # always perform the 'add', even if useless: one addition per bit
-        # whatever the bit is, as in mult_jac. It buys less here, add_aff
+        # whatever the bit is, as in _mult_jac. It buys less here, add_aff
         # branching on its own special cases and mod_inv taking the time
         # its input asks for, which is why the affine variants are the
         # readable ones rather than the ones to sign with
@@ -647,7 +629,7 @@ def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     return R[0]
 
 
-def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
     This implementation uses 'double & add' algorithm, 'right-to-left'
@@ -678,7 +660,7 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
+def _multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
     """Return {k_i * Q} for k_i in {0, ..., size-1}."""
     if size < 2:
         raise BTClibValueError(f"size too low: {size}")
@@ -704,7 +686,7 @@ MAX_W = 5
 
 
 @functools.lru_cache  # results are cached to increase efficiency
-def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
+def _cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
     """Return the multiples 0..(2^MAX_W - 1) of Q, memoized on (Q, ec).
 
     The table the fixed-window ladder indexes when asked to cache; the
@@ -712,17 +694,17 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
     """
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
-        # not extend(): multiples() above has why
+        # not extend(): _multiples() above has why
         T.append(ec.double_jac(T[(i - 1) // 2]))
         T.append(ec.add_jac(T[-1], Q))
     return T
 
 
 @functools.lru_cache  # results are cached to increase efficiency
-def cached_multiples_fixwind(
-    Q: JacPoint, ec: CurveGroup, w: int = 4
+def _cached_multiples_fixwind(
+    Q: JacPoint, ec: CurveGroup, w: int
 ) -> list[list[JacPoint]]:
-    """Made to precompute values for mult_fixed_window_cached.
+    """Made to precompute values for _mult_fixed_window_cached.
 
     Do not use it for other functions. Made to be used for w=4, do not
     use w.
@@ -732,7 +714,7 @@ def cached_multiples_fixwind(
     for _ in range((ec.p_size * 8) // w + 1):
         sublist = [INFJ, K]
         for j in range(3, 2**w, 2):
-            # not extend(): multiples() above has why
+            # not extend(): _multiples() above has why
             sublist.append(ec.double_jac(sublist[(j - 1) // 2]))
             sublist.append(ec.add_jac(sublist[-1], K))
         K = ec.double_jac(sublist[2 ** (w - 1)])
@@ -741,7 +723,7 @@ def cached_multiples_fixwind(
     return T
 
 
-def convert_number_to_base(i: int, base: int) -> list[int]:
+def _convert_number_to_base(i: int, base: int) -> list[int]:
     """Return the digits of an integer in the requested base."""
     digits: list[int] = []
     while i or not digits:
@@ -750,14 +732,14 @@ def convert_number_to_base(i: int, base: int) -> list[int]:
     return digits[::-1]
 
 
-def mods(m: int, w: int) -> int:
+def _mods(m: int, w: int) -> int:
     """Signed modulo function."""
     w2: int = pow(2, w)
     M = m % w2
     return M - w2 if (w2 // 2) <= M else M
 
 
-def wNAF_of_m(m: int, w: int) -> list[int]:
+def _wNAF_of_m(m: int, w: int) -> list[int]:
     """WNAF (width-w Non-adjacent form) of number m.
 
     Given an integer m, wNAF is a method of representation
@@ -769,7 +751,7 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
     representation of k.
     -The average density of nonzero digits is approximately 1/(w + 1).
 
-    This recoding sits here next to convert_number_to_base, the same kind
+    This recoding sits here next to _convert_number_to_base, the same kind
     of integer-only helper, rather than with the wNAF multiplications of
     curve_group_2: the interleaved _multi_mult_w_NAF below needs it, and
     curve_group cannot import the module that imports it.
@@ -787,7 +769,7 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
                 M.append(2 - (m % 4))
             else:
                 # Computing wNAF of m
-                M.append(mods(m, w))
+                M.append(_mods(m, w))
             m -= M[i]
         else:
             M.append(0)
@@ -802,7 +784,7 @@ def signed_odd_digits(m: int, w: int, size: int) -> list[int]:
 
     Regular recoding, Joye-Tunstall: m = sum(digits[i] * 2^(w*i)) with
     every digit odd and in {±1, ±3, ..., ±(2^w - 1)}, least significant
-    first, as wNAF_of_m returns its own. Two properties are what it is
+    first, as _wNAF_of_m returns its own. Two properties are what it is
     for, and neither is the wNAF's:
 
     - no digit is zero, so the multiplication that indexes them makes one
@@ -849,7 +831,7 @@ def signed_odd_digits(m: int, w: int, size: int) -> list[int]:
     return digits
 
 
-def odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+def _odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     """Return the odd multiples 1*Q, 3*Q, ..., (2^(w-1) - 1)*Q.
 
     The table a width-w NAF indexes: its digits are odd and smaller than
@@ -865,26 +847,26 @@ def odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     return T
 
 
-def signed_odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+def _signed_odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     """Return the 2^w multiples a signed odd width-w digit names.
 
     -(2^w - 1)*Q first and (2^w - 1)*Q last, so the digit d of
     signed_odd_digits picks entry (d + 2^w - 1) // 2 and nothing has to
-    test its sign, where the wNAF loops negate an entry of `odd_multiples`
+    test its sign, where the wNAF loops negate an entry of `_odd_multiples`
     on the fly under an `if`. Cheaper, too, and not only regular: 2^(w-1)
     modular subtractions once -- 8 of them at w=4 -- against the one per
     negative digit the loop would make, which is half of the 64 digits a
     256-bit scalar has at that width.
 
-    The table it is built on is `odd_multiples(Q, ec, w + 1)`: a regular
+    The table it is built on is `_odd_multiples(Q, ec, w + 1)`: a regular
     digit reaches 2^w - 1 where a width-w NAF digit stops at 2^(w-1) - 1,
     so the table is twice as long as that recoding's for the same window.
     """
-    T = odd_multiples(Q, ec, w + 1)
+    T = _odd_multiples(Q, ec, w + 1)
     return [ec.negate_jac(P) for P in reversed(T)] + T
 
 
-def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 
     This implementation uses
@@ -917,7 +899,7 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using ternary decomposition of the scalar.
 
     This implementation uses 'triple & add' algorithm, 'left-to-right'
@@ -933,7 +915,7 @@ def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     # at each step one of the points in T will be added
     T = [INFJ, Q, ec.double_jac(Q)]
 
-    digits = convert_number_to_base(m, 3)
+    digits = _convert_number_to_base(m, 3)
 
     R = T[digits[0]]
     for i in digits[1:]:
@@ -945,8 +927,8 @@ def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def mult_fixed_window(
-    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, cached: bool = False
+def _mult_fixed_window(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int, cached: bool
 ) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
@@ -968,9 +950,9 @@ def mult_fixed_window(
         raise BTClibValueError(f"non positive w: {w}")
 
     # at each step one of the points in T will be added
-    T = cached_multiples(Q, ec) if cached else multiples(Q, 2**w, ec)
+    T = _cached_multiples(Q, ec) if cached else _multiples(Q, 2**w, ec)
 
-    digits = convert_number_to_base(m, 2**w)
+    digits = _convert_number_to_base(m, 2**w)
 
     R = T[digits[0]]
     for i in digits[1:]:
@@ -982,9 +964,7 @@ def mult_fixed_window(
     return R
 
 
-def mult_fixed_window_cached(
-    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4
-) -> JacPoint:
+def _mult_fixed_window_cached(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
 
     This implementation uses 'multiple-double & add' algorithm, 'left-
@@ -1005,9 +985,9 @@ def mult_fixed_window_cached(
     if w <= 0:
         raise BTClibValueError(f"non positive w: {w}")
 
-    T = cached_multiples_fixwind(Q, ec, w)
+    T = _cached_multiples_fixwind(Q, ec, w)
 
-    digits = convert_number_to_base(m, 2**w)
+    digits = _convert_number_to_base(m, 2**w)
 
     k = len(digits) - 1
 
@@ -1020,7 +1000,7 @@ def mult_fixed_window_cached(
     return R
 
 
-def mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+def _mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     """Scalar multiplication using a regular window: no digit is zero.
 
     The fixed window above, with the quantity the scalar still decided
@@ -1041,7 +1021,7 @@ def mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
     `_mult` the package reaches for rather than an option beside it. The
     fixed window stays as what it is didactically, the plain one, and the
     wNAF multiplications stay the fast irregular ones for coefficients
-    that are public: `double_mult_w_NAF` is what verification runs.
+    that are public: `_double_mult_w_NAF` is what verification runs.
 
     w=4 by measurement, as for the fixed window: 0.803 ms at w=5 and 0.831
     at w=6, the window paying for a table twice the size of the NAF's at
@@ -1076,7 +1056,7 @@ def mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
     # all, and m + n would be the same point only for a point whose order
     # it is -- which the group this multiplies in cannot say
     digits = signed_odd_digits(m | 1, w, size)
-    T = signed_odd_multiples(Q, ec, w)
+    T = _signed_odd_multiples(Q, ec, w)
     offset = (1 << w) - 1
 
     # a table entry, the top digit being positive, and never infinity
@@ -1094,11 +1074,25 @@ def mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
     return ec.add_jac(R, (INFJ, ec.negate_jac(Q))[not m & 1])
 
 
-# what the rest of the package multiplies with, on every curve but
-# secp256k1, where curves.mult has the GLV endomorphism: the regular
-# window, whose cost is the same for every scalar of the curve, at the
-# cost of nothing measurable against the fixed window it recodes
-_mult = mult_regular_window
+# the width _mult hands the regular window; the measurement behind it is
+# in the docstring of the function it is passed to
+_MULT_W = 4
+
+
+def _mult(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Return m*Q, with what the rest of the package multiplies with.
+
+    On every curve but secp256k1, where curves.mult has the GLV
+    endomorphism: the regular window, whose cost is the same for every
+    scalar of the curve, at the cost of nothing measurable against the
+    fixed window it recodes.
+
+    A function and not an alias of _mult_regular_window, the width being an
+    argument: a private signature carries no default, so the width this one
+    picks belongs here, where the choice is, rather than in the signature of
+    a variant every other caller passes its own width to.
+    """
+    return _mult_regular_window(m, Q, ec, _MULT_W)
 
 
 def _double_mult(
@@ -1192,7 +1186,7 @@ def _multi_mult_w_NAF(
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Strauss' algorithm with interleaved wNAFs, the many-point form of
-    curve_group_2's double_mult_w_NAF (HMV algorithm 3.51): each scalar
+    curve_group_2's _double_mult_w_NAF (HMV algorithm 3.51): each scalar
     gets its own width-w NAF and its own table of odd multiples, and a
     single left-to-right loop shares one doubling per bit position among
     all of them, adding a (possibly negated) table entry wherever a NAF
@@ -1232,8 +1226,8 @@ def _multi_mult_w_NAF(
     if not pairs:
         return INFJ
 
-    nafs = [wNAF_of_m(n, w) for n, _ in pairs]
-    tables = [odd_multiples(PJ, ec, w) for _, PJ in pairs]
+    nafs = [_wNAF_of_m(n, w) for n, _ in pairs]
+    tables = [_odd_multiples(PJ, ec, w) for _, PJ in pairs]
 
     R = INFJ
     for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
@@ -1298,15 +1292,15 @@ def _multi_mult_bos_coster(
         np2 = heapq.heappop(x)
         n_1, p_1 = -np1[0], np1[1]
         n_2, p_2 = -np2[0], np2[1]
-        # mult_jac, not the faster _mult: the quotient is 1 about 40% of
+        # _mult_jac, not the faster _mult: the quotient is 1 about 40% of
         # the time (Gauss-Kuzmin), and _mult would rebuild its 16-entry
         # table of multiples for each of those -- 10x slower over 128
-        # random scalars. mult_jac(1, P) is P at no cost, so this is the
+        # random scalars. _mult_jac(1, P) is P at no cost, so this is the
         # subtractive step precisely when the subtractive step is right;
         # measured, spelling that case out as a branch buys nothing, and
         # subtracting for q up to 4 or up to 16 costs 3% and 11%.
         q, n_1 = divmod(n_1, n_2)
-        p_2 = ec.add_jac(mult_jac(q, p_1, ec), p_2)
+        p_2 = ec.add_jac(_mult_jac(q, p_1, ec), p_2)
         if n_1 > 0:
             heapq.heappush(x, (-n_1, p_1))
         heapq.heappush(x, (-n_2, p_2))

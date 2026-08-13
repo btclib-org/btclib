@@ -1234,7 +1234,7 @@ def _recover_pub_key_(
     # 850 for the enumeration that runs it once per candidate.
     #
     # It is the same point either way and not the same triple: what comes
-    # back is jac_from_aff, i.e. z == 1, where the wNAF answered whatever
+    # back is _jac_from_aff, i.e. z == 1, where the wNAF answered whatever
     # representative its ladder reached. Every caller converts with
     # aff_from_jac, which is what a Jacobian coordinate is for
     QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1

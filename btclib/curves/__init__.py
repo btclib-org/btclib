@@ -26,21 +26,30 @@ dictionary left the paragraph above naming curves a caller could not get
 at without importing the module the name is defined in. The four
 catalogues it is the union of (SEC2v1, SEC2v2, NIST, Brainpool) stay
 where they are defined: which standard a curve comes from is a question
-about a curve, not a way of finding one. The other mult_* of
-btclib.curves.curve_group and btclib.curves.curve_group_2 -- mult_aff, mult_jac,
-mult_base_3, mult_mont_ladder, the two mult_recursive_*, the two
-mult_fixed_window*, mult_regular_window, mult_sliding_window, mult_w_NAF and
-mult_endomorphism_secp256k1 -- are deliberately not exported, nor are the
-multiples, cached_multiples, odd_multiples and jac_from_aff they are built on.
+about a curve, not a way of finding one.
+
+The other multiplications of btclib.curves.curve_group and
+btclib.curves.curve_group_2 -- _mult_aff, _mult_jac, _mult_base_3,
+_mult_mont_ladder, the two _mult_recursive_*, the two _mult_fixed_window*,
+_mult_regular_window, _mult_sliding_window, _mult_w_NAF, the two
+_double_mult_* and _mult_endomorphism_secp256k1 -- are private, as are the
+_multiples, _cached_multiples, _odd_multiples and _jac_from_aff they are
+built on.
 
 They are implementations of one operation, kept side by side to be measured
-against each other, and exporting them would make a menu out of a benchmark:
-a caller reading btclib.curves would find every way of multiplying a point
-this package implements and nothing to say that mult is the one to use, that
-it dispatches to libsecp256k1 for secp256k1 and the generator, and that
-mult_jac is not the faster alternative its name suggests. Each is importable
-from the module that defines it, which is where the test suite takes them
-from.
+against each other, and a menu of them is not an API: a caller reading them
+would find every way of multiplying a point this package implements and
+nothing to say that mult is the one to use, that it dispatches to
+libsecp256k1 for secp256k1 and the generator, and that _mult_jac is not the
+faster alternative its name suggests.
+
+The underscore says the second thing too, which is what decided it: each
+takes a point it assumes to be on the curve and checks nothing, so a
+malformed one is answered with a point rather than refused. mult,
+double_mult and multi_mult are where require_on_curve runs, on every
+argument and every path, and reaching past them is reaching past that. The
+test suite takes each variant from the module that defines it, which is
+what a private name is still good for.
 
 The codec has a third function, bytes_from_prv_key_int: the composition of
 a multiplication and an encoding that every private-to-public conversion
