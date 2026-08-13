@@ -51,7 +51,7 @@ def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     )
     hasher = hf()
     hasher.update(temp)
-    return bytes(hasher.digest())
+    return hasher.digest()
 
 
 PubkeyRing = Sequence[Point]
@@ -65,7 +65,7 @@ def _get_msg_format(
     )
     hasher = hf()
     hasher.update(msg + t)
-    return bytes(hasher.digest())
+    return hasher.digest()
 
 
 SValues = Sequence[list[int]]
@@ -141,7 +141,7 @@ def sign(
         e0bytes += r
     hasher = hf()
     hasher.update(e0bytes)
-    e0 = bytes(hasher.digest())
+    e0 = hasher.digest()
     # step 2
     # strict=True: see step 1
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks, strict=True)):
@@ -239,6 +239,6 @@ def assert_as_valid(
                 e0bytes += r
     hasher = hf()
     hasher.update(e0bytes)
-    e0_prime = bytes(hasher.digest())
+    e0_prime = hasher.digest()
     if e0_prime != e0:
         raise BTClibRuntimeError("signature verification failed")
