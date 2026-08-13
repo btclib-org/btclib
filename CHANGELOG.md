@@ -2721,6 +2721,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **The guide by task answers the question BIP85 is for.** "One backup
+  behind many wallets" is a section of `docs/source/guide.rst` now,
+  between the mnemonic and the account: the derived BIP39 sentence, the
+  index that gives the next wallet, the word count and the language as
+  path levels rather than formatting, the `hdseed` WIF and the xprv, a
+  password and a session of dice rolls, and `entropy_from_der_path` for
+  a path no function formats. It ends on what the scheme costs -- every
+  wallet hangs off the one root key, and none of them is re-derivable
+  from anything else.
+
+  A guide section is worth more than the feature list it duplicates,
+  because `tests/docs_examples_test.py` runs it: every value on the page
+  is a doctest, so the published BIP85 vectors it shows are asserted on
+  every interpreter of the matrix rather than pasted. The examples take
+  a key of the BIP's own rather than the `rootxprv` the page already
+  carries, which is what makes them the specification's values and not
+  btclib's.
+
 - **The feature list advertises BIP85**, which it had not: README.md is
   the btclib.org homepage and the PyPI long description, so the list
   under "Included features are" is where a reader learns what is here,
