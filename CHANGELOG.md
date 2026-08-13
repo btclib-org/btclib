@@ -1658,6 +1658,44 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Every field a sig_hash preimage writes is checked as a width, and
+  every `vin_i` as an index** (issue #744). `int.to_bytes` answers a
+  field too wide for it with an `OverflowError`, which is an
+  `ArithmeticError` and so outside the `except BTClibValueError` this
+  library invites; a list index out of range is an `IndexError`, a
+  `LookupError`, and outside it too.
+
+  #724 made the version and lock-time checks unconditional in
+  `Tx.serialize`, which closed those two fields for `legacy` -- the one
+  sig_hash routed through it. `segwit_v0` and `taproot` assemble their
+  preimage from their own `to_bytes` calls and never reach it, and
+  `TxIn.serialize` and `TxOut.serialize` check nothing when told not to,
+  so the same leak survived on the sequence, on the output value and on
+  the outpoint's vout.
+
+  The checks now live in the serializations rather than in the callers:
+  `_serialized_4_byte_field`, `_serialized_camount`,
+  `_serialized_out_point` and `_serialized_output` are the writes with
+  the check in front, so `PrecomputedTxData` and the two `sha_`/`hash_`
+  families get them for free and no future caller has to remember.
+  `legacy` checks what is left after its branches -- NONE drops the
+  outputs, so a value no CAmount can hold is refused by the hash types
+  that commit to it and hashed by the one that does not.
+
+  `vin_i` is bounded in `legacy`, `segwit_v0`, `from_tx` and
+  `taproot_annex_and_ext` as it is in `taproot`, and a non-integer is a
+  `BTClibTypeError`. `from_tx` also refuses a prevout list of a
+  different length from the vin, which `PrecomputedTxData` refuses with
+  the same message and `script_engine.verify_transaction` before it: a
+  short list hashes one transaction's amounts into another's sig_hash.
+
+  Two more of `taproot`'s parameters: `ext_flag` is BIP341's spend-type
+  byte less the annex bit, so seven bits and no wider, where
+  `to_bytes(1)` answered an `OverflowError`; and `message_extension`
+  takes `Octets` like every other octets parameter of this library,
+  being concatenated raw where the annex goes through `var_bytes` -- a
+  hex string met `b"".join` and answered a `TypeError` about the join.
+
 - **Twelve places answered a malformed argument instead of refusing it**
   (issue #744): no exception of the wrong class, no exception at all --
   a hash, an address, an entropy, a weight, a residue, handed back for an

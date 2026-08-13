@@ -36,7 +36,13 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
-from btclib.tx import Tx, TxIn, TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
+
+# the width check `Tx.serialize` runs on its own two fields regardless of
+# check_validity, imported rather than written again: it is the same
+# field width, and a second spelling of it would be a second place to
+# read before believing the two agree
+from btclib.tx.tx import _assert_valid_4_byte_field
 from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
@@ -195,6 +201,8 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
     A signer past a separator computes its own extension; the caller's
     transaction is never rewritten.
     """
+    _assert_valid_vin_i(tx, vin_i)
+
     # a local name, never assigned back: computing a hash must not rewrite
     # the caller's Tx, and the annex is dropped by rebinding it below
     stack = tx.vin[vin_i].script_witness.stack
@@ -297,6 +305,59 @@ def _assert_valid_camount(amount: int, name: str) -> None:
         raise BTClibValueError(f"invalid {name}: {amount}")
 
 
+# the two field widths every preimage here is made of, each as the write
+# that needs the check rather than as a check a writer has to remember:
+# `int.to_bytes` answers a field too wide for it with an OverflowError,
+# an ArithmeticError that no `except BTClibValueError` written against
+# this library catches (issue #690). `Tx.serialize` checks its own two
+# the same way and unconditionally, which is what closed them for
+# `legacy` alone -- segwit_v0 and taproot assemble their preimage from
+# their own calls and never reach it
+def _serialized_4_byte_field(name: str, value: int) -> bytes:
+    _assert_valid_4_byte_field(name, value)
+    return value.to_bytes(4, byteorder="little", signed=False)
+
+
+def _serialized_camount(amount: int, name: str) -> bytes:
+    # signed, as TxOut.serialize is and for the same reason: this is the
+    # same CAmount field, Core's `ss << txout.nValue`, so the two must
+    # agree on which integers the eight bytes stand for (issue #388)
+    _assert_valid_camount(amount, name)
+    return amount.to_bytes(8, byteorder="little", signed=True)
+
+
+def _serialized_out_point(out_point: OutPoint) -> bytes:
+    """Serialize an outpoint, its 4-byte vout checked as a width.
+
+    `check_validity=False` throughout, as everywhere in this module: a
+    preimage is computed over transactions the caller has not asked to
+    be judged whole. The width is the one part of that judgement
+    serializing four bytes cannot skip.
+    """
+    _assert_valid_4_byte_field("vout", out_point.vout)
+    return out_point.serialize(check_validity=False)
+
+
+def _serialized_output(tx_out: TxOut) -> bytes:
+    """Serialize an output, its CAmount checked as a width."""
+    _assert_valid_camount(tx_out.value, "output value")
+    return tx_out.serialize(check_validity=False)
+
+
+def _serialized_spend_type(ext_flag: int, annex_present: int) -> bytes:
+    """Return BIP341's spend type: `2 * ext_flag + annex_present`.
+
+    One byte, so the extension flag is seven bits: 0 for a key path, 1
+    for BIP342's tapscript, and nothing wider has anywhere to go --
+    where `to_bytes(1)` answered an OverflowError.
+    """
+    if not is_integer(ext_flag):
+        raise BTClibTypeError(f"invalid extension flag type: {type(ext_flag).__name__}")
+    if not 0 <= ext_flag <= 0x7F:
+        raise BTClibValueError(f"invalid extension flag: {ext_flag}")
+    return (2 * ext_flag + annex_present).to_bytes(1, "little")
+
+
 def _assert_valid_prevouts(prevouts: list[TxOut]) -> None:
     """Ask every prevout what a preimage committing to all of them needs.
 
@@ -347,6 +408,7 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     # SINGLE bug's early return, which answers with the constant 1 and
     # never reaches the serialization at the end
     serialized_hash_type = _serialized_hash_type(hash_type)
+    _assert_valid_vin_i(tx, vin_i)
 
     # the legacy preimage commits to the script code with its
     # OP_CODESEPARATORs elided, and Core does that here rather than to the
@@ -379,6 +441,17 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if hash_type & 0x80:
         new_tx.vin = [new_tx.vin[vin_i]]
 
+    # the widths of what is left, and only of what is left: the copy above
+    # is what `Tx.serialize` is about to write, and NONE and SINGLE have
+    # already dropped the outputs they do not commit to. `Tx.serialize`
+    # checks the version and the lock time itself, unconditionally, and
+    # these are the fields it hands to TxIn and TxOut, which do not
+    for txin in new_tx.vin:
+        _assert_valid_4_byte_field("sequence", txin.sequence)
+        _assert_valid_4_byte_field("vout", txin.prev_out.vout)
+    for txout in new_tx.vout:
+        _assert_valid_camount(txout.value, "output value")
+
     preimage = new_tx.serialize(include_witness=False, check_validity=False)
     preimage += serialized_hash_type
 
@@ -392,28 +465,22 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 # to be checked against each other. Private, PrecomputedTxData below being
 # the supported way to compute them once for a whole transaction
 def _serialized_prevouts(tx: Tx) -> bytes:
-    return b"".join([vin.prev_out.serialize(check_validity=False) for vin in tx.vin])
+    return b"".join([_serialized_out_point(vin.prev_out) for vin in tx.vin])
 
 
 def _serialized_sequences(tx: Tx) -> bytes:
     return b"".join(
-        [vin.sequence.to_bytes(4, byteorder="little", signed=False) for vin in tx.vin]
+        [_serialized_4_byte_field("sequence", vin.sequence) for vin in tx.vin]
     )
 
 
 def _serialized_outputs(tx: Tx) -> bytes:
-    return b"".join([vout.serialize(check_validity=False) for vout in tx.vout])
+    return b"".join([_serialized_output(vout) for vout in tx.vout])
 
 
 def _serialized_amounts(prevouts: list[TxOut]) -> bytes:
-    # signed, as TxOut.serialize is and for the same reason: this is the
-    # same CAmount field, Core's `ss << txout.nValue`, so the two must
-    # agree on which integers the eight bytes stand for (issue #388)
     return b"".join(
-        [
-            prevout.value.to_bytes(8, byteorder="little", signed=True)
-            for prevout in prevouts
-        ]
+        [_serialized_camount(prevout.value, "spent amount") for prevout in prevouts]
     )
 
 
@@ -516,6 +583,7 @@ def segwit_v0(
     # bytes can stand for is what leaked an OverflowError out of the
     # serialization, where the contract promises a BTClibValueError
     _assert_valid_camount(amount, "amount")
+    _assert_valid_vin_i(tx, vin_i)
 
     script_code = bytes_from_octets(script_code)
 
@@ -554,22 +622,21 @@ def segwit_v0(
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
         # this one commits to the signed output alone, so it is per input
         # by definition and no precomputation can serve it
-        hash_outputs = hash256(tx.vout[vin_i].serialize(check_validity=False))
+        hash_outputs = hash256(_serialized_output(tx.vout[vin_i]))
 
     preimage = b"".join(
         [
-            tx.version.to_bytes(4, byteorder="little", signed=False),
+            _serialized_4_byte_field("version", tx.version),
             hash_prev_outs,
             hash_seqs,
-            tx.vin[vin_i].prev_out.serialize(check_validity=False),
+            _serialized_out_point(tx.vin[vin_i].prev_out),
             var_bytes.serialize(script_code),
-            # a CAmount, signed as TxOut's is: BIP143's `amount` is the
-            # spent output's value, and Core writes it with the same
-            # serializer (issue #388)
-            amount.to_bytes(8, byteorder="little", signed=True),  # value
-            tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
+            # BIP143's `amount` is the spent output's value, and Core
+            # writes it with the same serializer TxOut uses (issue #388)
+            _serialized_camount(amount, "amount"),
+            _serialized_4_byte_field("sequence", tx.vin[vin_i].sequence),
             hash_outputs,
-            tx.lock_time.to_bytes(4, byteorder="little", signed=False),
+            _serialized_4_byte_field("lock time", tx.lock_time),
             # an int32_t as Core's nHashType is, so that -1 is the
             # `ffffffff` Core writes rather than an OverflowError (#405)
             _serialized_hash_type(hash_type),
@@ -584,8 +651,8 @@ def taproot(
     prevouts: list[TxOut],
     hashtype: int,
     ext_flag: int,
-    annex: bytes,
-    message_extension: bytes,
+    annex: Octets,
+    message_extension: Octets,
     precomputed: PrecomputedTxData | None = None,
 ) -> bytes:
     """Return the BIP341 hash one taproot input's signature commits to.
@@ -605,6 +672,10 @@ def taproot(
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
         raise BTClibValueError("Sighash single without a corresponding output")
 
+    # the message extension is concatenated raw, so it is the one octets
+    # parameter here that no serializer coerces on its way in
+    message_extension = bytes_from_octets(message_extension)
+
     anyone_can_pay = hashtype & 0x80 == ANYONECANPAY
     all_outputs = hashtype & 0x03 not in {NONE, SINGLE}
     annex_present = int(bool(annex))
@@ -614,8 +685,8 @@ def taproot(
     parts = [
         b"\x00",
         hashtype.to_bytes(1, "little"),
-        transaction.nVersion.to_bytes(4, "little"),
-        transaction.nLockTime.to_bytes(4, "little"),
+        _serialized_4_byte_field("version", transaction.nVersion),
+        _serialized_4_byte_field("lock time", transaction.nLockTime),
     ]
 
     # the transaction-wide hashes, and only if this hash type commits to
@@ -635,7 +706,7 @@ def taproot(
         if all_outputs:
             parts.append(precomputed.sha_outputs)
 
-    parts.append((2 * ext_flag + annex_present).to_bytes(1, "little"))
+    parts.append(_serialized_spend_type(ext_flag, annex_present))
 
     if anyone_can_pay:
         # check_validity=False, as segwit_v0 and the rest of the library do
@@ -643,10 +714,12 @@ def taproot(
         # the transaction once per input is the same waste in miniature
         prevout = prevouts[input_index]
         parts += [
-            transaction.vin[input_index].prev_out.serialize(check_validity=False),
-            prevout.value.to_bytes(8, "little", signed=True),  # a CAmount
+            _serialized_out_point(transaction.vin[input_index].prev_out),
+            _serialized_camount(prevout.value, "spent amount"),
             var_bytes.serialize(prevout.script_pub_key.script),
-            transaction.vin[input_index].nSequence.to_bytes(4, "little"),
+            _serialized_4_byte_field(
+                "sequence", transaction.vin[input_index].nSequence
+            ),
         ]
     else:
         parts.append(input_index.to_bytes(4, "little"))
@@ -655,9 +728,7 @@ def taproot(
         parts.append(sha256(var_bytes.serialize(annex)))
 
     if hashtype & 0x03 == SINGLE:
-        parts.append(
-            sha256(transaction.vout[input_index].serialize(check_validity=False))
-        )
+        parts.append(sha256(_serialized_output(transaction.vout[input_index])))
 
     parts.append(message_extension)
 
@@ -735,6 +806,15 @@ def from_tx(
     problem — the interpreter advances Core's `pbegincodehash` as it goes.
     """
     _assert_valid_prevouts(prevouts)
+    _assert_valid_vin_i(tx, vin_i)
+    # both lists are indexed at vin_i below, and one prevout per input is
+    # what a segwit preimage commits to: the message PrecomputedTxData
+    # gives for the same mismatch, and script_engine.verify_transaction
+    # before it
+    if len(prevouts) != len(tx.vin):
+        raise BTClibValueError(
+            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        )
 
     script = prevouts[vin_i].script_pub_key.script
 
