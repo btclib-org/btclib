@@ -554,8 +554,11 @@ BTCLIB_INTEGRATION=1 BTCLIB_HWI_SIGN=1 \
     BTCLIB_HWI="/path/to/hwi --emulators" \
     BTCLIB_BITCOIND=/path/to/bitcoind \
     uv run --locked --no-default-groups --group test \
-    pytest tests/integration/hwi_device_test.py --junitxml=hwi.xml
+    pytest tests/integration/hwi_device_test.py -n0 --junitxml=hwi.xml
 ```
+
+`-n0` because there is one device: `addopts` passes `-n auto`, and three
+workers are three HWI processes on one udp port.
 
 `BTCLIB_HWI_SIGN` can be set because HWI opens a udp device with
 `TrezorClientDebugLink`, which answers the button request itself. The

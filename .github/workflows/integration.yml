@@ -368,7 +368,14 @@ jobs:
       # the module tests/README.md documents, with both switches set and
       # the node from the step above. Only that module: the regtest tests
       # beside it are the other job's, and running them again here would
-      # report a Core failure twice
+      # report a Core failure twice.
+      #
+      # -n0 because there is one device. pyproject.toml's addopts pass
+      # `-n auto`, which is right for everything else here and wrong for
+      # a signer: three workers are three HWI processes on one udp port,
+      # and the one that finds the emulator mid-exchange waits for an
+      # answer to somebody else's command until btclib's timeout ends it.
+      # Measured, and it is displayaddress that lost the race
       - name: Run the HWI integration tests
         env:
           BTCLIB_INTEGRATION: "1"
@@ -376,7 +383,7 @@ jobs:
           BTCLIB_BITCOIND: ${{ steps.bitcoind.outputs.path }}
         run: |
           uv run --locked --no-default-groups --group test \
-            pytest tests/integration/hwi_device_test.py --junitxml=hwi.xml
+            pytest tests/integration/hwi_device_test.py -n0 --junitxml=hwi.xml
       # the same guard the node job carries, for the same reason: every
       # one of these tests skips itself when a switch is off or when
       # enumerate answers something other than one usable device, so a

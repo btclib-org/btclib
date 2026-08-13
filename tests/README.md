@@ -79,12 +79,19 @@ The HWI tests need a device as well, and a second switch for the one that
 asks it to sign:
 
 ```shell
-BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi BTCLIB_HWI_SIGN=1 uv run pytest tests/integration
+BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi BTCLIB_HWI_SIGN=1 \
+    uv run pytest tests/integration/hwi_device_test.py -n0
 ```
 
 `BTCLIB_HWI` is the executable, split on spaces, so an emulator is
 reached with `BTCLIB_HWI="hwi --emulators"`. Nothing there is
 destructive: enumerate, an xpub, an address on a screen, a signature.
+
+`-n0` because there is one device. `addopts` passes `-n auto`, which is
+right for the rest of the suite and wrong here: three workers are three
+HWI processes on one device, and the one that reaches it mid-exchange
+waits for an answer to somebody else's command until btclib's timeout
+ends it.
 
 These tests are outside the coverage ratchet, which `pyproject.toml`
 says where it omits them: the ratchet measures what an ordinary run

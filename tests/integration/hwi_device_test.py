@@ -17,13 +17,16 @@ own binary, image and udev rules, and vendoring that is the "large
 security and maintenance surface unrelated to btclib's Bitcoin
 primitives" the issue rules out. So the switches are two:
 
-    BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi uv run pytest tests/integration
+    BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi uv run pytest -n0 tests/integration
 
 with `BTCLIB_HWI` naming the executable -- `hwi`, a path, or a command
 with flags of its own, split on spaces, which is how an emulator is
 reached: `hwi --emulators`. Signing is asked for only where
 `BTCLIB_HWI_SIGN` says so, because a device that signs is a device
-somebody is standing in front of, pressing a button.
+somebody is standing in front of, pressing a button. `-n0` because there
+is one device: `addopts` passes `-n auto`, and three workers are three
+HWI processes reaching for it at once, where the one that arrives
+mid-exchange waits out btclib's timeout.
 
 One emulator is what CI brings, which is issue #529 and not a change of
 that rule: the `HWI against a Trezor emulator` job of `integration.yml`
