@@ -311,12 +311,25 @@ KeyOrder = Literal["none", "account", "derived"]
 # What a HashF returns: as much of the hashlib object as this library uses,
 # and no more. A Protocol rather than Any: under Any, hf().digest() and
 # hf().digest_size go unchecked, and with them every expression downstream
-# of a hash function. Eleven sites read digest_size and nine build a digest
-# through update(); with Any, a typo in either is a runtime AttributeError
-# in a mypy-strict code base.
+# of a hash function -- in a mypy-strict code base a typo in either would
+# be a runtime AttributeError.
 #
-# Not hashlib._Hash, which is what typeshed calls it: a private name, and
-# structural typing is the right tool for "whatever hashlib.new returns"
+# Not hashlib._Hash, which is what typeshed calls the class: a private
+# name, and structural typing is the right tool for "whatever hashlib.new
+# returns". typeshed writes this same Protocol beside it, under this very
+# class's name, and marks it type_check_only, so importing that one is no
+# option either.
+#
+# An extendable-output function is not one of these, and here is where it
+# is refused: hashlib.shake_128 fails this Protocol statically, its
+# digest() requiring the output length that digest() -> bytes does not
+# declare, and its digest_size reading 0. Not a btclib restriction --
+# typeshed derives HASHXOF from HASH through a type: ignore[override], and
+# hmac.new rejects an XOF as a digestmod for the same reason, which is
+# dsa.sign's answer too: rfc6979 hands hf to hmac.new, and HMAC over an
+# XOF is not defined (NIST specifies KMAC instead). An XOF is a function
+# of data *and* length, and the length has nowhere to live here, so what
+# reads SHAKE vectors is an adapter pinning one, not a wider Protocol
 class HashObject(Protocol):
     """The slice of a hashlib object this library reads, as a Protocol.
 
@@ -343,10 +356,9 @@ class HashObject(Protocol):
     # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
     # a union this library cannot spell before 3.12, collections.abc.Buffer
     # being 3.12 and the floor 3.10, and a narrower parameter here makes
-    # the whole Protocol unassignable to hmac's -- rfc6979 passes hf to
-    # hmac.new eight times. The two members that are actually read,
-    # digest() and digest_size, stay exact, which is the point of the
-    # Protocol
+    # the whole Protocol unassignable to hmac's -- rfc6979 hands hf to
+    # hmac.new. The two members that are actually read, digest() and
+    # digest_size, stay exact, which is the point of the Protocol
     def update(self, data: Any, /) -> None:
         """Absorb more data, as hashlib's update does."""
         ...
@@ -366,9 +378,20 @@ class HashObject(Protocol):
 
 # Hash digest constructor: it may be any name suitable to hashlib.new().
 # Called with no argument and then fed through update(), which is how every
-# hf parameter in the package is used: hf(data) does not type check here,
-# and hashlib.sha256 accepting it anyway is what makes the distinction
-# below invisible at run time
+# hf parameter in the package is used -- digest() and digest_size are the
+# whole of what it reads off the result, so no argument is the whole of the
+# capability it needs. Typing a callback at the capability actually used is
+# what leaves the widest set of callables able to be one: a lambda and a
+# functools.partial are a HashF here, and typeshed types the same object
+# the same way, hmac's digestmod being Callable[[], _HashObject].
+#
+# The price is that hf(data) does not type check, though hashlib.sha256
+# accepts it and that is what makes the distinction below invisible at run
+# time. A Protocol declaring __call__ with an optional positional parameter
+# would take both spellings, and would take with the other hand: a
+# zero-argument constructor would no longer be a HashF, which is
+# contravariance and not an oversight. btclib.hashes.reduce_to_hlen is the
+# one-shot digest, for whoever wants one
 HashF = Callable[[], HashObject]
 
 # A one-shot digest: hf(data) returns the digest, where a HashF returns an
