@@ -10,7 +10,7 @@ these vectors otherwise: a defect in them is unreachable rather than
 absent. Issue #129 found two hiding exactly there, each accepting a
 transaction the data calls invalid.
 
-This module is the bindings-less configuration, without the packaging:
+This module is the bindings-less verification, without the packaging:
 the two symbols the engine imports from the bindings are replaced by the
 Python implementations and the same vector sets run again through them,
 so a disagreement between the two implementations about the *verdict*
@@ -35,7 +35,7 @@ from typing import Any
 
 import pytest
 
-from btclib.curves import curve, point_from_octets
+from btclib.curves import point_from_octets
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.script.engine import script as engine_script
@@ -78,16 +78,27 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     secp256k1 with sha256 straight back to them -- the very dispatch that
     makes the Python path unreachable in the first place.
 
-    A third patch, one curve deeper, is what keeps the arithmetic Python
-    too: `dsa._assert_as_valid_` and `ssa._assert_as_valid_` reach the
-    `double_mult` of `curves.curve`, which delegates any point of
-    secp256k1 to the bindings. Without it the verdict below would still be
-    the Python implementation's, and the multiplication under it would not
-    -- a bindings-less configuration in name only.
+    The arithmetic under the verdict stays delegated: no third patch on
+    `curves.curve`, whose dispatch is what `dsa._assert_as_valid_` and
+    `ssa._assert_as_valid_` reach for a `double_mult` and for the two
+    square roots that lift a key and answer for an r. Patching it off
+    would send those down the Python path on every vector below, at the
+    ratios `curves/curve.py` states beside each of them, and would buy a
+    comparison `tests/curves/curve_test.py` already makes against the
+    bindings -- `test_libsecp256k1_arbitrary_point` for the
+    multiplications, `test_x_coordinate_lift` for the roots -- on a
+    chosen spread of inputs rather than on whatever these vectors happen
+    to carry.
+
+    So the line is drawn where the second implementation is otherwise
+    unreached: `Sig.parse`, the hybrid prefix `point_from_octets` takes
+    only when asked, and the parity and the x comparison
+    `_assert_as_valid_` makes -- which is where both #129 defects were.
+    The field and group arithmetic under all of that is the bindings',
+    as it is everywhere else.
     """
     monkeypatch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
     monkeypatch.setattr(ssa, "_libsecp256k1_applicable", lambda *_: False)
-    monkeypatch.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
     monkeypatch.setattr(engine_script, "_libsecp256k1_dsa_verify", python_dsa_verify)
     monkeypatch.setattr(engine_tapscript, "_libsecp256k1_ssa_verify", python_ssa_verify)
 
