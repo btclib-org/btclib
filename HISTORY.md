@@ -54,6 +54,35 @@ full year, short month, short day (YYYY-M-D)
   `dsa.sign_recoverable` and with it `bms.sign` are unaffected, a compact
   signature having no DER pad to save, and so is `bip322.sign`, which asks
   for the plain signature to keep reproducing the BIP's own vectors.
+- **an ECDSA signature is low-R now.** `dsa.sign` and `dsa.sign_` grind
+  for it wherever the nonce is theirs to derive, as Core has done since
+  its 0.17, so the signature of a given key and message is a different one
+  for about half of all messages -- and one DER byte shorter. `grind=False`
+  is the plain RFC6979 signature, which is what a caller pinning btclib's
+  bytes has to pass now. `dsa.sign_recoverable` and with it `bms.sign` are
+  unaffected, a compact signature having no DER pad to save, and so is
+  `bip322.sign`, which asks for the plain signature to keep reproducing
+  the BIP's own vectors.
+- **`NETWORKS` is read-only, and `Network.magic_bytes` is gone.**
+  `NETWORKS["mynet"] = Network(...)` now raises `TypeError`. It was never
+  honoured throughout: the extended-key version lists are built at import,
+  so keys of a network registered afterwards were refused by `bip32` while
+  `network_from_xkeyversion` named it. A `Network` is an encoding table and
+  every field of one is the same for every deployment of that network, so
+  the only thing a caller had to register a network *for* was a custom
+  signet's p2p magic -- and that identifies a node, not an encoding.
+  `bitcoin_core_rpc.magic_from_chain(chain)` and
+  `magic_from_signet_challenge(challenge)` are where it is now;
+  `NETWORKS[net].magic_bytes` has no replacement here, and note the byte
+  order is Core's `pchMessageStart` where this field was its reverse.
+  A custom signet is `BitcoinCoreFetcher(client, "signet",
+  signet_challenge=...)`, which is the check that magic was read for.
+- **`XPRV_VERSIONS_ALL` and `XPUB_VERSIONS_ALL` are frozensets.**
+  `version in XPRV_VERSIONS_ALL` is unchanged and is what nearly every use
+  was; indexing, slicing and `.index()` are not. The one use of the
+  parallel positions -- the xpub version paired with an xprv version -- is
+  `network.xpubversion_from_xprvversion(version)`.
+
 - **a MOV-weak curve is refused with `BTClibValueError`, not
   `UserWarning`.** `Curve(p, a, b, G, n, cofactor)` with the default
   `weakness_check=True` used to raise `UserWarning("weak curve")` for a

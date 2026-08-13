@@ -43,7 +43,12 @@ from btclib.curves import (
 from btclib.curves.curve import _is_x_coordinate
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
+from btclib.network import (
+    NETWORKS,
+    XPRV_VERSIONS_ALL,
+    XPUB_VERSIONS_ALL,
+    xpubversion_from_xprvversion,
+)
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -391,7 +396,7 @@ def _xpub_from_xprv(xprv: BIP32KeyData) -> BIP32KeyData:
     # `prv_key_int` into an object whose key is public, the one scalar
     # this function exists to drop
     return BIP32KeyData(
-        version=XPUB_VERSIONS_ALL[XPRV_VERSIONS_ALL.index(xprv.version)],
+        version=xpubversion_from_xprvversion(xprv.version),
         depth=xprv.depth,
         parent_fingerprint=xprv.parent_fingerprint,
         index=xprv.index,

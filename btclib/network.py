@@ -6,7 +6,20 @@
 
 What this module exports is the dataclass, the catalogue, the three
 questions asked of a key-value pair and the three asked of an extended-key
-version, plus the two version lists a caller matches against.
+version, plus the two version sets a caller matches against.
+
+**A Network is an encoding table, and NETWORKS is fixed at import.** The
+fields are the prefixes and version bytes a network spells its keys and
+addresses with, plus the genesis block; every one of them is the same for
+every deployment of that network, so there is nothing here for a caller to
+register and the catalogue is a read-only mapping. What *is* per
+deployment -- a custom signet's p2p magic, which its challenge determines
+-- is a fact about a node rather than about an encoding, and lives where
+the node is spoken to: `bitcoin_core_rpc.magic_from_signet_challenge`, and
+`BitcoinCoreFetcher(..., signet_challenge=...)` for the check it feeds.
+Fixed at import is what lets the reverse lookups below be tables built
+once: a network registered afterwards would be found by a scan and missed
+by a precomputed index, which is the disagreement issue 683 recorded.
 
 `datadir` stays out, and this is where that decision is recorded: it is
 where this package keeps the five json files loaded at the bottom of this
@@ -22,6 +35,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
@@ -44,11 +58,11 @@ __all__ = [
     "networks_from_key_value",
     "networks_from_xkeyversion",
     "xprvversions_from_network",
+    "xpubversion_from_xprvversion",
     "xpubversions_from_network",
 ]
 
 _KEY_SIZE: list[tuple[NetworkField, int]] = [
-    ("magic_bytes", 4),
     ("genesis_block", 32),
     ("wif", 1),
     ("p2pkh", 1),
@@ -68,12 +82,15 @@ _KEY_SIZE: list[tuple[NetworkField, int]] = [
 
 @dataclass(frozen=True)
 class Network:
-    """The encoding table of one network: prefixes, versions, magic.
+    """The encoding table of one network: prefixes, versions, genesis.
 
     What tells a mainnet spelling from a test one -- wif and address
     prefixes, the bech32 hrp, the BIP32 and SLIP132 version bytes --
-    plus the wire magic and the genesis block hash. No consensus
-    parameter lives here; NETWORKS holds the built-in instances, and
+    plus the genesis block hash. No consensus parameter lives here, and
+    no p2p one: the message start belongs to the code that speaks to a
+    node, `bitcoin_core_rpc.magic_from_chain` being where it is, because
+    a custom signet's is a function of its challenge and therefore not a
+    field any table can hold. NETWORKS holds the built-in instances, and
     the ``*_from_network`` and ``*_from_xkeyversion`` functions below
     are the lookups.
     """
@@ -85,7 +102,6 @@ class Network:
     # network_type_from_* functions below for the answering
     network_type: NetworkType
 
-    magic_bytes: bytes
     genesis_block: bytes
 
     # base58 wif starts with 'K' or 'L' if compressed else '5'
@@ -122,7 +138,6 @@ class Network:
     def __init__(
         self,
         curve: Curve,
-        magic_bytes: Octets,
         genesis_block: Octets,
         wif: Octets,
         p2pkh: Octets,
@@ -138,19 +153,16 @@ class Network:
         slip132_p2wsh_pub: Octets,
         slip132_p2wsh_p2sh_prv: Octets,
         slip132_p2wsh_p2sh_pub: Octets,
-        # last and defaulted, where the field is declared second: a
-        # caller building a Network by hand -- a custom signet, which is
-        # what issue #207 says callers do today -- keeps every existing
-        # call valid, and "test" is the safe direction for the default.
-        # Defaulting to "main" would let a forgotten argument claim a
-        # made-up chain is the real one
+        # last and defaulted, where the field is declared second: it is
+        # the one field that is not bytes to be spelled out, and "test" is
+        # the safe direction for a default. Defaulting to "main" would let
+        # a forgotten argument claim a made-up chain is the real one
         network_type: NetworkType = "test",
         *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "curve", curve)
         object.__setattr__(self, "network_type", network_type)
-        object.__setattr__(self, "magic_bytes", bytes_from_octets(magic_bytes))
         object.__setattr__(self, "genesis_block", bytes_from_octets(genesis_block))
 
         object.__setattr__(self, "wif", bytes_from_octets(wif))
@@ -202,7 +214,6 @@ class Network:
         return {
             "curve": self.curve.name,
             "network_type": self.network_type,
-            "magic_bytes": self.magic_bytes.hex(),
             "genesis_block": self.genesis_block.hex(),
             "wif": self.wif.hex(),
             "p2pkh": self.p2pkh.hex(),
@@ -227,7 +238,6 @@ class Network:
         """Build a Network from the dict shape to_dict writes."""
         return cls(
             CURVES[dict_["curve"]],
-            dict_["magic_bytes"],
             dict_["genesis_block"],
             dict_["wif"],
             dict_["p2pkh"],
@@ -279,21 +289,18 @@ class Network:
                 raise BTClibValueError(err_msg)
 
 
-NETWORKS: dict[str, Network] = {}
 datadir = Path(__file__).parent / "_data"
 # order matters, and it is the order of the reverse lookups below: the
 # first network holding a version prefix is the one they answer with, so
 # testnet, the oldest, answers for the four networks that share its
 # prefixes, and appending a newer network cannot change any answer.
 # mainnet first, then the test networks oldest to newest -- signet.json
-# and testnet4.json differ from testnet.json in the genesis block and
-# the p2p magic, and in nothing else.
+# and testnet4.json differ from testnet.json in the genesis block, and in
+# nothing else.
 #
 # Annotated, where inference would widen it to tuple[str, ...]: this is
 # what ties NetworkName to the data it names, a sixth file loaded here
-# without a sixth member there being a mypy error. The dict it fills
-# stays dict[str, Network], a caller's custom signet being as much a
-# network as these -- issue #216 for why no parameter below narrows
+# without a sixth member there being a mypy error
 _network_names: tuple[NetworkName, ...] = (
     "mainnet",
     "testnet",
@@ -304,14 +311,80 @@ _network_names: tuple[NetworkName, ...] = (
 # the loop's own names are underscored: a for target and a with target are
 # module globals like any other, so `net`, `filename` and the open file
 # would be three names of this module that no caller has any use for
+_networks: dict[str, Network] = {}
 for _net in _network_names:
     _filename = datadir / f"{_net}.json"
     with _filename.open(encoding="ascii") as _network_file:
-        NETWORKS[_net] = Network.from_dict(json.load(_network_file))
+        _networks[_net] = Network.from_dict(json.load(_network_file))
+
+# the networks btclib ships, by name. A mapping and not a dict, because the
+# tables below are built from it once and an entry added afterwards would be
+# in the catalogue and in none of them. `NETWORKS[name]`, `name in
+# NETWORKS`, `.items()` and `.values()` are what this library and its
+# callers do with it, and all four are what a mapping is
+NETWORKS: Mapping[str, Network] = MappingProxyType(_networks)
 
 
-# Three questions, three functions, and one scan -- the plural one --
-# because "which networks carry this prefix" is the only fact here and it
+# Everything below is derived from NETWORKS, in one pass over it, because
+# every one of these questions is "which network carries these bytes" asked
+# from a different side -- and a second pass is a second thing to go stale.
+# Insertion order is the order above, so the first candidate of a shared
+# prefix is the oldest network holding it.
+_XPRV_VERSIONS: dict[str, tuple[bytes, ...]] = {}
+_XPUB_VERSIONS: dict[str, tuple[bytes, ...]] = {}
+_NETWORKS_FROM_XKEYVERSION: dict[bytes, tuple[str, ...]] = {}
+# the sibling of an xprv version: what neutering re-labels a key with,
+# looked up rather than found by position in the two sets below
+_XPUB_VERSION_FROM_XPRV_VERSION: dict[bytes, bytes] = {}
+
+for _name, _network in _networks.items():
+    # the five kinds of xkey -- BIP32's and SLIP132's four -- in one order
+    # for both halves: what pairs a prv version with its pub is this
+    # pairing, and nothing about where either lands in the sets below
+    _prv_versions = (
+        _network.bip32_prv,
+        _network.slip132_p2wsh_p2sh_prv,
+        _network.slip132_p2wpkh_p2sh_prv,
+        _network.slip132_p2wpkh_prv,
+        _network.slip132_p2wsh_prv,
+    )
+    _pub_versions = (
+        _network.bip32_pub,
+        _network.slip132_p2wsh_p2sh_pub,
+        _network.slip132_p2wpkh_p2sh_pub,
+        _network.slip132_p2wpkh_pub,
+        _network.slip132_p2wsh_pub,
+    )
+    _XPRV_VERSIONS[_name] = _prv_versions
+    _XPUB_VERSIONS[_name] = _pub_versions
+    for _prv, _pub in zip(_prv_versions, _pub_versions, strict=True):
+        # setdefault, not assignment: the four test networks carry one set
+        # of versions between them, so testnet -- first of the four -- is
+        # what a shared version keeps answering
+        _XPUB_VERSION_FROM_XPRV_VERSION.setdefault(_prv, _pub)
+    # dict.fromkeys and not the concatenation itself: a network naming
+    # itself twice for one version is what a prv version equal to a pub
+    # one would produce, and this is exact without a condition that the
+    # shipped data never takes
+    for _version in dict.fromkeys(_prv_versions + _pub_versions):
+        _NETWORKS_FROM_XKEYVERSION[_version] = (
+            *_NETWORKS_FROM_XKEYVERSION.get(_version, ()),
+            _name,
+        )
+
+# every xkey version this library knows, private and public. Sets, because
+# each answers one question -- is this a private version, is this a public
+# one -- and the four test networks carry one set of versions between them,
+# so a list of them was four fifths repetition in an order that meant
+# nothing. `xpubversion_from_xprvversion` is the pairing the parallel lists
+# were also used for, and `xprvversions_from_network` the versions of one
+# network
+XPRV_VERSIONS_ALL = frozenset(_XPUB_VERSION_FROM_XPRV_VERSION)
+XPUB_VERSIONS_ALL = frozenset(_XPUB_VERSION_FROM_XPRV_VERSION.values())
+
+
+# Three questions, three functions, and one answer underneath each trio --
+# because "which networks carry these bytes" is the only fact here and it
 # belongs in one place. Which of the three to reach for:
 #
 # - networks_from_*: every candidate, oldest first. The whole truth, for
@@ -340,6 +413,12 @@ def networks_from_key_value(
     never say. Mostly it holds the four test networks (one set of
     prefixes between them) or exactly one (mainnet's bytes, and
     regtest's bcrt hrp, are unique).
+
+    A scan where the xkey-version trio is a table, and not for want of a
+    key: `prefix` is whatever a caller passes, so a dict would answer an
+    unhashable one with a TypeError where the comparison answers "no
+    network carries this". Five networks and one `getattr` each is what
+    that costs.
     """
     return [
         network_str
@@ -356,8 +435,8 @@ def network_from_key_value(
     Oldest, i.e. 'testnet' for the prefixes testnet, regtest, signet and
     testnet4 share, 'regtest' for the bcrt hrp that is regtest's alone,
     'mainnet' for mainnet's. That is the network to encode *with*: the
-    candidates differ in genesis block and p2p magic, which no encoding
-    here reads, so the bytes it yields are right for all of them.
+    candidates differ in the genesis block, which no encoding here reads,
+    so the bytes it yields are right for all of them.
     It is not an answer to "which chain is this": use
     network_type_from_key_value for what the prefix does say, or
     networks_from_key_value for the candidates.
@@ -386,50 +465,43 @@ def network_type_from_network(network: str = "mainnet") -> NetworkType:
 
 
 def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
-    """Return every xpub version of the network, BIP32 and SLIP132."""
-    network = network.strip().lower()
-    return [
-        NETWORKS[network].bip32_pub,
-        NETWORKS[network].slip132_p2wsh_p2sh_pub,
-        NETWORKS[network].slip132_p2wpkh_p2sh_pub,
-        NETWORKS[network].slip132_p2wpkh_pub,
-        NETWORKS[network].slip132_p2wsh_pub,
-    ]
+    """Return every xpub version of the network, BIP32 and SLIP132.
+
+    A fresh list off the table built at import, so that a caller sorting
+    or trimming the answer is not editing the table every other lookup
+    reads.
+    """
+    return list(_XPUB_VERSIONS[network.strip().lower()])
 
 
 def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     """Return every xprv version of the network, BIP32 and SLIP132."""
-    network = network.strip().lower()
-    return [
-        NETWORKS[network].bip32_prv,
-        NETWORKS[network].slip132_p2wsh_p2sh_prv,
-        NETWORKS[network].slip132_p2wpkh_p2sh_prv,
-        NETWORKS[network].slip132_p2wpkh_prv,
-        NETWORKS[network].slip132_p2wsh_prv,
-    ]
+    return list(_XPRV_VERSIONS[network.strip().lower()])
 
 
-# every xkey version this library knows, one block per network in
-# NETWORKS order. Four of the five networks carry testnet's, so each of
-# those appears four times over -- which is why the lookups below ask
-# each network whether it holds the version, rather than indexing a
-# parallel list of names: the position of a repeated entry means nothing
-XPRV_VERSIONS_ALL = [
-    version for network in NETWORKS for version in xprvversions_from_network(network)
-]
-XPUB_VERSIONS_ALL = [
-    version for network in NETWORKS for version in xpubversions_from_network(network)
-]
+def xpubversion_from_xprvversion(xprvversion: bytes) -> bytes:
+    """Return the xpub version paired with an xprv version.
+
+    The same network and the same script type: xprv to xpub, yprv to ypub,
+    Zprv to Zpub. What neutering re-labels a key with, and the one
+    question here a version *pair* answers rather than a version alone --
+    which is why it is a table and not two positions in the sets above.
+    """
+    if xprvversion not in _XPUB_VERSION_FROM_XPRV_VERSION:
+        err_msg = f"unknown xprv version: 0x{xprvversion.hex()}"
+        raise BTClibValueError(err_msg)
+    return _XPUB_VERSION_FROM_XPRV_VERSION[xprvversion]
 
 
 def networks_from_xkeyversion(xkeyversion: bytes) -> list[str]:
-    """Return every network with the xkey version prefix, oldest first."""
-    return [
-        network
-        for network in NETWORKS
-        if xkeyversion in xprvversions_from_network(network)
-        or xkeyversion in xpubversions_from_network(network)
-    ]
+    """Return every network with the xkey version prefix, oldest first.
+
+    One lookup, where asking each network in turn rebuilt two version
+    lists per network asked -- issue 683 measured what that cost the
+    address path, and the table it answers from is why NETWORKS is fixed
+    at import.
+    """
+    return list(_NETWORKS_FROM_XKEYVERSION.get(xkeyversion, ()))
 
 
 def network_from_xkeyversion(xkeyversion: bytes) -> str:

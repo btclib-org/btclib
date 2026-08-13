@@ -301,12 +301,8 @@ wheels = [
 
 [[package]]
 name = "bitcoin-core-rpc"
-version = "2026.8.12"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/11/6f/c059af17a556fd0840649fcb00a6aa053ab0ddc196ac1068f12ba0b0f4d5/bitcoin_core_rpc-2026.8.12.tar.gz", hash = "sha256:15677a3b11c959a31d2a63ba580093dcebb9b85534d18927afa7da59e1ebf184", size = 356774, upload-time = "2026-08-12T11:30:17.148Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ea/40/071a063c1d7d5b75afbe19b7d124eca260d2c9d45dace0952baa2a23c937/bitcoin_core_rpc-2026.8.12-py3-none-any.whl", hash = "sha256:0757f2290bc7b7bd6d7e99fd9ffb6b64a1f52492c4508d1af00f19faf42df6d0", size = 41395, upload-time = "2026-08-12T11:30:15.763Z" },
-]
+version = "2026.9"
+source = { git = "https://github.com/btclib-org/bitcoin-core-rpc.git?rev=main#299334b2dd4b6b5a15903dd78bfc266e13318044" }
 
 [[package]]
 name = "btclib"
@@ -373,7 +369,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bitcoin-core-rpc", specifier = ">=2026.8.12" },
+    { name = "bitcoin-core-rpc", git = "https://github.com/btclib-org/bitcoin-core-rpc.git?rev=main" },
     { name = "btclib-secp256k1", specifier = ">=0.8.0" },
 ]
 

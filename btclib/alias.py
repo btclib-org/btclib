@@ -188,7 +188,6 @@ ScriptType = Literal[
 NetworkField = Literal[
     "curve",
     "network_type",
-    "magic_bytes",
     "genesis_block",
     "wif",
     "p2pkh",
@@ -206,14 +205,18 @@ NetworkField = Literal[
     "slip132_p2wsh_pub",
 ]
 
-# The networks btclib ships, i.e. the keys of network.NETWORKS as loaded.
-# Not a parameter type, and that is the honest half of issue #216:
-# NETWORKS is a dict a caller adds a custom signet to, so a `network:
-# NetworkName` would refuse a name the library itself accepts and every
-# such caller would have to cast. It names the five for a caller who
-# uses only those and wants mypy to hold them to it; network.py
-# annotates with it the tuple of names it loads, which is what keeps
-# this list equal to the data
+# The networks btclib ships, which is every network there is here:
+# network.NETWORKS is fixed at import and read-only, so this list is the
+# whole of the vocabulary and not a sample of it.
+#
+# Still not a parameter type, and issue #216 is where that is decided: the
+# `network: str` parameters accept a name with spaces around it and in any
+# case -- `network.strip().lower()` is what they run it through -- so the
+# set they take is wider than these five spellings, and narrowing the
+# annotation without dropping that tolerance would reject calls that work.
+# It names the five for a caller who wants mypy to hold them to it;
+# network.py annotates with it the tuple of names it loads, which is what
+# keeps this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
 
 # The word-lists btclib ships: BIP39's twelve languages, and SLIP-0039's
