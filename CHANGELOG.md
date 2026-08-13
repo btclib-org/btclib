@@ -1398,6 +1398,37 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`BTClibException`, one name to catch for everything btclib raises**
+  (issue #743). `btclib.exceptions` says its classes "exist only to tell
+  an exception raised by btclib from one raised by any other code", and
+  could not do it: telling them apart took a tuple of three --
+  `BTClibValueError`, `BTClibTypeError`, `BTClibRuntimeError` -- that a
+  caller had to keep in step with this hierarchy. Those three now inherit
+  the new base, and the eleven classes under them get it transitively.
+
+  Inherited *beside* the built-in and not instead of it, which is the half
+  that matters: `BTClibValueError` is a `ValueError` as it always was, so
+  every `except ValueError` already written keeps catching what it caught.
+  That is the standard library's own shape -- `json.JSONDecodeError` is a
+  `ValueError` -- and what requests, sqlalchemy and httpx give up by
+  deriving their bases from `Exception` alone, which leaves an `except
+  ValueError` not catching their value errors.
+
+  It is caught and never raised: every raise is one of the three, and
+  which one answers what the base cannot carry -- whether the value was
+  wrong, the type was, or neither was and a check failed anyway. A caller
+  with something to do about that names the specific class.
+  `BTClibUserWarning` stays out, a warning being filtered rather than
+  caught: with `filterwarnings = ["error"]` an `except BTClibException`
+  would otherwise catch a call that worked.
+
+  The docstring says what is not yet true, rather than promising it: issue
+  #744 counts the public functions still letting a native `KeyError`,
+  `IndexError` or `OverflowError` through, so catching this class catches
+  most of what the library raises and not all of it. The test that will
+  close that gap wants a single predicate to assert, which is why the base
+  lands before the fixes rather than after them.
+
 - **BIP85 deterministic entropy from a BIP32 keychain** (issue #644), as
   `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
   fully hardened path off a root key, then
