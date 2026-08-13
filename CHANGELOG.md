@@ -1615,6 +1615,34 @@ documented at release-notes length in the first place, and are still in
   valid range and not the one asked for, which would be a caller's
   arithmetic reported as a successful import of something else.
 
+- **`serialize` says which minimal it means** (issue #646). "Data is
+  always the minimal push, per BIP62" reads as the minimal *command*,
+  which would make a bytes command holding the single byte `0x01` come
+  out as OP_1; what it has always meant, and now says, is the minimal
+  push *operator* -- the narrowest of the four widths -- with the data
+  pushed by length whatever it is. Which is Core's split: its
+  `AppendDataSize` writes a length for whatever vector it is handed, and
+  `push_int64` -- reached from a `CScriptNum` and from an integer, never
+  from a byte vector -- is the only thing that reaches for OP_0,
+  OP_1NEGATE or OP_1..OP_16. Only the caller knows whether bytes mean a
+  number, so `push_int` is where one that means a number says so, and
+  the integer command warns that it is one byte longer than the op code.
+
+  Not a gap left open: every place in this library that pushes a number
+  already calls `push_int` or `op_int`, and three readers positively
+  require the current spelling, each measuring a push against what
+  `serialize` writes for its data --
+  `engine.script_op_codes.check_minimal_push`,
+  `miniscript._assert_minimal_push` and, differently,
+  `engine.script.calculate_script_code`, which builds the needle
+  FindAndDelete searches for as Core builds it, `CScript() << vchSig`. A
+  push of the single byte `0x00` is the one Core's `CheckMinimalPush`
+  accepts as data of one byte where OP_0 pushes no bytes at all, so it is
+  also the one value for which the substitution would change what lands
+  on the stack rather than how it is spelled. Nothing changes in what
+  `serialize` writes; the docstring says the rule and the test pins it,
+  over the whole set of values that could have been written otherwise.
+
 ### Descriptors and miniscript
 
 - **An invalid output is refused, not answered about** (#691). `index_of`

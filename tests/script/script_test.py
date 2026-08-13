@@ -111,6 +111,42 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == (length + 1) + 3
 
 
+def test_a_data_command_is_never_a_numeric_op_code() -> None:
+    """Verify the values with an op code are still pushed as data.
+
+    The set Core's `CheckMinimalPush` names -- the empty push, 1 to 16
+    and 0x81 -- is the set with a one-byte op code of its own, and
+    `serialize` reaches for none of them from a bytes command, a hex
+    string or an integer: data is data, and `push_int` is where a caller
+    that means a number says so (issue #646). The empty push is the one
+    place the two spellings are the same byte, a zero-length push being
+    OP_0 already.
+    """
+    assert serialize([b""]) == BYTE_FROM_OP_CODE_NAME["OP_0"]
+    for i in range(1, 17):
+        assert serialize([bytes([i])]) == bytes([1, i])
+        assert serialize([bytes([i]).hex()]) == bytes([1, i])
+        assert serialize_non_canonical([i]) == bytes([1, i])
+        assert serialize([push_int(i)]) == BYTE_FROM_OP_CODE_NAME[f"OP_{i}"]
+    assert serialize([b"\x81"]) == b"\x01\x81"
+    assert serialize_non_canonical([-1]) == b"\x01\x81"
+    assert serialize([push_int(-1)]) == BYTE_FROM_OP_CODE_NAME["OP_1NEGATE"]
+
+    # a push of one zero byte is data of one byte, which is what Core's
+    # CheckMinimalPush measures it as: OP_0 pushes no bytes at all, so
+    # the two are not the same push and this one is minimal already --
+    # the only value in the set for which reaching for the op code would
+    # change what lands on the stack, and not merely how it is spelled
+    assert serialize([b"\x00"]) == b"\x01\x00"
+    assert serialize_non_canonical([0]) == b"\x01\x00"
+
+    # what parse hands back for such a push is its hex, and serializing
+    # that writes the push it read: the round trip is what a substitution
+    # would break, silently and for every one-byte push in a script
+    assert parse(b"\x01\x01") == ["01"]
+    assert serialize(parse(b"\x01\x01")) == b"\x01\x01"
+
+
 def test_add_and_eq() -> None:
     """Verify Script + Script concatenates and refuses raw bytes."""
     script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
