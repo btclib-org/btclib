@@ -693,7 +693,12 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String) -> Sig:
         return Sig(Witness([ssa.sign_(msg_hash, tweaked).serialize()]))
 
     msg_hash = from_tx(spend.vout, tx, 0, ALL)
-    signature = dsa.sign_(msg_hash, q).serialize() + ALL.to_bytes(1, "big")
+    # grind=False, against `dsa.sign_`'s default: the BIP's own vectors are
+    # the plain RFC6979 signatures, and reproducing them byte for byte is
+    # what makes this construction the BIP's rather than a lookalike. The
+    # byte of DER a low r saves is worth nothing here anyway -- a BIP322
+    # proof is never relayed, its transaction never spendable
+    signature = dsa.sign_(msg_hash, q, grind=False).serialize() + ALL.to_bytes(1, "big")
 
     if script_type == "p2pkh":
         tx.vin[0].script_sig = serialize([signature, pub_key])

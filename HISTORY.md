@@ -20,6 +20,31 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **verification and recovery no longer take `lower_s`, and accept a high
+  `s`.** `dsa.verify(msg, key, sig, lower_s, hf)`,
+  `dsa.assert_as_valid`, `verify_`, `assert_as_valid_`,
+  `recover_pub_key`, `recover_pub_key_`, `recover_pub_keys`,
+  `recover_pub_keys_`, `bms.verify(msg, addr, sig, lower_s)` and
+  `bms.assert_as_valid` have dropped the parameter: a caller passing it
+  positionally now hands `hf` a `bool`, and one passing it by keyword
+  gets a `TypeError`. Drop the argument. What changes with it is the
+  answer: the malleable high-`s` twin of a valid signature verifies now,
+  where the `lower_s=True` default refused it — which is what Bitcoin
+  Core answers, `verifymessage` and `CPubKey::Verify` alike, and 88 of
+  the 200 `signmessage.json` vectors are that case. Signing is
+  unchanged: `sign`, `sign_`, `sign_recoverable`, `sign_recoverable_`
+  and `anti_exfil_sign` keep `lower_s=True`, so what btclib produces is
+  the low-`s` signature it always produced.
+- **ECDSA signatures are ground for a low `r` by default**, as Bitcoin
+  Core has ground them since 0.17: about half of all messages now sign
+  to a different, one-byte-shorter DER than before. The signature is
+  still deterministic, the retry sequence being Core's own, and it
+  verifies wherever the previous one did. A caller pinning btclib's
+  plain RFC6979 signatures — reproducing a fixed vector, or comparing
+  bytes across versions — passes `grind=False` to `dsa.sign` or
+  `dsa.sign_` and gets exactly what it got before. Message signatures
+  are unaffected: `bms.sign` and `dsa.sign_recoverable` do not grind, a
+  recoverable signature having no DER pad for a low `r` to save.
 - **a MOV-weak curve is refused with `BTClibValueError`, not
   `UserWarning`.** `Curve(p, a, b, G, n, cofactor)` with the default
   `weakness_check=True` used to raise `UserWarning("weak curve")` for a

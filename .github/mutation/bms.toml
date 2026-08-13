@@ -41,8 +41,8 @@ excluded-modules = []
 #   range, which every operator that survived still does most draws.
 #
 # A second pass worked through the address-type dispatch and the
-# check_validity/lower_s defaults this file's first pass sampled rather
-# than chased, closing the rest of the real gaps:
+# check_validity defaults this file's first pass sampled rather than
+# chased, closing the rest of the real gaps:
 #
 # - `_assert_p2pkh`/`_assert_p2wpkh`/`_assert_p2wpkh_p2sh`'s recovery-
 #   flag ranges were each pinned by a single vector -- 39 for p2pkh, 35
@@ -66,8 +66,7 @@ excluded-modules = []
 #   version-0-only length check cannot rule out on its own.
 # - check_validity defaults on `serialize`, `b64encode` and `parse` had
 #   no test building an invalid `Sig` and calling any of the three at
-#   their default; `assert_as_valid`'s and `verify`'s `lower_s` default
-#   had no test relying on it instead of passing the keyword.
+#   their default.
 #
 # Checked and left equivalent: `script_type == "p2pkh"` against `<=`,
 # `p2sh` being the only other value and always sorting after `p2pkh`;

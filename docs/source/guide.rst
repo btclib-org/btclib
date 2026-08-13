@@ -489,11 +489,15 @@ hash its argument again, which is not what you want here — the sighash
 >>> msg_hash = sig_hash.from_tx([prevout], unsigned, 0, 0x01)
 >>> sig = dsa.sign_(msg_hash, prv_key)
 >>> sig.serialize().hex()
-'3045022100f6e18672602b1c3cbbd13695c5d83f2d6271b9427836e718de7bc69b1593a222022071f1c0677de22fa18c65e6da25ab68de6280c97b63a1b6fc1c21ba404d6dbe9c'
+'304402207b7dffe084afa0d951726827d8469628e646349e9e6e1d60b76aa91d4a459ff2022003c3fd5ed4795126862efa7bc194d03c76af29741eb36c47659ac39506f2de10'
 
-The nonce is RFC-6979 deterministic and the ``s`` value is the canonical
-low one, so this signature is the same on every machine and every run.
-btclib never invents randomness for an ECDSA signature.
+The nonce is RFC-6979 deterministic, the ``s`` value is the canonical
+low one, and ``r`` is ground low as Bitcoin Core grinds it — one byte
+shorter in DER, at the price of re-signing until it lands there. So this
+signature is the same on every machine and every run: btclib never
+invents randomness for an ECDSA signature, and grinding walks a fixed
+sequence of nonces (``dsa.sign_(..., grind=False)`` is the plain RFC6979
+signature, for a caller who wants that one).
 
 A segwit v0 input is spent with a witness, not with a script_sig: the
 DER signature with the hash type appended, then the public key.
@@ -504,7 +508,7 @@ DER signature with the hash type appended, then the public key.
 >>> signed.is_segwit()
 True
 >>> signed.serialize(include_witness=True).hex()
-'01000000000101ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff01c003b423000000001600141d0f172a0ecb48aee1be1f2687d2963ae33f71a102483045022100f6e18672602b1c3cbbd13695c5d83f2d6271b9427836e718de7bc69b1593a222022071f1c0677de22fa18c65e6da25ab68de6280c97b63a1b6fc1c21ba404d6dbe9c0121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000'
+'01000000000101ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff01c003b423000000001600141d0f172a0ecb48aee1be1f2687d2963ae33f71a10247304402207b7dffe084afa0d951726827d8469628e646349e9e6e1d60b76aa91d4a459ff2022003c3fd5ed4795126862efa7bc194d03c76af29741eb36c47659ac39506f2de100121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000'
 
 Now the two identifiers differ, which is what segwit bought: the witness
 is not covered by the txid.
@@ -512,11 +516,11 @@ is not covered by the txid.
 >>> signed.id.hex()
 '4ebbcec1c2b21740e5e4ffe6aaffe485f6285e7afcbce3130cf34cee05d653c7'
 >>> signed.hash.hex()
-'35c212ed54735c3677aadc9271d1fff153b6e06daea3341ef36323967f5833f2'
+'3f0a8a5f75909c79c075e7f62333ad7ae2cf05112283225a67202fa6deec4a19'
 >>> signed.id == unsigned.id
 True
 >>> signed.size, signed.vsize, signed.weight
-(192, 110, 438)
+(191, 110, 437)
 
 Finally, do not take your own word for it. btclib ships a script
 interpreter, so the transaction can be verified against the outputs it
@@ -555,7 +559,7 @@ ECDSA
 >>> from btclib.ecc import dsa
 >>> sig = dsa.sign(b"Satoshi Nakamoto", prv_key)
 >>> sig.serialize().hex()
-'3045022100f297566536c80c492421e0e8b4df4749e8e31ab70700519b3b123776823cd6950220627e8c87a97fe41e4a86f2ecfabec52b39a0ab6868617b39bd748d84fabec702'
+'304402204729dbf89f9288d56d32d1aea04db19df37c45c0a02863602f9ad98e7e506ce4022017489be41857144bf5782e964632d254b6b13ea22ce84837f775540784341f43'
 >>> dsa.verify(b"Satoshi Nakamoto", pub_key, sig)
 True
 >>> dsa.verify(b"satoshi nakamoto", pub_key, sig)
@@ -571,7 +575,9 @@ key plus a signature. Recovery answers up to four candidate keys, so the
 signer has to say which one is theirs: ``dsa.sign_recoverable`` is
 ``dsa.sign`` with that number beside it — the ``key_id``
 ``dsa.recover_pub_key`` takes. It costs nothing to ask for: the two bits
-are computed by any signer and thrown away by ``sign``.
+are computed by any signer and thrown away by ``sign``. It does not
+grind, where ``sign`` does: a recoverable signature is the fixed 65-byte
+form, with no DER pad for a low ``r`` to save.
 
 >>> sig, key_id = dsa.sign_recoverable(b"Satoshi Nakamoto", prv_key)
 >>> key_id

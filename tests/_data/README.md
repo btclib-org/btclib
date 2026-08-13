@@ -1367,9 +1367,11 @@ pulled  2026-08-13
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. The bitcoin profile, `EcdsaBitcoinVerify`: the
-`lower_s=True` default, where the malleable high-s twin of a valid
-signature is `invalid`.
+Verdict: **identical**. The bitcoin profile, `EcdsaBitcoinVerify`,
+where the malleable high-s twin of a valid signature is `invalid`. Not
+btclib's profile — nothing here refuses a signature for its `s` — so the
+two vectors that say so are excepted in `tests/ecc/wycheproof_test.py`
+and the rest of the file is adversarial vectors like any other.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_test.json`
 
@@ -1383,8 +1385,8 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The same algorithm, curve and hash as the file
-above, under `lower_s=False`: what a general-purpose ECDSA verifier must
-accept and the bitcoin one must not.
+above, without the low-s rule: what a general-purpose ECDSA verifier
+must accept, which is what `dsa.verify_` answers.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_p1363_test.json`
 

@@ -65,8 +65,8 @@ excluded-modules = []
 # random on every call is not what a fixed vector can hold an operator to.
 # Message-formatting thresholds (`self.r > 0xFFFFFFFF` deciding hex or
 # decimal display) account for several more, cosmetic rather than a
-# validity boundary. check_validity and `lower_s` defaults account for
-# another block, the same class parsers.toml's follow-up already names;
+# validity boundary. check_validity defaults account for another block,
+# the same class parsers.toml's follow-up already names;
 # the remainder is comparison operators and DER sign-byte handling
 # scattered across the parse/serialize/recover paths, sampled as data
 # here rather than chased to completion.
@@ -128,16 +128,13 @@ excluded-modules = []
 # - `Sig.assert_valid`'s `0 < self.r` and `0 < self.s`: pinned at zero
 #   the same way `ssa.Sig`'s test already was, `-1 <` accepting the one
 #   value below the range dsa.Sig -- unlike ssa.Sig -- excludes.
-# - `lower_s`'s default, `True`, on `assert_as_valid`, `verify` and
-#   `anti_exfil_host_verify`: three functions, the same class as the
-#   guard above, and no test had asked any of the three to refuse a
-#   malleated (high-s) signature *without* passing the keyword. The
-#   malleated twin already built for `verify(..., lower_s=False)`
-#   answers the question at the default too; libsecp256k1's own verify
-#   is what refuses it there, lower_s deciding only whether the
-#   signature is normalized in front of that call, so the message is
-#   "signature verification failed" and not `_assert_as_valid_`'s "not
-#   a low s", which the Python path alone raises.
+# - `_assert_as_valid_`'s `lower_s`, which is where the low-s rule now
+#   lives and nowhere else: the public verification and recovery
+#   functions do not take the flag at all, so its default, `False`, is
+#   what every one of them asks for. A mutant flipping it to `True`
+#   makes the private function refuse a high s nobody asked it about,
+#   which `tests/ecc/dsa_test.py` holds by calling it both ways round
+#   over the malleated twin it already builds.
 #
 # Checked and left equivalent, most of it the patterns already
 # established elsewhere in this session applied to this pair's own call

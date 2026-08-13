@@ -688,6 +688,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Nothing that reads a signature refuses it for a high `s`** (#695,
+  #645). `lower_s` is gone from `dsa.assert_as_valid`, `assert_as_valid_`,
+  `verify`, `verify_`, `recover_pub_key`, `recover_pub_key_`,
+  `recover_pub_keys`, `recover_pub_keys_`, `anti_exfil_host_verify`,
+  `bms.assert_as_valid` and `bms.verify`, and every one of them now
+  answers as though it were false. Which of `s` and `n - s` a signature
+  carries is the signer's choice, made where `lower_s` remains -- `sign`,
+  `sign_`, `sign_recoverable`, `sign_recoverable_` and `anti_exfil_sign`,
+  all still defaulting to the low one, as Core and Electrum sign -- and a
+  reader that refused the twin refused a signature its signer was free to
+  produce. Bitcoin Core's `verifymessage` and `CPubKey::Verify` do not
+  refuse it either: the low-s rule is transaction policy, where it keeps
+  a txid from being malleated, and a message signature has no txid.
+
+  The size of the divergence, measured against a node: of the 200 vectors
+  of `tests/ecc/_data/signmessage.json`, python-bitcoinlib's own file,
+  Core v31.1.0's `verifymessage` accepts all 200 and btclib's default
+  refused the 88 that are high-s. All 200 verify now, and
+  `test_the_vectors_core_accepts_and_the_low_s_rule_would_refuse` asserts
+  both halves together -- every vector accepted, 88 of them high-s --
+  because a rule put back on the verification side would otherwise leave
+  this suite green, refusing them one vector per case with nothing to say
+  that Core does not.
+
+  The strict answer keeps one home, `dsa._assert_as_valid_`, whose
+  `lower_s` now defaults to `False` and is keyword-only: a test asks for
+  it, no public path does. Wycheproof's `EcdsaBitcoinVerify` file stays in
+  the suite, with the two vectors it marks invalid for that rule alone
+  excepted by tcId and the other verdicts asserted as written; btclib
+  answers the generic `EcdsaVerify` profile for both files. `psbt.py`'s
+  two verifications drop the keyword they passed, having always wanted
+  this answer.
 - **Cracking refuses a child the library itself refuses** (#693).
   `crack_prv_key` exists to demonstrate a known BIP32 weakness, so a wrong
   answer from it is a wrong lesson: it subtracted the derivation offset
@@ -965,15 +997,27 @@ documented at release-notes length in the first place, and are still in
   own, retries included. No attempt cap, as in Core: one would answer an
   event of probability `2**-k` with an error a caller can do nothing about.
 
-  `grind=False` is the default, where Core has it on. A ground signature is
-  not the RFC6979 one for about half of all messages, and a caller pinning
-  btclib's deterministic signatures is entitled to keep getting them; the
+  Grinding is the default, as it is Core's. A ground signature is not the
+  RFC6979 one for about half of all messages, so a caller pinning btclib's
+  plain deterministic signatures passes `grind=False` and gets them; the
   five python-bitcoinlib vectors say the same thing from the other side,
   four of the five having a high `r`, so grinding departs from exactly
   those four -- `test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one`
   beside the test that counts the four `s` values normalization moves.
   Keyword-only, `ec` and `hf` being positional and a flag inserted before
   them renumbering both.
+
+  The default is spelled `None` rather than `True`, because grinding is a
+  search over nonces and two calls have none to search: a nonce of the
+  caller's is the nonce, and a commitment owns the extra entropy the
+  counter travels through. `None` is "grind wherever that search exists",
+  which leaves `sign(msg, key, nonce)` and `sign(msg, key, commit=...)`
+  the ordinary spelling of both; `True` beside either is a request that
+  cannot be met, and is refused as before. `bip322.sign` passes
+  `grind=False` for its own reason: the BIP's vectors are the plain
+  signatures, and reproducing them byte for byte is what makes the
+  construction the BIP's rather than a lookalike -- a proof that is never
+  relayed has no byte of DER to save.
 
   Grinding is refused with a nonce of the caller's and with a
   sign-to-contract commitment, each of which already owns what grinding

@@ -104,10 +104,12 @@ def test_rfc6979_secp256k1(prv_key: int, msg: str, k: int, r: str, s: str) -> No
     msg_hash = hashlib.sha256(msg.encode()).digest()
     assert rfc6979_nonce_(msg_hash, prv_key, hf=hashlib.sha256) == k
 
-    # the nonce is the default, so the signature is what the library
-    # produces unprompted -- the vector pins the whole of it, not the
-    # derivation with the answer handed back in
-    sig = dsa.sign_(msg_hash, prv_key)
+    # the nonce is the default, so the signature is the plain RFC6979 one
+    # -- the vector pins the whole of it, not the derivation with the
+    # answer handed back in. grind=False because that is what these are:
+    # the signature the nonce alone determines, where grinding draws
+    # another nonce for the four whose r is high (see below)
+    sig = dsa.sign_(msg_hash, prv_key, grind=False)
     assert (sig.r, sig.s) == (int(r, 16), int(s, 16))
     assert sig == dsa.sign_(msg_hash, prv_key, k)
 
@@ -126,7 +128,7 @@ def test_rfc6979_secp256k1_s_is_normalized() -> None:
     normalized = 0
     for prv_key, msg, _, _, s in SECP256K1_VECTORS:
         msg_hash = hashlib.sha256(msg.encode()).digest()
-        raw = dsa.sign_(msg_hash, prv_key, lower_s=False)
+        raw = dsa.sign_(msg_hash, prv_key, lower_s=False, grind=False)
         assert raw.s in {int(s, 16), secp256k1.n - int(s, 16)}
         normalized += raw.s != int(s, 16)
     assert normalized == 4
@@ -135,13 +137,14 @@ def test_rfc6979_secp256k1_s_is_normalized() -> None:
 def test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one() -> None:
     """Four of the five have a high r, which is what grinding re-signs.
 
-    The vectors are the plain RFC6979 signatures -- `grind=False`, this
-    library's default and the reason it is the default -- so `grind=True`
-    reproduces the one whose r is already below 2**255 and departs from the
-    other four, which is the whole of what the flag does to a
-    deterministic signature. `tests/ecc/dsa_test.py` is where the loop is
-    held to Core's, this being about the vectors: no vector is lost, and
-    the fourth is a vector for both spellings.
+    The vectors are the plain RFC6979 signatures -- `grind=False`, which
+    is why every call above spells it: grinding is the default, as it is
+    Core's -- so grinding reproduces the one whose r is already below
+    2**255 and departs from the other four, which is the whole of what
+    the flag does to a deterministic signature.
+    `tests/ecc/dsa_test.py` is where the loop is held to Core's, this
+    being about the vectors: no vector is lost, and the fourth is a
+    vector for both spellings.
     """
     ground = 0
     for prv_key, msg, _, r, _ in SECP256K1_VECTORS:
@@ -208,15 +211,18 @@ def test_rfc6979_nonce_tv(
     sig = dsa.sign_(m, prv_key, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
     assert int(r, 16) == sig.r
     assert int(s, 16) == sig.s
-    # test that RFC6979 is the default nonce for DSA
-    sig = dsa.sign_(m, prv_key, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
+    # test that RFC6979 is the default nonce for DSA; grind=False, the
+    # vector being the signature that nonce alone determines
+    sig = dsa.sign_(
+        m, prv_key, None, lower_s, ec=ec, hf=getattr(hashlib, hf), grind=False
+    )
     assert int(r, 16) == sig.r
     assert int(s, 16) == sig.s
     # test key-pair coherence
     U = mult(prv_key, ec.G, ec)
     assert (int(x_U, 16), int(y_U, 16)) == U
     # test signature validity
-    dsa.assert_as_valid(msg_bytes, U, sig, lower_s, getattr(hashlib, hf))
+    dsa.assert_as_valid(msg_bytes, U, sig, getattr(hashlib, hf))
 
 
 # RFC6979 against BIP340: the two deterministic nonces this library

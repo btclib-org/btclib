@@ -151,16 +151,13 @@ def test_the_whole_handshake() -> None:
         secp256k1.add(R, secp256k1.G),
     )
 
-    # lower_s defaults to True here too: the malleated twin shares r, so
-    # the commitment check alone would still open, and only the default
-    # refuses it
+    # the malleated twin shares r, so it opens the same commitment and
+    # verifies as the signature it is a twin of: step 5 is about the
+    # nonce, and the low-s rule is no part of what the host is checking
     malleated = dsa.Sig(sig.r, sig.ec.n - sig.s)
-    assert dsa.anti_exfil_host_verify(
-        _HANDSHAKE_MSG_HASH, _PUB_KEY, malleated, _RHO, R, lower_s=False
-    )
-    assert not dsa.anti_exfil_host_verify(
-        _HANDSHAKE_MSG_HASH, _PUB_KEY, malleated, _RHO, R
-    )
+    assert dsa.anti_exfil_host_verify(_HANDSHAKE_MSG_HASH, _PUB_KEY, malleated, _RHO, R)
+    # and the device signs low-s all the same, lower_s being sign_'s
+    assert sig.s < sig.ec.n - sig.s
 
 
 def test_the_signer_keeps_no_state() -> None:
@@ -242,4 +239,4 @@ def test_rho_and_the_commitment_are_hf_len() -> None:
         dsa.anti_exfil_signer_commit(msg_hash, _PRV_KEY, _RHO, secp256k1, sha1)
     R = dsa.anti_exfil_signer_commit(msg_hash, _PRV_KEY, commitment, secp256k1, sha1)
     sig = dsa.anti_exfil_sign(msg_hash, _PRV_KEY, rho, True, secp256k1, sha1)
-    assert dsa.anti_exfil_host_verify(msg_hash, _PUB_KEY, sig, rho, R, True, sha1)
+    assert dsa.anti_exfil_host_verify(msg_hash, _PUB_KEY, sig, rho, R, sha1)

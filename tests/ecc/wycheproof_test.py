@@ -28,13 +28,15 @@ of how strict a parser is, and pinning it here would make a legitimate
 loosening or tightening of one look like a regression.
 
 Two profiles of ECDSA, which is why two of the files are the same
-algorithm over the same curve and hash. `EcdsaBitcoinVerify` is btclib's
-`lower_s=True` default and refuses the malleable high-s twin;
-`EcdsaVerify` is `lower_s=False` and accepts it. Their tcId 5 is the same
-key and the same signature under both, `invalid` in the first file and
-`valid` in the second, so a `lower_s` wired the wrong way round fails one
-of the two files whichever way it is wired -- which neither file could
-report on its own.
+algorithm over the same curve and hash. `EcdsaVerify` is the generic
+one, and is what `dsa.verify_` answers: both s and n - s verify.
+`EcdsaBitcoinVerify` adds the low-s rule, which btclib applies when it
+signs and never when it reads, so the two files disagree with each other
+on two verdicts and btclib takes the generic one for both --
+`_BITCOIN_LOW_S_ONLY` below names them and says how they were found.
+Every other vector of the bitcoin file is a verdict the two profiles
+share, which is what keeps it here: much of it is cases the generic file
+does not carry, and they are adversarial vectors like any other.
 
 Hash functions beyond sha256, for the same reason in a second direction.
 Bitcoin signs with sha256 and nothing else, so the sha512, SHA3 and SHAKE
@@ -403,8 +405,17 @@ def test_pinned_xof() -> None:
     assert wider.digest()[: secp256k1.n_size] == hash_object.digest()
 
 
+# the two vectors of `EcdsaBitcoinVerify` that are invalid for the low-s
+# rule alone, and valid under every other profile: their comments are
+# "Signature malleability" and "edge case for signature malleability",
+# and `EcdsaVerify`'s tcId 5 and 392 are the same key, message and
+# signature marked valid. Found by comparing the verdicts of the two
+# files case by case, which is also what says there are no others
+_BITCOIN_LOW_S_ONLY = frozenset({1, 388})
+
+
 @pytest.mark.parametrize(
-    "key, vector, lower_s, hf, bindings",
+    "key, vector, low_s_profile, hf, bindings",
     _signature_vectors(_ECDSA_BITCOIN, "bitcoin", sha256, True)
     + _signature_vectors(_ECDSA, "ecdsa", sha256, False)
     + _signature_vectors(_ECDSA_SHA512, "sha512", sha512, False)
@@ -416,7 +427,7 @@ def test_pinned_xof() -> None:
 def test_ecdsa_der(
     key: str,
     vector: dict[str, Any],
-    lower_s: bool,
+    low_s_profile: bool,
     hf: HashF,
     bindings: bool,
     monkeypatch: pytest.MonkeyPatch,
@@ -437,14 +448,22 @@ def test_ecdsa_der(
     message: a digest wider than the order is truncated to the leftmost
     `nlen` bits there, which is what the sha512 and SHA3-512 files
     exercise and what the sha256 ones cannot.
+
+    low_s_profile says the file is `EcdsaBitcoinVerify`, whose verdict on
+    the two malleability vectors is not btclib's: they verify here, as
+    they do under `EcdsaVerify`. Every other verdict in that file is
+    asserted as it is written.
     """
     if not bindings:
         _python_path(monkeypatch, dsa)
 
+    expected = vector["result"] == "valid"
+    if low_s_profile and vector["tcId"] in _BITCOIN_LOW_S_ONLY:
+        expected = True
+
     msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
     sig = bytes.fromhex(vector["sig"])
-    verified = dsa.verify_(msg_hash, key, sig, lower_s, hf)
-    assert verified == (vector["result"] == "valid")
+    assert dsa.verify_(msg_hash, key, sig, hf) == expected
 
 
 @pytest.mark.parametrize(
@@ -471,8 +490,9 @@ def test_ecdsa_p1363(
     `RangeCheck` and `InvalidSignature` cases are r and s at 0, at n, and
     at n plus a valid value, none of which any DER framing can hide.
 
-    `lower_s=False` for both files, neither having a bitcoin profile: the
-    sha256 one's tcId 1 is the malleable high-s signature and is `valid`.
+    Neither file has a bitcoin profile, and nothing needs excepting for
+    it: the sha256 one's tcId 1 is the malleable high-s signature and is
+    `valid`, which is what `dsa.verify_` answers.
 
     The size rule is the encoding's and not the hash's, so it is `n_size`
     twice over under sha512 as under sha256: P1363 pads each of r and s
@@ -496,7 +516,7 @@ def test_ecdsa_p1363(
         return
 
     msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
-    assert dsa.verify_(msg_hash, key, sig, False, hf) == (vector["result"] == "valid")
+    assert dsa.verify_(msg_hash, key, sig, hf) == (vector["result"] == "valid")
 
 
 @pytest.mark.parametrize(

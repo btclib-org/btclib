@@ -86,26 +86,19 @@ def test_dsa_commitment() -> None:
                     _MSG, _PRV_KEY, None, lower_s, ec, hf, commit=_COMMIT
                 )
                 # an ordinary signature, whether or not it commits
-                dsa.assert_as_valid(_MSG, pub_key, sig, lower_s, hf)
+                dsa.assert_as_valid(_MSG, pub_key, sig, hf)
                 dsa.assert_as_valid(
-                    _MSG, pub_key, sig, lower_s, hf, commit=_COMMIT, receipt=receipt
+                    _MSG, pub_key, sig, hf, commit=_COMMIT, receipt=receipt
                 )
                 # to that value and to no other
                 assert not dsa.verify(
-                    _MSG,
-                    pub_key,
-                    sig,
-                    lower_s,
-                    hf,
-                    commit=b"not this",
-                    receipt=receipt,
+                    _MSG, pub_key, sig, hf, commit=b"not this", receipt=receipt
                 )
                 # and with the receipt the signer kept, not another point
                 assert not dsa.verify(
                     _MSG,
                     pub_key,
                     sig,
-                    lower_s,
                     hf,
                     commit=_COMMIT,
                     receipt=mult(2, receipt, ec),
