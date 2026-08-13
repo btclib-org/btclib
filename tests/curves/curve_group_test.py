@@ -19,6 +19,7 @@ from btclib.curves.curve_group import (
     _MULTI_MULT_W,
     BOS_COSTER_THRESHOLD,
     MAX_W,
+    _blinded_jac,
     _cached_multiples,
     _double_mult,
     _jac_from_aff,
@@ -833,3 +834,28 @@ def test_aff_from_jac_batch_is_aff_from_jac_over_a_sequence() -> None:
         # nothing to invert at all, and nothing to convert at all
         assert ec.aff_from_jac_batch([INFJ, INFJ]) == [INF, INF]
         assert ec.aff_from_jac_batch([]) == []
+
+
+def test_blinding_changes_the_coordinates_and_not_the_point() -> None:
+    """A rescaled point is the same point with a Z nobody can predict.
+
+    Which is the whole of what it is for: (X, Y, Z) and
+    (l^2*X, l^3*Y, l*Z) are one affine point, so what a caller sees is
+    unchanged and what a multiplication forms along the way is not the
+    same integers twice.
+    """
+    for ec in all_curves.values():
+        for k in (1, 2, 3, ec.n - 1):
+            QJ = _mult(k, ec.GJ, ec)
+            blinded = [_blinded_jac(QJ, ec) for _ in range(8)]
+            for B in blinded:
+                assert ec.aff_from_jac(B) == ec.aff_from_jac(QJ)
+                assert ec.jac_equality(B, QJ)
+            # a curve of eleven points has eleven values of l to draw
+            # from, so the Z's are only expected to differ where p is big
+            if ec.p > 2**32:
+                assert len({B[2] for B in blinded}) > 1
+
+        # infinity has no affine coordinates to preserve and stays
+        # infinity, Z == 0 scaling to Z == 0
+        assert _blinded_jac(INFJ, ec)[2] == 0

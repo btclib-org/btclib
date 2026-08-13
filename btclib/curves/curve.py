@@ -42,6 +42,7 @@ from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
+    _blinded_jac,
     _is_prime,
     _jac_from_aff,
     _mult,
@@ -599,6 +600,13 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     # endomorphism, so patching the bindings off must leave this arm --
     # python_path_test.py's pattern, which otherwise would compare the
     # bindings against the generic double-and-add of every other curve
+    # the scalar of a mult is a private key or a nonce in every caller
+    # btclib has, so the point it multiplies is rescaled first: same
+    # affine point, a Z nobody can predict, and intermediate values that
+    # stop being a function of m alone. _blinded_jac says what that buys
+    # and what it does not
+    QJ = _blinded_jac(QJ, ec)
+
     R = (
         _mult_endomorphism_secp256k1(m, QJ, ec, _ENDOMORPHISM_W, regular=True)
         if ec == secp256k1

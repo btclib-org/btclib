@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import functools
 import heapq
+import secrets
 from collections.abc import Sequence
 from math import ceil
 
@@ -60,6 +61,34 @@ def _jac_from_aff(Q: Point) -> JacPoint:
     The input point is assumed to be on curve.
     """
     return Q[0], Q[1], 1 if Q[1] else 0
+
+
+def _blinded_jac(Q: JacPoint, ec: CurveGroup) -> JacPoint:
+    """Return the same point with a Z nobody can predict.
+
+    A Jacobian point has a coordinate more than the curve needs: (X, Y, Z)
+    and (l^2*X, l^3*Y, l*Z) are the same affine point for every nonzero l.
+    Spending that freedom on a random l is what libsecp256k1's
+    `secp256k1_ecmult_gen` does with `secp256k1_gej_rescale`, so that the
+    values a multiplication forms are not a function of the scalar alone:
+    without it the same scalar produces the same integers on every call
+    and in every process, and a table of them can be built offline.
+
+    It is not what makes a multiplication constant-time and does not
+    claim to be -- SECURITY.md publishes the Python path as
+    variable-time, and the recodings of curve_group_2 are what address
+    the duration. This addresses the values.
+
+    Three multiplications and a random field element, against the ~2500
+    multiplications of the multiplication it precedes. Infinity comes
+    back infinity, Z == 0 scaling to Z == 0.
+    """
+    p = ec.p
+    # a nonzero l: zero would send the point to infinity, which is the one
+    # value of l that is not an isomorphism
+    lam = 1 + secrets.randbelow(p - 1)
+    lam2 = lam * lam % p
+    return Q[0] * lam2 % p, Q[1] * lam2 % p * lam % p, Q[2] * lam % p
 
 
 class CurveGroup:
