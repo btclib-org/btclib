@@ -674,7 +674,7 @@ def test_curve_equality() -> None:
     assert secp256k1_bis is not secp256k1
     assert secp256k1_bis == secp256k1
     assert hash(secp256k1_bis) == hash(secp256k1)
-    assert _libsecp256k1_applicable(secp256k1_bis)
+    assert _libsecp256k1_applicable(secp256k1_bis, None)
     assert mult(3, None, secp256k1_bis) == mult(3)
 
     # equal curves are equal lru_cache keys, so they share the entries
@@ -745,9 +745,9 @@ def test_each_catalogue_holds_what_it_is_named_after() -> None:
 
 def test_libsecp256k1_applicable() -> None:
     """Verify the dispatch takes secp256k1 with sha256, nothing else."""
-    assert _libsecp256k1_applicable(secp256k1)
+    assert _libsecp256k1_applicable(secp256k1, None)
     assert _libsecp256k1_applicable(secp256k1, sha256)
-    assert not _libsecp256k1_applicable(CURVES["secp256r1"])
+    assert not _libsecp256k1_applicable(CURVES["secp256r1"], None)
     assert not _libsecp256k1_applicable(CURVES["secp256r1"], sha256)
     assert not _libsecp256k1_applicable(secp256k1, sha512)
     # hf is compared by identity, deliberately: a wrapper around sha256

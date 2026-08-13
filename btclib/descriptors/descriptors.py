@@ -551,7 +551,7 @@ def _leaf_stack(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
-    spend: SpendContext | None = None,
+    spend: SpendContext | None,
 ) -> list[bytes] | None:
     """Return what satisfies one leaf, None where the signatures do not.
 
@@ -593,7 +593,7 @@ def _required_signature(signatures: Mapping[bytes, bytes], sec: bytes) -> bytes:
     which of a descriptor's keys has not signed is the whole content of
     the refusal.
     """
-    signature = _offered_signature(signatures, sec)
+    signature = _offered_signature(signatures, sec, x_only=False)
     if signature is None:
         raise BTClibValueError(f"no signature for public key {sec.hex()}")
     return signature
@@ -1396,7 +1396,7 @@ class MultiDescriptor(Descriptor):
         reading, which BIP147 requires to be the empty push.
         """
         offered = [
-            (sec, _offered_signature(signatures, sec))
+            (sec, _offered_signature(signatures, sec, x_only=False))
             for sec in self._pub_keys(index, prv_keys)
         ]
         found = [signature for _, signature in offered if signature is not None]
@@ -1950,7 +1950,7 @@ def _parse_leaf_miniscript(expression: str, prv_keys: dict[str, str]) -> Miniscr
 
 
 def _parse_tree(
-    expression: str, prv_keys: dict[str, str], depth: int = 0
+    expression: str, prv_keys: dict[str, str], depth: int
 ) -> DescriptorTree:
     """Return the script tree of a BIP386 TREE expression.
 
@@ -2022,6 +2022,7 @@ def _parse_pk(
         prv_keys,
         x_only=context == _P2TR,
         compressed=_no_uncompressed(context),
+        musig_allowed=False,
     )
     return PkDescriptor(key, network=network)
 
@@ -2030,7 +2031,11 @@ def _parse_pkh(
     args: list[str], context: str, network: str, prv_keys: dict[str, str]
 ) -> Descriptor:
     key = _parse_key(
-        _one_argument(args, "pkh"), prv_keys, compressed=_no_uncompressed(context)
+        _one_argument(args, "pkh"),
+        prv_keys,
+        x_only=False,
+        compressed=_no_uncompressed(context),
+        musig_allowed=False,
     )
     return PkhDescriptor(key, network=network)
 
@@ -2038,7 +2043,13 @@ def _parse_pkh(
 def _parse_wpkh(
     args: list[str], context: str, network: str, prv_keys: dict[str, str]
 ) -> Descriptor:
-    key = _parse_key(_one_argument(args, "wpkh"), prv_keys, compressed=True)
+    key = _parse_key(
+        _one_argument(args, "wpkh"),
+        prv_keys,
+        x_only=False,
+        compressed=True,
+        musig_allowed=False,
+    )
     return WpkhDescriptor(key, network=network)
 
 
@@ -2046,7 +2057,14 @@ def _parse_combo(
     args: list[str], context: str, network: str, prv_keys: dict[str, str]
 ) -> Descriptor:
     return ComboDescriptor(
-        _parse_key(_one_argument(args, "combo"), prv_keys), network=network
+        _parse_key(
+            _one_argument(args, "combo"),
+            prv_keys,
+            x_only=False,
+            compressed=False,
+            musig_allowed=False,
+        ),
+        network=network,
     )
 
 
@@ -2076,7 +2094,13 @@ def _parse_multi(
     if not _THRESHOLD.fullmatch(args[0]):
         raise BTClibValueError(f"invalid {name}() threshold: {args[0]}")
     keys = tuple(
-        _parse_key(key, prv_keys, compressed=_no_uncompressed(context))
+        _parse_key(
+            key,
+            prv_keys,
+            x_only=False,
+            compressed=_no_uncompressed(context),
+            musig_allowed=False,
+        )
         for key in args[1:]
     )
     return MultiDescriptor(
@@ -2105,7 +2129,7 @@ def _parse_tr(
     internal_key = _parse_key(
         args[0], prv_keys, x_only=True, compressed=True, musig_allowed=True
     )
-    tree = None if len(args) == 1 else _parse_tree(args[1], prv_keys)
+    tree = None if len(args) == 1 else _parse_tree(args[1], prv_keys, 0)
     return TrDescriptor(internal_key, tree, network=network)
 
 
@@ -2284,7 +2308,7 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
         # validates it; the base58 round trip the public pair would make
         # between the two steps does not
         xkey=_xpub_from_xprv(
-            _derive(_key_data_from_bip32_key(xprv), prefix)
+            _derive(_key_data_from_bip32_key(xprv), prefix, None)
         ).b58encode(),
         der_path=key.der_path[last:],
         hardening=_HARDENING,

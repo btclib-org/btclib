@@ -267,7 +267,7 @@ def _lock_time(inputs: Sequence[PsbtIn], fallback_lock_time: int | None) -> int:
     raise BTClibValueError(err_msg)
 
 
-def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool = False) -> Tx:
+def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool) -> Tx:
     """Return the transaction a psbt's fields describe.
 
     check_validity=False throughout, and Psbt.assert_valid is what
@@ -709,7 +709,7 @@ class Psbt:
         nowhere at all in version 2, which is why it cannot be the field
         the rest hangs off.
         """
-        return _unsigned_tx(self)
+        return _unsigned_tx(self, zeroed_sequences=False)
 
     @property
     def unique_id(self) -> bytes:
@@ -2361,7 +2361,7 @@ def _assert_signatures_added_only(
 
 
 def _assert_ecdsa_sigs_verify(
-    psbt_in: PsbtIn, tx: Tx, vin_i: int, request_in: PsbtIn | None = None
+    psbt_in: PsbtIn, tx: Tx, vin_i: int, request_in: PsbtIn | None
 ) -> None:
     """Raise unless each partial signature of the input verifies.
 
@@ -2397,7 +2397,7 @@ def _assert_ecdsa_sigs_verify(
 
 
 def _assert_taproot_sigs_verify(
-    psbt: Psbt, vin_i: int, request_in: PsbtIn | None = None
+    psbt: Psbt, vin_i: int, request_in: PsbtIn | None
 ) -> None:
     """Raise unless each taproot signature of the input verifies.
 
@@ -2594,8 +2594,8 @@ def assert_signed(psbt: Psbt, *, allow_partial: bool = False) -> None:
             err_msg += "final script, for the script engine to verify"
             raise BTClibValueError(err_msg)
         _assert_sig_hash_type(psbt_in)
-        _assert_ecdsa_sigs_verify(psbt_in, tx, vin_i)
-        _assert_taproot_sigs_verify(psbt, vin_i)
+        _assert_ecdsa_sigs_verify(psbt_in, tx, vin_i, None)
+        _assert_taproot_sigs_verify(psbt, vin_i, None)
         signed = (
             psbt_in.partial_sigs
             or psbt_in.taproot_key_spend_signature
@@ -3035,7 +3035,7 @@ _TypeA = TypeVar("_TypeA")
 
 def _sort_or_shuffle(
     sequence: Sequence[_TypeA],
-    ordering_func: Callable[[_TypeA], int] | None = None,
+    ordering_func: Callable[[_TypeA], int] | None,
 ) -> list[_TypeA]:
     """Return the sequence sorted by ordering_func, or shuffled.
 

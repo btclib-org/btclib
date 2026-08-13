@@ -316,9 +316,7 @@ class BIP32KeyData:
         return cls.parse(xkey_bin, check_validity=check_validity)
 
 
-def _rootxprv_from_seed(
-    seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
-) -> BIP32KeyData:
+def _rootxprv_from_seed(seed: Octets, version: Octets) -> BIP32KeyData:
     """Return BIP32 root master extended private key from seed."""
     seed = bytes_from_octets(seed)
     bit_length = len(seed) * 8
@@ -652,7 +650,7 @@ def _force_version(version: bytes, forced_version: Octets) -> bytes:
 
 
 def _derive(
-    xkey: BIP32KeyData, der_path: DerPath, forced_version: Octets | None = None
+    xkey: BIP32KeyData, der_path: DerPath, forced_version: Octets | None
 ) -> BIP32KeyData:
     indexes = indexes_from_der_path(der_path)
 
@@ -714,8 +712,8 @@ def _derive_from_account(
     mxkey: BIP32KeyData,
     branch: int,
     address_index: int,
-    branches_0_1_only: bool = True,
-    max_index: int = 0xFFFF,
+    branches_0_1_only: bool,
+    max_index: int,
 ) -> BIP32KeyData:
     if not mxkey.is_hardened:
         raise BTClibValueError("unhardened account/master key")
@@ -734,7 +732,7 @@ def _derive_from_account(
         err_msg = f"invalid address index: {address_index} is higher than {max_index}."
         raise BTClibValueError(err_msg)
 
-    return _derive(mxkey, f"m/{branch}/{address_index}")
+    return _derive(mxkey, f"m/{branch}/{address_index}", None)
 
 
 def derive_from_account(

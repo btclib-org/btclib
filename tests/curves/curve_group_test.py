@@ -15,6 +15,7 @@ from btclib.curves import Curve, CurveGroup, secp256k1
 # from the module that defines them: btclib.curves exports mult,
 # double_mult and multi_mult, not a menu of implementations
 from btclib.curves.curve_group import (
+    _MULTI_MULT_W,
     BOS_COSTER_THRESHOLD,
     MAX_W,
     _double_mult,
@@ -691,7 +692,9 @@ def test_multi_mult_agrees_across_curves() -> None:
         points = [ec.GJ, HJ, _mult(3, ec.GJ, ec)]
         scalars = [rnd.randrange(ec.n) for _ in points]
         expected = _sum_of_mults(scalars, points, ec)
-        assert ec.jac_equality(_multi_mult_w_NAF(scalars, points, ec), expected)
+        assert ec.jac_equality(
+            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W), expected
+        )
         assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
 
 
@@ -714,7 +717,9 @@ def test_multi_mult_dispatch() -> None:
         scalars = [rnd.randrange(1, ec.n) for _ in range(size)]
         expected = _sum_of_mults(scalars, points, ec)
         assert ec.jac_equality(_multi_mult(scalars, points, ec), expected)
-        assert ec.jac_equality(_multi_mult_w_NAF(scalars, points, ec), expected)
+        assert ec.jac_equality(
+            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W), expected
+        )
         assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
 
         # all zero, whatever the algorithm: nothing to sum. Asked of
@@ -722,7 +727,9 @@ def test_multi_mult_dispatch() -> None:
         # Bos-Coster with it -- a batch of nothing but zeros is a batch
         # of no nonzero scalars, which is below any threshold
         assert ec.jac_equality(_multi_mult([0] * size, points, ec), INFJ)
-        assert ec.jac_equality(_multi_mult_w_NAF([0] * size, points, ec), INFJ)
+        assert ec.jac_equality(
+            _multi_mult_w_NAF([0] * size, points, ec, _MULTI_MULT_W), INFJ
+        )
         assert ec.jac_equality(_multi_mult_bos_coster([0] * size, points, ec), INFJ)
 
         # a batch of this length whose *work* is two scalars: the zeros

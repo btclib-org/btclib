@@ -1683,6 +1683,40 @@ documented at release-notes length in the first place, and are still in
   files carry a case the others cannot, upstream's `Untruncatedhash`: a
   signature made over the whole digest instead of its leftmost `nlen`
   bits, which is `invalid` and stays so.
+  would add a base64url reader and no arithmetic. The four SHAKE files are
+  blocked on a type rather than on their data: an XOF has no fixed output,
+  so `hashlib.shake_128` fails `alias.HashObject` under mypy and, at run
+  time, makes `challenge_` demand a zero-length message hash -- which
+  `verify_` catches and reports as `False`, so every valid vector would
+  read as a bad signature rather than as an unsupported hash. Whether
+  `HashF` should admit an XOF is a public-surface question and is left
+  open.
+- **A private function takes no default argument**, and
+  `tests/private_defaults_test.py` is what says so. A default is written
+  for a caller the author cannot see, and a leading underscore says there
+  is none: every call site is in this tree and can be read. What the
+  default hides is the value the call is actually made with --
+  `_deserialize_scalar`'s `strict`, which decides whether BIP66's minimal
+  encoding is enforced, and `_decode_from_bip32_deriv`'s `check_validity`,
+  which decides whether anything is validated at all, each read as absent
+  at the call site that most needs to state it. Every private signature in
+  the library now spells its arguments at each of its callers, `hf=None`
+  and `check_validity=False` included, so a flag added to one of them is a
+  question asked again at every call site instead of answered for the ones
+  nobody revisited. Two of the defaults were measurements rather than
+  conveniences and became named constants, which is what a literal
+  repeated at every call site would have lost: `_MULTI_MULT_W`, the width
+  `_multi_mult` hands the interleaved wNAF, and `_MAX_NUM_SIZE` beside
+  `_MAX_LOCK_TIME_NUM_SIZE`, CScriptNum's four octets and the five the two
+  lock-time op codes read. The test walks the sources instead of importing
+  the modules, so a method, a nested function and a name-mangled
+  `__two_leading_underscores` are held to the rule as well, and it pins its
+  own walk on a source with known answers: a checker that skipped any of
+  those shapes, or took a dunder for private, would report a clean tree
+  either way. CONTRIBUTING.md states the rule with the other one a leading
+  underscore carries, in the section that already names both underscore
+  conventions; the trailing-underscore spelling is untouched, its defaults
+  being a promise to its plain sibling rather than a convenience.
 
 ## v2026.8.9
 

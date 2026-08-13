@@ -139,9 +139,9 @@ class BitcoinCoreFetcher(Fetcher):
     def _call(
         self,
         method: str,
-        params: Sequence[Any] | Mapping[str, Any] | None = None,
+        params: Sequence[Any] | Mapping[str, Any] | None,
         *,
-        max_body_size: int | None = None,
+        max_body_size: int | None,
     ) -> Any:
         """Invoke one rpc method, raising btclib's exceptions for it.
 
@@ -170,21 +170,21 @@ class BitcoinCoreFetcher(Fetcher):
         """
         self._verify_once()
         hex_ = tx_id_hex(tx_id)
-        raw = self._call("getrawtransaction", [hex_])
+        raw = self._call("getrawtransaction", [hex_], max_body_size=None)
         return tx_from_raw(raw, hex_, self.network)
 
     def get_block_count(self) -> int:
         """Return the height of the node's best chain tip."""
         self._verify_once()
         with fetch_errors("getblockcount"):
-            reply = self._call("getblockcount", max_body_size=_MAX_SMALL_REPLY)
+            reply = self._call("getblockcount", None, max_body_size=_MAX_SMALL_REPLY)
             return int(reply)
 
     def get_best_block_id(self) -> bytes:
         """Return the hash of the node's best chain tip, display order."""
         self._verify_once()
         with fetch_errors("getbestblockhash"):
-            reply = self._call("getbestblockhash", max_body_size=_MAX_SMALL_REPLY)
+            reply = self._call("getbestblockhash", None, max_body_size=_MAX_SMALL_REPLY)
             return bytes_from_octets(reply, 32)
 
     def assert_network(self) -> None:
@@ -218,7 +218,7 @@ class BitcoinCoreFetcher(Fetcher):
         which chain it serves, so the fetcher's label is the thing to fix.
         """
         with fetch_errors("getblockchaininfo"):
-            info: Any = self._call("getblockchaininfo")
+            info: Any = self._call("getblockchaininfo", None, max_body_size=None)
             if not isinstance(info, Mapping):
                 err_msg = f"not a JSON object: {type(info).__name__}"
                 raise BTClibValueError(err_msg)

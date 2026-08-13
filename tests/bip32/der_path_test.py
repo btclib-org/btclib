@@ -29,7 +29,7 @@ def test_from_der_path_str() -> None:
 
     for der_path_str, der_path_ints in test_reg_str_vectors:
         # recover ints from str
-        assert der_path_ints == _indexes_from_der_path_str(der_path_str)
+        assert der_path_ints == _indexes_from_der_path_str(der_path_str, True)
         assert der_path_ints == indexes_from_der_path(der_path_str)
         # recover ints from ints
         assert der_path_ints == indexes_from_der_path(der_path_ints)
@@ -58,7 +58,7 @@ def test_from_der_path_str() -> None:
 
     for der_path_str, der_path_ints in test_irregular_str_vectors:
         # recover ints from str
-        assert der_path_ints == _indexes_from_der_path_str(der_path_str)
+        assert der_path_ints == _indexes_from_der_path_str(der_path_str, True)
         assert der_path_ints == indexes_from_der_path(der_path_str)
         # recover ints from ints
         assert der_path_ints == indexes_from_der_path(der_path_ints)
@@ -75,18 +75,18 @@ def test_from_der_path_str() -> None:
         assert der_path_str != str_from_der_path(der_path_bytes)
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_der_path_str("m/1/2/-3h/4")
+        _indexes_from_der_path_str("m/1/2/-3h/4", True)
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_der_path_str("m/1/2/-3/4")
+        _indexes_from_der_path_str("m/1/2/-3/4", True)
 
     i = 0x80000000
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_der_path_str(f"m/1/2/{i}/4")
+        _indexes_from_der_path_str(f"m/1/2/{i}/4", True)
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_der_path_str(f"m/1/2/{i}h/4")
+        _indexes_from_der_path_str(f"m/1/2/{i}h/4", True)
 
 
 def test_index_int_to_from_str() -> None:

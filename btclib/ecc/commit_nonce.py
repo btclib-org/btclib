@@ -141,7 +141,7 @@ def commit_nonce_(
     # the delegation removes. Gated on the curve alone, as BIP32
     # derivation gates the same call: hf enters only the tagged hash
     # above, computed in Python either way
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         try:
             tweaked = libsecp256k1_keys.prvkey_tweak_add(nonce, tweak)
         except ValueError as e:
@@ -186,7 +186,7 @@ def commit_point_(
     # raised. bytes_from_point's own refusal of an infinite receipt is a
     # BTClibValueError, a ValueError too, and falls through the same way
     # for the same reason
-    if _libsecp256k1_applicable(ec):
+    if _libsecp256k1_applicable(ec, None):
         try:
             sec = bytes_from_point(receipt, ec, compressed=False)
             tweaked = libsecp256k1_keys.pubkey_tweak_add(sec, tweak, compressed=False)

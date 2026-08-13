@@ -69,7 +69,7 @@ def bytes_from_prv_key_int(
     q = int_from_integer(prv_key_int) % ec.n
 
     # q == 0 is the infinity point, which the bindings reject as a scalar
-    if q and _libsecp256k1_applicable(ec):
+    if q and _libsecp256k1_applicable(ec, None):
         return libsecp256k1_pubkey_from_prvkey(q, compressed)
 
     return bytes_from_point(mult(q, ec=ec), ec, compressed)
@@ -144,7 +144,7 @@ def point_from_octets(
         raise BTClibValueError(f"not a point: prefix 0x{pub_key[:1].hex()}")
 
 
-def _sec_from_octets(pub_key: bytes, ec: Curve = secp256k1) -> bytes:
+def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     """Return SEC octets of a p-size or 2*p-size length, verified.
 
     Verified and not converted: bytes_from_point(point_from_octets(sec))
@@ -167,7 +167,7 @@ def _sec_from_octets(pub_key: bytes, ec: Curve = secp256k1) -> bytes:
     and there is nothing to ask here.
     """
     compressed = len(pub_key) == ec.p_size + 1
-    if compressed and _libsecp256k1_applicable(ec):
+    if compressed and _libsecp256k1_applicable(ec, None):
         with contextlib.suppress(ValueError):
             libsecp256k1_pubkey_parse(pub_key)
             return pub_key

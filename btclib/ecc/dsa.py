@@ -117,7 +117,7 @@ def _parse_der_value(stream: BytesIO) -> bytes:
         raise BTClibValueError(f"invalid DER length: {e}") from e
 
 
-def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
+def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool) -> int:
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
@@ -737,7 +737,7 @@ def sign_recoverable_(
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
+        nonce = _rfc6979_nonce_(c, q, ec, hf, None)  # 1
     else:
         nonce = int_from_prv_key(nonce, ec)
     # second part delegated to helper function

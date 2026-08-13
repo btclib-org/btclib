@@ -57,7 +57,7 @@ def challenge_(
 
 
 def _rfc6979_nonce_(
-    c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes | None = None
+    c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes | None
 ) -> int:
     # https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
 

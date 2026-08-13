@@ -300,9 +300,9 @@ def test_public_derivation_builds_no_point(
     xpub = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
-    parent = _derive(xpub, "m/0")
+    parent = _derive(xpub, "m/0", None)
     compressed_asked.clear()
-    child = _derive(xpub, "m/0/1")
+    child = _derive(xpub, "m/0/1", None)
     assert compressed_asked == [True, True]
 
     # and it is the same key: what the bindings compress is what the
@@ -340,7 +340,7 @@ def test_private_functions_do_not_validate(
 
     xpub_data = BIP32KeyData.b58decode(xpub)
     validations = 0
-    _derive(xpub_data, "m/0/1")
+    _derive(xpub_data, "m/0/1", None)
     assert validations == 0
 
     # and the wrapper validates the object spelling too, which nothing
@@ -388,7 +388,7 @@ def test_derive() -> None:
         for der_path, address in value:
             assert address == p2pkh(derive(rootxprv, der_path))
 
-            indexes = _indexes_from_der_path_str(der_path)
+            indexes = _indexes_from_der_path_str(der_path, True)
             assert address == p2pkh(derive(rootxprv, indexes))
 
         assert derive(rootxprv, "m") == rootxprv
@@ -409,10 +409,12 @@ def test_derive_exceptions() -> None:
     assert rootmxprv == derive(xprv, "")
 
     fingerprint = hash160(pub_keyinfo_from_key(xprv)[0])[:4]
-    assert fingerprint == _derive(xprv, bytes.fromhex("80000000")).parent_fingerprint
+    assert (
+        fingerprint == _derive(xprv, bytes.fromhex("80000000"), None).parent_fingerprint
+    )
 
     for der_path in ("/1", "800000", "80000000"):
-        xkey = _derive(xprv, der_path)
+        xkey = _derive(xprv, der_path, None)
         assert fingerprint == xkey.parent_fingerprint
 
     err_msg = "invalid derivation index: "
@@ -435,7 +437,7 @@ def test_derive_exceptions() -> None:
     # one short of
     assert derive(XKEY, "m" + 255 * "/0")
 
-    xprv = _derive(xprv, "1")
+    xprv = _derive(xprv, "1", None)
     err_msg = "final depth greater than 255: "
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(xprv, "m" + 255 * "/0")
@@ -603,7 +605,7 @@ def test_no_key_material_in_repr_or_exceptions() -> None:
 
     # the derivation cache must not print the private scalar either
     prv_int = int.from_bytes(xprv_data.key, byteorder="big", signed=False)
-    assert str(prv_int) not in repr(_derive(xprv_data, "m"))
+    assert str(prv_int) not in repr(_derive(xprv_data, "m", None))
 
     # public material is not masked
     xpub_data = BIP32KeyData.b58decode(xpub_from_xprv(xprv))

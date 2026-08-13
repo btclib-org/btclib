@@ -159,7 +159,7 @@ def test_no_key_material_in_exceptions() -> None:
 
     # network mismatch on a valid WIF
     with pytest.raises(BTClibValueError, match="not a testnet wif: ") as excinfo:
-        _prv_keyinfo_from_wif(wif_compressed_string, "testnet")
+        _prv_keyinfo_from_wif(wif_compressed_string, "testnet", None)
     assert wif_compressed_string not in str(excinfo.value)
 
     # out-of-range scalar
@@ -259,7 +259,7 @@ def test_a_wif_on_a_network_sharing_its_prefix() -> None:
         wif = wif_from_prv_key(q, network)
         # the declared network is the one returned, not the lookup's guess
         assert prv_keyinfo_from_prv_key(wif, network) == (q, network, True)
-        assert _prv_keyinfo_from_wif(wif, network) == (q, network, True)
+        assert _prv_keyinfo_from_wif(wif, network, None) == (q, network, True)
 
     # undeclared, the canonical name of the shared prefix is what it is
     assert prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet")) == (
