@@ -2736,6 +2736,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **The input-validation rule has a gate, and the gate enumerates by
+  running** (issues #743, #744). `tests/input_validation_test.py` holds
+  every public module-level function whose required parameters are all
+  library input types -- `Octets`, `Integer`, `String`, `Point`, and the
+  key and path aliases -- to the rule: a malformed argument leaves as a
+  `BTClibException`. The predicate is one class rather than a tuple,
+  which is what #743's base class was landed for.
+
+  It calls with **every argument malformed at once**, which is what makes
+  it automatic: no valid values have to be tabulated, and whichever
+  argument the function refuses first, the rule says it must refuse it as
+  a btclib error. What is not reachable that way is stated rather than
+  omitted -- a parameter behind a default is never driven, `hf` and
+  `network` among them, and a function taking a `Tx` or a `Psbt` needs an
+  instance the vocabulary cannot build.
+
+  Three lists carry what the run finds. `_MALFORMED` is the vocabulary,
+  and a type renamed out of it fails a test rather than shrinking the
+  walk in silence. `_EXCLUDED` is the nine `is_p2*` predicates, with the
+  reason `script_pub_key._is_funct` already gives: a bool function about
+  a script answers False for bytes that are not one. `_OPEN` is what the
+  census of #744 has left, each entry naming the class that escapes --
+  and it can only shrink, an entry that has become compliant failing the
+  run exactly as RUF100 fails an unused `noqa`.
+
+  The gate found what the reading missed: `ecc.dleq.verify_proof` answers
+  `False` for a pub key that is `None`, where its own comment says a
+  caller error must raise. That is the shape #745 closed in five other
+  verifications, in a function written after that census was taken.
+
 - **The 88 high-s vectors are pinned, not assumed** (#695). Every vector
   of `tests/ecc/_data/signmessage.json` verifies, which is the answer
   Bitcoin Core's `verifymessage` gives for all 200 of them and the whole
