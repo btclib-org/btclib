@@ -637,3 +637,45 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi
+
+  # the sentinel on the documentation, which nothing was watching: read the
+  # docs activates and builds a new release tag from an automation rule of
+  # its own (REPOSITORY.md's "Read the Docs" section), and a build that
+  # never starts fails nothing -- a site answering 200 serves the last build
+  # that succeeded, for as long as that takes somebody to notice. Two
+  # releases went out undocumented that way, which is issue #574.
+  # The rendered URL and not the v3 API, which is the reverse of what
+  # `published` above does with PyPI's: read the docs throttles an
+  # unauthenticated caller to five requests a minute and warns that
+  # requests from a cloud provider are blocked outright without a token, so
+  # asking the API from a runner would mean storing a credential for a
+  # check that gates nothing. /en/<tag>/ is CDN-served, answers 404 for a
+  # version that is inactive or has no successful build, and is the URL a
+  # reader follows anyway.
+  # Release-only, a rehearsal never being tagged; after version-check, so a
+  # tag it refuses produces one verdict and not two; and nothing needs it:
+  # a late documentation build is not a reason to withhold a wheel, and the
+  # fix for a red run here is a build on their side, not a moved tag
+  documented:
+    name: Check read the docs built the tag
+    needs: version-check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Wait for the tag's documentation to be served
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          url="https://btclib.readthedocs.io/en/${TAG}/"
+          for attempt in $(seq 30); do
+            if curl -sf --max-time 10 -o /dev/null "$url"; then
+              echo "${url} is served"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${url} is not served yet"
+            sleep 30
+          done
+          echo "::error::${url} was never served: read the builds page on" \
+            "https://app.readthedocs.org/projects/btclib/builds/"
+          exit 1
