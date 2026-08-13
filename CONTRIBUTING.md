@@ -248,7 +248,7 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | 4 platforms × 7 interpreters |
 | `lint`, `docs` | pull request, push | — |
-| `integration` | pull request, push | a regtest node |
+| `integration` | pull request, push | a regtest node, a Trezor emulator |
 | `website` | pull request, push, on website files | — |
 | `codeql` | pull request, push, Tuesday | 2 languages |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
@@ -539,8 +539,34 @@ BTCLIB_INTEGRATION=1 BTCLIB_BITCOIND=/path/to/bitcoind \
 A step after it reads that report and fails the job if a regtest test
 skipped: pytest exits 0 for a module that skipped itself, so a job whose
 fixture stopped finding the node would stay green while asking Core
-nothing. The HWI tests skip there by design, needing a device or an
-emulator, and are not counted.
+nothing. The HWI tests skip there by design and are not counted; the
+second job is theirs.
+
+`HWI against a Trezor emulator` is that job, and it gates nothing: it
+downloads a pinned emulator binary from `data.trezor.io` beside the same
+node, checks its sha256, installs a pinned HWI in an interpreter of its
+own — HWI declares `^3.9,<3.13`, and `btclib/hwi.py` says why it is a
+program here rather than a dependency — loads the seed HWI's own suite
+uses over DebugLink, and runs:
+
+```shell
+BTCLIB_INTEGRATION=1 BTCLIB_HWI_SIGN=1 \
+    BTCLIB_HWI="/path/to/hwi --emulators" \
+    BTCLIB_BITCOIND=/path/to/bitcoind \
+    uv run --locked --no-default-groups --group test \
+    pytest tests/integration/hwi_device_test.py --junitxml=hwi.xml
+```
+
+`BTCLIB_HWI_SIGN` can be set because HWI opens a udp device with
+`TrezorClientDebugLink`, which answers the button request itself. The
+job is not on a pull request: a firmware release, an unreachable
+`data.trezor.io` or an emulator that stopped starting headless is
+trezor's day rather than the branch's, so it runs weekly, on a push to
+`main`, and on `gh workflow run integration.yml --ref <branch>` — which
+is how a branch touching `btclib/hwi.py` is checked before it lands.
+Both jobs install the node through `.github/actions/install-bitcoind`,
+the repository's own composite action, so the release and its checksum
+are pinned once.
 
 The documentation, which the `Build the documentation` job of `docs.yml`
 runs with this same command, as read the docs does. `-W` is what makes an

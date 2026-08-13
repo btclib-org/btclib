@@ -25,6 +25,16 @@ reached: `hwi --emulators`. Signing is asked for only where
 `BTCLIB_HWI_SIGN` says so, because a device that signs is a device
 somebody is standing in front of, pressing a button.
 
+One emulator is what CI brings, which is issue #529 and not a change of
+that rule: the `HWI against a Trezor emulator` job of `integration.yml`
+downloads a pinned Trezor Model T binary and loads the seed HWI's own
+suite uses, and it sets `BTCLIB_HWI_SIGN` because there is nobody to
+press anything -- HWI opens a udp device with `TrezorClientDebugLink`,
+which answers the button request itself. What that job cannot answer is
+whether a device with a secure element, a screen and firmware of its own
+agrees, so the vendors it does not run stay what they were: bring your
+own.
+
 Nothing here is destructive: enumerate, an xpub, an address on a screen.
 Setup, wipe, restore, backup and the PIN flows are deliberately outside
 this and outside `btclib.hwi` altogether.

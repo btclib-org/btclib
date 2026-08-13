@@ -272,6 +272,42 @@ documented at release-notes length in the first place, and are still in
   raise `FileNotFoundError` from an unpacked sdist, where
   `mutation_counts_test.py` had been excluded for exactly that. MANIFEST.in
   and `[tool.check-manifest]` name all four now.
+- **The HWI integration tests run unattended, against a Trezor
+  emulator** (#529). `integration.yml` gains a second job beside the
+  regtest one: it downloads the Model T emulator trezor publishes for
+  firmware 2.9.4, checks its sha256, installs HWI 3.2.0 in an
+  interpreter of its own — HWI declares `^3.9,<3.13`, which is why
+  `btclib/hwi.py` runs it as a program — loads the seed HWI's own test
+  suite uses, and runs `tests/integration/hwi_device_test.py` with both
+  switches on. So the three questions only a device can answer — whether
+  HWI accepts the path spelling `getxpub` is given, the descriptor
+  `displayaddress` is given, and the psbt `signtx` reads — are asked of
+  a real HWI on a schedule, where what ran against a stand-in on every
+  commit is the process contract.
+
+  `BTCLIB_HWI_SIGN` can be set there, and that is the part that is not
+  obvious: HWI opens a udp path with `TrezorClientDebugLink` rather than
+  its ordinary client, and that one answers the ButtonRequest itself, so
+  the button press the switch guards against needs nobody. Three things
+  the job costs. The published emulator is built under nix, so its
+  interpreter and RUNPATH name paths no ubuntu has and `patchelf` is what
+  makes it run; 2.9.4 rather than the newest, because from 2.12.2 the
+  emulator links SDL3, which ubuntu's archive does not carry, and HWI's
+  own CI builds core/v2.9.6. And it is not a pull request check: a
+  firmware release or an unreachable `data.trezor.io` is not the branch's
+  fault, so it runs weekly, on a push to `main` and on
+  `gh workflow run integration.yml --ref <branch>`, which is how a branch
+  touching `btclib/hwi.py` gets the answer before it lands. Physical
+  devices stay manual, as issue #524 said they should.
+- **The node both jobs need is installed by one file**,
+  `.github/actions/install-bitcoind`, this repository's first composite
+  action: the download, the checksum and the unpacking were about to be
+  a second copy, and a duplicated pin is one that drifts — the copy
+  somebody raises is the one they were reading, and the other keeps
+  reporting green against the release before it. Referenced by path
+  rather than by commit SHA, which every third-party action here is: it
+  is read from the same commit as the workflow calling it, so there is
+  no owner who could move it.
 - **The bindings are required from their `main` rather than from a
   release**, which is what `bitcoin-core-rpc` already was: a direct
   reference to `btclib-org/btclib-secp256k1@main` in place of

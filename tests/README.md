@@ -91,11 +91,20 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-The regtest flow does run unattended: the `integration` workflow
-downloads a pinned Core release weekly and on demand, and fails if a
-regtest test skipped rather than ran. The HWI half does not — a device
-or an emulator is a thing to keep working rather than a tarball to
-download, which is issue #529.
+Both halves run unattended, in a job each of the `integration` workflow,
+and each job fails if its tests skipped rather than ran. The regtest one
+downloads a pinned Core release on every pull request and weekly. The
+HWI one downloads a pinned Trezor emulator and a pinned HWI, loads the
+seed HWI's own suite uses, and runs this module with both switches set:
+an emulator reached over udp is driven through DebugLink, which answers
+the confirmation a person would press, so even the signing test needs
+nobody. It is not on a pull request — a firmware release or an emulator
+that stopped starting headless is not the branch's fault — so it runs
+weekly, on a push to `main`, and on demand:
+
+```shell
+gh workflow run integration.yml --ref <branch>
+```
 
 ## There is no `slow` marker, and that is a measurement
 
