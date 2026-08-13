@@ -177,9 +177,9 @@ def test_signature() -> None:
     # ephemeral key not in 1..n-1
     err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa.sign_(reduce_to_hlen(msg), q, 0)
+        dsa.sign_(reduce_to_hlen(msg), q, 0, grind=False)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa.sign_(reduce_to_hlen(msg), q, sig.ec.n)
+        dsa.sign_(reduce_to_hlen(msg), q, sig.ec.n, grind=False)
 
 
 def test_gec() -> None:
@@ -207,7 +207,7 @@ def test_gec() -> None:
     msg = b"abc"
     k = 702232148019446860144825009548118511996283736794
     lower_s = False
-    sig = dsa.sign_(reduce_to_hlen(msg, hf), dU, k, lower_s, ec, hf)
+    sig = dsa.sign_(reduce_to_hlen(msg, hf), dU, k, lower_s, ec, hf, grind=False)
     assert sig.r == 0xCE2873E5BE449563391FEB47DDCBA2DC16379191
     assert sig.s == 0x3480EC1371A091A464B31CE47DF0CB8AA2D98B54
     assert sig.ec == ec
@@ -378,11 +378,11 @@ def test_crack_prv_key() -> None:
 
     msg1 = b"Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    sig1 = dsa.sign_(m_1, q, k)
+    sig1 = dsa.sign_(m_1, q, k, grind=False)
 
     msg2 = b"and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
-    sig2 = dsa.sign_(m_2, q, k)
+    sig2 = dsa.sign_(m_2, q, k, grind=False)
 
     q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
@@ -679,11 +679,18 @@ def test_grinding_refuses_what_already_owns_the_nonce() -> None:
     to search, and a commitment already occupies the extra entropy the
     counter travels through. The second is not only a clash of encodings --
     grinding a nonce is exactly the freedom the anti-exfil protocol takes
-    away from a signing device -- and neither is refused without `grind`.
+    away from a signing device.
+
+    The refusal is the same whether `grind` was asked for or left at its
+    `True` default, which is what makes `grind=False` the only way to sign
+    with a nonce of one's own: neither of the two quietly wins, and which
+    one did is exactly what a caller pinning a signature could not have
+    guessed from the bytes.
     """
     msg = b"Satoshi Nakamoto"
     nonce = 0x9E5755E5A8FCC1B0A2FD1E0AD9E8D6B29B67D67E6C6A0DEE01E7E1F30DB9A0BE
     err_msg = "grinding derives its own nonce"
+    # asked for outright
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, prv_key_int, nonce, grind=True)
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -691,9 +698,18 @@ def test_grinding_refuses_what_already_owns_the_nonce() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign_(reduce_to_hlen(msg), prv_key_int, grind=True, commit_hash=bytes(32))
 
+    # and left at the default, which is that same True and that same refusal
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign(msg, prv_key_int, nonce)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign(msg, prv_key_int, commit=b"a commitment")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.sign_(reduce_to_hlen(msg), prv_key_int, commit_hash=bytes(32))
+
+    # and `grind=False` is what signs either of them
     _, Q = dsa.gen_keys(prv_key_int)
-    assert dsa.verify(msg, Q, dsa.sign(msg, prv_key_int, nonce))
-    sig, receipt = dsa.sign(msg, prv_key_int, commit=b"a commitment")
+    assert dsa.verify(msg, Q, dsa.sign(msg, prv_key_int, nonce, grind=False))
+    sig, receipt = dsa.sign(msg, prv_key_int, grind=False, commit=b"a commitment")
     assert dsa.verify(msg, Q, sig, commit=b"a commitment", receipt=receipt)
 
 
@@ -1292,7 +1308,7 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
     prv_key = bytes.fromhex(vector["privkey"])
     assert len(prv_key) == 32
 
-    sig = dsa.sign_(msg_hash, prv_key, nonce)
+    sig = dsa.sign_(msg_hash, prv_key, nonce, grind=False)
     assert sig.serialize() == sig_der
     pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
     assert dsa.verify_(msg_hash, pub_key, sig_der)
