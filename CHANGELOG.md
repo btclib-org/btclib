@@ -3002,6 +3002,27 @@ documented at release-notes length in the first place, and are still in
   refuses the same substitution in the same place: typeshed's `hmac.new`
   rejects a SHAKE as a digestmod, and derives `HASHXOF` from `HASH` only
   through a `type: ignore[override]`.
+- **`tests/README.md` says how to take a profile and how to read one.**
+  The commands it carried took the suite's defaults with them, and every
+  one of those defaults is wrong under a profiler: `-n auto` runs the
+  tests in child processes cProfile never sees, leaving the parent it
+  does measure waiting on them; `--cov` charges coverage's callback to
+  whichever function is running under it; and pytest-randomly reorders
+  the run, so two profiles of the same tree are not comparable.
+  `-n0 --no-cov -p no:randomly` is what the section passes now, with
+  `python -m pstats` beside it for the caller attribution that neither
+  `-s time` nor `-s cumtime` prints.
+
+  Reading one needs the rest of the section. The self time is dominated
+  by the Jacobian point arithmetic of `curves/curve_group.py`, and it is
+  there because `python_path_test.py` patches the delegation away and
+  because the low-cardinality tests run curves `_libsecp256k1_applicable`
+  refuses -- the fallback, and not what a user's secp256k1 call reaches.
+  `double_jac` is charged for being called rather than for what it does,
+  as `isinstance` and `len` are. `time.sleep` high in that column is
+  `subprocess._wait`, the tests that shell out. And the cost of a single
+  call is a sort cProfile does not offer, so something expensive in each
+  of a handful of calls ranks nowhere.
 
   `n_size` is the pinned length, and any length above it is the same
   test: `challenge_` reads the leftmost `nlen` bits, and a SHAKE's output
