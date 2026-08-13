@@ -142,6 +142,14 @@ class CurveGroup:
             raise BTClibValueError("zero discriminant")
         self._a = a
         self._b = b
+        # which spelling of the tangent law _double_jac_helper runs. The
+        # curve decides it and a curve does not change, so it is decided
+        # here rather than by a test inside the function a multiplication
+        # calls 253 times: the a*Z^4 term is zero for the k1 family, and
+        # for the a == p - 3 of most catalogued curves it is a difference
+        # of two squares that costs one product instead of three
+        self._a_is_zero = a == 0
+        self._a_is_minus_3 = a == p - 3
         # what add_jac feeds its formula in place of an operand at
         # infinity: any value does, the arithmetic on it being thrown
         # away, as long as it is the size of a real coordinate -- which is
@@ -424,18 +432,36 @@ class CurveGroup:
 
     def double_jac(self, Q: JacPoint) -> JacPoint:
         """Return twice the Jacobian point, assumed to be on the curve."""
-        return self._double_jac_helper(Q, Q[2] * Q[2] % self.p)
+        # Z^2 is what the a*Z^4 term is built from and the only thing that
+        # needs it, so a curve whose a is zero is handed a value the
+        # helper never reads rather than a squaring and its reduction
+        QZ2 = 0 if self._a_is_zero else Q[2] * Q[2] % self.p
+        return self._double_jac_helper(Q, QZ2)
 
     def _double_jac_helper(self, Q: JacPoint, QZ2: int) -> JacPoint:
-        # QZ2 is Q[2]^2 reduced mod p, which add_jac has already formed.
-        # The tangent law has no case to tell apart -- a point is never
-        # exceptional to itself -- so this is the whole of it: no test on
-        # Q, one sequence of operations for every point of the curve, and
-        # the same one for a secret point as for a public one. Which is
-        # also what lets add_jac call it on every addition
+        # QZ2 is Q[2]^2 reduced mod p, which add_jac has already formed;
+        # a curve whose a is zero never reads it, and double_jac above
+        # does not form it. The tangent law has no case to tell apart -- a
+        # point is never exceptional to itself -- so this is the whole of
+        # it: no test on Q, one sequence of operations for every point of
+        # the curve, and the same one for a secret point as for a public
+        # one. Which is also what lets add_jac call it on every addition
         p = self.p
         QY2 = Q[1] * Q[1] % p
-        W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % p
+        # the a*Z^4 term, in the spelling this curve's a allows: the tests
+        # are on the curve and not on the point, so the operations a given
+        # curve makes are still the same for every point of it.
+        # libsecp256k1 carries the first spelling alone, secp256k1's a
+        # being zero, and states the doubling it makes as 3 mul and 4 sqr
+        # against the 12 and 4 of its addition
+        if self._a_is_zero:
+            W = 3 * Q[0] * Q[0] % p
+        elif self._a_is_minus_3:
+            # 3*(X - Z^2)*(X + Z^2) is 3*X^2 - 3*Z^4, one product where
+            # the general spelling below has two squarings and a product
+            W = 3 * (Q[0] - QZ2) * (Q[0] + QZ2) % p
+        else:
+            W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % p
         V = 4 * Q[0] * QY2 % p
         X = (W * W - 2 * V) % p
         Y = (W * (V - X) - 8 * QY2 * QY2) % p
