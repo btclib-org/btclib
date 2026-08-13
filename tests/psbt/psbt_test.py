@@ -2613,8 +2613,20 @@ def test_combining_refuses_two_participant_lists_for_one_aggregate_key() -> None
     """
     first = Psbt.b64decode(TO_BE_FINALIZED)
     second = deepcopy(first)
-    aggregate_pub_key = bytes.fromhex(f"02{'aa' * 32}")
-    participants = [bytes.fromhex(f"02{'bb' * 32}"), bytes.fromhex(f"02{'cc' * 32}")]
+    # real points, `Psbt.assert_valid` asking that of a participant list:
+    # what this test is about is two lists under one key, not what the
+    # aggregation of either comes to
+    aggregate_pub_key = bytes.fromhex(
+        "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+    )
+    participants = [
+        bytes.fromhex(
+            "02346b99593357107c9d3459e9deba8d3eaf44e6636c85c7f853eb90ba52e8cd00"
+        ),
+        bytes.fromhex(
+            "024fafd65f8169186fc2bfdb2233c77e630d10be280a24c7165c09a27611775c2c"
+        ),
+    ]
 
     first.inputs[0].musig2_participant_pub_keys = {aggregate_pub_key: participants}
     second.inputs[0].musig2_participant_pub_keys = {
@@ -4732,3 +4744,39 @@ def test_a_declared_map_count_is_bounded_before_it_is_allocated_for() -> None:
 
     with pytest.raises(BTClibValueError, match="too many output maps"):
         Psbt.parse(_psbt_v2_declaring(0, MAX_TX_OUT_COUNT + 1))
+
+
+def test_the_three_entries_that_took_a_psbt_unasked() -> None:
+    """`combine`, `prevouts` and `new_signers` (issue 692, under #684).
+
+    Each is public and each read a psbt `Psbt.assert_valid` refuses, and
+    handed back an answer as if nothing were wrong: an invalid psbt into
+    `combine` gave an invalid psbt out, presented as a combine that
+    worked; `prevouts` returned the amounts and scripts a BIP341
+    signature commits to, which is the list that most wants to have been
+    checked; `new_signers` compared two psbts and read key data and
+    origin fields raw out of both maps.
+
+    `combine` asks after the version and identifier checks rather than
+    before them: those two are what make the psbts one transaction's, so a
+    caller handing over two unrelated ones is told that instead of
+    whichever of them fails its own validation first.
+    """
+    good = Psbt.b64decode(TO_BE_FINALIZED)
+    witness_utxo = good.inputs[1].witness_utxo
+    assert witness_utxo is not None
+
+    bad = deepcopy(good)
+    bad.inputs[1].witness_utxo = TxOut(
+        2**64, witness_utxo.script_pub_key, check_validity=False
+    )
+    err_msg = "invalid satoshi amount: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad.assert_valid()
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        combine([deepcopy(bad), deepcopy(bad)])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        prevouts(deepcopy(bad))
+    with pytest.raises(BTClibValueError, match=err_msg):
+        new_signers(deepcopy(bad), deepcopy(good))

@@ -65,7 +65,7 @@ from btclib import b32
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.script.script_pub_key import ScriptPubKey, _script_from
+from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
 
 __all__ = [
     "AddressInfo",
@@ -362,7 +362,7 @@ class RangedWallet(Wallet, ABC):
         paying to one script is a wallet whose source repeats itself, not
         something this has to choose between.
         """
-        script = _script_from(script_pub_key)
+        script = _validated_script_from(script_pub_key)
         for branch in self.branches:
             for index in range(last_index + 1):
                 if self._script_pub_key(branch, index).script == script:
@@ -416,7 +416,7 @@ class RangedWallet(Wallet, ABC):
             err_msg += f" between {first_index} and {last_index}"
             raise BTClibValueError(err_msg)
         for offset, address in enumerate(addresses):
-            script = _script_from(address)
+            script = _validated_script_from(address)
             if script != scripts[offset]:
                 index = first_index + offset
                 err_msg = f"not what {branch}/{index} derives: {script.hex()}"

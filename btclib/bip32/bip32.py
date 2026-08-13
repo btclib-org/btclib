@@ -768,17 +768,17 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     leaks the account. A hardened child is refused, its offset not
     being computable.
     """
-    if isinstance(parent_xpub, BIP32KeyData):
-        p = copy.copy(parent_xpub)
-    else:
-        p = BIP32KeyData.b58decode(parent_xpub)
+    # both arguments through the one place a BIP32Key becomes a validated
+    # BIP32KeyData: this function exists to demonstrate a known BIP32
+    # weakness, so an answer it gives for a child its own assert_valid
+    # refuses is a wrong lesson. Copied because the parent is mutated
+    # below into the answer, and the caller's object is not this
+    # function's to write to
+    p = copy.copy(_key_data_from_bip32_key(parent_xpub))
 
     if p.key[0] not in {2, 3}:
         raise BTClibValueError(_err_msg("parent", "not a public", p))
-    if isinstance(child_xprv, BIP32KeyData):
-        c = child_xprv
-    else:
-        c = BIP32KeyData.b58decode(child_xprv)
+    c = _key_data_from_bip32_key(child_xprv)
 
     if c.key[0] != 0:
         raise BTClibValueError(_err_msg("child", "not a private", c))

@@ -3013,3 +3013,25 @@ def test_the_normalized_origin_keeps_the_fingerprint_that_was_given() -> None:
     assert origin is not None
     assert origin.master_fingerprint == fingerprint(XPRV_ROOT)
     assert origin.description == f"{fingerprint(XPRV_ROOT).hex()}/44h/0h/0h"
+
+
+def test_an_invalid_output_is_refused_and_not_answered_about() -> None:
+    """A negative answer where a refusal belongs (issue 691).
+
+    The worst shape a missing check can take, the answer being a negative
+    rather than an error: `index_of` answered `None` for a `ScriptPubKey`
+    its own `assert_valid` refuses, which is exactly what it answers about
+    a perfectly good output belonging to somebody else, with nothing in the
+    answer to say the question was malformed. `_script_from` stays the
+    private twin that converts and does not validate;
+    `_validated_script_from` beside it is what the public questions call.
+    """
+    descriptor = parse(f"wpkh({KEY_A})")
+    assert descriptor.index_of(descriptor.script_pub_key()) == 0
+
+    bad = ScriptPubKey(b"\x51", "notanetwork", check_validity=False)
+    err_msg = "unknown network: notanetwork"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        descriptor.index_of(bad)

@@ -168,7 +168,14 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
 def decode_hd_key_paths(map_: Mapping[Octets, BIP32KeyOrigin] | None) -> HdKeyPaths:
     """Return the dataclass element from its json representation."""
     hd_key_paths = {bytes_from_octets(k): v for k, v in map_.items()} if map_ else {}
-    return dict(sorted(hd_key_paths.items()))
+    hd_key_paths = dict(sorted(hd_key_paths.items()))
+    # the keys went through bytes_from_octets and the values came across
+    # untouched, so this is a public entry through which an unchecked
+    # origin enters a psbt's hd_key_paths -- and travels on to the json
+    # `encode_to_bip32_derivs` writes. The validating counterpart sits
+    # right above
+    assert_valid_hd_key_paths(hd_key_paths)
+    return hd_key_paths
 
 
 _BIP32Deriv = Mapping[str, str]
@@ -178,6 +185,7 @@ def encode_to_bip32_derivs(
     hd_key_paths: Mapping[bytes, BIP32KeyOrigin],
 ) -> list[_BIP32Deriv]:
     """Return the json representation of the dataclass element."""
+    assert_valid_hd_key_paths(hd_key_paths)
     return [
         {
             "pub_key": pub_key.hex(),

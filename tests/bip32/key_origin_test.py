@@ -276,3 +276,24 @@ def test_bip32_derivs_check_validity() -> None:
     hd_key_paths = decode_from_bip32_derivs(bip32_derivs, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
         assert_valid_hd_key_paths(hd_key_paths)
+
+
+def test_an_unchecked_origin_cannot_enter_a_psbt_or_its_json() -> None:
+    """The two public entries of this module (issue 693, rule of #684).
+
+    `decode_hd_key_paths` runs `bytes_from_octets` over the mapping's keys
+    and copied the `BIP32KeyOrigin` values across untouched, so it was a
+    public entry through which an unchecked origin entered a psbt's
+    `hd_key_paths`; `encode_to_bip32_derivs` then wrote
+    `master_fingerprint.hex()` of whatever it held into the json.
+    `assert_valid_hd_key_paths`, the validating counterpart, sits beside
+    both.
+    """
+    bad = BIP32KeyOrigin(b"\x01\x02\x03", [0], check_validity=False)
+    pub_key = b"\x02" * 33
+    err_msg = "invalid master fingerprint length: 3"
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        decode_hd_key_paths({pub_key: bad})
+    with pytest.raises(BTClibValueError, match=err_msg):
+        encode_to_bip32_derivs({pub_key: bad})
