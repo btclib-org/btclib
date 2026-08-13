@@ -113,7 +113,7 @@ def test_step_2_and_step_4_reach_one_nonce(
     R = dsa.anti_exfil_signer_commit(_MSG_HASH, _PRV_KEY, commitment)
     assert bytes_from_point(R, secp256k1).hex() == opening
 
-    sig, receipt = dsa.sign_(_MSG_HASH, _PRV_KEY, commit_hash=rho)
+    sig, receipt = dsa.sign_(_MSG_HASH, _PRV_KEY, grind=False, commit_hash=rho)
     assert receipt == R
     assert dsa.anti_exfil_sign(_MSG_HASH, _PRV_KEY, rho) == sig
     assert dsa.anti_exfil_host_verify(_MSG_HASH, _PUB_KEY, sig, rho, R)
