@@ -29,7 +29,7 @@ from btclib.alias import (
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable, _y_even
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (
@@ -40,7 +40,7 @@ from btclib.script.op_codes_tapscript import (
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, is_integer
 
 __all__ = [
     "MAX_TREE_DEPTH",
@@ -370,6 +370,10 @@ def input_script_sig(
     them; the control block is BIP341's -- parity bit plus leaf
     version, then the x-only internal key, then the merkle path -- and
     a missing internal key is the unspendable point output_pubkey uses.
+
+    In tree order and counting from zero: Python would read -1 as the
+    last leaf and hand back a control block that proves it, so a leaf
+    named from the wrong end is refused rather than answered.
     """
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
     if internal_pubkey:
@@ -377,7 +381,12 @@ def input_script_sig(
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
         pub_key_bytes = bytes.fromhex(h_str)
-    (leaf_version, script), path = tree_helper(script_tree)[0][script_num]
+    leaves = tree_helper(script_tree)[0]
+    if not is_integer(script_num):
+        raise BTClibTypeError(f"invalid leaf index type: {type(script_num).__name__}")
+    if not 0 <= script_num < len(leaves):
+        raise BTClibValueError(f"invalid leaf index: {script_num}")
+    (leaf_version, script), path = leaves[script_num]
     control = (parity_bit + leaf_version).to_bytes(1, "big")
     control += pub_key_bytes
     control += path
@@ -439,12 +448,18 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
 
 
-def assert_valid_control_block(control_block: bytes) -> None:
+def assert_valid_control_block(control_block: Octets) -> None:
     """Refuse a control block whose size no leaf depth can produce.
 
     Size only, and only its residue: one leading byte plus a multiple
     of 32, which BIP341's 33 + 32m sizes all satisfy. Proving the
     block against an output key is check_output_pubkey's.
+
+    The octets first, as check_output_pubkey takes them: `len` of the
+    text spelling counts characters, so "e" * 33 -- 33 characters and
+    the 66 octets of a hex string -- was a size this accepted, and
+    "é" * 33, 33 characters and 66 octets of UTF-8, was a size it
+    accepted for no reason at all.
     """
-    if (len(control_block) - 1) % 32 != 0:
+    if (len(bytes_from_octets(control_block)) - 1) % 32 != 0:
         raise BTClibValueError("invalid control block size")

@@ -10,7 +10,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt, tonelli, xgcd
 
 primes = [
@@ -54,6 +54,45 @@ primes = [
     2**384 - 2**128 - 2**96 + 2**32 - 1,
     2**521 - 1,
 ]
+
+
+def test_a_float_is_no_operand_and_zero_is_no_modulus() -> None:
+    """Modular arithmetic over what is not an integer answered anyway.
+
+    Python defines `//`, `%` and `*` for a float, so every function here
+    ran to completion on one and returned it: `mod_inv(3.0, 7)` answered
+    `5.0` out of a signature that says `int`, and `xgcd(3.0, 7)` a
+    triple of floats -- no exception, and a residue that is not one.
+    `legendre_symbol` and its two callers reached `pow`'s own TypeError
+    instead, which is no better for a caller filtering bad input.
+
+    A modulus of zero is the other half: the `ZeroDivisionError` of
+    `a %= m` and the `ValueError` `pow` raises for a third argument of
+    zero. The first is an `ArithmeticError`, so `except ValueError` does
+    not catch it.
+    """
+    for a, m in ((3.0, 7), (3, 7.0), ("3", 7), (3, None)):
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            xgcd(a, m)  # type: ignore[arg-type]
+        for call in (mod_inv, legendre_symbol, mod_sqrt, tonelli):
+            with pytest.raises(BTClibTypeError, match="not an integer: "):
+                call(a, m)  # type: ignore[arg-type]
+
+    # a bool is not a number either, `isinstance(True, int)` being what
+    # would otherwise make it the modulus one
+    for value in (True, False):
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv(value, 7)
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv(3, value)
+
+    for m in (0, -7):
+        for call in (mod_inv, legendre_symbol, mod_sqrt, tonelli):
+            with pytest.raises(BTClibValueError, match="non-positive modulus: "):
+                call(3, m)
+    # xgcd takes no modulus: zero is a legitimate operand there, whose
+    # greatest common divisor with three is three
+    assert xgcd(3, 0)[0] == 3
 
 
 def test_mod_inv_prime() -> None:

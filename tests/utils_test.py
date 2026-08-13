@@ -9,7 +9,7 @@ from io import BytesIO
 
 import pytest
 
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     assert_no_trailing,
     decode_num,
@@ -17,6 +17,7 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
     int_from_integer,
+    int_from_json_number,
     read_exactly,
 )
 
@@ -217,3 +218,35 @@ def test_encode_num_is_bounded_by_the_int64_of_a_script_number() -> None:
     assert decode_num(encode_num(2**63 - 1)) == 2**63 - 1
     assert decode_num(encode_num(-(2**63))) == -(2**63)
     assert decode_num(bytes.fromhex("00000000000000000010")) == 2**76
+
+
+def test_a_json_number_is_a_whole_one_or_it_is_an_error() -> None:
+    """1.0 is the json spelling of 1; 1.5 is the spelling of nothing.
+
+    `from_dict` coerces because a whole number may arrive as a float,
+    which is what json does to 1 -- but `int(1.5)` is 1, so a fractional
+    version, depth or index became a number the caller never wrote and
+    nothing said so. `nan` and `inf` are floats and no more whole than
+    1.5 is.
+    """
+    assert int_from_json_number(1, "version") == 1
+    assert int_from_json_number(1.0, "version") == 1
+    assert int_from_json_number(-1.0, "version") == -1
+    assert int_from_json_number("1", "version") == 1
+
+    for fractional in (1.5, -0.5, float("nan"), float("inf")):
+        with pytest.raises(BTClibValueError, match="invalid version: "):
+            int_from_json_number(fractional, "version")
+
+    # a bool decodes out of json's `true` and `int(True)` is 1
+    for value in (True, False):
+        with pytest.raises(BTClibTypeError, match="invalid version type: bool"):
+            int_from_json_number(value, "version")
+
+    # and what is no number at all, this taking Any: neither error was
+    # btclib's, and one of them was not even a ValueError
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        int_from_json_number("not a number", "version")
+    for not_a_number in (None, object(), [1]):
+        with pytest.raises(BTClibTypeError, match="invalid version type: "):
+            int_from_json_number(not_a_number, "version")
