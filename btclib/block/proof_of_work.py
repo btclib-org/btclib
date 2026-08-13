@@ -31,8 +31,8 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from btclib.alias import Octets
-from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "DIFFICULTY_ADJUSTMENT_INTERVAL",
@@ -213,6 +213,11 @@ def retarget_first_height(last_height: int) -> int:
     error, so `GetNextWorkRequired` still reads
     `nHeight - (DifficultyAdjustmentInterval() - 1)`.
     """
+    # a height, before the arithmetic: `"2015" + 1` is a bare TypeError
+    # about concatenating a str, and `True + 1` is the height two
+    if not is_integer(last_height):
+        raise BTClibTypeError(f"invalid height type: {type(last_height).__name__}")
+
     # Core only retargets when the *next* height is a multiple of 2016,
     # so the last block of a period is the one 2015 blocks after its
     # first. Refused rather than answered for any other height: the
@@ -251,6 +256,17 @@ def next_bits(
 
     Bitcoin Core spells this `CalculateNextWorkRequired`.
     """
+    # both are datetimes, checked before the subtraction: two ints
+    # subtract to an int and answer `AttributeError: 'int' object has no
+    # attribute 'total_seconds'`, which is neither half of this library's
+    # exception contract, and a str answers a TypeError about the operands
+    for name, value in (
+        ("first block time", first_block_time),
+        ("last block time", last_block_time),
+    ):
+        if not isinstance(value, datetime):
+            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+
     # the difference of two datetimes, not two timestamp() calls: aware
     # or naive, the subtraction is the same number of seconds, so the
     # answer does not depend on the machine's time zone for the naive
@@ -344,6 +360,18 @@ def hash_rate(difficulty: float, timespan: float, block_count: int = 1) -> float
     with to within the 1/65536 by which the genesis target falls short
     of 2^224.
     """
+    # the types before the three comparisons, each of which is a bare
+    # TypeError about the operands for anything that is not a number. A
+    # difficulty and a timespan are `float` here and an integer is one of
+    # those, `1.0` and `1` being the same rate; a block count is a count,
+    # so it is the narrower question -- and a bool is neither, `True`
+    # being one block, one second and difficulty one
+    for name, value in (("timespan", timespan), ("difficulty", difficulty)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if not is_integer(block_count):
+        raise BTClibTypeError(f"invalid block count type: {type(block_count).__name__}")
+
     if timespan <= 0:
         raise BTClibValueError(f"invalid timespan: {timespan}")
     if block_count < 1:

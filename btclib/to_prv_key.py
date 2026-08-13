@@ -75,7 +75,10 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
         try:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, "big")
-        except ValueError as e:
+        # both, as `to_pub_key` catches both here: what is neither octets
+        # nor a spelling of them is a TypeError, and it means the same
+        # thing as a wrong size does -- this input is not a private key
+        except (TypeError, ValueError) as e:
             # never echo the input: it is candidate key material. What the
             # reasons carry is why each format rejected it -- a checksum, a
             # prefix, a size -- none of which is secret
@@ -313,7 +316,7 @@ def prv_keyinfo_from_prv_key(
         try:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, byteorder="big", signed=False)
-        except ValueError as e:
+        except (TypeError, ValueError) as e:
             # never echo the input: it is candidate key material. The
             # reasons say why each format rejected it, and none of them is
             # secret

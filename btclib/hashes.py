@@ -18,7 +18,7 @@ from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, HashF, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "hash160",
@@ -286,6 +286,11 @@ def merkle_root_from_branch(
     means knowing what a transaction looks like -- a layer this module
     sits below, and must not import.
     """
+    # the type before the sign, `"0" < 0` being a bare TypeError about
+    # the operands: an index is a position and a bool is not one, `True`
+    # naming the second leaf of every tree it is passed to
+    if not is_integer(index):
+        raise BTClibTypeError(f"invalid leaf index type: {type(index).__name__}")
     if index < 0:
         raise BTClibValueError(f"negative leaf index: {index}")
 

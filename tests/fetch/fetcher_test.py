@@ -75,7 +75,7 @@ def test_tx_id_hex_takes_whatever_octets_takes() -> None:
 @pytest.mark.parametrize("tx_id", ["", "00", TX_ID + "00", "not hex at all"])
 def test_tx_id_hex_refuses_what_is_not_an_id(tx_id: str) -> None:
     """A mistyped id is the caller's error, not the remote host's 404."""
-    with pytest.raises(ValueError):
+    with pytest.raises(BTClibValueError):
         tx_id_hex(tx_id)
 
 

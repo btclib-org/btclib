@@ -1740,6 +1740,69 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`bytes_from_octets` is the whole of what `Octets` means, and it is
+  total** (issue #744). It is the coercion every `Octets` parameter of
+  the library runs through, and it had two holes: a hex string that is
+  not one left through `bytes.fromhex`'s bare `ValueError`, and anything
+  that was not a `str` went through *untouched* -- so `len` of a tuple
+  of 33 ints was 33, which is how
+  `taproot.assert_valid_control_block` accepted one as a control block
+  size. Both are refused now, as `BTClibValueError` and
+  `BTClibTypeError`; every buffer is still taken, and returned as it
+  came, a read being no place to rewrite the field it reads.
+
+  The message is `bytes.fromhex`'s own, which names a position and never
+  the string. That is deliberate: an `Octets` parameter is candidate key
+  material as often as not, and `to_prv_key` puts this very message
+  inside its own "not a private key" (issue #137).
+
+  `int_from_integer` gets both through it, and `to_prv_key`'s two "it
+  must be octets" fallbacks now catch a `TypeError` beside the
+  `ValueError`, as `to_pub_key` already did: what is neither octets nor
+  a spelling of them means the same thing a wrong size does.
+
+  `mnemonic.entropy`'s five `int(x, 2)` parses and its two `int(x, 16)`
+  and `int(x)` ones are `BTClibValueError` too, and say a base rather
+  than the digits -- raw entropy being seed material, as every other
+  message in that module already assumed. `borromean.sign` checks that
+  its rings, signing indexes and nonces are of one length rather than
+  leaving it to `zip(strict=True)`, whose message named "argument 3" and
+  no parameter of the function; `strict=True` stays, as the assertion
+  that the check and the loops cannot drift apart.
+
+  **What moves for a caller**: the class is narrower and the control
+  flow identical, `BTClibValueError` being a `ValueError` and
+  `BTClibTypeError` a `TypeError`. A test or a caller matching on
+  `bytes.fromhex`'s message still matches -- it is carried through --
+  and one matching the *class* now has a btclib one to match.
+  `docs/source/guide.rst` shows the new spelling.
+
+- **Ten places in `block/`, `hashes` and `utils` asked a value what it
+  is not** (issue #744): a comparison, an arithmetic operation or an
+  attribute lookup on an argument nothing had checked. `"5" <= 16`,
+  `"2015" + 1` and `"hard" <= 0` are bare `TypeError`s about operands,
+  raised from underneath the library and naming neither the parameter
+  nor the function; `.tzinfo` on a str is an `AttributeError`, which is
+  outside *both* halves of this library's exception contract, so nothing
+  a caller is told to catch would have caught it; and two datetimes
+  given as unix timestamps subtracted to an int, whose missing
+  `total_seconds` is an `AttributeError` again.
+
+  The guard is `var_int.serialize`'s, and the vocabulary is
+  `utils.is_integer`'s: a bool is not a number, because it would be the
+  height one, the block count one, the leaf index one.
+
+  `bip34_commitment` and, through it, `Block.assert_valid_coinbase_height`;
+  `BlockHeader.assert_valid`'s timestamp and `assert_valid_time`'s `now`
+  -- the default `check_validity=True` path being as exposed as the
+  explicit one; `mining.mine`'s `max_tries` *and* its header, which
+  `dataclasses.replace` used to complain about; `next_bits`'s two
+  datetimes; `retarget_first_height`; all three numbers of `hash_rate`,
+  where a difficulty and a timespan are `float` and an integer is one of
+  those; `hashes.merkle_root_from_branch`'s leaf index, which is what
+  `merkle_proof.assert_as_valid` and `merkle_proof.verify` reach it
+  through; and `utils.encode_num`.
+
 - **Every field a sig_hash preimage writes is checked as a width, and
   every `vin_i` as an index** (issue #744). `int.to_bytes` answers a
   field too wide for it with an `OverflowError`, which is an

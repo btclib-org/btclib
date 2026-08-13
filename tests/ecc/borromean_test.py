@@ -14,7 +14,11 @@ import pytest
 from btclib.alias import Point
 from btclib.curves import mult, secp256k1
 from btclib.ecc import borromean, dsa
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 from tests.curves.curve_test import low_card_curves
 
 
@@ -46,7 +50,7 @@ def test_borromean() -> None:
     # a msg that is neither bytes nor a hex-str is a caller error, and
     # verify says so instead of answering False: catching Exception would
     # report an int msg as a failed ring signature
-    with pytest.raises(TypeError):
+    with pytest.raises(BTClibTypeError, match="invalid octets type: int"):
         borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore[arg-type]
 
     # a forged signature must raise, not merely return a falsy value:
@@ -212,3 +216,30 @@ def test_the_point_at_infinity_is_the_other_corner_case() -> None:
     assert not borromean.verify(
         b"\x00\x00\x00\x00", (21).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
     )
+
+
+def test_one_nonce_and_one_signing_index_per_ring() -> None:
+    """A short ks truncated the loops and signed a subset of the rings.
+
+    `zip(..., strict=True)` is what caught it, with the message "zip()
+    argument 3 is shorter than argument 1" -- a `BTClibValueError`'s
+    class carrying none of its content, naming an argument position of
+    `zip` and no parameter of `sign`. The check is `sign`'s own now, and
+    `strict=True` stays as the assertion that the two cannot drift
+    apart.
+    """
+    ring_sizes = [3, 4]
+    sign_key_idx = [2, 1]
+    key_rings = [[dsa.gen_keys() for _ in range(size)] for size in ring_sizes]
+    sign_keys = [key_rings[i][sign_key_idx[i]][0] for i in range(2)]
+    pubk_rings = [[key_rings[i][j][1] for j in range(ring_sizes[i])] for i in range(2)]
+    msg = b"Borromean ring signature"
+
+    assert borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings)
+
+    err_msg = "2 rings, 2 signing indexes and 1 nonces"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(msg, [1], sign_key_idx, sign_keys, pubk_rings)
+    err_msg = "2 rings, 1 signing indexes and 2 nonces"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(msg, [1, 2], sign_key_idx[:1], sign_keys, pubk_rings)

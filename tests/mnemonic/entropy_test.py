@@ -121,7 +121,7 @@ def test_conversions() -> None:
     # `== "0x"` weakened to `>=` is what a string of only letters tells
     # apart -- "ab" sorts above "0x" and parses as hex (171) where the
     # unweakened check falls through to `int("ab")` and raises instead
-    with pytest.raises(ValueError, match="invalid literal for int"):
+    with pytest.raises(BTClibValueError, match="not a base 10 number"):
         bin_str_entropy_from_int("ab", 8)
 
     max_bits = max(_bits)
@@ -210,13 +210,16 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(bytes_entropy216, 224)
 
-    with pytest.raises(BTClibValueError, match=err_msg):
+    # an empty tuple is entropy of no spelling at all, which is what it
+    # is refused as: it used to reach `len()` and be reported as zero
+    # bits, a number it never carried
+    with pytest.raises(BTClibTypeError, match="invalid octets type: tuple"):
         bin_str_entropy_from_entropy(())  # type: ignore[arg-type]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(BTClibValueError, match="not a base 10 number"):
         bin_str_entropy_from_int("not an int")
 
-    with pytest.raises(TypeError):
+    with pytest.raises(BTClibTypeError, match="invalid entropy type: int"):
         bin_str_entropy_from_str(3)  # type: ignore[arg-type]
 
     err_msg = "invalid number of bits: "
@@ -481,3 +484,24 @@ def test_bin_str_entropy_from_random() -> None:
     assert len(bin_str_entropy_from_random(512)) == 512
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_random(513)
+
+
+def test_what_is_no_binary_string_is_refused_without_being_echoed() -> None:
+    """`int(x, 2)` said "invalid literal for int() with base 2" and the digits.
+
+    Raw entropy is seed material, so neither the class nor the message
+    was right: a bare ValueError naming neither the parameter nor this
+    library, carrying the very string it was handed. Every message in
+    this module says a length or a count instead.
+    """
+    for not_binary in ("0b2", "0bxyz", "0b"):
+        with pytest.raises(BTClibValueError, match="not a binary") as excinfo:
+            bin_str_entropy_from_int(not_binary)
+        # the digits stay out of the message, being seed material
+        assert not_binary not in str(excinfo.value)
+
+    for not_binary in ("2" * 128, "abc" * 43):
+        with pytest.raises(BTClibValueError, match="not a binary 0/1 string"):
+            bin_str_entropy_from_str(not_binary)
+        with pytest.raises(BTClibValueError, match="not a binary 0/1 string"):
+            wordlist_indexes_from_bin_str_entropy(not_binary, 2048)

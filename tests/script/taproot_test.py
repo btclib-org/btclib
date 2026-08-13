@@ -271,12 +271,14 @@ def test_a_control_block_size_is_octets_and_not_characters() -> None:
         with pytest.raises(BTClibValueError, match=err_msg):
             assert_valid_control_block(wrong_size)
 
-    # a str that is no hex string reaches the size check no longer; the
-    # class is `bytes_from_octets`'s to tighten, which issue 744's last
-    # slice is about
+    # a str that is no hex string reaches the size check no longer, and
+    # what is no octets at all is refused rather than measured: `len` of
+    # a tuple of 33 ints is 33
     for not_octets in ("é" * 33, "a" * 33):
-        with pytest.raises(ValueError, match="fromhex"):
+        with pytest.raises(BTClibValueError, match="invalid hex string: "):
             assert_valid_control_block(not_octets)
+    with pytest.raises(BTClibTypeError, match="invalid octets type: tuple"):
+        assert_valid_control_block(tuple(range(33)))  # type: ignore[arg-type]
 
 
 def test_a_leaf_is_named_from_the_start_of_the_tree() -> None:

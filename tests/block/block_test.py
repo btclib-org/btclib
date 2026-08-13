@@ -183,6 +183,16 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
 
+    # and what is no datetime at all is refused before `.tzinfo` is asked
+    # of it: an AttributeError is outside both halves of this library's
+    # exception contract, and the default `check_validity=True` path was
+    # as exposed as this one
+    for not_a_datetime in ("not-a-datetime", 12345, None):
+        header = BlockHeader.parse(header_bytes)
+        header.time = not_a_datetime  # type: ignore[assignment]
+        with pytest.raises(BTClibTypeError, match="invalid timestamp type: "):
+            header.assert_valid()
+
     header = BlockHeader.parse(header_bytes)
     header.nonce = 0x100000000
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
