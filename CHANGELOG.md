@@ -2260,6 +2260,19 @@ documented at release-notes length in the first place, and are still in
   where it used to be refused for the threshold's value, both being a
   refusal and the second being the accurate one.
 
+- **negative zero is refused by the check that refuses every other
+  non-minimal number** (issue #746). `_to_num` tested `element ==
+  b"\x80"` before anything else and raised `non-minimal encoding of
+  zero`, which was a case of its own because `encode_num(0)` was itself
+  the non-minimal `00` and could not be the yardstick. It is the empty
+  vector now, so `80` fails `encode_num(x) != element` like every other
+  over-long spelling: the special case is two lines saying what the line
+  below them already says, and it is gone. A script carrying a negative
+  zero where a number is read is refused exactly as before, and reports
+  `non-minimal encoding of 0: 80` -- the wording every other value gets.
+  A caller matching the old text has one string to update; the test
+  beside it names the value, which nothing did before.
+
 ### Descriptors and miniscript
 
 - **An invalid output is refused, not answered about** (#691). `index_of`

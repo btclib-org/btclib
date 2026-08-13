@@ -334,6 +334,25 @@ def test_a_serialized_zero_is_a_number_the_interpreter_reads() -> None:
     verify_script(non_minimal, [], 0, tx, 0, NO_FLAGS, False, True)
 
 
+def test_negative_zero_is_refused_by_the_one_minimality_check() -> None:
+    """`80` is a non-minimal zero, and the general comparison says so.
+
+    It is the third spelling of zero and the second one MINIMALDATA
+    refuses, so what is asserted here is that one check answers for both:
+    `encode_num` writes the empty vector, which `80` is not, and no case
+    of its own is needed to reach that verdict.
+    """
+    tx = Tx(check_validity=False)
+
+    # 80, OP_1ADD, OP_1, OP_NUMEQUAL: negative zero where a number is read
+    negative_zero = b"\x01\x80\x8b\x51\x9c"
+    with pytest.raises(ScriptError, match="non-minimal encoding of 0: 80"):
+        verify_script(negative_zero, [], 0, tx, 0, ScriptFlag.MINIMALDATA, False, True)
+
+    # and zero it is, wherever nothing asks for the minimal spelling
+    verify_script(negative_zero, [], 0, tx, 0, NO_FLAGS, False, True)
+
+
 @pytest.mark.parametrize(
     "script, message",
     [

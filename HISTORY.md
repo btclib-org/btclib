@@ -145,7 +145,10 @@ full year, short month, short day (YYYY-M-D)
   along. The reason to act rather than to keep the old spelling: `0100`
   is not a minimally encoded script number, so the interpreter refuses
   it as one wherever MINIMALDATA is in force -- btclib's own engine
-  included.
+  included. One message moves with the pair: a negative zero read as a
+  number under that flag is refused as `non-minimal encoding of 0: 80`,
+  where it read `non-minimal encoding of zero`, the general check now
+  answering for it too.
 
 ### The bindings are now `btclib_secp256k1`
 
