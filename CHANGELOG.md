@@ -244,6 +244,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`main` is green again, after two failures of one run that have
+  nothing to do with each other.** `tests/build_system_test.py` read
+  pyproject.toml with `tomllib`, which is standard library from 3.11 up
+  and the floor here is 3.10: the module failed to collect on the four
+  3.10 cells of the matrix and passed everywhere else, so the pull
+  request that added it (#754) merged with every other cell green. It
+  reads the `[build-system]` table by regex now, anchored on the header
+  and stopping at the next one, which is what `tests/copyright_test.py`
+  already does with the same file and for the same reason; both tests
+  assert what they asserted before.
+
+  The `dist` job's smoke test is the other one, and what it failed on was
+  a design that could only hold for as long as nothing moved. It installs
+  the wheel with `uv.lock` exported as constraints, and the wheel asks
+  for `btclib_secp256k1` and `bitcoin-core-rpc` from their repositories'
+  `main` while the export pins the commit the lock resolved: uv unifies a
+  branch with a commit while the branch is still at it, and refuses the
+  two urls as conflicting once it is not. Both repositories had moved, so
+  the job failed here and in every open pull request, none of which
+  caused it -- and a lock refresh would only have bought the time until
+  the next push, which for `bitcoin-core-rpc` was fifteen minutes.
+  The export now passes `--no-emit-package` for those two, which is the
+  whole of the fix: everything else stays pinned to the lock, and the two
+  direct references resolve the way a user installing this wheel resolves
+  them. Nothing here is left unasked -- `uv run --locked` is what the
+  rest of the workflow runs, and whether the newest bindings still work
+  is `latest.yml`'s weekly question and the release workflow's before it
+  publishes.
+
 - **The package-content policy is stated where an unpacked sdist carries
   it** (#735, #734). `docs/source/package-content-policy.md` says what
   may be in the wheel and the sdist, what may never be, and what has to
