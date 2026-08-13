@@ -50,7 +50,7 @@ from btclib.curves import secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc.musig2 import key_agg, key_sort
 from btclib.exceptions import BTClibValueError
-from btclib.network import NETWORKS
+from btclib.network import network_from_name
 from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
@@ -174,7 +174,7 @@ class KeyExpression:
             if not musig_path:
                 return aggregate
             synthetic = BIP32KeyData(
-                version=NETWORKS[network].bip32_pub,
+                version=network_from_name(network).bip32_pub,
                 depth=0,
                 parent_fingerprint=b"\x00" * 4,
                 index=0,

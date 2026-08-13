@@ -66,7 +66,7 @@ from btclib.bip32.der_path import (
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import mnemonic_from_entropy
 from btclib.mnemonic.mnemonic import Mnemonic
-from btclib.network import NETWORKS, network_from_xkeyversion
+from btclib.network import network_from_name, network_from_xkeyversion
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -305,7 +305,7 @@ def xprv_from_root_key(root_key: BIP32Key, index: int = 0) -> str:
     entropy = _entropy_from_der_path(xkey, f"m/{_PURPOSE}h/32h/{index}h")
     network = network_from_xkeyversion(xkey.version)
     derived = BIP32KeyData(
-        version=NETWORKS[network].bip32_prv,
+        version=network_from_name(network).bip32_prv,
         depth=0,
         parent_fingerprint=b"\x00" * 4,
         index=0,

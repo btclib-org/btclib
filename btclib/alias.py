@@ -177,10 +177,12 @@ ScriptType = Literal[
 
 # A field name of network.Network, which the three *_from_key_value
 # lookups take as a str and resolve with getattr. The most fragile of
-# these vocabularies, and so a parameter type: a misspelled field name
-# matches no network, so the lookup answers None -- "no network carries
-# this prefix" -- where a misspelled network name at least raises
-# KeyError at the indexing. network_test.py checks the members against
+# these vocabularies, and so a parameter type: mypy holds a caller to
+# these seventeen, and `network._NETWORK_FIELDS` is the same vocabulary
+# at run time, for the callers mypy never sees -- a name outside it is a
+# BTClibValueError there rather than the AttributeError getattr would
+# raise, and rather than the empty list that would read as a fact about
+# the prefix. network_test.py checks the members against
 # dataclasses.fields(Network), the one thing mypy cannot check about a
 # name resolved with getattr.
 #
@@ -211,9 +213,12 @@ NetworkField = Literal[
 #
 # Still not a parameter type, and issue #216 is where that is decided: the
 # `network: str` parameters accept a name with spaces around it and in any
-# case -- `network.strip().lower()` is what they run it through -- so the
+# case -- `network.network_from_name` is what they run it through -- so the
 # set they take is wider than these five spellings, and narrowing the
 # annotation without dropping that tolerance would reject calls that work.
+# One converter and not a `strip().lower()` per call site, which is what
+# left b32 and the mnemonic modules indexing NETWORKS raw and refusing the
+# tolerance this paragraph promised (issue #744).
 # It names the five for a caller who wants mypy to hold them to it;
 # network.py annotates with it the tuple of names it loads, which is what
 # keeps this list equal to the data

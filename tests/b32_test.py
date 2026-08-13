@@ -199,20 +199,23 @@ def test_invalid_address() -> None:
 def test_invalid_address_enc() -> None:
     """Test whether address encoding fails on invalid input."""
     invalid_address_enc = [
-        ("MAINNET", 0, 20, "'MAINNET'"),
+        ("nosuchnet", 0, 20, "unknown network"),
         ("mainnet", 0, 21, "invalid size: "),
         ("mainnet", 17, 32, "invalid witness version: "),
         ("mainnet", 1, 1, "invalid size: "),
         ("mainnet", 16, 41, "invalid size: "),
     ]
 
-    network, wit_ver, length, err_msg = invalid_address_enc[0]
-    with pytest.raises(KeyError, match=err_msg):
-        b32.address_from_witness(wit_ver, "0A" * length, network)
-
-    for network, wit_ver, length, err_msg in invalid_address_enc[1:]:
+    for network, wit_ver, length, err_msg in invalid_address_enc:
         with pytest.raises(BTClibValueError, match=err_msg):
             b32.address_from_witness(wit_ver, "0A" * length, network)
+
+    # "MAINNET" is not among them any more: the case and space tolerance
+    # alias.py documents for every `network: str` is now applied here as
+    # well, where NETWORKS[network] used to be indexed raw (issue #744)
+    assert b32.address_from_witness(0, "0A" * 20, " MainNet ") == (
+        b32.address_from_witness(0, "0A" * 20, "mainnet")
+    )
 
 
 def test_address_witness() -> None:

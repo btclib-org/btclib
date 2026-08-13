@@ -20,6 +20,19 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **a bad network name raises `BTClibValueError`, not `KeyError`.**
+  Every function taking a `network: str` -- `b58.p2pkh`, `b32.p2wpkh`,
+  `to_pub_key.fingerprint`, `bip39.mxprv_from_mnemonic` and the rest --
+  refused an unknown name with a bare `KeyError`, which is a
+  `LookupError` and so not caught by an `except BTClibValueError`. Code
+  catching `KeyError` around one of these has to catch
+  `BTClibValueError` instead; code already catching `BTClibValueError`
+  starts working. A non-string name is a `BTClibTypeError` where it was
+  an `AttributeError`. Nothing that worked stops working: the same call
+  with a good name is unchanged, and a name in the wrong case or with
+  spaces around it -- `"MAINNET"` to `b32.address_from_witness` -- is
+  accepted now where it used to raise.
+
 - **the individual point multiplications are private.** `from
   btclib.curves.curve_group import mult_jac` is an `ImportError` now, and
   so is every other variant of `curve_group` and `curve_group_2`: the

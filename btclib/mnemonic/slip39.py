@@ -68,7 +68,7 @@ from btclib.mnemonic.mnemonic import (
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
-from btclib.network import NETWORKS
+from btclib.network import network_from_name
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -661,5 +661,5 @@ def mxprv_from_mnemonics(
     between the two: SLIP-0039 backs up the seed itself.
     """
     seed = master_secret_from_mnemonics(mnemonics, passphrase or "")
-    version = NETWORKS[network].bip32_prv
+    version = network_from_name(network).bip32_prv
     return rootxprv_from_seed(seed, version)
