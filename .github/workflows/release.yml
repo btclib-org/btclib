@@ -31,15 +31,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # what a version cannot survive being wrong about, checked before
-  # anything is built and long before anything is uploaded: a version is
-  # consumed by the upload that carries it, and can then only be yanked.
+  # what a tag cannot survive being wrong about, checked before anything is
+  # built and long before anything is uploaded: a version is consumed by
+  # the upload that carries it, and can then only be yanked.
   # A minute of checking, ahead of an hour of building.
   # The rehearsal runs this too, so a mismatch cannot wait for release day
-  # to surface; only the tag comparison is release-only, there being no
-  # tag to compare against otherwise
+  # to surface; only the checks about the tag itself are release-only,
+  # there being no tag to ask about otherwise
   version-check:
-    name: Check the declared versions
+    name: Check the tag and the declared versions
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -52,6 +52,44 @@ jobs:
         with:
           # see the checkout of the test-py job in test.yml
           persist-credentials: false
+          # the whole history, where every other checkout in these
+          # workflows takes the default single commit: the ancestry check
+          # below has nothing to answer with otherwise, and it is also what
+          # puts origin/<default branch> in this checkout at all. Only this
+          # job pays for it, and it pays once per release
+          fetch-depth: 0
+      # a tag is a name that can point anywhere, and nothing else in this
+      # workflow asks where: every check below reads the tree the tag names
+      # rather than where that tree came from. So a tag pushed from a stale
+      # worktree, or from a branch whose pull request is still open, or from
+      # a commit squashed away on its way into the default branch, would
+      # publish code no review ever approved and no branch contains --
+      # which is issue #574's failure mode one pipeline over, a build
+      # running something unreachable from where it is supposed to be.
+      # `git merge-base --is-ancestor` is the whole of the question.
+      # Release-only, like the two checks below and for the same reason: a
+      # rehearsal is dispatched from a branch on purpose, that being what
+      # it is for.
+      # The default branch is read from the event rather than written as
+      # `main`: this is the one check whose subject is that branch, so it
+      # has to keep meaning what it says the day the name changes
+      - name: Check that the tag is merged into the default branch (release only)
+        if: github.event_name == 'push'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          if ! git rev-parse --verify --quiet "origin/$DEFAULT_BRANCH" >/dev/null; then
+            msg="fetch-depth: 0 on the checkout above is what puts it there"
+            echo "::error::origin/$DEFAULT_BRANCH is not in this checkout; $msg"
+            exit 1
+          fi
+          commit=$(git rev-parse HEAD)
+          if ! git merge-base --is-ancestor "$commit" "origin/$DEFAULT_BRANCH"; then
+            msg="a release is tagged on a commit that branch contains"
+            echo "::error::$commit is not an ancestor of $DEFAULT_BRANCH; $msg"
+            exit 1
+          fi
+          echo "$commit is an ancestor of $DEFAULT_BRANCH"
       # caching off in this workflow, unlike every other: a cache entry is
       # written by whichever run populated it, and read here through the
       # scoping that gives a tag push the caches of the default branch. This
@@ -301,6 +339,33 @@ jobs:
           uv run --no-project --python 3.14 \
             .github/scripts/normalize_sdist.py dist/
           sha256sum dist/*
+      # what the packaging checks of the dist job do not look at: the
+      # members of the two archives. They read metadata -- whether it is
+      # valid, whether the long description renders, whether the
+      # classifiers are the ones a package should declare -- and the
+      # allowlist in the script is about what is *in* the files. It runs in
+      # that job too, so a pull request is told before a tag is; here it
+      # judges the files that get uploaded, which in a rehearsal are a
+      # different version built from a re-locked tree.
+      # After the normalizer rather than before: that rewrites member
+      # metadata, and this reads member names
+      - name: Check what the distribution files contain
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/verify_dist_contents.py dist/
+      # and what nothing said at all: what the files contain, as a document
+      # rather than as a check. The bill of materials is reproducible for
+      # the reason the two steps above are -- SOURCE_DATE_EPOCH is its
+      # timestamp and the two digests its serial number -- so a rebuild of
+      # the tag writes this file too, and the attest job below signs it
+      # beside the distribution files.
+      # Into a directory of its own and not dist/: that directory is
+      # uploaded as the artifact the publish jobs hand to an index, and an
+      # index takes distribution files
+      - name: Write the bill of materials
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/generate_sbom.py dist/ sbom/
       # before anything is installed, and that ordering is the point: the
       # step below runs third-party code -- a `.pth` file in a dependency
       # executes at interpreter startup, before the first import -- while
@@ -313,6 +378,13 @@ jobs:
         with:
           name: dist
           path: dist/
+      # an artifact of its own, for the reason the step that writes it gives:
+      # the two jobs that download `dist` hand every file in it to an index
+      - name: Upload the bill of materials
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom/
       # dist-py installs a wheel too, but not this one: it builds its own
       # copy, on another runner and -- in a rehearsal -- from another
       # version, the step above having patched pyproject.toml and
@@ -413,7 +485,10 @@ jobs:
   # the copies on the index, while the copies attached to the GitHub release
   # below carry nothing. This job signs them, and the digests are the
   # index's own, the dist artifact being downloaded here rather than
-  # rebuilt.
+  # rebuilt. The bill of materials is signed with them, and for the same
+  # reason: it is attached to that release too, so leaving it out would be
+  # the gap this job exists to close, reopened for the one asset that says
+  # what the others contain.
   # A job of its own rather than two more permissions on github-release:
   # this workflow elevates one job at a time, and the one that writes
   # releases has no reason to also hold an OIDC token. It is not in the
@@ -429,7 +504,7 @@ jobs:
   # release day, where a failure lands after PyPI has the files and the tag
   # can no longer be moved
   attest:
-    name: Attest the distribution files
+    name: Attest the release assets
     needs: [publish-pypi, publish-testpypi]
     # always(), the other publish job being skipped rather than run, and a
     # skipped job is one `needs` treats as failed
@@ -449,18 +524,27 @@ jobs:
         with:
           name: dist
           path: dist/
+      # into a directory of its own, as in the job below and for the same
+      # reason: the dist/* glob has to stay the distribution files
+      - name: Download the bill of materials
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sbom
+          path: sbom/
       # actions/attest and not the attest-build-provenance wrapper around
       # it: as of v4 the wrapper is a composite that does nothing but call
       # this, and its own README sends new callers here. No predicate input
       # is what selects SLSA build provenance.
-      # One attestation, both files: the statement carries every subject the
-      # glob matched, so verifying either the wheel or the sdist against the
-      # bundle below works
-      - name: Attest the distribution files
+      # One attestation, every file: the statement carries every subject the
+      # globs matched, so verifying the wheel, the sdist or the bill of
+      # materials against the bundle below works
+      - name: Attest the release assets
         id: attest
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: dist/*
+          subject-path: |
+            dist/*
+            sbom/*
       # the bundle is the signed statement itself, and the job below
       # attaches it to the release: that is what lets `gh attestation verify
       # --bundle` read it from disk instead of from the attestations API,
@@ -508,13 +592,18 @@ jobs:
         with:
           name: dist
           path: dist/
-      # into a directory of its own, so that the dist/* glob below stays the
-      # distribution files and nothing else
+      # each into a directory of its own, so that the dist/* glob below
+      # stays the distribution files and nothing else
       - name: Download the attestation bundle
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: attestation
           path: attestation/
+      - name: Download the bill of materials
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: sbom
+          path: sbom/
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -537,11 +626,14 @@ jobs:
           # distribution files' own names do
           bundle="$GITHUB_REF_NAME.attestation.jsonl"
           cp attestation/attestation.jsonl "$bundle"
+          # the bill of materials needs no renaming, unlike the bundle: it
+          # carries the version in its own name, the distribution files
+          # being where it took it from
           if [ -s "$RUNNER_TEMP/notes.md" ]; then
-            gh release create "$GITHUB_REF_NAME" dist/* "$bundle" \
+            gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
               --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
           else
             echo "::warning::HISTORY.md has no $GITHUB_REF_NAME section"
-            gh release create "$GITHUB_REF_NAME" dist/* "$bundle" \
+            gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi

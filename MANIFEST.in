@@ -37,14 +37,18 @@ recursive-include tests *.csv
 recursive-include tests *.json
 recursive-include tests *.md
 recursive-include tests *.py
-# except the one whose subject the sdist does not carry: the mutation
-# workflow's counter lives under .github, which is not shipped, so that test
-# in an sdist is three fixture errors and a failing subprocess rather than a
-# test. Excluded here because the include above did add it -- unlike the
+# except the ones whose subject the sdist does not carry: what
+# .github/scripts holds is not shipped, so each of these in an sdist is a
+# fixture error or a failing subprocess rather than a test -- the loading
+# by path that every one of them does raises FileNotFoundError there.
+# Excluded here because the include above did add them -- unlike the
 # website's files, whose absence is check-manifest's configuration and not
-# this file's; [tool.check-manifest] ignore names this one too, a tracked
+# this file's; [tool.check-manifest] ignore names them too, a tracked
 # file the sdist omits being exactly what that tool reports
+exclude tests/check_vendored_vectors_test.py
+exclude tests/generate_sbom_test.py
 exclude tests/mutation_counts_test.py
+exclude tests/verify_dist_contents_test.py
 recursive-exclude tests *.pyc
 recursive-include tests *.txt
 # the Apache-2.0 text of C2SP/wycheproof, whose vectors sit beside it: an

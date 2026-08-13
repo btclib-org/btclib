@@ -69,10 +69,20 @@ gh attestation verify btclib-<version>-py3-none-any.whl \
 than accepting any attestation this repository has. The signed statement
 is attached to the release as well, as `<tag>.attestation.jsonl`, so
 `--bundle <tag>.attestation.jsonl` runs the same check reading it from
-disk instead of asking GitHub for it; one attestation covers the wheel
-and the sdist both. Either file can also be rebuilt from its tag and
+disk instead of asking GitHub for it; one attestation covers every asset
+of the release. Either file can also be rebuilt from its tag and
 verified without being downloaded at all, the build being reproducible:
 RELEASING.md has that command and the bounds on it.
+
+A CycloneDX 1.6 bill of materials is attached beside them,
+`btclib-<version>.cdx.json`: the two files with their SHA-256, the
+licence, and one component per dependency the wheel's metadata declares.
+It is generated from the built wheel rather than from the source tree, so
+it describes the files it is attached to, and it is covered by the same
+attestation — a bill of materials whose provenance nobody can check says
+only what whoever wrote it wanted said. What it records of a dependency is
+the requirement as published, so a component carries a version only where
+that requirement is an exact pin.
 
 ## Limitations, not vulnerabilities
 

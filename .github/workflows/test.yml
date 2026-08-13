@@ -236,6 +236,26 @@ jobs:
       # the lint workflow
       - name: Build the distribution files
         run: uv build
+      # what the three checks below do not look at: the members of the two
+      # archives, which is what a user installs. The allowlist and the
+      # reasoning are in the script; release.yml's build job runs the same
+      # command on the files it is about to publish, and this is the copy
+      # that answers before a tag rather than after one.
+      # --no-project, so it runs on the interpreter uv already fetched and
+      # installs nothing: the script imports the standard library only
+      - name: Check what the distribution files contain
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/verify_dist_contents.py dist/
+      # and the bill of materials release.yml attaches to a release. Written
+      # here and thrown away, into $RUNNER_TEMP rather than the workspace:
+      # what this gates is that the script still reads a real wheel, which
+      # otherwise nothing would say until a tag ran it for the first time
+      - name: Write the bill of materials
+        run: |
+          SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) \
+            uv run --no-project --python 3.14 \
+            .github/scripts/generate_sbom.py dist/ "$RUNNER_TEMP"/sbom/
       # the same validation PyPI applies on upload: broken metadata, or a
       # README that does not render, cannot be fixed by reuploading
       - name: Check the metadata and the long description
