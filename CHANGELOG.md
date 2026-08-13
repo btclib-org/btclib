@@ -1573,20 +1573,45 @@ documented at release-notes length in the first place, and are still in
   wide digests are the other half: `challenge_` truncates to the
   leftmost `nlen` bits, which sha256 vectors cannot exercise at all.
 
-  Two sets were measured and deliberately left out, each with an entry in
+  One set was measured and deliberately left out, with an entry in
   `tests/_data/README.md` saying so -- "not taken" and "not noticed" look
   the same in a directory listing otherwise.
   `ecdh_secp256k1_webcrypto_test.json` is the ECDH file already vendored,
   re-encoded as JWK: its valid cases yield 468 distinct shared secrets and
   all 468 are that file's, its invalid classes a strict subset, so it
-  would add a base64url reader and no arithmetic. The four SHAKE files are
-  blocked on a type rather than on their data: an XOF has no fixed output,
-  so `hashlib.shake_128` fails `alias.HashObject` under mypy and, at run
-  time, makes `challenge_` demand a zero-length message hash -- which
-  `verify_` catches and reports as `False`, so every valid vector would
-  read as a bad signature rather than as an unsupported hash. Whether
-  `HashF` should admit an XOF is a public-surface question and is left
-  open.
+  would add a base64url reader and no arithmetic. The four SHAKE files
+  needed a decision about `HashF` rather than a reader, and the entry
+  below is that decision.
+- **Wycheproof's four SHAKE files, through an adapter that pins an output
+  length** (#706). 1580 more adversarial cases, all of them on the Python
+  path: `_libsecp256k1_applicable` admits sha256 alone, so a SHAKE never
+  reaches the bindings at all.
+
+  They needed a decision first, and it is written where the type is.
+  `hashlib.shake_128` is not a `HashF` and `btclib/alias.py` now says why
+  it is not: an extendable-output function has no output length of its
+  own -- `digest()` takes one as an argument and `digest_size` reads 0 --
+  so it fails `alias.HashObject` under mypy, and at run time makes
+  `challenge_` demand a zero-length message hash, which `verify_` catches
+  and reports as `False`. Every valid vector would have read as a bad
+  signature rather than as an unsupported hash.
+
+  The length is pinned by `_PinnedXof` in the test module, and the
+  library does not grow an XOF type. `HashF` admitting one would admit it
+  to `dsa.sign` as well, whose nonce is RFC6979 -- HMAC, which over an
+  XOF is not defined, NIST specifying KMAC instead. The standard library
+  refuses the same substitution in the same place: typeshed's `hmac.new`
+  rejects a SHAKE as a digestmod, and derives `HASHXOF` from `HASH` only
+  through a `type: ignore[override]`.
+
+  `n_size` is the pinned length, and any length above it is the same
+  test: `challenge_` reads the leftmost `nlen` bits, and a SHAKE's output
+  is a stream whose longer forms carry these very bytes as their prefix.
+  Measured, all four files verify identically at 32 bytes and at 64.
+  Nothing was found -- they pass as they are -- and the two SHAKE256
+  files carry a case the others cannot, upstream's `Untruncatedhash`: a
+  signature made over the whole digest instead of its leftmost `nlen`
+  bits, which is `invalid` and stays so.
 
 ## v2026.8.9
 
