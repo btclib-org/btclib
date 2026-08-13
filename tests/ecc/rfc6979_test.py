@@ -111,7 +111,7 @@ def test_rfc6979_secp256k1(prv_key: int, msg: str, k: int, r: str, s: str) -> No
     # derivation with the answer handed back in
     sig = dsa.sign_(msg_hash, prv_key, grind=False)
     assert (sig.r, sig.s) == (int(r, 16), int(s, 16))
-    assert sig == dsa.sign_(msg_hash, prv_key, k)
+    assert sig == dsa.sign_(msg_hash, prv_key, k, grind=False)
 
     U = mult(prv_key)
     assert dsa.verify_(msg_hash, U, sig)
@@ -207,7 +207,9 @@ def test_rfc6979_nonce_tv(
     k2 = rfc6979_nonce_(m, prv_key, ec, getattr(hashlib, hf))
     assert int(k, 16) == k2
     # test RFC6979 usage in DSA
-    sig = dsa.sign_(m, prv_key, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
+    sig = dsa.sign_(
+        m, prv_key, k2, lower_s, ec=ec, hf=getattr(hashlib, hf), grind=False
+    )
     assert int(r, 16) == sig.r
     assert int(s, 16) == sig.s
     # test that RFC6979 is the default nonce for DSA

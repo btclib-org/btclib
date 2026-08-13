@@ -18,8 +18,10 @@ in the script engine's own flags, and in the leading-underscore functions
 a test asks for it with.
 
 ``sign`` also grinds for a low-R signature -- one byte shorter in DER --
-wherever the nonce is its own to derive, as Core does; ``_grind_low_r`` is
-the loop and says why.
+by default, as Core does; ``_grind_low_r`` is the loop and says why. Its
+default goes with the nonce's: ``grind=True`` and ``nonce=None``, so a
+caller who wants the nonce asks for ``grind=False`` and gets an error
+rather than a guess if they forget.
 
 ``sign`` also takes a value to commit to inside the nonce,
 sign-to-contract style (see btclib.ecc.commit_nonce for the tweak), and
@@ -462,7 +464,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool | None = ...,
+    grind: bool = ...,
     commit_hash: None = None,
 ) -> Sig: ...
 
@@ -476,7 +478,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool | None = ...,
+    grind: bool = ...,
     commit_hash: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -489,7 +491,7 @@ def sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
-    grind: bool | None = None,
+    grind: bool = True,
     commit_hash: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
@@ -499,15 +501,20 @@ def sign_(
 
     grind asks for a low-R signature, one byte shorter in DER:
     `_grind_low_r` is the loop, Core's since its 0.17 and its default
-    there. Left unsaid it is on wherever the nonce is this library's to
-    derive, so that a btclib signature is the one Core would have made;
-    asked for outright it is refused beside a nonce or a commitment, which
-    is the difference the three states carry -- a default is a library
-    preference and cannot contradict a caller, where `grind=True` beside
-    either of those two is a caller asking for both halves of a
-    contradiction. Keyword-only, rather than beside lower_s where it
-    belongs by subject: ec and hf are positional here and a flag inserted
-    before them would renumber both.
+    there and here, so that a btclib signature is the one Core would have
+    made. Its default pairs with the nonce's: `grind=True` and
+    `nonce=None`, the signature of a key and a message and nothing else.
+
+    A caller who wants the nonce -- or a commitment, which owns the extra
+    entropy the counter travels through -- asks for `grind=False` in so
+    many words, because grinding is a search over nonces and a nonce that
+    is given leaves nothing to search. The two together are refused rather
+    than one of them quietly winning: which one would win is exactly what
+    a caller pinning a signature cannot afford to guess.
+
+    Keyword-only, rather than beside lower_s where it belongs by subject:
+    ec and hf are positional here and a flag inserted before them would
+    renumber both.
 
     commit_hash is a value to commit to inside the nonce, sign-to-contract
     style: the signature is an ordinary one, and the receipt returned
@@ -543,15 +550,8 @@ def sign_(
     # protocol takes away from a signing device, see
     # anti_exfil_host_commit, and this is the call that protocol signs
     # through
-    owns_the_nonce = nonce is not None or commit_hash is not None
-    if grind and owns_the_nonce:
+    if grind and (nonce is not None or commit_hash is not None):
         raise BTClibValueError("grinding derives its own nonce")
-    # and None is the caller not having said: grind where there is a nonce
-    # to grind and stay out of the way where there is not. Refusing those
-    # two by default would refuse `sign(msg, key, nonce)` itself -- a
-    # caller who asked for one thing, told they asked for two
-    if grind is None:
-        grind = not owns_the_nonce
 
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
@@ -615,7 +615,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool | None = ...,
+    grind: bool = ...,
     commit: None = None,
 ) -> Sig: ...
 
@@ -629,7 +629,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
-    grind: bool | None = ...,
+    grind: bool = ...,
     commit: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -642,7 +642,7 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
-    grind: bool | None = None,
+    grind: bool = True,
     commit: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """ECDSA signature with canonical low-s preference.
@@ -1043,6 +1043,12 @@ def anti_exfil_sign(
     commitment it was derived from, no nonce is ever used twice and the
     device's key is never the thing at risk.
     """
+    # grind=False, and it is the protocol that requires it rather than the
+    # encoding: grinding a nonce is the freedom this exchange takes away
+    # from the device, which promised R in step 2 and would be drawing a
+    # different nonce here. `sign_` refuses the pair anyway, a commitment
+    # owning the entropy a counter would travel through, so this says out
+    # loud what would otherwise be an error message
     sig, _ = sign_(
         msg_hash,
         prv_key,
@@ -1050,6 +1056,7 @@ def anti_exfil_sign(
         lower_s,
         ec,
         hf,
+        grind=False,
         commit_hash=bytes_from_octets(rho, hf().digest_size),
     )
     return sig
