@@ -344,3 +344,18 @@ def test_hash_type_too_wide_for_its_four_bytes(hash_type: int) -> None:
     tx = _two_in_one_out()
     with pytest.raises(BTClibValueError, match="sig_hash type too wide"):
         sig_hash.legacy(_SCRIPT_CODE, tx, 1, hash_type)
+
+
+def test_a_version_too_wide_for_its_four_bytes_is_refused_too() -> None:
+    """The copy `legacy` hashes over commits to the caller's own version.
+
+    `_legacy_tx_copy` builds it with check_validity=False, so nothing
+    upstream of the final `serialize` asks whether the version it copied
+    fits the four bytes the wire writes it in -- `int.to_bytes` used to
+    answer that with an OverflowError instead of the BTClibValueError
+    every caller here is written to catch (issue #690).
+    """
+    tx = _two_in_one_out()
+    tx.version = 2**32
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        sig_hash.legacy(_SCRIPT_CODE, tx, 0, sig_hash.ALL)

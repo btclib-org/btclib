@@ -44,6 +44,22 @@ _TX_MIN_STANDARD_VERSION = 1
 _TX_MAX_STANDARD_VERSION = 3
 
 
+def _assert_valid_4_byte_field(name: str, value: int) -> None:
+    """Refuse an int no four unsigned bytes can hold.
+
+    Called from `serialize` as well as from `assert_valid`, and
+    unconditionally there: `check_validity=False` is what lets
+    `legacy` and `merkle_root_and_mutated_from_transactions` copy or
+    walk a transaction without judging it whole, and the width is the
+    one thing serializing four bytes cannot skip regardless -- the
+    alternative is `int.to_bytes`'s own OverflowError, past the
+    BTClibValueError every caller here is written to catch (issue
+    #690).
+    """
+    if not 0 <= value <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid {name}: {value}")
+
+
 def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
     """Raise an exception if the inputs disagree with the coinbase rule.
 
@@ -284,13 +300,8 @@ class Tx:  # noqa: PLW1641
                 err_msg = f"invalid {key} type: {type(value).__name__}"
                 raise BTClibTypeError(err_msg)
 
-        # must be a 4-bytes integer
-        if not 0 <= self.version <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid version: {self.version}")
-
-        # must be a 4-bytes int
-        if not 0 <= self.lock_time <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid lock time: {self.lock_time}")
+        _assert_valid_4_byte_field("version", self.version)
+        _assert_valid_4_byte_field("lock time", self.lock_time)
 
         if not unsigned_template and not self.vin:
             raise BTClibValueError("Missing inputs")
@@ -322,6 +333,16 @@ class Tx:  # noqa: PLW1641
         """
         if check_validity:
             self.assert_valid()
+        else:
+            # the width alone, checked here regardless: check_validity=False
+            # is what lets a caller copy or walk a transaction without
+            # judging it whole (`legacy`'s copy, the merkle root's loop),
+            # and int.to_bytes below would otherwise answer a version or
+            # lock_time outside it with an OverflowError, past the
+            # BTClibValueError every caller here is written to catch
+            # (issue #690)
+            _assert_valid_4_byte_field("version", self.version)
+            _assert_valid_4_byte_field("lock time", self.lock_time)
 
         segwit = include_witness and self.is_segwit()
 

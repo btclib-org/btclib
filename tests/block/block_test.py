@@ -403,6 +403,24 @@ def test_merkle_root_and_witness_commitment_serialize_without_judging() -> None:
     block.assert_valid_witness_commitment()
 
 
+def test_merkle_root_still_refuses_a_version_no_four_bytes_hold() -> None:
+    """Not judging the transaction is not the same as not judging its width.
+
+    The loop above serializes with check_validity=False on purpose --
+    that is the transaction's own account, `missing_outputs`' empty vout
+    among what it does not judge. A version outside the four bytes the
+    wire writes it in is not on that list: `Tx.serialize` refuses it
+    regardless, and did not before (issue #690), where it answered with
+    the OverflowError `int.to_bytes` raises rather than the
+    BTClibValueError every caller here is written to catch.
+    """
+    coinbase, missing_outputs = _coinbase_and_a_transaction_missing_its_outputs()
+    missing_outputs.version = 2**32
+
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        merkle_root_and_mutated_from_transactions([coinbase, missing_outputs])
+
+
 def test_block_170() -> None:
     """Test first block with a transaction."""
     fname = "block_170.bin"
