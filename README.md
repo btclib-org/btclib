@@ -237,15 +237,18 @@ satisfying one. `psbt_signer`
 is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
-Nothing in the library imports `bip21`, `bip322`, `slip132`, `fee`,
-`wallet`, `hwi` or `fetch`: they are the top of the stack, and `fetch`
-is the only one that goes out to the network. `wallet` remembers which
-addresses it has handed out — over `bip44`, over `descriptors` or over a
-script template of its own — and its key wallets sign for one with
+Nothing in the library imports `bip21`, `bip322`, `bip85`, `slip132`,
+`fee`, `wallet`, `hwi` or `fetch`: they are the top of the stack, and
+`fetch` is the only one that goes out to the network. `wallet` remembers
+which addresses it has handed out — over `bip44`, over `descriptors` or
+over a script template of its own — and its key wallets sign for one with
 `ecc.bms`.
 `bip322` is the other message signing, and it is at the top rather than
 beside `ecc.bms` because it needs everything below it: a script, a
-transaction, a psbt and the engine that runs them.
+transaction, a psbt and the engine that runs them. `bip85` derives the
+entropy behind another wallet's seed from one root key, and is up here
+because a BIP39 sentence and a WIF are two of the formats it hands
+back.
 
 The rpc client `fetch` speaks through is not in that stack: it is
 [bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a

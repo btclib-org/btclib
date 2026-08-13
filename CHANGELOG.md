@@ -1300,6 +1300,35 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **BIP85 deterministic entropy from a BIP32 keychain** (issue #644), as
+  `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
+  fully hardened path off a root key, then
+  `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
+  key -- and it answers for any path, including the applications no
+  function here formats. Four of them are formatted:
+  `mnemonic_from_root_key` (39', BIP85's ten languages and all five
+  sentence lengths of its Words Table), `wif_from_root_key` (2', the
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32') and
+  `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
+  which hands back the bytes).
+
+  The module is at the top level rather than under `btclib/bip32/`, for
+  the reason `bip44` and `slip132` are: the applications need `b58` for a
+  WIF and `mnemonic.bip39` for a sentence, and both of those import
+  `bip32`, which may not import them back. What is left out is the rest
+  of the BIP, and the line is BIP85-DRNG-SHAKE256: 707764' and 707785'
+  are a base64 and a base85 slice of the same 64 bytes, while 828365'
+  (RSA) and 89101' (dice) read a stream seeded with them rather than the
+  bytes themselves.
+
+  Two of BIP85's own fields are not what their name reads as, and
+  `tests/bip85_test.py` says so where it asserts them: application 32'
+  prints its *private key* half as DERIVED ENTROPY, the chain code being
+  the first half that the BIP32 order would have put the key in, and 39'
+  prints the entropy already truncated to what the sentence encodes. The
+  vectors are transcribed into `tests/_data/bip85_test_vectors.json` and
+  pinned in `tests/_data/README.md`.
+
 - **the point-arithmetic variants of `curve_group` and `curve_group_2` are
   private** (issue #728). Eighteen names in the first and six in the
   second: `_mult_aff`, `_mult_jac`, `_mult_base_3`, `_mult_mont_ladder`,
