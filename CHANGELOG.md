@@ -2660,6 +2660,31 @@ documented at release-notes length in the first place, and are still in
   `checksum()` runs on every descriptor parse and serialization and the
   fix is a net simplification, not because the polymod loop is the actual
   cost and a different algorithm.
+- **`_split_arguments` stops at the delimiters instead of reading every
+  character** (issue #786). `for i, char in enumerate(arguments)` brought
+  the whole descriptor into bytecode where five characters decide
+  anything, and `re.finditer` over `[(){},]` skips the rest in C. Same
+  splits, same refusal of an unbalanced bracket, same message, and the
+  key origin brackets still uncounted on purpose.
+
+  What makes it worth more than one scan of one string is `_parse_tree`
+  above it: a tr() branch is split, and each of its branches is split
+  again, so a character near a leaf is read once per level above it.
+  Measured against `98931dd1` on Python 3.14.6, best of 15 alternating
+  rounds, order of the two sides alternating too, with a case that
+  parses nothing as the noise detector:
+
+  | | per character | delimiters | |
+  | --- | ---: | ---: | ---: |
+  | `_split_arguments`, the 5000-deep tree | 7436 us | 2324 us | **3.20x** |
+  | `parse`, the same tree (refused at 129) | 1.106 s | 0.452 s | **2.45x** |
+  | `parse`, a tree at the depth bound | 17.27 us | 8.49 us | **2.03x** |
+  | `parse`, a plain `wpkh` | 43.96 us | 41.42 us | 1.06x |
+  | control, `hash256` | 0.78 us | 0.76 us | 1.02x |
+
+  A descriptor with no tree in it is one call over a short string and
+  does not move; the trees `tests/descriptors/descriptors_test.py`
+  bounds at `taproot.MAX_TREE_DEPTH` are what the factor is for.
 
 ### Wallets
 

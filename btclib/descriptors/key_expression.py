@@ -58,6 +58,11 @@ __all__ = ["KeyExpression", "PrvKeys"]
 
 _FINGERPRINT = re.compile(r"[0-9a-fA-F]{8}")
 _HEX = re.compile(r"[0-9a-fA-F]*")
+# what `_split_arguments` stops at, compiled once here rather than
+# handed to `re.finditer` as a pattern string per call: the cache that
+# would answer for it is a dict lookup on that string, which a function
+# called once per branch of a tr() tree makes for nothing
+_DELIMITERS = re.compile(r"[(){},]")
 
 # what `parse` hands back beside the descriptor, and what expansion takes
 # when a hardened step needs it: the extended private key each extended
@@ -303,16 +308,22 @@ def _split_arguments(arguments: str) -> list[str]:
     depth = 0
     start = 0
     result = []
-    for i, char in enumerate(arguments):
+    # the loop is over the delimiters and not over the string: every
+    # other character decides nothing, and `re` skips them in C. What
+    # makes that worth writing is the recursion above -- `_parse_tree`
+    # splits a branch and splits each of its branches again, so a
+    # character deep in a tr() tree is walked once per level above it
+    for match in _DELIMITERS.finditer(arguments):
+        char = match[0]
         if char in "({":
             depth += 1
         elif char in ")}":
             depth -= 1
             if depth < 0:
                 raise BTClibValueError(f"unbalanced brackets: {arguments}")
-        elif char == "," and depth == 0:
-            result.append(arguments[start:i])
-            start = i + 1
+        elif depth == 0:  # a comma, the only other character matched
+            result.append(arguments[start : match.start()])
+            start = match.end()
     if depth:
         raise BTClibValueError(f"unbalanced brackets: {arguments}")
     result.append(arguments[start:])
