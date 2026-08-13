@@ -48,6 +48,7 @@ from btclib.curves.curve_group import (
     _multi_mult,
 )
 from btclib.curves.curve_group_2 import (
+    _double_mult_endomorphism_secp256k1,
     _double_mult_w_NAF,
     _mult_endomorphism_secp256k1,
 )
@@ -551,11 +552,13 @@ def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) ->
     )
 
 
-# the widths mult and double_mult hand the two variants below them; the
+# the widths mult and double_mult hand the variants below them; the
 # measurement behind each is in the docstring of the function it is passed
-# to, and they are two constants rather than one because they are two
-# algorithms: a window of the GLV endomorphism's half-length scalars is
-# not a window of an interleaved wNAF's full-length ones
+# to, and they are two constants rather than one because what a window is
+# measured on is the length of the scalars in it: the GLV endomorphism's
+# halves take the first, whether one coefficient was split into two of
+# them or two into four, and an interleaved wNAF's full-length
+# coefficients take the second
 _ENDOMORPHISM_W = 4
 _DOUBLE_MULT_W = 4
 
@@ -604,6 +607,41 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     return ec.aff_from_jac(R)
 
 
+def _double_mult_python(
+    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve
+) -> JacPoint:
+    """Return u*HJ + v*QJ in Python, through the endomorphism if there is one.
+
+    The arm `double_mult` and `_jac_double_mult` share, so that one place
+    decides which double multiplication a curve gets and both reach the
+    same one. On secp256k1 that is the GLV split of both coefficients,
+    which is to `_double_mult_w_NAF` what `_mult_endomorphism_secp256k1`
+    is to `_mult`: the same answer for ~128 doublings instead of ~256.
+
+    Dispatched on the curve having the endomorphism, not on
+    `_libsecp256k1_applicable` -- the same test today, and not the same
+    question. `mult` says why at length: patching the bindings off is how
+    python_path_test.py holds them against the Python arithmetic, and a
+    dispatch spelled the other way would answer that test with the generic
+    interleaved wNAF every other curve runs instead of with secp256k1's
+    own fastest path.
+
+    Which makes this the second curve comparison of the call, the guard
+    above having asked `_libsecp256k1_applicable` the first: 0.394 us on a
+    curve that is not secp256k1, the frame and `Curve.__eq__`'s two
+    _eq_key tuples together, where the identical object short-circuits on
+    identity. That is 8% of a low-cardinality double multiplication and
+    two tenths of a second of the suite, spent for the same reason
+    _double_mult_w_NAF spends about 3 us a call there: what the saving
+    would buy is a fraction of a second, and what it would cost is a
+    second copy of the dispatch, one per caller, free to drift. `mult`
+    makes the same two comparisons for the same reason.
+    """
+    if ec == secp256k1:
+        return _double_mult_endomorphism_secp256k1(u, HJ, v, QJ, ec, _ENDOMORPHISM_W)
+    return _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
+
+
 def double_mult(
     u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
 ) -> Point:
@@ -623,7 +661,7 @@ def double_mult(
 
     HJ = _jac_from_aff(H)
     QJ = _jac_from_aff(Q)
-    R = _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
+    R = _double_mult_python(u, HJ, v, QJ, ec)
     return ec.aff_from_jac(R)
 
 
@@ -654,7 +692,7 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     caller's own mod_inv(1) on the way back out, 0.14 us.
     """
     if not _libsecp256k1_applicable(ec, None):
-        return _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
+        return _double_mult_python(u, HJ, v, QJ, ec)
 
     R = double_mult(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
     return _jac_from_aff(R)

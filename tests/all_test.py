@@ -355,6 +355,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         (curve_group, "_cached_multiples"),
         (curve_group, "_jac_from_aff"),
         (curve_group, "_multiples"),
+        (curve_group_2, "_double_mult_endomorphism_secp256k1"),
         (curve_group_2, "_mult_endomorphism_secp256k1"),
         (curve_group_2, "_mult_sliding_window"),
         (curve_group_2, "_mult_w_NAF"),

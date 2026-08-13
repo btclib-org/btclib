@@ -1226,6 +1226,48 @@ documented at release-notes length in the first place, and are still in
   `mod_sqrt` squares back to compare with a is the same question the
   symbol was asked. The non-square half of its inputs pays that squaring
   and an exception in place of the symbol, and measures the same 78 us.
+- **The Python `double_mult` splits both coefficients through the GLV
+  endomorphism on secp256k1**. `mult` has had algorithm 3.77 since the
+  endomorphism went in, and `double_mult` did not: it ran two full-length
+  interleaved wNAFs where the single multiplication ran two 128-bit
+  halves. `_double_mult_endomorphism_secp256k1` splits both coefficients
+  and hands the four halves to the interleaved wNAF that already shares
+  one doubling per bit position among any number of scalars, so ~256
+  doublings become ~128, at the price of two more tables of odd multiples
+  and the two field multiplications the endomorphism's images cost.
+  0.812 ms against 1.024, measured over 30 random pairs of 256-bit
+  coefficients in alternating rounds; w=4 as before, w=5 measuring the
+  same and the smaller table deciding.
+
+  The interleaved wNAF and not the regular windows, which is the choice
+  `mult` makes the other way round: a verification's coefficients are
+  public, where a `mult`'s scalar is a private key or a nonce, and the
+  regular form exists to spend 16% for a cost that does not vary with the
+  secret.
+
+  Who sees it is every secp256k1 double multiplication the bindings do not
+  answer, which is what the Python path is: a zero coefficient or an
+  infinity, and -- with the bindings patched off, the way the suite holds
+  them against the Python arithmetic -- every verification of the curve.
+  The suite spends 1.839 s there against 2.386 s, the two measured on one
+  tree over the same 2498 calls. The other three catalogued curves with the endomorphism,
+  secp160k1, secp192k1 and secp224k1, are not given one: their lattice
+  basis would have to be computed rather than secp256k1's reused, and
+  measured over the suite they make no Python `double_mult` call at all.
+
+  What it cost is one dispatch, `curve._double_mult_python`, shared by
+  `double_mult` and `_jac_double_mult` so that one place decides which
+  double multiplication a curve gets. It tests the curve rather than
+  asking `_libsecp256k1_applicable`, the same test today and not the same
+  question: the bindings patched off must leave the endomorphism arm
+  standing, or the suite would be comparing them against the generic
+  double-and-add of every other curve. That is a second `Curve.__eq__` per
+  call, 0.394 us where the curve is not secp256k1 -- 8% of a
+  low-cardinality double multiplication, two tenths of a second of the
+  suite, and the alternative is a copy of the dispatch per caller.
+  `_endomorphism_split_secp256k1` is the decomposition and the sign
+  handling, extracted so that the two multiplications share them rather
+  than each carrying a copy.
 
 - **The bits a digit holds are counted in integers** (issue #759).
   `bin_str_entropy_from_rolls` and `collect_rolls` computed
