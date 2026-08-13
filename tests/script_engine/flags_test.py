@@ -33,7 +33,8 @@ def flags_named_in_the_engine() -> set[str]:
     for path in sorted(ENGINE_DIR.glob("*.py")):
         if path.name == "flags.py":
             continue  # where they are defined, not where they are checked
-        names |= set(re.findall(r"ScriptFlag\.([A-Z0-9_]+)", path.read_text()))
+        source = path.read_text(encoding="utf-8")
+        names |= set(re.findall(r"ScriptFlag\.([A-Z0-9_]+)", source))
     return names
 
 
