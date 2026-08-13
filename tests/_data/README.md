@@ -144,8 +144,12 @@ alternative and caps out — `script_assets_test.json` is 9 MB.
 
 The two hashes match for every file whose verdict is **identical**. Where
 upstream is CRLF they cannot, this repository being LF throughout, and the
-entry says so with our own blob alongside: `bip340_test_vectors.csv` is
-the one case.
+entry says so with our own blob alongside. Every csv file vendored from
+bitcoin/bips is that case, and so far only those: `bip340_test_vectors.csv`,
+the two BIP324 files and the two BIP374 files. A csv there is written on
+Windows line endings often enough that it is worth expecting rather than
+discovering -- `mixed-line-ending` rewrites the file with `--fix=lf` as it
+is staged, so the blob to compare is never the one just fetched.
 
 ## bitcoin/bips
 
@@ -412,12 +416,15 @@ pulled  2026-08-13
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. All 11 vectors, all eight columns: five over a
-generator that is not secp256k1's, three over secp256k1's own, and three
-failure cases -- a zero scalar, a scalar equal to n, and a B at
-infinity, which the file spells `INVALID` in the proof column and
-`INFINITY` in the point column. Unlike the two csv files above this one
-is LF upstream, so the blob comparison is the plain one.
+Verdict: **identical but for line endings** — upstream is CRLF and this
+repository is LF throughout, which `mixed-line-ending` enforces with
+`--fix=lf`, so our blob is `78d78704` rather than the one above, the same
+exception `bip340_test_vectors.csv` above documents.
+
+All 11 vectors, all eight columns: five over a generator that is not
+secp256k1's, three over secp256k1's own, and three failure cases -- a zero
+scalar, a scalar equal to n, and a B at infinity, which the file spells
+`INVALID` in the proof column and `INFINITY` in the point column.
 
 ### `tests/ecc/_data/test_vectors_verify_proof.csv`
 
@@ -430,12 +437,15 @@ pulled  2026-08-13
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. All 15 vectors: the eight successes are the eight
-proofs of the file above, read back, and the seven failures are five
-permutations of A, B and C, a bit flipped in the proof, and a bit flipped
-in the message -- so the pair covers both directions over one set of
-keys, and a permutation the challenge would have accepted is a defect the
-generation file alone could not show.
+Verdict: **identical but for line endings**, the same exception, our blob
+`4ffe455a` rather than the one above.
+
+All 15 vectors: the eight successes are the eight proofs of the file
+above, read back, and the seven failures are five permutations of A, B and
+C, a bit flipped in the proof, and a bit flipped in the message -- so the
+pair covers both directions over one set of keys, and a permutation the
+challenge would have accepted is a defect the generation file alone could
+not show.
 
 Three BIP374 failure conditions have no vector in either file and are
 covered by `tests/ecc/dleq_test.py` instead: `s >= n`, and R1 or R2
@@ -1993,12 +2003,13 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, the eight BIP327 vector files, the two
-  BIP374 vector files, and the Wycheproof vector files.
+  `bip39_test_vectors.json`, the eight BIP327 vector files, and the
+  Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
-- identical but for CRLF against LF: `bip340_test_vectors.csv` and the
-  two BIP324 vector files.
+- identical but for CRLF against LF: `bip340_test_vectors.csv`, the two
+  BIP324 vector files and the two BIP374 vector files -- every csv
+  vendored from bitcoin/bips, so far.
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
   `test_JP_BIP39.json`.
