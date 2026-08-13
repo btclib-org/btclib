@@ -58,10 +58,11 @@ def _assert_valid_modulus(m: int) -> None:
 
 # every public function here checks its own arguments, rather than five
 # private twins doing the work unchecked for the ones that call each
-# other: a pair of isinstance calls is a fraction of a percent of the
-# arithmetic it stands in front of, an inverse modulo a 256-bit prime
-# being an extended Euclid, so the re-checking mod_sqrt does through
-# tonelli and legendre_symbol costs less than five more names would
+# other: a pair of isinstance calls is a small fraction of the arithmetic
+# it stands in front of, an inverse modulo a 256-bit prime being an
+# extended Euclid even when C runs it, so the re-checking mod_sqrt does
+# through tonelli and legendre_symbol costs less than five more names
+# would
 
 
 def xgcd(a: int, b: int) -> tuple[int, int, int]:
@@ -85,20 +86,29 @@ def mod_inv(a: int, m: int) -> int:
 
     m does not have to be a prime.
 
-    Based on Extended Euclidean Algorithm, see:
-    - https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+    `pow(a, -1, m)` is an Extended Euclidean Algorithm too -- CPython's
+    `long_invmod`, which is the loop `xgcd` runs with the second cofactor
+    dropped -- so this delegates the same algorithm to C rather than
+    interpreting it, and that is the whole of why it is called. It is not
+    a constant-time inverse and neither was the bytecode one; SECURITY.md
+    publishes the Python path as variable-time.
+
+    What `pow` does not carry is this module's contract, so the checks
+    stay above it and the message below it: a non-invertible operand
+    leaves `pow` as a bare `ValueError` naming neither operand, and
+    rebuilding the message says more than chaining that one would.
     """
     _assert_valid_operand(a)
     _assert_valid_modulus(m)
-    a %= m
-    g, x, _ = xgcd(a, m)
-    if g == 1:
-        return x % m
-    err_msg = "no inverse for "
-    err_msg += f"{hex_string(a)}" if a > 0xFFFFFFFF else f"{a}"
-    err_msg += " mod "
-    err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
-    raise BTClibValueError(err_msg)
+    try:
+        return pow(a, -1, m)
+    except ValueError:
+        a %= m
+        err_msg = "no inverse for "
+        err_msg += f"{hex_string(a)}" if a > 0xFFFFFFFF else f"{a}"
+        err_msg += " mod "
+        err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
+        raise BTClibValueError(err_msg) from None
 
 
 def legendre_symbol(a: int, p: int) -> int:

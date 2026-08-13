@@ -1174,6 +1174,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`mod_inv` delegates its extended Euclid to CPython** (issue #779).
+  `pow(a, -1, m)` is `long_invmod`, the same algorithm `xgcd` runs with
+  the second cofactor dropped -- CPython carries that loop as a comment
+  above the C -- so the inverse is no longer interpreted a division step
+  at a time. Modulo secp256k1's `p` or `n` it is 2.5x, and modulo a
+  low-cardinality curve's order 5.8x, measured in alternating rounds
+  against `pow(v, 3, m)` as the case the change cannot touch. Where that
+  shows is affine arithmetic, which pays one inverse per addition:
+  `_mult_aff` on secp256r1 went from 5178 us to 2184 us. The Jacobian
+  path pays one at the end of a multiplication and moves 3%, and
+  secp256k1 with sha256 and a library nonce does not move at all, never
+  reaching this function.
+
+  Nothing about the properties changed: both spellings are variable-time
+  and branch on the operand, which `SECURITY.md` publishes about the
+  Python path. safegcd would be the constant-time answer and is the wrong
+  trade here -- in bytecode its 256 divsteps lose to one C call, the
+  batching into 62-bit transition matrices being what makes it fast in
+  libsecp256k1 and what its own document declines to explain; and
+  `_mult_aff`, `_mult_jac` and the wNAF branch on the scalar anyway, so a
+  constant-time inverse would close one leak of several and cost speed.
+
+  What `pow` does not carry is this module's error contract, so the two
+  validations stay and the refusal is rebuilt rather than chained: a
+  non-invertible operand is a bare `ValueError` naming neither operand,
+  where `mod_inv` names both in hex; a modulus of zero is another one,
+  which `except BTClibValueError` does not catch; a negative modulus
+  `pow` accepts, answering a negative residue; and a bool reaches it as
+  the integer it subclasses. `xgcd` is unchanged, still exported and
+  still tested as the Bezout identity it is named after -- it stops
+  being what `mod_inv` is built on, and stays what it was.
+
 - **The bits a digit holds are counted in integers** (issue #759).
   `bin_str_entropy_from_rolls` and `collect_rolls` computed
   `math.floor(math.log2(dice_sides))`, which is exact until `2**49 - 1`:
@@ -2780,6 +2812,26 @@ documented at release-notes length in the first place, and are still in
   rules prints until a length is named.
 
 ### Tests
+
+- **Every test that reads a source file names its encoding.** Four
+  `read_text()` calls took the locale's, which is UTF-8 on the runners this
+  suite is usually read on and cp1252 on the Windows ones: the walk in
+  `input_validation_test.py` parses every module under `btclib/`, one of
+  them has a typographic quote in a docstring, and 0x9d is a byte cp1252
+  maps to nothing. Twelve of the fourteen Windows cells therefore ended in
+  a collection error with every other test passed, and the two that did not
+  are the PyPy ones, which collected the module and ran its 132 tests: what
+  a locale answers is the interpreter's to decide, which is the argument for
+  never asking it. The pair in
+  `input_validation_test.py`, `flags_test.py`'s engine scan and
+  `hwi_test.py`'s recorded argv now all pass `encoding="utf-8"`. Nothing
+  else in `btclib`, `tests` or `.github/scripts` opens a file without
+  one, measured with a rule ruff has in preview:
+
+  ```shell
+  uv run ruff check --isolated --preview --select PLW1514 \
+      btclib tests .github/scripts
+  ```
 
 - **`python_path_test.py` leaves the arithmetic delegated.** It patches
   the bindings off for `dsa` and `ssa`, which is what puts the Python
