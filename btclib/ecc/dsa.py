@@ -14,8 +14,10 @@ normalizing is the signer's job. Verification and recovery take both
 forms and offer no flag to refuse either -- which form s carries was
 decided by whoever signed, and refusing one refuses a signature that
 signer was free to make. The rule survives where it belongs: in ``sign``,
-in the script engine's own flags, and in the leading-underscore functions
-a test asks for it with.
+in the script engine's own flags, and in the leading-underscore workers
+under verification and recovery, which keep it as their default and are
+told ``lower_s=False`` by the public functions above them. A test that
+wants the strict answer calls one of those and passes nothing.
 
 ``sign`` also grinds for a low-R signature -- one byte shorter in DER --
 by default, as Core does; ``_grind_low_r`` is the loop and says why. Its
@@ -762,9 +764,16 @@ def sign_recoverable(
 
 
 def _assert_as_valid_(
-    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool = True
 ) -> None:
-    # Private function for test/dev purposes
+    # Private function for test/dev purposes.
+    #
+    # lower_s defaults to the rule, as every default of this flag in this
+    # module does: the canonical form is what the library prefers, and a
+    # caller that wants the other one says so. Here that caller is
+    # `assert_as_valid_` above, and it says `lower_s=False` in so many
+    # words -- so where the rule is dropped is readable at the call site
+    # rather than left to a default nobody sees
 
     if lower_s and s > ec.n // 2:
         raise BTClibValueError("not a low s")
@@ -881,8 +890,11 @@ def assert_as_valid_(
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
     Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
-    # second part delegated to helper function
-    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec)
+    # second part delegated to helper function, `lower_s=False` being
+    # this function's answer about a high s: the private worker keeps the
+    # rule as its default, and dropping it is said here rather than
+    # arranged there
+    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec, lower_s=False)
 
 
 def assert_as_valid(
@@ -1089,7 +1101,7 @@ def anti_exfil_host_verify(
 
 
 def _recover_pub_keys_(
-    c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    c: int, r: int, s: int, ec: Curve, *, lower_s: bool = True
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
@@ -1166,12 +1178,14 @@ def recover_pub_keys_(
             # arrives as the BTClibValueError _libsecp256k1_recover_sec_
             # maps it to
             with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-                keys.append(_libsecp256k1_recover_point_(key_id, msg_hash, sig))
+                keys.append(
+                    _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
+                )
         return keys
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec)
+    QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec, lower_s=False)
     return [sig.ec.aff_from_jac(QJ) for QJ in QJs]
 
 
@@ -1187,7 +1201,7 @@ def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list
 
 
 def _recover_pub_key_(
-    key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool = False
+    key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool = True
 ) -> JacPoint:
     # Private function provided for testing purposes only.
 
@@ -1241,7 +1255,7 @@ def _recover_pub_key_(
 
 
 def _libsecp256k1_recover_sec_(
-    key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool = False
+    key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool = True
 ) -> bytes:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1258,13 +1272,13 @@ def _libsecp256k1_recover_sec_(
     # equation by construction, and a candidate whose x-coordinate is not
     # on the curve is the failure caught below.
     #
-    # The lower-s rule is checked here and not there, and only when asked
-    # for: the recoverable parser takes any s in [1, n-1], as it must, a
-    # malleated signature recovering a key too. Nothing in the public
-    # surface asks -- which form s took was the signer's choice -- so this
-    # is the private spelling of the same question _assert_as_valid_
-    # answers with this very message, and it exists so that the two
-    # implementations of the step can be held to one answer under it
+    # The lower-s rule is checked here and not there: the recoverable
+    # parser takes any s in [1, n-1], as it must, a malleated signature
+    # recovering a key too. It is this function's default and every public
+    # caller turns it off -- which form s took was the signer's choice --
+    # so what the flag is for is holding the two implementations of the
+    # step to one answer, the same question _assert_as_valid_ answers with
+    # this very message
     if lower_s and sig.s > sig.ec.n // 2:
         raise BTClibValueError("not a low s")
 
@@ -1293,7 +1307,7 @@ def _libsecp256k1_recover_sec_(
 
 
 def _libsecp256k1_recover_point_(
-    key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool = False
+    key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool = True
 ) -> Point:
     # Private function: the caller has asked _libsecp256k1_applicable
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
@@ -1344,11 +1358,11 @@ def recover_pub_key_(
     # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
     # -- passing it would need ec.p ≡ 0 mod ec.n
     if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
-        return _libsecp256k1_recover_point_(key_id, msg_hash, sig)
+        return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
-    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec)
+    QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec, lower_s=False)
     return sig.ec.aff_from_jac(QJ)
 
 

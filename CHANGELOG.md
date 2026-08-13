@@ -730,12 +730,16 @@ documented at release-notes length in the first place, and are still in
   `STANDARD_SCRIPT_VERIFY_FLAGS` (`src/policy/policy.h`), so one inside a
   transaction is non-standard and does not relay. `sign` therefore keeps
   `lower_s=True`, which is where the rule belongs, and the script engine
-  keeps reading it off its own flags. Asking a verifier for it is what the
-  leading-underscore functions are for -- `_assert_as_valid_`,
+  keeps reading it off its own flags. The strict answer is what the
+  leading-underscore workers give -- `_assert_as_valid_`,
   `_recover_pub_key_`, `_recover_pub_keys_` and the two
-  `_libsecp256k1_recover_*` -- each taking `lower_s: bool = False`
-  keyword-only, so the strict answer is asked for rather than assumed, and
-  the bindings path and the Python path can be held to one answer under it.
+  `_libsecp256k1_recover_*` -- each taking `lower_s: bool = True`
+  keyword-only, as every default of this flag in the module is `True`: the
+  canonical form is the library's preference, and the public functions
+  above them say `lower_s=False` in so many words, so where the rule is
+  dropped is readable at the call site instead of arranged by a default
+  nobody sees. Having it there at all is what lets the bindings path and
+  the Python path be held to one answer under the rule.
   A trailing underscore does not enter into it: those functions are public,
   offered beside the plain name so a caller can skip work already paid, and
   a keyword on one and not the other would make them two functions instead

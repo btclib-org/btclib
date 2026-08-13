@@ -31,8 +31,9 @@ full year, short month, short day (YYYY-M-D)
   the `True` default refused and what Bitcoin Core's `verifymessage`
   always accepted -- whether `s` is the low one of the two was decided by
   whoever signed. A caller that does want the strict answer asks a private
-  function for it: `dsa._assert_as_valid_(c, QJ, r, s, ec,
-  lower_s=True)`. `dsa.sign` is unchanged, `lower_s=True` and all, the
+  function for it, where it is the default:
+  `dsa._assert_as_valid_(c, QJ, r, s, ec)`. `dsa.sign` is unchanged,
+  `lower_s=True` and all, the
   rule being the signer's: a high-s signature in a transaction is
   non-standard and does not relay.
 - **an ECDSA signature is low-R now, and signing with your own nonce asks

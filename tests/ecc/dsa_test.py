@@ -299,9 +299,15 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                     recovered = []
                     for key_id in range(2 * (ec.cofactor + 1)):
                         # a candidate x_K off the curve, or a key that
-                        # does not verify, is "not this key_id"
+                        # does not verify, is "not this key_id".
+                        # lower_s=False, the signatures here being built
+                        # from the equation rather than by `sign`: half of
+                        # them carry the high s, and this is about which
+                        # key_id recovers the signer
                         try:
-                            QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
+                            QJ = dsa._recover_pub_key_(
+                                key_id, e, r, s, ec, lower_s=False
+                            )
                         except (BTClibValueError, BTClibRuntimeError):
                             continue
                         recovered.append((key_id, ec.aff_from_jac(QJ)))
@@ -312,7 +318,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                     assert all(key_id >> 1 == 1 for key_id in key_ids)
 
                     # and the plural is that range, less what dropped out
-                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec)
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=False)
                     assert [ec.aff_from_jac(QJ) for QJ in jac_keys] == [
                         Q_ for _, Q_ in recovered
                     ]
@@ -356,8 +362,10 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
                     continue
                 key_ids = []
                 for key_id in range(2 * (ec.cofactor + 1)):
+                    # lower_s=False, as above: s is whatever the equation
+                    # gave, and the question is the key_id
                     try:
-                        QJ = dsa._recover_pub_key_(key_id, e, r, s, ec)
+                        QJ = dsa._recover_pub_key_(key_id, e, r, s, ec, lower_s=False)
                     except (BTClibValueError, BTClibRuntimeError):
                         continue
                     if ec.aff_from_jac(QJ) == Q:
@@ -426,7 +434,7 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, ec)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -437,7 +445,7 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, ec)
 
 
 def test_sign_input_type() -> None:
@@ -866,7 +874,7 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
             assert _recovered(key_id ^ 1, msg, malleated) == Q
 
 
-def test_the_low_s_rule_is_asked_for_and_not_assumed(
+def test_the_low_s_rule_is_the_default_the_public_surface_turns_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Where the strict rule lives once the public surface drops it (issue 695).
@@ -874,9 +882,14 @@ def test_the_low_s_rule_is_asked_for_and_not_assumed(
     The rule is not gone: `SCRIPT_VERIFY_LOW_S` is in Core's
     `STANDARD_SCRIPT_VERIFY_FLAGS`, so a high-s signature inside a
     transaction is non-standard and does not relay, and `sign` normalizes
-    for that reason. What is gone is a verifier refusing one -- so the
-    strict answer is what a leading-underscore function gives when asked
-    for it, `lower_s=False` being the default there too.
+    for that reason. What is gone is a *verifier* refusing one -- so the
+    rule is what every leading-underscore worker under verification and
+    recovery does by default, and `lower_s=False` at the public call sites
+    above them is where it is dropped.
+
+    Which is why nothing here passes the keyword: these calls are the
+    default, and a default flipped the other way would make every one of
+    them answer instead of raise.
 
     Both implementations of the recovery are asked, being one step written
     twice: the bindings answer the named candidate and the Python path
@@ -897,28 +910,28 @@ def test_the_low_s_rule_is_asked_for_and_not_assumed(
     assert dsa.verify(msg, Q, malleated)
     assert dsa.recover_pub_key(key_id ^ 1, msg, malleated) == Q
 
-    # and every private spelling refuses it when told to
+    # and every private spelling refuses it, left to its default
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._assert_as_valid_(c, QJ, malleated.r, malleated.s, secp256k1, lower_s=True)
+        dsa._assert_as_valid_(c, QJ, malleated.r, malleated.s, secp256k1)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._libsecp256k1_recover_point_(key_id ^ 1, msg_hash, malleated, lower_s=True)
+        dsa._libsecp256k1_recover_point_(key_id ^ 1, msg_hash, malleated)
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._recover_pub_key_(
-            key_id ^ 1, c, malleated.r, malleated.s, secp256k1, lower_s=True
-        )
+        dsa._libsecp256k1_recover_sec_(key_id ^ 1, msg_hash, malleated, compressed=True)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa._recover_pub_key_(key_id ^ 1, c, malleated.r, malleated.s, secp256k1)
     # the enumeration drops a candidate that fails rather than report it,
     # so there the same refusal is an empty list: every one of the four
     # fails the one rule at once
-    assert (
-        dsa._recover_pub_keys_(c, malleated.r, malleated.s, secp256k1, lower_s=True)
-        == []
-    )
+    assert dsa._recover_pub_keys_(c, malleated.r, malleated.s, secp256k1) == []
 
     # the signature as signed passes the strict rule on both paths, which
     # is what says the refusals above are about the malleation and not
     # about the arguments being threaded wrongly
-    dsa._assert_as_valid_(c, QJ, sig.r, sig.s, secp256k1, lower_s=True)
-    assert dsa._libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=True) == Q
+    dsa._assert_as_valid_(c, QJ, sig.r, sig.s, secp256k1)
+    assert dsa._libsecp256k1_recover_point_(key_id, msg_hash, sig) == Q
+    assert dsa._libsecp256k1_recover_sec_(
+        key_id, msg_hash, sig, compressed=True
+    ) == bytes_from_point(Q)
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
         assert dsa.recover_pub_key(key_id, msg, sig) == Q
