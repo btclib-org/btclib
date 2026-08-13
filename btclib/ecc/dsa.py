@@ -788,7 +788,14 @@ def _assert_as_valid_(
         err_msg = "invalid (INF) key"
         raise BTClibRuntimeError(err_msg)
 
-    # affine x_K-coordinate of K
+    # affine x_K-coordinate of K, and the inversion stays. Comparing
+    # r*Z^2 with KJ[0] instead is libsecp256k1's `secp256k1_gej_eq_x_var`,
+    # one squaring and one product against an extended Euclid, over the
+    # field elements that reduce to r -- one candidate where n is above
+    # p/2 and more where the cofactor makes room. It measures 1.00x here:
+    # the bindings hand back a point whose Z is 1, so the inversion this
+    # path pays is of one, and where the multiplication is Python's it is
+    # 8.8 us of a verification that is 1148
     x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
     # Fail if r ≠ x_K %n.
     if r != x_K % ec.n:  # 6, 7, 8

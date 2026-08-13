@@ -48,15 +48,45 @@ follow-ups; what is here is the rest:
         - https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
         - 1-s_2.0-S1071579704000395-main (the file name it was saved as; the
           paper it refers to has not been identified)
-    - Peter Dettman's field inverses and square roots, a sliding window over
-      blocks of 1s:
-
-        - https://briansmith.org/ecc-inversion-addition-chains-01
     - Joint sparse form (JSF, HMV algorithm 3.50) for double mult: the
       alternative to the interleaving _double_mult_w_NAF implements --
       one joint recoding of both scalars instead of one NAF each, fewer
       total additions in exchange for digit pairs that do not index a
       per-point table of odd multiples
+
+Measured against libsecp256k1 and not taken. Each of these is an algorithm
+that library carries and this one does not, with the number that decided
+it, so that what the next reader has is the result and not the
+measurement to make again. Best of five on secp256k1's p, Python 3.14.6,
+macOS arm64:
+
+    - the field inverse by an addition chain, Peter Dettman's and Brian
+      Smith's, and libsecp256k1's own safegcd beside them:
+      `pow(a, -1, p)` is 8.3 us, being CPython's extended Euclid in C,
+      where 255 modular squarings in bytecode -- fewer than any chain
+      needs -- are 61 us. `pow(a, p - 2, p)` is 74.7 us, which is why
+      `mod_inv` does not spell Fermat either:
+
+        - https://briansmith.org/ecc-inversion-addition-chains-01
+    - fast reduction for a pseudo-Mersenne p: `x % p` is 0.162 us and the
+      Solinas form for `2^256 - 2^32 - 977`, two products by a 33-bit
+      constant and a conditional subtraction, is 0.193. CPython's
+      division is C, and 512 bits by 256 is small
+    - limbs with delayed reduction, libsecp256k1's 5 by 52 bits and its
+      magnitude tracking: the Python analogue is letting intermediates
+      grow, which `add_jac`'s own comment measured at 2.0x to 3.0x the
+      wrong way -- an integer costs what its size costs
+    - a separate squaring routine: CPython's long_mul already takes the
+      squaring path when both operands are the same object, `a*a % p`
+      being 0.226 us against the 0.247 of `a*b % p`
+    - the masked table lookup of `secp256k1_ecmult_table_get_ge`, which
+      reads every entry of a table under a cmov: a list index is a list
+      index
+    - the square root by an addition chain is the one of these that
+      measures positive and is still not here: `pow(a, (p + 1) // 4, p)`
+      is 73.6 us against the 63.6 of libsecp256k1's chain, which is 1.16x
+      for some twenty lines holding for secp256k1's p alone, on a
+      function a point decompression away from these loops
 
 """
 
