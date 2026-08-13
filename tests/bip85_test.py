@@ -18,9 +18,11 @@ name reads:
 - for application 39' it is the entropy already truncated to what the
   sentence encodes, so 16, 24 and 32 bytes rather than 64.
 
-The applications btclib does not implement are the reason four of the
-BIP's vector groups are not in that file: BIP85-DRNG, the two password
-encodings, and the dice rolls, which the module docstring accounts for.
+Every vector the BIP publishes is in that file and asserted here. The
+one application with none is RSA, which is the one btclib does not
+generate a key for: what `rsa_drng_from_root_key` hands back is the
+stream the BIP says to feed a key generator, and the assertions below
+reach no further than the path it is seeded from.
 """
 
 from __future__ import annotations
@@ -32,9 +34,15 @@ import pytest
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.bip85 import (
     _LANGUAGE_INDEXES,
+    BIP85DRNG,
+    base64_password_from_root_key,
+    base85_password_from_root_key,
     bytes_entropy_from_root_key,
+    drng_from_der_path,
     entropy_from_der_path,
     mnemonic_from_root_key,
+    rolls_from_root_key,
+    rsa_drng_from_root_key,
     wif_from_root_key,
     xprv_from_root_key,
 )
@@ -205,6 +213,144 @@ def test_a_slip132_root_still_emits_an_xprv() -> None:
     assert xprv_from_root_key(yprv) == xprv_from_root_key(xprv)
 
 
+@pytest.mark.parametrize("vector", **_ids("drng"))
+def test_the_drng_stream(vector: dict[str, Any]) -> None:
+    """BIP85-DRNG-SHAKE256, at the path of the entropy vectors."""
+    drng = drng_from_der_path(_ROOT, vector["path"])
+    assert drng.read(vector["num_bytes"]).hex() == vector["drng"]
+
+
+@pytest.mark.parametrize("vector", **_ids("drng"))
+def test_the_stream_does_not_depend_on_how_it_is_read(
+    vector: dict[str, Any],
+) -> None:
+    """A read is a squeeze of a prefix, so the pieces are the whole.
+
+    Which is what the dice application relies on: it reads one roll at a
+    time, and the rolls have to be the stream a single read of the same
+    length would have given.
+    """
+    whole = bytes.fromhex(vector["drng"])
+    drng = drng_from_der_path(_ROOT, vector["path"])
+    pieces = b"".join(drng.read(n) for n in (1, 0, 31, 48))
+    assert pieces == whole
+    assert len(pieces) == vector["num_bytes"]
+
+
+@pytest.mark.parametrize("vector", **_ids("pwd_base64"))
+def test_base64_password_application(vector: dict[str, Any]) -> None:
+    """Application 707764': all 64 bytes encoded, then sliced."""
+    entropy = entropy_from_der_path(_ROOT, vector["path"])
+    assert entropy.hex() == vector["derived_entropy"]
+
+    pwd = base64_password_from_root_key(_ROOT, vector["pwd_len"])
+    assert pwd == vector["derived_pwd"]
+    assert len(pwd) == vector["pwd_len"]
+
+
+@pytest.mark.parametrize("vector", **_ids("pwd_base85"))
+def test_base85_password_application(vector: dict[str, Any]) -> None:
+    """Application 707785', in the alphabet the BIP's vector is in."""
+    entropy = entropy_from_der_path(_ROOT, vector["path"])
+    assert entropy.hex() == vector["derived_entropy"]
+
+    pwd = base85_password_from_root_key(_ROOT, vector["pwd_len"])
+    assert pwd == vector["derived_pwd"]
+    assert len(pwd) == vector["pwd_len"]
+
+
+def test_a_password_is_a_prefix_of_the_longest_one() -> None:
+    """Only where the length is the same: it is a path level too.
+
+    The slice is of an encoding of the entropy of a path that spells the
+    length, so two lengths are two derivations and not one password cut
+    in two places -- which is what keeps a longer password from
+    disclosing a shorter one.
+    """
+    assert (
+        base64_password_from_root_key(_ROOT, 20)
+        != (base64_password_from_root_key(_ROOT, 86)[:20])
+    )
+    assert (
+        base85_password_from_root_key(_ROOT, 10)
+        != (base85_password_from_root_key(_ROOT, 80)[:10])
+    )
+
+
+@pytest.mark.parametrize("pwd_len", [20, 86])
+def test_the_base64_bounds_are_inclusive(pwd_len: int) -> None:
+    """86 is where the padding of those 64 bytes would start."""
+    pwd = base64_password_from_root_key(_ROOT, pwd_len)
+    assert len(pwd) == pwd_len
+    assert "=" not in pwd
+
+
+@pytest.mark.parametrize("pwd_len", [10, 80])
+def test_the_base85_bounds_are_inclusive(pwd_len: int) -> None:
+    """10 and 80 are the two ends BIP85 states."""
+    assert len(base85_password_from_root_key(_ROOT, pwd_len)) == pwd_len
+
+
+@pytest.mark.parametrize("vector", **_ids("dice"))
+def test_dice_application(vector: dict[str, Any]) -> None:
+    """Application 89101': ten rolls of a six-sided die.
+
+    The vector is what makes the rejection branch load-bearing: a byte
+    whose top three bits are 6 or 7 is no face of a six-sided die, and
+    the ten rolls below are what the stream gives once those are
+    dropped.
+    """
+    rolls = rolls_from_root_key(_ROOT, vector["rolls"], vector["sides"])
+    assert ",".join(str(roll) for roll in rolls) == vector["derived_rolls"]
+    assert all(0 <= roll < vector["sides"] for roll in rolls)
+
+
+@pytest.mark.parametrize("sides", [2, 6, 8, 20, 62, 256, 257])
+def test_a_roll_is_a_face_of_the_die(sides: int) -> None:
+    """Whatever the die, including the powers of two either side of 8.
+
+    `ceil(log2(sides))` is where a float logarithm would put a roll one
+    bit too wide, and a roll too wide is one the rejection above drops
+    far too often rather than a wrong answer -- so the width is asserted
+    through the rolls it produces.
+    """
+    rolls = rolls_from_root_key(_ROOT, 32, sides)
+    assert len(rolls) == 32
+    assert all(0 <= roll < sides for roll in rolls)
+
+
+def test_the_rsa_drng_is_the_stream_of_its_path() -> None:
+    """The path BIP85 allocates, sub-key level included.
+
+    btclib generates no RSA key and the BIP publishes no vector for one,
+    so what is asserted is the derivation: the reader is the one the
+    path seeds, and the four GPG sub-keys are four different streams.
+    """
+    key_bits, key_index = 1024, 0
+    path = f"m/83696968h/828365h/{key_bits}h/{key_index}h"
+    assert rsa_drng_from_root_key(_ROOT, key_bits).read(32) == (
+        drng_from_der_path(_ROOT, path).read(32)
+    )
+
+    streams = {
+        rsa_drng_from_root_key(_ROOT, key_bits, key_index, sub_key).read(32)
+        for sub_key in (0, 1, 2)
+    }
+    assert len(streams) == 3
+    assert rsa_drng_from_root_key(_ROOT, key_bits, key_index, 0).read(32) == (
+        drng_from_der_path(_ROOT, f"{path}/0h").read(32)
+    )
+
+
+def test_the_drng_seed_is_exactly_64_bytes() -> None:
+    """What BIP85 requires of the input, and what read refuses."""
+    with pytest.raises(BTClibValueError, match="invalid size: 32 bytes"):
+        BIP85DRNG(bytes(32))
+
+    with pytest.raises(BTClibValueError, match="invalid number of bytes: -1"):
+        BIP85DRNG(bytes(64)).read(-1)
+
+
 def test_a_public_root_key_is_refused() -> None:
     """Every level is hardened, so there is nothing to derive publicly."""
     xpub = xpub_from_xprv(_ROOT)
@@ -241,6 +387,24 @@ def test_an_application_parameter_outside_its_table() -> None:
 
     with pytest.raises(BTClibValueError, match="invalid number of bytes: 65"):
         bytes_entropy_from_root_key(_ROOT, 65)
+
+    with pytest.raises(BTClibValueError, match="invalid password length: 19"):
+        base64_password_from_root_key(_ROOT, 19)
+
+    with pytest.raises(BTClibValueError, match="invalid password length: 87"):
+        base64_password_from_root_key(_ROOT, 87)
+
+    with pytest.raises(BTClibValueError, match="invalid password length: 9"):
+        base85_password_from_root_key(_ROOT, 9)
+
+    with pytest.raises(BTClibValueError, match="invalid password length: 81"):
+        base85_password_from_root_key(_ROOT, 81)
+
+    with pytest.raises(BTClibValueError, match="invalid number of rolls: 0"):
+        rolls_from_root_key(_ROOT, 0)
+
+    with pytest.raises(BTClibValueError, match="invalid number of sides: 1"):
+        rolls_from_root_key(_ROOT, 10, 1)
 
 
 def test_an_index_no_path_level_can_hold() -> None:

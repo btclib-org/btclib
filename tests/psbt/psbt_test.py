@@ -63,24 +63,11 @@ from btclib.script.taproot import input_script_sig, tree_helper
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
-from tests import load, vector_id
+from tests import load
 from tests.conftest import JsonGolden
+from tests.psbt import psbt_vectors
 
 # first tests are part of the official BIP174 test vectors
-
-
-def psbt_vectors(fname: str, kind: str) -> list[Any]:
-    """Return the `kind` cases of a psbt vector file, named by description.
-
-    The description is the id because a bare "case 7 failed" is not a
-    report: as a test id it is there for free, with no print-and-raise
-    wrapper around the decode and no interpolation into the message of
-    every assert -- and for the cases that pass as well.
-    """
-    return [
-        pytest.param(test_vector, id=vector_id(index, test_vector["description"]))
-        for index, test_vector in enumerate(load("psbt", "_data", fname)[kind], 1)
-    ]
 
 
 @pytest.mark.parametrize(

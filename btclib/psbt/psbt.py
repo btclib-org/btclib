@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import base64
 import secrets
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, fields
 from math import ceil
@@ -227,7 +227,15 @@ def _assert_valid_version(version: int) -> None:
         raise BTClibValueError(f"invalid psbt version: {version}")
 
 
-def _lock_time(inputs: Sequence[PsbtIn], fallback_lock_time: int | None) -> int:
+def _required_lock_times(psbt_in: PsbtIn) -> tuple[int | None, int | None]:
+    """Return the two lock times the input requires, a height and a time."""
+    return psbt_in.required_height_lock_time, psbt_in.required_time_lock_time
+
+
+def _lock_time(
+    required: Iterable[tuple[int | None, int | None]],
+    fallback_lock_time: int | None,
+) -> int:
     """Return the lock time of the transaction these inputs make.
 
     BIP370's "Determining Lock Time", which is the whole of it: with no
@@ -244,55 +252,64 @@ def _lock_time(inputs: Sequence[PsbtIn], fallback_lock_time: int | None) -> int:
     A psbt where one input requires a height and another a time has no
     answer at all, one nLockTime being one number of one kind, and that
     is a psbt this refuses rather than resolves.
+
+    The pairs are `_required_lock_times` of each input, in order, and not
+    the inputs themselves: those two fields are all of an input this
+    answer depends on, so a caller holding one input at a time can stream
+    them past -- which is what `btclib.psbt.psbt_view` does, and what
+    taking a sequence of inputs would have cost it.
     """
-    requiring = [
-        psbt_in
-        for psbt_in in inputs
-        if psbt_in.required_height_lock_time is not None
-        or psbt_in.required_time_lock_time is not None
-    ]
+    requiring = [pair for pair in required if pair != (None, None)]
     if not requiring:
         return fallback_lock_time or 0
 
-    if all(psbt_in.required_height_lock_time is not None for psbt_in in requiring):
+    if all(height is not None for height, _ in requiring):
         # the heights are not None by the test above, which mypy cannot see
-        return max(
-            cast(int, psbt_in.required_height_lock_time) for psbt_in in requiring
-        )
-    if all(psbt_in.required_time_lock_time is not None for psbt_in in requiring):
-        return max(cast(int, psbt_in.required_time_lock_time) for psbt_in in requiring)
+        return max(cast(int, height) for height, _ in requiring)
+    if all(time is not None for _, time in requiring):
+        return max(cast(int, time) for _, time in requiring)
 
     err_msg = "no lock time satisfies every input: "
     err_msg += "a height is required by one and a time by another"
     raise BTClibValueError(err_msg)
 
 
-def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool) -> Tx:
-    """Return the transaction a psbt's fields describe.
+def _tx_in(psbt_in: PsbtIn, *, zeroed_sequence: bool) -> TxIn:
+    """Return the transaction input one psbt input describes.
 
-    check_validity=False throughout, and Psbt.assert_valid is what
-    checks the result: a psbt's transaction is a template -- BIP174
+    check_validity=False, and Psbt.assert_valid is what checks the
+    transaction these make: a psbt's transaction is a template -- BIP174
     lists two psbts with no inputs as valid (issue 170) -- and every
     element of it is validated where it is held.
 
-    zeroed_sequences=True is BIP370's "Unique Identification": the
+    zeroed_sequence=True is BIP370's "Unique Identification": the
     sequence is an Updater's to change, so the transaction that
     identifies a psbt is the one with every sequence set to 0, which is
     neither the final sequence nor the input's own.
     """
-    vin = [
-        TxIn(
-            psbt_in.prev_out,
-            b"",
-            0 if zeroed_sequences else _sequence(psbt_in),
-            check_validity=False,
-        )
-        for psbt_in in psbt.inputs
-    ]
-    vout = [
-        TxOut(psbt_out.amount or 0, psbt_out.script_pub_key, check_validity=False)
-        for psbt_out in psbt.outputs
-    ]
+    return TxIn(
+        psbt_in.prev_out,
+        b"",
+        0 if zeroed_sequence else _sequence(psbt_in),
+        check_validity=False,
+    )
+
+
+def _tx_out(psbt_out: PsbtOut) -> TxOut:
+    """Return the transaction output one psbt output describes."""
+    return TxOut(psbt_out.amount or 0, psbt_out.script_pub_key, check_validity=False)
+
+
+def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool) -> Tx:
+    """Return the transaction a psbt's fields describe.
+
+    One `_tx_in` per input and one `_tx_out` per output, which is where
+    what each of the two says about the transaction is written down: a
+    caller reading the maps one at a time -- `btclib.psbt.psbt_view` --
+    builds the same transaction out of the same two answers.
+    """
+    vin = [_tx_in(psbt_in, zeroed_sequence=zeroed_sequences) for psbt_in in psbt.inputs]
+    vout = [_tx_out(psbt_out) for psbt_out in psbt.outputs]
     return Tx(psbt.tx_version, psbt.lock_time, vin, vout, check_validity=False)
 
 
@@ -424,6 +441,37 @@ def _settle_globals(
             raise BTClibValueError(f"malformed psbt: missing {name}")
 
 
+def _assert_unsigned(tx: Tx) -> None:
+    """Raise unless the transaction a version 0 psbt carries is unsigned.
+
+    Asked of that transaction alone, this being the only door such a
+    transaction comes through: a psbt built from the fields has no
+    script_sig to carry, `Psbt.tx` writing an empty one.
+    """
+    if any(tx_in.script_sig or tx_in.script_witness for tx_in in tx.vin):
+        raise BTClibValueError("non empty script_sig or witness")
+
+
+def _read_tx_in(psbt_in: PsbtIn, tx_in: TxIn) -> None:
+    """Write what the unsigned transaction says about one input into it.
+
+    The outpoint it spends and its sequence, which is the whole of it,
+    and the inverse of `_tx_in`. The sequence is written even when it is
+    the final one: a version 0 transaction states a sequence for every
+    input, so keeping the value rather than the absence is what makes
+    the round trip exact.
+    """
+    psbt_in.previous_tx_id = tx_in.prev_out.tx_id
+    psbt_in.output_index = tx_in.prev_out.vout
+    psbt_in.sequence = tx_in.sequence
+
+
+def _read_tx_out(psbt_out: PsbtOut, tx_out: TxOut) -> None:
+    """Write what the unsigned transaction says about one output into it."""
+    psbt_out.amount = tx_out.value
+    psbt_out.script_pub_key = tx_out.script_pub_key.script
+
+
 def _read_unsigned_tx(
     tx: Tx, inputs: Sequence[PsbtIn], outputs: Sequence[PsbtOut]
 ) -> None:
@@ -435,16 +483,11 @@ def _read_unsigned_tx(
     about an output into the output map, after which nothing has to read
     it again. `Psbt.tx` puts it back together on the way out.
 
-    The sequence is written even when it is the final one: a version 0
-    transaction states a sequence for every input, so keeping the value
-    rather than the absence is what makes the round trip exact.
-
-    That the transaction is unsigned is checked here, this being the
-    only door such a transaction comes through: a psbt built from the
-    fields has no script_sig to carry, `Psbt.tx` writing an empty one.
+    Per map by `_read_tx_in` and `_read_tx_out`, which is what a caller
+    holding one map at a time asks instead: `btclib.psbt.psbt_view`
+    completes the map it has just read without the two lists this needs.
     """
-    if any(tx_in.script_sig or tx_in.script_witness for tx_in in tx.vin):
-        raise BTClibValueError("non empty script_sig or witness")
+    _assert_unsigned(tx)
 
     # one map per input and one per output, which `parse` gets from the
     # transaction itself and a caller of `from_tx` may not: strict=True
@@ -460,13 +503,10 @@ def _read_unsigned_tx(
         raise BTClibValueError(err_msg)
 
     for psbt_in, tx_in in zip(inputs, tx.vin, strict=True):
-        psbt_in.previous_tx_id = tx_in.prev_out.tx_id
-        psbt_in.output_index = tx_in.prev_out.vout
-        psbt_in.sequence = tx_in.sequence
+        _read_tx_in(psbt_in, tx_in)
 
     for psbt_out, tx_out in zip(outputs, tx.vout, strict=True):
-        psbt_out.amount = tx_out.value
-        psbt_out.script_pub_key = tx_out.script_pub_key.script
+        _read_tx_out(psbt_out, tx_out)
 
 
 def _assert_modifiable(psbt: Psbt, *, inputs: bool) -> None:
@@ -526,6 +566,28 @@ def _assert_valid_input_fields(psbt_in: PsbtIn, version: int, i: int) -> None:
         if value is not None:
             err_msg = f"input {i}: {name} is not allowed in a v0 psbt"
             raise BTClibValueError(err_msg)
+
+
+def _assert_valid_utxo(psbt_in: PsbtIn) -> None:
+    """Raise unless a non-witness utxo is the transaction the outpoint names.
+
+    Two questions about one field, both of them about the input alone,
+    which is why a caller reading one input at a time can ask them --
+    `btclib.psbt.psbt_view` does, on the map it has just read.
+
+    The transaction has to be the one the outpoint's tx_id names, and the
+    outpoint has to name one of its outputs: an index past its vout is an
+    IndexError to everything that reads the spent output --
+    `_signable_payload`, the Finalizer's sig_hash -- where malformed
+    input owes the caller a BTClibValueError.
+    """
+    non_witness_utxo = psbt_in.non_witness_utxo
+    if non_witness_utxo is None:
+        return
+    if non_witness_utxo.id != psbt_in.previous_tx_id:
+        raise BTClibValueError("mismatched non-witness utxo / outpoint tx_id")
+    if (psbt_in.output_index or 0) >= len(non_witness_utxo.vout):
+        raise BTClibValueError("outpoint vout out of range for the non-witness utxo")
 
 
 def _assert_valid_output_fields(psbt_out: PsbtOut, version: int, i: int) -> None:
@@ -696,7 +758,10 @@ class Psbt:
         unsigned transaction's nLockTime being read into the fallback.
         _lock_time is the algorithm.
         """
-        return _lock_time(self.inputs, self.fallback_lock_time)
+        return _lock_time(
+            (_required_lock_times(psbt_in) for psbt_in in self.inputs),
+            self.fallback_lock_time,
+        )
 
     @property
     def tx(self) -> Tx:
@@ -908,26 +973,8 @@ class Psbt:
         # kinds is refused here, by _lock_time
         self.tx.assert_valid(unsigned_template=True)
 
-        if any(
-            psbt_in.non_witness_utxo
-            and psbt_in.non_witness_utxo.id != psbt_in.previous_tx_id
-            for psbt_in in self.inputs
-        ):
-            err_msg = "mismatched non-witness utxo / outpoint tx_id"
-            raise BTClibValueError(err_msg)
-
-        # the outpoint names one of that transaction's outputs, and the
-        # tx_id check above does not say so: an index past its vout is an
-        # IndexError to everything that reads the spent output --
-        # _signable_payload, the Finalizer's sig_hash -- where malformed
-        # input owes the caller a BTClibValueError
-        if any(
-            psbt_in.non_witness_utxo
-            and (psbt_in.output_index or 0) >= len(psbt_in.non_witness_utxo.vout)
-            for psbt_in in self.inputs
-        ):
-            err_msg = "outpoint vout out of range for the non-witness utxo"
-            raise BTClibValueError(err_msg)
+        for psbt_in in self.inputs:
+            _assert_valid_utxo(psbt_in)
 
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
@@ -1770,6 +1817,27 @@ _PUSH_32 = 0x20
 _OP_CHECKSIG = 0xAC
 
 
+def _spent_outputs(inputs: Iterable[PsbtIn]) -> list[TxOut]:
+    """Return the output each of these inputs spends, in order.
+
+    An input carrying no utxo raises, which is `prevouts`' rule and says
+    why. The inputs are an iterable rather than a psbt's list because
+    that is all the answer needs: a caller reading one input at a time --
+    `btclib.psbt.psbt_view` -- streams them past, and the whole previous
+    transaction of a non-witness utxo is dropped as soon as the one
+    output being spent is out of it.
+    """
+    outs: list[TxOut] = []
+    for i, psbt_in in enumerate(inputs):
+        prev_out = _prev_out(psbt_in)
+        if prev_out is None:
+            err_msg = f"no utxo for input {i}: a taproot signature commits "
+            err_msg += "to the amount and script of every input"
+            raise BTClibValueError(err_msg)
+        outs.append(prev_out)
+    return outs
+
+
 def prevouts(psbt: Psbt) -> list[TxOut]:
     """Return the output each input of the psbt spends.
 
@@ -1783,15 +1851,37 @@ def prevouts(psbt: Psbt) -> list[TxOut]:
     # which makes this the list that most wants to have been checked
     psbt.assert_valid()
 
-    outs: list[TxOut] = []
-    for i, psbt_in in enumerate(psbt.inputs):
-        prev_out = _prev_out(psbt_in)
-        if prev_out is None:
-            err_msg = f"no utxo for input {i}: a taproot signature commits "
-            err_msg += "to the amount and script of every input"
-            raise BTClibValueError(err_msg)
-        outs.append(prev_out)
-    return outs
+    return _spent_outputs(psbt.inputs)
+
+
+def _taproot_sig_hash(
+    psbt_in: PsbtIn,
+    tx: Tx,
+    vin_i: int,
+    spent: list[TxOut],
+    leaf_hash: bytes,
+    hash_type: int | None,
+    precomputed: sig_hash.PrecomputedTxData | None,
+) -> bytes:
+    """Return BIP341's message for one input, from what one input says.
+
+    `taproot_sig_hash` is this over a whole psbt and states the rules;
+    what the arguments beyond those add is a caller that holds the
+    transaction and the spent outputs already -- `psbt_view` builds both
+    from a stream -- and, with them, the transaction-wide hashes BIP341
+    commits every input to, so that signing N inputs hashes the
+    transaction once and not N times.
+
+    `precomputed=None` is a single call, which hashes only what its hash
+    type commits to; a caller passing one must have built it from this
+    very transaction, which is `sig_hash.PrecomputedTxData`'s own rule.
+    """
+    if hash_type is None:
+        hash_type = psbt_in.sig_hash_type or DEFAULT
+    ext = leaf_hash + b"\x00" + _NO_CODESEP.to_bytes(4, "little") if leaf_hash else b""
+    return sig_hash.taproot(
+        tx, vin_i, spent, hash_type, int(bool(ext)), b"", ext, precomputed
+    )
 
 
 def taproot_sig_hash(
@@ -1813,12 +1903,14 @@ def taproot_sig_hash(
     one, and a signer cannot invent what the spender will put on the
     stack.
     """
-    leaf_hash = bytes_from_octets(leaf_hash)
-    if hash_type is None:
-        hash_type = psbt.inputs[vin_i].sig_hash_type or DEFAULT
-    ext = leaf_hash + b"\x00" + _NO_CODESEP.to_bytes(4, "little") if leaf_hash else b""
-    return sig_hash.taproot(
-        psbt.tx, vin_i, prevouts(psbt), hash_type, int(bool(ext)), b"", ext
+    return _taproot_sig_hash(
+        psbt.inputs[vin_i],
+        psbt.tx,
+        vin_i,
+        prevouts(psbt),
+        bytes_from_octets(leaf_hash),
+        hash_type,
+        precomputed=None,
     )
 
 
@@ -2015,6 +2107,34 @@ def _sig_hash_from_psbt_in(
     return sig_hash.legacy(script, tx, vin_i, hash_type)
 
 
+def _ecdsa_sig_hash(
+    psbt_in: PsbtIn, tx: Tx, vin_i: int, hash_type: int | None
+) -> bytes:
+    """Return the hash an ECDSA spend of one input signs, from that input.
+
+    `ecdsa_sig_hash` is this over a whole psbt and states the rules; what
+    this is is those rules asked of one input and the transaction being
+    built, which is what a caller reading the maps one at a time holds --
+    `btclib.psbt.psbt_view`.
+    """
+    if hash_type is None:
+        hash_type = ALL if psbt_in.sig_hash_type is None else psbt_in.sig_hash_type
+    assert_valid_hash_type(hash_type)
+    if hash_type == DEFAULT:
+        raise BTClibValueError("SIGHASH_DEFAULT is not an ECDSA sig_hash type")
+
+    if is_p2tr(_spent_script(psbt_in)):
+        err_msg = f"input {vin_i} is taproot: its message is taproot_sig_hash's"
+        raise BTClibValueError(err_msg)
+
+    msg_hash = _sig_hash_from_psbt_in(psbt_in, tx, vin_i, hash_type)
+    if msg_hash is None:
+        err_msg = f"input {vin_i} does not say what is being signed: "
+        err_msg += "no utxo, no redeem script, or no witness script"
+        raise BTClibValueError(err_msg)
+    return msg_hash
+
+
 def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> bytes:
     """Return the hash an ECDSA spend of one input signs.
 
@@ -2040,23 +2160,7 @@ def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> b
     role may sign, verify or finalize.
     """
     psbt.assert_valid()
-    psbt_in = psbt.inputs[vin_i]
-    if hash_type is None:
-        hash_type = ALL if psbt_in.sig_hash_type is None else psbt_in.sig_hash_type
-    assert_valid_hash_type(hash_type)
-    if hash_type == DEFAULT:
-        raise BTClibValueError("SIGHASH_DEFAULT is not an ECDSA sig_hash type")
-
-    if is_p2tr(_spent_script(psbt_in)):
-        err_msg = f"input {vin_i} is taproot: its message is taproot_sig_hash's"
-        raise BTClibValueError(err_msg)
-
-    msg_hash = _sig_hash_from_psbt_in(psbt_in, psbt.tx, vin_i, hash_type)
-    if msg_hash is None:
-        err_msg = f"input {vin_i} does not say what is being signed: "
-        err_msg += "no utxo, no redeem script, or no witness script"
-        raise BTClibValueError(err_msg)
-    return msg_hash
+    return _ecdsa_sig_hash(psbt.inputs[vin_i], psbt.tx, vin_i, hash_type)
 
 
 class KeyManager(Protocol):

@@ -28,15 +28,22 @@ is one device: `addopts` passes `-n auto`, and three workers are three
 HWI processes reaching for it at once, where the one that arrives
 mid-exchange waits out btclib's timeout.
 
-One emulator is what CI brings, which is issue #529 and not a change of
-that rule: the `HWI against a Trezor emulator` job of `integration.yml`
-downloads a pinned Trezor Model T binary and loads the seed HWI's own
-suite uses, and it sets `BTCLIB_HWI_SIGN` because there is nobody to
-press anything -- HWI opens a udp device with `TrezorClientDebugLink`,
-which answers the button request itself. What that job cannot answer is
-whether a device with a secure element, a screen and firmware of its own
-agrees, so the vendors it does not run stay what they were: bring your
-own.
+Two emulators are what CI brings, which is issues #529 and #738 and not
+a change of that rule. `integration.yml` runs a pinned Trezor Model T
+seeded with the mnemonic HWI's own suite uses, and a Ledger under
+Speculos with the Bitcoin app built from a pinned tag -- twice, the coin
+being compiled into a Ledger app, so the mainnet build answers the two
+read-only tests and the testnet one signs. Both jobs set
+`BTCLIB_HWI_SIGN`, because in neither is there anybody to press
+anything: HWI opens a udp Trezor with `TrezorClientDebugLink`, which
+answers the button request itself, and Speculos is given an automation
+file matching the text the app draws.
+
+Two clients of HWI's, therefore, and not one twice -- the protobuf one
+and the app-2.x one, which is why the second job is worth its cost. What
+neither can answer is whether a device with a secure element, a screen
+and firmware of its own agrees, so the vendors they do not run stay what
+they were: bring your own.
 
 Nothing here is destructive: enumerate, an xpub, an address on a screen.
 Setup, wipe, restore, backup and the PIN flows are deliberately outside

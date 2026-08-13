@@ -16,7 +16,7 @@ kramdown having hard_wrap off. -->
 [![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
-[![documentation build](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
+[![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
 [![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 [![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
@@ -137,6 +137,9 @@ Included features are:
   [BIP371](https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki)
   and the MuSig2 ones of
   [BIP373](https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki)
+- PsbtView, the same psbt read a map at a time out of a stream, for a
+  signer with less memory than the psbt takes: the maps it is asked for,
+  the transaction being built, the outputs being spent and both sig_hashes
 - [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
   PSBT version 2, the unsigned transaction computed from the fields rather
   than carried as one: the lock time its inputs require, the identifier

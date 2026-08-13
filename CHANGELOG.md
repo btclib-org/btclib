@@ -24,6 +24,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`integration.yml` says which of its jobs gates** (#736). Its header
+  claimed the workflow gates nothing and "must not" appear in main's
+  required checks, which two paragraphs of the same file, three of
+  REPOSITORY.md and one of CONTRIBUTING.md contradict: `Regtest against
+  Bitcoin Core` has been required since the workflow was put on pull
+  requests, and the `pull_request` block forty lines below explains that
+  it carries no `paths` filter for exactly that reason. Deleting the
+  paragraph would have cost the reasoning in it, which is still why the
+  *other* job does not gate, so it says the line instead -- a red run
+  that is the branch's fault gates, a red run that is somebody else's
+  release does not -- and the two jobs are named on either side of it.
+  The `pull_request` block now says "the regtest job below", the
+  workflow not being what is required, a job being.
+
 - **Every required check names the app that produces it.** Three of the
   five carried `app_id: 15368` and `Lint and type-check` and `Build the
   documentation` carried none, which is not a weaker spelling of the same
@@ -190,7 +204,75 @@ documented at release-notes length in the first place, and are still in
   lives and `OutPoint` and `TxIn` are the classes it holds for, so the new
   paragraph points at it instead of restating it.
 
+- **Each new release gets a documentation URL of its own, and a check that
+  says so.** btclib.readthedocs.io was serving neither of the last two
+  releases: `latest` followed a branch this repository no longer has, so
+  every push was answered without a build being triggered, and the site
+  kept the last build that had succeeded -- a placeholder version, from a
+  commit squashed away months earlier. That is issue #574, and the half of
+  it that is settings is now written down: `latest` follows `main`,
+  `stable` is the newest release tag, and an automation rule activates each
+  new tag, which is what makes `/en/v<version>/` exist and stay that
+  version rather than becoming the next one. REPOSITORY.md's "Read the
+  Docs" section is where they live, that file being the whole of what
+  cannot be recovered by reading the tree.
+  The other half is a job: `release.yml`'s `documented` waits for the
+  tag's page to be served and is red if it never is, where until now
+  nothing failed when a build never started. It polls the rendered URL and
+  not the v3 API, which the `published` job's PyPI check is the reverse of:
+  read the docs throttles an unauthenticated caller to five requests a
+  minute and blocks cloud-provider addresses outright without a token, so
+  asking the API from a runner would mean keeping a credential for a check
+  that gates nothing. It starts with the next release and reaches no
+  release behind it: a rule applies to the versions created after it, so
+  `v2026.8.9` has no page of its own and is not getting one, and anything
+  before `v2026.8.7` could not have one — a build needs `.readthedocs.yaml`
+  and would fail without it. `/en/stable/` is the last release either way,
+  which is what makes the backfill not worth doing.
+
+- **The release documentation says what the release workflow does.** Three
+  places described a `published` workflow that has moved on: RELEASING.md
+  asked for a dispatch by hand after the release, where `release.yml` calls
+  the workflow with the tag and waits for the index to serve that version
+  -- so the step is a verdict to read, and a dispatch is for a question
+  between runs; and it, along with the workflow's own schedule comment and
+  links.yml's list of weekday sentinels, called the run weekly and put it
+  on a Tuesday, where the cron says the first of the month. Prose only, and
+  the two workflow files change in their comments alone: an instruction
+  nobody needs and a day that is not the day are read as facts by whoever
+  finds them, and there is nothing in a run to say otherwise.
+
 ### Packaging, linting and CI
+
+- **The package-content policy is stated where an unpacked sdist carries
+  it** (#735, #734). `docs/source/package-content-policy.md` says what
+  may be in the wheel and the sdist, what may never be, and what has to
+  be; `.github/scripts/verify_dist_contents.py` goes on being the thing
+  that enforces it. Two copies of one list are one that can be wrong --
+  the page saying `.so` is forbidden while the tuple says otherwise, with
+  nothing to notice -- which is why the script was written without a
+  page: `tests/verify_dist_contents_test.py` now compares the two in both
+  directions instead, list by list against the script's own constants, so
+  the page cannot state a rule the script does not have and the script
+  cannot grow one the page does not state. `.github` is not shipped and
+  `docs/` is, so what travels with an installed sdist is the statement
+  rather than nothing.
+  The page also carries what no member list can carry, which nothing
+  checked and nothing said: no install-time execution hook, no network
+  access while the package installs, no code generated from the network
+  while a release is built. The first two are already refused by rules
+  written for other reasons -- `setup.py` is not a root file the sdist
+  ships, `entry_points.txt` is not one of the wheel's metadata files, a
+  `.pth` carries a forbidden suffix -- and the page names those rules, so
+  that trimming an allowlist to what a build happens to produce is a
+  visible choice rather than the silent loss of a guard. The third had no
+  guard at all: `[build-system] requires` is one line that puts somebody
+  else's code in the build, and `tests/build_system_test.py` is what a
+  second requirement now has to get past, with the backend beside it --
+  `setuptools.build_meta`, not the `:__legacy__` that imports and runs a
+  `setup.py`. What is *not* claimed is that a build makes no network
+  request: proving that needs a sandboxed build, and naming it as policy
+  is the honest version.
 
 - **A tag is refused unless the default branch contains its commit**
   (#650). Every other check in `version-check` reads the tree the tag
@@ -299,7 +381,41 @@ documented at release-notes length in the first place, and are still in
   `gh workflow run integration.yml --ref <branch>`, which is how a branch
   touching `btclib/hwi.py` gets the answer before it lands. Physical
   devices stay manual, as issue #524 said they should.
-- **The node both jobs need is installed by one file**,
+- **A Ledger emulator beside the Trezor one** (#738). `HWI against a
+  Ledger emulator` builds the Bitcoin app from a pinned tag of
+  `LedgerHQ/app-bitcoin` inside Ledger's own builder image, pinned by
+  digest, and runs it under a pinned Speculos from PyPI. It is a second
+  vendor because it is a second HWI: the Trezor job drives the protobuf
+  client, this one the app-2.x client with the wallet policy behind
+  `displayaddress` and its own psbt exchange, and a green run of either
+  says nothing about the other.
+
+  What it costs over the Trezor job, and none of it is incidental. The
+  app is compiled rather than downloaded — Ledger publishes no binary,
+  so what is pinned is a source tag, an image digest and the SDK that
+  image carries, where the Trezor emulator is a published file with a
+  sha256 checked before it runs. It is compiled *twice*, the coin being
+  built into a Ledger app: `COIN=bitcoin` has the `bc` prefix and
+  answers `hwi_device_test.py`'s two mainnet questions, `COIN=bitcoin_testnet`
+  has `tb` and signs the regtest spend, and one binary cannot do both —
+  Trezor firmware takes the chain as an argument. And nothing answers a
+  button: Speculos has no DebugLink, so approvals come from an
+  `--automation` file whose rules match the text the app draws.
+  `.github/speculos-automation.json` is HWI's own, vendored rather than
+  rewritten smaller, because what a rule has to match is a string nobody
+  can check without running the app. It is the part that will break on
+  an upstream wording change, and it breaks as a test waiting out
+  btclib's timeout — so `automation:DEBUG` is on and both Speculos logs
+  are uploaded beside the reports.
+- **What stands between starting an emulator and testing against it**,
+  `.github/scripts/wait_for_hwi_device.py`: the Trezor emulator answers
+  a ping on its own socket and Speculos answers none, so the question
+  asked is the real one — btclib's own `enumerate_devices` until one
+  device is `is_usable`, which a port check cannot tell from a Speculos
+  that is up with no app loaded. A failure names the device types and
+  the errors of the last answer, which is where an app built for another
+  model shows up.
+- **The node all three jobs need is installed by one file**,
   `.github/actions/install-bitcoind`, this repository's first composite
   action: the download, the checksum and the unpacking were about to be
   a second copy, and a duplicated pin is one that drifts — the copy
@@ -598,6 +714,78 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A psbt can be read a map at a time, out of a stream** (#647).
+  `btclib.psbt.PsbtView` is that reader, beside `Psbt` and not instead of
+  it: `Psbt.parse` reads every map before anything can be inspected or
+  signed, so a psbt whose inputs each carry the previous transaction they
+  spend costs all of them at once, and a signer with less memory than that
+  cannot read the psbt at all. A view walks the stream once to learn where
+  each map begins and reads one when it is asked for it, which is
+  `diybitcoinhardware/embit`'s `psbtview.PSBTView` idea and its audience:
+  hardware wallets and airgapped signers. What it offers is the global
+  fields, `input` and `output` one map at a time, the transaction being
+  built, the outputs being spent and both sig_hashes; what it does not is
+  any of the roles that rewrite a psbt, the stream being read-only, so a
+  signer assembles its own answer out of the maps it was handed and
+  `PsbtIn.serialize` writes each.
+
+  It holds the global map, an integer per map saying where that map
+  starts, and -- once a sig_hash is asked for -- the unsigned transaction,
+  the output each input spends, and `sig_hash.PrecomputedTxData`: BIP143
+  and BIP341 commit every input to all three, so signing N inputs hashes
+  the whole transaction once rather than N times, which is issue #164's
+  arithmetic for a psbt whose N inputs are exactly what does not fit. What
+  it therefore never holds is two input maps at once, and that is where a
+  psbt's size is -- a witness utxo is an amount and a script, a
+  non-witness utxo is a whole transaction, and the derivation paths, leaf
+  scripts and signatures of every input are as large as the wallet that
+  wrote them. Measured rather than asserted: a test counts the octets read
+  from the stream and reads none of the large utxo it does not ask for.
+
+  The stream must not change while a view is alive, and the module
+  docstring says so at length rather than leaving it implicit, embit's own
+  docstring being where that candour comes from: a view answers from the
+  bytes that were there when it read them, nothing re-reads a map to check
+  that it still says what it said, and an amount or a script that changes
+  between two reads is a sig_hash committing to a transaction the signer
+  was never shown -- a time-of-check to time-of-use attack rather than a
+  stale read. So a psbt on removable or untrusted storage is copied into
+  memory the caller controls first, and a stream that has legitimately
+  changed is read by building a new view.
+
+  A view takes any seekable binary stream, a file object as much as a
+  `BytesIO`, which is wider than `alias.BinaryData` on purpose: a `parse`
+  consumes what it is given, so a `BytesIO` is all it can want, while a
+  view over a `BytesIO` holds the whole psbt in memory and answers the
+  question it exists for with "buy more memory". Octets are taken too and
+  read as one whole psbt, what follows the last map in them being refused.
+  It is not a `parse` classmethod, and the docstring records that as a
+  decision: what it returns is not the psbt those bytes encode but a
+  handle on the stream holding it, and the second is only valid while the
+  first is unchanged.
+
+  Every question about what a psbt's bytes mean is the object model's,
+  imported rather than restated -- which type byte is a field of which
+  version, what the global map holds, what fields each version requires of
+  a map, what the transaction being built is, what a sig_hash commits to.
+  So five answers in `psbt.py` that were written inside a loop over a
+  whole psbt are now written per map beside it: `_tx_in` and `_tx_out`,
+  `_read_tx_in` and `_read_tx_out`, `_assert_valid_utxo`, `_spent_outputs`
+  and the two sig_hash bodies. `_lock_time` takes the pairs of required
+  lock times rather than the inputs, those two fields being all of an
+  input BIP370's algorithm depends on, so a caller with one input at a
+  time streams them past it. The suite holds the two readers to each other
+  over every psbt it has, valid and invalid: the globals, each map, the
+  transaction, its lock time, the outputs spent and both sig_hashes. One
+  published psbt is refused for a different reason by each, and the test
+  names it -- BIP174's two-octet `PSBT_IN_SIGHASH_TYPE` key carries 104
+  octets after its last map as well, and a view walks the maps before it
+  parses any of them.
+
+  `utils.read_exactly` now annotates its stream `BinaryIO` where it said
+  `BytesIO`: `.read` is the whole of what a short read is about, so a file
+  object is as much an answer there, and a view is the one reader in this
+  library that does not consume the stream it is handed.
 - **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
   `combine` merged the maps and returned a psbt with neither the inputs nor
   the result validated anywhere, so an invalid psbt in gave an invalid psbt
@@ -1372,22 +1560,36 @@ documented at release-notes length in the first place, and are still in
   `btclib.bip85`. `entropy_from_der_path` is the derivation itself -- a
   fully hardened path off a root key, then
   `HMAC-SHA512(key="bip-entropy-from-k", msg=k)` over the child private
-  key -- and it answers for any path, including the applications no
-  function here formats. Four of them are formatted:
+  key -- and it answers for any path, including one no function here
+  formats. Every application the BIP defines is formatted beside it:
   `mnemonic_from_root_key` (39', BIP85's ten languages and all five
   sentence lengths of its Words Table), `wif_from_root_key` (2', the
-  Bitcoin Core `hdseed`), `xprv_from_root_key` (32') and
+  Bitcoin Core `hdseed`), `xprv_from_root_key` (32'),
   `bytes_entropy_from_root_key` (128169', which the BIP calls HEX and
-  which hands back the bytes).
+  which hands back the bytes), `base64_password_from_root_key` (707764'),
+  `base85_password_from_root_key` (707785'), `rolls_from_root_key`
+  (89101') and `rsa_drng_from_root_key` (828365').
+
+  The last two read `BIP85DRNG`, which is BIP85-DRNG-SHAKE256: 64 bytes
+  are not enough for a function whose appetite is not known until it has
+  finished, so they seed a SHAKE256 stream and `read` squeezes it. RSA is
+  where that matters and where btclib stops -- the BIP defines the path
+  and the stream to feed a key generator, not how the primes are found,
+  so what comes back is the reader an RSA library is to be given. It is
+  also the one application the BIP publishes no vector for, and the
+  reason is the same: two libraries handed the same stream need not
+  agree on the key.
+
+  `rolls_from_root_key` computes the width of a roll as
+  `(sides - 1).bit_length()` where the BIP writes `ceil(log_2(sides))`,
+  which is the same number and not the same operation: a float logarithm
+  rounds at a power of two, and a roll one bit too wide is one the
+  rejection step then drops far more often than it should.
 
   The module is at the top level rather than under `btclib/bip32/`, for
   the reason `bip44` and `slip132` are: the applications need `b58` for a
   WIF and `mnemonic.bip39` for a sentence, and both of those import
-  `bip32`, which may not import them back. What is left out is the rest
-  of the BIP, and the line is BIP85-DRNG-SHAKE256: 707764' and 707785'
-  are a base64 and a base85 slice of the same 64 bytes, while 828365'
-  (RSA) and 89101' (dice) read a stream seeded with them rather than the
-  bytes themselves.
+  `bip32`, which may not import them back.
 
   Two of BIP85's own fields are not what their name reads as, and
   `tests/bip85_test.py` says so where it asserts them: application 32'
@@ -1710,6 +1912,38 @@ documented at release-notes length in the first place, and are still in
   on the stack rather than how it is spelled. Nothing changes in what
   `serialize` writes; the docstring says the rule and the test pins it,
   over the whole set of values that could have been written otherwise.
+
+- **the script number zero is the empty vector** (issue #746).
+  `encode_num(0)` wrote `b"\x00"` where Core's `CScriptNum::serialize`
+  returns the empty vector, and zero was the only value where the two
+  disagreed. Not a spelling: `b"\x00"` is not a minimally encoded script
+  number, so the interpreter refuses it as one under MINIMALDATA --
+  `(vch.back() & 0x7f) == 0` with nothing before it is what Core's
+  `CScriptNum` throws on, and `_to_num(b"\x00", MINIMALDATA, 4)` is what
+  this library answers `non-minimal encoding of 0: 00`. So
+  `serialize([0])` wrote `0100`, a push btclib's own engine will not
+  read as a number, and warned "consider using OP_0" as if the op code
+  were merely one byte shorter.
+
+  `encode_num(0)` is `b""` and `decode_num(b"")` is `0`, which are
+  `CScriptNum::serialize` and `CScriptNum::set_vch`; `serialize([0])` is
+  therefore OP_0, by the same path as every other value, a zero-length
+  push being that op code already. The engine had written Core's
+  function a second time to get around this -- `_from_num` was `b"" if x
+  == 0 else encode_num(x)`, with a matching empty-element branch in
+  `_to_num` -- and both are gone, every call site of the wrapper now
+  calling `encode_num`. The warning goes for zero and stays for the rest,
+  there being nothing shorter left to suggest, and it names
+  `op_int(command)` rather than interpolating the number: for -1 it read
+  "consider using OP_-1 instead", which is no op code.
+
+  `decode_num` keeps reading `00` and `80` as zero -- refusing them is
+  the interpreter's rule, and `_to_num` is where MINIMALDATA is known.
+  What follows from the pair being Core's is that
+  `miniscript.from_script` no longer reads a `0100` push as the number
+  0: a `thresh` whose threshold is written that way closes no fragment
+  where it used to be refused for the threshold's value, both being a
+  refusal and the second being the accurate one.
 
 ### Descriptors and miniscript
 

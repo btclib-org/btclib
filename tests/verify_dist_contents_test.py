@@ -11,6 +11,14 @@ on the files it is about to publish. What CI cannot show is that anything
 can produce on purpose -- so the archives here are synthetic, one member
 planted per rule, and the assertion is the complaint.
 
+The last two tests here ask a different question: whether
+`docs/source/package-content-policy.md` states the same policy. A page
+beside a script is a second copy of one list, and two copies are one that
+can be wrong -- the page saying `.so` is forbidden while the script's
+tuple says otherwise, with nothing to notice. Those two compare the page
+against the script's own constants in both directions, which is what
+makes the second copy safe rather than merely tidy.
+
 The script is loaded by path, `.github/scripts` being no package, as the
 mutation-counter and vendored-vector tests do. It has no dataclass, so
 registering the module before `exec_module` is not needed here.
@@ -20,6 +28,7 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import re
 import runpy
 import sys
 import tarfile
@@ -30,6 +39,7 @@ from types import ModuleType
 import pytest
 
 _SCRIPT = Path(__file__).parents[1] / ".github" / "scripts" / "verify_dist_contents.py"
+_PAGE = Path(__file__).parents[1] / "docs" / "source" / "package-content-policy.md"
 
 _VERSION = "1.0"
 _ROOT = f"btclib-{_VERSION}"
@@ -374,6 +384,95 @@ def test_main_passes_on_a_clean_pair(script: ModuleType, tmp_path: Path) -> None
     write_sdist(tmp_path)
 
     assert script.main(["prog", str(tmp_path)]) == 0
+
+
+# a code span holding the name of one of the script's constants: upper
+# case with an underscore in it, which no member name and no suffix is --
+# `METADATA` and `PKG-INFO` are values the page states, not names of
+# lists, and this is what tells the two apart
+_CONSTANT = re.compile(r"`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)`")
+_CODE_SPAN = re.compile(r"`([^`]+)`")
+# what separates a rule from the reason for it, in a list item of the
+# page. An em dash, spaced: the reason is prose and names whatever it
+# needs to in code spans of its own, so a rule has to end somewhere
+_REASON = " \N{EM DASH} "
+
+
+def _rules(text: str) -> list[tuple[set[str], set[str]]]:
+    """Pair every rule list of the page with the constants above it.
+
+    A list states the constants its introducing paragraph names, and a
+    list introduced by a paragraph naming none -- the policy items no
+    check enforces, at the bottom of the page -- is not a rule list and
+    is skipped. Each item contributes the code spans before its dash.
+    """
+    rules: list[tuple[set[str], set[str]]] = []
+    # the paragraph being read, and the last one that ended: a list is
+    # introduced by the paragraph before the blank line above it
+    paragraph: list[str] = []
+    lead: list[str] = []
+    items: list[str] = []
+    # the empty line is the flush: a list ending at the last line of the
+    # file would otherwise be the one nothing compares
+    for line in (*text.splitlines(), ""):
+        if line.startswith("- "):
+            items.append(line[2:])
+        elif items and line.startswith("  "):
+            items[-1] += " " + line.strip()
+        elif items:
+            named = set(_CONSTANT.findall(" ".join(lead)))
+            if named:
+                rules.append((named, _stated(items)))
+            items, lead = [], []
+        elif line.strip():
+            paragraph.append(line)
+        elif paragraph:
+            lead, paragraph = paragraph, []
+    return rules
+
+
+def _stated(items: list[str]) -> set[str]:
+    """Every member name and suffix a rule list states."""
+    spans: set[str] = set()
+    for item in items:
+        rule, dash, _ = item.partition(_REASON)
+        assert dash, f"a rule with no reason after it: {item}"
+        spans.update(_CODE_SPAN.findall(rule))
+    return spans
+
+
+def _policy_constants(
+    script: ModuleType,
+) -> dict[str, tuple[str, ...] | frozenset[str]]:
+    """Every constant of the script that is a list of members.
+
+    Read off the module rather than named here: a rule added to the
+    script is then one the page has to state before the test below
+    passes, which is the direction a hand-written inventory would miss.
+    """
+    return {
+        name: value
+        for name, value in vars(script).items()
+        if name.isupper() and isinstance(value, (tuple, frozenset))
+    }
+
+
+def test_the_page_states_what_the_script_enforces(script: ModuleType) -> None:
+    """Every rule list on the page is its constants, exactly."""
+    constants = _policy_constants(script)
+
+    for named, stated in _rules(_PAGE.read_text(encoding="utf-8")):
+        expected = {value for name in named for value in constants.get(name, ())}
+        assert stated == expected, sorted(named)
+
+
+def test_the_page_states_every_rule_the_script_has(script: ModuleType) -> None:
+    """And no constant is left off the page, or stated twice."""
+    named = [
+        name for names, _ in _rules(_PAGE.read_text(encoding="utf-8")) for name in names
+    ]
+
+    assert sorted(named) == sorted(_policy_constants(script))
 
 
 def test_the_main_guard_runs_the_script_as___main__(

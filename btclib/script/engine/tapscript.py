@@ -18,7 +18,7 @@ from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED
-from btclib.script.engine.script_op_codes import ScriptOp, _from_num
+from btclib.script.engine.script_op_codes import ScriptOp
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
@@ -27,7 +27,7 @@ from btclib.script.taproot import parse
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata, encode_num
 
 __all__ = [
     "OPERATIONS",
@@ -176,7 +176,7 @@ def op_checksig(
     # because Core charges it for a passing upgradable key too
     elif ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE in flags:
         raise BTClibValueError(f"upgradable public key type: {len(pub_key)} bytes")
-    stack.append(_from_num(int(bool(signature))))
+    stack.append(encode_num(int(bool(signature))))
     return budget
 
 
@@ -323,7 +323,7 @@ def _run_ops(  # noqa: C901, PLR0912
         elif op == "OP_CHECKSEQUENCEVERIFY":
             script_op_codes.op_checksequenceverify(stack, tx, i, flags)
         elif op[3:].isdigit():
-            stack.append(_from_num(int(op[3:])))
+            stack.append(encode_num(int(op[3:])))
         elif op == "OP_CODESEPARATOR":
             codesep_pos = script_index
         elif op == "OP_IF":

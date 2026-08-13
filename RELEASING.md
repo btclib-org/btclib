@@ -250,13 +250,16 @@ word, and step 1 asks it of both.
    runs neither**.
 
    Then verify the
-   [read the docs](https://readthedocs.org/projects/btclib/builds/)
+   [read the docs](https://app.readthedocs.org/projects/btclib/builds/)
    build, and that [the website](https://btclib.org) and the
    [documentation](https://btclib.readthedocs.io/en/latest/) render
    correctly. Read the *builds* page and not only the rendered one: a
    site that answers 200 may be serving the last build that succeeded,
    which for three years was v2023.7.12's — the webhook had been
    refusing every delivery with a 400 and nobody was told (issue #484).
+   This is the half no check covers: `latest` is the tip of `main`, so
+   nothing names a version to ask about. The tag's own build is asked
+   about, by the `documented` job below.
 
    Two things about that pull request, both of them before the button
    rather than after it.
@@ -355,6 +358,17 @@ word, and step 1 asks it of both.
    unreachable, not a second way to write release notes — and they are
    worth replacing by hand if it ever fires.
 
+1. Read the `documented` job rather than the site: read the docs activates
+   and builds a new release tag from the automation rule REPOSITORY.md
+   records, and that job waits for
+   `https://btclib.readthedocs.io/en/<tag>/` to be served and is red if it
+   never is. Green means the release has a permanent URL of its own, which
+   is the one to link when the version is named anywhere. Red means the
+   build is missing and
+   [the builds page](https://app.readthedocs.org/projects/btclib/builds/)
+   says why: nothing about the publication depends on it, so the fix is a
+   build on their side and never a moved tag.
+
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
    only importing it. `import btclib` runs `__init__.py` alone, and the
@@ -399,16 +413,20 @@ word, and step 1 asks it of both.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
 
-1. Dispatch the `published` workflow (Actions → published → Run workflow)
-   and expect it green: no checkout, so it resolves to what PyPI actually
-   serves rather than to a source tree. It checks a BIP39 vector against
-   the twenty-five `_data/` files a wheel missing one would still install
-   and import cleanly, and a BIP340 vector besides -- both fixed forever,
-   so neither needs an edit after a release the way a version-pinned
-   assertion would. From then on it runs weekly on its own, and a failure
-   means the outside world moved, not this repository — a new interpreter
-   release, PyPI serving a file that does not match its own hash — which
-   is why it is a workflow of its own rather than a job of this one.
+1. Read the release run's `published` job, which is this workflow called
+   with the tag rather than a dispatch to remember: it has no checkout, so
+   it resolves to what PyPI actually serves rather than to a source tree,
+   and it waits for the version the tag names before installing anything,
+   so it cannot pass by testing the release before it. It checks a BIP39
+   vector against the `_data/` files a wheel missing one would still
+   install and import cleanly, and a BIP340 vector besides — both fixed
+   forever, so neither needs an edit after a release the way a
+   version-pinned assertion would. From then on it runs monthly on its
+   own, and a failure means the outside world moved, not this repository —
+   a new interpreter release, PyPI serving a file that does not match its
+   own hash — which is why it is a workflow of its own rather than a job
+   of this one. Actions → published → Run workflow is for asking between
+   those runs, with no particular version in mind.
 
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
