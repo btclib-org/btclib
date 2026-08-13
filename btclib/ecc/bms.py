@@ -421,12 +421,10 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
 
 def verify(msg: Octets, addr: String, sig: Sig | String) -> bool:
     """Verify address-based compact signature for the provided message."""
-    # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed, but
-    # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error: raise, rather than report an invalid signature.
-    # BTClibRuntimeError by name and not RuntimeError, because
-    # RecursionError is one and is not an answer about a signature
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states: what is not a valid signature
+    # is False, and a caller's own mistake is refused before this rather
+    # than excluded from the except
     try:
         assert_as_valid(msg, addr, sig)
     except (ValueError, BTClibRuntimeError):

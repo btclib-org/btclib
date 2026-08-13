@@ -1040,6 +1040,43 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **an `hf` that is not a hash function is refused, where it used to be
+  reported as a signature that does not verify** (issue #745).
+  `dsa.verify_`, `ssa.verify_`, `ssa.batch_verify_`, `bms.verify` and
+  `bip322.verify` each carried the same paragraph, word for word: that an
+  input which is not a valid signature is `False`, that a verification
+  which failed is `False` too, but that "an hf passed as `sha256()`
+  instead of `sha256` is a caller error: raise, rather than report an
+  invalid signature". The comment drew the line "a caller's own mistake
+  against a verdict about a signature"; the code drew "`TypeError`
+  against `ValueError`", which is a statement about which built-in a
+  helper happens to derive from and not about whose mistake it was.
+
+  `hashes._assert_valid_hf` is where the two are made to agree. It runs
+  at the top of `dsa.assert_as_valid_`, `ssa.assert_as_valid_`,
+  `ssa.assert_batch_as_valid_` and `hashes.reduce_to_hlen` -- the four
+  places an `hf` of a verification is first touched -- and raises
+  `BTClibTypeError`, which a `TypeError` is, so it arrives at the
+  `except (ValueError, BTClibRuntimeError)` uncaught and reaches the
+  caller. The carve-out the comment argued for is not needed once the
+  case it worried about is refused before the `try`, which is also what
+  the input-validation rule asks of `hf` in the first place.
+
+  `callable(hf)` and not a trial call: a digest object is not callable, so
+  the check is a slot lookup rather than the hash it would otherwise have
+  to build, in front of a verification the bindings answer in 22 us.
+
+  Two of the five never took an `hf` at all -- `bms.verify(msg, addr,
+  sig)` and `bip322.verify(msg, addr, sig, *, legacy)` -- so the example
+  their copy of the paragraph defended the carve-out with could not arise
+  in either. The reasoning now lives once, in `dsa.verify_`, with the
+  other four naming it, as `bip322.verify` already named `bms.verify`.
+
+  `block.merkle_proof.verify` has the same shape and a different comment,
+  and that one is left alone: it says a malformed branch is `False` by
+  design and a mistyped index is the caller's error, the one caller error
+  it names does arrive as a `TypeError`, and the two halves agree.
+
 - **`BIP32KeyData` is frozen** (#727). It was the last mutable wire-value
   class in the tree -- `Sig`, `Witness`, `OutPoint`, `TxOut`,
   `ScriptPubKey`, `BIP32KeyOrigin`, `Network` and every descriptor and

@@ -26,7 +26,7 @@ from btclib.curves.curve import CURVES
 from btclib.curves.curve_group import _mult
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import challenge_
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -1398,3 +1398,29 @@ def test_verify_answers_about_signatures_not_about_types() -> None:
     # RecursionError -- which is a RuntimeError -- is not swallowed either
     assert issubclass(RecursionError, RuntimeError)
     assert not issubclass(RecursionError, BTClibRuntimeError)
+
+
+def test_a_bad_hf_raises_rather_than_answering_about_the_signature() -> None:
+    """An hf that is not one is the caller's mistake, not an invalid signature.
+
+    The distinction `verify_` claims to draw and did not: its `except
+    (ValueError, BTClibRuntimeError)` reports anything it catches as a
+    signature that does not verify, so the refusal has to be the
+    BTClibTypeError `hashes._assert_valid_hf` raises and has to happen
+    before the try. `sha256()` for `sha256` is the mistake it is written
+    for (issue #745).
+    """
+    msg = b"Satoshi Nakamoto"
+    q, Q = dsa.gen_keys(0x1)
+    sig = dsa.sign(msg, q)
+    msg_hash = reduce_to_hlen(msg)
+    assert dsa.verify_(msg_hash, Q, sig)
+
+    err_msg = "not a hash function"
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        dsa.verify_(msg_hash, Q, sig, sha256())  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        dsa.assert_as_valid_(msg_hash, Q, sig, sha256())  # type: ignore[arg-type]
+    # and through the un-underscored spellings, which reduce first
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        dsa.verify(msg, Q, sig, sha256())  # type: ignore[arg-type]
