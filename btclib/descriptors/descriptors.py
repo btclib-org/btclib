@@ -191,7 +191,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
-from btclib.script.script_pub_key import ScriptPubKey, _script_from
+from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
 from btclib.script.taproot import (
     MAX_TREE_DEPTH,
     input_script_sig,
@@ -926,7 +926,7 @@ class Descriptor(ABC):
         to look is a policy this module has no view on. A descriptor that
         is not ranged has one script and answers 0 or None.
         """
-        script = _script_from(script_pub_key)
+        script = _validated_script_from(script_pub_key)
         last = last_index if self.is_ranged else 0
         for index in range(last + 1):
             if any(

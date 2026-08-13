@@ -1474,6 +1474,15 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
         if other_id != tx_id:
             raise BTClibValueError(f"mismatched psbt.tx.id: {other_id.hex()}")
 
+    # after the version and identifier checks and not before them: those
+    # two are what makes these psbts one transaction's, and a caller
+    # handing over two unrelated psbts is told that rather than whichever
+    # of them fails its own validation first. Nothing else here asks, so an
+    # invalid psbt in gave an invalid psbt out, presented as a combine that
+    # worked
+    for psbt in psbts:
+        psbt.assert_valid()
+
     final_psbt.tx_modifiable = _combined_tx_modifiable(psbts)
     for psbt in psbts[1:]:
         for i, inp in enumerate(final_psbt.inputs):
@@ -1770,6 +1779,10 @@ def prevouts(psbt: Psbt) -> list[TxOut]:
     transaction unsignable rather than one input of it -- which is why
     this raises where `_prev_out` answers None.
     """
+    # the amounts and scripts a taproot signature commits to under BIP341,
+    # which makes this the list that most wants to have been checked
+    psbt.assert_valid()
+
     outs: list[TxOut] = []
     for i, psbt_in in enumerate(psbt.inputs):
         prev_out = _prev_out(psbt_in)
@@ -2718,6 +2731,12 @@ def new_signers(request: Psbt, returned: Psbt) -> set[bytes]:
     caller's: it is the merge that must not happen before both have
     answered.
     """
+    # both of them: `returned` is what a signer sent back and `request`
+    # what was sent, and key data and origin fields are read raw out of
+    # each of the two maps below
+    returned.assert_valid()
+    request.assert_valid()
+
     if len(returned.inputs) != len(request.inputs):
         err_msg = "mismatched number of psbt inputs: "
         err_msg += f"{len(returned.inputs)} vs {len(request.inputs)}"

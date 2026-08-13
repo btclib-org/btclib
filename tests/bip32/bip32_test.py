@@ -1195,3 +1195,26 @@ def test_bip328_synthetic_xpub(
     # and a child of it is a child of the group: what the tweaks above
     # reach, which is the arithmetic a signer does instead of deriving
     assert derive(synthetic_xpub, "m/0") == derive(xkey, "m/0")
+
+
+def test_cracking_refuses_a_child_its_own_assert_valid_refuses() -> None:
+    """Both arguments through `_key_data_from_bip32_key` (issue 693).
+
+    This function exists to demonstrate a known BIP32 weakness, so an
+    answer it gives for a child the library itself refuses is a wrong
+    lesson: it subtracted the offset from a key set to the zero scalar and
+    returned an xprv. The parent is affected too, going through
+    `copy.copy` with only its `key[0]` prefix looked at.
+    """
+    root = rootxprv_from_seed("0102030405060708090a0b0c0d0e0f10")
+    parent_xpub = xpub_from_xprv(root)
+    child_xprv = derive(root, "m/0")
+    assert crack_prv_key(parent_xpub, child_xprv) == root
+
+    bad_child = BIP32KeyData.b58decode(child_xprv)
+    bad_child.key = b"\x00" * 33  # the zero scalar
+    err_msg = "invalid private key not in 1..n-1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bad_child.assert_valid()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        crack_prv_key(parent_xpub, bad_child)

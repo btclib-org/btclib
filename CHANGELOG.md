@@ -447,6 +447,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **Three psbt entries took a psbt unasked** (#692, under the rule of #684).
+  `combine` merged the maps and returned a psbt with neither the inputs nor
+  the result validated anywhere, so an invalid psbt in gave an invalid psbt
+  out, presented as a combine that worked; `prevouts` returned the amounts
+  and scripts a BIP341 signature commits to, which is the list that most
+  wants to have been checked; `new_signers` compared two psbts by input
+  count and then read key data and origin fields raw out of both maps.
+  `combine` asks after the version and identifier checks rather than before
+  them: those two are what make the psbts one transaction's, so a caller
+  handing over two unrelated ones is told that instead of whichever of them
+  fails its own validation first.
+
+  Two tests carried fixtures that could not pass `Psbt.assert_valid`, and
+  both were loose rather than deliberate: the musig2 combine test used
+  `02aa…`, `02bb…` and `02cc…` as stand-in keys, which are not points, and
+  now uses real ones -- what it is about is two participant lists under one
+  aggregate key, not what either aggregates to.
+
 - **A pre-built `ScriptPubKey` is asked what octets are asked** (#694, under
   the rule of #684). `TxOut.__init__` validated the octets branch --
   `ScriptPubKey(script_bytes)` defaults to `check_validity=True` -- and
@@ -669,6 +687,22 @@ documented at release-notes length in the first place, and are still in
   that has none.
 
 ### Curves, signatures and keys
+
+- **Cracking refuses a child the library itself refuses** (#693).
+  `crack_prv_key` exists to demonstrate a known BIP32 weakness, so a wrong
+  answer from it is a wrong lesson: it subtracted the derivation offset
+  from a child whose key was the zero scalar and returned an xprv. Both
+  arguments now go through `_key_data_from_bip32_key`, the one place a
+  `BIP32Key` of either spelling becomes a validated `BIP32KeyData`; the
+  parent is still copied, being mutated into the answer.
+- **An unchecked key origin cannot enter a psbt, or its json** (#693).
+  `decode_hd_key_paths` ran `bytes_from_octets` over the mapping's keys and
+  copied the `BIP32KeyOrigin` values across untouched, so it was a public
+  entry through which an origin `assert_valid` refuses -- a three-byte
+  master fingerprint, say -- entered a psbt's `hd_key_paths`;
+  `encode_to_bip32_derivs` then wrote `master_fingerprint.hex()` of whatever
+  it held into the json. `assert_valid_hd_key_paths`, the validating
+  counterpart, was already sitting beside both.
 
 - **Batch verification validates every signature it is handed** (#688).
   `ssa.batch_verify_` answered `True` for a signature `ssa.verify_` answers
@@ -1073,6 +1107,20 @@ documented at release-notes length in the first place, and are still in
   arithmetic reported as a successful import of something else.
 
 ### Descriptors and miniscript
+
+- **An invalid output is refused, not answered about** (#691). `index_of`
+  answered `None` -- "this output is not mine" -- for a `ScriptPubKey` its
+  own `assert_valid` refuses, which is the worst shape a missing check can
+  take: `None` is exactly what a caller is told about a perfectly good
+  output belonging to somebody else, and nothing in the answer says the
+  question was malformed. `script_pub_key._script_from` stays the private
+  twin that converts several spellings and validates none;
+  `_validated_script_from` beside it is what the three public questions call
+  -- `Descriptor.index_of`, `DescriptorWallet.position_of` and
+  `RangedWallet.position_of`, the last reached by `assert_derives`, which
+  exists to be believed about a list of addresses somebody wrote down
+  (#596). One helper and not three copies, for the reason `_script_from`
+  gives about itself.
 
 - **`at_index()` and `normalized()` reach the keys inside a miniscript**
   (#592). `_mapped_keys` is the one walk both are written in terms of,

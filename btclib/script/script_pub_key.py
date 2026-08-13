@@ -851,3 +851,24 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     except ValueError as e:
         err_msg = f"neither a script nor an address: '{script_pub_key}'"
         raise BTClibValueError(err_msg) from e
+
+
+def _validated_script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
+    """`_script_from`, having first asked the object whether it is one.
+
+    What the public questions "is this output mine" owe their caller.
+    Answering `None` -- or "not what this branch derives" -- for a
+    `ScriptPubKey` its own `assert_valid` refuses is the worst shape a
+    missing check can take, the answer being a negative rather than an
+    error: it is what a caller is told about a perfectly good output
+    belonging to somebody else, and nothing in it says the question was
+    malformed.
+
+    Here rather than three times over in `Descriptor.index_of`,
+    `DescriptorWallet.position_of` and `RangedWallet.position_of`, for the
+    reason `_script_from` gives about itself: a second copy of the rule is
+    a second answer to give.
+    """
+    if isinstance(script_pub_key, ScriptPubKey):
+        script_pub_key.assert_valid()
+    return _script_from(script_pub_key)
