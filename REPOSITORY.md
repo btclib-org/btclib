@@ -26,12 +26,20 @@ workflows with a job named the same thing produce one ambiguous check.
 | `test: every job passed` | `test.yml`, aggregate over the matrix |
 | `Lint and type-check` | `lint.yml`, its only job |
 | `Build the documentation` | `docs.yml`, its only job |
-| `Regtest against Bitcoin Core` | `integration.yml`, its only job |
+| `Regtest against Bitcoin Core` | `integration.yml`, its regtest job |
 | `codeql: every job passed` | `codeql.yml`, aggregate over the languages |
 
-A workflow with one job needs no aggregate: the job *is* the context, which
-is why three of the five are job names. The day one of them grows a second
-job, an aggregate and a change to this rule are what that costs.
+A workflow needs an aggregate when every one of its jobs has to gate: the
+matrix of `test.yml` and the languages of `codeql.yml` are the two, and a
+context naming one cell of either would leave the rest outside the rule.
+Where a single job is what gates, that job *is* the context, which is why
+three of the five are job names — and why `integration.yml` naming a
+second job changed nothing here: `HWI against a Trezor emulator` runs
+beside the regtest one and must not gate, an emulator being a service to
+keep working rather than a claim about the branch, so the context stays
+the name of the job that does. What a second job would cost is a rename:
+a workflow whose *whole* answer becomes required needs an aggregate, and
+this table with it.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
