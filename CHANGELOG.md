@@ -190,6 +190,32 @@ documented at release-notes length in the first place, and are still in
   lives and `OutPoint` and `TxIn` are the classes it holds for, so the new
   paragraph points at it instead of restating it.
 
+- **Each new release gets a documentation URL of its own, and a check that
+  says so.** btclib.readthedocs.io was serving neither of the last two
+  releases: `latest` followed a branch this repository no longer has, so
+  every push was answered without a build being triggered, and the site
+  kept the last build that had succeeded -- a placeholder version, from a
+  commit squashed away months earlier. That is issue #574, and the half of
+  it that is settings is now written down: `latest` follows `main`,
+  `stable` is the newest release tag, and an automation rule activates each
+  new tag, which is what makes `/en/v<version>/` exist and stay that
+  version rather than becoming the next one. REPOSITORY.md's "Read the
+  Docs" section is where they live, that file being the whole of what
+  cannot be recovered by reading the tree.
+  The other half is a job: `release.yml`'s `documented` waits for the
+  tag's page to be served and is red if it never is, where until now
+  nothing failed when a build never started. It polls the rendered URL and
+  not the v3 API, which the `published` job's PyPI check is the reverse of:
+  read the docs throttles an unauthenticated caller to five requests a
+  minute and blocks cloud-provider addresses outright without a token, so
+  asking the API from a runner would mean keeping a credential for a check
+  that gates nothing. It starts with the next release and reaches no
+  release behind it: a rule applies to the versions created after it, so
+  `v2026.8.9` has no page of its own and is not getting one, and anything
+  before `v2026.8.7` could not have one — a build needs `.readthedocs.yaml`
+  and would fail without it. `/en/stable/` is the last release either way,
+  which is what makes the backfill not worth doing.
+
 ### Packaging, linting and CI
 
 - **A tag is refused unless the default branch contains its commit**

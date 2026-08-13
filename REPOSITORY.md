@@ -396,6 +396,65 @@ records for `btclib.org` and the `https_enforced` certificate hang off it.
 The file is what Pages reads on each build, so deleting it from the tree
 un-sets the setting on the next push.
 
+## Read the Docs, which is btclib.readthedocs.io
+
+**The published documentation is a project on Read the Docs**, `btclib` on
+<https://app.readthedocs.org/projects/btclib/>. `.readthedocs.yaml` says
+how a build runs; *which* versions run it is settings there, and nothing
+in the tree records them:
+
+```shell
+curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
+  | python3 -c 'import json, sys; p = json.load(sys.stdin); \
+      print(p["default_branch"], p["default_version"])'
+# main latest
+```
+
+- **`latest` follows the default branch, which is `main`.** That setting is
+  Read the Docs' own and not GitHub's, so renaming the branch here leaves
+  it pointing at one that no longer exists — and a push to a branch no
+  version follows is *accepted*, answered with `{"build_triggered": false,
+  "versions": []}`, which is a green delivery and a site frozen at its last
+  build (issue #574).
+- **`stable` is the highest semantic-version tag**, chosen by Read the Docs
+  and moved by it on each release, pre-releases excluded. It takes no
+  setting and no rule, and it is what `/en/stable/` serves.
+- **An automation rule activates each new release tag**: Admin → Automation
+  Rules, match `SemVer versions`, version type `Tag`, action `Activate
+  version`. A tag is created inactive otherwise, which is a 404 on
+  `/en/v<version>/`; with the rule each release keeps a URL that stays that
+  release rather than becoming the next one. It applies to versions created
+  after it, so a tag pushed before it stays inactive until activated by
+  hand.
+- **`default_version` is `latest`**, so the root of the site serves the
+  development tip, declaring the placeholder version `pyproject.toml`
+  carries between releases. `stable` is the alternative, and what the
+  choice decides is which of the two a reader arriving with no version in
+  mind is given.
+
+Tags older than the rule are mostly not activatable rather than merely not
+activated: a build needs `.readthedocs.yaml`, which reaches back to
+`v2026.8.7` alone, so an older tag answers with a failed build instead of
+with the documentation of 2023. None was backfilled, `v2026.8.9` — which
+could have been — included, so `/en/v<version>/` starts at the first tag
+pushed after the rule and there is nothing behind it. `/en/stable/` is the
+last release either way, which is what makes the backfill skippable.
+
+**The webhook has to carry a secret.** A delivery from one that does not is
+refused with 400 and the reason in the body, which GitHub records in the
+hook's delivery log and reports nowhere else:
+
+```shell
+gh api repos/btclib-org/btclib/hooks \
+  --jq '.[] | [.config.url, (.config.secret != null), .last_response.code]'
+# ["https://app.readthedocs.org/api/v2/webhook/btclib/331149/",true,200]
+```
+
+A hook added here by hand has no secret and cannot be given one that Read
+the Docs knows. The one that works was issued by the project's integration
+page, and that is also how it is replaced: delete the integration there
+and add it again, rather than editing the hook on this side.
+
 ## Plan-gated settings
 
 Some settings cannot be enabled and fail silently: secret scanning's

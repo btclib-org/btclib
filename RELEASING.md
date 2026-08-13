@@ -250,13 +250,16 @@ word, and step 1 asks it of both.
    runs neither**.
 
    Then verify the
-   [read the docs](https://readthedocs.org/projects/btclib/builds/)
+   [read the docs](https://app.readthedocs.org/projects/btclib/builds/)
    build, and that [the website](https://btclib.org) and the
    [documentation](https://btclib.readthedocs.io/en/latest/) render
    correctly. Read the *builds* page and not only the rendered one: a
    site that answers 200 may be serving the last build that succeeded,
    which for three years was v2023.7.12's — the webhook had been
    refusing every delivery with a 400 and nobody was told (issue #484).
+   This is the half no check covers: `latest` is the tip of `main`, so
+   nothing names a version to ask about. The tag's own build is asked
+   about, by the `documented` job below.
 
    Two things about that pull request, both of them before the button
    rather than after it.
@@ -354,6 +357,17 @@ word, and step 1 asks it of both.
    pull requests instead — the fallback `version-check` exists to make
    unreachable, not a second way to write release notes — and they are
    worth replacing by hand if it ever fires.
+
+1. Read the `documented` job rather than the site: read the docs activates
+   and builds a new release tag from the automation rule REPOSITORY.md
+   records, and that job waits for
+   `https://btclib.readthedocs.io/en/<tag>/` to be served and is red if it
+   never is. Green means the release has a permanent URL of its own, which
+   is the one to link when the version is named anywhere. Red means the
+   build is missing and
+   [the builds page](https://app.readthedocs.org/projects/btclib/builds/)
+   says why: nothing about the publication depends on it, so the fix is a
+   build on their side and never a moved tag.
 
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
