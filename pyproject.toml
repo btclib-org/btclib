@@ -177,6 +177,10 @@ ignore = [
     "tests/generate_sbom_test.py",
     "tests/mutation_counts_test.py",
     "tests/verify_dist_contents_test.py",
+    # a developer's own tool, run by hand against a checkout rather than
+    # against an install: it needs no third-party dependency, but it is no
+    # more part of the distributed package than the website above is
+    "scripts/**",
 ]
 
 [tool.pytest.ini_options]
@@ -770,6 +774,12 @@ ignore = [
     "S101", # assert
     "T201", # print
 ]
+# the pure-Python-vs-bindings benchmark: T201, whose whole output is the
+# timings a developer ran it to see, print being the only interface a
+# script run by hand has; and S101, each assert there being the guard
+# against timing a call that silently stopped agreeing with the other
+# implementation, the one thing a benchmark cannot afford to do quietly
+"scripts/benchmark.py" = ["T201", "S101"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public
