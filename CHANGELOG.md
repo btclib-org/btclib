@@ -274,6 +274,30 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **A checkout builds against the bindings' `main`, not their last
+  release.** `btclib_secp256k1` 0.8.0.1 is the newest release, and the
+  entry points this tree is about to call are newer than it:
+  `dsa.verify_`, `ssa.verify_`, `xonly.parse` and the `normalize` flag of
+  `dsa.verify` are btclib-secp256k1#149, which answers
+  btclib-secp256k1#147 and #148 — the bindings half of the pair issues
+  #887 and #889 name. `[tool.uv.sources]` points the dependency at the
+  repository's `main` branch, so `uv sync` builds it from source there.
+
+  In `[tool.uv]` and not in `dependencies`, which keeps naming the
+  version range it named: a direct reference is published metadata, and
+  PyPI refuses a distribution whose requirements carry a URL. What a
+  released btclib asks of the people who install it is therefore
+  unchanged — and that is also the thing to do at the next release, which
+  is to raise the floor to the bindings release that carries those entry
+  points. Until it exists, btclib is not releasable against them, and
+  that is the cost of this.
+
+  `branch = "main"` with the commit uv resolved recorded in `uv.lock`:
+  every job passes `--locked`, so the branch is followed when the lock is
+  regenerated and at no other time. A git source has no wheels to pin, so
+  every environment builds the bindings from that commit, submodule and C
+  library included, rather than downloading one of the published wheels.
+
 - **The pinned revisions move: hooks, actions and the lock.** ruff
   v0.16.2 to v0.16.3 and the uv-pre-commit hook 0.12.3 to 0.12.4;
   `setup-uv` v9.0.0 to v10.0.1 and `codeql-action` v4.37.6 to v4.37.7,
