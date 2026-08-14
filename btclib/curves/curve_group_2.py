@@ -261,7 +261,13 @@ def _mult_w_NAF_var(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
 
 
 def _double_mult_w_NAF_var(
-    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup, w: int
+    u: int,
+    HJ: JacPoint,
+    v: int,
+    QJ: JacPoint,
+    ec: CurveGroup,
+    w: int,
+    fixed: frozenset[JacPoint],
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q), interleaved wNAFs.
 
@@ -303,6 +309,12 @@ def _double_mult_w_NAF_var(
     second of the suite and put a branch in the middle of signature
     verification.
 
+    `fixed` is the points whose tables are memoized rather than built
+    here, `_multi_mult_w_NAF_var` says what that buys, and it is the
+    caller's rather than read off `ec` because a caller may have prepared
+    a point of its own: `ec._fixed_points` is what a caller with nothing
+    prepared passes.
+
     The input points are assumed to be on curve, and the u and v
     coefficients are assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).
@@ -321,7 +333,7 @@ def _double_mult_w_NAF_var(
     # curve names, per call and narrow for one it does not -- and shares
     # the doublings. What this function adds is the pair of messages its
     # own coefficients answer with, and the name the algorithm has
-    return _multi_mult_w_NAF_var([u, v], [HJ, QJ], ec, w, ec._fixed_points)
+    return _multi_mult_w_NAF_var([u, v], [HJ, QJ], ec, w, fixed)
 
 
 def _double_mult_regular_window(
@@ -542,11 +554,17 @@ def _mult_endomorphism_secp256k1_var(
         raise BTClibValueError(f"negative m: {hex(m)}")
 
     m1, P, m2, K = _endomorphism_split_secp256k1(m, Q, ec)
-    return _double_mult_w_NAF_var(m1, P, m2, K, ec, w)
+    return _double_mult_w_NAF_var(m1, P, m2, K, ec, w, ec._fixed_points)
 
 
 def _double_mult_endomorphism_secp256k1_var(
-    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup, w: int
+    u: int,
+    HJ: JacPoint,
+    v: int,
+    QJ: JacPoint,
+    ec: CurveGroup,
+    w: int,
+    fixed: frozenset[JacPoint],
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q) through the endomorphism.
 
@@ -576,6 +594,13 @@ def _double_mult_endomorphism_secp256k1_var(
     0.82 at w=5, 0.91 at w=6 -- so w=4 and w=5 measure the same and the
     smaller table decides, as it does for `_double_mult_w_NAF_var`.
 
+    `fixed` is `_double_mult_w_NAF_var`'s, and this is the function that
+    grows it: a point named there has its two endomorphism images named
+    too, because they are what actually reaches the interleaved wNAF and
+    they are formed here. So a verification under a `curve.PreparedPoint`
+    memoizes four tables and not one, which is what makes the key's half
+    of the call cost what the generator's costs.
+
     The input points are assumed to be on curve. Either coefficient may be
     zero and either point may be infinity: the interleaved wNAF drops a
     zero half rather than building a table it would never index, and the
@@ -592,9 +617,9 @@ def _double_mult_endomorphism_secp256k1_var(
     # the split of a fixed point is fixed: the halves are +-H and
     # +-lambda*H, determined by H alone and by which of the two signs the
     # coefficient asked for, so both are worth a memoized table whenever H
-    # is one of the points the curve names. The images are formed here and
+    # is one of the points `fixed` names. The images are formed here and
     # nowhere else, which is why they are added here rather than in Curve
-    fixed = ec._fixed_points
+    # or in whatever prepared the point
     if HJ in fixed:
         fixed = fixed | {U1, U2}
     if QJ in fixed:

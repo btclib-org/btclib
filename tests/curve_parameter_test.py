@@ -76,6 +76,7 @@ from btclib.bip32.bip32 import BIP32KeyData, rootxprv_from_seed, xpub_from_xprv
 from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
     Curve,
+    PreparedPoint,
     double_mult_var,
     mult,
     multi_mult_var,
@@ -158,6 +159,14 @@ class _Case:
 
 _CASES = (
     _Case("btclib.curves.curve.mult", mult, {"m_int": _PRV_KEY, "Q": _PUB_KEY}),
+    # the constructor, `point` being what it calls the argument the
+    # multiplications call Q: the guard runs before the point is looked
+    # at, as everywhere else here
+    _Case(
+        "btclib.curves.curve.PreparedPoint.__init__",
+        PreparedPoint,
+        {"point": _PUB_KEY},
+    ),
     _Case(
         "btclib.curves.curve.double_mult_var",
         double_mult_var,

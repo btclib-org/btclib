@@ -221,17 +221,19 @@ def test_double_mult_w_NAF() -> None:
             for u in range(ec.n):
                 for v in range(ec.n):
                     expected = _double_mult_var(u, HJ, v, QJ, ec)
-                    got = _double_mult_w_NAF_var(u, HJ, v, QJ, ec, w)
+                    got = _double_mult_w_NAF_var(u, HJ, v, QJ, ec, w, ec._fixed_points)
                     assert ec.is_jac_equal(got, expected), (u, v, w)
 
     ec = secp256k1
-    assert ec.is_jac_equal(_double_mult_w_NAF_var(0, ec.GJ, 0, ec.GJ, ec, w=4), INFJ)
+    assert ec.is_jac_equal(
+        _double_mult_w_NAF_var(0, ec.GJ, 0, ec.GJ, ec, 4, ec._fixed_points), INFJ
+    )
     with pytest.raises(BTClibValueError, match="negative first coefficient: "):
-        _double_mult_w_NAF_var(-1, ec.GJ, 1, ec.GJ, ec, w=4)
+        _double_mult_w_NAF_var(-1, ec.GJ, 1, ec.GJ, ec, 4, ec._fixed_points)
     with pytest.raises(BTClibValueError, match="negative second coefficient: "):
-        _double_mult_w_NAF_var(1, ec.GJ, -1, ec.GJ, ec, w=4)
+        _double_mult_w_NAF_var(1, ec.GJ, -1, ec.GJ, ec, 4, ec._fixed_points)
     with pytest.raises(BTClibValueError, match="non positive w: "):
-        _double_mult_w_NAF_var(1, ec.GJ, 1, ec.GJ, ec, 0)
+        _double_mult_w_NAF_var(1, ec.GJ, 1, ec.GJ, ec, 0, ec._fixed_points)
 
 
 def test_double_mult_endomorphism_secp256k1() -> None:
@@ -254,7 +256,9 @@ def test_double_mult_endomorphism_secp256k1() -> None:
     QJ = _mult(3, ec.GJ, ec)
 
     def dm(u: int, v: int, H: JacPoint, Q: JacPoint, w: int = 4) -> JacPoint:
-        return _double_mult_endomorphism_secp256k1_var(u, H, v, Q, ec, w)
+        return _double_mult_endomorphism_secp256k1_var(
+            u, H, v, Q, ec, w, ec._fixed_points
+        )
 
     pairs = [
         (0, 0),

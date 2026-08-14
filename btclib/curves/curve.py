@@ -8,7 +8,9 @@ mult, double_mult_var and multi_mult_var dispatch secp256k1 to the
 libsecp256k1 bindings and answer every other curve -- and the cases
 the bindings cannot express -- with curve_group's arithmetic.
 
-What this module exports is the class, the three multiplications, the
+What this module exports is the class, the three multiplications,
+`PreparedPoint` -- the one way a caller has of saying that a point of
+its own will come back, so that the tables built for it are kept -- the
 catalogue, the four standards it is the union of -- which is where
 btclib.curves keeps them, a standard being a question about a curve and
 not a way of finding one -- and the `*_params2` each of those four is
@@ -27,6 +29,7 @@ from __future__ import annotations
 import contextlib
 import json
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from hashlib import sha256
 from math import isqrt
 from pathlib import Path
@@ -67,6 +70,7 @@ __all__ = [
     "Brainpool_params2",
     "Curve",
     "NIST_params2",
+    "PreparedPoint",
     "SEC2v1",
     "SEC2v1_params2",
     "SEC2v2",
@@ -663,13 +667,37 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     """Elliptic curve scalar multiplication."""
     _assert_valid_ec(ec)
     m: int = int_from_integer(m_int) % ec.n
+    if Q is not None and Q != ec.G:
+        # hoisted out of the two arms below, which each ran it: the
+        # generator needs none, and every other point needs it on both
+        # paths. Hoisted no further, so that a wrong `ec` is still the
+        # first thing refused
+        ec.require_on_curve(Q)
+    return _mult_checked(m, Q, ec, prepared=False)
 
+
+def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Point:
+    """Return m*Q, the arguments already validated and m already reduced.
+
+    What `mult` and `PreparedPoint.mult` share, so that the dispatch to
+    the bindings is written once: the two differ in one thing, which is
+    the Python arm a point that is not the generator takes.
+
+    `prepared` says the caller has undertaken to multiply this point
+    again -- `PreparedPoint` is where that undertaking is made and where
+    what it costs is written. It sends the point to the same fixed-base
+    ladder the generator runs, whose tables are memoized per point,
+    instead of to the GLV endomorphism, which builds nothing and keeps
+    nothing. On the bindings path it changes nothing at all: libsecp256k1
+    is 22.8 us against the ladder's warm 142.3, so a prepared point is
+    still faster delegated, and the tables are only reached where the
+    bindings decline.
+    """
     # m == 0 is the infinity point, which the bindings reject as a scalar
     if m and _libsecp256k1_serves(ec, None):
         # the generator is ec_pubkey_create, with no point to parse first
         if Q is None or Q == ec.G:
             return libsecp256k1_mult(m)
-        ec.require_on_curve(Q)
         # any other point, infinity excepted: that one is not a pubkey,
         # and m*INF == INF is what the Python path below answers anyway
         if Q[1]:
@@ -683,8 +711,15 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         # so the test is on the point before it is on the curve
         return ec.aff_from_jac_var(_mult_fixed_base(m, ec.GJ, ec, _FIXED_BASE_W))
 
-    ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
+
+    if prepared:
+        # the same ladder the generator takes, on the caller's word that
+        # this point is the same on the next call too. No blinding of the
+        # point here, and none is missing: _mult_fixed_base rescales its
+        # accumulator instead, the table it indexes being memoized and
+        # therefore canonical
+        return ec.aff_from_jac_var(_mult_fixed_base(m, QJ, ec, _FIXED_BASE_W))
 
     # what reaches here on secp256k1 is the arguments the bindings decline
     # -- a zero scalar, or infinity -- and, with the dispatch
@@ -716,8 +751,121 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     return ec.aff_from_jac_var(R)
 
 
+@dataclass(frozen=True, init=False)
+class PreparedPoint:
+    """A point whose multiplication tables are kept, because it will come back.
+
+    The tables of `curve_group` are memoized on `(point, curve, width)`
+    already, so a repeated point would find its own: what is missing is
+    anyone to say that a point *is* repeated. Only the generator is
+    assumed to be, and everything else is treated as arriving once --
+    which is right for most callers and wrong for a few, and no
+    measurement can tell which a caller is. This is where a caller says
+    so.
+
+    Two tables answer to it, one per operation:
+
+    - `mult` takes the fixed-base ladder of the generator instead of the
+      GLV endomorphism: 142.3 us a call against 551.0, once 9.50 ms has
+      built the per-position tables -- 43 positions of 64 points on
+      secp256k1, some 366 KiB. Break-even is 23 multiplications of the
+      one point -- `dh.diffie_hellman` against a counterparty, a taproot
+      internal key tweaked repeatedly, `pedersen` against a fixed second
+      generator.
+    - a verification under it -- `dsa` and `ssa` both take one where they
+      take a public key -- memoizes the wNAF tables of the key's two
+      endomorphism halves at `_FIXED_POINT_W` instead of rebuilding them
+      at `_DOUBLE_MULT_W` per signature: 2 tables built per verification
+      become 0, and the verification 609.1 us against 471.0 for ECDSA,
+      664.5 against 531.2 for BIP340. Break-even is 22 signatures under
+      the one key, the first verification costing 3599 us where a bare
+      key's costs 630.
+
+    Both are the Python arithmetic. On secp256k1 with the bindings
+    available neither is reached -- libsecp256k1 verifies in 22.8 us and
+    holds its own tables in its own context -- so what this is for is the
+    Python path: another curve, another hash function, or a deployment
+    without the compiled bindings. Handing one in on the delegated path
+    is not an error and costs nothing; it simply buys nothing.
+
+    Preparing is a caller's word and never inferred, and the memory is
+    why: the tables are per distinct point, so a library that memoized
+    whatever public key arrived would hold a few MB for keys nobody will
+    see again -- issue #287, the bound `_cached_base58_decode` and
+    `pedersen.second_generator` hold too. What bounds it here is that
+    nothing is prepared unless asked, and beyond that the `lru_cache`
+    maxsize the tables live under.
+
+    Nothing is built by the constructor. It parses and validates the
+    point, which is the other half of what a verifier repeats -- 75.2 us
+    of decompression per signature, on the Python path where a
+    compressed key is a field square root -- and leaves the tables to the
+    first multiplication that wants them, because which of the two
+    families above is wanted is a question only that call answers.
+
+    Measured on an Apple M5, macOS 26.6, arm64, CPython 3.14, with
+    `curve._libsecp256k1_available` set to False; best of five
+    alternating rounds of 300 to 800 calls, and the median of seven for
+    the cold rows, each on a freshly derived point so that the tables are
+    built rather than found. A working desktop rather than a quiesced
+    machine: a ratio, not a figure to quote.
+
+    Args:
+        point: the point to prepare, on the curve and not infinity.
+        ec: the curve it belongs to.
+
+    Raises:
+        BTClibValueError: if the point is not on the curve, or is
+            infinity, which has no tables and multiplies to itself.
+    """
+
+    point: Point
+    ec: Curve = secp256k1
+    # the set `_multi_mult_w_NAF_var` reads, complete rather than the
+    # point's own share of it, so that a verification hands it straight
+    # down and nothing on the hot path unions two frozensets per call.
+    # The negation is in it for the reason `Curve.__init__` puts the
+    # generator's there: the GLV split of a point is +-P and +-lambda*P,
+    # and which sign it asks for is the coefficient's business. The two
+    # lambda images are not here, being formed by
+    # _double_mult_endomorphism_secp256k1_var and added by it.
+    # Out of the repr and out of the comparison because it is derived:
+    # two prepared points of the same point and curve are the same
+    # preparation, and a frozenset of Jacobian triples printed beside a
+    # Curve is a screenful saying nothing the point does not
+    fixed: frozenset[JacPoint] = field(init=False, repr=False, compare=False)
+
+    # init=False on the decorator, as `dsa.Sig` has it, and on the
+    # `fixed` field besides: that one is derived rather than passed, and
+    # a field with no default following `ec`, which has one, is a
+    # signature dataclasses refuses to generate and mypy refuses to read
+    def __init__(self, point: Point, ec: Curve = secp256k1) -> None:
+        _assert_valid_ec(ec)
+        ec.require_on_curve(point)
+        # infinity is on the curve and is not a point to prepare: it has
+        # no affine table -- `_signed_odd_multiples_aff` would convert it
+        # -- and m*INF is INF without any of this
+        if not point[1]:
+            raise BTClibValueError("cannot prepare the point at infinity")
+
+        object.__setattr__(self, "point", point)
+        object.__setattr__(self, "ec", ec)
+        PJ = _jac_from_aff(point)
+        object.__setattr__(self, "fixed", ec._fixed_points | {PJ, ec.negate_jac(PJ)})
+
+    def mult(self, m_int: Integer) -> Point:
+        """Return m*point, through the tables this point keeps.
+
+        `curve.mult` with the fixed-base arm taken for this point instead
+        of only for the generator; everything else about the call, the
+        dispatch to the bindings included, is the same.
+        """
+        m: int = int_from_integer(m_int) % self.ec.n
+        return _mult_checked(m, self.point, self.ec, prepared=True)
+
+
 def _double_mult_python(
-    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve
+    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve, fixed: frozenset[JacPoint]
 ) -> JacPoint:
     """Return u*HJ + v*QJ in Python, through the endomorphism if there is one.
 
@@ -745,12 +893,17 @@ def _double_mult_python(
     would buy is a fraction of a second, and what it would cost is a
     second copy of the dispatch, one per caller, free to drift. `mult`
     makes the same two comparisons for the same reason.
+
+    `fixed` is the points whose tables are memoized, passed down rather
+    than read off `ec` at the bottom: a verification under a
+    `PreparedPoint` names the key there, and every other caller names
+    `ec._fixed_points`, which is what the bottom used to read for itself.
     """
     if ec == secp256k1:
         return _double_mult_endomorphism_secp256k1_var(
-            u, HJ, v, QJ, ec, _ENDOMORPHISM_W
+            u, HJ, v, QJ, ec, _ENDOMORPHISM_W, fixed
         )
-    return _double_mult_w_NAF_var(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
+    return _double_mult_w_NAF_var(u, HJ, v, QJ, ec, _DOUBLE_MULT_W, fixed)
 
 
 def double_mult_var(
@@ -773,11 +926,16 @@ def double_mult_var(
 
     HJ = _jac_from_aff(H)
     QJ = _jac_from_aff(Q)
-    R = _double_mult_python(u, HJ, v, QJ, ec)
+    # nothing prepared: this entry point takes two bare points, and a
+    # caller with a point that repeats says so through `PreparedPoint`,
+    # which the verifications take
+    R = _double_mult_python(u, HJ, v, QJ, ec, ec._fixed_points)
     return ec.aff_from_jac_var(R)
 
 
-def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> JacPoint:
+def _jac_double_mult(
+    u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve, fixed: frozenset[JacPoint]
+) -> JacPoint:
     """Return u*HJ + v*QJ in Jacobian coordinates, delegated where it can be.
 
     double_mult_var for a caller whose equation is written in projective
@@ -806,8 +964,11 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     cheapest operand it has.
     """
     if not _libsecp256k1_serves(ec, None):
-        return _double_mult_python(u, HJ, v, QJ, ec)
+        return _double_mult_python(u, HJ, v, QJ, ec, fixed)
 
+    # `fixed` is dropped on this arm and nothing is lost: libsecp256k1
+    # holds its own tables in its own context, and what a caller prepared
+    # here is a table of the Python arithmetic
     R = double_mult_var(u, ec.aff_from_jac_var(HJ), v, ec.aff_from_jac_var(QJ), ec)
     return _jac_from_aff(R)
 

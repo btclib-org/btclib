@@ -12,24 +12,26 @@ import pytest
 from btclib_secp256k1 import dsa as libsecp256k1_dsa
 from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
-from btclib.alias import INF, Point
+from btclib.alias import INF, JacPoint, Point
 from btclib.curves import (
     Curve,
+    PreparedPoint,
     bytes_from_point,
     curve,
+    curve_group,
     double_mult_var,
     mult,
     point_from_octets,
     secp256k1,
 )
 from btclib.curves.curve import CURVES
-from btclib.curves.curve_group import _mult
+from btclib.curves.curve_group import CurveGroup, _mult
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv_var
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
+from btclib.to_pub_key import pub_keyinfo_from_prv_key, pub_keyinfo_from_pub_key
 from tests import load, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 from tests.to_key_test import Q as pub_key_point
@@ -252,7 +254,9 @@ def _step_1_6_1(c: int, r: int, s: int, ec: Curve) -> list[Point | None]:
 def _verifies(c: int, Q: Point, r: int, s: int, ec: Curve) -> bool:
     """Answer whether Q verifies (r, s), which is step 1.6.2 as a boolean."""
     try:
-        dsa._assert_as_valid_(c, (Q[0], Q[1], 1), r, s, ec, lower_s=False)
+        dsa._assert_as_valid_(
+            c, (Q[0], Q[1], 1), r, s, ec, ec._fixed_points, lower_s=False
+        )
     except (BTClibValueError, BTClibRuntimeError):
         return False
     return True
@@ -285,7 +289,9 @@ def test_low_cardinality(name: str) -> None:
                     assert ec == sig.ec
                     # valid signature must pass verification, and here even
                     # under the strict rule: every s above was normalized
-                    dsa._assert_as_valid_(e, QJ, r, s, ec, lower_s=lower_s)
+                    dsa._assert_as_valid_(
+                        e, QJ, r, s, ec, ec._fixed_points, lower_s=lower_s
+                    )
 
                     jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=lower_s)
                     Qs = [ec.aff_from_jac_var(key) for key in jac_keys]
@@ -485,7 +491,7 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, ec, ec._fixed_points, lower_s=True)
 
     # pick u1 and u2 at will
     u1 = 1234567890
@@ -496,7 +502,7 @@ def test_forge_hash_sig() -> None:
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
-    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+    dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, ec, ec._fixed_points, lower_s=True)
 
 
 def test_sign_input_type() -> None:
@@ -1006,7 +1012,15 @@ def test_the_low_s_rule_is_asked_for_and_not_assumed(
 
     # and every private spelling refuses it when told to
     with pytest.raises(BTClibValueError, match=err_msg):
-        dsa._assert_as_valid_(c, QJ, malleated.r, malleated.s, secp256k1, lower_s=True)
+        dsa._assert_as_valid_(
+            c,
+            QJ,
+            malleated.r,
+            malleated.s,
+            secp256k1,
+            secp256k1._fixed_points,
+            lower_s=True,
+        )
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa._libsecp256k1_recover_point_(key_id ^ 1, msg_hash, malleated, lower_s=True)
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -1024,7 +1038,9 @@ def test_the_low_s_rule_is_asked_for_and_not_assumed(
     # the signature as signed passes the strict rule on both paths, which
     # is what says the refusals above are about the malleation and not
     # about the arguments being threaded wrongly
-    dsa._assert_as_valid_(c, QJ, sig.r, sig.s, secp256k1, lower_s=True)
+    dsa._assert_as_valid_(
+        c, QJ, sig.r, sig.s, secp256k1, secp256k1._fixed_points, lower_s=True
+    )
     assert dsa._libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=True) == Q
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
@@ -1479,7 +1495,9 @@ def test_verify_infinity_point() -> None:
     ec = CURVES["secp256k1"]
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec, lower_s=False)
+        dsa._assert_as_valid_(
+            ec.n - 1, ec.GJ, 1, 1, ec, ec._fixed_points, lower_s=False
+        )
 
 
 def test_verify_with_another_hash_function_on_both_arithmetics(
@@ -1512,7 +1530,9 @@ def test_verify_with_another_hash_function_on_both_arithmetics(
         assert not dsa.verify(b"another message", Q, sig, hf=sha512)
         # K = u*G + v*Q is INF for Q = G, r = s = 1 and c = n-1
         with pytest.raises(BTClibRuntimeError, match=r"invalid \(INF\) key"):
-            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, ec, lower_s=False)
+            dsa._assert_as_valid_(
+                ec.n - 1, ec.GJ, 1, 1, ec, ec._fixed_points, lower_s=False
+            )
 
     checks()
     no_bindings(monkeypatch)
@@ -1573,3 +1593,83 @@ def test_a_bad_hf_raises_rather_than_answering_about_the_signature() -> None:
     # and through the un-underscored spellings, which reduce first
     with pytest.raises(BTClibTypeError, match=err_msg):
         dsa.verify(msg, Q, sig, sha256())  # type: ignore[arg-type]
+
+
+def test_verification_under_a_prepared_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A prepared key verifies what the bare key verifies, and no more.
+
+    `PreparedPoint` is a memoization the caller opted into, so it must be
+    invisible in the answer: the same signatures pass, the same ones
+    fail, and the refusals keep their class. Asserted on both arithmetics
+    -- the delegated one, where the object buys nothing and must
+    therefore cost nothing either, and the Python one, which is what it
+    is for.
+    """
+    prv_key = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+    _, Q = dsa.gen_keys(prv_key)
+    prepared = PreparedPoint(Q)
+    msg = b"Satoshi Nakamoto"
+    sig = dsa.sign(msg, prv_key)
+
+    for _ in range(2):
+        dsa.assert_as_valid(msg, prepared, sig)
+        assert dsa.verify(msg, prepared, sig)
+        assert not dsa.verify(b"another message", prepared, sig)
+        # the wrong key, prepared, is still the wrong key
+        assert not dsa.verify(msg, PreparedPoint(dsa.gen_keys(prv_key + 1)[1]), sig)
+        # and it is a public key wherever one is read, the tables being
+        # the only thing about it that is not the point's
+        assert pub_keyinfo_from_pub_key(prepared) == pub_keyinfo_from_pub_key(Q)
+        no_bindings(monkeypatch)
+
+
+def test_a_prepared_key_stops_the_per_signature_table(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The 2 tables a verification rebuilds per signature become 0.
+
+    This is issue #893 itself, and it is asserted as a count rather than
+    as a duration: what a prepared key buys is that the wNAF tables of
+    the key's two GLV halves are memoized instead of built and dropped,
+    and the tables built per call is the thing that changes. A time would
+    measure the machine.
+
+    `_odd_multiples` is where a table that is *not* memoized is built --
+    `_multi_mult_w_NAF_var` sends a fixed point to
+    `_cached_odd_multiples_aff` instead -- so counting calls to it counts
+    exactly what the preparing removes. Two per verification: the key's
+    two halves, the generator's two being fixed already.
+    """
+    no_bindings(monkeypatch)
+    prv_key = 0xB6B7E2CA8E31CE45C1D2C0E1E0C5D62F0E52B1E8C8B5A4A9D3E2F1C0B9A8D7E6
+    _, Q = dsa.gen_keys(prv_key)
+    msg = b"Satoshi Nakamoto"
+    sig = dsa.sign(msg, prv_key)
+
+    builds = []
+    built = curve_group._odd_multiples
+
+    def counting(point: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+        builds.append(point)
+        return built(point, ec, w)
+
+    monkeypatch.setattr(curve_group, "_odd_multiples", counting)
+
+    # one verification first, and the count taken after it: the
+    # generator's own two tables are memoized as well, so on a worker
+    # that has verified nothing yet they are built here once and would
+    # be counted as the key's
+    assert dsa.verify(msg, Q, sig)
+    builds.clear()
+    for _ in range(3):
+        assert dsa.verify(msg, Q, sig)
+    assert len(builds) == 6
+
+    prepared = PreparedPoint(Q)
+    # the same warm-up on the other arm, filling the key's two wide
+    # tables, which is what the break-even in `PreparedPoint` prices
+    assert dsa.verify(msg, prepared, sig)
+    builds.clear()
+    for _ in range(3):
+        assert dsa.verify(msg, prepared, sig)
+    assert not builds

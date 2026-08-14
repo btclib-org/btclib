@@ -341,6 +341,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         "CURVES",
         "Curve",
         "CurveGroup",
+        "PreparedPoint",
         "bytes_from_point",
         "bytes_from_prv_key_int",
         "double_mult_var",

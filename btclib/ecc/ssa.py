@@ -63,7 +63,7 @@ from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
-from btclib.curves import Curve, secp256k1
+from btclib.curves import Curve, PreparedPoint, secp256k1
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -234,7 +234,7 @@ class Sig:
 # 33 or 65 bytes or hex-string
 # BIP32Key as dict or String
 # tuple Point
-BIP340PubKey = Integer | Octets | BIP32Key | Point
+BIP340PubKey = Integer | Octets | BIP32Key | Point | PreparedPoint
 
 
 def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
@@ -530,8 +530,12 @@ def sign(
     return sign_(msg_hash, prv_key, aux, ec, hf, commit_hash=reduce_to_hlen(commit, hf))
 
 
-def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
+def _assert_as_valid_(
+    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, fixed: frozenset[JacPoint]
+) -> None:
     # Private function for test/dev purposes
+    # `fixed` is dsa._assert_as_valid_'s: the points whose wNAF tables
+    # are memoized, the key's among them where the caller prepared it
     # It raises Errors, while verify should always return True or False
 
     # Let K = sG - eQ.
@@ -543,7 +547,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # multiplication is still theirs, 28 us against 1.02 ms. This whole
     # verification is then 38 us against 1.17 ms, the two lifts around it
     # -- the r of the signature and the x-only key -- being theirs as well
-    KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec)
+    KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec, fixed)
 
     # The following check is prescribed by BIP340 but it is useless:
     # if moved after 'Fail if x_K ≠ r' it would never be executed
@@ -643,9 +647,15 @@ def assert_as_valid_(
     # the lift the branch above does not need, and the validation of x_Q
     # with it: `_x_from_bip340pub_key` reads the key and proves nothing
     y_Q = _y_even_var(x_Q, sig.ec)
+    # the key's own memoized tables where the caller prepared it, as in
+    # `dsa.assert_as_valid_`: 531.2 us against 664.5 under one key. The
+    # negation is in that set too, which is what makes it answer here --
+    # a prepared point of odd y is this same key, and the lift above is
+    # the one of the two BIP340 names
+    fixed = Q.fixed if isinstance(Q, PreparedPoint) else sig.ec._fixed_points
     # Let c = int(hf(bytes(r) || bytes(Q) || msg)) mod n.
     c = challenge_(msg, x_Q, sig.r, sig.ec, hf)
-    _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
+    _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec, fixed)
 
 
 def assert_as_valid(
@@ -745,7 +755,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     # 109 for this function. Which is also why this stays private, with no
     # public spelling above it: BIP340 has no recovery flag to carry the
     # candidate, x-only keys leaving nothing for one to disambiguate
-    QJ = _jac_double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
+    QJ = _jac_double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec, ec._fixed_points)
     # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even, and
     # that answer comes back from the bindings too: a libsecp256k1 pubkey
     # is never the identity, so the sum is recognized from the coordinates

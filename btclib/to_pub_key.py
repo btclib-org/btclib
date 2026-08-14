@@ -15,6 +15,7 @@ from btclib.alias import Point
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import (
     Curve,
+    PreparedPoint,
     bytes_from_point,
     bytes_from_prv_key_int,
     mult,
@@ -47,18 +48,38 @@ __all__ = [
 ]
 
 # public key inputs:
-# elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey = bytes | str | BIP32KeyData | Point
+# elliptic curve point as Union[Octets, BIP32Key, Point, PreparedPoint]
+PubKey = bytes | str | BIP32KeyData | Point | PreparedPoint
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = int | bytes | str | BIP32KeyData | Point
+Key = int | bytes | str | BIP32KeyData | Point | PreparedPoint
 
 # the two unions at run time, with the buffers bytes_from_octets accepts
 # beside bytes. An int is in one and not the other on purpose: in this
 # library an int is a private key, and never a public one
-_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, BIP32KeyData, tuple)
+_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, BIP32KeyData, tuple, PreparedPoint)
 _KEY_TYPES = (int, *_PUB_KEY_TYPES)
+
+
+# **A prepared point is read as the point it holds, everywhere below.**
+# `curves.PreparedPoint` is a `Point` plus a caller's word that it will
+# be multiplied again, and the word is the whole of the difference: an
+# address, a fingerprint and a SEC encoding are the point's, so each
+# converter answers a prepared point by asking itself about `.point`.
+# What is *not* the point's is the memoized tables, and
+# `dsa.assert_as_valid_` and `ssa.assert_as_valid_` are the two places
+# that read those, off the object and not through here.
+#
+# Spelled as five one-line recursions rather than as one unwrapping
+# helper, and the types are why: a helper would have to answer the union
+# it was given minus PreparedPoint, which is a different union per
+# converter and two overloads to keep in step, where re-asking the same
+# function is exactly as narrow as the function already is.
+#
+# Nothing compares a curve on the way through: a prepared point of
+# another curve fails the `is_on_curve` its tuple then faces, exactly as
+# a bare `Point` of that curve does and with the same message.
 
 
 def _assert_pub_key_type(pub_key: PubKey) -> None:
@@ -124,6 +145,8 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     # "Curve mismatch" for what is a caller's own mistake
     _assert_valid_ec(ec)
     _assert_key_type(key)
+    if isinstance(key, PreparedPoint):
+        return point_from_key(key.point, ec)
 
     if isinstance(key, tuple):
         return point_from_pub_key(key, ec)
@@ -146,6 +169,8 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     """Return an elliptic curve point tuple from a public key."""
     _assert_valid_ec(ec)
     _assert_pub_key_type(pub_key)
+    if isinstance(pub_key, PreparedPoint):
+        return point_from_pub_key(pub_key.point, ec)
 
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
@@ -207,6 +232,8 @@ def pub_keyinfo_from_key(
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
     _assert_key_type(key)
+    if isinstance(key, PreparedPoint):
+        return pub_keyinfo_from_key(key.point, network, compressed)
 
     if isinstance(key, tuple):
         return pub_keyinfo_from_pub_key(key, network, compressed)
@@ -271,6 +298,8 @@ def _libsecp256k1_pubkey_from_pub_key(pub_key: PubKey) -> CData:
     asks for: a verification takes the key as the key says it is, and the
     curve it is asked about is the signature's.
     """
+    if isinstance(pub_key, PreparedPoint):
+        return _libsecp256k1_pubkey_from_pub_key(pub_key.point)
     if isinstance(pub_key, tuple):
         # bytes_from_point is the validation this branch skips
         # `pub_keyinfo_from_pub_key` for: it refuses what is not a point of
@@ -293,6 +322,8 @@ def _pub_keyinfo_and_pubkey_from_pub_key(
     written once.
     """
     _assert_pub_key_type(pub_key)
+    if isinstance(pub_key, PreparedPoint):
+        return _pub_keyinfo_and_pubkey_from_pub_key(pub_key.point, network, compressed)
     # as in `to_prv_key.prv_keyinfo_from_prv_key`: None means "whatever
     # the key says", and every other spelling of a truth is refused
     if compressed is not None:
