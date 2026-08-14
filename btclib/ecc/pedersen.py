@@ -29,7 +29,7 @@ from hashlib import sha256
 
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, double_mult, secp256k1
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import int_from_bits
 
 __all__ = [
@@ -107,7 +107,18 @@ def assert_as_valid(
 
     The commitment is recomputed and compared; verify is the boolean
     answer.
+
+    The type of the commitment is checked and its *value* is not: a
+    `None` compares unequal to every point, so `verify` reported a
+    commitment of no type at all as one that does not open, where a pair
+    of ints that is no commitment is exactly what False is for (issue
+    #814). `is_on_curve` is deliberately not asked -- that would refuse a
+    wrong value too.
     """
+    if not isinstance(commitment, tuple):
+        err_msg = f"invalid commitment type: {type(commitment).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+
     if commitment != commit(r, v, ec, hf):
         raise BTClibRuntimeError("commitment verification failed")
 

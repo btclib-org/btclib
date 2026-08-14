@@ -2352,6 +2352,56 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **The sixteen positions the bool gate held open are closed** (issue
+  #814). `tests/bool_contract_test.py` drove twelve verifications the
+  automatic walk cannot reach and found sixteen positions where a wrong
+  type was not a `BTClibTypeError` or a wrong value was not `False`.
+  Four shapes accounted for all of them, and each is a way of being
+  handed an argument without looking at it:
+
+  A **sequence parameter** walked before it is checked, so a `None` left
+  the walk as "not iterable" -- `ssa.batch_verify`'s three and
+  `merkle_proof.verify`'s branch. `ssa._assert_batch_sequences` is asked
+  by both batch spellings, the reduction of `assert_batch_as_valid` being
+  ahead of the prepared one's zip, and `merkle_proof.assert_as_valid`
+  asks the same of its branch. A `str` stays a `Sequence` on purpose: run
+  time cannot tell `Sequence[Octets]` from `Sequence[str]`, so the
+  elements answer for their own values.
+
+  A **signature reaching `Sig.b64decode`**, which strips before it
+  decodes, so a type with no `strip` was an `AttributeError` --
+  `bms.verify` and `bip322.verify`. Both now coerce with
+  `utils.str_from_string`, which is what that function is for, and the
+  stripping still covers what came as bytes as well as what came as text.
+
+  An argument handed **straight to the bindings**, whose own `TypeError`
+  says "the message hash must be bytes" -- true, and not btclib saying
+  it. The two engine adapters ask `_assert_bytes_arguments` first, which
+  names the parameter that was wrong; they are called with stack
+  elements, so it is a few nanoseconds of a microsecond-scale
+  verification.
+
+  And a **reduction outside the `try`**: `dsa.verify`, `ssa.verify` and
+  `ssa.batch_verify` reduced the message with `hf` before entering it, so
+  a message that is no octets was refused where `verify_`, handed the
+  hash, answered False about it. All three wrap their own
+  `assert_as_valid` now instead of delegating past the reduction, which
+  makes the pair symmetric: the same question, the same answer, whichever
+  spelling a caller reaches for.
+
+  `pedersen.verify` is the one that answered rather than raising, a
+  `None` comparing unequal to every point, so a commitment of no type at
+  all was reported as one that does not open. `assert_as_valid` checks
+  the type and deliberately not `is_on_curve`: a pair of ints that is no
+  commitment is exactly what False is for.
+
+  **What moves for a caller**: `TypeError` and `BTClibException` catch
+  everything they caught. `dsa.verify(non_hex_str, key, sig)` is False
+  where it raised, and a `None` or a float in any of those positions is a
+  `BTClibTypeError` where it was a native `TypeError` or
+  `AttributeError` -- code catching those two builtins keeps working,
+  `BTClibTypeError` being a `TypeError`.
+
 - **A wrong type and a wrong value are two questions, and the gate asks
   them separately** (issue #814). `tests/input_validation_test.py` drove
   one mixed vocabulary and asserted a `BTClibException` came out, which

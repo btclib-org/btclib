@@ -679,10 +679,17 @@ def verify(
     commit is reduced by hf as msg is; `verify_` is the spelling that
     takes the two hashes.
     """
-    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
-    return verify_(
-        reduce_to_hlen(msg, hf), Q, sig, hf, commit_hash=commit_hash, receipt=receipt
-    )
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states. `assert_as_valid` and not a
+    # delegation to the prepared spelling: the reduction has to be inside
+    # the try, or a message that is no octets is refused here where the
+    # hash spelling answers False about it (issue #814)
+    try:
+        assert_as_valid(msg, Q, sig, hf, commit=commit, receipt=receipt)
+    except (ValueError, BTClibRuntimeError):
+        return False
+
+    return True
 
 
 def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
@@ -716,6 +723,26 @@ def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Octets | Sig]) -> str:
     return f"{err_msg} and number of {msgs_or_sigs} ({len(arg2)})"
 
 
+def _assert_batch_sequences(
+    msgs: Sequence[Octets], Qs: Sequence[BIP340PubKey], sigs: Sequence[Sig]
+) -> None:
+    """Refuse a batch parameter that is no sequence, naming which.
+
+    What is not one was walked untouched, so a None left the zip of
+    `assert_batch_as_valid_`, or the reduction of `assert_batch_as_valid`,
+    as "not iterable" -- a complaint about iteration, from underneath the
+    library, about a batch (issue #814). Both spellings ask it, the
+    reduction being ahead of the prepared one.
+
+    A `str` is a Sequence and stays one: run time cannot tell
+    Sequence[Octets] from Sequence[str], so the elements are what answer
+    for their own values.
+    """
+    for value, what in ((msgs, "msgs"), (Qs, "Qs"), (sigs, "sigs")):
+        if not isinstance(value, Sequence):
+            raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+
+
 def assert_batch_as_valid_(
     msgs: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
@@ -738,6 +765,9 @@ def assert_batch_as_valid_(
     # ahead of everything, as in assert_as_valid_ and for the same reason:
     # batch_verify_ turns a ValueError into False
     _assert_valid_hf(hf)
+
+    # and the three sequences, for that reason again
+    _assert_batch_sequences(msgs, Qs, sigs)
 
     batch_size = len(Qs)
     if batch_size == 0:
@@ -819,6 +849,10 @@ def assert_batch_as_valid(
     hf: HashF = sha256,
 ) -> None:
     """Refuse an invalid signature in a batch, reducing each message."""
+    # ahead of the reduction, which walks `ms`: the prepared spelling asks
+    # the same thing, and neither can rely on the other having asked
+    _assert_batch_sequences(ms, Qs, sigs)
+
     msgs = [reduce_to_hlen(msg, hf) for msg in ms]
     return assert_batch_as_valid_(msgs, Qs, sigs, hf)
 
@@ -854,5 +888,14 @@ def batch_verify(
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
-    msgs = [reduce_to_hlen(msg, hf) for msg in ms]
-    return batch_verify_(msgs, Qs, sigs, hf)
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states. `assert_batch_as_valid` and not a
+    # delegation to the prepared spelling: the reduction has to be inside
+    # the try, or a message that is no octets is refused here where the
+    # hash spelling answers False about it (issue #814)
+    try:
+        assert_batch_as_valid(ms, Qs, sigs, hf)
+    except (ValueError, BTClibRuntimeError):
+        return False
+
+    return True

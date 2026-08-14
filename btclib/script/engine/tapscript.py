@@ -17,7 +17,10 @@ from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED
+from btclib.script.engine.script import (
+    EVALUATED_WHEN_UNEXECUTED,
+    _assert_bytes_arguments,
+)
 from btclib.script.engine.script_op_codes import ScriptOp
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
@@ -46,7 +49,12 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     The bindings raise a ValueError on a signature or x-only public key
     that libsecp256k1 refuses to parse, while the caller treats it as a
     failed verification and raises BTClibValueError itself.
+
+    `bytes` and nothing wider, as in `engine.script.dsa_verify` and for
+    its reason.
     """
+    _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
+
     try:
         return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
     except ValueError:

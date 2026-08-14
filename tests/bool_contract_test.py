@@ -29,25 +29,23 @@ valid:
 Issue #814 settled the second against issue #745's "total over everything
 it is handed", and this is where the decision is held to.
 
-## The two open lists, and which way they ratchet
+## Both rules hold, and they did not when this file was written
 
-Reaching new ground found new findings, which is what issue #776 said its
-own floor of fifty-nine would do. `_TYPE_OPEN` and `_VALUE_OPEN` are
-those, one entry per position, each naming what comes out instead. They
-can only shrink: `test_what_is_open_is_still_open` fails on an entry that
-has come into line, as RUF100 fails an unused `noqa`, so a fix cannot
-land without deleting its line -- and a line cannot outlive the defect.
+Reaching ground the automatic walk cannot touch found sixteen positions
+open, which is what issue #776 said a floor would do, and they were held
+in two ratcheted lists until they were closed. Three shapes accounted for
+them, so the fixes are where the shapes are: a sequence parameter checked
+before it is walked (`ssa._assert_batch_sequences`,
+`merkle_proof.assert_as_valid`), a signature coerced by `str_from_string`
+before `Sig.b64decode` strips it, and the engine adapters asking
+`_assert_bytes_arguments` before the bindings would. The two value-rule
+entries were one shape as well: `verify` reduced the message *before* its
+`try`, so a message that is no octets was refused where `verify_`, handed
+the hash, answered False; both spellings wrap `assert_as_valid` now
+instead of delegating past the reduction.
 
-Three shapes are in them. A **sequence parameter** -- `batch_verify`'s
-three, `merkle_proof.verify`'s branch -- is walked without being checked,
-so a `None` is "not iterable" from underneath the library. A **signature
-parameter** reaches `Sig.b64decode`, which strips before it decodes, so a
-type with no `strip` is an `AttributeError`. And the **engine adapters**
-take plain `bytes` and hand them to the bindings, whose own `TypeError`
-says "the message hash must be bytes" -- true, and not btclib saying it.
-The two `_VALUE_OPEN` shapes are one: `verify` reduces the message with
-`hf` *before* the `try`, so a message that is no octets is refused where
-`verify_`, handed the hash, answers False.
+No list is left, and that is deliberate: a finding this file makes next is
+a red test above, to be fixed or to be given a reason of its own.
 
 What no fixture here reaches, and why: `musig2.partial_sig_verify_` and
 `partial_sig_verify` want a `SessionContext` and a signing round,
@@ -207,48 +205,6 @@ _CASES = (
 
 _IDS = tuple(case.label for case in _CASES)
 
-# each entry names the class that comes out where a BTClibTypeError
-# belongs; the module docstring has the three shapes behind them
-_TYPE_OPEN: dict[str, str] = {
-    "bip322.verify[2]": "AttributeError",
-    "bms.verify[2]": "AttributeError",
-    "engine.script.dsa_verify[0]": "TypeError",
-    "engine.script.dsa_verify[1]": "TypeError",
-    "engine.script.dsa_verify[2]": "TypeError",
-    "engine.tapscript.ssa_verify[0]": "TypeError",
-    "engine.tapscript.ssa_verify[1]": "TypeError",
-    "engine.tapscript.ssa_verify[2]": "TypeError",
-    "merkle_proof.verify[1]": "TypeError",
-    # the one that answers rather than raising, which is the shape issue
-    # #776 put first because it is the only one that can cost money: a
-    # commitment of no type at all is reported as one that does not open
-    "pedersen.verify[2]": "answers False",
-    "ssa.batch_verify[0]": "TypeError",
-    "ssa.batch_verify[1]": "TypeError",
-    "ssa.batch_verify[2]": "TypeError",
-}
-
-# one shape, and `verify_` beside each of these is where it is not: the
-# message is reduced before the `try`, so a message that is no octets is
-# refused where the hash spelling answers False
-_VALUE_OPEN: dict[str, str] = {
-    "dsa.verify[0]": "BTClibValueError",
-    "ssa.batch_verify[0]": "BTClibValueError",
-    "ssa.verify[0]": "BTClibValueError",
-}
-
-
-def _at(label: str, position: int) -> str:
-    """Return the key both open lists are read by."""
-    return f"{label}[{position}]"
-
-
-def _case_of(at: str) -> tuple[_Case, int]:
-    """Return the case and the position an open entry names."""
-    label, _, rest = at.partition("[")
-    case = next(c for c in _CASES if c.label == label)
-    return case, int(rest.rstrip("]"))
-
 
 def _outcome(case: _Case, position: int, wrong: Any) -> str:
     """Return what came out: the class raised, or the answer given."""
@@ -276,8 +232,6 @@ def test_the_call_answers_true(case: _Case) -> None:
 def test_a_wrong_type_leaves_as_a_btclib_type_error(case: _Case) -> None:
     """The first rule, one position at a time, the others left valid."""
     for position in range(len(case.args)):
-        if _at(case.label, position) in _TYPE_OPEN:
-            continue
         for wrong in _WRONG_TYPES:
             assert _outcome(case, position, wrong) == "BTClibTypeError"
 
@@ -286,41 +240,4 @@ def test_a_wrong_type_leaves_as_a_btclib_type_error(case: _Case) -> None:
 def test_a_wrong_value_answers_false(case: _Case) -> None:
     """The second rule: a value of a declared type is answered, not refused."""
     for position, wrong in sorted(case.wrong_values.items()):
-        if _at(case.label, position) in _VALUE_OPEN:
-            continue
         assert _outcome(case, position, wrong) == "answers False"
-
-
-@pytest.mark.parametrize("at", sorted(_TYPE_OPEN))
-def test_what_the_type_rule_holds_open_is_still_open(at: str) -> None:
-    """A fix cannot land without deleting its line from `_TYPE_OPEN`."""
-    case, position = _case_of(at)
-    assert _outcome(case, position, _WRONG_TYPES[0]) == _TYPE_OPEN[at], (
-        f"{at} no longer answers a wrong type with {_TYPE_OPEN[at]}: delete"
-        " its line, or correct it to what it answers with now"
-    )
-
-
-@pytest.mark.parametrize("at", sorted(_VALUE_OPEN))
-def test_what_the_value_rule_holds_open_is_still_open(at: str) -> None:
-    """A fix cannot land without deleting its line from `_VALUE_OPEN`."""
-    case, position = _case_of(at)
-    wrong = case.wrong_values[position]
-    assert _outcome(case, position, wrong) == _VALUE_OPEN[at], (
-        f"{at} no longer answers a wrong value with {_VALUE_OPEN[at]}:"
-        " delete its line, or correct it to what it answers with now"
-    )
-
-
-def test_every_open_entry_names_a_driven_position() -> None:
-    """Neither list may name a position no case drives.
-
-    A renamed case, or a position dropped from `wrong_values`, would
-    otherwise leave an entry excusing something nothing runs.
-    """
-    for at in sorted(_TYPE_OPEN):
-        case, position = _case_of(at)
-        assert position < len(case.args), at
-    for at in sorted(_VALUE_OPEN):
-        case, position = _case_of(at)
-        assert position in case.wrong_values, at

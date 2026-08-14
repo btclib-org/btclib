@@ -845,18 +845,24 @@ what issue #745 found and this replaces. The `assert_*` twin beside each
 of these is the spelling that says *why* a value was refused, and the two
 are how a caller chooses between an answer and a reason.
 
-**Both halves are gated, and neither holds everywhere yet.**
+**Both halves are gated, and both hold.**
 `tests/input_validation_test.py` drives the two rules over every public
-function whose required parameters are all library input types, and there
-they hold with no exception. `tests/bool_contract_test.py` drives them
-from hand-written fixtures over the verifications that walk cannot reach
-— a signature verification needs a valid message, key and signature — and
-there some positions are still open, each in a ratcheted list naming what
-comes out instead: a sequence parameter walked without being checked, a
-signature reaching `Sig.b64decode`'s `strip`, the engine adapters handing
-plain bytes to the bindings, and `verify` reducing its message before the
-`try` where `verify_` answers False. A fix cannot land without deleting
-its line, and a line cannot outlive the defect.
+function whose required parameters are all library input types.
+`tests/bool_contract_test.py` drives them from hand-written fixtures over
+the verifications that walk cannot reach — a signature verification needs
+a valid message, key and signature, and a `Sig | Octets` no vocabulary of
+wrong values can build. Neither has an exemption list, which is the state
+to keep: a finding is a red test, to be fixed or to be given a reason of
+its own beside the two families that have one.
+
+Four shapes were what the second gate found when it was written, and they
+are worth knowing because each is a way of being handed an argument
+without looking at it: a **sequence parameter** walked before it is
+checked, so a `None` is "not iterable" from underneath the library; a
+**signature** reaching `Sig.b64decode`, which strips before it decodes; an
+argument handed **straight to the bindings**, whose own message names a C
+parameter; and a **reduction outside the `try`**, which refuses a message
+`verify_` would answer False about.
 
 **Which of those a function is, its name says**, and the four prefixes
 below are a closed vocabulary *of prefixes*: a name carrying one promises

@@ -126,7 +126,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, reduce_to_hlen
 from btclib.network import network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import assert_no_trailing, bytesio_from_binarydata
+from btclib.utils import assert_no_trailing, bytesio_from_binarydata, str_from_string
 
 __all__ = [
     "Sig",
@@ -241,11 +241,15 @@ class Sig:
         # take -- and every version discards the bits a non-final group
         # leaves over. What settles it everywhere is requiring the
         # canonical encoding, the one b64encode gives back.
-        # Stripping covers bytes as well as str: the whitespace around a
-        # copied and pasted signature is the one laxity worth tolerating
-        data = data.strip()
+        # the coercion before the strip, which is str's and bytes': what
+        # is neither reached it untouched, so `bms.verify` handed a type
+        # of its own choosing left as an AttributeError about a missing
+        # method (issue #814). Stripping then covers what came as bytes
+        # as well as what came as text: the whitespace around a copied
+        # and pasted signature is the one laxity worth tolerating
+        text = str_from_string(data, "base64 signature").strip()
         try:
-            data_bin = data.encode("ascii") if isinstance(data, str) else data
+            data_bin = text.encode("ascii")
             data_decoded = base64.b64decode(data_bin, validate=True)
         except ValueError as e:  # binascii.Error and UnicodeEncodeError
             raise BTClibValueError(f"invalid base64 encoding: {e}") from e
