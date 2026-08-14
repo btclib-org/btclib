@@ -884,20 +884,29 @@ documented at release-notes length in the first place, and are still in
   | secp256k1lab | 1379 us | 149x |
   | pycoin | 6873 us | 744x |
   | buidl.pecc | 30997 us | 3357x |
-  | hwilib | 39503 us | 4407x |
 
   and ECDSA and BIP340 sign and verify below it, each row on the
   operations that implementation actually offers. The ratios are the
   point and the microseconds are not: they move with the machine, and
   the table is read down a column.
 
-  Two dependencies join `bench`, each with the marker its own metadata
-  forces. `hwi` caps at `python <3.13` where `.python-version` pins 3.14,
-  so on this repository's interpreter it is absent and the row says so
-  instead of failing to import -- its number above comes from a 3.12
-  run. `secp256k1lab` is on no index at all: `[tool.uv.sources]` takes it
-  from the `v1.0.0` tag of its git repository, and it wants `>=3.11`
-  where this project supports `>=3.10`.
+  One dependency joins `bench`, with the marker its own metadata forces:
+  `secp256k1lab` is on no index at all, `[tool.uv.sources]` takes it from
+  the `v1.0.0` tag of its git repository, and it wants `>=3.11` where
+  this project supports `>=3.10`.
+
+  **`hwilib` is not a row, and the script says why it is not** (issue
+  #847). `hwilib.key.point_mul` is a double-and-add over Python integers
+  and would have been the slowest public key in the table, but `hwi`'s
+  latest release caps `cbor2` at `<5.8` and `protobuf` at `<5.0.0`, where
+  the advisories against those two are fixed in 5.9.0 and 5.29.6. Nothing
+  a floor or a constraint can say here reaches a patched version while
+  those ceilings hold, so the row costs three standing security alerts,
+  two of them high, and buys one number that this repository's own
+  interpreter never prints -- `hwi` declares `requires_python <3.13`.
+  `hwi-integration.yml` is untouched: it builds HWI a virtual environment
+  of its own and runs the executable, which is why the adapter in
+  `btclib/hwi.py` costs no alert and a benchmark import would.
 
   **One defect found by writing it.** `_libsecp256k1_applicable` is
   imported by name into nine modules, and `benchmark.py`'s

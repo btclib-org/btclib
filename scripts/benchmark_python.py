@@ -32,10 +32,12 @@ numbers is the whole reason both exist.
 
 ## How each row is held to Python, and how that was checked
 
-- **btclib**: `_libsecp256k1_applicable` is imported by name into
-  `ecc.dsa`, `ecc.ssa` and `curves.curve`, so all three are patched, as
+- **btclib**: `_libsecp256k1_applicable` is imported by name into every
+  module these rows reach, so every one of them is patched, as
   `benchmark.py` does and for the reason its docstring gives: a partial
   patch leaves a row meant to measure Python measuring C underneath.
+  `python_arithmetic_only` below names them and says which row found
+  the one that had been left out.
 - **pycoin** decides at import: `pycoin.ecdsa.native.secp256k1` and
   `.openssl` each read `PYCOIN_NATIVE` and return their no-op unless it
   names them. `os.environ` is set at the top of this file, before the
@@ -45,20 +47,29 @@ numbers is the whole reason both exist.
   when a separate build step has produced one.
 - **python-ecdsa** and **secp256k1lab** have nothing to turn off: neither
   ships or loads a native backend at all.
-- **hwilib** likewise, `hwilib.key.point_mul` being a double-and-add over
-  Python integers.
 
 `report_setup` prints what each row resolved to, because nothing here
 should claim a Python number without checking that it is one.
 
-## The two dependencies with a marker, and the row that may be missing
+## secp256k1lab's marker
 
-`hwi`'s latest release declares `requires_python <3.13,>=3.9` where
-`.python-version` pins 3.14, so on the interpreter this repository runs
-on it is not installed and its rows say so instead of failing to import.
-`secp256k1lab` is on no index at all: `[tool.uv.sources]` takes it from
-its git tag, and it wants >=3.11 where this project supports >=3.10.
-Both carry the marker that says so in the `bench` group.
+It is on no index at all: `[tool.uv.sources]` takes it from its git tag,
+and it wants >=3.11 where this project supports >=3.10, so the `bench`
+group carries the marker that says so and this script imports it
+unguarded.
+
+## The row that is not here
+
+**hwilib** would be one: `hwilib.key.point_mul` is a double-and-add over
+Python integers, with nothing to turn off, and it would have been the
+slowest public key in the table. `hwi` is not in the `bench` group
+because of what it drags in -- its latest release caps `cbor2` at <5.8
+and `protobuf` at <5.0.0, where the advisories against those two are
+fixed in 5.9.0 and 5.29.6. No floor or constraint written in this project
+reaches a patched version while those ceilings hold, so the row would
+have cost three standing security alerts, two of them high. It is also a
+row nobody here would see: `hwi` declares `requires_python <3.13` against
+a `.python-version` of 3.14.
 
 Not part of the test suite and not run by CI, as the other two are not:
 nothing here is a correctness check, though every row is checked against
@@ -89,13 +100,6 @@ from btclib.curves import curve, sec_point
 from btclib.ecc import dsa, ssa
 from btclib.hashes import reduce_to_hlen
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-
-try:  # hwi caps at <3.13; the marker in `bench` says so and so does this
-    import hwilib.key
-
-    HWILIB: Any | None = hwilib.key
-except ImportError:  # pragma: no cover
-    HWILIB = None
 
 PYCOIN_GENERATOR = pycoin.symbols.btc.network.generator
 
@@ -141,10 +145,6 @@ def report_setup() -> None:
     print(f"buidl                 {version('buidl')}, through buidl.pecc")
     print(f"ecdsa                 {version('ecdsa')}, pure Python")
     print(f"pycoin                {version('pycoin')}, backend: {_pycoin_backend()}")
-    if HWILIB is None:
-        print("hwi                   absent: its latest caps at python <3.13")
-    else:
-        print(f"hwi                   {version('hwi')}, hwilib.key.point_mul")
     print()
 
 
@@ -176,17 +176,6 @@ def pubkey_ecdsa() -> None:
 def pubkey_pycoin() -> None:
     """Time pycoin's, its native backends turned off."""
     pycoin.symbols.btc.network.keys.private(secret_exponent=PRVKEY).sec()
-
-
-def pubkey_hwilib() -> None:
-    """Time HWI's, a double-and-add over Python integers.
-
-    Reached only when `HWILIB` is not None, which is what `row` below
-    tests before it calls anything; the assert says so to mypy, which
-    reads this function on its own.
-    """
-    assert HWILIB is not None
-    HWILIB.point_to_bytes(HWILIB.point_mul(HWILIB.G, PRVKEY))
 
 
 # ----------------------------------------------------------------- ECDSA
@@ -289,7 +278,7 @@ def benchmark(func: Callable[[], None], calls: int) -> float:
 
 def row(
     label: str,
-    func: Callable[[], None] | None,
+    func: Callable[[], None],
     calls: int,
     bindings: float,
     python: float | None = None,
@@ -304,12 +293,8 @@ def row(
 
     `btclib, Python` is the reference of the second column and reads
     1.0x there, as the bindings row reads 1.0x in the first: its caller
-    passes no `python`, having none to divide by yet. On a package that
-    is not installed there is nothing to print at all.
+    passes no `python`, having none to divide by yet.
     """
-    if func is None:
-        print(f"  {label:24s} {'not installed':>13s}")
-        return 0.0
     us = benchmark(func, calls)
     against_python = f"{us / python:8.1f}x" if python else f"{'1.0x':>9s}"
     print(f"  {label:24s} {us:10.2f} us   {us / bindings:8.1f}x   {against_python}")
@@ -349,14 +334,12 @@ BUIDL_SIG = BUIDL_KEY.sign(BUIDL_DIGEST)
 BUIDL_SSA_SIG = BUIDL_KEY.sign_schnorr(MSG_HASH, AUX)
 
 # every row answers what btclib answers, before any of them is timed: a
-# table of numbers for six implementations is worth nothing if one of
-# them is computing something else
+# table of numbers is worth nothing if one of the implementations in it
+# is computing something else
 assert (PRVKEY * LAB_G).to_bytes_compressed() == PUBKEY
 assert buidl.pecc.PrivateKey(PRVKEY).point.sec() == PUBKEY
 assert ECDSA_VERIFYING_KEY.to_string("compressed") == PUBKEY
 assert pycoin.symbols.btc.network.keys.private(secret_exponent=PRVKEY).sec() == PUBKEY
-if HWILIB is not None:
-    assert HWILIB.point_to_bytes(HWILIB.point_mul(HWILIB.G, PRVKEY)) == PUBKEY
 assert secp256k1lab.bip340.schnorr_sign(MSG_HASH, PRVKEY_BYTES, AUX) == SSA_SIG_BYTES
 assert secp256k1lab.bip340.schnorr_verify(MSG_HASH, XONLY_PUBKEY, SSA_SIG_BYTES)
 assert BUIDL_KEY.point.verify_schnorr(MSG_HASH, BUIDL_SSA_SIG)
@@ -412,7 +395,6 @@ row("secp256k1lab", pubkey_lab, 100, REFERENCE["pubkey"], PYTHON)
 row("python-ecdsa", pubkey_ecdsa, 200, REFERENCE["pubkey"], PYTHON)
 row("pycoin", pubkey_pycoin, 20, REFERENCE["pubkey"], PYTHON)
 row("buidl.pecc", pubkey_buidl, 10, REFERENCE["pubkey"], PYTHON)
-row("hwilib", pubkey_hwilib if HWILIB else None, 5, REFERENCE["pubkey"], PYTHON)
 
 section("ECDSA sign, over a 32-byte digest")
 head("btclib, the bindings", REFERENCE["dsa sign"])
