@@ -2588,13 +2588,14 @@ documented at release-notes length in the first place, and are still in
   mypy needs; `assert_type` takes `Any`, so the question lives where it is
   reachable and no call site has to say so.
 
-  It costs one Python call: 33 ns against 21 inline, measured as the
-  median of seven alternating rounds of 200k with an empty body as the
-  noise detector. `curves.curve._assert_valid_ec` is where that was worth
-  checking rather than assuming, its docstring having measured its own
-  cost: two guards in the 17.7 us of a signature and three in the 48.3 us
-  of a five-level BIP32 derivation, so 74 and 112 ns of them. The
-  docstring carries the re-measured figures.
+  It costs one Python call: 34 ns against 23 inline, over seven
+  alternating rounds of 200k with an empty body of the same arity as the
+  noise detector, which measures 16. `curves.curve._assert_valid_ec` is
+  where that was worth checking rather than assuming, its docstring having
+  measured its own cost: two guards in the 17.8 us of a signature, two in
+  the 21.3 of a verification and two in the 39.6 of a five-level BIP32
+  derivation, so 68 ns of them in each. The docstring carries the same
+  figures, and the command that re-derives them.
 
   Four of the 26 keep their own spelling, and the reason is in each: the
   three coercions -- `bytes_from_octets`, `str_from_string`,
@@ -2681,9 +2682,11 @@ documented at release-notes length in the first place, and are still in
   whose parameter is a `CurveGroup`. The Curve check is `isinstance(ec,
   Curve)` and not the group it derives from, because `n` and `G` are
   Curve's own: a group would pass the wider check and fail on the field
-  it has not got. 22 ns, one to four times in what a caller calls one
-  operation — 45 ns of the 17.5 us of a signature, 88 of the 39.2 of a
-  verification.
+  it has not got. 34 ns through `utils.assert_type`, 16 of them the bare
+  call, and it is asked where each public function first reads the
+  parameter: two guards in the 17.8 us of a signature, two in the 21.3 of
+  a verification, two in the 39.6 of a five-level BIP32 derivation, one in
+  the 8.3 of a multiplication.
 
   Two of the nineteen were reporting the mistake as somebody else's.
   `int_from_prv_key` and `point_from_key` compare the curve a WIF or an
