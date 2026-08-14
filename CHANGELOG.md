@@ -791,6 +791,15 @@ documented at release-notes length in the first place, and are still in
   quality is a separate setting, which `code-scanning/default-setup` does
   not report.
 
+- **The `dist` job passes again with `scripts/` in the sdist.**
+  `MANIFEST.in` had shipped `scripts/benchmark_libraries.py` from the
+  start, on the same footing as `docs/` and `tests/`, but
+  `.github/scripts/verify_dist_contents.py`'s `SDIST_DIRECTORIES`
+  allowlist was never told: every build then failed on `scripts is a
+  directory the sdist does not ship`, main included. `scripts` joins the
+  allowlist, and `docs/source/package-content-policy.md` states it beside
+  the rest.
+
 ### Transactions, blocks and PSBT
 
 - **BIP375's Signer and Transaction Extractor** (#760, following #641).
