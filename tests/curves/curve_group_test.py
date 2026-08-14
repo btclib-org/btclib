@@ -732,18 +732,20 @@ def test_multi_mult_w_NAF() -> None:
                     scalars = [k1, k2, ec.n // 3]
                     points = [ec.GJ, HJ, ec.GJ]
                     expected = _sum_of_mults(scalars, points, ec)
-                    got = _multi_mult_w_NAF(scalars, points, ec, w)
+                    got = _multi_mult_w_NAF(scalars, points, ec, w, ec._fixed_points)
                     assert ec.jac_equality(got, expected), (k1, k2, w)
                     assert ec.jac_equality(
                         got, _multi_mult_bos_coster(scalars, points, ec)
                     ), (k1, k2, w)
 
             # a zero scalar, an INF point, and scalars of distant lengths
-            assert ec.jac_equality(_multi_mult_w_NAF([0, 0], [ec.GJ, HJ], ec, w), INFJ)
+            assert ec.jac_equality(
+                _multi_mult_w_NAF([0, 0], [ec.GJ, HJ], ec, w, ec._fixed_points), INFJ
+            )
             for scalars in ([0, 3], [3, 0], [1, ec.n - 1], [ec.n - 1, 1]):
                 for points in ([ec.GJ, HJ], [INFJ, HJ], [ec.GJ, INFJ]):
                     expected = _sum_of_mults(scalars, points, ec)
-                    got = _multi_mult_w_NAF(scalars, points, ec, w)
+                    got = _multi_mult_w_NAF(scalars, points, ec, w, ec._fixed_points)
                     assert ec.jac_equality(got, expected), (scalars, w)
 
         # a window wider than the order itself, where the table of odd
@@ -756,12 +758,12 @@ def test_multi_mult_w_NAF() -> None:
             for scalars in ([1, ec.n - 1], [ec.n // 2, 3], [0, ec.n - 1]):
                 points = [ec.GJ, HJ]
                 expected = _sum_of_mults(scalars, points, ec)
-                got = _multi_mult_w_NAF(scalars, points, ec, w)
+                got = _multi_mult_w_NAF(scalars, points, ec, w, ec._fixed_points)
                 assert ec.jac_equality(got, expected), (scalars, w)
 
     ec = secp256k1
     with pytest.raises(BTClibValueError, match="non positive w: "):
-        _multi_mult_w_NAF([1, 1], [ec.GJ, ec.GJ], ec, 0)
+        _multi_mult_w_NAF([1, 1], [ec.GJ, ec.GJ], ec, 0, ec._fixed_points)
 
 
 def test_multi_mult_agrees_across_curves() -> None:
@@ -778,7 +780,8 @@ def test_multi_mult_agrees_across_curves() -> None:
         scalars = [rnd.randrange(ec.n) for _ in points]
         expected = _sum_of_mults(scalars, points, ec)
         assert ec.jac_equality(
-            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W), expected
+            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W, ec._fixed_points),
+            expected,
         )
         assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
 
@@ -803,7 +806,8 @@ def test_multi_mult_dispatch() -> None:
         expected = _sum_of_mults(scalars, points, ec)
         assert ec.jac_equality(_multi_mult(scalars, points, ec), expected)
         assert ec.jac_equality(
-            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W), expected
+            _multi_mult_w_NAF(scalars, points, ec, _MULTI_MULT_W, ec._fixed_points),
+            expected,
         )
         assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
 
@@ -813,7 +817,8 @@ def test_multi_mult_dispatch() -> None:
         # of no nonzero scalars, which is below any threshold
         assert ec.jac_equality(_multi_mult([0] * size, points, ec), INFJ)
         assert ec.jac_equality(
-            _multi_mult_w_NAF([0] * size, points, ec, _MULTI_MULT_W), INFJ
+            _multi_mult_w_NAF([0] * size, points, ec, _MULTI_MULT_W, ec._fixed_points),
+            INFJ,
         )
         assert ec.jac_equality(_multi_mult_bos_coster([0] * size, points, ec), INFJ)
 

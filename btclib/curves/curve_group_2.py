@@ -105,7 +105,6 @@ from btclib.curves.curve_group import (
     _convert_number_to_base,
     _jac_from_aff,
     _multi_mult_w_NAF,
-    _odd_multiples_aff,
     _signed_odd_multiples_aff,
     _wNAF_of_m,
     signed_odd_digits,
@@ -299,28 +298,13 @@ def _double_mult_w_NAF(
     if w <= 0:
         raise BTClibValueError(f"non positive w: {w}")
 
-    us = _wNAF_of_m(u, w)
-    vs = _wNAF_of_m(v, w)
-
-    # one table of odd multiples per point, the same curve_group's
-    # interleaved _multi_mult_w_NAF builds for each of its own, and in
-    # affine coordinates for the same reason: one inversion a table
-    # against five products on every addition that indexes it
-    TH = _odd_multiples_aff(HJ, ec, w)
-    TQ = _odd_multiples_aff(QJ, ec, w)
-
-    R = INFJ
-    for j in range(max(len(us), len(vs)) - 1, -1, -1):
-        R = ec.double_jac(R)
-        if j < len(us) and us[j] != 0:
-            d = us[j]
-            T = TH[(d - 1) // 2] if d > 0 else ec.negate(TH[(-d - 1) // 2])
-            R = ec.add_jac_aff(R, T)
-        if j < len(vs) and vs[j] != 0:
-            d = vs[j]
-            T = TQ[(d - 1) // 2] if d > 0 else ec.negate(TQ[(-d - 1) // 2])
-            R = ec.add_jac_aff(R, T)
-    return R
+    # curve_group's interleaved _multi_mult_w_NAF for two points, rather
+    # than a second copy of the same loop: it is what recodes each
+    # coefficient, builds each table -- memoized and wide for a point the
+    # curve names, per call and narrow for one it does not -- and shares
+    # the doublings. What this function adds is the pair of messages its
+    # own coefficients answer with, and the name the algorithm has
+    return _multi_mult_w_NAF([u, v], [HJ, QJ], ec, w, ec._fixed_points)
 
 
 def _double_mult_regular_window(
@@ -576,4 +560,14 @@ def _double_mult_endomorphism_secp256k1(
 
     u1, U1, u2, U2 = _endomorphism_split_secp256k1(u, HJ, ec)
     v1, V1, v2, V2 = _endomorphism_split_secp256k1(v, QJ, ec)
-    return _multi_mult_w_NAF([u1, u2, v1, v2], [U1, U2, V1, V2], ec, w)
+    # the split of a fixed point is fixed: the halves are +-H and
+    # +-lambda*H, determined by H alone and by which of the two signs the
+    # coefficient asked for, so both are worth a memoized table whenever H
+    # is one of the points the curve names. The images are formed here and
+    # nowhere else, which is why they are added here rather than in Curve
+    fixed = ec._fixed_points
+    if HJ in fixed:
+        fixed = fixed | {U1, U2}
+    if QJ in fixed:
+        fixed = fixed | {V1, V2}
+    return _multi_mult_w_NAF([u1, u2, v1, v2], [U1, U2, V1, V2], ec, w, fixed)
