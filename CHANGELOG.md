@@ -4527,6 +4527,51 @@ documented at release-notes length in the first place, and are still in
   (issue #892) and keeps the reason, which never rested on the number:
   `mod_inv_var` delegates to `pow(a, -1, m)` now, and the share it derived
   that percentage from is not the share any more.
+- **`taproot.output_pubkey` takes one square root, not two** (issue #896).
+  The internal key was validated by `pub_keyinfo_from_key`, which proves
+  the octets a point by building one and then answers the octets, and
+  `_tweaked_pubkey` lifted the x out of them again to have a point to add
+  `t*G` to — the same x, and on the Python path each lift is a modular
+  square root. `output_pubkey` hands the point's own even y down now, and
+  `_tweaked_pubkey` lifts only for the caller that has none: the x-only
+  octets of `output_pubkey_from_merkle_root`, and BIP341's unspendable
+  point, which is published as an x and nothing else.
+
+  Which of the two roots the key names is its prefix's business and not
+  BIP341's: an `03` internal key validates to the odd-y point where the
+  tweak wants the even one, and that is a subtraction from the root already
+  taken. Counted by wrapping the curve's own `y_var`, one `output_pubkey`
+  takes two roots before and one after.
+
+  **How much of the key is worth building differs between the two arms**,
+  so `output_pubkey` reads the dispatch — the fourth guard in the module,
+  and the only one there that is not about which arithmetic runs. The
+  bindings arm lifts nothing, `xonly_pubkey_tweak_add` carrying its own y,
+  so a point built for it would be computed and dropped: `point_from_key`
+  is 6.58 µs against `pub_keyinfo_from_key`'s 3.74. `output_pubkey` with a
+  compressed key, µs per call: 17.25 with the bindings and 318.3 without on
+  the code this replaces, 17.48 and 236.6 after — a quarter off the Python
+  path and nothing added to the one every install takes.
+
+  **`input_script_sig` read the key a second time**, having called
+  `output_pubkey` for the parity, so the same x was lifted twice again one
+  function further out. `_output_pubkey_and_internal_key` is what the two
+  want between them — the output key, its parity, and the x-only internal
+  key — and `output_pubkey` is that helper with the third answer dropped.
+  Roots per call with the dispatch off, and µs: three and 400.16 before,
+  one and 243.11 after; with the bindings, where the key was read twice and
+  lifted never, 27.46 against 23.39.
+
+  The internal key is read with `compressed=None` and sliced `[1:33]`, so a
+  65-byte SEC key now names the internal key its 33-byte spelling names,
+  where it used to be refused for its length; the Python arm's
+  `point_from_key` accepts the same two forms, so the spellings do not
+  depend on whether the bindings are installed — and, the two callers
+  sharing one reader, no more on which of them is asked. Every other
+  spelling — a `Point`, an xpub, a private key, the compressed octets — is
+  accepted exactly as before, and `output_pubkey_from_merkle_root` still
+  takes 32 bytes and only 32. BIP341's unspendable point is written out
+  once now, where `output_pubkey` and `input_script_sig` each had a copy.
 
 - **`bip32.derive` stops re-decoding the same xprv/xpub on every call**
   (issue #828). `derive` and `derive_from_account` decode their `xkey`
