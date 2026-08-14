@@ -800,6 +800,37 @@ documented at release-notes length in the first place, and are still in
   allowlist, and `docs/source/package-content-policy.md` states it beside
   the rest.
 
+- **Every package the benchmark measures against has a floor** (issue
+  #837). The five names of the `bench` group -- what
+  `scripts/benchmark_libraries.py` times btclib against -- were bare, so
+  the comparison was against whatever a resolver happened to give. They
+  carry a floor at their latest release now: `buidl>=0.2.36`,
+  `ecdsa>=0.19.2`, `embit>=0.8.0`, `pycoin>=0.92718.20260405`,
+  `python-bitcoinlib>=0.12.2`.
+
+  A floor and not a pin, because the premise the bare names were for is
+  still right: the comparison is against whatever `pip install` currently
+  gives a user, so a new release is to be picked up and measured rather
+  than refused. What a bare name allowed is the other direction -- an
+  ancient release answering the comparison in silence, and a table saying
+  btclib is faster than a version nobody runs.
+
+  `ecdsa` is where that stopped being theoretical. GHSA-wj6h-64fc-37mp,
+  the Minerva timing attack on P-256, names every version of python-ecdsa
+  and no patched one: it is pure Python and says of itself that it is not
+  side-channel resistant, which is the property `SECURITY.md` publishes
+  about this library's own Python path. **The floor does not close that
+  alert and is not offered as closing it** -- every version is in range,
+  which is also why Dependabot has opened no pull request, there being
+  nothing to rise to. What it records is which release the advisory was
+  read against, and the same is now true of the other four.
+
+  Each floor is the version `uv.lock` already resolved to, so nothing
+  installed today moves and the lock changes by the five lines that carry
+  the specifiers. Raising one is what a measurement asks for and not what
+  a resolver does: the numbers the benchmark prints belong to the versions
+  the file names.
+
 ### Transactions, blocks and PSBT
 
 - **BIP375's Signer and Transaction Extractor** (#760, following #641).

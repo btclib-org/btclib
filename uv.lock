@@ -386,11 +386,11 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 bench = [
-    { name = "buidl" },
-    { name = "ecdsa" },
-    { name = "embit" },
-    { name = "pycoin" },
-    { name = "python-bitcoinlib" },
+    { name = "buidl", specifier = ">=0.2.36" },
+    { name = "ecdsa", specifier = ">=0.19.2" },
+    { name = "embit", specifier = ">=0.8.0" },
+    { name = "pycoin", specifier = ">=0.92718.20260405" },
+    { name = "python-bitcoinlib", specifier = ">=0.12.2" },
 ]
 build = [
     { name = "check-manifest" },
