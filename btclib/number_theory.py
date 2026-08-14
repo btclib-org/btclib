@@ -7,7 +7,7 @@
 Implementations originally from
 https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
 and
-https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+https://codereview.stackexchange.com/questions/43210/tonelli_var-shanks-algorithm-implementation-of-prime-modular-square-root/43267
 with the following modifications:
 
 * type annotated Python3
@@ -17,18 +17,20 @@ with the following modifications:
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import Sequence
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import hex_string, is_integer
 
 __all__ = [
-    "legendre_symbol",
+    "legendre_symbol_var",
     "mod_inv",
-    "mod_inv_batch",
-    "mod_sqrt",
-    "tonelli",
-    "xgcd",
+    "mod_inv_batch_var",
+    "mod_inv_var",
+    "mod_sqrt_var",
+    "tonelli_var",
+    "xgcd_var",
 ]
 
 
@@ -37,7 +39,7 @@ def _assert_valid_operand(a: int) -> None:
 
     A float goes through every function here without complaint --
     `//`, `%` and `*` are all defined for it -- and comes back out of a
-    signature that says `int`: `mod_inv(3.0, 7)` answers `5.0`, which is
+    signature that says `int`: `mod_inv_var(3.0, 7)` answers `5.0`, which is
     not a residue and not an error either. `var_int.serialize` checks the
     same way and its docstring says why a bool is excluded.
     """
@@ -63,12 +65,12 @@ def _assert_valid_modulus(m: int) -> None:
 # private twins doing the work unchecked for the ones that call each
 # other: a pair of isinstance calls is a small fraction of the arithmetic
 # it stands in front of, an inverse modulo a 256-bit prime being an
-# extended Euclid even when C runs it, so the re-checking mod_sqrt does
-# through tonelli and legendre_symbol costs less than five more names
+# extended Euclid even when C runs it, so the re-checking mod_sqrt_var does
+# through tonelli_var and legendre_symbol_var costs less than five more names
 # would
 
 
-def xgcd(a: int, b: int) -> tuple[int, int, int]:
+def xgcd_var(a: int, b: int) -> tuple[int, int, int]:
     """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).
 
     based on Extended Euclidean Algorithm, see
@@ -84,17 +86,21 @@ def xgcd(a: int, b: int) -> tuple[int, int, int]:
     return b, x0, y0
 
 
-def mod_inv(a: int, m: int) -> int:
+def mod_inv_var(a: int, m: int) -> int:
     """Return the inverse of a (mod m).
 
     m does not have to be a prime.
 
     `pow(a, -1, m)` is an Extended Euclidean Algorithm too -- CPython's
-    `long_invmod`, which is the loop `xgcd` runs with the second cofactor
+    `long_invmod`, which is the loop `xgcd_var` runs with the second cofactor
     dropped -- so this delegates the same algorithm to C rather than
     interpreting it, and that is the whole of why it is called. It is not
     a constant-time inverse and neither was the bytecode one; SECURITY.md
     publishes the Python path as variable-time.
+
+    Its duration follows the operand, so a secret one goes to
+    `mod_inv` instead: what that duration carries is measured
+    there, and it is enough to recover a private key from a signature.
 
     What `pow` does not carry is this module's contract, so the checks
     stay above it and the message below it: a non-invertible operand
@@ -114,17 +120,72 @@ def mod_inv(a: int, m: int) -> int:
         raise BTClibValueError(err_msg) from None
 
 
-def mod_inv_batch(a: Sequence[int], m: int) -> list[int]:
+def mod_inv(a: int, m: int) -> int:
+    """Return the inverse of a (mod m), timed on a random value instead.
+
+    What `mod_inv_var` is for an operand that is public, this is for one
+    that is secret. The extended Euclid under that one takes the
+    iterations its input asks for, and for an operand drawn uniformly
+    below m what its duration carries is the operand's bit-length: on
+    secp256k1's order, 8.8 us for a 256-bit scalar against 4.3 for a
+    128-bit one, falling at every step between them. That
+    correlation is what the Minerva attack collects -- an ECDSA nonce is
+    such a scalar, and a few thousand signing times sorted by it are a
+    lattice away from the private key.
+
+    (b*a)^-1 * b is a^-1 for every b invertible mod m, so drawing b at
+    random leaves an inverse whose iteration count follows b and tells an
+    observer nothing about a: 1.02x across the same range of operands,
+    where `mod_inv_var` is 2.06x. Two multiplications, two reductions
+    and a draw from `secrets`, which is 1.11x on a 256-bit operand and
+    1.5% of the whole Python signature it sits in. Fermat's
+    `pow(a, m - 2, m)` is the alternative and is flat for a different
+    reason, its ladder running on the fixed exponent rather than on a
+    random operand; it is not the one chosen, at 8.38x.
+
+    The draw is what costs, so a small modulus pays proportionally more
+    -- 4.8x on an order of 11, where the Euclid is a few iterations and
+    `secrets` is the same syscall. Nothing signs with such an order
+    outside the test suite.
+
+    Not a constant-time inverse, and no more claiming to be one than
+    `curve_group._blinded_jac` does: the duration is still an extended
+    Euclid's and still visible, and what the blinding changes is whose it
+    is. SECURITY.md publishes the Python path as variable-time, and
+    CONTRIBUTING.md has what a name in this library does and does not
+    promise about duration.
+    """
+    _assert_valid_operand(a)
+    _assert_valid_modulus(m)
+
+    # a nonzero b, and one the modulus leaves room to draw: m == 1 has
+    # only b = 1, every integer being zero modulo it
+    b = 1 + secrets.randbelow(m - 1) if m > 1 else 1
+    try:
+        return mod_inv_var(a * b % m, m) * b % m
+    except BTClibValueError:
+        # a product is invertible only if both factors are, so this is
+        # either the caller's own non-invertible a -- and the call below
+        # raises about the operand they passed, where the one above would
+        # name a product they never formed -- or a b that is a zero
+        # divisor, which only a composite m has. The blinding is lost in
+        # that second case and the answer is not; every modulus this is
+        # asked about in the library is the order of a group, which
+        # `curves.Curve` requires prime
+        return mod_inv_var(a, m)
+
+
+def mod_inv_batch_var(a: Sequence[int], m: int) -> list[int]:
     """Return the inverse of every element of a (mod m), in its order.
 
     m does not have to be a prime, and every element has to be invertible
-    modulo it, as `mod_inv` requires of its one operand.
+    modulo it, as `mod_inv_var` requires of its one operand.
 
     Montgomery's trick, which libsecp256k1 spells `secp256k1_fe_inv_all_var`:
     the running products a[0], a[0]*a[1], ..., a[0]*...*a[n-1] are formed,
     the last of them is inverted once, and the individual inverses are
     peeled back off it. So n inverses cost one inverse and 3(n-1)
-    products, where n calls to `mod_inv` are n extended Euclids -- an
+    products, where n calls to `mod_inv_var` are n extended Euclids -- an
     inverse modulo a 256-bit prime being some thirty times a product.
 
     An empty sequence has no inverses and is not an error: it is what a
@@ -149,9 +210,9 @@ def mod_inv_batch(a: Sequence[int], m: int) -> list[int]:
     except ValueError:
         # a product is invertible only if every factor is, so at least one
         # element is not: inverting them one at a time reaches it and
-        # answers `mod_inv`'s own message, naming the operand rather than
+        # answers `mod_inv_var`'s own message, naming the operand rather than
         # the product a caller never formed
-        return [mod_inv(x, m) for x in a]
+        return [mod_inv_var(x, m) for x in a]
 
     # and peeled back off it, from the last element to the first: the
     # inverse of the whole product times the product of everything before
@@ -164,7 +225,7 @@ def mod_inv_batch(a: Sequence[int], m: int) -> list[int]:
     return inverses
 
 
-def legendre_symbol(a: int, p: int) -> int:
+def legendre_symbol_var(a: int, p: int) -> int:
     """Compute the Legendre symbol a|p, as a binary Jacobi symbol.
 
     p is a prime, a is relatively prime to p (if p divides a, then a|p =
@@ -185,8 +246,11 @@ def legendre_symbol(a: int, p: int) -> int:
 
     The loop's length follows `a`, where an exponentiation's did not.
     SECURITY.md publishes the Python path as variable-time, and nothing
-    in the tree asks this about a value that has to stay hidden --
-    `curves.curve._is_x_coordinate` asks it about a signature's r.
+    in the tree asks this about a value that has to stay hidden:
+    `curves.curve._is_x_coordinate` is the one caller, and what reaches
+    it is a signature's r, the x-coordinate of a serialized xpub, or a
+    candidate x of an ElligatorSwift encoding -- each of them public, and
+    on secp256k1 each answered by the bindings before this is reached.
     """
     _assert_valid_operand(a)
     _assert_valid_modulus(p)
@@ -211,7 +275,7 @@ def legendre_symbol(a: int, p: int) -> int:
     return result if p == 1 else 0
 
 
-def mod_sqrt(a: int, p: int) -> int:
+def mod_sqrt_var(a: int, p: int) -> int:
     """Return a quadratic residue (mod p) of a; p must be a prime.
 
     Solve the equation:
@@ -222,7 +286,7 @@ def mod_sqrt(a: int, p: int) -> int:
     If a simple solution is not available for p,
     then the Tonelli-Shanks algorithm is used.
 
-    https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    https://codereview.stackexchange.com/questions/43210/tonelli_var-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
     _assert_valid_operand(a)
     _assert_valid_modulus(p)
@@ -239,7 +303,7 @@ def mod_sqrt(a: int, p: int) -> int:
         # another inverse candidate
         r = r * pow(2, p >> 2, p) % p
     else:
-        return tonelli(a, p)
+        return tonelli_var(a, p)
 
     if r * r % p != a:
         err_msg = "no root for "
@@ -250,12 +314,12 @@ def mod_sqrt(a: int, p: int) -> int:
     return r
 
 
-def tonelli(a: int, p: int) -> int:
+def tonelli_var(a: int, p: int) -> int:
     """Return a quadratic residue (mod p) of a; p must be a prime.
 
     The Tonelli-Shanks algorithm is used.
 
-    https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
+    https://codereview.stackexchange.com/questions/43210/tonelli_var-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
     _assert_valid_operand(a)
     _assert_valid_modulus(p)
@@ -264,7 +328,7 @@ def tonelli(a: int, p: int) -> int:
         return a
 
     # Check solution existence for an odd prime p
-    if legendre_symbol(a, p) != 1:
+    if legendre_symbol_var(a, p) != 1:
         err_msg = "no root for "
         err_msg += f"'{hex_string(a)}'" if a > 0xFFFFFFFF else f"{a}"
         err_msg += " mod "
@@ -283,7 +347,7 @@ def tonelli(a: int, p: int) -> int:
     # first value that can be one: 1 is a square modulo every prime, so
     # its symbol is known before the loop asks for it
     z = 2
-    while legendre_symbol(z, p) != -1:
+    while legendre_symbol_var(z, p) != -1:
         z += 1
     c = pow(z, q, p)
     r = pow(a, (q + 1) // 2, p)

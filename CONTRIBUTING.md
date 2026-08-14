@@ -960,30 +960,75 @@ check is unreachable by design rather than missing. `btclib/utils.py`'s
 docstring is where that rule is written down, `OutPoint` and `TxIn` being
 the classes it holds for.
 
-#### A `_var` suffix means the scalar decides the work
+#### A `_var` suffix means the operand decides the work
 
-A private scalar multiplication whose number of point operations depends
-on the coefficient it is given ends in `_var`:
-`btclib.curves.curve_group._mult_jac_var` and
-`curve_group_2._double_mult_w_NAF_var` against `_mult_regular_window`,
-`_mult_fixed_base` and `_double_mult_regular_window`, which make the same
-number for every scalar of the curve. It is libsecp256k1's convention,
-where `secp256k1_gej_add_var` sits beside `secp256k1_gej_add_ge`, and it
-is there so that the question can be answered at the call site instead of
-in the docstring of the thing being called.
+A function whose duration follows the value it is given ends in `_var`,
+and the plain name beside it is the one a secret may be handed. It is
+libsecp256k1's convention and it is used there for the same two halves:
+`secp256k1_scalar_inverse_var` sits beside `secp256k1_scalar_inverse`,
+`secp256k1_gej_add_var` beside `secp256k1_gej_add_ge`. The point of it is
+that the question is answered at the call site rather than in the
+docstring of the thing being called.
 
-Two things it does not mean, and neither is a detail. **A name without
-`_var` is not a constant-time function**: `mod_inv` is an extended
-Euclid, a table is indexed by a secret digit, and `SECURITY.md` publishes
-the whole Python path as variable-time — what the absence of the suffix
-promises is one count of point operations, not one duration. And **the
-suffix is about the coefficient, not the point**: every table these build
-costs a modular inversion whose time follows the point, which is the
-caller's public key in the callers btclib has.
+What "the work" is depends on the function, and each of these was
+measured rather than assumed — on secp256k1's order or its `p`, over
+random operands of 256 bits down to 64, the ratio between the two ends:
 
-Add the suffix when adding such a function, and do not add it to the
-recodings, the tables or the group law: those take no scalar, and a
-suffix on everything says nothing about anything.
+- the count of point operations, for a scalar multiplication:
+    `curve_group._mult_jac_var` and `curve_group_2._double_mult_w_NAF_var`
+    against `_mult_regular_window`, `_mult_fixed_base` and
+    `_double_mult_regular_window`, which make the same number for every
+    scalar of the curve. `curves.double_mult_var` and
+    `curves.multi_mult_var` carry it for that reason and `curves.mult`
+    does not
+- the iteration count of an extended Euclid: `mod_inv_var` at 4.21x,
+    `xgcd_var` at 4.84x, `mod_inv_batch_var` at 2.01x
+- the length of a loop over the operand: `legendre_symbol_var` at 4.26x,
+    and `tonelli_var`, whose 1.54x is spread within one operand size
+    rather than across sizes — Tonelli-Shanks iterates on the value, not
+    on its length. `mod_sqrt_var` reaches that loop only for a `p` of 1
+    mod 4; for the 3 mod 4 of every catalogued curve it is one
+    exponentiation with a fixed exponent and measures 1.01x, and it
+    carries the suffix all the same, because the caller picks the `p`
+
+Three tiers of duration follow, of which only the first is constant-time:
+
+- **constant-time is libsecp256k1's alone.** Every claim of it in this
+    library is a claim about the C behind the bindings, which is why
+    `SECURITY.md` states argument by argument when a call crosses that
+    boundary. Nothing written in Python is constant-time, and no name
+    here should be read as promising it.
+- **regular, or blinded: the operand does not decide the duration, and
+    something else does.** `_mult_regular_window`, `_mult_fixed_base` and
+    `_double_mult_regular_window` make the same operations for every
+    scalar of the curve; `_blinded_jac` leaves the intermediate values a
+    function of a random factor rather than of the scalar alone; and
+    `mod_inv` leaves an extended Euclid's iteration count following a
+    random factor rather than the caller's operand, at 1.02x where
+    `mod_inv_var` is 2.06x over the same range. This is decorrelation and
+    not uniformity — the duration still varies, and what changes is what
+    it varies with.
+- **variable: the operand decides.** Everything suffixed above, and every
+    reduction whose cost is the size of what it reduces.
+
+So **a secret takes the plain name and a public value takes the `_var`
+one**, which is the opposite of an optimization default and is meant to
+be: the fail-safe direction is that forgetting to choose gives the slower
+and safer call. `dsa`'s signing inverts the nonce with `mod_inv` while
+its `r`, its `s` and a verification's `Z` take `mod_inv_var`, and those
+four sit within twenty lines of each other; a reviewer should be able to
+tell which is which without tracing where each value came from.
+
+Add the suffix when adding such a function, having measured that it earns
+one, and do not add it to the recodings, the tables or the group law:
+those take no operand whose size varies, and a suffix on everything says
+nothing about anything.
+
+What none of this does is make the Python path safe, and `SECURITY.md`'s
+limitations section is what says so at length: a table is still indexed
+by a secret digit, and that is out of reach from bytecode. A name in the
+second tier closes one measured channel, and the honest form of the claim
+is that one — which channel, measured how, and what is left.
 
 #### Documentation and comments
 

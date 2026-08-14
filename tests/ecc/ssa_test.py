@@ -14,14 +14,20 @@ from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.curves import bytes_from_point, curve_group, double_mult, mult, secp256k1
+from btclib.curves import (
+    bytes_from_point,
+    curve_group,
+    double_mult_var,
+    mult,
+    secp256k1,
+)
 from btclib.curves.curve import CURVES, Curve
 from btclib.curves.curve_group import _jac_from_aff
 from btclib.ecc import second_generator, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
-from btclib.number_theory import mod_inv
+from btclib.number_theory import mod_inv_var
 from btclib.utils import int_from_bits
 from tests import load_csv, replace_unchecked, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
@@ -216,7 +222,7 @@ def test_refusing_an_r_takes_no_square_root(
     x-coordinate and cost nothing to produce, so that was the expensive
     answer for the cheap input.
 
-    mod_sqrt is patched to raise rather than timed: what the change has
+    mod_sqrt_var is patched to raise rather than timed: what the change has
     to be is a refusal that reaches no square root, on this machine and
     on a loaded one alike.
 
@@ -231,7 +237,7 @@ def test_refusing_an_r_takes_no_square_root(
             "an r was lifted to a point in order to refuse it"
         )
 
-    monkeypatch.setattr(curve_group, "mod_sqrt", refuse)
+    monkeypatch.setattr(curve_group, "mod_sqrt_var", refuse)
     with pytest.raises(BTClibValueError, match="r is not a valid x-coordinate: "):
         ssa.Sig(r, 1)
 
@@ -601,7 +607,7 @@ def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) ->
     """The batch verification equation, on both point arithmetics.
 
     Batch verification is btclib's own: libsecp256k1 exposes no batch
-    verify, so what serves it is the multi_mult of curves.curve -- and on
+    verify, so what serves it is the multi_mult_var of curves.curve -- and on
     secp256k1 that is the bindings, which makes this the one caller
     handing them many scalars at once. Patching the dispatch off is the
     only way the Python arithmetic sees a batch, and what this catches is
@@ -671,7 +677,7 @@ def test_musig() -> None:
     Q1 = mult(q1)
     Q2 = mult(q2)
     Q3 = mult(q3)
-    Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
+    Q = ec.add(double_mult_var(a1, Q1, a2, Q2), mult(a3, Q3))
     # the parity of the aggregated key is a coin flip on every run, so
     # the negation executes in half of them: the pragmas keep the
     # coverage gate deterministic. Keys pinned offline for an odd
@@ -724,7 +730,7 @@ def _share(f: list[int], x: int, ec: Curve) -> int:
     """Evaluate the sharing polynomial f at x, f(x) = sum_i f[i] x**i.
 
     Each term is reduced mod n and the sum is not: what every consumer
-    of a share needs is its value mod n, and mult, double_mult and the
+    of a share needs is its value mod n, and mult, double_mult_var and the
     Lagrange interpolation at the end each reduce again anyway.
     """
     return sum((f_i * pow(x, i)) % ec.n for i, f_i in enumerate(f))
@@ -766,16 +772,16 @@ def _deal(
     """
     f = [secret]
     f_prime = [secret_prime]
-    commits = [double_mult(secret_prime, H, secret, ec.G)]
+    commits = [double_mult_var(secret_prime, H, secret, ec.G)]
     for _ in range(1, m):
         f.append(ssa.gen_keys()[0])
         f_prime.append(ssa.gen_keys()[0])
-        commits.append(double_mult(f_prime[-1], H, f[-1], ec.G))
+        commits.append(double_mult_var(f_prime[-1], H, f[-1], ec.G))
 
     shares: list[int] = []
     for x in xs:
         alpha = _share(f, x, ec)
-        t = double_mult(_share(f_prime, x, ec), H, alpha, ec.G)
+        t = double_mult_var(_share(f_prime, x, ec), H, alpha, ec.G)
         assert t == _commitment(commits, x, ec), f"signer {dealer} is cheating"
         shares.append(alpha)
     return f, shares
@@ -793,7 +799,7 @@ def _partial_sig_point(
     """
     RHS = ec.add(K, mult(e, Q))
     for i in range(1, len(A)):
-        RHS = ec.add(RHS, double_mult(pow(x, i), B[i], e * pow(x, i), A[i]))
+        RHS = ec.add(RHS, double_mult_var(pow(x, i), B[i], e * pow(x, i), A[i]))
     return RHS
 
 
@@ -921,8 +927,8 @@ def test_threshold() -> None:
     assert mult(gamma1) == RHS1, "signer one is cheating"
 
     # PHASE FOUR: aggregating the signature ###
-    omega1 = 3 * mod_inv(3 - 1, ec.n) % ec.n
-    omega3 = 1 * mod_inv(1 - 3, ec.n) % ec.n
+    omega1 = 3 * mod_inv_var(3 - 1, ec.n) % ec.n
+    omega3 = 1 * mod_inv_var(1 - 3, ec.n) % ec.n
     sigma = (gamma1 * omega1 + gamma3 * omega3) % ec.n
 
     sig = ssa.Sig(K[0], sigma, ec)
@@ -1020,7 +1026,7 @@ def test_recover_infinity_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
     low-cardinality loop can never get here: its s comes from a real
     signature, hence s*G - K = c*q*G with c and q both nonzero.
 
-    Both arithmetics answer it, which is what the delegated double_mult of
+    Both arithmetics answer it, which is what the delegated double_mult_var of
     issue 286 turns on: a libsecp256k1 pubkey is never the identity, so
     the sum is recognized from the coordinates in curves.curve and handed
     back as the z == 0 this function tests -- u*H + v*Q with v*Q == -u*H
@@ -1042,7 +1048,7 @@ def test_recovery_multiplies_in_libsecp256k1(
 
     Nothing in libsecp256k1 recovers an x-only key: its recovery module is
     ECDSA -- `recover(msg, signature, recid)` -- and its xonly module has
-    no recovery in it, so the double_mult under this function is the whole
+    no recovery in it, so the double_mult_var under this function is the whole
     of what there is to delegate, and the Python arithmetic is reachable
     only by patching the dispatch off. What this catches is the two
     disagreeing about the recovered x_Q.

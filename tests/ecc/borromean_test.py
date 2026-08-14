@@ -136,7 +136,7 @@ ROUND_TRIP_MSG = {
 def test_another_curve_signs_and_verifies(name: str) -> None:
     """The ec argument has to reach the arithmetic, not only the encodings.
 
-    It did not: `mult(k)` and `double_mult(-e, Q, s, ec.G)` were called
+    It did not: `mult(k)` and `double_mult_var(-e, Q, s, ec.G)` were called
     without ec, so every point was computed on secp256k1 -- ec.G being
     merely a *point* argument -- and then encoded against ec. The first
     bytes_from_point raised "y-coordinate not in 1..p-1" with a

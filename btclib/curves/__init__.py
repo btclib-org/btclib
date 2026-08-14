@@ -54,7 +54,7 @@ not the faster alternative its name suggests.
 The underscore says the second thing too, which is what decided it: each
 takes a point it assumes to be on the curve and checks nothing, so a
 malformed one is answered with a point rather than refused. mult,
-double_mult and multi_mult are where require_on_curve runs, on every
+double_mult_var and multi_mult_var are where require_on_curve runs, on every
 argument and every path, and reaching past them is reaching past that. The
 test suite takes each variant from the module that defines it, which is
 what a private name is still good for.
@@ -68,9 +68,9 @@ materializing the point (issue #127).
 from btclib.curves.curve import (
     CURVES,
     Curve,
-    double_mult,
+    double_mult_var,
     mult,
-    multi_mult,
+    multi_mult_var,
     secp256k1,
 )
 from btclib.curves.curve_group import CurveGroup
@@ -87,11 +87,11 @@ __all__ = [
     "CurveGroup",
     "bytes_from_point",
     "bytes_from_prv_key_int",
-    "double_mult",
+    "double_mult_var",
     "find_all_points",
     "find_subgroup_points",
     "mult",
-    "multi_mult",
+    "multi_mult_var",
     "point_from_octets",
     "secp256k1",
 ]

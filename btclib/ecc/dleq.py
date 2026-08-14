@@ -44,7 +44,7 @@ from __future__ import annotations
 import secrets
 
 from btclib.alias import Octets, Point
-from btclib.curves import bytes_from_point, double_mult, mult, secp256k1
+from btclib.curves import bytes_from_point, double_mult_var, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -204,10 +204,10 @@ def assert_proof_as_valid(
     if s >= secp256k1.n:
         raise BTClibValueError("s not in 0..n-1")
 
-    R1 = double_mult(s, G_point, -e, A_point)
+    R1 = double_mult_var(s, G_point, -e, A_point)
     if R1[1] == 0:
         raise BTClibValueError("invalid (INF) R1")
-    R2 = double_mult(s, B_point, -e, C_point)
+    R2 = double_mult_var(s, B_point, -e, C_point)
     if R2[1] == 0:
         raise BTClibValueError("invalid (INF) R2")
 

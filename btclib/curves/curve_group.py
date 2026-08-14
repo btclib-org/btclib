@@ -21,7 +21,7 @@ from math import ceil
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import mod_inv, mod_inv_batch, mod_sqrt
+from btclib.number_theory import mod_inv_batch_var, mod_inv_var, mod_sqrt_var
 from btclib.utils import hex_string, int_from_integer
 
 __all__ = [
@@ -291,12 +291,12 @@ class CurveGroup:
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
 
-        return self._aff_from_z_inv(Q, mod_inv(Q[2], self.p))
+        return self._aff_from_z_inv(Q, mod_inv_var(Q[2], self.p))
 
     def aff_from_jac_batch(self, Qs: Sequence[JacPoint]) -> list[Point]:
         """Return the affine points: one modular inversion for all of them.
 
-        `aff_from_jac` over a sequence, with `mod_inv_batch` in place of
+        `aff_from_jac` over a sequence, with `mod_inv_batch_var` in place of
         the one inverse each: the conversion is two products a point once
         the inverse is in hand, so a caller holding several Jacobian
         points pays one extended Euclid instead of one per point.
@@ -305,7 +305,7 @@ class CurveGroup:
         in the batch, having no Z to invert, and comes back as INF where
         it stood.
         """
-        inverses = iter(mod_inv_batch([Q[2] for Q in Qs if Q[2]], self.p))
+        inverses = iter(mod_inv_batch_var([Q[2] for Q in Qs if Q[2]], self.p))
         return [
             INF if Q[2] == 0 else self._aff_from_z_inv(Q, next(inverses)) for Q in Qs
         ]
@@ -333,7 +333,7 @@ class CurveGroup:
             raise BTClibValueError("INF has no x-coordinate")
 
         Z2 = Q[2] * Q[2]
-        return (Q[0] * mod_inv(Z2, self.p)) % self.p
+        return (Q[0] * mod_inv_var(Z2, self.p)) % self.p
 
     def y_aff_from_jac(self, Q: JacPoint) -> int:
         """Return the affine y alone, without the product x costs.
@@ -347,7 +347,7 @@ class CurveGroup:
             raise BTClibValueError("INF has no y-coordinate")
 
         Z2 = Q[2] * Q[2]
-        return (Q[1] * mod_inv(Z2 * Q[2], self.p)) % self.p
+        return (Q[1] * mod_inv_var(Z2 * Q[2], self.p)) % self.p
 
     def is_jac_equal(self, QJ: JacPoint, PJ: JacPoint) -> bool:
         """Return True if Jacobian points are equal in affine coordinates.
@@ -601,7 +601,7 @@ class CurveGroup:
         # then doubling: two equal points make the chord a tangent and the
         # slope below 0/0. Branches, where add_jac computes every case and
         # selects, because there is nothing here for that to protect: the
-        # mod_inv this path exists to spend is an extended Euclid, whose
+        # mod_inv_var this path exists to spend is an extended Euclid, whose
         # iteration count follows the value it is inverting, so the affine
         # law cannot be made uniform whatever is done to these three tests
         if R[0] == Q[0]:
@@ -609,9 +609,10 @@ class CurveGroup:
 
         p = self.p
         # lam reduced before it is squared, as in add_jac, though here it
-        # is worth 6% of _mult_aff_var rather than a factor of two: mod_inv is
-        # what affine coordinates cost, and is why the ladders are not
-        lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], p) % p
+        # is worth 6% of _mult_aff_var rather than a factor of two:
+        # mod_inv_var is what affine coordinates cost, and is why the
+        # ladders are not
+        lam = (R[1] - Q[1]) * mod_inv_var(R[0] - Q[0], p) % p
         x = (lam * lam - Q[0] - R[0]) % p
         y = (lam * (Q[0] - x) - Q[1]) % p
         return x, y
@@ -622,7 +623,7 @@ class CurveGroup:
             return INF
 
         p = self.p
-        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv(2 * Q[1], p) % p
+        lam = (3 * Q[0] * Q[0] + self._a) * mod_inv_var(2 * Q[1], p) % p
         x = (lam * lam - Q[0] - Q[0]) % p
         y = (lam * (Q[0] - x) - Q[1]) % p
         return x, y
@@ -641,7 +642,7 @@ class CurveGroup:
             raise BTClibValueError(err_msg)
         y2 = self._y2(x)
         try:
-            return mod_sqrt(y2, self.p)
+            return mod_sqrt_var(y2, self.p)
         except BTClibValueError as e:
             err_msg = "invalid x-coordinate: "
             err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
@@ -693,7 +694,7 @@ class CurveGroup:
         # for a p of this form self.y answers the residue root already:
         # it is a ** ((p + 1) // 4), a power of the square a and so a
         # square itself, which leaves p - root the non-residue, -1 being
-        # one modulo such a p. Asking legendre_symbol which of the two
+        # one modulo such a p. Asking legendre_symbol_var which of the two
         # this is would spend a second exponentiation the size of the
         # first to be told what the exponent settles
         return self.y(x)
@@ -767,7 +768,7 @@ def _mult_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
         Q = ec.double_aff(Q)
         # always perform the 'add', even if useless: one addition per bit
         # whatever the bit is, as in _mult_jac_var. It buys less here, add_aff
-        # branching on its own special cases and mod_inv taking the time
+        # branching on its own special cases and mod_inv_var taking the time
         # its input asks for, which is why the affine variants are the
         # readable ones rather than the ones to sign with
         R[1] = ec.add_aff(R[0], Q)
@@ -1446,7 +1447,7 @@ def _multi_mult_pairs(
         raise BTClibValueError(err_msg)
 
     if len(scalars) < 2:
-        raise BTClibValueError("not a multi_mult")
+        raise BTClibValueError("not a multi_mult_var")
 
     pairs: list[tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, jac_points, strict=True):
@@ -1604,8 +1605,8 @@ def _multi_mult_bos_coster_var(
     Bos-Coster is usually written with the q == 1 case of that identity,
     n1*P1 + n2*P2 = (n1-n2)*P1 + n2*(P1+P2), which is Euclid by repeated
     subtraction: n1/n2 steps to do what one divmod does (issue 175) --
-    multi_mult([10**6, 1], [G, H]) would take 10.6 s, and both
-    multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) would
+    multi_mult_var([10**6, 1], [G, H]) would take 10.6 s, and both
+    multi_mult_var([n-1, 1], [G, H]) and multi_mult_var([-1, 1], [G, H]) would
     never finish, on scalars a caller has every right to pass. The whole
     of Euclid is what makes this a live path rather than a reading
     exercise: _multi_mult_var calls it above its threshold.

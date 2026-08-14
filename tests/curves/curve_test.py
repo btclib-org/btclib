@@ -21,9 +21,9 @@ from btclib.curves import (
     # module attribute, and patching it off is how no_bindings below
     # reaches the Python arithmetic underneath
     curve,
-    double_mult,
+    double_mult_var,
     mult,
-    multi_mult,
+    multi_mult_var,
     secp256k1,
 )
 from btclib.curves.curve import (
@@ -49,7 +49,7 @@ from btclib.curves.curve import (
 from btclib.curves.curve_group import _cached_multiples, _jac_from_aff, _mult_jac_var
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import mod_inv, mod_sqrt
+from btclib.number_theory import mod_inv_var, mod_sqrt_var
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import load, vector_id
 
@@ -397,9 +397,9 @@ def _textbook_add(ec: CurveGroup, P: Point | None, Q: Point | None) -> Point | N
     if P[0] == Q[0] and (P[1] + Q[1]) % ec.p == 0:
         return None
     if P == Q:
-        lam = (3 * P[0] * P[0] + ec._a) * mod_inv(2 * P[1], ec.p) % ec.p
+        lam = (3 * P[0] * P[0] + ec._a) * mod_inv_var(2 * P[1], ec.p) % ec.p
     else:
-        lam = (Q[1] - P[1]) * mod_inv(Q[0] - P[0], ec.p) % ec.p
+        lam = (Q[1] - P[1]) * mod_inv_var(Q[0] - P[0], ec.p) % ec.p
     x = (lam * lam - P[0] - Q[0]) % ec.p
     return x, (lam * (P[0] - x) - P[1]) % ec.p
 
@@ -822,14 +822,14 @@ def test_symmetry() -> None:
 
             # in this case only quad_res is a quadratic residue
             assert quad_res in hasRoot
-            root = mod_sqrt(quad_res, ec.p)
+            root = mod_sqrt_var(quad_res, ec.p)
             assert quad_res == (root * root) % ec.p
             root = ec.p - root
             assert quad_res == (root * root) % ec.p
 
             assert ec.p - quad_res not in hasRoot
             with pytest.raises(BTClibValueError, match="no root for "):
-                mod_sqrt(ec.p - quad_res, ec.p)
+                mod_sqrt_var(ec.p - quad_res, ec.p)
         else:
             assert ec.p % 4 == 1
             # cannot use y_quadratic_residue in this case
@@ -844,20 +844,20 @@ def test_symmetry() -> None:
             both = y_odd in hasRoot and y_even in hasRoot
             assert neither or both
             if y_odd in hasRoot:  # both have roots
-                root = mod_sqrt(y_odd, ec.p)
+                root = mod_sqrt_var(y_odd, ec.p)
                 assert y_odd == (root * root) % ec.p
                 root = ec.p - root
                 assert y_odd == (root * root) % ec.p
-                root = mod_sqrt(y_even, ec.p)
+                root = mod_sqrt_var(y_even, ec.p)
                 assert y_even == (root * root) % ec.p
                 root = ec.p - root
                 assert y_even == (root * root) % ec.p
             else:
                 err_msg = "no root for "
                 with pytest.raises(BTClibValueError, match=err_msg):
-                    mod_sqrt(y_odd, ec.p)
+                    mod_sqrt_var(y_odd, ec.p)
                 with pytest.raises(BTClibValueError, match=err_msg):
-                    mod_sqrt(y_even, ec.p)
+                    mod_sqrt_var(y_even, ec.p)
 
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
         secp256k1.y_even(INF[0])
@@ -868,7 +868,7 @@ def test_symmetry() -> None:
 
 
 def test_assorted_mult() -> None:
-    """Cross-check mult, double_mult and multi_mult on a tiny curve."""
+    """Cross-check mult, double_mult_var and multi_mult_var on a tiny curve."""
     ec = ec23_31
     H = second_generator(ec)
     for k1 in range(-2, ec.n):
@@ -876,18 +876,18 @@ def test_assorted_mult() -> None:
         for k2 in range(-2, ec.n):
             K2 = mult(k2, H, ec)
 
-            shamir = double_mult(k1, ec.G, k2, ec.G, ec)
+            shamir = double_mult_var(k1, ec.G, k2, ec.G, ec)
             assert shamir == mult(k1 + k2, None, ec)
 
-            shamir = double_mult(k1, INF, k2, H, ec)
+            shamir = double_mult_var(k1, INF, k2, H, ec)
             assert ec.is_on_curve(shamir)
             assert shamir == K2
 
-            shamir = double_mult(k1, ec.G, k2, INF, ec)
+            shamir = double_mult_var(k1, ec.G, k2, INF, ec)
             assert ec.is_on_curve(shamir)
             assert shamir == K1
 
-            shamir = double_mult(k1, ec.G, k2, H, ec)
+            shamir = double_mult_var(k1, ec.G, k2, H, ec)
             assert ec.is_on_curve(shamir)
             K1K2 = ec.add(K1, K2)
             assert shamir == K1K2
@@ -896,7 +896,7 @@ def test_assorted_mult() -> None:
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
-            boscoster = multi_mult([k1, k2, k3], [ec.G, H, ec.G], ec)
+            boscoster = multi_mult_var([k1, k2, k3], [ec.G, H, ec.G], ec)
             assert ec.is_on_curve(boscoster)
             assert boscoster == K1K2K3, k3
 
@@ -905,61 +905,61 @@ def test_assorted_mult() -> None:
             K1K2K3K4 = ec.add(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)
             points = [ec.G, H, ec.G, H]
-            boscoster = multi_mult([k1, k2, k3, k4], points, ec)
+            boscoster = multi_mult_var([k1, k2, k3, k4], points, ec)
             assert ec.is_on_curve(boscoster)
             assert boscoster == K1K2K3K4, k4
-            assert multi_mult([k1, k2, k3, 0], points, ec) == K1K2K3
-            assert multi_mult([k1, k2, 0, 0], points, ec) == K1K2
-            assert multi_mult([k1, 0, 0, 0], points, ec) == K1
-            assert multi_mult([0, 0, 0, 0], points, ec) == INF
+            assert multi_mult_var([k1, k2, k3, 0], points, ec) == K1K2K3
+            assert multi_mult_var([k1, k2, 0, 0], points, ec) == K1K2
+            assert multi_mult_var([k1, 0, 0, 0], points, ec) == K1
+            assert multi_mult_var([0, 0, 0, 0], points, ec) == INF
 
             err_msg = "mismatch between number of scalars and points: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                multi_mult([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
+                multi_mult_var([k1, k2, k3, k4], [ec.G, H, ec.G], ec)
 
 
 def test_double_mult() -> None:
-    """Verify double_mult against add and mult over small scalars."""
+    """Verify double_mult_var against add and mult over small scalars."""
     H = second_generator(secp256k1)
     G = secp256k1.G
-    assert double_mult(0, G, 0, H) == INF
-    assert double_mult(1, G, 0, H) == G
-    assert double_mult(0, G, 1, H) == H
+    assert double_mult_var(0, G, 0, H) == INF
+    assert double_mult_var(1, G, 0, H) == G
+    assert double_mult_var(0, G, 1, H) == H
     for i, j in itertools.product(range(-1, 3), range(-1, 3)):
         exp = secp256k1.add(mult(i), mult(j, H))
-        assert exp == double_mult(i, G, j, H)
+        assert exp == double_mult_var(i, G, j, H)
 
 
 def test_multi_mult() -> None:
-    """Verify multi_mult against double_mult, issue 175's pairs too."""
-    with pytest.raises(BTClibValueError, match="not a multi_mult"):
-        multi_mult([1], [secp256k1.G])
+    """Verify multi_mult_var against double_mult_var, issue 175's pairs too."""
+    with pytest.raises(BTClibValueError, match="not a multi_mult_var"):
+        multi_mult_var([1], [secp256k1.G])
 
     H = second_generator(secp256k1)
     G = secp256k1.G
-    assert multi_mult([0, 0], [G, H]) == INF
-    assert multi_mult([1, 0], [G, H]) == G
-    assert multi_mult([0, 1], [G, H]) == H
+    assert multi_mult_var([0, 0], [G, H]) == INF
+    assert multi_mult_var([1, 0], [G, H]) == G
+    assert multi_mult_var([0, 1], [G, H]) == H
 
-    assert multi_mult([-1, 0], [G, H]) != INF
-    assert multi_mult([0, -1], [G, H]) != INF
+    assert multi_mult_var([-1, 0], [G, H]) != INF
+    assert multi_mult_var([0, -1], [G, H]) != INF
 
     for i, j in itertools.product(range(-1, 3), range(-1, 3)):
-        exp = double_mult(i, G, j, H)
-        assert exp == multi_mult([i, j], [G, H])
+        exp = double_mult_var(i, G, j, H)
+        assert exp == multi_mult_var([i, j], [G, H])
 
     # issue 175: a scalar pair of distant magnitude is what the
     # subtractive Bos-Coster step could not finish, and a mixed sign is
     # merely the worst instance of it -- -1 reduces to n-1, next to 1
     n = secp256k1.n
     for i, j in ((10**6, 1), (1, 10**6), (n - 1, 1), (n - 1, n - 2)):
-        assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])
+        assert double_mult_var(i, G, j, H) == multi_mult_var([i, j], [G, H])
 
 
 def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch the libsecp256k1 dispatch off, and the bindings out of reach.
 
-    The predicate is what mult, double_mult and multi_mult ask, and
+    The predicate is what mult, double_mult_var and multi_mult_var ask, and
     patching it is the pattern of tests/script_engine/python_path_test.py.
     Replacing the three bindings functions besides is what proves they
     were not asked anyway: a dispatch this does not cover raises here
@@ -991,7 +991,7 @@ def test_libsecp256k1_arbitrary_point() -> None:
     same call made again. The bindings are the authority on the answer --
     they are what bitcoin runs -- and the Python implementation is the one
     being held against them, `mult` reaching its GLV endomorphism there
-    and `multi_mult` its Bos-Coster.
+    and `multi_mult_var` its Bos-Coster.
 
     A spread of scalars and points rather than a random draw, so that a
     failure is the same failure tomorrow. G is among the points on
@@ -1012,18 +1012,18 @@ def test_libsecp256k1_arbitrary_point() -> None:
             assert mult(m, Q) == libsecp256k1_answer
 
     for (u, H), (v, Q) in itertools.product(pairs, repeat=2):
-        libsecp256k1_answer = double_mult(u, H, v, Q)
-        assert multi_mult([u, v], [H, Q]) == libsecp256k1_answer
+        libsecp256k1_answer = double_mult_var(u, H, v, Q)
+        assert multi_mult_var([u, v], [H, Q]) == libsecp256k1_answer
         with pytest.MonkeyPatch.context() as patch:
             no_bindings(patch)
-            assert double_mult(u, H, v, Q) == libsecp256k1_answer
-            assert multi_mult([u, v], [H, Q]) == libsecp256k1_answer
+            assert double_mult_var(u, H, v, Q) == libsecp256k1_answer
+            assert multi_mult_var([u, v], [H, Q]) == libsecp256k1_answer
 
     # and the many-scalar sum, which is what ssa's batch verification is
-    libsecp256k1_answer = multi_mult(scalars, points + points[:2])
+    libsecp256k1_answer = multi_mult_var(scalars, points + points[:2])
     with pytest.MonkeyPatch.context() as patch:
         no_bindings(patch)
-        assert multi_mult(scalars, points + points[:2]) == libsecp256k1_answer
+        assert multi_mult_var(scalars, points + points[:2]) == libsecp256k1_answer
 
 
 @pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
@@ -1053,30 +1053,30 @@ def test_multiplications_the_bindings_decline(
     assert mult(0, INF) == INF
 
     # both of them again, as one term of a sum
-    assert double_mult(0, H, 0, G) == INF
-    assert double_mult(0, H, 3, G) == mult(3)
-    assert double_mult(3, INF, 5, H) == mult(5, H)
-    assert double_mult(3, H, 5, INF) == mult(3, H)
-    assert multi_mult([0, 0], [H, G]) == INF
-    assert multi_mult([3, 0], [H, G]) == mult(3, H)
-    assert multi_mult([3, 5], [INF, H]) == mult(5, H)
+    assert double_mult_var(0, H, 0, G) == INF
+    assert double_mult_var(0, H, 3, G) == mult(3)
+    assert double_mult_var(3, INF, 5, H) == mult(5, H)
+    assert double_mult_var(3, H, 5, INF) == mult(3, H)
+    assert multi_mult_var([0, 0], [H, G]) == INF
+    assert multi_mult_var([3, 0], [H, G]) == mult(3, H)
+    assert multi_mult_var([3, 5], [INF, H]) == mult(5, H)
 
     # and the sum that is infinity: v = n - u with the same point, the
-    # one-line case, then the same through multi_mult
-    assert double_mult(5, H, n - 5, H) == INF
-    assert multi_mult([5, n - 5], [H, H]) == INF
+    # one-line case, then the same through multi_mult_var
+    assert double_mult_var(5, H, n - 5, H) == INF
+    assert multi_mult_var([5, n - 5], [H, H]) == INF
 
     # an intermediate that is infinity and a total that is not: the
     # running total starts again from the term that follows it
-    assert multi_mult([5, n - 5, 3], [H, H, H]) == mult(3, H)
+    assert multi_mult_var([5, n - 5, 3], [H, H, H]) == mult(3, H)
 
     # a total that is infinity from three terms of which no two cancel:
     # 5 + (n-3) + 2*(n-1) is 2n
-    assert multi_mult([5, n - 3, n - 1], [H, H, mult(2, H)]) == INF
+    assert multi_mult_var([5, n - 3, n - 1], [H, H, mult(2, H)]) == INF
 
     # the same point twice is P + P, a doubling and not a cancellation
-    assert multi_mult([5, 5], [H, H]) == mult(10, H)
-    assert double_mult(5, H, 5, H) == mult(10, H)
+    assert multi_mult_var([5, 5], [H, H]) == mult(10, H)
+    assert double_mult_var(5, H, 5, H) == mult(10, H)
 
 
 def test_libsecp256k1_multi_mult_bytes() -> None:

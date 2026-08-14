@@ -57,7 +57,7 @@ from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen
-from btclib.number_theory import mod_inv
+from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
@@ -353,9 +353,12 @@ def _sign_recoverable_(
     # generator to libsecp256k1 on secp256k1, which is where this
     # function is reached from whenever the bindings decline the whole
     # signature -- another hash function, another curve, a nonce the
-    # caller imposed, a sign-to-contract commitment. The nonce is secret
-    # and the Python fixed window is not constant time; the affine
-    # conversion the Jacobian form would have saved is one mod_inv
+    # caller imposed, a sign-to-contract commitment. The nonce is secret,
+    # and what multiplies it is regular in it either way: constant-time C
+    # on secp256k1, and `_mult_fixed_base` on every other curve, whose
+    # additions are the same for every scalar. The affine conversion the
+    # Jacobian form would have saved is one mod_inv_var, of a Z that
+    # `_blinded_jac` has randomized
     K = mult(nonce, ec=ec)  # 1
     x_K = K[0]
     # mod n makes it a scalar
@@ -363,6 +366,12 @@ def _sign_recoverable_(
     if r == 0:  # r≠0 required as it multiplies the public key
         raise BTClibRuntimeError("failed to sign: r = 0")
 
+    # blinded, and it is the one inverse in this module that has to be:
+    # the nonce is the secret here, an extended Euclid takes the
+    # iterations its input asks for, and a duration that follows a
+    # nonce's bit-length is what the Minerva attack turns into the key.
+    # Everything else dsa inverts -- a signature's s, its r, a
+    # verification's Z -- is public and takes the plain `mod_inv_var`
     s = mod_inv(nonce, ec.n) * (c + r * q) % ec.n  # 6
     if s == 0:  # s≠0 required as verify will need the inverse of s
         raise BTClibRuntimeError("failed to sign: s = 0")
@@ -769,11 +778,11 @@ def _assert_as_valid_(
     if lower_s and s > ec.n // 2:
         raise BTClibValueError("not a low s")
 
-    w = mod_inv(s, ec.n)
+    w = mod_inv_var(s, ec.n)
     u = c * w % ec.n
     v = r * w % ec.n  # 4
     # Let K = u*G + v*Q.
-    # the dispatching double_mult of curves.curve, not the Python
+    # the dispatching double_mult_var of curves.curve, not the Python
     # arithmetic under it: what reaches here is the verification the
     # bindings' own ecdsa_verify declined -- another hash function, a
     # commitment to check, a caller-imposed nonce, a curve of its own --
@@ -796,7 +805,7 @@ def _assert_as_valid_(
     # the bindings hand back a point whose Z is 1, so the inversion this
     # path pays is of one, and where the multiplication is Python's it is
     # 8.8 us of a verification that is 1148
-    x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
+    x_K = (KJ[0] * mod_inv_var(KJ[2] * KJ[2], ec.p)) % ec.p
     # Fail if r ≠ x_K %n.
     if r != x_K % ec.n:  # 6, 7, 8
         raise BTClibRuntimeError("signature verification failed")
@@ -1143,8 +1152,8 @@ def _recover_pub_keys_(
     # root first for bitcoin message signing compatibility. Which is the
     # order key_id numbers them in, so range() is the loop.
     #
-    # It costs a mod_inv per candidate rather than hoisting the
-    # precomputation out of the loop, and delegating the double_mult below
+    # It costs a mod_inv_var per candidate rather than hoisting the
+    # precomputation out of the loop, and delegating the double_mult_var below
     # is what made that measurable: 41 us of the 214 a candidate takes on
     # secp256k1 with the dispatch off, where the same 41 sat inside 2215.
     # Still not hoisted, because the plural is `_recover_pub_key_` over a
@@ -1230,7 +1239,7 @@ def _recover_pub_key_(
     # Private function provided for testing purposes only.
 
     # precomputations
-    r_1 = mod_inv(r, ec.n)
+    r_1 = mod_inv_var(r, ec.n)
     r1s = r_1 * s % ec.n
     r1e = -r_1 * c % ec.n
     # r is x_K reduced mod n, so it does not determine x_K:
@@ -1261,7 +1270,7 @@ def _recover_pub_key_(
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
     #
-    # delegated as the double_mult of _assert_as_valid_ below it is: this
+    # delegated as the double_mult_var of _assert_as_valid_ below it is: this
     # is the Python path of recovery -- the named candidate goes to
     # secp256k1_ecdsa_recover instead, and the enumeration has no
     # counterpart to go to at all -- but the arithmetic under it is
@@ -1440,8 +1449,8 @@ def crack_prv_key_(
     c_1 = challenge_(msg_hash1, ec, hf)
     c_2 = challenge_(msg_hash2, ec, hf)
 
-    nonce = (c_1 - c_2) * mod_inv(sig1.s - sig2.s, ec.n) % ec.n
-    q = (sig2.s * nonce - c_2) * mod_inv(sig1.r, ec.n) % ec.n
+    nonce = (c_1 - c_2) * mod_inv_var(sig1.s - sig2.s, ec.n) % ec.n
+    q = (sig2.s * nonce - c_2) * mod_inv_var(sig1.r, ec.n) % ec.n
     return q, nonce
 
 

@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets, Point
-from btclib.curves import Curve, bytes_from_point, double_mult, mult, secp256k1
+from btclib.curves import Curve, bytes_from_point, double_mult_var, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.utils import bytes_from_octets, int_from_bits
 
@@ -37,9 +37,9 @@ __all__ = [
 # would mean rebinding an attribute of this module, which changes the
 # algorithm for every other caller in the process
 #
-# ec has to be passed to mult and double_mult too, and that is easy to
+# ec has to be passed to mult and double_mult_var too, and that is easy to
 # miss: both take the curve as their *last* argument and default it to
-# secp256k1, so `mult(k)` and `double_mult(-e, Q, s, ec.G)` type check,
+# secp256k1, so `mult(k)` and `double_mult_var(-e, Q, s, ec.G)` type check,
 # read as if they honoured ec, and compute on secp256k1 -- every point
 # then encoded against ec, so the first bytes_from_point rejects it and
 # no curve but secp256k1 can sign at all (issue 183)
@@ -141,7 +141,7 @@ def sign(
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausible signature failure"
                     raise BTClibRuntimeError(err_msg)
-                t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
+                t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
                 r = bytes_from_point(t, ec)
         e0bytes += r
     hasher = hf()
@@ -157,7 +157,9 @@ def sign(
             raise BTClibRuntimeError(err_msg)
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
-            t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G, ec)
+            t = double_mult_var(
+                -e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G, ec
+            )
             r = bytes_from_point(t, ec)
             e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
             # zero e again, and the one guard of the four that stays
@@ -227,7 +229,7 @@ def assert_as_valid(
             raise BTClibRuntimeError(err_msg)
         r = b"\0x00"
         for j in range(keys_size):
-            t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
+            t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
             r = bytes_from_point(t, ec)
             if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1, hf)

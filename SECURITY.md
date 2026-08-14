@@ -106,8 +106,8 @@ used to teach and to prototype as much as to build:
     or xpub string handed to `derive` or `derive_from_account`: the
     decoded key stays reachable from that cache, bounded by its
     `maxsize`, past whatever reference the caller itself still holds
-- not every operation crosses that boundary. `mult`, `double_mult` and
-    `multi_mult` reach the bindings for secp256k1 and any point of it, a
+- not every operation crosses that boundary. `mult`, `double_mult_var` and
+    `multi_mult_var` reach the bindings for secp256k1 and any point of it, a
     zero scalar and the point at infinity excepted — libsecp256k1 has no
     scalar for the one and no public key for the other; `dsa.sign` for
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
@@ -129,10 +129,16 @@ used to teach and to prototype as much as to build:
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
     and the verification equation of both `dsa` and `ssa` through
-    `double_mult`, so those multiplications are delegated whatever else
+    `double_mult_var`, so those multiplications are delegated whatever else
     the signature asks for. The rest of that signature is not — the
     inversion of the nonce and the arithmetic on the key around it are
-    Python integers.
+    Python integers. That inversion is blinded, and is the one place in
+    the library where a secret is inverted at all: `mod_inv`
+    draws a random factor, so that the extended Euclid's iteration count
+    follows the factor rather than the nonce. Unblinded it followed the
+    nonce's bit-length — 8.8 us for a 256-bit scalar against 4.3 for a
+    128-bit one on secp256k1's order — which is the correlation the
+    Minerva attack turns into the private key.
     `bms.sign` is delegated outright, `recovery.sign` signing and naming
     the recovery flag in one call: message signing is defined for
     secp256k1 alone, so there is no argument that sends it down the
@@ -168,7 +174,7 @@ used to teach and to prototype as much as to build:
     interleaved wNAFs of the same decomposition make 51 to 64 and 124 to
     131. Those wNAFs add on a nonzero digit and so once per unit of the
     recoded weight of the coefficient, which is why they are not what
-    `mult` reaches for; they are what `double_mult` and signature
+    `mult` reaches for; they are what `double_mult_var` and signature
     verification reach, where the coefficients are a signature and a
     message hash rather than a secret.
 
@@ -177,10 +183,12 @@ used to teach and to prototype as much as to build:
     multiples with a secret digit, which is the memory access pattern the
     FLUSH+RELOAD recovery of OpenSSL's nonces read; every reduction and
     multiplication takes the time its operand sizes ask for, and a
-    residue is not always the full size; the affine group law and the
-    conversion back from Jacobian coordinates spend a modular inverse, an
-    extended Euclid whose iteration count follows its input; and
-    `multi_mult` is Bos-Coster, whose shape is the scalars themselves.
+    residue is not always the full size; the affine group law spends a
+    modular inverse, an extended Euclid whose iteration count follows its
+    input, and so does the conversion back from Jacobian coordinates —
+    that one on a Z coordinate `_blinded_jac` has randomized, which is
+    why it is named here as a cost and not as a channel; and `multi_mult_var`
+    is Bos-Coster, whose shape is the scalars themselves.
     Using it on key material that matters is a choice, and this is the
     notice of it
 - a sign-to-contract commitment is the signer's to open, and opening it

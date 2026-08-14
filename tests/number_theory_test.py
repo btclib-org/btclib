@@ -5,19 +5,22 @@
 """Tests for the `btclib.number_theory` module."""
 
 import math
+import secrets
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from btclib import number_theory
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import (
-    legendre_symbol,
+    legendre_symbol_var,
     mod_inv,
-    mod_inv_batch,
-    mod_sqrt,
-    tonelli,
-    xgcd,
+    mod_inv_batch_var,
+    mod_inv_var,
+    mod_sqrt_var,
+    tonelli_var,
+    xgcd_var,
 )
 
 primes = [
@@ -67,10 +70,10 @@ def test_a_float_is_no_operand_and_zero_is_no_modulus() -> None:
     """Modular arithmetic over what is not an integer answered anyway.
 
     Python defines `//`, `%` and `*` for a float, so every function here
-    ran to completion on one and returned it: `mod_inv(3.0, 7)` answered
-    `5.0` out of a signature that says `int`, and `xgcd(3.0, 7)` a
+    ran to completion on one and returned it: `mod_inv_var(3.0, 7)` answered
+    `5.0` out of a signature that says `int`, and `xgcd_var(3.0, 7)` a
     triple of floats -- no exception, and a residue that is not one.
-    `legendre_symbol` and its two callers reached `pow`'s own TypeError
+    `legendre_symbol_var` and its two callers reached `pow`'s own TypeError
     instead, which is no better for a caller filtering bad input.
 
     A modulus of zero is the other half: the `ZeroDivisionError` of
@@ -80,8 +83,8 @@ def test_a_float_is_no_operand_and_zero_is_no_modulus() -> None:
     """
     for a, m in ((3.0, 7), (3, 7.0), ("3", 7), (3, None)):
         with pytest.raises(BTClibTypeError, match="not an integer: "):
-            xgcd(a, m)  # type: ignore[arg-type]
-        for call in (mod_inv, legendre_symbol, mod_sqrt, tonelli):
+            xgcd_var(a, m)  # type: ignore[arg-type]
+        for call in (mod_inv_var, legendre_symbol_var, mod_sqrt_var, tonelli_var):
             with pytest.raises(BTClibTypeError, match="not an integer: "):
                 call(a, m)  # type: ignore[arg-type]
 
@@ -89,47 +92,47 @@ def test_a_float_is_no_operand_and_zero_is_no_modulus() -> None:
     # would otherwise make it the modulus one
     for value in (True, False):
         with pytest.raises(BTClibTypeError, match="not an integer: "):
-            mod_inv(value, 7)
+            mod_inv_var(value, 7)
         with pytest.raises(BTClibTypeError, match="not an integer: "):
-            mod_inv(3, value)
+            mod_inv_var(3, value)
 
     for m in (0, -7):
-        for call in (mod_inv, legendre_symbol, mod_sqrt, tonelli):
+        for call in (mod_inv_var, legendre_symbol_var, mod_sqrt_var, tonelli_var):
             with pytest.raises(BTClibValueError, match="non-positive modulus: "):
                 call(3, m)
-    # xgcd takes no modulus: zero is a legitimate operand there, whose
+    # xgcd_var takes no modulus: zero is a legitimate operand there, whose
     # greatest common divisor with three is three
-    assert xgcd(3, 0)[0] == 3
+    assert xgcd_var(3, 0)[0] == 3
 
 
 def test_mod_inv_prime() -> None:
     """Verify the inverse mod a prime, and refuse the zero residue."""
     for p in primes:
         with pytest.raises(BTClibValueError, match="no inverse for 0 mod"):
-            mod_inv(0, p)
+            mod_inv_var(0, p)
         for a in range(1, min(p, 500)):  # exhausted only for small p
-            inv = mod_inv(a, p)
+            inv = mod_inv_var(a, p)
             assert a * inv % p == 1
-            inv = mod_inv(a + p, p)
+            inv = mod_inv_var(a + p, p)
             assert a * inv % p == 1
 
 
 def test_mod_inv() -> None:
-    """Verify mod_inv over every residue of every modulus up to 100."""
+    """Verify mod_inv_var over every residue of every modulus up to 100."""
     max_m = 100
     for m in range(2, max_m):
         nums = list(range(m))
         for a in nums:
             mult = [a * i % m for i in nums]
             if 1 in mult:
-                inv = mod_inv(a, m)
+                inv = mod_inv_var(a, m)
                 assert a * inv % m == 1
-                inv = mod_inv(a + m, m)
+                inv = mod_inv_var(a + m, m)
                 assert a * inv % m == 1
             else:
                 err_msg = "no inverse for "
                 with pytest.raises(BTClibValueError, match=err_msg):
-                    mod_inv(a, m)
+                    mod_inv_var(a, m)
 
 
 def test_legendre_symbol_is_the_squares_of_the_field() -> None:
@@ -147,9 +150,9 @@ def test_legendre_symbol_is_the_squares_of_the_field() -> None:
         squares = {a * a % p for a in range(1, p)}
         for a in range(p):
             expected = 0 if a == 0 else 1 if a in squares else -1
-            assert legendre_symbol(a, p) == expected, (a, p)
-            assert legendre_symbol(a + p, p) == expected, (a, p)
-            assert legendre_symbol(a - p, p) == expected, (a, p)
+            assert legendre_symbol_var(a, p) == expected, (a, p)
+            assert legendre_symbol_var(a + p, p) == expected, (a, p)
+            assert legendre_symbol_var(a - p, p) == expected, (a, p)
 
 
 def test_mod_sqrt() -> None:
@@ -159,17 +162,17 @@ def test_mod_sqrt() -> None:
         has_root.update(i * i % p for i in range(2, p))
         for i in range(p):
             if i in has_root:
-                root1 = mod_sqrt(i, p)
+                root1 = mod_sqrt_var(i, p)
                 assert i == (root1 * root1) % p
                 root2 = p - root1
                 assert i == (root2 * root2) % p
-                root = mod_sqrt(i + p, p)
+                root = mod_sqrt_var(i + p, p)
                 assert i == (root * root) % p
                 if p % 4 == 3 or p % 8 == 5:
-                    assert tonelli(i, p) in {root1, root2}
+                    assert tonelli_var(i, p) in {root1, root2}
             else:
                 with pytest.raises(BTClibValueError, match="no root for "):
-                    mod_sqrt(i, p)
+                    mod_sqrt_var(i, p)
 
 
 def test_mod_sqrt2() -> None:
@@ -185,7 +188,7 @@ def test_mod_sqrt2() -> None:
         (41660815127637347468140745042827704103445750172002, 10**50 + 577),
     ]
     for i, p in test_vectors:
-        root = tonelli(i, p)
+        root = tonelli_var(i, p)
         assert i == (root * root) % p
 
 
@@ -194,10 +197,10 @@ def test_minus_one_quadr_res() -> None:
     for p in primes:
         if (p % 4) == 3:
             with pytest.raises(BTClibValueError, match="no root for "):
-                mod_sqrt(p - 1, p)
+                mod_sqrt_var(p - 1, p)
         else:
             assert p == 2 or p % 4 == 1, "something is badly broken"
-            root = mod_sqrt(p - 1, p)
+            root = mod_sqrt_var(p - 1, p)
             assert p - 1 == root * root % p
 
 
@@ -228,13 +231,13 @@ def test_legendre_symbol_agrees_with_euler(a: int, p: int) -> None:
     """
     euler = pow(a, p >> 1, p)
     expected = 0 if euler == 0 else 1 if euler == 1 else -1
-    assert legendre_symbol(a, p) == expected
+    assert legendre_symbol_var(a, p) == expected
 
 
 @given(a=st.integers(), b=st.integers())
 def test_xgcd_is_bezout(a: int, b: int) -> None:
-    """What xgcd returns is the identity it is named after."""
-    g, x, y = xgcd(a, b)
+    """What xgcd_var returns is the identity it is named after."""
+    g, x, y = xgcd_var(a, b)
     assert a * x + b * y == g
     assert g == math.gcd(a, b) or -g == math.gcd(a, b)
 
@@ -248,9 +251,9 @@ def test_mod_inv_inverts(a: int, m: int) -> None:
     """
     if math.gcd(a % m, m) != 1:
         with pytest.raises(BTClibValueError, match="no inverse"):
-            mod_inv(a, m)
+            mod_inv_var(a, m)
         return
-    inverse = mod_inv(a, m)
+    inverse = mod_inv_var(a, m)
     assert 0 <= inverse < m
     assert a * inverse % m == 1
 
@@ -259,17 +262,17 @@ def test_mod_inv_inverts(a: int, m: int) -> None:
 def test_mod_sqrt_squares_back(a: int, p: int) -> None:
     """A root squares back to what it is the root of, when there is one.
 
-    legendre_symbol is what says whether there is: 1 for a residue, -1
+    legendre_symbol_var is what says whether there is: 1 for a residue, -1
     for a non-residue, 0 for a multiple of p. The three cases together
     are the whole domain, which is the point of generating a.
     """
-    symbol = legendre_symbol(a, p)
+    symbol = legendre_symbol_var(a, p)
     assert symbol in {-1, 0, 1}
     if symbol == -1:
         with pytest.raises(BTClibValueError, match="no root for "):
-            mod_sqrt(a, p)
+            mod_sqrt_var(a, p)
         return
-    root = mod_sqrt(a, p)
+    root = mod_sqrt_var(a, p)
     assert root * root % p == a % p
     # the other root, p - root, is a root too: a square has two
     assert (p - root) * (p - root) % p == a % p
@@ -284,30 +287,30 @@ def test_mod_inv_batch_is_mod_inv_over_a_sequence() -> None:
     """
     for m in (7, 97, 2**521 - 1):
         values = [1, 2, m - 1, 3, m - 2]
-        assert mod_inv_batch(values, m) == [mod_inv(v, m) for v in values]
-        assert mod_inv_batch([2], m) == [mod_inv(2, m)]
-    assert mod_inv_batch([], 7) == []
+        assert mod_inv_batch_var(values, m) == [mod_inv_var(v, m) for v in values]
+        assert mod_inv_batch_var([2], m) == [mod_inv_var(2, m)]
+    assert mod_inv_batch_var([], 7) == []
 
 
 def test_mod_inv_batch_names_the_element_that_has_no_inverse() -> None:
     """A product is invertible only if every factor is.
 
     So the batch fails whenever one element does, and names that element
-    as `mod_inv` does rather than the product a caller never formed.
+    as `mod_inv_var` does rather than the product a caller never formed.
     """
     with pytest.raises(BTClibValueError, match="no inverse for 0 mod 7"):
-        mod_inv_batch([1, 2, 0, 3], 7)
+        mod_inv_batch_var([1, 2, 0, 3], 7)
     with pytest.raises(BTClibValueError, match="no inverse for 3 mod 9"):
-        mod_inv_batch([2, 3], 9)
+        mod_inv_batch_var([2, 3], 9)
 
     # the arguments are checked as every other function of the module
     # checks its own, a bool being no integer and zero no modulus
     for value in (2.0, True, None):
         with pytest.raises(BTClibTypeError, match="not an integer: "):
-            mod_inv_batch([1, value], 7)  # type: ignore[list-item]
+            mod_inv_batch_var([1, value], 7)  # type: ignore[list-item]
     for m in (0, -7, 3.0, False):
         with pytest.raises((BTClibTypeError, BTClibValueError)):
-            mod_inv_batch([1], m)  # type: ignore[arg-type]
+            mod_inv_batch_var([1], m)  # type: ignore[arg-type]
 
 
 @given(values=st.lists(st.integers(), max_size=8), m=st.integers(min_value=2))
@@ -315,10 +318,115 @@ def test_mod_inv_batch_inverts(values: list[int], m: int) -> None:
     """Every inverse multiplies its element back to one, or none does."""
     if any(math.gcd(v % m, m) != 1 for v in values):
         with pytest.raises(BTClibValueError, match="no inverse"):
-            mod_inv_batch(values, m)
+            mod_inv_batch_var(values, m)
         return
-    inverses = mod_inv_batch(values, m)
+    inverses = mod_inv_batch_var(values, m)
     assert len(inverses) == len(values)
     for v, inverse in zip(values, inverses, strict=True):
         assert 0 <= inverse < m
         assert v * inverse % m == 1
+
+
+def test_mod_inv_blinded_is_mod_inv() -> None:
+    """The blinding changes what is timed and not what is answered.
+
+    Over the primes above, which is what it is asked about in the
+    library -- a group order -- and over composite moduli, where an
+    element with no inverse still has none and is named as `mod_inv_var`
+    names it. A modulus of one is the degenerate case: every integer is
+    zero modulo it, so the only factor to draw with is one.
+    """
+    for m in primes:
+        for a in range(1, min(m, 200)):
+            assert mod_inv(a, m) == mod_inv_var(a, m)
+            assert mod_inv(a + m, m) == mod_inv_var(a, m)
+
+    for m in range(2, 60):
+        for a in range(m):
+            if math.gcd(a, m) == 1:
+                assert mod_inv(a, m) == mod_inv_var(a, m)
+            else:
+                with pytest.raises(BTClibValueError, match="no inverse for "):
+                    mod_inv(a, m)
+
+    assert mod_inv(7, 1) == mod_inv_var(7, 1) == 0
+
+    # the arguments are checked here rather than one call deeper: the
+    # factor is drawn before `mod_inv_var` is reached, and a modulus that is
+    # not an integer would fail in the draw instead
+    for value in (2.0, True, None):
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv(value, 7)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv(3, value)  # type: ignore[arg-type]
+    for m in (0, -7):
+        with pytest.raises(BTClibValueError, match="non-positive modulus: "):
+            mod_inv(3, m)
+
+
+def test_mod_inv_blinded_never_hands_the_operand_to_the_euclid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What the extended Euclid is timed on is a fresh random value.
+
+    Which is the whole of what the blinding buys, `mod_inv_var`'s duration
+    following what it is handed: the same secret inverted twice reaches
+    it as two unrelated values, so the duration carries the factor and
+    not the caller's operand.
+    """
+    seen: list[int] = []
+    real_mod_inv = number_theory.mod_inv_var
+
+    def recording_mod_inv(a: int, m: int) -> int:
+        seen.append(a)
+        return real_mod_inv(a, m)
+
+    monkeypatch.setattr(number_theory, "mod_inv_var", recording_mod_inv)
+
+    n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    secret = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
+    for _ in range(32):
+        assert number_theory.mod_inv(secret, n) == real_mod_inv(secret, n)
+
+    assert secret not in seen
+    # every call drew its own factor: a repeat would be a factor that is
+    # not fresh, and 32 draws below n repeat with probability 2^-246
+    assert len(set(seen)) == len(seen)
+
+
+def test_mod_inv_blinded_answers_a_factor_that_is_a_zero_divisor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A composite modulus can make the drawn factor non-invertible.
+
+    The product is then non-invertible while the operand is not, and the
+    answer still has to be the operand's inverse -- reached by inverting
+    it unblinded, which is the one case where the protection is lost and
+    the result is not. A prime modulus cannot take this path, and every
+    modulus the library blinds against is one: `curves.Curve` requires
+    the group order prime.
+    """
+    # 1 + randbelow(m - 1) == 2, a zero divisor mod 8
+    monkeypatch.setattr(secrets, "randbelow", lambda _: 1)
+    assert mod_inv(3, 8) == mod_inv_var(3, 8) == 3
+
+    # and an operand that has no inverse of its own still reports one,
+    # naming itself rather than the product the caller never formed
+    with pytest.raises(BTClibValueError, match="no inverse for 2 mod 8"):
+        mod_inv(2, 8)
+
+
+@given(a=st.integers(), m=st.integers(min_value=1))
+def test_mod_inv_blinded_inverts(a: int, m: int) -> None:
+    """`test_mod_inv_inverts`, of the blinded spelling.
+
+    m from one rather than from two: the degenerate modulus is a branch
+    here, where `mod_inv_var` has none.
+    """
+    if math.gcd(a % m, m) != 1 and m != 1:
+        with pytest.raises(BTClibValueError, match="no inverse"):
+            mod_inv(a, m)
+        return
+    inverse = mod_inv(a, m)
+    assert 0 <= inverse < m
+    assert a * inverse % m == 1 % m

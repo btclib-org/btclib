@@ -13,7 +13,7 @@
 # of either module is reached without patching `curve.py`'s
 # `_libsecp256k1_applicable` off the way `curve_test.py`'s own
 # `no_bindings` fixture has to for the same code reached through `mult`,
-# `double_mult` and `multi_mult`.
+# `double_mult_var` and `multi_mult_var`.
 
 [cosmic-ray]
 module-path = [

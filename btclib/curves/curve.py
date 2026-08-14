@@ -4,7 +4,7 @@
 
 """The prime-order Curve and the multiplications built on it.
 
-mult, double_mult and multi_mult dispatch secp256k1 to the
+mult, double_mult_var and multi_mult_var dispatch secp256k1 to the
 libsecp256k1 bindings and answer every other curve -- and the cases
 the bindings cannot express -- with curve_group's arithmetic.
 
@@ -55,7 +55,7 @@ from btclib.curves.curve_group_2 import (
     _mult_endomorphism_secp256k1,
 )
 from btclib.exceptions import BTClibValueError
-from btclib.number_theory import legendre_symbol
+from btclib.number_theory import legendre_symbol_var
 from btclib.utils import hex_string, int_from_integer
 
 __all__ = [
@@ -69,9 +69,9 @@ __all__ = [
     "SEC2v1_params2",
     "SEC2v2",
     "SEC2v2_params2",
-    "double_mult",
+    "double_mult_var",
     "mult",
-    "multi_mult",
+    "multi_mult_var",
     "secp256k1",
 ]
 
@@ -452,7 +452,7 @@ def _is_x_coordinate(x: int, ec: Curve) -> bool:
     # the symbol is 0 for a y^2 of zero, which is the two-torsion point:
     # its root is zero and it is on the curve, so -1 is the whole of what
     # says otherwise
-    return legendre_symbol(ec._y2(x), ec.p) != -1
+    return legendre_symbol_var(ec._y2(x), ec.p) != -1
 
 
 def _y_even(x: int, ec: Curve) -> int:
@@ -529,7 +529,7 @@ def _libsecp256k1_multi_mult_(
     one for all of them, a running total being what has an x to compare:
     measured on eight terms 112 us against 97, and on sixty-four 925
     against 774, where the Python arithmetic below takes 2.4 ms and 15 ms.
-    Two terms, which is double_mult and the shape most callers have, pay
+    Two terms, which is double_mult_var and the shape most callers have, pay
     nothing at all: one combine either way.
     """
     x_slice = slice(1, secp256k1.p_size + 1)
@@ -563,7 +563,7 @@ def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) ->
     )
 
 
-# the widths mult and double_mult hand the variants below them; the
+# the widths mult and double_mult_var hand the variants below them; the
 # measurement behind each is in the docstring of the function it is passed
 # to, and they are two constants rather than one because what a window is
 # measured on is the length of the scalars in it: the GLV endomorphism's
@@ -640,7 +640,7 @@ def _double_mult_python(
 ) -> JacPoint:
     """Return u*HJ + v*QJ in Python, through the endomorphism if there is one.
 
-    The arm `double_mult` and `_jac_double_mult` share, so that one place
+    The arm `double_mult_var` and `_jac_double_mult` share, so that one place
     decides which double multiplication a curve gets and both reach the
     same one. On secp256k1 that is the GLV split of both coefficients,
     which is to `_double_mult_w_NAF_var` what `_mult_endomorphism_secp256k1`
@@ -672,7 +672,7 @@ def _double_mult_python(
     return _double_mult_w_NAF_var(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
 
 
-def double_mult(
+def double_mult_var(
     u: Integer, H: Point, v: Integer, Q: Point, ec: Curve = secp256k1
 ) -> Point:
     """Double scalar multiplication (u*H + v*Q)."""
@@ -698,12 +698,12 @@ def double_mult(
 def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> JacPoint:
     """Return u*HJ + v*QJ in Jacobian coordinates, delegated where it can be.
 
-    double_mult for a caller whose equation is written in projective
+    double_mult_var for a caller whose equation is written in projective
     coordinates: dsa's and ssa's _assert_as_valid_, which are the two
     verifications the bindings' own decline -- a hash function that is not
     sha256, a BIP340 message that is not 32 bytes (issue 169), a
     caller-imposed nonce, another curve -- and which paid a Python
-    double_mult underneath whatever the reason. 1.02 ms against 28 us on
+    double_mult_var underneath whatever the reason. 1.02 ms against 28 us on
     secp256k1.
 
     Jacobian in and Jacobian out, rather than those two rewritten in
@@ -720,17 +720,17 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     case -- the affine point being the same pair of coordinates, no
     inversion at all -- saves both of them, 3% of the 28 us the call
     costs. Not worth a branch, and neither is the caller's own
-    mod_inv(1) on the way back out, the same inversion again on the
+    mod_inv_var(1) on the way back out, the same inversion again on the
     cheapest operand it has.
     """
     if not _libsecp256k1_applicable(ec, None):
         return _double_mult_python(u, HJ, v, QJ, ec)
 
-    R = double_mult(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
+    R = double_mult_var(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
     return _jac_from_aff(R)
 
 
-def multi_mult(
+def multi_mult_var(
     scalars: Sequence[Integer], points: Sequence[Point], ec: Curve = secp256k1
 ) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
@@ -750,7 +750,7 @@ def multi_mult(
     for Q in points:
         ec.require_on_curve(Q)
 
-    # as in double_mult; and fewer than two terms is not a multi_mult at
+    # as in double_mult_var; and fewer than two terms is not a multi_mult_var at
     # all, an error the Python path below is the one to raise
     if (
         len(points) > 1

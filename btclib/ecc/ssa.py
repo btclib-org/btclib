@@ -70,13 +70,13 @@ from btclib.curves.curve import (
     _libsecp256k1_applicable,
     _y_even,
     mult,
-    multi_mult,
+    multi_mult_var,
 )
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
-from btclib.number_theory import mod_inv
+from btclib.number_theory import mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import (
@@ -507,7 +507,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # It raises Errors, while verify should always return True or False
 
     # Let K = sG - eQ.
-    # in Jacobian coordinates, and through the dispatching double_mult of
+    # in Jacobian coordinates, and through the dispatching double_mult_var of
     # curves.curve rather than the Python arithmetic under it: what
     # reaches here is the verification the bindings' own declined, which
     # is another curve or another hash function -- the size of the message
@@ -699,10 +699,10 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
 
     KJ = r, _y_even(r, ec), 1
 
-    e1 = mod_inv(c, ec.n)
+    e1 = mod_inv_var(c, ec.n)
     # libsecp256k1 recovers no x-only key -- its recovery module is ECDSA
     # ("recover(msg, signature, recid)") and its xonly module has no
-    # recovery in it -- so the delegated double_mult is the whole of what
+    # recovery in it -- so the delegated double_mult_var is the whole of what
     # there is to gain here, and it is all of the cost: 3540 us against
     # 109 for this function. Which is also why this stays private, with no
     # public spelling above it: BIP340 has no recovery flag to carry the
@@ -825,7 +825,7 @@ def assert_batch_as_valid_(
         points.append((x_Q, y_Q))
         t += rand * sig.s
 
-    # the public mult and multi_mult, in affine coordinates, rather than
+    # the public mult and multi_mult_var, in affine coordinates, rather than
     # the Jacobian functions of curve_group underneath them and an
     # equality of projective coordinates: those two are where the
     # libsecp256k1 dispatch lives, and this sum is the one place in btclib
@@ -836,8 +836,8 @@ def assert_batch_as_valid_(
     # left being two lifts and a challenge per signature, some 9 us of
     # which the lifts are libsecp256k1's. The two affine
     # conversions the equality costs on every other curve are one modular
-    # inversion each, next to a multi_mult of all the terms
-    if mult(t, ec=ec) != multi_mult(scalars, points, ec):
+    # inversion each, next to a multi_mult_var of all the terms
+    if mult(t, ec=ec) != multi_mult_var(scalars, points, ec):
         raise BTClibRuntimeError("signature verification failed")
     return
 

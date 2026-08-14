@@ -155,7 +155,7 @@ def commit_nonce_(
     # and not a rejection to loop over: a second candidate would be a
     # second tweak, and the tweak is what the verifier recomputes.
     # Refused here, because a nonce of zero has no point to sign with and
-    # mod_inv(0) is the error the caller would see instead
+    # mod_inv_var(0) is the error the caller would see instead
     if tweaked_nonce == 0:
         raise BTClibRuntimeError("failed to sign: zero tweaked nonce")
     return tweaked_nonce, receipt

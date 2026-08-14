@@ -150,7 +150,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
     parity is a `%` and not a lift of the x back to the point it came
     from (issue 619). What pins that is reaching no modular square root
     at all, which is stronger than a stopwatch and does not depend on
-    the machine: mod_sqrt is patched to raise.
+    the machine: mod_sqrt_var is patched to raise.
 
     Both parities, because the branch this reads decides a negation:
     with only the even key the answer would be right for a run that
@@ -171,7 +171,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
 
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
-        no_bindings.setattr(curve_group, "mod_sqrt", refuse)
+        no_bindings.setattr(curve_group, "mod_sqrt_var", refuse)
         for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
             assert output_prvkey(prv_key, tree) == expected
 

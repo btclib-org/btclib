@@ -28,7 +28,7 @@ from functools import lru_cache
 from hashlib import sha256
 
 from btclib.alias import HashF, Point
-from btclib.curves import Curve, bytes_from_point, double_mult, secp256k1
+from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import int_from_bits
 
@@ -91,7 +91,7 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     (NUMS) generator of the curve.
     """
     H = second_generator(ec, hf)
-    Q = double_mult(v, H, r, ec.G, ec)
+    Q = double_mult_var(v, H, r, ec.G, ec)
     # r and v both zero mod n commit here; anything else would need
     # the discrete log of H
     if Q[1] == 0:

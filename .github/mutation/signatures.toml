@@ -8,7 +8,7 @@
 # `dsa.Sig.parse`'s DER carries.
 #
 # CLAUDE.md's own warning about this pair applies to what a survivor here
-# can mean: `curves.curve.mult`/`double_mult`/`multi_mult` call the
+# can mean: `curves.curve.mult`/`double_mult_var`/`multi_mult_var` call the
 # libsecp256k1 bindings for secp256k1, so a mutant of the Python arithmetic
 # in `curves/curve_group.py` is invisible to a test running the default
 # curve -- it is not in this module-path and is not what this profile is
@@ -91,7 +91,7 @@ excluded-modules = []
 # - `assert_batch_as_valid_`'s `batch_size == 1` weakened to `< 1`: the
 #   shortcut it guards validates a lone `Sig` on its own account
 #   (`assert_as_valid_`, which runs `sig.assert_valid()`), where the
-#   general multi_mult sum below it does not; `< 1` never being true
+#   general multi_mult_var sum below it does not; `< 1` never being true
 #   once `batch_size == 0` has already raised two lines above, the
 #   widened guard sends every batch of one through the sum instead,
 #   silently dropping that check.
