@@ -394,7 +394,7 @@ class CurveGroup:
         # random -- over 2000 random scalars _mult reached it 3.98 times
         # on average and only 23 of them not at all, and the count *is*
         # the secret: exactly the number of zero base-16 digits of the
-        # scalar, or for _mult_jac the number of its low zero bits. An
+        # scalar, or for _mult_jac_var the number of its low zero bits. An
         # early return there put that on the clock, 0.03 us against the
         # 3.7 us of a generic addition, and _mult measured 0.93 ms with no
         # zero digit against 0.55 ms with 63.
@@ -405,12 +405,12 @@ class CurveGroup:
         # stand-in of full size takes its place, the table at the end
         # answers for it, and an addition with no infinity in it pays two
         # comparisons: 1.02x to 1.03x on every multiplication in the
-        # package, and 1.22x on _double_mult, whose Shamir-Strauss loop
+        # package, and 1.22x on _double_mult_var, whose Shamir-Strauss loop
         # adds the infinity of a zero digit pair a quarter of the time --
         # the additions an early return answers for free, at the price of
         # putting their count on the clock. Dropping the early return
         # without the stand-ins is not enough: P + INFJ still costs
-        # 1.8 us against 5.4, and _mult_jac is still 25% faster on a
+        # 1.8 us against 5.4, and _mult_jac_var is still 25% faster on a
         # scalar with 128 low zero bits
         QS = (Q, self._stand_in_q)[Q[2] == 0]
         RS = (R, self._stand_in_r)[R[2] == 0]
@@ -609,7 +609,7 @@ class CurveGroup:
 
         p = self.p
         # lam reduced before it is squared, as in add_jac, though here it
-        # is worth 6% of _mult_aff rather than a factor of two: mod_inv is
+        # is worth 6% of _mult_aff_var rather than a factor of two: mod_inv is
         # what affine coordinates cost, and is why the ladders are not
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], p) % p
         x = (lam * lam - Q[0] - R[0]) % p
@@ -699,7 +699,7 @@ class CurveGroup:
         return self.y(x)
 
 
-def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def _mult_recursive_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses a recursive version of 'double & add',
@@ -716,12 +716,12 @@ def _mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         return INF
 
     if m % 2 == 1:
-        return ec.add_aff(Q, _mult_recursive_aff((m - 1), Q, ec))
+        return ec.add_aff(Q, _mult_recursive_aff_var((m - 1), Q, ec))
 
-    return _mult_recursive_aff((m // 2), ec.double_aff(Q), ec)
+    return _mult_recursive_aff_var((m // 2), ec.double_aff(Q), ec)
 
 
-def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_recursive_jac_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses a recursive version of 'double & add',
@@ -738,12 +738,12 @@ def _mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
         return INFJ
 
     if m % 2 == 1:
-        return ec.add_jac(Q, _mult_recursive_jac((m - 1), Q, ec))
+        return ec.add_jac(Q, _mult_recursive_jac_var((m - 1), Q, ec))
 
-    return _mult_recursive_jac((m // 2), ec.double_jac(Q), ec)
+    return _mult_recursive_jac_var((m // 2), ec.double_jac(Q), ec)
 
 
-def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
+def _mult_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
     This implementation uses 'double & add' algorithm, 'right-to-left'
@@ -766,7 +766,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
         # the doubling part of 'double & add'
         Q = ec.double_aff(Q)
         # always perform the 'add', even if useless: one addition per bit
-        # whatever the bit is, as in _mult_jac. It buys less here, add_aff
+        # whatever the bit is, as in _mult_jac_var. It buys less here, add_aff
         # branching on its own special cases and mod_inv taking the time
         # its input asks for, which is why the affine variants are the
         # readable ones rather than the ones to sign with
@@ -777,7 +777,7 @@ def _mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     return R[0]
 
 
-def _mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_jac_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
     This implementation uses 'double & add' algorithm, 'right-to-left'
@@ -852,7 +852,7 @@ def _cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
 def _cached_multiples_fixwind(
     Q: JacPoint, ec: CurveGroup, w: int
 ) -> list[list[JacPoint]]:
-    """Made to precompute values for _mult_fixed_window_cached.
+    """Made to precompute values for _mult_fixed_window_cached_var.
 
     Do not use it for other functions. Made to be used for w=4, do not
     use w.
@@ -901,7 +901,7 @@ def _wNAF_of_m(m: int, w: int) -> list[int]:
 
     This recoding sits here next to _convert_number_to_base, the same kind
     of integer-only helper, rather than with the wNAF multiplications of
-    curve_group_2: the interleaved _multi_mult_w_NAF below needs it, and
+    curve_group_2: the interleaved _multi_mult_w_NAF_var below needs it, and
     curve_group cannot import the module that imports it.
 
     For complete reference see:
@@ -1013,7 +1013,7 @@ def _odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
 
 # the width a point of ec._fixed_points has its table built at, against
 # the narrow one a point that arrives once is worth. The measurement is in
-# _multi_mult_w_NAF's docstring
+# _multi_mult_w_NAF_var's docstring
 _FIXED_POINT_W = 10
 
 
@@ -1146,7 +1146,7 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     return ec.add_jac(R, (INFJ, ec.negate_jac(Q))[not m & 1])
 
 
-def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_mont_ladder_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 
     This implementation uses
@@ -1179,7 +1179,7 @@ def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+def _mult_base_3_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using ternary decomposition of the scalar.
 
     This implementation uses 'triple & add' algorithm, 'left-to-right'
@@ -1207,7 +1207,7 @@ def _mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R
 
 
-def _mult_fixed_window(
+def _mult_fixed_window_var(
     m: int, Q: JacPoint, ec: CurveGroup, w: int, cached: bool
 ) -> JacPoint:
     """Scalar multiplication using "fixed window".
@@ -1244,7 +1244,9 @@ def _mult_fixed_window(
     return R
 
 
-def _mult_fixed_window_cached(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+def _mult_fixed_window_cached_var(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int
+) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
 
     This implementation uses 'multiple-double & add' algorithm, 'left-
@@ -1301,7 +1303,7 @@ def _mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoin
     `_mult` the package reaches for rather than an option beside it. The
     fixed window stays as what it is didactically, the plain one, and the
     wNAF multiplications stay the fast irregular ones for coefficients
-    that are public: `_double_mult_w_NAF` is what verification runs.
+    that are public: `_double_mult_w_NAF_var` is what verification runs.
 
     w=4 by measurement, as for the fixed window: 0.803 ms at w=5 and 0.831
     at w=6, the window paying for a table twice the size of the NAF's at
@@ -1375,7 +1377,7 @@ def _mult(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return _mult_regular_window(m, Q, ec, _MULT_W)
 
 
-def _double_mult(
+def _double_mult_var(
     u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: CurveGroup
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q).
@@ -1431,7 +1433,7 @@ def _multi_mult_pairs(
     """Check the arguments of a multi multiplication and drop the zeros.
 
     Shared by the two implementations below so that they answer the same
-    errors to the same arguments: whichever of them _multi_mult calls is
+    errors to the same arguments: whichever of them _multi_mult_var calls is
     a performance decision, and a caller must not be able to tell which
     it got. A zero scalar contributes nothing to the sum and is dropped
     rather than carried, which Bos-Coster needs -- it would be a zero
@@ -1455,12 +1457,12 @@ def _multi_mult_pairs(
     return pairs
 
 
-# the width _multi_mult hands the interleaved wNAF; the measurement
+# the width _multi_mult_var hands the interleaved wNAF; the measurement
 # behind it is in the docstring of the function it is passed to
 _MULTI_MULT_W = 5
 
 
-def _multi_mult_w_NAF(
+def _multi_mult_w_NAF_var(
     scalars: Sequence[int],
     jac_points: Sequence[JacPoint],
     ec: CurveGroup,
@@ -1470,14 +1472,14 @@ def _multi_mult_w_NAF(
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Strauss' algorithm with interleaved wNAFs, the many-point form of
-    curve_group_2's _double_mult_w_NAF (HMV algorithm 3.51): each scalar
+    curve_group_2's _double_mult_w_NAF_var (HMV algorithm 3.51): each scalar
     gets its own width-w NAF and its own table of odd multiples, and a
     single left-to-right loop shares one doubling per bit position among
     all of them, adding a (possibly negated) table entry wherever a NAF
     has a nonzero digit.
 
     Sharing the doublings is the whole of the idea, and what the dispatch
-    of _multi_mult weighs: the ~256 doublings a 256-bit scalar needs are
+    of _multi_mult_var weighs: the ~256 doublings a 256-bit scalar needs are
     paid once for the batch instead of once per point, leaving some 50
     point operations per scalar of its own. Bos-Coster has no fixed cost
     to share and settles at 44.5 per scalar, so few scalars is where the
@@ -1498,7 +1500,7 @@ def _multi_mult_w_NAF(
     secp256k1: the split is curve-specific, this function serves every
     curve, and with many scalars the doublings it would halve are already
     shared. A caller that has only two of them has the opposite balance,
-    and curve_group_2's _double_mult_endomorphism_secp256k1 is that
+    and curve_group_2's _double_mult_endomorphism_secp256k1_var is that
     caller: it splits both coefficients itself and hands the four halves
     here, so the split lives with the curve that has it and the
     interleaving stays one implementation.
@@ -1514,8 +1516,8 @@ def _multi_mult_w_NAF(
 
     Measured over 30 random 256-bit coefficient pairs, best of seven
     alternating rounds, memoized against built per call: 1.24x on
-    `_double_mult_endomorphism_secp256k1`, whose four halves are two fixed
-    points and two of the caller's, and 1.14x on `_double_mult_w_NAF` over
+    `_double_mult_endomorphism_secp256k1_var`, whose four halves are two fixed
+    points and two of the caller's, and 1.14x on `_double_mult_w_NAF_var` over
     secp256r1, which has one of each. With eight points of which one is
     the generator it is 1.05x, the fixed point being an eighth of the
     work. `_FIXED_POINT_W` is 10 by measurement on the first of those:
@@ -1566,7 +1568,7 @@ def _multi_mult_w_NAF(
     return R
 
 
-def _multi_mult_bos_coster(
+def _multi_mult_bos_coster_var(
     scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
@@ -1590,7 +1592,7 @@ def _multi_mult_bos_coster(
     multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) would
     never finish, on scalars a caller has every right to pass. The whole
     of Euclid is what makes this a live path rather than a reading
-    exercise: _multi_mult calls it above its threshold.
+    exercise: _multi_mult_var calls it above its threshold.
 
     Where the interleaved wNAF above shares one doubling per bit among
     all the points, this one has no fixed cost to amortize at all -- the
@@ -1617,15 +1619,15 @@ def _multi_mult_bos_coster(
         np2 = heapq.heappop(x)
         n_1, p_1 = -np1[0], np1[1]
         n_2, p_2 = -np2[0], np2[1]
-        # _mult_jac, not the faster _mult: the quotient is 1 about 40% of
+        # _mult_jac_var, not the faster _mult: the quotient is 1 about 40% of
         # the time (Gauss-Kuzmin), and _mult would rebuild its 16-entry
         # table of multiples for each of those -- 10x slower over 128
-        # random scalars. _mult_jac(1, P) is P at no cost, so this is the
+        # random scalars. _mult_jac_var(1, P) is P at no cost, so this is the
         # subtractive step precisely when the subtractive step is right;
         # measured, spelling that case out as a branch buys nothing, and
         # subtracting for q up to 4 or up to 16 costs 3% and 11%.
         q, n_1 = divmod(n_1, n_2)
-        p_2 = ec.add_jac(_mult_jac(q, p_1, ec), p_2)
+        p_2 = ec.add_jac(_mult_jac_var(q, p_1, ec), p_2)
         if n_1 > 0:
             heapq.heappush(x, (-n_1, p_1))
         heapq.heappush(x, (-n_2, p_2))
@@ -1649,7 +1651,7 @@ def _multi_mult_bos_coster(
 BOS_COSTER_THRESHOLD = 56
 
 
-def _multi_mult(
+def _multi_mult_var(
     scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
@@ -1682,7 +1684,7 @@ def _multi_mult(
     groups of order n).
     """
     if sum(1 for n in scalars if n) < BOS_COSTER_THRESHOLD:
-        return _multi_mult_w_NAF(
+        return _multi_mult_w_NAF_var(
             scalars, jac_points, ec, _MULTI_MULT_W, ec._fixed_points
         )
-    return _multi_mult_bos_coster(scalars, jac_points, ec)
+    return _multi_mult_bos_coster_var(scalars, jac_points, ec)
