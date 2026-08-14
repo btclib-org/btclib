@@ -133,7 +133,7 @@ from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
     _key_data_from_bip32_key,
-    derive_from_account,
+    derive_from_account_,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import str_from_index_int
@@ -502,12 +502,19 @@ class ScriptWallet(RangedWallet):
 
         The public one whatever the key is: an xprv derives to an xprv,
         whose `BIP32KeyData.key` is the private key behind a zero byte, and
-        that is not what goes into a script. `bip32.derive_from_account` is
+        that is not what goes into a script. `bip32.derive_from_account_` is
         what imposes the bounds -- branch 0 or 1, index at most 65535 --
         and the network check is `to_pub_key`'s.
+
+        The object spelling of that walk, `derive_from_account_`: the
+        Base58Check text `derive_from_account` answers would be decoded
+        straight back by `pub_keyinfo_from_key` on this same line, a
+        `BIP32KeyData` being in the `PubKey` union already. 57.31 us against
+        34.23 per derived key, a fresh index each call so that no decode
+        cache answers (issue 886)
         """
         return pub_keyinfo_from_key(
-            derive_from_account(key, branch, index), self.network
+            derive_from_account_(key, branch, index), self.network
         )[0]
 
     def _quorum(

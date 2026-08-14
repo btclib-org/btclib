@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from btclib.bip32.bip32 import (
     BIP328_CHAIN_CODE,
     BIP32KeyData,
-    derive,
+    derive_,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import (
@@ -166,7 +166,7 @@ class KeyExpression:
         A ``musig()`` answers with the key its participants aggregate to,
         derived along its own path where it has one: BIP328's synthetic
         xpub is that key at depth zero with the fixed chain code an
-        aggregate has instead of one of its own, and `derive` is then what
+        aggregate has instead of one of its own, and `derive_` is then what
         refuses a hardened step -- there being no aggregate private key to
         take one with. The index derives the participants or the aggregate
         and never both, BIP390 allowing a wildcard on one side only.
@@ -186,14 +186,20 @@ class KeyExpression:
                 chain_code=BIP328_CHAIN_CODE,
                 key=aggregate,
             )
-            return pub_keyinfo_from_key(derive(synthetic, musig_path), network)[0]
+            return pub_keyinfo_from_key(derive_(synthetic, musig_path), network)[0]
         if self.pub_key is not None:
             return self.pub_key
         der_path = list(self.der_path)
         if self.wildcard is not None:
             der_path.append(self.wildcard + index)
         xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
-        return pub_keyinfo_from_key(derive(xkey, der_path), network)[0]
+        # `derive_` and not `derive`: the Base58Check text would be decoded
+        # straight back by `pub_keyinfo_from_key` on this same line, a
+        # `BIP32KeyData` being in the `PubKey` union already -- 53.56 us
+        # against 36.69 per key at an index (issue 886). The union `derive_`
+        # takes is `derive`'s, so the xkey a descriptor holds as a string
+        # still goes in as it is
+        return pub_keyinfo_from_key(derive_(xkey, der_path), network)[0]
 
     def participant_keys(
         self,
