@@ -22,13 +22,13 @@ from dataclasses import dataclass
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.curves import point_from_octets
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_type_from_network
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import assert_type, bytes_from_octets, bytesio_from_binarydata
 
 __all__ = [
     "ScriptPubKey",
@@ -839,9 +839,7 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     # unreachable to mypy, the annotation having no fourth case, and the
     # whole point to a caller who is not running it: `Octets` is honoured
     # inside btclib and nowhere else
-    if not isinstance(script_pub_key, str):
-        err_msg = f"invalid script_pub_key type: {type(script_pub_key).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(script_pub_key, str, "script_pub_key")
     if not script_pub_key:
         err_msg = "empty script_pub_key: a script with no address renders as ''"
         raise BTClibValueError(err_msg)

@@ -363,9 +363,7 @@ def fields_from_json_object(dict_: Any, what: str) -> Mapping[str, Any]:
     `assert_type` takes one: the check is here for the caller mypy did
     not read.
     """
-    if not isinstance(dict_, Mapping):
-        err_msg = f"invalid {what} dict type: {type(dict_).__name__}"
-        raise BTClibTypeError(err_msg)
+    assert_type(dict_, Mapping, f"{what} dict")
     return _JsonObject(what, dict_)
 
 

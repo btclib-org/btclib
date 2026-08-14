@@ -93,6 +93,7 @@ from btclib.tx import Tx, TxIn, TxOut
 from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
     fields_from_json_object,
@@ -2775,9 +2776,7 @@ def _assert_psbt_pair(request: Psbt, returned: Psbt) -> None:
     as an AttributeError about a field name.
     """
     for psbt, what in ((request, "request"), (returned, "returned")):
-        if not isinstance(psbt, Psbt):
-            err_msg = f"invalid {what} type: {type(psbt).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
+        assert_type(psbt, Psbt, what)
 
 
 def assert_signatures_only(request: Psbt, returned: Psbt) -> None:

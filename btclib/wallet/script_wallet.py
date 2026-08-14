@@ -156,7 +156,7 @@ from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
-from btclib.utils import is_integer
+from btclib.utils import assert_type, is_integer
 from btclib.wallet.wallet import RangedWallet
 
 __all__ = [
@@ -321,9 +321,7 @@ def _assert_group_arguments(
         raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
     if origins is not None and not isinstance(origins, Sequence):
         raise BTClibTypeError(f"invalid origins type: {type(origins).__name__}")
-    if not isinstance(verify, bool):
-        err_msg = f"invalid verify type: {type(verify).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(verify, bool, "verify")
 
 
 def _assert_origin_types(origins: tuple[BIP32KeyOrigin | None, ...]) -> None:

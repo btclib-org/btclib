@@ -22,7 +22,7 @@ from math import ceil
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv_batch_var, mod_inv_var, mod_sqrt_var
-from btclib.utils import hex_string, int_from_integer
+from btclib.utils import assert_type, hex_string, int_from_integer
 
 __all__ = [
     "BOS_COSTER_THRESHOLD",
@@ -660,8 +660,7 @@ class CurveGroup:
         """Return True if the point is on the curve."""
         # the type before the length: `len` of what is not sized is a
         # TypeError about a builtin, where a Point is what this asks for
-        if not isinstance(Q, tuple):
-            raise BTClibTypeError(f"invalid point type: {type(Q).__name__}")
+        assert_type(Q, tuple, "point")
         if len(Q) != 2:
             raise BTClibValueError("point must be a tuple[int, int]")
         if Q[1] == 0:  # Infinity point in affine coordinates
@@ -715,9 +714,7 @@ def _assert_valid_ec(ec: CurveGroup) -> None:
     the group check would pass an ec that the multiplication then reads a
     missing field off.
     """
-    if not isinstance(ec, CurveGroup):
-        err_msg = f"invalid ec type: {type(ec).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(ec, CurveGroup, "ec")
 
 
 def _mult_recursive_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:

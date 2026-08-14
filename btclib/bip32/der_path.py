@@ -25,7 +25,7 @@ from collections.abc import Iterable, Sequence
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import assert_type, is_integer
 
 __all__ = [
     "DerPath",
@@ -236,12 +236,10 @@ def _indexes_from_der_path(der_path: Sequence[int] | int | bytes) -> list[int]:
             for n in range(0, len(der_path), 4)
         ]
 
-    if not isinstance(der_path, Iterable):
-        # what is left went to `list()` untouched, which answers a float
-        # with "'float' object is not iterable" -- a complaint about
-        # iteration, from underneath the library, about a path
-        err_msg = f"invalid derivation path type: {type(der_path).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    # what is left went to `list()` untouched, which answers a float with
+    # "'float' object is not iterable" -- a complaint about iteration, from
+    # underneath the library, about a path
+    assert_type(der_path, Iterable, "derivation path")
 
     # an iterable of int, and of int alone: int() here would coerce a bool
     # into the index one, where the annotation already says Sequence[int]

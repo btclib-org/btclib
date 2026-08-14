@@ -82,6 +82,7 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,
@@ -751,8 +752,7 @@ def _assert_batch_sequences(
     for their own values.
     """
     for value, what in ((msgs, "msgs"), (Qs, "Qs"), (sigs, "sigs")):
-        if not isinstance(value, Sequence):
-            raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        assert_type(value, Sequence, what)
 
 
 def assert_batch_as_valid_(

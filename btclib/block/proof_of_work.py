@@ -32,7 +32,7 @@ from datetime import datetime
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "DIFFICULTY_ADJUSTMENT_INTERVAL",
@@ -264,8 +264,7 @@ def next_bits(
         ("first block time", first_block_time),
         ("last block time", last_block_time),
     ):
-        if not isinstance(value, datetime):
-            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+        assert_type(value, datetime, name)
 
     # the difference of two datetimes, not two timestamp() calls: aware
     # or naive, the subtraction is the same number of seconds, so the
