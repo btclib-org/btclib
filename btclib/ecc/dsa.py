@@ -431,7 +431,19 @@ def _sign_recoverable_(
         # libsecp256k1 has the same `*recid ^= 1` beside the same negation
         key_id ^= 1
 
-    return Sig(r, s, ec), key_id
+    # check_validity=False, and the provenance is again the argument
+    # (issue 888), one implementation over: r == 0 and s == 0 are the two
+    # refusals this function makes above, so both scalars are in 1..n-1 by
+    # the time they get here, and r is x_K reduced mod n for a K this
+    # function multiplied -- the congruence a validation would ask about is
+    # what r was built from.
+    #
+    # It is the more expensive of the two paths to leave it on. With the
+    # dispatch off that congruence is `_is_x_coordinate_var`'s Legendre
+    # symbol in Python, 13.30 us of the 177.8 a signature costs, and
+    # `_grind_low_r` pays it once per attempt -- 110 us of a 1440 us
+    # grinding signature over eight of them
+    return Sig(r, s, ec, check_validity=False), key_id
 
 
 def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
@@ -612,9 +624,31 @@ def sign_(
         and lower_s
         and commit_hash is None
     ):
+        # check_validity=False, and here the provenance is the argument
+        # (issue 888): what `Sig.parse` would validate is r in 1..n-1, s in
+        # 1..n-1 and r congruent to a valid x-coordinate, of the very values
+        # secp256k1_ecdsa_sign has just computed -- r is the x of the nonce
+        # point reduced mod n and s is a scalar beside it, so neither can be
+        # out of range and an r it produced cannot fail a congruence it was
+        # built from. The congruence is another ec_pubkey_parse, of
+        # 0x02 || r, and grinding pays the whole check once per attempt:
+        # 4.05 us against 1.25 for the parse alone, so 2.8 us an attempt.
+        # Per attempt and not per signature, because how many attempts
+        # there are is a property of the key and the message rather than of
+        # the machine -- `_grind_low_r` walks Core's sequence until r is low
+        # -- and a grinding figure without its attempt count says nothing:
+        # one attempt is 16.99 us against 14.22, eight are 132.76 against
+        # 110.53.
+        #
+        # Reading r off the DER instead, and building one Sig after the loop
+        # settles, was measured and not taken: it saves the object of each
+        # discarded attempt, 1.25 us against 0.53 for a read of r alone, so
+        # 0.7 us an attempt, and it costs a second DER reader beside
+        # `Sig.parse` with no validation in it
         return _grind_low_r(
             lambda counter: Sig.parse(
-                libsecp256k1_dsa.sign(msg_hash, q, _grind_entropy(counter))
+                libsecp256k1_dsa.sign(msg_hash, q, _grind_entropy(counter)),
+                check_validity=False,
             ),
             grind,
             ec,
@@ -776,7 +810,9 @@ def sign_recoverable_(
         n_size = ec.n_size
         r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
         s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
-        return Sig(r, s, ec), key_id
+        # check_validity=False for `sign_`'s reason above: these are the
+        # values secp256k1_ecdsa_sign_recoverable has just computed
+        return Sig(r, s, ec, check_validity=False), key_id
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
@@ -909,6 +945,18 @@ def assert_as_valid_(
     # is not just an annotation: the helpers called below reject a WIF
     # and an xprv too, which a PubKey annotation cannot rule out, both
     # being strings
+    # a `Sig` handed in is validated again, and this is not the redundancy
+    # it looks like (issue 888). The class is frozen, so an instance that
+    # validated at construction stays valid -- but `check_validity=False`
+    # says "not checked yet" and is a spelling the library itself uses
+    # (`sign_` above, for values libsecp256k1 has just computed), and
+    # `object.__setattr__` reaches past frozen, which the suite does on
+    # purpose. What rests on this call is `verify_`'s contract of answering
+    # a boolean: `Sig(-1, 5, check_validity=False)` reaches
+    # `_serialize_scalar` below, where `to_bytes(..., signed=False)` raises
+    # OverflowError -- an ArithmeticError, so not in the (ValueError,
+    # BTClibRuntimeError) `verify_` catches, and it would leave through a
+    # function whose whole answer is True or False
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
