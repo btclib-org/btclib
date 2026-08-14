@@ -20,6 +20,17 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **the `_var` suffix finishes its sweep: `ellswift.encode_var`,
+  `decode_var`, `create_var`, and `dsa.crack_prv_key_var`.** The map of
+  BIP324's ElligatorSwift branches on its data — its inverse measures
+  29.62x, 28 calls of 50 returning early — so the four public names built
+  on it take the suffix, `crack_prv_key_` becoming `crack_prv_key_var_`
+  where both conventions apply and the prepared-input underscore stays
+  last. `ellswift.xdh` is unchanged at 1.01x, being dominated by a `mult`
+  that is regular and blinded: the key agreement is not the map.
+  CONTRIBUTING.md lists what measured at the floor and kept its plain
+  name, with the figure for each.
+
 - **six `bool` methods are properties: `tx.is_segwit`, not
   `tx.is_segwit()`.** `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
   `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took

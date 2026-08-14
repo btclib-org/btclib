@@ -70,8 +70,8 @@ __all__ = [
     "anti_exfil_signer_commit",
     "assert_as_valid",
     "assert_as_valid_",
-    "crack_prv_key",
-    "crack_prv_key_",
+    "crack_prv_key_var",
+    "crack_prv_key_var_",
     "gen_keys",
     "recover_pub_key",
     "recover_pub_key_",
@@ -1415,7 +1415,7 @@ def recover_pub_key(
     return recover_pub_key_(key_id, msg_hash, sig, hf)
 
 
-def crack_prv_key_(
+def crack_prv_key_var_(
     msg_hash1: Octets,
     sig1: Sig | Octets,
     msg_hash2: Octets,
@@ -1426,7 +1426,7 @@ def crack_prv_key_(
 
     The classic nonce-reuse break: two signatures with one r over two
     message hashes are two linear equations in the nonce and the key.
-    The messages enter already reduced; crack_prv_key reduces first.
+    The messages enter already reduced; crack_prv_key_var reduces first.
     """
     if isinstance(sig1, Sig):
         sig1.assert_valid()
@@ -1454,7 +1454,7 @@ def crack_prv_key_(
     return q, nonce
 
 
-def crack_prv_key(
+def crack_prv_key_var(
     msg1: Octets,
     sig1: Sig | Octets,
     msg2: Octets,
@@ -1463,9 +1463,9 @@ def crack_prv_key(
 ) -> tuple[int, int]:
     """Return (private key, nonce) from two signatures sharing a nonce.
 
-    As ``crack_prv_key_``, with each message reduced by hf first.
+    As ``crack_prv_key_var_``, with each message reduced by hf first.
     """
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)
 
-    return crack_prv_key_(msg_hash1, sig1, msg_hash2, sig2, hf)
+    return crack_prv_key_var_(msg_hash1, sig1, msg_hash2, sig2, hf)

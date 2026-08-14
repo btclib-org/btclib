@@ -62,7 +62,7 @@ __all__ = [
     "BIP328_CHAIN_CODE",
     "BIP32Key",
     "BIP32KeyData",
-    "crack_prv_key",
+    "crack_prv_key_var",
     "derive",
     "derive_from_account",
     "pub_key_derivation_tweaks",
@@ -835,7 +835,7 @@ def derive_from_account(
     ).b58encode()
 
 
-def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
+def crack_prv_key_var(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     """Return the parent xprv from a parent xpub and a non-hardened child.
 
     The known break BIP32 warns about: a non-hardened child's private

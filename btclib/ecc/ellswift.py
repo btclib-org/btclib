@@ -62,9 +62,9 @@ from btclib.utils import bytes_from_octets
 __all__ = [
     "ELL_SIZE",
     "XDH_TAG",
-    "create",
-    "decode",
-    "encode",
+    "create_var",
+    "decode_var",
+    "encode_var",
     "xdh",
 ]
 
@@ -114,7 +114,7 @@ def _try_sqrt(a: int, p: int) -> int | None:
         return None
 
 
-def _xswiftec(u: int, t: int, ec: Curve) -> int:
+def _xswiftec_var(u: int, t: int, ec: Curve) -> int:
     """Return the x-coordinate the field elements (u, t) map to.
 
     `xswiftec` of BIP324's reference implementation. u and t are taken
@@ -154,8 +154,8 @@ def _xswiftec(u: int, t: int, ec: Curve) -> int:
     raise BTClibRuntimeError(err_msg)  # pragma: no cover
 
 
-def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: PLR0911
-    """Return a t with _xswiftec(u, t) == x, or None if this case has none.
+def _xswiftec_inv_var(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: PLR0911
+    """Return a t with _xswiftec_var(u, t) == x, or None if this case has none.
 
     `xswiftec_inv` of BIP324's reference implementation. Up to eight t
     values map back to one x, and `case` in 0..7 selects which is
@@ -169,7 +169,7 @@ def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: 
 
     if case & 2 == 0:
         # -x-u being an x-coordinate means the pair would decode through
-        # the third candidate of _xswiftec, which has priority: the
+        # the third candidate of _xswiftec_var, which has priority: the
         # encoding would not round-trip, so this case has no answer
         if _is_x_coordinate_var((-x - u) % p, ec):
             return None
@@ -208,10 +208,10 @@ def _x_t_from_ell(ell: bytes, ec: Curve) -> tuple[int, int]:
     size = ec.p_size
     u = int.from_bytes(ell[:size], byteorder="big", signed=False) % ec.p
     t = int.from_bytes(ell[size:], byteorder="big", signed=False) % ec.p
-    return _xswiftec(u, t, ec), t
+    return _xswiftec_var(u, t, ec), t
 
 
-def _point_from_ell(ell: bytes, ec: Curve) -> Point:
+def _point_from_ell_var(ell: bytes, ec: Curve) -> Point:
     """Return the point the encoding decodes to, in Python."""
     x, t = _x_t_from_ell(ell, ec)
     # the parity of t is the y the pair names, which is the half of the
@@ -230,10 +230,10 @@ def _ell_from_point(Q: Point, ec: Curve) -> bytes:
         # a nonzero field element and one of the eight cases; most pairs
         # have no t, and a fresh u is what the retry draws
         u = secrets.randbelow(p - 1) + 1
-        t = _xswiftec_inv(Q[0], u, secrets.randbelow(8), ec)
+        t = _xswiftec_inv_var(Q[0], u, secrets.randbelow(8), ec)
         if t is None:
             continue
-        # _xswiftec_inv pins the x-coordinate alone, so t and p-t encode
+        # _xswiftec_inv_var pins the x-coordinate alone, so t and p-t encode
         # the two points of that x: the parity of t has to be the y's.
         # Neither Python reference has this step and neither is wrong --
         # BIP324's reference.py and Core's crypto/ellswift.py are x-only
@@ -257,7 +257,7 @@ def _ell_from_octets(ell: Octets, ec: Curve) -> bytes:
     return ell
 
 
-def create(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
+def create_var(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
     """Return an ElligatorSwift encoding of the private key's public key.
 
     The private key is its own entropy for the encoding, which is what
@@ -276,7 +276,7 @@ def create(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
     return _ell_from_point(mult(q, ec.G, ec), ec)
 
 
-def encode(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
+def encode_var(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
     """Return an ElligatorSwift encoding of the public key.
 
     The randomness is drawn here and is not a function of the key, which
@@ -293,7 +293,7 @@ def encode(pub_key: PubKey, ec: Curve = secp256k1) -> bytes:
     return _ell_from_point(Q, ec)
 
 
-def decode(ell: Octets, ec: Curve = secp256k1) -> Point:
+def decode_var(ell: Octets, ec: Curve = secp256k1) -> Point:
     """Return the point an ElligatorSwift encoding decodes to.
 
     Every encoding of the right size decodes, there being no invalid one
@@ -310,7 +310,7 @@ def decode(ell: Octets, ec: Curve = secp256k1) -> Point:
         y = _y_even_var(x, ec)
         return x, (ec.p - y if sec[0] == 3 else y)
 
-    return _point_from_ell(ell, ec)
+    return _point_from_ell_var(ell, ec)
 
 
 def xdh(

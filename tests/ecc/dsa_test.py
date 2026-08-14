@@ -386,28 +386,28 @@ def test_crack_prv_key() -> None:
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa.sign_(m_2, q, k, grind=False)
 
-    q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
+    q_cracked, k_cracked = dsa.crack_prv_key_var(msg1, sig1.serialize(), msg2, sig2)
 
     #  if the lower_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
-    qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
+    qc2, kc2 = dsa.crack_prv_key_var(msg1, sig1, msg2, sig2.serialize())
 
     assert (q == q_cracked and k in {k_cracked, ec.n - k_cracked}) or (
         q == qc2 and k in {kc2, ec.n - kc2}
     )
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        dsa.crack_prv_key(msg1, sig1, msg2, dsa.Sig(16, sig1.s))
+        dsa.crack_prv_key_var(msg1, sig1, msg2, dsa.Sig(16, sig1.s))
 
     with pytest.raises(BTClibValueError, match="identical signatures"):
-        dsa.crack_prv_key(msg1, sig1, msg1, sig1)
+        dsa.crack_prv_key_var(msg1, sig1, msg1, sig1)
 
     a = ec._a
     b = ec._b
     alt_ec = Curve(ec.p, a, b, ec.double_aff_var(ec.G), ec.n, ec.cofactor)
     sig = dsa.Sig(sig1.r, sig1.s, alt_ec)
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
-        dsa.crack_prv_key(msg1, sig, msg2, sig2)
+        dsa.crack_prv_key_var(msg1, sig, msg2, sig2)
 
 
 def test_forge_hash_sig() -> None:
