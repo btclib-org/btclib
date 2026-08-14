@@ -1426,6 +1426,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The `_var` census reaches a measured zero.** Two rounds of the
+  suffix had left the question half-answered: every function that spends
+  a variable-time primitive is now either suffixed or listed as an
+  exception with the number that says why not, so nobody has to re-derive
+  it. Each was timed over random inputs of one class against `add_jac` as
+  the floor, 1.05x, the group law having nothing to branch on.
+
+  Suffixed, having beaten the floor: `ellswift._xswiftec_inv_var` at
+  **29.62x**, `ellswift._xswiftec_var` at 1.29x, and with them the
+  SwiftEC surface built on the two — `ellswift.encode_var` (1.22x),
+  `decode_var` (1.19x), `create_var` (1.22x) and the private
+  `_point_from_ell_var`; and `dsa.crack_prv_key_var` with its prepared
+  twin `crack_prv_key_var_` at 1.13x, whose two inverses are the 3 us of
+  spread.
+
+  The 29.62x is the one worth reading: 28 calls of 50 return under 10 us
+  and 22 over, so it is an early return rather than a slower sum. SwiftEC
+  branches on its data, which is what puts the suffix on the map — and
+  `ellswift.xdh` measures 1.01x and keeps its plain name, being dominated
+  by a `mult` that is regular and blinded. The map and the key agreement
+  on top of it are not the same question.
+
+  Left plain, at the floor, and now recorded in CONTRIBUTING.md with
+  their figures: `dsa._assert_as_valid_` 1.07x, `dsa._recover_pub_key_`
+  1.05x, `ssa._recover_pub_key_` 1.06x, `ellswift._try_sqrt` 1.05x,
+  `sec_point.point_from_octets` 1.01x, `ssa.point_from_bip340pub_key`
+  1.03x and `Sig.assert_valid` 1.03x. The inverse inside each is real and
+  is diluted: 1.32x on 10 us of a 40 us verification.
+  `ellswift._constants` is memoized on the curve and receives no value.
+
 - **The bindings switch has a name** (issue #848).
   `_libsecp256k1_applicable(ec, hf)` answered one question — can the
   bindings serve this curve and this hash function — while a second one

@@ -22,7 +22,7 @@ from btclib.curves import mult, secp256k1
 from btclib.curves.curve import CURVES
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import ellswift
-from btclib.ecc.ellswift import _xswiftec, _xswiftec_inv
+from btclib.ecc.ellswift import _xswiftec_inv_var, _xswiftec_var
 from btclib.exceptions import BTClibValueError
 from tests import load_csv, vector_id
 
@@ -69,11 +69,11 @@ def test_ellswift_decode_vectors(row: list[str]) -> None:
 
     u = int.from_bytes(ell[:32], byteorder="big", signed=False)
     t = int.from_bytes(ell[32:], byteorder="big", signed=False)
-    assert _xswiftec(u, t, secp256k1) == x
+    assert _xswiftec_var(u, t, secp256k1) == x
 
     # the whole of decode, both paths, and the bindings beside them: the
     # vector pins the x-coordinate, the parity of t pins the y
-    Q = ellswift.decode(ell)
+    Q = ellswift.decode_var(ell)
     assert Q[0] == x
     assert bytes_from_point(Q) == libsecp256k1_ellswift.decode(ell)
 
@@ -85,14 +85,14 @@ def test_the_python_decode_is_the_bindings_one(
     """Every decode vector again, with the dispatch patched off.
 
     `decode` hands secp256k1 to libsecp256k1, so without this the Python
-    map would be exercised by `_xswiftec` alone and never through the
+    map would be exercised by `_xswiftec_var` alone and never through the
     function a caller reaches.
     """
     ell = bytes.fromhex(row[0])
-    expected = ellswift.decode(ell)
+    expected = ellswift.decode_var(ell)
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(ellswift, "_libsecp256k1_serves", lambda *_: False)
-        assert ellswift.decode(ell) == expected
+        assert ellswift.decode_var(ell) == expected
 
 
 @pytest.mark.parametrize("row", xswiftec_inv_vectors())
@@ -110,14 +110,14 @@ def test_xswiftec_inv_vectors(row: list[str]) -> None:
 
     for case in range(8):
         cell = row[2 + case]
-        t = _xswiftec_inv(x, u, case, secp256k1)
+        t = _xswiftec_inv_var(x, u, case, secp256k1)
         if not cell:
             assert t is None, f"case {case} should have no preimage"
         else:
             assert t == int(cell, 16), f"case {case}"
             # every preimage the inverse returns maps back to the x it
             # was asked about, which no cell of the file states
-            assert _xswiftec(u, t, secp256k1) == x
+            assert _xswiftec_var(u, t, secp256k1) == x
 
 
 def test_create_and_encode_round_trip() -> None:
@@ -130,9 +130,9 @@ def test_create_and_encode_round_trip() -> None:
     for _ in range(8):
         q, Q = _key_pair()
 
-        for ell in (ellswift.create(q), ellswift.encode(Q)):
+        for ell in (ellswift.create_var(q), ellswift.encode_var(Q)):
             assert len(ell) == ellswift.ELL_SIZE
-            assert ellswift.decode(ell) == Q
+            assert ellswift.decode_var(ell) == Q
             # the bindings agree about what btclib produced
             assert libsecp256k1_ellswift.decode(ell) == bytes_from_point(Q)
 
@@ -153,14 +153,14 @@ def test_the_python_create_and_encode_are_the_bindings_ones(
 
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(ellswift, "_libsecp256k1_serves", lambda *_: False)
-            python_create = ellswift.create(q)
-            python_encode = ellswift.encode(Q)
+            python_create = ellswift.create_var(q)
+            python_encode = ellswift.encode_var(Q)
             # the Python path also decodes what the bindings created
-            assert ellswift.decode(libsecp256k1_ellswift.create(q)) == Q
+            assert ellswift.decode_var(libsecp256k1_ellswift.create(q)) == Q
 
         for ell in (python_create, python_encode):
             assert libsecp256k1_ellswift.decode(ell) == sec
-            assert ellswift.decode(ell) == Q
+            assert ellswift.decode_var(ell) == Q
 
 
 def test_xdh_agrees_between_parties_and_with_the_bindings(
@@ -174,8 +174,8 @@ def test_xdh_agrees_between_parties_and_with_the_bindings(
     for _ in range(4):
         a, _A = _key_pair()
         b, _B = _key_pair()
-        ell_a = ellswift.create(a)
-        ell_b = ellswift.create(b)
+        ell_a = ellswift.create_var(a)
+        ell_b = ellswift.create_var(b)
 
         shared = libsecp256k1_ellswift.xdh(ell_a, ell_b, a, 0)
         assert libsecp256k1_ellswift.xdh(ell_a, ell_b, b, 1) == shared
@@ -201,13 +201,13 @@ def test_the_other_koblitz_curves(curve_name: str) -> None:
     q = secrets.randbelow(ec.n - 1) + 1
     Q = mult(q, ec.G, ec)
 
-    for ell in (ellswift.create(q, ec), ellswift.encode(Q, ec)):
+    for ell in (ellswift.create_var(q, ec), ellswift.encode_var(Q, ec)):
         assert len(ell) == 2 * ec.p_size
-        assert ellswift.decode(ell, ec) == Q
+        assert ellswift.decode_var(ell, ec) == Q
 
     b = secrets.randbelow(ec.n - 1) + 1
-    ell_a = ellswift.create(q, ec)
-    ell_b = ellswift.create(b, ec)
+    ell_a = ellswift.create_var(q, ec)
+    ell_b = ellswift.create_var(b, ec)
     shared = ellswift.xdh(ell_a, ell_b, q, 0, ec)
     assert ellswift.xdh(ell_a, ell_b, b, 1, ec) == shared
 
@@ -220,22 +220,22 @@ def test_a_curve_the_map_is_not_defined_on() -> None:
 
     err_msg = "the ElligatorSwift map wants a curve with a == 0"
     with pytest.raises(BTClibValueError, match=err_msg):
-        ellswift.create(q, ec)
+        ellswift.create_var(q, ec)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ellswift.encode(mult(q, ec.G, ec), ec)
+        ellswift.encode_var(mult(q, ec.G, ec), ec)
     with pytest.raises(BTClibValueError, match=err_msg):
-        ellswift.decode(ell, ec)
+        ellswift.decode_var(ell, ec)
     with pytest.raises(BTClibValueError, match=err_msg):
         ellswift.xdh(ell, ell, q, 0, ec)
 
 
 def test_wrong_size_encoding() -> None:
     """An encoding is two field elements, and nothing else is one."""
-    ell = ellswift.create(secrets.randbelow(secp256k1.n - 1) + 1)
+    ell = ellswift.create_var(secrets.randbelow(secp256k1.n - 1) + 1)
 
     for bad in (ell[:-1], ell + b"\x00", b""):
         with pytest.raises(BTClibValueError, match="invalid ElligatorSwift size"):
-            ellswift.decode(bad)
+            ellswift.decode_var(bad)
         with pytest.raises(BTClibValueError, match="invalid ElligatorSwift size"):
             ellswift.xdh(bad, ell, 1, 0)
         with pytest.raises(BTClibValueError, match="invalid ElligatorSwift size"):
@@ -244,7 +244,7 @@ def test_wrong_size_encoding() -> None:
 
 def test_invalid_party() -> None:
     """The party says which encoding is the caller's; there are two."""
-    ell = ellswift.create(secrets.randbelow(secp256k1.n - 1) + 1)
+    ell = ellswift.create_var(secrets.randbelow(secp256k1.n - 1) + 1)
 
     for party in (-1, 2):
         with pytest.raises(BTClibValueError, match="invalid party"):
@@ -253,11 +253,11 @@ def test_invalid_party() -> None:
 
 def test_invalid_private_key() -> None:
     """A key outside 1..n-1 is refused, and by int_from_prv_key."""
-    ell = ellswift.create(secrets.randbelow(secp256k1.n - 1) + 1)
+    ell = ellswift.create_var(secrets.randbelow(secp256k1.n - 1) + 1)
 
     for prv_key in (0, secp256k1.n):
         with pytest.raises(BTClibValueError):
-            ellswift.create(prv_key)
+            ellswift.create_var(prv_key)
         with pytest.raises(BTClibValueError):
             ellswift.xdh(ell, ell, prv_key, 0)
 

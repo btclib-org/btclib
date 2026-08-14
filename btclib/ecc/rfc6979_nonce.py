@@ -10,7 +10,7 @@ Every ECDSA and ECSSA signature needs a fresh ephemeral key (nonce),
 chosen randomly and uniformly from the scalars by a cryptographically
 secure process: even a slight bias in that process can be turned into
 an attack on the scheme, and reusing a nonce across two messages
-signed with one private key reveals the key -- dsa.crack_prv_key is
+signed with one private key reveals the key -- dsa.crack_prv_key_var is
 that computation.
 
 RFC6979 removes the need for a randomness source by deriving the
