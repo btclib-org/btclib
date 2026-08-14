@@ -55,6 +55,7 @@ from btclib.curves.curve_group_2 import (
     _mult_endomorphism_secp256k1,
 )
 from btclib.exceptions import BTClibValueError
+from btclib.number_theory import legendre_symbol
 from btclib.utils import hex_string, int_from_integer
 
 __all__ = [
@@ -424,18 +425,19 @@ def _is_x_coordinate(x: int, ec: Curve) -> bool:
     """Return True if x is the x-coordinate of a point of the curve.
 
     Existence and nothing else, which is what a caller with no use for
-    the y has to ask: ec.y computes the modular square root to find out,
-    75 us on secp256k1, while ec_pubkey_parse answers the same question
-    of the compressed key 0x02 || x in 2.4 -- and it is the same answer,
-    both implementations refusing the same x.
+    the y has to ask, and it is a question the Legendre symbol answers
+    without ever forming a root: 14 us on secp256k1 against the 75 of
+    ec.y, and ec_pubkey_parse answers the same of the compressed key
+    0x02 || x in 2.4 -- the same answer three ways, all three refusing
+    the same x. It is libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var`
+    being `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
 
     A bool rather than an exception, because the value that names itself
     in an error message is the caller's and not this x: dsa.Sig's
     congruence check tries every x congruent to r and reports r. That is
     also what keeps the refusal cheap, where _y_even below cannot: half
-    of the field elements are not x-coordinates, so falling back to ec.y
-    to phrase an error would pay, on half of the candidates, the very
-    square root this replaces.
+    of the field elements are not x-coordinates, and the symbol costs the
+    same for those as for the others.
     """
     sec = _compressed_sec(x, ec)
     if sec is not None:
@@ -445,11 +447,12 @@ def _is_x_coordinate(x: int, ec: Curve) -> bool:
             return False
         return True
 
-    try:
-        ec.y(x)
-    except BTClibValueError:
+    if not 0 <= x < ec.p:
         return False
-    return True
+    # the symbol is 0 for a y^2 of zero, which is the two-torsion point:
+    # its root is zero and it is on the curve, so -1 is the whole of what
+    # says otherwise
+    return legendre_symbol(ec._y2(x), ec.p) != -1
 
 
 def _y_even(x: int, ec: Curve) -> int:

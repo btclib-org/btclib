@@ -132,6 +132,26 @@ def test_mod_inv() -> None:
                     mod_inv(a, m)
 
 
+def test_legendre_symbol_is_the_squares_of_the_field() -> None:
+    """The symbol against the squares themselves, exhaustively.
+
+    For a prime p the residues are exactly the squares of 1..p-1 and zero
+    is neither, so brute force is the oracle: the symbol is 1 on a square,
+    -1 on anything else, 0 on a multiple of p, and it reads a negative or
+    oversized operand as its residue.
+
+    p = 2 is the case worth naming: every residue there is a square, so
+    the symbol of 1 is 1.
+    """
+    for p in primes[:30]:  # exhaustable only for small p
+        squares = {a * a % p for a in range(1, p)}
+        for a in range(p):
+            expected = 0 if a == 0 else 1 if a in squares else -1
+            assert legendre_symbol(a, p) == expected, (a, p)
+            assert legendre_symbol(a + p, p) == expected, (a, p)
+            assert legendre_symbol(a - p, p) == expected, (a, p)
+
+
 def test_mod_sqrt() -> None:
     """Verify both roots of every residue, exhaustively on small primes."""
     for p in primes[:30]:  # exhaustable only for small p
@@ -195,6 +215,20 @@ FIELD_PRIMES = st.sampled_from(
         0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141,
     ]
 )
+
+
+@given(a=st.integers(), p=FIELD_PRIMES)
+def test_legendre_symbol_agrees_with_euler(a: int, p: int) -> None:
+    """Euler's criterion is the definition, the recursion is what runs.
+
+    Over the fields the library computes in, which are too large to
+    enumerate. p = 2 is not among them and could not be: the criterion is
+    `pow(a, (p - 1) // 2, p)` compared with p - 1, and at p = 2 that is a
+    comparison with 1, which reads every residue as a non-residue.
+    """
+    euler = pow(a, p >> 1, p)
+    expected = 0 if euler == 0 else 1 if euler == 1 else -1
+    assert legendre_symbol(a, p) == expected
 
 
 @given(a=st.integers(), b=st.integers())
