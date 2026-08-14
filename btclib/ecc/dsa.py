@@ -60,7 +60,11 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
+from btclib.to_pub_key import (
+    PubKey,
+    _libsecp256k1_pubkey_from_pub_key,
+    point_from_pub_key,
+)
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -970,18 +974,30 @@ def assert_as_valid_(
 
     if _libsecp256k1_serves(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
-        pubkey_bytes = pub_keyinfo_from_pub_key(key)[0]
+        # the parsed key, not the octets: validating a public key proves it
+        # a point by parsing it, and for a compressed one that parse is a
+        # field square root -- 2.35 us of a 22.78 us verification, paid
+        # twice when the verification below parsed the same 33 bytes again
+        # (issue 887). `_libsecp256k1_pubkey_from_pub_key` is that same
+        # validation with the parsed key kept
+        pubkey = _libsecp256k1_pubkey_from_pub_key(key)
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one.
         # What it would run again is the congruence check of r, which is
         # not free even delegated: 0.54 us against 3.1, of a verification
         # that is 22 in total
         sig_bytes = sig.serialize(check_validity=False)
-        # libsecp256k1 rejects what is not in the lower-s form, and which
-        # form a signature is in was the signer's choice: normalize, rather
-        # than refuse what the signer was free to produce
-        sig_bytes = libsecp256k1_dsa.normalize(sig_bytes)
-        if not libsecp256k1_dsa.verify(msg_hash_bytes, pubkey_bytes, sig_bytes):
+        # normalize=True, because libsecp256k1 rejects what is not in the
+        # lower-s form and which form a signature is in was the signer's
+        # choice: normalizing is right where refusing would not be. Asked
+        # of the verification rather than of `dsa.normalize` first, which
+        # is DER in and DER out -- it parsed the signature, normalized it
+        # and serialized it again for verify to parse what came out, where
+        # libsecp256k1 documents sigout == sigin for its own
+        # signature_normalize (issue 889)
+        if not libsecp256k1_dsa.verify_(
+            msg_hash_bytes, pubkey, sig_bytes, normalize=True
+        ):
             raise BTClibRuntimeError("signature verification failed")
         return
 

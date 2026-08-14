@@ -39,6 +39,7 @@ from btclib.curves.curve import (
     _is_x_coordinate_var,
     _libsecp256k1_multi_mult_,
     _libsecp256k1_serves,
+    _libsecp256k1_xonly_pubkey_var,
     _sec_from_point,
     _y_even_var,
 )
@@ -1180,3 +1181,36 @@ def test_x_coordinate_lift_of_every_other_curve() -> None:
             else:
                 assert _is_x_coordinate_var(x, ec)
                 assert _y_even_var(x, ec) == y_even_var
+
+
+def test_the_xonly_parse_refuses_what_the_lift_refuses_and_in_the_same_words() -> None:
+    """`_libsecp256k1_xonly_pubkey_var` says what `ec.y_var` says (issue 887).
+
+    That function spells `y_var`'s two refusals out rather than reaching
+    them by calling it, and its docstring gives the reason: it exists not to
+    take that modular square root, and on the failing path the message is
+    what would pay for one. The price of the duplication is that an edit to
+    one wording leaves the other behind, and the only thing that would
+    notice is a caller matching on the message -- so the two are held equal
+    here, the class and the whole text.
+
+    Four x, for both messages in both renderings: `ec.p` and above it are
+    the range refusal, `0xDEADBEEF00000000` an x no point of the curve has,
+    and 7 the same refusal below `HEX_THRESHOLD`, where the value renders in
+    decimal rather than as grouped hex -- the other branch of the same
+    conditional in both spellings.
+    """
+    ec = secp256k1
+    for x in (ec.p, ec.p + 1, 0xDEADBEEF00000000, 7):
+        with pytest.raises(BTClibValueError) as delegated:
+            _libsecp256k1_xonly_pubkey_var(x, ec)
+        with pytest.raises(BTClibValueError) as lifted:
+            ec.y_var(x)
+        assert str(delegated.value) == str(lifted.value)
+
+    # and both answer the same y for an x that is one, which is what says
+    # the equality above is about the refusals and not about a function
+    # that refuses everything
+    x_G = ec.G[0]
+    assert _libsecp256k1_xonly_pubkey_var(x_G, ec)
+    assert ec.y_var(x_G) in {ec.G[1], ec.p - ec.G[1]}

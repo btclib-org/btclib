@@ -10,6 +10,7 @@ from hashlib import sha256 as hf
 from typing import Any
 
 import pytest
+from btclib_secp256k1 import CData
 from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
@@ -407,18 +408,21 @@ def test_a_message_of_any_size_reaches_the_bindings(
     sizes = (0, 1, 17, 31, 32, 33, 100)
     calls: list[tuple[str, int]] = []
     real_sign_custom = libsecp256k1_ssa.sign_custom
-    real_verify = libsecp256k1_ssa.verify
+    # `verify_`, the entry point that takes the already-parsed x-only key:
+    # verification hands it the key it validated rather than the octets, so
+    # nothing here parses the same 32 bytes twice (issue 887)
+    real_verify = libsecp256k1_ssa.verify_
 
     def sign_custom(msg: bytes, prvkey: int, aux: bytes) -> bytes:
         calls.append(("sign_custom", len(msg)))
         return real_sign_custom(msg, prvkey, aux)
 
-    def verify(msg: bytes, pubkey: bytes, sig: bytes) -> bool:
+    def verify_(msg: bytes, xonly_pubkey: CData, sig: bytes) -> bool:
         calls.append(("verify", len(msg)))
-        return real_verify(msg, pubkey, sig)
+        return real_verify(msg, xonly_pubkey, sig)
 
     monkeypatch.setattr(libsecp256k1_ssa, "sign_custom", sign_custom)
-    monkeypatch.setattr(libsecp256k1_ssa, "verify", verify)
+    monkeypatch.setattr(libsecp256k1_ssa, "verify_", verify_)
 
     q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
     for size in sizes:

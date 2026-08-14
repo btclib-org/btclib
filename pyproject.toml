@@ -25,7 +25,11 @@ license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
-    "btclib_secp256k1>=0.8.0.1",
+    # 0.8.0.2 for the parsed-key entry points of btclib-secp256k1#149:
+    # `dsa.verify_`, `ssa.verify_`, `xonly.parse` and the `normalize` flag of
+    # `dsa.verify`, which `ecc.dsa` and `ecc.ssa` call and 0.8.0.1 does not
+    # carry
+    "btclib_secp256k1>=0.8.0.2",
     "bitcoin-core-rpc>=2026.8.13",
 ]
 keywords = [
@@ -132,27 +136,6 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
-
-[tool.uv.sources]
-# the bindings from their own main rather than from PyPI, because what this
-# tree calls is ahead of their last release: `dsa.verify_`, `ssa.verify_`,
-# `xonly.parse` and the `normalize` flag of `dsa.verify` are
-# btclib-secp256k1#149, which is on main and in no release yet.
-#
-# Here rather than in `dependencies` above, which keeps naming a version
-# range: a direct reference there would be published metadata, and PyPI
-# refuses a distribution whose requirements carry a URL. `[tool.uv]` is not
-# metadata, so what a released btclib asks of the people who install it is
-# unchanged and what a checkout builds against is this. Which is also the
-# thing to remember at the next release: the floor above has to name the
-# bindings release that carries those entry points before btclib is
-# published against them.
-#
-# `branch`, with the commit it resolved to recorded in uv.lock, which is what
-# keeps this reproducible: every job passes --locked, so the branch is
-# followed when the lock is regenerated and at no other time, and the commit
-# a green run was green against is in the tree.
-btclib_secp256k1 = { git = "https://github.com/btclib-org/btclib-secp256k1", branch = "main" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]

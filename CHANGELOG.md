@@ -274,29 +274,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
-- **A checkout builds against the bindings' `main`, not their last
-  release.** `btclib_secp256k1` 0.8.0.1 is the newest release, and the
-  entry points this tree is about to call are newer than it:
-  `dsa.verify_`, `ssa.verify_`, `xonly.parse` and the `normalize` flag of
-  `dsa.verify` are btclib-secp256k1#149, which answers
-  btclib-secp256k1#147 and #148 — the bindings half of the pair issues
-  #887 and #889 name. `[tool.uv.sources]` points the dependency at the
-  repository's `main` branch, so `uv sync` builds it from source there.
+- **The bindings floor is `btclib_secp256k1>=0.8.0.2`.** That release
+  carries the entry points `ecc.dsa` and `ecc.ssa` call — `dsa.verify_`,
+  `ssa.verify_`, `xonly.parse` and the `normalize` flag of `dsa.verify`,
+  which are btclib-secp256k1#149, answering btclib-secp256k1#147 and #148,
+  the bindings half of the pair issues #887 and #889 name.
 
-  In `[tool.uv]` and not in `dependencies`, which keeps naming the
-  version range it named: a direct reference is published metadata, and
-  PyPI refuses a distribution whose requirements carry a URL. What a
-  released btclib asks of the people who install it is therefore
-  unchanged — and that is also the thing to do at the next release, which
-  is to raise the floor to the bindings release that carries those entry
-  points. Until it exists, btclib is not releasable against them, and
-  that is the cost of this.
-
-  `branch = "main"` with the commit uv resolved recorded in `uv.lock`:
-  every job passes `--locked`, so the branch is followed when the lock is
-  regenerated and at no other time. A git source has no wheels to pin, so
-  every environment builds the bindings from that commit, submodule and C
-  library included, rather than downloading one of the published wheels.
+  For the day between the two, `[tool.uv.sources]` pointed the dependency
+  at the bindings' `main` branch so that this tree could be written against
+  what only existed there. It is gone with the release, and it was in
+  `[tool.uv]` rather than in `dependencies` for the reason that made
+  removing it the only step needed: a direct reference is published
+  metadata, and PyPI refuses a distribution whose requirements carry a URL,
+  so the floor was the one thing a release had to raise and it is raised
+  here. `uv.lock` is back to the registry, wheels and all, where a git
+  source had every environment building the bindings from source.
 
 - **The pinned revisions move: hooks, actions and the lock.** ruff
   v0.16.2 to v0.16.3 and the uv-pre-commit hook 0.12.3 to 0.12.4;
@@ -4572,6 +4564,63 @@ documented at release-notes length in the first place, and are still in
   accepted exactly as before, and `output_pubkey_from_merkle_root` still
   takes 32 bytes and only 32. BIP341's unspendable point is written out
   once now, where `output_pubkey` and `input_script_sig` each had a copy.
+- **One parse per input in a delegated verification** (issues #887, #889).
+  Validating a public key proves it a point by handing the octets to
+  `ec_pubkey_parse` and then returns the octets, so the verification below
+  parsed the same 33 bytes again — and for a compressed key each parse is
+  a field square root. Normalizing s was the same shape one argument over:
+  `dsa.normalize` is DER in and DER out, so it parsed the signature,
+  normalized it and serialized it again for `verify` to parse what came
+  out, where libsecp256k1 documents `sigout == sigin` for its own
+  `signature_normalize`.
+
+  Both are the bindings' halves of a pair, and
+  btclib-secp256k1#149 landed them: `dsa.verify_` and `ssa.verify_` take
+  the parsed key, and `verify` takes a `normalize` flag that normalizes
+  the signature it has already parsed. What btclib adds on its own side is
+  where the parsed key comes from —
+  `curves.sec_point._sec_and_pubkey_from_octets` is `_sec_from_octets`
+  with the parsed key kept rather than dropped, and
+  `to_pub_key._libsecp256k1_pubkey_from_pub_key` is the validation of a
+  public key however spelled, answering that key.
+
+  BIP340 needed no new entry point for its half of it, only the question
+  asked once: `point_from_bip340pub_key` lifted the x-only key to a full
+  point to prove it was one, which is what `xonly_pubkey_parse` proves of
+  the same 32 bytes inside the verification. The lift is gone from that
+  path — its y was never read there —
+  `curves.curve._libsecp256k1_xonly_pubkey_var` is the parse in its place,
+  and `ssa._x_from_bip340pub_key` is the dispatch over the spellings of a
+  BIP340 key with the lift no longer inside it. Both refusals of the lift
+  are kept, an x out of range and an x no point has, and with the same
+  messages.
+
+  Counted by wrapping `btclib_secp256k1.lib`, one verification through the
+  bindings, before against after: ECDSA with a compressed key goes from
+  three `ec_pubkey_parse`, two `ecdsa_signature_parse_der` and one
+  `ecdsa_signature_serialize_der` to two parses and one DER parse, 22.96
+  µs against 19.85; BIP340 from two `ec_pubkey_parse` and one
+  `ec_pubkey_serialize` beside its `xonly_pubkey_parse` to that parse
+  alone, 21.10 against 17.60. The two `ec_pubkey_parse` ECDSA still makes
+  are the key's and the r-congruence check of `Sig.assert_valid`, which is
+  issue #888's second half and stays: `check_validity=False` makes an
+  unvalidated `Sig` reachable, and `verify_` answering False rather than
+  raising rests on that check.
+
+  An uncompressed key saves the DER round trip alone, 21.05 against
+  20.45: its parse is 0.25 µs, there being no square root in it.
+
+  **A `Point` is parsed from the point**, which is the spelling a caller
+  who parses once and keeps the result reaches for.
+  `pub_keyinfo_from_pub_key` answers the compressed form for a point —
+  `compressed=None` means "whatever the key says", and a point says nothing
+  — so parsing that would have lifted an x whose y the caller had in hand a
+  line earlier. Serialized uncompressed instead, both coordinates are there
+  to read: the parsed key costs 1.35 µs against 3.65, and
+  `dsa.verify_(msg_hash, Q, sig)` 17.51 against 19.79. An xpub and a
+  `BIP32KeyData` cannot be helped that way — their key *is* 33 compressed
+  octets, with no y anywhere — and the docstring says which spelling is
+  which rather than claiming the cheap parse for all of them.
 
 - **`bip32.derive` stops re-decoding the same xprv/xpub on every call**
   (issue #828). `derive` and `derive_from_account` decode their `xkey`
