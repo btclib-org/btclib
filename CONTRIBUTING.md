@@ -901,6 +901,31 @@ check is unreachable by design rather than missing. `btclib/utils.py`'s
 docstring is where that rule is written down, `OutPoint` and `TxIn` being
 the classes it holds for.
 
+#### A `_var` suffix means the scalar decides the work
+
+A private scalar multiplication whose number of point operations depends
+on the coefficient it is given ends in `_var`:
+`btclib.curves.curve_group._mult_jac_var` and
+`curve_group_2._double_mult_w_NAF_var` against `_mult_regular_window`,
+`_mult_fixed_base` and `_double_mult_regular_window`, which make the same
+number for every scalar of the curve. It is libsecp256k1's convention,
+where `secp256k1_gej_add_var` sits beside `secp256k1_gej_add_ge`, and it
+is there so that the question can be answered at the call site instead of
+in the docstring of the thing being called.
+
+Two things it does not mean, and neither is a detail. **A name without
+`_var` is not a constant-time function**: `mod_inv` is an extended
+Euclid, a table is indexed by a secret digit, and `SECURITY.md` publishes
+the whole Python path as variable-time — what the absence of the suffix
+promises is one count of point operations, not one duration. And **the
+suffix is about the coefficient, not the point**: every table these build
+costs a modular inversion whose time follows the point, which is the
+caller's public key in the callers btclib has.
+
+Add the suffix when adding such a function, and do not add it to the
+recodings, the tables or the group law: those take no scalar, and a
+suffix on everything says nothing about anything.
+
 #### Documentation and comments
 
 What "satisfied" means for the prose — docstrings, comments, the

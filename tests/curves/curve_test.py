@@ -46,7 +46,7 @@ from btclib.curves.curve import (
 # _cached_multiples and _jac_from_aff are implementation helpers of
 # curve_group, not part of what btclib.curves exports: they are taken from the
 # module that defines them
-from btclib.curves.curve_group import _cached_multiples, _jac_from_aff, _mult_jac
+from btclib.curves.curve_group import _cached_multiples, _jac_from_aff, _mult_jac_var
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv, mod_sqrt
@@ -231,7 +231,7 @@ def test_curves_with_n_above_p() -> None:
         ec = low_card_curves[name]
         # every point of the curve, x below n, so nothing to reduce
         for q in range(1, ec.n):
-            x_K = ec.x_aff_from_jac(_mult_jac(q, ec.GJ, ec))
+            x_K = ec.x_aff_from_jac(_mult_jac_var(q, ec.GJ, ec))
             assert x_K < ec.n
             assert x_K % ec.n == x_K
 
