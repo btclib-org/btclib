@@ -79,6 +79,9 @@ The directories, `SDIST_DIRECTORIES`:
 - `btclib` — the package
 - `tests` — its suite
 - `docs` — the documentation sources
+- `scripts` — the developer scripts `MANIFEST.in` ships so they stay
+    runnable from an unpacked sdist, as `.github/scripts` would be if
+    `check-manifest` did not ignore that directory outright
 - `btclib.egg-info` — the metadata setuptools generates beside them
 
 The files at that root, `SDIST_ROOT_SUFFIXES` and `SDIST_ROOT_NAMES`.
