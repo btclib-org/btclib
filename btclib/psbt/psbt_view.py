@@ -90,7 +90,6 @@ from btclib.psbt.psbt import (
     _assert_valid_input_fields,
     _assert_valid_output_fields,
     _assert_valid_utxo,
-    _assert_valid_version,
     _ecdsa_sig_hash,
     _global_version,
     _lock_time,
@@ -109,6 +108,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
     SP_DLEQ_PROOF_SIZE,
     SP_ECDH_SHARE_SIZE,
+    assert_valid_psbt_version,
     assert_valid_sp_scan_key_map,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
@@ -239,7 +239,7 @@ class PsbtView:
         # it, as in `Psbt.parse`: what a type byte means is version
         # dependent, and a map has no order to put the version first in
         version = _global_version(global_map)
-        _assert_valid_version(version)
+        assert_valid_psbt_version(version)
         (
             tx,
             globals_,

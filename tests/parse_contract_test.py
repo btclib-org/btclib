@@ -20,8 +20,6 @@ added to btclib and forgotten here would otherwise be held to nothing.
 
 from __future__ import annotations
 
-import importlib
-import pkgutil
 from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
@@ -29,7 +27,6 @@ from typing import Any
 
 import pytest
 
-import btclib
 from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader
 from btclib.ecc import bms, ssa
@@ -37,6 +34,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import public_classes_with
 
 # what btclib promises to raise, and the whole of it: a truncated buffer
 # has to be refused as one of these three, and never as an IndexError or a
@@ -272,45 +270,19 @@ _EXCLUDED = {
 }
 
 
-def _public_parsers() -> set[str]:
-    """Return every public btclib class offering a `parse`, module included.
-
-    Found rather than listed, which is the whole point: a parser added to
-    the library has to appear in the inventory above or be named an
-    exclusion, and a class the walk cannot reach is one no caller can
-    import either.
-
-    The module is part of the name because three classes are called `Sig`.
-    A private class is skipped, the contract being about what a caller can
-    reach -- `_BIP32KeyData` is the one such today, and its public
-    subclass is in the inventory.
-    """
-    module_names = [
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-    ]
-    parsers = set()
-    for module_name in module_names:
-        module = importlib.import_module(module_name)
-        for obj in vars(module).values():
-            if not isinstance(obj, type):
-                continue
-            if not getattr(obj, "__module__", "").startswith("btclib"):
-                continue
-            if obj.__qualname__.startswith("_"):
-                continue
-            if callable(getattr(obj, "parse", None)):
-                parsers.add(f"{obj.__module__}.{obj.__qualname__}")
-    return parsers
-
-
 def test_every_parser_is_covered_or_named_an_exclusion() -> None:
     """The inventory is a promise only if omission is what fails.
 
     A parser added to btclib and forgotten here is the failure this
     catches: the tests above would go on passing on the parsers they were
     given, and the new one would be held to nothing.
+
+    `public_classes_with` is the walk, and it is `tests/__init__.py`'s
+    because `serialization_boundary_test.py` holds these same parsers to
+    a different contract -- where the bytes end is not what type the
+    argument is. A private class is skipped there, which is what leaves
+    `_BIP32KeyData` out here; its public subclass is in the inventory.
     """
     covered = {f"{cls.__module__}.{cls.__qualname__}" for _, cls, _ in _CASES}
     assert not covered & _EXCLUDED.keys()
-    assert _public_parsers() == covered | _EXCLUDED.keys()
+    assert public_classes_with("parse") == covered | _EXCLUDED.keys()

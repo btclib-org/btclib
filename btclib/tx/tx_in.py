@@ -19,6 +19,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
     is_integer,
     read_exactly,
 )
@@ -172,6 +173,7 @@ class TxIn:
         cls: type[TxIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxIn:
         """Build a TxIn from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "transaction input")
         return cls(
             OutPoint.from_dict(dict_["prev_out"], check_validity=False),
             script_from_dict(dict_["scriptSig"]),

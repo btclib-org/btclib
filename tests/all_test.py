@@ -67,7 +67,7 @@ UNEXPORTED = {
 }
 
 # what a module exports without defining it, which for a module rather than a
-# package is a leak -- and these three are the exception, on two decisions.
+# package is a leak -- and these four are the exception, on three decisions.
 # The `bitcoin-core-rpc` package is the canonical source of the rpc client and
 # of the transport under it, and btclib depends on it rather than carrying a
 # copy; the first two modules below are where those objects were before it was
@@ -82,10 +82,16 @@ UNEXPORTED = {
 # being where the rest of Core's header is and where a caller reading a
 # block's own rules goes.
 #
+# `btclib.psbt.psbt_utils` is the third, and it is the same shape: the two
+# psbt versions decide what an input and an output map write and read, and
+# neither `psbt_in` nor `psbt_out` can import `psbt`, so the pair is defined
+# below all three. `btclib.psbt.psbt` names them still, being where the rest
+# of the format's constants are.
+#
 # So a name here is not a name about to leak: it is the same object under the
 # name a caller already had, which each entry records its canonical module for
-# and the test below asserts. What would be a leak is a *fourth* module, or a
-# name in these three that the canonical module does not export
+# and the test below asserts. What would be a leak is a *fifth* module, or a
+# name in these four that the canonical module does not export
 REEXPORTED = {
     "btclib.fetch.bitcoin_core": (
         bitcoin_core_rpc,
@@ -111,6 +117,10 @@ REEXPORTED = {
     "btclib.block.limits": (
         consensus,
         ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"],
+    ),
+    "btclib.psbt.psbt": (
+        psbt_utils,
+        ["PSBT_V0", "PSBT_V2"],
     ),
 }
 
@@ -590,12 +600,13 @@ def test_no_module_exports_a_name_it_imported() -> None:
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
 
-    `REEXPORTED` is that conversation, held twice: the two modules whose
-    objects moved into the `bitcoin-core-rpc` package alias them back under
-    the names callers had, a transport having one bounded-read policy to
-    keep; and `btclib.block.limits` names the two constants `btclib.consensus`
+    `REEXPORTED` is that conversation, held three times: the two modules
+    whose objects moved into the `bitcoin-core-rpc` package alias them back
+    under the names callers had, a transport having one bounded-read policy
+    to keep; `btclib.block.limits` names the two constants `btclib.consensus`
     defines below the package, which is where a caller reading a block's
-    rules looks for them.
+    rules looks for them; and `btclib.psbt.psbt` names the two psbt versions
+    that `psbt_utils` defines below the maps taking one as an argument.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,

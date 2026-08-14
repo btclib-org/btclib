@@ -52,10 +52,13 @@ from btclib.psbt.psbt_utils import (
     LEAF_HASH_SIZE,
     MUSIG2_PUB_KEY_SIZE,
     PSBT_SEPARATOR,
+    PSBT_V0,
+    PSBT_V2,
     SP_DLEQ_PROOF_SIZE,
     SP_ECDH_SHARE_SIZE,
     SP_V0_INFO_VERSION,
     assert_not_a_v2_field,
+    assert_valid_psbt_version,
     assert_valid_sp_scan_key_map,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
@@ -92,7 +95,10 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
     is_integer,
+    list_from_json_array,
+    str_from_string,
 )
 
 __all__ = [
@@ -165,12 +171,6 @@ PSBT_GLOBAL_VERSION = b"\xfb"
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
-
-# the two versions there are. Version 1 is not one of them and never will
-# be: BIP370 skipped the number because version 0 had been colloquially
-# called version 1 while it was being designed
-PSBT_V0 = 0
-PSBT_V2 = 2
 
 # the global fields BIP370 defines, which a version 0 psbt must not
 # carry: in version 2 the unsigned transaction stops being a field and
@@ -252,25 +252,6 @@ def _assert_int_field_types(
     ):
         if value is not None and not is_integer(value):
             raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
-
-
-def _assert_valid_version(version: int) -> None:
-    # the type before the range, as Tx.assert_valid checks its own two int
-    # fields: a comparison against a value of no integer type raises from
-    # underneath the library, and a bool passes every one of them as one
-    # or zero -- `to_dict`/`from_dict` being a json boundary, where `true`
-    # would be version 0 rather than a schema error
-    if not is_integer(version):
-        raise BTClibTypeError(f"invalid version type: {type(version).__name__}")
-    # must be a 4-bytes int
-    if not 0 <= version <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid version: {version}")
-    # and one of the two that exist, which is a narrower rule than "a
-    # version btclib does not know": a psbt claiming version 3 is not a
-    # psbt of a later BIP, no such BIP being written -- version 1 was
-    # skipped and nothing has taken any number since
-    if version not in {PSBT_V0, PSBT_V2}:
-        raise BTClibValueError(f"invalid psbt version: {version}")
 
 
 def _required_lock_times(psbt_in: PsbtIn) -> tuple[int | None, int | None]:
@@ -1110,7 +1091,7 @@ class Psbt:
         unsigned transaction.
         """
         # first, the version being what every rule below is read under
-        _assert_valid_version(self.version)
+        assert_valid_psbt_version(self.version)
 
         # then the type of the other two int fields, before any rule
         # reads either
@@ -1228,6 +1209,7 @@ class Psbt:
         cls: type[Psbt], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Psbt:
         """Build a Psbt from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "psbt")
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue
@@ -1243,11 +1225,11 @@ class Psbt:
             # psbts BIP174 lists as valid (issue 170)
             [
                 PsbtIn.from_dict(psbt_in, check_validity=False)
-                for psbt_in in dict_["inputs"]
+                for psbt_in in list_from_json_array(dict_["inputs"], "psbt inputs")
             ],
             [
                 PsbtOut.from_dict(psbt_out, check_validity=False)
-                for psbt_out in dict_["outputs"]
+                for psbt_out in list_from_json_array(dict_["outputs"], "psbt outputs")
             ],
             dict_["version"],
             hd_key_paths,
@@ -1321,7 +1303,7 @@ class Psbt:
             # fields are written *is* the version, so a version with no
             # answer to that has no serialization for the check to be
             # skipped over
-            _assert_valid_version(self.version)
+            assert_valid_psbt_version(self.version)
 
         # written by both versions, BIP322 allowing it in either, and
         # written here rather than in the two branches above for that
@@ -1376,7 +1358,7 @@ class Psbt:
         # BIP370 defining twelve of them that version 0 must not carry, and
         # a map has no order to put the version first in
         version = _global_version(global_map)
-        _assert_valid_version(version)
+        assert_valid_psbt_version(version)
         (
             tx,
             globals_,
@@ -1441,9 +1423,16 @@ class Psbt:
     def b64decode(
         cls: type[Psbt], psbt_str: String, *, check_validity: bool = True
     ) -> Psbt:
-        """Build a Psbt from its base64 text, stripping whitespace."""
-        if isinstance(psbt_str, str):
-            psbt_str = psbt_str.strip()
+        """Build a Psbt from its base64 text, stripping whitespace.
+
+        The coercion before the strip, as `bms.Sig.b64decode` does it and
+        for the reason issue #814 gives: what is neither text nor bytes
+        used to reach `base64.b64decode` untouched, and left as its
+        "argument should be a bytes-like object or ASCII string" -- a
+        complaint about a builtin rather than about the psbt that was
+        passed.
+        """
+        psbt_str = str_from_string(psbt_str, "base64 psbt").strip()
 
         # base64 answers a string it cannot read with binascii.Error, and
         # a str carrying a non-ascii character with a plain ValueError.

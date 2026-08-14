@@ -34,8 +34,13 @@ from typing import cast
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
-from btclib.exceptions import BTClibUserWarning, BTClibValueError
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
+from btclib.exceptions import BTClibTypeError, BTClibUserWarning, BTClibValueError
+from btclib.utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    encode_num,
+    fields_from_json_object,
+)
 
 __all__ = [
     "BYTE_FROM_OP_CODE_NAME",
@@ -456,7 +461,22 @@ def serialize(script: Sequence[Command]) -> bytes:
     empty vector is what `encode_num` writes for it, and the push of an
     empty vector is OP_0, so `serialize([0])` is the op code -- as Core's
     `CScript() << 0` is -- with nothing shorter left to suggest.
+
+    A sequence of commands and not one command: `Sequence[Command]`
+    accepts a `str` and a `bytes`, each of them being a sequence of
+    `Command` as far as the type goes, so `serialize("OP_DUP")` was six
+    one-character commands and a `bytes` handed here a script of one
+    integer command per byte -- the first refused for a character it
+    could not read as an op code, the second accepted and wrong. What
+    is not a sequence at all was "not iterable" from underneath the
+    library.
     """
+    if isinstance(script, (str, bytes, bytearray, memoryview)) or not isinstance(
+        script, Sequence
+    ):
+        err_msg = f"invalid script commands type: {type(script).__name__}"
+        raise BTClibTypeError(err_msg)
+
     r: list[bytes] = []
     for command in script:
         if isinstance(command, int):
@@ -594,6 +614,7 @@ def script_from_dict(value: Mapping[str, str] | Octets) -> bytes:
     if not isinstance(value, Mapping):
         return bytes_from_octets(value)
 
+    value = fields_from_json_object(value, "script")
     script = bytes_from_octets(value["hex"])
     asm = value.get("asm")
     # compared against what to_dict would emit, not against a second

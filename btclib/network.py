@@ -42,7 +42,7 @@ from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
 from btclib.curves import Curve
 from btclib.curves.curve import CURVES, _assert_valid_ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
 
 __all__ = [
     "NETWORKS",
@@ -79,6 +79,20 @@ _KEY_SIZE: list[tuple[NetworkField, int]] = [
     ("slip132_p2wsh_p2sh_prv", 4),
     ("slip132_p2wsh_p2sh_pub", 4),
 ]
+
+
+def _curve_from_name(name: Any) -> Curve:
+    """Return the curve `to_dict` names, refusing what names none.
+
+    `CURVES[...]` alone answers an unknown name with a `KeyError`, which
+    is neither a `BTClibException` nor a `ValueError`, and an unhashable
+    one with a `TypeError` about dict keys -- the field `from_dict` reads
+    before the constructor, so `assert_valid` never sees either.
+    """
+    assert_type(name, str, "curve name")
+    if name not in CURVES:
+        raise BTClibValueError(f"unknown curve: {name}")
+    return CURVES[name]
 
 
 @dataclass(frozen=True)
@@ -237,8 +251,9 @@ class Network:
         cls: type[Network], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Network:
         """Build a Network from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "network")
         return cls(
-            CURVES[dict_["curve"]],
+            _curve_from_name(dict_["curve"]),
             dict_["genesis_block"],
             dict_["wif"],
             dict_["p2pkh"],

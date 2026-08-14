@@ -20,6 +20,18 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **the serialization boundary refuses what it used to take, and reports
+  through the exception contract.** A `from_dict` handed a mapping
+  without a field raises `BTClibValueError` where it raised a bare
+  `KeyError`, so an `except KeyError` around one catches nothing now;
+  `Witness.from_dict({"stack": None})` was an empty witness and is
+  refused; `tx.serialize(1)` and `block.serialize(0)` want the `bool`
+  they declare; `PsbtIn.serialize(psbt_version=3)` and `PsbtOut`'s want
+  one of the two versions there are; and `Bip21.parse(b"bitcoin:...")`
+  raises `BTClibTypeError` rather than `BTClibValueError`, which an
+  `except BTClibValueError` written against it no longer catches. A
+  caller passing values of the declared types is unaffected.
+
 - **four arguments that used to be accepted are refused.**
   `KeyGroup(1.5, keys)` built a group with a float quorum and
   `KeyGroup(keys, verify="no")` one with `verify=True`, `"no"` being

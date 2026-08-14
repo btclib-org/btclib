@@ -16,6 +16,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
     is_integer,
     read_exactly,
 )
@@ -124,6 +125,7 @@ class OutPoint:
         cls: type[OutPoint], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> OutPoint:
         """Build an OutPoint from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "outpoint")
         return cls(dict_["txid"], dict_["vout"], check_validity=check_validity)
 
     def _serialized_size(self) -> int:

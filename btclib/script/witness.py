@@ -16,6 +16,8 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
+    list_from_json_array,
 )
 
 __all__ = [
@@ -88,8 +90,16 @@ class Witness:
         *,
         check_validity: bool = True,
     ) -> Witness:
-        """Build a Witness from the dict shape to_dict writes."""
-        return cls(dict_["stack"], check_validity=check_validity)
+        """Build a Witness from the dict shape to_dict writes.
+
+        The stack is asked for as an array rather than left to the
+        constructor, which reads `stack or []`: a `None` there is an
+        empty witness, so a schema mistake was a witness of no elements
+        instead of an error.
+        """
+        dict_ = fields_from_json_object(dict_, "witness")
+        stack = list_from_json_array(dict_["stack"], "witness stack")
+        return cls(stack, check_validity=check_validity)
 
     def _serialized_size(self) -> int:
         """Return what serialize writes, without writing it."""

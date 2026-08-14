@@ -52,7 +52,7 @@ read under.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from io import BytesIO
 from typing import Any, BinaryIO
 
@@ -62,15 +62,18 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 __all__ = [
     "NoneOneOrMoreInt",
     "assert_no_trailing",
+    "assert_type",
     "bytes_from_octets",
     "bytesio_from_binarydata",
     "decode_num",
     "encode_num",
+    "fields_from_json_object",
     "hex_string",
     "int_from_bits",
     "int_from_integer",
     "int_from_json_number",
     "is_integer",
+    "list_from_json_array",
     "read_exactly",
     "str_from_string",
 ]
@@ -298,6 +301,91 @@ def int_from_json_number(value: Any, what: str) -> int:
         raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}") from e
     except ValueError as e:
         raise BTClibValueError(f"invalid {what}: {value!r}") from e
+
+
+def assert_type(value: Any, expected: Any, what: str) -> None:
+    """Refuse a value of a type the signature does not declare.
+
+    `expected` is what `isinstance` takes: one type, or a tuple of them.
+    `bytes_from_octets` and `str_from_string` are the two coercions this
+    library has, and each refuses what it cannot convert; this is the
+    refusal for a position that takes neither -- a `bool` flag deciding
+    which of two serializations is written, the text of a URI or a
+    descriptor, the magic bytes an envelope is read against. Every one of
+    those was compared, walked or handed to a builtin unasked, and left
+    as a complaint about that builtin.
+
+    `value` is `Any` rather than the declared type, which is what makes
+    the check reachable: mypy proves the argument cannot be wrong, and
+    the caller who has not run mypy is who this is for.
+    """
+    if not isinstance(value, expected):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+
+
+class _JsonObject(dict[str, Any]):
+    """A json object that says which field it has not got.
+
+    `dict.__getitem__` calls `__missing__` on a key it does not hold, and
+    the default raises the `KeyError` that is not a `BTClibException`; a
+    subclass is what lets every `dict_[...]` in a `from_dict` stay the
+    plain lookup it reads as and still answer through the contract.
+    """
+
+    def __init__(self, what: str, dict_: Mapping[str, Any]) -> None:
+        super().__init__(dict_)
+        self.what = what
+
+    def __missing__(self, key: str) -> Any:
+        raise BTClibValueError(f"missing {self.what} field: {key}")
+
+
+def fields_from_json_object(dict_: Any, what: str) -> Mapping[str, Any]:
+    """Return the fields of a json object, refusing what is not one.
+
+    The first line of every `from_dict`, and it answers the two questions
+    that boundary owes its caller before a field is read:
+
+    - a `Mapping[str, Any]` is what the signature declares, and what is
+      not one used to be walked anyway: `dict_["version"]` on a None is a
+      TypeError about subscripting, on a str a TypeError about string
+      indices, and neither says btclib refused anything
+    - a mapping that is one and has not got the field is a value no valid
+      input carries, so it is a `BTClibValueError` naming the field --
+      `from_dict` is fed whatever a schema mistake produced, and a bare
+      `KeyError` is neither a `BTClibException` nor a `ValueError`
+
+    `what` names the object, the caller knowing what it is reading and
+    this not, as `read_exactly` names a field. `.get` is untouched and
+    stays the spelling for a field that may be absent.
+
+    `Any` rather than the `Mapping` every caller declares, for the reason
+    `assert_type` takes one: the check is here for the caller mypy did
+    not read.
+    """
+    if not isinstance(dict_, Mapping):
+        err_msg = f"invalid {what} dict type: {type(dict_).__name__}"
+        raise BTClibTypeError(err_msg)
+    return _JsonObject(what, dict_)
+
+
+def list_from_json_array(value: Any, what: str) -> list[Any]:
+    """Return the list of a json array, a str and a mapping not being one.
+
+    What `fields_from_json_object` is to the object, for the arrays a
+    `from_dict` walks: the inputs of a transaction, the transactions of a
+    block, the stack of a witness. Unasked, a non-iterable is "not
+    iterable" from underneath the library, and the two iterables that are
+    not arrays are worse than that -- a `str` is a list of its characters
+    and a `Mapping` a list of its keys, so each element is refused for
+    what it is not rather than the whole for what it is.
+    """
+    if isinstance(
+        value, (str, bytes, bytearray, memoryview, Mapping)
+    ) or not isinstance(value, Iterable):
+        err_msg = f"invalid {what} type: {type(value).__name__}"
+        raise BTClibTypeError(err_msg)
+    return list(value)
 
 
 def int_from_bits(octets: Octets, nlen: int) -> int:
