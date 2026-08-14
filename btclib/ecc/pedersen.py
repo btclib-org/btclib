@@ -116,12 +116,8 @@ def verify(
     r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Open the commitment and return True if valid."""
-    # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed, but
-    # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error: raise, rather than report an invalid signature.
-    # BTClibRuntimeError by name and not RuntimeError, because
-    # RecursionError is one and is not an answer about a signature
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states
     try:
         assert_as_valid(r, v, commitment, ec, hf)
     except (ValueError, BTClibRuntimeError):

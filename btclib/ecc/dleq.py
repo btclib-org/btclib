@@ -224,10 +224,8 @@ def verify_proof(
     msg: Octets | None = None,
 ) -> bool:
     """Return True if the proof holds for A, B, C under G and msg."""
-    # ValueError and BTClibRuntimeError, not Exception, as in
-    # `btclib.ecc.ssa`: an input that is not a valid proof is False, and
-    # so is a proof that does not hold, but a TypeError is neither -- it
-    # is a caller error, and raising it is the answer
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states
     try:
         assert_proof_as_valid(A, B, C, proof, G, msg)
     except (ValueError, BTClibRuntimeError):

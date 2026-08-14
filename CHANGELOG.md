@@ -2215,6 +2215,57 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **A `bool` is an answer about a value of a declared type** (issue
+  #814). `script_pub_key.is_p2sh` already drew that line -- bytes that
+  are not a p2sh script are `False`, a float is a `BTClibTypeError` --
+  and the boolean verifications beside it did not: every type answered
+  `False`. Issue #745 had settled the other way, on a verification total
+  over *everything* it is handed, and the two rules could not both be
+  the library's.
+
+  The annotation wins, for three reasons. It makes the `hf` carve-out
+  #745 needed an instance of a rule instead of an exception to one: a
+  value outside `HashF` raises because it is an undeclared type, as a
+  float passed as a key does. It leaves the argument that carried #745
+  untouched, since a caller filtering signatures off the wire holds
+  bytes, and bytes are declared. And it puts the line at something
+  stated rather than at which builtin a helper happens to derive from,
+  which is the accident #745 was right to name and had no better line to
+  offer.
+
+  Measured over every boolean verification, one parameter at a time,
+  what did not already follow the rule was the pub key -- `dsa.verify`,
+  `dsa.verify_` and `ecc.dleq.verify_proof`. Every `Octets` parameter,
+  every signature, `pedersen`'s scalars, `merkle_proof`'s index, the two
+  engine adapters, `ssa`'s `BIP340PubKey` and `bms`'s and `bip322`'s
+  address already raised for a type. One converter was the whole of the
+  gap: `to_pub_key` flattened every refusal into `BTClibValueError("not
+  a public key")`, so "this key is not on the curve" and "this is not a
+  key at all" arrived as one class.
+
+  `_assert_pub_key_type` and `_assert_key_type` ask it at the top of the
+  four converters, the two unions being closed -- which is what
+  `ssa.point_from_bip340pub_key` already did, ending in exactly this
+  refusal. An int is in one list and not the other on purpose: it is a
+  private key here and never a public one, so `dsa.verify(msg, 12, sig)`
+  is refused rather than reported as a signature that did not verify.
+  That is issue #143 answered more loudly than it asked, its other five
+  spellings being a `str` or a `BIP32KeyData` and still `False`.
+
+  The rule is stated in CONTRIBUTING.md beside "Every public function
+  validates its inputs", `ecc.dsa.verify_` carries the reason, and the
+  five verifications that repeated it now point there --
+  `ecc.pedersen`, `ecc.borromean` and `ecc.dleq` were still carrying the
+  paragraph #745 declared wrong, which is the "one fact in one place"
+  half of that issue that was not carried out.
+
+  `tests/input_validation_test.py` loses `_OPEN`, which is empty: the
+  one entry left after issue #776 was `dleq.verify_proof`, and it is an
+  `_EXCLUDED` entry now, with the family reason the nine script
+  predicates carry. `_EXCLUDED` gained the ratchet `_OPEN` used to have
+  -- `test_what_is_excluded_still_needs_to_be` fails on a line that has
+  outlived its reason, which nothing checked before.
+
 - **Five coercions trusted their annotation** (issue #776), and the
   input-validation gate held fifty-nine public functions open on them.
   Each takes "anything convertible", handles the `str` spelling and

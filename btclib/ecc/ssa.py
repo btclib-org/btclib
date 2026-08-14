@@ -250,7 +250,11 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         return x_Q, _y_even(x_Q, ec)
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
-    with contextlib.suppress(BTClibValueError):
+    # both classes, this being a guess at the spelling: a type no public
+    # key has may still be a BIP340 one -- an int is, and is a private
+    # key to `to_pub_key` -- so the refusal that names BIP340 is the one
+    # at the end
+    with contextlib.suppress(BTClibTypeError, BTClibValueError):
         x_Q = point_from_pub_key(x_Q, ec)[0]
         return x_Q, _y_even(x_Q, ec)
     # BIP340 key as bytes or hex-string

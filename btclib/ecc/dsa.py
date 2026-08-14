@@ -928,13 +928,23 @@ def verify_(
     signature that does not commit to that value is False as a forged one
     is: the answer is about this signature and this commitment, both.
     """
-    # ValueError and BTClibRuntimeError, not Exception: an input that is not
-    # a valid signature is False, and so is a verification that failed. A
-    # caller's own mistake is neither, and is kept out by being refused
-    # before this rather than by being excluded from the except: an hf
-    # passed as sha256() instead of sha256 leaves assert_as_valid_ as the
-    # BTClibTypeError hashes._assert_valid_hf raises, which a TypeError is,
-    # so it arrives here uncaught and reaches the caller.
+    # The comment every boolean verification in this library points at.
+    #
+    # ValueError and BTClibRuntimeError, not Exception: a value that is
+    # not a valid signature is False, and so is a verification that
+    # failed. A value of a type this function does not declare is
+    # neither, and reaches the caller: the classes that say so are
+    # TypeErrors -- `_assert_valid_hf` for an hf passed as sha256()
+    # instead of sha256, `to_pub_key` for what is no spelling of a key --
+    # and no TypeError is in the tuple below, so none of them has to be
+    # refused ahead of the try to get out.
+    #
+    # The line is the annotation, and not which built-in a helper happens
+    # to derive from: those two coincide only by accident, which is what
+    # issue #745 found, and issue #814 is where the annotation was chosen
+    # over the accident. CONTRIBUTING.md's "Every public function
+    # validates its inputs" states the rule for the library.
+    #
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:

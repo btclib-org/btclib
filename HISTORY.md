@@ -20,6 +20,24 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **a verification refuses a type it does not declare, where it used to
+  answer `False`.** `dsa.verify` takes a `PubKey` -- bytes, a hex
+  string, a `BIP32KeyData` or a `Point` -- and an int is none of those:
+  in this library an int is a private key. `dsa.verify(msg, 12, sig)` is
+  a `BTClibTypeError` now where it was `False`, and so is
+  `ecc.dleq.verify_proof` with one. A key of a *declared* type that is
+  not valid is still `False` -- `dsa.verify(msg, "not a key", sig)` is
+  unchanged -- so a caller filtering signatures that arrived as bytes is
+  unaffected; what changes is a call mypy already refused.
+
+  The converters underneath moved with it, and that is the part to act
+  on: `to_pub_key`'s `point_from_pub_key`, `pub_keyinfo_from_pub_key`,
+  `point_from_key` and `pub_keyinfo_from_key` answer a `BTClibTypeError`
+  for a type no spelling of a key has, where every refusal used to be a
+  `BTClibValueError`. Code catching `TypeError` or `BTClibException`
+  keeps working; code catching `BTClibValueError` alone around one of
+  those four has to widen.
+
 - **a bad network name raises `BTClibValueError`, not `KeyError`.**
   Every function taking a `network: str` -- `b58.p2pkh`, `b32.p2wpkh`,
   `to_pub_key.fingerprint`, `bip39.mxprv_from_mnemonic` and the rest --

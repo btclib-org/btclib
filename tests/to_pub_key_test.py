@@ -12,7 +12,7 @@ from btclib.alias import INF, Point
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.curves import bytes_from_point
 from btclib.curves.curve import CURVES
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.to_pub_key import (
     Key,
     PubkeyInfo,
@@ -191,12 +191,37 @@ def _check_refused(api: Conversions, keys: Sequence[Key]) -> None:
     assertion is the same one either way, every refusal here being a
     BTClibValueError, so the two calls name the two vocabularies rather
     than expect two answers.
+
+    Every key here is of a type the union declares. What is not is
+    `_check_refused_as_a_type`'s, and the two are separate because the
+    difference is a promise rather than a detail.
     """
     point_from, keyinfo_from = api
     for key in keys:
         with pytest.raises(BTClibValueError):
             point_from(key)
         with pytest.raises(BTClibValueError):
+            keyinfo_from(key)
+
+
+def _check_refused_as_a_type(api: Conversions, keys: Sequence[Key]) -> None:
+    """Check the refusal of a type no spelling of a public key has.
+
+    The other half of `_check_refused`, and the difference is issue
+    #814's rule: a value of a declared type that is no key is a
+    BTClibValueError, a type the union does not declare is a
+    BTClibTypeError. That is what lets `dsa.verify` answer False for the
+    first and refuse the second, being total over what it declares.
+
+    An int is the one that matters: in this library an int is a private
+    key and never a public one, so passing one here is the very
+    confusion issue #143 is about.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        with pytest.raises(BTClibTypeError, match="not a public key"):
+            point_from(key)
+        with pytest.raises(BTClibTypeError, match="not a public key"):
             keyinfo_from(key)
 
 
@@ -215,9 +240,6 @@ def test_from_pub_key() -> None:
             INF,
             INF_xpub_data,
             *not_a_pub_keys,
-            q,
-            q0,
-            qn,
             *plain_prv_keys,
             xprv_data,
             xprv0_data,
@@ -226,6 +248,9 @@ def test_from_pub_key() -> None:
             *uncompressed_prv_keys,
         ],
     )
+    # the three int spellings of a private key, which `test_from_key`
+    # below accepts and this must not: an int is no PubKey at all
+    _check_refused_as_a_type(api, [q, q0, qn])
 
 
 def test_from_key() -> None:
