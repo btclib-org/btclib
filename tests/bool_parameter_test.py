@@ -709,8 +709,9 @@ _TRUTHS = (
         "strict",
         dsa.Sig.parse,
         {"data": _DER_SIG},
-        reason="whether trailing bytes after the DER sequence are refused;"
-        " the signature parsed out of what both accept is one signature",
+        reason="whether the encoding must be Bitcoin Core's canonical one,"
+        " trailing bytes and non-minimal scalars alike; the signature"
+        " parsed out of what both readings accept is one signature",
     ),
     _Case(
         "btclib.psbt.psbt.assert_signed",
