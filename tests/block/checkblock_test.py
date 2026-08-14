@@ -188,7 +188,7 @@ def test_the_bad_cb_multiple_vector_is_answered_by_the_work() -> None:
         if comment.startswith("More than one coinbase")
     )
     block = Block.parse(two_coinbases, check_validity=False)
-    assert [tx.is_coinbase() for tx in block.transactions] == [True, True]
+    assert [tx.is_coinbase for tx in block.transactions] == [True, True]
     block.assert_valid_merkle_root()
 
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):

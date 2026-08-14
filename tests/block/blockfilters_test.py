@@ -168,7 +168,7 @@ def test_a_coinbase_output_script_need_not_parse() -> None:
     where the opcodes stop making sense rather than raising.
     """
     coinbase = block_at(987876).transactions[0]
-    assert coinbase.is_coinbase()
+    assert coinbase.is_coinbase
     script_pub_key = coinbase.vout[0].script_pub_key
     assert script_pub_key.asm[-2:] == ["UNKNOWN_OP_CODE_216", "[error]"]
     assert script_pub_key.type == "unknown"
@@ -182,5 +182,5 @@ def test_the_witness_row_commits_to_its_witnesses() -> None:
     what says the row was chosen for that and would be missed if it went.
     """
     block = block_at(1263442)
-    assert block.is_segwit()
+    assert block.is_segwit
     assert block.witness_commitment is not None

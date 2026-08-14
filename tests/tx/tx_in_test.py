@@ -24,13 +24,13 @@ def test_tx_in() -> None:
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
     assert tx_in.nSequence == tx_in.sequence
-    assert tx_in.is_coinbase()
-    assert not tx_in.is_segwit()
+    assert tx_in.is_coinbase
+    assert not tx_in.is_segwit
     tx_in2 = TxIn.parse(tx_in.serialize())
-    assert not tx_in2.is_segwit()
+    assert not tx_in2.is_segwit
     assert tx_in == tx_in2
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
-    assert not tx_in2.is_segwit()
+    assert not tx_in2.is_segwit
     assert tx_in == tx_in2
 
     tx_id = "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e"
@@ -45,13 +45,13 @@ def test_tx_in() -> None:
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
     assert tx_in.nSequence == tx_in.sequence
-    assert not tx_in.is_coinbase()
-    assert not tx_in.is_segwit()
+    assert not tx_in.is_coinbase
+    assert not tx_in.is_segwit
     tx_in2 = TxIn.parse(tx_in.serialize())
-    assert not tx_in2.is_segwit()
+    assert not tx_in2.is_segwit
     assert tx_in == tx_in2
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
-    assert not tx_in2.is_segwit()
+    assert not tx_in2.is_segwit
     assert tx_in == tx_in2
 
     prev_out = OutPoint(
@@ -73,10 +73,10 @@ def test_tx_in() -> None:
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
     assert tx_in.nSequence == tx_in.sequence
-    assert not tx_in.is_coinbase()
-    assert tx_in.is_segwit()
+    assert not tx_in.is_coinbase
+    assert tx_in.is_segwit
     tx_in2 = TxIn.parse(tx_in.serialize())
-    assert not tx_in2.is_segwit()
+    assert not tx_in2.is_segwit
     # the witness is part of a TxIn comparison, so the input carrying one
     # differs from the input that comes back off the wire without it. Said
     # of the objects rather than of the flag behind them, and an
@@ -84,7 +84,7 @@ def test_tx_in() -> None:
     # way that flag is set
     assert tx_in != tx_in2
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
-    assert tx_in2.is_segwit()
+    assert tx_in2.is_segwit
     assert tx_in == tx_in2
 
     # the sequence is a 4-byte unsigned integer, so both ends of the range
@@ -198,7 +198,7 @@ def test_script_sig_is_not_validated_and_that_is_the_answer() -> None:
     # the placeholder every builder starts from, which a coinbase-input
     # length check here would reject
     TxIn().assert_valid()
-    assert TxIn().is_coinbase()
+    assert TxIn().is_coinbase
     assert not TxIn().script_sig
 
     # and the coinbase rule is enforced where the transaction is known

@@ -434,7 +434,7 @@ Watch the parentheses here. ``id``, ``hash``, ``size``, ``vsize``,
 you a bound method, which is truthy, which is the sort of bug that
 passes review:
 
->>> tx.is_segwit()
+>>> tx.is_segwit
 False
 
 An input names the output it spends. The transaction id inside
@@ -575,7 +575,7 @@ DER signature with the hash type appended, then the public key.
 >>> from btclib.script.witness import Witness
 >>> signed = Tx(1, 0, [TxIn(funding, b"", 0xFFFFFFFF)], [tx_out])
 >>> signed.vin[0].script_witness = Witness([sig.serialize() + b"\x01", pub_key])
->>> signed.is_segwit()
+>>> signed.is_segwit
 True
 >>> signed.serialize(include_witness=True).hex()
 '01000000000101ef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff01c003b423000000001600141d0f172a0ecb48aee1be1f2687d2963ae33f71a10247304402207b7dffe084afa0d951726827d8469628e646349e9e6e1d60b76aa91d4a459ff2022003c3fd5ed4795126862efa7bc194d03c76af29741eb36c47659ac39506f2de100121025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee635700000000'

@@ -21,7 +21,7 @@ def test_out_point() -> None:
     assert out_point.vout == 0xFFFFFFFF
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
-    assert out_point.is_coinbase()
+    assert out_point.is_coinbase
     assert out_point == OutPoint.parse(out_point.serialize())
     assert out_point == OutPoint.from_dict(out_point.to_dict())
 
@@ -32,7 +32,7 @@ def test_out_point() -> None:
     assert out_point.vout == vout
     assert out_point.hash == int.from_bytes(out_point.tx_id, "big", signed=False)
     assert out_point.n == out_point.vout
-    assert not out_point.is_coinbase()
+    assert not out_point.is_coinbase
     assert out_point == OutPoint.parse(out_point.serialize())
     assert out_point == OutPoint.from_dict(out_point.to_dict())
 
@@ -134,7 +134,7 @@ def test_a_coinbase_marker_is_both_fields_or_neither() -> None:
     to the coinbase script size or refuses it as a coinbase input in a
     transaction that is not one.
     """
-    assert OutPoint().is_coinbase()
+    assert OutPoint().is_coinbase
 
     for tx_id, vout in (
         (b"\x00" * 32, 0),  # the null tx_id, a real vout
@@ -143,4 +143,4 @@ def test_a_coinbase_marker_is_both_fields_or_neither() -> None:
         (b"\x00" * 32, 0xFFFFFFFF + 1),  # a vout no four bytes hold
         (b"\x01" * 32, 0),
     ):
-        assert not OutPoint(tx_id, vout, check_validity=False).is_coinbase()
+        assert not OutPoint(tx_id, vout, check_validity=False).is_coinbase
