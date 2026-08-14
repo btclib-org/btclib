@@ -576,7 +576,7 @@ def mnemonics_from_master_secret(
     passphrase: str = "",
     iteration_exponent: int = 1,
     extendable: bool = True,
-    entropy_source: Callable[[int], bytes] = os.urandom,
+    entropy_source: Callable[[int], bytes] | None = None,
 ) -> list[list[Mnemonic]]:
     """Return the SLIP-0039 shares of a master secret, grouped.
 
@@ -595,6 +595,8 @@ def mnemonics_from_master_secret(
     is the same bytes through another name); anything weaker substituted
     here is a secret an attacker can reproduce.
     """
+    if entropy_source is None:
+        entropy_source = os.urandom
     assert_type(extendable, bool, "extendable")
     _assert_valid_passphrase(passphrase)
     secret = bytes_from_octets(master_secret)

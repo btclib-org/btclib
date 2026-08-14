@@ -319,3 +319,14 @@ def test_invalid_threshold(groups: list[tuple[int, int]], group_threshold: int) 
         slip39.mnemonics_from_master_secret(
             bytes(16), groups=groups, group_threshold=group_threshold
         )
+
+
+def test_mnemonics_from_master_secret_none_entropy_source() -> None:
+    """Verify that entropy_source=None defaults to fresh os.urandom entropy."""
+    shares1 = slip39.mnemonics_from_master_secret(bytes(16), entropy_source=None)
+    shares2 = slip39.mnemonics_from_master_secret(bytes(16), entropy_source=None)
+    assert len(shares1) == 1 and len(shares1[0]) == 1
+    assert len(shares2) == 1 and len(shares2[0]) == 1
+    # Fresh entropy_source should generate distinct shares across calls
+    assert shares1 != shares2
+
