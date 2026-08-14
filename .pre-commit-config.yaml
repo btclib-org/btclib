@@ -494,22 +494,13 @@ repos:
   # dispatch is the only thing that runs it, and strict mode is the whole of
   # what reads it in between. A bound method used as a truth value is what
   # that buys -- in a script of checks, a check that cannot fail.
-  # scripts/ joins it for the same reason: no test collects either script
-  # there, a manual run being the whole of what exercises benchmark.py and
-  # benchmark_libraries.py alike. The latter imports five untyped
-  # third-party packages the `bench` group installs and this command's
-  # `--group lint --group test` does not, so pyproject.toml's
-  # [[tool.mypy.overrides]] declares ignore_missing_imports for exactly
-  # those five -- unresolved either way, with or without the group, so the
-  # group is not what this command needs. The former has no third-party
-  # dependency to begin with, so nothing there needs that override
   - repo: local
     hooks:
       - id: mypy
         name: mypy (strict, in the project environment)
         entry: >
           uv run --locked --no-default-groups --group lint --group test
-          mypy btclib tests .github/scripts scripts
+          mypy btclib tests .github/scripts
         language: system
         types: [python]
         pass_filenames: false

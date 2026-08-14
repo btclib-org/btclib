@@ -108,47 +108,6 @@ lint = ["mypy", "pre-commit", "ruff"]
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
-# what scripts/benchmark_libraries.py times btclib against, each with a
-# floor at its latest release. Not in `dev`, for the same reason
-# btclib-secp256k1's own `bench` group is not: nothing else needs any of
-# these five, and a lint or type-check run that does not touch the script
-# should not have to resolve them.
-#
-# A floor and not a pin: the benchmark's premise is that the comparison is
-# against whatever `pip install` currently gives a user, so a new release
-# is to be picked up and measured, not refused. What the bare names these
-# were let happen is the other direction -- an ancient release answering
-# the comparison in silence, and a table saying btclib is faster than a
-# version nobody runs.
-#
-# `ecdsa` is where that stopped being theoretical: GHSA-wj6h-64fc-37mp,
-# the Minerva timing attack on P-256, names every version of it and no
-# patched one, python-ecdsa being pure Python and saying of itself that it
-# is not side-channel resistant -- which is what SECURITY.md publishes
-# about this library's own Python path. The floor does not close that
-# alert and is not meant to; what it does is record which release the
-# advisory was read against, and the same is now true of the other four.
-#
-# Raising a floor is what a measurement asks for, not what a resolver
-# does: the numbers in the benchmark's own output belong to the versions
-# named here
-bench = [
-    "buidl>=0.2.36",
-    "ecdsa>=0.19.2",
-    "embit>=0.8.0",
-    "pycoin>=0.92718.20260405",
-    "python-bitcoinlib>=0.12.2",
-    # scripts/benchmark_python.py's, and it carries a marker because it
-    # declares a python it can live on that this project does not sit
-    # inside: >=3.11 against this project's >=3.10. It is on no index at
-    # all either -- a git source, at the tag its pyproject calls 1.0.0,
-    # because there is no release to floor.
-    #
-    # hwi is not here, and scripts/benchmark_python.py says what its row
-    # would have measured: it caps cbor2 and protobuf below the versions
-    # that fix two advisories, so nothing written here can resolve them
-    "secp256k1lab; python_full_version >= '3.11'",
-]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
@@ -173,14 +132,6 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
-
-# secp256k1lab is on no index: the project publishes a git repository and
-# no release, so the `bench` group names it and this says where it is.
-# A tag and not a branch, so that a benchmark run reproduces -- the
-# comparand of a measurement has to be a fixed thing, which is the same
-# reason every other name in that group carries a floor
-[tool.uv.sources]
-secp256k1lab = { git = "https://github.com/secp256k1lab/secp256k1lab", tag = "v1.0.0" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]
@@ -337,11 +288,11 @@ filterwarnings = ["error"]
 skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock"
 # identifiers, not misspellings: "wit" is a transaction's witness, "nd"
 # is the Neutered Derivation the bip32 docstrings spell out, and "buidl"
-# is scripts/benchmark_libraries.py's comparand, a PyPI package of that
-# exact name. All three are real words to codespell's dictionary (the
-# third by way of "build"), so none can be fixed by writing it
-# differently -- unlike the rest of what this hook found, which was
-# corrected instead of listed here
+# is a PyPI package of that exact name, which CHANGELOG.md records this
+# repository having benchmarked against. All three are real words to
+# codespell's dictionary (the third by way of "build"), so none can be
+# fixed by writing it differently -- unlike the rest of what this hook
+# found, which was corrected instead of listed here
 ignore-words-list = "wit,nd,buidl"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
@@ -441,11 +392,11 @@ ful = "ful"
 # ruff's own name for flake8-copyright, in the comment above
 # [tool.ruff.lint.flake8-copyright] explaining why it is selected
 CPY = "CPY"
-# the PyPI package scripts/benchmark_libraries.py compares btclib
-# against, not the "build" this hook offers to correct it to. Without
-# this line --write-changes turns every `buidl` in that script,
-# CHANGELOG.md and this file into a word that names a different package
-# on PyPI entirely
+# a PyPI package of that name, not the "build" this hook offers to
+# correct it to. The benchmarks that compared btclib against it live in
+# btclib-benchmarks now, and CHANGELOG.md still names it: without this
+# line --write-changes turns every `buidl` there and in this file into a
+# word that names a different package on PyPI entirely
 buidl = "buidl"
 
 [tool.typos.type.verbatim]
@@ -607,26 +558,6 @@ python_version = "3.10"
 exclude = [
     "build",
 ]
-
-# the comparands of the two benchmark scripts, not dependencies of the
-# project: none is resolvable here, and the `bench`
-# group that installs them is not part of the `--group lint --group
-# test` the mypy hook runs with, so the import is unresolved whether or
-# not the package happens to be installed -- secp256k1lab included,
-# which does ship py.typed and would type-check if it were there.
-# ignore_missing_imports silences exactly that error; each script's own
-# logic still gets strict mode, and only what it receives back from one
-# of these is `Any`
-[[tool.mypy.overrides]]
-module = [
-    "bitcoin.*",
-    "buidl.*",
-    "ecdsa.*",
-    "embit.*",
-    "pycoin.*",
-    "secp256k1lab.*",
-]
-ignore_missing_imports = true
 
 [tool.ruff]
 # target-version is inferred from project.requires-python
@@ -817,23 +748,6 @@ ignore = [
 # job that started an emulator: what it saw and how long it took, or the
 # ::error:: annotation naming what it saw instead
 ".github/scripts/wait_for_hwi_device.py" = ["T201"]
-# the benchmark script: its whole output is the table a manual run reads,
-# and it asserts every comparand agrees with btclib before timing any of
-# them, the same pattern btclib-secp256k1's own scripts/benchmark.py uses
-"scripts/benchmark_libraries.py" = [
-    "S101", # assert
-    "T201", # print
-]
-"scripts/benchmark_python.py" = [
-    "S101", # assert
-    "T201", # print
-]
-# the pure-Python-vs-bindings benchmark: T201, whose whole output is the
-# timings a developer ran it to see, print being the only interface a
-# script run by hand has; and S101, each assert there being the guard
-# against timing a call that silently stopped agreeing with the other
-# implementation, the one thing a benchmark cannot afford to do quietly
-"scripts/benchmark.py" = ["T201", "S101"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public
