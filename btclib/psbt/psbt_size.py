@@ -55,6 +55,7 @@ from btclib.hashes import hash160
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.script import serialize, type_and_payload
 from btclib.tx import TxIn
+from btclib.utils import assert_type
 
 __all__ = [
     "COMPRESSED_PUB_KEY_SIZE",
@@ -238,12 +239,8 @@ def _assert_input_types(psbt_in: PsbtIn, tx_in: TxIn) -> None:
     allows it, `descriptors` importing this module and nothing here
     importing back.
     """
-    if not isinstance(psbt_in, PsbtIn):
-        err_msg = f"invalid psbt_in type: {type(psbt_in).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
-    if not isinstance(tx_in, TxIn):
-        err_msg = f"invalid tx_in type: {type(tx_in).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(psbt_in, PsbtIn, "psbt_in")
+    assert_type(tx_in, TxIn, "tx_in")
 
 
 def _assert_arguments(

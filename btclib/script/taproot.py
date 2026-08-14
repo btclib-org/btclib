@@ -40,7 +40,12 @@ from btclib.script.op_codes_tapscript import (
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, is_integer
+from btclib.utils import (
+    assert_type,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    is_integer,
+)
 
 __all__ = [
     "MAX_TREE_DEPTH",
@@ -79,11 +84,10 @@ def serialize(script: ScriptList) -> bytes:
     by exactly one bytes command, appended raw -- what follows an
     OP_SUCCESS need not be a script, so it round-trips unparsed.
     """
-    if not isinstance(script, list):
-        # what is not a list reached the reversal and the `pop` below
-        # untouched, so a None was "not subscriptable" and a str was a
-        # str with no `pop` -- neither of them a word about the script
-        raise BTClibTypeError(f"invalid tapscript type: {type(script).__name__}")
+    # what is not a list reached the reversal and the `pop` below
+    # untouched, so a None was "not subscriptable" and a str was a str with
+    # no `pop` -- neither of them a word about the script
+    assert_type(script, list, "tapscript")
 
     r: list[bytes] = []
     script = script[::-1]

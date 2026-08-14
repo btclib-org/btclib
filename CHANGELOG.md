@@ -2521,6 +2521,42 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **One spelling for the type refusal, over 22 guards** (issue #876).
+  `utils.assert_type` arrived with the serialization boundary's gate
+  (issue #867) and the rest of the library was still composing the same
+  message by hand: 26 guards whose test is a bare `not isinstance(...)`
+  and whose body raises a `BTClibTypeError` reading `invalid <what> type:
+  <type name>`, in `bip32/`, `block/`, `curves/`, `descriptors/`, `ecc/`,
+  `psbt/`, `script/`, `wallet/`, `network.py` and `utils.py` itself. 22 of
+  them are that one call now, with every message unchanged -- the tests
+  that match on them are the evidence.
+
+  What it buys is not the lines: **thirteen `# type: ignore[unreachable]`
+  suppressions go away**, seven of the twenty in the package remaining.
+  Each existed because the parameter is annotated, so mypy proves the
+  branch dead while the check is precisely what a caller who has not run
+  mypy needs; `assert_type` takes `Any`, so the question lives where it is
+  reachable and no call site has to say so.
+
+  It costs one Python call: 33 ns against 21 inline, measured as the
+  median of seven alternating rounds of 200k with an empty body as the
+  noise detector. `curves.curve._assert_valid_ec` is where that was worth
+  checking rather than assuming, its docstring having measured its own
+  cost: two guards in the 17.7 us of a signature and three in the 48.3 us
+  of a five-level BIP32 derivation, so 74 and 112 ns of them. The
+  docstring carries the re-measured figures.
+
+  Four of the 26 keep their own spelling, and the reason is in each: the
+  three coercions -- `bytes_from_octets`, `str_from_string`,
+  `base58.decode` -- refuse as the `else` of a conversion rather than as a
+  guard in front of one, and `satisfaction_sizer`'s `keys` is half of a
+  two-part question whose other half is a positive `isinstance`, which
+  this helper cannot express. `hashes._assert_valid_hf` asks `callable`
+  and not a type; the key converters' "not a private key" and "not a
+  public key" are the caller's diagnosis rather than a type report; and
+  the 33 guards built on `is_integer` are the integer policy
+  `tests/integer_policy_test.py` owns, a bool being an int.
+
 - **The input contract reaches `ec`, which had no check anywhere** (issue
   #868). The census of parameters behind a default put it fourth by
   frequency and first by exposure: `hf` and `network` are gated where their

@@ -305,8 +305,7 @@ class BlockHeader:
         # the type before the time zone: `.tzinfo` on anything else is an
         # AttributeError, which is neither a ValueError nor a TypeError
         # and so is caught by nothing this library tells a caller to catch
-        if not isinstance(now, datetime):
-            raise BTClibTypeError(f"invalid current time type: {type(now).__name__}")
+        assert_type(now, datetime, "current time")
         if now.tzinfo is None or now.tzinfo.utcoffset(now) is None:
             raise BTClibValueError(f"naive current time (no time zone): {now}")
 
@@ -343,11 +342,7 @@ class BlockHeader:
                 err_msg = f"invalid {key} type: {type(value).__name__}"
                 raise BTClibTypeError(err_msg)
 
-        if not isinstance(self.time, datetime):
-            # unreachable to mypy, the field being annotated: the caller
-            # this is here for is the one mypy never sees
-            err_msg = f"invalid timestamp type: {type(self.time).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
+        assert_type(self.time, datetime, "timestamp")
 
     def assert_valid(self) -> None:
         """Refuse a header the eighty bytes could not hold.

@@ -14,7 +14,6 @@ from btclib.alias import ScriptList
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import (
     BTClibRuntimeError,
-    BTClibTypeError,
     BTClibValueError,
     ScriptError,
 )
@@ -37,7 +36,7 @@ from btclib.script.script import (
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
-from btclib.utils import bytesio_from_binarydata, encode_num
+from btclib.utils import assert_type, bytesio_from_binarydata, encode_num
 
 __all__ = [
     "DISABLED_OP_CODES",
@@ -72,8 +71,7 @@ def _assert_bytes_arguments(**arguments: object) -> None:
     out names the one that was wrong.
     """
     for what, value in arguments.items():
-        if not isinstance(value, bytes):
-            raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+        assert_type(value, bytes, what)
 
 
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:

@@ -30,8 +30,8 @@ from hashlib import sha256
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
 from btclib.curves.curve import _assert_valid_ec
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.utils import int_from_bits
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.utils import assert_type, int_from_bits
 
 __all__ = [
     "assert_as_valid",
@@ -122,9 +122,7 @@ def assert_as_valid(
     #814). `is_on_curve` is deliberately not asked -- that would refuse a
     wrong value too.
     """
-    if not isinstance(commitment, tuple):
-        err_msg = f"invalid commitment type: {type(commitment).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(commitment, tuple, "commitment")
 
     if commitment != commit(r, v, ec, hf):
         raise BTClibRuntimeError("commitment verification failed")

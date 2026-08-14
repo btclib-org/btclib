@@ -290,9 +290,7 @@ class Network:
         # there is. The bytes() calls below are the same guard for the
         # bytes fields, TypeError being what they raise for a field
         # rebound to something else
-        if not isinstance(self.hrp, str):
-            err_msg = f"invalid hrp type: {type(self.hrp).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
+        assert_type(self.hrp, str, "hrp")
 
         # NetworkType is a Literal, which is a mypy fact and not a runtime
         # one: from_dict takes whatever the json says, so this is the only

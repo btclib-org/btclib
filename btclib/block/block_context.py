@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import assert_type, is_integer
 
 __all__ = [
     "BIP34_HEIGHT",
@@ -117,9 +117,7 @@ class BlockContext:
             if value < 0:
                 raise BTClibValueError(f"invalid {key}: {value}")
 
-        if not isinstance(self.now, datetime):
-            err_msg = f"invalid now type: {type(self.now).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
+        assert_type(self.now, datetime, "now")
 
         # a naive datetime has no instant attached to it: timestamp() would
         # read it as local time, so the same block would be too far in the

@@ -54,9 +54,9 @@ from btclib.curves.curve_group_2 import (
     _double_mult_w_NAF_var,
     _mult_endomorphism_secp256k1,
 )
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.number_theory import legendre_symbol_var
-from btclib.utils import hex_string, int_from_integer
+from btclib.utils import assert_type, hex_string, int_from_integer
 
 __all__ = [
     "CURVES",
@@ -321,20 +321,22 @@ def _assert_valid_ec(ec: Curve) -> None:
     every multiplication below reduces its scalar mod n, so a CurveGroup
     would pass a group check and fail on a field it has not got.
 
-    `isinstance` and not a field lookup, the way
-    `hashes._assert_valid_hf` asks `callable` rather than making a digest:
-    an ec is an object of the library's own making, with no conversion
-    from anything else the way a network name has one, so the type is the
-    whole of the question.
+    A type and not a field lookup, the way `hashes._assert_valid_hf` asks
+    `callable` rather than making a digest: an ec is an object of the
+    library's own making, with no conversion from anything else the way a
+    network name has one, so the type is the whole of the question. That
+    is what makes it `utils.assert_type`'s, which is the one spelling of
+    the refusal for the whole library.
 
-    22 ns, asked where each public function first reads the parameter,
-    which is one to four times in what a caller calls one operation: 45 ns
-    of the 17.5 us of a signature, 88 of the 39.2 of a verification, and
-    two guards in the 39.1 us of a five-level BIP32 derivation.
+    37 ns through that call, asked where each public function first reads
+    the parameter, which is one to three times in what a caller calls one
+    operation: two guards in the 17.7 us of a signature, three in the
+    48.3 us of a five-level BIP32 derivation. A wall clock is a number
+    that drifts, so `timeit` over the guard and over `dsa.sign` is what
+    says whether these still hold; what they are here for is the decision
+    to ask once per parameter rather than once per function.
     """
-    if not isinstance(ec, Curve):
-        err_msg = f"invalid ec type: {type(ec).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(ec, Curve, "ec")
 
 
 datadir = Path(__file__).parent / "_data"

@@ -83,13 +83,12 @@ from btclib.curves.sec_point import (
 from btclib.ecc import ssa
 from btclib.exceptions import (
     BTClibRuntimeError,
-    BTClibTypeError,
     BTClibValueError,
     InvalidContributionError,
 )
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "KeyAggContext",
@@ -203,9 +202,7 @@ def _flag(is_xonly: bool) -> bool:
     keys the group signs under, so a value read for its truth would put
     half the signers on the other key rather than raise.
     """
-    if not isinstance(is_xonly, bool):
-        err_msg = f"invalid is_xonly type: {type(is_xonly).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
+    assert_type(is_xonly, bool, "is_xonly")
     return is_xonly
 
 
