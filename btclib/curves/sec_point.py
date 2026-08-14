@@ -21,7 +21,7 @@ from btclib.curves.curve import (
     secp256k1,
 )
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets, hex_string, int_from_integer
+from btclib.utils import assert_type, bytes_from_octets, hex_string, int_from_integer
 
 __all__ = [
     "bytes_from_point",
@@ -37,6 +37,7 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     octet sequence, according to SEC 1 v.2, section 2.3.3.
     """
     _assert_valid_ec(ec)
+    assert_type(compressed, bool, "compressed")
     # check that Q is a point and that is on curve
     ec.require_on_curve(Q)
 
@@ -69,6 +70,8 @@ def bytes_from_prv_key_int(
     uncompressed one (issue #459).
     """
     _assert_valid_ec(ec)
+    # before the bindings, which take it as the C bool they serialize with
+    assert_type(compressed, bool, "compressed")
     q = int_from_integer(prv_key_int) % ec.n
 
     # q == 0 is the infinity point, which the bindings reject as a scalar

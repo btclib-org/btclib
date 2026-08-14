@@ -495,6 +495,9 @@ def join(
     order the merge ran in. Summing two payments into one output is the
     caller's to do before signing.
     """
+    assert_type(shuffle_inp, bool, "shuffle_inp")
+    assert_type(shuffle_out, bool, "shuffle_out")
+
     version = max(tx.version for tx in txs)
     if enforce_same_version and any(tx.version != version for tx in txs):
         raise BTClibValueError("Version numbers are not the same")

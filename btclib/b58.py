@@ -27,7 +27,7 @@ from btclib.hashes import hash160, sha256
 from btclib.network import network_from_key_value, network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "address_from_h160",
@@ -44,6 +44,11 @@ def wif_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> str:
     """Return the WIF encoding of a private key."""
+    # asked here rather than passed down: `prv_keyinfo_from_prv_key` is
+    # called without it, so what the key says is what comes back and this
+    # is where a caller's own choice is read
+    if compressed is not None:
+        assert_type(compressed, bool, "compressed")
     q, net, compr = prv_keyinfo_from_prv_key(prv_key)
 
     # the private key might provide network and compressed information

@@ -29,7 +29,7 @@ from btclib.network import (
     xpubversions_from_network,
 )
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "Key",
@@ -236,6 +236,10 @@ def pub_keyinfo_from_pub_key(
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
     _assert_pub_key_type(pub_key)
+    # as in `to_prv_key.prv_keyinfo_from_prv_key`: None means "whatever
+    # the key says", and every other spelling of a truth is refused
+    if compressed is not None:
+        assert_type(compressed, bool, "compressed")
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network

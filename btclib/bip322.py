@@ -111,7 +111,7 @@ from btclib.script.taproot import output_prvkey_from_merkle_root, output_pubkey
 from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets, str_from_string
+from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
     "FULL",
@@ -491,6 +491,10 @@ def assert_as_valid(
     Raises `InconclusiveError` for a signature that is not invalid and
     cannot be judged valid; see the module docstring for that state.
     """
+    # which of the two verifications runs, a BMS signature over the message
+    # or BIP322's own, so it is a kind and `verify` inherits the check
+    assert_type(legacy, bool, "legacy")
+
     script_pub_key = ScriptPubKey.from_address(addr).script
 
     if legacy and isinstance(sig, (str, bytes)) and _is_bms(sig):

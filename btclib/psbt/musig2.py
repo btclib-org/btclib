@@ -78,7 +78,7 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.script import type_and_payload
 from btclib.to_prv_key import PrvKey
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "add_participant_pub_keys",
@@ -109,6 +109,9 @@ def add_participant_pub_keys(
     and as BIP373 requires whenever sorting was used at all: the order is
     part of the key, so it is stored in the order it was aggregated in.
     """
+    # the order is part of the aggregate key, so this decides which key
+    # the participants are filed under
+    assert_type(sort, bool, "sort")
     keys = musig2.key_sort(participant_pub_keys) if sort else participant_pub_keys
     aggregate_pub_key = bytes_from_point(musig2.key_agg(keys).Q, secp256k1)
     psbt_map.musig2_participant_pub_keys[aggregate_pub_key] = [

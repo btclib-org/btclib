@@ -2556,6 +2556,60 @@ documented at release-notes length in the first place, and are still in
   public key" are the caller's diagnosis rather than a type report; and
   the 33 guards built on `is_integer` are the integer policy
   `tests/integer_policy_test.py` owns, a bool being an int.
+- **Every `bool` parameter of the library is a kind or a truth, and the
+  kinds refuse what is not one** (issue #868, second half). CONTRIBUTING.md
+  has drawn the line since `KeyGroup(verify=)`: a flag that decides *what
+  is computed* is a kind, `musig2._flag`'s reasoning being that a kind
+  written down and read back arrives as whatever it was written as and
+  `"false"` is true; a flag that decides only *whether a check runs* is
+  read for its truth. Applying it meant the census, and the census is
+  `tests/bool_parameter_test.py`: seventy-eight `bool` parameters besides
+  `check_validity`, fifty-three of them kinds and twenty-five truths, with
+  every one of the seventy-eight in one of the two tables or the run is
+  red.
+
+  What was open were the two the issue names, and thirty-odd more of the
+  same shape:
+
+  ```text
+  dsa.sign(msg, q, lower_s="no")        -> a low-s signature, "no" being true
+  pub_keyinfo_from_prv_key(q, "no")     -> the compressed key, and its address
+  ```
+
+  `compressed` chooses which public key is computed and therefore which
+  address, `lower_s` which of the two signatures comes back, `grind`
+  whether the nonce is searched until r is short. The script engine's
+  `segwit` says which digest a signature commits to and which script code
+  it is checked against — a consensus answer, in five signatures — beside
+  `const_scriptcode`, `skip_execution` and `exit_on_op_success`. Then
+  `signed`, `include_witness` and `unsigned_template` at the psbt
+  boundary, `shuffle_inp` and `shuffle_out` in both `join`s, `legacy` in
+  BIP322's two verifications, `sort`, `pad`, `shuffle`, `to_be_hashed`,
+  `extendable`, `lexicographic_sorting`, `emulators`, `musig2`, `active`
+  and `internal`. Each refuses a non-bool with a `BTClibTypeError` now,
+  through `utils.assert_type`, which is the library's one spelling of that
+  refusal: thirty new guards and no thirty-first message shape.
+
+  The check sits where the flag is first read, which is fewer places than
+  there are parameters: `b58.p2pkh`, `ScriptPubKey.p2pkh` and the rest
+  reach one of the four `compressed` checks, `dsa.sign` and
+  `anti_exfil_sign` reach `sign_`'s, and `verify_script` reaches
+  `prepare_script`'s. `b58.wif_from_prv_key` is the one that had to ask for
+  itself: it calls `prv_keyinfo_from_prv_key` without the flag and reads
+  the caller's own afterwards.
+
+  The truths are the other half of the census and they stay read for their
+  truth, each with the reason in the table: `check_validity` (whose own
+  file holds it), `check_root_xkey`, `verify_checksum`, `strict`,
+  `bip380_enforced`, `forbid_zero_size`, `allow_partial`, `check_amounts`,
+  `verify_network`, `branches_0_1_only`, `hybrid`, `power_of_two`,
+  `order_check`, `weakness_check`, the four `enforce_same_*`,
+  `unsigned_template` on `Tx.assert_valid`, and the engine's `final` and
+  `verified`. What makes the classification checkable rather than asserted
+  is that a truth is *driven* too: it is called with `"no"`, `0` and `1` on
+  a fixture its `True` accepts, and all three go through. A truth that
+  starts refusing fails that test, and the entry has to move to the kinds
+  rather than the test being edited.
 
 - **The input contract reaches `ec`, which had no check anywhere** (issue
   #868). The census of parameters behind a default put it fourth by
