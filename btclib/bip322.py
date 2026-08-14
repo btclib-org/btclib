@@ -111,7 +111,7 @@ from btclib.script.taproot import output_prvkey_from_merkle_root, output_pubkey
 from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, str_from_string
 
 __all__ = [
     "FULL",
@@ -326,8 +326,11 @@ class Sig:
         what BIP322 says a verifier may assume of the implementations
         that predate them.
         """
-        text = data.decode("ascii") if isinstance(data, bytes) else data
-        text = text.strip()
+        # the coercion before the strip, as in `ecc.bms.Sig.b64decode`
+        # and for its reason: what is neither text nor bytes left
+        # `bip322.verify` as an AttributeError about a missing method
+        # rather than as a refusal of the argument (issue #814)
+        text = str_from_string(data, "base64 signature").strip()
         prefix = text[:_PREFIX_SIZE]
         if prefix not in _PREFIXES:
             prefix = SIMPLE

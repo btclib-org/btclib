@@ -12,7 +12,12 @@ from btclib_secp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
 from btclib.alias import ScriptList
 from btclib.ecc.dsa import Sig
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError, ScriptError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+    ScriptError,
+)
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
@@ -57,6 +62,20 @@ __all__ = [
 ]
 
 
+def _assert_bytes_arguments(**arguments: object) -> None:
+    """Refuse an argument that is not `bytes`, naming the parameter.
+
+    The two signature adapters of this package declare `bytes` exactly
+    and hand it straight to the bindings, whose own message would name a
+    C parameter -- "the message hash must be bytes" is true and is not
+    btclib saying it (issue #814). Keyword arguments, so that what comes
+    out names the one that was wrong.
+    """
+    for what, value in arguments.items():
+        if not isinstance(value, bytes):
+            raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+
+
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.
 
@@ -64,7 +83,15 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     libsecp256k1 refuses to parse, while the engine treats it as a failed
     verification: DER strictness is enforced upstream, by fix_signature,
     under the STRICT_DER_FLAGS below.
+
+    `bytes` and nothing wider, which is what the three declare: the
+    bindings would answer a float with "the message hash must be bytes",
+    which is true and is not btclib saying it. Every caller here hands
+    stack elements, so the check costs a few nanoseconds of a
+    microsecond-scale verification (issue #814).
     """
+    _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
+
     try:
         return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
     except ValueError:

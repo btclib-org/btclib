@@ -20,6 +20,25 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`dsa.verify` answers False for a message that is not octets, where
+  it raised.** It reduced the message with `hf` before the `try`, so a
+  hex string that is not hex was a `BTClibValueError` where `verify_`,
+  handed the hash, answered False about the same input. `ssa.verify` and
+  `ssa.batch_verify` did the same and move with it. Code that relied on
+  the refusal — a `try` around `verify` to catch a malformed message —
+  has to read the bool instead; `assert_as_valid` is the spelling that
+  still says why.
+
+  The other way round, a `None` or a float in a verification is a
+  `BTClibTypeError` now where it was a native `TypeError` or
+  `AttributeError`: `ssa.batch_verify`'s three sequences,
+  `merkle_proof.verify`'s branch, `bms.verify`'s and `bip322.verify`'s
+  signature, and both engine signature adapters. Code catching
+  `TypeError` keeps working, `BTClibTypeError` being one; code catching
+  `AttributeError` around one of those two `verify` calls has to catch
+  `TypeError` or `BTClibException`. `pedersen.verify` refuses a
+  commitment of a type no point has, where it answered False.
+
 - **eleven `check_*` functions are renamed, and the prefix means one
   thing.** It meant four at once: nine refusals returning `None`, two
   bool verdicts, a converter returning bytes and a query returning a

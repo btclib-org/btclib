@@ -971,9 +971,17 @@ def verify(
     commit is reduced by hf as msg is; `verify_` is the spelling that
     takes the two hashes.
     """
-    msg_hash = reduce_to_hlen(msg, hf)
-    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
-    return verify_(msg_hash, key, sig, hf, commit_hash=commit_hash, receipt=receipt)
+    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
+    # and for its reasons, which it states. `assert_as_valid` and not a
+    # delegation to the prepared spelling: the reduction has to be inside
+    # the try, or a message that is no octets is refused here where the
+    # hash spelling answers False about it (issue #814)
+    try:
+        assert_as_valid(msg, key, sig, hf, commit=commit, receipt=receipt)
+    except (ValueError, BTClibRuntimeError):
+        return False
+
+    return True
 
 
 def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:

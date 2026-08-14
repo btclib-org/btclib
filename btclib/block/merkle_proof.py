@@ -88,6 +88,12 @@ def assert_as_valid(
     displayed in, which is what `Tx.id` and `BlockHeader.merkle_root`
     hold.
     """
+    # the branch before it is walked: what is not a sequence went to the
+    # comprehension below untouched, so a None left it as "not iterable"
+    # -- a complaint about iteration and not about a branch (issue #814)
+    if not isinstance(branch, Sequence):
+        raise BTClibTypeError(f"invalid branch type: {type(branch).__name__}")
+
     root = bytes_from_octets(merkle_root, 32)
     computed = merkle_root_from_branch(
         bytes_from_octets(txid, 32)[::-1],
