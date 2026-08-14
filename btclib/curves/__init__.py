@@ -44,6 +44,22 @@ _mult_fixed_base and _double_mult_regular_window make the same number for
 every scalar of the curve. CONTRIBUTING.md states the rule, and states
 what its absence does not promise: nothing here is constant-time.
 
+**Which one runs is not a setting, and a census says why it is not**
+(issue #849). On the generator the regular form is also the faster one,
+by a factor of four: _mult_fixed_base makes no doubling at all, where a
+wNAF makes one per bit however wide its table is and however thoroughly
+it is cached -- 571 us against 130 over the memoized odd multiples of G,
+at w=8, w=10 and w=12 alike. So the arm every key derivation, every BIP32
+child and every signing nonce runs has no variable-time alternative to
+offer. What is left is a variable-base mult with a secret scalar, which
+in this package is ecc.dh: 1.13x on secp256k1 and 1.03x on nistp256, the
+second being that measurement's own noise. Beside it, the blinded nonce
+inverse is 1.5 us of a 414 us signature, the projective blinding of
+curve_group._blinded_jac is 1%, and every verification is already _var.
+And btclib_secp256k1 is a required dependency, so the 1.13x is reached
+only by first switching the bindings off: a caller who does not is on
+the same program either way.
+
 They are implementations of one operation, kept side by side to be measured
 against each other, and a menu of them is not an API: a caller reading them
 would find every way of multiplying a point this package implements and
