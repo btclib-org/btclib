@@ -147,7 +147,7 @@ jobs:
       # Measured on the first run this workflow ever had: seventeen cells
       # green, that one red, and the release it was checking was sound
       - name: Setup uv with Python ${{ matrix.python }}
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: ${{ matrix.python }}
       # --verbose so the log names the btclib_secp256k1 wheel this cell
