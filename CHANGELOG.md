@@ -4213,6 +4213,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`psbt.silent_payments` said its `k` follows an order it does not
+  follow.** The module docstring described the BIP375 prose -- codes
+  sorted lexicographically by spend key -- and named `_ordered_sp_outputs`
+  as that sort, while the function is output index order and its own
+  docstring says so and says why: the BIP's vectors and its reference
+  validator are index order, and only its prose dissents. A reader had
+  the two halves of the file contradicting each other, and the API docs
+  carried the wrong one. The module docstring now describes the code and
+  points at the function for the discrepancy.
+
+  `_ordered_sp_outputs` gains the correction the discrepancy itself
+  needed: the two invalid vectors named after ordering are refused under
+  either rule not because their scripts match no `k` assignment, but
+  because each carries one no ascending rule produces -- two values
+  swapped in one, three permuted in the other. It also names bips PR
+  2207, which proposes settling the question the other way by correcting
+  the vectors and the validator to the prose; if that merges, the test
+  that pins index order is what fails here.
+
 - **`dsa.Sig.parse`'s `strict` says which direction each accident goes**
   (issue #873). The flag stays read for its truth, which is what
   `bool_parameter_test.py` classifies it as and what the line
