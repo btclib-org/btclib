@@ -13,7 +13,7 @@ first spend.
 btclib's own adapters are checked by btclib's tests, which is no help to
 the caller writing the next one: an implementer outside this repository
 had no way to ask the library whether their signer answers what callers
-of it will assume. `check_psbt_signer` is that question, and it takes any
+of it will assume. `assert_psbt_signer` is that question, and it takes any
 `PsbtSigner` -- a command line adapter, an in-process driver, a signing
 service, a signer that is not a device at all.
 
@@ -69,8 +69,8 @@ if TYPE_CHECKING:
     from btclib.bip32.der_path import DerPath
 
 __all__ = [
-    "check_optional_protocols",
-    "check_psbt_signer",
+    "assert_psbt_signer",
+    "optional_protocols",
     "unsignable_psbt",
 ]
 
@@ -193,7 +193,7 @@ def _check_signable(signer: PsbtSigner, signable: Psbt) -> None:
         _fail("sign_psbt added no signature to a psbt it was said to sign")
 
 
-def check_psbt_signer(
+def assert_psbt_signer(
     signer: object,
     *,
     der_path: DerPath | None = None,
@@ -235,7 +235,7 @@ def check_psbt_signer(
     signer.close()
 
 
-def check_optional_protocols(signer: object) -> tuple[bool, bool]:
+def optional_protocols(signer: object) -> tuple[bool, bool]:
     """Return which optional protocols the signer offers, as a caller asks.
 
     `isinstance` against the two runtime-checkable protocols, which is

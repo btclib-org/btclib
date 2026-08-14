@@ -39,13 +39,13 @@ __all__ = [
     "EVALUATED_WHEN_UNEXECUTED",
     "OPERATIONS",
     "STRICT_DER_FLAGS",
+    "assert_not_disabled",
+    "assert_nulldummy",
+    "assert_nullfail",
+    "assert_pub_key_num",
+    "assert_signature_num",
     "calculate_script_code",
-    "check_not_disabled",
-    "check_nulldummy",
-    "check_nullfail",
     "check_pub_key",
-    "check_pub_key_num",
-    "check_signature_num",
     "dsa_verify",
     "find_and_delete",
     "fix_signature",
@@ -294,7 +294,7 @@ def op_code_name(op_code: int) -> str:
     return OP_CODE_NAME_FROM_INT[op_code]
 
 
-def check_nullfail(
+def assert_nullfail(
     flags: ScriptFlag, verified: bool, signatures: list[bytes], op: str
 ) -> None:
     """Reject a signature that failed to verify and was not empty."""
@@ -302,13 +302,13 @@ def check_nullfail(
         raise BTClibValueError(f"non-empty signature for a failed {op}")
 
 
-def check_nulldummy(dummy: bytes, flags: ScriptFlag) -> None:
+def assert_nulldummy(dummy: bytes, flags: ScriptFlag) -> None:
     """Reject a non-empty dummy, the element OP_CHECKMULTISIG pops too many."""
     if dummy != b"" and ScriptFlag.NULLDUMMY in flags:
         raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
 
 
-def check_pub_key_num(pub_key_num: int) -> None:
+def assert_pub_key_num(pub_key_num: int) -> None:
     """Reject a public key count outside 0..20, before the keys are read.
 
     Core's SCRIPT_ERR_PUBKEY_COUNT, and the lower bound is the half that
@@ -322,7 +322,7 @@ def check_pub_key_num(pub_key_num: int) -> None:
         raise BTClibValueError(f"invalid number of public keys: {pub_key_num}")
 
 
-def check_signature_num(signature_num: int, pub_key_num: int) -> None:
+def assert_signature_num(signature_num: int, pub_key_num: int) -> None:
     """Reject a signature count outside 0..pub_key_num.
 
     Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
@@ -393,7 +393,7 @@ DISABLED_OP_CODES = frozenset(
 )
 
 
-def check_not_disabled(op_code: int) -> None:
+def assert_not_disabled(op_code: int) -> None:
     """Reject an op code disabled by CVE-2010-5137, executed or not."""
     if op_code in DISABLED_OP_CODES:
         raise BTClibValueError(f"disabled op code: {op_code_name(op_code)}")
@@ -511,7 +511,7 @@ def _run_ops(  # noqa: C901, PLR0912
         script_index += 1
         script_index_ref[0] = script_index
 
-        script_op_codes.check_stack_size(stack, altstack)
+        script_op_codes.assert_stack_size(stack, altstack)
 
         skip_execution = not all(condition_stack)
 
@@ -528,7 +528,7 @@ def _run_ops(  # noqa: C901, PLR0912
         if t > 96:  # OP_16
             op_code_num = script_op_count(op_code_num, 1)
 
-        check_not_disabled(t)
+        assert_not_disabled(t)
 
         if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
             continue
@@ -551,7 +551,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 precomputed,
                 hash_types,
             )
-            check_nullfail(flags, result, [signature], "OP_CHECKSIG")
+            assert_nullfail(flags, result, [signature], "OP_CHECKSIG")
             stack.append(encode_num(int(result)))
 
         elif op == "OP_CHECKMULTISIG":
@@ -559,14 +559,14 @@ def _run_ops(  # noqa: C901, PLR0912
             # counts safe to build a `range` out of: each is bounded
             # before anything is popped with it
             pub_key_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-            check_pub_key_num(pub_key_num)
+            assert_pub_key_num(pub_key_num)
             op_code_num = script_op_count(op_code_num, pub_key_num)
             pub_keys = [stack.pop() for _ in range(pub_key_num)]
             signature_num = _to_num(stack.pop(), flags, _MAX_NUM_SIZE)
-            check_signature_num(signature_num, pub_key_num)
+            assert_signature_num(signature_num, pub_key_num)
             signatures = [stack.pop() for _ in range(signature_num)]
 
-            check_nulldummy(stack.pop(), flags)  # dummy value
+            assert_nulldummy(stack.pop(), flags)  # dummy value
             signature_index = 0
             for pub_key_index in range(pub_key_num):
                 if signature_index == signature_num:
@@ -593,7 +593,7 @@ def _run_ops(  # noqa: C901, PLR0912
             if signature_index == signature_num:
                 stack.append(b"\x01")
             else:
-                check_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
+                assert_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
                 stack.append(b"")
 
         elif op == "OP_CHECKLOCKTIMEVERIFY":
@@ -705,8 +705,8 @@ def verify_script(
         # exception is there for the cases in which it is not
         raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
 
-    script_op_codes.check_stack_size(stack, altstack)
-    script_op_codes.check_balanced_if(condition_stack)
+    script_op_codes.assert_stack_size(stack, altstack)
+    script_op_codes.assert_balanced_if(condition_stack)
 
     if final:
         if not stack:

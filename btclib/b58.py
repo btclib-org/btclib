@@ -131,17 +131,16 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 def _address_from_v0_witness(wit_prg: Octets, network: str) -> str:
     """Return the legacy base58 p2sh-wrapped segwit v0 address."""
-    # check witness program
-    wit_prg = b32.check_witness(0, wit_prg)
+    wit_prg = b32.bytes_from_witness_program(0, wit_prg)
     # the redeem script is [OP_0, wit_prg], spelled out here instead of
     # asking script.serialize for it: this module must not import
     # btclib.script, because script.script_pub_key imports this one to
     # render an address, and importing any script submodule executes the
     # package __init__, which pulls script_pub_key in — so the import
     # would close a cycle (issue #147).
-    # check_witness has just restricted a v0 program to 20 or 32 bytes,
-    # and serialize pushes anything shorter than 76 bytes with a bare
-    # length byte, so no OP_PUSHDATA can be needed here
+    # bytes_from_witness_program has just restricted a v0 program to 20 or
+    # 32 bytes, and serialize pushes anything shorter than 76 bytes with a
+    # bare length byte, so no OP_PUSHDATA can be needed here
     redeem_script = b"\x00" + len(wit_prg).to_bytes(1, "big") + wit_prg
     return p2sh(redeem_script, network)
 

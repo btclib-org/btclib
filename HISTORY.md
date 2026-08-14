@@ -20,6 +20,26 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **eleven `check_*` functions are renamed, and the prefix means one
+  thing.** It meant four at once: nine refusals returning `None`, two
+  bool verdicts, a converter returning bytes and a query returning a
+  pair of bools. The nine are `assert_*` now --
+  `assert_nullfail`, `assert_nulldummy`, `assert_pub_key_num`,
+  `assert_signature_num`, `assert_not_disabled`, `assert_stack_size`,
+  `assert_minimal_push`, `assert_balanced_if` and
+  `assert_psbt_signer` -- `b32.check_witness` is
+  `b32.bytes_from_witness_program`, and
+  `psbt_signer_contract.check_optional_protocols` is
+  `optional_protocols`. What keeps the prefix is the two that answer a
+  bool *and* refuse what cannot be an answer:
+  `script.engine.script.check_pub_key` and
+  `script.taproot.check_output_pubkey`.
+
+  An import of any of the eleven old names is an `ImportError`, and the
+  new name is a rename with no change of signature or behaviour.
+  `tests/name_contract_test.py` is the gate that keeps the four prefixes
+  meaning what CONTRIBUTING.md says they mean.
+
 - **a verification refuses a type it does not declare, where it used to
   answer `False`.** `dsa.verify` takes a `PubKey` -- bytes, a hex
   string, a `BIP32KeyData` or a `Point` -- and an int is none of those:

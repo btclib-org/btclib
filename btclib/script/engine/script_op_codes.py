@@ -36,9 +36,9 @@ from btclib.utils import decode_num, encode_num
 
 __all__ = [
     "ScriptOp",
-    "check_balanced_if",
-    "check_minimal_push",
-    "check_stack_size",
+    "assert_balanced_if",
+    "assert_minimal_push",
+    "assert_stack_size",
     "op_0notequal",
     "op_1add",
     "op_1negate",
@@ -150,7 +150,7 @@ ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]
 # places and the minimal push in two, in identical words.
 
 
-def check_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
+def assert_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
     """Enforce Core's MAX_STACK_SIZE on the two stacks together."""
     if len(stack) + len(altstack) > MAX_STACK_SIZE:
         raise BTClibValueError(
@@ -158,7 +158,7 @@ def check_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
         )
 
 
-def check_minimal_push(
+def assert_minimal_push(
     data: bytes,
     op_code: int,
     flags: ScriptFlag,
@@ -196,7 +196,7 @@ def read_push_data(
     The read comes before the skip: the stream must advance past the
     data whether or not the branch executes, and only what executes is
     measured for minimality and pushed. The serializer is a parameter
-    for check_minimal_push's reason, each engine measuring a push
+    for assert_minimal_push's reason, each engine measuring a push
     against its own script language.
 
     The two refusals are Core's, at the top of its EvalScript loop and
@@ -231,7 +231,7 @@ def read_push_data(
         raise BTClibValueError(err_msg)
     if skip_execution:
         return
-    check_minimal_push(data, op_code, flags, serialize)
+    assert_minimal_push(data, op_code, flags, serialize)
     stack.append(data)
 
 
@@ -317,7 +317,7 @@ def op_endif(condition_stack: list[bool]) -> None:
     condition_stack.pop()
 
 
-def check_balanced_if(condition_stack: list[bool]) -> None:
+def assert_balanced_if(condition_stack: list[bool]) -> None:
     """Reject a conditional the script never closed.
 
     Core's `if (!vfExec.empty())` once the loop is over, and it is one of
