@@ -244,7 +244,7 @@ class Block:
             check_validity=check_validity,
         )
 
-    def has_segwit_tx(self) -> bool:
+    def is_segwit(self) -> bool:
         """Answer whether any transaction carries a witness."""
         return any(tx.is_segwit() for tx in self.transactions)
 
@@ -386,7 +386,7 @@ class Block:
         witnesses of a block can be replaced wholesale, header and root
         untouched, and the signatures they carry are worth nothing.
         """
-        if not self.has_segwit_tx():
+        if not self.is_segwit():
             # Nothing to commit to, and nothing to check it against: this
             # is a block as a legacy node sees it, witnesses stripped by
             # the serialization, which btclib parses and this library
@@ -442,7 +442,7 @@ class Block:
         `bip34_commitment` is what the comparison is against.
 
         Which height, and whether BIP34 is in force at all, are the
-        caller's to say: the second is `BlockContext.bip34_active`, and
+        caller's to say: the second is `BlockContext.is_bip34_active`, and
         `assert_valid_contextual` is what applies it. Nothing is skipped
         here, so a caller that knows the rule binds can ask for it
         directly -- which is the only way to ask it of a block whose
@@ -487,7 +487,7 @@ class Block:
 
         self.header.assert_valid_time(context.now)
 
-        if context.bip34_active:
+        if context.is_bip34_active:
             self.assert_valid_coinbase_height(context.height)
 
     def assert_valid(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:

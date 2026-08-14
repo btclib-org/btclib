@@ -624,7 +624,7 @@ class ScriptPubKey(Script):
     @classmethod
     def from_address(cls, addr: String, *, check_validity: bool = True) -> ScriptPubKey:
         """Return the ScriptPubKey of the input bech32/base58 address."""
-        if b32.has_segwit_prefix(addr):
+        if b32.is_segwit_prefixed(addr):
             wit_ver, wit_prg, network = b32.witness_from_address(addr)
             return cls(
                 serialize([op_int(wit_ver), wit_prg]),

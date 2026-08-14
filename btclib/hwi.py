@@ -56,7 +56,7 @@ that is not about a device -- the executable is not installed -- is the
 `SignerNotFoundError` subclass, so that a caller which also offers
 signers of other kinds can tell "no hardware here" from "the hardware
 could not be reached" without matching on the text of a message.
-`available` is that one question asked *before* anything is run, which is
+`is_available` is that one question asked *before* anything is run, which is
 when a caller deciding what to offer at all has to have the answer: a
 refusal is the right answer to a question that was asked, and the wrong
 way to find out there was nothing to ask.
@@ -122,12 +122,12 @@ __all__ = [
     "NO_CAPABILITIES",
     "HwiDevice",
     "HwiSigner",
-    "available",
     "enumerate_devices",
+    "is_available",
 ]
 
 # the command HWI publishes, and the one name for it here: what
-# `available` looks for on the PATH and what every command runs are the
+# `is_available` looks for on the PATH and what every command runs are the
 # same string, so that "it is not installed" and "it is installed" cannot
 # be answers about two different executables
 DEFAULT_EXECUTABLE = "hwi"
@@ -204,7 +204,7 @@ def _executable(executable: str | Sequence[str]) -> list[str]:
     return [executable] if isinstance(executable, str) else list(executable)
 
 
-def available(executable: str | Sequence[str] = DEFAULT_EXECUTABLE) -> bool:
+def is_available(executable: str | Sequence[str] = DEFAULT_EXECUTABLE) -> bool:
     """Whether the command line this module runs is there to be run.
 
     Asked before running it, rather than read off a failure afterwards. A

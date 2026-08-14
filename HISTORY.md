@@ -20,6 +20,22 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **seven public `bool` names carry a prefix now.**
+  `b32.has_segwit_prefix` is `b32.is_segwit_prefixed`,
+  `BlockContext.bip34_active` is `is_bip34_active`,
+  `Block.has_segwit_tx` is `Block.is_segwit`,
+  `Miniscript.within_resource_limits` is `is_within_resource_limits`,
+  `Miniscript.needs_signature` is `is_signature_required`,
+  `CurveGroup.jac_equality` is `is_jac_equal`, and `hwi.available` is
+  `hwi.is_available`. Old name, `AttributeError` or `ImportError`; new
+  name, same answer, no change of signature or behaviour.
+
+  Six other bools keep an English name — `Psbt.inputs_modifiable`,
+  `Psbt.outputs_modifiable`, `Psbt.has_sig_hash_single`,
+  `Miniscript.mixes_timelocks`, `Miniscript.has_duplicate_keys` and
+  `miniscript.reads_back` — where the name is the standard's and a prefix
+  would cost the reading. Those are unchanged.
+
 - **`dsa.verify` answers False for a message that is not octets, where
   it raised.** It reduced the message with `hf` before the `try`, so a
   hex string that is not hex was a `BTClibValueError` where `verify_`,

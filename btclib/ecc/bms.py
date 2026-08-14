@@ -116,7 +116,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 
 from btclib.alias import BinaryData, Octets, String
-from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
+from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
 from btclib.curves import bytes_from_point, bytes_from_prv_key_int, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
@@ -409,7 +409,7 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     # carries the recovery-flag range that belongs to its type: the flag
     # is what the signer said the address was, so a flag outside the range
     # is a signature for a different address type
-    if has_segwit_prefix(addr):
+    if is_segwit_prefixed(addr):
         _assert_p2wpkh(addr, sig.rf, pub_key)
         return
 

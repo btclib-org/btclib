@@ -70,7 +70,7 @@ class BlockContext:
     bip34_height: int = BIP34_HEIGHT
 
     @property
-    def bip34_active(self) -> bool:
+    def is_bip34_active(self) -> bool:
         """Whether the coinbase must commit to the height (BIP34).
 
         Core's `DeploymentActiveAfter(pindexPrev, DEPLOYMENT_HEIGHTINCB)`,

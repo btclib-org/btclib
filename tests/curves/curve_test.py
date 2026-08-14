@@ -344,22 +344,22 @@ def test_add_double_jac() -> None:
     """Test self-consistency of add and double in Jacobian coordinates."""
     for ec in all_curves.values():
         # add G and the infinity point
-        assert ec.jac_equality(ec.add_jac(ec.GJ, INFJ), ec.GJ)
-        assert ec.jac_equality(ec.add_jac(INFJ, ec.GJ), ec.GJ)
+        assert ec.is_jac_equal(ec.add_jac(ec.GJ, INFJ), ec.GJ)
+        assert ec.is_jac_equal(ec.add_jac(INFJ, ec.GJ), ec.GJ)
 
         # double G
         GJ2 = ec.add_jac(ec.GJ, ec.GJ)
-        assert ec.jac_equality(GJ2, ec.double_jac(ec.GJ))
+        assert ec.is_jac_equal(GJ2, ec.double_jac(ec.GJ))
 
         # double INF
-        assert ec.jac_equality(ec.add_jac(INFJ, INFJ), INFJ)
-        assert ec.jac_equality(ec.double_jac(INFJ), INFJ)
+        assert ec.is_jac_equal(ec.add_jac(INFJ, INFJ), INFJ)
+        assert ec.is_jac_equal(ec.double_jac(INFJ), INFJ)
 
         # add G and minus G
-        assert ec.jac_equality(ec.add_jac(ec.GJ, ec.negate_jac(ec.GJ)), INFJ)
+        assert ec.is_jac_equal(ec.add_jac(ec.GJ, ec.negate_jac(ec.GJ)), INFJ)
 
         # add INF and "minus" INF
-        assert ec.jac_equality(ec.add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
+        assert ec.is_jac_equal(ec.add_jac(INFJ, ec.negate_jac(INFJ)), INFJ)
 
 
 def test_add_double_aff_jac() -> None:
@@ -379,7 +379,7 @@ def test_add_double_aff_jac() -> None:
         RJ = ec.double_jac(QJ)
         assert ec.aff_from_jac(RJ) == R
         assert ec.add_aff(Q, Q) == R
-        assert ec.jac_equality(RJ, ec.add_jac(QJ, QJ))
+        assert ec.is_jac_equal(RJ, ec.add_jac(QJ, QJ))
 
 
 def _textbook_add(ec: CurveGroup, P: Point | None, Q: Point | None) -> Point | None:
@@ -411,7 +411,7 @@ def _jac_spellings(ec: CurveGroup, P: Point | None) -> list[JacPoint]:
     add_jac compares coordinates that only a common frame makes
     comparable, so one frame would not exercise the comparison. Infinity
     is any Z == 0 triple: the INFJ constant, what `_jac_from_aff` turns
-    the affine INF into, and the all-zero triple that `jac_equality`
+    the affine INF into, and the all-zero triple that `is_jac_equal`
     reads as equal to everything.
     """
     if P is None:
@@ -786,7 +786,7 @@ def test_negate() -> None:
         # Jacobian coordinates
         QJ = _jac_from_aff(Q)
         minus_QJ = ec.negate_jac(QJ)
-        assert ec.jac_equality(ec.add_jac(QJ, minus_QJ), INFJ)
+        assert ec.is_jac_equal(ec.add_jac(QJ, minus_QJ), INFJ)
 
         # negate of INF is INF
         minus_INF = ec.negate(INF)
@@ -794,7 +794,7 @@ def test_negate() -> None:
 
         # negate of INFJ is INFJ
         minus_INFJ = ec.negate_jac(INFJ)
-        assert ec.jac_equality(minus_INFJ, INFJ)
+        assert ec.is_jac_equal(minus_INFJ, INFJ)
 
         with pytest.raises(BTClibTypeError, match="not a point"):
             ec.negate(ec.GJ)  # type: ignore[arg-type]
