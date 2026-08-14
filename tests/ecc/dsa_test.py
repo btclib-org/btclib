@@ -217,6 +217,47 @@ def test_gec() -> None:
     assert dsa.verify(msg, QU, sig, hf)
 
 
+def _step_1_6_1(c: int, r: int, s: int, ec: Curve) -> list[Point | None]:
+    """Return SEC 1 v.2 step 1.6.1's candidate per key_id, None where none.
+
+    The step written out with the curve's affine arithmetic, as the
+    independent opinion `_recover_pub_key_` is held against: a candidate is
+    r^-1*(s*K - c*G) over the lift of x_K = r + j*ec.n, and None where that
+    x_K is no field element, or no x-coordinate of the curve, or where the
+    sum is INF. On a curve of prime order those three are the whole of what
+    step 1.6 refuses, which is what issue 890 turns on, so this list less
+    its Nones is what the enumeration has to answer.
+    """
+    candidates: list[Point | None] = []
+    r_1 = mod_inv_var(r, ec.n)
+    for key_id in range(2 * (ec.cofactor + 1)):
+        x_K = r + (key_id >> 1) * ec.n
+        if ec.cofactor == 1:
+            if x_K >= ec.p:  # the screen, where the implementation screens
+                candidates.append(None)
+                continue
+        else:  # and the reduction where it reduces
+            x_K %= ec.p
+        try:
+            y = ec.y_even_var(x_K)
+        except BTClibValueError:
+            candidates.append(None)
+            continue
+        K = x_K, ec.p - y if key_id & 0b01 else y
+        Q = ec.add_var(mult(r_1 * s % ec.n, K, ec), mult(-r_1 * c % ec.n, ec.G, ec))
+        candidates.append(None if Q == INF else Q)
+    return candidates
+
+
+def _verifies(c: int, Q: Point, r: int, s: int, ec: Curve) -> bool:
+    """Answer whether Q verifies (r, s), which is step 1.6.2 as a boolean."""
+    try:
+        dsa._assert_as_valid_(c, (Q[0], Q[1], 1), r, s, ec, lower_s=False)
+    except (BTClibValueError, BTClibRuntimeError):
+        return False
+    return True
+
+
 @pytest.mark.parametrize("name", list(low_card_curves))
 def test_low_cardinality(name: str) -> None:
     """Exercise every low-cardinality curve in its own exhaustive test case."""
@@ -249,7 +290,23 @@ def test_low_cardinality(name: str) -> None:
                     jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=lower_s)
                     Qs = [ec.aff_from_jac_var(key) for key in jac_keys]
                     assert ec.aff_from_jac_var(QJ) in Qs
-                    assert len(jac_keys) in {2, 4}
+                    # every key it answers is a key, where the INF the list
+                    # used to carry is none: with Q at infinity the
+                    # verification of step 1.6.2 passes vacuously, so the
+                    # pair can be a single key and the count is not the
+                    # assertion (issue 890)
+                    assert INF not in Qs
+                    # and the list is exactly step 1.6.1's candidates, less
+                    # what step 1.6 refuses: on a curve of prime order that
+                    # is the screen and the infinity test alone, and above
+                    # cofactor 1 the verification as well, a lift there
+                    # landing outside the prime-order subgroup
+                    candidates = [Q_ for Q_ in _step_1_6_1(e, r, s, ec) if Q_]
+                    if ec.cofactor > 1:
+                        candidates = [
+                            Q_ for Q_ in candidates if _verifies(e, Q_, r, s, ec)
+                        ]
+                    assert Qs == candidates
 
 
 def test_pub_key_recovery() -> None:
@@ -1083,7 +1140,11 @@ def test_the_enumeration_asks_for_the_j_one_candidates(
     equation by construction. What it pins is that the four `recover` calls
     ask for the same candidates as the Python loop, in the same order, and
     drop the same ones -- on the two key_ids the bindings and the Python
-    path arrive at differently, `recid & 2` against `(r + j*ec.n) % ec.p`.
+    path arrive at differently, `recid & 2` against the screen on
+    x_K = r + j*ec.n. Both r are small enough for that screen to admit the
+    j = 1 pair, which is the point of fabricating one: no signature has an
+    r that low, and the screen is the whole of what the two paths have to
+    agree about there (issue 891).
     """
     msg_hash = reduce_to_hlen(b"Satoshi Nakamoto")
     sig = dsa.Sig(r, 12345)
@@ -1100,6 +1161,47 @@ def test_the_enumeration_asks_for_the_j_one_candidates(
         assert dsa.recover_pub_keys_(msg_hash, sig) == keys
         no_bindings(patch)
         assert dsa.recover_pub_keys_(msg_hash, sig) == keys
+
+
+def test_the_recovered_key_can_be_infinity_and_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Q = r^-1*(s*K - c*G) is INF whenever s*K == c*G, and INF is no key.
+
+    Step 1.6.2's verification does not catch it, which is why the infinity
+    test that replaced it is not a shortcut's price but its gain (issue
+    890): with Q at infinity the recomputed K' is the lift itself, so the
+    congruence x_K % ec.n == r passes and the enumeration reported the INF
+    as a recovered key -- (5, 0) once converted, which is btclib's sentinel
+    for infinity and no public key at all. `ssa._recover_pub_key_` has
+    always refused its own, for this same reason.
+
+    Reached through the public spelling and not the private one: with s = 1
+    the condition is K == c*G, so r is that point's x-coordinate and the
+    key_id its parity. sha512 is what sends the recovery down the Python
+    path on secp256k1 -- the bindings cannot answer INF, a libsecp256k1
+    public key being a point of the curve -- and the fully Python
+    arithmetic under it answers the same, as it does for BIP340.
+    """
+    ec = secp256k1
+    msg_hash = reduce_to_hlen(b"Satoshi Nakamoto", sha512)
+    c = challenge_(msg_hash, ec, sha512)
+    K = mult(c, ec.G, ec)
+    sig = dsa.Sig(K[0], 1)
+    key_id = K[1] & 0b01
+
+    err_msg = r"invalid \(INF\) key"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        dsa.recover_pub_key_(key_id, msg_hash, sig, sha512)
+    keys = dsa.recover_pub_keys_(msg_hash, sig, sha512)
+    assert keys
+    assert INF not in keys
+
+    with monkeypatch.context() as patch:
+        no_bindings(patch)
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            dsa.recover_pub_key_(key_id, msg_hash, sig, sha512)
+        assert dsa.recover_pub_keys_(msg_hash, sig, sha512) == keys
 
 
 def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point) -> int:
@@ -1218,13 +1320,12 @@ def test_recover_pub_key_dispatches_to_the_bindings_for_0_to_3_only() -> None:
     """The bindings take a recovery id of 0, 1, 2 or 3, and nothing wider.
 
     A key_id outside that range has to reach the Python path instead,
-    which answers in its own words rather than the bindings': recovering
-    a candidate that does not verify (public key recovery failed) or
-    finding no candidate at all congruent to r (signature verification
-    failed) -- neither of them the bindings' own "the recovery id must
-    be 0, 1, 2, or 3", which is what a widened or narrowed guard sends a
-    boundary value to instead. Four key_ids, one per boundary the six
-    ways this guard survived moved.
+    which answers in its own words rather than the bindings': its own
+    screen on x_K = r + j*ec.n, which is no field element for a j of -1
+    or 2 (issue 891) -- not the bindings' "the recovery id must be 0, 1,
+    2, or 3", which is what a widened or narrowed guard sends a boundary
+    value to instead. Four key_ids, one per boundary the six ways this
+    guard survived moved.
     """
     q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCD
     # grind=False: this signature is the fixture, chosen for the four
@@ -1233,10 +1334,10 @@ def test_recover_pub_key_dispatches_to_the_bindings_for_0_to_3_only() -> None:
     msg_hash = b"\x00" * 32
 
     cases = {
-        -1: (BTClibRuntimeError, "signature verification failed"),
+        -1: (BTClibValueError, r"invalid key_id \(-1\)"),
         2: (BTClibValueError, "public key recovery failed"),
         3: (BTClibValueError, "public key recovery failed"),
-        4: (BTClibRuntimeError, "signature verification failed"),
+        4: (BTClibValueError, r"invalid key_id \(4\)"),
     }
     for key_id, (exc, err_msg) in cases.items():
         with pytest.raises(exc, match=err_msg):
