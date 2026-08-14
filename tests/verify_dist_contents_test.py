@@ -210,7 +210,7 @@ def test_a_missing_wheel_member_is_named(
     [
         ((".editorconfig",), (), (), "is a root file the sdist does not ship"),
         (
-            ("benchmarks/timing.py",),
+            ("examples/demo.py",),
             (),
             (),
             "is not under one of the directories the sdist ships",
@@ -257,7 +257,7 @@ def test_a_planted_sdist_member_is_named(
 @pytest.mark.parametrize(
     "directory, expected",
     [
-        ("benchmarks", "is a directory the sdist does not ship"),
+        ("examples", "is a directory the sdist does not ship"),
         # the one case the forbidden suffixes do not reach: an empty
         # bytecode directory is a directory member and no `.pyc`
         ("btclib/__pycache__", "is under __pycache__"),

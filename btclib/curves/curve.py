@@ -398,9 +398,8 @@ secp256k1 = CURVES["secp256k1"]
 # silence wherever it forgets one, and times C while calling it Python.
 #
 # btclib_secp256k1 is a required dependency, so this is never False
-# because the bindings are missing. It is the seam the test suite closes
-# to exercise the Python arithmetic, and the one btclib-benchmarks closes
-# to time it
+# because the bindings are missing: it is the seam whatever wants the
+# Python arithmetic closes to reach it, the test suite included
 _libsecp256k1_available = True
 
 
