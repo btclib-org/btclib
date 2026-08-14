@@ -14,7 +14,7 @@ from btclib.curves import Curve, CurveGroup, find_all_points, secp256k1
 
 # the mult_* variants under test, and the helpers they are built on, come
 # from the module that defines them: btclib.curves exports mult,
-# double_mult and multi_mult, not a menu of implementations
+# double_mult_var and multi_mult_var, not a menu of implementations
 from btclib.curves.curve_group import (
     _MULTI_MULT_W,
     BOS_COSTER_THRESHOLD,
@@ -858,7 +858,7 @@ def test_multi_mult_dispatch() -> None:
         with pytest.raises(BTClibValueError, match="negative coefficient: "):
             _multi_mult_var([-1, *scalars[1:]], points, ec)
 
-    with pytest.raises(BTClibValueError, match="not a multi_mult"):
+    with pytest.raises(BTClibValueError, match="not a multi_mult_var"):
         _multi_mult_var([1], [ec.GJ], ec)
 
 

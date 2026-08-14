@@ -1417,6 +1417,78 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The ECDSA nonce is inverted blinded**, and `number_theory.mod_inv`
+  is now that blinded inverse, `dsa`'s signing being its one caller in
+  the library. The extended Euclid it used to be is `mod_inv_var`, under
+  the naming rule below. CPython's `long_invmod` takes the iterations its
+  operand asks for, so inverting the nonce with it timed the signature on
+  the nonce's bit-length: measured on
+  secp256k1's order over random scalars of each length, 8.8 us for a
+  256-bit one against 4.3 for a 128-bit one, falling at every step in
+  between. That correlation is what the Minerva attack (Jancar et al.,
+  CHES 2020) collects from signing times and hands to a lattice.
+
+  It was the only one of its shape left, which is what makes it worth
+  closing rather than adding to the list `SECURITY.md` publishes.
+  Measured the same way, with the bindings switched off so the Python
+  arithmetic answers a secp256k1 signature: `mult(k, G)` spreads 1.5%
+  across nonces from 256 bits down to 128 and `mult(k, Q)` 0.5%, against
+  a 2.2% noise floor and neither of them monotone — the regular
+  recodings of issue #254 and the projective blinding of issue #805
+  hold. The plain inverse spread 2.06x over the same range, monotone at
+  every step, and a census of the package found it the one place a
+  secret is inverted at all: `dsa`'s `r` and `s`, `ssa`'s challenge and
+  every Jacobian `Z` are public or already randomized.
+
+  `(b*a)^-1 * b` is `a^-1` for any invertible `b`, so a random factor
+  leaves the Euclid's iteration count following the factor: 1.02x across
+  the same operands, for 1.11x on the inverse — two multiplications, two
+  reductions and a draw from `secrets`, which is what costs. On the
+  signature that inverse sits in it is 1.5%, measured over 30 random
+  nonces on secp256k1 and secp256r1 with the bindings off. Fermat's
+  `pow(a, n - 2, n)` is the alternative and is flat for a different
+  reason, its ladder running on the fixed exponent, but costs 8.38x the
+  Euclid; the same figure is why `mod_inv_var` does not spell Fermat
+  either (issue #807).
+
+  A small modulus pays the draw against a Euclid of a few iterations, so
+  the ratio there is 4.8x on an order of 11 — the low-cardinality curves
+  of the test suite, which is the only place such an order signs.
+
+  Not a constant-time inverse, and `CONTRIBUTING.md` says what a name
+  here does promise: three tiers, of which only libsecp256k1's is
+  constant-time, with regular and blinded the second. What the blinding
+  does not touch is the rest of what `SECURITY.md` lists — a table is
+  still indexed by a secret digit, and that is out of reach from
+  bytecode.
+
+- **A `_var` suffix now marks any function whose operand decides the
+  work**, not only a scalar multiplication, and the plain name beside it
+  is the one a secret may be handed. It is libsecp256k1's own scope for
+  the convention — `secp256k1_scalar_inverse_var` sits beside
+  `secp256k1_scalar_inverse`, and even its Jacobi symbol is
+  `secp256k1_jacobi64_maybe_var` — where btclib had narrowed it to the
+  private multiplications and left a public surface that was
+  variable-time without saying so.
+
+  Renamed, each because it was measured to earn the suffix, over random
+  operands from 256 bits down to 64: `mod_inv_var` (4.21x),
+  `xgcd_var` (4.84x), `legendre_symbol_var` (4.26x),
+  `mod_inv_batch_var` (2.01x), `tonelli_var` (1.54x, spread within one
+  operand size rather than across sizes, Tonelli-Shanks iterating on the
+  value), `mod_sqrt_var`, `double_mult_var` and `multi_mult_var`.
+  `mod_sqrt_var` is the one that measures flat, 1.01x, for the `p` of 3
+  mod 4 every catalogued curve has — one exponentiation with a fixed
+  exponent — and carries the suffix because the caller picks the `p` and
+  a 1 mod 4 one reaches `tonelli_var`.
+
+  `mult` keeps its plain name: its two arms are the regular window and
+  the fixed-base ladder, whose additions are the same for every scalar,
+  which is what `double_mult_var` and `multi_mult_var` are not — those
+  are wNAF and Bos-Coster, whose shape is the coefficients. In every
+  btclib caller those coefficients are a signature and a message hash,
+  which is why the suffix is a label and not a defect.
+
 - **`mod_inv` delegates its extended Euclid to CPython** (issue #779).
   `pow(a, -1, m)` is `long_invmod`, the same algorithm `xgcd` runs with
   the second cofactor dropped -- CPython carries that loop as a comment

@@ -463,7 +463,7 @@ def pub_key_sum(pub_keys: Sequence[PubKey]) -> Point:
     sequence is the same answer, and is what a transaction of nothing but
     skipped inputs sums to.
 
-    Added one at a time rather than through `multi_mult`: an intermediate
+    Added one at a time rather than through `multi_mult_var`: an intermediate
     sum at infinity is a BIP352 vector, and infinity is exactly what
     libsecp256k1 has no public key for.
     """

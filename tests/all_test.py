@@ -333,11 +333,11 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         "CurveGroup",
         "bytes_from_point",
         "bytes_from_prv_key_int",
-        "double_mult",
+        "double_mult_var",
         "find_all_points",
         "find_subgroup_points",
         "mult",
-        "multi_mult",
+        "multi_mult_var",
         "point_from_octets",
         "secp256k1",
     ]

@@ -279,7 +279,7 @@ def test_public_key_validation_does_not_lift(
     square root that found it was paid once per extended key -- so by
     every level of every derivation path (issue 615). What pins the
     predicate in place of the lift is reaching no square root at all,
-    not a stopwatch: mod_sqrt is patched to raise, and the accepted key
+    not a stopwatch: mod_sqrt_var is patched to raise, and the accepted key
     and the refused one both have to get their answer without it.
     """
 
@@ -290,7 +290,7 @@ def test_public_key_validation_does_not_lift(
             "the y of an extended public key was computed"
         )
 
-    monkeypatch.setattr(curve_group, "mod_sqrt", refuse)
+    monkeypatch.setattr(curve_group, "mod_sqrt_var", refuse)
 
     xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     assert BIP32KeyData.b58decode(xpub).b58encode() == xpub

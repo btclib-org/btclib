@@ -54,7 +54,7 @@ from btclib.curves.curve import (
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.number_theory import mod_inv, mod_sqrt
+from btclib.number_theory import mod_inv_var, mod_sqrt_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
@@ -91,25 +91,25 @@ def _constants(ec: Curve) -> tuple[int, int]:
             raise BTClibValueError(err_msg)
         # -3 is a square whenever p == 1 mod 3, which every a == 0 curve
         # fit to carry a key is: the others have p+1 points, x -> x^3
-        # being a bijection there, and mod_sqrt refuses them by itself
-        _CONSTANTS[ec] = mod_sqrt(-3 % ec.p, ec.p), mod_inv(2, ec.p)
+        # being a bijection there, and mod_sqrt_var refuses them by itself
+        _CONSTANTS[ec] = mod_sqrt_var(-3 % ec.p, ec.p), mod_inv_var(2, ec.p)
     return _CONSTANTS[ec]
 
 
 def _try_sqrt(a: int, p: int) -> int | None:
     """Return a square root of a mod p, or None when a is not a square.
 
-    mod_sqrt raises instead, which is the wrong shape for the map: a
+    mod_sqrt_var raises instead, which is the wrong shape for the map: a
     non-square is one of the branches, taken for about half the inputs,
     and not an error to phrase.
 
-    That refusal is the whole of the test, rather than a legendre_symbol
-    asked before it: mod_sqrt squares its candidate back to compare with
+    That refusal is the whole of the test, rather than a legendre_symbol_var
+    asked before it: mod_sqrt_var squares its candidate back to compare with
     a, which is the same question answered, and on a 256-bit prime the
     symbol is an exponentiation the size of the root's.
     """
     try:
-        return mod_sqrt(a, p)
+        return mod_sqrt_var(a, p)
     except BTClibValueError:
         return None
 
@@ -134,9 +134,9 @@ def _xswiftec(u: int, t: int, ec: Curve) -> int:
     # u^3 + t^2 + b == 0 would make X below zero, whose Y is not a point
     if (pow(u, 3, p) + t * t + ec._b) % p == 0:
         t = 2 * t % p
-    X = (pow(u, 3, p) + ec._b - t * t) * mod_inv(2 * t, p) % p
-    Y = (X + t) * mod_inv(minus_3_sqrt * u % p, p) % p
-    inv_Y = mod_inv(Y, p)
+    X = (pow(u, 3, p) + ec._b - t * t) * mod_inv_var(2 * t, p) % p
+    Y = (X + t) * mod_inv_var(minus_3_sqrt * u % p, p) % p
+    inv_Y = mod_inv_var(Y, p)
     # three candidates, in the order the specification gives them: the
     # first that is an x-coordinate is the answer, and one of them is
     for x in (
@@ -174,7 +174,7 @@ def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: 
         if _is_x_coordinate((-x - u) % p, ec):
             return None
         v = x
-        s = -(pow(u, 3, p) + b) * mod_inv((u * u + u * v + v * v) % p, p) % p
+        s = -(pow(u, 3, p) + b) * mod_inv_var((u * u + u * v + v * v) % p, p) % p
     else:
         s = (x - u) % p
         if s == 0:
@@ -186,7 +186,7 @@ def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: 
         # and only one of them is to return it
         if case & 1 and r == 0:
             return None
-        v = (-u + r * mod_inv(s, p)) * inv2 % p
+        v = (-u + r * mod_inv_var(s, p)) * inv2 % p
 
     w = _try_sqrt(s, p)
     if w is None:

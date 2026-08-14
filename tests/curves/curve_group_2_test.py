@@ -276,7 +276,7 @@ def test_double_mult_endomorphism_secp256k1() -> None:
             assert ec.is_jac_equal(dm(u, v, HJ, QJ, w), expected), (u, v, w)
 
     # infinity on either side, and the coefficient that contributes nothing:
-    # what `curves.double_mult` sends down this path on secp256k1, the
+    # what `curves.double_mult_var` sends down this path on secp256k1, the
     # bindings taking no zero scalar and no infinity
     for u, v in ((7, 5), (0, 5), (7, 0), (0, 0)):
         for H, Q in ((INFJ, QJ), (HJ, INFJ), (INFJ, INFJ)):

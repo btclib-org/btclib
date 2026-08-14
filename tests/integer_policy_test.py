@@ -40,7 +40,7 @@ from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
-from btclib.number_theory import mod_inv, mod_inv_batch
+from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets, encode_num, is_integer
@@ -118,10 +118,12 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
     ("bech32 5-bit value", lambda v: bech32.encode("bc", [v])),
     ("word-list index", lambda v: bin_str_entropy_from_wordlist_indexes([v], 2048)),
-    ("modular operand", lambda v: mod_inv(v, 7)),
-    ("modulus", lambda v: mod_inv(3, v)),
-    ("modular operand in a batch", lambda v: mod_inv_batch([3, v], 7)),
-    ("modulus of a batch", lambda v: mod_inv_batch([3], v)),
+    ("modular operand", lambda v: mod_inv_var(v, 7)),
+    ("modulus", lambda v: mod_inv_var(3, v)),
+    ("blinded modular operand", lambda v: mod_inv(v, 7)),
+    ("blinded modulus", lambda v: mod_inv(3, v)),
+    ("modular operand in a batch", lambda v: mod_inv_batch_var([3, v], 7)),
+    ("modulus of a batch", lambda v: mod_inv_batch_var([3], v)),
     ("taproot leaf index", lambda v: input_script_sig(None, _SCRIPT_TREE, v)),
     (
         "sig_hash input index",
@@ -188,8 +190,9 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert var_int.parse(b"\x01", max_size=1) == 1
     assert bech32.encode("bc", [1]) == b"bc1pdg93mv"
     assert bin_str_entropy_from_wordlist_indexes([1], 2048) == "00000000001"
+    assert mod_inv_var(3, 7) == 5
     assert mod_inv(3, 7) == 5
-    assert mod_inv_batch([3, 2], 7) == [5, 4]
+    assert mod_inv_batch_var([3, 2], 7) == [5, 4]
     assert input_script_sig(None, _SCRIPT_TREE, 0)[0] == ["OP_1"]
     assert len(sig_hash.taproot(_tx(), 0, _PREVOUTS, 1, 0, b"", b"")) == 32
     assert encode_num(1) == b"\x01"

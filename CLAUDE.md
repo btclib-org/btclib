@@ -32,7 +32,7 @@ the `btclib_secp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
 `btclib/curves/` or `btclib/ecc/`:
 
-- `curves.curve.mult`, `double_mult` and `multi_mult` call the bindings
+- `curves.curve.mult`, `double_mult_var` and `multi_mult_var` call the bindings
   for secp256k1 and any point of it, a zero scalar and the point at
   infinity excepted: libsecp256k1 has no scalar for the one and no public
   key for the other, so those two — and a sum landing on infinity — are

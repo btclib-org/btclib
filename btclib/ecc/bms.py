@@ -393,7 +393,7 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     compressed = sig.rf > 30
     # signature is valid only if the provided address is matched, and an
     # address is a hash of the sec octets: no point is built here, the
-    # bindings answering the octets themselves -- which is the mod_inv of
+    # bindings answering the octets themselves -- which is the mod_inv_var of
     # an affine conversion not paid either. `verify` is 25 us against 2782,
     # the mean over 40 random keys, of which some 20 are the recovery
     # itself and 2.4 the r-congruence check of the Sig validation above

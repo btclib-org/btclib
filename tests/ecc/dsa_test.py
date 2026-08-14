@@ -17,7 +17,7 @@ from btclib.curves import (
     Curve,
     bytes_from_point,
     curve,
-    double_mult,
+    double_mult_var,
     mult,
     point_from_octets,
     secp256k1,
@@ -28,7 +28,7 @@ from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
-from btclib.number_theory import mod_inv
+from btclib.number_theory import mod_inv_var
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import load, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
@@ -227,7 +227,7 @@ def test_low_cardinality(name: str) -> None:
         for k in range(1, ec.n):  # all possible ephemeral keys
             RJ = _mult(k, ec.GJ, ec)
             r = ec.x_aff_from_jac(RJ) % ec.n
-            k_inv = mod_inv(k, ec.n)
+            k_inv = mod_inv_var(k, ec.n)
             for e in range(ec.n):  # all possible challenges
                 s = k_inv * (e + q * r) % ec.n
                 # bitcoin canonical 'low-s' encoding for ECDSA
@@ -291,7 +291,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                 if not ec.n < x_K < ec.p:  # else x_K is r itself
                     continue
                 r = x_K % ec.n
-                k_inv = mod_inv(k, ec.n)
+                k_inv = mod_inv_var(k, ec.n)
                 for e in range(ec.n):
                     s = k_inv * (e + q * r) % ec.n
                     if r == 0 or s == 0:
@@ -351,7 +351,7 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
             # possibility this curve has, and a swapped curve would have
             # skipped silently where this says so
             assert r
-            k_inv = mod_inv(k, ec.n)
+            k_inv = mod_inv_var(k, ec.n)
             for e in range(ec.n):
                 s = k_inv * (e + q * r) % ec.n
                 if s == 0:
@@ -422,9 +422,9 @@ def test_forge_hash_sig() -> None:
     # pick u1 and u2 at will
     u1 = 1
     u2 = 2
-    R = double_mult(u2, Q, u1, ec.G, ec)
+    R = double_mult_var(u2, Q, u1, ec.G, ec)
     r = R[0] % ec.n
-    u2inv = mod_inv(u2, ec.n)
+    u2inv = mod_inv_var(u2, ec.n)
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
@@ -433,9 +433,9 @@ def test_forge_hash_sig() -> None:
     # pick u1 and u2 at will
     u1 = 1234567890
     u2 = 987654321
-    R = double_mult(u2, Q, u1, ec.G, ec)
+    R = double_mult_var(u2, Q, u1, ec.G, ec)
     r = R[0] % ec.n
-    u2inv = mod_inv(u2, ec.n)
+    u2inv = mod_inv_var(u2, ec.n)
     s = r * u2inv % ec.n
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
@@ -1017,7 +1017,7 @@ def test_recovery_multiplies_in_libsecp256k1(
         assert [key for key in recovered if key is not None] == keys
 
         with monkeypatch.context() as patch:
-            # the Python enumeration, its double_mult still delegated
+            # the Python enumeration, its double_mult_var still delegated
             patch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
             assert dsa.recover_pub_keys(msg, sig) == keys
             assert [_recovered(key_id, msg, sig) for key_id in key_ids] == recovered

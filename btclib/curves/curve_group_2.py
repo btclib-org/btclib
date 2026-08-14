@@ -65,7 +65,7 @@ macOS arm64:
       `pow(a, -1, p)` is 8.3 us, being CPython's extended Euclid in C,
       where 255 modular squarings in bytecode -- fewer than any chain
       needs -- are 61 us. `pow(a, p - 2, p)` is 74.7 us, which is why
-      `mod_inv` does not spell Fermat either:
+      `mod_inv_var` does not spell Fermat either:
 
         - https://briansmith.org/ecc-inversion-addition-chains-01
     - fast reduction for a pseudo-Mersenne p: `x % p` is 0.162 us and the
@@ -131,8 +131,8 @@ from btclib.exceptions import BTClibValueError
 # empty, and declared rather than omitted: every multiplication here is a
 # variant kept to be measured against the others, which is what the leading
 # underscore says, so this module has nothing public of its own.
-# `curve.py`'s mult, double_mult and multi_mult are what a caller reaches,
-# and they validate every point before dispatching to any of these
+# `curve.py`'s mult, double_mult_var and multi_mult_var are what a caller
+# reaches, and they validate every point before dispatching to any of these
 __all__: list[str] = []
 
 
@@ -275,7 +275,7 @@ def _double_mult_w_NAF_var(
     digits costing only an on-the-fly negation.
 
     This is the one the library calls on every curve without the GLV
-    endomorphism: `curves.double_mult`, `dsa` and `ssa` verification and
+    endomorphism: `curves.double_mult_var`, `dsa` and `ssa` verification and
     public key recovery all reach it through `curve`'s
     _double_mult_python, which sends secp256k1 to
     _double_mult_endomorphism_secp256k1_var instead -- four half-length
@@ -349,7 +349,7 @@ def _double_mult_regular_window(
     per coefficient, and their opposites, to make one addition per window
     per coefficient -- where the wNAF builds half as many points and adds
     on one digit in w+1. This function is therefore not what
-    `double_mult` runs -- verification's coefficients are public -- but
+    `double_mult_var` runs -- verification's coefficients are public -- but
     what _mult_endomorphism_secp256k1 runs, whose two are halves of a
     secret.
 
@@ -567,7 +567,7 @@ def _double_mult_endomorphism_secp256k1_var(
 
     The interleaved wNAF rather than the regular windows: the coefficients
     of a double multiplication are public, being a verification's, which is
-    the same reason `curve.double_mult` reaches `_double_mult_w_NAF_var`
+    the same reason `curve.double_mult_var` reaches `_double_mult_w_NAF_var`
     directly and not through the regular windows of
     `_mult_endomorphism_secp256k1`. A scalar that is a secret goes
     through `mult`.

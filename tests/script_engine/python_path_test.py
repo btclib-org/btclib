@@ -80,7 +80,7 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
 
     The arithmetic under the verdict stays delegated: no third patch on
     `curves.curve`, whose dispatch is what `dsa._assert_as_valid_` and
-    `ssa._assert_as_valid_` reach for a `double_mult` and for the two
+    `ssa._assert_as_valid_` reach for a `double_mult_var` and for the two
     square roots that lift a key and answer for an r. Patching it off
     would send those down the Python path on every vector below, at the
     ratios `curves/curve.py` states beside each of them, and would buy a
