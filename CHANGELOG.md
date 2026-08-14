@@ -4033,6 +4033,37 @@ documented at release-notes length in the first place, and are still in
   of that conversion is the three products an entry costs, which the
   isomorphic construction pays in its own coin.
 
+- **Choosing the variable-time variant is not offered as a setting, and
+  the census says what it would have bought** (issue #849). The `_var`
+  suffix marks the functions whose work the operand decides, so the list
+  of places a switch could flip is exact, and `btclib.curves`'s docstring
+  now carries it.
+
+  The first line of it settles the question. On the generator the regular
+  form is also the faster one, by a factor of four: `_mult_fixed_base`
+  makes no doubling at all, where a wNAF makes one per bit however wide
+  its table is and however thoroughly it is cached -- 571 us against 130
+  over the memoized odd multiples of G, at w=8, w=10 and w=12 alike. So
+  the arm every key derivation, every BIP32 child and every signing nonce
+  runs has nothing faster to switch to.
+
+  What is left is a variable-base `mult` with a secret scalar, which in
+  this package is `ecc.dh`: 1.13x on secp256k1, 1.03x on nistp256, the
+  second being that measurement's own noise. The blinded nonce inverse is
+  1.5 us of a 414 us signature, the projective blinding of #805 is 1%,
+  and every verification is already `_var`. And `btclib_secp256k1` is a
+  required dependency, so the 1.13x is reached only by first switching
+  the bindings off, which is a test and benchmark configuration and not a
+  deployment: a caller who does not switch them off is on the same
+  program whatever the setting says.
+
+  Against that, a switch on what #254 asked for and #805 added is a
+  security setting, with both of its values to test everywhere it is read
+  at a coverage gate of 100%. `SECURITY.md` already publishes that this
+  arithmetic is not constant-time in CPython's integers; making the shape
+  optional too would sell the one defence left for a factor the table
+  above does not show.
+
 ### Tests
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
