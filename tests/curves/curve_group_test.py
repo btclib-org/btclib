@@ -38,7 +38,9 @@ from btclib.curves.curve_group import (
     _multi_mult_var,
     _multi_mult_w_NAF_var,
     _multiples,
+    _odd_multiples,
     _signed_odd_multiples_aff,
+    _wNAF_of_m,
     signed_odd_digits,
 )
 from btclib.ecc import second_generator
@@ -954,3 +956,90 @@ def test_blinding_changes_the_coordinates_and_not_the_point() -> None:
         # infinity has no affine coordinates to preserve and stays
         # infinity, Z == 0 scaling to Z == 0
         assert _blinded_jac(INFJ, ec)[2] == 0
+
+
+def test_the_interleaved_loop_makes_the_operations_its_wnafs_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One doubling per bit position, and the point each nonzero digit names.
+
+    What `_additions_by_position` reorganized is where a digit is looked up,
+    not what is done with it (issue 906), and a comparison of results would
+    be blind to a reordering that answers the same point -- group addition
+    commutes. So the operations are asserted: the sequence of doublings and
+    additions the call makes, *with the point each addition takes*, against
+    the sequence the wNAFs of its own scalars name. Recorded without their
+    argument the additions would pin how many a position makes and not which
+    they are, so reversing two of them at one position would still pass.
+
+    `fixed=frozenset()` so that every point gets the width `w` asked for
+    here and the tables are reproducible from `_odd_multiples`: a memoized
+    table comes at `_FIXED_POINT_W`, and this is about the loop rather than
+    about which width a point earns.
+
+    The curve is built here rather than being `secp256k1` itself, because
+    `monkeypatch.setattr` on an instance restores by assigning the bound
+    method back: it lands in that instance's `__dict__` and stays there for
+    every test after this one. Harmless on a shared curve as things stand,
+    and not something to leave for the day one of these methods is patched
+    on the class.
+    """
+    ec = Curve(
+        secp256k1.p,
+        0,
+        7,
+        secp256k1.G,
+        secp256k1.n,
+        1,
+        weakness_check=False,
+        order_check=False,
+    )
+    w = _MULTI_MULT_W
+    points = [ec.GJ, _mult(3, ec.GJ, ec), _mult(5, ec.GJ, ec)]
+    scalars = [
+        0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF,
+        0xC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B14E5C9,
+        0x539,
+    ]
+
+    # the sequence the wNAFs name, built before anything is patched: a
+    # signed digit d names T[(d-1)//2] and the opposite of T[(-d-1)//2],
+    # which is what makes an addition's argument predictable from the wNAF
+    # alone -- and `_odd_multiples` doubles too, so building the tables under
+    # the recorder would put its own operations in the log
+    tables = [ec.aff_from_jac_batch_var(_odd_multiples(PJ, ec, w)) for PJ in points]
+    nafs = [_wNAF_of_m(n, w) for n in scalars]
+    expected: list[tuple[str, Point | None]] = []
+    for j in reversed(range(max(len(naf) for naf in nafs))):
+        expected.append(("double", None))
+        for naf, T in zip(nafs, tables, strict=True):
+            d = naf[j] if j < len(naf) else 0
+            if d:
+                expected.append(
+                    ("add", T[(d - 1) // 2] if d > 0 else ec.negate(T[(-d - 1) // 2]))
+                )
+
+    operations: list[tuple[str, Point | None]] = []
+    real_double, real_add = ec.double_jac, ec.add_jac_aff
+
+    def double(R: JacPoint) -> JacPoint:
+        operations.append(("double", None))
+        return real_double(R)
+
+    def add(R: JacPoint, P: Point) -> JacPoint:
+        operations.append(("add", P))
+        return real_add(R, P)
+
+    monkeypatch.setattr(ec, "double_jac", double)
+    monkeypatch.setattr(ec, "add_jac_aff", add)
+    got = _multi_mult_w_NAF_var(scalars, points, ec, w, frozenset())
+    # the tail, because a table of odd multiples is built before the loop and
+    # with the same doubling: one per point, its additions being Jacobian and
+    # so not `add_jac_aff`. That prefix is what `fixed` spares a memoized
+    # point and is not what this asserts
+    assert operations[: len(points)] == [("double", None)] * len(points)
+    assert operations[len(points) :] == expected
+
+    # and the point is still the right one, the sequence being asserted
+    # about a call that answered
+    assert ec.is_jac_equal(got, _sum_of_mults(scalars, points, ec))
