@@ -4410,6 +4410,53 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **The interleaved wNAF loop stops asking for digits that are zero**
+  (issue #906). `_multi_mult_w_NAF_var` asked every wNAF for a digit at
+  every bit position, so a secp256k1 double multiplication — 128 positions
+  over the four halves the GLV split makes — asked 512 questions and
+  answered 79 of them with an addition. A wNAF has one nonzero digit in
+  w+1, so 433 of the 512 were a `zip` step, a comparison against a `len`
+  recomputed per iteration, and an index that found a zero.
+
+  `_additions_by_position` walks the digits once instead, into an entry per
+  position holding the point each wNAF with a digit there names — the table
+  entry, negated where the digit is — and the loop doubles per position and
+  adds what it finds. Same operations in the same order: this is where a
+  digit is looked up, not what is done with it, and the table index and the
+  negation are part of the looking up.
+
+  Measured with the dispatch off, over six fixed coefficient pairs, best of
+  five runs of 60, the same inputs both sides, five alternating rounds.
+  **The machine was busy throughout** — a benchmark of its own at 99.9% of a
+  core — and the control row says so, drifting 2% to 6% between rounds:
+  `mult` on the generator is the fixed-base comb, which this change cannot
+  touch. What these rounds support is the ratio and not the absolutes, so
+  each round's `_double_mult_python` normalized by its own control: 0.932x,
+  0.955x, 0.941x, 0.947x, 0.941x, with a pure-Python `dsa.verify_` moving
+  with it. On a quiet machine, and on the shape of this change before the
+  table index and the negation were hoisted into the build, the same harness
+  gave 434.3 µs against 417.0 and 584.7 against 565.3.
+
+  The primitive is under four of the widest rows of the two-paths table:
+  ECDSA and BIP340 verification, recovery and `bms.verify`.
+
+  The gain is CPython's. Under PyPy the two spellings measure the same,
+  within ±1.7% and with no stable direction: a tracing JIT flattens the loop
+  control this removes. PyPy is one of the interpreters CI runs, and nothing
+  here is a regression on it.
+
+  The answers are identical and the suite says so as more than a result: the
+  sequence of doublings and additions, each addition with the point it
+  takes, is asserted against the sequence the wNAFs name. Reversing two
+  additions within one position fails it, and so does moving the doubling
+  after them — both checked by mutating the loop, a test that passes not
+  being evidence that it can fail.
+
+  The rest of the 19.8% issue #906 measures as not being curve arithmetic
+  stays where it is: the preparation before the loop is the GLV split, the
+  four wNAFs and the two tables, and the tables are #893's and #897's to
+  memoize rather than this loop's to speed up.
+
 - **`sign_` stops re-validating the signature libsecp256k1 just made**
   (issue #888). Its bindings path was `Sig.parse(libsecp256k1_dsa.sign(...))`,
   and `Sig.parse` validates by default: r and s in 1..n-1, and r congruent

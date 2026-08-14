@@ -1480,6 +1480,51 @@ def _multi_mult_pairs(
 _MULTI_MULT_W = 5
 
 
+def _additions_by_position(
+    nafs: Sequence[list[int]], tables: Sequence[list[Point]], ec: CurveGroup
+) -> list[list[Point]]:
+    """Return the points each bit position adds, indexed by position.
+
+    An entry per position, holding the table entry every wNAF with a nonzero
+    digit there names -- negated where the digit is, a signed digit naming a
+    point and its opposite. What it replaces is every wNAF being asked for a
+    digit at every position: a wNAF has one nonzero digit in w+1, so a
+    secp256k1 double multiplication asked 512 questions -- 128 positions
+    over the four halves the GLV split makes -- and answered 79 of them with
+    an addition. The 433 that answered nothing were a `zip` step, a
+    comparison against a `len` recomputed per iteration, and an index that
+    found a zero (issue 906).
+
+    Read this way round the digits are walked once, where each one was read
+    at the position it belongs to and skipped at every other, and the loop
+    that consumes the answer is a doubling and its additions. The table
+    index and the negation are here rather than there for the same reason:
+    they are what a digit means, and the loop has no use for the digit
+    itself.
+
+    The doublings and the additions are the same operations in the same
+    order, this being where a digit is looked up and not what is done with
+    it -- `test_the_interleaved_loop_makes_the_operations_its_wnafs_name`
+    asserts the sequence of both, with the point each addition takes,
+    against the sequence the wNAFs name. A comparison of results would be
+    blind to a reordering that answers the same point, group addition
+    commuting.
+
+    The gain is CPython's: the loop control this removes is what a tracing
+    JIT flattens on its own, and under PyPy the two spellings measure the
+    same. CHANGELOG.md has the figures, this being a docstring and they
+    being about code that is no longer here.
+    """
+    at_position: list[list[Point]] = [[] for _ in range(max(len(naf) for naf in nafs))]
+    for naf, T in zip(nafs, tables, strict=True):
+        for j, d in enumerate(naf):
+            if d:
+                at_position[j].append(
+                    T[(d - 1) // 2] if d > 0 else ec.negate(T[(-d - 1) // 2])
+                )
+    return at_position
+
+
 def _multi_mult_w_NAF_var(
     scalars: Sequence[int],
     jac_points: Sequence[JacPoint],
@@ -1590,15 +1635,15 @@ def _multi_mult_w_NAF_var(
         tables[i] = aff[at : at + len(jac)]
         at += len(jac)
 
+    # one doubling per position and the additions that position has, where
+    # every wNAF used to be asked for a digit at every position: see
+    # `_additions_by_position`, which is also where a digit becomes the
+    # point it names
     R = INFJ
-    for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
+    for additions in reversed(_additions_by_position(nafs, tables, ec)):
         R = ec.double_jac(R)
-        for naf, T in zip(nafs, tables, strict=True):
-            # a scalar shorter than the longest one has run out of digits
-            if j < len(naf) and naf[j] != 0:
-                d = naf[j]
-                P = T[(d - 1) // 2] if d > 0 else ec.negate(T[(-d - 1) // 2])
-                R = ec.add_jac_aff(R, P)
+        for P in additions:
+            R = ec.add_jac_aff(R, P)
     return R
 
 
