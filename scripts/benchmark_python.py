@@ -32,12 +32,10 @@ numbers is the whole reason both exist.
 
 ## How each row is held to Python, and how that was checked
 
-- **btclib**: `_libsecp256k1_applicable` is imported by name into every
-  module these rows reach, so every one of them is patched, as
-  `benchmark.py` does and for the reason its docstring gives: a partial
-  patch leaves a row meant to measure Python measuring C underneath.
-  `python_arithmetic_only` below names them and says which row found
-  the one that had been left out.
+- **btclib**: `curves.curve._libsecp256k1_available` is the switch every
+  dispatch reads, so clearing it turns the delegation off for every
+  module at once, as `benchmark.py` does. `python_arithmetic_only` below
+  says which row caught the partial patching that preceded it.
 - **pycoin** decides at import: `pycoin.ecdsa.native.secp256k1` and
   `.openssl` each read `PYCOIN_NATIVE` and return their no-op unless it
   names them. `os.environ` is set at the top of this file, before the
@@ -88,7 +86,6 @@ import time
 from collections.abc import Callable
 from hashlib import sha256
 from importlib.metadata import version
-from typing import Any, cast
 
 import buidl.pecc
 import ecdsa
@@ -96,7 +93,7 @@ import pycoin.symbols.btc
 import secp256k1lab.bip340
 from secp256k1lab.secp256k1 import G as LAB_G
 
-from btclib.curves import curve, sec_point
+from btclib.curves import curve
 from btclib.ecc import dsa, ssa
 from btclib.hashes import reduce_to_hlen
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -359,31 +356,20 @@ REFERENCE = {
 
 
 def python_arithmetic_only() -> None:
-    """Turn btclib's libsecp256k1 dispatch off, in the namespaces timed here.
+    """Turn btclib's libsecp256k1 dispatch off, everywhere at once.
 
-    `_libsecp256k1_applicable` is defined in `curves.curve` and imported
-    by name into nine modules, so patching it in one leaves the other
-    eight delegating and a row meant to measure Python measures C.
-    `curves.sec_point` is the one this script needed and `benchmark.py`
-    did not: `bytes_from_prv_key_int` asks it there, so a public key
-    derived through `to_pub_key` came back at bindings speed with the
-    other three patched -- 8.47 us against the 8.39 of the reference,
-    which is how the omission was found rather than reasoned about.
-
-    The four here are the ones the rows below reach. The others -- `bms`,
-    `commit_nonce`, `dh`, `ellswift`, `pedersen`, `taproot` -- are not
-    timed and are left alone; a row added later has to add its module to
-    this tuple, which is why they are named rather than globbed.
+    `_libsecp256k1_serves` reads `_libsecp256k1_available` on every call,
+    so this one assignment reaches the nine modules that imported the
+    predicate by name -- where naming modules one at a time left a row
+    meant to measure Python measuring C, `curves.sec_point` being the
+    one omitted: a public key derived through `to_pub_key` came back at
+    8.47 us against the 8.39 of the reference, which is how the omission
+    was found rather than reasoned about. No row can reintroduce it.
 
     Called after the reference above and after every fixture is signed,
     both of which want the bindings.
-
-    Cast to Any rather than assigned directly: mypy sees the loop
-    variable as a plain module, none of the four in particular, and a
-    plain module has no `_libsecp256k1_applicable` of its own.
     """
-    for module in (dsa, ssa, curve, sec_point):
-        cast(Any, module)._libsecp256k1_applicable = lambda *_: False
+    curve._libsecp256k1_available = False
 
 
 python_arithmetic_only()

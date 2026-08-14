@@ -27,7 +27,7 @@ from btclib import b32, b58
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
 from btclib.bip32 import bip32
-from btclib.curves import mult, secp256k1
+from btclib.curves import curve, mult, secp256k1
 from btclib.curves.curve import CURVES
 from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -979,7 +979,7 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
         # and the search asked of the implementation that did not report
         # the key_id, so that the two derivations are independent
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             assert key_id == _search_key_id(magic_msg, dsa_sig, q)
 
         bms.assert_as_valid(msg, addr, bms_sig)
@@ -1023,15 +1023,14 @@ def test_the_python_path_answers_the_same(
     Python implementation stays as the reference the delegation is held
     against, and this is what reaches it.
 
-    Two patches, one per module, because signing and verifying ask in
-    different places: `dsa.sign_recoverable` under `sign` asks for itself,
-    while `assert_as_valid` asks here before it recovers. Patching dsa
-    alone would leave verification delegated, and bms alone would leave
-    every signature delegated.
+    The switch rather than a patch per module, because signing and
+    verifying ask in different places: `dsa.sign_recoverable` under
+    `sign` asks for itself, while `assert_as_valid` asks in `bms` before
+    it recovers. Clearing `_libsecp256k1_available` reaches both, where
+    naming one module would leave the other delegated.
     """
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(bms, "_libsecp256k1_applicable", lambda *_: False)
-        no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(curve, "_libsecp256k1_available", False)
         vector_test()
 
 

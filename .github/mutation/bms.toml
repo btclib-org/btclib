@@ -77,7 +77,7 @@ excluded-modules = []
 # exactly 20 or 32 bytes, both already caught by `> 20`; the base64
 # decode's own `validate=True` against `False`, undone by the re-encode
 # comparison the line right after it already makes; and
-# `_libsecp256k1_applicable`'s branch negated, both paths already held
+# `_libsecp256k1_serves`'s branch negated, both paths already held
 # to the same answer by `test_the_python_path_answers_the_same`.
 #
 # One survivor left open: `compressed = sig.rf > 30` needs `rf == 30`

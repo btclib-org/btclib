@@ -421,9 +421,7 @@ def test_the_python_tweaks_are_the_bindings_tweaks(
         delegated_point = commit_point_(commit_hash, receipt, _S2C_POINT_TAG, ec, hf)
         parities.add(delegated_point[1] % 2)
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(
-                commit_nonce, "_libsecp256k1_applicable", lambda *_: False
-            )
+            no_bindings.setattr(commit_nonce, "_libsecp256k1_serves", lambda *_: False)
             assert commit_nonce_(commit_hash, nonce, _S2C_POINT_TAG, ec, hf) == (
                 delegated_nonce,
                 receipt,

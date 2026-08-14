@@ -97,8 +97,8 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     The field and group arithmetic under all of that is the bindings',
     as it is everywhere else.
     """
-    monkeypatch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
-    monkeypatch.setattr(ssa, "_libsecp256k1_applicable", lambda *_: False)
+    monkeypatch.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
+    monkeypatch.setattr(ssa, "_libsecp256k1_serves", lambda *_: False)
     monkeypatch.setattr(engine_script, "_libsecp256k1_dsa_verify", python_dsa_verify)
     monkeypatch.setattr(engine_tapscript, "_libsecp256k1_ssa_verify", python_ssa_verify)
 

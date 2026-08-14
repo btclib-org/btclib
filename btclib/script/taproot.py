@@ -28,7 +28,7 @@ from btclib.alias import (
     TaprootScriptTree,
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable, _y_even_var
+from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -271,11 +271,11 @@ def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
     #
     # The predicate is a constant now that the curve is, and the three
     # guards in this module keep it rather than saying so: it is the
-    # seam the suite patches -- taproot._libsecp256k1_applicable set to
+    # seam the suite closes -- curve._libsecp256k1_available set to
     # False -- to reach the Python arithmetic below, which is the
     # reference implementation the bindings are checked against and not
     # a path any caller takes. Stated here for all three
-    if _libsecp256k1_applicable(secp256k1, None):
+    if _libsecp256k1_serves(secp256k1, None):
         return libsecp256k1_xonly.tweak_add(pub_key, t)
 
     P_x = int.from_bytes(pub_key, "big")
@@ -334,7 +334,7 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     # for themselves: 32.0 us against 82.3 over 2000 tweaks, the
     # difference being the point this path never materializes and
     # the square root it never takes to check that point's parity
-    if _libsecp256k1_applicable(secp256k1, None):
+    if _libsecp256k1_serves(secp256k1, None):
         pub_key = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
         t = _tap_tweak(pub_key, h)
         tweaked = libsecp256k1_xonly.prvkey_tweak_add(internal_prvkey, t)
@@ -435,7 +435,7 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     # unequal either -- b"\x00" + 32 bytes reads as the same integer the
     # comparison below makes -- so the answer for it stays the Python
     # one rather than becoming an exception
-    if _libsecp256k1_applicable(secp256k1, None) and len(q) == 32:
+    if _libsecp256k1_serves(secp256k1, None) and len(q) == 32:
         try:
             return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
         except ValueError as e:

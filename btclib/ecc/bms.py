@@ -119,7 +119,7 @@ from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import is_segwit_prefixed, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
 from btclib.curves import bytes_from_point, bytes_from_prv_key_int, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve import _libsecp256k1_serves
 from btclib.ecc import dsa
 from btclib.ecc.dsa import _libsecp256k1_recover_sec_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -397,7 +397,7 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     # an affine conversion not paid either. `verify` is 25 us against 2782,
     # the mean over 40 random keys, of which some 20 are the recovery
     # itself and 2.4 the r-congruence check of the Sig validation above
-    if _libsecp256k1_applicable(secp256k1, None):
+    if _libsecp256k1_serves(secp256k1, None):
         pub_key = _libsecp256k1_recover_sec_(
             key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed, lower_s=False
         )

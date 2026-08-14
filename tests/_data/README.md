@@ -1544,9 +1544,9 @@ live in `testvectors_v1/`. Not `testvectors/`, which upstream removed
 on 2025-09-02 and which no refresh can reach again. They are read by
 `tests/ecc/wycheproof_test.py`, which is also where the split between
 the two ECDSA profiles is explained, and where the difference the files
-under a hash other than sha256 make is: `_libsecp256k1_applicable`
+under a hash other than sha256 make is: `_libsecp256k1_serves`
 admits sha256 alone, so those reach the Python arithmetic without the
-dispatch being patched off, and are run once rather than twice.
+dispatch being switched off, and are run once rather than twice.
 
 The SHAKE files need one thing the others do not, and it is a type
 rather than a reader: `hashlib.shake_128` is not a `HashF`, an

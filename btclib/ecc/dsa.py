@@ -50,7 +50,7 @@ from btclib.curves import Curve, mult, secp256k1
 from btclib.curves.curve import (
     _is_x_coordinate_var,
     _jac_double_mult,
-    _libsecp256k1_applicable,
+    _libsecp256k1_serves,
     _y_even_var,
 )
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
@@ -572,7 +572,7 @@ def sign_(
     # it is not the reason to decline: `ndata` is what the bindings take
     # it as, so grinding stays where the signing is
     if (
-        _libsecp256k1_applicable(ec, hf)
+        _libsecp256k1_serves(ec, hf)
         and nonce is None
         and lower_s
         and commit_hash is None
@@ -731,7 +731,7 @@ def sign_recoverable_(
     # themselves, so a requested nonce is for the Python path below. The
     # recoverable signing they offer is lower-s like the plain one, and
     # lower_s=False is the caller asking for the s that was computed
-    if _libsecp256k1_applicable(ec, hf) and nonce is None and lower_s:
+    if _libsecp256k1_serves(ec, hf) and nonce is None and lower_s:
         # the compact form, r || s, and the recid beside it: the DER
         # encoding sign_ parses would have to be taken apart again, the
         # key_id being what this call is made for
@@ -883,7 +883,7 @@ def assert_as_valid_(
     # the second one
     _assert_commitment_(commit_hash, receipt, sig, hf)
 
-    if _libsecp256k1_applicable(sig.ec, hf):
+    if _libsecp256k1_serves(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
         pubkey_bytes = pub_keyinfo_from_pub_key(key)[0]
         # check_validity=False, because assert_valid has just run above --
@@ -1138,7 +1138,7 @@ def _recover_pub_keys_(
 
     # The Python enumeration: `recover_pub_keys_` above asks the bindings
     # for each of the four recids instead, so what reaches here is every
-    # other curve, every other hash function, and the tests that patch the
+    # other curve, every other hash function, and the tests that switch the
     # dispatch off -- where this is the implementation held against the
     # bindings, they being the authority on the answer.
     #
@@ -1197,11 +1197,11 @@ def recover_pub_keys_(
     # has, but each candidate in it is a recid the bindings answer for, so
     # what runs here is four `recover` calls: 83 us against 854 (issue
     # 286). A recid is two bits, i.e. every candidate a curve of cofactor
-    # 1 has, and _libsecp256k1_applicable admits no other curve --
+    # 1 has, and _libsecp256k1_serves admits no other curve --
     # secp256k1's cofactor is 1, so `range(4)` here is the
     # `range(2 * (ec.cofactor + 1))` of the Python enumeration above, in
     # the same order, key_id by key_id
-    if _libsecp256k1_applicable(sig.ec, hf):
+    if _libsecp256k1_serves(sig.ec, hf):
         keys: list[Point] = []
         for key_id in range(4):
             # a candidate that recovers nothing is dropped rather than
@@ -1290,7 +1290,7 @@ def _recover_pub_key_(
 def _libsecp256k1_recover_sec_(
     key_id: int, msg_hash: bytes, sig: Sig, compressed: bool, *, lower_s: bool
 ) -> bytes:
-    # Private function: the caller has asked _libsecp256k1_applicable
+    # Private function: the caller has asked _libsecp256k1_serves
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
     #
     # secp256k1_ecdsa_recover is step 1.6 of SEC 1 v.2 section 4.1.6 for
@@ -1342,7 +1342,7 @@ def _libsecp256k1_recover_sec_(
 def _libsecp256k1_recover_point_(
     key_id: int, msg_hash: bytes, sig: Sig, *, lower_s: bool
 ) -> Point:
-    # Private function: the caller has asked _libsecp256k1_applicable
+    # Private function: the caller has asked _libsecp256k1_serves
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
     #
     # 0x04 || x || y (SEC 1 v.2, section 2.3.3), read rather than parsed
@@ -1390,7 +1390,7 @@ def recover_pub_key_(
     # r < ec.p - ec.n for j = 1, and the % ec.p of the Python path leaves
     # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
     # -- passing it would need ec.p ≡ 0 mod ec.n
-    if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
+    if _libsecp256k1_serves(sig.ec, hf) and 0 <= key_id <= 3:
         return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5

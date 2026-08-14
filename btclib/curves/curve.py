@@ -388,8 +388,23 @@ CURVES = SEC2v1 | NIST | Brainpool
 secp256k1 = CURVES["secp256k1"]
 
 
-def _libsecp256k1_applicable(ec: Curve, hf: HashF | None) -> bool:
-    """Return True if the libsecp256k1 bindings can serve ec and hf.
+# whether the bindings may be used at all: the one question
+# _libsecp256k1_serves below does not answer, which is not "can these
+# bindings serve this call" but "may they serve any of them". Assigning
+# False turns the delegation off across the whole package, because every
+# dispatch asks the predicate and the predicate reads this global --
+# whereas rebinding the predicate itself reaches one module of the nine
+# that import it by name, which is how a benchmark once timed C and
+# called it Python.
+#
+# btclib_secp256k1 is a required dependency, so this is never False
+# because the bindings are missing. It is the seam the test suite closes
+# to exercise the Python arithmetic, and scripts/benchmark.py to time it
+_libsecp256k1_available = True
+
+
+def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:
+    """Return True if the libsecp256k1 bindings serve this ec and hf.
 
     Every dispatch to the bindings asks here, so that the predicates
     cannot drift apart the way hand-written copies would; a caller
@@ -401,6 +416,8 @@ def _libsecp256k1_applicable(ec: Curve, hf: HashF | None) -> bool:
     as functools.partial(sha256) falls back to the Python path. That is
     the conservative direction -- slower, never wrong.
     """
+    if not _libsecp256k1_available:
+        return False
     if ec != secp256k1:
         return False
     return hf is None or hf is sha256
@@ -416,7 +433,7 @@ def _compressed_sec(x: int, ec: Curve) -> bytes | None:
     element, ec_pubkey_parse taking no x-coordinate at or above ec.p and
     x.to_bytes raising OverflowError rather than answering for one.
     """
-    if not _libsecp256k1_applicable(ec, None) or not 0 <= x < ec.p:
+    if not _libsecp256k1_serves(ec, None) or not 0 <= x < ec.p:
         return None
     return b"\x02" + x.to_bytes(ec.p_size, "big")
 
@@ -584,7 +601,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     m: int = int_from_integer(m_int) % ec.n
 
     # m == 0 is the infinity point, which the bindings reject as a scalar
-    if m and _libsecp256k1_applicable(ec, None):
+    if m and _libsecp256k1_serves(ec, None):
         # the generator is ec_pubkey_create, with no point to parse first
         if Q is None or Q == ec.G:
             return libsecp256k1_mult(m)
@@ -607,7 +624,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
 
     # what reaches here on secp256k1 is the arguments the bindings decline
     # -- a zero scalar, or infinity -- and, with the dispatch
-    # above patched off, every multiplication of the curve: that is the
+    # above switched off, every multiplication of the curve: that is the
     # reference implementation the test suite holds the bindings against,
     # and the GLV endomorphism is its fastest form, 0.59 ms against the
     # 0.82 of _mult, the decomposition being secp256k1's own lambda and
@@ -615,9 +632,9 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     # is the same for every scalar, which is what a private key or a nonce
     # arriving here needs and what issue 254 is about -- the endomorphism
     # over interleaved wNAFs would be 0.51 ms and 51 to 64 additions.
-    # Not spelled as _libsecp256k1_applicable, though it is the same
+    # Not spelled as _libsecp256k1_serves, though it is the same
     # test today: what decides here is whether the curve has that
-    # endomorphism, so patching the bindings off must leave this arm --
+    # endomorphism, so switching the bindings off must leave this arm --
     # python_path_test.py's pattern, which otherwise would compare the
     # bindings against the generic double-and-add of every other curve
     # the scalar of a mult is a private key or a nonce in every caller
@@ -647,15 +664,15 @@ def _double_mult_python(
     is to `_mult`: the same answer for ~128 doublings instead of ~256.
 
     Dispatched on the curve having the endomorphism, not on
-    `_libsecp256k1_applicable` -- the same test today, and not the same
-    question. `mult` says why at length: patching the bindings off is how
+    `_libsecp256k1_serves` -- the same test today, and not the same
+    question. `mult` says why at length: switching the bindings off is how
     python_path_test.py holds them against the Python arithmetic, and a
     dispatch spelled the other way would answer that test with the generic
     interleaved wNAF every other curve runs instead of with secp256k1's
     own fastest path.
 
     Which makes this the second curve comparison of the call, the guard
-    above having asked `_libsecp256k1_applicable` the first: 0.394 us on a
+    above having asked `_libsecp256k1_serves` the first: 0.394 us on a
     curve that is not secp256k1, the frame and `Curve.__eq__`'s two
     _eq_key tuples together, where the identical object short-circuits on
     identity. That is 8% of a low-cardinality double multiplication and
@@ -686,7 +703,7 @@ def double_mult_var(
     # term they make is nothing: dropping it here would leave the empty
     # sum -- infinity -- to answer for as well, which the Python path
     # below answers already, so the whole call goes there instead
-    if u and v and H[1] and Q[1] and _libsecp256k1_applicable(ec, None):
+    if u and v and H[1] and Q[1] and _libsecp256k1_serves(ec, None):
         return _libsecp256k1_multi_mult([u, v], [H, Q])
 
     HJ = _jac_from_aff(H)
@@ -723,7 +740,7 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     mod_inv_var(1) on the way back out, the same inversion again on the
     cheapest operand it has.
     """
-    if not _libsecp256k1_applicable(ec, None):
+    if not _libsecp256k1_serves(ec, None):
         return _double_mult_python(u, HJ, v, QJ, ec)
 
     R = double_mult_var(u, ec.aff_from_jac_var(HJ), v, ec.aff_from_jac_var(QJ), ec)
@@ -754,7 +771,7 @@ def multi_mult_var(
     # all, an error the Python path below is the one to raise
     if (
         len(points) > 1
-        and _libsecp256k1_applicable(ec, None)
+        and _libsecp256k1_serves(ec, None)
         and all(m and Q[1] for m, Q in zip(ints, points, strict=True))
     ):
         return _libsecp256k1_multi_mult(ints, points)
