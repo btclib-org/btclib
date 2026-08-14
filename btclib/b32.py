@@ -60,7 +60,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value, network_from_name
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, str_from_string
 
 __all__ = [
     "address_from_witness",
@@ -82,7 +82,7 @@ def has_segwit_prefix(addr: String) -> bool:
     The prefix alone -- hrp and the 1 separator -- is read; whether the
     rest decodes is witness_from_address's answer.
     """
-    str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
+    str_addr = str_from_string(addr, "address").strip().lower()
     return any(str_addr.startswith(f"{net.hrp}1") for net in NETWORKS.values())
 
 
@@ -161,15 +161,17 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
 
     The returned data structure is: version, program, network.
     """
-    if isinstance(b32addr, str):
-        b32addr = b32addr.strip()
+    # the coercion before the length, which is a fact about characters:
+    # `len` of what is neither text nor bytes is a TypeError about a
+    # builtin, where the codec below would have named the argument
+    addr = str_from_string(b32addr, "address").strip()
 
     # the 90-character bound is address semantics, deliberately not
     # enforced by the bech32 codec (Lightning strings exceed it)
-    if len(b32addr) > 90:
-        raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
+    if len(addr) > 90:
+        raise BTClibValueError(f"invalid bech32 address length: {len(addr)} > 90")
 
-    hrp, data = decode(b32addr)
+    hrp, data = decode(addr)
 
     wit_ver = data[0]
     wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))

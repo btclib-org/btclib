@@ -31,6 +31,7 @@ from btclib.alias import String
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import PSBT_MAGIC_BYTES, Psbt
 from btclib.tx import Tx
+from btclib.utils import bytes_from_octets
 
 __all__ = [
     "tx_or_psbt_from_any",
@@ -76,17 +77,21 @@ def _octets_from_any(data: String) -> bytes:
     transaction begins with a four-byte version that is not printable,
     and a serialized psbt with a `0xff` that is not ascii at all.
     """
-    if isinstance(data, bytes):
-        try:
-            text = data.decode("ascii")
-        except UnicodeDecodeError:
-            return data
-        try:
-            return _octets_from_text(text)
-        except BTClibValueError:
-            return data
+    if isinstance(data, str):
+        return _octets_from_text(data)
 
-    return _octets_from_text(data)
+    # the refusal of what is neither text nor bytes is bytes_from_octets's
+    # to give, `split` below being str's and `decode` bytes'; a buffer
+    # that is not `bytes` is made one, for the same reason
+    raw = bytes(bytes_from_octets(data))
+    try:
+        text = raw.decode("ascii")
+    except UnicodeDecodeError:
+        return raw
+    try:
+        return _octets_from_text(text)
+    except BTClibValueError:
+        return raw
 
 
 def tx_or_psbt_from_any(data: String, *, check_validity: bool = True) -> Tx | Psbt:

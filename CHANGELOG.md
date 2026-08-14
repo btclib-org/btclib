@@ -2070,6 +2070,70 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Five coercions trusted their annotation** (issue #776), and the
+  input-validation gate held fifty-nine public functions open on them.
+  Each takes "anything convertible", handles the `str` spelling and
+  passed everything else through untouched, so the value failed later
+  and somewhere else: a native `TypeError` or `AttributeError` about a
+  builtin, out of a module the caller never called. It is the bug issue
+  #744 fixed in `bytes_from_octets`, five times over.
+
+  `base58.decode` reached `len(v)` with whatever it was handed, and
+  every key and address converter in the library decodes there, which is
+  why one line accounted for more than half the list -- `b58.p2pkh`,
+  `b32.p2wpkh`, `bip32.derive`, all of `bip85` and all of `slip132`,
+  both `to_prv_key` converters and all four of `to_pub_key`'s among
+  them. `bip32.der_path`'s `_indexes_from_der_path` handed a float to
+  `list()`, which answers "'float' object is not iterable";
+  `b32.has_segwit_prefix` assumed bytes in the `else` of its one line;
+  `curves.curve_group.is_on_curve` asked `len` of what is not sized.
+
+  `utils.bytesio_from_binarydata` did not raise at all: it returned its
+  argument unchanged, so a `None` came back a `None` and the six `parse`
+  functions above it failed on `.read` or on `.getbuffer`. It wraps
+  octets in a `BytesIO` now and hands a `BytesIO` back as it came, what
+  is neither being `bytes_from_octets`'s to refuse. A file object is
+  neither, and was never more than half accepted: it has no
+  `getbuffer()`, which `psbt.psbt_utils.deserialize_map` asks the result
+  for. `read_exactly` is still the one that takes any `BinaryIO`, and
+  `psbt.psbt_view` still reads a psbt out of an open file through it.
+
+  `utils.str_from_string` is the `String` half of `bytes_from_octets`,
+  and the four places that spelled that coercion out by hand now call
+  it: `bech32._decode`, `b32.has_segwit_prefix`,
+  `b32.witness_from_address` and `silent_payments.keys_from_address`. It
+  takes text or ascii bytes and refuses the rest, which is what the two
+  address functions needed *before* their length bound -- `len` of a
+  float is a complaint about a builtin, where the codec below would have
+  named the argument -- and it carries to all four the non-ascii refusal
+  that only `bech32` had, a `UnicodeDecodeError` being outside the
+  contract a caller is told to catch.
+
+  `script.script_pub_key.address` answered `""` for a `None`, which is
+  the answer a nulldata output has: the coercion runs before the
+  truthiness now, so an argument that is no script is refused rather
+  than reported as a script that has no address. `tx_or_psbt_from_any`
+  and `script.taproot.serialize` are the last two, one reaching `.split`
+  and the other subscripting what it was given.
+
+  **What moves for a caller**: the class is narrower and the control
+  flow identical, `BTClibTypeError` being a `TypeError` and
+  `BTClibValueError` a `ValueError`. `to_prv_key`'s WIF and xkey
+  attempts catch a `TypeError` beside the `ValueError` now, as its two
+  "it must be octets" fallbacks already did, so an argument of the wrong
+  type still ends as "not a private key" and not as the first format's
+  refusal. A `bytearray` or a `memoryview` is accepted wherever a
+  `String` is, `base58.decode` and `str_from_string` taking the buffers
+  `bytes_from_octets` takes.
+
+  What the gate still holds open is one function, and it is not a
+  coercion: `ecc.dleq.verify_proof` answers False for a pub key that is
+  no point, `to_pub_key` refusing one as a `BTClibValueError` whatever
+  was wrong with it. That is what keeps a boolean verification total,
+  which is issue #745's decision and issue #143's test -- `dsa.verify`
+  answers False for a private key passed as a public one -- so closing
+  that entry is reversing those rather than plugging a hole.
+
 - **`bytes_from_octets` is the whole of what `Octets` means, and it is
   total** (issue #744). It is the coercion every `Octets` parameter of
   the library runs through, and it had two holes: a hex string that is
@@ -3131,6 +3195,16 @@ documented at release-notes length in the first place, and are still in
   multiplication is Python's, an inverse being 8.8 us of 1148.
 
 ### Tests
+
+- **The input-validation gate's own verdict is exercised** (issue #776).
+  `_classify` is the three answers a call can give -- the rule held, a
+  native exception got out and here is its class, nothing was raised at
+  all -- and it is a function of its own now rather than three branches
+  inside the walk. The middle one is why: no function under `btclib/`
+  produces a native exception any more, so as a branch it went uncovered,
+  and an unrun branch is a poor thing to be relying on the day one does.
+  `test_the_walk_names_what_escapes` provokes all three on calls whose
+  behaviour is stated there.
 
 - **Every test that reads a source file names its encoding.** Four
   `read_text()` calls took the locale's, which is UTF-8 on the runners this

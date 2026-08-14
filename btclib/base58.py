@@ -154,13 +154,10 @@ def _b58decode_to_int(v: bytes) -> int:
 
 
 def _b58decode(v: bytes) -> bytes:
-    # bytes for what the character-by-character check took without ever
-    # saying so: any iterable of byte values. That is how a caller's
-    # garbage reaches here -- `to_prv_key` tries a WIF before it gives up,
-    # so a Point handed to it arrives as the tuple (5, 0) -- and it has to
-    # go on being refused below as characters outside the alphabet, which
-    # is a BTClibValueError, rather than as a missing method. Free on the
-    # path that matters: bytes(b) is b for a bytes object, 29 ns
+    # bytes for the buffers that are a String and are not bytes: a
+    # memoryview has neither translate nor lstrip, and a bytearray
+    # answers both in its own type. Free on the path that matters:
+    # bytes(b) is b for a bytes object, 29 ns
     v = bytes(v)
     # every alphabet byte deleted, so what is left is what is not one:
     # the same question as `any(x not in _ALPHABET for x in v)` asked in
@@ -202,6 +199,15 @@ def decode(v: String, out_size: int | None = None) -> bytes:
             v = v.encode("ascii")
         except UnicodeEncodeError as e:
             raise BTClibValueError(f"non-ascii character in base58 string: {e}") from e
+    elif not isinstance(v, (bytes, bytearray, memoryview)):
+        # what is neither went through untouched and failed on `len` below,
+        # which is a TypeError about a builtin rather than about the
+        # address that was passed. Every key and address converter in the
+        # library decodes here, so this is the one place worth saying it
+        # in. Every buffer and not `bytes` alone, as bytes_from_octets
+        # takes them
+        err_msg = f"invalid base58 string type: {type(v).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
 
     if len(v) > MAX_LENGTH:
         err_msg = f"too many base58 characters: {len(v)}, max is {MAX_LENGTH}"

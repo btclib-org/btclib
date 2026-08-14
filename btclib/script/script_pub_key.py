@@ -69,6 +69,12 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     can read the address back into the very script it came from
     (issue #251).
     """
+    # the coercion before the truthiness, which is what tells an empty
+    # script from a script that has no address: `None` is falsy just as
+    # `b""` is, so a caller passing one was answered "" -- the answer a
+    # nulldata output has, and not a word about the argument
+    script_pub_key = bytes_from_octets(script_pub_key)
+
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
         if script_type in {"p2pkh", "p2sh"}:
@@ -80,7 +86,7 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
         if script_type == "witness_unknown":
             # the one type whose version the answer does not imply: it is
             # the op code the program follows, OP_2..OP_16 being 0x52..0x60
-            version = bytes_from_octets(script_pub_key)[0] - 0x50
+            version = script_pub_key[0] - 0x50
             return b32.address_from_witness(version, payload, network)
 
     # not script_pub_key

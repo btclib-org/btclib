@@ -79,6 +79,12 @@ def serialize(script: ScriptList) -> bytes:
     by exactly one bytes command, appended raw -- what follows an
     OP_SUCCESS need not be a script, so it round-trips unparsed.
     """
+    if not isinstance(script, list):
+        # what is not a list reached the reversal and the `pop` below
+        # untouched, so a None was "not subscriptable" and a str was a
+        # str with no `pop` -- neither of them a word about the script
+        raise BTClibTypeError(f"invalid tapscript type: {type(script).__name__}")
+
     r: list[bytes] = []
     script = script[::-1]
     while script:

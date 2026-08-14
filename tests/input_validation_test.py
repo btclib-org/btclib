@@ -61,12 +61,14 @@ from __future__ import annotations
 
 import ast
 import importlib
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from btclib.exceptions import BTClibException
+from btclib.exceptions import BTClibException, BTClibValueError
 
 _LIBRARY = Path(__file__).parents[1] / "btclib"
 
@@ -115,69 +117,19 @@ _EXCLUDED: dict[str, str] = {
 
 # what issue #744's census left, by the class that escapes. Deleting a
 # line is how a fix lands, the test below failing on an entry that has
-# stopped leaking, so this cannot go stale in either direction
+# stopped leaking, so this cannot go stale in either direction.
+#
+# The one left is not a coercion trusting its annotation, which is what
+# the rest of the list was: what answers False is `to_pub_key`'s refusal
+# of anything that is not a public key, which is a BTClibValueError
+# whatever was wrong with it, and folding the type in is what keeps a
+# boolean verification total. Issue #745 is where that was settled --
+# `dsa.verify_` answers False for a private key passed as a public one,
+# which is issue #143 and a test -- so making this one raise reverses
+# that decision rather than closing a hole, and the entry stays here
+# until it is taken
 _OPEN: dict[str, str] = {
-    "btclib.b32.has_segwit_prefix": "AttributeError",
-    "btclib.b32.p2wpkh": "TypeError",
-    "btclib.b32.witness_from_address": "TypeError",
-    "btclib.b58.h160_from_address": "TypeError",
-    "btclib.b58.p2pkh": "TypeError",
-    "btclib.b58.p2wpkh_p2sh": "TypeError",
-    "btclib.b58.wif_from_prv_key": "TypeError",
-    "btclib.base58.decode": "TypeError",
-    "btclib.bech32.decode": "AttributeError",
-    "btclib.bip32.bip32.crack_prv_key": "TypeError",
-    "btclib.bip32.bip32.derive": "TypeError",
-    "btclib.bip32.bip32.xpub_from_xprv": "TypeError",
-    "btclib.bip32.der_path.bytes_from_der_path": "TypeError",
-    "btclib.bip32.der_path.hardenings_from_der_path": "TypeError",
-    "btclib.bip32.der_path.indexes_from_der_path": "TypeError",
-    "btclib.bip32.der_path.str_from_der_path": "TypeError",
-    "btclib.bip322.sign": "AttributeError",
-    "btclib.bip322.to_sign_psbt": "AttributeError",
-    "btclib.bip44.address_from_der_path": "TypeError",
-    "btclib.bip85.bytes_entropy_from_root_key": "TypeError",
-    "btclib.bip85.drng_from_der_path": "TypeError",
-    "btclib.bip85.entropy_from_der_path": "TypeError",
-    "btclib.bip85.mnemonic_from_root_key": "TypeError",
-    "btclib.bip85.wif_from_root_key": "TypeError",
-    "btclib.bip85.xprv_from_root_key": "TypeError",
-    "btclib.curves.curve.double_mult": "TypeError",
-    "btclib.curves.sec_point.bytes_from_point": "TypeError",
-    "btclib.descriptors.descriptors.account_descriptors": "TypeError",
-    "btclib.ecc.dleq.generate_proof": "TypeError",
     "btclib.ecc.dleq.verify_proof": "no exception",
-    "btclib.ecc.ecies.derive_keys": "TypeError",
-    "btclib.ecc.ellswift.create": "TypeError",
-    "btclib.ecc.musig2.individual_pub_key": "TypeError",
-    "btclib.ecc.musig2.nonce_gen": "TypeError",
-    "btclib.psbt.psbt_utils.deserialize_map": "AttributeError",
-    "btclib.script.script.parse": "AttributeError",
-    "btclib.script.script_pub_key.address": "no exception",
-    "btclib.script.sig_hash.redeem_script": "AttributeError",
-    "btclib.script.taproot.output_prvkey": "TypeError",
-    "btclib.script.taproot.output_prvkey_from_merkle_root": "TypeError",
-    "btclib.script.taproot.parse": "AttributeError",
-    "btclib.script.taproot.serialize": "TypeError",
-    "btclib.silent_payments.keys_from_address": "TypeError",
-    # the name of a BIP352 function, and detect-secrets reads any
-    # "...secret": "..." as one
-    "btclib.silent_payments.shared_secret": "TypeError",  # pragma: allowlist secret
-    "btclib.slip132.address_from_xkey": "TypeError",
-    "btclib.slip132.address_from_xpub": "TypeError",
-    "btclib.slip132.p2pkh_xkey": "TypeError",
-    "btclib.slip132.p2wpkh_p2sh_xkey": "TypeError",
-    "btclib.slip132.p2wpkh_xkey": "TypeError",
-    "btclib.to_prv_key.int_from_prv_key": "TypeError",
-    "btclib.to_prv_key.prv_keyinfo_from_prv_key": "TypeError",
-    "btclib.to_pub_key.fingerprint": "TypeError",
-    "btclib.to_pub_key.point_from_key": "TypeError",
-    "btclib.to_pub_key.pub_keyinfo_from_key": "TypeError",
-    "btclib.to_pub_key.pub_keyinfo_from_prv_key": "TypeError",
-    "btclib.tx_or_psbt.tx_or_psbt_from_any": "AttributeError",
-    "btclib.utils.bytesio_from_binarydata": "no exception",
-    "btclib.var_bytes.parse": "AttributeError",
-    "btclib.var_int.parse": "AttributeError",
 }
 
 
@@ -216,6 +168,27 @@ def _drivable() -> dict[str, list[str]]:
 _DRIVABLE = _drivable()
 
 
+def _classify(call: Callable[[], Any]) -> str | None:
+    """Return the class of what escapes the rule, or None if it holds.
+
+    The whole of the verdict, on one call, and a function of its own so
+    that the three answers can be provoked here: the middle one names a
+    native exception, and no function of the library produces one any
+    more, so as a branch inside the walk it went uncovered -- and an
+    unrun branch is a poor thing to find out about on the day something
+    does leak. `test_the_walk_names_what_escapes` is what runs it.
+    """
+    try:
+        call()
+    except BTClibException:
+        return None
+    # the class of what came out is the finding, so every one of them is
+    # caught and named rather than let out of the walk
+    except Exception as e:  # noqa: BLE001
+        return type(e).__name__
+    return "no exception"
+
+
 def _leak(dotted: str) -> str | None:
     """Return the class of what escapes the rule, or None if it holds."""
     module_name, _, name = dotted.rpartition(".")
@@ -223,15 +196,11 @@ def _leak(dotted: str) -> str | None:
     aliases = _DRIVABLE[dotted]
     for round_ in range(max(len(_MALFORMED[a]) for a in aliases)):
         args = [_MALFORMED[a][round_ % len(_MALFORMED[a])] for a in aliases]
-        try:
-            function(*args)
-        except BTClibException:
-            continue
-        # the class of what came out is the finding, so every one of them
-        # is caught and named rather than let out of the walk
-        except Exception as e:  # noqa: BLE001
-            return type(e).__name__
-        return "no exception"
+        # partial and not a lambda, which would close over the loop
+        # variables and be read on a later round
+        found = _classify(partial(function, *args))
+        if found is not None:
+            return found
     return None
 
 
@@ -320,6 +289,24 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         "TaprootScriptTree",
     }
     assert in_alias_py & annotated <= set(_MALFORMED) | without_a_wrong_value
+
+
+def test_the_walk_names_what_escapes() -> None:
+    """The three verdicts, on calls whose behaviour is stated here.
+
+    A walk that answered None to everything would pass every test above,
+    and the answer that says a native exception got out is the one no
+    function of the library provokes any more -- so this is where it is
+    provoked, rather than being a branch nothing runs until the day it
+    matters.
+    """
+
+    def raiser(e: Exception) -> None:
+        raise e
+
+    assert _classify(partial(raiser, BTClibValueError("refused"))) is None
+    assert _classify(partial(raiser, TypeError("from underneath"))) == "TypeError"
+    assert _classify(bool) == "no exception"
 
 
 def test_the_walk_reaches_what_it_claims() -> None:
