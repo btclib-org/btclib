@@ -32,6 +32,12 @@ recursive-include btclib *.txt
 recursive-include btclib *.bin
 recursive-include btclib *.typed
 
+# scripts/benchmark_libraries.py, not part of the btclib package
+# setuptools.packages.find installs but tracked and runnable from an
+# unpacked sdist all the same, as .github/scripts would be if
+# check-manifest did not ignore that directory outright
+recursive-include scripts *.py
+
 recursive-include tests *.bin
 recursive-include tests *.csv
 recursive-include tests *.json

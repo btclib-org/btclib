@@ -3390,6 +3390,43 @@ documented at release-notes length in the first place, and are still in
   bindings hand back a point whose Z is 1 -- and 1.01x where the
   multiplication is Python's, an inverse being 8.8 us of 1148.
 
+### Performance
+
+- **A benchmark compares btclib, bindings enabled, against other Python
+  bitcoin libraries** (issue #817), `scripts/benchmark_libraries.py`:
+  the `ecdsa` PyPI package, pycoin, buidl, embit and python-bitcoinlib,
+  each at its own latest release, on ECDSA sign/verify, BIP340
+  sign/verify and one BIP32 derivation -- never a feature a comparand
+  lacks, so `ecdsa` and python-bitcoinlib carry no BIP340 or BIP32 row,
+  and pycoin's own bare elliptic-curve `Generator` has no derivation of
+  its own either, which is why that row goes through
+  `pycoin.symbols.btc.network` instead. `bit`, the sixth candidate the
+  issue named, is not among them: its dependency `coincurve` has no
+  cp314 wheel yet, and its sdist fails to build on 3.14 with a
+  hatchling/cffi packaging defect this repository does not control.
+
+  Two comparands measure a moving target rather than a fixed one:
+  pycoin optimizes its pure-Python arithmetic with libsecp256k1 or
+  OpenSSL through ctypes when either is importable on the machine
+  running it, and python-bitcoinlib's OpenSSL wrapper can be pointed at
+  libsecp256k1 instead -- both machine-dependent, so the script checks
+  and prints which backend actually ran rather than assume the
+  pure-Python number a plain `pip install` usually gets. embit needs no
+  such check: it bundles a compiled libsecp256k1 for six platforms and
+  always calls it through ctypes, so its rows sit beside btclib's C
+  rather than beside the other four's Python. pycoin's `BIP32Node` also
+  caches every subkey it derives, keyed by index, which a benchmark
+  reusing one root object across many calls would have measured as a
+  dict lookup after the first; the script rebuilds each root from its
+  seed on every timed call instead, for all four BIP32 rows alike.
+
+  Not part of the test suite and not run by CI, matching issue #816's
+  bindings-against-Python benchmark inside btclib and
+  btclib-secp256k1#144's wrapper-against-wrapper one: none of the three
+  is gated, and each answers a different question about the same
+  arithmetic. The new `bench` dependency group installs the five
+  comparands, and nothing else needs them.
+
 ### Tests
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
