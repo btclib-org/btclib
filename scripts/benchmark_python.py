@@ -10,6 +10,12 @@ already has it, and the question worth a table is what staying in Python
 costs against what is there for free: one reference column, and a row for
 every pure-Python implementation of the same operation.
 
+Each row carries a second ratio beside it, against `btclib, Python`.
+The first column answers what Python costs; the second answers how the
+implementations compare with each other, which is the question the first
+one leaves a reader dividing out by hand. The bindings row carries
+nothing in it, being the reference of the first column.
+
 This is the third of the benchmarks and the only one that forces Python
 everywhere:
 
@@ -281,13 +287,33 @@ def benchmark(func: Callable[[], None], calls: int) -> float:
     return (time.perf_counter() - start) / calls * 1e6
 
 
-def row(label: str, func: Callable[[], None] | None, calls: int, ref: float) -> None:
-    """Print one row: its microseconds and what it is against the bindings."""
+def row(
+    label: str,
+    func: Callable[[], None] | None,
+    calls: int,
+    bindings: float,
+    python: float | None = None,
+) -> float:
+    """Print one row, and return its microseconds so a later row can divide.
+
+    Two ratios, because the table is read for two questions. Against the
+    bindings is what staying in Python costs, which is what this script
+    is for; against btclib's own Python path is how the implementations
+    compare with each other, which is the number a reader of this project
+    would otherwise divide out by hand.
+
+    `btclib, Python` is the reference of the second column and reads
+    1.0x there, as the bindings row reads 1.0x in the first: its caller
+    passes no `python`, having none to divide by yet. On a package that
+    is not installed there is nothing to print at all.
+    """
     if func is None:
-        print(f"  {label:24s} {'not installed':>12s}")
-        return
+        print(f"  {label:24s} {'not installed':>13s}")
+        return 0.0
     us = benchmark(func, calls)
-    print(f"  {label:24s} {us:10.2f} us   {us / ref:9.1f}x")
+    against_python = f"{us / python:8.1f}x" if python else f"{'1.0x':>9s}"
+    print(f"  {label:24s} {us:10.2f} us   {us / bindings:8.1f}x   {against_python}")
+    return us
 
 
 def section(title: str) -> None:
@@ -296,8 +322,14 @@ def section(title: str) -> None:
 
 
 def head(label: str, us: float) -> None:
-    """Print the reference row, which every row under it is divided by."""
-    print(f"  {label:24s} {us:10.2f} us   {'1.0x':>10s}")
+    """Print the column headings and the bindings row under them.
+
+    Nothing in the second column on this row: it is the reference of the
+    first, and the fraction under one it would carry says nothing the
+    first has not said already.
+    """
+    print(f"  {'':24s} {'':10s}      {'vs C':>8s}   {'vs btclib':>9s}")
+    print(f"  {label:24s} {us:10.2f} us   {'1.0x':>9s}   {'--':>9s}")
 
 
 report_setup()
@@ -375,35 +407,35 @@ python_arithmetic_only()
 
 section("public key from a private key: a multiplication of the generator")
 head("btclib, the bindings", REFERENCE["pubkey"])
-row("btclib, Python", pubkey_btclib, 200, REFERENCE["pubkey"])
-row("secp256k1lab", pubkey_lab, 100, REFERENCE["pubkey"])
-row("python-ecdsa", pubkey_ecdsa, 200, REFERENCE["pubkey"])
-row("pycoin", pubkey_pycoin, 20, REFERENCE["pubkey"])
-row("buidl.pecc", pubkey_buidl, 10, REFERENCE["pubkey"])
-row("hwilib", pubkey_hwilib if HWILIB else None, 5, REFERENCE["pubkey"])
+PYTHON = row("btclib, Python", pubkey_btclib, 200, REFERENCE["pubkey"])
+row("secp256k1lab", pubkey_lab, 100, REFERENCE["pubkey"], PYTHON)
+row("python-ecdsa", pubkey_ecdsa, 200, REFERENCE["pubkey"], PYTHON)
+row("pycoin", pubkey_pycoin, 20, REFERENCE["pubkey"], PYTHON)
+row("buidl.pecc", pubkey_buidl, 10, REFERENCE["pubkey"], PYTHON)
+row("hwilib", pubkey_hwilib if HWILIB else None, 5, REFERENCE["pubkey"], PYTHON)
 
 section("ECDSA sign, over a 32-byte digest")
 head("btclib, the bindings", REFERENCE["dsa sign"])
-row("btclib, Python", dsa_sign_btclib, 50, REFERENCE["dsa sign"])
-row("python-ecdsa", dsa_sign_ecdsa, 100, REFERENCE["dsa sign"])
-row("pycoin", dsa_sign_pycoin, 20, REFERENCE["dsa sign"])
-row("buidl.pecc", dsa_sign_buidl, 10, REFERENCE["dsa sign"])
+PYTHON = row("btclib, Python", dsa_sign_btclib, 50, REFERENCE["dsa sign"])
+row("python-ecdsa", dsa_sign_ecdsa, 100, REFERENCE["dsa sign"], PYTHON)
+row("pycoin", dsa_sign_pycoin, 20, REFERENCE["dsa sign"], PYTHON)
+row("buidl.pecc", dsa_sign_buidl, 10, REFERENCE["dsa sign"], PYTHON)
 
 section("ECDSA verify, over a 32-byte digest")
 head("btclib, the bindings", REFERENCE["dsa verify"])
-row("btclib, Python", dsa_verify_btclib, 50, REFERENCE["dsa verify"])
-row("python-ecdsa", dsa_verify_ecdsa, 50, REFERENCE["dsa verify"])
-row("pycoin", dsa_verify_pycoin, 10, REFERENCE["dsa verify"])
-row("buidl.pecc", dsa_verify_buidl, 10, REFERENCE["dsa verify"])
+PYTHON = row("btclib, Python", dsa_verify_btclib, 50, REFERENCE["dsa verify"])
+row("python-ecdsa", dsa_verify_ecdsa, 50, REFERENCE["dsa verify"], PYTHON)
+row("pycoin", dsa_verify_pycoin, 10, REFERENCE["dsa verify"], PYTHON)
+row("buidl.pecc", dsa_verify_buidl, 10, REFERENCE["dsa verify"], PYTHON)
 
 section("BIP340 sign, over a 32-byte message")
 head("btclib, the bindings", REFERENCE["ssa sign"])
-row("btclib, Python", ssa_sign_btclib, 50, REFERENCE["ssa sign"])
-row("secp256k1lab", ssa_sign_lab, 50, REFERENCE["ssa sign"])
-row("buidl.pecc", ssa_sign_buidl, 5, REFERENCE["ssa sign"])
+PYTHON = row("btclib, Python", ssa_sign_btclib, 50, REFERENCE["ssa sign"])
+row("secp256k1lab", ssa_sign_lab, 50, REFERENCE["ssa sign"], PYTHON)
+row("buidl.pecc", ssa_sign_buidl, 5, REFERENCE["ssa sign"], PYTHON)
 
 section("BIP340 verify, over a 32-byte message")
 head("btclib, the bindings", REFERENCE["ssa verify"])
-row("btclib, Python", ssa_verify_btclib, 50, REFERENCE["ssa verify"])
-row("secp256k1lab", ssa_verify_lab, 50, REFERENCE["ssa verify"])
-row("buidl.pecc", ssa_verify_buidl, 10, REFERENCE["ssa verify"])
+PYTHON = row("btclib, Python", ssa_verify_btclib, 50, REFERENCE["ssa verify"])
+row("secp256k1lab", ssa_verify_lab, 50, REFERENCE["ssa verify"], PYTHON)
+row("buidl.pecc", ssa_verify_buidl, 10, REFERENCE["ssa verify"], PYTHON)
