@@ -4166,6 +4166,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`dsa.Sig.parse`'s `strict` says which direction each accident goes**
+  (issue #873). The flag stays read for its truth, which is what
+  `bool_parameter_test.py` classifies it as and what the line
+  CONTRIBUTING.md draws asks: it decides whether the call refuses, and the
+  signature parsed out of an encoding both readings accept is one
+  signature. What was not written down is that its two accidents are not
+  symmetric -- `"false"` out of a configuration file is truthy and
+  therefore strict, while a `None` from a lookup that found nothing is the
+  lax one, so it is the safe-looking accident that costs something. The
+  docstring says so, and says to pass `True` rather than whatever a table
+  answered.
+
+  The census entry is sharpened with it: it named trailing bytes where the
+  flag gates the whole of Bitcoin Core's `IsValidSignatureEncoding`,
+  non-minimal scalars included.
+
 - **The README says what a `_var` name means**, in the section on where
   constant time ends. The convention decides which of two spellings a
   caller reaches for — `mod_inv` blinds its operand where `mod_inv_var`

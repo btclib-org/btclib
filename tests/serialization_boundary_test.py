@@ -41,7 +41,9 @@ it is driven.
 decides whether a check runs rather than what is computed, so it is read
 for its truth, and `check_validity_test.py` owns that convention.
 `dsa.Sig.parse`'s `strict` is the same kind of flag and the same
-exemption, recorded below beside the arguments that are not.
+exemption, recorded below beside the arguments that are not --
+`bool_parameter_test.py` is where that classification is decided, for
+every flag in the library and with the reason for each.
 """
 
 from __future__ import annotations

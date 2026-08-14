@@ -282,12 +282,24 @@ class Sig:
         Deserialize a strict ASN.1 DER representation of an ECDSA
         signature.
 
-        strict says whether the encoding must be the canonical one,
-        covering what comes *after* the sequence as well as what is in
-        it: a byte too many is not a DER signature either. What it does
+        strict says whether the encoding must be the canonical one, which
+        is Bitcoin Core's `IsValidSignatureEncoding` and covers what comes
+        *after* the sequence as well as what is in it: a byte too many is
+        not a DER signature either, and neither is a scalar written with a
+        leading zero it does not need or without one it does. What it does
         not cover, and what a caller has to strip, is a sighash type byte
         -- a script signature and a psbt partial signature both carry one,
         and neither is a bare DER encoding.
+
+        It is read for its truth and not asked for its type, which is the
+        classification `tests/bool_parameter_test.py` records: the flag
+        decides whether the call refuses, and the signature parsed out of
+        an encoding both readings accept is one signature. Worth knowing
+        which direction each accident goes, though, because they are not
+        symmetric: `"false"` out of a configuration file is truthy and
+        therefore strict, while a `None` from a lookup that found nothing
+        is the lax one -- so a caller who means the canonical encoding
+        should pass `True` rather than whatever a table answered.
         """
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
