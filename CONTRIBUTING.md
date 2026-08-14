@@ -894,6 +894,17 @@ only *whether a check runs* is read for its truth: `check_validity` and
 `slip132`'s `check_root_xkey` either run a check or skip one, and neither
 changes an answer. `tests/check_validity_test.py` owns that convention.
 
+**Which of the two a flag is, is written down for every one of them.**
+`tests/bool_parameter_test.py` is the census: two tables, a kind driven
+until it refuses `"no"`, `0` and `1`, a truth driven until it accepts all
+three, and a walk that fails on a `bool` parameter in neither table. So a
+flag added anywhere is a decision somebody makes rather than one the
+default makes for them — and `0` and `1` are in that vocabulary because
+`bool` is a subclass of `int`, which is what leaves `isinstance(value,
+int)` no check at all here. `utils.assert_type` is the refusal, and
+`check_validity` is the one name subtracted by the walk, its own file
+holding it.
+
 Four shapes were what the second gate found when it was written, and they
 are worth knowing because each is a way of being handed an argument
 without looking at it: a **sequence parameter** walked before it is

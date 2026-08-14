@@ -61,7 +61,12 @@ from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
+from btclib.utils import (
+    assert_type,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hex_string,
+)
 
 __all__ = [
     "Sig",
@@ -546,6 +551,12 @@ def sign_(
     derivation is where half of the scheme's security is.
     """
     # the message msg_hash: a hf_len array
+    # both flags decide which signature comes back -- lower_s which of the
+    # two s values, grind whether the nonce is searched for a low r -- so
+    # both are kinds and neither is read for its truth
+    assert_type(lower_s, bool, "lower_s")
+    assert_type(grind, bool, "grind")
+
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
 
@@ -731,6 +742,8 @@ def sign_recoverable_(
     nothing.
     """
     # the message msg_hash: a hf_len array
+    assert_type(lower_s, bool, "lower_s")
+
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
 

@@ -683,6 +683,8 @@ class ScriptPubKey(Script):
 
         https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
         """
+        assert_type(lexicographic_sorting, bool, "lexicographic_sorting")
+
         n = len(keys)
         if not 0 < n < 17:
             raise BTClibValueError(f"invalid n in m-of-n: {n}")

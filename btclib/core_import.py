@@ -75,7 +75,7 @@ from typing import Any
 
 from btclib.descriptors import Descriptor, add_checksum, parse
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.utils import assert_type, is_integer
 
 __all__ = [
     "DEFAULT_RANGE",
@@ -246,6 +246,11 @@ def import_request(
     `label` names the address, and Core allows one only for a single
     unranged receiving descriptor: not for change, and not for a range.
     """
+    # both are fields of the request Core is handed, so a truth read for
+    # its truth would import the other kind of descriptor
+    assert_type(internal, bool, "internal")
+    assert_type(active, bool, "active")
+
     text = add_checksum(descriptor if isinstance(descriptor, str) else str(descriptor))
     is_ranged = _is_ranged(descriptor)
 

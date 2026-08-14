@@ -143,6 +143,8 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     520 bytes is refused only by a parse that meets no OP_SUCCESSx,
     one anywhere making the script valid.
     """
+    assert_type(exit_on_op_success, bool, "exit_on_op_success")
+
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
     invalid_element_size = False

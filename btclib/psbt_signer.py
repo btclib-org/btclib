@@ -65,7 +65,7 @@ from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -536,6 +536,7 @@ class SoftwareSigner:
         # inside, rather than a branch at every use. The round trip is
         # also what refuses a key that is no key, at construction rather
         # than at the first question asked
+        assert_type(musig2, bool, "musig2")
         key = _b58_text(xkey)
         self._musig2 = musig2
         self._fingerprint = fingerprint(key)
@@ -588,6 +589,9 @@ class SoftwareSigner:
         """
         if not accounts:
             raise BTClibValueError("no account: the signer would hold no key")
+        # this factory writes the fields rather than calling __init__, so
+        # the flag is asked for here as well
+        assert_type(musig2, bool, "musig2")
         signer = cls.__new__(cls)
         signer._musig2 = musig2
         signer._fingerprint = bytes_from_octets(master_fingerprint, 4)

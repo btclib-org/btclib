@@ -23,7 +23,7 @@ from hashlib import sha512
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "BinStr",
@@ -388,6 +388,7 @@ def bin_str_entropy_from_rolls(
     if not is_integer(dice_sides):
         err_msg = f"invalid dice base type: {type(dice_sides).__name__}"
         raise BTClibTypeError(err_msg)
+    assert_type(shuffle, bool, "shuffle")
     if dice_sides < 2:
         raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = _bits_per_digit(dice_sides)
@@ -432,6 +433,8 @@ def bin_str_entropy_from_random(
     - XOR-ed with CSPRNG system entropy
     - possibly hashed (if requested)
     """
+    assert_type(to_be_hashed, bool, "to_be_hashed")
+
     if entropy is None or not entropy:
         i = secrets.randbits(bits)
     else:

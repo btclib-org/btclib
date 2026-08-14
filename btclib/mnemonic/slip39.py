@@ -69,7 +69,7 @@ from btclib.mnemonic.mnemonic import (
     mnemonic_from_indexes,
 )
 from btclib.network import network_from_name
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "Share",
@@ -595,6 +595,7 @@ def mnemonics_from_master_secret(
     is the same bytes through another name); anything weaker substituted
     here is a secret an attacker can reproduce.
     """
+    assert_type(extendable, bool, "extendable")
     _assert_valid_passphrase(passphrase)
     secret = bytes_from_octets(master_secret)
     _assert_valid_length(len(secret), "master secret")
