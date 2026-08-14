@@ -376,7 +376,7 @@ def test_a_block_of_real_spends(
     checked = 0
     seen: set[str] = set()
     for tx in block.transactions[:first]:
-        if tx.is_coinbase():
+        if tx.is_coinbase:
             continue
         psbt = psbt_from_spend(tx)
         if psbt is None:

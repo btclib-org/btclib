@@ -20,6 +20,19 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **six `bool` methods are properties: `tx.is_segwit`, not
+  `tx.is_segwit()`.** `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
+  `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took
+  nothing but `self` and were the only argument-less bools in the library
+  that were not properties -- thirty others were. Drop the parentheses;
+  keeping them is `TypeError: 'bool' object is not callable`, which is a
+  loud failure and not a silent one.
+
+  It also makes a bug unsayable rather than merely caught: `if
+  tx.is_segwit:` with the parentheses forgotten was a bound method, and
+  every bound method is true. mypy's `truthy-function` reports it, so
+  anyone type-checking was already safe; anyone not type-checking was not.
+
 - **seven public `bool` names carry a prefix now.**
   `b32.has_segwit_prefix` is `b32.is_segwit_prefixed`,
   `BlockContext.bip34_active` is `is_bip34_active`,

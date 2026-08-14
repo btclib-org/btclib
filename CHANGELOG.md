@@ -2541,6 +2541,31 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **A bool about the object is a property, and six were not** (issue
+  #814). `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
+  `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took
+  nothing but `self` and were called; the thirty other argument-less
+  bools in the library -- `BIP32KeyData.is_private`, `Miniscript.is_sane`,
+  every wallet's `is_watch_only` -- were read. Six against thirty is
+  which side is the exception, so the six are properties and the shape a
+  reader has to remember is one shape.
+
+  A bool *of an argument* is a function of it and cannot be a property:
+  `script_pub_key.is_p2sh(script)` and `is_on_curve(Q)` are untouched,
+  and `test_the_walk_reaches_both_shapes` pins that the filter tells the
+  two apart.
+
+  It spends the one hazard mypy's `truthy-function` covers rather than
+  relying on it. `if tx.is_segwit:` with the parentheses forgotten was a
+  bound method, and every bound method is true -- in code deciding
+  whether a transaction is segwit, which is the kind of place it costs
+  something. mypy names it and mypy is a gate here, so nothing in this
+  tree had made the mistake; a shape that cannot go wrong is still better
+  than a checker that catches it going wrong.
+
+  `tests/name_contract_test.py` gates it with no exemption list, which is
+  what "six against thirty" buys: there is no family left to excuse.
+
 - **Every public `bool` is named by the vocabulary now** (issue #814).
   The four prefixes promised a shape to a caller who saw one and said
   nothing about a bool carrying none, and seven carried none. Each is
