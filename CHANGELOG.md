@@ -3510,6 +3510,37 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **`bip32.derive` stops re-decoding the same xprv/xpub on every call**
+  (issue #828). `derive` and `derive_from_account` decode their `xkey`
+  argument through `BIP32KeyData.b58decode` fresh each time, so a
+  caller deriving many indices or paths from one account key -- what
+  address and whitelist generation both do -- paid for decoding that
+  same root again per address. `bip32._cached_base58_decode` now
+  memoizes `base58.decode(address) -> bytes` underneath `b58decode`,
+  which keeps building a fresh `BIP32KeyData` from those bytes on every
+  call: `tests/bip32/bip32_test.py::test_assert_valid2` decodes one
+  string thirteen times and mutates each result independently through
+  `object.__setattr__`, which frozen does not stop, so the object
+  itself is not safe to hand out shared the way the bytes underneath it
+  are.
+
+  `maxsize=2048` is measured, not the module's usual bare 128, against
+  btclib's own suite and against a caller that also calls `b58decode`
+  directly once per derived key on top of what `derive` already does
+  (checksig#643): hit rate at 128, 512, 1024 and 2048 goes 22.2%,
+  24.3%, 27.5%, 28.8% on the first and 52.8%, 55.6%, 56.1%, 72.9% on the
+  second, most of the second workload's climb sitting between 1024 and
+  2048 where the first has already flattened. Neither workload
+  converges even at 8192, still full and evicting, so 2048 is where one
+  curve's knee clears and the other's has stopped moving, not a ratio
+  either shape asks for on its own.
+
+  `SECURITY.md`'s "not zeroized... until garbage collection" now also
+  reads "or until evicted from this cache": an entry keeps a decoded
+  key -- private, if the string decoded was an xprv -- resident past
+  its caller's own reference to it, bounded by `maxsize` the same way
+  `pedersen.second_generator`'s cache already bounds `ec` (issue #287).
+
 - **A benchmark compares btclib, bindings enabled, against other Python
   bitcoin libraries** (issue #817), `scripts/benchmark_libraries.py`:
   the `ecdsa` PyPI package, pycoin, buidl, embit and python-bitcoinlib,
