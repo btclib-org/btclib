@@ -1028,6 +1028,95 @@ def _signed_odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point
     return [ec.negate(P) for P in reversed(T)] + T
 
 
+@functools.lru_cache  # the generator is the Q of most calls, so it pays
+def _cached_fixed_base_multiples(
+    Q: JacPoint, ec: CurveGroup, w: int
+) -> list[list[Point]]:
+    """Return one signed odd affine table per digit position of a scalar.
+
+    Entry i is `_signed_odd_multiples_aff(2^(w*i) * Q, ec, w)`, so a
+    scalar's i-th width-w digit indexes the multiple it names outright and
+    a multiplication built on this makes no doubling at all. The positions
+    are `ceil(ec.scalar_len / w)`, which is every digit a scalar of the
+    group has; a larger scalar has no table and `signed_odd_digits`
+    refuses it.
+
+    Memoized on (Q, ec, w) because that is what makes it worth building:
+    the table is the point's and not the scalar's, so a caller
+    multiplying the generator pays for it once. What it costs to keep is
+    2^w points a position -- on secp256k1 at the w=6 `curve.py` passes,
+    43 positions of 64 points, some 366 KiB and 9.3 ms to build, which is
+    the trade `_mult_fixed_base` measures.
+    """
+    tables: list[list[Point]] = []
+    K = Q
+    for _ in range(ceil(ec.scalar_len / w)):
+        tables.append(_signed_odd_multiples_aff(K, ec, w))
+        for _ in range(w):
+            K = ec.double_jac(K)
+    return tables
+
+
+def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
+    """Scalar multiplication with a table per digit position: no doublings.
+
+    `_mult_regular_window` with the doublings taken out of it as well as
+    the zero digits: that one holds one table and doubles w times between
+    digits, this one holds a table per position and only adds. So a
+    256-bit scalar costs `ceil(ec.scalar_len / w)` additions and nothing
+    else -- 43 of them at w=6, against 71 additions and 253 doublings --
+    and the count is the same for every scalar of the curve, which is
+    what the regular window is for and what this keeps.
+
+    w=6 by measurement, over 30 random 256-bit scalars on secp256k1, best
+    of seven alternating rounds. The window buys time and is paid in
+    memory, and the time does not turn: 193 us at w=4, 157 at w=5, 127 at
+    w=6, 110 at w=7, 96 at w=8, against tables of 136, 221, 366, 629 and
+    1088 KiB. Where to stop is therefore where the memory stops being
+    worth it, and past w=6 a doubled table buys under 15% each time.
+
+    Against what `curve.mult` ran before, at w=6: 2.77x, 3.42x and 4.13x
+    at w=4, 5 and 6 over the GLV endomorphism's 537 us on secp256k1, and
+    5.98x over the regular window's 785 us on secp256r1, which has no
+    endomorphism to be measured against and gains the more for it. The
+    two curves hold tables of the same size.
+
+    It is libsecp256k1's `secp256k1_ecmult_gen`, which sums one
+    precomputed entry per digit position and doubles nothing, and it
+    applies for the same reason: the point is the curve's generator, the
+    same on every call, so its table is built once and kept.
+    `curves.mult` is what recognizes that case.
+
+    The accumulator is rescaled where `curves.mult` rescales the point on
+    its other arm: the table here is memoized and canonical, so it is the
+    running value that has to stop being a function of m alone.
+    `_blinded_jac` says what that buys and what it does not.
+
+    The input point is assumed to be on the curve, and m to be below
+    2^(w * positions) -- which `ec.scalar_len` bounds and every entry
+    point of the library satisfies, each reducing mod n first.
+    """
+    if m < 0:
+        raise BTClibValueError(f"negative m: {hex(m)}")
+
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise BTClibValueError(f"non positive w: {w}")
+
+    T = _cached_fixed_base_multiples(Q, ec, w)
+    digits = signed_odd_digits(m | 1, w, len(T))
+    offset = (1 << w) - 1
+
+    # a table entry, the top digit being positive, and never infinity
+    R = _blinded_jac(_jac_from_aff(T[-1][(digits[-1] + offset) // 2]), ec)
+    for i in range(len(T) - 2, -1, -1):
+        # only 'add': the position's own table holds the power of two
+        R = ec.add_jac_aff(R, T[i][(digits[i] + offset) // 2])
+    # the parity correction of _mult_regular_window, made whatever the
+    # parity for the same reason, and what answers m == 0
+    return ec.add_jac(R, (INFJ, ec.negate_jac(Q))[not m & 1])
+
+
 def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 

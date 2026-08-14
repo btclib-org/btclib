@@ -31,10 +31,10 @@ about a curve, not a way of finding one.
 The other multiplications of btclib.curves.curve_group and
 btclib.curves.curve_group_2 -- _mult_aff, _mult_jac, _mult_base_3,
 _mult_mont_ladder, the two _mult_recursive_*, the two _mult_fixed_window*,
-_mult_regular_window, _mult_sliding_window, _mult_w_NAF, the two
-_double_mult_* and _mult_endomorphism_secp256k1 -- are private, as are the
-_multiples, _cached_multiples, _odd_multiples and _jac_from_aff they are
-built on.
+_mult_fixed_base, _mult_regular_window, _mult_sliding_window, _mult_w_NAF,
+the two _double_mult_* and _mult_endomorphism_secp256k1 -- are private, as
+are the _multiples, _cached_multiples, _cached_fixed_base_multiples,
+_odd_multiples and _jac_from_aff they are built on.
 
 They are implementations of one operation, kept side by side to be measured
 against each other, and a menu of them is not an API: a caller reading them
