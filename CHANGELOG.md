@@ -274,6 +274,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The pinned revisions move: hooks, actions and the lock.** ruff
+  v0.16.2 to v0.16.3 and the uv-pre-commit hook 0.12.3 to 0.12.4;
+  `setup-uv` v9.0.0 to v10.0.1 and `codeql-action` v4.37.6 to v4.37.7,
+  each re-pinned to the commit its new tag names; and `uv lock
+  --upgrade`, which moved filelock, hypothesis, platformdirs and ruff.
+  The lint gate, the suite and the sphinx build are green on all of it.
+
+  What did not move, and why, since a floor left alone reads as one
+  nobody checked:
+    - `typos` and `pyroma` are the two `pre-commit autoupdate` offers to
+    break, and it offered both again here: typos onto `v1`, the mutable
+    major alias its repository keeps beside the versioned tag, and pyroma
+    onto 5.1b1, 5.1 having no released tag at all. The `pinned-rev` hook
+    is what turns that into a red run rather than a two-line diff nobody
+    reads; v1.49.0 and 5.0.1 are still the newest released tags of the
+    two, checked rather than assumed.
+    - `setup-uv` v10 is a breaking release, and the break is that
+    `enable-cache: auto` now disables the cache on `pull_request_target`,
+    `workflow_run` and `release`. No workflow here uses that value — every
+    one of them says `true` or `false` — and none of the three triggers
+    appears in this repository, so the change reaches nothing.
+    - `required-version = ">=0.11.31"` in `pyproject.toml` is tied to the
+    uv Dependabot's own updater bundles, not to the newest uv: raised, it
+    fails every update Dependabot attempts before it starts. The comment
+    on the key says so, and it is still true.
+    - `setuptools>=77` is the PEP 639 floor for the metadata below it, and
+    `btclib_secp256k1`, `bitcoin-core-rpc` and actionlint's pinned
+    `shellcheck-py` and `pyflakes` are each already at their newest
+    release.
+
 - **The lint gate refuses a read that names no encoding** (issue #784).
   A call that omits it takes the locale's, which is UTF-8 wherever this
   suite is usually read and cp1252 on Windows, where a typographic quote
