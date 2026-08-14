@@ -20,6 +20,15 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **three arguments that used to be accepted are refused.**
+  `KeyGroup(1.5, keys)` built a group with a float quorum and
+  `KeyGroup(keys, verify="no")` one with `verify=True`, `"no"` being
+  truthy; `estimated_input_sizes(psbt_in, tx_in, sizer=<not callable>)`
+  went through for every input the function answers for on its own, the
+  sizer being consulted in one branch. All three raise a
+  `BTClibTypeError` now. A caller handing any of them a value of the
+  declared type is unaffected, and mypy already refused the three.
+
 - **the `_var` suffix finishes its sweep: `ellswift.encode_var`,
   `decode_var`, `create_var`, and `dsa.crack_prv_key_var`.** The map of
   BIP324's ElligatorSwift branches on its data — its inverse measures

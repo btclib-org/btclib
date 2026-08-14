@@ -25,6 +25,7 @@ from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
 from btclib.bip32 import BIP32KeyData
+from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
 from btclib.bip32.der_path import (
     bytes_from_der_path,
     indexes_from_der_path,
@@ -41,9 +42,11 @@ from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
 from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
+from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets, encode_num, is_integer
+from btclib.wallet.script_wallet import KeyGroup
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
@@ -52,6 +55,7 @@ _NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
 # two index parameters below have to be handed something valid to index
 _SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
 _PREVOUTS = [TxOut(1, b"")]
+_XPUB = xpub_from_xprv(rootxprv_from_seed("00" * 32))
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -61,6 +65,23 @@ def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
         [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)],
         [TxOut(1, b"")],
     )
+
+
+def _psbt(**field: Any) -> Psbt:
+    """Return the shortest psbt there is, with one field of it replaced.
+
+    Version 2, whose fields are its own: a v0 psbt refuses
+    `tx_modifiable` outright, which is a rule about the value of a field
+    whose type has to be asked first.
+    """
+    fields: dict[str, Any] = {
+        "tx_version": 1,
+        "inputs": [],
+        "outputs": [],
+        "version": PSBT_V2,
+        "hd_key_paths": {},
+    }
+    return Psbt(**(fields | field), check_validity=False)
 
 
 def _header(version: Any = 1, nonce: Any = 1) -> BlockHeader:
@@ -89,6 +110,12 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("input sequence", lambda v: TxIn(OutPoint(_TX_ID, 0), b"", v)),
     ("transaction version", _tx),
     ("transaction lock time", lambda v: _tx(lock_time=v)),
+    # a psbt is asked by `assert_valid`, `check_validity=False` on the way
+    # in being what lets a field of any type at all into one
+    ("psbt version", lambda v: _psbt(version=v).assert_valid()),
+    ("psbt tx modifiable", lambda v: _psbt(tx_modifiable=v).assert_valid()),
+    ("psbt fallback lock time", lambda v: _psbt(fallback_lock_time=v).assert_valid()),
+    ("key group threshold", lambda v: KeyGroup(v, [_XPUB])),
     ("header version", _header),
     ("header nonce", lambda v: _header(nonce=v)),
     ("block height", lambda v: BlockContext(v, _NOW)),
@@ -175,6 +202,8 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert OutPoint.from_dict({"txid": _TX_ID, "vout": 1}).vout == 1
     assert TxIn(OutPoint(_TX_ID, 0), b"", 1).sequence == 1
     assert _tx(version=1, lock_time=1).lock_time == 1
+    assert _psbt(fallback_lock_time=1).fallback_lock_time == 1
+    assert KeyGroup(1, [_XPUB]).threshold == 1
     assert _header(nonce=1).nonce == 1
     assert BlockContext(1, _NOW).height == 1
     assert valid_sats_amount(1, dust=1) == 1

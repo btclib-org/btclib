@@ -143,7 +143,12 @@ from btclib.descriptors.descriptors import parse as _parse_descriptor
 from btclib.descriptors.key_expression import KeyExpression
 from btclib.descriptors.miniscript import P2WSH, Miniscript
 from btclib.descriptors.miniscript import from_script as _miniscript_from_script
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError, NoDescriptorError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+    NoDescriptorError,
+)
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
@@ -151,6 +156,7 @@ from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
+from btclib.utils import is_integer
 from btclib.wallet.wallet import RangedWallet
 
 __all__ = [
@@ -285,6 +291,54 @@ def _account_sec(xkey: BIP32KeyData) -> bytes:
     return pub_keyinfo_from_key(xkey)[0]
 
 
+def _assert_group_arguments(
+    threshold: int,
+    keys: Sequence[BIP32Key],
+    verify: bool,
+    origins: Sequence[BIP32KeyOrigin | None] | None,
+) -> None:
+    """Refuse an argument of the wrong type before a group is built of one.
+
+    A group is what a script, and therefore an address, is computed from,
+    so every parameter is asked here rather than at the comparisons and
+    the walks that follow: a float `threshold` was accepted outright, and
+    a `keys` or `origins` of no sequence type was "not iterable" from
+    underneath the library.
+
+    A `str` is a Sequence and one of xpubs it is not, which the annotation
+    cannot say: `Sequence[BIP32Key]` accepts a `str`, every character of it
+    being a `BIP32Key` as far as the type goes, so one xpub handed where
+    the list was meant is 111 keys.
+
+    `verify` decides which opcode the script ends with, so it is a kind and
+    not a truth, `musig2._flag`'s distinction: a wallet built from a
+    configuration file where it reads "false" would compute the other
+    script, and every address with it.
+    """
+    if not is_integer(threshold):
+        raise BTClibTypeError(f"invalid threshold type: {type(threshold).__name__}")
+    if isinstance(keys, str) or not isinstance(keys, Sequence):
+        raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
+    if origins is not None and not isinstance(origins, Sequence):
+        raise BTClibTypeError(f"invalid origins type: {type(origins).__name__}")
+    if not isinstance(verify, bool):
+        err_msg = f"invalid verify type: {type(verify).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+
+
+def _assert_origin_types(origins: tuple[BIP32KeyOrigin | None, ...]) -> None:
+    """Refuse an entry that is no origin, before the count is compared.
+
+    The type before the value: a `str` is a Sequence, so `origins="abc"`
+    is three of them as far as the count is concerned and the report would
+    be about the number rather than about the type.
+    """
+    for origin in origins:
+        if origin is not None and not isinstance(origin, BIP32KeyOrigin):
+            err_msg = f"invalid origin type: {type(origin).__name__}"  # type: ignore[unreachable]
+            raise BTClibTypeError(err_msg)
+
+
 class KeyGroup:
     """A quorum of extended keys, as a template writes it into a script.
 
@@ -323,12 +377,15 @@ class KeyGroup:
         verify: bool = False,
         origins: Sequence[BIP32KeyOrigin | None] | None = None,
     ) -> None:
+        _assert_group_arguments(threshold, keys, verify, origins)
+
         self.keys = tuple(_key_data_from_bip32_key(key) for key in keys)
         # one per key, so that the pairing is positional and stays so
         # through the account order, which sorts the keys and not this
         self.origins: tuple[BIP32KeyOrigin | None, ...] = (
             (None,) * len(self.keys) if origins is None else tuple(origins)
         )
+        _assert_origin_types(self.origins)
         if len(self.origins) != len(self.keys):
             err_msg = f"{len(self.origins)} origins for {len(self.keys)} keys:"
             err_msg += " a key origin is positional, and None is what a key"
