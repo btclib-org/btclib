@@ -1299,6 +1299,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **An ECIES envelope's four fields are `Octets`, and coerce** (issue
+  #874). `magic`, `eph_pub_key`, `ciphertext` and `mac` were declared
+  `bytes` and assigned as they came, the only octet fields in the library
+  with no conversion in their constructor -- `OutPoint.tx_id`,
+  `BlockHeader.merkle_root`, `Witness`'s stack elements and
+  `BIP32KeyData.key` all go through `bytes_from_octets`.
+
+  That made two answers wrong. A value with no `len` left `assert_valid`
+  as a TypeError about a builtin, which is issue #776's shape; and a value
+  *with* one was reported as a **size**, so `Envelope("no", ...)` said
+  "invalid magic size: 2 bytes" where the mistake is that a `str` is not a
+  magic at all. `from_ciphertext` was worse than either, its own
+  concatenation failing first: "unsupported operand type(s) for +".
+
+  A hex string is accepted now, as it is for every other octet parameter,
+  which is what a caller pasting an envelope is likelier to hold.
+
+  The `magic` of `Envelope.parse` and `b64decode` was gated in issue #867
+  and is unchanged: what those two take from a caller was already asked.
+
 - **The `_var` census reaches a measured zero.** Two rounds of the
   suffix had left the question half-answered: every function that spends
   a variable-time primitive is now either suffixed or listed as an
