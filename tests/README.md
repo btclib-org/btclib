@@ -98,16 +98,18 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
-Both halves run unattended, in three jobs of the `integration` workflow,
-and each job fails if its tests skipped rather than ran. The regtest one
-downloads a pinned Core release on every pull request and weekly. The
-other two are this module against an emulator, one vendor each, and
-neither is on a pull request — a firmware release or an emulator that
-stopped starting headless is not the branch's fault — so they run
-weekly, on a push to `main`, and on demand:
+Both halves run unattended, in three jobs across two workflows, and each
+job fails if its tests skipped rather than ran. The regtest one is
+`integration.yml`'s, and downloads a pinned Core release on every pull
+request and weekly. The other two are this module against an emulator,
+one vendor each, in `hwi-integration.yml` — a workflow with no
+`pull_request` trigger at all, so a firmware release or an emulator that
+stopped starting headless never shows up as a check on a review that has
+nothing to do with it. They run weekly, on a push to `main`, and on
+demand:
 
 ```shell
-gh workflow run integration.yml --ref <branch>
+gh workflow run hwi-integration.yml --ref <branch>
 ```
 
 `HWI against a Trezor emulator` downloads a pinned Model T binary and a

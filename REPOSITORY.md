@@ -31,12 +31,15 @@ workflows with a job named the same thing produce one ambiguous check.
 A workflow needs an aggregate when every one of its jobs has to gate: the
 matrix of `test.yml` is the one, and a context naming one cell of it would
 leave the rest outside the rule. Where a single job is what gates, that job
-*is* the context, which is why three of the four are job names — and why
-`integration.yml` naming a second job changed nothing here: `HWI against a
-Trezor emulator` runs beside the regtest one and must not gate, an emulator
-being a service to keep working rather than a claim about the branch, so
-the context stays the name of the job that does. What a second job would
-cost is a rename: a workflow whose *whole* answer becomes required needs an
+*is* the context, which is why three of the four are job names.
+`integration.yml` holds only the regtest job: the HWI jobs — `HWI against a
+Trezor emulator` and `HWI against a Ledger emulator` — live in
+`hwi-integration.yml`, a workflow with no `pull_request` trigger at all, so
+a firmware release or a Ledger screen that changed wording produces no
+pull-request check to ignore, required or not — a job merely skipped on a
+pull request still lists there, a workflow that never triggers on one does
+not. What a job added back to `integration.yml` would still cost is a
+rename: a workflow whose *whole* answer becomes required needs an
 aggregate, and this table with it.
 
 `Build the documentation` is named on its own on purpose: a rule naming
