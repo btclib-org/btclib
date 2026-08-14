@@ -108,6 +108,51 @@ def test_taproot_key_tweaking() -> None:
         assert tweaked_pubkey == mult(tweaked_prvkey)[0].to_bytes(32, "big")
 
 
+def test_one_internal_key_however_it_is_spelled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Every spelling of an internal key names the same output key (issue 896).
+
+    The 65-byte SEC form is the one that moved: `output_pubkey` read its key
+    through `pub_keyinfo_from_key(..., compressed=True)`, where the flag was
+    a filter as well as a conversion and refused that length, and it reads
+    `compressed=None` now because that is what has the point to hand down.
+    Nothing in this file built an uncompressed key, so the widening had no
+    assertion and statement coverage could not supply one: the same lines
+    run for a 33-byte key.
+
+    `input_script_sig` is asserted beside it because the two take one
+    internal key between them -- it reads the parity of the output key and
+    carries the key itself in the control block -- and they answer for the
+    same spellings by sharing one reader rather than by agreeing. Both
+    arithmetics, because the arms read the key differently: the bindings one
+    wants the octets alone and the Python one the point.
+    """
+    prv_key = 0xC0FFEE
+    point = mult(prv_key)
+    spellings = (
+        point,
+        bytes_from_point(point, compressed=True),
+        bytes_from_point(point, compressed=False),
+    )
+
+    for script_tree in SCRIPT_TREES:
+        expected = output_pubkey(point, script_tree)
+        for key in spellings:
+            assert output_pubkey(key, script_tree) == expected
+            with monkeypatch.context() as no_bindings:
+                no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+                assert output_pubkey(key, script_tree) == expected
+
+    # and the control block carries the same internal key from any of them,
+    # which is the half a second reader of the key could get wrong
+    for script_tree in SCRIPT_TREES[1:]:
+        assert script_tree is not None  # the None of SCRIPT_TREES is key path only
+        expected_sig = input_script_sig(point, script_tree, 0)
+        for key in spellings:
+            assert input_script_sig(key, script_tree, 0) == expected_sig
+
+
 def test_the_python_tweak_is_the_bindings_tweak(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

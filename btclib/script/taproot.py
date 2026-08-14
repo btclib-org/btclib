@@ -39,7 +39,7 @@ from btclib.script.op_codes_tapscript import (
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -239,6 +239,68 @@ def _tap_tweak(pub_key: bytes, h: bytes) -> int:
     return t
 
 
+def _output_pubkey_and_internal_key(
+    internal_pubkey: Key | None, script_tree: TaprootScriptTree | None
+) -> tuple[bytes, int, bytes]:
+    """Return the output key, its parity, and the x-only internal key.
+
+    What `output_pubkey` and `input_script_sig` want between them: the
+    first answers the pair and drops the third, the second needs the
+    internal key beside the parity. Read twice, that key was lifted twice
+    on the Python path -- the same square root of the same x, which is the
+    redundancy issue 896 is about, one function further out -- and 3.74 us
+    of ec_pubkey_parse twice with the bindings.
+
+    Sharing it is also what keeps the two answering for the same spellings
+    of an internal key: a form accepted for the output key and refused for
+    the control block that proves it would be refused one call after being
+    accepted, and one reader cannot drift from another.
+    """
+    if not internal_pubkey and not script_tree:
+        raise BTClibValueError("missing data")
+    if internal_pubkey:
+        # a fourth reading of the dispatch, and the only one in this module
+        # that is not about which arithmetic runs: what differs between the
+        # two arms is *how much of the key is worth building*.
+        #
+        # `_tweaked_pubkey` lifts the x-only key to a point on the Python
+        # path, and validating a key is how a point is built, so the same
+        # modular square root of the same x was taken twice -- 74 us of the
+        # 311 an output key cost there (issue 896). The bindings arm lifts
+        # nothing, xonly_pubkey_tweak_add carrying its own y, so a point
+        # built for it is computed and dropped: `point_from_key` is 6.58 us
+        # against `pub_keyinfo_from_key`'s 3.74, which is a sixth of a
+        # 17.3 us output key added to the path every install takes.
+        #
+        # So each arm reads what it uses, and both read the same spellings:
+        # `compressed=None` accepts the 33-byte and the 65-byte form as
+        # `point_from_key` does, and `[1:33]` is the x-coordinate of either
+        if _libsecp256k1_serves(secp256k1, None):
+            pub_key = pub_keyinfo_from_key(internal_pubkey)[0][1:33]
+            y_even: int | None = None
+        else:
+            # which of the two roots the key names is its prefix's business
+            # and not BIP341's, whose lift wants the even one: an 03 key
+            # validates to the odd-y point, and the even y is then a
+            # subtraction from the root already taken rather than a second
+            # root
+            x_P, y_P = point_from_key(internal_pubkey)
+            pub_key = x_P.to_bytes(32, "big")
+            y_even = y_P if y_P % 2 == 0 else secp256k1.p - y_P
+    else:
+        h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+        pub_key = bytes.fromhex(h_str)
+        # BIP341's unspendable point is published as an x-only key and
+        # nothing else, so there the lift is the only one there is
+        y_even = None
+    if script_tree:
+        _, h = tree_helper(script_tree)
+    else:
+        h = b""
+    q, parity_bit = _tweaked_pubkey(pub_key, h, y_even)
+    return q, parity_bit, pub_key
+
+
 def output_pubkey(
     internal_pubkey: Key | None = None,
     script_tree: TaprootScriptTree | None = None,
@@ -251,25 +313,22 @@ def output_pubkey(
     path only. The parity bit is the tweaked point's, needed by the
     control block and never serialized in the output.
     """
-    if not internal_pubkey and not script_tree:
-        raise BTClibValueError("missing data")
-    if internal_pubkey:
-        pub_key = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
-    else:
-        h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-        pub_key = bytes.fromhex(h_str)
-    if script_tree:
-        _, h = tree_helper(script_tree)
-    else:
-        h = b""
-    return _tweaked_pubkey(pub_key, h)
+    q, parity_bit, _ = _output_pubkey_and_internal_key(internal_pubkey, script_tree)
+    return q, parity_bit
 
 
-def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
+def _tweaked_pubkey(pub_key: bytes, h: bytes, y_even: int | None) -> tuple[bytes, int]:
     """Return the x-only key an internal key tweaked by h, and its parity.
 
     The half of BIP341's output key that does not care where h came
     from: a tree the caller built, or the merkle root a psbt carries.
+
+    y_even is the even y-coordinate of pub_key where the caller has it
+    already -- `output_pubkey` validated the internal key by lifting it,
+    and on the Python path that lift is a modular square root of this very
+    x (issue 896) -- and None where it does not, which is a caller holding
+    x-only octets and nothing else. The bindings path reads neither:
+    xonly_pubkey_tweak_add takes the octets and carries its own y.
     """
     t = _tap_tweak(pub_key, h)
 
@@ -281,17 +340,20 @@ def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
     # while libsecp256k1 needs no such lift, having the y coordinate as
     # it goes.
     #
-    # The predicate is a constant now that the curve is, and the three
+    # The predicate is a constant now that the curve is, and the four
     # guards in this module keep it rather than saying so: it is the
     # seam the suite closes -- curve._libsecp256k1_available set to
     # False -- to reach the Python arithmetic below, which is the
     # reference implementation the bindings are checked against and not
-    # a path any caller takes. Stated here for all three
+    # a path any caller takes. Stated here for all four, `output_pubkey`'s
+    # being the one that asks for a different reason: which form of the
+    # internal key is worth building, rather than which arithmetic runs
     if _libsecp256k1_serves(secp256k1, None):
         return libsecp256k1_xonly.tweak_add(pub_key, t)
 
     P_x = int.from_bytes(pub_key, "big")
-    Q = secp256k1.add_var((P_x, secp256k1.y_even_var(P_x)), mult(t))
+    P_y = secp256k1.y_even_var(P_x) if y_even is None else y_even
+    Q = secp256k1.add_var((P_x, P_y), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
@@ -313,7 +375,9 @@ def output_pubkey_from_merkle_root(
     reached them in.
     """
     internal_pubkey = bytes_from_octets(internal_pubkey, 32)
-    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root))
+    # y_even=None: x-only octets are all this caller has, so the lift is
+    # `_tweaked_pubkey`'s to make
+    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root), None)
 
 
 def output_prvkey(
@@ -393,12 +457,14 @@ def input_script_sig(
     last leaf and hand back a control block that proves it, so a leaf
     named from the wrong end is refused rather than answered.
     """
-    parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
-    if internal_pubkey:
-        pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
-    else:
-        h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-        pub_key_bytes = bytes.fromhex(h_str)
+    # one read of the internal key for the two things this needs of it: the
+    # parity of the output key it is tweaked into, and the key itself, which
+    # the control block carries. Read twice -- `output_pubkey` and then here
+    # -- it was lifted twice on the Python path, and the unspendable point
+    # was written out twice besides
+    _, parity_bit, pub_key_bytes = _output_pubkey_and_internal_key(
+        internal_pubkey, script_tree
+    )
     leaves = tree_helper(script_tree)[0]
     if not is_integer(script_num):
         raise BTClibTypeError(f"invalid leaf index type: {type(script_num).__name__}")
