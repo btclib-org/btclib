@@ -53,11 +53,12 @@ share by the input hash, and the input hash needs the *sum of the public
 keys* of the eligible inputs -- which is why reading those keys is the
 first thing here and not an aside.
 
-**The k of an output** is BIP375's own rule and not BIP352's ordering: the
-codes sharing one scan key are sorted lexicographically by spend key, and
-a subgroup sharing both keys by output index. `_ordered_sp_outputs` is
-that sort, and `tests/psbt/silent_payments_test.py` says which of the
-vectors pins it.
+**The k of an output** is BIP375's own rule and not BIP352's ordering: it
+counts per scan key, over the outputs in index order. That is what the
+BIP's vectors and its reference validator do and *not* what its prose
+says, which asks for the codes to be sorted lexicographically;
+`_ordered_sp_outputs` is where the discrepancy is documented, and
+`tests/psbt/silent_payments_test.py` says which of the vectors pins it.
 """
 
 from __future__ import annotations
@@ -272,10 +273,12 @@ def _ordered_sp_outputs(psbt: Psbt) -> list[tuple[int, PsbtOut]]:
     scan key while walking the outputs in index order -- and only the
     prose dissents. Index order is therefore what interoperates, and the
     two "output scripts" invalid vectors named after ordering are refused
-    under it anyway: their scripts match no assignment at all.
-    `tests/psbt/silent_payments_test.py` pins each of those facts, so a
-    later revision of the BIP that settles it the other way fails here
-    rather than passing quietly.
+    under it anyway: each carries a k assignment no ascending rule
+    produces, the two values swapped in one and three permuted in the
+    other. `tests/psbt/silent_payments_test.py` pins each of those facts,
+    so a revision of the BIP that settles it the other way fails here
+    rather than passing quietly -- which is what bips PR 2207 proposes,
+    correcting the vectors and the validator to match the prose.
     """
     return [(i, o) for i, o in enumerate(psbt.outputs) if o.sp_v0_info]
 
