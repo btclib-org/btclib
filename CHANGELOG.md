@@ -3106,6 +3106,29 @@ documented at release-notes length in the first place, and are still in
   reader over a stream, so `drng-from-der-path` and
   `rsa-drng-from-root-key` return a value that nothing in the output
   rules prints until a length is named.
+- **`curve_group_2` records what libsecp256k1 has and Python cannot use**
+  (issue #807). The module docstring already keeps a block of further
+  improvements, each with what it would take; what it lacked is the other
+  half, the ones measured and refused, so the same idea arrives again
+  with the same measurement to make. Six of them now sit under it -- the
+  field inverse by addition chain, fast reduction for a pseudo-Mersenne
+  p, limbs with delayed reduction, a separate squaring routine, the
+  masked table lookup, and the square root by addition chain -- each with
+  the number that decided it.
+
+  One of them was in the improvements list rather than beside it: the
+  field inverse by an addition chain, Peter Dettman's and Brian Smith's.
+  `pow(a, -1, p)` is 8.3 us, being CPython's extended Euclid in C, where
+  255 modular squarings in bytecode -- fewer than any chain needs -- are
+  61 us. The square root is the entry that measures the other way, 73.6
+  us against 63.6, and is recorded rather than taken: 1.16x for twenty
+  lines that hold for secp256k1's p alone.
+
+  `dsa._assert_as_valid_` says why its inversion stays, for the same
+  reason (issue #804): comparing `r*Z^2` with the Jacobian X, which is
+  libsecp256k1's `secp256k1_gej_eq_x_var`, measures 1.00x because the
+  bindings hand back a point whose Z is 1 -- and 1.01x where the
+  multiplication is Python's, an inverse being 8.8 us of 1148.
 
 ### Tests
 
