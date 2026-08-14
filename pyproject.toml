@@ -138,6 +138,16 @@ bench = [
     "embit>=0.8.0",
     "pycoin>=0.92718.20260405",
     "python-bitcoinlib>=0.12.2",
+    # scripts/benchmark_python.py's two, and each carries a marker
+    # because each declares a python it can live on that this project
+    # does not sit inside. hwi's latest caps at <3.13 where
+    # .python-version pins 3.14, so on the interpreter this repository
+    # runs on it is absent and the script says so where its rows would
+    # be; secp256k1lab wants >=3.11 against this project's >=3.10, and is
+    # on no index at all -- a git source, at the tag its pyproject calls
+    # 1.0.0, because there is no release to floor
+    "hwi>=3.2.0; python_full_version < '3.13'",
+    "secp256k1lab; python_full_version >= '3.11'",
 ]
 dev = [
     { include-group = "test" },
@@ -163,6 +173,14 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
+
+# secp256k1lab is on no index: the project publishes a git repository and
+# no release, so the `bench` group names it and this says where it is.
+# A tag and not a branch, so that a benchmark run reproduces -- the
+# comparand of a measurement has to be a fixed thing, which is the same
+# reason every other name in that group carries a floor
+[tool.uv.sources]
+secp256k1lab = { git = "https://github.com/secp256k1lab/secp256k1lab", tag = "v1.0.0" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]
@@ -590,15 +608,25 @@ exclude = [
     "build",
 ]
 
-# the comparands of scripts/benchmark_libraries.py, not dependencies of
-# the project: none ships py.typed or a stub on PyPI, and the `bench`
+# the comparands of the two benchmark scripts, not dependencies of the
+# project: none is resolvable here, and the `bench`
 # group that installs them is not part of the `--group lint --group
 # test` the mypy hook runs with, so the import is unresolved whether or
-# not the package happens to be installed. ignore_missing_imports
-# silences exactly that error; the script's own logic still gets strict
-# mode, and only what it receives back from one of these five is `Any`
+# not the package happens to be installed -- secp256k1lab included,
+# which does ship py.typed and would type-check if it were there.
+# ignore_missing_imports silences exactly that error; each script's own
+# logic still gets strict mode, and only what it receives back from one
+# of these is `Any`
 [[tool.mypy.overrides]]
-module = ["bitcoin.*", "buidl.*", "ecdsa.*", "embit.*", "pycoin.*"]
+module = [
+    "bitcoin.*",
+    "buidl.*",
+    "ecdsa.*",
+    "embit.*",
+    "hwilib.*",
+    "pycoin.*",
+    "secp256k1lab.*",
+]
 ignore_missing_imports = true
 
 [tool.ruff]
@@ -794,6 +822,10 @@ ignore = [
 # and it asserts every comparand agrees with btclib before timing any of
 # them, the same pattern btclib-secp256k1's own scripts/benchmark.py uses
 "scripts/benchmark_libraries.py" = [
+    "S101", # assert
+    "T201", # print
+]
+"scripts/benchmark_python.py" = [
     "S101", # assert
     "T201", # print
 ]

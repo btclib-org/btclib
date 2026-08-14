@@ -861,6 +861,54 @@ documented at release-notes length in the first place, and are still in
   a resolver does: the numbers the benchmark prints belong to the versions
   the file names.
 
+- **A third benchmark: every pure-Python implementation against the
+  bindings** (issue #840). `scripts/benchmark.py` times btclib's own two
+  arithmetic paths and `scripts/benchmark_libraries.py` times btclib
+  against other libraries *as installed* -- which for embit,
+  python-bitcoinlib and often pycoin is C. Neither answers what staying
+  in Python costs against what a consumer has for free: `pip install
+  btclib` installs `btclib_secp256k1`, so the bindings are the reference
+  line and not a competitor.
+
+  `scripts/benchmark_python.py` is one reference column and a row per
+  implementation, every backend that can be turned off turned off --
+  `PYCOIN_NATIVE` before the import, `buidl.pecc` rather than
+  `buidl.ecc`, btclib's own dispatch patched. Public key from a private
+  key, on a quiet machine:
+
+  | | | |
+  | --- | ---: | ---: |
+  | btclib, the bindings | 9.2 us | 1.0x |
+  | btclib, Python | 201 us | **21.8x** |
+  | python-ecdsa | 267 us | 28.9x |
+  | secp256k1lab | 1379 us | 149x |
+  | pycoin | 6873 us | 744x |
+  | buidl.pecc | 30997 us | 3357x |
+  | hwilib | 39503 us | 4407x |
+
+  and ECDSA and BIP340 sign and verify below it, each row on the
+  operations that implementation actually offers. The ratios are the
+  point and the microseconds are not: they move with the machine, and
+  the table is read down a column.
+
+  Two dependencies join `bench`, each with the marker its own metadata
+  forces. `hwi` caps at `python <3.13` where `.python-version` pins 3.14,
+  so on this repository's interpreter it is absent and the row says so
+  instead of failing to import -- its number above comes from a 3.12
+  run. `secp256k1lab` is on no index at all: `[tool.uv.sources]` takes it
+  from the `v1.0.0` tag of its git repository, and it wants `>=3.11`
+  where this project supports `>=3.10`.
+
+  **One defect found by writing it.** `_libsecp256k1_applicable` is
+  imported by name into nine modules, and `benchmark.py`'s
+  `python_arithmetic_only` patched three, saying "in every namespace".
+  Three cover what that script times; a public key derived through
+  `to_pub_key` is not among them -- `curves.sec_point` asks the same
+  question in `bytes_from_prv_key_int` -- and the row came back at 8.47
+  us against the reference's 8.39, which is how the omission was found
+  rather than reasoned about. Both scripts now name the modules they
+  patch and say that a row added later has to add its own.
+
 ### Transactions, blocks and PSBT
 
 - **BIP375's Signer and Transaction Extractor** (#760, following #641).
