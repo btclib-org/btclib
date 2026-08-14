@@ -2382,6 +2382,40 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **Every public `bool` is named by the vocabulary now** (issue #814).
+  The four prefixes promised a shape to a caller who saw one and said
+  nothing about a bool carrying none, and seven carried none. Each is
+  renamed for what it answers:
+  `b32.has_segwit_prefix` is `is_segwit_prefixed`,
+  `BlockContext.bip34_active` is `is_bip34_active`,
+  `Miniscript.within_resource_limits` is `is_within_resource_limits`,
+  `hwi.available` is `is_available`,
+  `CurveGroup.jac_equality` is `is_jac_equal`,
+  `Block.has_segwit_tx` is `is_segwit`, and
+  `Miniscript.needs_signature` is `is_signature_required`.
+
+  Three of those are worth a word. `jac_equality` was a *noun*, so it read
+  as a thing rather than as a question, and it is the only one of the
+  seven that takes arguments. `Block.is_segwit` joins the
+  `Tx.is_segwit` its body is computed from -- `any(tx.is_segwit() for tx
+  in self.transactions)` -- so one property is one name at both levels.
+  And `is_signature_required` is what that docstring already said: "every
+  satisfaction requires a signature".
+
+  Six keep their names, and `tests/name_contract_test.py` says why one by
+  one: `Miniscript.mixes_timelocks` and `has_duplicate_keys` are BIP379's
+  own words, the three `Psbt` bits are named after
+  PSBT_GLOBAL_TX_MODIFIABLE, and `miniscript.reads_back` is the round
+  trip as a question -- `is_read_back` would ask who reads it. What closes
+  the vocabulary is not the renaming but the gate beside it: a public bool
+  that neither carries a prefix nor is named in that list fails, and an
+  entry that has gained a prefix fails too. `check_` drifted to four
+  meanings because nothing could notice; this is what noticing looks like.
+
+  `tests/_data/miniscript_fixed_tests.json` keeps its `needs_signature`
+  key, that file being upstream's, and the test maps the vendor's key to
+  btclib's property with a comment saying so.
+
 - **The sixteen positions the bool gate held open are closed** (issue
   #814). `tests/bool_contract_test.py` drove twelve verifications the
   automatic walk cannot reach and found sixteen positions where a wrong

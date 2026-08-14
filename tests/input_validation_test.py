@@ -19,7 +19,7 @@ distinction issue #814 settled, so this file drives the two separately:
   about the input, and leaves as a `BTClibException` -- unless the
   function answers a `bool` about it, in which case the answer is
   `False`. `_ANSWERS_FALSE` is that family, and it is a family: nine
-  script predicates, `b32.has_segwit_prefix` and `ecc.dleq.verify_proof`.
+  script predicates, `b32.is_segwit_prefixed` and `ecc.dleq.verify_proof`.
 
 Both are `BTClibException`, which is what makes the second rule one
 predicate instead of a tuple that has to be kept in step with the
@@ -159,7 +159,7 @@ _A_BOOL_ANSWERS_FALSE = (
 )
 
 _ANSWERS_FALSE: dict[str, str] = {
-    "btclib.b32.has_segwit_prefix": _A_BOOL_ANSWERS_FALSE,
+    "btclib.b32.is_segwit_prefixed": _A_BOOL_ANSWERS_FALSE,
     "btclib.ecc.dleq.verify_proof": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_nulldata": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2ms": _A_BOOL_ANSWERS_FALSE,

@@ -864,11 +864,14 @@ argument handed **straight to the bindings**, whose own message names a C
 parameter; and a **reduction outside the `try`**, which refuses a message
 `verify_` would answer False about.
 
-**Which of those a function is, its name says**, and the four prefixes
-below are a closed vocabulary *of prefixes*: a name carrying one promises
-that shape. It is not a requirement that every bool name carry one —
-`b32.has_segwit_prefix`, `Block.has_segwit_tx` and
-`Psbt.inputs_modifiable` are English predicates under the same contract.
+**Which of those a function is, its name says**, and the vocabulary is
+closed: a public function that answers a `bool` carries one of the four
+prefixes below, or is one of the English predicates
+`tests/name_contract_test.py` names — `Psbt.inputs_modifiable` and
+`Miniscript.mixes_timelocks` among them, where the name is the standard's
+and `is_` would cost the reading. A bool that is neither fails that gate,
+so a new one is a prefix or a decision somebody wrote down.
+
 What the four buy is a promise read off the name:
 
 - `assert_*` refuses and returns `None`. There are eighty-odd of them

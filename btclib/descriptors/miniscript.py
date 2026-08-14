@@ -1146,7 +1146,7 @@ class Miniscript:
         return _has(self.properties, "m")
 
     @property
-    def needs_signature(self) -> bool:
+    def is_signature_required(self) -> bool:
         """Answer whether every satisfaction requires a signature."""
         return _has(self.properties, "s")
 
@@ -1266,7 +1266,7 @@ class Miniscript:
         return self.max_stack_items is not None
 
     @property
-    def within_resource_limits(self) -> bool:
+    def is_within_resource_limits(self) -> bool:
         """Answer whether a satisfaction is guaranteed to be spendable.
 
         The limits that depend on the satisfaction rather than on the
@@ -1289,7 +1289,7 @@ class Miniscript:
     def is_sane_subexpression(self) -> bool:
         """Answer whether the expression means what it says, as a part."""
         return (
-            self.within_resource_limits
+            self.is_within_resource_limits
             and self.is_non_malleable
             and not self.mixes_timelocks
             and not self.has_duplicate_keys
@@ -1308,7 +1308,7 @@ class Miniscript:
         return (
             self.is_valid_top_level
             and self.is_sane_subexpression
-            and self.needs_signature
+            and self.is_signature_required
         )
 
     @property
@@ -2725,7 +2725,7 @@ def _assert_sane(node: Miniscript) -> None:
         raise BTClibValueError(f"{node} is not satisfiable")
     if not insane.is_non_malleable:
         raise BTClibValueError(f"{insane} is not sane: malleable witnesses exist")
-    if insane is node and not insane.needs_signature:
+    if insane is node and not insane.is_signature_required:
         err_msg = f"{insane} is not sane: witnesses without signature exist"
         raise BTClibValueError(err_msg)
     if insane.mixes_timelocks:

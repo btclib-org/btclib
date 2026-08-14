@@ -80,6 +80,32 @@ _OTHER_CONTRACT: dict[str, str] = {
 }
 
 
+# A bool need not carry one of the four prefixes: an English predicate is
+# the same family and the same contract, and `is_` would cost the reading.
+# Six of them, each with the reason it keeps the name it has -- and the
+# ratchet below is what closes the vocabulary all the same, an entry that
+# has gained a prefix being one this list no longer excuses (issue #814)
+_ITS_STANDARD_SPELLING = (
+    "the name is the standard's: BIP379's malleability analysis says a"
+    " miniscript mixes timelocks and has duplicate keys, and the three"
+    " PSBT_GLOBAL_TX_MODIFIABLE bits are named after the field"
+)
+
+_A_PREDICATE_WITH_A_SUBJECT = (
+    "`reads_back` is the round trip as a question, and the subject is the"
+    " script: `is_read_back` would ask who reads it"
+)
+
+_ENGLISH_PREDICATE: dict[str, str] = {
+    "btclib.descriptors.miniscript.has_duplicate_keys": (_ITS_STANDARD_SPELLING),
+    "btclib.descriptors.miniscript.mixes_timelocks": (_ITS_STANDARD_SPELLING),
+    "btclib.descriptors.miniscript.reads_back": _A_PREDICATE_WITH_A_SUBJECT,
+    "btclib.psbt.psbt.has_sig_hash_single": _ITS_STANDARD_SPELLING,
+    "btclib.psbt.psbt.inputs_modifiable": _ITS_STANDARD_SPELLING,
+    "btclib.psbt.psbt.outputs_modifiable": _ITS_STANDARD_SPELLING,
+}
+
+
 def _promised_by(name: str) -> str | None:
     """Return the type the name promises, or None if it promises nothing."""
     if name.startswith(_AN_OP_CODE):
@@ -117,8 +143,28 @@ def _named() -> dict[str, str]:
     return found
 
 
+def _public_bools() -> list[str]:
+    """Return every public function that answers a bool, however named.
+
+    The dotted name drops the class, as `_named` above does: a method and
+    a module function of one name are one entry, which is the spelling
+    `input_validation_test.py` uses too.
+    """
+    found: list[str] = []
+    for path in sorted(_LIBRARY.rglob("*.py")):
+        module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                continue
+            if node.returns is not None and ast.unparse(node.returns) == "bool":
+                found.append(f"{module}.{node.name}")
+    return sorted(found)
+
+
 _NAMED = _named()
 _GATED = sorted(set(_NAMED) - _OTHER_CONTRACT.keys())
+_PUBLIC_BOOLS = _public_bools()
 
 
 @pytest.mark.parametrize("dotted", _GATED)
@@ -174,3 +220,36 @@ def test_check_says_one_thing() -> None:
         "btclib.script.engine.script.check_pub_key",
         "btclib.script.taproot.check_output_pubkey",
     }
+
+
+@pytest.mark.parametrize("dotted", _PUBLIC_BOOLS)
+def test_every_public_bool_is_named_by_the_vocabulary(dotted: str) -> None:
+    """A bool carries one of the four prefixes, or is named in the list.
+
+    What this closes is the gap the prefixes alone leave: they promise a
+    shape to a caller who sees one, and say nothing about a bool that
+    carries none. Seven did before issue #814 -- four were renamed and
+    three more were, `Block.is_segwit` joining the `Tx.is_segwit` it is
+    computed from -- and the six that are left keep their names for the
+    reason each entry gives.
+
+    So a bool added from here on either carries a prefix or is a decision
+    somebody wrote down, which is what `check_` drifting for four
+    meanings cost the tree.
+    """
+    name = dotted.rpartition(".")[2]
+    assert (
+        _promised_by(name) is not None
+        or name.startswith(_AN_OP_CODE)
+        or dotted in _ENGLISH_PREDICATE
+    ), f"{dotted} answers a bool and its name promises nothing"
+
+
+@pytest.mark.parametrize("dotted", sorted(_ENGLISH_PREDICATE))
+def test_what_keeps_its_english_name_still_needs_to(dotted: str) -> None:
+    """A line of `_ENGLISH_PREDICATE` cannot outlive the name it excuses."""
+    assert dotted in _PUBLIC_BOOLS, f"{dotted} is no longer a public bool"
+    name = dotted.rpartition(".")[2]
+    assert _promised_by(name) is None, (
+        f"{dotted} carries a prefix now: delete its line from _ENGLISH_PREDICATE"
+    )

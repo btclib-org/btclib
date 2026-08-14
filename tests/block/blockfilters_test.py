@@ -125,10 +125,10 @@ def test_blockfilters_coinbase_height(
         now=block.header.time,
         bip34_height=_TESTNET_BIP34_HEIGHT,
     )
-    assert context.bip34_active == (height >= _TESTNET_BIP34_HEIGHT)
+    assert context.is_bip34_active == (height >= _TESTNET_BIP34_HEIGHT)
     block.assert_valid_contextual(context)
 
-    if not context.bip34_active:
+    if not context.is_bip34_active:
         # the commitment is absent, so asking for it directly is what
         # measures that the gate above is doing the work
         with pytest.raises(BTClibValueError, match="invalid coinbase height: "):
@@ -182,5 +182,5 @@ def test_the_witness_row_commits_to_its_witnesses() -> None:
     what says the row was chosen for that and would be missed if it went.
     """
     block = block_at(1263442)
-    assert block.has_segwit_tx()
+    assert block.is_segwit()
     assert block.witness_commitment is not None

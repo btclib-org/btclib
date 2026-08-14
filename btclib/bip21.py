@@ -77,7 +77,7 @@ _MALFORMED_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 def _network_from_address(address: str) -> str:
     """Return the network of an address, raising if it is not one."""
-    if b32.has_segwit_prefix(address):
+    if b32.is_segwit_prefixed(address):
         return b32.witness_from_address(address)[2]
     return b58.h160_from_address(address)[2]
 

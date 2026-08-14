@@ -49,11 +49,11 @@ from btclib.script import op_int, output_pubkey, serialize
 def test_has_segwit_prefix() -> None:
     """Verify bc1 addresses are told from base58 ones, str or bytes."""
     addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
-    assert b32.has_segwit_prefix(addr)
-    assert b32.has_segwit_prefix(addr.decode("ascii"))
+    assert b32.is_segwit_prefixed(addr)
+    assert b32.is_segwit_prefixed(addr.decode("ascii"))
     addr = b"1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    assert not b32.has_segwit_prefix(addr)
-    assert not b32.has_segwit_prefix(addr.decode("ascii"))
+    assert not b32.is_segwit_prefixed(addr)
+    assert not b32.is_segwit_prefixed(addr.decode("ascii"))
 
 
 def test_valid_address() -> None:

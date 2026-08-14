@@ -124,7 +124,7 @@ def test_address_payload(address: str, script_pub_key: str, network: str) -> Non
     payload rather than a script, and re-encoding that payload on the
     chain the metadata names is the round trip belonging to this layer.
     """
-    if b32.has_segwit_prefix(address):
+    if b32.is_segwit_prefixed(address):
         wit_ver, wit_prg, _ = b32.witness_from_address(address)
         assert b32.address_from_witness(wit_ver, wit_prg, network) == address
     else:

@@ -65,7 +65,7 @@ from btclib.utils import bytes_from_octets, str_from_string
 __all__ = [
     "address_from_witness",
     "bytes_from_witness_program",
-    "has_segwit_prefix",
+    "is_segwit_prefixed",
     "p2tr",
     "p2wpkh",
     "p2wsh",
@@ -76,7 +76,7 @@ __all__ = [
 # 0. bech32 facilities
 
 
-def has_segwit_prefix(addr: String) -> bool:
+def is_segwit_prefixed(addr: String) -> bool:
     """Answer whether the string starts as a bech32 address of any network.
 
     The prefix alone -- hrp and the 1 separator -- is read; whether the

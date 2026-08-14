@@ -38,23 +38,23 @@ def test_mult_sliding_window() -> None:
     """Check the sliding-window mult on boundary scalars and against _mult."""
     for w in range(1, 6):
         for ec in low_card_curves.values():
-            assert ec.jac_equality(_mult_sliding_window_var(0, ec.GJ, ec, w), INFJ)
-            assert ec.jac_equality(_mult_sliding_window_var(0, INFJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_sliding_window_var(0, ec.GJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_sliding_window_var(0, INFJ, ec, w), INFJ)
 
-            assert ec.jac_equality(_mult_sliding_window_var(1, INFJ, ec, w), INFJ)
-            assert ec.jac_equality(_mult_sliding_window_var(1, ec.GJ, ec, w), ec.GJ)
+            assert ec.is_jac_equal(_mult_sliding_window_var(1, INFJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_sliding_window_var(1, ec.GJ, ec, w), ec.GJ)
 
             PJ = _mult_sliding_window_var(2, ec.GJ, ec, w)
-            assert ec.jac_equality(PJ, ec.add_jac(ec.GJ, ec.GJ))
+            assert ec.is_jac_equal(PJ, ec.add_jac(ec.GJ, ec.GJ))
 
             PJ = _mult_sliding_window_var(ec.n - 1, ec.GJ, ec, w)
-            assert ec.jac_equality(ec.negate_jac(ec.GJ), PJ)
+            assert ec.is_jac_equal(ec.negate_jac(ec.GJ), PJ)
 
-            assert ec.jac_equality(
+            assert ec.is_jac_equal(
                 _mult_sliding_window_var(ec.n - 1, INFJ, ec, w), INFJ
             )
-            assert ec.jac_equality(ec.add_jac(PJ, ec.GJ), INFJ)
-            assert ec.jac_equality(_mult_sliding_window_var(ec.n, ec.GJ, ec, w), INFJ)
+            assert ec.is_jac_equal(ec.add_jac(PJ, ec.GJ), INFJ)
+            assert ec.is_jac_equal(_mult_sliding_window_var(ec.n, ec.GJ, ec, w), INFJ)
 
             with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_sliding_window_var(-1, ec.GJ, ec, w)
@@ -66,28 +66,28 @@ def test_mult_sliding_window() -> None:
     for w in range(1, 10):
         for k1 in range(ec.n):
             K1 = _mult_sliding_window_var(k1, ec.GJ, ec, w)
-            assert ec.jac_equality(K1, _mult(k1, ec.GJ, ec))
+            assert ec.is_jac_equal(K1, _mult(k1, ec.GJ, ec))
 
 
 def test_mult_w_NAF() -> None:
     """Check the wNAF mult on boundary scalars and against _mult."""
     for w in range(1, 6):
         for ec in low_card_curves.values():
-            assert ec.jac_equality(_mult_w_NAF_var(0, ec.GJ, ec, w), INFJ)
-            assert ec.jac_equality(_mult_w_NAF_var(0, INFJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(0, ec.GJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(0, INFJ, ec, w), INFJ)
 
-            assert ec.jac_equality(_mult_w_NAF_var(1, INFJ, ec, w), INFJ)
-            assert ec.jac_equality(_mult_w_NAF_var(1, ec.GJ, ec, w), ec.GJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(1, INFJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(1, ec.GJ, ec, w), ec.GJ)
 
             PJ = _mult_w_NAF_var(2, ec.GJ, ec, w)
-            assert ec.jac_equality(PJ, ec.add_jac(ec.GJ, ec.GJ))
+            assert ec.is_jac_equal(PJ, ec.add_jac(ec.GJ, ec.GJ))
 
             PJ = _mult_w_NAF_var(ec.n - 1, ec.GJ, ec, w)
-            assert ec.jac_equality(ec.negate_jac(ec.GJ), PJ)
+            assert ec.is_jac_equal(ec.negate_jac(ec.GJ), PJ)
 
-            assert ec.jac_equality(_mult_w_NAF_var(ec.n - 1, INFJ, ec, w), INFJ)
-            assert ec.jac_equality(ec.add_jac(PJ, ec.GJ), INFJ)
-            assert ec.jac_equality(_mult_w_NAF_var(ec.n, ec.GJ, ec, w), INFJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(ec.n - 1, INFJ, ec, w), INFJ)
+            assert ec.is_jac_equal(ec.add_jac(PJ, ec.GJ), INFJ)
+            assert ec.is_jac_equal(_mult_w_NAF_var(ec.n, ec.GJ, ec, w), INFJ)
 
             with pytest.raises(BTClibValueError, match="negative m: "):
                 _mult_w_NAF_var(-1, ec.GJ, ec, w)
@@ -99,7 +99,7 @@ def test_mult_w_NAF() -> None:
     for w in range(1, 10):
         for k1 in range(ec.n):
             K1 = _mult_w_NAF_var(k1, ec.GJ, ec, w)
-            assert ec.jac_equality(K1, _mult(k1, ec.GJ, ec))
+            assert ec.is_jac_equal(K1, _mult(k1, ec.GJ, ec))
 
 
 @pytest.mark.parametrize(
@@ -120,21 +120,21 @@ def test_mult_endomorphism_secp256k1(
         return mult_endo(m, QJ, secp256k1, 4)
 
     ec = secp256k1
-    assert ec.jac_equality(mult(0, ec.GJ), INFJ)
-    assert ec.jac_equality(mult(0, INFJ), INFJ)
+    assert ec.is_jac_equal(mult(0, ec.GJ), INFJ)
+    assert ec.is_jac_equal(mult(0, INFJ), INFJ)
 
-    assert ec.jac_equality(mult(1, INFJ), INFJ)
-    assert ec.jac_equality(mult(1, ec.GJ), ec.GJ)
+    assert ec.is_jac_equal(mult(1, INFJ), INFJ)
+    assert ec.is_jac_equal(mult(1, ec.GJ), ec.GJ)
 
     PJ = mult(2, ec.GJ)
-    assert ec.jac_equality(PJ, ec.add_jac(ec.GJ, ec.GJ))
+    assert ec.is_jac_equal(PJ, ec.add_jac(ec.GJ, ec.GJ))
 
     PJ = mult(ec.n - 1, ec.GJ)
-    assert ec.jac_equality(ec.negate_jac(ec.GJ), PJ)
+    assert ec.is_jac_equal(ec.negate_jac(ec.GJ), PJ)
 
-    assert ec.jac_equality(mult(ec.n - 1, INFJ), INFJ)
-    assert ec.jac_equality(ec.add_jac(PJ, ec.GJ), INFJ)
-    assert ec.jac_equality(mult(ec.n, ec.GJ), INFJ)
+    assert ec.is_jac_equal(mult(ec.n - 1, INFJ), INFJ)
+    assert ec.is_jac_equal(ec.add_jac(PJ, ec.GJ), INFJ)
+    assert ec.is_jac_equal(mult(ec.n, ec.GJ), INFJ)
 
     with pytest.raises(BTClibValueError, match="negative m: "):
         mult(-1, ec.GJ)
@@ -169,7 +169,7 @@ def test_mult_endomorphism_agrees_with_mult_above_2_127() -> None:
             _mult_endomorphism_secp256k1_var,
         ):
             got = mult_endo(m, ec.GJ, ec, 4)
-            assert ec.jac_equality(got, expected), (m, mult_endo.__name__)
+            assert ec.is_jac_equal(got, expected), (m, mult_endo.__name__)
 
 
 def test_multiplier_decomposer() -> None:
@@ -222,10 +222,10 @@ def test_double_mult_w_NAF() -> None:
                 for v in range(ec.n):
                     expected = _double_mult_var(u, HJ, v, QJ, ec)
                     got = _double_mult_w_NAF_var(u, HJ, v, QJ, ec, w)
-                    assert ec.jac_equality(got, expected), (u, v, w)
+                    assert ec.is_jac_equal(got, expected), (u, v, w)
 
     ec = secp256k1
-    assert ec.jac_equality(_double_mult_w_NAF_var(0, ec.GJ, 0, ec.GJ, ec, w=4), INFJ)
+    assert ec.is_jac_equal(_double_mult_w_NAF_var(0, ec.GJ, 0, ec.GJ, ec, w=4), INFJ)
     with pytest.raises(BTClibValueError, match="negative first coefficient: "):
         _double_mult_w_NAF_var(-1, ec.GJ, 1, ec.GJ, ec, w=4)
     with pytest.raises(BTClibValueError, match="negative second coefficient: "):
@@ -273,21 +273,21 @@ def test_double_mult_endomorphism_secp256k1() -> None:
     for u, v in pairs:
         expected = _double_mult_var(u % _N, HJ, v % _N, QJ, ec)
         for w in (1, 2, 4, 5):
-            assert ec.jac_equality(dm(u, v, HJ, QJ, w), expected), (u, v, w)
+            assert ec.is_jac_equal(dm(u, v, HJ, QJ, w), expected), (u, v, w)
 
     # infinity on either side, and the coefficient that contributes nothing:
     # what `curves.double_mult` sends down this path on secp256k1, the
     # bindings taking no zero scalar and no infinity
     for u, v in ((7, 5), (0, 5), (7, 0), (0, 0)):
         for H, Q in ((INFJ, QJ), (HJ, INFJ), (INFJ, INFJ)):
-            assert ec.jac_equality(dm(u, v, H, Q), _double_mult_var(u, H, v, Q, ec)), (
+            assert ec.is_jac_equal(dm(u, v, H, Q), _double_mult_var(u, H, v, Q, ec)), (
                 u,
                 v,
             )
 
     # the same point twice, and a sum that lands on infinity
-    assert ec.jac_equality(dm(7, 5, HJ, HJ), _double_mult_var(7, HJ, 5, HJ, ec))
-    assert ec.jac_equality(dm(3, _N - 3, HJ, HJ), INFJ)
+    assert ec.is_jac_equal(dm(7, 5, HJ, HJ), _double_mult_var(7, HJ, 5, HJ, ec))
+    assert ec.is_jac_equal(dm(3, _N - 3, HJ, HJ), INFJ)
 
     with pytest.raises(BTClibValueError, match="negative first coefficient: "):
         dm(-1, 1, HJ, QJ)
@@ -313,7 +313,7 @@ def test_double_mult_regular_window() -> None:
                 for v in range(ec.n):
                     expected = _double_mult_var(u, HJ, v, QJ, ec)
                     got = _double_mult_regular_window(u, HJ, v, QJ, ec, w, scalar_len=0)
-                    assert ec.jac_equality(got, expected), (u, v, w)
+                    assert ec.is_jac_equal(got, expected), (u, v, w)
 
     ec = secp256k1
     # the scalar_len the endomorphism passes, and coefficients that need
@@ -322,7 +322,7 @@ def test_double_mult_regular_window() -> None:
         expected = _double_mult_var(u, ec.GJ, v, ec.GJ, ec)
         for scalar_len in (0, _HALF_LEN):
             got = _double_mult_regular_window(u, ec.GJ, v, ec.GJ, ec, 4, scalar_len)
-            assert ec.jac_equality(got, expected), (u, v, scalar_len)
+            assert ec.is_jac_equal(got, expected), (u, v, scalar_len)
 
     with pytest.raises(BTClibValueError, match="negative first coefficient: "):
         _double_mult_regular_window(-1, ec.GJ, 1, ec.GJ, ec, w=4, scalar_len=0)

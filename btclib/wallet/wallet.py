@@ -90,7 +90,7 @@ def _address_str(address: String) -> str:
     """
     addr = address.decode("ascii") if isinstance(address, bytes) else address
     addr = addr.strip()
-    return addr.lower() if b32.has_segwit_prefix(addr) else addr
+    return addr.lower() if b32.is_segwit_prefixed(addr) else addr
 
 
 @dataclass(frozen=True)

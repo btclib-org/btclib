@@ -154,7 +154,10 @@ def test_core_fixed_vector(vector: dict[str, Any], context: str) -> None:
     if expected is not None:
         assert script.hex() == expected
     assert node.is_non_malleable == vector["non_malleable"]
-    assert node.needs_signature == vector["needs_signature"]
+    # the key is the vendor's and the property is btclib's: the vector
+    # file is upstream's and says `needs_signature`, which is what that
+    # property was called before issue #814 gave every bool a prefix
+    assert node.is_signature_required == vector["needs_signature"]
     assert node.mixes_timelocks == vector["mixed_timelocks"]
     witness = "witness_size" if context == P2WSH else "tapscript_witness_size"
     for name, bound in (
@@ -204,7 +207,7 @@ def test_a_tapscript_passes_the_p2wsh_limits(count: int) -> None:
     assert node.max_ops == count + (count - 1) * 3
     assert node.max_stack_items == count
     assert node.max_exec_stack_items == count + 1
-    assert node.within_resource_limits
+    assert node.is_within_resource_limits
     with pytest.raises(BTClibValueError, match="too large for P2WSH"):
         parse(expression, P2WSH)
 
@@ -225,10 +228,10 @@ def test_the_stack_limit_is_reached_during_execution() -> None:
     assert node.max_ops == 4 * 998 + 1
     assert node.max_stack_items == 1
     assert node.max_exec_stack_items == 1000
-    assert node.within_resource_limits
+    assert node.is_within_resource_limits
     deeper = parse(older_nesting(999), TAPSCRIPT)
     assert deeper.max_exec_stack_items == 1001
-    assert not deeper.within_resource_limits
+    assert not deeper.is_within_resource_limits
     # the script of a nesting no recursion could walk, read back
     assert from_script(deeper.script(), TAPSCRIPT).script() == deeper.script()
     assert str(parse(str(deeper), TAPSCRIPT)) == str(deeper)
@@ -538,10 +541,10 @@ def test_a_witness_of_a_hundred_elements_is_too_large_for_a_p2wsh() -> None:
     )
     node = parse(expression)
     assert node.is_valid_top_level
-    assert node.needs_signature
+    assert node.is_signature_required
     assert node.is_non_malleable
     assert node.max_stack_items == 105
-    assert not node.within_resource_limits
+    assert not node.is_within_resource_limits
     with pytest.raises(BTClibValueError, match="exceed the resource limits"):
         parse_descriptor(f"wsh({expression})")
 
@@ -550,7 +553,7 @@ def test_an_invalid_expression_is_within_no_limits() -> None:
     """Answer that nothing is guaranteed of a script the rules refuse."""
     node = Miniscript("and_b", subs=(Miniscript("1"), Miniscript("1")))
     assert not node.is_valid
-    assert not node.within_resource_limits
+    assert not node.is_within_resource_limits
 
 
 def test_an_unsatisfiable_expression_has_no_bounds() -> None:
@@ -562,7 +565,7 @@ def test_an_unsatisfiable_expression_has_no_bounds() -> None:
     assert node.max_ops is None
     assert node.max_witness_size is None
     # and a valid expression is still within the limits it cannot reach
-    assert node.within_resource_limits
+    assert node.is_within_resource_limits
 
 
 def test_a_repeated_key_is_not_sane() -> None:

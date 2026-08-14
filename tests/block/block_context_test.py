@@ -59,11 +59,11 @@ def test_the_activation_height_is_cores() -> None:
         (_MAINNET_BIP34_HEIGHT, True),
         (_MAINNET_BIP34_HEIGHT + 1, True),
     ):
-        assert BlockContext(height=height, now=now).bip34_active is active
+        assert BlockContext(height=height, now=now).is_bip34_active is active
 
     # regtest has BIP34 in force from its first block, which is why the
     # one-byte encodings below are the mainline case and not an edge
-    assert BlockContext(height=1, now=now, bip34_height=1).bip34_active
+    assert BlockContext(height=1, now=now, bip34_height=1).is_bip34_active
 
 
 def test_a_context_is_a_height_and_an_instant() -> None:

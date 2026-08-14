@@ -51,8 +51,8 @@ from btclib.hwi import (
     DEFAULT_TIMEOUT,
     HwiDevice,
     HwiSigner,
-    available,
     enumerate_devices,
+    is_available,
 )
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import (
@@ -619,7 +619,7 @@ def test_the_defaults_are_the_two_bounds(hwi: list[str]) -> None:
 def test_whether_the_command_line_is_there_is_asked_before_it_is_run(
     hwi: list[str], tmp_path: Path
 ) -> None:
-    """`available` looks for argv[0] of what would be run, and nothing else.
+    """`is_available` looks for argv[0] of what would be run, and nothing else.
 
     The stand-in is `[sys.executable, script]`, so what has to be on the
     PATH is the interpreter and not the script: which element that is is
@@ -629,14 +629,14 @@ def test_whether_the_command_line_is_there_is_asked_before_it_is_run(
     subprocess -- the same fact `enumerate_devices` reports afterwards,
     and by then it has run one.
     """
-    assert available(hwi)
-    assert available(sys.executable)
-    assert not available(str(tmp_path / "nowhere"))
-    assert not available([str(tmp_path / "nowhere"), "--flag"])
+    assert is_available(hwi)
+    assert is_available(sys.executable)
+    assert not is_available(str(tmp_path / "nowhere"))
+    assert not is_available([str(tmp_path / "nowhere"), "--flag"])
     # the default is the name every command here runs, so the two cannot
     # be answers about different executables
     assert DEFAULT_EXECUTABLE == "hwi"
-    assert available() == (shutil.which(DEFAULT_EXECUTABLE) is not None)
+    assert is_available() == (shutil.which(DEFAULT_EXECUTABLE) is not None)
 
 
 def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
