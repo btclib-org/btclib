@@ -1546,15 +1546,31 @@ def _multi_mult_w_NAF_var(
     # the test suite have a scalar_len of a handful of bits
     fixed_w = min(_FIXED_POINT_W, ec.scalar_len)
     nafs = []
-    tables = []
-    for n, PJ in pairs:
+    tables: list[list[Point]] = []
+    # the tables this call has to build, kept in Jacobian coordinates
+    # until they can be converted together
+    pending: list[tuple[int, list[JacPoint]]] = []
+    for i, (n, PJ) in enumerate(pairs):
         width = fixed_w if PJ in fixed else w
         nafs.append(_wNAF_of_m(n, width))
-        tables.append(
-            _cached_odd_multiples_aff(PJ, ec, width)
-            if PJ in fixed
-            else _odd_multiples_aff(PJ, ec, width)
-        )
+        if PJ in fixed:
+            tables.append(_cached_odd_multiples_aff(PJ, ec, width))
+        else:
+            # a place in the list, filled by the conversion below
+            tables.append([])
+            pending.append((i, _odd_multiples(PJ, ec, width)))
+
+    # one extended Euclid for every table the call builds, where a table
+    # at a time is one apiece: the batch of `aff_from_jac_batch` over the
+    # concatenation rather than over one point's share of it, which is
+    # libsecp256k1's `secp256k1_ge_set_all_gej_var` over the whole of its
+    # `pre_a`. An empty concatenation is not a case to test for: every
+    # point being memoized leaves nothing to convert and nothing to do
+    aff = ec.aff_from_jac_batch([P for _, jac in pending for P in jac])
+    at = 0
+    for i, jac in pending:
+        tables[i] = aff[at : at + len(jac)]
+        at += len(jac)
 
     R = INFJ
     for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
