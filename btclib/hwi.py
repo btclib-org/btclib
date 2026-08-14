@@ -544,6 +544,7 @@ class HwiSigner:
             raise SignerError(err_msg)
         return str(answer[field])
 
+    @property
     def master_fingerprint(self) -> bytes:
         """Return the fingerprint this signer was selected by.
 
@@ -636,6 +637,7 @@ class HwiSigner:
         text = add_checksum(str(at_index(descriptor, index)))
         return self._answer(["displayaddress", "--desc", text], "address")
 
+    @property
     def capabilities(self) -> SignerCapabilities:
         """Return what the caller said this device can be asked to sign."""
         return self._capabilities

@@ -121,6 +121,7 @@ class _Signer:
         self.answer: Psbt | None = None
         self.closed = False
 
+    @property
     def master_fingerprint(self) -> bytes:
         """Return the fingerprint of the key this signer holds."""
         return fingerprint(self.xprv)
@@ -135,6 +136,7 @@ class _Signer:
             return self.answer
         return sign(psbt, _KeyManager(self.xprv))[0]
 
+    @property
     def capabilities(self) -> SignerCapabilities:
         """Return what this double can sign: no taproot, no musig2."""
         return SignerCapabilities()
@@ -170,7 +172,7 @@ def test_the_protocols_are_what_a_signer_is_asked_for() -> None:
     assert not isinstance(signer, AddressDisplay)
     assert not isinstance(signer, MessageSigner)
 
-    assert signer.capabilities() == SignerCapabilities(taproot=False, musig2=False)
+    assert signer.capabilities == SignerCapabilities(taproot=False, musig2=False)
     signer.close()
     signer.close()
     assert signer.closed
@@ -258,7 +260,7 @@ def test_a_signer_holding_none_of_the_keys_adds_nothing() -> None:
     taproot_psbt.inputs[0].witness_utxo = TxOut(10_000, script_pub_key)
     taproot_psbt = taproot.update_psbt_input(taproot_psbt, 0)
 
-    assert not signer.capabilities().taproot
+    assert not signer.capabilities.taproot
     signed = request_signatures(signer, taproot_psbt)
     assert not signed.inputs[0].taproot_key_spend_signature
     assert not signed.inputs[0].taproot_script_spend_signatures
@@ -511,9 +513,9 @@ def test_a_decorated_signer_answers_what_the_signer_underneath_answers() -> None
     wrapped = SignerDecorator(signer)
     assert isinstance(wrapped, PsbtSigner)
 
-    assert wrapped.master_fingerprint() == signer.master_fingerprint()
+    assert wrapped.master_fingerprint == signer.master_fingerprint
     assert wrapped.xpub(ACCOUNT) == signer.xpub(ACCOUNT)
-    assert wrapped.capabilities() == signer.capabilities()
+    assert wrapped.capabilities == signer.capabilities
 
     psbt, _ = account_psbt(signer)
     assert wrapped.sign_psbt(deepcopy(psbt)) == signer.sign_psbt(deepcopy(psbt))

@@ -31,6 +31,22 @@ full year, short month, short day (YYYY-M-D)
   CONTRIBUTING.md lists what measured at the floor and kept its plain
   name, with the figure for each.
 
+- **nine more reads are properties, `master_fingerprint` and
+  `capabilities` among them.** `PsbtSigner.master_fingerprint` and
+  `PsbtSigner.capabilities` -- the two argument-less members of the signer
+  contract -- are properties, and so are `HwiSigner`'s,
+  `SoftwareSigner`'s and `SignerDecorator`'s implementations of them, plus
+  `PsbtView.prevouts`. Drop the parentheses.
+
+  For an adapter written against the contract this is a change to
+  implement and not merely to call: a signer of your own declares
+  `master_fingerprint` and `capabilities` with `@property` now, or as a
+  plain attribute, which a Protocol property accepts as well.
+  `psbt_signer_contract.assert_psbt_signer` reports the mismatch if you
+  forget. Nothing costs a device round trip in any implementation that
+  exists -- HWI's own `get_master_fingerprint` does, and if that is the
+  signer being wrapped, the contract can be relaxed deliberately.
+
 - **six `bool` methods are properties: `tx.is_segwit`, not
   `tx.is_segwit()`.** `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
   `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took

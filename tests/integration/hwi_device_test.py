@@ -123,12 +123,12 @@ def test_hwi_answers_the_contract(device: HwiSigner) -> None:
     an extended key btclib reads back.
     """
     assert isinstance(device, PsbtSigner)
-    assert len(device.master_fingerprint()) == 4
+    assert len(device.master_fingerprint) == 4
 
     receive, change = export_account(device, "m/84h/0h/0h")
     origin = receive.key_expressions[0].origin
     assert origin is not None
-    assert origin.master_fingerprint == device.master_fingerprint()
+    assert origin.master_fingerprint == device.master_fingerprint
     assert receive.address(0) != change.address(0)
 
 
