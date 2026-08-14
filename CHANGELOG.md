@@ -1338,6 +1338,28 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Public key recovery refuses the key at infinity** (issue #890).
+  `dsa.recover_pub_keys_` could report INF as one of the keys it
+  recovered, and `recover_pub_key_` could return it: the candidate of step
+  1.6.1 is `r^-1*(s*K - c*G)`, which is the point at infinity whenever
+  `s*K == c*G`, and step 1.6.2's verification does not refuse it. With Q
+  at infinity the `K'` that verification recomputes is the lift itself, so
+  the congruence `x_K % n == r` passes and the candidate is kept — and
+  what the caller then reads is `(5, 0)`, btclib's sentinel for infinity
+  and no public key at all. `_recover_pub_key_` tests the candidate now,
+  as `ssa._recover_pub_key_` always has, and the enumeration drops it as
+  it drops every other candidate that is not a key.
+
+  No signature anybody made reaches it: `s*K == c*G` takes an `r` and an
+  `s` chosen against the challenge, which is what
+  `tests/ecc/dsa_test.py::test_the_recovered_key_can_be_infinity_and_is_refused`
+  builds — `s = 1` and `r` the x-coordinate of `c*G`, through the public
+  spelling. The bindings path could not produce it either way, a
+  libsecp256k1 public key being a point of the curve. What the fix
+  changes for a caller is that a recovered list is one key shorter where
+  the INF used to be in it, so an index into that list is a key_id there
+  too — which is what the list is read for.
+
 - **An ECIES envelope's four fields are `Octets`, and coerce** (issue
   #874). `magic`, `eph_pub_key`, `ciphertext` and `mac` were declared
   `bytes` and assigned as they came, the only octet fields in the library
@@ -4336,6 +4358,60 @@ documented at release-notes length in the first place, and are still in
   multiplication is Python's, an inverse being 8.8 us of 1148.
 
 ### Performance
+
+- **ECDSA recovery is one double multiplication per candidate, not two**
+  (issues #890, #891, #895). `_recover_pub_key_` built the candidate with
+  the double multiplication of step 1.6.1 and then verified it with a
+  second one of the same size, step 1.6.2 — half of the elliptic-curve
+  work of a recovery, spent on an identity the line above established.
+  Substituting the candidate into the verification gives `K' = K`
+  identically, for every r and s, and what the step then asks — `x_K % n
+  == r` — holds by construction where `x_K` is `r + j*n` with `r < n`. So
+  on a curve of prime order the step is two comparisons: the infinity test
+  above, which the verification never made, and a screen on `x_K`.
+
+  That screen is the second half. `x_K = r + j*n` was reduced `% p`, so a
+  candidate whose x-coordinate overflowed the field was carried into a
+  Python square root and a double multiplication before 1.6.2 refused it
+  — and it always refuses it, the congruence then needing `m*p ≡ 0 mod n`.
+  It is compared against `p` instead, which is the screen libsecp256k1
+  imposes on its own side (`r < p - n` for `j = 1`) and the reason the
+  bindings arm can say the key it gets back is right by construction. The
+  comparison sits above the per-candidate precomputation, for the reason
+  the low-s rule sits above the whole of it: it reads `key_id`, `r` and the
+  curve and nothing the arithmetic produces, so a candidate it refuses pays
+  neither a modular inverse nor a lift — 9.45 µs down to 0.29, and on
+  secp256k1 that is two of the four candidates of every signature. The
+  bindings arm of `recover_pub_keys_` asks the same question before
+  crossing at all: recid 2 and 3 need `r + n < p`, some 2^-127 of
+  signatures, so it is two `recover` calls rather than four for every
+  signature anybody made.
+
+  Above cofactor 1 nothing changes. There a lift need not land in the
+  prime-order subgroup, the scalars are reduced modulo `n` and the
+  reduction is then not a no-op, so `K' = K` does not hold and the
+  verification is doing real work — secp112r2, cofactor 4, answers four
+  keys of ten candidates. The guard is the curve's for that reason and not
+  the caller's.
+
+  Measured on this machine, the mean over 40 random keys, µs per call,
+  before against after: `recover_pub_keys_` on the pure-Python path 3745
+  against 1381, `bms.verify` 1306 against 739, `recover_pub_key` 1272
+  against 694, and the enumeration with the arithmetic delegated 347
+  against 107. The bindings path pays none of this — it never reaches the
+  function — and its own enumeration moves 43.3 to 42.1, two crossings
+  whose answer was a range test.
+
+  Four figures in the same comments are re-measured while they are being
+  rewritten (issue #898): each was 1.7x to 2.1x what the call now costs,
+  the Python arithmetic under them having got faster after they were
+  written. A recovery's figure carries the population it was measured over
+  now, which a signature's does not need: what the enumeration costs
+  depends on how many of its candidates lift. `_recover_pub_keys_`'s own
+  comment drops the "19%" it priced the un-hoisted precomputation at
+  (issue #892) and keeps the reason, which never rested on the number:
+  `mod_inv_var` delegates to `pow(a, -1, m)` now, and the share it derived
+  that percentage from is not the share any more.
 
 - **`bip32.derive` stops re-decoding the same xprv/xpub on every call**
   (issue #828). `derive` and `derive_from_account` decode their `xkey`

@@ -20,6 +20,17 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`dsa.recover_pub_key_` reports a key_id outside 0..3 as a
+  `BTClibValueError`.** It raised `BTClibRuntimeError` — "signature
+  verification failed" — for a key_id whose `x_K = r + j*n` is no field
+  element, that being the verification refusing it a double multiplication
+  later; the screen that now refuses it says so as a value error, so an
+  `except BTClibRuntimeError` written against key_id 4 catches nothing.
+  `recover_pub_keys_` is unaffected, suppressing both classes as it always
+  did, and so is every key_id a signature can name. `recover_pub_keys_`
+  also stops reporting the point at infinity as a recovered key, which
+  CHANGELOG.md has.
+
 - **`TxOut.from_dict` refuses a `null` value.** It used to build an output
   of zero satoshi, `valid_sats_amount` reading `None` as zero for the
   caller it was written for; a stored dict carrying `{"value": null}` now
