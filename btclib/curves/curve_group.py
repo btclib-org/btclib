@@ -282,7 +282,7 @@ class CurveGroup:
             return Q[0], (self.p - Q[1]) % self.p, Q[2]
         raise BTClibTypeError("not a Jacobian point")
 
-    def aff_from_jac(self, Q: JacPoint) -> Point:
+    def aff_from_jac_var(self, Q: JacPoint) -> Point:
         """Return the affine point: one modular inversion.
 
         The input point is assumed to be on the curve; infinity comes
@@ -293,10 +293,10 @@ class CurveGroup:
 
         return self._aff_from_z_inv(Q, mod_inv_var(Q[2], self.p))
 
-    def aff_from_jac_batch(self, Qs: Sequence[JacPoint]) -> list[Point]:
+    def aff_from_jac_batch_var(self, Qs: Sequence[JacPoint]) -> list[Point]:
         """Return the affine points: one modular inversion for all of them.
 
-        `aff_from_jac` over a sequence, with `mod_inv_batch_var` in place of
+        `aff_from_jac_var` over a sequence, with `mod_inv_batch_var` in place of
         the one inverse each: the conversion is two products a point once
         the inverse is in hand, so a caller holding several Jacobian
         points pays one extended Euclid instead of one per point.
@@ -321,10 +321,10 @@ class CurveGroup:
         z_inv2 = z_inv * z_inv % p
         return Q[0] * z_inv2 % p, Q[1] * z_inv2 % p * z_inv % p
 
-    def x_aff_from_jac(self, Q: JacPoint) -> int:
+    def x_aff_from_jac_var(self, Q: JacPoint) -> int:
         """Return the affine x alone, without the products y costs.
 
-        One inversion, as `aff_from_jac`, of Z^2 rather than of Z: the
+        One inversion, as `aff_from_jac_var`, of Z^2 rather than of Z: the
         power x wants is the one inverted, so nothing is rebuilt from it.
         The input point is assumed to be on the curve; infinity has no
         x and is refused.
@@ -335,11 +335,11 @@ class CurveGroup:
         Z2 = Q[2] * Q[2]
         return (Q[0] * mod_inv_var(Z2, self.p)) % self.p
 
-    def y_aff_from_jac(self, Q: JacPoint) -> int:
+    def y_aff_from_jac_var(self, Q: JacPoint) -> int:
         """Return the affine y alone, without the product x costs.
 
-        One inversion, as `aff_from_jac`, of Z^3 rather than of Z, for
-        the same reason `x_aff_from_jac` inverts Z^2.
+        One inversion, as `aff_from_jac_var`, of Z^3 rather than of Z, for
+        the same reason `x_aff_from_jac_var` inverts Z^2.
         The input point is assumed to be on the curve; infinity has no
         y and is refused.
         """
@@ -365,7 +365,7 @@ class CurveGroup:
 
     # methods using _a, _b, p
 
-    def add(self, Q1: Point, Q2: Point) -> Point:
+    def add_var(self, Q1: Point, Q2: Point) -> Point:
         """Return the sum of two points.
 
         The input points must be on the curve.
@@ -373,10 +373,10 @@ class CurveGroup:
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
         # affine arithmetic, and it is not the inversion that decides it:
-        # aff_from_jac makes one, add_aff makes one. The products decide,
-        # and reaching this sum through Jacobian coordinates and back
-        # makes more of them than add_aff does
-        return self.add_aff(Q1, Q2)
+        # aff_from_jac_var makes one, add_aff_var makes one. The products
+        # decide, and reaching this sum through Jacobian coordinates and
+        # back makes more of them than add_aff_var does
+        return self.add_aff_var(Q1, Q2)
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         """Return the sum of two Jacobian points, branch-free.
@@ -573,7 +573,7 @@ class CurveGroup:
         Z = 2 * Q[1] * Q[2] % p
         return X, Y, Z
 
-    def add_aff(self, Q: Point, R: Point) -> Point:
+    def add_aff_var(self, Q: Point, R: Point) -> Point:
         """Return the sum of two affine points, assumed on the curve.
 
         One modular inversion; the special cases are branched on, the
@@ -605,7 +605,7 @@ class CurveGroup:
         # iteration count follows the value it is inverting, so the affine
         # law cannot be made uniform whatever is done to these three tests
         if R[0] == Q[0]:
-            return self.double_aff(R) if R[1] == Q[1] else INF
+            return self.double_aff_var(R) if R[1] == Q[1] else INF
 
         p = self.p
         # lam reduced before it is squared, as in add_jac, though here it
@@ -617,7 +617,7 @@ class CurveGroup:
         y = (lam * (Q[0] - x) - Q[1]) % p
         return x, y
 
-    def double_aff(self, Q: Point) -> Point:
+    def double_aff_var(self, Q: Point) -> Point:
         """Return twice the affine point, assumed to be on the curve."""
         if Q[1] == 0:  # Infinity point in affine coordinates
             return INF
@@ -634,7 +634,7 @@ class CurveGroup:
         # This is a good reason to keep this method private
         return ((x**2 + self._a) * x + self._b) % self.p
 
-    def y(self, x: int) -> int:
+    def y_var(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
         if not 0 <= x < self.p:
             err_msg = "x-coordinate not in 0..p-1: "
@@ -672,18 +672,18 @@ class CurveGroup:
 
     #  y-symmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
-    def y_even(self, x: int) -> int:
+    def y_even_var(self, x: int) -> int:
         """Return the odd/even affine y-coordinate associated to x."""
-        root = self.y(x)
+        root = self.y_var(x)
         # switch even/odd root as needed (XORing the conditions)
         return self.p - root if root % 2 else root
 
-    def y_low(self, x: int) -> int:
+    def y_low_var(self, x: int) -> int:
         """Return the low/high affine y-coordinate associated to x."""
-        root = self.y(x)
+        root = self.y_var(x)
         return root if root <= self.p // 2 else self.p - root
 
-    def y_quadratic_residue(self, x: int) -> int:
+    def y_quadratic_residue_var(self, x: int) -> int:
         """Return the quadratic residue affine y-coordinate."""
         if not self.p_is_3_mod_4:
             err_msg = "field prime is not equal to 3 mod 4: "
@@ -697,7 +697,7 @@ class CurveGroup:
         # one modulo such a p. Asking legendre_symbol_var which of the two
         # this is would spend a second exponentiation the size of the
         # first to be told what the exponent settles
-        return self.y(x)
+        return self.y_var(x)
 
 
 def _mult_recursive_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
@@ -717,9 +717,9 @@ def _mult_recursive_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
         return INF
 
     if m % 2 == 1:
-        return ec.add_aff(Q, _mult_recursive_aff_var((m - 1), Q, ec))
+        return ec.add_aff_var(Q, _mult_recursive_aff_var((m - 1), Q, ec))
 
-    return _mult_recursive_aff_var((m // 2), ec.double_aff(Q), ec)
+    return _mult_recursive_aff_var((m // 2), ec.double_aff_var(Q), ec)
 
 
 def _mult_recursive_jac_var(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -765,13 +765,13 @@ def _mult_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
     m >>= 1
     while m > 0:
         # the doubling part of 'double & add'
-        Q = ec.double_aff(Q)
+        Q = ec.double_aff_var(Q)
         # always perform the 'add', even if useless: one addition per bit
-        # whatever the bit is, as in _mult_jac_var. It buys less here, add_aff
-        # branching on its own special cases and mod_inv_var taking the time
+        # whatever the bit is, as in _mult_jac_var. It buys less here,
+        # add_aff_var branching on its own cases and mod_inv_var taking the time
         # its input asks for, which is why the affine variants are the
         # readable ones rather than the ones to sign with
-        R[1] = ec.add_aff(R[0], Q)
+        R[1] = ec.add_aff_var(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
         m >>= 1
@@ -1002,14 +1002,14 @@ def _odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
     What it buys is the loop that indexes it: `add_jac_aff` makes five
     products fewer than `add_jac` on every addition, and a windowed
     multiplication makes one addition per window. What it costs is one
-    extended Euclid, `aff_from_jac_batch` sharing it across the entries --
+    extended Euclid, `aff_from_jac_batch_var` sharing it across the entries --
     at w=4 one inverse and some forty products, against five saved on each
     of the ~63 additions a 256-bit scalar makes.
 
     The inversion is a function of the point and not of the scalar, so a
     multiplication that is regular in its scalar stays regular in it.
     """
-    return ec.aff_from_jac_batch(_odd_multiples(Q, ec, w))
+    return ec.aff_from_jac_batch_var(_odd_multiples(Q, ec, w))
 
 
 # the width a point of ec._fixed_points has its table built at, against
@@ -1562,12 +1562,12 @@ def _multi_mult_w_NAF_var(
             pending.append((i, _odd_multiples(PJ, ec, width)))
 
     # one extended Euclid for every table the call builds, where a table
-    # at a time is one apiece: the batch of `aff_from_jac_batch` over the
+    # at a time is one apiece: the batch of `aff_from_jac_batch_var` over the
     # concatenation rather than over one point's share of it, which is
     # libsecp256k1's `secp256k1_ge_set_all_gej_var` over the whole of its
     # `pre_a`. An empty concatenation is not a case to test for: every
     # point being memoized leaves nothing to convert and nothing to do
-    aff = ec.aff_from_jac_batch([P for _, jac in pending for P in jac])
+    aff = ec.aff_from_jac_batch_var([P for _, jac in pending for P in jac])
     at = 0
     for i, jac in pending:
         tables[i] = aff[at : at + len(jac)]

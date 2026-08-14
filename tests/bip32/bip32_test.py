@@ -719,7 +719,7 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
         32, byteorder="big", signed=False
     )
 
-    child_pub_key_point = ec.add(point_from_octets(parent_pub_key), mult(offset))
+    child_pub_key_point = ec.add_var(point_from_octets(parent_pub_key), mult(offset))
     child_pub = BIP32KeyData.b58decode(derive(xpub_from_xprv(rootxprv), f"m/{index}"))
     assert child_pub.chain_code == hmac_[32:]
     assert child_pub.key == bytes_from_point(child_pub_key_point)
@@ -1158,7 +1158,7 @@ def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
     derived = BIP32KeyData.b58decode(derive(xpub_from_xprv(rootxprv), "m/1/2"))
     point = point_from_octets(xpub.key, ec)
     for tweak in tweaks:
-        point = ec.add(point, mult(int.from_bytes(tweak, "big"), ec.G, ec))
+        point = ec.add_var(point, mult(int.from_bytes(tweak, "big"), ec.G, ec))
     assert bytes_from_point(point, ec) == derived.key
 
     # a hardened index needs the private key, and the refusal comes before

@@ -57,14 +57,14 @@ def test_mult_recursive_aff() -> None:
         assert _mult_recursive_aff_var(1, INF, ec) == INF
         assert _mult_aff_var(1, ec.G, ec) == ec.G
 
-        Q = ec.add_aff(ec.G, ec.G)
+        Q = ec.add_aff_var(ec.G, ec.G)
         assert _mult_recursive_aff_var(2, ec.G, ec) == Q
 
         Q = _mult_recursive_aff_var(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == Q
         assert _mult_recursive_aff_var(ec.n - 1, INF, ec) == INF
 
-        assert ec.add_aff(Q, ec.G) == INF
+        assert ec.add_aff_var(Q, ec.G) == INF
         assert _mult_recursive_aff_var(ec.n, ec.G, ec) == INF
         assert _mult_recursive_aff_var(ec.n, INF, ec) == INF
 
@@ -76,8 +76,8 @@ def test_mult_recursive_aff() -> None:
             Q = _mult_recursive_aff_var(q, ec.G, ec)
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
-            assert ec.aff_from_jac(QJ) == Q, f"{q}, {ec}"
+            assert ec.is_on_curve(ec.aff_from_jac_var(QJ)), f"{q}, {ec}"
+            assert ec.aff_from_jac_var(QJ) == Q, f"{q}, {ec}"
             assert _mult_recursive_aff_var(q, INF, ec) == INF, f"{q}, {ec}"
             assert ec.is_jac_equal(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
@@ -120,14 +120,14 @@ def test_mult_aff() -> None:
         assert _mult_aff_var(1, INF, ec) == INF
         assert _mult_aff_var(1, ec.G, ec) == ec.G
 
-        Q = ec.add_aff(ec.G, ec.G)
+        Q = ec.add_aff_var(ec.G, ec.G)
         assert _mult_aff_var(2, ec.G, ec) == Q
 
         Q = _mult_aff_var(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == Q
         assert _mult_aff_var(ec.n - 1, INF, ec) == INF
 
-        assert ec.add_aff(Q, ec.G) == INF
+        assert ec.add_aff_var(Q, ec.G) == INF
         assert _mult_aff_var(ec.n, ec.G, ec) == INF
         assert _mult_aff_var(ec.n, INF, ec) == INF
 
@@ -139,8 +139,8 @@ def test_mult_aff() -> None:
             Q = _mult_aff_var(q, ec.G, ec)
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
-            assert ec.aff_from_jac(QJ) == Q, f"{q}, {ec}"
+            assert ec.is_on_curve(ec.aff_from_jac_var(QJ)), f"{q}, {ec}"
+            assert ec.aff_from_jac_var(QJ) == Q, f"{q}, {ec}"
             assert _mult_aff_var(q, INF, ec) == INF, f"{q}, {ec}"
             assert ec.is_jac_equal(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
@@ -397,7 +397,7 @@ def test_signed_odd_multiples_aff() -> None:
             T = _signed_odd_multiples_aff(ec.GJ, ec, w)
             assert len(T) == 2**w
             for d in range(-(2**w - 1), 2**w, 2):
-                expected = ec.aff_from_jac(_mult_jac_var(d % ec.n, ec.GJ, ec))
+                expected = ec.aff_from_jac_var(_mult_jac_var(d % ec.n, ec.GJ, ec))
                 assert T[(d + 2**w - 1) // 2] == expected, (d, w)
 
 
@@ -615,39 +615,41 @@ def test_assorted_jac_mult() -> None:
             K2J = _mult(k2, HJ, ec)
 
             shamir = _double_mult_var(k1, ec.GJ, k2, ec.GJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac_var(shamir))
             assert ec.is_jac_equal(shamir, _mult(k1 + k2, ec.GJ, ec))
 
             shamir = _double_mult_var(k1, INFJ, k2, HJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac_var(shamir))
             assert ec.is_jac_equal(shamir, K2J)
 
             shamir = _double_mult_var(k1, ec.GJ, k2, INFJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac_var(shamir))
             assert ec.is_jac_equal(shamir, K1J)
 
             shamir = _double_mult_var(k1, ec.GJ, k2, HJ, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(shamir))
+            assert ec.is_on_curve(ec.aff_from_jac_var(shamir))
             K1JK2J = ec.add_jac(K1J, K2J)
             assert ec.is_jac_equal(K1JK2J, shamir)
 
             k3 = ec.n // 3  # just a point, not INF
             K3J = _mult(k3, ec.GJ, ec)
             K1JK2JK3J = ec.add_jac(K1JK2J, K3J)
-            assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3J))
+            assert ec.is_on_curve(ec.aff_from_jac_var(K1JK2JK3J))
             boscoster = _multi_mult_var([k1, k2, k3], [ec.GJ, HJ, ec.GJ], ec)
-            assert ec.is_on_curve(ec.aff_from_jac(boscoster))
-            assert ec.aff_from_jac(K1JK2JK3J) == ec.aff_from_jac(boscoster), k3
+            assert ec.is_on_curve(ec.aff_from_jac_var(boscoster))
+            assert ec.aff_from_jac_var(K1JK2JK3J) == ec.aff_from_jac_var(boscoster), k3
             assert ec.is_jac_equal(K1JK2JK3J, boscoster)
 
             k4 = ec.n // 4  # just a point, not INF
             K4J = _mult(k4, HJ, ec)
             K1JK2JK3JK4J = ec.add_jac(K1JK2JK3J, K4J)
-            assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3JK4J))
+            assert ec.is_on_curve(ec.aff_from_jac_var(K1JK2JK3JK4J))
             points = [ec.GJ, HJ, ec.GJ, HJ]
             boscoster = _multi_mult_var([k1, k2, k3, k4], points, ec)
-            assert ec.is_on_curve(ec.aff_from_jac(boscoster))
-            assert ec.aff_from_jac(K1JK2JK3JK4J) == ec.aff_from_jac(boscoster), k4
+            assert ec.is_on_curve(ec.aff_from_jac_var(boscoster))
+            assert ec.aff_from_jac_var(K1JK2JK3JK4J) == ec.aff_from_jac_var(
+                boscoster
+            ), k4
             assert ec.is_jac_equal(K1JK2JK3JK4J, boscoster)
             assert ec.is_jac_equal(
                 K1JK2JK3J, _multi_mult_var([k1, k2, k3, 0], points, ec)
@@ -700,10 +702,10 @@ def test_mult_on_a_characteristic_7_curve() -> None:
     for k in range(ec.n):
         expected = _mult_aff_var(k, ec.G, ec)
         for name, mult_f in variants:
-            assert ec.aff_from_jac(mult_f(k, ec.GJ, ec)) == expected, name
+            assert ec.aff_from_jac_var(mult_f(k, ec.GJ, ec)) == expected, name
         for j in range(ec.n):
             shamir = _double_mult_var(k, ec.GJ, j, ec.GJ, ec)
-            assert ec.aff_from_jac(shamir) == _mult_aff_var(k + j, ec.G, ec), (k, j)
+            assert ec.aff_from_jac_var(shamir) == _mult_aff_var(k + j, ec.G, ec), (k, j)
 
 
 def _sum_of_mults(
@@ -901,9 +903,9 @@ def test_INF() -> None:
     assert INF[1] == 0
 
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        secp256k1.y(INF[0])
+        secp256k1.y_var(INF[0])
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        secp256k1.y(INF[0] + secp256k1.n)
+        secp256k1.y_var(INF[0] + secp256k1.n)
 
 
 def test_aff_from_jac_batch_is_aff_from_jac_over_a_sequence() -> None:
@@ -915,16 +917,18 @@ def test_aff_from_jac_batch_is_aff_from_jac_over_a_sequence() -> None:
     """
     for ec in all_curves.values():
         QJs = [_mult(k, ec.GJ, ec) for k in (1, 2, 3, ec.n - 1)]
-        assert ec.aff_from_jac_batch(QJs) == [ec.aff_from_jac(QJ) for QJ in QJs]
+        assert ec.aff_from_jac_batch_var(QJs) == [ec.aff_from_jac_var(QJ) for QJ in QJs]
 
         # infinity first, last and in between, so that the peeling back
         # off the running products starts and stops beside one
         mixed = [INFJ, QJs[0], INFJ, INFJ, QJs[1], INFJ]
-        assert ec.aff_from_jac_batch(mixed) == [ec.aff_from_jac(QJ) for QJ in mixed]
+        assert ec.aff_from_jac_batch_var(mixed) == [
+            ec.aff_from_jac_var(QJ) for QJ in mixed
+        ]
 
         # nothing to invert at all, and nothing to convert at all
-        assert ec.aff_from_jac_batch([INFJ, INFJ]) == [INF, INF]
-        assert ec.aff_from_jac_batch([]) == []
+        assert ec.aff_from_jac_batch_var([INFJ, INFJ]) == [INF, INF]
+        assert ec.aff_from_jac_batch_var([]) == []
 
 
 def test_blinding_changes_the_coordinates_and_not_the_point() -> None:
@@ -940,7 +944,7 @@ def test_blinding_changes_the_coordinates_and_not_the_point() -> None:
             QJ = _mult(k, ec.GJ, ec)
             blinded = [_blinded_jac(QJ, ec) for _ in range(8)]
             for B in blinded:
-                assert ec.aff_from_jac(B) == ec.aff_from_jac(QJ)
+                assert ec.aff_from_jac_var(B) == ec.aff_from_jac_var(QJ)
                 assert ec.is_jac_equal(B, QJ)
             # a curve of eleven points has eleven values of l to draw
             # from, so the Z's are only expected to differ where p is big

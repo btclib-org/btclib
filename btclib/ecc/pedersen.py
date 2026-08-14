@@ -76,7 +76,7 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     x_H = int_from_bits(hash_digest, ec.nlen) % ec.n
     while True:
         try:
-            y_H = ec.y_even(x_H)
+            y_H = ec.y_even_var(x_H)
         except BTClibValueError:
             x_H += 1
             x_H %= ec.p

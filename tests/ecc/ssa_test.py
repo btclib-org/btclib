@@ -84,7 +84,7 @@ def test_signature() -> None:
     # r outside the field and r inside it with no point are one refusal
     # now, phrased by Sig rather than by the lift it no longer takes
     # (issue 622): "x-coordinate not in 0..p-1" was ec.y's, reached
-    # through _y_even, and a predicate has no such message to pass on
+    # through _y_even_var, and a predicate has no such message to pass on
     err_msg = "r is not a valid x-coordinate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
@@ -214,8 +214,8 @@ def test_refusing_an_r_takes_no_square_root(
 ) -> None:
     """The r of a signature is refused by a predicate, not by a lift.
 
-    Refusing used to cost more than verifying: `_y_even` falls back to
-    `ec.y_even` for an x the bindings reject, that being where the
+    Refusing used to cost more than verifying: `_y_even_var` falls back to
+    `ec.y_even_var` for an x the bindings reject, that being where the
     message naming the value came from, so a bad r paid the whole Python
     square root -- 78.7 us against the 22.4 of verifying a good
     signature (issue 622). Half of the field elements are no
@@ -323,7 +323,7 @@ def test_low_cardinality() -> None:
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
             q_fixed, x_Q = ssa.gen_keys(q, ec)
-            QJ = _jac_from_aff((x_Q, ec.y_even(x_Q)))
+            QJ = _jac_from_aff((x_Q, ec.y_even_var(x_Q)))
             sig: ssa.Sig | None = None
             while sig is None:
                 try:
@@ -377,7 +377,7 @@ def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
     """
     ec = secp256k1
     q, x_Q = ssa.gen_keys()
-    QJ = _jac_from_aff((x_Q, ec.y_even(x_Q)))
+    QJ = _jac_from_aff((x_Q, ec.y_even_var(x_Q)))
     k, r = ssa.gen_keys()  # k's point has even y, by gen_keys' own normalization
     e = 5
 
@@ -677,7 +677,7 @@ def test_musig() -> None:
     Q1 = mult(q1)
     Q2 = mult(q2)
     Q3 = mult(q3)
-    Q = ec.add(double_mult_var(a1, Q1, a2, Q2), mult(a3, Q3))
+    Q = ec.add_var(double_mult_var(a1, Q1, a2, Q2), mult(a3, Q3))
     # the parity of the aggregated key is a coin flip on every run, so
     # the negation executes in half of them: the pragmas keep the
     # coverage gate deterministic. Keys pinned offline for an odd
@@ -705,7 +705,7 @@ def test_musig() -> None:
     # before sharing {s_i}
 
     # same for all signers
-    K = ec.add(ec.add(K1, K2), K3)
+    K = ec.add_var(ec.add_var(K1, K2), K3)
     # the same coin flip as above, on the aggregated nonce
     if K[1] % 2:
         k1 = ec.n - k1  # pragma: no cover
@@ -745,7 +745,7 @@ def _commitment(commits: list[Point], x: int, ec: Curve) -> Point:
     """
     RHS = INF
     for i, commit in enumerate(commits):
-        RHS = ec.add(RHS, mult(pow(x, i), commit))
+        RHS = ec.add_var(RHS, mult(pow(x, i), commit))
     return RHS
 
 
@@ -797,9 +797,9 @@ def _partial_sig_point(
     with, so the constant term is only right when it is taken from the
     negated points.
     """
-    RHS = ec.add(K, mult(e, Q))
+    RHS = ec.add_var(K, mult(e, Q))
     for i in range(1, len(A)):
-        RHS = ec.add(RHS, double_mult_var(pow(x, i), B[i], e * pow(x, i), A[i]))
+        RHS = ec.add_var(RHS, double_mult_var(pow(x, i), B[i], e * pow(x, i), A[i]))
     return RHS
 
 
@@ -852,7 +852,7 @@ def test_threshold() -> None:
     assert mult(alpha13) == _commitment(A1, 3, ec), "signer one is cheating"
     assert mult(alpha23) == _commitment(A2, 3, ec), "signer two is cheating"
     # commitment at the global sharing polynomial
-    A = [ec.add(A1[i], ec.add(A2[i], A3[i])) for i in range(m)]
+    A = [ec.add_var(A1[i], ec.add_var(A2[i], A3[i])) for i in range(m)]
     # aggregated public key
     Q = A[0]
     # the same coin flip as in test_musig: fresh keys, random parity
@@ -897,7 +897,7 @@ def test_threshold() -> None:
     assert mult(beta13) == _commitment(B1, 3, ec), "signer one is cheating"
 
     # commitment at the global sharing polynomial
-    B = [ec.add(B1[i], B3[i]) for i in range(m)]
+    B = [ec.add_var(B1[i], B3[i]) for i in range(m)]
     # aggregated public nonce
     K = B[0]
     # the same coin flip again, and here pinning the keys would not

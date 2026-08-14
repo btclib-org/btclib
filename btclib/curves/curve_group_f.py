@@ -33,7 +33,7 @@ def find_all_points(ec: CurveGroup) -> list[Point]:
     points: list[Point] = [INF]
     for x in range(ec.p):
         try:
-            y = ec.y(x)
+            y = ec.y_var(x)
         except BTClibValueError:
             continue
 
@@ -55,7 +55,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> list[Point]:
 
     points = [G]
     while points[-1] != INF:
-        Q = ec.add(points[-1], G)
+        Q = ec.add_var(points[-1], G)
         points.append(Q)
 
     return points

@@ -987,9 +987,31 @@ random operands of 256 bits down to 64, the ratio between the two ends:
     and `tonelli_var`, whose 1.54x is spread within one operand size
     rather than across sizes — Tonelli-Shanks iterates on the value, not
     on its length. `mod_sqrt_var` reaches that loop only for a `p` of 1
-    mod 4; for the 3 mod 4 of every catalogued curve it is one
-    exponentiation with a fixed exponent and measures 1.01x, and it
-    carries the suffix all the same, because the caller picks the `p`
+    mod 4: on a 3 mod 4 one it is a single exponentiation with a fixed
+    exponent and measures 1.01x, and the catalogue holds both kinds —
+    `secp224k1`, `secp224r1` and `nistp224` are 1 mod 4 — so the caller
+    picks which it gets and the suffix states the worse case
+- one modular inverse, in the layer above: `aff_from_jac_var` at 2.96x,
+    `x_aff_from_jac_var` at 1.93x, `aff_from_jac_batch_var` at 1.67x and
+    `y_aff_from_jac_var` at 1.42x follow the `Z` they are handed;
+    `double_aff_var` at 1.32x, `add_aff_var` at 1.23x and the `add_var`
+    over them at 1.22x follow the coordinates. `y_var` and its three
+    tiebreakers follow their `x` on the 1 mod 4 curves above, 1.84x on
+    `secp224k1`, where on secp256k1 they are flat
+
+**The suffix is measured, never inherited, and that is what stops it.**
+Every function that *reaches* one of these through some chain of calls
+would otherwise take it: there are 636 of them, 344 public, which is
+`hex_string`, `ripemd160` and `p2pkh` — a suffix on the library, saying
+nothing. Two things break the chain, and both are facts about the caller
+rather than about the callee. Blinding is one: `mult` calls
+`aff_from_jac_var` and is 0.99x in its scalar, because `_blinded_jac`
+randomized the `Z` that inverse is timed on. A public operand is the
+other: `point_from_octets` measures 1.05x, its `y_even_var` being one
+fixed exponent on secp256k1 and its `_is_x_coordinate_var` reaching the
+bindings. So the question to ask of a new name is not what it calls, but
+what its own clock does with what it was handed — and the answer is a
+measurement.
 
 Three tiers of duration follow, of which only the first is constant-time:
 
