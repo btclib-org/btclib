@@ -169,10 +169,6 @@ ignore = [
     "tests/generate_sbom_test.py",
     "tests/mutation_counts_test.py",
     "tests/verify_dist_contents_test.py",
-    # a developer's own tool, run by hand against a checkout rather than
-    # against an install: it needs no third-party dependency, but it is no
-    # more part of the distributed package than the website above is
-    "scripts/**",
 ]
 
 [tool.pytest.ini_options]
