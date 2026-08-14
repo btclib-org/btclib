@@ -5,10 +5,15 @@
 """Tests for the `check_validity` convention.
 
 `check_validity` is keyword-only throughout the package, which is a rule
-about signatures rather than about any one of them: it appears in 91 of
-them and is forwarded by hand from one to the next, so the guard has to be
-the rule itself. A new signature spelling it positionally is what this
-module fails on.
+about signatures rather than about any one of them: it is the flag most of
+them carry, and it is forwarded by hand from one to the next, so the guard
+has to be the rule itself. A new signature spelling it positionally is
+what this module fails on.
+
+How many carry it is not written down here, because a number in prose
+drifts where a walk does not: this file said 91 for as long as the tree
+kept growing past it. `_signatures` is what answers instead, and
+`len(_signatures())` is the count whenever one is wanted.
 
 What the flag *does* when nobody passes it is the other half, and the same
 kind of rule: every default is True, so a caller who says nothing gets the
@@ -119,12 +124,12 @@ def test_check_validity_keyword_still_works() -> None:
 def test_dsa_sig_is_still_a_dataclass() -> None:
     """The three Sig classes trade InitVar for a written-out __init__.
 
-    The InitVar and its __post_init__ are gone -- from all 91 signatures
-    that take the flag, not only these three -- so what the dataclass
+    The InitVar and its __post_init__ are gone -- from every signature
+    that takes the flag, not only these three -- so what the dataclass
     generates around them is all that is left to check, and it must not
     go too. field(kw_only=True) would express the same thing in fewer
     lines and is available now that 3.10 is the floor; it is not used,
-    because using it in three places out of 91 is the inconsistency the
+    because using it in three of the many is the inconsistency the
     written-out constructors removed.
     """
     r = 0x2B698A0F0A4041059B5C617F42B2B90D68F0F27F8B8F1CBA0D7D8F0B4D4B7C1A
