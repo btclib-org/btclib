@@ -13,6 +13,7 @@ from btclib.b58 import wif_from_prv_key
 from btclib.base58 import encode as b58encode
 from btclib.curves.curve import CURVES
 from btclib.exceptions import (
+    BTClibTypeError,
     BTClibValueError,
     InvalidPrvKeyError,
     NotAPrvKeyError,
@@ -132,19 +133,27 @@ def test_from_prv_key() -> None:
         qn,
         xprv0_data,
         xprvn_data,
-        INF,
         INF_xpub_data,
         *not_a_prv_keys,
-        Q,
         *plain_pub_keys,
         xpub_data,
         *compressed_pub_keys,
         *uncompressed_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]
+            int_from_prv_key(not_a_prv_key)
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]
+            prv_keyinfo_from_prv_key(not_a_prv_key)
+
+    # a Point is a public key spelling and no private one, so it is the
+    # type that is wrong and not the value: issue #814's rule, and the
+    # `type: ignore` these two need -- where none of the spellings above
+    # needs one -- is the same line drawn by the type checker
+    for a_point in [INF, Q]:
+        with pytest.raises(BTClibTypeError, match="not a private key"):
+            int_from_prv_key(a_point)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="not a private key"):
+            prv_keyinfo_from_prv_key(a_point)  # type: ignore[arg-type]
 
 
 def test_no_key_material_in_exceptions() -> None:

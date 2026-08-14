@@ -11,6 +11,7 @@ from btclib.base58 import decode as b58decode
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import Curve, secp256k1
 from btclib.exceptions import (
+    BTClibTypeError,
     BTClibValueError,
     InvalidPrvKeyError,
     NotAPrvKeyError,
@@ -39,6 +40,30 @@ __all__ = [
 # network and (un)compressed-pub_key-derivation
 PrvKey = int | bytes | str | BIP32KeyData
 
+# the union at run time, with the buffers bytes_from_octets accepts beside
+# bytes. `to_pub_key._PUB_KEY_TYPES` is the same list plus a Point and
+# minus nothing: a public key can be a point, a private key cannot
+_PRV_KEY_TYPES = (int, bytes, bytearray, memoryview, str, BIP32KeyData)
+
+
+def _assert_prv_key_type(prv_key: PrvKey) -> None:
+    """Refuse a type no spelling of a private key has.
+
+    `to_pub_key._assert_pub_key_type`'s twin, and asked for the same
+    reason: a type the union does not declare is the caller's own
+    mistake, where a value of a declared type that is no key is a
+    NotAPrvKeyError -- "wrong format, try the next one", which is what
+    the guessing below is for. Without this the two were one class: a
+    float was reported as "not a private key: not a WIF (...); not a
+    BIP32 xkey (...); not octets (...)", three formats tried against a
+    value no format could have held.
+
+    Never echo the input, every message in this module being about
+    candidate key material.
+    """
+    if not isinstance(prv_key, _PRV_KEY_TYPES):
+        raise BTClibTypeError("not a private key")
+
 
 def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     """Return a verified-as-valid private key integer.
@@ -53,6 +78,8 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     Network and compressed information from the input key
     are not used.
     """
+    _assert_prv_key_type(prv_key)
+
     if isinstance(prv_key, int):
         q = prv_key
     elif isinstance(prv_key, BIP32KeyData):
@@ -300,6 +327,8 @@ def prv_keyinfo_from_prv_key(
     or octets carry neither, so the arguments -- mainnet, compressed
     -- fill in.
     """
+    _assert_prv_key_type(prv_key)
+
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = network_from_name(net).curve

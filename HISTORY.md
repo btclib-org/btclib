@@ -54,9 +54,13 @@ full year, short month, short day (YYYY-M-D)
   on: `to_pub_key`'s `point_from_pub_key`, `pub_keyinfo_from_pub_key`,
   `point_from_key` and `pub_keyinfo_from_key` answer a `BTClibTypeError`
   for a type no spelling of a key has, where every refusal used to be a
-  `BTClibValueError`. Code catching `TypeError` or `BTClibException`
-  keeps working; code catching `BTClibValueError` alone around one of
-  those four has to widen.
+  `BTClibValueError`. `to_prv_key`'s `int_from_prv_key` and
+  `prv_keyinfo_from_prv_key` do the same, so a `Point` passed as a
+  private key is a `BTClibTypeError` where it was a `NotAPrvKeyError`
+  reporting three formats tried against a value none of them could hold.
+  Code catching `TypeError` or `BTClibException` keeps working; code
+  catching `BTClibValueError` — or `NotAPrvKeyError` — alone around one of
+  those six has to widen.
 
 - **a bad network name raises `BTClibValueError`, not `KeyError`.**
   Every function taking a `network: str` -- `b58.p2pkh`, `b32.p2wpkh`,

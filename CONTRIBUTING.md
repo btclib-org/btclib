@@ -845,8 +845,25 @@ what issue #745 found and this replaces. The `assert_*` twin beside each
 of these is the spelling that says *why* a value was refused, and the two
 are how a caller chooses between an answer and a reason.
 
+**Both halves are gated, and neither holds everywhere yet.**
+`tests/input_validation_test.py` drives the two rules over every public
+function whose required parameters are all library input types, and there
+they hold with no exception. `tests/bool_contract_test.py` drives them
+from hand-written fixtures over the verifications that walk cannot reach
+— a signature verification needs a valid message, key and signature — and
+there some positions are still open, each in a ratcheted list naming what
+comes out instead: a sequence parameter walked without being checked, a
+signature reaching `Sig.b64decode`'s `strip`, the engine adapters handing
+plain bytes to the bindings, and `verify` reducing its message before the
+`try` where `verify_` answers False. A fix cannot land without deleting
+its line, and a line cannot outlive the defect.
+
 **Which of those a function is, its name says**, and the four prefixes
-are a closed vocabulary:
+below are a closed vocabulary *of prefixes*: a name carrying one promises
+that shape. It is not a requirement that every bool name carry one —
+`b32.has_segwit_prefix`, `Block.has_segwit_tx` and
+`Psbt.inputs_modifiable` are English predicates under the same contract.
+What the four buy is a promise read off the name:
 
 - `assert_*` refuses and returns `None`. There are eighty-odd of them
   and they are the reason half of the pair above.
@@ -867,6 +884,16 @@ two more while returning bytes and a pair of bools, which left the prefix
 saying four things and therefore nothing (issue #814). A converter is
 named for what it returns -- `bytes_from_octets`,
 `b32.bytes_from_witness_program` -- and a query for what it answers.
+
+**`check_validity` is a parameter and not one of those four**, which is
+worth saying now that the prefix means something: there `check` is a verb
+governing an object — "check the validity" — where a prefix on a function
+name classifies what the call answers, and a caller passes this one
+rather than reading a result off it. What it gates is `assert_valid`, a
+refusal, so the vocabulary above would name it after that if it named it
+at all. It keeps the name it has: `validate` says no more, and the
+alternative is renaming a keyword on eighty-odd public signatures for a
+reading nobody has to make twice.
 
 `check_validity=False` is not an exemption from this. It says "do not
 check *now*", not "this object is exempt from here on": these are mutable

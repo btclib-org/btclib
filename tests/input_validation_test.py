@@ -2,33 +2,45 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The gate for the one rule about a public function's inputs.
+"""The gate for the two rules about a public function's inputs.
 
 > Every public function guarantees the validation of all its inputs,
 > directly or indirectly. A malformed argument leaves as
 > `BTClibTypeError` or `BTClibValueError`.
 
-Both are `BTClibException`, which is what makes this one predicate
-instead of a tuple that has to be kept in step with the hierarchy -- the
-reason issue #743 landed that base class before this test rather than
-after it.
+CONTRIBUTING.md's "Every public function validates its inputs" states it,
+and which of the two classes comes out is not a coin toss -- it is the
+distinction issue #814 settled, so this file drives the two separately:
+
+- **a value of a type the signature does not declare** is the caller's
+  own mistake, and leaves as a `BTClibTypeError`. Every function the walk
+  can drive, without exception.
+- **a value of a declared type that no valid input carries** is a fact
+  about the input, and leaves as a `BTClibException` -- unless the
+  function answers a `bool` about it, in which case the answer is
+  `False`. `_ANSWERS_FALSE` is that family, and it is a family: nine
+  script predicates, `b32.has_segwit_prefix` and `ecc.dleq.verify_proof`.
+
+Both are `BTClibException`, which is what makes the second rule one
+predicate instead of a tuple that has to be kept in step with the
+hierarchy -- the reason issue #743 landed that base class before this
+test rather than after it.
 
 ## How it calls what it calls
 
 The library's input types are few and well bounded, most of them named in
 `btclib/alias.py` and the key and path ones beside their converters.
-`_MALFORMED` gives each of them values that are not of it, and the walk
-finds every public module-level function whose *required* parameters are
-all of those types. Those it can call with no fixture and no knowledge of
-what the function does, and what it asserts is the rule as written:
-something is raised, and it is a `BTClibException`.
+`_WRONG_TYPE` and `_WRONG_VALUE` give each of them values of the two
+kinds, and the walk finds every public module-level function whose
+*required* parameters are all of those types. Those it can call with no
+fixture and no knowledge of what the function does.
 
-Every argument is malformed at once, which is not weaker than one
-malformed argument among valid ones: whichever the function refuses
-first, the rule says it must refuse it as a btclib error. And it needs no
-valid values, which is what makes the walk automatic -- a valid `Octets`
-is 20 bytes for one function, 32 for another and any length for a third,
-so the table of those is the hand-written thing this avoids.
+Every argument is wrong at once, which is not weaker than one wrong
+argument among valid ones: whichever the function refuses first, the rule
+says how it must refuse it. And it needs no valid values, which is what
+makes the walk automatic -- a valid `Octets` is 20 bytes for one
+function, 32 for another and any length for a third, so the table of
+those is the hand-written thing this avoids.
 
 ## What it does not reach, and why that is not a hole to plug here
 
@@ -39,108 +51,132 @@ instead, where their own checks live.
 
 A **method**, and a function taking a `Tx`, a `Psbt` or a callback, needs
 a valid instance the vocabulary cannot build. That is the part of issue
-#744 that stays hand-read. `test_the_walk_reaches_what_it_claims` pins
-what the walk does find, so a narrowing of it fails here rather than
-quietly running over less.
+#744 that stays hand-read, and `tests/bool_contract_test.py` is where the
+bool half of it is driven from fixtures instead.
+`test_the_walk_reaches_what_it_claims` pins what the walk does find, so a
+narrowing of it fails here rather than quietly running over less.
 
-## The two lists, and which way each ratchets
+## The three lists, and which way each ratchets
 
-- `_MALFORMED` is the vocabulary, and every name in it is a type this
-  tree still declares: a rename would otherwise shrink the walk in
-  silence, which `test_the_vocabulary_is_the_libraries_input_types` is
-  against.
-- `_EXCLUDED` is what must not be held to the rule this way, with the
-  reason. What is in it is two families, each stating its own design,
-  and it ratchets the way `_OPEN` used to:
-  `test_what_is_excluded_still_needs_to_be` fails on an entry that has
-  become compliant, as RUF100 fails an unused `noqa`, so a line cannot
-  outlive the reason for it.
+- `_WRONG_TYPE` and `_WRONG_VALUE` are the vocabulary, and every name in
+  them is a type this tree still declares: a rename would otherwise
+  shrink the walk in silence, which
+  `test_the_vocabulary_is_the_libraries_input_types` is against. Which
+  dict a value belongs in is the only judgement in this file, and it is
+  the annotation's to make: `1.5` is no `Octets`, `"not hex at all"` is
+  one that will not decode.
+- `_ANSWERS_FALSE` is what answers rather than refuses a wrong value,
+  with the reason. It can only shrink:
+  `test_what_answers_false_still_does` fails on an entry that has started
+  refusing, as RUF100 fails an unused `noqa`, so a line cannot outlive
+  the reason for it.
 
-There was a third, `_OPEN`, holding what issue #744's census left. It
-is empty and therefore gone: every function the walk drives now either
-holds the rule or is in `_EXCLUDED` with a reason. What the walk finds
-next is a red test above, to be fixed or to be excluded with a reason of
-its own -- a backlog is not a place a new finding goes to wait.
+There was a fourth, `_OPEN`, holding what issue #744's census left, and
+an `_EXCLUDED` that mixed the two kinds of wrong value into one
+exemption. Both are gone: with the vocabularies split, nothing needs
+excusing from the type rule, and what the old list held was the bool
+contract, which `_ANSWERS_FALSE` now states as one. `pytest.raises` went
+with them -- a hand-rolled verdict had a branch for a native exception
+that no function of the library reaches any more, and naming the class
+is what `pytest.raises` does without one.
 """
 
 from __future__ import annotations
 
 import ast
 import importlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from functools import partial
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from btclib.exceptions import BTClibException, BTClibValueError
+from btclib.exceptions import BTClibException, BTClibTypeError
 
 _LIBRARY = Path(__file__).parents[1] / "btclib"
 
-# a value of none of the library's input types is what each of these is,
-# and the tuples are read round-robin so that a function taking three
-# parameters of one type is called with three different wrong values.
-# Constants and not a strategy: what this gate reports has to be the same
-# on two runs, `_EXCLUDED` below being read as a statement about the tree
-_MALFORMED: dict[str, tuple[Any, ...]] = {
-    "BIP32Key": (None, 1.5, "not an xkey"),
-    "BinaryData": ("not hex at all", None, 1.5),
-    "DerPath": (-1, [2**32], "m/x", 1.5),
-    "Integer": ("not hex at all", None, 1.5),
-    "Key": (None, 1.5, "not a key"),
-    "Octets": ("not hex at all", "9", tuple(range(4)), None),
-    "Point": ((1,), "not a point", None),
-    "PrvKey": (None, 1.5, "not a key"),
-    "PubKey": (None, 1.5, "not a key"),
+# a value of no type the alias declares: the caller's own mistake, and a
+# call mypy refuses. The tuples are read round-robin so that a function
+# taking three parameters of one type is called with three different
+# wrong values. Constants and not a strategy: what this gate reports has
+# to be the same on two runs, the lists below being read as statements
+# about the tree
+_WRONG_TYPE: dict[str, tuple[Any, ...]] = {
+    "BIP32Key": (None, 1.5),
+    "BinaryData": (None, 1.5),
+    "DerPath": (None, 1.5),
+    "Integer": (None, 1.5),
+    "Key": (None, 1.5),
+    "Octets": (None, 1.5, tuple(range(4))),
+    "Point": (None, 1.5, "not a point"),
+    "PrvKey": (None, 1.5),
+    "PubKey": (None, 1.5),
     "ScriptList": (None, 1.5, "not a list"),
-    "String": (1, None, 1.5),
+    "String": (None, 1.5, 1),
 }
 
-# one reason for nine functions, and it is `script_pub_key._is_funct`'s
-# own: "these bool functions answer 'are these bytes a p2sh script', so
-# bytes that are not are False". A malformed hex string is bytes that are
-# not, and what `bytes.fromhex` raises for it is a ValueError, which that
-# `except ValueError` catches on purpose. A wrong *type* is not covered
-# by it and does raise, which is the half of those nine the rule reaches
-_A_PREDICATE_ANSWERS_FALSE = (
-    "a bool function about a script answers False for bytes that are not"
-    " one, and a malformed hex string is bytes that are not: the reason is"
-    " in script_pub_key._is_funct, which catches ValueError alone"
+# a value of a declared type that no valid input carries: a fact about
+# the input, and the half a bool function answers False about. Every one
+# of these type checks -- that is what puts it in this dict rather than
+# in the one above -- so a `# type: ignore` is never needed to build the
+# call, which is the same line drawn twice
+_WRONG_VALUE: dict[str, tuple[Any, ...]] = {
+    "BIP32Key": ("not an xkey",),
+    "BinaryData": ("not hex at all",),
+    # a string no path spelling reads, an index below zero, and one above
+    # the four bytes a BIP32 index has
+    "DerPath": ("m/x", -1, [2**32]),
+    "Integer": ("not hex at all",),
+    "Key": ("not a key",),
+    # a hex string that is not hex, and one of odd length
+    "Octets": ("not hex at all", "9"),
+    # a tuple of the wrong arity, and a pair of ints that is no point:
+    # run time cannot tell tuple[int] from tuple[int, int], so the arity
+    # is a value here and not a type
+    "Point": ((1,), (1, 2)),
+    "PrvKey": ("not a key",),
+    "PubKey": ("not a key",),
+    "ScriptList": (["OP_NOT_AN_OP_CODE"],),
+    "String": ("not an address",),
+}
+
+# one reason for eleven functions, nine of which are
+# `script_pub_key._is_funct`'s own: "these bool functions answer 'are
+# these bytes a p2sh script', so bytes that are not are False". The other
+# two answer the same shape of question one layer up -- does this string
+# start as a bech32 address, does this proof hold -- and CONTRIBUTING.md
+# states the rule for all of them beside the validation one.
+#
+# `taproot.check_output_pubkey` is deliberately *not* here, and is the
+# reason `check_` keeps its prefix: it answers a bool and refuses a
+# malformed control block, that being no proof rather than a disproof
+_A_BOOL_ANSWERS_FALSE = (
+    "a bool answers about a value of a declared type, so a value that is"
+    " not one is False rather than a refusal: issue #814 settled it, and"
+    " CONTRIBUTING.md's 'Every public function validates its inputs'"
+    " states it"
 )
 
-# the other family, and the same sentence one layer up: a verification
-# answers "does this proof hold", so a pub key of a declared type that
-# is no point is False, exactly as bytes that are no p2sh script are. A
-# wrong *type* does raise, `to_pub_key` refusing what is no spelling of
-# a key, which is the half of it the rule reaches. `dleq.verify_proof`
-# is the one of the family the walk can drive: the others take a
-# `Sig | Octets` the vocabulary has no wrong value for
-_A_VERIFICATION_ANSWERS_FALSE = (
-    "a boolean verification is total over the types it declares, so a pub"
-    " key that is no point is False: CONTRIBUTING.md's 'Every public"
-    " function validates its inputs' states the rule, ecc.dsa.verify_ the"
-    " reason, and issue #814 is where it was decided"
-)
-
-_EXCLUDED: dict[str, str] = {
-    "btclib.ecc.dleq.verify_proof": _A_VERIFICATION_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_nulldata": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2ms": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2pk": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2pkh": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2sh": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2tr": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2wpkh": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_p2wsh": _A_PREDICATE_ANSWERS_FALSE,
-    "btclib.script.script_pub_key.is_segwit": _A_PREDICATE_ANSWERS_FALSE,
+_ANSWERS_FALSE: dict[str, str] = {
+    "btclib.b32.has_segwit_prefix": _A_BOOL_ANSWERS_FALSE,
+    "btclib.ecc.dleq.verify_proof": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_nulldata": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2ms": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2pk": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2pkh": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2sh": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2tr": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2wpkh": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_p2wsh": _A_BOOL_ANSWERS_FALSE,
+    "btclib.script.script_pub_key.is_segwit": _A_BOOL_ANSWERS_FALSE,
 }
 
 
 def _alias_of(annotation: ast.expr) -> str | None:
     """Return the input type an annotation names, `X | None` included."""
     name = ast.unparse(annotation).replace(" | None", "").strip()
-    return name if name in _MALFORMED else None
+    return name if name in _WRONG_TYPE else None
 
 
 def _drivable() -> dict[str, list[str]]:
@@ -172,70 +208,78 @@ def _drivable() -> dict[str, list[str]]:
 _DRIVABLE = _drivable()
 
 
-def _classify(call: Callable[[], Any]) -> str | None:
-    """Return the class of what escapes the rule, or None if it holds.
+def _calls(
+    dotted: str, vocabulary: dict[str, tuple[Any, ...]]
+) -> Iterator[Callable[[], Any]]:
+    """Yield one prepared call per round, every argument wrong at once.
 
-    The whole of the verdict, on one call, and a function of its own so
-    that the three answers can be provoked here: the middle one names a
-    native exception, and no function of the library produces one any
-    more, so as a branch inside the walk it went uncovered -- and an
-    unrun branch is a poor thing to find out about on the day something
-    does leak. `test_the_walk_names_what_escapes` is what runs it.
+    The vocabulary is the parameter, and it is the whole of what tells the
+    two rules apart: the same walk, the same function, two kinds of wrong
+    value.
     """
-    try:
-        call()
-    except BTClibException:
-        return None
-    # the class of what came out is the finding, so every one of them is
-    # caught and named rather than let out of the walk
-    except Exception as e:  # noqa: BLE001
-        return type(e).__name__
-    return "no exception"
-
-
-def _leak(dotted: str) -> str | None:
-    """Return the class of what escapes the rule, or None if it holds."""
     module_name, _, name = dotted.rpartition(".")
     function = getattr(importlib.import_module(module_name), name)
     aliases = _DRIVABLE[dotted]
-    for round_ in range(max(len(_MALFORMED[a]) for a in aliases)):
-        args = [_MALFORMED[a][round_ % len(_MALFORMED[a])] for a in aliases]
+    for round_ in range(max(len(vocabulary[a]) for a in aliases)):
+        args = [vocabulary[a][round_ % len(vocabulary[a])] for a in aliases]
         # partial and not a lambda, which would close over the loop
         # variables and be read on a later round
-        found = _classify(partial(function, *args))
-        if found is not None:
-            return found
-    return None
+        yield partial(function, *args)
 
 
-_GATED = sorted(set(_DRIVABLE) - _EXCLUDED.keys())
+_DRIVEN = sorted(_DRIVABLE)
+_REFUSES_A_WRONG_VALUE = sorted(set(_DRIVABLE) - _ANSWERS_FALSE.keys())
 
 
-@pytest.mark.parametrize("dotted", _GATED)
-def test_a_malformed_argument_leaves_as_a_btclib_exception(dotted: str) -> None:
-    """The rule, over every public function the vocabulary can drive."""
-    leak = _leak(dotted)
-    assert leak is None, f"{dotted} answers a malformed argument with {leak}"
+@pytest.mark.parametrize("dotted", _DRIVEN)
+def test_a_wrong_type_leaves_as_a_btclib_type_error(dotted: str) -> None:
+    """The first rule, and it has no exceptions.
 
+    Every public function the walk can drive, `_ANSWERS_FALSE` included:
+    a bool is an answer about a value, so a type it does not declare is
+    not something it answers about either.
 
-@pytest.mark.parametrize("dotted", sorted(_EXCLUDED))
-def test_what_is_excluded_still_needs_to_be(dotted: str) -> None:
-    """A line of `_EXCLUDED` cannot outlive the reason for it.
-
-    The ratchet `_OPEN` used to carry, aimed at the list that is left:
-    an entry whose function has started refusing what its reason says it
-    answers is an exemption nothing needs any more, and it fails here
-    rather than quietly keeping a function out of the walk.
+    `BTClibTypeError` and not `BTClibException`: this is where the class
+    is the point. A bare `TypeError` fails here as a `BTClibValueError`
+    does -- the first is a leak from underneath the library, the second
+    is the library calling a caller's mistake a fact about the input.
     """
-    assert _leak(dotted) is not None, (
-        f"{dotted} now holds the rule: delete its line from _EXCLUDED"
-    )
+    for call in _calls(dotted, _WRONG_TYPE):
+        with pytest.raises(BTClibTypeError):
+            call()
+
+
+@pytest.mark.parametrize("dotted", _REFUSES_A_WRONG_VALUE)
+def test_a_wrong_value_leaves_as_a_btclib_exception(dotted: str) -> None:
+    """The second rule, over everything that does not answer False.
+
+    `BTClibException` and not one of the three: which of them a malformed
+    value deserves is the function's to decide -- a size is a
+    `BTClibValueError`, a bool where a number belongs is a
+    `BTClibTypeError` -- and the contract a caller is given is the base.
+    """
+    for call in _calls(dotted, _WRONG_VALUE):
+        with pytest.raises(BTClibException):
+            call()
+
+
+@pytest.mark.parametrize("dotted", sorted(_ANSWERS_FALSE))
+def test_what_answers_false_still_does(dotted: str) -> None:
+    """A line of `_ANSWERS_FALSE` cannot outlive the reason for it.
+
+    `is False` and not a falsy answer: these eleven return a bool, and an
+    empty string or a None passing for one is the shape issue #776 found
+    in `script_pub_key.address`, which answered "" for a None.
+    """
+    for call in _calls(dotted, _WRONG_VALUE):
+        assert call() is False
 
 
 def test_the_vocabulary_is_the_libraries_input_types() -> None:
     """A renamed type would narrow the walk without failing anything.
 
-    Every name in `_MALFORMED` is still declared under `btclib/`, and
+    Every name in the two vocabularies is still declared under
+    `btclib/`, and
     every type `alias.py` declares and a public parameter is annotated
     with is either in the vocabulary or named below with the reason no
     wrong value can be built for it.
@@ -266,7 +310,8 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
                 if a.annotation is not None
             }
 
-    assert set(_MALFORMED) <= declared
+    assert set(_WRONG_TYPE) == set(_WRONG_VALUE)
+    assert set(_WRONG_TYPE) <= declared
 
     without_a_wrong_value = {
         # three Literals: a value outside them is what mypy refuses, and a
@@ -292,25 +337,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # leaves are Octets and int
         "TaprootScriptTree",
     }
-    assert in_alias_py & annotated <= set(_MALFORMED) | without_a_wrong_value
-
-
-def test_the_walk_names_what_escapes() -> None:
-    """The three verdicts, on calls whose behaviour is stated here.
-
-    A walk that answered None to everything would pass every test above,
-    and the answer that says a native exception got out is the one no
-    function of the library provokes any more -- so this is where it is
-    provoked, rather than being a branch nothing runs until the day it
-    matters.
-    """
-
-    def raiser(e: Exception) -> None:
-        raise e
-
-    assert _classify(partial(raiser, BTClibValueError("refused"))) is None
-    assert _classify(partial(raiser, TypeError("from underneath"))) == "TypeError"
-    assert _classify(bool) == "no exception"
+    assert in_alias_py & annotated <= set(_WRONG_TYPE) | without_a_wrong_value
 
 
 def test_the_walk_reaches_what_it_claims() -> None:
@@ -334,7 +361,8 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.psbt.psbt.finalize" not in _DRIVABLE
 
 
-def test_every_driven_function_is_gated_or_excluded() -> None:
+def test_every_driven_function_is_under_both_rules() -> None:
     """No function leaves the run without a line saying why."""
-    assert _EXCLUDED.keys() <= set(_DRIVABLE)
-    assert set(_GATED) | _EXCLUDED.keys() == set(_DRIVABLE)
+    assert _ANSWERS_FALSE.keys() <= set(_DRIVABLE)
+    assert set(_DRIVEN) == set(_DRIVABLE)
+    assert set(_REFUSES_A_WRONG_VALUE) | _ANSWERS_FALSE.keys() == set(_DRIVABLE)

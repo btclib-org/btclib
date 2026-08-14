@@ -2295,6 +2295,65 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **A wrong type and a wrong value are two questions, and the gate asks
+  them separately** (issue #814). `tests/input_validation_test.py` drove
+  one mixed vocabulary and asserted a `BTClibException` came out, which
+  is the weaker half of what the rule says: a value of a type the
+  signature does not declare is the caller's own mistake and leaves as a
+  `BTClibTypeError`, where a value of a declared type that no valid input
+  carries is a fact about the input -- refused, or answered `False` by a
+  function that answers a bool. `_WRONG_TYPE` and `_WRONG_VALUE` are the
+  two vocabularies now, and which dict a value belongs in is the
+  annotation's to decide.
+
+  Measured that way the type rule holds over every function the walk can
+  drive, with no exception -- which took one fix, `to_prv_key` having
+  flattened the two into one class as `to_pub_key` did before #818:
+  `_assert_prv_key_type` is its twin, so a `Point` passed as a private
+  key is a `BTClibTypeError` where it was a `NotAPrvKeyError` reporting
+  three formats tried against a value none of them could hold. The value
+  rule holds everywhere too, except the eleven that answer `False` --
+  nine script predicates, `b32.has_segwit_prefix` and
+  `dleq.verify_proof` -- which is the bool contract and is now stated as
+  one reason rather than as an exemption from the mixed rule.
+
+  `_OPEN` and `_EXCLUDED` are gone with it. Nothing needs excusing from
+  the type rule, and what `_EXCLUDED` held was the bool contract, so
+  `_ANSWERS_FALSE` states it once and ratchets: an entry that has started
+  refusing fails. `_classify` went too -- a hand-rolled three-way verdict
+  had a branch for a native exception that nothing reaches, where
+  `pytest.raises` names the class without one.
+
+- **The bool contract is gated over the verifications a fixture must
+  build** (issue #814). The automatic walk cannot drive `dsa.verify`:
+  it takes a valid message, key and signature, and a `Sig | Octets` no
+  vocabulary of wrong values can make. `tests/bool_contract_test.py` is
+  the hand-written table issue #776 asked for -- a call of each that
+  answers True, and a wrong value per position -- and it reaches twelve
+  functions the gate above never saw.
+
+  It found what #776 said a floor would find. Sixteen positions do not
+  hold the two rules, and each is a line in one of two ratcheted lists
+  naming what comes out instead. Three shapes, none of them a one-off: a
+  **sequence parameter** -- `ssa.batch_verify`'s three,
+  `merkle_proof.verify`'s branch -- is walked without being checked, so a
+  `None` is "not iterable" from underneath the library; a **signature
+  parameter** reaches `Sig.b64decode`, which strips before it decodes, so
+  a type with no `strip` is an `AttributeError` (`bms.verify`,
+  `bip322.verify`); and the **engine adapters** hand plain bytes to the
+  bindings, whose own message says "the message hash must be bytes" --
+  true, and not btclib saying it. `pedersen.verify` is the one that
+  answers instead of raising, reporting a commitment of no type at all as
+  one that does not open. The two value-rule entries are one shape:
+  `verify` reduces the message with `hf` before the `try`, so a message
+  that is no octets is refused where `verify_`, handed the hash, answers
+  False.
+
+  CONTRIBUTING.md says both rules are gated and that neither holds
+  everywhere yet, which is the shape `exceptions.py` already uses for the
+  exception contract: a rule with the ground it has not covered named
+  rather than implied.
+
 - **`check_` said four things, and therefore nothing** (issue #814).
   Thirteen public functions carried the prefix: nine refusals returning
   `None`, two bool verdicts, a converter returning bytes and a query
