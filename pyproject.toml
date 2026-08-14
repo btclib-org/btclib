@@ -286,14 +286,12 @@ filterwarnings = ["error"]
 # which records where each of those files came from -- is still spell
 # checked, being prose about the data and not the data
 skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock"
-# identifiers, not misspellings: "wit" is a transaction's witness, "nd"
-# is the Neutered Derivation the bip32 docstrings spell out, and "buidl"
-# is a PyPI package of that exact name, which CHANGELOG.md records this
-# repository having benchmarked against. All three are real words to
-# codespell's dictionary (the third by way of "build"), so none can be
-# fixed by writing it differently -- unlike the rest of what this hook
-# found, which was corrected instead of listed here
-ignore-words-list = "wit,nd,buidl"
+# identifiers, not misspellings: "wit" is a transaction's witness and
+# "nd" is the Neutered Derivation the bip32 docstrings spell out. Both
+# are real words to codespell's dictionary, so neither can be fixed by
+# writing it differently -- unlike the rest of what this hook found,
+# which was corrected instead of listed here
+ignore-words-list = "wit,nd"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the prose
@@ -392,12 +390,6 @@ ful = "ful"
 # ruff's own name for flake8-copyright, in the comment above
 # [tool.ruff.lint.flake8-copyright] explaining why it is selected
 CPY = "CPY"
-# a PyPI package of that name, not the "build" this hook offers to
-# correct it to. The benchmarks that compared btclib against it live in
-# btclib-benchmarks now, and CHANGELOG.md still names it: without this
-# line --write-changes turns every `buidl` there and in this file into a
-# word that names a different package on PyPI entirely
-buidl = "buidl"
 
 [tool.typos.type.verbatim]
 # the three files that quote misspellings on purpose: the #161 entry names

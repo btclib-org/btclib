@@ -394,8 +394,8 @@ secp256k1 = CURVES["secp256k1"]
 # False turns the delegation off across the whole package, because every
 # dispatch asks the predicate and the predicate reads this global --
 # whereas rebinding the predicate itself reaches one module of the nine
-# that import it by name, which is how a benchmark once timed C and
-# called it Python.
+# that import it by name, so a caller that names them delegates in
+# silence wherever it forgets one, and times C while calling it Python.
 #
 # btclib_secp256k1 is a required dependency, so this is never False
 # because the bindings are missing. It is the seam the test suite closes
