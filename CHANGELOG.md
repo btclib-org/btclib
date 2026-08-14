@@ -24,6 +24,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The HWI emulator jobs no longer appear on a pull request's checks.**
+  `HWI against a Trezor emulator` and `HWI against a Ledger emulator`
+  ran as jobs of `integration.yml`, guarded by `if:
+  github.event_name != 'pull_request'` so they never actually ran there
+  — but the workflow itself still triggers on `pull_request`, so GitHub
+  listed both as skipped checks on every pull request regardless, which
+  is what a reviewer sees whether or not the job did anything. The two
+  jobs move to `hwi-integration.yml`, a workflow with no `pull_request`
+  trigger at all: a workflow that never fires on that event produces no
+  check on one, skipped included. `Regtest against Bitcoin Core`, the
+  one job of the two that is a required check, stays in `integration.yml`
+  unchanged, with the same `pull_request` trigger it needs to gate a
+  merge.
+
 - **The generated Code Quality analysis is off** (issue #788). A second
   CodeQL run that no file in this tree declares — `Analyze (python)` and
   `Analyze (ruby)`, on every pull request and every push to `main` — took

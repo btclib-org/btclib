@@ -553,15 +553,16 @@ BTCLIB_INTEGRATION=1 BTCLIB_BITCOIND=/path/to/bitcoind \
 A step after it reads that report and fails the job if a regtest test
 skipped: pytest exits 0 for a module that skipped itself, so a job whose
 fixture stopped finding the node would stay green while asking Core
-nothing. The HWI tests skip there by design and are not counted; the
-second job is theirs.
+nothing. The HWI tests skip there by design and are not counted; they are
+`hwi-integration.yml`'s, a workflow of its own rather than a second job
+here.
 
-`HWI against a Trezor emulator` is that job, and it gates nothing: it
-downloads a pinned emulator binary from `data.trezor.io` beside the same
-node, checks its sha256, installs a pinned HWI in an interpreter of its
-own — HWI declares `^3.9,<3.13`, and `btclib/hwi.py` says why it is a
-program here rather than a dependency — loads the seed HWI's own suite
-uses over DebugLink, and runs:
+`HWI against a Trezor emulator` is the first of its two jobs, and it
+gates nothing: it downloads a pinned emulator binary from
+`data.trezor.io` beside the same node, checks its sha256, installs a
+pinned HWI in an interpreter of its own — HWI declares `^3.9,<3.13`, and
+`btclib/hwi.py` says why it is a program here rather than a dependency —
+loads the seed HWI's own suite uses over DebugLink, and runs:
 
 ```shell
 BTCLIB_INTEGRATION=1 BTCLIB_HWI_SIGN=1 \
@@ -576,11 +577,13 @@ workers are three HWI processes on one udp port.
 
 `BTCLIB_HWI_SIGN` can be set because HWI opens a udp device with
 `TrezorClientDebugLink`, which answers the button request itself. The
-job is not on a pull request: a firmware release, an unreachable
-`data.trezor.io` or an emulator that stopped starting headless is
-trezor's day rather than the branch's, so it runs weekly, on a push to
-`main`, and on `gh workflow run integration.yml --ref <branch>` — which
-is how a branch touching `btclib/hwi.py` is checked before it lands.
+workflow carries no `pull_request` trigger at all: a firmware release, an
+unreachable `data.trezor.io` or an emulator that stopped starting
+headless is trezor's day rather than the branch's, and a workflow that
+never triggers on a pull request produces no check there, not even a
+skipped one — so it runs weekly, on a push to `main`, and on
+`gh workflow run hwi-integration.yml --ref <branch>`, which is how a
+branch touching `btclib/hwi.py` is checked before it lands.
 
 `HWI against a Ledger emulator` is the second of the two, and it costs
 more because a Ledger does. There is no published app binary, so the job
