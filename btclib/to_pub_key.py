@@ -19,7 +19,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.sec_point import _sec_from_octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
     curve_from_xkeyversion,
@@ -50,6 +50,46 @@ PubKey = bytes | str | BIP32KeyData | Point
 # usable wherever a PubKey is logically expected
 Key = int | bytes | str | BIP32KeyData | Point
 
+# the two unions at run time, with the buffers bytes_from_octets accepts
+# beside bytes. An int is in one and not the other on purpose: in this
+# library an int is a private key, and never a public one
+_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, BIP32KeyData, tuple)
+_KEY_TYPES = (int, *_PUB_KEY_TYPES)
+
+
+def _assert_pub_key_type(pub_key: PubKey) -> None:
+    """Refuse a type no spelling of a public key has.
+
+    Asked at the top of a converter, and not inferred from whichever
+    spelling failed last, which is what these two used to do: every
+    refusal was a BTClibValueError, so "this key is not on the curve"
+    and "this is not a key at all" arrived as one class.
+
+    The difference is what a boolean verification reads, and issue #814
+    is where it is stated: `dsa.verify` answers False about a value of a
+    declared type and refuses a type it does not declare, exactly as
+    `script_pub_key.is_p2sh` does. The union is closed, so the question
+    has an answer here; `ssa.point_from_bip340pub_key` ends in this same
+    refusal for the same reason.
+
+    Never echo the input: it may be private material passed by mistake,
+    which is the very confusion issue #143 is about -- an int is a
+    private key here, so it is refused as a type rather than reported as
+    a public key that does not verify.
+    """
+    if not isinstance(pub_key, _PUB_KEY_TYPES):
+        raise BTClibTypeError("not a public key")
+
+
+def _assert_key_type(key: Key) -> None:
+    """Refuse a type no spelling of a key has, private or public.
+
+    `_assert_pub_key_type`'s wider twin, for the converters that take
+    either: an int is a private key, and the two lists differ by it.
+    """
+    if not isinstance(key, _KEY_TYPES):
+        raise BTClibTypeError("not a private or public key")
+
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     """Return an elliptic curve point tuple from a xpub key."""
@@ -74,6 +114,8 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
+    _assert_key_type(key)
+
     if isinstance(key, tuple):
         return point_from_pub_key(key, ec)
     if isinstance(key, int):
@@ -93,6 +135,8 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
 def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     """Return an elliptic curve point tuple from a public key."""
+    _assert_pub_key_type(pub_key)
+
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
             return pub_key[0], pub_key[1]
@@ -152,6 +196,8 @@ def pub_keyinfo_from_key(
     key: Key, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
+    _assert_key_type(key)
+
     if isinstance(key, tuple):
         return pub_keyinfo_from_pub_key(key, network, compressed)
     if isinstance(key, int):
@@ -182,6 +228,8 @@ def pub_keyinfo_from_pub_key(
     pub_key: PubKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
+    _assert_pub_key_type(pub_key)
+
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = network_from_name(net).curve

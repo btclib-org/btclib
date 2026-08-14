@@ -43,18 +43,24 @@ a valid instance the vocabulary cannot build. That is the part of issue
 what the walk does find, so a narrowing of it fails here rather than
 quietly running over less.
 
-## The three lists, and which way each ratchets
+## The two lists, and which way each ratchets
 
 - `_MALFORMED` is the vocabulary, and every name in it is a type this
   tree still declares: a rename would otherwise shrink the walk in
   silence, which `test_the_vocabulary_is_the_libraries_input_types` is
   against.
 - `_EXCLUDED` is what must not be held to the rule this way, with the
-  reason. What is in it is a family whose own comment states the design.
-- `_OPEN` is what issue #744's census left, each entry naming the class
-  that escapes. It can only shrink: `test_what_is_open_is_still_open`
-  fails on an entry that has become compliant, as RUF100 fails an unused
-  `noqa`, so a fix cannot land without deleting its line.
+  reason. What is in it is two families, each stating its own design,
+  and it ratchets the way `_OPEN` used to:
+  `test_what_is_excluded_still_needs_to_be` fails on an entry that has
+  become compliant, as RUF100 fails an unused `noqa`, so a line cannot
+  outlive the reason for it.
+
+There was a third, `_OPEN`, holding what issue #744's census left. It
+is empty and therefore gone: every function the walk drives now either
+holds the rule or is in `_EXCLUDED` with a reason. What the walk finds
+next is a red test above, to be fixed or to be excluded with a reason of
+its own -- a backlog is not a place a new finding goes to wait.
 """
 
 from __future__ import annotations
@@ -76,7 +82,7 @@ _LIBRARY = Path(__file__).parents[1] / "btclib"
 # and the tuples are read round-robin so that a function taking three
 # parameters of one type is called with three different wrong values.
 # Constants and not a strategy: what this gate reports has to be the same
-# on two runs, `_OPEN` below being read as a statement about the tree
+# on two runs, `_EXCLUDED` below being read as a statement about the tree
 _MALFORMED: dict[str, tuple[Any, ...]] = {
     "BIP32Key": (None, 1.5, "not an xkey"),
     "BinaryData": ("not hex at all", None, 1.5),
@@ -103,7 +109,22 @@ _A_PREDICATE_ANSWERS_FALSE = (
     " in script_pub_key._is_funct, which catches ValueError alone"
 )
 
+# the other family, and the same sentence one layer up: a verification
+# answers "does this proof hold", so a pub key of a declared type that
+# is no point is False, exactly as bytes that are no p2sh script are. A
+# wrong *type* does raise, `to_pub_key` refusing what is no spelling of
+# a key, which is the half of it the rule reaches. `dleq.verify_proof`
+# is the one of the family the walk can drive: the others take a
+# `Sig | Octets` the vocabulary has no wrong value for
+_A_VERIFICATION_ANSWERS_FALSE = (
+    "a boolean verification is total over the types it declares, so a pub"
+    " key that is no point is False: CONTRIBUTING.md's 'Every public"
+    " function validates its inputs' states the rule, ecc.dsa.verify_ the"
+    " reason, and issue #814 is where it was decided"
+)
+
 _EXCLUDED: dict[str, str] = {
+    "btclib.ecc.dleq.verify_proof": _A_VERIFICATION_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_nulldata": _A_PREDICATE_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2ms": _A_PREDICATE_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2pk": _A_PREDICATE_ANSWERS_FALSE,
@@ -113,23 +134,6 @@ _EXCLUDED: dict[str, str] = {
     "btclib.script.script_pub_key.is_p2wpkh": _A_PREDICATE_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2wsh": _A_PREDICATE_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_segwit": _A_PREDICATE_ANSWERS_FALSE,
-}
-
-# what issue #744's census left, by the class that escapes. Deleting a
-# line is how a fix lands, the test below failing on an entry that has
-# stopped leaking, so this cannot go stale in either direction.
-#
-# The one left is not a coercion trusting its annotation, which is what
-# the rest of the list was: what answers False is `to_pub_key`'s refusal
-# of anything that is not a public key, which is a BTClibValueError
-# whatever was wrong with it, and folding the type in is what keeps a
-# boolean verification total. Issue #745 is where that was settled --
-# `dsa.verify_` answers False for a private key passed as a public one,
-# which is issue #143 and a test -- so making this one raise reverses
-# that decision rather than closing a hole, and the entry stays here
-# until it is taken
-_OPEN: dict[str, str] = {
-    "btclib.ecc.dleq.verify_proof": "no exception",
 }
 
 
@@ -204,7 +208,7 @@ def _leak(dotted: str) -> str | None:
     return None
 
 
-_GATED = sorted(set(_DRIVABLE) - _EXCLUDED.keys() - _OPEN.keys())
+_GATED = sorted(set(_DRIVABLE) - _EXCLUDED.keys())
 
 
 @pytest.mark.parametrize("dotted", _GATED)
@@ -214,17 +218,17 @@ def test_a_malformed_argument_leaves_as_a_btclib_exception(dotted: str) -> None:
     assert leak is None, f"{dotted} answers a malformed argument with {leak}"
 
 
-@pytest.mark.parametrize("dotted", sorted(_OPEN))
-def test_what_is_open_is_still_open(dotted: str) -> None:
-    """A fix cannot land without deleting its line from `_OPEN`.
+@pytest.mark.parametrize("dotted", sorted(_EXCLUDED))
+def test_what_is_excluded_still_needs_to_be(dotted: str) -> None:
+    """A line of `_EXCLUDED` cannot outlive the reason for it.
 
-    The ratchet, and the reason the list is in the tree rather than in a
-    report: an entry that has become compliant fails here, so what is
-    left cannot drift the way a census read by hand did.
+    The ratchet `_OPEN` used to carry, aimed at the list that is left:
+    an entry whose function has started refusing what its reason says it
+    answers is an exemption nothing needs any more, and it fails here
+    rather than quietly keeping a function out of the walk.
     """
-    assert _leak(dotted) == _OPEN[dotted], (
-        f"{dotted} no longer answers with {_OPEN[dotted]}: delete its line"
-        " from _OPEN, or correct it to what it answers with now"
+    assert _leak(dotted) is not None, (
+        f"{dotted} now holds the rule: delete its line from _EXCLUDED"
     )
 
 
@@ -330,9 +334,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert "btclib.psbt.psbt.finalize" not in _DRIVABLE
 
 
-def test_every_driven_function_is_gated_excluded_or_open() -> None:
+def test_every_driven_function_is_gated_or_excluded() -> None:
     """No function leaves the run without a line saying why."""
-    assert not _EXCLUDED.keys() & _OPEN.keys()
     assert _EXCLUDED.keys() <= set(_DRIVABLE)
-    assert _OPEN.keys() <= set(_DRIVABLE)
-    assert set(_GATED) | _EXCLUDED.keys() | _OPEN.keys() == set(_DRIVABLE)
+    assert set(_GATED) | _EXCLUDED.keys() == set(_DRIVABLE)

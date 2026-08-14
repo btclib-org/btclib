@@ -462,24 +462,40 @@ def test_prv_key_is_not_a_pub_key() -> None:
     # which converts the key on its own
     sig_sha1 = dsa.sign(msg, prv_key_int, hf=sha1)
 
+    # the spellings a PubKey declares -- a str, a BIP32KeyData -- which
+    # carry a private key and are refused for what they hold. No
+    # `type: ignore` on these: they type check, which is the whole of
+    # what makes False the right answer for them
     for prv_key in (
-        prv_key_int,
         prv_key_hexstring,
         wif_compressed_string,
         wif_uncompressed_string,
         xprv_string,
         xprv_data,
     ):
-        assert not dsa.verify(msg, prv_key, sig)  # type: ignore[arg-type]
-        assert not dsa.verify(msg, prv_key, sig_sha1, hf=sha1)  # type: ignore[arg-type]
+        assert not dsa.verify(msg, prv_key, sig)
+        assert not dsa.verify(msg, prv_key, sig_sha1, hf=sha1)
         with pytest.raises(BTClibValueError, match="not a public key"):
-            dsa.assert_as_valid(msg, prv_key, sig)  # type: ignore[arg-type]
+            dsa.assert_as_valid(msg, prv_key, sig)
         with pytest.raises(BTClibValueError, match="not a public key"):
-            dsa.assert_as_valid(msg, prv_key, sig_sha1, hf=sha1)  # type: ignore[arg-type]
+            dsa.assert_as_valid(msg, prv_key, sig_sha1, hf=sha1)
         # neither the rejection nor its message may echo the secret
-        with pytest.raises(BTClibValueError) as excinfo:
-            dsa.assert_as_valid(msg, prv_key, sig)  # type: ignore[arg-type]
-        assert str(prv_key) not in str(excinfo.value)
+        with pytest.raises(BTClibValueError) as refusal:
+            dsa.assert_as_valid(msg, prv_key, sig)
+        assert str(prv_key) not in str(refusal.value)
+
+    # and the int, which a PubKey does not declare at all: refused as a
+    # type rather than answered False, which is issue #814's rule and the
+    # stronger half of this issue's. Somebody passing an int here meant a
+    # private key, where False reads as a signature that did not verify.
+    # `verify` refuses it as `assert_as_valid` does, a TypeError being
+    # outside the `except` that turns a refusal into False -- and the
+    # `type: ignore` these two need, where the five above need none, is
+    # the line this rule draws, written out by the type checker
+    for call in (dsa.verify, dsa.assert_as_valid):
+        with pytest.raises(BTClibTypeError, match="not a public key") as wrong_type:
+            call(msg, prv_key_int, sig)  # type: ignore[arg-type]
+        assert str(prv_key_int) not in str(wrong_type.value)
 
     # the very same key, in its public representations, still verifies
     for pub_key in (

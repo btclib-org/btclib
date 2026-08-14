@@ -828,6 +828,23 @@ private twin that does not validate; that twin is then what the library
 composes internally, where the inputs have already been checked and
 checking them a second time buys nothing.
 
+**A function that answers a `bool` is total over the types it declares,
+and only those.** `is_p2sh` answers False for bytes that are not a p2sh
+script, and `dsa.verify` answers False for a signature that does not
+verify: that is what the bool is for, and a caller filtering a list of
+them wants an answer and not an exception. A value of a type the
+signature does not declare is not such an answer — it is the caller's
+own mistake, it is a call mypy already refuses, and it leaves as a
+`BTClibTypeError` like any other. So `dsa.verify(msg, 12, sig)` raises,
+12 being a private key in this library and never a public one, where
+`dsa.verify(msg, "not a key", sig)` is False.
+
+The line is the annotation, and deliberately not which built-in a helper
+happens to derive from: those two coincide only by accident, which is
+what issue #745 found and this replaces. The `assert_*` twin beside each
+of these is the spelling that says *why* a value was refused, and the two
+are how a caller chooses between an answer and a reason.
+
 `check_validity=False` is not an exemption from this. It says "do not
 check *now*", not "this object is exempt from here on": these are mutable
 dataclasses whose fields are public and get reassigned in place, so
