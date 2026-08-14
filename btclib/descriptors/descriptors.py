@@ -184,7 +184,11 @@ from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.network import NETWORKS, network_from_xkeyversion
+from btclib.network import (
+    NETWORKS,
+    _validated_network_name,
+    network_from_xkeyversion,
+)
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
@@ -2257,8 +2261,24 @@ def parse(
     `strip_checksum` untouched and left as an AttributeError about
     `partition`, or as a TypeError about mixing bytes and str -- neither
     of them a word about the descriptor that was passed.
+
+    The network is asked for here rather than where a script is finally
+    written: a name no network has was carried into the Descriptor and
+    refused by the encoder that came to use it, which is a complaint
+    about a key or an address, one call later than the argument that was
+    wrong. Normalized as well, so that what the object holds is the name
+    `network_from_name` would answer to.
+
+    `prv_keys` is a mapping, and what is not one was walked anyway: the
+    lookups below are `in` and `[]`, so a list of pairs answered "not
+    found" for every key rather than saying it is not a mapping. `None`
+    is asked for with it, that being the other type the annotation
+    declares -- and one call rather than a branch, which is what keeps
+    the two spellings of "a declared type" in one place.
     """
     assert_type(descriptor, str, "descriptor")
+    network = _validated_network_name(network)
+    assert_type(prv_keys, (Mapping, type(None)), "prv_keys")
 
     if prv_keys is None:
         prv_keys = {}

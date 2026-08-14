@@ -87,6 +87,10 @@ _WRONG_TYPES: tuple[Any, ...] = (None, 1.5, [1, 2])
 # rather than the argument
 _NOT_AN_ARRAY: tuple[Any, ...] = (*_WRONG_TYPES, "ab", {"a": 1})
 
+# and the same list where `None` is a type the position declares, which is
+# a statement about the signature rather than an exemption from the rule
+_NOT_NONE: tuple[Any, ...] = tuple(w for w in _WRONG_TYPES if w is not None)
+
 _TX_ID = "01" * 32
 
 _TX = Tx(1, 0x12345678, [TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF)], [TxOut(1, b"")])
@@ -252,11 +256,11 @@ _MODULE_WRITERS = (
 
 _MODULE_WRITER_IDS = tuple(label for label, _, _, _ in _MODULE_WRITERS)
 
-# what those ten take besides the thing they convert. Every one of them
-# is a parameter behind a default, which is issue #868's census and not
-# this file's: `max_size` and `context` are asked where they are read,
-# `forbid_zero_size` and `exit_on_op_success` are flags, and `network`
-# and `prv_keys` are the descriptor family's own inputs
+# what those ten take besides the thing they convert, and what drives
+# each: five of the six were ungated when this file was written and issue
+# #872 is where they were measured. `forbid_zero_size` is the one that is
+# driven by nothing, being a flag that decides whether a check runs and
+# therefore read for its truth, as `check_validity` is
 _MODULE_EXTRA_ARGUMENTS = {
     ("btclib.var_int", "parse"): ["max_size"],
     ("btclib.var_bytes", "parse"): ["forbid_zero_size"],
@@ -509,6 +513,85 @@ def test_an_envelope_is_read_against_magic_bytes_that_are_bytes() -> None:
             ecies.Envelope.parse(_ENVELOPE.serialize(), magic=wrong)
         with pytest.raises(BTClibTypeError, match="invalid magic type"):
             ecies.Envelope.b64decode(armor, magic=wrong)
+
+
+def test_a_tapscript_says_which_answer_it_is_asked_for() -> None:
+    """`exit_on_op_success` decides what is computed, so it is a bool.
+
+    Core's pre-scan and a parse are two readings of the same bytes, and
+    the flag chooses between them: read for its truth, a value of no
+    boolean type answered the marker where the commands were asked for.
+    """
+    script_bytes = bytes([0x50, 0x76])  # OP_SUCCESS80, then one byte
+    assert taproot.parse(script_bytes) == ["OP_SUCCESS80", b"v"]
+    assert taproot.parse(script_bytes, exit_on_op_success=True) == ["OP_SUCCESS"]
+
+    for wrong in (*_WRONG_TYPES, 0, 1):
+        with pytest.raises(BTClibTypeError, match="invalid exit_on_op_success type"):
+            taproot.parse(script_bytes, exit_on_op_success=wrong)
+
+
+def test_a_var_bytes_flag_is_read_for_its_truth() -> None:
+    """And the one on the other side of that line, which stays there.
+
+    `forbid_zero_size` adds a refusal and changes no answer, so it is
+    read as `check_validity` is: what it must not do is refuse a value
+    of its own, which would make the two conventions one.
+    """
+    assert var_bytes.parse(b"\x01\x02") == b"\x02"
+    for wrong in _WRONG_TYPES:
+        assert var_bytes.parse(b"\x01\x02", forbid_zero_size=wrong) == b"\x02"
+
+
+def test_a_descriptor_is_parsed_for_a_network_that_exists() -> None:
+    """The two arguments `descriptors.parse` takes besides the text.
+
+    A name no network has was carried into the `Descriptor` and refused
+    by whichever encoder came to use it, one call later than the argument
+    that was wrong; `prv_keys` was walked with `in` and `[]`, so a list
+    of pairs answered "not found" for every key rather than saying it is
+    not a mapping. `None` is a type it declares, so it is asserted to
+    work rather than driven -- a statement about the signature, and the
+    one `built_object_contract_test.py` records as `optional`.
+    """
+    descriptor = f"pk({pub_keyinfo_from_prv_key(1)[0].hex()})"
+    assert descriptors.parse(descriptor, "testnet").network == "testnet"
+    assert descriptors.parse(descriptor, prv_keys={}).network == "mainnet"
+    assert descriptors.parse(descriptor, prv_keys=None).network == "mainnet"
+    # and normalized, which is what going through the library's own
+    # question buys beyond refusing what is not one
+    assert descriptors.parse(descriptor, " TestNet ").network == "testnet"
+
+    for wrong in _WRONG_TYPES:
+        with pytest.raises(BTClibTypeError, match="not a network name"):
+            descriptors.parse(descriptor, wrong)
+    for wrong in _NOT_NONE:
+        with pytest.raises(BTClibTypeError, match="invalid prv_keys type"):
+            descriptors.parse(descriptor, prv_keys=wrong)
+    with pytest.raises(BTClibValueError, match="unknown network"):
+        descriptors.parse(descriptor, "mainet")
+
+
+def test_a_miniscript_is_parsed_in_a_context_that_exists() -> None:
+    """The same pair for the miniscript parser, its own first argument.
+
+    Every rule reads the context by asking whether it is `TAPSCRIPT`, so
+    a third value was the p2wsh one silently: the expression was
+    type-checked and sized under rules it was not offered to.
+    """
+    expression = f"pk({pub_keyinfo_from_prv_key(1)[0].hex()})"
+    for context in (miniscript.P2WSH, miniscript.TAPSCRIPT):
+        assert miniscript.parse(expression, context).context == context
+    assert miniscript.parse(expression, prv_keys=None).context == miniscript.P2WSH
+
+    for wrong in _WRONG_TYPES:
+        with pytest.raises(BTClibTypeError, match="invalid context type"):
+            miniscript.parse(expression, wrong)
+    for wrong in _NOT_NONE:
+        with pytest.raises(BTClibTypeError, match="invalid prv_keys type"):
+            miniscript.parse(expression, prv_keys=wrong)
+    with pytest.raises(BTClibValueError, match="unknown spend context"):
+        miniscript.parse(expression, "P2SH")
 
 
 def test_every_json_boundary_is_covered() -> None:

@@ -142,6 +142,12 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     marker ["OP_SUCCESS"], which is Core's pre-scan. An element over
     520 bytes is refused only by a parse that meets no OP_SUCCESSx,
     one anywhere making the script valid.
+
+    A `bool` and nothing else, which is the line
+    `tests/built_object_contract_test.py` draws: this flag decides *what
+    is computed* rather than whether a check runs, so a value read for
+    its truth answered the pre-scan's marker where the commands were
+    asked for -- two different readings of the same bytes.
     """
     assert_type(exit_on_op_success, bool, "exit_on_op_success")
 

@@ -20,6 +20,17 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **the four module-level codecs refuse four arguments they used to
+  take.** `taproot.parse(script, exit_on_op_success=<not a bool>)` gave
+  Core's pre-scan answer for any truthy value and wants the `bool` it
+  declares; `descriptors.parse(descriptor, <not a network name>)` and
+  `miniscript.parse(expression, <not P2WSH or tapscript>)` are refused
+  where they used to be carried into the object and refused later, or not
+  at all; and `prv_keys` must be a mapping or `None` in both. A caller
+  passing values of the declared types is unaffected, and the network
+  name is now normalized as everywhere else in the library — `" MainNet
+  "` and `"mainnet"` were already one network to the encoders, and the
+  parsed object says so too.
 - **thirty-odd `bool` arguments that used to be accepted are refused.**
   A flag that decides what is computed is a kind and not a truth, so
   `dsa.sign(msg, q, lower_s="no")` — which returned a low-s signature,

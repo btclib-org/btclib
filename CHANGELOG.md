@@ -2541,6 +2541,36 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **The four codecs that are module functions ask their own arguments
+  too** (issue #872). The gate of issue #867 recorded the six they take
+  besides the encoding and asked none of them, that being issue #868's
+  census; five were measured and four were taking anything.
+
+  `taproot.parse(exit_on_op_success=)` is the one that was not a flag at
+  all: it chooses between Core's pre-scan and a parse, so the same bytes
+  answer `["OP_SUCCESS"]` or `["OP_SUCCESS80", b"v"]` and a value read for
+  its truth silently gave the first. A `bool` now, which is
+  `include_witness` and `KeyGroup(verify=)`'s line.
+  `var_bytes.parse(forbid_zero_size=)` is on the other side of it and
+  stays read for its truth, adding a refusal and changing no answer; the
+  reason is in its docstring rather than only in the test that drives
+  neither.
+
+  `descriptors.parse(network=)` carried a name no network has into the
+  `Descriptor`, to be refused by whichever encoder came to use it — a
+  complaint about a key or an address, one call after the argument that
+  was wrong. It goes through `_validated_network_name` now, so the name
+  is also normalized to what `network_from_name` answers to.
+  `miniscript.parse(context=)` was worse than late: every rule reads the
+  context by asking whether it is `TAPSCRIPT`, so a third value was the
+  p2wsh one silently, and an expression was type-checked and sized under
+  rules it was not offered to. One of BIP379's two now, refused by
+  `_assert_valid_context`.
+
+  `prv_keys` is a `Mapping` or `None` in both parsers, where a list of
+  pairs answered "not found" for every key: asked in one call rather than
+  a branch, `None` being the other type the annotation declares.
+
 - **One spelling for the type refusal, over 22 guards** (issue #876).
   `utils.assert_type` arrived with the serialization boundary's gate
   (issue #867) and the rest of the library was still composing the same
