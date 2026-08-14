@@ -909,6 +909,36 @@ documented at release-notes length in the first place, and are still in
   rather than reasoned about. Both scripts now name the modules they
   patch and say that a row added later has to add its own.
 
+- **The Python benchmark says how the implementations compare, not only
+  what Python costs** (issue #844). `scripts/benchmark_python.py` printed
+  one ratio a row, against the bindings. That is the column it was built
+  for and it is half of what the table is read for: the other half is the
+  row beside it, and a reader had to divide two numbers out of the same
+  column by hand to get it.
+
+  Every row carries a second ratio now, against `btclib, Python`:
+
+  ```text
+                                                 vs C   vs btclib
+    btclib, the bindings           8.44 us        1.0x          --
+    btclib, Python               194.37 us       23.0x        1.0x
+    secp256k1lab                1333.56 us      158.1x        6.9x
+    python-ecdsa                 259.40 us       30.8x        1.3x
+    pycoin                       6488.6 us      769.2x       33.4x
+    buidl.pecc                  30878.4 us     3660.5x      158.9x
+  ```
+
+  The bindings row carries nothing in the second column, being the
+  reference of the first, and `btclib, Python` reads 1.0x there as the
+  bindings read 1.0x in the first. What the column shows on this run is
+  that btclib's Python path is 6.9x secp256k1lab's on a multiplication of
+  the generator and 1.3x python-ecdsa's -- neither of which the first
+  column states.
+
+  It fixes the order the rows are timed in: `btclib, Python` runs before
+  the rows that divide by it, and `row` returns its microseconds rather
+  than printing and dropping them.
+
 ### Transactions, blocks and PSBT
 
 - **BIP375's Signer and Transaction Extractor** (#760, following #641).
