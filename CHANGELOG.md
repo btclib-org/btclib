@@ -4023,6 +4023,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **The README says what a `_var` name means**, in the section on where
+  constant time ends. The convention decides which of two spellings a
+  caller reaches for — `mod_inv` blinds its operand where `mod_inv_var`
+  is the bare extended Euclid — so it belongs on the page a caller reads
+  before handing btclib a private key, not only in CONTRIBUTING.md where
+  the rule for adding one lives. Three sentences and no second copy of
+  the rule: what the suffix means, that the plain name is the one a
+  secret may be handed, and that it is not a promise of constant time.
+
 - **The guide by task answers the question BIP85 is for.** "One backup
   behind many wallets" is a section of `docs/source/guide.rst` now,
   between the mnemonic and the account: the derived BIP39 sentence, the
