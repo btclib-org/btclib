@@ -138,15 +138,15 @@ bench = [
     "embit>=0.8.0",
     "pycoin>=0.92718.20260405",
     "python-bitcoinlib>=0.12.2",
-    # scripts/benchmark_python.py's two, and each carries a marker
-    # because each declares a python it can live on that this project
-    # does not sit inside. hwi's latest caps at <3.13 where
-    # .python-version pins 3.14, so on the interpreter this repository
-    # runs on it is absent and the script says so where its rows would
-    # be; secp256k1lab wants >=3.11 against this project's >=3.10, and is
-    # on no index at all -- a git source, at the tag its pyproject calls
-    # 1.0.0, because there is no release to floor
-    "hwi>=3.2.0; python_full_version < '3.13'",
+    # scripts/benchmark_python.py's, and it carries a marker because it
+    # declares a python it can live on that this project does not sit
+    # inside: >=3.11 against this project's >=3.10. It is on no index at
+    # all either -- a git source, at the tag its pyproject calls 1.0.0,
+    # because there is no release to floor.
+    #
+    # hwi is not here, and scripts/benchmark_python.py says what its row
+    # would have measured: it caps cbor2 and protobuf below the versions
+    # that fix two advisories, so nothing written here can resolve them
     "secp256k1lab; python_full_version >= '3.11'",
 ]
 dev = [
@@ -623,7 +623,6 @@ module = [
     "buidl.*",
     "ecdsa.*",
     "embit.*",
-    "hwilib.*",
     "pycoin.*",
     "secp256k1lab.*",
 ]
