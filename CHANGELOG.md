@@ -2067,6 +2067,30 @@ documented at release-notes length in the first place, and are still in
   `mod_inv`'s own message, rather than the product a caller never formed.
   An empty sequence is not an error, being what a caller that filtered
   its own input is left with.
+- **`mult` rescales its point before multiplying it** (issue #805). A
+  Jacobian point has a coordinate more than the curve needs: `(X, Y, Z)`
+  and `(l^2*X, l^3*Y, l*Z)` are the same affine point for every nonzero
+  `l`. Nothing spent that freedom, so every intermediate value of a
+  multiplication was a function of the scalar alone -- the same scalar
+  producing the same integers, on every call and in every process, which
+  is a table an attacker can build offline. `_blinded_jac` draws `l` from
+  `secrets` and is what libsecp256k1's `secp256k1_ecmult_gen` does with
+  `secp256k1_gej_rescale`, "to blind intermediary results".
+
+  It is not what makes a multiplication constant-time and does not claim
+  to be: `SECURITY.md` publishes the Python path as variable-time, and
+  the regular recodings are what address the duration. This addresses the
+  values. The scalar half of libsecp256k1's blinding, splitting `m` into
+  `m - b` and `b`, costs a second multiplication and is not here.
+
+  Three multiplications and one random field element, measured against
+  `70899b51` on Python 3.14.6, best of seven alternating rounds: 1.925 us
+  for the rescaling, of which the field element is most, against the 810
+  us of `_mult` on secp256k1 and the 922 of secp256r1 -- 1.016x and
+  1.019x. It sits on the Python arm of `curves.mult` alone: on secp256k1
+  with the bindings applicable, `mult` has returned before reaching it.
+  `double_mult` and `multi_mult` do not rescale, their coefficients being
+  a verification's and public.
 
 ### The public API and the module layout
 
