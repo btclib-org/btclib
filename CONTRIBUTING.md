@@ -892,9 +892,30 @@ prefixes below, or is one of the English predicates
 and `is_` would cost the reading. A bool that is neither fails that gate,
 so a new one is a prefix or a decision somebody wrote down.
 
-**A bool that takes nothing but `self` is a `@property`**, and that is
-gated too: it is read off the object rather than called, so `tx.is_segwit`
-and not `tx.is_segwit()`. Thirty were properties and six were methods,
+**A member that takes nothing but `self` is a `@property`**, whatever it
+answers, and that is gated: it is read off the object rather than called,
+so `tx.is_segwit` and not `tx.is_segwit()`, `view.prevouts` and not
+`view.prevouts()`. `functools.cached_property` is one of these — a read
+that parses once, as `Script.asm` does.
+
+What is *not* a read is exempt by shape rather than by a list of names:
+`assert_*` refuses, and a property that refuses is a trap, since reading
+`obj.assert_valid` evaluates the method and throws it away; `get_*` talks
+to a node or an explorer, so the prefix is the warning a property would
+hide; `to_*` hands back a new object; and `close` is an action. The one
+exemption named individually is `alias.HashObject`'s `digest`,
+`hexdigest` and `copy`, because hashlib calls them that way — and hashlib
+draws the same line itself, `block_size` and `digest_size` being
+attributes there as they are properties here.
+
+A `Protocol` member is under the rule too, and that makes the shape a
+promise: declaring `PsbtSigner.master_fingerprint` a property says
+reading it is free, which every implementation of it can keep. Where a
+future one cannot — HWI's own `get_master_fingerprint` is a device call —
+the answer is to relax the contract deliberately, not to leave room for
+it in advance.
+
+The bool half of the same rule: Thirty were properties and six were methods,
 which made the six the exception; they are properties now. It also makes
 the forgotten-parentheses bug unsayable — `if tx.is_segwit:` on a method
 is a bound method, and every bound method is true. mypy's

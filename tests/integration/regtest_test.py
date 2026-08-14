@@ -191,7 +191,7 @@ def test_the_change_output_is_what_the_node_calls_change(
     decoded = node.call("decodepsbt", [psbt.b64encode()])
 
     ((origin,),) = [output["bip32_derivs"] for output in decoded["outputs"] if output]
-    assert origin["master_fingerprint"] == signer.master_fingerprint().hex()
+    assert origin["master_fingerprint"] == signer.master_fingerprint.hex()
     assert origin["path"] == f"{DECODE_ACCOUNT}/1/0"
     assert decoded["outputs"][0] == {}
 

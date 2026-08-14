@@ -171,7 +171,89 @@ def _argument_less_bools() -> dict[str, bool]:
             if arguments:
                 continue
             decorated = {ast.unparse(d) for d in node.decorator_list}
-            found[f"{module}.{node.name}"] = "property" in decorated
+            found[f"{module}.{node.name}"] = _is_a_read(decorated)
+    return found
+
+
+# an argument-less member of a public class is a read, and a read is a
+# `@property`. These are the shapes that are not a read, by what they do
+# rather than by a list of names -- which is what keeps the rule from
+# needing one (issue #814):
+#
+# - `assert_*` refuses, and a property that refuses is a trap: reading
+#   `obj.assert_valid` evaluates the method and throws it away
+# - `get_*` talks to a node or an explorer, so it costs a round trip and
+#   can fail; the prefix is the warning and a property would hide it
+# - `to_*` converts, and hands back a new object rather than a read of
+#   this one
+# - `close` is an action with a side effect
+_NOT_A_READ = ("assert_", "get_", "to_")
+_AN_ACTION = frozenset({"close"})
+
+# hashlib's own API, mirrored in a Protocol, and hashlib draws the line
+# itself: `digest()`, `hexdigest()` and `copy()` are calls where
+# `block_size`, `digest_size` and `name` are attributes. So these three
+# are named one by one rather than the class being exempt -- a property
+# here would stop anything `hashlib.new` returns from satisfying
+# HashObject, and the other three are reads and stay properties
+_MIRRORS_HASHLIB = frozenset(
+    {
+        "btclib.alias.HashObject.copy",
+        "btclib.alias.HashObject.digest",
+        "btclib.alias.HashObject.hexdigest",
+    }
+)
+
+
+def _is_a_read(decorated: set[str]) -> bool:
+    """Return whether the decorators make this a read rather than a call.
+
+    `functools.cached_property` is one as much as `property` is --
+    `Script.asm` parses once and is read thereafter -- and testing the set
+    for `"property"` alone missed it, which is what this function exists
+    to stop being written twice.
+    """
+    return bool(
+        decorated & {"property", "cached_property", "functools.cached_property"}
+    )
+
+
+def _class_members() -> dict[str, bool]:
+    """Return every argument-less member of a public class, property or not.
+
+    A property is a class thing, so a module-level function is out of
+    scope however few arguments it takes -- `fetch.fetcher.client_errors`
+    is a context manager and could not be one. Methods of a private class
+    are out too: `_Decoder` is not API.
+    """
+    found: dict[str, bool] = {}
+    for path in sorted(_LIBRARY.rglob("*.py")):
+        module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for cls in ast.walk(tree):
+            if not isinstance(cls, ast.ClassDef) or cls.name.startswith("_"):
+                continue
+            for node in cls.body:
+                if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                    continue
+                decorated = {ast.unparse(d) for d in node.decorator_list}
+                if {"staticmethod", "classmethod"} & decorated:
+                    continue
+                # no filter for a `@x.setter`: one takes the value it
+                # sets, so the argument count below excludes it already
+                arguments = [
+                    a.arg
+                    for a in [
+                        *node.args.posonlyargs,
+                        *node.args.args,
+                        *node.args.kwonlyargs,
+                    ]
+                    if a.arg != "self"
+                ]
+                if arguments or node.args.vararg or node.args.kwarg:
+                    continue
+                key = f"{module}.{cls.name}.{node.name}"
+                found[key] = _is_a_read(decorated)
     return found
 
 
@@ -198,6 +280,7 @@ _NAMED = _named()
 _GATED = sorted(set(_NAMED) - _OTHER_CONTRACT.keys())
 _PUBLIC_BOOLS = _public_bools()
 _ARGUMENT_LESS_BOOLS = _argument_less_bools()
+_CLASS_MEMBERS = _class_members()
 
 
 @pytest.mark.parametrize("dotted", _GATED)
@@ -316,3 +399,47 @@ def test_the_walk_reaches_both_shapes() -> None:
     # a bool of an argument is a function of it, and no property can be
     assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
     assert "btclib.ecc.dsa.verify" not in _ARGUMENT_LESS_BOOLS
+
+
+@pytest.mark.parametrize("dotted", sorted(_CLASS_MEMBERS))
+def test_an_argument_less_member_is_read_not_called(dotted: str) -> None:
+    """Whatever it answers, a member that takes nothing is a `@property`.
+
+    The bool rule above, generalised to every return type: `PsbtView.tx`
+    was a property and `PsbtView.prevouts` a method, two reads of one
+    lazy view spelled two ways, and `master_fingerprint` and
+    `capabilities` were methods on the signer contract while every
+    implementation of them returned a stored value.
+
+    What is not a read is here by shape and not by a list of names, which
+    is what keeps this rule from needing one.
+    """
+    name = dotted.rpartition(".")[2]
+    if name.startswith(_NOT_A_READ) or name in _AN_ACTION or dotted in _MIRRORS_HASHLIB:
+        assert not _CLASS_MEMBERS[dotted], (
+            f"{dotted} is a @property and its name says it is not a read:"
+            " rename it, or drop the decorator"
+        )
+        return
+    assert _CLASS_MEMBERS[dotted], (
+        f"{dotted} takes nothing but self: it is a @property, not a method"
+    )
+
+
+def test_the_walk_reaches_every_shape_of_member() -> None:
+    """One of each, so neither branch above is running over nothing."""
+    assert _CLASS_MEMBERS["btclib.psbt.psbt_view.PsbtView.prevouts"] is True
+    assert _CLASS_MEMBERS["btclib.psbt_signer.PsbtSigner.master_fingerprint"] is True
+    # a cached_property is a read too, which testing for "property" alone
+    # would have missed
+    assert _CLASS_MEMBERS["btclib.script.script.Script.asm"] is True
+    # and the three of HashObject that hashlib spells as attributes
+    assert _CLASS_MEMBERS["btclib.alias.HashObject.digest_size"] is True
+    # and the four shapes that are not a read
+    # OutPoint's and not Tx's, which takes an `unsigned_template` and so
+    # is not argument-less at all
+    assert _CLASS_MEMBERS["btclib.tx.out_point.OutPoint.assert_valid"] is False
+    assert _CLASS_MEMBERS["btclib.psbt.psbt.Psbt.to_v2"] is False
+    assert _CLASS_MEMBERS["btclib.hwi.HwiSigner.close"] is False
+    assert _CLASS_MEMBERS["btclib.alias.HashObject.digest"] is False
+    assert _CLASS_MEMBERS["btclib.fetch.fetcher.Fetcher.get_block_count"] is False

@@ -79,10 +79,10 @@ def test_the_software_signer_answers_every_protocol() -> None:
     assert isinstance(signer, AddressDisplay)
     assert isinstance(signer, MessageSigner)
 
-    assert signer.capabilities() == SignerCapabilities(taproot=True, musig2=False)
-    assert SoftwareSigner(XPRV_ROOT, musig2=True).capabilities().musig2
+    assert signer.capabilities == SignerCapabilities(taproot=True, musig2=False)
+    assert SoftwareSigner(XPRV_ROOT, musig2=True).capabilities.musig2
     assert not signer.is_watch_only
-    assert signer.master_fingerprint().hex() == "73c5da0a"
+    assert signer.master_fingerprint.hex() == "73c5da0a"
     assert signer.xpub("m/84h/0h/0h") == xpub_from_xprv(
         derive(XPRV_ROOT, "m/84h/0h/0h")
     )
@@ -137,7 +137,7 @@ def test_a_taproot_script_path_is_signed_and_spends() -> None:
     for that leaf" and is what the signer is asked by.
     """
     signer = SoftwareSigner(XPRV_ROOT)
-    key = f"[{signer.master_fingerprint().hex()}/86h/0h/0h]{signer.xpub('m/86h/0h/0h')}"
+    key = f"[{signer.master_fingerprint.hex()}/86h/0h/0h]{signer.xpub('m/86h/0h/0h')}"
     nums = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
     receive = parse(add_checksum(f"tr({nums},pk({key}/0/*))"))
     change = parse(add_checksum(f"tr({nums},pk({key}/1/*))"))
@@ -172,7 +172,7 @@ def test_the_change_output_carries_what_a_device_reads() -> None:
     psbt_out = psbt.outputs[1]
     ((pub_key, origin),) = psbt_out.hd_key_paths.items()
     assert pub_key == change.key_expressions[0].sec(5)
-    assert origin.master_fingerprint == signer.master_fingerprint()
+    assert origin.master_fingerprint == signer.master_fingerprint
     assert origin.description == "73c5da0a/84h/0h/0h/1/5"
     # the payment is not the wallet's, so nothing was written on it
     assert not psbt.outputs[0].hd_key_paths
@@ -206,7 +206,7 @@ def test_the_signer_answers_for_its_own_keys_only() -> None:
 
     # a hardened step under an xpub, which no derivation can take
     watch_only = SoftwareSigner(xpub_from_xprv(derive(XPRV_ROOT, "m/84h/0h/0h")))
-    hardened = BIP32KeyOrigin(watch_only.master_fingerprint(), "m/0h")
+    hardened = BIP32KeyOrigin(watch_only.master_fingerprint, "m/0h")
     assert watch_only.sign_ecdsa(pub_key, hardened, msg_hash) is None
 
     # the path walks, and leads to another key than the one named
@@ -217,7 +217,7 @@ def test_the_signer_answers_for_its_own_keys_only() -> None:
     # x-only spelling of the same 33 bytes
     taproot = export_account(signer, "m/86h/0h/0h")[0]
     x_only = taproot.key_expressions[0].sec(0)[1:]
-    tr_origin = BIP32KeyOrigin(signer.master_fingerprint(), "m/86h/0h/0h/0/0")
+    tr_origin = BIP32KeyOrigin(signer.master_fingerprint, "m/86h/0h/0h/0/0")
     assert signer.sign_schnorr(x_only, tr_origin, msg_hash, b"") is not None
     assert signer.sign_schnorr(x_only, None, msg_hash, b"") is None
     assert signer.sign_schnorr(x_only, elsewhere, msg_hash, b"") is None
@@ -249,7 +249,7 @@ def test_a_watch_only_signer_shows_and_derives_but_does_not_sign() -> None:
     root_xpub = xpub_from_xprv(XPRV_ROOT)
     signer = SoftwareSigner(root_xpub)
     assert signer.is_watch_only
-    assert signer.master_fingerprint() == SoftwareSigner(XPRV_ROOT).master_fingerprint()
+    assert signer.master_fingerprint == SoftwareSigner(XPRV_ROOT).master_fingerprint
     assert signer.xpub("m/0") == derive(root_xpub, "m/0")
 
     with pytest.raises(BTClibValueError, match="hardened derivation from public key"):
@@ -284,7 +284,7 @@ def test_a_closed_signer_answers_nothing() -> None:
     signer.close()
     signer.close()
 
-    assert signer.master_fingerprint().hex() == "73c5da0a"
+    assert signer.master_fingerprint.hex() == "73c5da0a"
     with pytest.raises(BTClibValueError, match="the signer is closed"):
         signer.xpub("m/0")
     with pytest.raises(BTClibValueError, match="the signer is closed"):
@@ -340,10 +340,10 @@ def test_a_signer_of_accounts_answers_for_the_master_it_names() -> None:
     account = derive(XPRV_ROOT, account_path)
     master = SoftwareSigner(XPRV_ROOT)
     signer = SoftwareSigner.from_accounts(
-        master.master_fingerprint(), {account_path: account}
+        master.master_fingerprint, {account_path: account}
     )
 
-    assert signer.master_fingerprint() == master.master_fingerprint()
+    assert signer.master_fingerprint == master.master_fingerprint
     assert signer.xpub(account_path) == master.xpub(account_path)
     assert not signer.is_watch_only
     assert isinstance(signer, PsbtSigner)
@@ -362,14 +362,14 @@ def test_a_signer_of_accounts_answers_for_the_master_it_names() -> None:
     # the same key, built on the ordinary way: its own fingerprint is
     # four other bytes, and no origin of this psbt names them
     plain = SoftwareSigner(account)
-    assert plain.master_fingerprint() != master.master_fingerprint()
+    assert plain.master_fingerprint != master.master_fingerprint
     assert plain.sign_psbt(psbt) == psbt
 
 
 def test_the_longest_account_prefixing_an_origin_answers() -> None:
     """Two accounts on one path, and the deeper one has less left to derive."""
     signer = SoftwareSigner.from_accounts(
-        SoftwareSigner(XPRV_ROOT).master_fingerprint(),
+        SoftwareSigner(XPRV_ROOT).master_fingerprint,
         {
             "m/84h/0h": derive(XPRV_ROOT, "m/84h/0h"),
             "m/84h/0h/0h": derive(XPRV_ROOT, "m/84h/0h/0h"),
@@ -393,7 +393,7 @@ def test_a_signer_of_accounts_has_no_single_key() -> None:
     """`xkey` is the key a signer was built on, and there was none."""
     account_path = "m/84h/0h/0h"
     signer = SoftwareSigner.from_accounts(
-        SoftwareSigner(XPRV_ROOT).master_fingerprint(),
+        SoftwareSigner(XPRV_ROOT).master_fingerprint,
         {account_path: derive(XPRV_ROOT, account_path)},
     )
     with pytest.raises(BTClibValueError, match="holds accounts, not one key"):
@@ -424,7 +424,7 @@ def test_an_account_paired_with_the_wrong_master_answers_for_nothing() -> None:
     # another master's account, told this master's fingerprint
     other_root = derive(XPRV_ROOT, "m/9h")
     liar = SoftwareSigner.from_accounts(
-        honest.master_fingerprint(), {account_path: derive(other_root, account_path)}
+        honest.master_fingerprint, {account_path: derive(other_root, account_path)}
     )
     assert liar.sign_psbt(psbt) == psbt
 
@@ -434,7 +434,7 @@ def test_a_signer_of_watch_only_accounts_derives_but_does_not_sign() -> None:
     account_path = "m/84h/0h/0h"
     account = xpub_from_xprv(derive(XPRV_ROOT, account_path))
     signer = SoftwareSigner.from_accounts(
-        SoftwareSigner(XPRV_ROOT).master_fingerprint(), {account_path: account}
+        SoftwareSigner(XPRV_ROOT).master_fingerprint, {account_path: account}
     )
 
     assert signer.is_watch_only

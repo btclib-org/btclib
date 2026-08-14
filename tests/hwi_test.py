@@ -209,15 +209,15 @@ def test_the_adapter_answers_the_signer_contract(hwi: list[str]) -> None:
     assert isinstance(device, AddressDisplay)
     assert isinstance(device, MessageSigner)
 
-    assert device.master_fingerprint() == bytes.fromhex(FINGERPRINT)
+    assert device.master_fingerprint == bytes.fromhex(FINGERPRINT)
     assert device.xpub("m/84h/0h/0h") == xpub_from_xprv(
         derive(XPRV_ROOT, "m/84h/0h/0h")
     )
-    assert device.capabilities() == SignerCapabilities()
+    assert device.capabilities == SignerCapabilities()
     # what a model supports is not in the json a command line answers, so
     # a caller that knows its device is what says so
     taproot = signer(hwi, capabilities=SignerCapabilities(taproot=True))
-    assert taproot.capabilities().taproot
+    assert taproot.capabilities.taproot
 
 
 def test_enumerate_reads_hwi_s_own_shape(tmp_path: Path) -> None:
@@ -261,7 +261,7 @@ def test_a_device_is_named_by_its_fingerprint(tmp_path: Path) -> None:
     one = {"type": "stand-in", "model": "m", "path": "a", "fingerprint": FINGERPRINT}
     other = {**one, "path": "b", "fingerprint": "deadbeef"}
 
-    assert HwiSigner(executable=stand_in(tmp_path, {})).master_fingerprint().hex() == (
+    assert HwiSigner(executable=stand_in(tmp_path, {})).master_fingerprint.hex() == (
         FINGERPRINT
     )
     hwi = stand_in(tmp_path, {"enumerate": [one, other]})
@@ -584,7 +584,7 @@ def test_a_closed_signer_runs_nothing(hwi: list[str]) -> None:
     device.close()
     device.close()
 
-    assert device.master_fingerprint() == bytes.fromhex(FINGERPRINT)
+    assert device.master_fingerprint == bytes.fromhex(FINGERPRINT)
     with pytest.raises(SignerError, match="the signer is closed"):
         device.xpub("m/0")
 

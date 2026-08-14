@@ -454,6 +454,7 @@ class PsbtView:
         """
         return deepcopy(self._transaction())
 
+    @property
     def prevouts(self) -> list[TxOut]:
         """Return the output each input spends, `psbt.prevouts` over a stream.
 

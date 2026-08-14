@@ -120,10 +120,10 @@ def unsignable_psbt(fingerprint: bytes) -> Psbt:
 
 def _check_fingerprint(signer: PsbtSigner) -> bytes:
     """Check the master fingerprint and return it, the rest needing it."""
-    fingerprint = signer.master_fingerprint()
+    fingerprint = signer.master_fingerprint
     if len(fingerprint) != _FINGERPRINT_SIZE:
         _fail(f"master_fingerprint is {len(fingerprint)} bytes, not 4")
-    if signer.master_fingerprint() != fingerprint:
+    if signer.master_fingerprint != fingerprint:
         _fail("master_fingerprint answered two different values")
     return fingerprint
 
@@ -135,7 +135,7 @@ def _check_capabilities(signer: PsbtSigner) -> None:
     the rest of the session: a signer that answers differently the
     second time has already been acted on.
     """
-    if signer.capabilities() != signer.capabilities():
+    if signer.capabilities != signer.capabilities:
         _fail("capabilities answered two different values")
 
 

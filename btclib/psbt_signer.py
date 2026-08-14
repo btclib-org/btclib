@@ -128,8 +128,26 @@ class PsbtSigner(Protocol):
     driver.
     """
 
+    @property
     def master_fingerprint(self) -> bytes:
-        """Return the four bytes identifying the master key, BIP32's own."""
+        """Return the four bytes identifying the master key, BIP32's own.
+
+        A property, and that is a promise the contract makes: reading it
+        is free. Every implementation there is keeps it -- `HwiSigner`
+        holds the fingerprint it was selected by and says so ("not asked
+        of the device again"), `SoftwareSigner` derives it from a key it
+        already has, and a decorator forwards -- so nothing is asked to
+        pay for the shape (issue #814).
+
+        It is worth knowing what would ask for the shape back. HWI's own
+        `HardwareWalletClient.get_master_fingerprint` *is* a device call:
+        it fetches the key at m/0h and reads the parent fingerprint off
+        it. An adapter written against that library rather than against
+        the command line would want a method here, and the way to give it
+        one is to relax this to a method again -- which is a change to the
+        contract, made deliberately, and not something to leave room for
+        in advance.
+        """
         ...
 
     def xpub(self, der_path: DerPath) -> str:
@@ -145,8 +163,13 @@ class PsbtSigner(Protocol):
         """
         ...
 
+    @property
     def capabilities(self) -> SignerCapabilities:
-        """Return what this signer can be asked to sign."""
+        """Return what this signer can be asked to sign.
+
+        A property for `master_fingerprint`'s reason: what every
+        implementation answers is a value it was given or built once.
+        """
         ...
 
     def close(self) -> None:
@@ -283,9 +306,10 @@ class SignerDecorator:
             if hasattr(signer, operation) and not hasattr(type(self), operation):
                 setattr(self, operation, getattr(signer, operation))
 
+    @property
     def master_fingerprint(self) -> bytes:
         """Return the wrapped signer's master fingerprint."""
-        return self.signer.master_fingerprint()
+        return self.signer.master_fingerprint
 
     def xpub(self, der_path: DerPath) -> str:
         """Return the wrapped signer's extended public key at a path."""
@@ -295,9 +319,10 @@ class SignerDecorator:
         """Return what the wrapped signer answers, this adding no rule."""
         return self.signer.sign_psbt(psbt)
 
+    @property
     def capabilities(self) -> SignerCapabilities:
         """Return what the wrapped signer can be asked to sign."""
-        return self.signer.capabilities()
+        return self.signer.capabilities
 
     def close(self) -> None:
         """Close the wrapped signer, and whatever it was holding open."""
@@ -423,7 +448,7 @@ def export_account(
     for the same descriptor, which is `display_address`.
     """
     return account_descriptors(
-        signer.xpub(der_path), der_path, signer.master_fingerprint(), script_type
+        signer.xpub(der_path), der_path, signer.master_fingerprint, script_type
     )
 
 
@@ -614,6 +639,7 @@ class SoftwareSigner:
             BIP32KeyData.b58decode(key).is_private for key in self._keys.values()
         )
 
+    @property
     def master_fingerprint(self) -> bytes:
         """Return the fingerprint of the key this signer was built on.
 
@@ -656,6 +682,7 @@ class SoftwareSigner:
             raise BTClibValueError("watch-only signer: it holds no key that signs")
         return sign(psbt, self)[0]
 
+    @property
     def capabilities(self) -> SignerCapabilities:
         """Return what this signer can be asked to sign.
 

@@ -59,8 +59,9 @@ class _Wrapper:
     def __init__(self) -> None:
         self._signer = _signer()
 
+    @property
     def master_fingerprint(self) -> bytes:
-        return self._signer.master_fingerprint()
+        return self._signer.master_fingerprint
 
     def xpub(self, der_path: DerPath) -> str:
         return self._signer.xpub(der_path)
@@ -68,8 +69,9 @@ class _Wrapper:
     def sign_psbt(self, psbt: Psbt) -> Psbt:
         return self._signer.sign_psbt(psbt)
 
+    @property
     def capabilities(self) -> SignerCapabilities:
-        return self._signer.capabilities()
+        return self._signer.capabilities
 
     def close(self) -> None:
         self._signer.close()
@@ -90,7 +92,7 @@ def _signable() -> Psbt:
     psbt_in = psbt.inputs[0]
     psbt_in.witness_utxo = TxOut(10_000, script_pub_key)
     psbt_in.hd_key_paths[pub_key] = BIP32KeyOrigin(
-        signer.master_fingerprint(), f"{_ACCOUNT}/0/0"
+        signer.master_fingerprint, f"{_ACCOUNT}/0/0"
     )
     return psbt
 
@@ -116,6 +118,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
     """Four bytes is BIP32's own, and every key origin is written to it."""
 
     class _TooLong(_Wrapper):
+        @property
         def master_fingerprint(self) -> bytes:
             return b"\x00" * 5
 
@@ -125,6 +128,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
     # and short of it, which a width checked as a ceiling would accept: a
     # three-byte fingerprint is what a key origin would then be written to
     class _TooShort(_Wrapper):
+        @property
         def master_fingerprint(self) -> bytes:
             return b"\x00" * 3
 
@@ -140,6 +144,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             super().__init__()
             self._asked = 0
 
+        @property
         def master_fingerprint(self) -> bytes:
             self._asked += 1
             return bytes([self._asked, 0, 0, 0])
@@ -155,6 +160,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             super().__init__()
             self._asked = 4
 
+        @property
         def master_fingerprint(self) -> bytes:
             self._asked -= 1
             return bytes([self._asked, 0, 0, 0])
@@ -254,7 +260,7 @@ def test_a_signer_that_signs_nothing_it_was_said_to_sign_is_refused() -> None:
 
 def test_the_unsignable_psbt_names_another_master() -> None:
     """What the psbt is for, said against the psbt itself."""
-    fingerprint = _signer().master_fingerprint()
+    fingerprint = _signer().master_fingerprint
     psbt = unsignable_psbt(fingerprint)
     ((_, origin),) = psbt.inputs[0].hd_key_paths.items()
     assert origin.master_fingerprint != fingerprint
@@ -296,6 +302,7 @@ def test_capabilities_that_change_are_refused() -> None:
             super().__init__()
             self._asked = 0
 
+        @property
         def capabilities(self) -> SignerCapabilities:
             self._asked += 1
             return SignerCapabilities(taproot=self._asked % 2 == 0)
@@ -338,7 +345,7 @@ def _partly_signed_quorum() -> Psbt:
     psbt_in.witness_script = witness_script
     for key, one in zip(keys, roots, strict=True):
         psbt_in.hd_key_paths[key] = BIP32KeyOrigin(
-            SoftwareSigner(one).master_fingerprint(), f"{_ACCOUNT}/0/0"
+            SoftwareSigner(one).master_fingerprint, f"{_ACCOUNT}/0/0"
         )
 
     # the other two sign first, which is what leaves the reference signer

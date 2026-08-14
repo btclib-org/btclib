@@ -2652,6 +2652,50 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **An argument-less member is a read, and nine were calls** (issue
+  #814). The bool rule generalised to every return type, and the census
+  is what settled it: 168 public members take nothing but `self`, and
+  before this 114 were properties against 54 methods -- but of those 54,
+  45 are not reads at all. `assert_*` refuses, and a property that
+  refuses is a trap: reading `obj.assert_valid` evaluates the method and
+  throws it away. `get_*` talks to a node or an explorer. `to_*` hands
+  back a new object. `close` is an action. `HashObject`'s `digest`,
+  `hexdigest` and `copy` are hashlib's own spelling, and hashlib draws
+  the same line there, `block_size` and `digest_size` being attributes.
+
+  What was left was nine calls that read something already in hand:
+  `PsbtSigner.master_fingerprint` and `capabilities`, the two
+  argument-less members of the signer contract, with their three
+  implementations each, and `PsbtView.prevouts`.
+
+  `PsbtView` is the plainest of the two. `lock_time` and `tx` are
+  properties and `prevouts` was a method -- three reads of one lazy view,
+  two spellings -- and the docstrings gave it away: `tx` says "a copy, as
+  `Psbt.tx` is one" and `prevouts` says "a copy, for the reason `tx` is
+  one", so the second cited the first while being shaped differently.
+
+  The contract's two took a measurement rather than an argument. Every
+  implementation of them returns something it already holds:
+  `HwiSigner` the fingerprint it was selected by -- "not asked of the
+  device again" -- `SoftwareSigner` a value derived from a key it has, a
+  decorator a forward, and both test doubles a stored value or a fresh
+  dataclass. So no implementation pays for the shape, which is what makes
+  the property a promise the contract can keep. HWI's own
+  `HardwareWalletClient.get_master_fingerprint` *is* a device call -- it
+  fetches m/0h and reads the parent fingerprint -- and the Protocol's
+  docstring says so, because that is the adapter that would ask for a
+  method back, and the answer then is to relax the contract deliberately
+  rather than to leave room for it in advance.
+
+  `tests/name_contract_test.py` gates the rule by shape and not by a list
+  of names, which is what keeps it from needing one: a member whose name
+  is a refusal, a network call, a conversion or an action stays a method,
+  everything else is read. Writing it found two things about the walk
+  rather than about the tree -- `functools.cached_property` is a read and
+  testing a decorator set for `"property"` alone misses it, which is what
+  `_is_a_read` exists to stop being written twice, and `Tx.assert_valid`
+  takes an `unsigned_template` and so is not argument-less at all.
+
 - **A bool about the object is a property, and six were not** (issue
   #814). `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
   `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took

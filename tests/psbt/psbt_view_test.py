@@ -157,7 +157,10 @@ def test_the_outputs_being_spent_are_the_objects(test_vector: dict[str, Any]) ->
     well.
     """
     raw = _raw(test_vector)
-    assert _answer(PsbtView(raw).prevouts) == _answer(prevouts, Psbt.parse(raw))
+    # a lambda around the view's, `prevouts` being a property there: what
+    # `_answer` needs is something it can call *after* the try, and a
+    # property has already answered by the time it is passed
+    assert _answer(lambda: PsbtView(raw).prevouts) == _answer(prevouts, Psbt.parse(raw))
 
 
 @pytest.mark.parametrize("test_vector", _INVALID)
@@ -408,12 +411,12 @@ def test_the_transaction_and_the_outputs_spent_are_copies() -> None:
     tx = view.tx
     tx.lock_time += 1
     tx.vout[0] = elsewhere
-    spent = view.prevouts()
+    spent = view.prevouts
     spent[0] = elsewhere
 
     assert view.tx.lock_time != tx.lock_time
     assert view.tx.vout[0] != elsewhere
-    assert view.prevouts()[0] != elsewhere
+    assert view.prevouts[0] != elsewhere
     assert view.taproot_sig_hash(0) == before
 
 
