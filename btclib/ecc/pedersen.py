@@ -29,6 +29,7 @@ from hashlib import sha256
 
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
+from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import int_from_bits
 
@@ -69,6 +70,12 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     source:
     https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
+    # the generator is read off the curve before anything is done with
+    # it, so this is where the three functions below first reach theirs;
+    # and it is inside the cache rather than in front of it, an ec of no
+    # curve type being a key like any other -- hashable, so lru_cache
+    # would take it, and never stored, exceptions not being cached
+    _assert_valid_ec(ec)
     G_bytes = bytes_from_point(ec.G, ec, compressed=False)
     hash_ = hf()
     hash_.update(G_bytes)

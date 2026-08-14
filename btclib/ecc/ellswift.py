@@ -48,6 +48,7 @@ from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import (
+    _assert_valid_ec,
     _is_x_coordinate_var,
     _libsecp256k1_serves,
     _y_even_var,
@@ -249,6 +250,10 @@ def _ell_from_point(Q: Point, ec: Curve) -> bytes:
 
 def _ell_from_octets(ell: Octets, ec: Curve) -> bytes:
     """Return the encoding as the octets the map reads, size checked."""
+    # the size is the curve's, so this is where `decode_var` and `xdh`
+    # first read theirs; `create_var` and `encode_var` take no encoding in
+    # and reach the curve through the key converters instead
+    _assert_valid_ec(ec)
     ell = bytes_from_octets(ell)
     if len(ell) != 2 * ec.p_size:
         err_msg = f"invalid ElligatorSwift size: {len(ell)}"

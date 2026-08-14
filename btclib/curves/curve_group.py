@@ -700,6 +700,26 @@ class CurveGroup:
         return self.y_var(x)
 
 
+def _assert_valid_ec(ec: CurveGroup) -> None:
+    """Refuse an ec that is not a group of curve points.
+
+    `hashes._assert_valid_hf` is the shape: one check where the parameter
+    is first read, rather than one per function that takes it. What it
+    catches is what an `ec` of no curve type otherwise becomes -- a field
+    read off it, `'NoneType' object has no attribute 'p'`, which is a
+    caller's own mistake reported from underneath the library.
+
+    Every public function whose `ec` is a `CurveGroup` asks here, and the
+    ones whose `ec` is a `Curve` ask `curve._assert_valid_ec` instead:
+    `n` and `G` are Curve's parameters and this class has neither, so
+    the group check would pass an ec that the multiplication then reads a
+    missing field off.
+    """
+    if not isinstance(ec, CurveGroup):
+        err_msg = f"invalid ec type: {type(ec).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+
+
 def _mult_recursive_aff_var(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 

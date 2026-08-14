@@ -21,7 +21,7 @@ from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_serves
+from btclib.curves.curve import _assert_valid_ec, _libsecp256k1_serves
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
@@ -98,6 +98,7 @@ def diffie_hellman(
     a substitute: it hashes the compressed shared point with SHA256,
     libsecp256k1's default, where this derives through ANSI-X9.63-KDF.
     """
+    _assert_valid_ec(ec)
     d = dU % ec.n
 
     # d == 0 is the infinity point, which the bindings reject as a

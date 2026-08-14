@@ -10,6 +10,7 @@ from btclib.alias import String
 from btclib.base58 import decode as b58decode
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import Curve, secp256k1
+from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -78,6 +79,11 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     Network and compressed information from the input key
     are not used.
     """
+    # before the key, because every branch below reaches the curve: an
+    # xprv or a WIF is compared against it rather than parsed with it, and
+    # an ec of no curve type compares unequal to every network's -- which
+    # is "ec / network mismatch" for what is a caller's own mistake
+    _assert_valid_ec(ec)
     _assert_prv_key_type(prv_key)
 
     if isinstance(prv_key, int):

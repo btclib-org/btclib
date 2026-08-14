@@ -14,6 +14,7 @@ from btclib_secp256k1.keys import (
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
+    _assert_valid_ec,
     _libsecp256k1_serves,
     _y_even_var,
     mult,
@@ -35,6 +36,7 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
     octet sequence, according to SEC 1 v.2, section 2.3.3.
     """
+    _assert_valid_ec(ec)
     # check that Q is a point and that is on curve
     ec.require_on_curve(Q)
 
@@ -66,6 +68,7 @@ def bytes_from_prv_key_int(
     the compressed encoding rather than btclib slicing it out of the
     uncompressed one (issue #459).
     """
+    _assert_valid_ec(ec)
     q = int_from_integer(prv_key_int) % ec.n
 
     # q == 0 is the infinity point, which the bindings reject as a scalar
@@ -100,6 +103,7 @@ def point_from_octets(
     under STRICTENC, so the script engine is the one caller that asks for
     them (issue #129).
     """
+    _assert_valid_ec(ec)
     pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
 
     bsize = len(pub_key)  # bytes

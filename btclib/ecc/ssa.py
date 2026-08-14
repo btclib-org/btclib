@@ -65,6 +65,7 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import (
+    _assert_valid_ec,
     _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_serves,
@@ -150,6 +151,10 @@ class Sig:
 
     def assert_valid(self) -> None:
         """Refuse an r that is no x-coordinate, or an s outside 0..n-1."""
+        # the curve first, as in dsa.Sig.assert_valid and for its reason:
+        # both fields below are read against it
+        _assert_valid_ec(self.ec)
+
         # r is a field element, fail if r is not a valid x-coordinate.
         # The question is existence: BIP340 fixes the y even, and
         # verification recomputes the point from the scalars rather than
@@ -240,6 +245,8 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
     - native tuple
     """
+    _assert_valid_ec(ec)
+
     # every branch below ends in the same lift, an x-only key being an x
     # and the even y that goes with it: _y_even_var is ec.y_even_var answered by
     # libsecp256k1 for secp256k1, 2.9 us against the 75 of a modular
@@ -268,6 +275,9 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
     """Return a BIP340 private/public (int, int) key-pair."""
+    # as in dsa.gen_keys, and for its reason
+    _assert_valid_ec(ec)
+
     if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
@@ -288,6 +298,8 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     trailing underscore says throughout this module: no reduction by
     hf happens here.
     """
+    _assert_valid_ec(ec)
+
     # the message, of any size ("Messages of Arbitrary Size" in BIP340):
     # the tagged hash below absorbs any length unambiguously, x_K and x_Q
     # being fixed at p_size each

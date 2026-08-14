@@ -48,6 +48,7 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, mult, secp256k1
 from btclib.curves.curve import (
+    _assert_valid_ec,
     _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_serves,
@@ -216,6 +217,12 @@ class Sig:
 
     def assert_valid(self) -> None:
         """Refuse an r or s outside 1..n-1, or an r no x is congruent to."""
+        # the curve first: it is what 1..n-1 is measured in, and
+        # check_validity=False is what makes a Sig holding an ec of no
+        # curve type reachable at all -- built with the flag off, or the
+        # field assigned afterwards, as psbt.assert_valid's int fields are
+        _assert_valid_ec(self.ec)
+
         # r is a scalar, fail if r is not in [1, n-1]
         if not 0 < self.r < self.ec.n:
             err_msg = "scalar r not in 1..n-1: "
@@ -329,6 +336,11 @@ class Sig:
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:
     """Return a private/public (int, Point) key-pair."""
+    # here rather than in the branch below that reads n off the curve: a
+    # key that was given reaches int_from_prv_key's own check, and one
+    # that is drawn reaches nothing else
+    _assert_valid_ec(ec)
+
     if prv_key is None:
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
