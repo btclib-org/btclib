@@ -114,11 +114,10 @@ WHEEL_METADATA_FILES = frozenset({"METADATA", "RECORD", "WHEEL", "top_level.txt"
 # is the shape a misconfigured `packages.find` produces
 WHEEL_REQUIRED = frozenset({"btclib/__init__.py", "btclib/py.typed"})
 
-# the directories of the sdist, which is the development tree: the package,
-# its suite, the documentation sources, the developer scripts MANIFEST.in
-# ships so they stay runnable from an unpacked sdist, and the metadata
+# the directories of the sdist, which is the development tree: the
+# package, its suite, the documentation sources, and the metadata
 # setuptools generates beside them
-SDIST_DIRECTORIES = frozenset({"btclib", "btclib.egg-info", "docs", "scripts", "tests"})
+SDIST_DIRECTORIES = frozenset({"btclib", "btclib.egg-info", "docs", "tests"})
 
 # the files that may sit at the root of the sdist. MANIFEST.in ships these
 # by glob -- `include *.md`, `include *.yaml`, `include *.jsonc` -- so a

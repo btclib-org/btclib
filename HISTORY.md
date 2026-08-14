@@ -18,6 +18,13 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+The benchmarks now live in
+[btclib-benchmarks](https://github.com/btclib-org/btclib-benchmarks).
+`scripts/benchmark.py`, `scripts/benchmark_libraries.py` and
+`scripts/benchmark_python.py` are no longer in this repository, and
+`uv sync --group bench` resolves nothing: that dependency group is gone.
+Clone btclib-benchmarks and run them there.
+
 ### Breaking changes
 
 - **the `_var` suffix finishes its sweep: `ellswift.encode_var`,

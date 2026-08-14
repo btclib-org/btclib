@@ -274,6 +274,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The three benchmarks move to
+  [btclib-benchmarks](https://github.com/btclib-org/btclib-benchmarks)**,
+  and the `bench` dependency group goes with them (issue #852).
+  `scripts/benchmark.py`, `scripts/benchmark_libraries.py` and
+  `scripts/benchmark_python.py` are gone, so `scripts/` is empty and
+  MANIFEST.in ships it no longer; `.github/scripts/verify_dist_contents.py`
+  drops it from the directories an sdist may hold, and the mypy hook from
+  the paths it checks.
+
+  What that group held was `buidl`, `ecdsa`, `embit`, `pycoin`,
+  `python-bitcoinlib` and `secp256k1lab` -- third-party packages resolved
+  into this repository's lock for a benchmark nothing in the library
+  runs, and imported by no module of it. Every one of the four Dependabot
+  alerts open against btclib was one of them or a dependency of one:
+  GHSA-wj6h-64fc-37mp on `ecdsa`, and two on `cbor2` plus one on
+  `protobuf` reached through `hwi`. None was reachable from any code
+  this package ships, and none can be resolved here either -- `hwi` caps
+  `cbor2` and `protobuf` below the versions that fix them. Moving the
+  benchmarks is what closes all four, by making the alert name the
+  project the package actually belongs to.
+
+  `[tool.uv.sources]` goes too, it having existed for that group's one
+  git comparand, and so does the `[[tool.mypy.overrides]]` block that
+  declared `ignore_missing_imports` for the five untyped ones. The two
+  spell checkers keep their `buidl` exemption: CHANGELOG.md still records
+  the work, and both hooks fix in place.
+
 - **The pinned revisions move: hooks, actions and the lock.** ruff
   v0.16.2 to v0.16.3 and the uv-pre-commit hook 0.12.3 to 0.12.4;
   `setup-uv` v9.0.0 to v10.0.1 and `codeql-action` v4.37.6 to v4.37.7,

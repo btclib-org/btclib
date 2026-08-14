@@ -318,14 +318,6 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-bench = [
-    { name = "buidl" },
-    { name = "ecdsa" },
-    { name = "embit" },
-    { name = "pycoin" },
-    { name = "python-bitcoinlib" },
-    { name = "secp256k1lab", marker = "python_full_version >= '3.11'" },
-]
 build = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
@@ -386,14 +378,6 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-bench = [
-    { name = "buidl", specifier = ">=0.2.36" },
-    { name = "ecdsa", specifier = ">=0.19.2" },
-    { name = "embit", specifier = ">=0.8.0" },
-    { name = "pycoin", specifier = ">=0.92718.20260405" },
-    { name = "python-bitcoinlib", specifier = ">=0.12.2" },
-    { name = "secp256k1lab", marker = "python_full_version >= '3.11'", git = "https://github.com/secp256k1lab/secp256k1lab?tag=v1.0.0" },
-]
 build = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
@@ -520,15 +504,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/95/0e3172435a018a618f31830bfcd39505fb5ce46a35699b8e7b3b3b792a32/btclib_secp256k1-0.8.0.1-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:f7aa577a0bc9a05a5dca2ed1032896ec3ad9a2b7a23c648d835f0fc048b31cad", size = 1329981, upload-time = "2026-08-13T19:06:30.832Z" },
     { url = "https://files.pythonhosted.org/packages/50/1a/1938af166ab4e4c84c506388cd304d221c60d733b558f5dd7c1cd144b9e7/btclib_secp256k1-0.8.0.1-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:0d12c9c54c320faf465492ecce4a64e4e6fc8d9ff913f95c6ca43dbee5d80e23", size = 1310767, upload-time = "2026-08-13T19:06:32.484Z" },
     { url = "https://files.pythonhosted.org/packages/ff/0f/48a6a98cc735defbc58d260f71b132d428b9722053c350cb9c28168b4a06/btclib_secp256k1-0.8.0.1-py3-none-win_amd64.whl", hash = "sha256:9f077199d42f46bd4375783708eb81c7c396a47755d88750291af330ffd17a64", size = 1332872, upload-time = "2026-08-13T19:06:34.065Z" },
-]
-
-[[package]]
-name = "buidl"
-version = "0.2.36"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/3f/a2/b311f04cd1ae0b6bdba797f836fa6dd070315eb37a1ce1cb7b84d37b86ed/buidl-0.2.36.tar.gz", hash = "sha256:e3537a33574154e7bce0ca7fbe45b8e512b4473189b0be3ce28e1d3ddf5303f9", size = 239081, upload-time = "2022-02-28T20:28:39.354Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b0/5b/f1c02f13043a83903c405a33e75cb1ff6a2d0c59299a84b0b894f764d5e8/buidl-0.2.36-py3-none-any.whl", hash = "sha256:89d00825bc286ae56da31ea3d12853d5cb1ad53c64ad6daa45d791af7df1186d", size = 253135, upload-time = "2022-02-28T20:28:36.575Z" },
 ]
 
 [[package]]
@@ -1136,24 +1111,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/ae/b6/03bb70946330e88ff
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/10/5da547df7a391dcde17f59520a231527b8571e6f46fc8efb02ccb370ab12/docutils-0.22.4-py3-none-any.whl", hash = "sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de", size = 633196, upload-time = "2025-12-18T19:00:18.077Z" },
 ]
-
-[[package]]
-name = "ecdsa"
-version = "0.19.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "six" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/25/ca/8de7744cb3bc966c85430ca2d0fcaeea872507c6a4cf6e007f7fe269ed9d/ecdsa-0.19.2.tar.gz", hash = "sha256:62635b0ac1ca2e027f82122b5b81cb706edc38cd91c63dda28e4f3455a2bf930", size = 202432, upload-time = "2026-03-26T09:58:17.675Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/79/119091c98e2bf49e24ed9f3ae69f816d715d2904aefa6a2baa039a2ba0b0/ecdsa-0.19.2-py2.py3-none-any.whl", hash = "sha256:840f5dc5e375c68f36c1a7a5b9caad28f95daa65185c9253c0c08dd952bb7399", size = 150818, upload-time = "2026-03-26T09:58:15.808Z" },
-]
-
-[[package]]
-name = "embit"
-version = "0.8.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/83/88/b054b00ade6d2a41749e15976cdcec4b7ec4656ac1cb917ce3de395528d1/embit-0.8.0.tar.gz", hash = "sha256:8bf4b10073c67400370ce523fb16f035fe759f6fdd987c579bdcc268d75ed770", size = 763120, upload-time = "2024-05-30T10:56:48.944Z" }
 
 [[package]]
 name = "exceptiongroup"
@@ -2385,12 +2342,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pycoin"
-version = "0.92718.20260405"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0d/7f/7773215c24aa80e2932e2b770253f43fad36fc324772492f23a7808bdacb/pycoin-0.92718.20260405.tar.gz", hash = "sha256:5ea55aa17f0be2d4b78b559a88678ff6f4b007c256e08a4012d8c4090cf712f7", size = 380722, upload-time = "2026-04-05T22:55:19.941Z" }
-
-[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2625,15 +2576,6 @@ wheels = [
 ]
 
 [[package]]
-name = "python-bitcoinlib"
-version = "0.12.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/90/a1/ca9d770094a0bfd0f2ce66b7180f0a7729b1b646d90f37f6debf38b28fab/python-bitcoinlib-0.12.2.tar.gz", hash = "sha256:c65ab61427c77c38d397bfc431f71d86fd355b453a536496ec3fcb41bd10087d", size = 153798, upload-time = "2023-06-03T18:37:11.091Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/46/b388d0885cf799f5bc66ca9995c83e5b7e17cb737f812a7c2591aa789ea6/python_bitcoinlib-0.12.2-py3-none-any.whl", hash = "sha256:2f29a9f475f21c12169b3a6cc8820f34f11362d7ff1200a5703dce3e4e903a44", size = 106954, upload-time = "2023-06-03T18:37:08.524Z" },
-]
-
-[[package]]
 name = "python-discovery"
 version = "1.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2818,11 +2760,6 @@ wheels = [
 ]
 
 [[package]]
-name = "secp256k1lab"
-version = "1.0.0"
-source = { git = "https://github.com/secp256k1lab/secp256k1lab?tag=v1.0.0#44dc4bd893b8f03e621585e3bf255253e0e0fbfb" }
-
-[[package]]
 name = "secretstorage"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2842,15 +2779,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6d/44/f5da03a8ef95d369145c5bb53050e7877c9f3d312e128605fd9504829143/setuptools-84.0.0.tar.gz", hash = "sha256:f4695c21257f0d9b537ec2692c941d02ee143b7cc1276941349a546573b2ef73", size = 1168449, upload-time = "2026-08-08T18:27:58.365Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/9c/c510029fc6ef33a6275cd2c5d3cecd6613dfd6aa401d57c54f1c18852ccf/setuptools-84.0.0-py3-none-any.whl", hash = "sha256:51a52592b3b99e102b609654876bd65f19f999935166d1352678931132b0c670", size = 818216, upload-time = "2026-08-08T18:27:56.719Z" },
-]
-
-[[package]]
-name = "six"
-version = "1.17.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
 
 [[package]]
