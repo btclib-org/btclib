@@ -13,6 +13,7 @@ from typing import Any
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
+from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import (
     assert_no_trailing,
@@ -138,8 +139,24 @@ class TxOut:
     def from_dict(
         cls: type[TxOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxOut:
-        """Build a TxOut from the dict shape to_dict writes."""
+        """Build a TxOut from the dict shape to_dict writes.
+
+        A `null` value is not an amount here, where `valid_sats_amount`
+        reads `None` as zero for the caller it was written for: a
+        transaction output declares what it pays, so at the json boundary
+        that value is a field the file has not filled in rather than a
+        request for nothing. Unasked, `{"value": null}` built an output of
+        zero satoshi -- legal, an OP_RETURN paying one and BIP322's
+        proof-of-funds transactions carrying one, so nothing downstream
+        refused it and what came back said something the file did not.
+
+        `PsbtOut.amount` is the same value read the other way, and
+        rightly: a psbt output may declare no amount yet, where a
+        transaction output cannot.
+        """
         dict_ = fields_from_json_object(dict_, "transaction output")
+        if dict_["value"] is None:
+            raise BTClibValueError("null transaction output value")
         value = sats_from_btc(dict_["value"])
         script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")

@@ -823,6 +823,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A json `null` is not an amount** (issue #875).
+  `TxOut.from_dict({"value": null})` built an output of zero satoshi:
+  `valid_sats_amount` reads `None` as zero, for the caller it was written
+  for and with its own reasoning, and `sats_from_btc` inherits it. At the
+  json boundary that value is a field the file has not filled in, and the
+  output it made was legal -- an OP_RETURN pays zero, BIP322's
+  proof-of-funds transactions carry one -- so nothing downstream refused
+  it and what came back said something the file did not.
+
+  The empty string and the word `"null"` were refused already, which is
+  what made this the one worth closing: `null` is the only spelling json
+  itself produces. `valid_sats_amount`'s convention is untouched, and so
+  is `PsbtOut.amount`, where `None` is the field being absent and a psbt
+  output may legitimately declare no amount yet.
+
 - **BIP375's Signer and Transaction Extractor** (#760, following #641).
   `btclib.psbt.silent_payments` is the new module, and it is the half of
   BIP375 that makes the fields worth carrying: a silent payment output
@@ -2549,12 +2564,11 @@ documented at release-notes length in the first place, and are still in
   `taproot.parse(exit_on_op_success=)` is the one that was not a flag at
   all: it chooses between Core's pre-scan and a parse, so the same bytes
   answer `["OP_SUCCESS"]` or `["OP_SUCCESS80", b"v"]` and a value read for
-  its truth silently gave the first. A `bool` now, which is
-  `include_witness` and `KeyGroup(verify=)`'s line.
-  `var_bytes.parse(forbid_zero_size=)` is on the other side of it and
-  stays read for its truth, adding a refusal and changing no answer; the
-  reason is in its docstring rather than only in the test that drives
-  neither.
+  its truth silently gave the first. The census of issue #871 refused it
+  as a kind, and what this adds is the reason beside the flag rather than
+  in a table of them; `var_bytes.parse(forbid_zero_size=)` is on the other
+  side of that line and stays read for its truth, adding a refusal and
+  changing no answer, which its own docstring now says.
 
   `descriptors.parse(network=)` carried a name no network has into the
   `Descriptor`, to be refused by whichever encoder came to use it — a
