@@ -11,7 +11,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt, tonelli, xgcd
+from btclib.number_theory import (
+    legendre_symbol,
+    mod_inv,
+    mod_inv_batch,
+    mod_sqrt,
+    tonelli,
+    xgcd,
+)
 
 primes = [
     2,
@@ -232,3 +239,52 @@ def test_mod_sqrt_squares_back(a: int, p: int) -> None:
     assert root * root % p == a % p
     # the other root, p - root, is a root too: a square has two
     assert (p - root) * (p - root) % p == a % p
+
+
+def test_mod_inv_batch_is_mod_inv_over_a_sequence() -> None:
+    """The batch answers what the inverses one at a time answer.
+
+    The first and last elements included, which is where the peeling
+    back off the running products stops and starts, and the empty
+    sequence, which has no inverses and is not an error.
+    """
+    for m in (7, 97, 2**521 - 1):
+        values = [1, 2, m - 1, 3, m - 2]
+        assert mod_inv_batch(values, m) == [mod_inv(v, m) for v in values]
+        assert mod_inv_batch([2], m) == [mod_inv(2, m)]
+    assert mod_inv_batch([], 7) == []
+
+
+def test_mod_inv_batch_names_the_element_that_has_no_inverse() -> None:
+    """A product is invertible only if every factor is.
+
+    So the batch fails whenever one element does, and names that element
+    as `mod_inv` does rather than the product a caller never formed.
+    """
+    with pytest.raises(BTClibValueError, match="no inverse for 0 mod 7"):
+        mod_inv_batch([1, 2, 0, 3], 7)
+    with pytest.raises(BTClibValueError, match="no inverse for 3 mod 9"):
+        mod_inv_batch([2, 3], 9)
+
+    # the arguments are checked as every other function of the module
+    # checks its own, a bool being no integer and zero no modulus
+    for value in (2.0, True, None):
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv_batch([1, value], 7)  # type: ignore[list-item]
+    for m in (0, -7, 3.0, False):
+        with pytest.raises((BTClibTypeError, BTClibValueError)):
+            mod_inv_batch([1], m)  # type: ignore[arg-type]
+
+
+@given(values=st.lists(st.integers(), max_size=8), m=st.integers(min_value=2))
+def test_mod_inv_batch_inverts(values: list[int], m: int) -> None:
+    """Every inverse multiplies its element back to one, or none does."""
+    if any(math.gcd(v % m, m) != 1 for v in values):
+        with pytest.raises(BTClibValueError, match="no inverse"):
+            mod_inv_batch(values, m)
+        return
+    inverses = mod_inv_batch(values, m)
+    assert len(inverses) == len(values)
+    for v, inverse in zip(values, inverses, strict=True):
+        assert 0 <= inverse < m
+        assert v * inverse % m == 1

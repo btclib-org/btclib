@@ -2031,6 +2031,42 @@ documented at release-notes length in the first place, and are still in
   window has 253 against 71. It is also what `curves.mult` runs on
   secp256k1 for the arguments the bindings decline; every other curve
   gets the row above it.
+- **`mod_inv_batch` inverts a whole sequence with one extended Euclid**
+  (issue #800). Montgomery's trick, which libsecp256k1 spells
+  `secp256k1_fe_inv_all_var`: the running products `a[0]`, `a[0]*a[1]`,
+  ... are formed, the last of them is inverted once, and the individual
+  inverses are peeled back off it. So n inverses cost one inverse and
+  3(n-1) products, where an inverse modulo secp256k1's p is 7.4 us and a
+  product is 0.25.
+
+  `CurveGroup.aff_from_jac_batch` is the plural of `aff_from_jac` built
+  on it -- infinity keeps its place in the list and is not in the batch,
+  having no Z to invert -- and `_aff_from_z_inv` is the two products a
+  conversion is once the inverse is in hand, which the singular and the
+  plural now share. Measured against `70899b51` on Python 3.14.6, best of
+  seven alternating rounds:
+
+  | | one each | batched | |
+  | --- | ---: | ---: | ---: |
+  | 4 inverses mod p | 31.8 us | 10.6 us | **3.01x** |
+  | 16 inverses mod p | 136 us | 20.9 us | **6.50x** |
+  | 64 inverses mod p | 535 us | 59.2 us | **9.04x** |
+  | 4 points to affine | 38.2 us | 14.7 us | **2.59x** |
+  | 16 points to affine | 154 us | 37.0 us | **4.17x** |
+  | `dsa.recover_pub_keys_`, secp256r1 | 4881 us | 4871 us | 1.00x |
+
+  The last row is the honest one: `recover_pub_keys_` is the only caller
+  in the tree today, a candidate on secp256r1 is two Python
+  multiplications, and two candidates at 2.4 ms each leave the ~8 us
+  saved a fifth of a percent. It is where the plural is exercised, not
+  where it pays; what pays is a table of point multiples brought to
+  `Z == 1`, which is issue #801.
+
+  A product is invertible only if every factor is, so one element without
+  an inverse fails the batch: the error then names that element, in
+  `mod_inv`'s own message, rather than the product a caller never formed.
+  An empty sequence is not an error, being what a caller that filtered
+  its own input is left with.
 
 ### The public API and the module layout
 

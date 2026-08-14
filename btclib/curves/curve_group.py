@@ -20,7 +20,7 @@ from math import ceil
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import mod_inv, mod_sqrt
+from btclib.number_theory import mod_inv, mod_inv_batch, mod_sqrt
 from btclib.utils import hex_string, int_from_integer
 
 __all__ = [
@@ -257,13 +257,33 @@ class CurveGroup:
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
 
+        return self._aff_from_z_inv(Q, mod_inv(Q[2], self.p))
+
+    def aff_from_jac_batch(self, Qs: Sequence[JacPoint]) -> list[Point]:
+        """Return the affine points: one modular inversion for all of them.
+
+        `aff_from_jac` over a sequence, with `mod_inv_batch` in place of
+        the one inverse each: the conversion is two products a point once
+        the inverse is in hand, so a caller holding several Jacobian
+        points pays one extended Euclid instead of one per point.
+
+        The input points are assumed to be on the curve. Infinity is not
+        in the batch, having no Z to invert, and comes back as INF where
+        it stood.
+        """
+        inverses = iter(mod_inv_batch([Q[2] for Q in Qs if Q[2]], self.p))
+        return [
+            INF if Q[2] == 0 else self._aff_from_z_inv(Q, next(inverses)) for Q in Qs
+        ]
+
+    def _aff_from_z_inv(self, Q: JacPoint, z_inv: int) -> Point:
         # x is X/Z^2 and y is Y/Z^3, and both powers are built from one
         # inverse: Z^-2 is a product away from Z^-1, and Z^-3 another.
         # Inverting Z^2 and Z^3 separately is two extended Euclids where
         # this is one and two multiplications, and an inverse costs what
-        # a hundred products cost
+        # a hundred products cost -- which is also why the inverse itself
+        # is the caller's, one of them being what the batch above shares
         p = self.p
-        z_inv = mod_inv(Q[2], p)
         z_inv2 = z_inv * z_inv % p
         return Q[0] * z_inv2 % p, Q[1] * z_inv2 % p * z_inv % p
 

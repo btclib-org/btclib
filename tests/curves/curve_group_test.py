@@ -812,3 +812,24 @@ def test_INF() -> None:
         secp256k1.y(INF[0])
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
         secp256k1.y(INF[0] + secp256k1.n)
+
+
+def test_aff_from_jac_batch_is_aff_from_jac_over_a_sequence() -> None:
+    """The batch answers what the conversions one at a time answer.
+
+    Infinity keeps its place in the list and is not in the batch, having
+    no Z to invert: what a caller gets back is as long as what it passed,
+    which is what makes the answer indexable beside the input.
+    """
+    for ec in all_curves.values():
+        QJs = [_mult(k, ec.GJ, ec) for k in (1, 2, 3, ec.n - 1)]
+        assert ec.aff_from_jac_batch(QJs) == [ec.aff_from_jac(QJ) for QJ in QJs]
+
+        # infinity first, last and in between, so that the peeling back
+        # off the running products starts and stops beside one
+        mixed = [INFJ, QJs[0], INFJ, INFJ, QJs[1], INFJ]
+        assert ec.aff_from_jac_batch(mixed) == [ec.aff_from_jac(QJ) for QJ in mixed]
+
+        # nothing to invert at all, and nothing to convert at all
+        assert ec.aff_from_jac_batch([INFJ, INFJ]) == [INF, INF]
+        assert ec.aff_from_jac_batch([]) == []
