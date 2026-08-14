@@ -38,10 +38,10 @@ def test_tx() -> None:
     """Round-trip Tx through parse, serialize and dict, segwit included."""
     # default constructor
     tx = Tx(check_validity=False)
-    assert not tx.is_segwit()
+    assert not tx.is_segwit
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
     assert tx.version == 1
     assert tx.lock_time == 0
     assert not tx.vin
@@ -61,19 +61,19 @@ def test_tx() -> None:
         Tx(vin=[TxIn(script_sig="0000")])
 
     tx_2 = Tx.from_dict(tx.to_dict(check_validity=False), check_validity=False)
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(
         tx.serialize(include_witness=True, check_validity=False), check_validity=False
     )
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(
         tx.serialize(include_witness=False, check_validity=False), check_validity=False
     )
-    assert not tx_2.is_segwit()
+    assert not tx_2.is_segwit
     assert tx_2 == tx
 
     # non-default constructor, no segwit
@@ -95,10 +95,10 @@ def test_tx() -> None:
     version = 1
     lock_time = 0
     tx = Tx(version, lock_time, [tx_in], [tx_out1, tx_out2])
-    assert not tx.is_segwit()
+    assert not tx.is_segwit
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
     assert tx.version == 1
     assert tx.lock_time == 0
     assert len(tx.vin) == 1
@@ -113,15 +113,15 @@ def test_tx() -> None:
     assert tx.weight == tx.size * 4
 
     tx_2 = Tx.from_dict(tx.to_dict())
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(tx.serialize(include_witness=True))
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(tx.serialize(include_witness=False))
-    assert not tx_2.is_segwit()
+    assert not tx_2.is_segwit
     assert tx_2 == tx
 
     # non-default constructor, with segwit
@@ -135,10 +135,10 @@ def test_tx() -> None:
         "52210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae",
     ]
     tx.vin[0].script_witness = Witness(stack)
-    assert tx.is_segwit()
+    assert tx.is_segwit
     assert any(bool(w) for w in tx.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
     assert tx.version == 1
     assert tx.lock_time == 0
     assert len(tx.vin) == 1
@@ -154,15 +154,15 @@ def test_tx() -> None:
     assert tx.weight == 758
 
     tx_2 = Tx.from_dict(tx.to_dict())
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(tx.serialize(include_witness=True))
-    assert tx_2.is_segwit() == tx.is_segwit()
+    assert tx_2.is_segwit == tx.is_segwit
     assert tx_2 == tx
 
     tx_2 = Tx.parse(tx.serialize(include_witness=False))
-    assert not tx_2.is_segwit()
+    assert not tx_2.is_segwit
     assert tx_2 != tx
 
     tx.version = 0
@@ -374,7 +374,7 @@ def test_coinbase_block_1() -> None:
     )
     tx_in = TxIn.parse(coinbase_inp)
     assert tx_in.serialize().hex() == coinbase_inp
-    assert tx_in.prev_out.is_coinbase()
+    assert tx_in.prev_out.is_coinbase
 
     coinbase = f"0100000001{coinbase_inp}01{coinbase_out}00000000"
     tx = Tx.parse(coinbase)
@@ -396,10 +396,10 @@ def test_coinbase_block_1() -> None:
     assert tx.size == 134
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
-    assert not tx.is_segwit()
+    assert not tx.is_segwit
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert tx.is_coinbase()
+    assert tx.is_coinbase
 
     # the p2pk output announces one signature check; the coinbase
     # script_sig announces none, pushing the extranonce and nothing else
@@ -477,10 +477,10 @@ def test_wiki_transaction() -> None:
     assert tx.size == 258
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
-    assert not tx.is_segwit()
+    assert not tx.is_segwit
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
 
     # Core's GetLegacySigOpCount, which is the sum over both lists: the
     # two p2pkh outputs announce one check each, and the script_sig
@@ -522,9 +522,9 @@ def test_single_witness() -> None:
     assert tx.size == 380
     assert tx.vsize == 190
     assert tx.weight == 758
-    assert tx.is_segwit()
+    assert tx.is_segwit
     assert any(bool(w) for w in tx.vwitness)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
 
 
 def test_double_witness() -> None:
@@ -560,10 +560,10 @@ def test_double_witness() -> None:
     assert tx.size == 421
     assert tx.vsize == 259
     assert tx.weight == 1033
-    assert tx.is_segwit()
+    assert tx.is_segwit
     assert any(bool(w) for w in tx.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx.vin)
-    assert not tx.is_coinbase()
+    assert not tx.is_coinbase
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
@@ -583,7 +583,7 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
         "vin",
         "vout",
     ]
-    assert tx.is_segwit()
+    assert tx.is_segwit
     assert any(bool(w) for w in tx.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx.vin)
     assert tx.vin[0].script_witness
@@ -603,7 +603,7 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert tx.vin[0] == tx2.vin[0]
     assert tx2.vin[0].script_witness
     assert tx2.vin[0].script_witness.stack
-    assert tx2.is_segwit()
+    assert tx2.is_segwit
     assert any(bool(w) for w in tx2.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx2.vin)
 
@@ -944,7 +944,7 @@ def test_the_size_and_the_serialization_agree() -> None:
     filename = Path(__file__).parent / "_data" / fname
     with filename.open("rb") as binary_file_:
         segwit = Tx.parse(binary_file_.read())
-    assert segwit.is_segwit()
+    assert segwit.is_segwit
 
     legacy = Tx(
         version=1,
@@ -952,7 +952,7 @@ def test_the_size_and_the_serialization_agree() -> None:
         vin=[TxIn(OutPoint(b"\x01" * 32, 0), b"\x02" * 253, 0xFFFFFFFF)],
         vout=[TxOut(1000, ScriptPubKey(b"\x03" * 25))],
     )
-    assert not legacy.is_segwit()
+    assert not legacy.is_segwit
 
     for tx in (segwit, legacy):
         for include_witness in (True, False):

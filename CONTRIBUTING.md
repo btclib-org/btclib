@@ -779,6 +779,26 @@ Work locally on your fork of btclib,
 until you are satisfied. Ensure that pre-commit and pytest
 have no issue with your modified codebase.
 
+#### Breaking a caller is not an argument
+
+**A refactoring that is reasonable gets made, however much it breaks.**
+Do not weigh "this renames something callers use" against it, and do not
+propose keeping an inconsistency and gating it going forward instead:
+consistency across a family — one naming shape, one contract per prefix,
+one way to read the same kind of answer — is itself the reason, and a
+release is where a break is reported rather than a reason not to make it.
+
+So a census that finds thirty names of one shape and six of another has
+found six to change, not a trade-off to price. What the measurement is
+for is knowing the blast radius and writing HISTORY.md's
+breaking-changes entry, which is how a user is told: read
+[HISTORY.md](./HISTORY.md) for what that entry looks like, and note that
+`v2026.9`'s list is long on purpose.
+
+The one thing this does not license is a break nobody can act on. An
+entry says the old spelling, the new one, and what a caller does about
+it; a rename with no note is the defect, not the rename.
+
 #### The public surface
 
 **Every module and every package declares `__all__`**, at every depth of
@@ -872,7 +892,16 @@ prefixes below, or is one of the English predicates
 and `is_` would cost the reading. A bool that is neither fails that gate,
 so a new one is a prefix or a decision somebody wrote down.
 
-What the four buy is a promise read off the name:
+**A bool that takes nothing but `self` is a `@property`**, and that is
+gated too: it is read off the object rather than called, so `tx.is_segwit`
+and not `tx.is_segwit()`. Thirty were properties and six were methods,
+which made the six the exception; they are properties now. It also makes
+the forgotten-parentheses bug unsayable — `if tx.is_segwit:` on a method
+is a bound method, and every bound method is true. mypy's
+`truthy-function` names that, and mypy is a gate here, but a shape that
+cannot go wrong beats a checker that catches it going wrong.
+
+What the four prefixes buy is a promise read off the name:
 
 - `assert_*` refuses and returns `None`. There are eighty-odd of them
   and they are the reason half of the pair above.
