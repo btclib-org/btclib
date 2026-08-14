@@ -2293,6 +2293,32 @@ documented at release-notes length in the first place, and are still in
   path as variable-time, and no caller here hands it a secret:
   `_is_x_coordinate` asks it about a signature's r.
 
+- **One modular inversion for every table a multi multiplication builds**
+  (issue #833). `_multi_mult_w_NAF_var` built a table per point and
+  converted each to affine on its own, so a batch of n points spent n
+  extended Euclids where the trick `mod_inv_batch` runs shares one across
+  the lot. The tables are built in Jacobian coordinates now and converted
+  together, which is `secp256k1_ge_set_all_gej_var` over the whole of
+  libsecp256k1's `pre_a` rather than over one point's share of it.
+
+  Measured against `19135e4f` on Python 3.14.6, best of nine alternating
+  rounds, random 256-bit scalars on secp256k1:
+
+  | `_multi_mult_w_NAF_var` | per table | one batch | |
+  | --- | ---: | ---: | ---: |
+  | 8 points | 2182 us | 2123 us | 1.03x |
+  | 16 points | 3844 us | 3720 us | **1.03x** |
+  | 32 points | 7198 us | 6939 us | **1.04x** |
+  | 55 points | 11972 us | 11495 us | **1.04x** |
+  | the endomorphism's double mult, 2 built | 570 us | 564 us | 1.01x |
+  | `_double_mult_w_NAF_var`, 1 built | 861 us | 863 us | 1.00x |
+
+  The last two rows are the shape of it: what is shared is the inversions
+  *between* tables, so a caller with one table to build gains nothing and
+  a batch verification gains the most. 55 points is where the wNAF ends
+  and `BOS_COSTER_THRESHOLD` sends the call to Bos-Coster, which builds no
+  table at all.
+
 ### The public API and the module layout
 
 - **A wrong type and a wrong value are two questions, and the gate asks
