@@ -29,6 +29,7 @@ from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
     assert_valid_musig2_participant_pub_keys,
+    assert_valid_psbt_version,
     assert_valid_redeem_script,
     assert_valid_sp_v0_info,
     assert_valid_taproot_bip32_derivation,
@@ -63,6 +64,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
 )
 
 __all__ = [
@@ -312,6 +314,7 @@ class PsbtOut:
         cls: type[PsbtOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtOut:
         """Build a PsbtOut from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "psbt output")
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue
@@ -348,8 +351,12 @@ class PsbtOut:
         it decides whether the two BIP370 fields are written here or
         folded into the psbt's unsigned transaction; an output
         serialized on its own is written as version 0, the version
-        BIP174 defines.
+        BIP174 defines. It is asked for, and not read for its truth:
+        every version that is not 0 wrote the BIP370 fields, so a `None`
+        or a 3 wrote a version 2 output and said nothing.
         """
+        assert_valid_psbt_version(psbt_version)
+
         if check_validity:
             self.assert_valid()
 
@@ -415,13 +422,16 @@ class PsbtOut:
         psbt_version is the version of the psbt the map belongs to, which
         decides whether a BIP370 type byte is a field of this output or
         one this version must not carry; an output read on its own is
-        read as version 0, the version BIP174 defines.
+        read as version 0, the version BIP174 defines. Asked for as
+        `serialize` asks for it, and for the same reason.
 
         Octets are one whole output and a stream is the caller's, as they
         are for the psbt these maps make: `Psbt.parse` threads one stream
         through the inputs and the outputs, and what follows an output in it
         is the next one.
         """
+        assert_valid_psbt_version(psbt_version)
+
         stream = bytesio_from_binarydata(data)
         output_map = deserialize_map(stream)
         assert_no_trailing(data, stream, "psbt output")

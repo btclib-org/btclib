@@ -51,6 +51,7 @@ from btclib.network import (
 )
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,
@@ -361,7 +362,16 @@ class BIP32KeyData:
     def b58decode(
         cls: type[BIP32KeyData], address: String, *, check_validity: bool = True
     ) -> BIP32KeyData:
-        """Build a BIP32KeyData from its xprv/xpub Base58Check text."""
+        """Build a BIP32KeyData from its xprv/xpub Base58Check text.
+
+        The type is asked here rather than left to `base58.decode`, which
+        does ask it: the cache in front of that call keys on the argument,
+        so an unhashable one -- a list, a bytearray, the mutable buffers
+        `String` does not cover -- left as a TypeError about hashing
+        instead of the refusal decoding would have given.
+        """
+        assert_type(address, (str, bytes), "base58 string")
+
         if isinstance(address, str):
             address = address.strip()
 

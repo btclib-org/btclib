@@ -25,7 +25,7 @@ from decimal import Decimal
 import pytest
 
 from btclib.bip21 import Bip21
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 # BIP21's example address, with its last character corrected
 ADDR = "175tWpb8K1S7NmH4Zx6rewF9WQrcZv2456"
@@ -240,7 +240,9 @@ def test_a_uri_that_is_not_one() -> None:
         with pytest.raises(BTClibValueError, match="not a bitcoin URI"):
             Bip21.parse(uri)
 
-    with pytest.raises(BTClibValueError, match="not a string"):
+    # a type and not a value, `uri` declaring `str` alone: the bytes of a
+    # URI are not a spelling of it, where the octets of a signature are
+    with pytest.raises(BTClibTypeError, match="invalid uri type"):
         Bip21.parse(b"bitcoin:")  # type: ignore[arg-type]
 
     # the scheme with nothing after it

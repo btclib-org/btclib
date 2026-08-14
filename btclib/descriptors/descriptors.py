@@ -201,7 +201,7 @@ from btclib.script.taproot import (
 from btclib.script.witness import Witness
 from btclib.to_pub_key import fingerprint
 from btclib.tx.tx_in import TxIn
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "AddrDescriptor",
@@ -2251,7 +2251,15 @@ def parse(
     network: str = "mainnet",
     prv_keys: dict[str, str] | None = None,
 ) -> Descriptor:
-    """Return the Descriptor of a descriptor string, checksum verified."""
+    """Return the Descriptor of a descriptor string, checksum verified.
+
+    A `str`, an output descriptor being text: what was neither reached
+    `strip_checksum` untouched and left as an AttributeError about
+    `partition`, or as a TypeError about mixing bytes and str -- neither
+    of them a word about the descriptor that was passed.
+    """
+    assert_type(descriptor, str, "descriptor")
+
     if prv_keys is None:
         prv_keys = {}
     return _parse_expression(strip_checksum(descriptor), _TOP, network, prv_keys)

@@ -29,13 +29,52 @@ beside the helpers of `tests/script/__init__.py` and
 """
 
 import csv
+import importlib
 import json
+import pkgutil
 import re
 from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+import btclib
+
 _TESTS_DIR = Path(__file__).parent
+
+
+def public_classes_with(method_name: str) -> set[str]:
+    """Return every public btclib class offering that method, module included.
+
+    Found rather than listed, which is what makes an inventory a promise:
+    a class added to the library has to appear in the test that holds the
+    method to its contract, or be named an exclusion there. A class this
+    walk cannot reach is one no caller can import either.
+
+    The module is part of the name because three classes are called
+    `Sig`. A private class is skipped, the contract being about what a
+    caller can reach.
+
+    Here rather than in the one test that first needed it: two files hold
+    the same classes to two different contracts -- where the bytes end,
+    and what type the argument is -- and neither owns the walk.
+    """
+    module_names = [
+        "btclib",
+        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    ]
+    found = set()
+    for module_name in module_names:
+        module = importlib.import_module(module_name)
+        for obj in vars(module).values():
+            if not isinstance(obj, type):
+                continue
+            if not getattr(obj, "__module__", "").startswith("btclib"):
+                continue
+            if obj.__qualname__.startswith("_"):
+                continue
+            if callable(getattr(obj, method_name, None)):
+                found.add(f"{obj.__module__}.{obj.__qualname__}")
+    return found
 
 
 def load(*relative_path: str, encoding: str = "ascii") -> Any:

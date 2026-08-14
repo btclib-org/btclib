@@ -2571,6 +2571,72 @@ documented at release-notes length in the first place, and are still in
   Curve` to compare against every network's field, and a value of another
   type there is "no network carries this prefix", which is the answer a
   lookup owes a caller.
+- **The input contract is gated at the serialization boundary: `parse`,
+  `serialize`, `to_dict` and `from_dict`** (issue #867).
+  `tests/serialization_boundary_test.py` is the gate, and it is not the
+  contract `parse_contract_test.py` holds -- where the bytes end is a
+  different question from what type the argument is -- so the walk that
+  finds every one of those methods moves to `tests/__init__.py`, where
+  neither file owns it.
+
+  **`from_dict` had no gate at all, and it is the json boundary**: its
+  input is whatever a schema mistake produced, and all twelve walked the
+  mapping before asking whether it was one. A `None` left as "not
+  subscriptable", a `str` as "string indices must be integers", and a
+  mapping missing a field as a `KeyError` -- which is neither a
+  `BTClibException` nor a `ValueError`, so a caller catching either never
+  caught it, and `exceptions.py` lists that gap as issue #776's.
+  `utils.fields_from_json_object` answers both in one line per
+  `from_dict`, naming the object and the field it has not got.
+
+  The arrays those methods walk are `utils.list_from_json_array`'s, and
+  they are #856's "annotation that accepts the mistake" again: a
+  `Sequence[Any]` accepts a `str` and a `Mapping`, so one input handed
+  where the list of them was meant was as many inputs as it had
+  characters, each refused for what it is not. `Witness.from_dict` was
+  worse than a wrong message: its constructor reads `stack or ()`, so a
+  `None` stack **was accepted**, as a witness of no elements.
+
+  Two fields are converted before any constructor sees them, and both
+  raised from underneath the library: a block header's `time` through
+  `datetime.fromisoformat`, and a network's `curve` through a `CURVES`
+  lookup that answered an unknown name with a `KeyError` and an
+  unhashable one with a TypeError about dict keys.
+
+  **What `serialize` takes was accepted whatever it was.**
+  `Tx.serialize(include_witness)` and `Block.serialize`'s read the flag
+  for its truth, so a value of no boolean type answered the stripped
+  serialization -- what the transaction id is computed over -- where the
+  wire one was asked for; the line is `built_object_contract_test.py`'s,
+  a flag that decides what is computed being a kind and not a truth.
+  `PsbtIn` and `PsbtOut` take a `psbt_version` in `serialize` and in
+  `parse`, compared against 0 alone, so a `None`, a 3 or a string wrote
+  and read a version 2 map and said nothing: both ask
+  `psbt_utils.assert_valid_psbt_version` now, which is `psbt.py`'s own
+  check moved down to the module the maps and the psbt share --
+  `psbt_in` and `psbt_out` cannot import `psbt`. `PSBT_V0` and `PSBT_V2`
+  move with it and `psbt.py` names them still, which is the third entry
+  in `all_test.py`'s `REEXPORTED` and the same shape as the second.
+
+  The text decoders were the other half. `Psbt.b64decode` and
+  `ecies.Envelope.b64decode` handed what is neither `str` nor `bytes` to
+  `base64` or to `.strip`, where `bms.Sig.b64decode` had been fixed for
+  exactly that (issue #814); `BIP32KeyData.b58decode` asks the type
+  before the cache in front of `base58.decode`, which keys on the
+  argument and so refused an unhashable one for being unhashable rather
+  than for not being base58. `Bip21.parse` refused a non-`str` with a
+  `BTClibValueError` where the rule says `BTClibTypeError`, and
+  `Envelope.parse`'s `magic` was compared rather than asked, so a magic
+  of no bytes type refused every envelope for the bytes it does carry.
+
+  The four module-level members of the family are gated too, and two of
+  them had nothing: `descriptors.parse` and `miniscript.parse` left
+  "'NoneType' object has no attribute 'partition'" and "object of type
+  'float' has no len()". `script.serialize` takes a `Sequence[Command]`,
+  which accepts a `str` and a `bytes` for the reason above --
+  `serialize("OP_DUP")` was six one-character commands and
+  `serialize(b"\x76")` a script of one integer command per byte, which is
+  a script and the wrong one.
 
 - **The input contract is gated over a function taking an object somebody
   already built** (issue #856). Neither of the two gates reaches

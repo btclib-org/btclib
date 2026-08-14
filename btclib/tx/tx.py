@@ -25,8 +25,11 @@ from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytesio_from_binarydata,
+    fields_from_json_object,
     is_integer,
+    list_from_json_array,
     read_exactly,
 )
 
@@ -282,11 +285,18 @@ class Tx:  # noqa: PLW1641
         cls: type[Tx], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Tx:
         """Build a Tx from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "transaction")
         return cls(
             dict_["version"],
             dict_["locktime"],
-            [TxIn.from_dict(tx_in, check_validity=False) for tx_in in dict_["vin"]],
-            [TxOut.from_dict(tx_out, check_validity=False) for tx_out in dict_["vout"]],
+            [
+                TxIn.from_dict(tx_in, check_validity=False)
+                for tx_in in list_from_json_array(dict_["vin"], "transaction inputs")
+            ],
+            [
+                TxOut.from_dict(tx_out, check_validity=False)
+                for tx_out in list_from_json_array(dict_["vout"], "transaction outputs")
+            ],
             check_validity=check_validity,
         )
 
@@ -361,7 +371,15 @@ class Tx:  # noqa: PLW1641
         the txid is computed over; True adds the marker and the
         witnesses only if some input has one, a marker over empty
         witnesses not being what the wire writes.
+
+        A bool and nothing else, which is the line
+        `tests/built_object_contract_test.py` draws: this flag decides
+        *what is computed* rather than whether a check runs, so a value
+        read for its truth would answer a stripped serialization -- a
+        different transaction id -- where the wire one was meant.
         """
+        assert_type(include_witness, bool, "include_witness")
+
         if check_validity:
             self.assert_valid()
         else:

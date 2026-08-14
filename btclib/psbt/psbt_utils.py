@@ -18,11 +18,18 @@ from btclib.alias import BinaryData, Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.der_path import indexes_from_der_path, str_from_der_path
 from btclib.curves import sec_point
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, read_exactly
+from btclib.utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    fields_from_json_object,
+    is_integer,
+    list_from_json_array,
+    read_exactly,
+)
 
 __all__ = [
     "FINGERPRINT_SIZE",
@@ -32,6 +39,8 @@ __all__ = [
     "MUSIG2_PUB_NONCE_SIZE",
     "MUSIG2_SESSION_KEY_SIZES",
     "PSBT_SEPARATOR",
+    "PSBT_V0",
+    "PSBT_V2",
     "SP_DLEQ_PROOF_SIZE",
     "SP_ECDH_SHARE_SIZE",
     "SP_SCAN_KEY_SIZE",
@@ -43,6 +52,7 @@ __all__ = [
     "assert_valid_musig2_participant_pub_keys",
     "assert_valid_musig2_pub_key",
     "assert_valid_musig2_session_data",
+    "assert_valid_psbt_version",
     "assert_valid_redeem_script",
     "assert_valid_sp_scan_key_map",
     "assert_valid_sp_v0_info",
@@ -141,6 +151,12 @@ SP_V0_INFO_VERSION = b"\x00"
 # one; the 0xff has no constant of its own, being part of
 # psbt.PSBT_MAGIC_BYTES, which is where the header says the rest
 PSBT_SEPARATOR = b"\x00"
+
+# the two versions there are, here rather than in `psbt.py` for the reason
+# `assert_valid_psbt_version` below states: the maps take one as an
+# argument, and they are underneath the psbt that has one as a field
+PSBT_V0 = 0
+PSBT_V2 = 2
 
 
 def deserialize_map(data: BinaryData) -> dict[bytes, bytes]:
@@ -403,7 +419,12 @@ def taproot_bip32_from_dict(
     """Return a tap_bip32_derivation from its json representation."""
     return {
         bytes_from_octets(bip32_deriv["pub_key"], 32 if check_validity else None): (
-            [bytes_from_octets(x) for x in bip32_deriv["leaf_hashes"]],
+            [
+                bytes_from_octets(x)
+                for x in list_from_json_array(
+                    bip32_deriv["leaf_hashes"], "taproot leaf hashes"
+                )
+            ],
             BIP32KeyOrigin(
                 bytes_from_octets(
                     bip32_deriv["master_fingerprint"], 4 if check_validity else None
@@ -412,7 +433,12 @@ def taproot_bip32_from_dict(
                 check_validity=check_validity,
             ),
         )
-        for bip32_deriv in taproot_hd_key_paths
+        for bip32_deriv in (
+            fields_from_json_object(item, "taproot bip32 derivation")
+            for item in list_from_json_array(
+                taproot_hd_key_paths, "taproot bip32 derivations"
+            )
+        )
     }
 
 
@@ -658,6 +684,37 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
     for key, value in data.items():
         bytes(key)
         bytes(value)
+
+
+def assert_valid_psbt_version(version: Any) -> None:
+    """Refuse a psbt version that is not one of the two there are.
+
+    Here rather than in `psbt.py`, where the psbt is: the version is as
+    much an argument of `PsbtIn.serialize` and `PsbtOut.parse`, which
+    decide by it whether the BIP370 fields belong to the map or to the
+    unsigned transaction, and those two modules are underneath `psbt.py`
+    and cannot import from it.
+
+    The type before the range, as `Tx.assert_valid` checks its own two
+    int fields: a comparison against a value of no integer type raises
+    from underneath the library, and a bool passes every one of them as
+    one or zero -- `to_dict`/`from_dict` being a json boundary, where
+    `true` would be version 0 rather than a schema error.
+
+    Then the two versions there are, which is a narrower rule than "a
+    version btclib does not know": a psbt claiming version 3 is not a
+    psbt of a later BIP, no such BIP being written. Version 1 is not one
+    of them and never will be -- BIP370 skipped the number because
+    version 0 had been colloquially called version 1 while it was being
+    designed.
+    """
+    if not is_integer(version):
+        raise BTClibTypeError(f"invalid version type: {type(version).__name__}")
+    # must be a 4-bytes int
+    if not 0 <= version <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid version: {version}")
+    if version not in {PSBT_V0, PSBT_V2}:
+        raise BTClibValueError(f"invalid psbt version: {version}")
 
 
 def assert_not_a_v2_field(

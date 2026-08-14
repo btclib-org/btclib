@@ -38,6 +38,7 @@ from btclib.psbt.psbt_utils import (
     assert_valid_leaf_scripts,
     assert_valid_musig2_participant_pub_keys,
     assert_valid_musig2_session_data,
+    assert_valid_psbt_version,
     assert_valid_redeem_script,
     assert_valid_sp_scan_key_map,
     assert_valid_taproot_bip32_derivation,
@@ -76,6 +77,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
 )
 
 __all__ = [
@@ -821,6 +823,7 @@ class PsbtIn:
         cls: type[PsbtIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtIn:
         """Build a PsbtIn from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "psbt input")
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue
@@ -877,8 +880,13 @@ class PsbtIn:
         psbt_version is the version of the psbt the map belongs to, and
         it decides whether the BIP370 fields are written here or folded
         into the psbt's unsigned transaction; an input serialized on its
-        own is written as version 0, the version BIP174 defines.
+        own is written as version 0, the version BIP174 defines. It is
+        asked for, and not read for its truth: every version that is not
+        0 wrote the BIP370 fields, so a `None` or a 3 wrote a version 2
+        input and said nothing.
         """
+        assert_valid_psbt_version(psbt_version)
+
         if check_validity:
             self.assert_valid()
 
@@ -918,13 +926,16 @@ class PsbtIn:
         psbt_version is the version of the psbt the map belongs to, which
         decides whether a BIP370 type byte is a field of this input or
         one this version must not carry; an input read on its own is read
-        as version 0, the version BIP174 defines.
+        as version 0, the version BIP174 defines. Asked for as
+        `serialize` asks for it, and for the same reason.
 
         Octets are one whole input and a stream is the caller's, as they
         are for the psbt these maps make: `Psbt.parse` threads one stream
         through the inputs and the outputs, and what follows an input in it
         is the next one.
         """
+        assert_valid_psbt_version(psbt_version)
+
         stream = bytesio_from_binarydata(data)
         input_map = deserialize_map(stream)
         assert_no_trailing(data, stream, "psbt input")

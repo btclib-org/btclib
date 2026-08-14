@@ -33,9 +33,12 @@ from btclib.script.script import serialize as serialize_script
 from btclib.tx import Tx
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytesio_from_binarydata,
     decode_num,
+    fields_from_json_object,
     is_integer,
+    list_from_json_array,
 )
 
 __all__ = [
@@ -238,9 +241,15 @@ class Block:
         cls: type[Block], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Block:
         """Build a Block from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "block")
         return cls(
             BlockHeader.from_dict(dict_["header"], check_validity=False),
-            [Tx.from_dict(tx, check_validity=False) for tx in dict_["transactions"]],
+            [
+                Tx.from_dict(tx, check_validity=False)
+                for tx in list_from_json_array(
+                    dict_["transactions"], "block transactions"
+                )
+            ],
             check_validity=check_validity,
         )
 
@@ -563,8 +572,11 @@ class Block:
         """Return the wire serialization: header, count, transactions.
 
         `include_witness` False gives the block as a legacy node
-        relays it, every witness stripped.
+        relays it, every witness stripped -- a bool and nothing else,
+        for the reason `Tx.serialize` states.
         """
+        assert_type(include_witness, bool, "include_witness")
+
         if check_validity:
             self.assert_valid()
 

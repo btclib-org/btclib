@@ -18,6 +18,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
     read_exactly,
 )
 
@@ -138,6 +139,7 @@ class TxOut:
         cls: type[TxOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxOut:
         """Build a TxOut from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "transaction output")
         value = sats_from_btc(dict_["value"])
         script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")

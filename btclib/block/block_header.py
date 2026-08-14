@@ -22,8 +22,10 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
     assert_no_trailing,
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
+    fields_from_json_object,
     int_from_json_number,
     is_integer,
 )
@@ -48,6 +50,22 @@ _REQUIRED_LENGTH = 4 + _HF_LEN + 32 + 4 + 4 + 4
 # the signature is what lets ruff's B008 stay enabled to catch the
 # mutable defaults that are not.
 _EPOCH = datetime.fromtimestamp(0, timezone.utc)
+
+
+def _time_from_isoformat(time: Any) -> datetime:
+    """Return the time of an ISO 8601 string, which is what to_dict wrote.
+
+    The one field `from_dict` converts before the constructor sees it, so
+    it is the one whose wrong value `assert_valid` cannot answer for:
+    `datetime.fromisoformat` refuses what is not a string with a
+    TypeError of its own and an unparsable string with a bare
+    ValueError, and a json boundary owes its caller neither.
+    """
+    assert_type(time, str, "time")
+    try:
+        return datetime.fromisoformat(time)
+    except ValueError as e:
+        raise BTClibValueError(f"invalid time: {e}") from e
 
 
 @dataclass
@@ -180,11 +198,12 @@ class BlockHeader:
         cls: type[BlockHeader], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> BlockHeader:
         """Build a BlockHeader from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "block header")
         return cls(
             dict_["version"],
             dict_["previous_block_hash"],
             dict_["merkle_root"],
-            datetime.fromisoformat(dict_["time"]),
+            _time_from_isoformat(dict_["time"]),
             dict_["bits"],
             dict_["nonce"],
             check_validity=check_validity,

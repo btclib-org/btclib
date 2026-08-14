@@ -18,7 +18,12 @@ from btclib.bip32.der_path import (
     str_from_der_path,
 )
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets, read_exactly
+from btclib.utils import (
+    bytes_from_octets,
+    fields_from_json_object,
+    list_from_json_array,
+    read_exactly,
+)
 
 __all__ = [
     "BIP32KeyOrigin",
@@ -99,6 +104,7 @@ class BIP32KeyOrigin:
         check_validity: bool = True,
     ) -> BIP32KeyOrigin:
         """Build a BIP32KeyOrigin from the dict shape to_dict writes."""
+        dict_ = fields_from_json_object(dict_, "key origin")
         return cls(
             dict_["master_fingerprint"],
             dict_["path"],
@@ -201,6 +207,7 @@ def _decode_from_bip32_deriv(
     *,
     check_validity: bool,
 ) -> tuple[bytes, BIP32KeyOrigin]:
+    bip32_deriv = fields_from_json_object(bip32_deriv, "bip32 derivation")
     master_fingerprint = bytes_from_octets(
         bip32_deriv["master_fingerprint"], 4 if check_validity else None
     )
@@ -220,6 +227,6 @@ def decode_from_bip32_derivs(
     return dict(
         sorted(
             _decode_from_bip32_deriv(item, check_validity=check_validity)
-            for item in bip32_derivs
+            for item in list_from_json_array(bip32_derivs, "bip32 derivations")
         )
     )

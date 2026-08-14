@@ -39,6 +39,7 @@ from btclib.alias import NetworkType
 from btclib.amount import valid_btc_amount
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
+from btclib.utils import assert_type
 
 __all__ = [
     "Bip21",
@@ -203,9 +204,13 @@ class Bip21:
 
     @classmethod
     def parse(cls, uri: str, *, check_validity: bool = True) -> Bip21:
-        """Return the Bip21 of a `bitcoin:` URI."""
-        if not isinstance(uri, str):
-            raise BTClibValueError(f"not a string: {type(uri).__name__}")
+        """Return the Bip21 of a `bitcoin:` URI.
+
+        A `str` and not the `String` the octet decoders take: a URI is
+        text, and a `BTClibTypeError` for what is not it -- the rule
+        CONTRIBUTING.md states, this parameter declaring one type.
+        """
+        assert_type(uri, str, "uri")
 
         scheme, separator, rest = uri.partition(":")
         # RFC 3986 makes a scheme case-insensitive, and a QR code writes

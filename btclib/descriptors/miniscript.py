@@ -90,7 +90,7 @@ from btclib.script.script import (
     push_int,
     serialize,
 )
-from btclib.utils import bytes_from_octets, decode_num, encode_num
+from btclib.utils import assert_type, bytes_from_octets, decode_num, encode_num
 from btclib.var_int import serialize as var_int_serialize
 
 __all__ = [
@@ -2048,7 +2048,13 @@ def parse(
     `prv_keys` is `descriptors.parse`'s: the mapping an extended private
     key is filed in, under the extended public key that replaces it, so
     that what a parsed expression holds is public.
+
+    A `str`, a BIP379 expression being text, and refused as a type for
+    the reason `descriptors.parse` gives: what was neither reached the
+    slicing below and left as "object of type X has no len()".
     """
+    assert_type(expression, str, "miniscript")
+
     if prv_keys is None:
         prv_keys = {}
     to_parse: list[tuple[str, int, int]] = [(_WRAPPED_EXPR, 0, 0)]

@@ -81,7 +81,7 @@ from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
     "MAGIC",
@@ -255,7 +255,15 @@ class Envelope:
         The magic is compared here rather than left to the caller: the
         first four bytes are what answer "is this a BIE1 envelope at all",
         and every offset below is meaningless if they do not.
+
+        Its type is asked before that comparison, and `b64decode` is
+        covered by the same question, handing this one what it was given:
+        a magic of no bytes type is unequal to whatever the buffer starts
+        with, so every envelope would have been refused for the bytes it
+        does carry rather than for the argument that cannot be any.
         """
+        assert_type(magic, bytes, "magic")
+
         data = bytes_from_octets(data)
         # the shortest envelope there can be: the four fixed-size fields
         # with a single block of ciphertext between them
@@ -294,11 +302,15 @@ class Envelope:
         # validate=True rejects that junk, and requiring the canonical
         # re-encoding covers what validate leaves to the interpreter --
         # see the same reasoning, at length, on bms.Sig.b64decode.
-        # Stripping covers bytes as well as str: the whitespace around a
-        # copied and pasted envelope is the one laxity worth tolerating
-        data = data.strip()
+        # The coercion before the strip, as that method does it and for
+        # the reason issue #814 gives: what is neither text nor bytes
+        # reached `.strip` untouched and left as an AttributeError about
+        # a missing method. Stripping covers bytes as well as str: the
+        # whitespace around a copied and pasted envelope is the one
+        # laxity worth tolerating
+        text = str_from_string(data, "base64 envelope").strip()
         try:
-            data_bin = data.encode("ascii") if isinstance(data, str) else data
+            data_bin = text.encode("ascii")
             data_decoded = base64.b64decode(data_bin, validate=True)
         except ValueError as e:  # binascii.Error and UnicodeEncodeError
             raise BTClibValueError(f"invalid base64 encoding: {e}") from e
