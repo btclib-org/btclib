@@ -69,6 +69,7 @@ from btclib.curves.curve import (
     _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_serves,
+    _libsecp256k1_xonly_pubkey_var,
     _y_even_var,
     mult,
     multi_mult_var,
@@ -236,6 +237,37 @@ class Sig:
 BIP340PubKey = Integer | Octets | BIP32Key | Point
 
 
+def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
+    """Return the x-coordinate of a BIP340 public key, however spelled.
+
+    The dispatch over the spellings, without the lift that
+    `point_from_bip340pub_key` puts on top of it: what an x-only key is
+    unlifted is an x, and a verification through the bindings has no use
+    for the y -- `libsecp256k1_ssa.verify_` takes the x-only key, and
+    proving x an x-coordinate is what parsing it does anyway (issue 887).
+
+    So the x that comes back here is not proved to be an x-coordinate of
+    anything: it is validated as far as its spelling goes, and whoever
+    lifts or parses it is what refuses the rest. Private for that reason.
+    """
+    # BIP340 key as integer
+    if isinstance(x_Q, int):
+        return x_Q
+
+    # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
+    # both classes, this being a guess at the spelling: a type no public
+    # key has may still be a BIP340 one -- an int is, and is a private
+    # key to `to_pub_key` -- so the refusal that names BIP340 is the one
+    # at the end
+    with contextlib.suppress(BTClibTypeError, BTClibValueError):
+        return point_from_pub_key(x_Q, ec)[0]
+    # BIP340 key as bytes or hex-string
+    if isinstance(x_Q, (str, bytes)):
+        return int.from_bytes(bytes_from_octets(x_Q, ec.p_size), "big", signed=False)
+
+    raise BTClibTypeError("not a BIP340 public key")
+
+
 def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     """Return a verified-as-valid BIP340 public key as Point tuple.
 
@@ -248,30 +280,13 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     """
     _assert_valid_ec(ec)
 
-    # every branch below ends in the same lift, an x-only key being an x
-    # and the even y that goes with it: _y_even_var is ec.y_even_var answered by
-    # libsecp256k1 for secp256k1, 2.9 us against the 75 of a modular
-    # square root, and the Python one for every other curve
-
-    # BIP340 key as integer
-    if isinstance(x_Q, int):
-        return x_Q, _y_even_var(x_Q, ec)
-
-    # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
-    # both classes, this being a guess at the spelling: a type no public
-    # key has may still be a BIP340 one -- an int is, and is a private
-    # key to `to_pub_key` -- so the refusal that names BIP340 is the one
-    # at the end
-    with contextlib.suppress(BTClibTypeError, BTClibValueError):
-        x_Q = point_from_pub_key(x_Q, ec)[0]
-        return x_Q, _y_even_var(x_Q, ec)
-    # BIP340 key as bytes or hex-string
-    if isinstance(x_Q, (str, bytes)):
-        Q = bytes_from_octets(x_Q, ec.p_size)
-        x_Q = int.from_bytes(Q, "big", signed=False)
-        return x_Q, _y_even_var(x_Q, ec)
-
-    raise BTClibTypeError("not a BIP340 public key")
+    # the lift is what validates the x, and the same one for every
+    # spelling: an x-only key is an x and the even y that goes with it.
+    # _y_even_var is ec.y_even_var answered by libsecp256k1 for secp256k1,
+    # 2.9 us against the 75 of a modular square root, and the Python one
+    # for every other curve
+    x = _x_from_bip340pub_key(x_Q, ec)
+    return x, _y_even_var(x, ec)
 
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
@@ -598,7 +613,9 @@ def assert_as_valid_(
     # the second one
     _assert_commitment_(commit_hash, receipt, sig, hf)
 
-    x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
+    # the x, and the y only where there is something to do with one: the
+    # curve is `sig.ec`, which `sig.assert_valid` above has checked
+    x_Q = _x_from_bip340pub_key(Q, sig.ec)
     msg = bytes_from_octets(msg)
 
     # the curve and the hash function, and not the size of the message:
@@ -607,17 +624,25 @@ def assert_as_valid_(
     # issue 169 down the Python path was the 32-byte gate in front of it,
     # never the call itself, and they are verified here now
     if _libsecp256k1_serves(sig.ec, hf):
-        pubkey_bytes = x_Q.to_bytes(32, "big")
+        # the x-only key parsed once, where the lift and this parse both
+        # used to run: xonly_pubkey_parse proves x an x-coordinate, which is
+        # what the lift proved, and it is the call the verification makes
+        # anyway -- so what goes is the lift, whose y nothing on this path
+        # reads, and the serialization inside it (issue 887)
+        xonly_pubkey = _libsecp256k1_xonly_pubkey_var(x_Q, sig.ec)
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one. What
         # it would run again is the lift of r, which is not free even
         # delegated: 0.14 us against 3.1, of a verification that is 21 in
         # total
         sig_bytes = sig.serialize(check_validity=False)
-        if not libsecp256k1_ssa.verify(msg, pubkey_bytes, sig_bytes):
+        if not libsecp256k1_ssa.verify_(msg, xonly_pubkey, sig_bytes):
             raise BTClibRuntimeError("signature verification failed")
         return
 
+    # the lift the branch above does not need, and the validation of x_Q
+    # with it: `_x_from_bip340pub_key` reads the key and proves nothing
+    y_Q = _y_even_var(x_Q, sig.ec)
     # Let c = int(hf(bytes(r) || bytes(Q) || msg)) mod n.
     c = challenge_(msg, x_Q, sig.r, sig.ec, hf)
     _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)

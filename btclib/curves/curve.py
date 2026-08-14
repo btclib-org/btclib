@@ -32,11 +32,13 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
+from btclib_secp256k1 import CData
 from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_secp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
 from btclib_secp256k1.keys import serialize as libsecp256k1_pubkey_serialize
 from btclib_secp256k1.mult import mult as libsecp256k1_mult
+from btclib_secp256k1.xonly import parse as libsecp256k1_xonly_parse
 
 from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (
@@ -527,6 +529,37 @@ def _y_even_var(x: int, ec: Curve) -> int:
             return int.from_bytes(uncompressed[ec.p_size + 1 :], "big")
 
     return ec.y_even_var(x)
+
+
+def _libsecp256k1_xonly_pubkey_var(x: int, ec: Curve) -> CData:
+    """Return the x-only key libsecp256k1 parses from x, or refuse x.
+
+    What `_y_even_var` above proves of an x is what xonly_pubkey_parse
+    proves of the same octets: that some point of the curve has it. Where
+    the answer is on its way to a BIP340 verification the parse is the call
+    that has to happen anyway, so it is the whole of the proof rather than
+    a second one standing beside a lift whose y nobody reads -- 2.9 us of a
+    21 us verification, and the lift's serialization with it (issue 887).
+
+    The two refusals are `ec.y_var`'s, and they are spelled out here rather
+    than reached by calling it: this function exists not to take that
+    square root, and on the failing path it is the message that would pay
+    for one.
+
+    For secp256k1, the one curve `_libsecp256k1_serves` admits and so the
+    one that reaches this.
+    """
+    if not 0 <= x < ec.p:
+        err_msg = "x-coordinate not in 0..p-1: "
+        err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
+        raise BTClibValueError(err_msg)
+
+    try:
+        return libsecp256k1_xonly_parse(x.to_bytes(ec.p_size, byteorder="big"))
+    except ValueError as e:
+        err_msg = "invalid x-coordinate: "
+        err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
+        raise BTClibValueError(err_msg) from e
 
 
 def _sec_from_point(Q: Point) -> bytes:

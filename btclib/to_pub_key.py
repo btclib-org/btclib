@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import contextlib
 
+from btclib_secp256k1 import CData
+from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
+
 from btclib.alias import Point
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import (
@@ -19,7 +22,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.curve import _assert_valid_ec
-from btclib.curves.sec_point import _sec_from_octets
+from btclib.curves.sec_point import _sec_and_pubkey_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
@@ -235,6 +238,60 @@ def pub_keyinfo_from_pub_key(
     pub_key: PubKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
+    return _pub_keyinfo_and_pubkey_from_pub_key(pub_key, network, compressed)[0]
+
+
+def _libsecp256k1_pubkey_from_pub_key(pub_key: PubKey) -> CData:
+    """Return the key as one parsed libsecp256k1 pubkey, however spelled.
+
+    `pub_keyinfo_from_pub_key` proves a public key valid and answers the
+    octets, so a caller going on to verify a signature under it had
+    libsecp256k1 parse those octets a second time -- and for a compressed
+    key each parse is a field square root, 2.35 us of a 22.78 us
+    verification (issue 887). This is the same validation with the parsed
+    key kept instead of dropped, which is what `dsa.verify_` takes.
+
+    Where the validation parsed nothing, the octets it answered are parsed
+    here, and what that costs is the form they are in. The uncompressed
+    octets of `point_from_octets` are 0.26 us, both coordinates being there
+    to read; an xpub or a BIP32KeyData *is* 33 compressed octets with no y
+    anywhere, so its parse is a field square root and nothing here can help
+    it.
+
+    A `Point` is the spelling that looks like the second and is the first,
+    which is why it has a branch of its own: `pub_keyinfo_from_pub_key`
+    answers the compressed form for it -- `compressed=None` means "whatever
+    the key says" and a point says nothing -- so parsing that would lift an
+    x whose y the caller had in hand a line earlier, 3.25 us against 1.24
+    for the uncompressed round trip. It is also the spelling a caller who
+    parses once and keeps the result reaches for, which is what makes it
+    worth the branch.
+
+    No network and no compressed filter, which is what its one caller
+    asks for: a verification takes the key as the key says it is, and the
+    curve it is asked about is the signature's.
+    """
+    if isinstance(pub_key, tuple):
+        # bytes_from_point is the validation this branch skips
+        # `pub_keyinfo_from_pub_key` for: it refuses what is not a point of
+        # the curve, and infinity, which is the whole of what the tuple
+        # branch there does
+        return libsecp256k1_pubkey_parse(bytes_from_point(pub_key, secp256k1, False))
+
+    (sec, _), pubkey = _pub_keyinfo_and_pubkey_from_pub_key(pub_key, None, None)
+    return libsecp256k1_pubkey_parse(sec) if pubkey is None else pubkey
+
+
+def _pub_keyinfo_and_pubkey_from_pub_key(
+    pub_key: PubKey, network: str | None, compressed: bool | None
+) -> tuple[PubkeyInfo, CData | None]:
+    """Return the pub key tuple, and the parsed key if validating built one.
+
+    The body of `pub_keyinfo_from_pub_key`, which is the spelling for a
+    caller with nothing to do with a parsed key; the two exist as one
+    function so that the dispatch over the spellings of a public key stays
+    written once.
+    """
     _assert_pub_key_type(pub_key)
     # as in `to_prv_key.prv_keyinfo_from_prv_key`: None means "whatever
     # the key says", and every other spelling of a truth is refused
@@ -246,11 +303,11 @@ def pub_keyinfo_from_pub_key(
     ec = network_from_name(net).curve
 
     if isinstance(pub_key, tuple):
-        return bytes_from_point(pub_key, ec, compr), net
+        return (bytes_from_point(pub_key, ec, compr), net), None
     if isinstance(pub_key, BIP32KeyData):
-        return _pub_keyinfo_from_xpub(pub_key, network, compressed)
+        return _pub_keyinfo_from_xpub(pub_key, network, compressed), None
     with contextlib.suppress(TypeError, BTClibValueError):
-        return _pub_keyinfo_from_xpub(pub_key, network, compressed)
+        return _pub_keyinfo_from_xpub(pub_key, network, compressed), None
     # it must be octets, and compressed is a filter on which form they may
     # be in rather than a conversion to it: the size below is required of
     # the input, so octets that pass come back in the form they came in
@@ -266,7 +323,8 @@ def pub_keyinfo_from_pub_key(
         raise BTClibValueError("not a public key") from e
 
     # verify that it is a valid point, which is all there is left to do
-    return _sec_from_octets(pub_key, ec), net
+    sec, pubkey = _sec_and_pubkey_from_octets(pub_key, ec)
+    return (sec, net), pubkey
 
 
 def pub_keyinfo_from_prv_key(
