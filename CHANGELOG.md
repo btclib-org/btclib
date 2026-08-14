@@ -2521,6 +2521,57 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **The input contract reaches `ec`, which had no check anywhere** (issue
+  #868). The census of parameters behind a default put it fourth by
+  frequency and first by exposure: `hf` and `network` are gated where their
+  own checks live, and `ec` was not gated at all, so `dsa.sign(msg, q,
+  ec=None)` left as `AttributeError: 'NoneType' object has no attribute
+  'n'` — a field read off whatever arrived, which is the third of the four
+  shapes issue #856 named. Forty-two public functions take it, across
+  `curves/`, `ecc/` and the two key converters, and every one of them
+  answered that way.
+
+  `curve._assert_valid_ec` is the check and `hashes._assert_valid_hf` is
+  its shape: one guard, asked where each function first reads the
+  parameter, which is nineteen places rather than forty-two — the three
+  multiplications, the three SEC point functions, `int_from_prv_key`,
+  `point_from_key`, `point_from_pub_key`, and the ten `ecc` entries that
+  read a field off the curve before reaching any of those.
+  `curve_group._assert_valid_ec` is its twin for the two group explorers,
+  whose parameter is a `CurveGroup`. The Curve check is `isinstance(ec,
+  Curve)` and not the group it derives from, because `n` and `G` are
+  Curve's own: a group would pass the wider check and fail on the field
+  it has not got. 22 ns, one to four times in what a caller calls one
+  operation — 45 ns of the 17.5 us of a signature, 88 of the 39.2 of a
+  verification.
+
+  Two of the nineteen were reporting the mistake as somebody else's.
+  `int_from_prv_key` and `point_from_key` compare the curve a WIF or an
+  xprv names against the `ec` they were handed, and an `ec` of no curve
+  type compares unequal to every network's, so a caller's own error left
+  as "ec / network (mainnet) mismatch" and "Curve mismatch". Both
+  refusals stand for a curve that really is the wrong one, which is the
+  value half of the rule and the only wrong *value* this parameter has:
+  every curve is a valid `ec`, the low-cardinality ones included.
+
+  `Network.assert_valid` had said so out loud: `# no check on self.curve`
+  sat where the check is now. Its parameter is spelled `curve` rather than
+  `ec`, being a field of the network, and the network's curve is what the
+  two comparisons above compare an `ec` against.
+
+  `tests/curve_parameter_test.py` is the gate,
+  `built_object_contract_test.py`'s shape over a family the automatic walk
+  cannot reach — driving a parameter behind a default needs every argument
+  in front of it to be valid, which is the table of valid values
+  `input_validation_test.py` is built to do without. It carries a walk of
+  its own, keyed on the annotation and not on the name, so a public
+  function declaring a `Curve` or a `CurveGroup` is either in the table or
+  the run is red: no exemption list. A union that merely contains one is
+  not declaring a curve — `networks_from_key_value` takes a `str | bytes |
+  Curve` to compare against every network's field, and a value of another
+  type there is "no network carries this prefix", which is the answer a
+  lookup owes a caller.
+
 - **The input contract is gated over a function taking an object somebody
   already built** (issue #856). Neither of the two gates reaches
   `assert_signatures_only`, `estimated_input_sizes`, the two

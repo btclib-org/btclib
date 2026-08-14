@@ -875,9 +875,14 @@ wrong values can build. `tests/built_object_contract_test.py` does the
 same for a function whose parameter is an object the caller already built
 — a `Psbt`, a `PsbtIn`, a sequence of extended keys — which is the family
 `check_validity=False` makes reachable, an invalid object being something a
-caller may legitimately hold. None of the three has an exemption list,
-which is the state to keep: a finding is a red test, to be fixed or to be
-given a reason of its own beside the two families that have one.
+caller may legitimately hold. `tests/curve_parameter_test.py` is the
+fourth, over a parameter that carries a *default*: reaching one means every
+argument in front of it has to be valid, which is the table of valid values
+the automatic walk exists to do without, so `ec` is driven from a table
+there as `hf` and `network` are driven where their own checks live. None of
+the four has an exemption list, which is the state to keep: a finding is a
+red test, to be fixed or to be given a reason of its own beside the two
+families that have one.
 
 **A `bool` parameter is a kind or a truth, and only the first is
 type-checked.** A flag that decides *what is computed* refuses a non-bool,

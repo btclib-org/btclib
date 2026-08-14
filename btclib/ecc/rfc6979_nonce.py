@@ -30,6 +30,7 @@ from hashlib import sha256
 
 from btclib.alias import HashF, Octets
 from btclib.curves import Curve, secp256k1
+from btclib.curves.curve import _assert_valid_ec
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
@@ -48,6 +49,11 @@ def challenge_(
     reduced mod n. The message enters already reduced -- a digest of
     hf's size, which is what the trailing underscore says.
     """
+    # the challenge is the first thing `rfc6979_nonce_` and dsa's signing
+    # and anti-exfil entry points compute, so the curve they were handed
+    # is read here first
+    _assert_valid_ec(ec)
+
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)

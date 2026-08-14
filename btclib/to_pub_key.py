@@ -18,6 +18,7 @@ from btclib.curves import (
     point_from_octets,
     secp256k1,
 )
+from btclib.curves.curve import _assert_valid_ec
 from btclib.curves.sec_point import _sec_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
@@ -114,6 +115,11 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
+    # as in `point_from_pub_key` below and `to_prv_key.int_from_prv_key`:
+    # a WIF is compared against the curve rather than parsed with it, and
+    # an ec of no curve type compares unequal to every network's, which is
+    # "Curve mismatch" for what is a caller's own mistake
+    _assert_valid_ec(ec)
     _assert_key_type(key)
 
     if isinstance(key, tuple):
@@ -135,6 +141,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
 def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     """Return an elliptic curve point tuple from a public key."""
+    _assert_valid_ec(ec)
     _assert_pub_key_type(pub_key)
 
     if isinstance(pub_key, tuple):

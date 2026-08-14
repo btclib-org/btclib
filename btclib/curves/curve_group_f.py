@@ -12,7 +12,7 @@ never used -- in the rest of the library.
 from __future__ import annotations
 
 from btclib.alias import INF, Point
-from btclib.curves.curve_group import CurveGroup
+from btclib.curves.curve_group import CurveGroup, _assert_valid_ec
 from btclib.exceptions import BTClibValueError
 
 __all__ = [
@@ -26,6 +26,7 @@ def find_all_points(ec: CurveGroup) -> list[Point]:
 
     Very unsofisticated walk-through approach, for didactic sake only.
     """
+    _assert_valid_ec(ec)
     if ec.p > 10000:
         err_msg = f"p is too big to count all group points: {ec.p}"
         raise BTClibValueError(err_msg)
@@ -49,6 +50,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> list[Point]:
 
     Very unsofisticated walk-through approach, for didactic sake only.
     """
+    _assert_valid_ec(ec)
     if ec.p > 10000:
         err_msg = f"p is too big to count all subgroup points: {ec.p}"
         raise BTClibValueError(err_msg)
