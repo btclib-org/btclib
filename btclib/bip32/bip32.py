@@ -23,6 +23,7 @@ A BIP32 extended key is 78 bytes:
 
 from __future__ import annotations
 
+import functools
 import hmac
 from dataclasses import dataclass
 
@@ -77,6 +78,44 @@ __all__ = [
 
 _KEY_SIZE = [("version", 4), ("parent_fingerprint", 4), ("chain_code", 32), ("key", 33)]
 _REQUIRED_LENGTH = 78
+
+
+@functools.lru_cache(maxsize=2048)
+def _cached_base58_decode(address: String) -> bytes:
+    """Return `base58.decode(address)`, memoized on the xprv/xpub string.
+
+    `derive` decodes its `xkey` argument fresh on every call, and a
+    caller deriving many indices or paths from one account key -- what
+    `derive_from_account` does once per address -- pays for decoding
+    that same root again each time. `maxsize` is bounded rather than
+    `None` for the reason `pedersen.second_generator`'s cache states:
+    `address` is caller-supplied, and an unbounded cache on it would be
+    a memory leak (issue #287).
+
+    2048 rather than the module's usual bare default (128) is measured
+    on two workloads: btclib's own suite, and a caller that also calls
+    `b58decode` directly once per derived key, on top of what `derive`
+    already does (checksig#643, the heavier of the two). Hit rate at
+    128, 512, 1024 and 2048 respectively: 22.2%, 24.3%, 27.5% and 28.8%
+    for the first; 52.8%, 55.6%, 56.1% and 72.9% for the second -- most
+    of the second workload's climb from 1024 to 2048, the first
+    already flat by then.
+
+    Past 2048 the second workload keeps climbing -- at 8192 it is still
+    full and evicting -- but so does what stays resident: `address` may
+    be an xprv, and every entry is a decoded key kept alive past its
+    caller's own reference to it. 2048 is where the first workload has
+    already flattened and the second has just cleared its own knee,
+    rather than chasing a ratio neither workload's own shape asks for.
+
+    Bytes, not the `BIP32KeyData` `b58decode` builds from them: frozen
+    does not stop `object.__setattr__`, which
+    `tests/bip32/bip32_test.py::test_assert_valid2` uses on purpose to
+    corrupt independent instances decoded from the same string, so
+    `b58decode` still has to construct a fresh one on every call. Bytes
+    are the one result here nobody can mutate by accident.
+    """
+    return base58.decode(address)
 
 
 def _assert_valid_depth_and_index(
@@ -326,7 +365,7 @@ class BIP32KeyData:
         if isinstance(address, str):
             address = address.strip()
 
-        xkey_bin = base58.decode(address)
+        xkey_bin = _cached_base58_decode(address)
         return cls.parse(xkey_bin, check_validity=check_validity)
 
 

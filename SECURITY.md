@@ -101,7 +101,11 @@ used to teach and to prototype as much as to build:
     immutable and not zeroized: it stays in the process memory until
     garbage collection, and may have been copied by the interpreter
     meanwhile. The constant-time properties of libsecp256k1 apply to the
-    C side of the boundary, not to what happens before and after it
+    C side of the boundary, not to what happens before and after it.
+    `bip32._cached_base58_decode` extends this by one step for an xprv
+    or xpub string handed to `derive` or `derive_from_account`: the
+    decoded key stays reachable from that cache, bounded by its
+    `maxsize`, past whatever reference the caller itself still holds
 - not every operation crosses that boundary. `mult`, `double_mult` and
     `multi_mult` reach the bindings for secp256k1 and any point of it, a
     zero scalar and the point at infinity excepted — libsecp256k1 has no
