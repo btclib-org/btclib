@@ -169,6 +169,12 @@ class Curve(CurveGroup):
 
         self.G = _generator_from_point(G, self)
         self.GJ = self.G[0], self.G[1], 1  # Jacobian coordinates
+        # the generator and its opposite are what a verification hands the
+        # same on every call, so their wNAF tables are memoized and held
+        # wide; _cached_odd_multiples_aff says what that buys. The
+        # endomorphism's images of the two are fixed as well and are added
+        # by _double_mult_endomorphism_secp256k1, which is what forms them
+        self._fixed_points = frozenset({self.GJ, self.negate_jac(self.GJ)})
 
         n = int_from_integer(n)
 

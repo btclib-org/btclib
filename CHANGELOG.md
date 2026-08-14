@@ -2165,6 +2165,39 @@ documented at release-notes length in the first place, and are still in
   applicable `mult` has returned before either -- what reaches this is
   every other curve, and secp256k1 with the dispatch patched off, which
   is what the suite holds the bindings against.
+- **A verification stops rebuilding the generator's table** (issue #803).
+  `_multi_mult_w_NAF` built one table per point per call, and one of the
+  points of a verification is the generator, which is the same on every
+  call. `Curve` now names its own fixed points -- the generator and its
+  opposite -- `_cached_odd_multiples_aff` memoizes their tables, and a
+  memoized table can be held at a width a per-call one could not pay for:
+  a wNAF has one nonzero digit in w+1, so the wide window is fewer
+  additions in the loop that indexes it. libsecp256k1 splits the two the
+  same way, `WINDOW_G` of 15 for the generator against `WINDOW_A` of 5
+  for the variable point.
+
+  Measured against `502d2789` on Python 3.14.6, best of seven alternating
+  rounds over 30 random 256-bit coefficient pairs:
+
+  | | per call | memoized | |
+  | --- | ---: | ---: | ---: |
+  | `_double_mult_endomorphism_secp256k1` | 715 us | 577 us | **1.24x** |
+  | `_double_mult_w_NAF`, secp256r1 | 1000 us | 878 us | **1.14x** |
+  | `_multi_mult_w_NAF`, 8 points, one fixed | 2160 us | 2048 us | **1.05x** |
+
+  The first row has four halves of which two are fixed, the endomorphism
+  splitting the generator into `±G` and `±beta*G`: those images are
+  formed by `_double_mult_endomorphism_secp256k1` and named fixed there,
+  which is the one place that knows them. The width is 10 by measurement
+  -- 1.07x at 4, 1.12x at 6, 1.15x at 8, 1.18x at 10, 1.20x at 12,
+  against a table that doubles at every step -- and capped at
+  `ec.scalar_len`, a window wider than the scalars buying nothing and
+  costing a table: uncapped it was the low-cardinality curves of the
+  suite that paid, 40 s of it against 17.
+
+  `_double_mult_w_NAF` is now `_multi_mult_w_NAF` of two points rather
+  than a second copy of the same loop. What it keeps is the two messages
+  its own coefficients answer with, and the name the algorithm has.
 
 ### The public API and the module layout
 

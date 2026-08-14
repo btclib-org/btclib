@@ -187,6 +187,11 @@ class CurveGroup:
         # these are zero, and nothing there is worth timing anyway
         self._stand_in_q = p // 3, p // 5, p // 7
         self._stand_in_r = p // 11, p // 13, p // 17
+        # the points whose wNAF table is worth memoizing rather than
+        # rebuilding per call: the ones the curve itself names, which a
+        # verification hands the same on every call. A CurveGroup names
+        # none -- it has no generator -- and Curve fills this in
+        self._fixed_points: frozenset[JacPoint] = frozenset()
 
     def __str__(self) -> str:
         # the class name, not the literal "Curve": the two classes hold
@@ -1006,6 +1011,30 @@ def _odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
     return ec.aff_from_jac_batch(_odd_multiples(Q, ec, w))
 
 
+# the width a point of ec._fixed_points has its table built at, against
+# the narrow one a point that arrives once is worth. The measurement is in
+# _multi_mult_w_NAF's docstring
+_FIXED_POINT_W = 10
+
+
+@functools.lru_cache  # a fixed point's table is the same on every call
+def _cached_odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
+    """Return `_odd_multiples_aff` memoized, for a point known in advance.
+
+    What memoizing buys is not the building alone: a table that is not
+    rebuilt can be held at a width a per-call one could not pay for, and a
+    wNAF has one nonzero digit in w+1, so the wider window is fewer
+    additions in the loop that indexes it. libsecp256k1 splits the two the
+    same way, `WINDOW_A` of 5 for the variable point against a `WINDOW_G`
+    of 15 for the generator, whose table it generates at build time.
+
+    Only the points of `ec._fixed_points` may be handed here: a table
+    memoized on a public key is a table built once, used once and kept
+    for ever.
+    """
+    return _odd_multiples_aff(Q, ec, w)
+
+
 def _signed_odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
     """Return the 2^w multiples a signed odd width-w digit names, affine.
 
@@ -1432,7 +1461,11 @@ _MULTI_MULT_W = 5
 
 
 def _multi_mult_w_NAF(
-    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup, w: int
+    scalars: Sequence[int],
+    jac_points: Sequence[JacPoint],
+    ec: CurveGroup,
+    w: int,
+    fixed: frozenset[JacPoint],
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
@@ -1470,6 +1503,26 @@ def _multi_mult_w_NAF(
     here, so the split lives with the curve that has it and the
     interleaving stays one implementation.
 
+    `fixed` is the points whose table is worth memoizing rather than
+    building here: `ec._fixed_points`, or that set with the endomorphism's
+    images added by the caller that forms them. A memoized table can be
+    held at a width a per-call one could not pay for, `_FIXED_POINT_W`
+    against the `w` every other point gets, and a wNAF has one nonzero
+    digit in w+1, so the wide window is fewer additions in the loop. That
+    is libsecp256k1's `WINDOW_G` of 15 beside its `WINDOW_A` of 5, on a
+    table it generates at build time.
+
+    Measured over 30 random 256-bit coefficient pairs, best of seven
+    alternating rounds, memoized against built per call: 1.24x on
+    `_double_mult_endomorphism_secp256k1`, whose four halves are two fixed
+    points and two of the caller's, and 1.14x on `_double_mult_w_NAF` over
+    secp256r1, which has one of each. With eight points of which one is
+    the generator it is 1.05x, the fixed point being an eighth of the
+    work. `_FIXED_POINT_W` is 10 by measurement on the first of those:
+    1.07x at 4, 1.12x at 6, 1.15x at 8, 1.18x at 10, 1.20x at 12, against
+    a table that doubles at every step -- and capped at `ec.scalar_len`,
+    a window wider than the scalars buying nothing and costing a table.
+
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic
     groups of order n).
@@ -1482,8 +1535,24 @@ def _multi_mult_w_NAF(
     if not pairs:
         return INFJ
 
-    nafs = [_wNAF_of_m(n, w) for n, _ in pairs]
-    tables = [_odd_multiples_aff(PJ, ec, w) for _, PJ in pairs]
+    # a point the caller hands the same on every call gets the memoized
+    # table of _cached_odd_multiples_aff, at the wider window that only a
+    # memoized table can pay for; every other point gets its own, built
+    # here and dropped with the call
+    # a window wider than the scalars themselves buys nothing and costs a
+    # table, which is what the cap is for: the low-cardinality curves of
+    # the test suite have a scalar_len of a handful of bits
+    fixed_w = min(_FIXED_POINT_W, ec.scalar_len)
+    nafs = []
+    tables = []
+    for n, PJ in pairs:
+        width = fixed_w if PJ in fixed else w
+        nafs.append(_wNAF_of_m(n, width))
+        tables.append(
+            _cached_odd_multiples_aff(PJ, ec, width)
+            if PJ in fixed
+            else _odd_multiples_aff(PJ, ec, width)
+        )
 
     R = INFJ
     for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
@@ -1613,5 +1682,7 @@ def _multi_mult(
     groups of order n).
     """
     if sum(1 for n in scalars if n) < BOS_COSTER_THRESHOLD:
-        return _multi_mult_w_NAF(scalars, jac_points, ec, _MULTI_MULT_W)
+        return _multi_mult_w_NAF(
+            scalars, jac_points, ec, _MULTI_MULT_W, ec._fixed_points
+        )
     return _multi_mult_bos_coster(scalars, jac_points, ec)
