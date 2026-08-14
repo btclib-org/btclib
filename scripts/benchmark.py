@@ -58,14 +58,19 @@ ssa_sig = ssa.sign_(msg_hash, prvkey, aux=bytes(32))
 
 
 def python_arithmetic_only() -> None:
-    """Turn btclib's libsecp256k1 dispatch off, in every namespace.
+    """Turn btclib's libsecp256k1 dispatch off, in the three timed here.
 
-    `_libsecp256k1_applicable` is imported by name into `ecc.dsa`,
-    `ecc.ssa` and `curves.curve`: patching one leaves the other two
-    delegating, so a partial patch would still measure C in a row meant
-    to measure Python -- dsa's and ssa's own verification calls into
-    curve's double multiplication underneath whichever implementation
-    answers the boundary check first.
+    `_libsecp256k1_applicable` is defined in `curves.curve` and imported
+    by name into nine modules, so patching one leaves the other eight
+    delegating and a row meant to measure Python measures C -- dsa's and
+    ssa's own verification calls into curve's double multiplication
+    underneath whichever implementation answers the boundary check first.
+
+    Three are enough for the rows below and not for a row that derives a
+    public key: `curves.sec_point` asks the same question in
+    `bytes_from_prv_key_int`, which is what `benchmark_python.py` found
+    when its pure-Python public key came back at bindings speed. A row
+    added here has to add its module to the tuple.
 
     Called once, after the fixtures above are signed: they go through
     the bindings too, and there is no reason to slow those down.
