@@ -273,7 +273,7 @@ class SignerDecorator:
         """Wrap a signer, carrying over the operations it offers.
 
         Whether what is passed is a signer at all is `psbt_signer_contract
-        .check_psbt_signer`'s question, asked of the signer itself and not
+        .assert_psbt_signer`'s question, asked of the signer itself and not
         of the wrapper around it: repeating a weaker form of it here would
         answer "it has five methods" to a caller who needs to know what
         they answer.

@@ -2254,6 +2254,44 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`check_` said four things, and therefore nothing** (issue #814).
+  Thirteen public functions carried the prefix: nine refusals returning
+  `None`, two bool verdicts, a converter returning bytes and a query
+  returning a pair of bools. Each of those shapes already had a name in
+  this library, so eleven of the thirteen were named for what they do
+  and the prefix keeps the one meaning that was left.
+
+  The nine refusals are `assert_*`, which is what their own docstrings
+  said all along -- "Reject a signature that failed to verify",
+  "Enforce Core's MAX_STACK_SIZE", "Reject an op code disabled by
+  CVE-2010-5137". `b32.check_witness` returned the witness program it
+  had validated, so it is `bytes_from_witness_program`, after
+  `bytes_from_octets` whose size rule it is;
+  `psbt_signer_contract.check_optional_protocols` answers which
+  protocols a signer offers, so it is `optional_protocols`.
+
+  What keeps `check_` is the two that answer a bool **and** refuse what
+  cannot be an answer, which is a fourth contract worth a name of its
+  own: it is the prefix that warns a caller an `except` is still needed.
+  `script.engine.script.check_pub_key` is False for a wrong length and
+  raises for a hybrid prefix under STRICTENC, which is how Core's
+  `CheckPubKeyEncoding` splits it; `taproot.check_output_pubkey` raises
+  for a malformed control block, that being no proof rather than a
+  disproof. Both said so in their docstrings already.
+
+  So the four prefixes are a closed vocabulary now, stated in
+  CONTRIBUTING.md beside the rule above -- and gated, which is the part
+  that keeps it: `tests/name_contract_test.py` reads the return
+  annotation of every public name carrying one of them. `check_` drifted
+  because the vocabulary was a habit, and nothing in the tree could
+  notice. Seven names answer something else and are listed with the
+  reason: the script engine's six `verify_*`, which refuse rather than
+  answer because a `ScriptError` carries the command index and the stack
+  depth that a bool would drop, and `bip322.assert_signed_message`,
+  which hands back the message whose five conditions it just checked.
+  The `op_*verify` op code implementations are not verifications in this
+  sense and are excluded by name.
+
 - **A `bool` is an answer about a value of a declared type** (issue
   #814). `script_pub_key.is_p2sh` already drew that line -- bytes that
   are not a p2sh script are `False`, a float is a `BTClibTypeError` --

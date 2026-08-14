@@ -277,7 +277,7 @@ def _run_ops(  # noqa: C901, PLR0912
 
         skip_execution = not all(condition_stack)
 
-        script_op_codes.check_stack_size(stack, altstack)
+        script_op_codes.assert_stack_size(stack, altstack)
 
         b = s.read(1)
         if not b:
@@ -414,7 +414,7 @@ def verify_script_path_vc0(
         # exception is there for the cases in which it is not
         raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
 
-    script_op_codes.check_balanced_if(condition_stack)
+    script_op_codes.assert_balanced_if(condition_stack)
 
     if not stack:
         raise BTClibValueError("empty stack at the end of the script")

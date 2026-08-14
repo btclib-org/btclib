@@ -26,8 +26,8 @@ from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import PsbtSigner, SignerCapabilities, SoftwareSigner
 from btclib.psbt_signer_contract import (
     _SOMEBODY_ELSES_KEY,
-    check_optional_protocols,
-    check_psbt_signer,
+    assert_psbt_signer,
+    optional_protocols,
     unsignable_psbt,
 )
 from btclib.script import serialize, sig_hash
@@ -97,19 +97,19 @@ def _signable() -> Psbt:
 
 def test_the_reference_signer_conforms() -> None:
     """What the checks are calibrated against."""
-    check_psbt_signer(_signer(), der_path=_ACCOUNT, signable=_signable())
+    assert_psbt_signer(_signer(), der_path=_ACCOUNT, signable=_signable())
 
 
 def test_the_optional_protocols_are_reported() -> None:
     """SoftwareSigner offers both; a signer of the four methods, neither."""
-    assert check_optional_protocols(_signer()) == (True, True)
-    assert check_optional_protocols(_Wrapper()) == (False, False)
+    assert optional_protocols(_signer()) == (True, True)
+    assert optional_protocols(_Wrapper()) == (False, False)
 
 
 def test_something_that_is_not_a_signer_is_refused() -> None:
     """The one check a caller cannot make with a type annotation."""
     with pytest.raises(BTClibValueError, match="does not implement PsbtSigner"):
-        check_psbt_signer(object())
+        assert_psbt_signer(object())
 
 
 def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
@@ -120,7 +120,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
             return b"\x00" * 5
 
     with pytest.raises(BTClibValueError, match="is 5 bytes, not 4"):
-        check_psbt_signer(_TooLong())
+        assert_psbt_signer(_TooLong())
 
     # and short of it, which a width checked as a ceiling would accept: a
     # three-byte fingerprint is what a key origin would then be written to
@@ -129,7 +129,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
             return b"\x00" * 3
 
     with pytest.raises(BTClibValueError, match="is 3 bytes, not 4"):
-        check_psbt_signer(_TooShort())
+        assert_psbt_signer(_TooShort())
 
 
 def test_a_fingerprint_that_changes_is_refused() -> None:
@@ -145,7 +145,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             return bytes([self._asked, 0, 0, 0])
 
     with pytest.raises(BTClibValueError, match="two different values"):
-        check_psbt_signer(_Drifting())
+        assert_psbt_signer(_Drifting())
 
     # drifting the other way, which is the same disagreement: what the
     # check asks is whether the two answers are one answer, and an
@@ -160,7 +160,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             return bytes([self._asked, 0, 0, 0])
 
     with pytest.raises(BTClibValueError, match="two different values"):
-        check_psbt_signer(_Receding())
+        assert_psbt_signer(_Receding())
 
 
 def test_an_xpub_that_is_not_an_extended_key_is_refused() -> None:
@@ -171,7 +171,7 @@ def test_an_xpub_that_is_not_an_extended_key_is_refused() -> None:
             return "not a key at all"
 
     with pytest.raises(BTClibValueError, match="not an extended key"):
-        check_psbt_signer(_Nonsense(), der_path=_ACCOUNT)
+        assert_psbt_signer(_Nonsense(), der_path=_ACCOUNT)
 
 
 def test_an_xpub_that_is_private_is_refused() -> None:
@@ -182,7 +182,7 @@ def test_an_xpub_that_is_private_is_refused() -> None:
             return derive(bip39.mxprv_from_mnemonic(_MNEMONIC, "", "mainnet"), der_path)
 
     with pytest.raises(BTClibValueError, match="answered a private key"):
-        check_psbt_signer(_Leaking(), der_path=_ACCOUNT)
+        assert_psbt_signer(_Leaking(), der_path=_ACCOUNT)
 
 
 def test_an_xpub_that_changes_is_refused() -> None:
@@ -198,7 +198,7 @@ def test_an_xpub_that_changes_is_refused() -> None:
             return self._signer.xpub(f"m/84h/0h/{self._asked}h")
 
     with pytest.raises(BTClibValueError, match="two different keys"):
-        check_psbt_signer(_Drifting(), der_path=_ACCOUNT)
+        assert_psbt_signer(_Drifting(), der_path=_ACCOUNT)
 
     # and the two keys the other way round: whichever of the two base58
     # strings sorts first, they are two keys for one path
@@ -212,7 +212,7 @@ def test_an_xpub_that_changes_is_refused() -> None:
             return self._signer.xpub(f"m/84h/0h/{self._asked}h")
 
     with pytest.raises(BTClibValueError, match="two different keys"):
-        check_psbt_signer(_Receding(), der_path=_ACCOUNT)
+        assert_psbt_signer(_Receding(), der_path=_ACCOUNT)
 
 
 def test_signing_an_input_of_another_master_is_refused() -> None:
@@ -238,7 +238,7 @@ def test_signing_an_input_of_another_master_is_refused() -> None:
             return answer
 
     with pytest.raises(BTClibValueError, match="names another master"):
-        check_psbt_signer(_Rogue())
+        assert_psbt_signer(_Rogue())
 
 
 def test_a_signer_that_signs_nothing_it_was_said_to_sign_is_refused() -> None:
@@ -249,7 +249,7 @@ def test_a_signer_that_signs_nothing_it_was_said_to_sign_is_refused() -> None:
             return deepcopy(psbt)
 
     with pytest.raises(BTClibValueError, match="added no signature"):
-        check_psbt_signer(_Idle(), signable=_signable())
+        assert_psbt_signer(_Idle(), signable=_signable())
 
 
 def test_the_unsignable_psbt_names_another_master() -> None:
@@ -273,7 +273,7 @@ def test_a_conforming_signer_is_closed_twice() -> None:
 
     # the forwarding wrapper answers every question here, which is what
     # says the checks pass for a signer that is not SoftwareSigner itself
-    check_psbt_signer(_Counting(), der_path=_ACCOUNT)
+    assert_psbt_signer(_Counting(), der_path=_ACCOUNT)
     assert closed == 2
 
 
@@ -285,7 +285,7 @@ def test_the_wrapper_is_a_signer() -> None:
 def test_something_that_is_not_a_psbt_is_refused() -> None:
     """`signable` is checked rather than assumed, being typed `object`."""
     with pytest.raises(BTClibValueError, match="is str, not a Psbt"):
-        check_psbt_signer(_signer(), signable="not a psbt")
+        assert_psbt_signer(_signer(), signable="not a psbt")
 
 
 def test_capabilities_that_change_are_refused() -> None:
@@ -301,7 +301,7 @@ def test_capabilities_that_change_are_refused() -> None:
             return SignerCapabilities(taproot=self._asked % 2 == 0)
 
     with pytest.raises(BTClibValueError, match="capabilities answered two"):
-        check_psbt_signer(_Drifting())
+        assert_psbt_signer(_Drifting())
 
 
 # two more seeds, so a quorum can hold a signature that is not the
@@ -357,7 +357,7 @@ def test_a_quorum_the_signer_adds_one_signature_to_is_accepted() -> None:
     nothing -- and a sum that is right for the second is not necessarily
     right for the first.
     """
-    check_psbt_signer(_signer(), der_path=_ACCOUNT, signable=_partly_signed_quorum())
+    assert_psbt_signer(_signer(), der_path=_ACCOUNT, signable=_partly_signed_quorum())
 
 
 def test_a_signer_that_adds_nothing_to_a_signed_quorum_is_refused() -> None:
@@ -374,4 +374,4 @@ def test_a_signer_that_adds_nothing_to_a_signed_quorum_is_refused() -> None:
             return deepcopy(psbt)
 
     with pytest.raises(BTClibValueError, match="added no signature"):
-        check_psbt_signer(_Idle(), signable=_partly_signed_quorum())
+        assert_psbt_signer(_Idle(), signable=_partly_signed_quorum())

@@ -845,6 +845,29 @@ what issue #745 found and this replaces. The `assert_*` twin beside each
 of these is the spelling that says *why* a value was refused, and the two
 are how a caller chooses between an answer and a reason.
 
+**Which of those a function is, its name says**, and the four prefixes
+are a closed vocabulary:
+
+- `assert_*` refuses and returns `None`. There are eighty-odd of them
+  and they are the reason half of the pair above.
+- `is_*` answers a `bool` about a value, and is total over the declared
+  types: `is_p2sh` is False for bytes that are not a p2sh script.
+- `verify*` answers a `bool` about a signature or a proof, on the same
+  terms. `assert_as_valid` beside it says why.
+- `check_*` answers a `bool` **and refuses what cannot be an answer** --
+  the one prefix that warns a caller it still needs an `except`. There
+  are two: `script.engine.script.check_pub_key`, where a wrong length is
+  False but a hybrid prefix under STRICTENC is the offence itself, which
+  is how Core's `CheckPubKeyEncoding` splits it; and
+  `script.taproot.check_output_pubkey`, where a malformed control block
+  is no proof rather than a disproof.
+
+Nine functions carried `check_` while refusing and returning `None`, and
+two more while returning bytes and a pair of bools, which left the prefix
+saying four things and therefore nothing (issue #814). A converter is
+named for what it returns -- `bytes_from_octets`,
+`b32.bytes_from_witness_program` -- and a query for what it answers.
+
 `check_validity=False` is not an exemption from this. It says "do not
 check *now*", not "this object is exempt from here on": these are mutable
 dataclasses whose fields are public and get reassigned in place, so

@@ -392,7 +392,7 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     code it names.
 
     Three readers depend on it, each measuring a push against what this
-    writes for its data: `engine.script_op_codes.check_minimal_push`,
+    writes for its data: `engine.script_op_codes.assert_minimal_push`,
     `miniscript._assert_minimal_push`, and -- differently --
     `engine.script.calculate_script_code`, which builds the needle
     FindAndDelete searches for as Core builds it, `CScript() << vchSig`.

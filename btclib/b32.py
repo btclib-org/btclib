@@ -36,8 +36,8 @@ The whole surface is exported, the two facilities below the addresses
 included: `power_of_2_base_conversion` is the `convertbits` of the
 reference implementation, which a caller reading or writing a witness
 program in five-bit groups needs as much as this module does, and
-`check_witness` is BIP141's length rule, which `btclib.b58` asks for the
-p2sh-wrapped forms.
+`bytes_from_witness_program` is BIP141's length rule, which `btclib.b58`
+asks for the p2sh-wrapped forms.
 
 Some of these functions are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
@@ -64,7 +64,7 @@ from btclib.utils import bytes_from_octets, str_from_string
 
 __all__ = [
     "address_from_witness",
-    "check_witness",
+    "bytes_from_witness_program",
     "has_segwit_prefix",
     "p2tr",
     "p2wpkh",
@@ -118,7 +118,7 @@ def power_of_2_base_conversion(
     return ret
 
 
-def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
+def bytes_from_witness_program(wit_ver: int, wit_prg: Octets) -> bytes:
     """Return the witness program, refusing what BIP141 does not define.
 
     A version outside 0..16, a program outside 2..40 bytes, or a v0
@@ -142,7 +142,7 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
-    wit_prg = check_witness(wit_ver, wit_prg)
+    wit_prg = bytes_from_witness_program(wit_ver, wit_prg)
     data = [wit_ver, *power_of_2_base_conversion(wit_prg, 8, 5)]
     bytes_ = encode(hrp, data)
     return bytes_.decode("ascii")
@@ -175,7 +175,7 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
 
     wit_ver = data[0]
     wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
-    wit_prog = check_witness(wit_ver, wit_prog)
+    wit_prog = bytes_from_witness_program(wit_ver, wit_prog)
 
     # check that it is a known segwit address type
     network = network_from_key_value("hrp", hrp)
