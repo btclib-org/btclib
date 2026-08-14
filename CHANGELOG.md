@@ -2133,6 +2133,38 @@ documented at release-notes length in the first place, and are still in
   `_signed_odd_multiples` is gone, `_signed_odd_multiples_aff` being what
   the regular windows index; `_odd_multiples` stays, the affine table
   being built on it. The negation costs the same either way, `(x, p - y)`.
+- **`mult` of the generator makes no doubling at all** (issue #802).
+  `mult(m)` with no point, and every `mult(m, ec.G)` beside it, is the
+  fixed-base case: the point is the same on every call and only the
+  scalar changes. It was multiplied as any other point, the table rebuilt
+  per call and some 253 doublings made. `_cached_fixed_base_multiples`
+  holds one signed odd affine table per digit position, memoized on
+  `(Q, ec, w)`, and `_mult_fixed_base` sums one entry a digit and doubles
+  nothing: `ceil(ec.scalar_len / w)` additions, 43 of them at w=6, the
+  same count for every scalar of the curve. It is libsecp256k1's
+  `secp256k1_ecmult_gen`, which does the same for the same reason.
+
+  Measured against `199335c1` on Python 3.14.6, best of seven alternating
+  rounds over 30 random 256-bit scalars:
+
+  | `mult(m)` | before | fixed base | |
+  | --- | ---: | ---: | ---: |
+  | secp256k1, against the GLV endomorphism | 537 us | 127 us | **4.13x** |
+  | secp256r1, against the regular window | 785 us | 131 us | **5.98x** |
+
+  What it costs is memory, and that is what decides the width rather than
+  the clock: the time does not turn -- 193 us at w=4, 157 at w=5, 127 at
+  w=6, 110 at w=7, 96 at w=8 -- while the table doubles at every step,
+  136, 221, 366, 629 and 1088 KiB. w=6 is where a doubled table stops
+  buying 20%, and the table is built once per generator, 9.3 ms on a
+  256-bit curve.
+
+  The rescaling of `mult` moves with the arm: on the variable-base one it
+  is still the point that is rescaled, and here it is the accumulator,
+  the table being memoized and canonical. On secp256k1 with the bindings
+  applicable `mult` has returned before either -- what reaches this is
+  every other curve, and secp256k1 with the dispatch patched off, which
+  is what the suite holds the bindings against.
 
 ### The public API and the module layout
 

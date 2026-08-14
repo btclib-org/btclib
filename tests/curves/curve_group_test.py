@@ -26,6 +26,7 @@ from btclib.curves.curve_group import (
     _mult,
     _mult_aff,
     _mult_base_3,
+    _mult_fixed_base,
     _mult_fixed_window,
     _mult_fixed_window_cached,
     _mult_jac,
@@ -478,6 +479,40 @@ def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
 
     assert len(regular) == 1, regular
     assert len(fixed) > 1, fixed
+
+
+def test_mult_fixed_base() -> None:
+    """Check the fixed-base ladder against the multiplication it replaces.
+
+    Every scalar of the low-cardinality curves, whose scalar_len is a
+    handful of bits, so the per-position tables are short enough to build
+    at every width; and the boundaries on secp256k1, where a table is 43
+    positions. A scalar above ec.scalar_len bits has no table to index and
+    is refused by the recoding, which is what the last case asserts:
+    `curves.mult` reduces mod n before reaching here, as every entry point
+    of the library does.
+    """
+    for w in range(1, MAX_W):
+        for ec in low_card_curves.values():
+            for m in range(ec.n + 1):
+                assert ec.jac_equality(
+                    _mult_fixed_base(m, ec.GJ, ec, w), _mult_jac(m % ec.n, ec.GJ, ec)
+                ), (m, w, ec)
+            assert ec.jac_equality(_mult_fixed_base(1, INFJ, ec, w), INFJ)
+
+            with pytest.raises(BTClibValueError, match="negative m: "):
+                _mult_fixed_base(-1, ec.GJ, ec, w)
+            with pytest.raises(BTClibValueError, match="non positive w: "):
+                _mult_fixed_base(1, ec.GJ, ec, -w)
+
+    ec = secp256k1
+    for m in (0, 1, 2, 3, ec.n - 1, ec.n, ec.n + 1):
+        assert ec.jac_equality(
+            _mult_fixed_base(m, ec.GJ, ec, w=4), _mult_jac(m, ec.GJ, ec)
+        ), m
+
+    with pytest.raises(BTClibValueError, match="does not fit"):
+        _mult_fixed_base(1 << ec.scalar_len, ec.GJ, ec, w=4)
 
 
 def test_mult_regular_window() -> None:

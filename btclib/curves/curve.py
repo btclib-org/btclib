@@ -46,6 +46,7 @@ from btclib.curves.curve_group import (
     _is_prime,
     _jac_from_aff,
     _mult,
+    _mult_fixed_base,
     _multi_mult,
 )
 from btclib.curves.curve_group_2 import (
@@ -562,6 +563,11 @@ def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) ->
 # coefficients take the second
 _ENDOMORPHISM_W = 4
 _DOUBLE_MULT_W = 4
+# and the width the fixed-base ladder holds a table at, which is a
+# third question again: its table is memoized, so what the width buys
+# is paid in memory once and not in additions per call. The
+# measurement is in _mult_fixed_base's docstring
+_FIXED_BASE_W = 6
 
 
 def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point:
@@ -579,11 +585,16 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         if Q[1]:
             return _libsecp256k1_multi_mult([m], [Q])
 
-    if Q is None:
-        QJ = ec.GJ
-    else:
-        ec.require_on_curve(Q)
-        QJ = _jac_from_aff(Q)
+    if Q is None or Q == ec.G:
+        # the fixed-base case, and the whole of what makes it one: the
+        # point is the same on every call, so its per-position tables are
+        # built once and kept and the multiplication makes no doubling at
+        # all. It is faster than the endomorphism below on secp256k1 too,
+        # so the test is on the point before it is on the curve
+        return ec.aff_from_jac(_mult_fixed_base(m, ec.GJ, ec, _FIXED_BASE_W))
+
+    ec.require_on_curve(Q)
+    QJ = _jac_from_aff(Q)
 
     # what reaches here on secp256k1 is the arguments the bindings decline
     # -- a zero scalar, or infinity -- and, with the dispatch
