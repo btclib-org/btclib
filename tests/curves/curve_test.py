@@ -36,11 +36,11 @@ from btclib.curves.curve import (
     SEC2v1_params2,
     SEC2v2,
     SEC2v2_params2,
-    _is_x_coordinate,
+    _is_x_coordinate_var,
     _libsecp256k1_applicable,
     _libsecp256k1_multi_mult_,
     _sec_from_point,
-    _y_even,
+    _y_even_var,
 )
 
 # _cached_multiples and _jac_from_aff are implementation helpers of
@@ -231,7 +231,7 @@ def test_curves_with_n_above_p() -> None:
         ec = low_card_curves[name]
         # every point of the curve, x below n, so nothing to reduce
         for q in range(1, ec.n):
-            x_K = ec.x_aff_from_jac(_mult_jac_var(q, ec.GJ, ec))
+            x_K = ec.x_aff_from_jac_var(_mult_jac_var(q, ec.GJ, ec))
             assert x_K < ec.n
             assert x_K % ec.n == x_K
 
@@ -303,41 +303,41 @@ def test_aff_jac_conversions() -> None:
         # just a point, not INF
         Q = ec.G
         QJ = _jac_from_aff(Q)
-        assert ec.aff_from_jac(QJ) == Q
-        x_Q = ec.x_aff_from_jac(QJ)
+        assert ec.aff_from_jac_var(QJ) == Q
+        x_Q = ec.x_aff_from_jac_var(QJ)
         assert Q[0] == x_Q
-        y_Q = ec.y_aff_from_jac(QJ)
+        y_Q = ec.y_aff_from_jac_var(QJ)
         assert Q[1] == y_Q
 
-        assert ec.aff_from_jac(_jac_from_aff(INF)) == INF
+        assert ec.aff_from_jac_var(_jac_from_aff(INF)) == INF
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
-            ec.x_aff_from_jac(INFJ)
+            ec.x_aff_from_jac_var(INFJ)
 
         with pytest.raises(BTClibValueError, match="INF has no y-coordinate"):
-            ec.y_aff_from_jac(INFJ)
+            ec.y_aff_from_jac_var(INFJ)
 
 
 def test_add_double_aff() -> None:
     """Test self-consistency of add and double in affine coordinates."""
     for ec in all_curves.values():
         # add G and the infinity point
-        assert ec.add_aff(ec.G, INF) == ec.G
-        assert ec.add_aff(INF, ec.G) == ec.G
+        assert ec.add_aff_var(ec.G, INF) == ec.G
+        assert ec.add_aff_var(INF, ec.G) == ec.G
 
         # double G
-        G2 = ec.add_aff(ec.G, ec.G)
-        assert ec.double_aff(ec.G) == G2
+        G2 = ec.add_aff_var(ec.G, ec.G)
+        assert ec.double_aff_var(ec.G) == G2
 
         # double INF
-        assert ec.add_aff(INF, INF) == INF
-        assert ec.double_aff(INF) == INF
+        assert ec.add_aff_var(INF, INF) == INF
+        assert ec.double_aff_var(INF) == INF
 
         # add G and minus G
-        assert ec.add_aff(ec.G, ec.negate(ec.G)) == INF
+        assert ec.add_aff_var(ec.G, ec.negate(ec.G)) == INF
 
         # add INF and "minus" INF
-        assert ec.add_aff(INF, ec.negate(INF)) == INF
+        assert ec.add_aff_var(INF, ec.negate(INF)) == INF
 
 
 def test_add_double_jac() -> None:
@@ -370,15 +370,15 @@ def test_add_double_aff_jac() -> None:
         QJ = _jac_from_aff(Q)
 
         # add Q and G
-        R = ec.add_aff(Q, ec.G)
+        R = ec.add_aff_var(Q, ec.G)
         RJ = ec.add_jac(QJ, ec.GJ)
-        assert ec.aff_from_jac(RJ) == R
+        assert ec.aff_from_jac_var(RJ) == R
 
         # double Q
-        R = ec.double_aff(Q)
+        R = ec.double_aff_var(Q)
         RJ = ec.double_jac(QJ)
-        assert ec.aff_from_jac(RJ) == R
-        assert ec.add_aff(Q, Q) == R
+        assert ec.aff_from_jac_var(RJ) == R
+        assert ec.add_aff_var(Q, Q) == R
         assert ec.is_jac_equal(RJ, ec.add_jac(QJ, QJ))
 
 
@@ -449,9 +449,9 @@ def test_point_addition_exhaustive() -> None:
                 for PJ in _jac_spellings(ec, P):
                     for QJ in _jac_spellings(ec, Q):
                         RJ = ec.add_jac(PJ, QJ)
-                        got = None if RJ[2] == 0 else ec.aff_from_jac(RJ)
+                        got = None if RJ[2] == 0 else ec.aff_from_jac_var(RJ)
                         assert got == expected, f"{name}: {PJ} + {QJ}"
-                R = ec.add_aff(INF if P is None else P, INF if Q is None else Q)
+                R = ec.add_aff_var(INF if P is None else P, INF if Q is None else Q)
                 assert (INF if expected is None else expected) == R, (
                     f"{name}: {P} + {Q}"
                 )
@@ -474,8 +474,8 @@ def test_add_jac_infinity_is_not_a_doubling() -> None:
         secp256k1,
     ):
         for infinity in (INFJ, _jac_from_aff(INF), (0, 0, 0)):
-            assert ec.aff_from_jac(ec.add_jac(ec.GJ, infinity)) == ec.G
-            assert ec.aff_from_jac(ec.add_jac(infinity, ec.GJ)) == ec.G
+            assert ec.aff_from_jac_var(ec.add_jac(ec.GJ, infinity)) == ec.G
+            assert ec.aff_from_jac_var(ec.add_jac(infinity, ec.GJ)) == ec.G
             assert ec.add_jac(infinity, infinity)[2] == 0
 
 
@@ -601,7 +601,7 @@ def test_add_jac_does_the_same_arithmetic_around_infinity() -> None:
 
 
 def test_add_aff_takes_infinity_before_doubling() -> None:
-    """The order of add_aff's two special cases is the working one.
+    """The order of add_aff_var's two special cases is the working one.
 
     Not an inelegance to be tidied by testing for doubling first (issue
     171): INF is (5, 0) and its x-coordinate is arbitrary, so a doubling
@@ -612,8 +612,8 @@ def test_add_aff_takes_infinity_before_doubling() -> None:
     """
     ec = low_card_curves["ec23_19"]
     assert ec.G[0] == INF[0]
-    assert ec.add_aff(INF, ec.G) == ec.G
-    assert ec.add_aff(ec.G, INF) == ec.G
+    assert ec.add_aff_var(INF, ec.G) == ec.G
+    assert ec.add_aff_var(ec.G, INF) == ec.G
 
 
 def test_ec_repr() -> None:
@@ -767,7 +767,7 @@ def test_is_on_curve() -> None:
             ec.is_on_curve((1, 2, 3))  # type: ignore[arg-type]
 
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
-            ec.y(ec.p)
+            ec.y_var(ec.p)
 
         # just a point, not INF
         Q = ec.G
@@ -781,7 +781,7 @@ def test_negate() -> None:
         # just a point, not INF
         Q = ec.G
         minus_Q = ec.negate(Q)
-        assert ec.add(Q, minus_Q) == INF
+        assert ec.add_var(Q, minus_Q) == INF
 
         # Jacobian coordinates
         QJ = _jac_from_aff(Q)
@@ -810,15 +810,15 @@ def test_symmetry() -> None:
         Q = ec.G
         x_Q = Q[0]
 
-        assert not ec.y_even(x_Q) % 2
-        assert ec.y_low(x_Q) <= ec.p // 2
+        assert not ec.y_even_var(x_Q) % 2
+        assert ec.y_low_var(x_Q) <= ec.p // 2
 
         # compute all quadratic residues
         hasRoot = {1}
         hasRoot.update(i * i % ec.p for i in range(2, ec.p))
 
         if ec.p % 4 == 3:
-            quad_res = ec.y_quadratic_residue(x_Q)
+            quad_res = ec.y_quadratic_residue_var(x_Q)
 
             # in this case only quad_res is a quadratic residue
             assert quad_res in hasRoot
@@ -832,39 +832,39 @@ def test_symmetry() -> None:
                 mod_sqrt_var(ec.p - quad_res, ec.p)
         else:
             assert ec.p % 4 == 1
-            # cannot use y_quadratic_residue in this case
+            # cannot use y_quadratic_residue_var in this case
             err_msg = "field prime is not equal to 3 mod 4: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                ec.y_quadratic_residue(x_Q)
+                ec.y_quadratic_residue_var(x_Q)
 
-            y_even = ec.y_even(x_Q)
-            y_odd = ec.p - y_even
+            y_even_var = ec.y_even_var(x_Q)
+            y_odd = ec.p - y_even_var
             # in this case neither or both y_Q are quadratic residues
-            neither = y_odd not in hasRoot and y_even not in hasRoot
-            both = y_odd in hasRoot and y_even in hasRoot
+            neither = y_odd not in hasRoot and y_even_var not in hasRoot
+            both = y_odd in hasRoot and y_even_var in hasRoot
             assert neither or both
             if y_odd in hasRoot:  # both have roots
                 root = mod_sqrt_var(y_odd, ec.p)
                 assert y_odd == (root * root) % ec.p
                 root = ec.p - root
                 assert y_odd == (root * root) % ec.p
-                root = mod_sqrt_var(y_even, ec.p)
-                assert y_even == (root * root) % ec.p
+                root = mod_sqrt_var(y_even_var, ec.p)
+                assert y_even_var == (root * root) % ec.p
                 root = ec.p - root
-                assert y_even == (root * root) % ec.p
+                assert y_even_var == (root * root) % ec.p
             else:
                 err_msg = "no root for "
                 with pytest.raises(BTClibValueError, match=err_msg):
                     mod_sqrt_var(y_odd, ec.p)
                 with pytest.raises(BTClibValueError, match=err_msg):
-                    mod_sqrt_var(y_even, ec.p)
+                    mod_sqrt_var(y_even_var, ec.p)
 
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        secp256k1.y_even(INF[0])
+        secp256k1.y_even_var(INF[0])
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        secp256k1.y_low(INF[0])
+        secp256k1.y_low_var(INF[0])
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        secp256k1.y_quadratic_residue(INF[0])
+        secp256k1.y_quadratic_residue_var(INF[0])
 
 
 def test_assorted_mult() -> None:
@@ -889,12 +889,12 @@ def test_assorted_mult() -> None:
 
             shamir = double_mult_var(k1, ec.G, k2, H, ec)
             assert ec.is_on_curve(shamir)
-            K1K2 = ec.add(K1, K2)
+            K1K2 = ec.add_var(K1, K2)
             assert shamir == K1K2
 
             k3 = ec.n // 3  # just a random point, not INF
             K3 = mult(k3, ec.G, ec)
-            K1K2K3 = ec.add(K1K2, K3)
+            K1K2K3 = ec.add_var(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
             boscoster = multi_mult_var([k1, k2, k3], [ec.G, H, ec.G], ec)
             assert ec.is_on_curve(boscoster)
@@ -902,7 +902,7 @@ def test_assorted_mult() -> None:
 
             k4 = ec.n // 4  # just a random point, not INF
             K4 = mult(k4, H, ec)
-            K1K2K3K4 = ec.add(K1K2K3, K4)
+            K1K2K3K4 = ec.add_var(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)
             points = [ec.G, H, ec.G, H]
             boscoster = multi_mult_var([k1, k2, k3, k4], points, ec)
@@ -926,7 +926,7 @@ def test_double_mult() -> None:
     assert double_mult_var(1, G, 0, H) == G
     assert double_mult_var(0, G, 1, H) == H
     for i, j in itertools.product(range(-1, 3), range(-1, 3)):
-        exp = secp256k1.add(mult(i), mult(j, H))
+        exp = secp256k1.add_var(mult(i), mult(j, H))
         assert exp == double_mult_var(i, G, j, H)
 
 
@@ -1102,8 +1102,8 @@ def test_x_coordinate_lift(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> N
     """The two delegated square roots, against the Python arithmetic.
 
     A compressed public key is "this x, and the y that goes with it", so
-    ec_pubkey_parse answers both of the questions `_is_x_coordinate` and
-    `_y_even` ask (issue 284) -- and `ec.y_even` is what they are held
+    ec_pubkey_parse answers both of the questions `_is_x_coordinate_var` and
+    `_y_even_var` ask (issue 284) -- and `ec.y_even_var` is what they are held
     against, over the 400 smallest field elements, of which 208 are not
     x-coordinates at all. It is those that have to be checked: an
     implementation accepting one would take a public key consensus
@@ -1121,33 +1121,33 @@ def test_x_coordinate_lift(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> N
     refused = 0
     for x in range(400):
         try:
-            y_even = ec.y_even(x)
+            y_even_var = ec.y_even_var(x)
         except BTClibValueError as e:
             refused += 1
             python_msg = str(e)
-            assert not _is_x_coordinate(x, ec)
+            assert not _is_x_coordinate_var(x, ec)
             # the message names the value, which is why the refusal stays
             # curve_group's to phrase rather than the bindings' to raise
             with pytest.raises(BTClibValueError, match="invalid x-coordinate: ") as err:
-                _y_even(x, ec)
+                _y_even_var(x, ec)
             assert str(err.value) == python_msg
         else:
-            assert _is_x_coordinate(x, ec)
-            assert _y_even(x, ec) == y_even
-            assert y_even % 2 == 0
-            assert ec.is_on_curve((x, y_even))
+            assert _is_x_coordinate_var(x, ec)
+            assert _y_even_var(x, ec) == y_even_var
+            assert y_even_var % 2 == 0
+            assert ec.is_on_curve((x, y_even_var))
     assert refused == 208
 
     # the x of a point, which is the case every caller has
-    assert _is_x_coordinate(ec.G[0], ec)
-    assert _y_even(ec.G[0], ec) == ec.G[1]
+    assert _is_x_coordinate_var(ec.G[0], ec)
+    assert _y_even_var(ec.G[0], ec) == ec.G[1]
 
     # outside the field, where there is no x-coordinate to have and no
     # p-size serialization to ask the bindings about either
     for x in (-1, ec.p, ec.p + 1, 2**256):
-        assert not _is_x_coordinate(x, ec)
+        assert not _is_x_coordinate_var(x, ec)
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1"):
-            _y_even(x, ec)
+            _y_even_var(x, ec)
 
 
 def test_x_coordinate_lift_of_every_other_curve() -> None:
@@ -1161,11 +1161,11 @@ def test_x_coordinate_lift_of_every_other_curve() -> None:
     for ec in (CURVES["secp256r1"], low_card_curves["ec13_11"]):
         for x in range(min(ec.p, 24)):
             try:
-                y_even = ec.y_even(x)
+                y_even_var = ec.y_even_var(x)
             except BTClibValueError:
-                assert not _is_x_coordinate(x, ec)
+                assert not _is_x_coordinate_var(x, ec)
                 with pytest.raises(BTClibValueError, match="x-coordinate"):
-                    _y_even(x, ec)
+                    _y_even_var(x, ec)
             else:
-                assert _is_x_coordinate(x, ec)
-                assert _y_even(x, ec) == y_even
+                assert _is_x_coordinate_var(x, ec)
+                assert _y_even_var(x, ec) == y_even_var

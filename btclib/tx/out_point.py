@@ -71,6 +71,7 @@ class OutPoint:
         if check_validity:
             self.assert_valid()
 
+    @property
     def is_coinbase(self) -> bool:
         """Answer whether this is the coinbase marker, spending nothing."""
         return self.tx_id == b"\x00" * 32 and self.vout == 0xFFFFFFFF

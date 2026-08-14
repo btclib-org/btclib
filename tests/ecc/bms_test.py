@@ -938,7 +938,7 @@ def test_a_key_id_that_recovers_nothing() -> None:
         assert _recovers(key_id, magic_msg, bms_sig.dsa_sig) is None
         # either exception, which is why the helper suppresses both: the
         # wrapped x may miss the curve, and BTClibValueError comes out of
-        # y_even, or it may land on it and recover a key that does not
+        # y_even_var, or it may land on it and recover a key that does not
         # verify, which is the BTClibRuntimeError
         with pytest.raises((BTClibValueError, BTClibRuntimeError)):
             dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig)

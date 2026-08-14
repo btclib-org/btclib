@@ -1498,6 +1498,26 @@ documented at release-notes length in the first place, and are still in
   btclib caller those coefficients are a signature and a message hash,
   which is why the suffix is a label and not a defect.
 
+  The layer above the primitives takes it too, each name measured over
+  the value it is handed rather than inherited from what it calls:
+  `CurveGroup.aff_from_jac_var` (2.96x in its `Z`),
+  `x_aff_from_jac_var` (1.93x), `aff_from_jac_batch_var` (1.67x),
+  `y_aff_from_jac_var` (1.42x), `double_aff_var` (1.32x),
+  `add_aff_var` (1.23x) and the `add_var` over them (1.22x). `y_var`,
+  `y_even_var`, `y_low_var` and `y_quadratic_residue_var` are flat on
+  secp256k1 and 1.84x on `secp224k1`, whose `p` is 1 mod 4 and whose
+  square root is therefore Tonelli-Shanks; the private `_y_even_var` and
+  `_is_x_coordinate_var` of `curves.curve` go with them, each being the
+  bindings on secp256k1 and the Python root or symbol elsewhere.
+
+  Measured and not inherited is what keeps the suffix meaningful, and the
+  count says why: 636 functions reach one of these primitives through
+  some chain of calls, 344 of them public, which would put `_var` on
+  `hex_string` and `p2pkh`. Blinding breaks the chain — `mult` is 0.99x
+  in its scalar because `_blinded_jac` randomized the `Z` its inverse is
+  timed on — and so does a public operand, `point_from_octets` measuring
+  1.05x. CONTRIBUTING.md carries the rule and both counterexamples.
+
 - **`mod_inv` delegates its extended Euclid to CPython** (issue #779).
   `pow(a, -1, m)` is `long_invmod`, the same algorithm `xgcd` runs with
   the second cofactor dropped -- CPython carries that loop as a comment
@@ -2540,6 +2560,31 @@ documented at release-notes length in the first place, and are still in
   table at all.
 
 ### The public API and the module layout
+
+- **A bool about the object is a property, and six were not** (issue
+  #814). `Tx.is_segwit`, `Tx.is_coinbase`, `TxIn.is_segwit`,
+  `TxIn.is_coinbase`, `OutPoint.is_coinbase` and `Block.is_segwit` took
+  nothing but `self` and were called; the thirty other argument-less
+  bools in the library -- `BIP32KeyData.is_private`, `Miniscript.is_sane`,
+  every wallet's `is_watch_only` -- were read. Six against thirty is
+  which side is the exception, so the six are properties and the shape a
+  reader has to remember is one shape.
+
+  A bool *of an argument* is a function of it and cannot be a property:
+  `script_pub_key.is_p2sh(script)` and `is_on_curve(Q)` are untouched,
+  and `test_the_walk_reaches_both_shapes` pins that the filter tells the
+  two apart.
+
+  It spends the one hazard mypy's `truthy-function` covers rather than
+  relying on it. `if tx.is_segwit:` with the parentheses forgotten was a
+  bound method, and every bound method is true -- in code deciding
+  whether a transaction is segwit, which is the kind of place it costs
+  something. mypy names it and mypy is a gate here, so nothing in this
+  tree had made the mistake; a shape that cannot go wrong is still better
+  than a checker that catches it going wrong.
+
+  `tests/name_contract_test.py` gates it with no exemption list, which is
+  what "six against thirty" buys: there is no family left to excuse.
 
 - **Every public `bool` is named by the vocabulary now** (issue #814).
   The four prefixes promised a shape to a caller who saw one and said

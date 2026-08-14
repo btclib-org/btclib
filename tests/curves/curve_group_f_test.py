@@ -24,12 +24,12 @@ def test_ecf() -> None:
     # Point Addition
     X = (5274, 2841)
     Y = (8669, 740)
-    assert ec.add(X, Y) == (1024, 4440)
-    assert ec.add(X, X) == (7284, 2107)
+    assert ec.add_var(X, Y) == (1024, 4440)
+    assert ec.add_var(X, X) == (7284, 2107)
     P = (493, 5564)
     Q = (1539, 4742)
     R = (4403, 5202)
-    S = ec.add(ec.add(ec.add(P, P), Q), R)
+    S = ec.add_var(ec.add_var(ec.add_var(P, P), Q), R)
     ec.require_on_curve(S)
     S_exp = (4215, 2162)
     assert S_exp == S

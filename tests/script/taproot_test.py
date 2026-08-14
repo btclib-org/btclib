@@ -225,7 +225,7 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
 
     x = 5 is not the x-coordinate of a secp256k1 point: 5**3 + 7 is not
     a quadratic residue. libsecp256k1 rejects it while parsing and
-    ec.y_even while lifting it, and the two errors have to be the same
+    ec.y_even_var while lifting it, and the two errors have to be the same
     kind, the script engine catching the library's own.
     """
     control = b"\xc0" + (5).to_bytes(32, "big")

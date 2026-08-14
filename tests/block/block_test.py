@@ -58,7 +58,7 @@ def test_block_1() -> None:
     assert block.weight == 860
     assert block.sig_op_count == 1
     assert block.height is None
-    assert not block.is_segwit()
+    assert not block.is_segwit
     assert block == Block.parse(block.serialize())
     assert block == Block.from_dict(block.to_dict())
 
@@ -446,7 +446,7 @@ def test_block_170() -> None:
     # the p2pk it pays to and the p2pk it spends from
     assert block.sig_op_count == 3
     assert block.height is None
-    assert not block.is_segwit()
+    assert not block.is_segwit
     assert block == Block.parse(block.serialize())
     assert block == Block.from_dict(block.to_dict())
 
@@ -493,7 +493,7 @@ def test_block_200000() -> None:
     block.header.version = 0
     assert block.height == 200_000
     block.header.version = 2
-    assert not block.is_segwit()
+    assert not block.is_segwit
     assert block == Block.parse(block.serialize())
     assert block == Block.from_dict(block.to_dict())
 
@@ -585,13 +585,13 @@ def test_block_481824() -> None:
         assert block.sig_op_count == 3_409
 
         if i:  # segwit nodes see the witness data
-            assert block.is_segwit()
+            assert block.is_segwit
             assert block.size == 989_323
             assert block.stripped_size == 988_519
             assert block.weight == 3_954_880
             assert block.vsize == 988_720
         else:  # legacy nodes see NO witness data
-            assert not block.is_segwit()
+            assert not block.is_segwit
             assert block.size == 988_519
             assert block.stripped_size == 988_519
             assert block.weight == 3_954_076

@@ -247,7 +247,7 @@ def legendre_symbol_var(a: int, p: int) -> int:
     The loop's length follows `a`, where an exponentiation's did not.
     SECURITY.md publishes the Python path as variable-time, and nothing
     in the tree asks this about a value that has to stay hidden:
-    `curves.curve._is_x_coordinate` is the one caller, and what reaches
+    `curves.curve._is_x_coordinate_var` is the one caller, and what reaches
     it is a signature's r, the x-coordinate of a serialized xpub, or a
     candidate x of an ElligatorSwift encoding -- each of them public, and
     on secp256k1 each answered by the bindings before this is reached.

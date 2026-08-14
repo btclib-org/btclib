@@ -311,7 +311,7 @@ def labeled_address_from_keys(
     recovering a wallet from a seed alone.
     """
     B_scan = mult(int_from_prv_key(b_scan))
-    B_m = secp256k1.add(point_from_pub_key(B_spend), mult(label_tweak(b_scan, m)))
+    B_m = secp256k1.add_var(point_from_pub_key(B_spend), mult(label_tweak(b_scan, m)))
     return address_from_keys(B_scan, B_m, network)
 
 
@@ -469,7 +469,7 @@ def pub_key_sum(pub_keys: Sequence[PubKey]) -> Point:
     """
     total: Point = INF
     for pub_key in pub_keys:
-        total = secp256k1.add(total, point_from_pub_key(pub_key))
+        total = secp256k1.add_var(total, point_from_pub_key(pub_key))
     if total[1] == 0:
         raise BTClibValueError("input public keys sum to infinity")
     return total
@@ -538,7 +538,7 @@ def output_key(secret: PubKey, B_m: PubKey, k: int) -> bytes:
     `k` is the recipient's position in its group, which is what stops two
     payments to one scan key landing on one output.
     """
-    P = secp256k1.add(
+    P = secp256k1.add_var(
         point_from_pub_key(B_m), mult(_output_tweak(point_from_pub_key(secret), k))
     )
     return _x_only(P)
@@ -632,12 +632,12 @@ def _labelled(
         return None
 
     for point in (candidate, secp256k1.negate(candidate)):
-        label_point = secp256k1.add(point, secp256k1.negate(P_k))
+        label_point = secp256k1.add_var(point, secp256k1.negate(P_k))
         # infinity cannot happen here: it would mean the output equals
         # P_k up to parity, which the x-only comparison already caught
         tweak = labels.get(bytes_from_point(label_point, secp256k1))
         if tweak is not None:
-            return secp256k1.add(P_k, label_point), int_from_prv_key(tweak)
+            return secp256k1.add_var(P_k, label_point), int_from_prv_key(tweak)
     return None
 
 
@@ -675,7 +675,7 @@ def scan_outputs(
     found = []
     for k in range(K_MAX):
         t_k = _output_tweak(secret, k)
-        P_k = secp256k1.add(B, mult(t_k))
+        P_k = secp256k1.add_var(B, mult(t_k))
         x_only_P_k = _x_only(P_k)
         match = None
         for output in remaining:

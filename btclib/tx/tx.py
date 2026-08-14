@@ -79,7 +79,7 @@ def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
         return
 
     for tx_in in vin:
-        if tx_in.is_coinbase():
+        if tx_in.is_coinbase:
             raise BTClibValueError("coinbase input in a non-coinbase transaction")
 
 
@@ -154,7 +154,7 @@ class Tx:  # noqa: PLW1641
         `test_the_size_and_the_serialization_agree` holds the two
         together over every vector the suite carries.
         """
-        segwit = include_witness and self.is_segwit()
+        segwit = include_witness and self.is_segwit
 
         size = 4 + 4  # version and lock_time
         if segwit:
@@ -207,17 +207,19 @@ class Tx:  # noqa: PLW1641
         """Return the witnesses, one per input and in input order."""
         return [tx_in.script_witness for tx_in in self.vin]
 
+    @property
     def is_segwit(self) -> bool:
         """Answer whether any input carries a witness.
 
         The inputs and not the outputs: paying to a segwit script does
         not make the paying transaction segwit, spending one does.
         """
-        return any(tx_in.is_segwit() for tx_in in self.vin)
+        return any(tx_in.is_segwit for tx_in in self.vin)
 
+    @property
     def is_coinbase(self) -> bool:
         """Answer whether this is a coinbase: one input, spending nothing."""
-        return len(self.vin) == 1 and self.vin[0].is_coinbase()
+        return len(self.vin) == 1 and self.vin[0].is_coinbase
 
     def __init__(
         self,
@@ -317,7 +319,7 @@ class Tx:  # noqa: PLW1641
         point of the format. BIP174 lists two zero-input PSBTs as valid
         and btclib refused both (issue 170).
         """
-        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase())
+        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase)
 
         # the type before the range, as BlockHeader.assert_valid checks its
         # own two int fields: a bool passes every comparison below as one or
@@ -373,7 +375,7 @@ class Tx:  # noqa: PLW1641
             _assert_valid_4_byte_field("version", self.version)
             _assert_valid_4_byte_field("lock time", self.lock_time)
 
-        segwit = include_witness and self.is_segwit()
+        segwit = include_witness and self.is_segwit
 
         return b"".join(
             [

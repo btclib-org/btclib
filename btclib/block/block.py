@@ -244,9 +244,10 @@ class Block:
             check_validity=check_validity,
         )
 
+    @property
     def is_segwit(self) -> bool:
         """Answer whether any transaction carries a witness."""
-        return any(tx.is_segwit() for tx in self.transactions)
+        return any(tx.is_segwit for tx in self.transactions)
 
     def _assert_coinbase(self) -> None:
         """Assert that there is a first transaction and that it is a coinbase.
@@ -264,7 +265,7 @@ class Block:
         if not self.transactions:
             raise BTClibValueError("block with no transactions")
 
-        if not self.transactions[0].is_coinbase():
+        if not self.transactions[0].is_coinbase:
             raise BTClibValueError("first transaction is not a coinbase")
 
     def assert_valid_length(self) -> None:
@@ -386,7 +387,7 @@ class Block:
         witnesses of a block can be replaced wholesale, header and root
         untouched, and the signatures they carry are worth nothing.
         """
-        if not self.is_segwit():
+        if not self.is_segwit:
             # Nothing to commit to, and nothing to check it against: this
             # is a block as a legacy node sees it, witnesses stripped by
             # the serialization, which btclib parses and this library
@@ -542,7 +543,7 @@ class Block:
             # block being assembled -- the toy mining of issue #188, and
             # any candidate-block path after it -- and that is exactly
             # where nothing else says no
-            if transaction.is_coinbase():
+            if transaction.is_coinbase:
                 raise BTClibValueError("more than one coinbase")
             transaction.assert_valid()
 

@@ -143,6 +143,38 @@ def _named() -> dict[str, str]:
     return found
 
 
+def _argument_less_bools() -> dict[str, bool]:
+    """Return every public argument-less bool, and whether it is a property.
+
+    "No argument" means none besides `self`: a bool about the object it is
+    read off, which is the family the question applies to. One that takes
+    something is a function of it, and `@property` is not open to it.
+    """
+    found: dict[str, bool] = {}
+    for path in sorted(_LIBRARY.rglob("*.py")):
+        module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                continue
+            if node.returns is None or ast.unparse(node.returns) != "bool":
+                continue
+            arguments = [
+                a.arg
+                for a in [
+                    *node.args.posonlyargs,
+                    *node.args.args,
+                    *node.args.kwonlyargs,
+                ]
+                if a.arg != "self"
+            ]
+            if arguments:
+                continue
+            decorated = {ast.unparse(d) for d in node.decorator_list}
+            found[f"{module}.{node.name}"] = "property" in decorated
+    return found
+
+
 def _public_bools() -> list[str]:
     """Return every public function that answers a bool, however named.
 
@@ -165,6 +197,7 @@ def _public_bools() -> list[str]:
 _NAMED = _named()
 _GATED = sorted(set(_NAMED) - _OTHER_CONTRACT.keys())
 _PUBLIC_BOOLS = _public_bools()
+_ARGUMENT_LESS_BOOLS = _argument_less_bools()
 
 
 @pytest.mark.parametrize("dotted", _GATED)
@@ -253,3 +286,33 @@ def test_what_keeps_its_english_name_still_needs_to(dotted: str) -> None:
     assert _promised_by(name) is None, (
         f"{dotted} carries a prefix now: delete its line from _ENGLISH_PREDICATE"
     )
+
+
+@pytest.mark.parametrize("dotted", sorted(_ARGUMENT_LESS_BOOLS))
+def test_a_bool_about_the_object_is_a_property(dotted: str) -> None:
+    """A bool taking nothing but `self` is read, not called.
+
+    Thirty were properties and six were methods -- `Tx.is_segwit`,
+    `Tx.is_coinbase` and their four siblings in `tx/` and `block/` -- so
+    the six were the exception and are properties now (issue #814). The
+    shape a reader has to remember is one shape.
+
+    It also spends the one hazard `truthy-function` covers rather than
+    relying on it: `if tx.is_segwit:` with the parentheses forgotten was a
+    bound method, and every bound method is true. mypy names that, and
+    mypy is a gate here; a property makes it unsayable, which is the
+    stronger of the two.
+    """
+    assert _ARGUMENT_LESS_BOOLS[dotted], (
+        f"{dotted} answers a bool about the object and takes nothing:"
+        " it is a @property, not a method"
+    )
+
+
+def test_the_walk_reaches_both_shapes() -> None:
+    """One of each shape, so the filter is doing work rather than nothing."""
+    assert _ARGUMENT_LESS_BOOLS["btclib.tx.tx.is_segwit"] is True
+    assert _ARGUMENT_LESS_BOOLS["btclib.bip32.bip32.is_private"] is True
+    # a bool of an argument is a function of it, and no property can be
+    assert "btclib.script.script_pub_key.is_p2sh" not in _ARGUMENT_LESS_BOOLS
+    assert "btclib.ecc.dsa.verify" not in _ARGUMENT_LESS_BOOLS

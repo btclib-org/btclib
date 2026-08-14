@@ -15,7 +15,7 @@ from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
     _libsecp256k1_applicable,
-    _y_even,
+    _y_even_var,
     mult,
     secp256k1,
 )
@@ -111,7 +111,7 @@ def point_from_octets(
             raise BTClibValueError(err_msg)
         x_Q = int.from_bytes(pub_key[1:], byteorder="big")
         try:
-            y_Q = _y_even(x_Q, ec)  # also check x_Q validity
+            y_Q = _y_even_var(x_Q, ec)  # also check x_Q validity
             return x_Q, y_Q if prefix == 0x02 else ec.p - y_Q
         except BTClibValueError as e:
             msg = f"invalid x-coordinate: '{hex_string(x_Q)}'"

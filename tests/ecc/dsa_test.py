@@ -226,7 +226,7 @@ def test_low_cardinality(name: str) -> None:
         QJ = _mult(q, ec.GJ, ec)  # public key
         for k in range(1, ec.n):  # all possible ephemeral keys
             RJ = _mult(k, ec.GJ, ec)
-            r = ec.x_aff_from_jac(RJ) % ec.n
+            r = ec.x_aff_from_jac_var(RJ) % ec.n
             k_inv = mod_inv_var(k, ec.n)
             for e in range(ec.n):  # all possible challenges
                 s = k_inv * (e + q * r) % ec.n
@@ -247,8 +247,8 @@ def test_low_cardinality(name: str) -> None:
                     dsa._assert_as_valid_(e, QJ, r, s, ec, lower_s=lower_s)
 
                     jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=lower_s)
-                    Qs = [ec.aff_from_jac(key) for key in jac_keys]
-                    assert ec.aff_from_jac(QJ) in Qs
+                    Qs = [ec.aff_from_jac_var(key) for key in jac_keys]
+                    assert ec.aff_from_jac_var(QJ) in Qs
                     assert len(jac_keys) in {2, 4}
 
 
@@ -285,9 +285,9 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
         assert ec.cofactor == 2
         cases = 0
         for q in range(1, ec.n):
-            Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+            Q = ec.aff_from_jac_var(_mult(q, ec.GJ, ec))
             for k in range(1, ec.n):
-                x_K = ec.x_aff_from_jac(_mult(k, ec.GJ, ec))
+                x_K = ec.x_aff_from_jac_var(_mult(k, ec.GJ, ec))
                 if not ec.n < x_K < ec.p:  # else x_K is r itself
                     continue
                 r = x_K % ec.n
@@ -306,7 +306,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
                             )
                         except (BTClibValueError, BTClibRuntimeError):
                             continue
-                        recovered.append((key_id, ec.aff_from_jac(QJ)))
+                        recovered.append((key_id, ec.aff_from_jac_var(QJ)))
 
                     key_ids = [key_id for key_id, Q_ in recovered if Q_ == Q]
                     assert key_ids, "the signer's own key is not recoverable"
@@ -315,7 +315,7 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
 
                     # and the plural is that range, less what dropped out
                     jac_keys = dsa._recover_pub_keys_(e, r, s, ec, lower_s=False)
-                    assert [ec.aff_from_jac(QJ) for QJ in jac_keys] == [
+                    assert [ec.aff_from_jac_var(QJ) for QJ in jac_keys] == [
                         Q_ for _, Q_ in recovered
                     ]
                     cases += 1
@@ -340,9 +340,9 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
     assert ec.n > ec.p
     cases = 0
     for q in range(1, ec.n):
-        Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+        Q = ec.aff_from_jac_var(_mult(q, ec.GJ, ec))
         for k in range(1, ec.n):
-            r = ec.x_aff_from_jac(_mult(k, ec.GJ, ec)) % ec.n
+            r = ec.x_aff_from_jac_var(_mult(k, ec.GJ, ec)) % ec.n
             # asserted, not skipped: this is the n > p property the
             # docstring names -- x_K < p < n, so x_K % n is x_K, and no
             # multiple of G on this curve has x_K == 0 (measured: the r
@@ -362,7 +362,7 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
                         QJ = dsa._recover_pub_key_(key_id, e, r, s, ec, lower_s=False)
                     except (BTClibValueError, BTClibRuntimeError):
                         continue
-                    if ec.aff_from_jac(QJ) == Q:
+                    if ec.aff_from_jac_var(QJ) == Q:
                         key_ids.append(key_id)
 
                 assert key_ids, "the signer's own key is not recoverable"
@@ -404,7 +404,7 @@ def test_crack_prv_key() -> None:
 
     a = ec._a
     b = ec._b
-    alt_ec = Curve(ec.p, a, b, ec.double_aff(ec.G), ec.n, ec.cofactor)
+    alt_ec = Curve(ec.p, a, b, ec.double_aff_var(ec.G), ec.n, ec.cofactor)
     sig = dsa.Sig(sig1.r, sig1.s, alt_ec)
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
         dsa.crack_prv_key(msg1, sig, msg2, sig2)
@@ -536,8 +536,8 @@ def test_the_two_secret_multiplications_answer_the_python_point(
             assert dsa.gen_keys(q)[1] == Q
             assert dsa._sign_(0x1234, q, nonce, True, ec) == sig
 
-        assert ec.aff_from_jac(_mult(q, ec.GJ, ec)) == Q
-        assert sig.r == ec.x_aff_from_jac(_mult(nonce, ec.GJ, ec)) % ec.n
+        assert ec.aff_from_jac_var(_mult(q, ec.GJ, ec)) == Q
+        assert sig.r == ec.x_aff_from_jac_var(_mult(nonce, ec.GJ, ec)) % ec.n
 
 
 def test_libsecp256k1() -> None:
@@ -1258,7 +1258,7 @@ def test_the_key_id_names_j_where_j_is_reachable() -> None:
         cases = 0
         j_reached = 0
         for q in range(1, ec.n):
-            Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+            Q = ec.aff_from_jac_var(_mult(q, ec.GJ, ec))
             for k in range(1, ec.n):
                 for c in range(ec.n):
                     for lower_s in (True, False):
@@ -1269,7 +1269,7 @@ def test_the_key_id_names_j_where_j_is_reachable() -> None:
                         QJ = dsa._recover_pub_key_(
                             key_id, c, sig.r, sig.s, ec, lower_s=lower_s
                         )
-                        assert ec.aff_from_jac(QJ) == Q
+                        assert ec.aff_from_jac_var(QJ) == Q
                         cases += 1
                         j_reached += key_id >> 1
         assert cases == expected

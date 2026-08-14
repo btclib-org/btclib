@@ -197,4 +197,4 @@ def commit_point_(
             y = int.from_bytes(tweaked[33:], byteorder="big", signed=False)
             return x, y
 
-    return ec.add(receipt, mult(tweak, ec.G, ec))
+    return ec.add_var(receipt, mult(tweak, ec.G, ec))

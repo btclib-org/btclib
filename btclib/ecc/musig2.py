@@ -303,7 +303,7 @@ def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
             P_i = _cpoint(pk)
         except BTClibValueError as e:
             raise InvalidContributionError(i, "pubkey") from e
-        Q = secp256k1.add(Q, mult(_key_agg_coeff_(L, second, pk), P_i, secp256k1))
+        Q = secp256k1.add_var(Q, mult(_key_agg_coeff_(L, second, pk), P_i, secp256k1))
     if Q[1] == 0:  # pragma: no cover
         # the coefficients are hashes, so cancelling them all out is the
         # discrete-log problem rather than a case to handle: raise where
@@ -334,7 +334,7 @@ def apply_tweak(
     t = int.from_bytes(tweak, "big")
     if t >= secp256k1.n:
         raise BTClibValueError(_TWEAK_RANGE_ERR)
-    Q = secp256k1.add(mult(g, Q, secp256k1), mult(t, secp256k1.G, secp256k1))
+    Q = secp256k1.add_var(mult(g, Q, secp256k1), mult(t, secp256k1.G, secp256k1))
     if Q[1] == 0:
         # t*G cancelling g*Q exactly: unreachable for a tweak nobody
         # chose to do it, reachable for one that did, and a key of
@@ -485,7 +485,7 @@ def nonce_agg(pub_nonces: Sequence[Octets]) -> bytes:
                 R_ij = _cpoint(pub_nonce[j * _PK_SIZE : (j + 1) * _PK_SIZE])
             except BTClibValueError as e:
                 raise InvalidContributionError(i, "pubnonce") from e
-            R_j = secp256k1.add(R_j, R_ij)
+            R_j = secp256k1.add_var(R_j, R_ij)
         agg_nonce += _cbytes_ext(R_j)
     return agg_nonce
 
@@ -558,7 +558,7 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
         R_2 = _cpoint_ext(session_ctx.agg_nonce[_PK_SIZE:])
     except BTClibValueError as err:
         raise InvalidContributionError(None, "aggnonce") from err
-    R = secp256k1.add(R_1, mult(b, R_2, secp256k1))
+    R = secp256k1.add_var(R_1, mult(b, R_2, secp256k1))
     # an aggregate nonce of infinity is a session the signers can still
     # complete: G stands in for R, the resulting signature is invalid
     # for everybody equally, and no signer is singled out as the one who
@@ -702,7 +702,7 @@ def partial_sig_verify_(
     pub_nonce = bytes_from_octets(pub_nonce, _NONCE_SIZE)
     R_s1 = _cpoint(pub_nonce[:_PK_SIZE])
     R_s2 = _cpoint(pub_nonce[_PK_SIZE:])
-    R_s = secp256k1.add(R_s1, mult(values.b, R_s2, secp256k1))
+    R_s = secp256k1.add_var(R_s1, mult(values.b, R_s2, secp256k1))
     if values.R[1] % 2:
         R_s = secp256k1.negate(R_s)
     pub_key = bytes_from_octets(pub_key, _PK_SIZE)
@@ -711,7 +711,7 @@ def partial_sig_verify_(
     g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
     g = g * values.gacc % secp256k1.n
     lhs = mult(s, secp256k1.G, secp256k1)
-    rhs = secp256k1.add(R_s, mult(values.e * a * g % secp256k1.n, P, secp256k1))
+    rhs = secp256k1.add_var(R_s, mult(values.e * a * g % secp256k1.n, P, secp256k1))
     return lhs == rhs
 
 

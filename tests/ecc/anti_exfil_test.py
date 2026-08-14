@@ -148,7 +148,7 @@ def test_the_whole_handshake() -> None:
         _PUB_KEY,
         sig,
         _RHO,
-        secp256k1.add(R, secp256k1.G),
+        secp256k1.add_var(R, secp256k1.G),
     )
 
     # the malleated twin shares r, so the commitment opens to it as well,

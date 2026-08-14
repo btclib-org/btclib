@@ -421,7 +421,7 @@ def _compressed_sec(x: int, ec: Curve) -> bytes | None:
     return b"\x02" + x.to_bytes(ec.p_size, "big")
 
 
-def _is_x_coordinate(x: int, ec: Curve) -> bool:
+def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     """Return True if x is the x-coordinate of a point of the curve.
 
     Existence and nothing else, which is what a caller with no use for
@@ -435,7 +435,7 @@ def _is_x_coordinate(x: int, ec: Curve) -> bool:
     A bool rather than an exception, because the value that names itself
     in an error message is the caller's and not this x: dsa.Sig's
     congruence check tries every x congruent to r and reports r. That is
-    also what keeps the refusal cheap, where _y_even below cannot: half
+    also what keeps the refusal cheap, where _y_even_var below cannot: half
     of the field elements are not x-coordinates, and the symbol costs the
     same for those as for the others.
     """
@@ -455,21 +455,21 @@ def _is_x_coordinate(x: int, ec: Curve) -> bool:
     return legendre_symbol_var(ec._y2(x), ec.p) != -1
 
 
-def _y_even(x: int, ec: Curve) -> int:
+def _y_even_var(x: int, ec: Curve) -> int:
     """Return the even y-coordinate associated to x.
 
-    ec.y_even, delegated for secp256k1: the parity a compressed public
+    ec.y_even_var, delegated for secp256k1: the parity a compressed public
     key carries in its prefix is the same tiebreaker, so 0x02 || x names
     the even-y point and the uncompressed serialization of it hands back
     the y that was lifted -- 2.9 us against 75. That is 0.5 more than
-    _is_x_coordinate above, which is why both exist.
+    _is_x_coordinate_var above, which is why both exist.
 
-    An x the bindings refuse falls through to ec.y_even instead of
+    An x the bindings refuse falls through to ec.y_even_var instead of
     raising here, so that the message stays in the one place that has the
     value to name: "invalid x-coordinate" is curve_group's to phrase, and
     the callers of this function wrap that message rather than restating
     it. The fallthrough pays the Python square root on a path whose
-    answer is an exception, which is the trade _is_x_coordinate exists
+    answer is an exception, which is the trade _is_x_coordinate_var exists
     not to make.
     """
     sec = _compressed_sec(x, ec)
@@ -479,7 +479,7 @@ def _y_even(x: int, ec: Curve) -> int:
             uncompressed = libsecp256k1_pubkey_serialize(pubkey, compressed=False)
             return int.from_bytes(uncompressed[ec.p_size + 1 :], "big")
 
-    return ec.y_even(x)
+    return ec.y_even_var(x)
 
 
 def _sec_from_point(Q: Point) -> bytes:
@@ -600,7 +600,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         # built once and kept and the multiplication makes no doubling at
         # all. It is faster than the endomorphism below on secp256k1 too,
         # so the test is on the point before it is on the curve
-        return ec.aff_from_jac(_mult_fixed_base(m, ec.GJ, ec, _FIXED_BASE_W))
+        return ec.aff_from_jac_var(_mult_fixed_base(m, ec.GJ, ec, _FIXED_BASE_W))
 
     ec.require_on_curve(Q)
     QJ = _jac_from_aff(Q)
@@ -632,7 +632,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         if ec == secp256k1
         else _mult(m, QJ, ec)
     )
-    return ec.aff_from_jac(R)
+    return ec.aff_from_jac_var(R)
 
 
 def _double_mult_python(
@@ -692,7 +692,7 @@ def double_mult_var(
     HJ = _jac_from_aff(H)
     QJ = _jac_from_aff(Q)
     R = _double_mult_python(u, HJ, v, QJ, ec)
-    return ec.aff_from_jac(R)
+    return ec.aff_from_jac_var(R)
 
 
 def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> JacPoint:
@@ -726,7 +726,7 @@ def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> J
     if not _libsecp256k1_applicable(ec, None):
         return _double_mult_python(u, HJ, v, QJ, ec)
 
-    R = double_mult_var(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
+    R = double_mult_var(u, ec.aff_from_jac_var(HJ), v, ec.aff_from_jac_var(QJ), ec)
     return _jac_from_aff(R)
 
 
@@ -761,4 +761,4 @@ def multi_mult_var(
 
     jac_points = [_jac_from_aff(Q) for Q in points]
     R = _multi_mult_var(ints, jac_points, ec)
-    return ec.aff_from_jac(R)
+    return ec.aff_from_jac_var(R)

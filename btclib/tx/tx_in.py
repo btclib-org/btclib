@@ -90,6 +90,7 @@ class TxIn:
         if check_validity:
             self.assert_valid()
 
+    @property
     def is_segwit(self) -> bool:
         """Answer whether the input carries a witness.
 
@@ -100,9 +101,10 @@ class TxIn:
         # self.prev_out has no segwit information
         return bool(self.script_witness.stack)
 
+    @property
     def is_coinbase(self) -> bool:
         """Answer whether the input is a coinbase, spending nothing."""
-        return self.prev_out.is_coinbase()
+        return self.prev_out.is_coinbase
 
     def assert_valid(self) -> None:
         """Refuse an invalid prev_out, sequence, or witness.
