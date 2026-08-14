@@ -67,18 +67,23 @@ full year, short month, short day (YYYY-M-D)
   `AttributeError` around one of those two `verify` calls has to catch
   `TypeError` or `BTClibException`. `pedersen.verify` refuses a
   commitment of a type no point has, where it answered False.
-- **six functions gain a `_var` suffix, and `mod_inv` changes meaning.**
-  The suffix marks a duration that follows the operand, so the plain
-  name beside it is the one a secret may be handed:
-  `number_theory.mod_inv` is `mod_inv_var`, `xgcd` is `xgcd_var`,
-  `legendre_symbol` is `legendre_symbol_var`, `mod_sqrt` is
-  `mod_sqrt_var`, `tonelli` is `tonelli_var`, and `curves.double_mult`
-  and `curves.multi_mult` are `double_mult_var` and `multi_mult_var`.
-  `curves.mult` is unchanged, its two arms making the same additions for
-  every scalar.
+- **the functions whose duration follows their operand gain a `_var`
+  suffix, and `mod_inv` changes meaning.** The plain name beside the
+  suffix is the one a secret may be handed. In `number_theory`,
+  `mod_inv` is `mod_inv_var`, `xgcd` is `xgcd_var`, `legendre_symbol` is
+  `legendre_symbol_var`, `mod_sqrt` is `mod_sqrt_var` and `tonelli` is
+  `tonelli_var`; in `curves`, `double_mult` and `multi_mult` are
+  `double_mult_var` and `multi_mult_var`, and `CurveGroup` renames
+  `aff_from_jac`, `aff_from_jac_batch`, `x_aff_from_jac`,
+  `y_aff_from_jac`, `add`, `add_aff`, `double_aff`, `y`, `y_even`,
+  `y_low` and `y_quadratic_residue` the same way. `curves.mult` is
+  unchanged, its two arms making the same additions for every scalar,
+  and so is everything above the arithmetic: the suffix is measured on
+  the value a function receives, not inherited from what it calls.
 
-  An import of one of the six old spellings is an `ImportError`, and each
-  new name is a rename with no change of signature or behaviour.
+  An import or a call of one of the old spellings is an `AttributeError`
+  or an `ImportError`, and each new name is a rename with no change of
+  signature or behaviour.
   `mod_inv` is the exception and does not raise: the name survives and
   now returns the same inverse computed with a random blinding factor,
   so a caller inverting a secret is protected without changing a line,

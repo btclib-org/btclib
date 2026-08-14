@@ -65,10 +65,10 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import (
-    _is_x_coordinate,
+    _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_applicable,
-    _y_even,
+    _y_even_var,
     mult,
     multi_mult_var,
 )
@@ -153,10 +153,10 @@ class Sig:
         # r is a field element, fail if r is not a valid x-coordinate.
         # The question is existence: BIP340 fixes the y even, and
         # verification recomputes the point from the scalars rather than
-        # lifting this r, so _is_x_coordinate and not the _y_even that
+        # lifting this r, so _is_x_coordinate_var and not the _y_even_var that
         # was here (issue 622). The delegated lift was already 2.9 us
         # against 75 on the accepting path, and 0.65 of that is not the
-        # reason: _y_even falls back to ec.y_even for an x the bindings
+        # reason: _y_even_var falls back to ec.y_even_var for an x the bindings
         # refuse -- that being where the message naming the value comes
         # from -- so refusing cost the whole Python square root, 78.7 us
         # against the 22.4 of verifying a good signature. The expensive
@@ -168,7 +168,7 @@ class Sig:
         # of the two fields was wrong. dsa.Sig phrases its own for the
         # same reason, with the congruence this one has no use for -- r
         # is a field element here, not a scalar reduced mod n
-        if not _is_x_coordinate(self.r, self.ec):
+        if not _is_x_coordinate_var(self.r, self.ec):
             err_msg = "r is not a valid x-coordinate: "
             err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
             raise BTClibValueError(err_msg)
@@ -241,13 +241,13 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     - native tuple
     """
     # every branch below ends in the same lift, an x-only key being an x
-    # and the even y that goes with it: _y_even is ec.y_even answered by
+    # and the even y that goes with it: _y_even_var is ec.y_even_var answered by
     # libsecp256k1 for secp256k1, 2.9 us against the 75 of a modular
     # square root, and the Python one for every other curve
 
     # BIP340 key as integer
     if isinstance(x_Q, int):
-        return x_Q, _y_even(x_Q, ec)
+        return x_Q, _y_even_var(x_Q, ec)
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
     # both classes, this being a guess at the spelling: a type no public
@@ -256,12 +256,12 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     # at the end
     with contextlib.suppress(BTClibTypeError, BTClibValueError):
         x_Q = point_from_pub_key(x_Q, ec)[0]
-        return x_Q, _y_even(x_Q, ec)
+        return x_Q, _y_even_var(x_Q, ec)
     # BIP340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.p_size)
         x_Q = int.from_bytes(Q, "big", signed=False)
-        return x_Q, _y_even(x_Q, ec)
+        return x_Q, _y_even_var(x_Q, ec)
 
     raise BTClibTypeError("not a BIP340 public key")
 
@@ -521,7 +521,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # if moved after 'Fail if x_K ≠ r' it would never be executed
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
-    if ec.y_aff_from_jac(KJ) % 2:
+    if ec.y_aff_from_jac_var(KJ) % 2:
         raise BTClibRuntimeError("y_K is odd")
 
     # Fail if x_K ≠ r
@@ -697,7 +697,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")
 
-    KJ = r, _y_even(r, ec), 1
+    KJ = r, _y_even_var(r, ec), 1
 
     e1 = mod_inv_var(c, ec.n)
     # libsecp256k1 recovers no x-only key -- its recovery module is ECDSA
@@ -715,7 +715,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"
         raise BTClibRuntimeError(err_msg)
-    return int(ec.x_aff_from_jac(QJ))
+    return int(ec.x_aff_from_jac_var(QJ))
 
 
 def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Octets | Sig]) -> str:
@@ -807,7 +807,7 @@ def assert_batch_as_valid_(
         # any size, as in sign_ and assert_as_valid_
         msg = bytes_from_octets(msg)  # noqa: PLW2901
 
-        K = sig.r, _y_even(sig.r, ec)
+        K = sig.r, _y_even_var(sig.r, ec)
 
         x_Q, y_Q = point_from_bip340pub_key(Q, ec)
 

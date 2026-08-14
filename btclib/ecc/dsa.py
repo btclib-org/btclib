@@ -48,10 +48,10 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, mult, secp256k1
 from btclib.curves.curve import (
-    _is_x_coordinate,
+    _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_applicable,
-    _y_even,
+    _y_even_var,
 )
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
@@ -233,7 +233,7 @@ class Sig:
         r = self.r
         congruence_not_found = True
         while congruence_not_found and r < self.ec.p:
-            if _is_x_coordinate(r, self.ec):
+            if _is_x_coordinate_var(r, self.ec):
                 congruence_not_found = False
             else:
                 r += self.ec.n
@@ -1219,7 +1219,7 @@ def recover_pub_keys_(
     QJs = _recover_pub_keys_(c, sig.r, sig.s, sig.ec, lower_s=False)
     # the candidates converted together: one extended Euclid for the list
     # where one per candidate is what the loop above would have paid
-    return sig.ec.aff_from_jac_batch(QJs)
+    return sig.ec.aff_from_jac_batch_var(QJs)
 
 
 def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list[Point]:
@@ -1265,7 +1265,7 @@ def _recover_pub_key_(
     # path of recovery, but the root it takes to turn a candidate x_K into
     # a point is libsecp256k1's for secp256k1 all the same -- reached with
     # a key_id above 3, which the dispatch does not hand over
-    y = _y_even(x_K, ec)
+    y = _y_even_var(x_K, ec)
     y_K = ec.p - y if i else y
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
@@ -1281,7 +1281,7 @@ def _recover_pub_key_(
     # It is the same point either way and not the same triple: what comes
     # back is _jac_from_aff, i.e. z == 1, where the wNAF answered whatever
     # representative its ladder reached. Every caller converts with
-    # aff_from_jac, which is what a Jacobian coordinate is for
+    # aff_from_jac_var, which is what a Jacobian coordinate is for
     QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
     _assert_as_valid_(c, QJ, r, s, ec, lower_s=lower_s)  # 1.6.2
     return QJ
@@ -1396,7 +1396,7 @@ def recover_pub_key_(
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
     QJ = _recover_pub_key_(key_id, c, sig.r, sig.s, sig.ec, lower_s=False)
-    return sig.ec.aff_from_jac(QJ)
+    return sig.ec.aff_from_jac_var(QJ)
 
 
 def recover_pub_key(

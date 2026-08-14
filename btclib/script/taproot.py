@@ -28,7 +28,7 @@ from btclib.alias import (
     TaprootScriptTree,
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable, _y_even
+from btclib.curves.curve import _libsecp256k1_applicable, _y_even_var
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -264,7 +264,7 @@ def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
     # against 109.3 for the three lines below, over 2000 tweaks: the
-    # Python path lifts the x-only key to a point with secp256k1.y_even,
+    # Python path lifts the x-only key to a point with secp256k1.y_even_var,
     # i.e. a modular square root, which is 74 us of that on its own --
     # while libsecp256k1 needs no such lift, having the y coordinate as
     # it goes.
@@ -279,7 +279,7 @@ def _tweaked_pubkey(pub_key: bytes, h: bytes) -> tuple[bytes, int]:
         return libsecp256k1_xonly.tweak_add(pub_key, t)
 
     P_x = int.from_bytes(pub_key, "big")
-    Q = secp256k1.add((P_x, secp256k1.y_even(P_x)), mult(t))
+    Q = secp256k1.add_var((P_x, secp256k1.y_even_var(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
@@ -341,7 +341,7 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
         return int.from_bytes(tweaked, "big")
 
     P = mult(internal_prvkey)
-    # the parity of a y already in hand: secp256k1.y_even(P[0]) lifted
+    # the parity of a y already in hand: secp256k1.y_even_var(P[0]) lifted
     # the x back to the point P is -- 74.6 us of modular square root
     # against 0.03 -- to compare its y with the one beside it (issue
     # 619). Not a delegation but a deletion, which is what this path
@@ -441,16 +441,16 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
         except ValueError as e:
             # an internal key that is not a point leaves the bindings
             # through a plain ValueError and the Python path below
-            # through the BTClibValueError of _y_even. The engine
+            # through the BTClibValueError of _y_even_var. The engine
             # catches the library's own error, so the two must agree on
             # what they raise as well as on what they answer
             raise BTClibValueError(f"invalid internal public key: {e}") from e
 
-    # _y_even, i.e. secp256k1.y_even with the lift delegated: this is the path a
-    # q of any other length takes, secp256k1 included, so the modular
-    # square root is worth not taking here either
-    P = (p, _y_even(p, secp256k1))
-    Q = secp256k1.add(P, mult(t))
+    # _y_even_var, i.e. secp256k1.y_even_var with the lift delegated: this is
+    # the path a q of any other length takes, secp256k1 included, so the
+    # modular square root is worth not taking here either
+    P = (p, _y_even_var(p, secp256k1))
+    Q = secp256k1.add_var(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
 
 

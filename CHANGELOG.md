@@ -1498,6 +1498,26 @@ documented at release-notes length in the first place, and are still in
   btclib caller those coefficients are a signature and a message hash,
   which is why the suffix is a label and not a defect.
 
+  The layer above the primitives takes it too, each name measured over
+  the value it is handed rather than inherited from what it calls:
+  `CurveGroup.aff_from_jac_var` (2.96x in its `Z`),
+  `x_aff_from_jac_var` (1.93x), `aff_from_jac_batch_var` (1.67x),
+  `y_aff_from_jac_var` (1.42x), `double_aff_var` (1.32x),
+  `add_aff_var` (1.23x) and the `add_var` over them (1.22x). `y_var`,
+  `y_even_var`, `y_low_var` and `y_quadratic_residue_var` are flat on
+  secp256k1 and 1.84x on `secp224k1`, whose `p` is 1 mod 4 and whose
+  square root is therefore Tonelli-Shanks; the private `_y_even_var` and
+  `_is_x_coordinate_var` of `curves.curve` go with them, each being the
+  bindings on secp256k1 and the Python root or symbol elsewhere.
+
+  Measured and not inherited is what keeps the suffix meaningful, and the
+  count says why: 636 functions reach one of these primitives through
+  some chain of calls, 344 of them public, which would put `_var` on
+  `hex_string` and `p2pkh`. Blinding breaks the chain — `mult` is 0.99x
+  in its scalar because `_blinded_jac` randomized the `Z` its inverse is
+  timed on — and so does a public operand, `point_from_octets` measuring
+  1.05x. CONTRIBUTING.md carries the rule and both counterexamples.
+
 - **`mod_inv` delegates its extended Euclid to CPython** (issue #779).
   `pow(a, -1, m)` is `long_invmod`, the same algorithm `xgcd` runs with
   the second cofactor dropped -- CPython carries that loop as a comment

@@ -48,9 +48,9 @@ from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import (
-    _is_x_coordinate,
+    _is_x_coordinate_var,
     _libsecp256k1_applicable,
-    _y_even,
+    _y_even_var,
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
@@ -144,7 +144,7 @@ def _xswiftec(u: int, t: int, ec: Curve) -> int:
         (-X * inv_Y - u) * inv2 % p,
         (X * inv_Y - u) * inv2 % p,
     ):
-        if _is_x_coordinate(x, ec):
+        if _is_x_coordinate_var(x, ec):
             return x
     # unreachable, and here for the return type rather than for the case:
     # the map is total -- the SwiftEC paper's result is that one of the
@@ -171,7 +171,7 @@ def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: 
         # -x-u being an x-coordinate means the pair would decode through
         # the third candidate of _xswiftec, which has priority: the
         # encoding would not round-trip, so this case has no answer
-        if _is_x_coordinate((-x - u) % p, ec):
+        if _is_x_coordinate_var((-x - u) % p, ec):
             return None
         v = x
         s = -(pow(u, 3, p) + b) * mod_inv_var((u * u + u * v + v * v) % p, p) % p
@@ -218,7 +218,7 @@ def _point_from_ell(ell: bytes, ec: Curve) -> Point:
     # encoding BIP324's own reference implementation leaves out: it maps
     # to an x-coordinate and stops, where libsecp256k1's decode lifts the
     # point with secp256k1_fe_is_odd(t) as the tiebreaker
-    y = _y_even(x, ec)
+    y = _y_even_var(x, ec)
     return x, (ec.p - y if t % 2 else y)
 
 
@@ -302,12 +302,12 @@ def decode(ell: Octets, ec: Curve = secp256k1) -> Point:
     ell = _ell_from_octets(ell, ec)
 
     # the bindings answer with a compressed public key, whose y is the
-    # one the prefix names: _y_even lifts the x and the prefix picks the
+    # one the prefix names: _y_even_var lifts the x and the prefix picks the
     # root, which is a parse rather than the square root it looks like
     if _libsecp256k1_applicable(ec, None):
         sec = libsecp256k1_ellswift.decode(ell)
         x = int.from_bytes(sec[1:], byteorder="big", signed=False)
-        y = _y_even(x, ec)
+        y = _y_even_var(x, ec)
         return x, (ec.p - y if sec[0] == 3 else y)
 
     return _point_from_ell(ell, ec)
@@ -343,6 +343,6 @@ def xdh(
     # point, q*P and q*(-P) differing by their own y alone, so the t
     # parity the decoding would apply does not reach the secret
     x_theirs, _ = _x_t_from_ell(ell_b if party == 0 else ell_a, ec)
-    x = mult(q, (x_theirs, _y_even(x_theirs, ec)), ec)[0]
+    x = mult(q, (x_theirs, _y_even_var(x_theirs, ec)), ec)[0]
     preimage = ell_a + ell_b + x.to_bytes(ec.p_size, byteorder="big", signed=False)
     return tagged_hash(XDH_TAG, preimage)

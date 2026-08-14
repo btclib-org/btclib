@@ -316,7 +316,7 @@ def test_a_labeled_address_differs_in_the_spend_key_alone() -> None:
         assert labeled_spend != B_spend
         # and the difference is the label tweak times G
         tweak = silent_payments.label_tweak(_B_SCAN_PRV, m)
-        assert labeled_spend == secp256k1.add(B_spend, mult(tweak))
+        assert labeled_spend == secp256k1.add_var(B_spend, mult(tweak))
 
 
 def test_a_label_is_a_32_bit_unsigned_integer() -> None:

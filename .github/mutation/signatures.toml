@@ -73,7 +73,7 @@ excluded-modules = []
 #
 # A second pass worked through that data. The most consequential real
 # gap this session found, in either module, is in `ssa._assert_as_valid_`:
-# `if ec.y_aff_from_jac(KJ) % 2:` -- "Fail if y_K is odd" -- weakened to
+# `if ec.y_aff_from_jac_var(KJ) % 2:` -- "Fail if y_K is odd" -- weakened to
 # `% 1` is always zero, so the check never fires. Every existing vector
 # missed it because a wrong `s` almost always moves K by whole multiples
 # of the generator, which moves its x-coordinate too, so 'Fail if x_K !=

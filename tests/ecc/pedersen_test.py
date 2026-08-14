@@ -73,7 +73,7 @@ def test_commitment() -> None:
     # Pedersen Commitment is additively homomorphic
     # Commit(r_1, v1) + Commit(r_2, v2) = Commit(r_1+r_2, v1+r_2)
     R = pedersen.commit(r_1 + r_2, v1 + v2, ec, hf)
-    assert ec.add(C1, C2) == R
+    assert ec.add_var(C1, C2) == R
 
     pedersen.assert_as_valid(r_1, v1, C1, ec, hf)
 
