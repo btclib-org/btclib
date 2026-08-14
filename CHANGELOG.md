@@ -2091,6 +2091,48 @@ documented at release-notes length in the first place, and are still in
   with the bindings applicable, `mult` has returned before reaching it.
   `double_mult` and `multi_mult` do not rescale, their coefficients being
   a verification's and public.
+- **The tables a windowed multiplication indexes are affine** (issue
+  #801). `add_jac` adds two Jacobian points, and in a windowed
+  multiplication one of the two is always a table entry. `add_jac_aff`
+  takes that one as a `Point` -- the precondition in the signature rather
+  than in a sentence nothing checks -- and five of the sixteen products
+  become multiplications by one: the entry's two powers of Z, the two
+  that put the accumulator in its frame, and one factor of the answer's
+  Z. libsecp256k1 keeps its tables the same way and states
+  `secp256k1_gej_add_ge_var` as 8 mul and 3 sqr against the 12 and 4 of
+  `secp256k1_gej_add_var`.
+
+  What the table costs is one modular inversion, `aff_from_jac_batch`
+  sharing it across the entries: at w=4 one extended Euclid and some
+  forty products, against five saved on each of the ~63 additions a
+  256-bit scalar makes. The inversion is a function of the point and not
+  of the scalar, so a multiplication that is regular in its scalar stays
+  regular in it. Measured against `1bb77121` on Python 3.14.6, best of
+  seven alternating rounds, with a doubling as the noise detector:
+
+  | | Jacobian | affine | |
+  | --- | ---: | ---: | ---: |
+  | `_mult`, secp256k1 | 729 us | 681 us | **1.07x** |
+  | `_mult`, secp256r1 | 809 us | 765 us | **1.06x** |
+  | `_mult_endomorphism_secp256k1` | 547 us | 522 us | **1.05x** |
+  | `_double_mult_w_NAF`, secp256r1 | 1004 us | 933 us | **1.08x** |
+  | `_double_mult_endomorphism_secp256k1` | 755 us | 711 us | **1.06x** |
+  | `_multi_mult`, 16 scalars | 4257 us | 3753 us | **1.13x** |
+  | control, `double_jac` | 1.66 us | 1.66 us | 1.00x |
+
+  Every loop that builds a table takes it: the regular windows of `_mult`
+  and `_double_mult_regular_window`, and the interleaved wNAFs of
+  `_double_mult_w_NAF` and `_multi_mult_w_NAF`. `add_jac` stays what
+  `_double_mult`'s Shamir-Strauss table and every caller outside those
+  loops adds with, and every case it answers `add_jac_aff` answers the
+  same way -- infinity through a stand-in and a selection at the end,
+  spelled `R[1] == 0` because that is what infinity is in affine
+  coordinates. A new test compares the two over every pair of points of
+  every low-cardinality curve, which is where those cases are reached.
+
+  `_signed_odd_multiples` is gone, `_signed_odd_multiples_aff` being what
+  the regular windows index; `_odd_multiples` stays, the affine table
+  being built on it. The negation costs the same either way, `(x, p - y)`.
 
 ### The public API and the module layout
 

@@ -103,9 +103,10 @@ from btclib.alias import INFJ, JacPoint
 from btclib.curves.curve_group import (
     CurveGroup,
     _convert_number_to_base,
+    _jac_from_aff,
     _multi_mult_w_NAF,
-    _odd_multiples,
-    _signed_odd_multiples,
+    _odd_multiples_aff,
+    _signed_odd_multiples_aff,
     _wNAF_of_m,
     signed_odd_digits,
 )
@@ -302,21 +303,23 @@ def _double_mult_w_NAF(
     vs = _wNAF_of_m(v, w)
 
     # one table of odd multiples per point, the same curve_group's
-    # interleaved _multi_mult_w_NAF builds for each of its own
-    TH = _odd_multiples(HJ, ec, w)
-    TQ = _odd_multiples(QJ, ec, w)
+    # interleaved _multi_mult_w_NAF builds for each of its own, and in
+    # affine coordinates for the same reason: one inversion a table
+    # against five products on every addition that indexes it
+    TH = _odd_multiples_aff(HJ, ec, w)
+    TQ = _odd_multiples_aff(QJ, ec, w)
 
     R = INFJ
     for j in range(max(len(us), len(vs)) - 1, -1, -1):
         R = ec.double_jac(R)
         if j < len(us) and us[j] != 0:
             d = us[j]
-            T = TH[(d - 1) // 2] if d > 0 else ec.negate_jac(TH[(-d - 1) // 2])
-            R = ec.add_jac(R, T)
+            T = TH[(d - 1) // 2] if d > 0 else ec.negate(TH[(-d - 1) // 2])
+            R = ec.add_jac_aff(R, T)
         if j < len(vs) and vs[j] != 0:
             d = vs[j]
-            T = TQ[(d - 1) // 2] if d > 0 else ec.negate_jac(TQ[(-d - 1) // 2])
-            R = ec.add_jac(R, T)
+            T = TQ[(d - 1) // 2] if d > 0 else ec.negate(TQ[(-d - 1) // 2])
+            R = ec.add_jac_aff(R, T)
     return R
 
 
@@ -374,18 +377,20 @@ def _double_mult_regular_window(
     us = signed_odd_digits(u | 1, w, size)
     vs = signed_odd_digits(v | 1, w, size)
 
-    TH = _signed_odd_multiples(HJ, ec, w)
-    TQ = _signed_odd_multiples(QJ, ec, w)
+    TH = _signed_odd_multiples_aff(HJ, ec, w)
+    TQ = _signed_odd_multiples_aff(QJ, ec, w)
     offset = (1 << w) - 1
 
     # the accumulator starts at the sum of two table entries, so infinity
     # is out of the loop here too
-    R = ec.add_jac(TH[(us[-1] + offset) // 2], TQ[(vs[-1] + offset) // 2])
+    R = ec.add_jac_aff(
+        _jac_from_aff(TH[(us[-1] + offset) // 2]), TQ[(vs[-1] + offset) // 2]
+    )
     for du, dv in zip(us[-2::-1], vs[-2::-1], strict=True):
         for _ in range(w):
             R = ec.double_jac(R)
-        R = ec.add_jac(R, TH[(du + offset) // 2])
-        R = ec.add_jac(R, TQ[(dv + offset) // 2])
+        R = ec.add_jac_aff(R, TH[(du + offset) // 2])
+        R = ec.add_jac_aff(R, TQ[(dv + offset) // 2])
     # and the two parity corrections, each made whatever the parity
     R = ec.add_jac(R, (INFJ, ec.negate_jac(HJ))[not u & 1])
     return ec.add_jac(R, (INFJ, ec.negate_jac(QJ))[not v & 1])

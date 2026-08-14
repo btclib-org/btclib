@@ -479,6 +479,55 @@ class CurveGroup:
         # here, which is the whole point of it
         return ((X, Y, Z), R, Q, INFJ)[(Q[2] == 0) + 2 * (R[2] == 0)]
 
+    def add_jac_aff(self, Q: JacPoint, R: Point) -> JacPoint:
+        """Return the sum of a Jacobian point and an affine one, branch-free.
+
+        `add_jac` with the second operand's Z known to be one, which is
+        what an affine point is: five of the sixteen products become
+        multiplications by one -- R's two powers of Z, the two that put Q
+        in R's frame, and one factor of the answer's Z. libsecp256k1 keeps
+        its tables in affine coordinates for exactly this and states
+        `secp256k1_gej_add_ge_var` as 8 mul and 3 sqr against the 12 and 4
+        of `secp256k1_gej_add_var`.
+
+        The affine operand is a Point and not a JacPoint whose Z happens
+        to be one, so the precondition is in the signature rather than in
+        a sentence nothing checks.
+
+        The input points are assumed to be on the curve. Every case
+        `add_jac` answers is answered here the same way and for the same
+        reasons, which its comments carry: infinity through a stand-in and
+        a selection at the end, spelled `R[1] == 0` because that is what
+        infinity is in affine coordinates, and the doubling and the sum
+        that is infinity through the one branch on V.
+        """
+        QS = (Q, self._stand_in_q)[Q[2] == 0]
+        RS = (R, self._stand_in_r)[R[1] == 0]
+
+        p = self.p
+        QZ2 = QS[2] * QS[2] % p
+        QZ3 = QZ2 * QS[2] % p
+
+        # M and T are Q's coordinates as they stand: R's frame is the
+        # affine one, so putting Q in it is what QZ2 and QZ3 already did
+        M = QS[0]
+        T = QS[1]
+        V = (RS[0] * QZ2 - M) % p
+        W = (RS[1] * QZ3 - T) % p
+
+        if V == 0 and Q[2] and R[1]:
+            return self._double_jac_helper(Q, QZ2) if W == 0 else INFJ
+
+        V2 = V * V % p
+        V3 = V2 * V % p
+        MV2 = M * V2 % p
+
+        X = (W * W - V3 - 2 * MV2) % p
+        Y = (W * (MV2 - X) - T * V3) % p
+        Z = V * QS[2] % p
+
+        return ((X, Y, Z), (R[0], R[1], 1), Q, INFJ)[(Q[2] == 0) + 2 * (R[1] == 0)]
+
     def double_jac(self, Q: JacPoint) -> JacPoint:
         """Return twice the Jacobian point, assumed to be on the curve."""
         # Z^2 is what the a*Z^4 term is built from and the only thing that
@@ -941,23 +990,42 @@ def _odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     return T
 
 
-def _signed_odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
-    """Return the 2^w multiples a signed odd width-w digit names.
+def _odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
+    """Return `_odd_multiples` in affine coordinates, one inversion for all.
+
+    What it buys is the loop that indexes it: `add_jac_aff` makes five
+    products fewer than `add_jac` on every addition, and a windowed
+    multiplication makes one addition per window. What it costs is one
+    extended Euclid, `aff_from_jac_batch` sharing it across the entries --
+    at w=4 one inverse and some forty products, against five saved on each
+    of the ~63 additions a 256-bit scalar makes.
+
+    The inversion is a function of the point and not of the scalar, so a
+    multiplication that is regular in its scalar stays regular in it.
+    """
+    return ec.aff_from_jac_batch(_odd_multiples(Q, ec, w))
+
+
+def _signed_odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point]:
+    """Return the 2^w multiples a signed odd width-w digit names, affine.
 
     -(2^w - 1)*Q first and (2^w - 1)*Q last, so the digit d of
-    signed_odd_digits picks entry (d + 2^w - 1) // 2 and nothing has to
-    test its sign, where the wNAF loops negate an entry of `_odd_multiples`
-    on the fly under an `if`. Cheaper, too, and not only regular: 2^(w-1)
-    modular subtractions once -- 8 of them at w=4 -- against the one per
-    negative digit the loop would make, which is half of the 64 digits a
-    256-bit scalar has at that width.
+    `signed_odd_digits` picks entry (d + 2^w - 1) // 2 and nothing has to
+    test its sign, where the wNAF loops negate an entry of
+    `_odd_multiples_aff` on the fly under an `if`. Cheaper, too, and not
+    only regular: 2^(w-1) modular subtractions once -- 8 of them at w=4 --
+    against the one per negative digit the loop would make, which is half
+    of the 64 digits a 256-bit scalar has at that width.
 
-    The table it is built on is `_odd_multiples(Q, ec, w + 1)`: a regular
-    digit reaches 2^w - 1 where a width-w NAF digit stops at 2^(w-1) - 1,
-    so the table is twice as long as that recoding's for the same window.
+    The table it is built on is `_odd_multiples_aff(Q, ec, w + 1)`: a
+    regular digit reaches 2^w - 1 where a width-w NAF digit stops at
+    2^(w-1) - 1, so the table is twice as long as that recoding's for the
+    same window. The negation is one modular subtraction in affine
+    coordinates as it is in Jacobian ones, `(x, p - y)`, so nothing is
+    paid for the entries being affine here rather than there.
     """
-    T = _odd_multiples(Q, ec, w + 1)
-    return [ec.negate_jac(P) for P in reversed(T)] + T
+    T = _odd_multiples_aff(Q, ec, w + 1)
+    return [ec.negate(P) for P in reversed(T)] + T
 
 
 def _mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -1150,17 +1218,17 @@ def _mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoin
     # all, and m + n would be the same point only for a point whose order
     # it is -- which the group this multiplies in cannot say
     digits = signed_odd_digits(m | 1, w, size)
-    T = _signed_odd_multiples(Q, ec, w)
+    T = _signed_odd_multiples_aff(Q, ec, w)
     offset = (1 << w) - 1
 
     # a table entry, the top digit being positive, and never infinity
-    R = T[(digits[-1] + offset) // 2]
+    R = _jac_from_aff(T[(digits[-1] + offset) // 2])
     for digit in digits[-2::-1]:
         # multiple 'double'
         for _ in range(w):
             R = ec.double_jac(R)
         # and 'add', on every digit: there is no zero one to skip
-        R = ec.add_jac(R, T[(digit + offset) // 2])
+        R = ec.add_jac_aff(R, T[(digit + offset) // 2])
     # the parity correction, made whatever the parity so that it cannot be
     # read off the clock: one addition of infinity, which by the same
     # property costs what the addition of -Q costs. It is also what
@@ -1326,7 +1394,7 @@ def _multi_mult_w_NAF(
         return INFJ
 
     nafs = [_wNAF_of_m(n, w) for n, _ in pairs]
-    tables = [_odd_multiples(PJ, ec, w) for _, PJ in pairs]
+    tables = [_odd_multiples_aff(PJ, ec, w) for _, PJ in pairs]
 
     R = INFJ
     for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
@@ -1335,8 +1403,8 @@ def _multi_mult_w_NAF(
             # a scalar shorter than the longest one has run out of digits
             if j < len(naf) and naf[j] != 0:
                 d = naf[j]
-                QJ = T[(d - 1) // 2] if d > 0 else ec.negate_jac(T[(-d - 1) // 2])
-                R = ec.add_jac(R, QJ)
+                P = T[(d - 1) // 2] if d > 0 else ec.negate(T[(-d - 1) // 2])
+                R = ec.add_jac_aff(R, P)
     return R
 
 
