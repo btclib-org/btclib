@@ -383,6 +383,39 @@ def test_the_two_fields_from_dict_converts_itself() -> None:
         Network.from_dict({**network, "curve": "secp256k2"})
 
 
+def test_a_json_null_is_not_an_amount() -> None:
+    """The one field value that arrived through a convention, not a gap.
+
+    `valid_sats_amount` reads `None` as zero, for the caller it was
+    written for and with its own reasoning; at the json boundary the same
+    value is a field the file has not filled in, and it built an output of
+    zero satoshi. Legal -- an OP_RETURN pays one -- so nothing downstream
+    refused it and the transaction that came back said something the file
+    did not.
+
+    The two spellings a hand-edited file is likelier to carry were refused
+    already, which is what made `null` the one worth closing: it is the
+    only one json itself produces.
+    """
+    dict_ = _as_json(_TX.vout[0])
+    assert TxOut.from_dict(dict_).value == 1
+
+    with pytest.raises(BTClibValueError, match="null transaction output value"):
+        TxOut.from_dict({**dict_, "value": None})
+    for wrong in ("", "null"):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+            TxOut.from_dict({**dict_, "value": wrong})
+
+    # a missing key is the other question, and the gate above answers it
+    with pytest.raises(BTClibValueError, match="missing transaction output field"):
+        TxOut.from_dict({k: v for k, v in dict_.items() if k != "value"})
+
+    # and the psbt output, where None is the field being absent and stays
+    # a value the boundary takes
+    psbt_out = _as_json(_PSBT.outputs[0])
+    assert PsbtOut.from_dict({**psbt_out, "amount": None}).amount is None
+
+
 @pytest.mark.parametrize("label, cls, method", _OCTETS_DECODERS, ids=_OCTETS_IDS)
 def test_the_octets_boundary_refuses_what_is_no_octets(
     label: str, cls: type[Any], method: str
