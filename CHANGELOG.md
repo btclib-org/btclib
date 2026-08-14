@@ -2602,6 +2602,65 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **BIP32 derivation has a spelling that does not go through Base58Check**
+  (issue #886). `derive` took an xprv/xpub string and returned one, and so
+  did `rootxprv_from_seed` and `xpub_from_xprv`, so a caller holding a seed
+  and wanting a child key had btclib build Base58Check text and read it
+  back at every hop — three encodings and three decodings of a spelling
+  that never left the module, none of which the caller asked for.
+
+  `rootxprv_from_seed_`, `derive_`, `xpub_from_xprv_` and
+  `derive_from_account_` are the same four functions taking and answering
+  the `BIP32KeyData` itself. The trailing underscore is the library's, as
+  in `ecc.dsa`: the spelling for a caller who holds the prepared form —
+  there a message already hashed, here the extended key rather than its
+  text. The text spellings are these four with `b58encode` on top and are
+  unchanged.
+
+  Each validates what it is handed and what it answers, as every public
+  function does: the output check is the one `derive` used to get from
+  `b58encode`, whose `serialize` is the half of it that validates, so it
+  is `assert_valid` — 0.64 µs of the 6.73 the encoding costs. The private
+  `_derive`, `_xpub_from_xprv` and `_rootxprv_from_seed` stay as the
+  unvalidated twins the library composes internally, which is the
+  convention CONTRIBUTING.md states.
+
+  Measured, seed to `m/0h/1` and neutered, µs per call: 57.14 against
+  32.59 over one seed repeated, and 69.41 against 32.42 over 20 000
+  distinct seeds. The two columns differ because `_cached_base58_decode`
+  is what the first one hits and a wallet deriving from distinct keys does
+  not, so the right-hand pair is what a caller sees.
+
+  **The two wallets are the first callers**, which is what the spellings
+  were measured for. `script_wallet._derived_sec` had the encoding and the
+  decoding on one line — `pub_keyinfo_from_key(derive_from_account(...))`,
+  and a `BIP32KeyData` was in the `PubKey` union already;
+  `key_wallet._derived_xkey` answers the key where it used to answer text
+  that all three of its callers decoded again, an address builder,
+  `ScriptPubKey.p2wpkh` and `b58.wif_from_prv_key`; and
+  `key_wallet._account_xkey` was `BIP32KeyData.b58decode(derive(...))`,
+  which is the round trip its own comment priced. µs per derived position,
+  a fresh index each call so that no decode cache answers:
+
+  | | before | after |
+  | --- | ---: | ---: |
+  | `BIP32KeyWallet.address` | 71.34 | 46.36 |
+  | `BIP32KeyWallet.prv_key` | 126.53 | 79.07 |
+  | `ScriptWallet.address`, 2-of-2 | 131.60 | 96.26 |
+
+  `descriptors.key_expression` had the same one-liner twice, for a
+  descriptor's key at an index and for the synthetic xpub a `musig()`
+  aggregates to: 56.21 µs against 41.20 per key, a fresh index each call.
+  The union `derive_` takes is `derive`'s, so the xkey a descriptor holds as
+  a string goes in as it is.
+
+  `psbt_signer` is the instance left, and deliberately: `_at` answers text
+  because `self._keys` holds text and `at()`'s own contract is an xpub
+  string, and three readers decode what it answers. The repeated decodes hit
+  `_cached_base58_decode`, so what is not absorbed is the encoding inside
+  `_at` — one `b58encode` per key per input — and removing it is a change to
+  `_at` and to `at()` rather than to a call site.
+
 - **The four codecs that are module functions ask their own arguments
   too** (issue #872). The gate of issue #867 recorded the six they take
   besides the encoding and asked none of them, that being issue #868's

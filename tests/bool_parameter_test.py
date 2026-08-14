@@ -83,6 +83,7 @@ from btclib import b32, b58, bip322, core_import, slip132, var_bytes
 from btclib.bip32.bip32 import (
     derive,
     derive_from_account,
+    derive_from_account_,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
@@ -799,6 +800,14 @@ _TRUTHS = (
         {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_index": 0},
         reason="whether a branch other than 0 and 1 is refused; the key"
         " derived at a branch both accept is the same key",
+    ),
+    _Case(
+        "btclib.bip32.bip32.derive_from_account_",
+        "branches_0_1_only",
+        derive_from_account_,
+        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_index": 0},
+        reason="the flag of `derive_from_account` above, in the spelling"
+        " that answers the key rather than its Base58Check text",
     ),
     _Case(
         "btclib.curves.sec_point.point_from_octets",

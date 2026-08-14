@@ -19,10 +19,14 @@ from btclib.bip32 import (
     BIP32KeyData,
     crack_prv_key_var,
     derive,
+    derive_,
     derive_from_account,
+    derive_from_account_,
     pub_key_derivation_tweaks,
     rootxprv_from_seed,
+    rootxprv_from_seed_,
     xpub_from_xprv,
+    xpub_from_xprv_,
 )
 from btclib.bip32.bip32 import _BIP32KeyData, _derive
 from btclib.bip32.der_path import _indexes_from_der_path_str
@@ -1261,3 +1265,75 @@ def test_cracking_refuses_a_child_its_own_assert_valid_refuses() -> None:
         bad_child.assert_valid()
     with pytest.raises(BTClibValueError, match=err_msg):
         crack_prv_key_var(parent_xpub, bad_child)
+
+
+def test_the_object_spellings_answer_what_the_text_ones_answer() -> None:
+    """Each underscore spelling is the function above it (issue 886).
+
+    Each answers the `BIP32KeyData` its text twin encodes, so `b58encode`
+    of one is the other -- which is the whole of the claim, the text
+    spellings being these functions with an encoding on top. Asserted at
+    every hop of a path a caller actually walks, seed to account to
+    address, because the point of them is that a caller stops encoding and
+    decoding between the hops.
+
+    The arguments are the text twins' too: an object spelling takes a
+    `BIP32Key`, so the key it derives from may be a `BIP32KeyData` or the
+    Base58Check text of one, and the two name one key.
+    """
+    seed = "0102030405060708090a0b0c0d0e0f101112131415161718"
+    root = rootxprv_from_seed_(seed)
+    assert isinstance(root, BIP32KeyData)
+    assert root.b58encode() == rootxprv_from_seed(seed)
+
+    account = derive_(root, "m/44h/0h/0h")
+    assert account.b58encode() == derive(root.b58encode(), "m/44h/0h/0h")
+    # the same key, whichever spelling of it is handed in
+    assert derive_(root.b58encode(), "m/44h/0h/0h") == account
+
+    xpub = xpub_from_xprv_(account)
+    assert xpub.b58encode() == xpub_from_xprv(account.b58encode())
+
+    address_key = derive_from_account_(xpub, 0, 7)
+    assert address_key.b58encode() == derive_from_account(xpub.b58encode(), 0, 7)
+    # and it is the key the path spells out, which is what makes the
+    # account-level function a shorthand rather than a second derivation
+    assert address_key == derive_(xpub, "m/0/7")
+
+    # the version can be forced, as in `derive`
+    yprv = derive_(root, "m/44h", NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv)
+    assert yprv.b58encode() == derive(
+        root, "m/44h", NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv
+    )
+
+
+def test_the_object_spellings_validate_what_they_are_handed() -> None:
+    """A public function validates its inputs, underscore or not (issue 886).
+
+    The underscore says the caller holds the key rather than its text, and
+    nothing else: what the four refuse is what the text spellings refuse,
+    an invalid key on the way in and an invalid one on the way out. The
+    output check is the one `b58encode` used to make inside `derive`, which
+    is why it is `assert_valid` and not the encoding.
+    """
+    root = rootxprv_from_seed_("0102030405060708090a0b0c0d0e0f10")
+
+    # a seed too short is refused as it is by the text spelling
+    with pytest.raises(BTClibValueError, match="too few bits for seed"):
+        rootxprv_from_seed_("0102030405060708")
+
+    # a key handed in as an object is validated too: frozen keeps a
+    # validated one valid, and this one never was
+    corrupt = replace_unchecked(root, key=b"\x00" * 33)
+    err_msg = "invalid private key not in 1..n-1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_(corrupt, "m/0")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        xpub_from_xprv_(corrupt)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_(corrupt, 0, 0)
+
+    # an xpub cannot answer a hardened child, whichever spelling asks
+    xpub = xpub_from_xprv_(root)
+    with pytest.raises(BTClibValueError, match="invalid hardened derivation"):
+        derive_(xpub, "m/0h")

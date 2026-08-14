@@ -51,8 +51,8 @@ from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
     _key_data_from_bip32_key,
-    derive,
-    derive_from_account,
+    derive_,
+    derive_from_account_,
 )
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -308,9 +308,11 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
             err_msg += f" is not the account path's {indexes[xkey.depth - 1]}"
             raise BTClibValueError(err_msg)
 
-        # the public `derive` rather than bip32's private `_derive`: what
-        # it costs is one b58 round trip, once, at construction
-        return BIP32KeyData.b58decode(derive(xkey, indexes[xkey.depth :]))
+        # `derive_` rather than bip32's private `_derive`: the public
+        # spelling, and the one that answers the key -- where `derive`
+        # answered its Base58Check text for this line to decode straight
+        # back, which was the b58 round trip this comment used to price
+        return derive_(xkey, indexes[xkey.depth :])
 
     @property
     def branches(self) -> tuple[int, ...]:
@@ -333,19 +335,26 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         """
         return not self._xkey.is_private and super().is_watch_only
 
-    def _derived_key(self, branch: int, index: int) -> str:
+    def _derived_xkey(self, branch: int, index: int) -> BIP32KeyData:
         """Return the extended key of a position, bounds imposed.
 
-        `bip32.derive_from_account` is what imposes them -- branch 0 or 1,
+        `bip32.derive_from_account_` is what imposes them -- branch 0 or 1,
         index at most 65535 -- and the message on a violation is its own.
+
+        The key and not its xprv/xpub text, which is what this used to
+        answer: all three callers hand it to something that decodes it --
+        an address builder, `ScriptPubKey.p2wpkh`, `b58.wif_from_prv_key`
+        -- and a `BIP32KeyData` is in the `Key` and `PrvKey` unions those
+        take. So the text was built and read back inside one line, three
+        times over (issue 886)
         """
-        return derive_from_account(self._xkey, branch, index)
+        return derive_from_account_(self._xkey, branch, index)
 
     def _address(self, branch: int, index: int) -> str:
         # checked again for the narrowing and not for the check, which the
         # constructor already made: see `add` above
         return _ADDRESS_FROM_SCRIPT_TYPE[_checked_script_type(self.script_type)](
-            self._derived_key(branch, index), self.network
+            self._derived_xkey(branch, index), self.network
         )
 
     def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
@@ -374,7 +383,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         if self.script_type != "p2wpkh-p2sh":
             return super().redeem_script(branch, index)
         self._assert_position(branch, index)
-        return ScriptPubKey.p2wpkh(self._derived_key(branch, index)).script
+        return ScriptPubKey.p2wpkh(self._derived_xkey(branch, index)).script
 
     def prv_key(self, address: String) -> str:
         """Return the WIF of the private key signing for an address."""
@@ -395,4 +404,4 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         # wallet holding one private key, the account one, however many
         # addresses it has handed out
         branch, index = indexes_from_der_path(info.der_path)[-2:]
-        return b58.wif_from_prv_key(self._derived_key(branch, index))
+        return b58.wif_from_prv_key(self._derived_xkey(branch, index))

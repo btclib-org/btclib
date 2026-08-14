@@ -65,10 +65,14 @@ __all__ = [
     "BIP32KeyData",
     "crack_prv_key_var",
     "derive",
+    "derive_",
     "derive_from_account",
+    "derive_from_account_",
     "pub_key_derivation_tweaks",
     "rootxprv_from_seed",
+    "rootxprv_from_seed_",
     "xpub_from_xprv",
+    "xpub_from_xprv_",
 ]
 
 # secp256k1 is written out at each use rather than aliased to a module
@@ -402,12 +406,35 @@ def _rootxprv_from_seed(seed: Octets, version: Octets) -> BIP32KeyData:
     )
 
 
+def rootxprv_from_seed_(
+    seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
+) -> BIP32KeyData:
+    """Return the BIP32 root master extended private key of a seed.
+
+    `rootxprv_from_seed` below is this with the Base58Check encoding on
+    top, and the trailing underscore says which of the two this is: as in
+    `ecc.dsa`, it marks the spelling for a caller holding the prepared
+    form -- there a message already hashed, here the extended key itself
+    rather than its xprv text.
+
+    Which is what the four object spellings of this module are for. A
+    caller deriving a child public key from a seed had btclib build
+    Base58Check text and read it back at every hop, three encodings and
+    three decodings of a spelling that never left the module: seed to
+    `m/0h/1` and neutered is 69.41 us over distinct seeds against 32.42 for
+    the same three calls over `BIP32KeyData`, and 57.14 against 32.59 where
+    one seed repeats and `_cached_base58_decode` answers (issue 886). The
+    text is what `rootxprv_from_seed` is for, and nothing here stops
+    answering it.
+    """
+    return _rootxprv_from_seed(seed, version)
+
+
 def rootxprv_from_seed(
     seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
 ) -> str:
     """Return BIP32 root master extended private key from seed."""
-    xkey = _rootxprv_from_seed(seed, version)
-    return xkey.b58encode()
+    return rootxprv_from_seed_(seed, version).b58encode()
 
 
 BIP32Key = BIP32KeyData | String
@@ -460,6 +487,23 @@ def _xpub_from_xprv(xprv: BIP32KeyData) -> BIP32KeyData:
     )
 
 
+def xpub_from_xprv_(xprv: BIP32Key) -> BIP32KeyData:
+    """Neutered Derivation (ND), answering the extended key itself.
+
+    `xpub_from_xprv` below is this with the Base58Check encoding on top;
+    the trailing underscore is `rootxprv_from_seed_`'s, and says the same
+    thing.
+    """
+    xkey = _xpub_from_xprv(_key_data_from_bip32_key(xprv))
+    # the output check the text spelling got from `b58encode`, which is
+    # what `serialize` inside it does: `_xpub_from_xprv` builds with
+    # `check_validity=False`, so this is the one validation of the key
+    # answered here -- and it is the whole of what the encoding was
+    # validating, 0.64 us of its 6.73
+    xkey.assert_valid()
+    return xkey
+
+
 def xpub_from_xprv(xprv: BIP32Key) -> str:
     """Neutered Derivation (ND).
 
@@ -467,8 +511,9 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     private key (“neutered” as it removes the ability to sign
     transactions).
     """
-    xkey = _xpub_from_xprv(_key_data_from_bip32_key(xprv))
-    return xkey.b58encode()
+    # check_validity=False: `xpub_from_xprv_` has just made that check on
+    # the key it answered
+    return xpub_from_xprv_(xprv).b58encode(check_validity=False)
 
 
 # repr=False: a generated __repr__ would print key and prv_key_int, the
@@ -775,6 +820,29 @@ def _derive(
     )
 
 
+def derive_(
+    xkey: BIP32Key, der_path: DerPath, forced_version: Octets | None = None
+) -> BIP32KeyData:
+    """Derive a BIP32 key across a path, answering the extended key itself.
+
+    `derive` below is this with the Base58Check encoding on top; the
+    trailing underscore is `rootxprv_from_seed_`'s, and says the same
+    thing. It is the one of the four object spellings the measurement of
+    issue 886 is about: a caller deriving from a key it holds pays neither
+    the decoding of the argument nor the encoding of the answer, where the
+    xprv text it would have built is a string the next call decodes again.
+
+    The path and the version are `derive`'s, and so is what they accept.
+    """
+    derived = _derive(_key_data_from_bip32_key(xkey), der_path, forced_version)
+    # the output check the wrapper is entitled to, and the only validation
+    # of the derived key. `b58encode` used to be where it happened, its
+    # `serialize` being the half of it that validates: this is that half,
+    # 0.64 us of the 6.73 the encoding costs
+    derived.assert_valid()
+    return derived
+
+
 def derive(
     xkey: BIP32Key, der_path: DerPath, forced_version: Octets | None = None
 ) -> str:
@@ -790,10 +858,9 @@ def derive(
     DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
-    derived = _derive(_key_data_from_bip32_key(xkey), der_path, forced_version)
-    # the output check the wrapper is entitled to, and the only
-    # validation of the derived key: `serialize` makes it
-    return derived.b58encode()
+    # check_validity=False: `derive_` has just made that check on the key
+    # it answered
+    return derive_(xkey, der_path, forced_version).b58encode(check_validity=False)
 
 
 def _derive_from_account(
@@ -823,6 +890,33 @@ def _derive_from_account(
     return _derive(mxkey, f"m/{branch}/{address_index}", None)
 
 
+def derive_from_account_(
+    mxkey: BIP32Key,
+    branch: int,
+    address_index: int,
+    branches_0_1_only: bool = True,
+    max_index: int = 0xFFFF,
+) -> BIP32KeyData:
+    """Derive at the given branch and index, answering the extended key.
+
+    `derive_from_account` below is this with the Base58Check encoding on
+    top; the trailing underscore is `rootxprv_from_seed_`'s, and says the
+    same thing. Which is the spelling a wallet wants: `key_wallet` and
+    `script_wallet` derive one of these per address, and an address is
+    built from the key rather than from its text.
+    """
+    derived = _derive_from_account(
+        _key_data_from_bip32_key(mxkey),
+        branch,
+        address_index,
+        branches_0_1_only,
+        max_index,
+    )
+    # the output check, as in `derive_` above and for its reason
+    derived.assert_valid()
+    return derived
+
+
 def derive_from_account(
     mxkey: BIP32Key,
     branch: int,
@@ -836,13 +930,10 @@ def derive_from_account(
     a standard receive or change, and that the index is not arbitrarily
     high.
     """
-    return _derive_from_account(
-        _key_data_from_bip32_key(mxkey),
-        branch,
-        address_index,
-        branches_0_1_only,
-        max_index,
-    ).b58encode()
+    # check_validity=False: `derive_from_account_` has just made that check
+    return derive_from_account_(
+        mxkey, branch, address_index, branches_0_1_only, max_index
+    ).b58encode(check_validity=False)
 
 
 def crack_prv_key_var(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
