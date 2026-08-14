@@ -1190,23 +1190,21 @@ def _recover_pub_keys_(
     # order key_id numbers them in, so range() is the loop.
     #
     # It costs a mod_inv_var per candidate rather than hoisting the
-    # precomputation out of the loop, and delegating the double_mult_var below
-    # is what made that measurable: 41 us of the 214 a candidate takes on
-    # secp256k1 with the dispatch off, where the same 41 sat inside 2215.
-    # Still not hoisted, because the plural is `_recover_pub_key_` over a
-    # range of key_ids and nothing else -- issue 183 was the two
-    # disagreeing while each held its own copy of this arithmetic -- so the
-    # paths that reach this loop pay 19% for the singular staying the only
-    # place the arithmetic is written.
+    # precomputation out of the loop. Not hoisted, because the plural is
+    # `_recover_pub_key_` over a range of key_ids and nothing else: issue
+    # 183 was the two implementations disagreeing while each held its own
+    # copy of this arithmetic, so the singular stays the only place the
+    # arithmetic is written.
     keys: list[JacPoint] = []
     for key_id in range(2 * (ec.cofactor + 1)):
-        # a candidate can fail either half of step 1.6: x_K may not be on
-        # the curve at all -- r = K[0] % ec.n, so when ec.n < K[0] < ec.p,
-        # likely for cofactor > 1, it is x_K = r + ec.n that is -- or the
-        # key it yields may not verify the signature. Both mean "not this
-        # one", not "no key", so the list is dense and shorter than the
-        # range: it is what a caller indexes to name a key_id, which is
-        # only that key_id when no earlier candidate dropped out
+        # a candidate can fail any of the three refusals of step 1.6:
+        # x_K = r + j*ec.n may be no field element -- which is most of
+        # them, r + ec.n < ec.p being some 2^-127 of signatures on
+        # secp256k1 -- or no x-coordinate of the curve, or the key it
+        # yields may be INF. All three mean "not this one", not "no key",
+        # so the list is dense and shorter than the range: it is what a
+        # caller indexes to name a key_id, which is only that key_id when
+        # no earlier candidate dropped out
         with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
             keys.append(_recover_pub_key_(key_id, c, r, s, ec, lower_s=lower_s))
     return keys
@@ -1232,15 +1230,22 @@ def recover_pub_keys_(
 
     # the enumeration is btclib's loop and not a function libsecp256k1
     # has, but each candidate in it is a recid the bindings answer for, so
-    # what runs here is four `recover` calls: 83 us against 854 (issue
-    # 286). A recid is two bits, i.e. every candidate a curve of cofactor
-    # 1 has, and _libsecp256k1_serves admits no other curve --
-    # secp256k1's cofactor is 1, so `range(4)` here is the
+    # what runs here is a `recover` call per candidate: 42 us against 1381
+    # (issue 286). A recid is two bits, i.e. every candidate a curve of
+    # cofactor 1 has, and _libsecp256k1_serves admits no other curve --
+    # secp256k1's cofactor is 1, so the range below is the
     # `range(2 * (ec.cofactor + 1))` of the Python enumeration above, in
     # the same order, key_id by key_id
     if _libsecp256k1_serves(sig.ec, hf):
         keys: list[Point] = []
-        for key_id in range(4):
+        # and it is two candidates rather than four for every signature
+        # anybody made: recid 2 and 3 are j = 1, i.e. x_K = r + ec.n, which
+        # needs r + ec.n < ec.p -- some 2^-127 of signatures on secp256k1.
+        # The same screen `_recover_pub_key_` applies on the other side,
+        # and the one libsecp256k1 applies on its own: what is skipped is a
+        # crossing whose answer is a refusal on that very range test, so
+        # the candidates that survive are unchanged
+        for key_id in range(4 if sig.r + sig.ec.n < sig.ec.p else 2):
             # a candidate that recovers nothing is dropped rather than
             # reported, as in _recover_pub_keys_: the bindings' refusal
             # arrives as the BTClibValueError _libsecp256k1_recover_sec_
@@ -1273,12 +1278,28 @@ def recover_pub_keys(msg: Octets, sig: Sig | Octets, hf: HashF = sha256) -> list
 def _recover_pub_key_(
     key_id: int, c: int, r: int, s: int, ec: Curve, *, lower_s: bool
 ) -> JacPoint:
-    # Private function provided for testing purposes only.
+    # Private function provided for testing purposes only: r and s are
+    # assumed in 1..n-1, which is what every caller's Sig validation
+    # establishes and what the two shortcuts below rest on.
 
-    # precomputations
-    r_1 = mod_inv_var(r, ec.n)
-    r1s = r_1 * s % ec.n
-    r1e = -r_1 * c % ec.n
+    # the low-s rule first, where `_libsecp256k1_recover_sec_` also asks
+    # it: it is a property of the signature and not of the candidate, so
+    # every key_id answers it the same way and none of the arithmetic
+    # below is needed to say so
+    if lower_s and s > ec.n // 2:
+        raise BTClibValueError("not a low s")
+
+    # whether step 1.6.2 has anything left to check, which is a property
+    # of the curve and not of the signature (issue 890). With cofactor 1
+    # the curve has ec.n points and every one of them is a multiple of G,
+    # so the scalars below -- reduced modulo ec.n, as scalars are -- act on
+    # a lifted K the way SEC 1's arithmetic says they do, and the two
+    # comparisons this enables are argued for where they are made. Above 1
+    # a lift need not land in the prime-order subgroup, the reduction is
+    # then not a no-op, and the verification is doing real work: secp112r2
+    # has cofactor 4, and its recovery answers four keys of ten candidates
+    prime_order = ec.cofactor == 1
+
     # r is x_K reduced mod n, so it does not determine x_K:
     # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
     # then both x_K=r and x_K=r+ec.n must be tested
@@ -1294,7 +1315,38 @@ def _recover_pub_key_(
     # cannot name a candidate that failed -- but a key_id arrives from
     # outside too, in the recovery flag of a message signature
     j = key_id >> 1  # allow for key_id in [0, 7]
-    x_K = (r + j * ec.n) % ec.p  # 1.1
+    x_K = r + j * ec.n  # 1.1
+
+    if prime_order:
+        # screened rather than reduced, which is the screen libsecp256k1
+        # imposes on its own side -- `recover_pub_key_`'s comment states
+        # it, "the bindings require r < ec.p - ec.n for j = 1" -- and half
+        # of what leaves step 1.6.2 a comparison. A `% ec.p` answers
+        # x_K = r + j*ec.n - m*ec.p for some m >= 1 instead, and no such
+        # candidate can pass 1.6.2: that step asks x_K % ec.n == r, which
+        # would need m*ec.p ≡ 0 mod ec.n, and ec.n divides neither ec.p
+        # nor an m this small. So a wrapped x_K is refused here by one
+        # comparison, where the reduction spent a Python square root and a
+        # double multiplication to refuse it -- the trade
+        # `_is_x_coordinate_var`'s docstring exists not to make, reached by
+        # a caller who could have skipped the question (issue 891).
+        #
+        # A negative x_K is the same refusal: nothing outside 0..p-1 is a
+        # field element, and a key_id below zero is what reaches it
+        if not 0 <= x_K < ec.p:
+            err_msg = f"invalid key_id ({key_id}): x_K is not a field element"
+            raise BTClibValueError(err_msg)
+    else:
+        x_K %= ec.p
+
+    # the precomputations, below the screen and not above it: a
+    # candidate the comparison refuses has no use for them, and on
+    # secp256k1 that is key_id 2 and 3 of every signature anybody made
+    # -- which is the reason the low-s rule is asked first, one line of
+    # arithmetic further up
+    r_1 = mod_inv_var(r, ec.n)
+    r1s = r_1 * s % ec.n
+    r1e = -r_1 * c % ec.n
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
@@ -1307,20 +1359,58 @@ def _recover_pub_key_(
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
     #
-    # delegated as the double_mult_var of _assert_as_valid_ below it is: this
-    # is the Python path of recovery -- the named candidate goes to
-    # secp256k1_ecdsa_recover instead, and the enumeration has no
-    # counterpart to go to at all -- but the arithmetic under it is
-    # libsecp256k1's for secp256k1 all the same, as the lift above is:
-    # 2215 us against 214 for the whole of this function, and 6800 against
-    # 850 for the enumeration that runs it once per candidate.
+    # delegated as the lift above is: this is the Python path of recovery
+    # -- the named candidate goes to secp256k1_ecdsa_recover instead, and
+    # the enumeration has no counterpart to go to at all -- but the
+    # arithmetic under it is libsecp256k1's for secp256k1 all the same:
+    # 708 us against 49 for the whole of this function, and 1347 against
+    # 107 for the enumeration that runs it once per candidate.
+    # The mean over 40 random keys, and a recovery needs the population
+    # stated where a signature does not: what the enumeration costs
+    # depends on how many of its candidates lift, which is a property of
+    # the signature and not of the machine.
     #
     # It is the same point either way and not the same triple: what comes
     # back is _jac_from_aff, i.e. z == 1, where the wNAF answered whatever
     # representative its ladder reached. Every caller converts with
     # aff_from_jac_var, which is what a Jacobian coordinate is for
     QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-    _assert_as_valid_(c, QJ, r, s, ec, lower_s=lower_s)  # 1.6.2
+
+    # INF is no public key, and step 1.6.2 does not refuse it: with Q at
+    # infinity the K' that verification recomputes is the lift itself, so
+    # the congruence holds and the INF was reported as a recovered key,
+    # (5, 0) once converted -- btclib's sentinel for infinity and no key
+    # at all. Q is INF whenever s*K == c*G, which is no signature anybody
+    # made and is a `Sig` a caller may still hand in.
+    # `ssa._recover_pub_key_` has always tested its own, for this reason
+    if QJ[2] == 0:
+        err_msg = "invalid (INF) key"
+        raise BTClibRuntimeError(err_msg)
+
+    if prime_order:
+        # and step 1.6.2 has nothing else left to ask. Verification
+        # recomputes K' = s^-1*(c*G + r*Q); substituting the Q that 1.6.1
+        # has just built, r^-1*(s*K - c*G), gives K' = K identically, for
+        # every r and s. What the step then asks is x_K % ec.n == r, and
+        # x_K is r + j*ec.n with r < ec.n, so that holds by construction as
+        # well -- the screen above being what rules out the x_K that is
+        # neither, and the infinity test above the degenerate answer.
+        #
+        # secp256k1_ecdsa_recover makes no verification pass either, and
+        # `_libsecp256k1_recover_sec_`'s comment below is where that
+        # argument is written out: this is the arm it did not cover. What
+        # the multiplication also bought was a cross-check of 1.6.1 --
+        # issue 183 was the two implementations disagreeing while each held
+        # its own copy of this arithmetic -- and that guarantee is the
+        # suite's now, where it already lives: the bindings are the
+        # authority this path is held against, candidate by candidate and
+        # key_id by key_id (issue 890)
+        return QJ
+
+    # lower_s=False, the rule having been asked at the top of this function
+    # for every candidate: what is left here is the step itself, and
+    # nothing about the form of the signature
+    _assert_as_valid_(c, QJ, r, s, ec, lower_s=False)  # 1.6.2
     return QJ
 
 
@@ -1331,16 +1421,19 @@ def _libsecp256k1_recover_sec_(
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
     #
     # secp256k1_ecdsa_recover is step 1.6 of SEC 1 v.2 section 4.1.6 for
-    # the one named candidate: 19 us here against the two milliseconds of
-    # the Python path, which is `recover_pub_key` 22 us against 2330 once
-    # the Sig validation both of them pay is counted in. It answers sec
-    # octets rather than a point, which is what an address wants, so bms
-    # hashes these very bytes and never builds a point.
+    # the one named candidate: 16 us here against the 708 of the Python
+    # path, which is `recover_pub_key` 22 us against 694 once the Sig
+    # validation both of them pay is counted in, the mean over 40 random
+    # keys. It answers sec octets rather than a point, which is what an
+    # address wants, so bms hashes these very bytes and never builds a
+    # point.
     #
     # Step 1.6.2 -- that the recovered key verifies the signature -- is
     # not skipped by delegating: the key returned satisfies the signature
     # equation by construction, and a candidate whose x-coordinate is not
-    # on the curve is the failure caught below.
+    # on the curve is the failure caught below. Which is the argument
+    # `_recover_pub_key_` makes on its own side now, the screen there
+    # being what the bindings impose here.
     #
     # The lower-s rule is checked here and not there, and only when asked
     # for: the recoverable parser takes any s in [1, n-1], as it must, a
@@ -1423,10 +1516,9 @@ def recover_pub_key_(
     # candidate a curve of cofactor 1 has; _recover_pub_key_ below reads a
     # key_id up to 7 as j up to 3, and no j above 1 is reachable on
     # secp256k1 anyway -- x_K = r + 2*ec.n exceeds ec.p for every r.
-    # Where both answer, they answer the same: the bindings require
-    # r < ec.p - ec.n for j = 1, and the % ec.p of the Python path leaves
-    # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
-    # -- passing it would need ec.p ≡ 0 mod ec.n
+    # Where both answer, they answer the same, and now by the same test:
+    # the bindings require r < ec.p - ec.n for j = 1, and that is the
+    # screen the Python path applies to its own x_K
     if _libsecp256k1_serves(sig.ec, hf) and 0 <= key_id <= 3:
         return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=False)
 
