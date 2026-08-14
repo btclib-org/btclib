@@ -47,11 +47,11 @@ from btclib.curves.curve_group import (
     _jac_from_aff,
     _mult,
     _mult_fixed_base,
-    _multi_mult,
+    _multi_mult_var,
 )
 from btclib.curves.curve_group_2 import (
-    _double_mult_endomorphism_secp256k1,
-    _double_mult_w_NAF,
+    _double_mult_endomorphism_secp256k1_var,
+    _double_mult_w_NAF_var,
     _mult_endomorphism_secp256k1,
 )
 from btclib.exceptions import BTClibValueError
@@ -173,7 +173,7 @@ class Curve(CurveGroup):
         # same on every call, so their wNAF tables are memoized and held
         # wide; _cached_odd_multiples_aff says what that buys. The
         # endomorphism's images of the two are fixed as well and are added
-        # by _double_mult_endomorphism_secp256k1, which is what forms them
+        # by _double_mult_endomorphism_secp256k1_var, which is what forms them
         self._fixed_points = frozenset({self.GJ, self.negate_jac(self.GJ)})
 
         n = int_from_integer(n)
@@ -625,7 +625,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     QJ = _blinded_jac(QJ, ec)
 
     R = (
-        _mult_endomorphism_secp256k1(m, QJ, ec, _ENDOMORPHISM_W, regular=True)
+        _mult_endomorphism_secp256k1(m, QJ, ec, _ENDOMORPHISM_W)
         if ec == secp256k1
         else _mult(m, QJ, ec)
     )
@@ -640,7 +640,7 @@ def _double_mult_python(
     The arm `double_mult` and `_jac_double_mult` share, so that one place
     decides which double multiplication a curve gets and both reach the
     same one. On secp256k1 that is the GLV split of both coefficients,
-    which is to `_double_mult_w_NAF` what `_mult_endomorphism_secp256k1`
+    which is to `_double_mult_w_NAF_var` what `_mult_endomorphism_secp256k1`
     is to `_mult`: the same answer for ~128 doublings instead of ~256.
 
     Dispatched on the curve having the endomorphism, not on
@@ -657,14 +657,16 @@ def _double_mult_python(
     _eq_key tuples together, where the identical object short-circuits on
     identity. That is 8% of a low-cardinality double multiplication and
     two tenths of a second of the suite, spent for the same reason
-    _double_mult_w_NAF spends about 3 us a call there: what the saving
+    _double_mult_w_NAF_var spends about 3 us a call there: what the saving
     would buy is a fraction of a second, and what it would cost is a
     second copy of the dispatch, one per caller, free to drift. `mult`
     makes the same two comparisons for the same reason.
     """
     if ec == secp256k1:
-        return _double_mult_endomorphism_secp256k1(u, HJ, v, QJ, ec, _ENDOMORPHISM_W)
-    return _double_mult_w_NAF(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
+        return _double_mult_endomorphism_secp256k1_var(
+            u, HJ, v, QJ, ec, _ENDOMORPHISM_W
+        )
+    return _double_mult_w_NAF_var(u, HJ, v, QJ, ec, _DOUBLE_MULT_W)
 
 
 def double_mult(
@@ -731,7 +733,7 @@ def multi_mult(
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
     Interleaved wNAF on few scalars, Bos-Coster on many: curve_group's
-    _multi_mult dispatches on the count, at the size the two measure the
+    _multi_mult_var dispatches on the count, at the size the two measure the
     same. On secp256k1 the bindings serve the whole sum instead, and this
     is the one caller that hands them many scalars at once -- libsecp256k1
     exposing no batch verification, ssa's is built on this.
@@ -755,5 +757,5 @@ def multi_mult(
         return _libsecp256k1_multi_mult(ints, points)
 
     jac_points = [_jac_from_aff(Q) for Q in points]
-    R = _multi_mult(ints, jac_points, ec)
+    R = _multi_mult_var(ints, jac_points, ec)
     return ec.aff_from_jac(R)

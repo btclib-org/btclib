@@ -2212,6 +2212,36 @@ documented at release-notes length in the first place, and are still in
   `_double_mult_w_NAF` is now `_multi_mult_w_NAF` of two points rather
   than a second copy of the same loop. What it keeps is the two messages
   its own coefficients answer with, and the name the algorithm has.
+- **A multiplication says in its name whether the scalar decides its work**
+  (issue #806). Which of the private multiplications makes the same number
+  of point additions for every scalar and which makes a number the
+  coefficient decides is the distinction every dispatch in `curve.py`
+  turns on, and it was stated in the docstrings and nowhere else. It is in
+  the names now, as libsecp256k1 has it: `_mult_jac_var`,
+  `_mult_aff_var`, `_mult_base_3_var`, `_mult_mont_ladder_var`, the two
+  `_mult_recursive_*_var`, the two `_mult_fixed_window*_var`,
+  `_mult_sliding_window_var`, `_mult_w_NAF_var`, `_double_mult_var`,
+  `_double_mult_w_NAF_var`, `_double_mult_endomorphism_secp256k1_var`,
+  `_multi_mult_w_NAF_var`, `_multi_mult_bos_coster_var` and
+  `_multi_mult_var` -- against `_mult_regular_window`, `_mult_fixed_base`
+  and `_double_mult_regular_window`, which carry no suffix because they
+  make one count whatever the scalar.
+
+  `_mult_endomorphism_secp256k1` had a `regular` flag that decided which
+  of the two it was, so its name could only be half true: it is two
+  functions now, the regular windows `curves.mult` runs and
+  `_mult_endomorphism_secp256k1_var` beside it, which is algorithm 3.77 as
+  it is written and 16% faster at the cost of the count following the
+  scalar. Nothing signs with the second; it stays to be measured against
+  the first.
+
+  Every name is private and `curves/__init__.py` says so, so no caller's
+  code changes. CONTRIBUTING.md carries the rule for what comes next, with
+  the two things the absence of the suffix does not promise: not a
+  constant-time function -- `mod_inv` is an extended Euclid, a table is
+  indexed by a secret digit, and `SECURITY.md` publishes the Python path
+  as variable-time -- and nothing at all about the point, whose inversion
+  every table costs and whose value is the caller's public key.
 
 ### The public API and the module layout
 
