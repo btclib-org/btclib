@@ -532,7 +532,7 @@ def test_the_two_secret_multiplications_answer_the_python_point(
         sig = dsa._sign_(0x1234, q, nonce, True, ec)
 
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(curve, "_libsecp256k1_serves", lambda *_: False)
             assert dsa.gen_keys(q)[1] == Q
             assert dsa._sign_(0x1234, q, nonce, True, ec) == sig
 
@@ -652,7 +652,7 @@ def test_grinding_agrees_on_both_arithmetics(monkeypatch: pytest.MonkeyPatch) ->
         msg = f"btclib grind {i}".encode()
         delegated = dsa.sign(msg, q, grind=True)
         with monkeypatch.context() as no_dsa_bindings:
-            no_dsa_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            no_dsa_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             python = dsa.sign(msg, q, grind=True)
         assert delegated == python
         assert delegated.r < _LOW_R
@@ -859,7 +859,7 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
         for key_id in range(2 * (secp256k1.cofactor + 1)):
             delegated = _recovered(key_id, msg, sig)
             with monkeypatch.context() as no_bindings:
-                no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+                no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
                 python = _recovered(key_id, msg, sig)
             assert delegated == python
             if delegated is not None:
@@ -880,7 +880,7 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
         malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
         assert _recovered(key_id ^ 1, msg, malleated) == Q
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             assert _recovered(key_id ^ 1, msg, malleated) == Q
 
 
@@ -938,7 +938,7 @@ def test_the_low_s_rule_is_asked_for_and_not_assumed(
     dsa._assert_as_valid_(c, QJ, sig.r, sig.s, secp256k1, lower_s=True)
     assert dsa._libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s=True) == Q
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
         assert dsa.recover_pub_key(key_id, msg, sig) == Q
 
 
@@ -1018,7 +1018,7 @@ def test_recovery_multiplies_in_libsecp256k1(
 
         with monkeypatch.context() as patch:
             # the Python enumeration, its double_mult_var still delegated
-            patch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            patch.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             assert dsa.recover_pub_keys(msg, sig) == keys
             assert [_recovered(key_id, msg, sig) for key_id in key_ids] == recovered
 
@@ -1064,7 +1064,7 @@ def test_the_enumeration_asks_for_the_j_one_candidates(
     assert [key for key in candidates if key is not None] == keys
 
     with monkeypatch.context() as patch:
-        patch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        patch.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
         assert dsa.recover_pub_keys_(msg_hash, sig) == keys
         no_bindings(patch)
         assert dsa.recover_pub_keys_(msg_hash, sig) == keys
@@ -1142,7 +1142,7 @@ def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
         assert key_id == recid
 
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             assert dsa.sign_recoverable(msg, prv_key) == (sig, key_id)
 
 
@@ -1172,7 +1172,7 @@ def test_the_key_id_survives_what_the_bindings_decline(
         hf = kwargs.get("hf", sha256)
         assert dsa.recover_pub_key(key_id, msg, sig, hf) == Q
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
             assert dsa.sign_recoverable(msg, prv_key, **kwargs) == (sig, key_id)
 
     ec = CURVES["secp112r2"]

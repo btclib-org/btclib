@@ -305,7 +305,7 @@ def test_the_python_shared_point_is_the_bindings_one(
     shared_key = diffie_hellman(a, B, 32)
     assert diffie_hellman(b, A, 32) == shared_key
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(dh, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(dh, "_libsecp256k1_serves", lambda *_: False)
         assert diffie_hellman(a, B, 32) == shared_key
 
 

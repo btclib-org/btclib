@@ -67,7 +67,7 @@ from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import (
     _is_x_coordinate_var,
     _jac_double_mult,
-    _libsecp256k1_applicable,
+    _libsecp256k1_serves,
     _y_even_var,
     mult,
     multi_mult_var,
@@ -415,7 +415,7 @@ def sign_(
     #
     # A commitment stays with the Python path: it tweaks the nonce, and
     # the nonce is the bindings' own to derive
-    if _libsecp256k1_applicable(ec, hf) and commit_hash is None:
+    if _libsecp256k1_serves(ec, hf) and commit_hash is None:
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
@@ -593,7 +593,7 @@ def assert_as_valid_(
     # message of any size -- what sent the four arbitrary-size vectors of
     # issue 169 down the Python path was the 32-byte gate in front of it,
     # never the call itself, and they are verified here now
-    if _libsecp256k1_applicable(sig.ec, hf):
+    if _libsecp256k1_serves(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one. What

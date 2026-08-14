@@ -10,8 +10,8 @@
 # import and call the underscore-prefixed algorithm functions directly
 # -- `_mult`, `_multi_mult`, `_mult_endomorphism_secp256k1`,
 # `_double_mult_w_NAF`, and the rest -- secp256k1 included, so a mutant
-# of either module is reached without patching `curve.py`'s
-# `_libsecp256k1_applicable` off the way `curve_test.py`'s own
+# of either module is reached without switching `curve.py`'s
+# `_libsecp256k1_available` off the way `curve_test.py`'s own
 # `no_bindings` fixture has to for the same code reached through `mult`,
 # `double_mult_var` and `multi_mult_var`.
 

@@ -1426,6 +1426,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The bindings switch has a name** (issue #848).
+  `_libsecp256k1_applicable(ec, hf)` answered one question — can the
+  bindings serve this curve and this hash function — while a second one
+  beside it, may the bindings be used at all, had no name and was
+  answered by monkeypatching. The predicate is now
+  `_libsecp256k1_serves(ec, hf)`, which says what it decides, and the
+  switch beside it is `_libsecp256k1_available`, a module-level bool in
+  `curves/curve.py` that the predicate reads on every call.
+
+  What the switch buys is that one assignment turns the delegation off
+  everywhere. Rebinding the predicate reaches one module of the nine
+  that import it by name, and a copy per module is what produced a wrong
+  measurement: `scripts/benchmark.py` said it patched "every namespace"
+  and patched three, so its pure-Python public-key row was timing C at
+  8.47 us against the bindings' 8.39 — `to_pub_key` asks
+  `curves.sec_point`, which was not among the three. That row now reads
+  193.26 us against the same 8.39, and no row added later can
+  reintroduce the omission. `benchmark.py`, `benchmark_python.py`, `curve_test.py`'s
+  `no_bindings` and `wycheproof_test.py` all take the switch instead of
+  naming modules.
+
+  The patches that stay are the ones whose partiality is the point:
+  `script_engine/python_path_test.py` puts the Python *verdict* in front
+  of the consensus vectors while leaving the arithmetic under it
+  delegated, and `dsa_test.py` climbs a two-step ladder — the module's
+  dispatch off with `double_mult_var` still delegated, then the switch on
+  top. A global switch cannot express either, and both are cheaper for
+  it.
+
+  Neither name is a public break: both are private, and nothing outside
+  `btclib` imports either.
+
 - **The ECDSA nonce is inverted blinded**, and `number_theory.mod_inv`
   is now that blinded inverse, `dsa`'s signing being its one caller in
   the library. The extended Euclid it used to be is `mod_inv_var`, under

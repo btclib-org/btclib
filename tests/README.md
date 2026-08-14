@@ -234,9 +234,9 @@ What to know before reading one:
 
 - **the point arithmetic of `curves/curve_group.py` dominates the self
   time**, and what drives it is the two places that ask for the
-  arithmetic the bindings do not do: `python_path_test.py` patches the
-  delegation away on purpose, and the low-cardinality tests of `dsa` and
-  `ssa` run toy curves `_libsecp256k1_applicable` refuses by definition.
+  arithmetic the bindings do not do: `python_path_test.py` turns the
+  delegation off on purpose, and the low-cardinality tests of `dsa` and
+  `ssa` run toy curves `_libsecp256k1_serves` refuses by definition.
   The profile therefore ranks the fallback, and a change meant for what
   a user's secp256k1 call reaches has to be measured on a run that is
   not denying it the bindings.

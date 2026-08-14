@@ -43,7 +43,7 @@ __all__ = [
 # (ec, hf) is the cache key: both change the answer, and both are
 # hashable -- Curve.__hash__ exists precisely so that equal curves
 # share cache entries (curve.py's _eq_key), and hf is compared by
-# identity, the same conservative choice _libsecp256k1_applicable
+# identity, the same conservative choice _libsecp256k1_serves
 # makes for sha256. maxsize is a number, not None: ec is
 # caller-supplied, and an unbounded cache on it would be a memory
 # leak. The cached value is a Point, i.e. a tuple, so returning the

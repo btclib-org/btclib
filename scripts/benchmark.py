@@ -20,7 +20,7 @@ measurement or discards an outlier.
 
 The pure Python side is reached by turning btclib's own dispatch off,
 which `python_arithmetic_only` below does and says why: every one of the
-timed functions asks `_libsecp256k1_applicable` first and would
+timed functions asks `_libsecp256k1_serves` first and would
 otherwise answer from the bindings, the very path the other half of this
 script already timed.
 
@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from typing import Any, cast
 
 from btclib.curves import curve
 from btclib.ecc import dsa, ssa
@@ -58,30 +57,20 @@ ssa_sig = ssa.sign_(msg_hash, prvkey, aux=bytes(32))
 
 
 def python_arithmetic_only() -> None:
-    """Turn btclib's libsecp256k1 dispatch off, in the three timed here.
+    """Turn btclib's libsecp256k1 dispatch off, everywhere at once.
 
-    `_libsecp256k1_applicable` is defined in `curves.curve` and imported
-    by name into nine modules, so patching one leaves the other eight
-    delegating and a row meant to measure Python measures C -- dsa's and
-    ssa's own verification calls into curve's double multiplication
-    underneath whichever implementation answers the boundary check first.
-
-    Three are enough for the rows below and not for a row that derives a
-    public key: `curves.sec_point` asks the same question in
-    `bytes_from_prv_key_int`, which is what `benchmark_python.py` found
-    when its pure-Python public key came back at bindings speed. A row
-    added here has to add its module to the tuple.
+    `_libsecp256k1_serves` reads `_libsecp256k1_available` on every call,
+    so this one assignment reaches the nine modules that imported the
+    predicate by name. Naming modules instead is what left a row meant to
+    measure Python measuring C: `benchmark_python.py` patched three and
+    its pure-Python public key came back at bindings speed, `to_pub_key`
+    asking `curves.sec_point`, which was not among them. A row added
+    below cannot reintroduce that.
 
     Called once, after the fixtures above are signed: they go through
     the bindings too, and there is no reason to slow those down.
-
-    Cast to Any rather than assigned directly: mypy sees the loop
-    variable as a plain module, none of the three concrete modules in
-    particular, and a plain module has no `_libsecp256k1_applicable` of
-    its own to assign.
     """
-    for module in (dsa, ssa, curve):
-        cast(Any, module)._libsecp256k1_applicable = lambda *_: False
+    curve._libsecp256k1_available = False
 
 
 def mult_bindings() -> None:

@@ -132,7 +132,7 @@ def test_the_python_tweak_is_the_bindings_tweak(
         delegated = output_pubkey(pub_key, script_tree)
         delegated_prvkey = output_prvkey(prv_key, script_tree)
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
             assert output_pubkey(pub_key, script_tree) == delegated
             assert output_prvkey(prv_key, script_tree) == delegated_prvkey
 
@@ -170,7 +170,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
         )
 
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         no_bindings.setattr(curve_group, "mod_sqrt_var", refuse)
         for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
             assert output_prvkey(prv_key, tree) == expected
@@ -195,7 +195,7 @@ def test_the_python_commitment_check_is_the_bindings_one(
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(not_q, script_bytes, control)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(not_q, script_bytes, control)
 
@@ -234,7 +234,7 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x51", control)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         with pytest.raises(BTClibValueError, match=err_msg):
             check_output_pubkey(b"\x00" * 32, b"\x51", control)
 
@@ -543,6 +543,6 @@ def test_the_control_block_commits_to_the_output_key_parity(
     assert check_output_pubkey(q, script_bytes, control)
     assert not check_output_pubkey(q, script_bytes, flipped)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         assert check_output_pubkey(q, script_bytes, control)
         assert not check_output_pubkey(q, script_bytes, flipped)

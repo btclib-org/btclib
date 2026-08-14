@@ -14,7 +14,7 @@ from btclib_secp256k1.keys import (
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
-    _libsecp256k1_applicable,
+    _libsecp256k1_serves,
     _y_even_var,
     mult,
     secp256k1,
@@ -69,7 +69,7 @@ def bytes_from_prv_key_int(
     q = int_from_integer(prv_key_int) % ec.n
 
     # q == 0 is the infinity point, which the bindings reject as a scalar
-    if q and _libsecp256k1_applicable(ec, None):
+    if q and _libsecp256k1_serves(ec, None):
         return libsecp256k1_pubkey_from_prvkey(q, compressed)
 
     return bytes_from_point(mult(q, ec=ec), ec, compressed)
@@ -167,7 +167,7 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     and there is nothing to ask here.
     """
     compressed = len(pub_key) == ec.p_size + 1
-    if compressed and _libsecp256k1_applicable(ec, None):
+    if compressed and _libsecp256k1_serves(ec, None):
         with contextlib.suppress(ValueError):
             libsecp256k1_pubkey_parse(pub_key)
             return pub_key

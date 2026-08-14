@@ -17,8 +17,8 @@ from btclib.curves import (
     Curve,
     CurveGroup,
     bytes_from_point,
-    # the module, not only the names in it: the libsecp256k1 dispatch is a
-    # module attribute, and patching it off is how no_bindings below
+    # the module, not only the names in it: `_libsecp256k1_available` is a
+    # module attribute, and switching it off is how no_bindings below
     # reaches the Python arithmetic underneath
     curve,
     double_mult_var,
@@ -37,8 +37,8 @@ from btclib.curves.curve import (
     SEC2v2,
     SEC2v2_params2,
     _is_x_coordinate_var,
-    _libsecp256k1_applicable,
     _libsecp256k1_multi_mult_,
+    _libsecp256k1_serves,
     _sec_from_point,
     _y_even_var,
 )
@@ -674,7 +674,7 @@ def test_curve_equality() -> None:
     assert secp256k1_bis is not secp256k1
     assert secp256k1_bis == secp256k1
     assert hash(secp256k1_bis) == hash(secp256k1)
-    assert _libsecp256k1_applicable(secp256k1_bis, None)
+    assert _libsecp256k1_serves(secp256k1_bis, None)
     assert mult(3, None, secp256k1_bis) == mult(3)
 
     # equal curves are equal lru_cache keys, so they share the entries
@@ -743,16 +743,26 @@ def test_each_catalogue_holds_what_it_is_named_after() -> None:
             assert CURVES[ec_name] is ec
 
 
-def test_libsecp256k1_applicable() -> None:
+def test_libsecp256k1_serves() -> None:
     """Verify the dispatch takes secp256k1 with sha256, nothing else."""
-    assert _libsecp256k1_applicable(secp256k1, None)
-    assert _libsecp256k1_applicable(secp256k1, sha256)
-    assert not _libsecp256k1_applicable(CURVES["secp256r1"], None)
-    assert not _libsecp256k1_applicable(CURVES["secp256r1"], sha256)
-    assert not _libsecp256k1_applicable(secp256k1, sha512)
+    assert _libsecp256k1_serves(secp256k1, None)
+    assert _libsecp256k1_serves(secp256k1, sha256)
+    assert not _libsecp256k1_serves(CURVES["secp256r1"], None)
+    assert not _libsecp256k1_serves(CURVES["secp256r1"], sha256)
+    assert not _libsecp256k1_serves(secp256k1, sha512)
     # hf is compared by identity, deliberately: a wrapper around sha256
     # takes the Python path, which is slower and never wrong
-    assert not _libsecp256k1_applicable(secp256k1, partial(sha256))
+    assert not _libsecp256k1_serves(secp256k1, partial(sha256))
+
+
+def test_libsecp256k1_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The switch refuses the pair the predicate otherwise takes."""
+    # read on every call and not captured at import, which is the whole
+    # point of it: one assignment reaches the nine modules that imported
+    # the predicate by name
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+    assert not _libsecp256k1_serves(secp256k1, None)
+    assert not _libsecp256k1_serves(secp256k1, sha256)
 
 
 def test_is_on_curve() -> None:
@@ -957,13 +967,14 @@ def test_multi_mult() -> None:
 
 
 def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Patch the libsecp256k1 dispatch off, and the bindings out of reach.
+    """Switch the libsecp256k1 dispatch off, and the bindings out of reach.
 
-    The predicate is what mult, double_mult_var and multi_mult_var ask, and
-    patching it is the pattern of tests/script_engine/python_path_test.py.
-    Replacing the three bindings functions besides is what proves they
-    were not asked anyway: a dispatch this does not cover raises here
-    instead of quietly measuring the bindings against themselves.
+    `_libsecp256k1_available` is what `_libsecp256k1_serves` reads on
+    every call, so clearing it is the whole package's dispatch and not
+    this module's copy of a predicate. Replacing the five bindings
+    functions besides is what proves they were not asked anyway: a
+    dispatch this does not cover raises here instead of quietly measuring
+    the bindings against themselves.
     """
 
     def refuse(*_: object, **__: object) -> bytes:
@@ -971,10 +982,10 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
         # same one borromean and bms carry, for a line the arithmetic --
         # here the dispatch above it -- rules out
         raise AssertionError(  # pragma: no cover
-            "the libsecp256k1 dispatch is patched off"
+            "the libsecp256k1 dispatch is switched off"
         )
 
-    monkeypatch.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
     monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_combine", refuse)

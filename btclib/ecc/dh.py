@@ -21,7 +21,7 @@ from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve import _libsecp256k1_serves
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
@@ -104,7 +104,7 @@ def diffie_hellman(
     # scalar; so is a low-order QV on a curve with a cofactor, which
     # they have no serialization for either. Both are the Python path's
     # to answer, and it answers them below
-    if d and _libsecp256k1_applicable(ec, None):
+    if d and _libsecp256k1_serves(ec, None):
         sec = libsecp256k1_keys.pubkey_tweak_mul(bytes_from_point(QV, ec), d)
         return ansi_x9_63_kdf(sec[1:], size, hf, shared_info)
 

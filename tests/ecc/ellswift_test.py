@@ -91,7 +91,7 @@ def test_the_python_decode_is_the_bindings_one(
     ell = bytes.fromhex(row[0])
     expected = ellswift.decode(ell)
     with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(ellswift, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(ellswift, "_libsecp256k1_serves", lambda *_: False)
         assert ellswift.decode(ell) == expected
 
 
@@ -152,7 +152,7 @@ def test_the_python_create_and_encode_are_the_bindings_ones(
         sec = bytes_from_point(Q)
 
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(ellswift, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(ellswift, "_libsecp256k1_serves", lambda *_: False)
             python_create = ellswift.create(q)
             python_encode = ellswift.encode(Q)
             # the Python path also decodes what the bindings created
@@ -183,7 +183,7 @@ def test_xdh_agrees_between_parties_and_with_the_bindings(
         assert ellswift.xdh(ell_a, ell_b, b, 1) == shared
 
         with monkeypatch.context() as no_bindings:
-            no_bindings.setattr(ellswift, "_libsecp256k1_applicable", lambda *_: False)
+            no_bindings.setattr(ellswift, "_libsecp256k1_serves", lambda *_: False)
             assert ellswift.xdh(ell_a, ell_b, a, 0) == shared
             assert ellswift.xdh(ell_a, ell_b, b, 1) == shared
 

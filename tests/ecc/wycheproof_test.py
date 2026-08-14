@@ -48,8 +48,8 @@ Bitcoin signs with sha256 and nothing else, so the sha512, SHA3 and SHAKE
 files are not bitcoin signatures and are not here pretending to be: what
 they hold to account is the *generic* ECDSA `dsa.verify_` promises, and
 they are the only adversarial vectors that reach it.
-`_libsecp256k1_applicable` declines every hash but sha256, so those files
-land on the Python path by construction rather than by a patch -- the
+`_libsecp256k1_serves` declines every hash but sha256, so those files
+land on the Python path by construction rather than by the switch -- the
 path `SECURITY.md` publishes as not constant-time, under an adversary for
 the first time.
 
@@ -77,7 +77,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from hashlib import sha3_256, sha3_512, sha256, sha512, shake_128, shake_256
 from io import BytesIO
-from types import ModuleType
 from typing import Any, Protocol
 
 import pytest
@@ -118,19 +117,6 @@ _SECP256K1 = bytes.fromhex("2b8104000a")
 # the octets of keying data asked of the KDF: any size answers the same
 # question, this one being the size of the shared field element itself
 _KEY_SIZE = 32
-
-
-def _python_path(monkeypatch: pytest.MonkeyPatch, module: ModuleType) -> None:
-    """Send the dispatch, and the arithmetic under it, down the Python path.
-
-    Two patches because there are two dispatches: the module's own decides
-    whether libsecp256k1 answers the whole verification or agreement, and
-    `curves.curve`'s decides it again for each multiplication the Python
-    implementation of that then makes -- `_jac_double_mult` delegates too,
-    so patching only the first leaves the arithmetic where it was.
-    """
-    no_bindings(monkeypatch)
-    monkeypatch.setattr(module, "_libsecp256k1_applicable", lambda *_: False)
 
 
 def _read_element(stream: BytesIO) -> tuple[int, bytes]:
@@ -336,7 +322,7 @@ _SHAKE256 = _pinned(shake_256, secp256k1.n_size)
 def _paths(hf: HashF) -> list[bool]:
     """Say which implementations answer a vector: both, or Python alone.
 
-    `_libsecp256k1_applicable` compares the hash function by identity and
+    `_libsecp256k1_serves` compares the hash function by identity and
     admits sha256 alone, so under sha512 or SHA3 the bindings decline
     before the dispatch is even reached. Running such a vector a second
     time with the dispatch patched off would be the same Python
@@ -467,7 +453,7 @@ def test_ecdsa_der(
     exercise and what the sha256 ones cannot.
     """
     if not bindings:
-        _python_path(monkeypatch, dsa)
+        no_bindings(monkeypatch)
 
     msg_hash = _digest(hf, bytes.fromhex(vector["msg"]))
     sig = bytes.fromhex(vector["sig"])
@@ -510,7 +496,7 @@ def test_ecdsa_p1363(
     to the width of the order, which no wider digest changes.
     """
     if not bindings:
-        _python_path(monkeypatch, dsa)
+        no_bindings(monkeypatch)
 
     raw = bytes.fromhex(vector["sig"])
     size = secp256k1.n_size
@@ -562,7 +548,7 @@ def test_ecdh(
     would fail this file just as one that accepted everything does.
     """
     if not bindings:
-        _python_path(monkeypatch, dh)
+        no_bindings(monkeypatch)
 
     prv_key = int(vector["private"], 16)
     try:

@@ -66,7 +66,7 @@ from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve import _libsecp256k1_serves
 from btclib.exceptions import BTClibRuntimeError
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -141,7 +141,7 @@ def commit_nonce_(
     # the delegation removes. Gated on the curve alone, as BIP32
     # derivation gates the same call: hf enters only the tagged hash
     # above, computed in Python either way
-    if _libsecp256k1_applicable(ec, None):
+    if _libsecp256k1_serves(ec, None):
         try:
             tweaked = libsecp256k1_keys.prvkey_tweak_add(nonce, tweak)
         except ValueError as e:
@@ -186,7 +186,7 @@ def commit_point_(
     # raised. bytes_from_point's own refusal of an infinite receipt is a
     # BTClibValueError, a ValueError too, and falls through the same way
     # for the same reason
-    if _libsecp256k1_applicable(ec, None):
+    if _libsecp256k1_serves(ec, None):
         try:
             sec = bytes_from_point(receipt, ec, compressed=False)
             tweaked = libsecp256k1_keys.pubkey_tweak_add(sec, tweak, compressed=False)

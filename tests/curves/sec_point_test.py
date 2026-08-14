@@ -11,13 +11,12 @@ from btclib.curves import (
     Curve,
     bytes_from_point,
     bytes_from_prv_key_int,
-    # the modules, not only the names in them: the libsecp256k1 dispatch is
-    # a module attribute in each, and patching it off is how the tests
-    # below reach the Python arithmetic underneath
+    # the module, not only the names in it: `_libsecp256k1_available` is
+    # an attribute of it, and switching it off is how the tests below
+    # reach the Python arithmetic underneath
     curve,
     mult,
     point_from_octets,
-    sec_point,
 )
 from btclib.curves.curve import CURVES
 from btclib.curves.sec_point import _sec_from_octets
@@ -164,8 +163,7 @@ def test_sec_from_octets(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> Non
     them.
     """
     if not bindings:
-        monkeypatch.setattr(sec_point, "_libsecp256k1_applicable", lambda *_: False)
-        monkeypatch.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
 
     for ec in all_curves.values():
         for Q in (ec.G, mult(2, ec.G, ec), mult(3, ec.G, ec)):
