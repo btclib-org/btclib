@@ -16,7 +16,15 @@ __all__ = [
 
 
 def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
-    """Return the variable-length octets read from a stream."""
+    """Return the variable-length octets read from a stream.
+
+    `forbid_zero_size` is read for its truth and not asked for its type,
+    which is the convention `check_validity` is read under: it decides
+    only *whether a check runs*, so no value of it changes the octets
+    this answers with -- where `taproot.parse`'s `exit_on_op_success`
+    decides which of two answers is computed and is therefore refused
+    unless it is a bool.
+    """
     stream = bytesio_from_binarydata(stream)
     i = var_int.parse(stream)
     if forbid_zero_size and i == 0:

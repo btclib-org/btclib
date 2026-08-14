@@ -198,6 +198,23 @@ _ARITY = {
 _NUMBER = re.compile(r"[0-9]+")
 
 
+def _assert_valid_context(context: str) -> None:
+    """Refuse a spend context that is not one of BIP379's two.
+
+    Every rule below reads the context by asking whether it is
+    `TAPSCRIPT`, so a third value is not an unknown context: it is the
+    p2wsh one, silently, and the expression is type-checked and sized
+    under rules it was not offered to. A function rather than two lines
+    at the one caller, so that `parse` keeps the branch count ruff's
+    C901 allows it.
+    """
+    assert_type(context, str, "context")
+    if context not in {P2WSH, TAPSCRIPT}:
+        err_msg = f"unknown spend context: '{context}'"
+        err_msg += f"; it must be one of {sorted((P2WSH, TAPSCRIPT))}"
+        raise BTClibValueError(err_msg)
+
+
 def _t(properties: str) -> frozenset[str]:
     """Return a set of type properties, one character each."""
     return frozenset(properties)
@@ -2052,8 +2069,16 @@ def parse(
     A `str`, a BIP379 expression being text, and refused as a type for
     the reason `descriptors.parse` gives: what was neither reached the
     slicing below and left as "object of type X has no len()".
+
+    The context is one of the two BIP379 has, and `prv_keys` a mapping
+    or `None`, as `descriptors.parse` asks for the same pair: a context
+    no fragment table knows was compared against `TAPSCRIPT`, found
+    unequal, and every rule then read as the p2wsh one, so an expression
+    was type-checked under a context that does not exist.
     """
     assert_type(expression, str, "miniscript")
+    _assert_valid_context(context)
+    assert_type(prv_keys, (Mapping, type(None)), "prv_keys")
 
     if prv_keys is None:
         prv_keys = {}
