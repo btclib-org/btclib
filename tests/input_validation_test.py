@@ -47,7 +47,12 @@ those is the hand-written thing this avoids.
 A **parameter with a default** is never driven: to reach `hf` or
 `network` the arguments before them would have to be valid, which is the
 table this design is built to do without. Those two are gated by hand
-instead, where their own checks live.
+where their own checks live, and the two families of them that are large
+enough to be walked have a file each: `tests/curve_parameter_test.py` for
+every parameter declaring a curve, `tests/bool_parameter_test.py` for
+every `bool` one. Each carries the table this walk avoids, and a walk of
+its own over the parameter it is about, so the table cannot go stale
+quietly.
 
 A **method**, and a function taking a `Tx`, a `Psbt` or a callback, needs
 a valid instance the vocabulary cannot build. That is the part of issue

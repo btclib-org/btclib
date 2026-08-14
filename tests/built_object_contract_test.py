@@ -38,15 +38,16 @@ mypy could see it: `Sequence[BIP32Key]` accepts a `str`, and
 key as far as the type goes. One xpub handed where the list was meant was
 111 keys.
 
-A `bool` parameter is not driven here, and the line is
-`musig2._flag`'s: a flag that decides *what is computed* is a kind and not
-a truth, so `KeyGroup(verify=)` refuses a non-bool -- it chooses the
-closing opcode, and a wallet built from a configuration file reading
-"false" would compute every address of the other script. A flag that
-decides only *whether a check runs* -- `check_validity`, and
-`slip132`'s `check_root_xkey` -- is read for its truth, a wrong value
-there running a check or skipping one and never changing an answer.
-`check_validity_test.py` owns that convention.
+A `bool` parameter is driven in `bool_parameter_test.py` rather than here,
+and the line it sorts them by is `musig2._flag`'s: a flag that decides
+*what is computed* is a kind and not a truth, so `KeyGroup(verify=)`
+refuses a non-bool -- it chooses the closing opcode, and a wallet built
+from a configuration file reading "false" would compute every address of
+the other script. A flag that decides only *whether a check runs* --
+`check_validity`, and `slip132`'s `check_root_xkey` -- is read for its
+truth, a wrong value there running a check or skipping one and never
+changing an answer. `check_validity_test.py` owns that convention, and
+`KeyGroup(verify=)` is in the kinds of that census with the rest.
 """
 
 from __future__ import annotations
