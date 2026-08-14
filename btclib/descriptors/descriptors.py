@@ -182,13 +182,13 @@ from btclib.descriptors.miniscript import (
 )
 from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer
+from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer, _assert_input_types
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
 from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
@@ -2447,6 +2447,10 @@ def miniscript_sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
     caller then answers as it did before, which for the last of those is a
     refusal: a script nobody can spend has no spend to estimate.
     """
+    # `tx_in` is unread here and checked anyway: the pair is what a
+    # `SolutionSizer` declares, so the guarantee is the signature's rather
+    # than this body's, and the sizer beside this one does read it
+    _assert_input_types(psbt_in, tx_in)
     if not psbt_in.witness_script:
         return None
     known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths)
@@ -2501,9 +2505,18 @@ def satisfaction_sizer(keys: Iterable[Octets]) -> SolutionSizer:
     then falls back exactly as it would for any other sizer answering
     "not mine".
     """
+    # a str and a bytes are each an `Octets` and each an iterable of one,
+    # so `Iterable[Octets]` accepts either as far as the annotation goes:
+    # one key handed where the list was meant is as many keys as it has
+    # characters, and each of them invalid
+    if isinstance(keys, (str, bytes, bytearray)):
+        raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
+    if not isinstance(keys, Iterable):
+        raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
     signer_keys = tuple(bytes_from_octets(key) for key in keys)
 
     def sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
+        _assert_input_types(psbt_in, tx_in)
         if not psbt_in.witness_script:
             return None
         known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths, *signer_keys)

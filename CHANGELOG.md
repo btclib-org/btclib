@@ -2523,13 +2523,13 @@ documented at release-notes length in the first place, and are still in
 
 - **The input contract is gated over a function taking an object somebody
   already built** (issue #856). Neither of the two gates reaches
-  `assert_signatures_only`, `estimated_input_sizes` or `KeyGroup`: their
-  parameters are a `Psbt`, a `PsbtIn` and a sequence of extended keys, and
-  no vocabulary of wrong values builds one, so
-  `tests/built_object_contract_test.py` builds them from BIP174's own
-  vectors. `check_validity=False` is what makes the family worth a gate --
-  it says *do not check now*, not *this object is exempt from here on*, so
-  an invalid object is something a caller may legitimately hold and hand
+  `assert_signatures_only`, `estimated_input_sizes`, the two
+  `SolutionSizer`s or `KeyGroup`: their parameters are a `Psbt`, a `PsbtIn`
+  and a sequence of extended keys, and no vocabulary of wrong values builds
+  one, so `tests/built_object_contract_test.py` builds them from BIP174's
+  own vectors. `check_validity=False` is what makes the family worth a gate
+  -- it says *do not check now*, not *this object is exempt from here on*,
+  so an invalid object is something a caller may legitimately hold and hand
   back.
 
   It found the shapes issue #856 predicted, and one it did not.
@@ -2540,9 +2540,16 @@ documented at release-notes length in the first place, and are still in
   origin an `AttributeError` about a field name -- and `Sequence[BIP32Key]`
   accepts a `str`, every character of it being a `BIP32Key` as far as the
   annotation says, so one xpub handed where the list was meant was 111
-  keys. `assert_signatures_only` and `estimated_input_sizes` read a field
-  off whatever they were given, which is the wrong error for the one
-  function whose whole job is to distrust an answer from elsewhere.
+  keys -- and `satisfaction_sizer` takes an `Iterable[Octets]`, which
+  accepts a `str` and a `bytes` for the same reason, so one key handed
+  where the list was meant was as many keys as it had characters.
+  `assert_signatures_only`, `estimated_input_sizes` and both
+  `SolutionSizer`s read a field off whatever they were given, which is the
+  wrong error for the one function whose whole job is to distrust an answer
+  from elsewhere. `miniscript_sizer` does not read its `tx_in` at all and
+  checks it anyway: the pair is what the `SolutionSizer` type declares, so
+  the guarantee is the signature's rather than one body's, and
+  `psbt_size._assert_input_types` is the one place either sizer asks.
   `Psbt.assert_valid` compared its three int fields against a range before
   asking their type, `Tx.assert_valid` having had that check for the same
   reason -- and a bool passed every one of those comparisons as one or
