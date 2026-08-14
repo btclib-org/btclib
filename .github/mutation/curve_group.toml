@@ -1,0 +1,43 @@
+# The pure-Python point arithmetic, mutated: `curve_group.py`'s generic
+# window/ladder/NAF methods and `curve_group_2.py`'s secp256k1-only GLV
+# endomorphism and interleaved wNAF beside them. Issue #822 is why the
+# scope exists at all: `signatures.toml`'s own header names this pair as
+# invisible to it, because `curve.py`'s dispatch sends a default-curve
+# call to the libsecp256k1 bindings before either module's code ever
+# runs, and no other profile named them either.
+#
+# Neither module goes through that dispatch here. Both test files below
+# import and call the underscore-prefixed algorithm functions directly
+# -- `_mult`, `_multi_mult`, `_mult_endomorphism_secp256k1`,
+# `_double_mult_w_NAF`, and the rest -- secp256k1 included, so a mutant
+# of either module is reached without patching `curve.py`'s
+# `_libsecp256k1_applicable` off the way `curve_test.py`'s own
+# `no_bindings` fixture has to for the same code reached through `mult`,
+# `double_mult` and `multi_mult`.
+
+[cosmic-ray]
+module-path = [
+    "btclib/curves/curve_group.py",
+    "btclib/curves/curve_group_2.py",
+]
+
+# each file's own dedicated test, and only those: curve_test.py's own
+# subject is curve.py's dispatch, already exercised by a profile of its
+# own question (mutation coverage of the dispatch itself is issue #822's
+# follow-up, not this file's); curve_group_f_test.py's subject is
+# curve_group_f.py, a third, separate module this scope does not name
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/curves/curve_group_test.py tests/curves/curve_group_2_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# no session has run yet. `cosmic-ray init` over this file enumerates
+# 5548 mutants, more than double signatures.toml's dsa.py/ssa.py pair at
+# 2475 -- sampled there rather than finished, and likely sampled here
+# too. The wall clock a sample takes, and what it finds, are issue
+# #822's follow-up rather than a guess written down here in their place
+
+[cosmic-ray.distributor]
+name = "local"
