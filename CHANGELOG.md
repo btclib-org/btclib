@@ -3661,6 +3661,29 @@ documented at release-notes length in the first place, and are still in
   arithmetic. The new `bench` dependency group installs the five
   comparands, and nothing else needs them.
 
+- **Two more libsecp256k1 ideas are recorded as measured and not taken**
+  (issue #835). `curve_group_2`'s list of them is there so that the same
+  idea does not arrive twice with the same measurement to make, and both
+  of these were measured while the `_var` census was being answered and
+  written down nowhere.
+
+  The lambda split's division, `secp256k1_scalar_mul_shift_var`:
+  `_multiplier_decomposer` rounds with `(_B2 * m + n // 2) // n`, 384 bits
+  by 256, where libsecp256k1 multiplies by a precomputed reciprocal. 0.24
+  us against 0.15, once per multiplication of some 700.
+
+  And the table built with no inversion at all, which is
+  `secp256k1_ecmult_odd_multiples_table` with
+  `secp256k1_ge_table_set_globalz`: the odd multiples formed on an
+  isomorphic curve where the doubled point is affine, the z-ratios kept as
+  they go, one common Z reached by products alone. The answer to that one
+  changed while it was being asked -- before issue #833 a call spent an
+  inversion per table and this would have removed all of them, and now it
+  spends one for the call, so what is left to remove is 7.4 us of a 700 us
+  `_mult` and of the 3667 us a 16-point `_multi_mult_var` takes. The rest
+  of that conversion is the three products an entry costs, which the
+  isomorphic construction pays in its own coin.
+
 ### Tests
 
 - **The input-validation gate's own verdict is exercised** (issue #776).

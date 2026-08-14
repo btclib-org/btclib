@@ -82,6 +82,23 @@ macOS arm64:
     - the masked table lookup of `secp256k1_ecmult_table_get_ge`, which
       reads every entry of a table under a cmov: a list index is a list
       index
+    - the lambda split's division by a multiply and a shift,
+      `secp256k1_scalar_mul_shift_var`: `_multiplier_decomposer` rounds
+      with `(_B2 * m + n // 2) // n`, 384 bits by 256, where libsecp256k1
+      multiplies by a precomputed reciprocal instead. 0.24 us against
+      0.15, once per multiplication of some 700
+    - the table built with no inversion at all,
+      `secp256k1_ecmult_odd_multiples_table` with
+      `secp256k1_ge_table_set_globalz`: the odd multiples are formed on an
+      isomorphic curve where the doubled point is affine, the z-ratios are
+      kept as they go, and the entries reach one common Z by products
+      alone. What it would remove is the single inversion a call now
+      spends, 7.4 us of a 700 us `_mult` and of the 3667 us a 16-point
+      `_multi_mult_var` takes; the rest of that conversion is the three
+      products an entry costs -- 21.9 us of the first, 253 of the second
+      -- and the isomorphic construction pays those in its own coin. An
+      accumulator that has to live in that frame and be rescaled out of it
+      at the end, for a ceiling of 1% and of 0.2%
     - the square root by an addition chain is the one of these that
       measures positive and is still not here: `pow(a, (p + 1) // 4, p)`
       is 73.6 us against the 63.6 of libsecp256k1's chain, which is 1.16x
