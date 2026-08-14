@@ -108,14 +108,37 @@ lint = ["mypy", "pre-commit", "ruff"]
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
-# what scripts/benchmark_libraries.py times btclib against, at each
-# package's own latest release: no pin of its own, matching the
-# benchmark's premise that the comparison is against whatever `pip
-# install` currently gives a user. Not in `dev`, for the same reason
+# what scripts/benchmark_libraries.py times btclib against, each with a
+# floor at its latest release. Not in `dev`, for the same reason
 # btclib-secp256k1's own `bench` group is not: nothing else needs any of
-# these five, and a lint or type-check run that does not touch the
-# script should not have to resolve them
-bench = ["buidl", "ecdsa", "embit", "pycoin", "python-bitcoinlib"]
+# these five, and a lint or type-check run that does not touch the script
+# should not have to resolve them.
+#
+# A floor and not a pin: the benchmark's premise is that the comparison is
+# against whatever `pip install` currently gives a user, so a new release
+# is to be picked up and measured, not refused. What the bare names these
+# were let happen is the other direction -- an ancient release answering
+# the comparison in silence, and a table saying btclib is faster than a
+# version nobody runs.
+#
+# `ecdsa` is where that stopped being theoretical: GHSA-wj6h-64fc-37mp,
+# the Minerva timing attack on P-256, names every version of it and no
+# patched one, python-ecdsa being pure Python and saying of itself that it
+# is not side-channel resistant -- which is what SECURITY.md publishes
+# about this library's own Python path. The floor does not close that
+# alert and is not meant to; what it does is record which release the
+# advisory was read against, and the same is now true of the other four.
+#
+# Raising a floor is what a measurement asks for, not what a resolver
+# does: the numbers in the benchmark's own output belong to the versions
+# named here
+bench = [
+    "buidl>=0.2.36",
+    "ecdsa>=0.19.2",
+    "embit>=0.8.0",
+    "pycoin>=0.92718.20260405",
+    "python-bitcoinlib>=0.12.2",
+]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
