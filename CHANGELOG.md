@@ -1998,6 +1998,39 @@ documented at release-notes length in the first place, and are still in
   the power wanted is the one inverted. Their docstrings said they made
   one inversion where `aff_from_jac` made two, which is no longer what
   tells them apart; each now says what it does not compute.
+- **The tangent law stops multiplying by an `a` that is zero** (issue
+  #799). `_double_jac_helper` built `3*X^2 + a*Z^4` whatever `a` was, and
+  `double_jac` formed the `Z^2` that term is built from and that nothing
+  else in the formula reads. Of the catalogued curves the `k1` family has
+  `a == 0`, and there both squarings are spent to add zero; most of the
+  rest have `a == p - 3`, where `3*(X - Z^2)*(X + Z^2)` is the same value
+  for one product instead of two squarings and a multiplication.
+  libsecp256k1 carries the first spelling alone, secp256k1's `a` being
+  zero, and states its doubling as 3 mul and 4 sqr against the 12 and 4
+  of its addition.
+
+  Which spelling to run is decided in `__init__`, `a` being the curve's
+  and a curve not changing, rather than by a test inside a function a
+  multiplication calls 253 times. The tests are on the curve and not on
+  the point, so a given curve still makes the same operations for every
+  point of it, which is what the regular window is for. Measured against
+  `70899b51` on Python 3.14.6, best of seven alternating rounds, with the
+  addition as the noise detector:
+
+  | | generic | specialized | |
+  | --- | ---: | ---: | ---: |
+  | `double_jac`, secp256k1 | 1.94 us | 1.69 us | **1.15x** |
+  | `double_jac`, secp256r1 | 2.28 us | 1.96 us | **1.16x** |
+  | `_mult`, secp256k1 | 829 us | 758 us | **1.09x** |
+  | `_mult`, secp256r1 | 941 us | 833 us | **1.13x** |
+  | `_mult_endomorphism_secp256k1` | 609 us | 576 us | **1.06x** |
+  | control, `add_jac` | 2.88 us | 2.89 us | 1.00x |
+
+  The endomorphism moves least because it is the one that already halved
+  the doublings, 126 of them against 79 additions where the plain regular
+  window has 253 against 71. It is also what `curves.mult` runs on
+  secp256k1 for the arguments the bindings decline; every other curve
+  gets the row above it.
 
 ### The public API and the module layout
 
