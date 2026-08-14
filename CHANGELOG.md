@@ -2251,6 +2251,47 @@ documented at release-notes length in the first place, and are still in
   indexed by a secret digit, and `SECURITY.md` publishes the Python path
   as variable-time -- and nothing at all about the point, whose inversion
   every table costs and whose value is the caller's public key.
+- **The Legendre symbol asks a gcd instead of an exponentiation** (issue
+  #827). `legendre_symbol` was Euler's criterion, `pow(a, (p - 1) // 2,
+  p)`: an exponentiation the size of the square root the caller is asking
+  about. It is the binary Jacobi symbol now, which for a prime modulus is
+  the same number -- the reciprocity recursion, with every factor of two
+  coming out at once through `a & -a`. That is libsecp256k1's
+  `secp256k1_ctz64_var`, and asking a gcd rather than an exponent is what
+  its `secp256k1_fe_is_square_var` does, through
+  `secp256k1_jacobi64_maybe_var` and never through a power; its own
+  recursion is the safegcd one, which in bytecode loses as every safegcd
+  does.
+
+  `curves.curve._is_x_coordinate` is where that lands: it asks whether an
+  x is on the curve and answered with `ec.y(x)`, a modular square root,
+  where libsecp256k1's `secp256k1_ge_x_on_curve_var` is
+  `fe_is_square_var` of `x^3 + ax + b` and nothing else. It is what
+  `dsa.Sig`'s congruence check runs on the Python path. Measured against
+  `4afc13ce` on Python 3.14.6, best of seven alternating rounds:
+
+  | | Euler | Jacobi | |
+  | --- | ---: | ---: | ---: |
+  | `legendre_symbol`, secp256k1's p | 74.9 us | 13.7 us | **5.45x** |
+  | `_is_x_coordinate`, secp256r1 | 67.9 us | 14.8 us | **4.58x** |
+
+  `mod_sqrt` does not change and must not: there the root is what is
+  wanted and asking for the symbol first is the work twice, which is what
+  issue #783 measured. `tonelli` gains with it, its search for a
+  non-residue calling the symbol once per candidate.
+
+  **`legendre_symbol(1, 2)` answered -1 and now answers 1.** The old line
+  was `return -1 if ls == p - 1 else ls`, which reads `ls == p - 1` as
+  "non-residue" -- and at p = 2 that is `ls == 1`, where every residue of
+  the field of two elements is a square, 1 among them. No caller in the
+  tree reached it, `tonelli` returning before it for p == 2, and the
+  function is public. A test now asserts the symbol against the squares
+  themselves, exhaustively, over every small prime including 2.
+
+  The symbol is variable-time in `a` where the exponentiation was not, a
+  gcd's length following its operand. `SECURITY.md` publishes the Python
+  path as variable-time, and no caller here hands it a secret:
+  `_is_x_coordinate` asks it about a signature's r.
 
 ### The public API and the module layout
 
