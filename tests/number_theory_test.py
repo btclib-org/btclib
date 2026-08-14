@@ -16,6 +16,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import (
     legendre_symbol_var,
     mod_inv,
+    mod_inv_batch,
     mod_inv_batch_var,
     mod_inv_var,
     mod_sqrt_var,
@@ -430,3 +431,76 @@ def test_mod_inv_blinded_inverts(a: int, m: int) -> None:
     inverse = mod_inv(a, m)
     assert 0 <= inverse < m
     assert a * inverse % m == 1 % m
+
+
+def test_mod_inv_batch_is_mod_inv_batch_var() -> None:
+    """The blinding changes what is timed and not what is answered.
+
+    Over a prime modulus, which is what the library batches against, and
+    over the composite ones where an element with no inverse still has
+    none and is named as `mod_inv` names it.
+    """
+    for m in (7, 97, 2**521 - 1):
+        values = [1, 2, m - 1, 3, m - 2]
+        assert mod_inv_batch(values, m) == mod_inv_batch_var(values, m)
+        assert mod_inv_batch([2], m) == [mod_inv_var(2, m)]
+    assert mod_inv_batch([], 7) == []
+    assert mod_inv_batch([7], 1) == [0]
+
+    with pytest.raises(BTClibValueError, match="no inverse for 0 mod 7"):
+        mod_inv_batch([1, 2, 0, 3], 7)
+    with pytest.raises(BTClibValueError, match="no inverse for 3 mod 9"):
+        mod_inv_batch([2, 3], 9)
+
+    for value in (2.0, True, None):
+        with pytest.raises(BTClibTypeError, match="not an integer: "):
+            mod_inv_batch([1, value], 7)  # type: ignore[list-item]
+    for bad_modulus in (0, -7, 3.0, False):
+        with pytest.raises((BTClibTypeError, BTClibValueError)):
+            mod_inv_batch([1], bad_modulus)  # type: ignore[arg-type]
+
+
+def test_mod_inv_batch_blinds_each_element_on_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One factor per element, not one for the sequence.
+
+    A single factor would blind the product the trick inverts and leave
+    the ratios of the elements in the running products it is peeled back
+    off, so the factors have to be independent -- which is what the
+    recorded draws show, none of them repeated.
+    """
+    drawn: list[int] = []
+    real_randbelow = secrets.randbelow
+
+    def recording_randbelow(upper: int) -> int:
+        value = real_randbelow(upper)
+        drawn.append(value)
+        return value
+
+    monkeypatch.setattr(secrets, "randbelow", recording_randbelow)
+
+    m = 2**256 - 2**32 - 977
+    values = [1 + real_randbelow(m - 1) for _ in range(8)]
+    assert mod_inv_batch(values, m) == mod_inv_batch_var(values, m)
+
+    assert len(drawn) == len(values)
+    assert len(set(drawn)) == len(drawn)
+
+
+@given(values=st.lists(st.integers(), max_size=8), m=st.integers(min_value=1))
+def test_mod_inv_batch_blinded_inverts(values: list[int], m: int) -> None:
+    """`test_mod_inv_batch_inverts`, of the blinded spelling.
+
+    m from one rather than from two: the degenerate modulus is a branch
+    here, where `mod_inv_batch_var` has none.
+    """
+    if any(math.gcd(v % m, m) != 1 for v in values) and m != 1:
+        with pytest.raises(BTClibValueError, match="no inverse"):
+            mod_inv_batch(values, m)
+        return
+    inverses = mod_inv_batch(values, m)
+    assert len(inverses) == len(values)
+    for v, inverse in zip(values, inverses, strict=True):
+        assert 0 <= inverse < m
+        assert v * inverse % m == 1 % m

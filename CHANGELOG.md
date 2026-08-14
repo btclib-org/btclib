@@ -1455,6 +1455,35 @@ documented at release-notes length in the first place, and are still in
   1.03x and `Sig.assert_valid` 1.03x. The inverse inside each is real and
   is diluted: 1.32x on 10 us of a 40 us verification.
   `ellswift._constants` is memoized on the curve and receives no value.
+- **`mod_inv_batch` is the blinded twin of `mod_inv_batch_var`**, so the
+  batch inverse has the pair every other primitive got. Montgomery's
+  trick spends one extended Euclid on a running product every element
+  went into, and that is the same channel as a single inverse, no smaller
+  for being shared: the one caller in the library is
+  `aff_from_jac_batch_var`, on table `Z` coordinates that `_blinded_jac`
+  has already randomized or that belong to the generator, but the method
+  is public API and an outside caller can hand it coordinates derived
+  from a secret. Now there is something for them to call.
+
+  A factor per element, not one for the sequence: `inv(a_i * b_i) * b_i`
+  is `inv(a_i)`, and one shared factor would blind the product while
+  leaving the ratios `a_i / a_j` in the running products the inverses are
+  peeled back off.
+
+  The draws are the cost. On secp256k1's `p` over 16 random elements,
+  best of nine alternating rounds: 43.7 us against the 20.9 of
+  `mod_inv_batch_var`, 2.1x, the 22.8 us of difference being 16 draws of
+  1.6. It stays worth batching -- 16 separate `mod_inv` calls are
+  155.9 us, so blinding the batch is 3.6x cheaper than blinding one at a
+  time, where the unblinded batch is 6.3x cheaper than the unblinded
+  singles' 131.3.
+
+  `ellswift._xswiftec_inv_var` is the other name that has no twin, and it
+  is not getting one this way: what the census measured there is a branch
+  and not an operand, so a random factor has nothing to hide. What would
+  make it uniform is computing every case and selecting, which is a
+  different function; its operands are the public key being encoded and
+  the `u` that is published beside it, so nothing asks for one today.
 
 - **The bindings switch has a name** (issue #848).
   `_libsecp256k1_applicable(ec, hf)` answered one question — can the
