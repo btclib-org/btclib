@@ -43,7 +43,7 @@ from btclib.bip32 import (
     encode_to_bip32_derivs,
 )
 from btclib.ecc import dsa, ssa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
@@ -92,6 +92,7 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    is_integer,
 )
 
 __all__ = [
@@ -233,7 +234,34 @@ def _global_version(global_map: Mapping[bytes, bytes]) -> int:
     return 0
 
 
+def _assert_int_field_types(
+    tx_modifiable: int | None, fallback_lock_time: int | None
+) -> None:
+    """Refuse a value of no integer type in either of the two int fields.
+
+    Asked before any rule reads either, which for `tx_modifiable` is not
+    the range: a v0 psbt refuses the field outright, and that is a
+    statement about the value of a field whose type has not been asked
+    yet. Both are optional, so None is the one non-integer value either of
+    them carries -- and a bool is not one, `utils.is_integer` stating why
+    for every integer field of this library.
+    """
+    for value, name in (
+        (tx_modifiable, "tx modifiable"),
+        (fallback_lock_time, "fallback locktime"),
+    ):
+        if value is not None and not is_integer(value):
+            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+
+
 def _assert_valid_version(version: int) -> None:
+    # the type before the range, as Tx.assert_valid checks its own two int
+    # fields: a comparison against a value of no integer type raises from
+    # underneath the library, and a bool passes every one of them as one
+    # or zero -- `to_dict`/`from_dict` being a json boundary, where `true`
+    # would be version 0 rather than a schema error
+    if not is_integer(version):
+        raise BTClibTypeError(f"invalid version type: {type(version).__name__}")
     # must be a 4-bytes int
     if not 0 <= version <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid version: {version}")
@@ -1083,6 +1111,10 @@ class Psbt:
         """
         # first, the version being what every rule below is read under
         _assert_valid_version(self.version)
+
+        # then the type of the other two int fields, before any rule
+        # reads either
+        _assert_int_field_types(self.tx_modifiable, self.fallback_lock_time)
 
         for i, psbt_in in enumerate(self.inputs):
             _assert_valid_input_fields(psbt_in, self.version, i)
@@ -2745,6 +2777,20 @@ def _assert_taproot_sigs_verify(
             raise BTClibValueError(err_msg)
 
 
+def _assert_psbt_pair(request: Psbt, returned: Psbt) -> None:
+    """Refuse either of the pair before either is read.
+
+    An answer arrives from somewhere else -- an external signer, a device,
+    a cosigner -- so "not a psbt at all" is exactly the case
+    `assert_signatures_only` is called to rule out, and it must not arrive
+    as an AttributeError about a field name.
+    """
+    for psbt, what in ((request, "request"), (returned, "returned")):
+        if not isinstance(psbt, Psbt):
+            err_msg = f"invalid {what} type: {type(psbt).__name__}"  # type: ignore[unreachable]
+            raise BTClibTypeError(err_msg)
+
+
 def assert_signatures_only(request: Psbt, returned: Psbt) -> None:
     """Raise unless `returned` is `request` with signatures added, and no more.
 
@@ -2784,6 +2830,7 @@ def assert_signatures_only(request: Psbt, returned: Psbt) -> None:
     refuses an aggregate that does not verify, which is the check that
     can be made once the session is complete.
     """
+    _assert_psbt_pair(request, returned)
     returned.assert_valid()
 
     if returned.version != request.version:

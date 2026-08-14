@@ -2679,6 +2679,46 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **The input contract is gated over a function taking an object somebody
+  already built** (issue #856). Neither of the two gates reaches
+  `assert_signatures_only`, `estimated_input_sizes` or `KeyGroup`: their
+  parameters are a `Psbt`, a `PsbtIn` and a sequence of extended keys, and
+  no vocabulary of wrong values builds one, so
+  `tests/built_object_contract_test.py` builds them from BIP174's own
+  vectors. `check_validity=False` is what makes the family worth a gate --
+  it says *do not check now*, not *this object is exempt from here on*, so
+  an invalid object is something a caller may legitimately hold and hand
+  back.
+
+  It found the shapes issue #856 predicted, and one it did not.
+  `KeyGroup`'s `threshold` reached a comparison before its type was asked,
+  so `None` raised from underneath the library and **1.5 was accepted**, a
+  float quorum written into a script; `keys` and `origins` were walked
+  unchecked, so a non-sequence was "not iterable" and an origin that is no
+  origin an `AttributeError` about a field name -- and `Sequence[BIP32Key]`
+  accepts a `str`, every character of it being a `BIP32Key` as far as the
+  annotation says, so one xpub handed where the list was meant was 111
+  keys. `assert_signatures_only` and `estimated_input_sizes` read a field
+  off whatever they were given, which is the wrong error for the one
+  function whose whole job is to distrust an answer from elsewhere.
+  `Psbt.assert_valid` compared its three int fields against a range before
+  asking their type, `Tx.assert_valid` having had that check for the same
+  reason -- and a bool passed every one of those comparisons as one or
+  zero, so those three join `integer_policy_test.py`'s inventory.
+
+  The one it did not predict was silence rather than a wrong exception:
+  `estimated_input_sizes` consults its `sizer` in a single branch, so a
+  value of no callable type was accepted by every call that did not need
+  one. It is asked for up front now.
+
+  `KeyGroup(verify=)` refuses a non-bool, which is the other half of the
+  same argument and a line CONTRIBUTING.md now draws: a flag deciding
+  *what is computed* is a kind and not a truth, `musig2._flag`'s
+  reasoning, because a wallet built from a configuration file reading
+  `"false"` would compute every address of the other script.
+  `check_validity` and `slip132`'s `check_root_xkey` decide only whether a
+  check runs, so they stay read for their truth.
+
 - **An argument-less member is a read, and nine were calls** (issue
   #814). The bool rule generalised to every return type, and the census
   is what settled it: 168 public members take nothing but `self`, and

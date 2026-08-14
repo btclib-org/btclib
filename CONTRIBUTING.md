@@ -871,9 +871,23 @@ function whose required parameters are all library input types.
 `tests/bool_contract_test.py` drives them from hand-written fixtures over
 the verifications that walk cannot reach — a signature verification needs
 a valid message, key and signature, and a `Sig | Octets` no vocabulary of
-wrong values can build. Neither has an exemption list, which is the state
-to keep: a finding is a red test, to be fixed or to be given a reason of
-its own beside the two families that have one.
+wrong values can build. `tests/built_object_contract_test.py` does the
+same for a function whose parameter is an object the caller already built
+— a `Psbt`, a `PsbtIn`, a sequence of extended keys — which is the family
+`check_validity=False` makes reachable, an invalid object being something a
+caller may legitimately hold. None of the three has an exemption list,
+which is the state to keep: a finding is a red test, to be fixed or to be
+given a reason of its own beside the two families that have one.
+
+**A `bool` parameter is a kind or a truth, and only the first is
+type-checked.** A flag that decides *what is computed* refuses a non-bool,
+`musig2._flag` stating the reason: a kind written down and read back — json,
+a configuration file, a coordinator's message — arrives as whatever it was
+written as, and `"false"` is true, so `KeyGroup(verify=)` would compute
+every address of the other script rather than raise. A flag that decides
+only *whether a check runs* is read for its truth: `check_validity` and
+`slip132`'s `check_root_xkey` either run a check or skip one, and neither
+changes an answer. `tests/check_validity_test.py` owns that convention.
 
 Four shapes were what the second gate found when it was written, and they
 are worth knowing because each is a way of being handed an argument

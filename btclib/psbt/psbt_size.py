@@ -50,7 +50,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from btclib.alias import Command
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.script import serialize, type_and_payload
@@ -228,6 +228,28 @@ def _taproot_witness_sizes(
     return [_taproot_sig_size(psbt_in)]
 
 
+def _assert_arguments(
+    psbt_in: PsbtIn, tx_in: TxIn, sizer: SolutionSizer | None
+) -> None:
+    """Refuse an argument of the wrong type before any field is read.
+
+    The two objects are read for their fields, so a value of another type
+    is an AttributeError about a field name rather than a refusal. The
+    sizer is asked for here and not where it is consulted, which is a
+    single branch: one of no callable type went unnoticed for every input
+    `estimated_input_sizes` answers for on its own.
+    """
+    if not isinstance(psbt_in, PsbtIn):
+        err_msg = f"invalid psbt_in type: {type(psbt_in).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    if not isinstance(tx_in, TxIn):
+        err_msg = f"invalid tx_in type: {type(tx_in).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    if sizer is not None and not callable(sizer):
+        err_msg = f"invalid sizer type: {type(sizer).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+
+
 def estimated_input_sizes(
     psbt_in: PsbtIn,
     tx_in: TxIn,
@@ -245,6 +267,8 @@ def estimated_input_sizes(
     read raises, unless `sizer` answers for it. All three rules, and why,
     are in the module docstring.
     """
+    _assert_arguments(psbt_in, tx_in, sizer)
+
     if psbt_in.final_script_sig or psbt_in.final_script_witness:
         # nothing to estimate: a Finalizer has been here, and what it
         # produced is what the transaction will carry
