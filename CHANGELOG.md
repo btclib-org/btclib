@@ -1299,6 +1299,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **An ECIES envelope's four fields are `Octets`, and coerce** (issue
+  #874). `magic`, `eph_pub_key`, `ciphertext` and `mac` were declared
+  `bytes` and assigned as they came, the only octet fields in the library
+  with no conversion in their constructor -- `OutPoint.tx_id`,
+  `BlockHeader.merkle_root`, `Witness`'s stack elements and
+  `BIP32KeyData.key` all go through `bytes_from_octets`.
+
+  That made two answers wrong. A value with no `len` left `assert_valid`
+  as a TypeError about a builtin, which is issue #776's shape; and a value
+  *with* one was reported as a **size**, so `Envelope("no", ...)` said
+  "invalid magic size: 2 bytes" where the mistake is that a `str` is not a
+  magic at all. `from_ciphertext` was worse than either, its own
+  concatenation failing first: "unsupported operand type(s) for +".
+
+  A hex string is accepted now, as it is for every other octet parameter,
+  which is what a caller pasting an envelope is likelier to hold.
+
+  The `magic` of `Envelope.parse` and `b64decode` was gated in issue #867
+  and is unchanged: what those two take from a caller was already asked.
+
 - **The `_var` census reaches a measured zero.** Two rounds of the
   suffix had left the question half-answered: every function that spends
   a variable-time primitive is now either suffixed or listed as an
@@ -2586,6 +2606,60 @@ documented at release-notes length in the first place, and are still in
   public key" are the caller's diagnosis rather than a type report; and
   the 33 guards built on `is_integer` are the integer policy
   `tests/integer_policy_test.py` owns, a bool being an int.
+- **Every `bool` parameter of the library is a kind or a truth, and the
+  kinds refuse what is not one** (issue #868, second half). CONTRIBUTING.md
+  has drawn the line since `KeyGroup(verify=)`: a flag that decides *what
+  is computed* is a kind, `musig2._flag`'s reasoning being that a kind
+  written down and read back arrives as whatever it was written as and
+  `"false"` is true; a flag that decides only *whether a check runs* is
+  read for its truth. Applying it meant the census, and the census is
+  `tests/bool_parameter_test.py`: seventy-eight `bool` parameters besides
+  `check_validity`, fifty-three of them kinds and twenty-five truths, with
+  every one of the seventy-eight in one of the two tables or the run is
+  red.
+
+  What was open were the two the issue names, and thirty-odd more of the
+  same shape:
+
+  ```text
+  dsa.sign(msg, q, lower_s="no")        -> a low-s signature, "no" being true
+  pub_keyinfo_from_prv_key(q, "no")     -> the compressed key, and its address
+  ```
+
+  `compressed` chooses which public key is computed and therefore which
+  address, `lower_s` which of the two signatures comes back, `grind`
+  whether the nonce is searched until r is short. The script engine's
+  `segwit` says which digest a signature commits to and which script code
+  it is checked against — a consensus answer, in five signatures — beside
+  `const_scriptcode`, `skip_execution` and `exit_on_op_success`. Then
+  `signed`, `include_witness` and `unsigned_template` at the psbt
+  boundary, `shuffle_inp` and `shuffle_out` in both `join`s, `legacy` in
+  BIP322's two verifications, `sort`, `pad`, `shuffle`, `to_be_hashed`,
+  `extendable`, `lexicographic_sorting`, `emulators`, `musig2`, `active`
+  and `internal`. Each refuses a non-bool with a `BTClibTypeError` now,
+  through `utils.assert_type`, which is the library's one spelling of that
+  refusal: thirty new guards and no thirty-first message shape.
+
+  The check sits where the flag is first read, which is fewer places than
+  there are parameters: `b58.p2pkh`, `ScriptPubKey.p2pkh` and the rest
+  reach one of the four `compressed` checks, `dsa.sign` and
+  `anti_exfil_sign` reach `sign_`'s, and `verify_script` reaches
+  `prepare_script`'s. `b58.wif_from_prv_key` is the one that had to ask for
+  itself: it calls `prv_keyinfo_from_prv_key` without the flag and reads
+  the caller's own afterwards.
+
+  The truths are the other half of the census and they stay read for their
+  truth, each with the reason in the table: `check_validity` (whose own
+  file holds it), `check_root_xkey`, `verify_checksum`, `strict`,
+  `bip380_enforced`, `forbid_zero_size`, `allow_partial`, `check_amounts`,
+  `verify_network`, `branches_0_1_only`, `hybrid`, `power_of_two`,
+  `order_check`, `weakness_check`, the four `enforce_same_*`,
+  `unsigned_template` on `Tx.assert_valid`, and the engine's `final` and
+  `verified`. What makes the classification checkable rather than asserted
+  is that a truth is *driven* too: it is called with `"no"`, `0` and `1` on
+  a fixture its `True` accepts, and all three go through. A truth that
+  starts refusing fails that test, and the entry has to move to the kinds
+  rather than the test being edited.
 
 - **The input contract reaches `ec`, which had no check anywhere** (issue
   #868). The census of parameters behind a default put it fourth by
@@ -4121,6 +4195,22 @@ documented at release-notes length in the first place, and are still in
   the one that stays refused.
 
 ### Documentation and the website
+
+- **`dsa.Sig.parse`'s `strict` says which direction each accident goes**
+  (issue #873). The flag stays read for its truth, which is what
+  `bool_parameter_test.py` classifies it as and what the line
+  CONTRIBUTING.md draws asks: it decides whether the call refuses, and the
+  signature parsed out of an encoding both readings accept is one
+  signature. What was not written down is that its two accidents are not
+  symmetric -- `"false"` out of a configuration file is truthy and
+  therefore strict, while a `None` from a lookup that found nothing is the
+  lax one, so it is the safe-looking accident that costs something. The
+  docstring says so, and says to pass `True` rather than whatever a table
+  answered.
+
+  The census entry is sharpened with it: it named trailing bytes where the
+  flag gates the whole of Bitcoin Core's `IsValidSignatureEncoding`,
+  non-minimal scalars included.
 
 - **The README says what a `_var` name means**, in the section on where
   constant time ends. The convention decides which of two spellings a

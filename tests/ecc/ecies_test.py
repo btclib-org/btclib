@@ -22,13 +22,18 @@ against FIPS-197, and slow. Do not import it from anywhere.
 import base64
 import hashlib
 import string
+from typing import Any
 
 import pytest
 
 from btclib.alias import Point
 from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import ecies
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 
 # --------------------------------------------------------------------------
 # AES-128-CBC with PKCS#7, for this file alone. See the module docstring.
@@ -449,6 +454,50 @@ def test_envelope_round_trips_through_its_serializations() -> None:
     # a hex string is octets too, for both of the octets parameters
     assert envelope.mac_from_key(key_m.hex()) == envelope.mac
     assert ecies.Envelope.parse(envelope.serialize().hex()) == envelope
+
+
+def test_envelope_fields_are_octets_like_every_other_field() -> None:
+    """The four fields coerce and refuse as `Octets` does everywhere else.
+
+    They were declared `bytes` and assigned as they came, which is what
+    made two answers wrong: a value with no `len` left `assert_valid` as a
+    TypeError about a builtin, and a value *with* one was reported as a
+    size -- a two-character str is not a two-byte magic, it is not a magic
+    at all. Every other octet field of the library coerces in its
+    constructor, so a hex string is what a caller may hold here too.
+    """
+    key_m = bytes(range(32))
+    envelope = ecies.Envelope.from_ciphertext(
+        bytes_from_point(mult(42)), bytes(48), key_m
+    )
+    assert (
+        ecies.Envelope(
+            envelope.magic.hex(),
+            envelope.eph_pub_key.hex(),
+            envelope.ciphertext.hex(),
+            envelope.mac.hex(),
+        )
+        == envelope
+    )
+
+    wrong_types: tuple[Any, ...] = (None, 1.5, [1, 2])
+    for wrong in wrong_types:
+        for field in ("magic", "eph_pub_key", "ciphertext", "mac"):
+            fields: dict[str, Any] = {
+                "magic": envelope.magic,
+                "eph_pub_key": envelope.eph_pub_key,
+                "ciphertext": envelope.ciphertext,
+                "mac": envelope.mac,
+            }
+            fields[field] = wrong
+            with pytest.raises(BTClibTypeError, match="invalid octets type"):
+                ecies.Envelope(**fields)
+        # and the factory, which concatenates before it builds: a magic
+        # of no octet type failed on the `+` rather than as an argument
+        with pytest.raises(BTClibTypeError, match="invalid octets type"):
+            ecies.Envelope.from_ciphertext(
+                bytes_from_point(mult(42)), bytes(48), key_m, magic=wrong
+            )
 
 
 def test_envelope_b64decode_tolerates_surrounding_whitespace() -> None:

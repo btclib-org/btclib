@@ -3444,6 +3444,9 @@ def join(
     building a proof of funds this way sets the field on the result,
     where what it names is a transaction that exists.
     """
+    assert_type(shuffle_inp, bool, "shuffle_inp")
+    assert_type(shuffle_out, bool, "shuffle_out")
+
     _ensure_consistency(psbts)
     psbts = deepcopy(list(psbts))
 

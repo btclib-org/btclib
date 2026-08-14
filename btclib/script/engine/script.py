@@ -148,6 +148,7 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     for a hybrid 0x06/0x07 prefix, WITNESS_PUBKEYTYPE for an
     uncompressed key in a segwit script.
     """
+    assert_type(segwit, bool, "segwit")
     if not pub_key:
         return False
     if pub_key[0] in {4, 6, 7}:
@@ -218,6 +219,9 @@ def calculate_script_code(
     that is where Core does it, and doing it here as well would elide
     them before FindAndDelete rather than after.
     """
+    assert_type(const_scriptcode, bool, "const_scriptcode")
+    assert_type(segwit, bool, "segwit")
+
     script_code = script_bytes[codesep_offset:]
 
     if not segwit:
@@ -268,6 +272,7 @@ def op_checksig(
     because this is where the last byte of a stack element is known to
     be a hash type at all.
     """
+    assert_type(segwit, bool, "segwit")
     if not signature:
         return False
     try:
@@ -430,6 +435,9 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
     Only legacy: BIP143 keeps the op code meaningful in segwit v0, so
     the pre-segwit script code is the one the flag freezes.
     """
+    # `verify_script` reaches this before it reads its own `segwit`, so
+    # this is where the flag of a whole script evaluation is asked for
+    assert_type(segwit, bool, "segwit")
     if (
         "OP_CODESEPARATOR" in script
         and ScriptFlag.CONST_SCRIPTCODE in flags

@@ -23,7 +23,7 @@ from btclib.network import (
     network_from_xkeyversion,
     xprvversions_from_network,
 )
-from btclib.utils import bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "PrvKey",
@@ -334,6 +334,10 @@ def prv_keyinfo_from_prv_key(
     -- fill in.
     """
     _assert_prv_key_type(prv_key)
+    # None is a declared value here and means "whatever the key says", so
+    # it is the one non-bool this position takes
+    if compressed is not None:
+        assert_type(compressed, bool, "compressed")
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network

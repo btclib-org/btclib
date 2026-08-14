@@ -60,7 +60,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value, network_from_name
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, str_from_string
+from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
     "address_from_witness",
@@ -90,6 +90,8 @@ def power_of_2_base_conversion(
     data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
 ) -> list[int]:
     """Convert a power-of-two digit sequence to another power-of-two base."""
+    assert_type(pad, bool, "pad")
+
     acc = 0
     bits = 0
     ret = []

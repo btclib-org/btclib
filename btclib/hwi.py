@@ -113,7 +113,7 @@ from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.network import NETWORKS
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import SignerCapabilities
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
     "DEFAULT_EXECUTABLE",
@@ -425,6 +425,7 @@ def enumerate_devices(
     a device with no secure element and no owner, and enumerating one
     without being asked would make a test fixture look like a signer.
     """
+    assert_type(emulators, bool, "emulators")
     argv = [*_executable(executable), *_chain_args(network), "enumerate"]
     if emulators:
         argv.insert(-1, "--emulators")
@@ -479,6 +480,7 @@ class HwiSigner:
     ) -> None:
         if network not in NETWORKS:
             raise BTClibValueError(f"unknown network: {network}")
+        assert_type(emulators, bool, "emulators")
         self.executable = _executable(executable)
         self.network = network
         self.timeout = timeout

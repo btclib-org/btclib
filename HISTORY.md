@@ -31,6 +31,24 @@ full year, short month, short day (YYYY-M-D)
   name is now normalized as everywhere else in the library — `" MainNet
   "` and `"mainnet"` were already one network to the encoders, and the
   parsed object says so too.
+- **thirty-odd `bool` arguments that used to be accepted are refused.**
+  A flag that decides what is computed is a kind and not a truth, so
+  `dsa.sign(msg, q, lower_s="no")` — which returned a low-s signature,
+  `"no"` being true — and `pub_keyinfo_from_prv_key(q, compressed="no")`
+  — which returned the compressed key, and with it a different address —
+  raise `BTClibTypeError` now. So do `compressed` in the nine other
+  signatures that carry it, `grind`, the script engine's `segwit`,
+  `const_scriptcode`, `skip_execution` and `exit_on_op_success`, `signed`,
+  `include_witness` and `unsigned_template` at the psbt boundary,
+  `shuffle_inp` and `shuffle_out`, BIP322's `legacy`, `sort`, `pad`,
+  `shuffle`, `to_be_hashed`, `extendable`, `lexicographic_sorting`,
+  `emulators`, `musig2`, `active` and `internal`. A caller passing a
+  `bool` is unaffected, and mypy already refused every one of these calls;
+  `0` and `1` are refused too, `bool` being a subclass of `int` and that
+  being what made the type check no check at all. The flags that decide
+  only whether a check runs — `check_validity`, `check_root_xkey`,
+  `verify_checksum`, `strict`, `bip380_enforced` and the rest, listed in
+  `tests/bool_parameter_test.py` — are still read for their truth.
 
 - **the serialization boundary refuses what it used to take, and reports
   through the exception contract.** A `from_dict` handed a mapping

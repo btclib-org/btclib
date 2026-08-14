@@ -23,6 +23,7 @@ from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
 from btclib.utils import (
+    assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
     fields_from_json_object,
@@ -227,6 +228,7 @@ def deserialize_sized_int(
     version as signed too, and `btclib.psbt.psbt` reads it unsigned,
     with the reason at the two sites that do.
     """
+    assert_type(signed, bool, "signed")
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
@@ -265,6 +267,7 @@ def serialize_sized_int(
     type_: bytes, value: int, size: int, *, signed: bool = False
 ) -> bytes:
     """Return the binary representation of a fixed-size integer field."""
+    assert_type(signed, bool, "signed")
     return serialize_bytes(
         type_, value.to_bytes(size, byteorder="little", signed=signed)
     )
@@ -835,6 +838,11 @@ def deserialize_tx(
     -- to be refused for its size, not for having no inputs, which is true
     of it but not the fault.
     """
+    # None is a declared value for include_witness -- "either encoding" --
+    # and every other non-bool decides which one is accepted
+    if include_witness is not None:
+        assert_type(include_witness, bool, "include_witness")
+    assert_type(unsigned_template, bool, "unsigned_template")
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)

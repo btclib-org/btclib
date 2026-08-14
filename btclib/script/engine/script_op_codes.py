@@ -32,7 +32,7 @@ from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
 from btclib.tx.tx import Tx
-from btclib.utils import decode_num, encode_num
+from btclib.utils import assert_type, decode_num, encode_num
 
 __all__ = [
     "ScriptOp",
@@ -213,6 +213,7 @@ def read_push_data(
     measure. Core defers it the same way, by scanning for OP_SUCCESSx
     before it executes anything at all.
     """
+    assert_type(skip_execution, bool, "skip_execution")
     if op_code < 76:
         data_length = op_code
     else:

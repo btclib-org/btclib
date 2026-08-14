@@ -61,7 +61,12 @@ from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
+from btclib.utils import (
+    assert_type,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hex_string,
+)
 
 __all__ = [
     "Sig",
@@ -277,12 +282,24 @@ class Sig:
         Deserialize a strict ASN.1 DER representation of an ECDSA
         signature.
 
-        strict says whether the encoding must be the canonical one,
-        covering what comes *after* the sequence as well as what is in
-        it: a byte too many is not a DER signature either. What it does
+        strict says whether the encoding must be the canonical one, which
+        is Bitcoin Core's `IsValidSignatureEncoding` and covers what comes
+        *after* the sequence as well as what is in it: a byte too many is
+        not a DER signature either, and neither is a scalar written with a
+        leading zero it does not need or without one it does. What it does
         not cover, and what a caller has to strip, is a sighash type byte
         -- a script signature and a psbt partial signature both carry one,
         and neither is a bare DER encoding.
+
+        It is read for its truth and not asked for its type, which is the
+        classification `tests/bool_parameter_test.py` records: the flag
+        decides whether the call refuses, and the signature parsed out of
+        an encoding both readings accept is one signature. Worth knowing
+        which direction each accident goes, though, because they are not
+        symmetric: `"false"` out of a configuration file is truthy and
+        therefore strict, while a `None` from a lookup that found nothing
+        is the lax one -- so a caller who means the canonical encoding
+        should pass `True` rather than whatever a table answered.
         """
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
@@ -546,6 +563,12 @@ def sign_(
     derivation is where half of the scheme's security is.
     """
     # the message msg_hash: a hf_len array
+    # both flags decide which signature comes back -- lower_s which of the
+    # two s values, grind whether the nonce is searched for a low r -- so
+    # both are kinds and neither is read for its truth
+    assert_type(lower_s, bool, "lower_s")
+    assert_type(grind, bool, "grind")
+
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
 
@@ -731,6 +754,8 @@ def sign_recoverable_(
     nothing.
     """
     # the message msg_hash: a hf_len array
+    assert_type(lower_s, bool, "lower_s")
+
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
 

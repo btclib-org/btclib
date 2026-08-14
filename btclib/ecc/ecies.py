@@ -146,17 +146,25 @@ class Envelope:
     # see the comment on dsa.Sig.__init__
     def __init__(
         self,
-        magic: bytes,
-        eph_pub_key: bytes,
-        ciphertext: bytes,
-        mac: bytes,
+        magic: Octets,
+        eph_pub_key: Octets,
+        ciphertext: Octets,
+        mac: Octets,
         *,
         check_validity: bool = True,
     ) -> None:
-        object.__setattr__(self, "magic", magic)
-        object.__setattr__(self, "eph_pub_key", eph_pub_key)
-        object.__setattr__(self, "ciphertext", ciphertext)
-        object.__setattr__(self, "mac", mac)
+        # `Octets` and the coercion every other octet field of this
+        # library has in its constructor -- OutPoint's tx_id, a header's
+        # merkle root, a witness element, a bip32 key. These four were
+        # assigned as they came, so a value with no `len` left
+        # `assert_valid` as a TypeError about a builtin, and one with a
+        # `len` was reported as a *size*: a two-character str is not a
+        # two-byte magic, it is not a magic at all. Hex is what a caller
+        # holds as often as bytes, an envelope being copied and pasted
+        object.__setattr__(self, "magic", bytes_from_octets(magic))
+        object.__setattr__(self, "eph_pub_key", bytes_from_octets(eph_pub_key))
+        object.__setattr__(self, "ciphertext", bytes_from_octets(ciphertext))
+        object.__setattr__(self, "mac", bytes_from_octets(mac))
 
         if check_validity:
             self.assert_valid()
@@ -221,12 +229,20 @@ class Envelope:
     def from_ciphertext(
         cls,
         eph_pub_key: Octets,
-        ciphertext: bytes,
+        ciphertext: Octets,
         key_m: Octets,
         *,
-        magic: bytes = MAGIC,
+        magic: Octets = MAGIC,
     ) -> Envelope:
-        """Frame an already-encrypted ciphertext and MAC it under key_m."""
+        """Frame an already-encrypted ciphertext and MAC it under key_m.
+
+        The magic is coerced here and not left to the constructor below,
+        which would take it: this method concatenates before it builds,
+        so a magic that is not bytes failed on the `+` rather than as the
+        argument it is.
+        """
+        magic = bytes_from_octets(magic)
+        ciphertext = bytes_from_octets(ciphertext)
         eph_pub_key = bytes_from_octets(eph_pub_key)
         # the MAC covers the magic and the ephemeral key as well as the
         # ciphertext, so the envelope has to exist before its own MAC does:
