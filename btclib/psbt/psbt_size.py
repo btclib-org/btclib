@@ -228,16 +228,15 @@ def _taproot_witness_sizes(
     return [_taproot_sig_size(psbt_in)]
 
 
-def _assert_arguments(
-    psbt_in: PsbtIn, tx_in: TxIn, sizer: SolutionSizer | None
-) -> None:
-    """Refuse an argument of the wrong type before any field is read.
+def _assert_input_types(psbt_in: PsbtIn, tx_in: TxIn) -> None:
+    """Refuse either object before a field is read off it.
 
-    The two objects are read for their fields, so a value of another type
-    is an AttributeError about a field name rather than a refusal. The
-    sizer is asked for here and not where it is consulted, which is a
-    single branch: one of no callable type went unnoticed for every input
-    `estimated_input_sizes` answers for on its own.
+    Both are read for their fields, so a value of another type is an
+    AttributeError about a field name rather than a refusal. Every
+    `SolutionSizer` takes the same pair and owes its callers the same
+    check, so `descriptors`' two sizers ask this one -- the layering
+    allows it, `descriptors` importing this module and nothing here
+    importing back.
     """
     if not isinstance(psbt_in, PsbtIn):
         err_msg = f"invalid psbt_in type: {type(psbt_in).__name__}"  # type: ignore[unreachable]
@@ -245,6 +244,18 @@ def _assert_arguments(
     if not isinstance(tx_in, TxIn):
         err_msg = f"invalid tx_in type: {type(tx_in).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
+
+
+def _assert_arguments(
+    psbt_in: PsbtIn, tx_in: TxIn, sizer: SolutionSizer | None
+) -> None:
+    """Refuse an argument of the wrong type before any field is read.
+
+    The sizer is asked for here and not where it is consulted, which is a
+    single branch: one of no callable type went unnoticed for every input
+    `estimated_input_sizes` answers for on its own.
+    """
+    _assert_input_types(psbt_in, tx_in)
     if sizer is not None and not callable(sizer):
         err_msg = f"invalid sizer type: {type(sizer).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)

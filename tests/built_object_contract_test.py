@@ -24,12 +24,19 @@ rules are the same two everywhere else obeys:
 
 Both were open when this file was written, in the four shapes issue #856
 predicted: a sequence walked before it is checked (`KeyGroup`'s `keys` and
-`origins`), an argument reaching a comparison before its type is asked
-(`KeyGroup`'s `threshold`, `Psbt.assert_valid`'s three int fields), and an
-argument read for a field it has not got (`assert_signatures_only`,
-`estimated_input_sizes`). The fifth was silence: `estimated_input_sizes`
-took a `sizer` of no callable type for every input it answers for on its
-own, and `KeyGroup` a float threshold.
+`origins`, `satisfaction_sizer`'s), an argument reaching a comparison
+before its type is asked (`KeyGroup`'s `threshold`,
+`Psbt.assert_valid`'s three int fields), and an argument read for a field
+it has not got (`assert_signatures_only`, `estimated_input_sizes`, both
+sizers). The fifth was silence: `estimated_input_sizes` took a `sizer` of
+no callable type for every input it answers for on its own, and `KeyGroup`
+a float threshold.
+
+Two of the annotations *accept* the mistake, which is why neither gate nor
+mypy could see it: `Sequence[BIP32Key]` accepts a `str`, and
+`Iterable[Octets]` accepts a `str` and a `bytes`, every character being a
+key as far as the type goes. One xpub handed where the list was meant was
+111 keys.
 
 A `bool` parameter is not driven here, and the line is
 `musig2._flag`'s: a flag that decides *what is computed* is a kind and not
@@ -54,6 +61,7 @@ import pytest
 
 from btclib import slip132
 from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
+from btclib.descriptors.descriptors import miniscript_sizer, satisfaction_sizer
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt.psbt import Psbt, assert_signatures_only
 from btclib.psbt.psbt_in import PsbtIn
@@ -85,6 +93,9 @@ _CHANGED.unknown = {b"\x00": b"\x01"}
 
 _PSBT_IN = _SIGNED.inputs[0]
 _TX_IN = _SIGNED.tx.vin[0]
+# the input's own keys, which is the caller a satisfaction sizer is for:
+# it sizes the branch these will take, so the quorum has to be theirs
+_SIGNER_KEYS = list(_PSBT_IN.hd_key_paths)
 
 # a value of a declared type that no valid input carries
 _WRONG_KEY_VALUE = "not a key"
@@ -165,6 +176,16 @@ _CASES = (
         # which is what this function raises about rather than guesses at
         {0: PsbtIn()},
     ),
+    # the two SolutionSizers, which take the same pair and owe a caller the
+    # same check. Neither has a wrong *value*: "not mine" is what a sizer
+    # answers with None, so nothing of the declared type is refused
+    _Case("descriptors.miniscript_sizer", miniscript_sizer, (_PSBT_IN, _TX_IN), {}),
+    _Case(
+        "descriptors.satisfaction_sizer(...)",
+        satisfaction_sizer(_SIGNER_KEYS),
+        (_PSBT_IN, _TX_IN),
+        {},
+    ),
 )
 
 _IDS = tuple(case.label for case in _CASES)
@@ -224,6 +245,20 @@ def test_an_origin_that_is_no_origin_is_refused_as_a_type() -> None:
     for wrong in ([1, 2], "ab"):
         with pytest.raises(BTClibTypeError, match="invalid origin type"):
             KeyGroup(2, [_XPUB, _XPUB], origins=wrong)  # type: ignore[arg-type]
+
+
+def test_the_keys_a_satisfaction_sizer_is_built_from() -> None:
+    """The factory's own argument, which the table cannot reach.
+
+    `Iterable[Octets]` accepts a `str` and a `bytes`, each of them being an
+    `Octets` and an iterable of one, so a single key handed where the list
+    was meant is as many keys as it has characters -- and each of those
+    would be refused as octets, which reports the wrong mistake.
+    """
+    assert satisfaction_sizer(_SIGNER_KEYS)(_PSBT_IN, _TX_IN) == [0, 72, 72, 71]
+    for wrong in (*_WRONG_TYPES, _SIGNER_KEYS[0], _SIGNER_KEYS[0].hex()):
+        with pytest.raises(BTClibTypeError, match="invalid keys type"):
+            satisfaction_sizer(wrong)  # type: ignore[arg-type]
 
 
 def test_the_sizer_is_asked_for_before_it_is_needed() -> None:
