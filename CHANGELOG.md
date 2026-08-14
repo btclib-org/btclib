@@ -274,33 +274,6 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
-- **The three benchmarks move to
-  [btclib-benchmarks](https://github.com/btclib-org/btclib-benchmarks)**,
-  and the `bench` dependency group goes with them (issue #852).
-  `scripts/benchmark.py`, `scripts/benchmark_libraries.py` and
-  `scripts/benchmark_python.py` are gone, so `scripts/` is empty and
-  MANIFEST.in ships it no longer; `.github/scripts/verify_dist_contents.py`
-  drops it from the directories an sdist may hold, and the mypy hook from
-  the paths it checks.
-
-  What that group held was `buidl`, `ecdsa`, `embit`, `pycoin`,
-  `python-bitcoinlib` and `secp256k1lab` -- third-party packages resolved
-  into this repository's lock for a benchmark nothing in the library
-  runs, and imported by no module of it. Every one of the four Dependabot
-  alerts open against btclib was one of them or a dependency of one:
-  GHSA-wj6h-64fc-37mp on `ecdsa`, and two on `cbor2` plus one on
-  `protobuf` reached through `hwi`. None was reachable from any code
-  this package ships, and none can be resolved here either -- `hwi` caps
-  `cbor2` and `protobuf` below the versions that fix them. Moving the
-  benchmarks is what closes all four, by making the alert name the
-  project the package actually belongs to.
-
-  `[tool.uv.sources]` goes too, it having existed for that group's one
-  git comparand, and so does the `[[tool.mypy.overrides]]` block that
-  declared `ignore_missing_imports` for the five untyped ones. The two
-  spell checkers keep their `buidl` exemption: CHANGELOG.md still records
-  the work, and both hooks fix in place.
-
 - **The pinned revisions move: hooks, actions and the lock.** ruff
   v0.16.2 to v0.16.3 and the uv-pre-commit hook 0.12.3 to 0.12.4;
   `setup-uv` v9.0.0 to v10.0.1 and `codeql-action` v4.37.6 to v4.37.7,
@@ -847,133 +820,6 @@ documented at release-notes length in the first place, and are still in
   running, uploading code quality results rather than security ones. Code
   quality is a separate setting, which `code-scanning/default-setup` does
   not report.
-
-- **The `dist` job passes again with `scripts/` in the sdist.**
-  `MANIFEST.in` had shipped `scripts/benchmark_libraries.py` from the
-  start, on the same footing as `docs/` and `tests/`, but
-  `.github/scripts/verify_dist_contents.py`'s `SDIST_DIRECTORIES`
-  allowlist was never told: every build then failed on `scripts is a
-  directory the sdist does not ship`, main included. `scripts` joins the
-  allowlist, and `docs/source/package-content-policy.md` states it beside
-  the rest.
-
-- **Every package the benchmark measures against has a floor** (issue
-  #837). The five names of the `bench` group -- what
-  `scripts/benchmark_libraries.py` times btclib against -- were bare, so
-  the comparison was against whatever a resolver happened to give. They
-  carry a floor at their latest release now: `buidl>=0.2.36`,
-  `ecdsa>=0.19.2`, `embit>=0.8.0`, `pycoin>=0.92718.20260405`,
-  `python-bitcoinlib>=0.12.2`.
-
-  A floor and not a pin, because the premise the bare names were for is
-  still right: the comparison is against whatever `pip install` currently
-  gives a user, so a new release is to be picked up and measured rather
-  than refused. What a bare name allowed is the other direction -- an
-  ancient release answering the comparison in silence, and a table saying
-  btclib is faster than a version nobody runs.
-
-  `ecdsa` is where that stopped being theoretical. GHSA-wj6h-64fc-37mp,
-  the Minerva timing attack on P-256, names every version of python-ecdsa
-  and no patched one: it is pure Python and says of itself that it is not
-  side-channel resistant, which is the property `SECURITY.md` publishes
-  about this library's own Python path. **The floor does not close that
-  alert and is not offered as closing it** -- every version is in range,
-  which is also why Dependabot has opened no pull request, there being
-  nothing to rise to. What it records is which release the advisory was
-  read against, and the same is now true of the other four.
-
-  Each floor is the version `uv.lock` already resolved to, so nothing
-  installed today moves and the lock changes by the five lines that carry
-  the specifiers. Raising one is what a measurement asks for and not what
-  a resolver does: the numbers the benchmark prints belong to the versions
-  the file names.
-
-- **A third benchmark: every pure-Python implementation against the
-  bindings** (issue #840). `scripts/benchmark.py` times btclib's own two
-  arithmetic paths and `scripts/benchmark_libraries.py` times btclib
-  against other libraries *as installed* -- which for embit,
-  python-bitcoinlib and often pycoin is C. Neither answers what staying
-  in Python costs against what a consumer has for free: `pip install
-  btclib` installs `btclib_secp256k1`, so the bindings are the reference
-  line and not a competitor.
-
-  `scripts/benchmark_python.py` is one reference column and a row per
-  implementation, every backend that can be turned off turned off --
-  `PYCOIN_NATIVE` before the import, `buidl.pecc` rather than
-  `buidl.ecc`, btclib's own dispatch patched. Public key from a private
-  key, on a quiet machine:
-
-  | | | |
-  | --- | ---: | ---: |
-  | btclib, the bindings | 9.2 us | 1.0x |
-  | btclib, Python | 201 us | **21.8x** |
-  | python-ecdsa | 267 us | 28.9x |
-  | secp256k1lab | 1379 us | 149x |
-  | pycoin | 6873 us | 744x |
-  | buidl.pecc | 30997 us | 3357x |
-
-  and ECDSA and BIP340 sign and verify below it, each row on the
-  operations that implementation actually offers. The ratios are the
-  point and the microseconds are not: they move with the machine, and
-  the table is read down a column.
-
-  One dependency joins `bench`, with the marker its own metadata forces:
-  `secp256k1lab` is on no index at all, `[tool.uv.sources]` takes it from
-  the `v1.0.0` tag of its git repository, and it wants `>=3.11` where
-  this project supports `>=3.10`.
-
-  **`hwilib` is not a row, and the script says why it is not** (issue
-  #847). `hwilib.key.point_mul` is a double-and-add over Python integers
-  and would have been the slowest public key in the table, but `hwi`'s
-  latest release caps `cbor2` at `<5.8` and `protobuf` at `<5.0.0`, where
-  the advisories against those two are fixed in 5.9.0 and 5.29.6. Nothing
-  a floor or a constraint can say here reaches a patched version while
-  those ceilings hold, so the row costs three standing security alerts,
-  two of them high, and buys one number that this repository's own
-  interpreter never prints -- `hwi` declares `requires_python <3.13`.
-  `hwi-integration.yml` is untouched: it builds HWI a virtual environment
-  of its own and runs the executable, which is why the adapter in
-  `btclib/hwi.py` costs no alert and a benchmark import would.
-
-  **One defect found by writing it.** `_libsecp256k1_applicable` is
-  imported by name into nine modules, and `benchmark.py`'s
-  `python_arithmetic_only` patched three, saying "in every namespace".
-  Three cover what that script times; a public key derived through
-  `to_pub_key` is not among them -- `curves.sec_point` asks the same
-  question in `bytes_from_prv_key_int` -- and the row came back at 8.47
-  us against the reference's 8.39, which is how the omission was found
-  rather than reasoned about. Both scripts now name the modules they
-  patch and say that a row added later has to add its own.
-
-- **The Python benchmark says how the implementations compare, not only
-  what Python costs** (issue #844). `scripts/benchmark_python.py` printed
-  one ratio a row, against the bindings. That is the column it was built
-  for and it is half of what the table is read for: the other half is the
-  row beside it, and a reader had to divide two numbers out of the same
-  column by hand to get it.
-
-  Every row carries a second ratio now, against `btclib, Python`:
-
-  ```text
-                                                 vs C   vs btclib
-    btclib, the bindings           8.44 us        1.0x          --
-    btclib, Python               194.37 us       23.0x        1.0x
-    secp256k1lab                1333.56 us      158.1x        6.9x
-    python-ecdsa                 259.40 us       30.8x        1.3x
-    pycoin                       6488.6 us      769.2x       33.4x
-    buidl.pecc                  30878.4 us     3660.5x      158.9x
-  ```
-
-  The bindings row carries nothing in the second column, being the
-  reference of the first, and `btclib, Python` reads 1.0x there as the
-  bindings read 1.0x in the first. What the column shows on this run is
-  that btclib's Python path is 6.9x secp256k1lab's on a multiplication of
-  the generator and 1.3x python-ecdsa's -- neither of which the first
-  column states.
-
-  It fixes the order the rows are timed in: `btclib, Python` runs before
-  the rows that divide by it, and `row` returns its microseconds rather
-  than printing and dropping them.
 
 ### Transactions, blocks and PSBT
 
@@ -1523,15 +1369,11 @@ documented at release-notes length in the first place, and are still in
 
   What the switch buys is that one assignment turns the delegation off
   everywhere. Rebinding the predicate reaches one module of the nine
-  that import it by name, and a copy per module is what produced a wrong
-  measurement: `scripts/benchmark.py` said it patched "every namespace"
-  and patched three, so its pure-Python public-key row was timing C at
-  8.47 us against the bindings' 8.39 — `to_pub_key` asks
-  `curves.sec_point`, which was not among the three. That row now reads
-  193.26 us against the same 8.39, and no row added later can
-  reintroduce the omission. `benchmark.py`, `benchmark_python.py`, `curve_test.py`'s
-  `no_bindings` and `wycheproof_test.py` all take the switch instead of
-  naming modules.
+  that import it by name, so anything meaning to exercise the Python
+  path had to name them all and a missing one delegated in silence:
+  `to_pub_key` asks `curves.sec_point`, which is the module such a list
+  forgets. `curve_test.py`'s `no_bindings` and `wycheproof_test.py` take
+  the switch instead of naming modules.
 
   The patches that stay are the ones whose partiality is the point:
   `script_engine/python_path_test.py` puts the Python *verdict* in front
@@ -4146,41 +3988,6 @@ documented at release-notes length in the first place, and are still in
   its caller's own reference to it, bounded by `maxsize` the same way
   `pedersen.second_generator`'s cache already bounds `ec` (issue #287).
 
-- **A benchmark compares btclib, bindings enabled, against other Python
-  bitcoin libraries** (issue #817), `scripts/benchmark_libraries.py`:
-  the `ecdsa` PyPI package, pycoin, buidl, embit and python-bitcoinlib,
-  each at its own latest release, on ECDSA sign/verify, BIP340
-  sign/verify and one BIP32 derivation -- never a feature a comparand
-  lacks, so `ecdsa` and python-bitcoinlib carry no BIP340 or BIP32 row,
-  and pycoin's own bare elliptic-curve `Generator` has no derivation of
-  its own either, which is why that row goes through
-  `pycoin.symbols.btc.network` instead. `bit`, the sixth candidate the
-  issue named, is not among them: its dependency `coincurve` has no
-  cp314 wheel yet, and its sdist fails to build on 3.14 with a
-  hatchling/cffi packaging defect this repository does not control.
-
-  Two comparands measure a moving target rather than a fixed one:
-  pycoin optimizes its pure-Python arithmetic with libsecp256k1 or
-  OpenSSL through ctypes when either is importable on the machine
-  running it, and python-bitcoinlib's OpenSSL wrapper can be pointed at
-  libsecp256k1 instead -- both machine-dependent, so the script checks
-  and prints which backend actually ran rather than assume the
-  pure-Python number a plain `pip install` usually gets. embit needs no
-  such check: it bundles a compiled libsecp256k1 for six platforms and
-  always calls it through ctypes, so its rows sit beside btclib's C
-  rather than beside the other four's Python. pycoin's `BIP32Node` also
-  caches every subkey it derives, keyed by index, which a benchmark
-  reusing one root object across many calls would have measured as a
-  dict lookup after the first; the script rebuilds each root from its
-  seed on every timed call instead, for all four BIP32 rows alike.
-
-  Not part of the test suite and not run by CI, matching issue #816's
-  bindings-against-Python benchmark inside btclib and
-  btclib-secp256k1#144's wrapper-against-wrapper one: none of the three
-  is gated, and each answers a different question about the same
-  arithmetic. The new `bench` dependency group installs the five
-  comparands, and nothing else needs them.
-
 - **Two more libsecp256k1 ideas are recorded as measured and not taken**
   (issue #835). `curve_group_2`'s list of them is there so that the same
   idea does not arrive twice with the same measurement to make, and both
@@ -4224,7 +4031,7 @@ documented at release-notes length in the first place, and are still in
   1.5 us of a 414 us signature, the projective blinding of #805 is 1%,
   and every verification is already `_var`. And `btclib_secp256k1` is a
   required dependency, so the 1.13x is reached only by first switching
-  the bindings off, which is a test and benchmark configuration and not a
+  the bindings off, which is a measurement's configuration and not a
   deployment: a caller who does not switch them off is on the same
   program whatever the setting says.
 
