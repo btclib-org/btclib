@@ -9,8 +9,8 @@ from functools import partial
 
 import pytest
 
-from btclib.alias import INF, INFJ, JacPoint
-from btclib.curves import Curve, CurveGroup, secp256k1
+from btclib.alias import INF, INFJ, JacPoint, Point
+from btclib.curves import Curve, CurveGroup, find_all_points, secp256k1
 
 # the mult_* variants under test, and the helpers they are built on, come
 # from the module that defines them: btclib.curves exports mult,
@@ -37,7 +37,7 @@ from btclib.curves.curve_group import (
     _multi_mult_bos_coster,
     _multi_mult_w_NAF,
     _multiples,
-    _signed_odd_multiples,
+    _signed_odd_multiples_aff,
     signed_odd_digits,
 )
 from btclib.ecc import second_generator
@@ -389,15 +389,36 @@ def test_signed_odd_digits_properties() -> None:
                 assert sum(d << (w * i) for i, d in enumerate(digits)) == m
 
 
-def test_signed_odd_multiples() -> None:
+def test_signed_odd_multiples_aff() -> None:
     """The table against the multiplications of the digits that index it."""
     for ec in (ec23_31, secp256k1):
         for w in range(1, 6):
-            T = _signed_odd_multiples(ec.GJ, ec, w)
+            T = _signed_odd_multiples_aff(ec.GJ, ec, w)
             assert len(T) == 2**w
             for d in range(-(2**w - 1), 2**w, 2):
-                expected = _mult_jac(d % ec.n, ec.GJ, ec)
-                assert ec.jac_equality(T[(d + 2**w - 1) // 2], expected), (d, w)
+                expected = ec.aff_from_jac(_mult_jac(d % ec.n, ec.GJ, ec))
+                assert T[(d + 2**w - 1) // 2] == expected, (d, w)
+
+
+def test_add_jac_aff_answers_add_jac_on_every_pair() -> None:
+    """The mixed sum against the general one, exhaustively.
+
+    Every point of every low-cardinality curve as the affine operand,
+    infinity included, against every point of the subgroup as the
+    Jacobian one, whose Z is a real one rather than the 1 an affine point
+    converts to. The two are the same formula with the second operand's Z
+    known to be one, so what holds add_jac's branch-free infinity
+    handling and its one branch on V correct holds this one's too -- and
+    these curves are where both are reached at all.
+    """
+    for ec in low_card_curves.values():
+        points = [*find_all_points(ec), INF]
+        jac = [_jac_from_aff(P) for P in points]
+        jac += [_mult_jac(k, ec.GJ, ec) for k in range(ec.n)]
+        for PJ in jac:
+            for R in points:
+                mixed = ec.add_jac_aff(PJ, R)
+                assert ec.jac_equality(ec.add_jac(PJ, _jac_from_aff(R)), mixed)
 
 
 class _CountingGroup(CurveGroup):
@@ -418,6 +439,14 @@ class _CountingGroup(CurveGroup):
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         self.additions += 1
         return super().add_jac(Q, R)
+
+    def add_jac_aff(self, Q: JacPoint, R: Point) -> JacPoint:
+        # counted beside add_jac and not apart from it: what the test
+        # below is about is how many additions a scalar costs, and the
+        # regular window indexes an affine table where the fixed one it is
+        # measured against indexes a Jacobian one
+        self.additions += 1
+        return super().add_jac_aff(Q, R)
 
 
 def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
