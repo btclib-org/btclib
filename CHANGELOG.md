@@ -4337,6 +4337,63 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **`sign_` stops re-validating the signature libsecp256k1 just made**
+  (issue #888). Its bindings path was `Sig.parse(libsecp256k1_dsa.sign(...))`,
+  and `Sig.parse` validates by default: r and s in 1..n-1, and r congruent
+  to a valid x-coordinate — which is another `ec_pubkey_parse`, of
+  `0x02 || r`. The values being checked are the ones
+  `secp256k1_ecdsa_sign` has just computed, r being the x-coordinate of
+  the nonce point reduced mod n and s a scalar beside it: neither can be
+  out of range, and an r it produced cannot fail a congruence it was built
+  from. So the parse is asked for with `check_validity=False`, and the
+  provenance is the argument for it; `sign_recoverable_`'s bindings path
+  builds its `Sig` the same way, for the same reason.
+
+  Grinding paid it per attempt, `_grind_low_r` building a whole `Sig` to
+  read `sig.r` off it, so the figure that means anything is per attempt:
+  `Sig.parse` 4.05 µs against 1.25 with the flag off, 2.8 µs an attempt.
+  How many attempts there are is a property of the key and the message —
+  `_grind_low_r` walks Core's sequence until r is low — so a grinding
+  figure carries its attempt count, as a recovery's carries its population:
+
+  | attempts | before | after |
+  | --- | ---: | ---: |
+  | 1 | 16.99 | 14.22 |
+  | 2 | 33.94 | 28.15 |
+  | 8 | 132.76 | 110.53 |
+
+  **The Python path is the more expensive one to have left it on**, and
+  `_sign_recoverable_` builds its `Sig` with the flag off too. There the
+  provenance is btclib's own arithmetic rather than libsecp256k1's: `r ==
+  0` and `s == 0` are that function's two refusals, so both scalars are in
+  1..n-1 by the time the `Sig` is built, and r is x_K reduced mod n for a
+  K it multiplied itself. What the validation would ask about the
+  congruence is what r was built from — and with the dispatch off that
+  question is `_is_x_coordinate_var`'s Legendre symbol in Python, 13.57 µs
+  of a signature: `sign_(grind=False)` 175.4 against 161.2, and grinding
+  350.4 against 322.9 over this fixture's two attempts, which is 110 µs
+  over the eight another fixture takes.
+
+  Reading r off the DER and building one `Sig` after the loop settles is
+  measured and not taken: on the bindings path it saves the object of each
+  discarded attempt, 1.25 µs against 0.53 for a read of r alone, so 0.7 µs
+  an attempt — 5% of an eight-attempt signature — and it costs a second DER
+  reader beside `Sig.parse` with no validation in it. It is not what the
+  Python path needed either: there is no DER there, and the per-attempt cost
+  was the validation rather than the object.
+
+  **The verification side keeps its second pass, and now says why.**
+  `assert_as_valid_` validates a `Sig` it is handed, and that is not the
+  same redundancy: the class is frozen, so an instance that validated
+  stays valid, but `check_validity=False` is a spelling the library itself
+  uses and `object.__setattr__` reaches past frozen — which the suite does
+  on purpose. `verify_`'s contract of answering a boolean rests on the
+  check: `Sig(-1, 5, check_validity=False)` reaches `_serialize_scalar`,
+  where `to_bytes(..., signed=False)` raises `OverflowError`, an
+  `ArithmeticError` and so not in the tuple `verify_` catches.
+  `test_a_sig_that_never_validated_answers_false_and_does_not_raise` is
+  that reason as a test, both ways in.
+
 - **`bip32.derive` stops re-decoding the same xprv/xpub on every call**
   (issue #828). `derive` and `derive_from_account` decode their `xkey`
   argument through `BIP32KeyData.b58decode` fresh each time, so a

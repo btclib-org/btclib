@@ -817,6 +817,38 @@ def test_core_grinds_the_same_signatures(
     assert sig.serialize() == libsecp256k1_dsa.sign(sig_hash, prv_key, ndata)
 
 
+def test_a_sig_that_never_validated_answers_false_and_does_not_raise() -> None:
+    """Why `assert_as_valid_` validates a `Sig` it was handed (issue 888).
+
+    The class is frozen, so an instance that validated at construction
+    stays valid, and the second pass looks redundant. What makes it not is
+    the two ways an unvalidated instance is reachable: `check_validity=False`,
+    which the library itself passes for values libsecp256k1 has just
+    computed, and `object.__setattr__`, which reaches past frozen as
+    `tests/bip32/bip32_test.py::test_assert_valid2` does on purpose.
+
+    Both of those reach `_serialize_scalar`, where `to_bytes(...,
+    signed=False)` raises OverflowError for a negative r -- an
+    ArithmeticError, so not in the `(ValueError, BTClibRuntimeError)` tuple
+    `verify_` catches. Drop the validation and a function whose whole answer
+    is True or False raises instead, which is the rule issue #814 states.
+    """
+    _, Q = dsa.gen_keys(prv_key_int)
+    msg_hash = reduce_to_hlen(b"Satoshi Nakamoto")
+
+    unvalidated = dsa.Sig(-1, 5, check_validity=False)
+    assert not dsa.verify_(msg_hash, Q, unvalidated)
+    with pytest.raises(BTClibValueError, match="scalar r not in 1..n-1"):
+        dsa.assert_as_valid_(msg_hash, Q, unvalidated)
+
+    # and the same for an instance that validated and was rewritten after
+    corrupted = dsa.sign_(msg_hash, prv_key_int)
+    object.__setattr__(corrupted, "r", -1)
+    assert not dsa.verify_(msg_hash, Q, corrupted)
+    with pytest.raises(BTClibValueError, match="scalar r not in 1..n-1"):
+        dsa.assert_as_valid_(msg_hash, Q, corrupted)
+
+
 def _recovered(key_id: int, msg: bytes, sig: dsa.Sig) -> Point | None:
     """Return the recovered key, None for a candidate recovering nothing."""
     try:
