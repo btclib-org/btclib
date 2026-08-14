@@ -156,7 +156,7 @@ These requirements are easily checked (and partially fixed) with:
 ```shell
 uv run ruff check --fix
 uv run ruff format
-uv run mypy btclib tests .github/scripts
+uv run mypy btclib tests .github/scripts scripts
 uv run pytest
 ```
 
