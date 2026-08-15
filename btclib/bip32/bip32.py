@@ -559,6 +559,14 @@ class _BIP32KeyData:
         return self.key[0] == 0
 
 
+# the group order as the 32 octets a scalar is written in: big-endian
+# bytes of one width compare as the numbers they spell, so the range
+# check BIP32 makes of the hmac's left half is made where the hash left
+# it, and neither the check nor the tweak that follows reads an integer
+# out of it
+_N_BYTES = secp256k1.n.to_bytes(secp256k1.n_size, byteorder="big")
+
+
 def _invalid_child(index: int, reason: str) -> BTClibValueError:
     """Return the error for a child BIP32 declares invalid.
 
@@ -586,8 +594,8 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     )
     xb += index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
-    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    if offset >= secp256k1.n:
+    offset = hmac_[:32]
+    if offset >= _N_BYTES:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
 
     # the sum of two scalars, one of them the parent private key:
@@ -616,7 +624,7 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     xkey.key = b"\x00" + key
 
 
-def _pub_key_offset(chain_code: bytes, key: bytes, index: int) -> tuple[int, bytes]:
+def _pub_key_offset(chain_code: bytes, key: bytes, index: int) -> tuple[bytes, bytes]:
     """Return what an unhardened index adds, and the child chain code.
 
     The scalar alone, without the point it is added to: BIP32 derives a
@@ -624,11 +632,16 @@ def _pub_key_offset(chain_code: bytes, key: bytes, index: int) -> tuple[int, byt
     a caller which is not deriving a key of its own needs --
     `pub_key_derivation_tweaks` below, and through it the MuSig2
     aggregate keys of BIP328, which have no private key to derive with.
+
+    The 32 octets of the hmac's left half, not the integer they spell:
+    what reads them is `keys.pubkey_tweak_add`, which takes octets, and
+    what `pub_key_derivation_tweaks` answers is octets too, so an integer
+    here would be read out of the hash and written straight back.
     """
     xb = key + index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(chain_code, xb, "sha512").digest()
-    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    if offset >= secp256k1.n:
+    offset = hmac_[:32]
+    if offset >= _N_BYTES:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
     return offset, hmac_[32:]
 
@@ -683,7 +696,7 @@ def pub_key_derivation_tweaks(
     tweaks: list[bytes] = []
     for index in indexes:
         offset, code = _pub_key_offset(code, key, index)
-        tweaks.append(offset.to_bytes(32, byteorder="big"))
+        tweaks.append(offset)
         key = chain.tweak_add(offset, compressed=True)
     return tweaks
 
