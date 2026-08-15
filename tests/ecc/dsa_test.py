@@ -1673,3 +1673,28 @@ def test_a_prepared_key_stops_the_per_signature_table(
     for _ in range(3):
         assert dsa.verify(msg, prepared, sig)
     assert not builds
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_a_key_that_is_no_point_is_refused_by_the_verification_itself(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both arithmetics refuse 33 octets that are no point, in one parse.
+
+    The delegated path does not prove the key before verifying with it:
+    the verification's own parse is that proof, and proving it here as
+    well would lift one x twice (issue 887). So what a bad key raises
+    comes from the bindings and is translated, where the Python path
+    raises it while converting -- the two messages are held equal here,
+    that being the only thing a caller sees of the difference.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, _ = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+    sig = dsa.sign(msg, q)
+
+    for no_point in (b"\x02" + bytes(32), b"\x03" + b"\xff" * 32):
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            dsa.assert_as_valid(msg, no_point, sig)

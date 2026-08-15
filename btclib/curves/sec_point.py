@@ -6,12 +6,11 @@
 
 import contextlib
 
-from btclib_secp256k1 import CData
-from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_secp256k1.keys import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib_secp256k1.keys import reserialize as libsecp256k1_reserialize
 
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
@@ -175,32 +174,6 @@ def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
     return mult(m, point_from_octets(sec, ec), ec)
 
 
-def _sec_and_pubkey_from_octets(
-    pub_key: bytes, ec: Curve
-) -> tuple[bytes, CData | None]:
-    """Return the verified SEC octets, and the parsed key that verified them.
-
-    `_sec_from_octets` below is this with the second half dropped, which
-    is what made a verification pay for the same proof twice: for a
-    compressed key on secp256k1 the proof that the octets are a point *is*
-    ec_pubkey_parse, a field square root, and a caller going on to verify
-    a signature under those octets had libsecp256k1 parse them again --
-    2.35 us of a 22.78 us verification (issue 887). Here the parsed key
-    comes back beside them, for a caller that has somewhere to put it.
-
-    None where nothing parsed it: another curve, the bindings out of
-    reach, or a form that went through `point_from_octets` instead. A
-    caller wanting the key in that case parses the octets itself, which
-    for the uncompressed form is 0.27 us and no square root.
-    """
-    compressed = len(pub_key) == ec.p_size + 1
-    if compressed and _libsecp256k1_serves(ec, None):
-        with contextlib.suppress(ValueError):
-            return pub_key, libsecp256k1_pubkey_parse(pub_key)
-
-    return bytes_from_point(point_from_octets(pub_key, ec), ec, compressed), None
-
-
 def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     """Return SEC octets of a p-size or 2*p-size length, verified.
 
@@ -210,11 +183,15 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     them a point of the curve -- which is the whole of what
     to_pub_key.pub_keyinfo_from_pub_key wants of it.
 
-    For a compressed key on secp256k1 that proof is ec_pubkey_parse and
-    nothing else, 2.4 us against the 4.4 of a round trip that lifts x,
-    re-proves the point it lifted on the curve and serializes it again.
-    It is also the very call libsecp256k1 will make on these bytes if
-    they are on their way to its dsa.verify.
+    For a compressed key on secp256k1 that proof is `keys.reserialize`,
+    which is ec_pubkey_parse and a serialization of what it read back into
+    the form it came in: 2.7 us against the 4.4 of a round trip that lifts
+    x, re-proves the point it lifted on the curve and serializes it again.
+    The parse is also the very call libsecp256k1 will make on these bytes
+    if they are on their way to its dsa.verify -- which is why a caller
+    that is about to make it does not come through here at all, but
+    through `to_pub_key._sec_from_pub_key`, and lets that call be the
+    proof (issue 887).
 
     Anything the bindings refuse falls through to the round trip, and so
     does every 65-byte form: the message that names what is wrong with
@@ -222,8 +199,10 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     reason the fallthrough cannot be skipped for a length ec_pubkey_parse
     accepts -- it takes 0x06 and 0x07, point_from_octets only when asked,
     and there is nothing to ask here.
-
-    The parsed key that proof produces is `_sec_and_pubkey_from_octets`
-    above, this being the spelling for a caller with nothing to do with it.
     """
-    return _sec_and_pubkey_from_octets(pub_key, ec)[0]
+    compressed = len(pub_key) == ec.p_size + 1
+    if compressed and _libsecp256k1_serves(ec, None):
+        with contextlib.suppress(ValueError):
+            return libsecp256k1_reserialize(pub_key)
+
+    return bytes_from_point(point_from_octets(pub_key, ec), ec, compressed)

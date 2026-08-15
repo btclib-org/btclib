@@ -7,17 +7,23 @@
 from collections.abc import Callable, Sequence
 
 import pytest
-from btclib_secp256k1.keys import serialize as libsecp256k1_pubkey_serialize
 
 from btclib.alias import INF, Point
+from btclib.b58 import wif_from_prv_key
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.curves import PreparedPoint, bytes_from_point, mult
+from btclib.curves import (
+    PreparedPoint,
+    bytes_from_point,
+    mult,
+    point_from_octets,
+)
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.to_pub_key import (
     Key,
     PubkeyInfo,
-    _libsecp256k1_pubkey_from_pub_key,
+    _sec_from_key,
+    _sec_from_pub_key,
     fingerprint,
     point_from_key,
     point_from_pub_key,
@@ -334,10 +340,10 @@ def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
     use for that word, so each answers by asking itself about the point,
     and what proves it is that the two answers are the same object's.
 
-    Both unions, `PubKey` and the wider `Key`, and the private
-    libsecp256k1 parse below them: a prepared point reaching that one is
-    a verification on the delegated path, where the tables it holds are
-    not what answers.
+    Both unions, `PubKey` and the wider `Key`, and the unproven
+    conversion below them: a prepared point reaching that one is a
+    verification on the delegated path, where the tables it holds are not
+    what answers.
     """
     prepared = PreparedPoint(Q)
 
@@ -351,8 +357,9 @@ def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
             prepared, "mainnet", compressed
         ) == pub_keyinfo_from_pub_key(Q, "mainnet", compressed)
 
-    parsed = _libsecp256k1_pubkey_from_pub_key(prepared)
-    assert libsecp256k1_pubkey_serialize(parsed) == bytes_from_point(Q)
+    # the uncompressed form, which is what that conversion answers for a
+    # point: the cheap one for whatever call proves it
+    assert _sec_from_pub_key(prepared) == bytes_from_point(Q, compressed=False)
 
     # and a prepared point of another curve is refused where a bare point
     # of it is: preparing validates against its own curve, so what is
@@ -361,3 +368,46 @@ def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
     prepared_r1 = PreparedPoint(mult(12, other.G, other), other)
     with pytest.raises(BTClibValueError, match="not a valid public key"):
         point_from_pub_key(prepared_r1)
+
+
+def test_the_unproven_conversion_takes_every_spelling_a_key_has() -> None:
+    """`_sec_from_key` answers what `pub_keyinfo_from_key` answers.
+
+    The same key, which is what has to hold: the octets differ where the
+    form does -- a point comes back uncompressed here, that being the
+    cheap one for the call this feeds, and compressed from the public
+    spelling, which answers "whatever the key says" and a point says
+    nothing -- so the two are compared as the points they name. A private
+    key as an int and as a WIF, a point, a prepared point, an xpub.
+
+    What this one does not do is prove octets a point: it leaves that to
+    the call it feeds, `script.taproot`'s tweak.
+
+    The refusal is the one spelling that differs, and it is named in the
+    docstring: octets of the right size that are no point reach the call
+    below as a public key, where `pub_keyinfo_from_key` reports them as
+    neither kind of key.
+    """
+    q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
+    wif = wif_from_prv_key(q)
+    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
+    point = mult(q)
+
+    for key in (q, wif, point, PreparedPoint(point), xpub):
+        assert point_from_octets(_sec_from_key(key)) == point_from_key(key)
+
+    # what is no key in any spelling is refused in the same words, the
+    # fallthrough to the private key being the same one
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
+        _sec_from_key("not a key")
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
+        pub_keyinfo_from_key("not a key")
+
+    # and the one difference, which the docstring names: 33 octets that
+    # are no point come back from here, for the call that feeds them to
+    # refuse, where the public spelling proves them and reports that they
+    # are neither kind of key
+    no_point = b"\x02" + bytes(32)
+    assert _sec_from_key(no_point) == no_point
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
+        pub_keyinfo_from_key(no_point)
