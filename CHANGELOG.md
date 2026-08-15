@@ -1351,6 +1351,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Two calls handed libsecp256k1 the expensive serialization of a point
+  they were holding.** `ecc.dh.diffie_hellman` and
+  `ecc.ellswift.encode_var` each have a `Point` and serialize it for the
+  bindings, and `bytes_from_point` writes the compressed form unless told
+  otherwise -- so what crossed was 33 octets that libsecp256k1 opens with
+  a field square root, where the 65 it could have been handed are read.
+  Both write the uncompressed form now: `pubkey_tweak_mul` **12.63 us
+  against 14.73**, `ellswift.encode` **13.06 against 15.11**, and the 32
+  octets more cost 0.09 us to write.
+
+  There is nothing to choose here, which is what makes it worth writing
+  down: a caller serializing a point *for* the bindings has no reason to
+  compress it, and `curves.curve._sec_from_point` -- the one the
+  arithmetic uses -- has said so in its docstring since it was written.
+  These two predate it and were never revisited.
+
 - **Validating a public key answers a verdict, not a serialization.**
   The octets-only boundary below validated with `keys.reserialize`, which
   is `secp256k1_ec_pubkey_parse` and a serialization of what it read back
