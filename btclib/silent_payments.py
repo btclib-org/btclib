@@ -530,7 +530,11 @@ def shared_secret(scalar: PrvKey, point: PubKey) -> Point:
 
     The public key stays octets rather than becoming a point: nothing here
     reads a coordinate of it, and `_mult_sec_var` is that multiplication
-    without the round trip through one.
+    without the round trip through one. The point itself is the answer,
+    which is why `ecdh.shared_secret` of the bindings is no substitute --
+    it hashes, and BIP352 tags this point with a counter of its own;
+    :mod:`btclib.ecc.dh` has that verdict for all four of the library's
+    ECDH-shaped computations.
     """
     sec = pub_keyinfo_from_pub_key(point)[0]
     return _mult_sec_var(sec, int_from_prv_key(scalar), secp256k1)
