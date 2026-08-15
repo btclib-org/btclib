@@ -1351,6 +1351,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **BIP32's offset stays the octets the hash left.** `_pub_key_offset`
+  read the hmac's left half into an integer, compared it with the group
+  order, and handed it to `keys.pubkey_tweak_add` — which writes it back
+  into the same 32 octets, `scalar` being what every bindings entry point
+  takes a tweak through. `pub_key_derivation_tweaks` wrote them a second
+  time, its answer being octets too.
+
+  Big-endian bytes of one width compare as the numbers they spell, so the
+  range check is made where the hash left the value and nothing reads an
+  integer out of it. **0.10 us a level**, and 0.17 in the tweaks, which
+  is 0.4 to 1.1% of a derivation depending on how deep the path is;
+  measured against `9bf27eb1` with a `b58decode` control that moved 0.2%.
+  The private half already worked this way for its key -- "so that no
+  arithmetic on the secret happens here" -- and this is the same
+  reasoning about the tweak beside it.
+
 - **Two calls handed libsecp256k1 the expensive serialization of a point
   they were holding.** `ecc.dh.diffie_hellman` and
   `ecc.ellswift.encode_var` each have a `Point` and serialize it for the
