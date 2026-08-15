@@ -18,8 +18,13 @@ curves -- so the anchor is worth stating: `from btclib.curves import mult`,
 `from btclib.ecc import dsa`.
 
 What this package exports is the curve API: a Curve, the catalogue they
-are looked up in, the three scalar multiplications, and the SEC point
-codec. `CURVES` is what makes the catalogue reachable -- `secp256k1` is
+are looked up in, the three scalar multiplications, the SEC point codec,
+and PreparedPoint, which is a point plus a caller's word that it will be
+multiplied again -- the one thing the memoized tables below cannot infer
+and the whole of what stands between a repeated point and the treatment
+the generator gets.
+
+`CURVES` is what makes the catalogue reachable -- `secp256k1` is
 exported by name because nearly every caller wants that one, and every
 other curve is `CURVES["secp256r1"]` -- so exporting the name and not the
 dictionary left the paragraph above naming curves a caller could not get
@@ -84,6 +89,7 @@ materializing the point (issue #127).
 from btclib.curves.curve import (
     CURVES,
     Curve,
+    PreparedPoint,
     double_mult_var,
     mult,
     multi_mult_var,
@@ -101,6 +107,7 @@ __all__ = [
     "CURVES",
     "Curve",
     "CurveGroup",
+    "PreparedPoint",
     "bytes_from_point",
     "bytes_from_prv_key_int",
     "double_mult_var",

@@ -1046,9 +1046,14 @@ def _cached_odd_multiples_aff(Q: JacPoint, ec: CurveGroup, w: int) -> list[Point
     same way, `WINDOW_A` of 5 for the variable point against a `WINDOW_G`
     of 15 for the generator, whose table it generates at build time.
 
-    Only the points of `ec._fixed_points` may be handed here: a table
-    memoized on a public key is a table built once, used once and kept
-    for ever.
+    Only a point somebody has said will come back may be handed here:
+    `ec._fixed_points`, or one a caller prepared with
+    `curve.PreparedPoint`. A table memoized on whatever key arrives is a
+    table built once, used once and kept for ever, which is why the
+    preparing is a caller's word and never inferred -- issue #287 is the
+    same bound `_cached_base58_decode` and `pedersen.second_generator`
+    hold. What bounds it when the word is given is this cache's own
+    maxsize, 128 tables of 2^(w-2) points.
     """
     return _odd_multiples_aff(Q, ec, w)
 
@@ -1090,7 +1095,10 @@ def _cached_fixed_base_multiples(
 
     Memoized on (Q, ec, w) because that is what makes it worth building:
     the table is the point's and not the scalar's, so a caller
-    multiplying the generator pays for it once. What it costs to keep is
+    multiplying the generator pays for it once -- and so does a caller
+    multiplying its own point, once it has said with
+    `curve.PreparedPoint` that the point will come back. What it costs
+    to keep is
     2^w points a position -- on secp256k1 at the w=6 `curve.py` passes,
     43 positions of 64 points, some 366 KiB and 9.3 ms to build, which is
     the trade `_mult_fixed_base` measures.
@@ -1133,6 +1141,15 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     applies for the same reason: the point is the curve's generator, the
     same on every call, so its table is built once and kept.
     `curves.mult` is what recognizes that case.
+
+    The reason is the point repeating and not the point being the
+    generator, so `curve.PreparedPoint` reaches here as well, for a
+    caller who has said its own point will come back. Break-even is 23
+    multiplications of that point: 9.50 ms and 366 KiB to build against
+    142.3 us a call warm, where the GLV endomorphism `curves.mult`
+    otherwise runs costs 551.0 with nothing to build. Which is why
+    nothing infers it -- the same measurement, read the other way, is
+    9.5 ms and 366 KiB of pure loss for a point multiplied once.
 
     The accumulator is rescaled where `curves.mult` rescales the point on
     its other arm: the table here is memoized and canonical, so it is the

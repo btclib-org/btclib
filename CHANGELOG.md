@@ -4456,6 +4456,51 @@ documented at release-notes length in the first place, and are still in
   stays where it is: the preparation before the loop is the GLV split, the
   four wNAFs and the two tables, and the tables are #893's and #897's to
   memoize rather than this loop's to speed up.
+- **A caller can say that a point will come back, and keep its tables**
+  (issues #893 and #897). Every multiplication table in `curve_group` is
+  memoized on `(point, curve, width)` already, so a repeated point would
+  find its own — what was missing was anyone to say that a point *is*
+  repeated. Only the generator was assumed to be. `curves.PreparedPoint`
+  is where a caller says so, and it answers both halves of that gap with
+  one convention:
+
+    - `PreparedPoint(Q).mult(m)` takes the fixed-base ladder the generator
+    takes, instead of the GLV endomorphism: 142.3 µs a call against
+    551.0, once 9.50 ms has built the per-position tables — 43 positions
+    of 64 points on secp256k1, some 366 KiB. Break-even is 23
+    multiplications of the one point, which is `dh.diffie_hellman`
+    against one counterparty, a taproot internal key tweaked repeatedly,
+    or `pedersen` against a fixed second generator.
+    - `dsa` and `ssa` take one wherever they take a public key, and the
+    key's two GLV halves then get memoized wNAF tables at `_FIXED_POINT_W`
+    instead of tables built at `_DOUBLE_MULT_W` and dropped: 2 tables
+    built per verification become 0, and the verification 609.1 µs
+    against 471.0 for ECDSA, 664.5 against 531.2 for BIP340. Break-even
+    is 22 signatures under the one key. Preparing also parses the key
+    once, which is the other 75.2 µs a pure-Python verifier was
+    repeating.
+
+  **Opt-in, and it will not become automatic.** The tables are per
+  distinct point, so a library that memoized whatever public key arrived
+  would hold a few MB for keys nobody will see again, and would tax the
+  one-shot verifier 3 ms to do it — issue #287, the same bound
+  `_cached_base58_decode` and `pedersen.second_generator` hold. It is the
+  trade `python-ecdsa` documents on its own `VerifyingKey.precompute()`,
+  and it is a method a caller calls there for this reason.
+
+  **It is the Python arithmetic throughout.** On secp256k1 with the
+  bindings in reach a verification is 22.8 µs and libsecp256k1 holds its
+  own tables in its own context, so a prepared point is passed straight
+  through and buys nothing; what it is for is the path that reaches the
+  Python arithmetic — another curve, another hash function, or a
+  deployment without the compiled bindings. Handing one in on the
+  delegated path is not an error and costs nothing.
+
+  The plumbing is that the `fixed` set `_multi_mult_w_NAF_var` already
+  read off `ec._fixed_points` is now passed down to it, so the two
+  verifications can name the key in it;
+  `_double_mult_endomorphism_secp256k1_var` grows it with the
+  endomorphism images as it always did for the generator's.
 
 - **`sign_` stops re-validating the signature libsecp256k1 just made**
   (issue #888). Its bindings path was `Sig.parse(libsecp256k1_dsa.sign(...))`,

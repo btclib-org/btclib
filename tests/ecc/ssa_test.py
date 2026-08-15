@@ -16,6 +16,7 @@ from btclib_secp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import (
+    PreparedPoint,
     bytes_from_point,
     curve_group,
     double_mult_var,
@@ -346,9 +347,9 @@ def test_low_cardinality() -> None:
                             ssa._recover_pub_key_(e, r, s, ec)
 
                         # if e == 0 then the sig is always valid
-                        ssa._assert_as_valid_(e, QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, QJ, r, s, ec, ec._fixed_points)
                         #  for all {q, Q}
-                        ssa._assert_as_valid_(e, ec.GJ, r, s, ec)
+                        ssa._assert_as_valid_(e, ec.GJ, r, s, ec, ec._fixed_points)
                     else:
                         sig = ssa._sign_(e, q_fixed, k_fixed, r, ec)
                         # recover pub_key
@@ -356,13 +357,15 @@ def test_low_cardinality() -> None:
 
                         assert ssa.Sig(r, s, ec) == sig
                         # valid signature must validate
-                        ssa._assert_as_valid_(e, QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, QJ, r, s, ec, ec._fixed_points)
                         # invalid signature must raise
                         err_msg = r"y_K is odd|INF has no y-coordinate|signature verification failed"
                         with pytest.raises(
                             (BTClibRuntimeError, BTClibValueError), match=err_msg
                         ):
-                            ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
+                            ssa._assert_as_valid_(
+                                e, QJ, r, (s - 1) % ec.n, ec, ec._fixed_points
+                            )
 
 
 def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
@@ -384,7 +387,7 @@ def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
 
     s_prime = (ec.n - k + e * q) % ec.n
     with pytest.raises(BTClibRuntimeError, match="y_K is odd"):
-        ssa._assert_as_valid_(e, QJ, r, s_prime, ec)
+        ssa._assert_as_valid_(e, QJ, r, s_prime, ec, ec._fixed_points)
 
 
 def test_a_message_of_any_size_reaches_the_bindings(
@@ -1109,3 +1112,30 @@ def test_a_bad_hf_raises_rather_than_answering_about_the_signature() -> None:
                 [sig] * size,
                 hf(),  # type: ignore[arg-type]
             )
+
+
+def test_verification_under_a_prepared_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BIP340 takes a prepared key too, and both lifts of it are the key.
+
+    An x-only key names two points and BIP340 means the even-y one, so a
+    caller preparing the odd-y twin has prepared this same key: the
+    verification lifts as it always did, and the tables answer because
+    `PreparedPoint` puts the negation in its set beside the point --
+    which is the reason `Curve.__init__` puts the generator's there.
+
+    So the assertion is that all three spellings verify the same
+    signature and agree with each other, on both arithmetics.
+    """
+    prv_key = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
+    _, x_Q = ssa.gen_keys(prv_key)
+    msg = b"Satoshi Nakamoto"
+    sig = ssa.sign(msg, prv_key)
+
+    even = ssa.point_from_bip340pub_key(x_Q)
+    odd = even[0], secp256k1.p - even[1]
+    for _ in range(2):
+        for key in (x_Q, PreparedPoint(even), PreparedPoint(odd)):
+            ssa.assert_as_valid(msg, key, sig)
+            assert ssa.verify(msg, key, sig)
+            assert not ssa.verify(b"another message", key, sig)
+        no_bindings(monkeypatch)

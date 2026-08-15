@@ -61,6 +61,7 @@ from btclib.bip32.der_path import (
     str_from_der_path,
 )
 from btclib.bip44 import _ADDRESS_FROM_SCRIPT_TYPE, _script_type_from_purpose
+from btclib.curves import PreparedPoint
 from btclib.ecc import bms
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_xkeyversion
@@ -105,10 +106,13 @@ def _checked_script_type(script_type: str) -> BIP44ScriptType:
 def _wif_if_private(key: Key, network: str) -> str:
     """Return the WIF of a private key, or "" for a public one.
 
-    Two of the five spellings `to_pub_key.Key` admits say which they are
-    by their type, and are taken first because the ambiguous test below
+    Two of the spellings `to_pub_key.Key` admits say which they are by
+    their type, and are taken first because the ambiguous test below
     cannot be asked of them: an int is a scalar, so it is a private key,
-    and a point is a pair of coordinates, so it is a public one.
+    and a point is a pair of coordinates, so it is a public one -- a
+    `PreparedPoint` with it, that being a point and a caller's word about
+    how often it will be multiplied, which says nothing about who can
+    sign.
 
     The rest -- octets, a WIF or an extended key -- are told apart in the
     order `to_pub_key.pub_keyinfo_from_key` tells them apart, public
@@ -120,7 +124,7 @@ def _wif_if_private(key: Key, network: str) -> str:
     """
     if isinstance(key, int):
         return b58.wif_from_prv_key(key, network)
-    if isinstance(key, tuple):
+    if isinstance(key, (tuple, PreparedPoint)):
         return ""
 
     with contextlib.suppress(BTClibValueError):

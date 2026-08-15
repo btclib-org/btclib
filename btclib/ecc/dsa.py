@@ -46,7 +46,7 @@ from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
-from btclib.curves import Curve, mult, secp256k1
+from btclib.curves import Curve, PreparedPoint, mult, secp256k1
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -848,9 +848,19 @@ def sign_recoverable(
 
 
 def _assert_as_valid_(
-    c: int, QJ: JacPoint, r: int, s: int, ec: Curve, *, lower_s: bool
+    c: int,
+    QJ: JacPoint,
+    r: int,
+    s: int,
+    ec: Curve,
+    fixed: frozenset[JacPoint],
+    *,
+    lower_s: bool,
 ) -> None:
     # Private function for test/dev purposes
+    # `fixed` is the points whose wNAF tables are memoized rather than
+    # rebuilt: `ec._fixed_points` for a caller with a bare key, and the
+    # key's own where `assert_as_valid_` was handed a PreparedPoint
 
     if lower_s and s > ec.n // 2:
         raise BTClibValueError("not a low s")
@@ -866,7 +876,7 @@ def _assert_as_valid_(
     # and on secp256k1 the multiplication is theirs all the same, 28 us
     # against 1.02 ms, which is this whole verification 61 us against
     # 1.10 ms of it
-    KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec)  # 5
+    KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec, fixed)  # 5
 
     # Fail if infinite(K).
     # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)
@@ -1004,8 +1014,12 @@ def assert_as_valid_(
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
     Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
+    # the key's own memoized tables where the caller prepared it, the
+    # curve's alone where it did not: 471.0 us against 609.1 under one
+    # key, and `curves.PreparedPoint` is where the trade is written
+    fixed = key.fixed if isinstance(key, PreparedPoint) else sig.ec._fixed_points
     # second part delegated to helper function
-    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec, lower_s=False)
+    _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec, fixed, lower_s=False)
 
 
 def assert_as_valid(
@@ -1438,7 +1452,7 @@ def _recover_pub_key_(
     # back is _jac_from_aff, i.e. z == 1, where the wNAF answered whatever
     # representative its ladder reached. Every caller converts with
     # aff_from_jac_var, which is what a Jacobian coordinate is for
-    QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
+    QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec, ec._fixed_points)  # 1.6.1
 
     # INF is no public key, and step 1.6.2 does not refuse it: with Q at
     # infinity the K' that verification recomputes is the lift itself, so
@@ -1473,8 +1487,10 @@ def _recover_pub_key_(
 
     # lower_s=False, the rule having been asked at the top of this function
     # for every candidate: what is left here is the step itself, and
-    # nothing about the form of the signature
-    _assert_as_valid_(c, QJ, r, s, ec, lower_s=False)  # 1.6.2
+    # nothing about the form of the signature. Nothing prepared either --
+    # recovery answers a key rather than being handed one, so there is no
+    # point anybody has said will come back
+    _assert_as_valid_(c, QJ, r, s, ec, ec._fixed_points, lower_s=False)  # 1.6.2
     return QJ
 
 

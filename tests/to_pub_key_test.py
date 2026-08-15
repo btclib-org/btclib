@@ -7,15 +7,17 @@
 from collections.abc import Callable, Sequence
 
 import pytest
+from btclib_secp256k1.keys import serialize as libsecp256k1_pubkey_serialize
 
 from btclib.alias import INF, Point
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.curves import bytes_from_point
+from btclib.curves import PreparedPoint, bytes_from_point, mult
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.to_pub_key import (
     Key,
     PubkeyInfo,
+    _libsecp256k1_pubkey_from_pub_key,
     fingerprint,
     point_from_key,
     point_from_pub_key,
@@ -322,3 +324,40 @@ def test_no_key_material_in_exceptions() -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         point_from_pub_key(xprv_data.key)
     assert xprv_data.key.hex() not in str(excinfo.value)
+
+
+def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
+    """The four converters answer a prepared point as they answer its point.
+
+    `curves.PreparedPoint` carries a caller's word about how often the
+    point will be multiplied, and nothing else: no converter here has a
+    use for that word, so each answers by asking itself about the point,
+    and what proves it is that the two answers are the same object's.
+
+    Both unions, `PubKey` and the wider `Key`, and the private
+    libsecp256k1 parse below them: a prepared point reaching that one is
+    a verification on the delegated path, where the tables it holds are
+    not what answers.
+    """
+    prepared = PreparedPoint(Q)
+
+    assert point_from_pub_key(prepared) == point_from_pub_key(Q)
+    assert point_from_key(prepared) == point_from_key(Q)
+    assert pub_keyinfo_from_pub_key(prepared) == pub_keyinfo_from_pub_key(Q)
+    assert pub_keyinfo_from_key(prepared) == pub_keyinfo_from_key(Q)
+    assert fingerprint(prepared) == fingerprint(Q)
+    for compressed in (True, False):
+        assert pub_keyinfo_from_pub_key(
+            prepared, "mainnet", compressed
+        ) == pub_keyinfo_from_pub_key(Q, "mainnet", compressed)
+
+    parsed = _libsecp256k1_pubkey_from_pub_key(prepared)
+    assert libsecp256k1_pubkey_serialize(parsed) == bytes_from_point(Q)
+
+    # and a prepared point of another curve is refused where a bare point
+    # of it is: preparing validates against its own curve, so what is
+    # asked here is the second one
+    other = CURVES["secp256r1"]
+    prepared_r1 = PreparedPoint(mult(12, other.G, other), other)
+    with pytest.raises(BTClibValueError, match="not a valid public key"):
+        point_from_pub_key(prepared_r1)
