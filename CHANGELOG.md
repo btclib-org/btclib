@@ -1351,6 +1351,31 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Validating a public key answers a verdict, not a serialization.**
+  The octets-only boundary below validated with `keys.reserialize`, which
+  is `secp256k1_ec_pubkey_parse` and a serialization of what it read back
+  into the form it came in — so `pub_keyinfo_from_pub_key` was paying
+  0.37 us to be handed the octets it had passed in. Profiling a
+  verification showed it exactly: the parse count unchanged and 40 000
+  serializations added over 40 000 calls, which was the whole of that
+  entry's cost on the rows where it had one.
+
+  `keys.pubkey_verify` is that parse with nothing kept
+  (btclib-secp256k1#164, and #166 folded it into `parse`'s own body), and
+  it is what `curves.sec_point._sec_from_octets` and
+  `curves.curve._is_x_coordinate_var` now ask. The second of the two
+  wanted a bool all along and had a `try`/`except` around a call that
+  built one. `_y_even_var` keeps `reserialize`: what it reads is the y in
+  the octets that come back.
+
+  Measured as the entry below, both trees against the same bindings
+  commit, control within 0.6%: `dsa.verify` **4.0 to 5.1% faster** across
+  the three spellings of a key, `ssa.verify` **6.0%**, taproot and
+  `point_from_octets` unchanged. Composed with the entry below, which is
+  the other half of the same measurement, every one of those is now
+  faster than it was before the boundary was moved — the uncompressed
+  key by 13.8%, the others between 1.3 and 2.9.
+
 - **The boundary with libsecp256k1 speaks only octets.** btclib held a
   cffi `CData` in four modules — `curves.curve`, `curves.sec_point`,
   `to_pub_key` and, briefly, `script.taproot` — and called `keys.parse`,
