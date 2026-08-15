@@ -117,6 +117,11 @@ def derive_keys(prv_key: PrvKey, pub_key: PubKey) -> tuple[bytes, bytes, bytes]:
     with its own private key and the ephemeral public key from the
     envelope.
 
+    The multiplication is delegated and the derivation is not, which is
+    :mod:`btclib.ecc.dh`'s verdict for every ECDH-shaped computation here:
+    `ecdh.shared_secret` of the bindings hashes with SHA256 and BIE1 wants
+    sha512 cut three ways.
+
     No infinity check on the shared point, unlike
     :func:`btclib.ecc.dh.diffie_hellman`, which takes a bare int: the
     scalars that could produce one are exactly those `int_from_prv_key`

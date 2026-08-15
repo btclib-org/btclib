@@ -4477,6 +4477,29 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **Why the bindings' `ecdh.shared_secret` has no caller here is now
+  written in one place** (issue #909). It multiplies and hashes in one
+  call, and the hash is SHA256 of the compressed shared point with no way
+  to change it — libsecp256k1 takes it as a C callback. Both sides
+  carried a paragraph saying so, and neither said whether it held for
+  every caller or only for the one it was written under.
+
+  `ecc.dh`'s module docstring now has the verdict over all four
+  ECDH-shaped computations in the tree: `diffie_hellman` derives through
+  SEC 1's ANSI-X9.63-KDF under the caller's hash function,
+  `ecc.ecies.derive_keys` through sha512 cut three ways,
+  `silent_payments.shared_secret` answers the point itself because BIP352
+  tags it with a counter afterwards, and `ecc.ellswift.xdh` is the
+  exception that proves it — BIP324 defines the hash, so that one is
+  delegated whole. What is delegated in the other three is the
+  multiplication, `keys.pubkey_tweak_mul` being that same C call in
+  constant time.
+
+  A shared secret is a protocol's own derivation, and only a protocol
+  that agrees with libsecp256k1's default can hand the whole of it over.
+  `ecies` and `silent_payments` point at that paragraph rather than
+  restating it.
+
 - **`psbt.silent_payments` said its `k` follows an order it does not
   follow.** The module docstring described the BIP375 prose -- codes
   sorted lexicographically by spend key -- and named `_ordered_sp_outputs`

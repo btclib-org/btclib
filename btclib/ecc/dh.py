@@ -10,6 +10,31 @@ derive symmetric keying data from it through a key derivation
 function. The curve and the KDF are the two things the parties must
 agree on beforehand; ansi_x9_63_kdf is SEC 1's KDF, and
 diffie_hellman is the agreement built on it.
+
+**Why `ecdh.shared_secret` of the bindings has no caller in btclib, and
+this is the place that says so** (issue 909). That function multiplies
+and hashes in one call, and the hash is SHA256 of the compressed shared
+point with no way to change it: libsecp256k1 takes it as a C callback, so
+exposing it would mean calling back into python from the middle of the
+computation. Every ECDH-shaped computation here derives differently, so
+what is delegated is the multiplication -- `keys.pubkey_tweak_mul`, which
+is that same C multiplication, in constant time -- and the derivation
+stays in python:
+
+- `diffie_hellman` below runs SEC 1's ANSI-X9.63-KDF over the
+  x-coordinate, under the hash function the caller passed;
+- `ecc.ecies.derive_keys` hashes the *compressed point* with sha512 and
+  cuts the 64 bytes three ways, which is BIE1's shape and not this one;
+- `silent_payments.shared_secret` answers the point itself: BIP352 tags
+  it with a counter afterwards, and a BIP375 psbt carries it as a point;
+- `ecc.ellswift.xdh` is the exception that proves the rule. BIP324
+  defines the hash, libsecp256k1 implements that definition, and it is
+  delegated whole -- `ellswift.xdh` is one call there.
+
+So the verdict is not that the function is wrong: it is that a shared
+secret is a protocol's own derivation, and only a protocol agreeing with
+libsecp256k1's default can hand the whole of it over. Three of the four
+here do not, and the fourth already does.
 """
 
 from __future__ import annotations
@@ -96,7 +121,8 @@ def diffie_hellman(
 
     `ecdh.shared_secret` of the bindings is a different function and not
     a substitute: it hashes the compressed shared point with SHA256,
-    libsecp256k1's default, where this derives through ANSI-X9.63-KDF.
+    where this derives through ANSI-X9.63-KDF. The module docstring above
+    has that verdict for all four of btclib's ECDH-shaped computations.
     """
     _assert_valid_ec(ec)
     d = dU % ec.n
