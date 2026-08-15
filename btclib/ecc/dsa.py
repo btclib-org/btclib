@@ -354,6 +354,33 @@ class Sig:
         return cls(r, s, ec, check_validity=check_validity)
 
 
+def _compact(sig: Sig) -> bytes:
+    """Return r || s, the 64 octets libsecp256k1 takes a signature in.
+
+    A signature is two scalars, and this is them: `Sig.serialize` writes
+    the DER the wire carries, which the bindings would take apart again --
+    0.71 us to write and 1.25 to read back, against 0.08 and 0.32 here
+    (issue 922). Nothing is validated, the caller having a `Sig` whose
+    `assert_valid` has run or whose values libsecp256k1 has just computed.
+    """
+    n_size = sig.ec.n_size
+    out = sig.r.to_bytes(n_size, byteorder="big", signed=False)
+    return out + sig.s.to_bytes(n_size, byteorder="big", signed=False)
+
+
+def _sig_from_compact(compact: bytes, ec: Curve) -> Sig:
+    """Return the Sig of 64 octets libsecp256k1 has just written.
+
+    The inverse of `_compact` above, and unvalidated for the same reason:
+    r and s are what secp256k1_ecdsa_sign computed, so `check_validity`
+    would ask the library to prove its own output (issue 888).
+    """
+    n_size = ec.n_size
+    r = int.from_bytes(compact[:n_size], byteorder="big", signed=False)
+    s = int.from_bytes(compact[n_size:], byteorder="big", signed=False)
+    return Sig(r, s, ec, check_validity=False)
+
+
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:
     """Return a private/public (int, Point) key-pair."""
     # here rather than in the branch below that reads n off the curve: a
@@ -643,15 +670,20 @@ def sign_(
         # one attempt is 16.99 us against 14.22, eight are 132.76 against
         # 110.53.
         #
-        # Reading r off the DER instead, and building one Sig after the loop
-        # settles, was measured and not taken: it saves the object of each
-        # discarded attempt, 1.25 us against 0.53 for a read of r alone, so
-        # 0.7 us an attempt, and it costs a second DER reader beside
-        # `Sig.parse` with no validation in it
+        # The compact form, r || s, and not the DER `sign` answers by
+        # default: a signature is two scalars, and the DER would be
+        # written by libsecp256k1 and taken apart again here -- 1.25 us to
+        # read against the 0.32 of `_sig_from_compact` (issue 922), once
+        # per attempt. What that also settles is the question the previous
+        # paragraph left open: reading r alone and building one Sig after
+        # the loop is now worth 0.32 us an attempt rather than 0.7, and it
+        # would still cost a second reader beside this one
         return _grind_low_r(
-            lambda counter: Sig.parse(
-                libsecp256k1_dsa.sign(msg_hash, q, _grind_entropy(counter)),
-                check_validity=False,
+            lambda counter: _sig_from_compact(
+                libsecp256k1_dsa.sign(
+                    msg_hash, q, _grind_entropy(counter), compact=True
+                ),
+                ec,
             ),
             grind,
             ec,
@@ -810,12 +842,10 @@ def sign_recoverable_(
         # encoding sign_ parses would have to be taken apart again, the
         # key_id being what this call is made for
         sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q)
-        n_size = ec.n_size
-        r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
-        s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
-        # check_validity=False for `sign_`'s reason above: these are the
-        # values secp256k1_ecdsa_sign_recoverable has just computed
-        return Sig(r, s, ec, check_validity=False), key_id
+        # `_sig_from_compact` for `sign_`'s reason, stated there: these
+        # are the values secp256k1_ecdsa_sign_recoverable has just
+        # computed, and nothing here proves the library its own output
+        return _sig_from_compact(sig_bytes, ec), key_id
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
@@ -989,12 +1019,15 @@ def assert_as_valid_(
         # twice -- 2.35 us of a 22.78 us verification (issue 887). So a
         # key that is no point leaves through the ValueError caught below
         sec = _sec_from_pub_key(key)
-        # check_validity=False, because assert_valid has just run above --
-        # on the Sig handed in, or inside the Sig.parse that made one.
-        # What it would run again is the congruence check of r, which is
-        # not free even delegated: 0.54 us against 3.1, of a verification
-        # that is 22 in total
-        sig_bytes = sig.serialize(check_validity=False)
+        # the compact form, which is the signature: `Sig.serialize` would
+        # write the DER the wire carries for a call whose first act is to
+        # take it apart again, 0.71 us against 0.08 (issue 922). It also
+        # validated, and assert_valid has just run above -- on the Sig
+        # handed in, or inside the Sig.parse that made one -- so what that
+        # would run again is the congruence check of r, not free even
+        # delegated: 0.54 us against 3.1, of a verification that is 22 in
+        # total
+        sig_bytes = _compact(sig)
         # normalize=True, because libsecp256k1 rejects what is not in the
         # lower-s form and which form a signature is in was the signer's
         # choice: normalizing is right where refusing would not be. Asked
@@ -1005,7 +1038,7 @@ def assert_as_valid_(
         # signature_normalize (issue 889)
         try:
             verified = libsecp256k1_dsa.verify(
-                msg_hash_bytes, sec, sig_bytes, normalize=True
+                msg_hash_bytes, sec, sig_bytes, normalize=True, compact=True
             )
         except ValueError as e:
             # what the octets were not: a point of the curve. Never echoed,
@@ -1529,9 +1562,7 @@ def _libsecp256k1_recover_sec_(
     if lower_s and sig.s > sig.ec.n // 2:
         raise BTClibValueError("not a low s")
 
-    n_size = sig.ec.n_size
-    compact = sig.r.to_bytes(n_size, byteorder="big", signed=False)
-    compact += sig.s.to_bytes(n_size, byteorder="big", signed=False)
+    compact = _compact(sig)
     try:
         # the serialization asked for, rather than the compressed default
         # undone by a parse: the rf <= 30 case of a message signature
