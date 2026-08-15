@@ -274,6 +274,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The bindings floor is `btclib_secp256k1>=0.8.0.3`, and
+  `[tool.uv.sources]` points at their `main` until PyPI serves it.**
+  That version carries `xonly.tweak_add_` (btclib-secp256k1#158), which
+  `script.taproot` calls to tweak the internal key it has just parsed
+  rather than parse its x again. The arrangement is the one the entry
+  below describes and it is the same in every part: `dependencies`
+  publishes a plain floor, so the metadata stays URL-free and PyPI would
+  accept a release; `[tool.uv]` is not metadata, so the git source is
+  removed rather than written over; and `uv.lock` pins the resolved
+  commit, which every job reaches through `--locked`, so `main` is
+  followed when the lock is regenerated and not on its own.
+
+  A floor naming a version no index serves is the point rather than an
+  oversight: it is what stops a release going out against a bindings that
+  cannot serve this tree. The step that clears both is one release
+  upstream, after which the source table goes and the floor stays.
+
+  What it costs meanwhile: a git source has no wheels, so every
+  environment builds the bindings from source, the submodule and the C
+  library included.
+
 - **The bindings floor is `btclib_secp256k1>=0.8.0.2`.** That release
   carries the entry points `ecc.dsa` and `ecc.ssa` call — `dsa.verify_`,
   `ssa.verify_`, `xonly.parse` and the `normalize` flag of `dsa.verify`,
@@ -4457,6 +4478,18 @@ documented at release-notes length in the first place, and are still in
   to `_input_hash_`, the private twin of `input_hash`: reaching the public
   spelling lifted the same x twice, once to hash it and once to multiply
   it.
+
+- **A taproot output key lifts its internal key once.** `output_pubkey`
+  validates the internal key — which is `ec_pubkey_parse`, and for a
+  compressed key a field square root — and then handed the x-only octets
+  to `xonly.tweak_add`, which parses them and lifts the same x a second
+  time. `to_pub_key._pub_keyinfo_and_pubkey_from_key` keeps the parsed key
+  that validation built, as its public-key-only twin already did, and
+  `_tweaked_pubkey` tweaks it through `xonly.tweak_add_`: **15.62 us
+  against 17.53**. A private key answers None there and nothing is lost —
+  its public key is computed and serialized, never parsed — and so does
+  BIP341's unspendable point, which is published as x-only octets and has
+  no key to keep.
 
 - **Two delegated calls that undid the work of the library they had just
   called.** `ecc.ellswift.decode_var` asked `secp256k1_ellswift_decode`
