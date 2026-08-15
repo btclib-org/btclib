@@ -66,7 +66,7 @@ from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_serves
+from btclib.curves.curve import _libsecp256k1_serves, _tweak_add_var
 from btclib.exceptions import BTClibRuntimeError
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -177,24 +177,9 @@ def commit_point_(
     """
     tweak = _tweak(commit_hash, receipt, tag, ec, hf)
 
-    # secp256k1_ec_pubkey_tweak_add computes R + tweak*G directly on the
-    # serialized point, with no point built on the Python side. Unlike
-    # the secret half above, refusing a result at infinity is the
-    # binding's own choice and not ec.add's, which returns it: a refusal
-    # here falls through to the Python addition instead of propagating,
-    # so the one-in-n point at infinity is still answered rather than
-    # raised. bytes_from_point's own refusal of an infinite receipt is a
-    # BTClibValueError, a ValueError too, and falls through the same way
-    # for the same reason
-    if _libsecp256k1_serves(ec, None):
-        try:
-            sec = bytes_from_point(receipt, ec, compressed=False)
-            tweaked = libsecp256k1_keys.pubkey_tweak_add(sec, tweak, compressed=False)
-        except ValueError:
-            pass
-        else:
-            x = int.from_bytes(tweaked[1:33], byteorder="big", signed=False)
-            y = int.from_bytes(tweaked[33:], byteorder="big", signed=False)
-            return x, y
-
-    return ec.add_var(receipt, mult(tweak, ec.G, ec))
+    # R + tweak*G, which is `_tweak_add_var`'s whole subject: one
+    # secp256k1_ec_pubkey_tweak_add on the serialized point where the
+    # curve allows it, and the Python addition where it does not --
+    # including the one-in-n sum at infinity, which is answered here
+    # rather than raised, as `ec.add` answers it
+    return _tweak_add_var(receipt, tweak, ec)

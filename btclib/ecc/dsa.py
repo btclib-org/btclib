@@ -41,7 +41,6 @@ from io import BytesIO
 from typing import overload
 
 from btclib_secp256k1 import dsa as libsecp256k1_dsa
-from btclib_secp256k1 import keys as libsecp256k1_keys
 from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
 from btclib import var_bytes
@@ -1529,7 +1528,11 @@ def _libsecp256k1_recover_sec_(
     compact = sig.r.to_bytes(n_size, byteorder="big", signed=False)
     compact += sig.s.to_bytes(n_size, byteorder="big", signed=False)
     try:
-        sec = libsecp256k1_recovery.recover(msg_hash, compact, key_id)
+        # the serialization asked for, rather than the compressed default
+        # undone by a parse: the rf <= 30 case of a message signature
+        # hashes the uncompressed form, and recover is the one call that
+        # has the point to write it from
+        return libsecp256k1_recovery.recover(msg_hash, compact, key_id, compressed)
     except ValueError as e:
         # a bare ValueError is not what the Python path raises for a
         # candidate that recovers nothing -- BTClibValueError when x_K
@@ -1538,15 +1541,6 @@ def _libsecp256k1_recover_sec_(
         # ValueError does not answer to, being their base and not a
         # subclass
         raise BTClibValueError(f"invalid key_id or signature: {e}") from e
-
-    if compressed:
-        return sec
-    # the bindings serialize compressed unless asked otherwise, and the
-    # rf <= 30 case of a message signature hashes the uncompressed form:
-    # 29 us against the 19 above, the difference being a pubkey_parse
-    # undoing a serialization the same library has just made -- which
-    # recover leaves no way around, answering octets and not a pubkey
-    return libsecp256k1_keys.serialize(libsecp256k1_keys.parse(sec), compressed=False)
 
 
 def _libsecp256k1_recover_point_(

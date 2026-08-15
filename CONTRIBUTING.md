@@ -49,7 +49,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependencies are `btclib_secp256k1>=0.8.0.1` and
+**The declared dependencies are `btclib_secp256k1>=0.8.0.3` and
 `bitcoin-core-rpc>=2026.8.13`, with no upper bound**, and the absence of a
 ceiling is a decision. Both are btclib-org projects developed by the same
 people, and the bindings' whole purpose is to be the bindings this library
@@ -60,6 +60,18 @@ release for every bindings minor, the ones that break nothing included, and
 would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
 changes in the minor.
+
+**0.8.0.3 is not on PyPI yet**, and `[tool.uv.sources]` in
+`pyproject.toml` is what resolves it: the bindings come from their `main`
+branch, so an entry point merged there is callable here before a release
+carries it — `xonly.tweak_add_` is the one this tree calls. A git source
+has no wheels, so `uv sync` builds the bindings from source, submodule and
+C library included; `uv.lock` pins the resolved commit and every job
+passes `--locked`, so the branch is followed only when the lock is
+regenerated. The floor above names the unreleased version deliberately: it
+is what stops a release going out against a bindings that cannot serve
+this tree. One release upstream clears both — the source table goes, the
+floor stays.
 
 What the policy does not cover: dependency metadata is baked into every
 wheel already published, so coordinating the two projects protects the

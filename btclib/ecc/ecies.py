@@ -78,9 +78,10 @@ from hashlib import sha256, sha512
 
 from btclib.alias import CipherF, Octets, String
 from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.curves.sec_point import _mult_sec_var
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import PubKey, point_from_pub_key
+from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
@@ -122,8 +123,12 @@ def derive_keys(prv_key: PrvKey, pub_key: PubKey) -> tuple[bytes, bytes, bytes]:
     rejects, and both inputs here go through a validating conversion.
     """
     q = int_from_prv_key(prv_key)
-    Q = point_from_pub_key(pub_key)
-    shared_point_bytes = bytes_from_point(mult(q, Q), compressed=True)
+    # the public key stays octets: no coordinate of it is read here, and
+    # `_mult_sec_var` is the multiplication without the point in between
+    sec = pub_keyinfo_from_pub_key(pub_key)[0]
+    shared_point_bytes = bytes_from_point(
+        _mult_sec_var(sec, q, secp256k1), compressed=True
+    )
     digest = sha512(shared_point_bytes).digest()
     return digest[:16], digest[16:32], digest[32:]
 

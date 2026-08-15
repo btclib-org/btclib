@@ -19,7 +19,7 @@ from btclib.curves import (
     point_from_octets,
 )
 from btclib.curves.curve import CURVES
-from btclib.curves.sec_point import _sec_from_octets
+from btclib.curves.sec_point import _mult_sec_var, _sec_from_octets
 from btclib.exceptions import BTClibValueError
 
 # test curves: very low cardinality
@@ -267,3 +267,36 @@ def test_infinity_point_from_octets() -> None:
         BTClibValueError, match="no bytes representation for infinity point"
     ):
         point_from_octets(inf_bytes)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """m*P from the octets is m*P from the point, on every curve.
+
+    `_mult_sec_var` skips the round trip `mult(m, point_from_octets(sec))`
+    makes -- the lift on the way in and the serialization back out, of a
+    point neither side reads a coordinate of -- so what has to be asserted
+    is that identity, for both forms of the octets and for the scalars the
+    bindings decline: zero, which is infinity and no libsecp256k1 answer,
+    and the ones landing on the point itself.
+
+    The low-cardinality curves reach the same lines with no bindings under
+    them at all, which is what the `python` case then repeats for
+    secp256k1.
+    """
+    if not bindings:
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
+    for ec in all_curves.values():
+        for Q in (ec.G, mult(2, ec.G, ec), mult(3, ec.G, ec)):
+            for compressed in (True, False):
+                sec = bytes_from_point(Q, ec, compressed)
+                for m in (0, 1, 2, ec.n - 1):
+                    assert _mult_sec_var(sec, m, ec) == mult(m, Q, ec)
+
+    # and octets that are no point at all are the lift's refusal, which is
+    # what the fallthrough exists to keep saying
+    ec = CURVES["secp256k1"]
+    x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
+        _mult_sec_var(b"\x02" + x_Q.to_bytes(ec.p_size, "big"), 2, ec)

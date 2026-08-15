@@ -274,6 +274,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The bindings floor is `btclib_secp256k1>=0.8.0.3`, and
+  `[tool.uv.sources]` points at their `main` until PyPI serves it.**
+  That version carries `xonly.tweak_add_` (btclib-secp256k1#158), which
+  `script.taproot` calls to tweak the internal key it has just parsed
+  rather than parse its x again. The arrangement is the one the entry
+  below describes and it is the same in every part: `dependencies`
+  publishes a plain floor, so the metadata stays URL-free and PyPI would
+  accept a release; `[tool.uv]` is not metadata, so the git source is
+  removed rather than written over; and `uv.lock` pins the resolved
+  commit, which every job reaches through `--locked`, so `main` is
+  followed when the lock is regenerated and not on its own.
+
+  A floor naming a version no index serves is the point rather than an
+  oversight: it is what stops a release going out against a bindings that
+  cannot serve this tree. The step that clears both is one release
+  upstream, after which the source table goes and the floor stays.
+
+  What it costs meanwhile: a git source has no wheels, so every
+  environment builds the bindings from source, the submodule and the C
+  library included.
+
 - **The bindings floor is `btclib_secp256k1>=0.8.0.2`.** That release
   carries the entry points `ecc.dsa` and `ecc.ssa` call — `dsa.verify_`,
   `ssa.verify_`, `xonly.parse` and the `normalize` flag of `dsa.verify`,
@@ -4409,6 +4430,88 @@ documented at release-notes length in the first place, and are still in
   multiplication is Python's, an inverse being 8.8 us of 1148.
 
 ### Performance
+
+- **A point plus a multiple of the generator is one call to the bindings,
+  wherever it is written.** BIP32's public derivation, BIP341's output
+  key, the outputs and labels of BIP352 and the point a sign-to-contract
+  commitment lands on are all `P + t*G`, and four of them spelled it
+  `add_var(P, mult(t))`: a delegated multiplication of the generator, the
+  product parsed back into a `Point`, `P` serialized again for the
+  addition, and that addition made in Python.
+  `secp256k1_ec_pubkey_tweak_add` is the shape itself, and
+  `curves.curve._tweak_add_var` is the one place the dispatch to it is
+  written — `ecc.commit_nonce.commit_point_` had a copy of that dispatch
+  and now calls it, and `silent_payments.labeled_address_from_keys`,
+  `output_key` and `scan_outputs` and `ecc.musig2.apply_tweak` reach it
+  for the first time. 10.89 us against 19.62 for the primitive, and 24.14
+  against 31.66 for `silent_payments.output_key` around it. The Python arm
+  is the pair it replaces, and answers everything the bindings decline: a
+  zero tweak, an infinite `P`, a curve that is not secp256k1, and the sum
+  at infinity, which is no public key and which `add_var` returns.
+
+  `musig2.apply_tweak` loses a scalar multiplication besides: its `g` is 1
+  or `n-1`, so `g*Q` is `Q` or its negation, and negating a point is a
+  subtraction rather than a multiplication of it.
+
+- **MuSig2's key aggregation hands the whole sum over at once.** It
+  multiplied each key by its coefficient and added the product to a
+  running total in Python, so every key paid a crossing of the boundary
+  in each direction and an affine addition on this side.
+  `multi_mult_var` is that sum, and on secp256k1 it keeps every term
+  serialized inside the bindings from the first to the last: 94.18 us
+  against 131.72, over five keys. A group of one signer is a sum of one
+  term, which `multi_mult_var` refuses as not being a multi-mult at all,
+  so that case stays the multiplication it is.
+
+- **A multiplication whose point is octets no longer builds the point.**
+  `mult(m, point_from_pub_key(sec))` lifts the x of a compressed key to a
+  point and then writes that point back out, for
+  `secp256k1_ec_pubkey_tweak_mul` to parse the octets its caller was
+  holding all along. `curves.sec_point._mult_sec_var` is the same
+  multiplication from the octets, 14.04 us against 17.01, and
+  `ecc.ecies.derive_keys` and `silent_payments.shared_secret` take it —
+  `psbt.silent_payments.shared_secret_from_share` with them, which now
+  says `shared_secret` rather than spelling it a second time. Neither
+  reads a coordinate of the key it is handed.
+
+  `silent_payments.tweak_data` lifts its `A_sum` once and hands the point
+  to `_input_hash_`, the private twin of `input_hash`: reaching the public
+  spelling lifted the same x twice, once to hash it and once to multiply
+  it.
+
+- **A taproot output key lifts its internal key once.** `output_pubkey`
+  validates the internal key — which is `ec_pubkey_parse`, and for a
+  compressed key a field square root — and then handed the x-only octets
+  to `xonly.tweak_add`, which parses them and lifts the same x a second
+  time. `to_pub_key._pub_keyinfo_and_pubkey_from_key` keeps the parsed key
+  that validation built, as its public-key-only twin already did, and
+  `_tweaked_pubkey` tweaks it through `xonly.tweak_add_`: **15.62 us
+  against 17.53**. A private key answers None there and nothing is lost —
+  its public key is computed and serialized, never parsed — and so does
+  BIP341's unspendable point, which is published as x-only octets and has
+  no key to keep.
+
+- **Two delegated calls that undid the work of the library they had just
+  called.** `ecc.ellswift.decode_var` asked `secp256k1_ellswift_decode`
+  for the compressed key and lifted its x back to a point, where the
+  decoding had both coordinates and the flag to serialize them: 6.31 us
+  against 9.15. `ecc.dsa`'s `_libsecp256k1_recover_sec_` asked
+  `secp256k1_ecdsa_recover` for the compressed key and then parsed and
+  re-serialized it to get the uncompressed one, which `recover` takes a
+  flag for: 15.46 us against 18.29, paid by every message signature whose
+  recovery flag is 30 or below, those being the ones that hash the
+  uncompressed key.
+
+  Both flags are older than the `btclib_secp256k1>=0.8.0.2` floor, so
+  nothing moves for this.
+
+- Measured on an Apple M5, macOS 26.6, arm64, CPython 3.14.6, as the
+  median of seven alternating rounds of 2000 or 4000 calls, each round
+  running every case: the old spelling is written out in the harness
+  beside the new one, so both are timed against the same tree rather than
+  across a branch switch. A control the changes cannot touch — `mult` on
+  the generator, and the reading of an uncompressed serialization — moved
+  by less than 0.2 us across the rounds of each run.
 
 - **The interleaved wNAF loop stops asking for digits that are zero**
   (issue #906). `_multi_mult_w_NAF_var` asked every wNAF for a digit at

@@ -247,7 +247,7 @@ def shared_secret_from_share(psbt: Psbt, share: Octets, A_sum: Point) -> Point:
     the psbt is an argument and the share alone would not do.
     """
     outpoints = [psbt_in.prev_out for psbt_in in psbt.inputs]
-    return mult(sp.input_hash(outpoints, A_sum), point_from_pub_key(share))
+    return sp.shared_secret(sp.input_hash(outpoints, A_sum), share)
 
 
 def _ordered_sp_outputs(psbt: Psbt) -> list[tuple[int, PsbtOut]]:

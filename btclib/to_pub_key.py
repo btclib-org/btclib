@@ -231,19 +231,36 @@ def pub_keyinfo_from_key(
     key: Key, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
+    return _pub_keyinfo_and_pubkey_from_key(key, network, compressed)[0]
+
+
+def _pub_keyinfo_and_pubkey_from_key(
+    key: Key, network: str | None, compressed: bool | None
+) -> tuple[PubkeyInfo, CData | None]:
+    """Return the pub key tuple, and the parsed key if validating built one.
+
+    The body of `pub_keyinfo_from_key`, as
+    `_pub_keyinfo_and_pubkey_from_pub_key` is the body of
+    `pub_keyinfo_from_pub_key`: one dispatch over the spellings of a key,
+    and two spellings of what to do with the parsed one.
+
+    A private key answers None and there is nothing to keep: its public key
+    is computed and serialized, never parsed. `script.taproot` is the
+    caller, and reads that None as "lift the x-only octets after all".
+    """
     _assert_key_type(key)
     if isinstance(key, PreparedPoint):
-        return pub_keyinfo_from_key(key.point, network, compressed)
+        return _pub_keyinfo_and_pubkey_from_key(key.point, network, compressed)
 
     if isinstance(key, tuple):
-        return pub_keyinfo_from_pub_key(key, network, compressed)
+        return _pub_keyinfo_and_pubkey_from_pub_key(key, network, compressed)
     if isinstance(key, int):
-        return pub_keyinfo_from_prv_key(key, network, compressed)
+        return pub_keyinfo_from_prv_key(key, network, compressed), None
     with contextlib.suppress(BTClibValueError):
-        return pub_keyinfo_from_pub_key(key, network, compressed)
+        return _pub_keyinfo_and_pubkey_from_pub_key(key, network, compressed)
     # it must be a prv_key
     try:
-        return pub_keyinfo_from_prv_key(key, network, compressed)
+        return pub_keyinfo_from_prv_key(key, network, compressed), None
     except BTClibValueError as e:
         err_msg = _err_msg(key, network, compressed)
         raise BTClibValueError(err_msg) from e

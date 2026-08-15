@@ -25,11 +25,13 @@ license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
-    # 0.8.0.2 for the parsed-key entry points of btclib-secp256k1#149:
-    # `dsa.verify_`, `ssa.verify_`, `xonly.parse` and the `normalize` flag of
-    # `dsa.verify`, which `ecc.dsa` and `ecc.ssa` call and 0.8.0.1 does not
-    # carry
-    "btclib_secp256k1>=0.8.0.2",
+    # 0.8.0.3 for `xonly.tweak_add_` (btclib-secp256k1#158), which
+    # `script.taproot` calls: it tweaks the parsed internal key, where
+    # `xonly.tweak_add` parses the x again and that parse is a field square
+    # root. The version is not on PyPI yet -- `[tool.uv.sources]` below is
+    # what resolves it here -- so this floor is also what stops a release
+    # going out against a bindings that cannot serve it
+    "btclib_secp256k1>=0.8.0.3",
     "bitcoin-core-rpc>=2026.8.13",
 ]
 keywords = [
@@ -136,6 +138,21 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
+
+[tool.uv.sources]
+# the bindings from their own main, so that an entry point merged there is
+# callable here before a release carries it -- `xonly.tweak_add_` is the
+# one the floor above names. `[tool.uv]` is not distribution metadata, so
+# `dependencies` still publishes a plain floor and PyPI still accepts a
+# release; a direct reference in `dependencies` would have to be written
+# back over at release time, and was, twice.
+#
+# What it costs: no wheel, so the bindings are built from source in every
+# environment, submodule and C library included. And `uv.lock` pins the
+# resolved commit while every job passes `--locked`, so main is followed
+# when the lock is regenerated and not before -- which is the point. Drop
+# this table once the floor names a version PyPI serves.
+btclib_secp256k1 = { git = "https://github.com/btclib-org/btclib-secp256k1.git", branch = "main" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]

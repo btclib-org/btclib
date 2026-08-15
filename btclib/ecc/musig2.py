@@ -74,7 +74,8 @@ from dataclasses import dataclass
 from hashlib import sha256
 
 from btclib.alias import INF, Octets, Point
-from btclib.curves import mult, secp256k1
+from btclib.curves import mult, multi_mult_var, secp256k1
+from btclib.curves.curve import _tweak_add_var
 from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
@@ -294,13 +295,26 @@ def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
     pks = _pub_keys(pub_keys)
     L = _hash_pub_keys(pks)
     second = _second_pub_key(pks)
-    Q = INF
+    # the whole sum handed over at once, rather than a multiplication per
+    # key and a point addition of btclib's own between two of them: that
+    # is what `multi_mult_var` is, and on secp256k1 every term stays
+    # serialized inside the bindings from the first to the last
+    points: list[Point] = []
+    coefficients: list[int] = []
     for i, pk in enumerate(pks):
         try:
-            P_i = _cpoint(pk)
+            points.append(_cpoint(pk))
         except BTClibValueError as e:
             raise InvalidContributionError(i, "pubkey") from e
-        Q = secp256k1.add_var(Q, mult(_key_agg_coeff_(L, second, pk), P_i, secp256k1))
+        coefficients.append(_key_agg_coeff_(L, second, pk))
+    # a group of one signer is a sum of one term, which `multi_mult_var`
+    # refuses as not being a multi-mult at all: it is a multiplication,
+    # and `mult` is the spelling of one
+    Q = (
+        mult(coefficients[0], points[0], secp256k1)
+        if len(points) == 1
+        else multi_mult_var(coefficients, points, secp256k1)
+    )
     if Q[1] == 0:  # pragma: no cover
         # the coefficients are hashes, so cancelling them all out is the
         # discrete-log problem rather than a case to handle: raise where
@@ -331,7 +345,10 @@ def apply_tweak(
     t = int.from_bytes(tweak, "big")
     if t >= secp256k1.n:
         raise BTClibValueError(_TWEAK_RANGE_ERR)
-    Q = secp256k1.add_var(mult(g, Q, secp256k1), mult(t, secp256k1.G, secp256k1))
+    # g is 1 or n-1, so g*Q is Q or its negation and there is no scalar
+    # multiplication to make of it: what is left is Q + t*G, which is
+    # `_tweak_add_var`'s one call
+    Q = _tweak_add_var(Q if g == 1 else secp256k1.negate(Q), t, secp256k1)
     if Q[1] == 0:
         # t*G cancelling g*Q exactly: unreachable for a tweak nobody
         # chose to do it, reachable for one that did, and a key of

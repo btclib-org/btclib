@@ -45,6 +45,7 @@ from btclib.curves.curve import (
     _libsecp256k1_serves,
     _libsecp256k1_xonly_pubkey_var,
     _sec_from_point,
+    _tweak_add_var,
     _y_even_var,
 )
 
@@ -992,10 +993,49 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(curve, "_libsecp256k1_available", False)
     monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_add", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_combine", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_parse", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_serialize", refuse)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """P + t*G is the addition of the multiplication, however it is reached.
+
+    `_tweak_add_var` is one secp256k1_ec_pubkey_tweak_add where the curve
+    allows it, and `add_var(P, mult(t))` everywhere else, so the two have
+    to be one answer: asserted over a spread of points and tweaks, and
+    over each of the arguments libsecp256k1 has no value for -- a zero
+    tweak, whose term is nothing; infinity, which is no public key; and
+    the sum at infinity, which the bindings refuse and `add_var` returns.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    points = [mult(k) for k in (1, 2, 3, 7, ec.n - 1)]
+    for P, t in itertools.product(points, (0, 1, 2, 7, ec.n // 2, ec.n - 1)):
+        assert _tweak_add_var(P, t, ec) == ec.add_var(P, mult(t, ec.G, ec))
+
+    # infinity on either side of the sum, and a tweak that is the whole
+    # group order, i.e. the zero scalar spelled the other way
+    assert _tweak_add_var(INF, 7, ec) == mult(7)
+    assert _tweak_add_var(mult(7), ec.n, ec) == mult(7)
+    assert _tweak_add_var(mult(7), ec.n - 7, ec) == INF
+
+    # a point that is not on the curve is refused rather than delegated
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        _tweak_add_var((ec.G[0], ec.G[1] + 1), 7, ec)
+
+    # and a curve the bindings do not serve takes the same lines
+    for other in low_card_curves.values():
+        for k, t in itertools.product(range(1, 4), range(other.n)):
+            P = mult(k, other.G, other)
+            assert _tweak_add_var(P, t, other) == other.add_var(
+                P, mult(t, other.G, other)
+            )
 
 
 def test_libsecp256k1_arbitrary_point() -> None:
