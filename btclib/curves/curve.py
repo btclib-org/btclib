@@ -38,6 +38,7 @@ from typing import Any
 from btclib_secp256k1 import CData
 from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_secp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
+from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
 from btclib_secp256k1.keys import serialize as libsecp256k1_pubkey_serialize
 from btclib_secp256k1.mult import mult as libsecp256k1_mult
@@ -631,6 +632,22 @@ def _libsecp256k1_multi_mult_(
     return total
 
 
+def _point_from_sec(sec: bytes) -> Point:
+    """Return the point of an uncompressed 0x04 || x || y serialization.
+
+    The inverse of `_sec_from_point`, and read rather than parsed through
+    `point_from_octets` for the same reason it writes rather than
+    serializes: these are octets libsecp256k1 has just written, of a point
+    it has just computed, so proving them a point of the curve again is
+    work with a known answer.
+    """
+    p_size = secp256k1.p_size
+    return (
+        int.from_bytes(sec[1 : p_size + 1], "big"),
+        int.from_bytes(sec[p_size + 1 :], "big"),
+    )
+
+
 def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) -> Point:
     """Return sum(scalars[i]*points[i]), through the bindings.
 
@@ -638,13 +655,7 @@ def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) ->
     layer above, whose None is this function's INF.
     """
     sec = _libsecp256k1_multi_mult_(scalars, [_sec_from_point(Q) for Q in points])
-    if sec is None:
-        return INF
-    p_size = secp256k1.p_size
-    return (
-        int.from_bytes(sec[1 : p_size + 1], "big"),
-        int.from_bytes(sec[p_size + 1 :], "big"),
-    )
+    return INF if sec is None else _point_from_sec(sec)
 
 
 # the widths mult and double_mult_var hand the variants below them; the
@@ -931,6 +942,43 @@ def double_mult_var(
     # which the verifications take
     R = _double_mult_python(u, HJ, v, QJ, ec, ec._fixed_points)
     return ec.aff_from_jac_var(R)
+
+
+def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
+    """Return P + t*G, a point plus a multiple of the generator.
+
+    One shape in several places: the point a sign-to-contract commitment
+    lands on, the outputs and labels of BIP352, a MuSig2 tweak. Spelled
+    `add_var(P, mult(t, ec.G, ec))` it is a delegated multiplication, the
+    product read back into a Point, P written out again for the addition,
+    and that addition made here; `secp256k1_ec_pubkey_tweak_add` is the
+    shape itself, one call on the serialized point -- 10.89 us against
+    19.62 on secp256k1.
+
+    Not `double_mult_var(1, P, t, ec.G, ec)`, which is the same sum and
+    delegates too: that one multiplies P by one, and a scalar
+    multiplication is the cost this exists not to pay.
+
+    BIP32's public derivation and BIP341's output key are this shape as
+    well and do not come through here: each has a libsecp256k1 entry point
+    of its own -- `keys.PubkeyTweakChain`, which holds the parsed point
+    across a whole path, and `xonly.tweak_add`, which carries the parity
+    BIP341 commits to.
+
+    The Python arm is the pair above, and answers everything the bindings
+    decline: a zero tweak, an infinite P, a curve that is not secp256k1,
+    and the sum at infinity -- which libsecp256k1 has no public key for
+    and `add_var` returns.
+    """
+    ec.require_on_curve(P)
+    t %= ec.n
+
+    if t and P[1] and _libsecp256k1_serves(ec, None):
+        with contextlib.suppress(ValueError):
+            sec = libsecp256k1_pubkey_tweak_add(_sec_from_point(P), t, False)
+            return _point_from_sec(sec)
+
+    return ec.add_var(P, mult(t, ec.G, ec))
 
 
 def _jac_double_mult(

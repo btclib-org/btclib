@@ -68,6 +68,8 @@ from btclib.alias import INF, NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, decode, encode
 from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
+from btclib.curves.curve import _tweak_add_var
+from btclib.curves.sec_point import _mult_sec_var
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
@@ -75,7 +77,7 @@ from btclib.network import network_type_from_network
 from btclib.script.script_pub_key import is_p2pkh, is_p2sh, is_p2tr, is_p2wpkh
 from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import PubKey, point_from_pub_key
+from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, is_integer, str_from_string
 
@@ -311,7 +313,7 @@ def labeled_address_from_keys(
     recovering a wallet from a seed alone.
     """
     B_scan = mult(int_from_prv_key(b_scan))
-    B_m = secp256k1.add_var(point_from_pub_key(B_spend), mult(label_tweak(b_scan, m)))
+    B_m = _tweak_add_var(point_from_pub_key(B_spend), label_tweak(b_scan, m), secp256k1)
     return address_from_keys(B_scan, B_m, network)
 
 
@@ -487,10 +489,21 @@ def input_hash(outpoints: Sequence[OutPoint], A_sum: PubKey) -> int:
 
     An empty sequence has no smallest outpoint and no input hash.
     """
+    return _input_hash_(outpoints, point_from_pub_key(A_sum))
+
+
+def _input_hash_(outpoints: Sequence[OutPoint], A_sum: Point) -> int:
+    """Return the input hash of a public sum that is already a point.
+
+    `input_hash` with the conversion lifted out of it, for the one caller
+    that goes on to multiply the very point it converted: reaching this
+    through the public spelling lifts the x of a compressed A_sum twice,
+    once to hash it and once to multiply it.
+    """
     if not outpoints:
         raise BTClibValueError("no outpoint to derive the input hash from")
     lowest = min(outpoint.serialize() for outpoint in outpoints)
-    A = bytes_from_point(point_from_pub_key(A_sum), secp256k1)
+    A = bytes_from_point(A_sum, secp256k1)
     return _scalar(tagged_hash(_INPUTS_TAG, lowest + A), "input hash")
 
 
@@ -503,7 +516,8 @@ def tweak_data(outpoints: Sequence[OutPoint], A_sum: PubKey) -> Point:
     its scan key to reach the shared secret. Which is why `scan_outputs`
     takes it rather than the outpoints -- a light client never sees them.
     """
-    return mult(input_hash(outpoints, A_sum), point_from_pub_key(A_sum))
+    A = point_from_pub_key(A_sum)
+    return mult(_input_hash_(outpoints, A), A)
 
 
 def shared_secret(scalar: PrvKey, point: PubKey) -> Point:
@@ -513,8 +527,13 @@ def shared_secret(scalar: PrvKey, point: PubKey) -> Point:
     multiplies input_hash*a by the recipient's B_scan, the recipient
     multiplies its b_scan by the tweak data input_hash*A, and
     commutativity is the protocol.
+
+    The public key stays octets rather than becoming a point: nothing here
+    reads a coordinate of it, and `_mult_sec_var` is that multiplication
+    without the round trip through one.
     """
-    return mult(int_from_prv_key(scalar), point_from_pub_key(point))
+    sec = pub_keyinfo_from_pub_key(point)[0]
+    return _mult_sec_var(sec, int_from_prv_key(scalar), secp256k1)
 
 
 def _output_tweak(secret: Point, k: int) -> int:
@@ -538,10 +557,8 @@ def output_key(secret: PubKey, B_m: PubKey, k: int) -> bytes:
     `k` is the recipient's position in its group, which is what stops two
     payments to one scan key landing on one output.
     """
-    P = secp256k1.add_var(
-        point_from_pub_key(B_m), mult(_output_tweak(point_from_pub_key(secret), k))
-    )
-    return _x_only(P)
+    t_k = _output_tweak(point_from_pub_key(secret), k)
+    return _x_only(_tweak_add_var(point_from_pub_key(B_m), t_k, secp256k1))
 
 
 def output_keys(
@@ -675,7 +692,7 @@ def scan_outputs(
     found = []
     for k in range(K_MAX):
         t_k = _output_tweak(secret, k)
-        P_k = secp256k1.add_var(B, mult(t_k))
+        P_k = _tweak_add_var(B, t_k, secp256k1)
         x_only_P_k = _x_only(P_k)
         match = None
         for output in remaining:

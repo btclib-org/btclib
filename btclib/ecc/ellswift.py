@@ -51,6 +51,7 @@ from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
     _libsecp256k1_serves,
+    _point_from_sec,
     _y_even_var,
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -306,14 +307,12 @@ def decode_var(ell: Octets, ec: Curve = secp256k1) -> Point:
     """
     ell = _ell_from_octets(ell, ec)
 
-    # the bindings answer with a compressed public key, whose y is the
-    # one the prefix names: _y_even_var lifts the x and the prefix picks the
-    # root, which is a parse rather than the square root it looks like
+    # asked for the uncompressed form, so that both coordinates are read
+    # off what the decoding already computed: the compressed one drops the
+    # y and leaves it to be lifted back, which is a second parse and a
+    # serialization of a point libsecp256k1 was holding
     if _libsecp256k1_serves(ec, None):
-        sec = libsecp256k1_ellswift.decode(ell)
-        x = int.from_bytes(sec[1:], byteorder="big", signed=False)
-        y = _y_even_var(x, ec)
-        return x, (ec.p - y if sec[0] == 3 else y)
+        return _point_from_sec(libsecp256k1_ellswift.decode(ell, compressed=False))
 
     return _point_from_ell_var(ell, ec)
 

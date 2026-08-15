@@ -11,12 +11,14 @@ from btclib_secp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_secp256k1.keys import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
+from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
 
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
     _assert_valid_ec,
     _libsecp256k1_serves,
+    _point_from_sec,
     _y_even_var,
     mult,
     secp256k1,
@@ -150,6 +152,27 @@ def point_from_octets(
         # never echo the octets: a 33-byte 0x00-prefixed input
         # is the key field of an xprv, i.e. a private key
         raise BTClibValueError(f"not a point: prefix 0x{pub_key[:1].hex()}")
+
+
+def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
+    """Return m*P, for a point given as the SEC octets that prove it one.
+
+    `mult(m, point_from_octets(sec, ec), ec)` is the same answer, and pays
+    a round trip this does not: the octets are lifted to a point on the
+    way in, and `mult` writes that point back out as octets for
+    secp256k1_ec_pubkey_tweak_mul, which is the call libsecp256k1 would
+    have made on the bytes it was handed.
+
+    The caller has proved these octets a point already -- they are what
+    `pub_keyinfo_from_pub_key` answers -- so nothing here re-proves it:
+    what the bindings decline falls through to the lift, which raises
+    where the octets are no point.
+    """
+    if m and _libsecp256k1_serves(ec, None):
+        with contextlib.suppress(ValueError):
+            return _point_from_sec(libsecp256k1_pubkey_tweak_mul(sec, m, False))
+
+    return mult(m, point_from_octets(sec, ec), ec)
 
 
 def _sec_and_pubkey_from_octets(
