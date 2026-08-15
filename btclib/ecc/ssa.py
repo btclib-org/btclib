@@ -243,8 +243,9 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
     The dispatch over the spellings, without the lift that
     `point_from_bip340pub_key` puts on top of it: what an x-only key is
     unlifted is an x, and a verification through the bindings has no use
-    for the y -- `libsecp256k1_ssa.verify_` takes the x-only key, and
-    proving x an x-coordinate is what parsing it does anyway (issue 887).
+    for the y -- `libsecp256k1_ssa.verify` takes the x-only octets, and
+    proving x an x-coordinate is what parsing them does anyway (issue
+    887).
 
     So the x that comes back here is not proved to be an x-coordinate of
     anything: it is validated as far as its spelling goes, and whoever

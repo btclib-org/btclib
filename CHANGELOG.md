@@ -1351,6 +1351,41 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **An ECDSA signature crosses the boundary as the two scalars it is**
+  (issue #922). It crossed as DER at both ends: `assert_as_valid_` wrote
+  the ASN.1 structure for a call whose first act is `parse_der`, and
+  `sign_` read one back that libsecp256k1 had just written -- once per
+  attempt under low-r grinding, where the loop parses what it may throw
+  away. `dsa.sign` and `dsa.verify` take a `compact` flag now
+  (btclib-secp256k1#168), so what crosses is `r || s`: writing it is 0.08
+  us against 0.71, reading it 0.32 against 1.25.
+
+  **`dsa.sign` 14.08 us against 15.35, `sign_` without grinding 13.61
+  against 14.91, `dsa.verify` 20.79 against 21.54** -- 7.7% and 2.9% of a
+  signature and a verification, normalized by a `mult` control that moved
+  0.6%, median of seven alternating rounds of 4000 calls on the machine
+  the entries above name.
+
+  `_compact` and `_sig_from_compact` are the two conversions, written
+  once: `sign_recoverable` read r and s by hand and
+  `_libsecp256k1_recover_sec_` wrote them by hand, both of them because
+  the recoverable entry points have always spoken in the compact form --
+  that path made this decision long ago, and the plain one had not. Its
+  own figure is unchanged, which is what says the helpers cost nothing.
+
+  What still crosses as DER is the wire: `script.engine` hands
+  libsecp256k1 the signature the script carries, unparsed, and
+  re-encoding consensus data would be a second opinion about what the
+  transaction says. `Sig.serialize` and `Sig.parse` are unchanged, and
+  are still what a caller reading or writing a signature gets.
+
+- **A comment named a function that had gone private.**
+  `ecc.ssa._x_from_bip340pub_key` cited `libsecp256k1_ssa.verify_`, which
+  is `_verify_` since btclib-secp256k1#165 and is not what btclib calls
+  anyway: `verify` on the octets is, since #915. The reasoning the
+  comment gives is unchanged and correct; only the name it hangs on had
+  moved.
+
 - **BIP32's offset stays the octets the hash left.** `_pub_key_offset`
   read the hmac's left half into an integer, compared it with the group
   order, and handed it to `keys.pubkey_tweak_add` — which writes it back
