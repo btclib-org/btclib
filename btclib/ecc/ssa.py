@@ -69,11 +69,11 @@ from btclib.curves.curve import (
     _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_serves,
-    _libsecp256k1_xonly_pubkey_var,
     _y_even_var,
     mult,
     multi_mult_var,
 )
+from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -583,6 +583,33 @@ def _assert_commitment_(
             raise BTClibRuntimeError("commitment verification failed")
 
 
+def _invalid_x(x: int) -> str:
+    """Return the message an x that is no x-coordinate is refused with."""
+    err_msg = "invalid x-coordinate: "
+    return err_msg + (f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}")
+
+
+def _x_only_bytes(x: int, ec: Curve) -> bytes:
+    """Return the 32 octets of an x, refusing what is no field element.
+
+    The range check `int.to_bytes` cannot make on its own -- an x at or
+    above 2**256 is an OverflowError about a builtin, and one between p
+    and 2**256 is octets libsecp256k1 will refuse -- and the message is
+    `ec.y_var`'s, spelled here rather than reached by calling it: this
+    exists not to take that square root.
+
+    Whether the x is an x-coordinate at all is not asked. What asks is
+    the verification these octets are on their way to, whose parse is
+    that same lift (issue 887); `_invalid_x` is the message for what it
+    refuses.
+    """
+    if not 0 <= x < ec.p:
+        err_msg = "x-coordinate not in 0..p-1: "
+        err_msg += f"{hex_string(x)}" if x > HEX_THRESHOLD else f"{x}"
+        raise BTClibValueError(err_msg)
+    return x.to_bytes(ec.p_size, byteorder="big")
+
+
 def assert_as_valid_(
     msg: Octets,
     Q: BIP340PubKey,
@@ -628,19 +655,23 @@ def assert_as_valid_(
     # issue 169 down the Python path was the 32-byte gate in front of it,
     # never the call itself, and they are verified here now
     if _libsecp256k1_serves(sig.ec, hf):
-        # the x-only key parsed once, where the lift and this parse both
-        # used to run: xonly_pubkey_parse proves x an x-coordinate, which is
-        # what the lift proved, and it is the call the verification makes
-        # anyway -- so what goes is the lift, whose y nothing on this path
-        # reads, and the serialization inside it (issue 887)
-        xonly_pubkey = _libsecp256k1_xonly_pubkey_var(x_Q, sig.ec)
+        # x proved an x-coordinate once, by the verification itself: that
+        # parse is the lift, and validating the key before it would be the
+        # same square root twice (issue 887). So nothing here proves the
+        # key -- what a ValueError from below means is that it was no
+        # point, which is this function's to phrase
+        x_bytes = _x_only_bytes(x_Q, sig.ec)
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one. What
         # it would run again is the lift of r, which is not free even
         # delegated: 0.14 us against 3.1, of a verification that is 21 in
         # total
         sig_bytes = sig.serialize(check_validity=False)
-        if not libsecp256k1_ssa.verify_(msg, xonly_pubkey, sig_bytes):
+        try:
+            verified = libsecp256k1_ssa.verify(msg, x_bytes, sig_bytes)
+        except ValueError as e:
+            raise BTClibValueError(_invalid_x(x_Q)) from e
+        if not verified:
             raise BTClibRuntimeError("signature verification failed")
         return
 

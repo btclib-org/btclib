@@ -1351,6 +1351,60 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The boundary with libsecp256k1 speaks only octets.** btclib held a
+  cffi `CData` in four modules — `curves.curve`, `curves.sec_point`,
+  `to_pub_key` and, briefly, `script.taproot` — and called `keys.parse`,
+  `keys.serialize` and `xonly.parse` to make and unmake it. It did so to
+  avoid parsing one public key twice, and what that was worth turns out
+  to be **0.256 us**: `keys.parse` on the uncompressed serialization,
+  where both coordinates are there to read, against 2.343 on the
+  compressed one, which is a field square root. The uncompressed
+  serialization *is* a parsed key, and nothing has to own its lifetime.
+
+  So `CData` is gone from btclib, and with it every `parse` and
+  `serialize` call: the bindings' own
+  [#161](https://github.com/btclib-org/btclib-secp256k1/issues/161) is
+  where the argument is recorded, and `keys.reserialize` and the
+  widening of every x-only entry point to 32, 33 or 65 octets
+  (btclib-secp256k1#162 and #163) are what it took.
+
+- **What replaces it is not a second validation.** A public key proved a
+  point here and then handed to a call that proves it again lifts one x
+  twice, which is issue #887 read the other way round: the fix is not to
+  carry the first proof, it is not to make it. `to_pub_key._sec_from_pub_key`
+  and `_sec_from_key` are the conversions without the proof, for a caller
+  whose next call is one — `ecc.dsa`'s verification, `ecc.ssa`'s, and
+  `script.taproot`'s tweak — and each translates the `ValueError` that
+  comes back into btclib's own refusal.
+
+  `curves.curve._libsecp256k1_xonly_pubkey_var` goes with them:
+  `ssa.verify` on the octets validates and verifies in the one parse the
+  separate lift was paying for anyway. `_y_even_var` and
+  `_is_x_coordinate_var` ask `keys.reserialize` in place of a parse and a
+  serialization, and `curves.sec_point._sec_from_octets` is the proof
+  `pub_keyinfo_from_pub_key` still makes, being a function that validates
+  and nothing else.
+
+- **One refusal moves, and it is named where it moves to.** Octets of the
+  right size that are no point reach `script.taproot`'s tweak as the
+  public key they were meant to be, and are refused there as an invalid
+  internal public key; `pub_keyinfo_from_key`, which proves them, reports
+  that they are neither kind of key. Every other message is unchanged,
+  and the two spellings of "not an x-coordinate" are held equal by
+  `tests/ecc/ssa_test.py` on both arithmetics, as
+  `tests/curves/curve_test.py` used to hold them.
+
+- Measured on an Apple M5, macOS 26.6, arm64, CPython 3.14.6, median of
+  seven alternating rounds of 4000 calls, against `abfbac22` with the
+  same harness on both trees and each figure normalized by a `mult`
+  control that moved 0.65% between them: `dsa.verify` of an uncompressed
+  key **10.8% faster**, of a compressed key 1.3% slower, of a `Point`
+  2.4% slower — that last one being the argument normalization the
+  octets entry point does and the parsed one skipped — `ssa.verify` 0.8%
+  slower, `taproot.output_pubkey` 1.0% faster, `point_from_octets`
+  unchanged. What was bought is not speed but the boundary; what it cost
+  is inside a couple of percent either way.
+
 - **Public key recovery refuses the key at infinity** (issue #890).
   `dsa.recover_pub_keys_` could report INF as one of the keys it
   recovered, and `recover_pub_key_` could return it: the candidate of step

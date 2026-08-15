@@ -61,7 +61,7 @@ from btclib.number_theory import mod_inv, mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import (
     PubKey,
-    _libsecp256k1_pubkey_from_pub_key,
+    _sec_from_pub_key,
     point_from_pub_key,
 )
 from btclib.utils import (
@@ -983,13 +983,12 @@ def assert_as_valid_(
 
     if _libsecp256k1_serves(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
-        # the parsed key, not the octets: validating a public key proves it
-        # a point by parsing it, and for a compressed one that parse is a
-        # field square root -- 2.35 us of a 22.78 us verification, paid
-        # twice when the verification below parsed the same 33 bytes again
-        # (issue 887). `_libsecp256k1_pubkey_from_pub_key` is that same
-        # validation with the parsed key kept
-        pubkey = _libsecp256k1_pubkey_from_pub_key(key)
+        # the octets unproven, because the verification below proves them:
+        # validating a public key is parsing it, for a compressed one a
+        # field square root, and doing it here as well lifts the same x
+        # twice -- 2.35 us of a 22.78 us verification (issue 887). So a
+        # key that is no point leaves through the ValueError caught below
+        sec = _sec_from_pub_key(key)
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one.
         # What it would run again is the congruence check of r, which is
@@ -1004,9 +1003,15 @@ def assert_as_valid_(
         # and serialized it again for verify to parse what came out, where
         # libsecp256k1 documents sigout == sigin for its own
         # signature_normalize (issue 889)
-        if not libsecp256k1_dsa.verify_(
-            msg_hash_bytes, pubkey, sig_bytes, normalize=True
-        ):
+        try:
+            verified = libsecp256k1_dsa.verify(
+                msg_hash_bytes, sec, sig_bytes, normalize=True
+            )
+        except ValueError as e:
+            # what the octets were not: a point of the curve. Never echoed,
+            # as `to_pub_key` does not echo them either
+            raise BTClibValueError("not a public key") from e
+        if not verified:
             raise BTClibRuntimeError("signature verification failed")
         return
 

@@ -10,7 +10,6 @@ from hashlib import sha256 as hf
 from typing import Any
 
 import pytest
-from btclib_secp256k1 import CData
 from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
@@ -411,21 +410,21 @@ def test_a_message_of_any_size_reaches_the_bindings(
     sizes = (0, 1, 17, 31, 32, 33, 100)
     calls: list[tuple[str, int]] = []
     real_sign_custom = libsecp256k1_ssa.sign_custom
-    # `verify_`, the entry point that takes the already-parsed x-only key:
-    # verification hands it the key it validated rather than the octets, so
-    # nothing here parses the same 32 bytes twice (issue 887)
-    real_verify = libsecp256k1_ssa.verify_
+    # `verify` on the octets: proving x an x-coordinate is what that parse
+    # does, so the key is not validated before it and the same 32 bytes
+    # are not parsed twice (issue 887)
+    real_verify = libsecp256k1_ssa.verify
 
     def sign_custom(msg: bytes, prvkey: int, aux: bytes) -> bytes:
         calls.append(("sign_custom", len(msg)))
         return real_sign_custom(msg, prvkey, aux)
 
-    def verify_(msg: bytes, xonly_pubkey: CData, sig: bytes) -> bool:
+    def verify(msg: bytes, pubkey_bytes: bytes, sig: bytes) -> bool:
         calls.append(("verify", len(msg)))
-        return real_verify(msg, xonly_pubkey, sig)
+        return real_verify(msg, pubkey_bytes, sig)
 
     monkeypatch.setattr(libsecp256k1_ssa, "sign_custom", sign_custom)
-    monkeypatch.setattr(libsecp256k1_ssa, "verify_", verify_)
+    monkeypatch.setattr(libsecp256k1_ssa, "verify", verify)
 
     q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
     for size in sizes:
@@ -1139,3 +1138,36 @@ def test_verification_under_a_prepared_key(monkeypatch: pytest.MonkeyPatch) -> N
             assert ssa.verify(msg, key, sig)
             assert not ssa.verify(b"another message", key, sig)
         no_bindings(monkeypatch)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_a_key_that_is_no_x_coordinate_is_refused_in_the_lift_s_words(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both arithmetics refuse a bad x as `ec.y_var` refuses it.
+
+    The delegated path never lifts the key -- the verification's own parse
+    is that square root (issue 887) -- so the two messages are written in
+    two places and would drift apart unnoticed but for this: what would
+    notice is a caller matching on the text.
+
+    Four x, for both messages in both renderings: `ec.p` and above it are
+    the range refusal, `0xDEADBEEF00000000` an x no point of the curve
+    has, and 7 the same refusal below `HEX_THRESHOLD`, where the value
+    renders in decimal rather than as grouped hex.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+    sig = ssa.sign_(msg, q)
+    assert ssa.verify_(msg, x_Q, sig)
+
+    for x in (ec.p, ec.p + 1, 0xDEADBEEF00000000, 7):
+        with pytest.raises(BTClibValueError) as verified:
+            ssa.assert_as_valid_(msg, x, sig)
+        with pytest.raises(BTClibValueError) as lifted:
+            ec.y_var(x)
+        assert str(verified.value) == str(lifted.value)

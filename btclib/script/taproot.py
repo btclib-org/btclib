@@ -16,7 +16,6 @@ from __future__ import annotations
 from io import BytesIO
 from typing import cast
 
-from btclib_secp256k1 import CData
 from btclib_secp256k1 import xonly as libsecp256k1_xonly
 
 from btclib import var_bytes
@@ -40,11 +39,7 @@ from btclib.script.op_codes_tapscript import (
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import (
-    Key,
-    _pub_keyinfo_and_pubkey_from_key,
-    point_from_key,
-)
+from btclib.to_pub_key import Key, _sec_from_key, point_from_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -272,19 +267,18 @@ def _output_pubkey_and_internal_key(
         # path, and validating a key is how a point is built, so the same
         # modular square root of the same x was taken twice -- 74 us of the
         # 311 an output key cost there (issue 896). The bindings arm builds
-        # no point of btclib's own: what it keeps instead is the parsed key
-        # the validation made, which `_tweaked_pubkey` tweaks without
-        # parsing the x a second time. `point_from_key` is 6.58 us against
-        # `pub_keyinfo_from_key`'s 3.74, which is a sixth of a 17.3 us
-        # output key added to the path every install takes.
+        # no point of btclib's own and proves nothing either: the tweak
+        # below parses these octets, and that parse is the proof, so a key
+        # that is no point is refused there instead of here (issue 887).
+        # `point_from_key` is 6.58 us against `_sec_from_key`'s 3.74, which
+        # is a sixth of a 17.3 us output key added to the path every
+        # install takes.
         #
         # So each arm reads what it uses, and both read the same spellings:
-        # `compressed=None` accepts the 33-byte and the 65-byte form as
+        # `_sec_from_key` accepts the 33-byte and the 65-byte form as
         # `point_from_key` does, and `[1:33]` is the x-coordinate of either
         if _libsecp256k1_serves(secp256k1, None):
-            (sec, _), pubkey = _pub_keyinfo_and_pubkey_from_key(
-                internal_pubkey, None, None
-            )
+            sec = _sec_from_key(internal_pubkey)
             pub_key = sec[1:33]
             y_even: int | None = None
         else:
@@ -296,19 +290,19 @@ def _output_pubkey_and_internal_key(
             x_P, y_P = point_from_key(internal_pubkey)
             pub_key = x_P.to_bytes(32, "big")
             y_even = y_P if y_P % 2 == 0 else secp256k1.p - y_P
-            pubkey = None
+            sec = None
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
         pub_key = bytes.fromhex(h_str)
         # BIP341's unspendable point is published as an x-only key and
-        # nothing else, so there the lift is the only one there is
+        # nothing else, so there the 32 octets are all there is
         y_even = None
-        pubkey = None
+        sec = None
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
         h = b""
-    q, parity_bit = _tweaked_pubkey(pub_key, h, y_even, pubkey)
+    q, parity_bit = _tweaked_pubkey(pub_key, h, y_even, sec)
     return q, parity_bit, pub_key
 
 
@@ -329,7 +323,7 @@ def output_pubkey(
 
 
 def _tweaked_pubkey(
-    pub_key: bytes, h: bytes, y_even: int | None, pubkey: CData | None
+    pub_key: bytes, h: bytes, y_even: int | None, sec: bytes | None
 ) -> tuple[bytes, int]:
     """Return the x-only key an internal key tweaked by h, and its parity.
 
@@ -344,10 +338,11 @@ def _tweaked_pubkey(
     y_even is the even y-coordinate of pub_key, which `output_pubkey` has
     on the Python path: validating the key is a modular square root of
     this very x, and taking a second one is the redundancy of issue 896.
-    pubkey is the parsed key of the bindings path, where validating is
-    `ec_pubkey_parse` and that parse is the same square root:
-    `xonly.tweak_add_` converts it, which reads the y it is given, where
-    `xonly.tweak_add` parses the 32 octets and lifts the x again.
+    sec is the full public key of the bindings path, uncompressed where
+    the caller had a point to serialize: `xonly.tweak_add` reads the y it
+    is given there, where the 32 x-only octets are a square root to lift
+    -- 4.11 us against 5.92, and the same key either way, `02 || x`,
+    `03 || x` and `04 || x || y` all naming it.
     """
     t = _tap_tweak(pub_key, h)
 
@@ -368,9 +363,7 @@ def _tweaked_pubkey(
     # being the one that asks for a different reason: which form of the
     # internal key is worth building, rather than which arithmetic runs
     if _libsecp256k1_serves(secp256k1, None):
-        if pubkey is None:
-            return libsecp256k1_xonly.tweak_add(pub_key, t)
-        return libsecp256k1_xonly.tweak_add_(pubkey, t)
+        return libsecp256k1_xonly.tweak_add(pub_key if sec is None else sec, t)
 
     P_x = int.from_bytes(pub_key, "big")
     P_y = secp256k1.y_even_var(P_x) if y_even is None else y_even
