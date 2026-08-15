@@ -38,6 +38,7 @@ from typing import Any
 from btclib_secp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
 from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib_secp256k1.keys import pubkey_verify as libsecp256k1_pubkey_verify
 from btclib_secp256k1.keys import reserialize as libsecp256k1_reserialize
 from btclib_secp256k1.mult import mult as libsecp256k1_mult
 
@@ -478,10 +479,11 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     Existence and nothing else, which is what a caller with no use for
     the y has to ask, and it is a question the Legendre symbol answers
     without ever forming a root: 14 us on secp256k1 against the 75 of
-    ec.y, and ec_pubkey_parse answers the same of the compressed key
-    0x02 || x in 2.4 -- the same answer three ways, all three refusing
-    the same x. It is libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var`
-    being `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
+    ec.y, and `keys.pubkey_verify` answers the same of the compressed key
+    0x02 || x in 2.4, being ec_pubkey_parse and a verdict -- the same
+    answer three ways, all three refusing the same x. It is
+    libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var` being
+    `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
 
     A bool rather than an exception, because the value that names itself
     in an error message is the caller's and not this x: dsa.Sig's
@@ -492,11 +494,7 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     """
     sec = _compressed_sec(x, ec)
     if sec is not None:
-        try:
-            libsecp256k1_reserialize(sec)
-        except ValueError:
-            return False
-        return True
+        return libsecp256k1_pubkey_verify(sec)
 
     if not 0 <= x < ec.p:
         return False

@@ -10,7 +10,7 @@ from btclib_secp256k1.keys import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib_secp256k1.keys import reserialize as libsecp256k1_reserialize
+from btclib_secp256k1.keys import pubkey_verify as libsecp256k1_pubkey_verify
 
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
@@ -183,15 +183,16 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     them a point of the curve -- which is the whole of what
     to_pub_key.pub_keyinfo_from_pub_key wants of it.
 
-    For a compressed key on secp256k1 that proof is `keys.reserialize`,
-    which is ec_pubkey_parse and a serialization of what it read back into
-    the form it came in: 2.7 us against the 4.4 of a round trip that lifts
-    x, re-proves the point it lifted on the curve and serializes it again.
-    The parse is also the very call libsecp256k1 will make on these bytes
-    if they are on their way to its dsa.verify -- which is why a caller
-    that is about to make it does not come through here at all, but
-    through `to_pub_key._sec_from_pub_key`, and lets that call be the
-    proof (issue 887).
+    For a compressed key on secp256k1 that proof is `keys.pubkey_verify`,
+    which is ec_pubkey_parse and a verdict: 2.4 us against the 4.4 of a
+    round trip that lifts x, re-proves the point it lifted on the curve
+    and serializes it again -- and against the 2.7 of `keys.reserialize`,
+    which answers the octets this already has. The parse is also the very
+    call libsecp256k1 will make on these bytes if they are on their way to
+    its dsa.verify -- which is why a caller that is about to make it does
+    not come through here at all, but through
+    `to_pub_key._sec_from_pub_key`, and lets that call be the proof
+    (issue 887).
 
     Anything the bindings refuse falls through to the round trip, and so
     does every 65-byte form: the message that names what is wrong with
@@ -201,8 +202,11 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     and there is nothing to ask here.
     """
     compressed = len(pub_key) == ec.p_size + 1
-    if compressed and _libsecp256k1_serves(ec, None):
-        with contextlib.suppress(ValueError):
-            return libsecp256k1_reserialize(pub_key)
+    if (
+        compressed
+        and _libsecp256k1_serves(ec, None)
+        and libsecp256k1_pubkey_verify(pub_key)
+    ):
+        return pub_key
 
     return bytes_from_point(point_from_octets(pub_key, ec), ec, compressed)
