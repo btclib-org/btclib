@@ -24,7 +24,6 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
-- **A mutation session runs under an 8 GiB ceiling, so a mutant that
 - **The squash is made here rather than pressed, so every landing is the
   fast-forward** (issue #958). #944 wrote the rule as two: a branch of
   several commits merged with the button, a branch of one
@@ -62,7 +61,8 @@ documented at release-notes length in the first place, and are still in
   close between the merge and the tag is a surprise worth not having.
   The twin, landed first, is
   [btclib-secp256k1's `7944dce`](https://github.com/btclib-org/btclib-secp256k1/commit/7944dce)
-- **A mutation session runs under a 2 GiB ceiling, so a mutant that
+
+- **A mutation session runs under an 8 GiB ceiling, so a mutant that
   allocates without end is recorded rather than fatal** (issue #948). The
   mutant in question is already killed by a test that exists:
   `tests/ecc/dh_test.py` asks `ansi_x9_63_kdf` for one octet past the
