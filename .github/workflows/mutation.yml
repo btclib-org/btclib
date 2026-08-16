@@ -254,11 +254,18 @@ jobs:
       # The matrix value reaches the shell through the environment rather
       # than through a `${{ }}` inside the script, which would be text
       # pasted into it: the value is this file's own, and the habit is what
-      # zizmor's template-injection rule is asking for
+      # zizmor's template-injection rule is asking for.
+      #
+      # Under the same ceiling as the sessions below, and that is what makes
+      # this step the ceiling's own test: a limit too low for what the test
+      # commands legitimately need fails here, against the unmutated tree,
+      # rather than reporting every mutant killed -- the failure mode the
+      # paragraph above is already about
       - name: Check the baselines
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
+          ulimit -v 2097152
           while read -r config _; do
             [ -n "$config" ] || continue
             uv run --locked --no-default-groups --group test --group mutation \
@@ -292,6 +299,30 @@ jobs:
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
+          # 2 GiB of address space, inherited by `cosmic-ray exec` and by
+          # every test command under it, which is what turns issue #948's
+          # dead host into a recorded verdict. The mutant is already killed
+          # by a test that exists: `dh_test.py` asks for one octet past the
+          # bound expecting a refusal, and `pytest.raises(BTClibValueError)`
+          # does not catch the MemoryError that arrives instead, so the
+          # command exits non-zero and the mutant is KILLED. What was
+          # missing is a process alive to say so -- unbounded, the loop
+          # grows past the host's own 16 GiB and takes the job's remaining
+          # steps with it.
+          #
+          # 2 GiB because it sits between two numbers far apart: these test
+          # commands run in a fraction of it, and the loop wants 358 GiB, so
+          # anything between them works and the low end is what makes a
+          # mutant cheap. Measured at 89.4 bytes an iteration, the ceiling
+          # is 24e6 iterations away -- seconds, against a host that does not
+          # come back. Whether it clears what pytest needs is not asserted
+          # here: the baseline step above runs under the same limit and
+          # fails the run if it does not.
+          #
+          # Not the per-mutant `timeout`, which cannot reach this: 300 s is
+          # a width the slow-but-harmless mutants are measured against, and
+          # memory goes at well under it
+          ulimit -v 2097152
           # what the host's memory is doing while the mutants run, and the
           # question is issue #948's: two profiles die here with the job's
           # own remaining steps reported `skipped` rather than failed, which

@@ -24,6 +24,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **A mutation session runs under a 2 GiB ceiling, so a mutant that
+  allocates without end is recorded rather than fatal** (issue #948). The
+  mutant in question is already killed by a test that exists:
+  `tests/ecc/dh_test.py` asks `ansi_x9_63_kdf` for one octet past the
+  bound and expects a refusal, and with the guard mutated away what
+  arrives instead is not the `BTClibValueError` the test catches. What was
+  missing is a process alive to report it — the loop appends a digest per
+  iteration towards 358 GiB, so the host's memory went first and the job's
+  later steps died with it, which is why those profiles produced neither
+  report nor artifact.
+
+  `ulimit -v` bounds the address space `cosmic-ray exec` and every test
+  command under it inherit, so the failure lands inside pytest as a
+  `MemoryError` and the verdict is KILLED. 2 GiB sits between two numbers
+  far apart — what these commands need against what the loop wants — and
+  the low end is what makes such a mutant cost seconds. The baseline step
+  runs under the same limit, so a ceiling too low for legitimate use fails
+  the run against the unmutated tree instead of reporting every mutant
+  killed. The per-mutant `timeout` cannot do this: memory goes at well
+  under its 300 seconds
+
 - **The weekly mutation run prints the host's memory, and the script
   profile is cut sooner** (issue #948). Two of the eleven profiles die
   mid-session with the job's own later steps reported `skipped` rather
