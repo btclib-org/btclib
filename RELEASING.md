@@ -288,13 +288,19 @@ word, and step 1 asks it of both.
    enforces, and a pull request that never mentions them reads exactly
    like one that skipped them.
 
-   And merge it the way every pull request here is merged, with **"Squash
-   and merge"**: this branch carries a version bump and two retitles, not
-   a cycle of work, and CONTRIBUTING.md gives the rest of the reason. It
-   is the only method the repository enables, so the button offers no
-   other — a merge commit was refused by `main`'s required linear history
-   anyway, and a rebase merge would have replayed the branch's steps into
-   a history whose rule is one commit per landed change.
+   And merge it with **"Squash and merge"** where it carries more than
+   one commit, which it usually does: a version bump and two retitles,
+   not a cycle of work, and CONTRIBUTING.md gives the rest of the
+   reason. Squash is the only *button* the repository enables — a merge
+   commit was refused by `main`'s required linear history anyway, and a
+   rebase merge would have replayed the branch's steps into a history
+   whose rule is one commit per landed change.
+
+   Where the release branch is a single commit, the fast-forward of
+   REPOSITORY.md is the better landing and not merely an allowed one: it
+   is the release commit that gets tagged, and a squash would replace it
+   with one signed by GitHub's web-flow key, leaving the tag over a
+   commit the maintainer did not sign.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:

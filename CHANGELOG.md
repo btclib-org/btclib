@@ -24,6 +24,29 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **Three files said squash was how a pull request lands; one of the two
+  ways is a fast-forward** (issue #941). `REPOSITORY.md` has documented
+  the `main-self-merge` bypass and its fast-forward sequence since the day
+  the rulesets went up, and its own *Merge methods* section two headings
+  below said "squash is the only method enabled" — true of the button and
+  read as true of the landing. `CONTRIBUTING.md` said "a pull request is
+  merged with Squash and merge" without qualification, and `RELEASING.md`
+  said "the way every pull request here is merged".
+
+  The two are decided by the branch rather than by taste: a contributor's
+  pull request usually carries several commits and is squashed, the
+  maintainer's usually carries one and is fast-forwarded. What the
+  fast-forward buys is what a squash cannot — the sha does not change, so
+  `main` receives the exact commit CI tested, signed by the maintainer
+  rather than by GitHub's web-flow key, and a branch stacked on it keeps
+  applying instead of needing a rebase and a fresh matrix run per level.
+
+  `RELEASING.md` gains the case where it matters most: a release branch of
+  one commit wants the fast-forward and not merely tolerates it, the tag
+  otherwise going over a commit the maintainer did not sign.
+  `CONTRIBUTING.md` says the fast-forward needs a bypass no contributor
+  has, which is why it is described there rather than instructed.
+
 - **The HWI emulator jobs no longer appear on a pull request's checks.**
   `HWI against a Trezor emulator` and `HWI against a Ledger emulator`
   ran as jobs of `integration.yml`, guarded by `if:

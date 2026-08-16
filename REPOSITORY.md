@@ -320,8 +320,8 @@ git push origin <branch>:main
 
 ## Merge methods
 
-**Squash is the only method enabled**, so it is a setting and not only the
-convention CONTRIBUTING.md states:
+**Squash is the only *button* enabled**, so it is a setting and not only
+the convention CONTRIBUTING.md states:
 
 ```shell
 gh api repos/btclib-org/btclib \
@@ -329,6 +329,18 @@ gh api repos/btclib-org/btclib \
 ```
 
 answers `true` for the first and `false` for the other two.
+
+It is not the only way a pull request lands, and this section named it as
+if it were while the section above it documented the other: **a branch of
+a single commit is fast-forwarded** through the `main-self-merge` bypass,
+which is the sequence written there. What that buys is what a squash
+cannot: the sha does not change, so `main` receives the exact commit CI
+tested, signed by the maintainer rather than by GitHub's web-flow key,
+and a branch stacked on it keeps applying instead of needing a rebase and
+a fresh run of the matrix per level. Which of the two applies is decided
+by the branch and not by taste — a contributor's pull request usually
+carries several commits and is squashed; the maintainer's usually carries
+one.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The

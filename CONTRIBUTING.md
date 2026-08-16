@@ -1284,11 +1284,24 @@ check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
 Nothing is lost in `main`'s history by doing so, because **a pull request
-is merged with "Squash and merge"**: the branch becomes one commit, so
-the review's commits are the record of the review and `main` keeps one
-commit per landed change. A merge commit would put the branch's steps
-into `main` and a rebase merge would replay them one by one — `main` is
-linear by branch rule, and one change is one commit there.
+of several commits is merged with "Squash and merge"**: the branch
+becomes one commit, so the review's commits are the record of the review
+and `main` keeps one commit per landed change. A merge commit would put
+the branch's steps into `main` and a rebase merge would replay them one
+by one — `main` is linear by branch rule, and one change is one commit
+there.
+
+**A pull request that is already one commit may instead land as a
+fast-forward**, which is the maintainer's own path and needs a ruleset
+bypass no contributor has: REPOSITORY.md describes it. It is worth
+knowing about from here for two reasons. The sha does not change, so the
+commit `main` receives is the exact commit CI tested and the signature on
+it is the author's rather than GitHub's web-flow key — and a branch
+stacked on that one keeps applying, where a squash would have rewritten
+its base. Which is why a correction added on top of a reviewed branch is
+still the right shape: whether the branch is squashed or fast-forwarded
+is decided when it lands, and by then the review has its record either
+way.
 
 What that commit says is the repository's to answer, not this file's:
 
@@ -1304,9 +1317,9 @@ is the branch's commit messages either way — never the pull request's
 body, which stays on the pull request.
 
 **It is a setting and not a choice made once per pull request.** Squash is
-the only method the repository enables, so there is no other button to
-read; REPOSITORY.md has that setting and what the other two would have
-cost.
+the only *button* the repository enables, so there is no other to read;
+REPOSITORY.md has that setting, what the other two would have cost, and
+the fast-forward that is not a button at all.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a
