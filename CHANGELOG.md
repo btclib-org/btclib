@@ -4727,6 +4727,23 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **A silent-payment scan stops looking for labels a wallet has none of**
+  (issue #916). `scan_outputs` called `_labelled` for every output that
+  did not match directly, and `_labelled` is a lift of the output key and
+  two point additions per parity before it can answer — which for an
+  empty label map it always answers None. A hundred outputs 45.8 µs
+  against 3167.2, and the answer is `_labelled`'s own. BIP352 asks for
+  the change label m = 0 whatever else a wallet used, so the map is
+  normally not empty; what this spares is the caller who passed none, and
+  the scan of a transaction that pays somebody else entirely, which is
+  every transaction but one.
+
+  Where the map is not empty, `_labelled`'s two additions are `_sum_var`'s
+  now rather than the Python arithmetic under them, this being the inner
+  loop of a scan — once per unmatched output, and again at every k: a
+  hundred outputs 2202.4 µs against 3166.5. The negation of `P_k` is the
+  same point for both parities and is taken once.
+
 - **A sum of points is one call to the bindings** (issue #912). The
   issue expected this to be a loss and asked for the measurement rather
   than the assumption, and the measurement went the other way:
