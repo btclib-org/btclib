@@ -24,6 +24,18 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The mutation button asks for one profile, where it used to cost the
+  whole matrix.** `workflow_dispatch` takes a `profile` input naming a
+  slug, `all` being the default and what the schedule does. A question
+  about one scope — a budget changed, a survivor that moved, a timeout
+  argued about — was answered by eleven runners and, at the consensus
+  job's ceiling, most of an afternoon, which is a question nobody asks
+  twice: it gets answered once and quoted for months instead. The matrix
+  stays a literal list with its reasoning beside each entry rather than
+  json a setup job prints, so an unasked-for profile still takes a runner
+  and gives it back in seconds; the selection is an `env` the steps read,
+  the job's own `if` being the one place `matrix` is withheld
+
 - **The squash is made here rather than pressed, so every landing is the
   fast-forward** (issue #958). #944 wrote the rule as two: a branch of
   several commits merged with the button, a branch of one

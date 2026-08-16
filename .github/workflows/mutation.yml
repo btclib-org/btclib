@@ -39,6 +39,36 @@ on:
   # the escape hatch, and the way to spend a whole afternoon on the engine
   # session that the weekly budget only samples
   workflow_dispatch:
+    inputs:
+      profile:
+        # one scope's numbers are what a question about that scope needs,
+        # and without this the only way to ask is the whole matrix: eleven
+        # runners and, at the consensus job's ceiling, most of an
+        # afternoon. Re-measuring one configuration -- a budget changed, a
+        # timeout argued about, a survivor that moved -- is worth minutes
+        # rather than that, and a question nobody can afford to ask twice
+        # gets answered once and quoted for months.
+        # `all` is the default and is what the schedule does, the
+        # button having had no other behaviour before this input
+        # existed. Spelled rather than left empty: a blank entry in a
+        # dropdown reads as a mistake
+        description: one profile's slug, or all of them
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - consensus
+          - parsers
+          - keys
+          - signing
+          - block
+          - shared
+          - signatures
+          - descriptors
+          - psbt
+          - script
+          - boundaries
   # No pull_request trigger, unlike links.yml, which does run itself when
   # its own configuration changes. The difference is the clock: a link
   # sweep is a couple of hundred requests, a mutation session is hours, so
@@ -75,6 +105,21 @@ jobs:
     # job would have to come out of its 180 minutes or push it past the
     # ceiling
     timeout-minutes: ${{ matrix.ceiling }}
+    # whether this profile is one the run was asked for. It is an `env` and
+    # not the job's `if`, which cannot see `matrix` -- the context is
+    # offered to `timeout-minutes` above and to `env` here, and withheld
+    # from `if`, so a job cannot decline itself on what the matrix gave it.
+    # The steps below decline instead: an unasked-for profile still takes a
+    # runner and gives it back in seconds, which is the price of keeping
+    # the matrix a literal list with its reasoning beside each entry rather
+    # than json a setup job prints.
+    # `!inputs.profile` is the schedule's case, which has no `inputs` at
+    # all: the negation reads that absence as every profile, where a
+    # comparison would be against null
+    env:
+      SELECTED: >-
+        ${{ !inputs.profile || inputs.profile == 'all'
+            || inputs.profile == matrix.slug }}
     strategy:
       # one profile's runner dying is not a reason to take the other's
       # numbers with it
@@ -235,11 +280,13 @@ jobs:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
       - name: Checkout code
+        if: env.SELECTED == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # see the checkout of the test-py job in test.yml
           persist-credentials: false
       - name: Setup uv
+        if: env.SELECTED == 'true'
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           # the wheels uv.lock pins do not change between runs, so the
@@ -262,6 +309,7 @@ jobs:
       # rather than reporting every mutant killed -- the failure mode the
       # paragraph above is already about
       - name: Check the baselines
+        if: env.SELECTED == 'true'
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
@@ -296,6 +344,7 @@ jobs:
       # turn -- SIGTERM leaves the marker at its mutated value, SIGINT at
       # its restored one, timeout still exiting 124 either way
       - name: Run the mutation sessions
+        if: env.SELECTED == 'true'
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
@@ -400,7 +449,7 @@ jobs:
       # short, or one whose exec died, still holds every verdict reached
       # before that, and those are what somebody reads on Monday
       - name: Write the reports
-        if: always()
+        if: always() && env.SELECTED == 'true'
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
@@ -457,7 +506,7 @@ jobs:
       # uploads under one name is an error, and the slug is what tells the
       # consensus sessions from the parser ones in the Actions tab
       - name: Upload the sessions and the reports
-        if: always()
+        if: always() && env.SELECTED == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mutation-${{ matrix.slug }}-sessions
