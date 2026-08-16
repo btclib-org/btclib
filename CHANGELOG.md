@@ -4604,6 +4604,31 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **Where a measured timing lives is written down** (issue #940).
+  CONTRIBUTING.md's "Documentation and comments" already asked for the
+  command beside a number, so that a reader can re-measure "instead of
+  trusting a figure whose date they cannot see". A timing is the one
+  figure with no such command in this repository — the benchmarks are
+  their own repository, and nothing re-measures in CI, a timing gate on
+  a shared runner being a flake.
+
+  The convention is now stated there, and it is about where a figure is
+  read rather than about dates: a docstring is read as a statement about
+  the code as it stands, so a number in one is a claim about now, while
+  a CHANGELOG entry is read as the history of a release — with calendar
+  versioning putting the release day in the heading over it once the
+  release is cut. So the docstring keeps the number that carries the
+  reason, and the matrix per size or per caller goes in the entry that
+  took it. The entries of this release carry those matrices, and the
+  docstrings above them point at the entry rather than repeating it.
+
+  The evidence is what made it a decision rather than a taste. Two
+  figures went stale inside a week and were found only because a branch
+  was standing on them: `_y_even_var` recorded 2.7 µs and "0.3 more than
+  `_is_x_coordinate_var`" where the same spelling measures 3.4 and 1.0,
+  and `_libsecp256k1_multi_mult_` carried a table for a shape the
+  function no longer had.
+
 - **Why the bindings' `ecdh.shared_secret` has no caller here is now
   written in one place** (issue #909). It multiplies and hashes in one
   call, and the hash is SHA256 of the compressed shared point with no way

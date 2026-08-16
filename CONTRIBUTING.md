@@ -1215,6 +1215,22 @@ claim — and never state how many of anything a file holds: a stated
 total is a line every open branch has to edit, and two branches
 moving it to the same wrong number merge without a conflict.
 
+**A table of measured timings belongs in the CHANGELOG, not in a
+docstring.** The rule above wants the command beside the number, and a
+timing is the one figure that has none here: the benchmarks are their
+own repository, and no gate re-measures — a timing gate on a shared
+runner is a flake. What is left to do instead is put it where it is
+read as what it is. A docstring is read as a statement about the code
+as it stands, so a figure in one is a claim about now; a CHANGELOG
+entry is read as the history of a release, and calendar versioning
+puts the release day in the heading over it once the release is cut.
+So the docstring keeps the number that carries the *reason*, the one a
+reader needs to follow the decision — "half of what a signature
+costs", "twice as fast, flat in n, no crossover" — and the matrix per
+size or per caller goes in the entry that took it. Two figures were
+found stale in one week by the branch standing on them, and neither
+would have been noticed otherwise (issue #940).
+
 **One fact in one place.** Two files stating the same thing become
 two files disagreeing about it; the second one points at the first.
 
