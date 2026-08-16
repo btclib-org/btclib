@@ -4877,6 +4877,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **`ansi_x9_63_kdf` asks for its buffer once, rather than joining a list
+  of digests** (issue #952). The list, the join's copy and the final
+  slice held the keying data three times over, and reached that total a
+  digest at a time. One `bytearray` of whole blocks, written through a
+  `memoryview` and cut to size on the way out, holds it twice: deriving
+  64 MiB peaks at 128.0 MiB above baseline against 370.3, which is 2.00x
+  the output against 5.79x. The keying data is unchanged at every size —
+  the blocks depend on the counter alone, so a size says where the
+  sequence stops and nothing else, which is what the new test holds by
+  deriving every size up to three blocks and comparing each with the
+  longest cut to its length.
+
+  It costs about 0.03 µs a block, so a proportion and not a constant:
+  1.46x at 32 octets, 1.35x at 64, 1.18x at 1024, 1.11x at 16384, medians
+  of seven alternating rounds. What is fixed is the fifth of a
+  microsecond the one and two blocks cost, and those are the sizes that
+  decide it: `diffie_hellman` reaches the KDF after a scalar
+  multiplication of 15.2 µs, so the overhead where a caller meets it is
+  around one percent of the operation asked for.
+
+  The peak is the whole of the case, and one thing this does not buy is a
+  refusal in place of an exhaustion. `bytearray(n)` zero-fills — 2^30
+  octets is 0.17 s and 794 MiB of resident memory — so a size no
+  allocator can serve is reached in one statement rather than a loop,
+  which is faster and not different in kind; whether it is refused at all
+  is the platform's overcommit policy. Under the address-space ceiling a
+  mutation session now runs with, both shapes raise `MemoryError`, and
+  that ceiling is what covers the class.
+
 - **A silent-payment scan stops looking for labels a wallet has none of**
   (issue #916). `scan_outputs` called `_labelled` for every output that
   did not match directly, and `_labelled` is a lift of the output key and
