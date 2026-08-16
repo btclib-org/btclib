@@ -708,6 +708,11 @@ class SoftwareSigner:
         caller that works with a device too. Asking a closed signer
         anything raises, which is what makes the difference visible in a
         test rather than only against hardware.
+
+        Nothing survives a signature here, which is what keeps that true:
+        `sign_schnorr_script_path` below owns its `ssa.Signer` for the
+        length of a call and wipes it on the way out, so there is no
+        keypair whose release rests on a caller remembering this method.
         """
         self._closed = True
 
@@ -814,8 +819,27 @@ class SoftwareSigner:
         would find it by; a signer holding keys at known paths and
         answering in one call has no user to ask, so what it answers for
         is decided by the same three conditions as the other two methods.
+
+        `ssa.Signer` and not `ssa.sign_`, for one leaf as for many: what
+        it saves is the `Sig` that `sign_` builds and `serialize` takes
+        apart again, 90.5 us a leaf against 97.3, and a psbt wants the
+        octets. The keypair it holds is built and wiped inside the call.
+
+        Holding one *across* calls was measured and is not done. Those
+        leaves are the one place this library signs BIP340 more than once
+        under one key, and a keypair kept between them is 82.1 us a leaf
+        against 90.5 -- but only from the second leaf of a key onward,
+        and a key in a single leaf is the ordinary shape. The saving is
+        the smaller half of what `Signer` buys and the only half that
+        makes a secret outlive the call that needed it, which is not a
+        trade to make for a case that may not arise.
         """
         prv_key = self._prv_key(pub_key, origin)
         if prv_key is None:
             return None
-        return ssa.sign_(msg_hash, prv_key).serialize()
+        # owned for the length of this call and wiped on the way out:
+        # what `Signer` saves here is the `Sig` that `sign_` would build
+        # for `serialize` to take apart again, and holding one across
+        # calls would buy nothing where a key appears in a single leaf
+        with ssa.Signer(prv_key) as signer:
+            return signer.sign_(msg_hash)

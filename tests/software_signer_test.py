@@ -232,6 +232,23 @@ def test_the_signer_answers_for_its_own_keys_only() -> None:
     assert signer.sign_schnorr_script_path(x_only, None, msg_hash, leaf) is None
     assert signer.sign_schnorr_script_path(x_only, elsewhere, msg_hash, leaf) is None
 
+    # and a second key signs under itself: `Signer` is built per call
+    # from the key `_prv_key` answered, so a run of leaves under one key
+    # and a run under another cannot be confused for each other
+    second_x_only = taproot.key_expressions[0].sec(1)[1:]
+    second_origin = BIP32KeyOrigin(signer.master_fingerprint, "m/86h/0h/0h/0/1")
+    for _ in range(2):
+        second = signer.sign_schnorr_script_path(
+            second_x_only, second_origin, msg_hash, leaf
+        )
+        assert second is not None
+        assert ssa.verify_(msg_hash, second_x_only, second)
+        assert not ssa.verify_(msg_hash, x_only, second)
+
+    # idempotent, as the contract says
+    signer.close()
+    signer.close()
+
 
 def test_a_watch_only_signer_shows_and_derives_but_does_not_sign() -> None:
     """Watching is most of what a signer does, and it is not a broken state.

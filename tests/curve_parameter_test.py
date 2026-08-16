@@ -310,6 +310,11 @@ _CASES = (
         {"r": _SSA_SIG.r, "s": _SSA_SIG.s},
     ),
     _Case(
+        "btclib.ecc.ssa.Signer.__init__",
+        ssa.Signer,
+        {"prv_key": _PRV_KEY},
+    ),
+    _Case(
         "btclib.ecc.ssa.point_from_bip340pub_key",
         ssa.point_from_bip340pub_key,
         {"x_Q": _PUB_KEY[0]},

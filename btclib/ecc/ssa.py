@@ -57,6 +57,7 @@ import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
+from types import TracebackType
 from typing import overload
 
 from btclib_secp256k1 import ssa as libsecp256k1_ssa
@@ -93,6 +94,7 @@ from btclib.utils import (
 __all__ = [
     "BIP340PubKey",
     "Sig",
+    "Signer",
     "assert_as_valid",
     "assert_as_valid_",
     "assert_batch_as_valid",
@@ -529,6 +531,145 @@ def sign(
     if commit is None:
         return sign_(msg_hash, prv_key, aux, ec, hf)
     return sign_(msg_hash, prv_key, aux, ec, hf, commit_hash=reduce_to_hlen(commit, hf))
+
+
+class Signer:
+    """Sign several messages under one key, building the keypair once.
+
+    `sign_` builds a `secp256k1_keypair` and wipes it before returning,
+    so a second signature under the same key builds it again -- and that
+    keypair is a multiplication of the generator, about half of what a
+    BIP340 signature costs. This holds one across calls instead, which is
+    worth some 14 us a signature of a signature that is 22. The
+    measurement per batch size is in the CHANGELOG entry that introduced
+    this class, an entry being read as the history of a release where
+    this is read as a statement about the code as it stands.
+
+    The same signatures come out, `sign` here being `sign_` over the
+    keypair the signer holds, with the same default aux -- 32 octets
+    drawn afresh per signature where the caller names none. The octets
+    are what comes back rather than a `Sig`, that being what the callers
+    of this want: a psbt writes a signature into a field, and building a
+    `Sig` to serialize it again is the round trip this saves beside the
+    keypair.
+
+    **What this hands the caller is the lifetime of a secret.**
+    `sign_` owns a keypair for the length of a call and wipes it in a
+    `finally`; a signer holds one until told to let go. `wipe` is that
+    instruction and the `with` statement is how to give it without
+    having to remember::
+
+        with ssa.Signer(prv_key) as signer:
+            ...
+
+    which wipes on the way out whether the block ended in a signature or
+    in an exception. A wiped signer refuses to sign rather than signing
+    with the zeros, and cannot be revived. So this is for a caller that
+    already holds the secret for several signatures -- `SoftwareSigner`
+    signing every leaf a psbt names one key in -- and a lone signature
+    that drops the key afterwards is what `sign_` already is.
+
+    A curve or a hash function the bindings do not serve has no keypair
+    to hold: there every signature is `sign_`'s, so `wipe` has no
+    keypair to overwrite and the `with` still reads the same -- what it
+    does on that arm is drop the scalar and stop the signing, which is
+    all it can. And the scalar is held on that arm alone: where a keypair
+    exists it holds the same secret in memory that can be overwritten, so
+    a second copy as a python int would be kept for nothing. What is not
+    solved either way is the object the private key arrived in, nor that
+    scalar where the Python arm needs it -- an int cannot be overwritten,
+    only dropped, and SECURITY.md's limitations section is where that is
+    stated for the library at large.
+    """
+
+    def __init__(
+        self, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    ) -> None:
+        _assert_valid_hf(hf)
+        # the scalar, whatever spelling the key arrived in, and the
+        # validation with it -- this is a public constructor and the
+        # refusal belongs at it rather than at the first signature
+        self._q = int_from_prv_key(prv_key, ec)
+        self._ec = ec
+        self._hf = hf
+        self._hf_len = hf().digest_size
+        self._signer = (
+            libsecp256k1_ssa.Signer(self._q) if _libsecp256k1_serves(ec, hf) else None
+        )
+        # the scalar is what the Python arm signs with, and nothing else
+        # reads it: where a keypair was built it holds the same secret in
+        # memory the bindings can overwrite, so keeping the int beside it
+        # would be a second copy held for nothing -- and the copy that
+        # cannot be erased, at that
+        if self._signer is not None:
+            self._q = 0
+        self._wiped = False
+
+    def __enter__(self) -> Signer:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.wipe()
+
+    def wipe(self) -> None:
+        """Let go of the key, and refuse to sign afterwards.
+
+        The keypair is overwritten where there is one, which is the half
+        of this that really erases: it is libsecp256k1's own memory and
+        the bindings write zeros over it. The scalar this was built from
+        is a python int and is dropped rather than erased -- rebinding
+        the attribute is the whole of what a caller can do about an
+        immutable object, and SECURITY.md's limitations section is where
+        that is stated for the library at large. So a wiped signer is one
+        that cannot sign and holds no keypair, not one that has scrubbed
+        every copy of the secret from the process.
+
+        Idempotent, so that a caller may wipe a signer it is not sure
+        about; the `with` statement is the customary way to run one.
+        """
+        if self._signer is not None:
+            self._signer.wipe()
+            self._signer = None
+        self._q = 0
+        self._wiped = True
+
+    def sign_(self, msg: Octets, aux: Octets | None = None) -> bytes:
+        """Return the signature of a prepared message, as its octets.
+
+        The message is signed as it is, of any size, which is what the
+        trailing underscore says throughout this module.
+        """
+        if self._wiped:
+            raise BTClibValueError("the signer is wiped")
+
+        if self._signer is None:
+            return sign_(msg, self._q, aux, self._ec, self._hf).serialize()
+
+        # the aux `sign_` would have drawn, drawn here for the same
+        # reason: BIP340's auxiliary randomness is per signature, and a
+        # signer reusing one would derive one nonce for two messages
+        msg = bytes_from_octets(msg)
+        aux = (
+            secrets.token_bytes(self._hf_len)
+            if aux is None
+            else bytes_from_octets(aux, self._hf_len)
+        )
+        # `sign_custom` and not `sign`, for the reason `sign_` above
+        # gives at its own dispatch: `sign` is the 32-byte entry point,
+        # and BIP340 puts no size on its message. Signing through it
+        # would put back the gate issue 169 removed -- and would put it
+        # back in only one of this class's two arms, the python one
+        # signing what the delegated one refused
+        return self._signer.sign_custom(msg, aux)
+
+    def sign(self, msg: Octets, aux: Octets | None = None) -> bytes:
+        """Return the signature of a message, reducing it with hf first."""
+        return self.sign_(reduce_to_hlen(msg, self._hf), aux)
 
 
 def _assert_as_valid_(

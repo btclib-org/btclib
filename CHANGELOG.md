@@ -1351,6 +1351,75 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`ecc.ssa.Signer` signs several messages under one key, building the
+  keypair once** (issue #924). `sign_` builds a `secp256k1_keypair` and
+  wipes it in a `finally` before returning, so a second signature under
+  the same key builds it again — and that keypair is a multiplication of
+  the generator, about half of what a BIP340 signature costs. A `Signer`
+  holds one across calls. Octets come back rather than a `Sig`, that
+  being what its callers want — a psbt writes a signature into a field,
+  and building a `Sig` to serialize it again is the round trip this saves
+  beside the keypair.
+
+  | signatures under one key | `sign_` per call | one held `Signer` |
+  | --- | --- | --- |
+  | 1 | 22.28 µs | 15.69 µs |
+  | 2 | 44.85 µs | 23.83 µs |
+  | 5 | 112.41 µs | 48.40 µs |
+  | 10 | 225.22 µs | 88.79 µs |
+
+  so 14 µs a signature, of a signature that is 22.
+
+  It signs BIP340's message of **any size**, as `sign_` does: the
+  bindings' `sign_custom` and not their `sign`, which is the 32-byte
+  entry point and is what issue #169 took out of the dispatch. Signing
+  through that one would have put the gate back in one arm only, the
+  Python arm signing what the delegated arm refused.
+
+  **What it hands the caller is the lifetime of a secret**, and that is
+  the trade it makes deliberately. `sign_` owns a keypair for the length
+  of a call; a signer holds one until told to let go. `wipe` is that
+  instruction and the class is a context manager, so `with
+  ssa.Signer(prv_key) as signer:` wipes on the way out whether the block
+  ended in a signature or in an exception. What `wipe` releases is the
+  keypair, which is libsecp256k1's own memory and is overwritten, and the
+  scalar the signer was built from, which is a python int and can only be
+  dropped — SECURITY.md's limitations section is where that distinction
+  is stated for the library at large. A wiped signer refuses to sign
+  rather than signing with the zeros, and cannot be revived. On a curve
+  or a hash function the bindings decline there is no keypair to hold:
+  every signature is `sign_`'s there, and the `with` still reads the
+  same.
+
+  `SoftwareSigner.sign_schnorr_script_path` is the one caller, and it
+  owns its signer for the length of a call — built, used, wiped on the
+  way out. **Holding one across calls was measured and is not done**,
+  which is the part worth recording: those leaves are the only place this
+  library signs BIP340 more than once under one key, so they are where a
+  kept keypair would pay, and the measurement says it pays from the
+  *second* leaf of a key onward while a key in a single leaf is the
+  ordinary shape.
+
+  | leaves under one key | `ssa.sign_` | `Signer` per call | `Signer` kept |
+  | --- | --- | --- | --- |
+  | 1 | 97.3 µs | 90.5 µs | 90.9 µs |
+  | 2 | 194.8 µs | 181.6 µs | 173.4 µs |
+  | 4 | 389.2 µs | 363.9 µs | 337.7 µs |
+  | 16 | 1558.1 µs | 1451.5 µs | 1322.1 µs |
+  | *marginal, per leaf* | 97.4 µs | 90.7 µs | 82.1 µs |
+
+  At one leaf the last two columns are the same number: all of the gain
+  in the ordinary case is the `Sig` round trip, none of it the kept
+  keypair. So the 6.7 µs a leaf that costs nothing is taken, and the 8.6
+  that would make a secret outlive the call that needed it is not — and
+  `close()` goes on having nothing to release, which is what keeps the
+  contract's promise reachable by a caller who never calls it.
+
+  The rest of a leaf is the BIP32 derivation `_prv_key` makes per call,
+  which is issue #918's subject and not this one's. The other two signing
+  methods keep `sign_`, a lone signature that drops the key afterwards
+  being exactly what it already is.
+
 - **An ECDSA signature crosses the boundary as the two scalars it is**
   (issue #922). It crossed as DER at both ends: `assert_as_valid_` wrote
   the ASN.1 structure for a call whose first act is `parse_der`, and

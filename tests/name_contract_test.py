@@ -188,7 +188,7 @@ def _argument_less_bools() -> dict[str, bool]:
 #   this one
 # - `close` is an action with a side effect
 _NOT_A_READ = ("assert_", "get_", "to_")
-_AN_ACTION = frozenset({"close"})
+_AN_ACTION = frozenset({"close", "wipe"})
 
 # hashlib's own API, mirrored in a Protocol, and hashlib draws the line
 # itself: `digest()`, `hexdigest()` and `copy()` are calls where

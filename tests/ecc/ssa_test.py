@@ -1208,3 +1208,105 @@ def test_a_key_that_is_no_x_coordinate_is_refused_in_the_lift_s_words(
         with pytest.raises(BTClibValueError) as lifted:
             ec.y_var(x)
         assert str(verified.value) == str(lifted.value)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_signer_signs_what_sign_signs(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A held keypair changes what a signature costs and not what it is.
+
+    `Signer.sign_` is `sign_` over a keypair built once, so the two have
+    to answer the same octets: asserted over a spread of messages, with
+    the aux named so that the comparison is of the derivation and not of
+    two draws. And over the arm that holds no keypair at all -- a curve
+    or a hash function the bindings decline -- where `sign_` is the whole
+    of the implementation.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    prv_key, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    aux = bytes(32)
+
+    # where a keypair was built it holds the secret in memory that can be
+    # overwritten, so the scalar is not kept beside it; where there is no
+    # keypair the scalar is the whole of what signs, and is
+    held = ssa.Signer(prv_key)
+    assert bool(held._q) is not bindings
+    held.wipe()
+
+    with ssa.Signer(prv_key) as signer:
+        for msg in (b"", b"a message", bytes(32), bytes(1000)):
+            msg_hash = reduce_to_hlen(msg)
+            assert (
+                signer.sign_(msg_hash, aux)
+                == ssa.sign_(msg_hash, prv_key, aux).serialize()
+            )
+            # and the unprepared spelling reduces with hf, as `sign` does
+            assert signer.sign(msg, aux) == ssa.sign(msg, prv_key, aux).serialize()
+            assert ssa.verify_(msg_hash, x_Q, signer.sign_(msg_hash))
+
+        # a *prepared* message of any size, which is the whole of what
+        # the trailing underscore promises and what the bindings' 32-byte
+        # entry point would take away again (issue 169): signing through
+        # that one would leave the two arms of this class disagreeing,
+        # the python one signing what the delegated one refused
+        for size in (0, 1, 31, 33, 64, 1000):
+            of_that_size = bytes(size)
+            assert (
+                signer.sign_(of_that_size, aux)
+                == ssa.sign_(of_that_size, prv_key, aux).serialize()
+            )
+            assert ssa.verify_(of_that_size, x_Q, signer.sign_(of_that_size, aux))
+
+
+def test_a_wiped_signer_refuses_rather_than_signing_with_the_zeros() -> None:
+    """The lifetime a signer hands its caller, and how it is given back.
+
+    `wipe` is the instruction and the `with` block is how to give it
+    without having to remember; both leave a signer that refuses, and
+    neither can be undone -- what the signer held it no longer holds.
+    """
+    prv_key, _ = ssa.gen_keys(0x1234567890ABCDEF)
+    msg_hash = reduce_to_hlen(b"a message")
+
+    signer = ssa.Signer(prv_key)
+    assert signer.sign_(msg_hash)
+    signer.wipe()
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        signer.sign_(msg_hash)
+    # idempotent, as `close` is on the signer contract
+    signer.wipe()
+    # the scalar is let go of and not only the keypair: an int cannot be
+    # overwritten, so dropping the reference is the whole of what `wipe`
+    # can do about it -- but leaving it bound would make "cannot be
+    # revived" false, this being where the key is held on both arms
+    assert not signer._q
+
+    with ssa.Signer(prv_key) as block_signer:
+        assert block_signer.sign_(msg_hash)
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        block_signer.sign_(msg_hash)
+
+    # and the block wipes on the way out of an exception too
+    raising = ssa.Signer(prv_key)
+    with pytest.raises(ZeroDivisionError), raising:
+        _ = 1 / 0
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        raising.sign_(msg_hash)
+
+
+def test_a_signer_refuses_what_sign_refuses() -> None:
+    """The key and the hash function are read at the constructor.
+
+    A public constructor, so the refusal belongs at it rather than at the
+    first signature -- which is the only place a caller could hear it,
+    the keypair being built here.
+    """
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        ssa.Signer(0)
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        ssa.Signer(secp256k1.n)
+    with pytest.raises(BTClibTypeError):
+        ssa.Signer(0x1234567890ABCDEF, secp256k1, "not a hash function")  # type: ignore[arg-type]
