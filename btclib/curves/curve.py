@@ -599,8 +599,8 @@ def _libsecp256k1_multi_mult_(
     The terms stopped crossing after it, which is the other half and the
     smaller one: a `pubkey_tweak_mul` per term serialized its product for
     a `pubkey_sum` that parsed it straight back, a seventh of what the
-    call cost with them, from three terms up and a little less at two --
-    which is `double_mult_var`'s count and the one most callers have.
+    call cost with them from eight terms up, a little less below it --
+    including `double_mult_var`'s two, the count most callers have.
     Handing over the whole equation is what stops it, and that is the one
     composition the bindings hold rather than this side
     (btclib-secp256k1#182): a term of a multi-scalar multiplication is a

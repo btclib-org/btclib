@@ -5002,12 +5002,12 @@ documented at release-notes length in the first place, and are still in
   | 20 | 163.93 µs | 140.49 µs |
   | 64 | 522.73 µs | 449.20 µs |
 
-  About a seventh of the call from three terms up and a little less at
-  two — 12.9% there against 14.1 to 14.3 above it — which is where it
-  differs from the sum it follows: that one was worth a third at eight
-  terms and nothing at two, and this is one serialization and one parse
-  a term whatever the count. End to end at the callers, and
-  `double_mult_var` is the two-term shape most of them have:
+  About a seventh of the call, climbing from 12.9% at two terms to 14.3
+  by twenty — which is where it differs from the sum it follows: that
+  one was worth a third at eight terms and nothing at two, and this is
+  one serialization and one parse a term whatever the count. End to end
+  at the callers, and `double_mult_var` is the two-term shape most of
+  them have:
 
   | caller | term at a time | one call |
   | --- | --- | --- |
