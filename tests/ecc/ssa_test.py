@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
-from btclib.alias import INF, Point, String
+from btclib.alias import INF, Octets, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import (
     PreparedPoint,
@@ -643,6 +643,43 @@ def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) ->
     sigs[-1] = sigs[0]
     with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
         ssa.assert_batch_as_valid(msgs, Qs, sigs)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_a_batch_refuses_a_bad_key_in_the_lift_s_words(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A batch refuses a key that is no x-coordinate as `ec.y_var` does.
+
+    The twin of the single-signature test above, for the equation: the
+    delegated arm does not lift a key either -- the multiplication's own
+    parse is that square root -- so which term the bindings could not
+    read is found on the refusing path alone, and the message has to come
+    out the same as the arm that lifts. The same four x, for both
+    messages in both renderings.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    msgs: list[Octets] = []
+    Qs: list[int] = []
+    sigs: list[ssa.Sig] = []
+    for i in range(1, 3):
+        msg = reduce_to_hlen(bytes(i) * 16)
+        msgs.append(msg)
+        q, Q = ssa.gen_keys(i)
+        Qs.append(Q)
+        sigs.append(ssa.sign_(msg, q))
+
+    ssa.assert_batch_as_valid_(msgs, Qs, sigs)
+
+    for x in (ec.p, ec.p + 1, 0xDEADBEEF00000000, 7):
+        with pytest.raises(BTClibValueError) as batched:
+            ssa.assert_batch_as_valid_(msgs, [Qs[0], x], sigs)
+        with pytest.raises(BTClibValueError) as lifted:
+            ec.y_var(x)
+        assert str(batched.value) == str(lifted.value)
 
 
 def test_musig() -> None:

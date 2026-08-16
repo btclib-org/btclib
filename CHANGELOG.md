@@ -4600,6 +4600,78 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **BIP340 batch verification stops lifting two points a signature**
+  (issue #919). `assert_batch_as_valid_` built each term as a `Point` —
+  `_y_even_var` of `r`, and the lift inside
+  `point_from_bip340pub_key` — whose coordinates the multiplication then
+  wrote straight back out as 65 octets and parsed again. Neither lift is
+  needed for the arithmetic: both terms are the even-y point an x names,
+  which is `0x02 || x`, octets libsecp256k1 lifts itself inside the
+  multiplication that wants the point anyway.
+  `curves.curve._multi_mult_x_only_var` is the two arms — octets where
+  the bindings answer, points where the Python arithmetic does, which is
+  what its terms have to be. It sits beside `_sum_var` and
+  `_libsecp256k1_multi_mult_` rather than in `ecc.ssa`, the
+  concatenation being an x-only rule like the ones `_x_octets` serves:
+  the difference is the door, `pubkey_tweak_mul` reading a public key
+  and libsecp256k1 having no x-only multiplication to hand a bare x to.
+
+  | signatures | two lifts | compressed octets |
+  | --- | --- | --- |
+  | 2 | 89.3 µs | 78.1 µs |
+  | 16 | 681.3 µs | 592.6 µs |
+  | 64 | 2700.3 µs | 2353.2 µs |
+
+ About two thirds of that is `r` alone, whose
+  lift bought least of all: `sig.assert_valid` proves it an x-coordinate
+  above the loop, so the y it found was read for nothing.
+
+  Neither lift was validating anything the multiplication does not.
+  `r` is proved above; a key is proved by the parse, which is that same
+  square root (issue #887, and `assert_as_valid_` has taken this shape
+  since). What the accepting path no longer pays, the refusing path
+  does: which term the bindings could not read is found by asking, and
+  the message is `ec.y_var`'s, the same one the lift raised — a new test
+  pins the two spellings together over the same four x the
+  single-signature twin uses.
+
+- **`ssa.assert_batch_as_valid_` says what it costs, and it is not what
+  the name suggests** (issue #913). It was documented as "cheaper than
+  one verification per signature", which is false on secp256k1 with
+  sha256 and was never measured. Against n delegated `verify_` calls:
+
+  | n | batch | n × `verify_` | per sig, batch | per sig, one by one |
+  | --- | --- | --- | --- | --- |
+  | 2 | 78.1 µs | 36.6 µs | 39.03 | 18.28 |
+  | 4 | 152.3 µs | 73.0 µs | 38.07 | 18.25 |
+  | 8 | 299.5 µs | 146.1 µs | 37.44 | 18.26 |
+  | 16 | 592.6 µs | 291.9 µs | 37.04 | 18.25 |
+  | 64 | 2353.2 µs | 1176.1 µs | 36.77 | 18.38 |
+  | 256 | 9389.9 µs | 4807.3 µs | 36.68 | 18.78 |
+
+  Flat in n on both sides, so there is no crossover to find.
+  libsecp256k1 has no batch verification to delegate to, checked at
+  `687155df` upstream and at the tip of
+  secp256k1-zkp, whose half-aggregation is a different construction, so
+  what the batch saves in multiplications it spends on a Python term per
+  signature against a whole verification that is one C call.
+
+  It stays, and now says why. On the arithmetic it was written for —
+  every other curve, every other hash function, the bindings switched
+  off — the equation is one multi-scalar multiplication where n
+  verifications are n double multiplications, and it overtakes them
+  between four signatures and eight:
+
+  | n | batch (Python) | n × `verify_` (Python) |
+  | --- | --- | --- |
+  | 2 | 1585.5 µs | 1297.9 µs |
+  | 4 | 2716.1 µs | 2627.9 µs |
+  | 8 | 4916.4 µs | 5235.3 µs |
+  | 16 | 9250.0 µs | 10493.9 µs |
+
+  That, and its being BIP340's own algorithm and the reference the
+  delegated path is read against.
+
 - **A multi-scalar multiplication sums its terms once, not once per
   term** (issue #917). `_libsecp256k1_multi_mult_` multiplied a term,
   combined it into a running total, and did that again for the next one,

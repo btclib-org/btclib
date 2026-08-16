@@ -607,6 +607,59 @@ def _libsecp256k1_multi_mult_(
     return libsecp256k1_pubkey_sum(terms, False)
 
 
+def _multi_mult_x_only_var(
+    scalars: Sequence[int], x_coords: Sequence[int], ec: Curve
+) -> Point:
+    """Return sum(scalars[i]*P_i), each P_i the even-y point of an x.
+
+    The terms of BIP340's batch verification, which is the one caller and
+    the one place in btclib that hands the bindings many scalars at once,
+    libsecp256k1 exposing no batch verification of its own.
+
+    The two arms differ in what they need of a term. `0x02 || x` is the
+    even-y point an x-only key names, and the bindings lift it inside the
+    multiplication that wants the point anyway; the Python arithmetic
+    takes a `Point`, so there the lift is the work and is paid here. That
+    is why this takes x-coordinates rather than points, and why the
+    concatenation is written here rather than left to `xonly.to_pubkey`:
+    what the octets are on their way to is `pubkey_tweak_mul`, which
+    reads a public key, and libsecp256k1 has no x-only multiplication to
+    hand them to instead. It is the same rule `_x_octets` above serves,
+    reached through the one door that exists for it.
+
+    `_libsecp256k1_multi_mult_` and not the public `multi_mult_var`, that
+    one taking points -- which is the form the lift would have to build
+    and the multiplication would then write straight back out. Sixteen
+    signatures end to end, i.e. the thirty-two terms: 592.6 us against
+    681.3 with both terms lifted by the caller.
+
+    Every scalar is required to be in 1..n-1 and every x to be an
+    x-coordinate. The caller is what holds to that -- ssa's rand is drawn
+    in that range, its challenge is refused at zero, n is prime -- so
+    what is left for the bindings to refuse is a term they cannot read,
+    and finding which is the lift the accepting path does not pay. Issue
+    622 made that trade the other way round in `Sig.assert_valid`, and it
+    is the same one: the refusing path can afford a square root. The
+    message is `ec.y_var`'s, from the lift itself rather than restated.
+    """
+    if _libsecp256k1_serves(ec, None):
+        secs = [b"\x02" + x.to_bytes(ec.p_size, "big") for x in x_coords]
+        try:
+            total = _libsecp256k1_multi_mult_(scalars, secs)
+        except ValueError:
+            for x in x_coords:
+                _y_even_var(x, ec)
+            # the loop above raises, every ValueError from the bindings
+            # here being a term they could not read: the pragma is the
+            # one borromean and bms carry, for a line the arithmetic
+            # rules out
+            raise  # pragma: no cover
+        return INF if total is None else _point_from_sec(total)
+
+    points = [(x, _y_even_var(x, ec)) for x in x_coords]
+    return multi_mult_var(scalars, points, ec)
+
+
 def _point_from_sec(sec: bytes) -> Point:
     """Return the point of an uncompressed 0x04 || x || y serialization.
 
@@ -1003,9 +1056,15 @@ def multi_mult_var(
 
     Interleaved wNAF on few scalars, Bos-Coster on many: curve_group's
     _multi_mult_var dispatches on the count, at the size the two measure the
-    same. On secp256k1 the bindings serve the whole sum instead, and this
-    is the one caller that hands them many scalars at once -- libsecp256k1
-    exposing no batch verification, ssa's is built on this.
+    same. On secp256k1 the bindings serve the whole sum instead.
+
+    ssa's batch verification is what hands many scalars over at once,
+    libsecp256k1 exposing no batch verification of its own, and it is the
+    Python arm of that sum which arrives here: the delegated arm reaches
+    `_libsecp256k1_multi_mult_` below with its terms as octets, this
+    signature taking points and a point being what its terms would have
+    to be lifted into for the multiplication to write them straight back
+    out.
     """
     _assert_valid_ec(ec)
     if len(scalars) != len(points):

@@ -69,9 +69,9 @@ from btclib.curves.curve import (
     _is_x_coordinate_var,
     _jac_double_mult,
     _libsecp256k1_serves,
+    _multi_mult_x_only_var,
     _y_even_var,
     mult,
-    multi_mult_var,
 )
 from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.ecc.bip340_nonce import bip340_nonce_
@@ -831,10 +831,43 @@ def assert_batch_as_valid_(
     """Refuse an invalid signature in a batch of prepared messages.
 
     BIP340's batch verification: one multi-scalar equation over
-    random coefficients, cheaper than one verification per signature
-    -- and which signature failed is not in the answer, only that one
-    did. Messages enter as they are; every signature must share one
-    curve.
+    random coefficients -- and which signature failed is not in the
+    answer, only that one did. Messages enter as they are; every
+    signature must share one curve.
+
+    **It is not the fast way to verify n signatures of secp256k1.**
+    Measured against n delegated `verify_` calls, the batch is about 37 us
+    a signature and a `verify_` about 18, both flat in n, so there is no
+    crossover at any batch size. libsecp256k1 has no batch verification to
+    delegate to, checked at 687155df upstream and at the tip of
+    secp256k1-zkp, whose half-aggregation is a different construction; so
+    what the batch saves in multiplications it spends on a Python term per
+    signature, against a whole verification that is one C call.
+
+    Where it does win is the arithmetic it was written for. With the
+    bindings switched off -- every other curve, and every other hash
+    function -- the equation is one multi-scalar multiplication where n
+    verifications are n double multiplications, and it overtakes them
+    between four signatures and eight. That is the reason it stays, beside
+    its being BIP340's own algorithm and the reference the delegated path
+    is read against. Both measurements per batch size are in the CHANGELOG
+    entry that took them, an entry being read as the history of a release
+    where this is read as a statement about the code as it stands.
+
+    **Which leaves the question of why secp256k1 runs the equation at
+    all, rather than a loop of `verify_`.** That loop would be twice as
+    fast and would say *which* signature failed, where this says only
+    that one did, so it is not obviously the wrong answer -- and it is
+    not taken. What a caller asks of this function is BIP340 batch
+    verification: one equation over random coefficients, the construction
+    with the security argument the BIP makes, and the thing an
+    implementation is compared against. A dispatch that answered it with
+    n independent verifications would answer the same *verdict* by a
+    different computation, and would leave nothing running the equation
+    on the curve where the equation is checkable against libsecp256k1 --
+    which is what `test_batch_validation_on_the_python_path` uses it for.
+    A caller who wants n verifications has `verify_` and a loop, and the
+    figures above are here so that the choice is an informed one.
 
     Every signature is asked whether it is one, this being a public
     function handed objects somebody else built: the equation below is
@@ -881,14 +914,21 @@ def assert_batch_as_valid_(
         sig.assert_valid()
     t = 0
     scalars: list[int] = []
-    points: list[Point] = []
+    x_coords: list[int] = []
     for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs, strict=True)):
         # any size, as in sign_ and assert_as_valid_
         msg = bytes_from_octets(msg)  # noqa: PLW2901
 
-        K = sig.r, _y_even_var(sig.r, ec)
-
-        x_Q, y_Q = point_from_bip340pub_key(Q, ec)
+        # the x of each term and no lift, both terms being the even-y
+        # point an x names: r has been proved an x-coordinate by
+        # `sig.assert_valid` above, and x_Q is proved by the
+        # multiplication these terms are on their way to, whose parse is
+        # that same lift -- `assert_as_valid_` takes the shape for the
+        # same reason (issue 887). The range is still this side's to
+        # refuse, `challenge_` writing x_Q into its preimage and
+        # answering an OverflowError for what is no field element
+        x_Q = _x_from_bip340pub_key(Q, ec)
+        _x_only_bytes(x_Q, ec)
 
         c = challenge_(msg, x_Q, sig.r, ec, hf)
 
@@ -899,24 +939,12 @@ def assert_batch_as_valid_(
         # run of the batch verification algorithm
         rand = 1 if i == 0 else 1 + secrets.randbelow(ec.n - 1)
         scalars.append(rand)
-        points.append(K)
+        x_coords.append(sig.r)
         scalars.append(rand * c % ec.n)
-        points.append((x_Q, y_Q))
+        x_coords.append(x_Q)
         t += rand * sig.s
 
-    # the public mult and multi_mult_var, in affine coordinates, rather than
-    # the Jacobian functions of curve_group underneath them and an
-    # equality of projective coordinates: those two are where the
-    # libsecp256k1 dispatch lives, and this sum is the one place in btclib
-    # that hands the bindings many scalars at once, libsecp256k1 exposing
-    # no batch verification of its own. Four signatures, i.e. the eight
-    # terms above: 2.4 ms of Python arithmetic against 122 us, and
-    # assert_batch_as_valid_ as a whole 3.4 ms against 158 us -- what is
-    # left being two lifts and a challenge per signature, some 9 us of
-    # which the lifts are libsecp256k1's. The two affine
-    # conversions the equality costs on every other curve are one modular
-    # inversion each, next to a multi_mult_var of all the terms
-    if mult(t, ec=ec) != multi_mult_var(scalars, points, ec):
+    if mult(t, ec=ec) != _multi_mult_x_only_var(scalars, x_coords, ec):
         raise BTClibRuntimeError("signature verification failed")
     return
 
