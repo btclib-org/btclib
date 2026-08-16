@@ -415,16 +415,20 @@ ful = "ful"
 CPY = "CPY"
 
 [tool.typos.type.verbatim]
-# the three files that quote misspellings on purpose: the #161 entry names
-# `_REQUIRED_LENGHT` and `implausibile signature failure` because those
-# were the spellings it corrected, and .pre-commit-config.yaml quotes the
-# exception message a test pins. This is the backtick convention of
+# the three files that quote a word rather than use it: CHANGELOG.md names
+# the `certifi` a dependency would have pulled in, an extended key's
+# `ThmBZ`, the mypy message that offers `digest` for `digets`, and the
+# singular `addopt` of a pytest option -- each right where it stands, and
+# each one this hook's dictionary offers to correct; .pre-commit-config.yaml
+# quotes the misspellings the two spell checkers found, and the exception
+# message a test pins. This is the backtick convention of
 # [tool.codespell] above, honoured on the files that need it rather than
 # on all of them: outside these three a backticked word is an identifier,
 # and identifiers are what this hook is here for.
 # Not a preference either: with --write-changes and without this section,
-# the hook corrects three such quotations into nonsense -- prose saying
-# `lenght` is now `length` reads as prose saying nothing. Narrow enough
+# the hook corrects those quotations into nonsense -- prose saying
+# `lenght` is now `length` reads as prose saying nothing, and a key or a
+# message quoted from elsewhere stops being the thing quoted. Narrow enough
 # that `y-simmetry`, unquoted in HISTORY.md, was still found and fixed
 # with the rule already in place
 extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]

@@ -67,6 +67,18 @@
     "editor.rulers": [80]
   },
 
+  // the typos hook, whose configuration is [tool.typos] in pyproject.toml.
+  // The server looks for that file from the workspace folder and not from
+  // the file being edited, so anything opened from outside this tree -- a
+  // CHANGELOG.md in a worktree under review, say -- falls back to the typos
+  // defaults, and every quotation [tool.typos.type.verbatim] exempts is
+  // then reported where the hook itself reports nothing. Naming the path
+  // reaches those files as well. Relative, this file being tracked and an
+  // absolute path being one checkout's: the client starts the server with
+  // the workspace folder as its working directory, which is what a bare
+  // name resolves against
+  "typos.config": "pyproject.toml",
+
   // the prettier and taplo hooks, on save and by the same two tools:
   // prettier for yaml and for the jsonc that carries a comment, taplo for
   // toml, reading the .taplo.toml the hook reads. `yaml.format.enable`
