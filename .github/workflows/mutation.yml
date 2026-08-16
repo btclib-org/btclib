@@ -202,21 +202,21 @@ jobs:
           # into the consensus job, which spends 180 of its 200 minutes
           # already, and not into the psbt one, which would then need 90
           # minutes of its own.
-          # 20 minutes and not the 45 the sample above was measured with,
-          # which buys less of the scope on purpose: this profile has twice
-          # taken its host down mid-session rather than finishing (issue
-          # #948), at 22.6 minutes on the attempt that got furthest, and a
-          # session `timeout` cuts short is a partial answer where a dead
-          # runner is none at all -- it takes the reports and the artifact
-          # with it. A cut lands ahead of the kill only while the kill is
-          # where it was measured, so this is a floor under the loss and not
-          # a fix; the memory the step below prints is what says where the
-          # fix belongs
+          # 45 again, the 20 it was cut to having bought its answer: this
+          # profile twice took its host down mid-session (issue #948), and a
+          # session cut ahead of the kill was a floor under the loss while
+          # the mechanism was unknown. It is no longer the only thing
+          # holding the profile up -- the ceiling above refuses a runaway
+          # allocation whatever the budget -- and a cut session cannot be
+          # compared with the week before it, which is what this profile is
+          # for. If it dies here again the budget was the only thing holding
+          # it, and that is a mechanism still to find rather than one this
+          # file should hide
           - profile: the script encodings
             slug: script
-            ceiling: 35
+            ceiling: 60
             sessions: |
-              script.toml 20m
+              script.toml 45m
           # the four small scopes, which is what makes them one job: signer
           # finished its 302 filtered mutants in 9 minutes and wallet its
           # 293 in 15, musig2 spends most of a session on the two `%`
@@ -265,7 +265,7 @@ jobs:
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
-          ulimit -v 2097152
+          ulimit -v 8388608
           while read -r config _; do
             [ -n "$config" ] || continue
             uv run --locked --no-default-groups --group test --group mutation \
@@ -299,39 +299,47 @@ jobs:
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
-          # 2 GiB of address space, inherited by `cosmic-ray exec` and by
-          # every test command under it, which is what turns issue #948's
-          # dead host into a recorded verdict. The mutant is already killed
-          # by a test that exists: `dh_test.py` asks for one octet past the
-          # bound expecting a refusal, and `pytest.raises(BTClibValueError)`
-          # does not catch the MemoryError that arrives instead, so the
-          # command exits non-zero and the mutant is KILLED. What was
-          # missing is a process alive to say so -- unbounded, the loop
-          # grows past the host's own 16 GiB and takes the job's remaining
-          # steps with it.
+          # address space, inherited by `cosmic-ray exec` and by every test
+          # command under it, which is what turns issue #948's dead host
+          # into a recorded verdict. The mutant is already killed by a test
+          # that exists: `dh_test.py` asks for one octet past the bound
+          # expecting a refusal, and `pytest.raises(BTClibValueError)` does
+          # not catch the MemoryError that arrives instead, so the command
+          # exits non-zero and the mutant is KILLED. What was missing is a
+          # process alive to say so.
           #
-          # 2 GiB because it sits between two numbers far apart: these test
-          # commands run in a fraction of it, and the loop wants 358 GiB, so
-          # anything between them works and the low end is what makes a
-          # mutant cheap. Measured at 89.4 bytes an iteration, the ceiling
-          # is 24e6 iterations away -- seconds, against a host that does not
-          # come back. Whether it clears what pytest needs is not asserted
-          # here: the baseline step above runs under the same limit and
-          # fails the run if it does not.
+          # The ceiling is not sensitive, which is why it is set high. The
+          # buffer is asked for in one statement, so any limit below the
+          # 137 GB that request is refuses it at the mmap -- instantly, and
+          # without the zero-fill an unbounded host pays at 6.4 GB/s.
+          # Nothing is bought by lowering it, and 2 GiB was low enough to
+          # fail three profiles' baselines: `uv` is a multithreaded Rust
+          # binary whose thread stacks alone reserve tens of MiB apiece, and
+          # `ulimit -v` counts address space rather than the memory a
+          # process touches. What the number has to do is clear that
+          # reservation and stay under the host's own 16 GiB, so that the
+          # process dies before the runner does.
           #
-          # Not the per-mutant `timeout`, which cannot reach this: 300 s is
-          # a width the slow-but-harmless mutants are measured against, and
-          # memory goes at well under it
-          ulimit -v 2097152
+          # Whether it clears what pytest needs is not asserted here: the
+          # baseline step above runs under the same limit, against the
+          # unmutated tree, and fails the run rather than reporting every
+          # mutant killed.
+          #
+          # Not the per-mutant `timeout`, which cannot reach either shape of
+          # this: 300 s is a width the slow-but-harmless mutants are
+          # measured against, and a refused allocation raises at once
+          ulimit -v 8388608
           # what the host's memory is doing while the mutants run, and the
           # question is issue #948's: two profiles die here with the job's
           # own remaining steps reported `skipped` rather than failed, which
           # is a host that went away rather than a command that exited.
-          # A mutant that widens a size bound allocates towards it --
-          # `ansi_x9_63_kdf` builds a list of digests and `numeric.toml`
-          # puts the weakened bound at gigabytes of keying data, which is
-          # 10^8 objects -- so memory is the reading that tells that apart
-          # from a runner GitHub happened to reclaim.
+          # A mutant that widens a size bound asks for it --
+          # `ansi_x9_63_kdf` sizes one `bytearray` from the block count and
+          # `numeric.toml` puts the weakened bound at gigabytes of keying
+          # data -- and `bytearray` zero-fills, so an unrefused request is
+          # touched rather than merely reserved. Memory is therefore the
+          # reading that tells an exhausted host from a runner GitHub
+          # happened to reclaim.
           #
           # To stdout, and this is the whole point of it rather than a
           # detail: the reports and the artifact are exactly what a dead

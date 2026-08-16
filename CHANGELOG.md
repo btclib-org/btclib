@@ -24,46 +24,43 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
-- **A mutation session runs under a 2 GiB ceiling, so a mutant that
+- **A mutation session runs under an 8 GiB ceiling, so a mutant that
   allocates without end is recorded rather than fatal** (issue #948). The
   mutant in question is already killed by a test that exists:
   `tests/ecc/dh_test.py` asks `ansi_x9_63_kdf` for one octet past the
   bound and expects a refusal, and with the guard mutated away what
   arrives instead is not the `BTClibValueError` the test catches. What was
-  missing is a process alive to report it — the loop appends a digest per
-  iteration towards 358 GiB, so the host's memory went first and the job's
-  later steps died with it, which is why those profiles produced neither
-  report nor artifact.
+  missing is a process alive to report it — unbounded, the host's memory
+  went first and the job's later steps died with it, which is why those
+  profiles produced neither report nor artifact.
 
   `ulimit -v` bounds the address space `cosmic-ray exec` and every test
   command under it inherit, so the failure lands inside pytest as a
-  `MemoryError` and the verdict is KILLED. 2 GiB sits between two numbers
-  far apart — what these commands need against what the loop wants — and
-  the low end is what makes such a mutant cost seconds. The baseline step
-  runs under the same limit, so a ceiling too low for legitimate use fails
-  the run against the unmutated tree instead of reporting every mutant
-  killed. The per-mutant `timeout` cannot do this: memory goes at well
-  under its 300 seconds
+  `MemoryError` and the verdict is KILLED. The number is deliberately high
+  and does not need to be tuned: the buffer is asked for in one statement,
+  so any limit below the 137 GB it asks for refuses it at the mmap, before
+  the zero-fill an unbounded host pays at 6.4 GB/s. What the ceiling has to
+  do is clear what `uv` reserves — a multithreaded Rust binary whose thread
+  stacks alone take tens of MiB apiece, `ulimit -v` counting address space
+  rather than memory touched — and stay under the host's own 16 GiB, so the
+  process dies before the runner. The baseline step runs under the same
+  limit, so a ceiling too low for legitimate use fails the run against the
+  unmutated tree instead of reporting every mutant killed. The per-mutant
+  `timeout` cannot do this: a refused allocation raises at once
 
-- **The weekly mutation run prints the host's memory, and the script
-  profile is cut sooner** (issue #948). Two of the eleven profiles die
-  mid-session with the job's own later steps reported `skipped` rather
-  than failed, which is a host that went away and not a command that
-  exited: the reports and the artifact go with it, so those two produce
-  nothing at all. A mutant that widens a size bound allocates towards it —
-  `ansi_x9_63_kdf` accumulates a list of digests, and `numeric.toml` puts
-  the weakened bound at gigabytes of keying data — which is the reading
-  that tells memory exhaustion from a runner GitHub happened to reclaim.
+- **The weekly mutation run prints the host's memory** (issue #948). Two of
+  the eleven profiles die mid-session with the job's own later steps
+  reported `skipped` rather than failed, which is a host that went away and
+  not a command that exited: the reports and the artifact go with it, so
+  those two produce nothing at all. A mutant that widens a size bound asks
+  for it — `ansi_x9_63_kdf` sizes one buffer from the block count, and
+  `numeric.toml` puts the weakened bound at gigabytes of keying data, which
+  `bytearray` then zero-fills — so memory is the reading that tells an
+  exhausted host from a runner GitHub happened to reclaim.
 
-  The sessions step now prints used and available memory every 15 seconds.
-  To stdout rather than to the artifact, that being exactly what a dead
-  host does not leave behind, and at 15 seconds because the allocation
-  develops over tens of them. `script.toml`'s session budget drops from 45
-  minutes to 20, under the 22.6 the furthest attempt reached, so a
-  `timeout` cut — a partial answer the workflow already handles — lands
-  ahead of the kill while the kill is where it was measured. Neither is
-  the fix: bounding the allocation is, and what to bound it to is what
-  these two measure
+  The sessions step prints used and available memory every 15 seconds, to
+  stdout rather than to the artifact, that being exactly what a dead host
+  does not leave behind
 
 - **The editor spell-checks a file outside the workspace folder with this
   repository's configuration too.** `typos` runs in the editor as a language
