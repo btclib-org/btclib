@@ -55,8 +55,12 @@ _BITCOIN_PER_SATOSHI = Decimal("0.00000001")
 # validity rule, an amount above it being unfundable rather than
 # invalid, and bounding by it would make btclib refuse to so much as
 # parse two transactions the network considers valid (issue 167)
-_MAX_SATOSHI = 21_000_000 * _SATOSHI_PER_BITCOIN
+# twenty-one million is written once and converted the way every other
+# amount in this module is, `sats_from_btc` below being that same
+# expression: two spellings of one bound can be edited apart, and the
+# paragraph above belongs to both of them
 _MAX_BITCOIN = Decimal(21_000_000)
+_MAX_SATOSHI = int(_MAX_BITCOIN * _SATOSHI_PER_BITCOIN)
 
 
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:

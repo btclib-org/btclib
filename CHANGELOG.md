@@ -990,6 +990,14 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **Twenty-one million is written once** (issue #962). `_MAX_SATOSHI` and
+  `_MAX_BITCOIN` each spelled the bound out, so nothing held them to each
+  other and the paragraph explaining why it is `MAX_MONEY` rather than the
+  supply the halving schedule issues belonged to both. The satoshi bound
+  is the bitcoin one converted now, through the same expression
+  `sats_from_btc` uses, and both keep their value, their type and their
+  callers
+
 - **A json `null` is not an amount** (issue #875).
   `TxOut.from_dict({"value": null})` built an output of zero satoshi:
   `valid_sats_amount` reads `None` as zero, for the caller it was written
