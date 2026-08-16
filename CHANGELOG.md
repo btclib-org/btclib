@@ -24,6 +24,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The editor spell-checks a file outside the workspace folder with this
+  repository's configuration too.** `typos` runs in the editor as a language
+  server, and it looks for `[tool.typos]` from the workspace folder rather
+  than from the file being edited: a `CHANGELOG.md` opened from a worktree
+  elsewhere on disk therefore fell back to the tool's own defaults, and
+  reported every quotation `[tool.typos.type.verbatim]` exempts — findings
+  the hook does not have, on a file the gate passes. `.vscode/settings.json`
+  names the path with `typos.config`, relative because the file is tracked
+  and the client starts the server with the workspace folder as its working
+  directory.
+
+  The entries that recorded a correction by quoting the misspelling now
+  name the correct spelling and say the word was misspelled, which is the
+  same fact with nothing left for a spell checker to offer to fix.
+  `[tool.typos.type.verbatim]` stays for what has to be quoted as it is
+  written elsewhere: a package name, an extended key, a message another
+  tool prints, an option name that is singular. Its comment names those
+  rather than the two spellings this file no longer carries
+
 - **Three files said squash was how a pull request lands; one of the two
   ways is a fast-forward** (issue #941). `REPOSITORY.md` has documented
   the `main-self-merge` bypass and its fast-forward sequence since the day
@@ -8697,10 +8716,11 @@ edit.
   vendored vectors are skipped rather than corrected, being normative:
   one English wordlist entry is a misspelling upstream, and correcting
   it would change every mnemonic derived from that list
-- **Typos in visible surfaces.** `_REQUIRED_LENGHT` is `_REQUIRED_LENGTH` in
-  `bip32` and `bms`, `bitlenght` is `bit_length`, and the `BIP32KeyData.parse`
-  docstring says 78 bytes, where it said 73 and the constant is 78. Five
-  exception messages read `implausibile signature failure`. One read
+- **Typos in visible surfaces.** `_REQUIRED_LENGTH` in `bip32` and `bms`, and
+  the `bit_length` local beside it, each had *length* misspelled inside the
+  name; the `BIP32KeyData.parse` docstring says 78 bytes, where it said 73 and
+  the constant is 78. Five exception messages misspelled the first word of
+  `implausible signature failure`. One read
   `generator must a be a sequence[int, int]` and one `script type not it
   ('p2wpkh', 'p2wsh')`; both were pinned verbatim, the first by a test and the
   second by the `error message` field of `bip174_test_vectors.json` — which
@@ -8711,21 +8731,22 @@ edit.
   docstring closes its set with a brace rather than a parenthesis.
   The `codespell` hook of #161 caught none of these, and the reason is worth
   recording: it matches whole words, so a misspelling inside an identifier —
-  `_REQUIRED_LENGHT`, `bitlenght` — is invisible to it, and `implausibile` is
-  simply not in the `clear` dictionary. Splitting every identifier in the
-  package into words and spell-checking those, 592 distinct words, now finds
-  nothing
+  `_REQUIRED_LENGTH`, `bit_length` — is invisible to it, and the one in those
+  exception messages is simply not in the `clear` dictionary. Splitting every
+  identifier in the package into words and spell-checking those, 592 distinct
+  words, now finds nothing
 - **A second spell checker, and six more typos.** The identifier split the
   entry above did by hand is a hook now: `typos` splits hyphens, snake_case
   and camelCase where codespell matches whole words, and the two
   dictionaries differ as well, so neither subsumes the other and both run.
-  Six misspellings survived the first hook and not the second — the README
-  offered the `bitcon` elliptic curve, `amount` documented a `threshould`,
-  `to_prv_key` an integer as a hex-`strin`, `curve_group` and HISTORY.md a
-  `y-simmetry` tiebreaker, and `psbt_utils` read its leaf hashes into
-  `leafs`. It corrects in place, which makes one thing a convention rather
-  than a preference: a misspelling written on purpose, as this entry writes
-  five, goes in backticks
+  Six misspellings survived the first hook and not the second: *bitcoin* in
+  the README's name for the elliptic curve, *threshold* in what `amount`
+  documents, *string* in the hex string `to_prv_key` takes an integer as,
+  *symmetry* in the `y-symmetry` tiebreaker of `curve_group` and HISTORY.md,
+  and the plural of *leaf* in `psbt_utils`, reading its leaf hashes into a
+  name English does not have. It corrects in place,
+  which makes one thing a convention rather than a preference: a misspelling
+  written on purpose goes in backticks
 - **`Network.assert_valid` checks the hrp.** It was `str(self.hrp)` with the
   result discarded, which cannot fail: `str()` accepts every object there is.
   It now raises `BTClibTypeError` for a field that is not a `str`, which is
