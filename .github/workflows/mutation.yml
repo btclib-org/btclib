@@ -201,12 +201,22 @@ jobs:
           # mutants, 187 filtered, and 406 judged in 35 minutes. Not folded
           # into the consensus job, which spends 180 of its 200 minutes
           # already, and not into the psbt one, which would then need 90
-          # minutes of its own
+          # minutes of its own.
+          # 20 minutes and not the 45 the sample above was measured with,
+          # which buys less of the scope on purpose: this profile has twice
+          # taken its host down mid-session rather than finishing (issue
+          # #948), at 22.6 minutes on the attempt that got furthest, and a
+          # session `timeout` cuts short is a partial answer where a dead
+          # runner is none at all -- it takes the reports and the artifact
+          # with it. A cut lands ahead of the kill only while the kill is
+          # where it was measured, so this is a floor under the loss and not
+          # a fix; the memory the step below prints is what says where the
+          # fix belongs
           - profile: the script encodings
             slug: script
-            ceiling: 60
+            ceiling: 35
             sessions: |
-              script.toml 45m
+              script.toml 20m
           # the four small scopes, which is what makes them one job: signer
           # finished its 302 filtered mutants in 9 minutes and wallet its
           # 293 in 15, musig2 spends most of a session on the two `%`
@@ -282,6 +292,37 @@ jobs:
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
+          # what the host's memory is doing while the mutants run, and the
+          # question is issue #948's: two profiles die here with the job's
+          # own remaining steps reported `skipped` rather than failed, which
+          # is a host that went away rather than a command that exited.
+          # A mutant that widens a size bound allocates towards it --
+          # `ansi_x9_63_kdf` builds a list of digests and `numeric.toml`
+          # puts the weakened bound at gigabytes of keying data, which is
+          # 10^8 objects -- so memory is the reading that tells that apart
+          # from a runner GitHub happened to reclaim.
+          #
+          # To stdout, and this is the whole point of it rather than a
+          # detail: the reports and the artifact are exactly what a dead
+          # host does not leave behind, and a log line already streamed is
+          # what it cannot take back. Every 15 s, because the allocation
+          # that matters develops over tens of seconds and a minute of
+          # spacing would sample either side of it
+          report_memory() {
+            while true; do
+              free -m | awk '/^Mem:/ {
+                print "memory: " $3 " MiB used, " $7 " MiB available"
+              }'
+              sleep 15
+            done
+          }
+          report_memory &
+          memory_reporter=$!
+          # the sessions are what this step waits for, so the sampler has to
+          # be reaped whichever way they end -- including the `return` below
+          # on an unsound status, which leaves the step without running
+          # anything after the loop
+          trap 'kill "$memory_reporter" 2> /dev/null || true' EXIT
           run_session() {
             local config=".github/mutation/$1" session="${1%.toml}.sqlite"
             local budget="$2" status=0

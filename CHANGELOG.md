@@ -24,6 +24,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The weekly mutation run prints the host's memory, and the script
+  profile is cut sooner** (issue #948). Two of the eleven profiles die
+  mid-session with the job's own later steps reported `skipped` rather
+  than failed, which is a host that went away and not a command that
+  exited: the reports and the artifact go with it, so those two produce
+  nothing at all. A mutant that widens a size bound allocates towards it —
+  `ansi_x9_63_kdf` accumulates a list of digests, and `numeric.toml` puts
+  the weakened bound at gigabytes of keying data — which is the reading
+  that tells memory exhaustion from a runner GitHub happened to reclaim.
+
+  The sessions step now prints used and available memory every 15 seconds.
+  To stdout rather than to the artifact, that being exactly what a dead
+  host does not leave behind, and at 15 seconds because the allocation
+  develops over tens of them. `script.toml`'s session budget drops from 45
+  minutes to 20, under the 22.6 the furthest attempt reached, so a
+  `timeout` cut — a partial answer the workflow already handles — lands
+  ahead of the kill while the kill is where it was measured. Neither is
+  the fix: bounding the allocation is, and what to bound it to is what
+  these two measure
+
 - **The editor spell-checks a file outside the workspace folder with this
   repository's configuration too.** `typos` runs in the editor as a language
   server, and it looks for `[tool.typos]` from the workspace folder rather
