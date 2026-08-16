@@ -1284,24 +1284,24 @@ check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
 Nothing is lost in `main`'s history by doing so, because **a pull request
-of several commits is merged with "Squash and merge"**: the branch
-becomes one commit, so the review's commits are the record of the review
-and `main` keeps one commit per landed change. A merge commit would put
-the branch's steps into `main` and a rebase merge would replay them one
-by one — `main` is linear by branch rule, and one change is one commit
-there.
+lands as one commit**: a branch of several is squashed into one, so the
+review's commits are the record of the review and `main` keeps one commit
+per landed change. A merge commit would put the branch's steps into
+`main` and a rebase merge would replay them one by one — `main` is linear
+by branch rule, and one change is one commit there.
 
-**A pull request that is already one commit may instead land as a
-fast-forward**, which is the maintainer's own path and needs a ruleset
-bypass no contributor has: REPOSITORY.md describes it. It is worth
-knowing about from here for two reasons. The sha does not change, so the
-commit `main` receives is the exact commit CI tested and the signature on
-it is the author's rather than GitHub's web-flow key — and a branch
-stacked on that one keeps applying, where a squash would have rewritten
-its base. Which is why a correction added on top of a reviewed branch is
-still the right shape: whether the branch is squashed or fast-forwarded
-is decided when it lands, and by then the review has its record either
-way.
+**How that commit reaches `main` is a push rather than a button**, which
+is the maintainer's own path and needs a ruleset bypass no contributor
+has: REPOSITORY.md describes it, squashing the branch locally where it
+carries more than one commit and fast-forwarding the result. It is worth
+knowing about from here for two reasons. The commit that lands is signed
+by the maintainer rather than by GitHub's web-flow key; and where what
+lands is the head CI ran on, its sha does not change, so a branch stacked
+on that one keeps applying where a squash composed at the merge would
+have rewritten its base. Which is why a correction added on top of a
+reviewed branch is still the right shape: whether the branch is squashed
+or fast-forwarded is decided when it lands, and by then the review has
+its record either way.
 
 What that commit says is the repository's to answer, not this file's:
 
@@ -1314,7 +1314,10 @@ gh api repos/btclib-org/btclib --jq \
 so a branch of one commit lands under that commit's own subject, a branch
 of several under the pull request's title with its number, and the body
 is the branch's commit messages either way — never the pull request's
-body, which stays on the pull request.
+body, which stays on the pull request. That is what the button writes,
+and a squash made locally follows the same convention by hand, the
+setting being the statement of what the message should say rather than
+only of what a press produces.
 
 **It is a setting and not a choice made once per pull request.** Squash is
 the only *button* the repository enables, so there is no other to read;

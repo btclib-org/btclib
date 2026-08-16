@@ -318,6 +318,50 @@ git log --format='%h %G?' origin/main..      # every commit G, none N
 git push origin <branch>:main
 ```
 
+Where the branch carries more than one commit it is squashed into a
+single signed commit first — `git reset --soft origin/main && git
+commit`, with `--author` where the branch is somebody else's, GitHub's
+button being what would otherwise have kept their name on it — and that
+commit is what the push fast-forwards. Squashing here rather than
+pressing the button is the whole of what keeps the signature the
+maintainer's: GitHub composes a squash server-side and signs it with its
+own web-flow key, while a push signs nothing and has nothing to sign, the
+commit arriving with the signature it already carried.
+
+**The bypass is not the whole of the permission.** The classic protection
+still carries `required_pull_request_reviews` and its `strict` required
+checks, and what a push to `main` clears those with is `enforce_admins`
+being `false` and the pusher holding `admin`; the ruleset bypass alone
+would not be enough. So the path depends on two settings, and the fragile
+one is that: turning `enforce_admins` on closes the fast-forward whatever
+the ruleset says.
+
+**Whether GitHub reconciles the push depends on one thing: whether what
+lands is the sha the pull request names at that moment**, a pull request
+being marked merged when its head becomes reachable from the base branch.
+
+- **it names what lands** — the branch's own head is fast-forwarded,
+  whether it reached that shape as one commit or as a squash **pushed to
+  the branch first**, and a rebase force-pushed to the branch is this
+  case too. GitHub marks the pull request **Merged** on its own, the
+  `Closes #N` in its description closes the issue, and
+  `delete_branch_on_merge` takes the head branch a second later.
+- **it names something else** — the squash or the rebase was made locally
+  and pushed straight to `main`. What lands is an object no pull request
+  names, so nothing is reconciled and nothing is deleted: close it by
+  hand, and let the issue close from the `Closes #N` in the *commit
+  message*, which is the reason for the keyword to be there and not only
+  in the description.
+
+Which is an argument for pushing the squash to the branch before landing
+it: CI then runs on the very object that will land rather than on a head
+that never will, and the reconciliation does the closing. Both halves
+were measured here — #953 was squashed straight onto `main` and is
+**Closed** with `mergedAt: null`, its issue having closed twenty-two
+seconds earlier from the commit message, and #930 was deleted ahead of
+the reconciliation and came out Closed with its commit on `main` all the
+same.
+
 ## Merge methods
 
 **Squash is the only *button* enabled**, so it is a setting and not only
@@ -330,17 +374,19 @@ gh api repos/btclib-org/btclib \
 
 answers `true` for the first and `false` for the other two.
 
-It is not the only way a pull request lands, and this section named it as
-if it were while the section above it documented the other: **a branch of
-a single commit is fast-forwarded** through the `main-self-merge` bypass,
-which is the sequence written there. What that buys is what a squash
-cannot: the sha does not change, so `main` receives the exact commit CI
-tested, signed by the maintainer rather than by GitHub's web-flow key,
-and a branch stacked on it keeps applying instead of needing a rebase and
-a fresh run of the matrix per level. Which of the two applies is decided
-by the branch and not by taste — a contributor's pull request usually
-carries several commits and is squashed; the maintainer's usually carries
-one.
+It is not how a pull request lands at all, and this section named it as
+if it were while the section above it documented the other: **every
+landing is the fast-forward** of that sequence, through the
+`main-self-merge` bypass, with the squash a multi-commit branch needs
+made locally before it. What that buys is what a button cannot: the
+commit is signed by the maintainer rather than by GitHub's web-flow key,
+and where what lands is the head CI ran on, its sha does not change
+either, so a branch stacked on it keeps applying instead of needing a
+rebase and a fresh run of the matrix per level.
+
+The setting is what bounds a landing nobody drove from a shell: the
+auto-merge dropdown the next paragraph describes is what reaches the
+button, and GitHub's key is what signs whatever it presses.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The
@@ -380,6 +426,14 @@ be removed by anything — including a pull request that somehow had it as a
 head. And a pull request **closed without merging** keeps its head branch:
 GitHub cannot know whether that work was abandoned or is waiting, so those
 are the ones still worth looking at now and then.
+
+A fast-forward is covered where GitHub reconciles it, the setting hanging
+on the merge GitHub records rather than on the one a button performed.
+Measured in btclib-secp256k1, whose configuration is this one: a squash
+pushed to the branch and then fast-forwarded was marked Merged at
+12:39:19 and had `head_ref_deleted` at 12:39:20, with nobody asking. What
+is left there is not to get ahead of it, #930 being what that costs; the
+deletion by hand belongs to the landing GitHub never sees.
 
 ## Token permissions
 

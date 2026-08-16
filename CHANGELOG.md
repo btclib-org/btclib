@@ -25,6 +25,44 @@ documented at release-notes length in the first place, and are still in
 ### Repository
 
 - **A mutation session runs under an 8 GiB ceiling, so a mutant that
+- **The squash is made here rather than pressed, so every landing is the
+  fast-forward** (issue #958). #944 wrote the rule as two: a branch of
+  several commits merged with the button, a branch of one
+  fast-forwarded. The button is what that costs —
+  [`d9ff94e5`](https://github.com/btclib-org/btclib/commit/d9ff94e5)
+  landed through it after #944 with `GitHub <noreply@github.com>` as its
+  committer and the web-flow key's signature on it, and it is 23 of the
+  last 40 commits on `main`. A `git reset --soft origin/main && git
+  commit` before the same push leaves the signature the maintainer's,
+  with `--author` where the branch is somebody else's, which is the one
+  thing the button was doing that the shell has to be told.
+
+  Three things btclib-secp256k1 measured after #944 come with it, that
+  repository's configuration being this one's. Whether GitHub reconciles
+  a push turns on whether what lands is the sha the pull request names at
+  that moment — not on whether a rebase happened, a rebase force-pushed
+  to the branch leaving it naming the new one. So push the squash to the
+  branch before landing it: the squashed branch is then the reconciled
+  case too, CI runs on the object that lands rather than on a head that
+  never will, and `delete_branch_on_merge` fires, measured at one second
+  after the merge. Landed straight from a worktree, nothing is reconciled
+  and nothing is deleted, which is #953 — **Closed** with
+  `mergedAt: null`, its issue closed by the `Closes` in the commit
+  message — and getting ahead of the reconciliation is #930.
+
+  REPOSITORY.md gains that split and the permission the sequence actually
+  rests on: the push clears the classic protection's review and its
+  `strict` checks because `enforce_admins` is `false` and the pusher
+  holds `admin`, the ruleset bypass alone not being enough.
+  CONTRIBUTING.md says the landing is a push rather than a button, and
+  that the squash settings state what the message should say rather than
+  only what a press produces. RELEASING.md gets the case where it always
+  applies: a version bump and two retitles is never one commit, so the
+  release pull request is the squashed case every time, and a manual
+  close between the merge and the tag is a surprise worth not having.
+  The twin, landed first, is
+  [btclib-secp256k1's `7944dce`](https://github.com/btclib-org/btclib-secp256k1/commit/7944dce)
+- **A mutation session runs under a 2 GiB ceiling, so a mutant that
   allocates without end is recorded rather than fatal** (issue #948). The
   mutant in question is already killed by a test that exists:
   `tests/ecc/dh_test.py` asks `ansi_x9_63_kdf` for one octet past the
