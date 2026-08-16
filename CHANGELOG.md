@@ -4600,6 +4600,66 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **A multi-scalar multiplication sums its terms once, not once per
+  term** (issue #917). `_libsecp256k1_multi_mult_` multiplied a term,
+  combined it into a running total, and did that again for the next one,
+  so a sum of n points crossed the boundary with n-1 combines and n-1
+  serializations of a partial total nothing outside the loop wanted. The
+  running total was there for one reason: an intermediate sum at infinity
+  has no serialization, libsecp256k1 answering 0 both for a point it
+  could not read and for a total at infinity, and comparing the
+  coordinates of a total this side held was the only way of telling the
+  two apart. `keys.pubkey_sum` (btclib-secp256k1#171) tells them apart on
+  the other side — the unreadable key raises through the illegal
+  callback, so a `None` back is the infinity and nothing else — and the
+  loop becomes the terms and one sum.
+
+  Measured on this tree, alternating rounds with the terms alone as the
+  control — which is the noise detector, being what neither shape
+  changes:
+
+  | terms | combine per term | one `pubkey_sum` | control (terms only) |
+  | --- | --- | --- | --- |
+  | 2 | 14.57 µs | 14.51 µs | 10.42 µs |
+  | 3 | 24.16 µs | 20.37 µs | 15.77 µs |
+  | 8 | 71.08 µs | 48.72 µs | 42.28 µs |
+  | 20 | 186.86 µs | 118.68 µs | 107.50 µs |
+  | 64 | 612.94 µs | 376.80 µs | 348.46 µs |
+
+  Two terms — `double_mult_var`, and the shape most callers have — are
+  unchanged: one combine either way, and now no comparison. End to end at
+  the caller the issue names, `musig2.key_agg`: five keys 94.05 µs
+  against 105.70, twenty 388.92 against 456.74, sixty-four 1247.33
+  against 1481.49.
+
+  What this does not do is keep the terms beyond the boundary as well,
+  which is the remaining third and needs a multi-multiplication entry
+  point in the bindings rather than a composition here; the issue stays
+  open on that half.
+
+- **Two questions about an x coordinate are asked as x-only questions**
+  (issue #927). `curves.curve._compressed_sec` wrote `0x02 || x` so that
+  `_is_x_coordinate_var` and `_y_even_var` could reach libsecp256k1
+  through the public-key API, there being no x-only call to reach it
+  through: the caller held an x, and what crossed was a compressed public
+  key built to be discarded, carrying a parity nobody chose.
+  `xonly.pubkey_verify` and `xonly.to_pubkey` (btclib-secp256k1#171) are
+  those calls, and the concatenation is theirs now — libsecp256k1
+  converts a point to an x-only key and has nothing the other way, so the
+  lift is a rule and belongs where the other x-only rules are.
+  `_compressed_sec` becomes `_x_octets`, which is the guard and the
+  encoding without the key around them.
+
+  No answer changes: the same x is refused by all three spellings, which
+  `curves` already asserts, and `to_pubkey` raises for an x that is no
+  x-coordinate, which is the one thing `_y_even_var` was already falling
+  through on. Nor is it a speed change, and it was measured before being
+  taken: 2.44 µs against 2.37 for the verdict and 3.61 against 3.44 for
+  the lift, the same C work through a different door. `_y_even_var`'s
+  recorded figures are corrected to what reproduces while there — 3.6 µs
+  against `ec.y_even_var`'s 73, and 1.2 more than the verdict rather than
+  the 0.3 that was written, a gap the old spelling measures the same.
+
 - **A point plus a multiple of the generator is one call to the bindings,
   wherever it is written.** BIP32's public derivation, BIP341's output
   key, the outputs and labels of BIP352 and the point a sign-to-contract

@@ -976,8 +976,8 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
 
     `_libsecp256k1_available` is what `_libsecp256k1_serves` reads on
     every call, so clearing it is the whole package's dispatch and not
-    this module's copy of a predicate. Replacing the four bindings
-    functions besides is what proves they were not asked anyway: a
+    this module's copy of a predicate. Replacing every bindings function
+    the module imports is what proves they were not asked anyway: a
     dispatch this does not cover raises here instead of quietly measuring
     the bindings against themselves.
     """
@@ -994,8 +994,9 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_add", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
-    monkeypatch.setattr(curve, "libsecp256k1_pubkey_combine", refuse)
-    monkeypatch.setattr(curve, "libsecp256k1_reserialize", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_sum", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_xonly_pubkey_verify", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_xonly_to_pubkey", refuse)
 
 
 @pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])

@@ -35,12 +35,12 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
-from btclib_secp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
+from btclib_secp256k1.keys import pubkey_sum as libsecp256k1_pubkey_sum
 from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib_secp256k1.keys import pubkey_verify as libsecp256k1_pubkey_verify
-from btclib_secp256k1.keys import reserialize as libsecp256k1_reserialize
 from btclib_secp256k1.mult import mult as libsecp256k1_mult
+from btclib_secp256k1.xonly import pubkey_verify as libsecp256k1_xonly_pubkey_verify
+from btclib_secp256k1.xonly import to_pubkey as libsecp256k1_xonly_to_pubkey
 
 from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (
@@ -458,19 +458,27 @@ def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:
     return hf is None or hf is sha256
 
 
-def _compressed_sec(x: int, ec: Curve) -> bytes | None:
-    """Return 0x02 || x for the bindings to parse, None if they cannot.
+def _x_octets(x: int, ec: Curve) -> bytes | None:
+    """Return x as the octets the bindings read, None if they cannot.
 
-    The two functions below ask libsecp256k1 the one question a compressed
-    public key is -- "this x, and the y that goes with it" -- and this is
-    the argument they ask it with, plus the conditions under which there
-    is one: the curve has to be secp256k1, and x has to be a field
-    element, ec_pubkey_parse taking no x-coordinate at or above ec.p and
+    The two functions below ask libsecp256k1 about an x coordinate, and
+    this is the argument they ask with, plus the conditions under which
+    there is one: the curve has to be secp256k1, and x has to be a field
+    element, `xonly` taking no x-coordinate at or above ec.p and
     x.to_bytes raising OverflowError rather than answering for one.
+
+    An x-only key and nothing built around it. What crosses used to be
+    0x02 || x, a compressed public key assembled here so that the
+    question could be put through the public-key API, there being no
+    x-only call to put it through; `xonly.pubkey_verify` and
+    `xonly.to_pubkey` are those calls, and the concatenation is theirs
+    now -- libsecp256k1 converting a point to an x-only key and offering
+    nothing the other way, so the lift is a rule and belongs where the
+    other x-only rules are.
     """
     if not _libsecp256k1_serves(ec, None) or not 0 <= x < ec.p:
         return None
-    return b"\x02" + x.to_bytes(ec.p_size, "big")
+    return x.to_bytes(ec.p_size, "big")
 
 
 def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
@@ -479,11 +487,12 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     Existence and nothing else, which is what a caller with no use for
     the y has to ask, and it is a question the Legendre symbol answers
     without ever forming a root: 14 us on secp256k1 against the 75 of
-    ec.y, and `keys.pubkey_verify` answers the same of the compressed key
-    0x02 || x in 2.4, being ec_pubkey_parse and a verdict -- the same
+    ec.y, and `xonly.pubkey_verify` answers the same of the x alone in
+    2.4, being secp256k1_xonly_pubkey_parse and a verdict -- the same
     answer three ways, all three refusing the same x. It is
-    libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var` being
-    `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
+    libsecp256k1's own shape,
+    `secp256k1_ge_x_on_curve_var` being `secp256k1_fe_is_square_var` of
+    x^3 + ax + b and nothing else.
 
     A bool rather than an exception, because the value that names itself
     in an error message is the caller's and not this x: dsa.Sig's
@@ -492,9 +501,9 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     of the field elements are not x-coordinates, and the symbol costs the
     same for those as for the others.
     """
-    sec = _compressed_sec(x, ec)
-    if sec is not None:
-        return libsecp256k1_pubkey_verify(sec)
+    octets = _x_octets(x, ec)
+    if octets is not None:
+        return libsecp256k1_xonly_pubkey_verify(octets)
 
     if not 0 <= x < ec.p:
         return False
@@ -507,11 +516,11 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
 def _y_even_var(x: int, ec: Curve) -> int:
     """Return the even y-coordinate associated to x.
 
-    ec.y_even_var, delegated for secp256k1: the parity a compressed public
-    key carries in its prefix is the same tiebreaker, so 0x02 || x names
-    the even-y point and `keys.reserialize` asked for the uncompressed
-    form hands back the y that was lifted -- 2.7 us against 75. That is
-    0.3 more than _is_x_coordinate_var above, which is why both exist.
+    ec.y_even_var, delegated for secp256k1: the even y is the one an
+    x-only key names, so `xonly.to_pubkey` asked for the uncompressed
+    form hands back the y that was lifted -- 3.6 us against 73. That is
+    1.2 more than _is_x_coordinate_var above, which is why both exist:
+    finding the root is what the verdict does not do.
 
     An x the bindings refuse falls through to ec.y_even_var instead of
     raising here, so that the message stays in the one place that has the
@@ -519,12 +528,13 @@ def _y_even_var(x: int, ec: Curve) -> int:
     the callers of this function wrap that message rather than restating
     it. The fallthrough pays the Python square root on a path whose
     answer is an exception, which is the trade _is_x_coordinate_var exists
-    not to make.
+    not to make. `to_pubkey` raises for one thing only -- an x that is no
+    x-coordinate -- which is the one thing this falls through on.
     """
-    sec = _compressed_sec(x, ec)
-    if sec is not None:
+    octets = _x_octets(x, ec)
+    if octets is not None:
         with contextlib.suppress(ValueError):
-            uncompressed = libsecp256k1_reserialize(sec, compressed=False)
+            uncompressed = libsecp256k1_xonly_to_pubkey(octets, compressed=False)
             return int.from_bytes(uncompressed[ec.p_size + 1 :], "big")
 
     return ec.y_even_var(x)
@@ -570,29 +580,31 @@ def _libsecp256k1_multi_mult_(
     answer for: u*H + v*Q with v*Q == -u*H, and v = n - u with Q == H is
     the one-line case of it.
 
-    That sum is recognized from the coordinates, same x and different y,
-    rather than caught from the combine that fails on it, so that a
-    ValueError raised in here still means what it says instead of
-    doubling as a value. Its price is one combine per term rather than
-    one for all of them, a running total being what has an x to compare:
-    measured on eight terms 112 us against 97, and on sixty-four 925
-    against 774, where the Python arithmetic below takes 2.4 ms and 15 ms.
-    Two terms, which is double_mult_var and the shape most callers have, pay
-    nothing at all: one combine either way.
+    `keys.pubkey_sum` is what answers it, being `pubkey_combine` with that
+    one sum answered rather than refused: libsecp256k1 reports 0 both for
+    a key it could not read and for a total at infinity, and the first
+    raises through the illegal callback, so a None back from here is the
+    infinity and nothing else. What that replaces is a combine per term
+    with a running total this side compared coordinates on, the only way
+    of telling the two zeros apart while the sum was assembled here.
+    Terms first, then one sum, which is worth about a third of the call
+    from eight terms up. Two terms -- double_mult_var, and the shape most
+    callers have -- pay nothing either way: one combine, and now no
+    comparison. The measurement per term count is in the CHANGELOG entry
+    that made the change, which is where a figure belongs: an entry is
+    read as the history of a release and this is read as a statement
+    about the code as it stands.
+
+    At least one term, `pubkey_sum` refusing an empty sequence as
+    `pubkey_combine` does. That is no narrowing of what the callers below
+    reach: fewer than two terms is not a multi_mult_var, and the two other
+    entry points hand over one and two.
     """
-    x_slice = slice(1, secp256k1.p_size + 1)
-    total: bytes | None = None
-    for m, sec in zip(scalars, secs, strict=True):
-        term = libsecp256k1_pubkey_tweak_mul(sec, m, False)
-        if total is None:  # nothing yet, or infinity, and INF + P is P
-            total = term
-        elif total != term and total[x_slice] == term[x_slice]:
-            # same x, different y, i.e. P + (-P): infinity. Equal octets
-            # instead are P + P, which combine doubles like any other sum
-            total = None
-        else:
-            total = libsecp256k1_pubkey_combine([total, term], False)
-    return total
+    terms = [
+        libsecp256k1_pubkey_tweak_mul(sec, m, False)
+        for m, sec in zip(scalars, secs, strict=True)
+    ]
+    return libsecp256k1_pubkey_sum(terms, False)
 
 
 def _point_from_sec(sec: bytes) -> Point:

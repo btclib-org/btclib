@@ -28,9 +28,13 @@ dependencies = [
     # 0.8.0.3 for `xonly.tweak_add_` (btclib-secp256k1#158), which
     # `script.taproot` calls: it tweaks the parsed internal key, where
     # `xonly.tweak_add` parses the x again and that parse is a field square
-    # root. The version is not on PyPI yet -- `[tool.uv.sources]` below is
-    # what resolves it here -- so this floor is also what stops a release
-    # going out against a bindings that cannot serve it
+    # root. The same version for `keys.pubkey_sum`, `xonly.pubkey_verify`
+    # and `xonly.to_pubkey` (btclib-secp256k1#171), which `curves.curve`
+    # calls -- one sum instead of a combine per term, and the two
+    # questions about an x asked as x-only questions. The version is not
+    # on PyPI yet -- `[tool.uv.sources]` below is what resolves it here --
+    # so this floor is also what stops a release going out against a
+    # bindings that cannot serve it
     "btclib_secp256k1>=0.8.0.3",
     "bitcoin-core-rpc>=2026.8.13",
 ]
