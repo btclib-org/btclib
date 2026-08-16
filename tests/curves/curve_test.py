@@ -47,6 +47,7 @@ from btclib.curves.curve import (
     _sec_from_point,
     _sum_var,
     _tweak_add_var,
+    _TweakChain,
     _y_even_var,
 )
 
@@ -999,6 +1000,9 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_sum", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_xonly_pubkey_verify", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_xonly_to_pubkey", refuse)
+    # a class rather than a function, which is the one dispatch that
+    # builds an object instead of calling through
+    monkeypatch.setattr(curve, "Libsecp256k1PubkeyTweakChain", refuse)
 
 
 @pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
@@ -1037,6 +1041,64 @@ def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
             assert _tweak_add_var(P, t, other) == other.add_var(
                 P, mult(t, other.G, other)
             )
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A chain of steps answers what a tweak of the base answers.
+
+    `_TweakChain` walks from each tweak to the next by their difference,
+    where `_tweak_add_var` adds every tweak to the base itself, so the
+    two have to agree at every step -- over tweaks that climb, that fall
+    back, that repeat (a zero step), and that are the base's own
+    neighbourhood: 0, 1 and n-1.
+
+    The values libsecp256k1 has none of are what the chain answers for
+    beyond that: a base at infinity, which is no public key and leaves
+    nothing to hold; and a step landing on infinity, which clears the
+    point the chain was holding and so has to be the end of the chain
+    rather than a step in it -- the tweaks after it are still answered,
+    one call each.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    tweaks = (0, 1, 7, 3, 3, ec.n // 2, 2, ec.n - 1, 0)
+    for k in (1, 2, 7, ec.n - 1):
+        base = mult(k)
+        chain = _TweakChain(base, ec)
+        for t in tweaks:
+            assert chain.point(t) == _tweak_add_var(base, t, ec)
+
+    # a base at infinity: every tweak is the tweak's own multiple, and
+    # the chain never holds a point
+    chain = _TweakChain(INF, ec)
+    for t in tweaks:
+        assert chain.point(t) == mult(t)
+
+    # a step onto infinity, which is the whole group order away from the
+    # base, and the two tweaks around it -- the one before is the last
+    # the chain itself answers, the one after is answered without it
+    base = mult(7)
+    chain = _TweakChain(base, ec)
+    assert chain.point(5) == _tweak_add_var(base, 5, ec)
+    assert chain.point(ec.n - 7) == INF
+    assert chain.point(5) == _tweak_add_var(base, 5, ec)
+
+    # a point that is not on the curve is refused where it is handed
+    # over, rather than at the first tweak of it
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        _TweakChain((ec.G[0], ec.G[1] + 1), ec)
+
+    # and a curve the bindings do not serve is the same answer again,
+    # every step of it on the Python arithmetic
+    for other in low_card_curves.values():
+        for k in range(1, 4):
+            base = mult(k, other.G, other)
+            chain = _TweakChain(base, other)
+            for t in range(other.n):
+                assert chain.point(t) == _tweak_add_var(base, t, other)
 
 
 @pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])

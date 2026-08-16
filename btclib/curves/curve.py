@@ -36,6 +36,9 @@ from pathlib import Path
 from typing import Any
 
 from btclib_secp256k1.keys import (
+    PubkeyTweakChain as Libsecp256k1PubkeyTweakChain,
+)
+from btclib_secp256k1.keys import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
 from btclib_secp256k1.keys import pubkey_sum as libsecp256k1_pubkey_sum
@@ -1060,20 +1063,115 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     across a whole path, and `xonly.tweak_add`, which carries the parity
     BIP341 commits to.
 
-    The Python arm is the pair above, and answers everything the bindings
-    decline: a zero tweak, an infinite P, a curve that is not secp256k1,
-    and the sum at infinity -- which libsecp256k1 has no public key for
-    and `add_var` returns.
+    The Python arm is the pair above, and answers what the bindings
+    decline: an infinite P, a curve that is not secp256k1, and the sum at
+    infinity -- which libsecp256k1 has no public key for and `add_var`
+    returns.
+
+    A zero tweak is not in that list and was: libsecp256k1 takes a tweak
+    "valid according to secp256k1_ec_seckey_verify *or 32 zero bytes*",
+    which its own header says of `secp256k1_ec_pubkey_tweak_add`, and
+    answers P. Sending it to the Python pair instead is what the
+    condition on `t` used to do, and it cost 131.40 us against 5.01: the
+    tweak is zero, so `mult` has the scalar libsecp256k1 declines and
+    takes the fixed-base ladder for an answer that is the point already
+    in hand.
     """
     ec.require_on_curve(P)
     t %= ec.n
 
-    if t and P[1] and _libsecp256k1_serves(ec, None):
+    if P[1] and _libsecp256k1_serves(ec, None):
         with contextlib.suppress(ValueError):
             sec = libsecp256k1_pubkey_tweak_add(_sec_from_point(P), t, False)
             return _point_from_sec(sec)
 
     return ec.add_var(P, mult(t, ec.G, ec))
+
+
+class _TweakChain:
+    """One point, many tweaks of it, and one parse on the far side.
+
+    `_tweak_add_var` above crosses the boundary once per tweak: the point
+    is serialized here, libsecp256k1 parses it, tweaks it and serializes
+    the answer, and this side reads that back. A caller tweaking *one*
+    point over and over pays the parse at every tweak, for a point that
+    has not changed since the last one -- BIP352's `scan_outputs` is the
+    caller, walking k upward from one spend key.
+
+    The tweaks asked of this are absolute, each measured from the point
+    the chain was built on, because that is what the caller means by
+    t_k. What crosses is their differences:
+
+        P_k     = B + t_k*G
+        P_(k+1) = P_k + (t_(k+1) - t_k)*G
+
+    which makes many tweaks of one point a chain of steps, each step's
+    output the next one's input, and `keys.PubkeyTweakChain` is the
+    object that holds the parsed point across such a chain. So this
+    needs no fan-out entry point of its own, and the bindings have none:
+    the fan-out is a chain read the other way round. Sixteen tweaks of
+    one point 112.7 us against 133.8, the difference being the fifteen
+    parses that do not happen; what that is worth at the one caller, per
+    number of outputs found, is in the CHANGELOG entry that took it.
+
+    Nothing is required of the order the tweaks arrive in. The
+    difference is taken modulo n, so the same tweak may be asked for
+    twice -- a zero step, which libsecp256k1 adds like any other and
+    answers with the point it already holds, its header saying so of
+    every tweak it takes -- and a later tweak may be smaller than an
+    earlier one. An instance is reusable for that reason: the base never
+    moves, and what is held beside it is only the tweak the next
+    difference is measured from.
+
+    Args:
+        base: the point every tweak is added to.
+        ec: the curve it belongs to.
+
+    Raises:
+        BTClibTypeError: if the curve is not a Curve.
+        BTClibValueError: if the point is not on the curve.
+    """
+
+    def __init__(self, base: Point, ec: Curve = secp256k1) -> None:
+        # both, and in this order, as `PreparedPoint` above has them: the
+        # point is on a curve, so a curve that is not one is what has to
+        # be refused first
+        _assert_valid_ec(ec)
+        ec.require_on_curve(base)
+        self.base = base
+        self.ec = ec
+        # the tweak the chain's point currently stands at, from which the
+        # next step is measured; zero is the base itself
+        self._tweak = 0
+        # infinity has no public key on the other side, and a curve that
+        # is not secp256k1 has no bindings at all: either way there is
+        # nothing to hold across the calls, and `point` below answers
+        # each of them on its own
+        self._chain = (
+            Libsecp256k1PubkeyTweakChain(_sec_from_point(base))
+            if base[1] and _libsecp256k1_serves(ec, None)
+            else None
+        )
+
+    def point(self, t: int) -> Point:
+        """Return base + t*G, taking the step from the last tweak asked for."""
+        t %= self.ec.n
+        if self._chain is not None:
+            try:
+                sec = self._chain.tweak_add((t - self._tweak) % self.ec.n, False)
+            except ValueError:
+                # the step landed on infinity, which libsecp256k1 has no
+                # public key for. The failure clears the point the chain
+                # was holding, so there is nothing left to continue from
+                # and it is dropped rather than resumed -- this tweak and
+                # every later one go to the one-shot pair above, whose
+                # Python arm is what has an infinity to answer with
+                self._chain = None
+            else:
+                self._tweak = t
+                return _point_from_sec(sec)
+
+        return _tweak_add_var(self.base, t, self.ec)
 
 
 def _jac_double_mult(

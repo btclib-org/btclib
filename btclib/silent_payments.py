@@ -68,7 +68,7 @@ from btclib.alias import NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, decode, encode
 from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
-from btclib.curves.curve import _sum_var, _tweak_add_var
+from btclib.curves.curve import _sum_var, _tweak_add_var, _TweakChain
 from btclib.curves.sec_point import _mult_sec_var
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -695,8 +695,10 @@ def scan_outputs(
     sender is missed.
     """
     secret = shared_secret(b_scan, tweak)
-    B = point_from_pub_key(B_spend)
+    # every k tweaks the one spend key, and `_tweak_add_var` would cross
+    # the boundary with it at each of them: the chain crosses with it once
     label_map = {} if labels is None else labels
+    chain = _TweakChain(point_from_pub_key(B_spend), secp256k1)
     remaining = [
         bytes_from_octets(output, secp256k1.p_size) for output in outputs_to_check
     ]
@@ -704,7 +706,7 @@ def scan_outputs(
     found = []
     for k in range(K_MAX):
         t_k = _output_tweak(secret, k)
-        P_k = _tweak_add_var(B, t_k, secp256k1)
+        P_k = chain.point(t_k)
         x_only_P_k = _x_only(P_k)
         match = None
         for output in remaining:

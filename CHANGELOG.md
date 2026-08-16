@@ -4905,6 +4905,82 @@ documented at release-notes length in the first place, and are still in
   is the platform's overcommit policy. Under the address-space ceiling a
   mutation session now runs with, both shapes raise `MemoryError`, and
   that ceiling is what covers the class.
+- **A silent-payment scan hands the spend key over once, not once per k**
+  (issue #916). `scan_outputs` walks k upward from one spend key, and
+  `_tweak_add_var` at each k serialized that same point, had
+  libsecp256k1 parse it, tweak it and serialize the answer back. Only
+  the tweak differs between two k, and consecutive tweaks differ by
+  their difference:
+
+  ```text
+  P_k     = B + t_k*G
+  P_(k+1) = P_k + (t_(k+1) - t_k)*G
+  ```
+
+  so the fan-out of one base over many tweaks is a chain of steps read
+  the other way round, and a chain is what `keys.PubkeyTweakChain`
+  holds a parsed point across. The issue asked for a fan-out object with
+  a non-mutating `tweak_add`, and none is needed: nothing changes in the
+  bindings for this. `curves.curve._TweakChain` is the wrapper — the
+  tweaks it takes are absolute, each measured from the base, so the
+  caller keeps writing what it means and the differences are what cross.
+  Sixteen tweaks of one point 112.7 µs against 133.8, the difference
+  being the fifteen parses that do not happen.
+
+  | outputs found | per-k tweak | chain |
+  | --- | --- | --- |
+  | 1 | 49.29 µs | 47.63 µs |
+  | 2 | 65.74 µs | 61.88 µs |
+  | 4 | 97.48 µs | 91.92 µs |
+  | 8 | 161.48 µs | 149.60 µs |
+  | 16 | 288.73 µs | 264.05 µs |
+
+  Those are whole scans of a transaction whose outputs are all one
+  recipient's, **with no labels**, which is the configuration every
+  figure above was measured in and is not the one BIP352 prescribes:
+  the change label m = 0 is asked of every wallet. What that map costs
+  is the entry below, and it decides what share of a scan this is:
+
+  | scan, with the m = 0 map | per-k tweak | chain |
+  | --- | --- | --- |
+  | 1 output, the recipient's | 50.4 µs | 48.7 µs |
+  | 16 outputs, all the recipient's | 294.5 µs | 270.8 µs |
+  | 10 of a hundred | 2179.2 µs | 2159.4 µs |
+  | 0 of a hundred | 2240.0 µs | 2231.1 µs |
+
+  A transaction whose outputs are all one recipient's pays nothing for
+  the labels — a direct match never reaches `_labelled` — so those two
+  rows are the two above them, at the same 3.4% and 8%. The mixed case
+  is where the label search dominates: ten among a hundred is 190.7 µs
+  against 206.2 with no labels and 2159.4 against 2179.2 with the map,
+  about 20 µs saved with the map and 15 without, out of eleven times the
+  scan, which is 0.9% rather than 7.5%. A scan that matches nothing is
+  47.8 µs against 47.6 with no labels and 2231.1 against 2240.0 with the
+  map, the first tweak paying a parse whichever function makes it.
+
+  Measured against `9890e504` on an Apple M5, macOS 26.6, arm64, CPython
+  3.14.6, best of seven alternating rounds (five for the labelled
+  table), with the scan's own ECDH as the noise detector — 16.4 µs
+  throughout.
+
+  What libsecp256k1 refuses is a step onto infinity, which has no public
+  key — and the refusal clears the point the chain was holding, so the
+  chain is dropped there rather than resumed, that tweak and every later
+  one going to `_tweak_add_var` one call each. A zero step it does not
+  refuse: two equal consecutive tweaks are added like any other tweak,
+  and the point it already holds is the answer.
+
+- **A zero tweak stops taking the Python arm, where the comment sending
+  it there was wrong** (issue #916). `_tweak_add_var`'s docstring listed
+  a zero tweak among what "the bindings decline", and the `if t and ...`
+  guard existed for that belief. libsecp256k1's own header declares the
+  opposite of `secp256k1_ec_pubkey_tweak_add` — the tweak must be "valid
+  according to secp256k1_ec_seckey_verify **or 32 zero bytes**" — and
+  what the guard bought was the slow answer to the easiest question:
+  131.40 µs against 5.01, `mult` having the one scalar libsecp256k1
+  *does* decline and taking the fixed-base ladder to reach the point
+  already in hand. The guard on an infinite P stays, that one being
+  true.
 
 - **A silent-payment scan stops looking for labels a wallet has none of**
   (issue #916). `scan_outputs` called `_labelled` for every output that

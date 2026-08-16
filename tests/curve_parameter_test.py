@@ -77,6 +77,7 @@ from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
     Curve,
     PreparedPoint,
+    _TweakChain,
     double_mult_var,
     mult,
     multi_mult_var,
@@ -166,6 +167,14 @@ _CASES = (
         "btclib.curves.curve.PreparedPoint.__init__",
         PreparedPoint,
         {"point": _PUB_KEY},
+    ),
+    # the other constructor holding a point across calls, private and
+    # driven here all the same: the walk finds it, its `__init__` being a
+    # dunder, and a function the walk finds is one this table drives
+    _Case(
+        "btclib.curves.curve._TweakChain.__init__",
+        _TweakChain,
+        {"base": _PUB_KEY},
     ),
     _Case(
         "btclib.curves.curve.double_mult_var",
