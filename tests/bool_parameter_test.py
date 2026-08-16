@@ -81,6 +81,7 @@ import pytest
 
 from btclib import b32, b58, bip322, core_import, slip132, var_bytes
 from btclib.bip32.bip32 import (
+    _PythonPubKeyTweakChain,
     derive,
     derive_from_account,
     derive_from_account_,
@@ -297,6 +298,16 @@ _KINDS = (
         optional=True,
     ),
     _Case("btclib.b58.p2pkh", "compressed", b58.p2pkh, {"key": _SEC}, optional=True),
+    # the one that is a bound method: a chain holds the point it steps,
+    # so the instance is built here and `bytes_from_point` above is the
+    # check this one reaches. A refused call must not step it, which is
+    # why the serialization happens before the step rather than after
+    _Case(
+        "btclib.bip32.bip32._PythonPubKeyTweakChain.tweak_add",
+        "compressed",
+        _PythonPubKeyTweakChain(_SEC).tweak_add,
+        {"tweak": _PRV_KEY.to_bytes(32, byteorder="big", signed=False)},
+    ),
     _Case(
         "btclib.ecc.bms.gen_keys",
         "compressed",

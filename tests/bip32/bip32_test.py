@@ -5,7 +5,11 @@
 """Tests for the `btclib.bip32` module."""
 
 import hmac
+import itertools
 import re
+import sys
+import types
+from collections.abc import Callable
 from dataclasses import FrozenInstanceError, fields, replace
 from typing import Any
 
@@ -17,6 +21,10 @@ from btclib.b58 import p2pkh
 from btclib.bip32 import (
     BIP328_CHAIN_CODE,
     BIP32KeyData,
+    # the module, not only the names in it: `libsecp256k1_keys` is a
+    # module attribute, and putting it out of reach is how
+    # no_bindings_bip32 below proves the Python arm asked nothing of it
+    bip32,
     crack_prv_key_var,
     derive,
     derive_,
@@ -30,11 +38,14 @@ from btclib.bip32 import (
     xpub_from_xprv,
     xpub_from_xprv_,
 )
-from btclib.bip32.bip32 import _BIP32KeyData, _derive
+from btclib.bip32.bip32 import _BIP32KeyData, _derive, _pub_key_tweak_chain
 from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import (
     bytes_from_point,
     bytes_from_prv_key_int,
+    # the module: `_libsecp256k1_available` is an attribute of it, and
+    # clearing it is how the two tests below reach the Python arm
+    curve,
     curve_group,
     mult,
     point_from_octets,
@@ -46,6 +57,7 @@ from btclib.hashes import hash160
 from btclib.network import NETWORKS
 from btclib.to_pub_key import pub_keyinfo_from_key
 from tests import load, replace_unchecked, vector_id
+from tests.curves.curve_test import no_bindings
 
 
 def test_exceptions() -> None:
@@ -223,6 +235,30 @@ def test_serialization() -> None:
     assert xpub == xpub2
 
 
+def no_bindings_bip32(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Switch the dispatch off, and bip32's own bindings out of reach.
+
+    `no_bindings` clears `_libsecp256k1_available`, which is what every
+    `_libsecp256k1_serves` in the package reads, so it is the whole
+    dispatch and not one module's copy of a predicate. What it cannot
+    show is that *this* module asked: bip32 imports `keys` as a module,
+    and a stand-in refusing every name in it is the proof -- a derivation
+    that still reaches libsecp256k1 fails here rather than quietly
+    measuring the bindings against themselves.
+    """
+
+    class Refuse:
+        def __getattr__(self, name: str) -> Any:
+            # a green suite is one where this never runs, which is the
+            # pragma curve_test.no_bindings carries for the same reason
+            raise AssertionError(  # pragma: no cover
+                f"the dispatch is switched off, and bip32 asked for {name}"
+            )
+
+    no_bindings(monkeypatch)
+    monkeypatch.setattr(bip32, "libsecp256k1_keys", Refuse())
+
+
 def bip32_vectors() -> list[Any]:
     """One case per derivation of BIP32 test vectors #1 to #4.
 
@@ -240,12 +276,29 @@ def bip32_vectors() -> list[Any]:
     ]
 
 
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
 @pytest.mark.parametrize("seed, der_path, xpub, xprv", bip32_vectors())
-def test_bip32_vectors(seed: str, der_path: str, xpub: str, xprv: str) -> None:
+def test_bip32_vectors(
+    seed: str,
+    der_path: str,
+    xpub: str,
+    xprv: str,
+    bindings: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """BIP32 test vectors #1, #2, #3, and #4.
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+
+    Both arms of the derivation, because BIP32 is what each of them
+    answers to: `keys.prvkey_tweak_add` and `keys.PubkeyTweakChain` where
+    the bindings are installed, and the two sums written out in Python
+    where they are not. The vectors are the authority either way, so
+    neither arm is checked against the other's answer here.
     """
+    if not bindings:
+        no_bindings_bip32(monkeypatch)
+
     mxprv = rootxprv_from_seed(seed)
     assert xprv == derive(mxprv, der_path)
     assert xpub == xpub_from_xprv(xprv)
@@ -698,12 +751,15 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
     """Both derivations, against the scalar and point arithmetic in Python.
 
     libsecp256k1 adds the offset to the key, privately and publicly, and
-    BIP32 is defined for secp256k1 alone: there is no other curve for a
-    fallback to serve, so nothing in the library computes either sum the
-    other way any more. What holds the delegation to BIP32's own
-    equations is having them here -- `ki = parse256(IL) + kpar (mod n)`
-    and `Ki = point(parse256(IL)) + Kpar` -- written out over the same
-    hmac the derivation takes, and the shipped vectors for the rest.
+    what holds that delegation to BIP32's own equations is having them
+    here -- `ki = parse256(IL) + kpar (mod n)` and `Ki =
+    point(parse256(IL)) + Kpar` -- written out over the same hmac the
+    derivation takes, and the shipped vectors for the rest.
+
+    Written out here and not read out of the library's own Python arm,
+    which is the same two equations and would be checking a copy against
+    itself. That arm is checked where it has an authority to answer to:
+    `test_bip32_vectors[python]`.
     """
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     parent = BIP32KeyData.b58decode(rootxprv)
@@ -733,8 +789,168 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
     assert child_pub.key == bytes_from_prv_key_int(child_prv_key)
 
 
-def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Refuse the two invalid private children, on a dictated hmac."""
+def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Python arm must be Python throughout, or it has no reason to be.
+
+    A mixed arm is the one shape that is never right: with libsecp256k1
+    in reach `keys.PubkeyTweakChain` and `keys.prvkey_tweak_add` are the
+    better calls, and out of reach there is nothing to mix. So the arm
+    holds no call that could delegate -- which today it does not by
+    construction, `mult` and the lift under `point_from_octets` gating on
+    `_libsecp256k1_serves(secp256k1, None)`, the very call that chose the
+    arm. Construction is a thing to check rather than to trust, and a
+    per-operation dispatch would end it without touching this file.
+
+    Checked by putting the whole of btclib_secp256k1 out of reach, which
+    takes both halves: the package's own callables, for a caller holding
+    the module and reaching through it as bip32 does, and every name
+    btclib has already bound from it, `from ... import x as y` having
+    copied the object rather than looked it up again.
+
+    Not the same thing as `no_bindings_bip32` below, which switches the
+    dispatch off and refuses bip32's own module: this refuses what every
+    layer beneath it would have called too.
+    """
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    rootxpub = xpub_from_xprv(rootxprv)
+    xpub = BIP32KeyData.b58decode(rootxpub)
+    # what the bindings answer, taken while they are still in reach
+    delegated = (
+        derive(rootxprv, "m/0h/1/2h"),
+        derive(rootxpub, "m/1/2"),
+        pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2"),
+    )
+
+    def refuse(what: str) -> Callable[..., Any]:
+        def asked(*_args: object, **_kwargs: object) -> Any:
+            # a green suite is one where this never runs
+            raise AssertionError(  # pragma: no cover
+                f"the Python arm reached libsecp256k1: {what}"
+            )
+
+        return asked
+
+    for mod_name, mod in list(sys.modules.items()):
+        if mod_name.split(".")[0] not in {"btclib", "btclib_secp256k1"}:
+            continue
+        for attr, value in list(vars(mod).items()):
+            if isinstance(value, types.ModuleType) or not callable(value):
+                continue
+            origin = getattr(value, "__module__", None) or ""
+            if origin.split(".")[0] == "btclib_secp256k1":
+                monkeypatch.setattr(mod, attr, refuse(f"{mod_name}.{attr}"))
+
+    # the two bip32 itself would have called, so that a loop reaching
+    # nothing would fail here rather than pass by touching nothing
+    with pytest.raises(AssertionError, match="reached libsecp256k1"):
+        libsecp256k1_keys.prvkey_tweak_add(b"\x01" * 32, b"\x02" * 32)
+    with pytest.raises(AssertionError, match="reached libsecp256k1"):
+        libsecp256k1_keys.PubkeyTweakChain(b"\x02" + b"\x01" * 32)
+
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
+    assert (
+        derive(rootxprv, "m/0h/1/2h"),
+        derive(rootxpub, "m/1/2"),
+        pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2"),
+    ) == delegated
+
+
+def test_the_python_arm_answers_what_the_primitive_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each arm of the two sums, against the call the other one makes.
+
+    The bindings are the authority on the answer here as everywhere else
+    the library keeps a Python path. `_pub_key_tweak_chain` answers one
+    secp256k1_ec_pubkey_tweak_add per step where they serve and
+    `add_var(P, mult(t))` where they do not, so the two are asserted step
+    by step over a spread of parent keys and tweaks; the private sum is
+    `keys.prvkey_tweak_add` against `(kpar + IL) % n` over the same
+    spread.
+
+    Successive steps rather than one apiece, the chain's whole point
+    being that a step starts from what the last one answered: an arm that
+    dropped the walk would still pass a one-step comparison.
+
+    The spread holds what a derivation's own tweaks never will, those
+    being hmac output: a zero tweak, which libsecp256k1's header says it
+    answers with the key unchanged; a tweak of n-1; and the two sums it
+    declines, the zero child and the child at infinity.
+    """
+    keys = [bytes_from_prv_key_int(q) for q in (1, 2, 7, ec.n // 2, ec.n - 1)]
+    tweaks = [0, 1, 2, 7, ec.n // 2, ec.n - 1]
+
+    def walk(key: bytes) -> list[bytes | str]:
+        """Step through the tweaks, stopping where the chain refuses."""
+        chain = _pub_key_tweak_chain(key)
+        steps: list[bytes | str] = []
+        for t in tweaks:
+            try:
+                steps.append(
+                    chain.tweak_add(t.to_bytes(32, byteorder="big", signed=False))
+                )
+            except ValueError:
+                # a refused step ends the chain, so what the arms have to
+                # agree on is where it happened and not what comes after:
+                # n-1 tweaked by 1 is the sum at infinity, and this walk
+                # is the one caller that reaches it
+                steps.append("refused")
+                break
+        return steps
+
+    delegated = [walk(key) for key in keys]
+    assert any("refused" in steps for steps in delegated)
+    with monkeypatch.context() as no_c:
+        no_bindings_bip32(no_c)
+        assert [walk(key) for key in keys] == delegated
+
+    # the sum neither implementation has an answer for, and both refuse
+    # by raising what the callers turn into BIP32's invalid children.
+    #
+    # The Python one is matched on its message, which is what makes its
+    # guard load-bearing: `bytes_from_point` refuses infinity too, with a
+    # BTClibValueError of its own, so deleting the guard leaves the type
+    # of the exception and every other assertion in this file untouched
+    # -- and leaves `pub_key_derivation_tweaks`, which does not wrap this
+    # loop, telling its caller about a serialization it never asked for
+    for q in (1, 2, 7):
+        key = bytes_from_prv_key_int(q)
+        offset = (ec.n - q).to_bytes(32, byteorder="big", signed=False)
+        with pytest.raises(ValueError):
+            _pub_key_tweak_chain(key).tweak_add(offset)
+        with monkeypatch.context() as no_c:
+            no_bindings_bip32(no_c)
+            with pytest.raises(
+                BTClibValueError, match="the sum is the point at infinity"
+            ):
+                _pub_key_tweak_chain(key).tweak_add(offset)
+
+    # and the private sum, whose delegated arm is the primitive itself
+    for q, t in itertools.product((1, 2, 7, ec.n // 2, ec.n - 1), tweaks):
+        key = q.to_bytes(32, byteorder="big", signed=False)
+        offset = t.to_bytes(32, byteorder="big", signed=False)
+        child = (q + t) % ec.n
+        if child:
+            assert libsecp256k1_keys.prvkey_tweak_add(key, offset) == child.to_bytes(
+                32, byteorder="big", signed=False
+            )
+        else:
+            with pytest.raises(ValueError):
+                libsecp256k1_keys.prvkey_tweak_add(key, offset)
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_invalid_child_prv_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refuse the two invalid private children, on a dictated hmac.
+
+    On both arms: the zero child is the sum libsecp256k1 refuses and the
+    comparison the Python arm makes, so one refusal has two spellings and
+    they have to raise the same error.
+    """
+    if not bindings:
+        no_bindings_bip32(monkeypatch)
+
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xkey = BIP32KeyData.b58decode(rootxprv)
     prv_key_int = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
@@ -752,8 +968,17 @@ def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
         derive(rootxprv, "m/0")
 
 
-def test_invalid_child_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Refuse the two invalid public children, on a dictated hmac."""
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_invalid_child_pub_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refuse the two invalid public children, on a dictated hmac.
+
+    On both arms, as the private children above: the sum at infinity is
+    the one libsecp256k1 has no public key for, and the one the Python
+    arm recognizes by its zero y.
+    """
+    if not bindings:
+        no_bindings_bip32(monkeypatch)
+
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     rootxpub = xpub_from_xprv(rootxprv)
     xkey = BIP32KeyData.b58decode(rootxprv)
@@ -1049,7 +1274,10 @@ def test_pub_key_derivation_tweaks_are_32_bytes_each() -> None:
     assert all(len(tweak) == 32 for tweak in tweaks)
 
 
-def test_a_path_of_no_steps_still_looks_at_the_public_key() -> None:
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_a_path_of_no_steps_still_looks_at_the_public_key(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """[] is the right answer for an empty path, and not for a non-point.
 
     `if indexes:` around the whole body made the empty path the one
@@ -1057,7 +1285,14 @@ def test_a_path_of_no_steps_still_looks_at_the_public_key() -> None:
     public key -- a prefix of 0x00, an x above p, x = 0 -- all came back
     as `[]`, the answer a caller reads as "derivation succeeded, nothing
     to apply".
+
+    Both arms build the chain, so both are asked: the four keys below are
+    refused by `PubkeyTweakChain`'s parse where the bindings serve, and by
+    `point_from_octets` where they do not.
     """
+    if not bindings:
+        no_bindings_bip32(monkeypatch)
+
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
 
@@ -1148,7 +1383,10 @@ def test_check_validity_defaults_to_true() -> None:
     assert BIP32KeyData.parse(as_bytes, check_validity=False) == invalid
 
 
-def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_the_tweaks_of_a_public_derivation_are_the_derivation(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The scalars a path adds up to, against the key the path derives.
 
     What they are for is a key that cannot be derived from -- a BIP327
@@ -1156,7 +1394,14 @@ def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
     the signers as tweaks (BIP373, `btclib.psbt.musig2`) -- and what says
     they are right is that applying them by hand lands on the key `derive`
     answers for the same path.
+
+    On both arms, the tweaks being the hmac's left halves and so the same
+    scalars either way: what differs is the chain walking the key from one
+    to the next, which is where the two could part.
     """
+    if not bindings:
+        no_bindings_bip32(monkeypatch)
+
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
 

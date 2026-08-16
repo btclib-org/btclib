@@ -113,10 +113,11 @@ used to teach and to prototype as much as to build:
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
     no commitment; `ssa.sign` for secp256k1 with sha256, a message of
     any size and no commitment; `taproot.output_prvkey`,
-    `dh.diffie_hellman` and `commit_nonce.commit_nonce_` for secp256k1,
-    the tweaking of a key, the shared point of a key agreement and the
-    tweaking of a sign-to-contract nonce being three other places a
-    secret meets the curve.
+    `dh.diffie_hellman`, `commit_nonce.commit_nonce_` and the private
+    half of `bip32.derive` for secp256k1, the tweaking of a key, the
+    shared point of a key agreement, the tweaking of a sign-to-contract
+    nonce and the offsetting of a parent key by the left half of an hmac
+    being four other places a secret meets the curve.
     Verification crosses it whole, not only in its multiplication:
     `dsa.verify` and `ssa.verify` are one libsecp256k1 call each for
     secp256k1 with sha256, a high-s signature being normalized first
@@ -143,7 +144,12 @@ used to teach and to prototype as much as to build:
     the recovery flag in one call: message signing is defined for
     secp256k1 alone, so there is no argument that sends it down the
     Python path — which the test suite reaches by switching the dispatch
-    off, and which no caller can.
+    off, and which no caller can. BIP32 derivation is the same case, and
+    for the same reason: `bip32.derive` adds the offset with
+    `keys.prvkey_tweak_add` privately and `keys.PubkeyTweakChain`
+    publicly, and the Python arm behind them — BIP32's two sums, on
+    integers and on a point — is one no argument of a caller's selects
+    either.
     Anything else — another
     curve, another hash function, a nonce of your own — runs the Python
     implementation, whose scalar multiplication is

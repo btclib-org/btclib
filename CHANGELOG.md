@@ -1489,6 +1489,75 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **BIP32 derivation has its Python arm back, so closing the dispatch
+  reaches it** (issue #966). Both sums went to libsecp256k1
+  unconditionally — `keys.prvkey_tweak_add` for the private child and
+  `keys.PubkeyTweakChain.tweak_add` for the public one — on the argument
+  that BIP32 is defined for secp256k1 alone, so no other curve could ask
+  for a fallback. The curve is not the only question that argument has to
+  answer: `curve._libsecp256k1_available` is the seam every other
+  dispatch in the package reads, and bip32 read nothing, so clearing it
+  left the derivation in C. `derive(xprv, "m/0h/1/2h")` with the seam
+  closed made three `prvkey_tweak_add` calls; the public path, two
+  `PubkeyTweakChain` and four `tweak_add`.
+
+  BIP32's own equations are back where they were — `ki = parse256(IL) +
+  kpar (mod n)` and `Ki = point(parse256(IL)) + Kpar` — behind
+  `_libsecp256k1_serves`, which is what every other dispatch asks.
+  A public path is walked with a chain either way, and
+  `_pub_key_tweak_chain` answers which: `keys.PubkeyTweakChain` where the
+  bindings serve, `_PythonPubKeyTweakChain` where they do not — one class
+  each, chosen once for a path rather than tested at every step of it,
+  and neither carrying a state the other one needs. The second holds an
+  affine point across the levels, so it pays one `point_from_octets` — a
+  modular square root — per path rather than one per level. The contract
+  is the bindings': `ValueError` for octets that are no point, and for
+  the sum at infinity — which is one of the three children BIP32 declares
+  invalid, and reaches the caller as `_invalid_child` words it.
+
+  What the Python arm costs, µs, median of four alternating rounds, best
+  of five × 200 calls:
+
+  | call | bindings | Python |
+  | --- | --- | --- |
+  | `derive(xprv, "m/0")` | 22.8 | 161.0 |
+  | `derive(xprv, "m/0h/1/2h")` | 36.4 | 308.8 |
+  | `derive(xpub, "m/0")` | 32.2 | 276.6 |
+  | `derive(xpub, "m/1/2")` | 44.5 | 437.4 |
+  | `pub_key_derivation_tweaks(…, "m/1/2")` | 27.3 | 393.4 |
+  | `base58.decode(xpub)`, the control | 5.0 | 4.9 |
+
+  The control is there because `BIP32KeyData.b58decode` is not one: it
+  validates the key, `_is_x_coordinate_var` is on the same seam, and it
+  moves from 4.1 µs to 14.6 — part of every derivation in the table, and
+  already Python on that arm before this change.
+
+  Per step, which is what the levels of a path multiply:
+
+  | step | bindings | Python |
+  | --- | --- | --- |
+  | the chain's parse of the parent key | 2.9 | 84.7 |
+  | one `tweak_add` | 11.6 | 175.2 |
+  | the private sum | 0.65 | 0.12 |
+
+  `__pub_key_derivation`'s comment carried a Python step of 33.4 µs from
+  before this change, which was `mult` delegating — with the dispatch off
+  altogether the multiplication is Python too, and the step is the 175.2
+  above. One measurement, one number: the comment now names this one.
+
+  The private sum is the one place the Python arm is *faster*, and it
+  buys what `keys.prvkey_tweak_add` is called for — a sum on a secret
+  that does not branch, and no unzeroized copy of the intermediates.
+
+  No caller reaches the new arm. The bindings are a required dependency,
+  so this is a seam the test suite closes and nothing else can, as with
+  `bms.sign`'s Python path; what changes is that closing it now measures
+  Python. The BIP32 test vectors run on both arms, and so do the two
+  invalid children of each derivation, the tweaks of a public path, and
+  the non-points an empty path still has to refuse. Issue #966 has the
+  rest of what running without the bindings asks for, the unguarded
+  imports first.
+
 - **The generator's multiplication no longer imports a module the
   bindings have removed** (issue #929). `curves.curve` reached
   `btclib_secp256k1.mult.mult` for `m*G`, and that module is gone:
