@@ -18,51 +18,64 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/amount_test.py tests/fee_test.py tests/ecc/dh_test.py \
   tests/integer_policy_test.py"""
 
-# wide for the reason sig_hash.toml gives, and no longer for a reason of
-# this profile's own. A mutant that widens the bound used to be answered
-# by the clock -- the guard removed, the derivation went on towards the
-# size it had been asked for, and one such mutant spent most of a session
-# -- and it is answered by memory now: `ansi_x9_63_kdf` sizes one buffer
-# from the block count, so the request is refused at the `ulimit -v` the
-# workflow puts on a session and the MemoryError arrives at the first
-# statement. Measured, the two of those the budget reached being killed
-# with a normal worker outcome, and the session judging 141 mutants where
-# the shape before it judged 90 in the same fifteen minutes.
+# 30 seconds, narrow where sig_hash.toml's is wide, and measured rather
+# than inherited. What that file's width is for does not arise here: a
+# mutant that widens the bound is answered by memory and not by the clock,
+# `ansi_x9_63_kdf` sizing one buffer from the block count, so the request
+# meets the `ulimit -v` a session runs under and the MemoryError arrives
+# at the first statement.
 #
-# What that leaves is a width nothing here has measured a need for. It
-# stays until something does: narrowing it is worth its own session, and a
-# mutant this cuts short is reported KILLED, so the cost of guessing low
-# is a verdict that reads as a test doing work it never did
-timeout = 300
+# What the clock still answers is a loop no bound stops, about one mutant
+# in seventy here. Each costs this width once, and the arithmetic is what
+# decides the number: at 300 s three of them spend a fifteen-minute budget
+# between them and the session judges a fifth of its scope. Cut short is
+# not a wrong verdict -- a timeout is reported KILLED at any width -- so
+# what a wide one buys is nothing and what it costs is every mutant the
+# session never reaches.
+#
+# Two sessions fix it, same runner and same budget: at 300 s, 141 judged;
+# at 20 s, 385, and of the 83 both reached not one verdict differed. 30
+# rather than 20 because the risk is one-sided -- a mutant legitimately
+# slower than this is reported KILLED, a verdict that reads as a test
+# doing work it never did -- and ten seconds more cost a minute on a whole
+# session while buying half again the margin over the 2.08 s a mutant here
+# normally takes
+timeout = 30
 
 excluded-modules = []
 
-# 141 of the 604 mutants sampled in the fifteen minutes this profile is
-# given: 126 killed, 15 survived. Sampled and not finished, so a verdict
-# that changes between weeks is what this is read for rather than the rate
-# itself. Seven of the fifteen are the two `shared_info: bytes | None`
-# annotations, on `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s,
-# mutated five ways and two -- equivalent under Python 3.14's deferred
-# annotation evaluation (PEP 649), the class fetch.toml documents at
-# length. Four are `fee.py`'s and `amount.py`'s own. The four left are
-# `ansi_x9_63_kdf`'s arithmetic, and are open rather than chased:
+# 602 mutants, all of them: 553 killed, 49 survived, 8.14%. The first
+# session of this profile to finish rather than sample, which is what the
+# budget and the timeout above buy together -- and what lets this state a
+# rate at all, a sample being readable only for the verdicts that move in
+# it.
 #
-# - `hf_size * (2**32 - 1)` lowered, but not below what a test asks for:
-#   the multiplication replaced by `+` or `^`, the exponentiation by `^`.
-#   Three mutants of one shape, a real bound cut to a fraction of itself
-#   and still above the largest size any test derives. Killing one needs a
-#   `size` between the two bounds, and for every hash function this ships
-#   with that is gigabytes of keying data -- the ask the ceiling above
-#   refuses, so no test can reach it from that side either. The rest of
-#   this line's mutants are killed and say why these are not: lowered
-#   further, past the sizes the tests do use, the first of those is
-#   refused and the mutant dies there; widened, the oversize call is no
-#   longer refused and the MemoryError kills it.
-# - `ceil(size / hf_size)` with the division replaced by `+`: the buffer
-#   is sized from the count, so it grows with it and every block still
-#   writes into a slot of its own, and `bytes(view[:size])` returns the
-#   same octets. Equivalent by that truncation, the extra blocks being
+# Of the 49, thirty-seven fall into four shapes:
+#
+# - 22 are the two `shared_info: bytes | None` annotations, on
+#   `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s, eleven mutants
+#   apiece -- equivalent under Python 3.14's deferred annotation
+#   evaluation (PEP 649), the class fetch.toml documents at length.
+# - 10 lower `hf_size * (2**32 - 1)` without reaching the sizes a test
+#   asks for. Killing one needs a `size` between the two bounds, and for
+#   every hash function this ships with that is gigabytes of keying data
+#   -- the ask the session ceiling refuses, so no test can come at it from
+#   that side either.
+# - 3 widen `ceil(size / hf_size)`. The buffer is sized from the count, so
+#   it grows with it and every block still writes into a slot of its own;
+#   `bytes(view[:size])` returns the same octets, the extra blocks being
 #   work and not a wrong answer.
+# - 1 is `size > max_size` as `>=`, which still refuses the oversize call.
+#   Nothing asks for exactly `max_size`, and nothing can: it is a hundred
+#   and thirty-seven gigabytes of sha256 output.
+# - 1 is `shared_secret_point[1] == 0` as `<=`, a field element having no
+#   value below zero to tell them apart with.
+#
+# The twelve left are neither equivalent by inspection nor chased: three
+# in `amount.py`, four in `fee.py`, and five in `ansi_x9_63_kdf` and
+# `diffie_hellman`. `numeric-survivors.txt` in the run's artifact names
+# each with its diff, which is where whoever writes the tests should
+# start.
 
 [cosmic-ray.distributor]
 name = "local"

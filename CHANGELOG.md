@@ -24,6 +24,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The numeric mutation profile finishes its scope instead of sampling a
+  fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
+  and its session budget 25 minutes rather than 15. About one mutant in
+  seventy there is a loop no bound stops, and at 300 seconds three of them
+  spend a fifteen-minute budget between them — a wide timeout buys no
+  verdict, a cut mutant being reported KILLED at any width, and costs
+  every mutant the session never reaches. Two sessions on the same runner
+  and the same budget fix the number: 141 mutants judged at 300 seconds,
+  385 at 20, and of the 83 both reached not one verdict differed. 30
+  rather than 20 leaves margin over the 2.08 seconds a mutant here
+  normally takes, the risk being one-sided — a mutant legitimately slower
+  is reported KILLED, which reads as a test doing work it never did.
+
+  The profile now judges 602 of 602: 553 killed, 49 survived, 8.14%, in 75
+  minutes of job. It is the first of these sessions to state a survival
+  rate rather than a sample, and 22 of the 49 are the two
+  `shared_info: bytes | None` annotations PEP 649 makes equivalent
+
 - **The mutation button asks for one profile, where it used to cost the
   whole matrix.** `workflow_dispatch` takes a `profile` input naming a
   slug, `all` being the default and what the schedule does. A question

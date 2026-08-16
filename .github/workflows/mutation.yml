@@ -200,13 +200,20 @@ jobs:
           # weakened size bound turns into a near-timeout mutant the way
           # numeric.toml's own does -- so it carries the largest budget
           # here for the same reason, sampled rather than expected to
-          # finish
+          # finish.
+          # numeric.toml gets 25 rather than 15 because at the 30 s
+          # per-mutant timeout that configuration argues for, 25 is what a
+          # complete session costs: 602 mutants in 75 minutes of job, and a
+          # profile that finishes states a survival rate where a sampled
+          # one can only be read for the verdicts that move in it. The four
+          # budgets sum to 85 against this ceiling, which is what leaves it
+          # unchanged
           - profile: shared helpers, numeric bounds and fetch
             slug: shared
             ceiling: 95
             sessions: |
               utils.toml 30m
-              numeric.toml 15m
+              numeric.toml 25m
               fetch.toml 15m
               mnemonic.toml 15m
           # Schnorr and ECDSA signing: 2475 mutants between the two
