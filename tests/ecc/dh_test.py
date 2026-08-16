@@ -8,6 +8,7 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 import pytest
 
+from btclib.alias import HashF
 from btclib.curves import bytes_from_point, mult
 from btclib.curves.curve import CURVES
 from btclib.ecc import ansi_x9_63_kdf, dh, diffie_hellman, dsa
@@ -97,6 +98,24 @@ def test_the_smallest_key_a_size_can_ask_for() -> None:
     """
     assert len(ansi_x9_63_kdf(b"z", 1, sha256, None)) == 1
     assert len(ansi_x9_63_kdf(b"z", 32, sha256, None)) == 32
+
+
+@pytest.mark.parametrize("hf", [sha1, sha256, sha512])
+def test_a_shorter_key_is_the_longer_one_cut(hf: HashF) -> None:
+    """Each size answers the block sequence cut at that octet.
+
+    The blocks depend on the counter alone, so what a size changes is
+    where the answer stops. The keying data is written into one buffer of
+    whole blocks and the last of them is the one the size cuts: a buffer
+    handed back whole, or a block written at the wrong offset, breaks
+    this while every size still has the length it asked for.
+    """
+    hf_size = hf().digest_size
+    longest = ansi_x9_63_kdf(b"z", 3 * hf_size, hf, b"deadbeef")
+    for size in range(1, 3 * hf_size + 1):
+        keying_data = ansi_x9_63_kdf(b"z", size, hf, b"deadbeef")
+        assert len(keying_data) == size
+        assert keying_data == longest[:size]
 
 
 def test_gec_2() -> None:

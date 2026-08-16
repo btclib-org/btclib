@@ -4877,6 +4877,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **`ansi_x9_63_kdf` asks for its buffer once, rather than joining a list
+  of digests** (issue #952). The list, the join's copy and the final
+  slice held the keying data three times over, and reached that total a
+  digest at a time. One `bytearray` of whole blocks, written through a
+  `memoryview` and cut to size on the way out, holds it twice: deriving
+  64 MiB peaks at 128.0 MiB above baseline against 370.3. The keying data
+  is unchanged at every size — the blocks depend on the counter alone, so
+  a size says where the sequence stops and nothing else, which is what
+  the new test holds by deriving every size up to three blocks and
+  comparing each with the longest cut to its length.
+
+  The cost is the derivation itself, a quarter to a half of it: 0.63 µs
+  against 0.41 for 32 octets, 0.90 against 0.69 for 64, 9.16 against 7.81
+  for 1024 — medians of seven alternating rounds of two thousand calls,
+  so a fixed fifth of a microsecond rather than a proportion.
+  `diffie_hellman` reaches the KDF after a scalar multiplication of 15.2
+  µs, which is what a caller actually asked for and what that fifth is
+  around one percent of.
+
+  Why a trade in that direction: issue #948. A mutant that widens the
+  size bound has the loop asked for gigabytes of keying data, and
+  creeping towards them exhausts the host before any one allocation
+  fails — the runner goes away, and the session's verdict with it. A
+  single request that large is one question to the allocator instead,
+  and a refusal is what the existing test turns into a kill. The
+  address-space ceiling of the mutation session covers the class, this
+  being one function of however many allocate without end; what the
+  measurements above decide is this one.
+
 - **A silent-payment scan stops looking for labels a wallet has none of**
   (issue #916). `scan_outputs` called `_labelled` for every output that
   did not match directly, and `_labelled` is a lift of the output key and

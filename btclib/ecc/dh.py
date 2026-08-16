@@ -88,8 +88,18 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     max_size = hf_size * (2**32 - 1)
     if size > max_size:
         raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
-    K_temp = []
-    for counter in range(1, ceil(size / hf_size) + 1):
+    # the whole buffer is asked for once, and the blocks are written into
+    # it. A list of digests joined and then sliced holds the keying data
+    # three times over -- the digests, the join's copy, the slice's --
+    # and reaches that total a digest at a time, so a size no allocator
+    # can serve exhausts the host rather than being refused (issue 948).
+    # The peak falls by a factor of three for a fifth of a microsecond,
+    # which is a quarter to a half of the derivation and around one
+    # percent of the scalar multiplication a caller reaches it through
+    n_blocks = ceil(size / hf_size)
+    keying_data = bytearray(n_blocks * hf_size)
+    view = memoryview(keying_data)
+    for counter in range(1, n_blocks + 1):
         h = hf()
         hash_input = (
             z
@@ -97,8 +107,9 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
             + (b"" if shared_info is None else shared_info)
         )
         h.update(hash_input)
-        K_temp.append(h.digest())
-    return b"".join(K_temp)[:size]
+        start = (counter - 1) * hf_size
+        view[start : start + hf_size] = h.digest()
+    return bytes(view[:size])
 
 
 def diffie_hellman(
