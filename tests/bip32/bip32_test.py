@@ -38,7 +38,12 @@ from btclib.bip32 import (
     xpub_from_xprv,
     xpub_from_xprv_,
 )
-from btclib.bip32.bip32 import _BIP32KeyData, _derive, _pub_key_tweak_chain
+from btclib.bip32.bip32 import (
+    _BIP32KeyData,
+    _derive,
+    _pub_key_tweak_chain,
+    _PythonPubKeyTweakChain,
+)
 from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import (
     bytes_from_point,
@@ -938,6 +943,50 @@ def test_the_python_arm_answers_what_the_primitive_answers(
         else:
             with pytest.raises(ValueError):
                 libsecp256k1_keys.prvkey_tweak_add(key, offset)
+
+
+def test_the_chain_contract_no_derivation_here_asks_for() -> None:
+    """`compressed`, and what a call that raised leaves the chain holding.
+
+    Two halves of `tweak_add` that neither derivation reaches: both pass
+    `compressed=True` as a literal, and the only refusal a path can
+    provoke is the sum at infinity above. The union alias makes them a
+    contract even so, mypy checking one call against both
+    implementations, and a contract with no caller is a comment unless
+    something asserts it.
+
+    The flag by its answer and not by its type. `bytes_from_point`
+    refuses a `compressed` that is not a bool, which is the check
+    `bool_parameter_test` reaches, and a body that ignored the flag
+    altogether would pass that one unchanged.
+
+    The refusal by what the chain holds afterwards.
+    `_PythonPubKeyTweakChain` serializes before it steps, so a call that
+    raises leaves the point where the last call that answered left it --
+    which is what the comment there says and what nothing said back. The
+    two implementations part here and this one is the stricter: the
+    bindings step first and serialize after, and do not refuse a non-bool
+    at all, their serialization taking whatever it is truthy as. Not
+    asserted of them, a dependency that grew the check being a change
+    this suite should not go red for; asserted of the one whose ordering
+    is a decision this file made.
+    """
+    key = bytes_from_prv_key_int(7)
+    tweak = (3).to_bytes(32, byteorder="big", signed=False)
+
+    compressed = _PythonPubKeyTweakChain(key).tweak_add(tweak)
+    uncompressed = _PythonPubKeyTweakChain(key).tweak_add(tweak, compressed=False)
+    assert uncompressed[0] == 0x04
+    assert bytes_from_point(point_from_octets(uncompressed)) == compressed
+    assert (
+        libsecp256k1_keys.PubkeyTweakChain(key).tweak_add(tweak, compressed=False)
+        == uncompressed
+    )
+
+    chain = _PythonPubKeyTweakChain(key)
+    with pytest.raises(BTClibTypeError, match="invalid compressed type"):
+        chain.tweak_add(tweak, compressed="yes")  # type: ignore[arg-type]
+    assert chain.tweak_add(tweak) == compressed
 
 
 @pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])

@@ -695,6 +695,16 @@ class _PythonPubKeyTweakChain:
     refuses too, `_invalid_child` being what the callers turn it into --
     and the constructor raises it for octets that are no point.
 
+    Theirs for every argument a caller here passes, and `compressed` is
+    where the two would part if one did not: `bytes_from_point` refuses a
+    value that is not a bool and their serialization takes it for the
+    flag it is truthy as. This one is the stricter, and stricter is the
+    side to be on -- but it is what makes the order below matter, so it
+    is written here rather than left to be rediscovered from a raise the
+    other implementation does not make. Both callers pass the literal,
+    `compressed` is typed `bool`, and the union alias is what has mypy
+    hold them to it.
+
     A refused step ends the chain, which is that contract too: "pubkey
     will be set to an invalid value if this function returns 0" is what
     libsecp256k1 says of `secp256k1_ec_pubkey_tweak_add`, and that pubkey

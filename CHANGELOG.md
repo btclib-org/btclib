@@ -1515,6 +1515,19 @@ documented at release-notes length in the first place, and are still in
   the sum at infinity — which is one of the three children BIP32 declares
   invalid, and reaches the caller as `_invalid_child` words it.
 
+  For every argument a caller here passes, that is, and `compressed` is
+  the one where the two would part: `bytes_from_point` refuses a value
+  that is not a bool, and the bindings' serialization takes it for the
+  flag it is truthy as. `_PythonPubKeyTweakChain` is the stricter, which
+  is the side to be on, and its ordering follows from that — the
+  serialization happens before the step, so a call that raised leaves the
+  point where the last call that answered left it. Neither that ordering
+  nor the flag's answer had a caller to reach them, both derivations
+  passing the literal `True`, so both are now asserted rather than
+  described: swapping the two lines, or ignoring the flag, each fails a
+  test of its own. Not asserted of the bindings, whose behaviour here is
+  a dependency's and would make this suite red for growing a check.
+
   What the Python arm costs, µs, median of four alternating rounds, best
   of five × 200 calls:
 
