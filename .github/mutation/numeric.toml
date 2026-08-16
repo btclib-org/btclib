@@ -18,35 +18,51 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/amount_test.py tests/fee_test.py tests/ecc/dh_test.py \
   tests/integer_policy_test.py"""
 
-# wide for the reason sig_hash.toml gives, and this profile is why that
-# reason is not hypothetical: `ansi_x9_63_kdf`'s `size > max_size` guard,
-# mutated away, does not fail fast -- it goes on hashing towards the size
-# it was asked for, so the one or two mutants of that guard each pay close
-# to the full 300 s here rather than the sub-second a killed mutant costs
-# everywhere else. Measured over a 90-mutant sample of the 507 (see
-# below): two of them alone accounted for most of the wall clock a full
-# session would need
+# wide for the reason sig_hash.toml gives, and no longer for a reason of
+# this profile's own. A mutant that widens the bound used to be answered
+# by the clock -- the guard removed, the derivation went on towards the
+# size it had been asked for, and one such mutant spent most of a session
+# -- and it is answered by memory now: `ansi_x9_63_kdf` sizes one buffer
+# from the block count, so the request is refused at the `ulimit -v` the
+# workflow puts on a session and the MemoryError arrives at the first
+# statement. Measured, the two of those the budget reached being killed
+# with a normal worker outcome, and the session judging 141 mutants where
+# the shape before it judged 90 in the same fifteen minutes.
+#
+# What that leaves is a width nothing here has measured a need for. It
+# stays until something does: narrowing it is worth its own session, and a
+# mutant this cuts short is reported KILLED, so the cost of guessing low
+# is a verdict that reads as a test doing work it never did
 timeout = 300
 
 excluded-modules = []
 
-# 90 of the 507 mutants sampled before the two slow ones above absorbed the
-# budget: 83 killed, 7 survived. Five of the seven are the `bytes | None`
-# annotation on `ansi_x9_63_kdf`'s `shared_info` parameter, mutated five
-# different ways -- equivalent under Python 3.14's deferred annotation
-# evaluation (PEP 649), the class fetch.toml documents at length. The other
-# two are real and left open rather than chased:
+# 141 of the 604 mutants sampled in the fifteen minutes this profile is
+# given: 126 killed, 15 survived. Sampled and not finished, so a verdict
+# that changes between weeks is what this is read for rather than the rate
+# itself. Seven of the fifteen are the two `shared_info: bytes | None`
+# annotations, on `ansi_x9_63_kdf`'s parameter and on `diffie_hellman`'s,
+# mutated five ways and two -- equivalent under Python 3.14's deferred
+# annotation evaluation (PEP 649), the class fetch.toml documents at
+# length. Four are `fee.py`'s and `amount.py`'s own. The four left are
+# `ansi_x9_63_kdf`'s arithmetic, and are open rather than chased:
 #
-# - `range(1, ceil(size / hf_size) + 1)` widened to compute twice as many
-#   blocks: `K_temp` is truncated to `size` afterwards, so the extra
-#   blocks are wasted work and not a wrong answer -- equivalent by that
-#   truncation, not by an annotation.
-# - `hf_size * (2**32 - 1)` weakened to `hf_size | (2**32 - 1)`, which is
-#   `0xFFFFFFFF` for every hash function in `HashF`: a real bound lowered
-#   from roughly `hf_size` times as large. Killing it needs a `size`
-#   between the two bounds, and for every hash function this ships with
-#   that is gigabytes of KDF output -- the boundary the test above pays
-#   close to 300 s to exercise once already having found it.
+# - `hf_size * (2**32 - 1)` lowered, but not below what a test asks for:
+#   the multiplication replaced by `+` or `^`, the exponentiation by `^`.
+#   Three mutants of one shape, a real bound cut to a fraction of itself
+#   and still above the largest size any test derives. Killing one needs a
+#   `size` between the two bounds, and for every hash function this ships
+#   with that is gigabytes of keying data -- the ask the ceiling above
+#   refuses, so no test can reach it from that side either. The rest of
+#   this line's mutants are killed and say why these are not: lowered
+#   further, past the sizes the tests do use, the first of those is
+#   refused and the mutant dies there; widened, the oversize call is no
+#   longer refused and the MemoryError kills it.
+# - `ceil(size / hf_size)` with the division replaced by `+`: the buffer
+#   is sized from the count, so it grows with it and every block still
+#   writes into a slot of its own, and `bytes(view[:size])` returns the
+#   same octets. Equivalent by that truncation, the extra blocks being
+#   work and not a wrong answer.
 
 [cosmic-ray.distributor]
 name = "local"
