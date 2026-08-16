@@ -197,6 +197,35 @@ class Sig:
     Bitcoin has a "low s" rule for the s value to be below ec.n,
     but it is only a standardness rule miners are allowed to ignore.
     Moreover, no such rule exists for r.
+
+    **The encoding is not delegated, and it is the one thing about a
+    signature that is not** (issue 911). The bindings have the same
+    encoding as C -- `dsa.to_der`, `to_compact`, `normalize` and
+    `is_low_s` -- and four things say no:
+
+    - a `Sig` carries an `ec` and writes its DER for `ec.n_size`, where
+      the bindings answer for secp256k1 alone. A delegation is a second
+      path gated like the others, for a computation with no arithmetic
+      in it;
+    - there is nothing to win. Serializing is 0.697 us here against
+      `to_der`'s 1.057; parsing is 1.253 against `to_compact`'s 0.971,
+      and what `to_compact` answers is r || s, which this side would
+      still have to split and build a `Sig` from. `lower_s` is one
+      comparison against n // 2, 0.037 us against `is_low_s`'s 0.840;
+    - the exception messages are a public contract. `Sig.parse` names
+      which rule the encoding broke, one message each; libsecp256k1
+      returns a single 0, and the bindings' `parse_der` says "invalid
+      DER signature" for all of them;
+    - and the two do not answer the same question.
+      `secp256k1_der_parse_integer` treats an integer whose high bit is
+      set as an *overflow* rather than as a malformed encoding: it zeroes
+      the scalar and reports success, so a negative r parses to r = 0
+      instead of being refused. BIP66 refuses it, and so does the parser
+      above. `tests/ecc/der_test.py` puts the whole malformed corpus to
+      `dsa.signature_verify` and pins that one difference, the rest
+      agreeing rule for rule -- which is the pairing that bites others,
+      issues 680 and 667 being two libraries that got it wrong in the
+      other direction.
     """
 
     # 32 bytes scalar, 0 < r < ec.n (ec.n is the curve order)

@@ -5,6 +5,7 @@
 """Tests for the `btclib.der` module."""
 
 import pytest
+from btclib_secp256k1 import dsa as libsecp256k1_dsa
 
 from btclib.curves import secp256k1
 from btclib.ecc.dsa import Sig
@@ -150,3 +151,122 @@ def test_der_serialize() -> None:
     err_msg = r"r is not \(congruent to\) a valid x-coordinate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         Sig(5, s)
+
+
+def _element(value: bytes) -> bytes:
+    """Return the [0x02][size][value] element DER writes a scalar as."""
+    return b"\x02" + len(value).to_bytes(1, "big") + value
+
+
+def _sequence(*elements: bytes) -> bytes:
+    """Return the [0x30][size] sequence of already-encoded elements."""
+    body = b"".join(elements)
+    return b"\x30" + len(body).to_bytes(1, "big") + body
+
+
+def _malformed(good: bytes) -> list[tuple[str, bytes]]:
+    """One malformed DER per rule the strict parser above enforces.
+
+    Every scalar rule twice, on r and on s. The two are one code path --
+    `_deserialize_scalar` is called for each -- so what the second half
+    of each pair guards is the order of those two calls rather than the
+    rule itself: an s reached through an r that had to parse first.
+
+    Assembled from the elements rather than by patching `good` in place,
+    so that a case fires the rule it is named for: an s whose size byte
+    is edited where it lies leaves the sequence length disagreeing, and
+    what refuses it is that disagreement and not the scalar rule.
+    """
+    r_value = good[4 : 4 + good[3]]
+    s_value = good[4 + good[3] + 2 :]
+    r, s = _element(r_value), _element(s_value)
+    data_size = good[1]
+    return [
+        ("compound header", b"\x31" + good[1:]),
+        ("sequence length overruns", good[:1] + b"\x41" + good[2:]),
+        (
+            "sequence length short",
+            good[:1] + (data_size + 1).to_bytes(1, "big") + good[2:] + b"\x01",
+        ),
+        ("r is no integer element", _sequence(b"\x03" + r[1:], s)),
+        ("r of zero size", _sequence(b"\x02\x00", s)),
+        ("r padded twice", _sequence(_element(b"\x00\x00" + r_value[1:]), s)),
+        ("s is no integer element", _sequence(r, b"\x03" + s[1:])),
+        ("s of zero size", _sequence(r, b"\x02\x00")),
+        ("s padded twice", _sequence(r, _element(b"\x00\x00" + s_value[1:]))),
+        ("empty", b""),
+        ("truncated", good[:-1]),
+        ("trailing octet", good + b"\x00"),
+    ]
+
+
+def test_der_agrees_with_libsecp256k1_except_where_it_is_stricter() -> None:
+    """libsecp256k1 as the oracle on a DER encoding, and where it is not one.
+
+    Nothing here asks the bindings whether an encoding is well formed,
+    the strict DER of BIP66 being written in python and validated against
+    the BIP's own rules alone -- which is the pairing that bites others:
+    https://github.com/btclib-org/btclib/issues/680 is embit parsing
+    high-s DER differently per backend, and
+    https://github.com/btclib-org/btclib/issues/667 is electrum-ecc
+    normalizing s inside a documented pure conversion. So the corpus
+    above is put to `dsa.signature_verify` as well, which is
+    secp256k1_ecdsa_signature_parse_der and a verdict.
+
+    The two agree on every rule but one, and the exception is not a
+    disagreement about DER: `secp256k1_der_parse_integer` treats an
+    integer whose high bit is set as an *overflow* rather than as a
+    malformed encoding, zeroes the scalar and reports success, so the
+    signature it hands back is r = 0 -- which no verification accepts.
+    btclib refuses the encoding instead, in BIP66's words, and this is
+    what says so out loud rather than leaving the difference to be found
+    by a caller who used `to_compact` as a validator.
+    """
+    sig = Sig(2**255 - 4, 2**247 - 1)
+    good = sig.serialize()
+    compact = sig.r.to_bytes(32, "big") + sig.s.to_bytes(32, "big")
+
+    # the well-formed encoding first, both ways round
+    assert libsecp256k1_dsa.signature_verify(good)
+    assert libsecp256k1_dsa.to_der(compact) == good
+    assert libsecp256k1_dsa.to_compact(good) == compact
+
+    for name, bad in _malformed(good):
+        with pytest.raises(BTClibValueError):
+            Sig.parse(bad, check_validity=False)
+        assert not libsecp256k1_dsa.signature_verify(bad), name
+
+    # and the one rule libsecp256k1 answers otherwise, on each scalar:
+    # a high bit set with no 0x00 in front of it is a negative integer,
+    # which BIP66 refuses and `secp256k1_der_parse_integer` reports as an
+    # overflow -- zeroing the scalar and answering success
+    r_value = good[4 : 4 + good[3]]
+    s_value = good[4 + good[3] + 2 :]
+    r, s = _element(r_value), _element(s_value)
+    for name, bad, zeroed in (
+        ("r", _sequence(_element(b"\x80" + r_value[1:]), s), slice(0, 32)),
+        ("s", _sequence(r, _element(b"\x80" + s_value[1:])), slice(32, 64)),
+    ):
+        with pytest.raises(BTClibValueError, match="invalid negative scalar"):
+            Sig.parse(bad, check_validity=False)
+        assert libsecp256k1_dsa.signature_verify(bad), name
+        # what it read is the zero scalar, not the value those octets spell
+        assert libsecp256k1_dsa.to_compact(bad)[zeroed] == bytes(32), name
+
+
+def test_der_low_s_agrees_with_libsecp256k1() -> None:
+    """The low-s verdict and the normalization, against their C twins.
+
+    `lower_s` is one comparison against n // 2 here, and libsecp256k1 has
+    the same two answers as `is_low_s` and `normalize`. Nothing delegates
+    to them -- 0.037 us against 0.840, a comparison against a parse and a
+    call -- so this is where the two are held together instead.
+    """
+    for s in (1, ec.n // 2, ec.n // 2 + 1, ec.n - 1):
+        sig = Sig(2**255 - 4, s)
+        der = sig.serialize()
+        assert libsecp256k1_dsa.is_low_s(der) == (s <= ec.n // 2)
+
+        normalized = Sig.parse(libsecp256k1_dsa.normalize(der))
+        assert normalized.r == sig.r
+        assert normalized.s == min(s, ec.n - s)

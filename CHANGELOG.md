@@ -1351,6 +1351,37 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **Strict DER stays written here, and libsecp256k1 is the oracle over
+  it** (issue #911). The bindings have the same encoding as C —
+  `dsa.to_der`, `to_compact`, `normalize` and `is_low_s` — and whether
+  `Sig.serialize`/`Sig.parse` should delegate to them was open. They do
+  not, and `Sig`'s docstring now carries the four reasons rather than
+  leaving them to be re-derived: a `Sig` carries an `ec` and writes its
+  DER for `ec.n_size`, where the bindings answer for secp256k1 alone;
+  there is nothing to win (serializing 0.697 µs here against `to_der`'s
+  1.057, parsing 1.253 against `to_compact`'s 0.971 — and `to_compact`
+  answers `r || s`, which this side would still have to split; `lower_s`
+  0.037 against `is_low_s`'s 0.840); and the per-rule exception messages
+  are a public contract where libsecp256k1 returns a single 0.
+
+  **The fourth reason was found by asking.** `secp256k1_der_parse_integer`
+  treats an integer whose high bit is set as an *overflow* rather than as
+  a malformed encoding: it zeroes the scalar and reports success, so a
+  DER whose `r` is unpadded and negative parses to `r = 0` instead of
+  being refused. BIP66 refuses it and so does btclib. The two agree on
+  every other rule in the corpus — each scalar rule on `r` and again on
+  `s`, the two being one code path reached in one order — which
+  `der_test` now asserts by putting the whole of it to
+  `dsa.signature_verify`, with that one difference pinned on both scalars
+  rather than left for a caller who used `to_compact` as a validator to
+  find — the failure mode of issues #680 and #667, in the
+  other direction.
+
+  The low-s verdict and the normalization are held to their C twins the
+  same way, which is where the bindings *are* worth having here: they are
+  the two predicates btclib computes in python and had no external
+  authority on.
+
 - **`ecc.ssa.Signer` signs several messages under one key, building the
   keypair once** (issue #924). `sign_` builds a `secp256k1_keypair` and
   wipes it in a `finally` before returning, so a second signature under
