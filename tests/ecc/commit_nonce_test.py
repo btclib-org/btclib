@@ -142,12 +142,14 @@ def test_ssa_commitment() -> None:
 
 
 def test_the_python_path_is_the_committing_one() -> None:
-    """A commitment is entropy the bindings cannot take, as a nonce is.
+    """A commitment tweaks the nonce, which the bindings do not hand out.
 
-    The libsecp256k1 fast path derives the nonce itself and its `sign`
-    exposes no ndata, so it cannot be the path that commits. What says it
-    took the other path is the signature: the one the committed nonce
-    produces, derived here a second time out of the parts.
+    Its `aux_rand32` would carry the half of the commitment that is
+    RFC6979 additional data, but the libsecp256k1 fast path derives the
+    nonce inside the call and returns neither the point nor a tweaked
+    nonce, so it cannot be the path that commits. What says it took the
+    other path is the signature: the one the committed nonce produces,
+    derived here a second time out of the parts.
     """
     ec, hf = secp256k1, sha256
     commit_hash = reduce_to_hlen(_COMMIT, hf)

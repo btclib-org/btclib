@@ -73,8 +73,12 @@ def _rfc6979_nonce_(
     c_bytes = c.to_bytes(ec.n_size, byteorder="big", signed=False)
     # section 3.6 additional data k', appended to the key and the message
     # rather than mixed in: the RFC leaves the encoding to the caller and
-    # libsecp256k1 appends its 32-byte ndata here, which is what makes the
-    # sign-to-contract vectors of commit_nonce reproducible.
+    # libsecp256k1's default nonce function appends its 32 octets here,
+    # which is what makes the sign-to-contract vectors of commit_nonce
+    # reproducible. `ndata` is the C spelling of those octets, and
+    # `aux_rand32` the bindings' -- BIP340's name for the same argument,
+    # given to all five entry points that take entropy -- so it is the
+    # second that a call from this library names.
     # None and b"" are the same absence of additional data here, appending
     # nothing being appending nothing; the bindings take None alone -- 32
     # bytes or no argument, a shorter one being a caller mistake and not
@@ -126,8 +130,9 @@ def rfc6979_nonce_(
     the same key and message reach different nonces by passing different
     values, and the derivation stays deterministic in all of its inputs.
     It is what a commitment travels through in commit_nonce, what the
-    low-R grinding of ``dsa.sign_`` puts its counter in, and what
-    libsecp256k1 calls ndata.
+    low-R grinding of ``dsa.sign_`` puts its counter in, and what the
+    bindings take as ``aux_rand32`` -- `ndata` being the name the C
+    function underneath it gives the same 32 octets.
     """
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)

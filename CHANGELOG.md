@@ -4628,6 +4628,27 @@ documented at release-notes length in the first place, and are still in
   `_is_x_coordinate_var`" where the same spelling measures 3.4 and 1.0,
   and `_libsecp256k1_multi_mult_` carried a table for a shape the
   function no longer had.
+- **The comments about the bindings' extra entropy name it as the
+  bindings do** (issue #928). Five of them called it `ndata`, which is
+  what the C function calls it and what the bindings stopped calling it:
+  `dsa.sign`, `recovery.sign`, `ssa.sign`, `ssa.sign_custom` and
+  `ellswift.create` take one argument under one name, `aux_rand32`,
+  BIP340's. A reader checking the reasoning against the package found
+  nothing under the name the reasoning used. Where the C function is the
+  subject — Core's `CKey::SignCompact` passing a null one — `ndata` is
+  still the right word and stays; `rfc6979_nonce` names both spellings
+  and says which library uses which, that being the file where a caller
+  meets the argument.
+
+  One of the five was wrong about more than the name. `dsa.sign_` said a
+  commitment stays on the Python path because "the bindings' `sign()`
+  does not expose it either", and it does expose it — the sentence two
+  lines below it grinds through that very argument. What a commitment
+  needs and cannot get is the other half: it enters a second time as a
+  tweak on the nonce, and `sign_` owes the caller the receipt that opens
+  it, while libsecp256k1 derives its nonce inside the call and hands back
+  neither the point nor a way to tweak it. The comment now says that, and
+  `commit_nonce_test` says it the same way.
 
 - **Why the bindings' `ecdh.shared_secret` has no caller here is now
   written in one place** (issue #909). It multiplies and hashes in one

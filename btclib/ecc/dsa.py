@@ -524,9 +524,9 @@ def _is_low_r(r: int, ec: Curve) -> bool:
 
 
 def _grind_entropy(counter: int) -> bytes | None:
-    # None, not 32 zero bytes, for the first attempt: ndata is appended
-    # to the key and the message, so zeros are additional data like any
-    # other and the nonce would not be RFC6979's
+    # None, not 32 zero bytes, for the first attempt: the entropy is
+    # appended to the key and the message, so zeros are additional data
+    # like any other and the nonce would not be RFC6979's
     return None if counter == 0 else counter.to_bytes(32, byteorder="little")
 
 
@@ -672,11 +672,15 @@ def sign_(
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
     # requested nonce is for the Python implementation below to use.
-    # A commitment is that same entropy, and the bindings' sign() does
-    # not expose it either, so it is the Python path that commits.
-    # A grinding counter is that entropy too, and this is the one place
-    # it is not the reason to decline: `ndata` is what the bindings take
-    # it as, so grinding stays where the signing is
+    # A grinding counter *is* that entropy, and this is the one place the
+    # difference is not a reason to decline: the bindings' `aux_rand32`
+    # is where it goes, so grinding stays where the signing is.
+    # A commitment enters as that entropy too, and there the argument is
+    # not what is missing: it enters a second time as a tweak on the
+    # nonce, and `sign_` owes the caller the receipt that opens it.
+    # libsecp256k1 derives its nonce inside the call and hands back
+    # neither the point nor a way to tweak it, so it is the Python path
+    # that commits
     if (
         _libsecp256k1_serves(ec, hf)
         and nonce is None

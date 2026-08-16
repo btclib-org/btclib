@@ -700,11 +700,11 @@ def test_grinding_retries_with_cores_own_counter() -> None:
 
 
 def test_grinding_agrees_on_both_arithmetics(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The counter reaches the same nonce through ndata and through RFC6979.
+    """The counter reaches one nonce through the bindings and through RFC6979.
 
-    libsecp256k1's nonce function appends its 32 bytes of ndata to the key
-    and the message inside HMAC-DRBG, which is where RFC6979's section 3.6
-    additional data goes, so the two grinds walk the same sequence of
+    libsecp256k1's nonce function appends the 32 octets it is given to the
+    key and the message inside HMAC-DRBG, which is where RFC6979's section
+    3.6 additional data goes, so the two grinds walk the same sequence of
     nonces. They must agree byte for byte, or a ground signature would
     depend on which arithmetic made it -- and the Python path is what
     signs for every other curve and hash function, where there are no
@@ -876,8 +876,8 @@ def test_core_grinds_the_same_signatures(
     # signature for a count of zero, the counter's own signature otherwise
     plain = dsa.sign_(sig_hash, prv_key, grind=False)
     assert (plain == sig) == (retries == 0)
-    ndata = None if retries == 0 else retries.to_bytes(32, "little")
-    assert sig.serialize() == libsecp256k1_dsa.sign(sig_hash, prv_key, ndata)
+    aux_rand32 = None if retries == 0 else retries.to_bytes(32, "little")
+    assert sig.serialize() == libsecp256k1_dsa.sign(sig_hash, prv_key, aux_rand32)
 
 
 def test_a_sig_that_never_validated_answers_false_and_does_not_raise() -> None:
