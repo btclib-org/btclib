@@ -1351,6 +1351,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The generator's multiplication no longer imports a module the
+  bindings have removed** (issue #929). `curves.curve` reached
+  `btclib_secp256k1.mult.mult` for `m*G`, and that module is gone:
+  btclib-secp256k1#174 folded its last function into `keys`, it being
+  `keys.pubkey_from_prvkey(m, compressed=False)` with the flag fixed —
+  and a module that is one call of another is what that repository's own
+  rule refuses. The arm calls `keys.pubkey_from_prvkey` directly and
+  reads the answer with `_point_from_sec`, which is what the *other* arm
+  of the same function already read its own with, so the two ways back
+  to a `Point` become one.
+
+  Nothing was broken when the issue was filed and nothing would have been
+  until the dependency was re-locked — `uv.lock` still pinned a revision
+  that had the module, and any `pyproject.toml` edit would have triggered
+  the re-lock on its own. The lock moves here, so the break is taken
+  rather than left waiting: `8ee6b2cf` → `e7dfc9cb`.
+
+  The generator's multiplication is 8.9 µs end to end, of which 8.5 is
+  the bindings call; what this side now does, the removed function did
+  inside itself.
+
 - **`bip32.derive_from_account_range_` derives many siblings, walking to
   the branch once** (issue #918). A wallet enumerates: a gap-limit scan,
   a ranged descriptor, an account being listed. Asked one address at a

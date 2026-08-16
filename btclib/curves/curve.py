@@ -35,10 +35,12 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
+from btclib_secp256k1.keys import (
+    pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
+)
 from btclib_secp256k1.keys import pubkey_sum as libsecp256k1_pubkey_sum
 from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
 from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib_secp256k1.mult import mult as libsecp256k1_mult
 from btclib_secp256k1.xonly import pubkey_verify as libsecp256k1_xonly_pubkey_verify
 from btclib_secp256k1.xonly import to_pubkey as libsecp256k1_xonly_to_pubkey
 
@@ -736,7 +738,13 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
     if m and _libsecp256k1_serves(ec, None):
         # the generator is ec_pubkey_create, with no point to parse first
         if Q is None or Q == ec.G:
-            return libsecp256k1_mult(m)
+            # uncompressed and read by `_point_from_sec`, which is what
+            # the other arm below reads its own answer with: the two ways
+            # back to a `Point` were one function each until the bindings
+            # folded their `mult` module into `keys`, that module's last
+            # call having been this one with the flag fixed
+            sec = libsecp256k1_pubkey_from_prvkey(m, compressed=False)
+            return _point_from_sec(sec)
         # any other point, infinity excepted: that one is not a pubkey,
         # and m*INF == INF is what the Python path below answers anyway
         if Q[1]:

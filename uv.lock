@@ -426,7 +426,7 @@ test = [
 [[package]]
 name = "btclib-secp256k1"
 version = "0.8.0.3"
-source = { git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main#8ee6b2cf9b96f65ae88db2f4833f207a0e79c517" }
+source = { git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main#e7dfc9cb25ac3324d715c9d3ba0f3312b65269ba" }
 dependencies = [
     { name = "cffi" },
 ]

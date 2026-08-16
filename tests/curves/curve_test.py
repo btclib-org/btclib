@@ -993,7 +993,7 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
     monkeypatch.setattr(curve, "_libsecp256k1_available", False)
-    monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_from_prvkey", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_add", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_sum", refuse)
