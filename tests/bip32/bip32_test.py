@@ -22,6 +22,8 @@ from btclib.bip32 import (
     derive_,
     derive_from_account,
     derive_from_account_,
+    derive_from_account_range,
+    derive_from_account_range_,
     pub_key_derivation_tweaks,
     rootxprv_from_seed,
     rootxprv_from_seed_,
@@ -1337,3 +1339,57 @@ def test_the_object_spellings_validate_what_they_are_handed() -> None:
     xpub = xpub_from_xprv_(root)
     with pytest.raises(BTClibValueError, match="invalid hardened derivation"):
         derive_(xpub, "m/0h")
+
+
+def test_derive_from_account_range_is_the_same_keys_walked_once() -> None:
+    """A range answers what the single-address spelling answers, index by index.
+
+    The branch level is walked once here and once per address there, so
+    the two are one answer or the saving is a bug: asserted over a
+    contiguous run, over a run with a gap in it -- what a scan resuming
+    past one looks like -- and over the empty one, which is no addresses
+    and not an error.
+    """
+    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+    mxpub = xpub_from_xprv(derive(rootxprv_from_seed(seed), "m / 44 h / 0 h"))
+
+    for branch in (0, 1):
+        for indexes in (range(5), [0], [3, 0, 17], [], (2, 2)):
+            assert derive_from_account_range_(mxpub, branch, indexes) == [
+                derive_from_account_(mxpub, branch, i) for i in indexes
+            ]
+            assert derive_from_account_range(mxpub, branch, indexes) == [
+                derive_from_account(mxpub, branch, i) for i in indexes
+            ]
+
+
+def test_derive_from_account_range_refuses_before_it_walks() -> None:
+    """One bad index refuses the whole range, and in the same words.
+
+    Half a list would leave the caller holding the addresses before the
+    bad index and no answer for the rest, so every index is read before
+    any of them is derived -- which is also why a bad one at the end
+    raises rather than being reached after a thousand derivations.
+    """
+    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+    mxpub = xpub_from_xprv(derive(rootxprv_from_seed(seed), "m / 44 h / 0 h"))
+
+    err_msg = "invalid private derivation at branch level"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_range_(mxpub, 0x80000000, range(3))
+
+    err_msg = "invalid branch number: 2"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_range_(mxpub, 2, range(3))
+
+    err_msg = "invalid private derivation at address index level"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_range_(mxpub, 0, [0, 0x80000000], max_index=0xFFFFFFFF)
+
+    err_msg = "invalid address index: 65536"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_range_(mxpub, 0, [0, 1, 0xFFFF + 1])
+
+    err_msg = "unhardened account/master key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account_range_(xpub_from_xprv(rootxprv_from_seed(seed)), 0, [0])

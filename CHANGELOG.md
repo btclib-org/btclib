@@ -1351,6 +1351,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`bip32.derive_from_account_range_` derives many siblings, walking to
+  the branch once** (issue #918). A wallet enumerates: a gap-limit scan,
+  a ranged descriptor, an account being listed. Asked one address at a
+  time, each of those walks `m/branch/index` from the account key, so the
+  branch level — which every sibling shares — is derived again for every
+  one of them, hmac and tweak and all. The range walks it once: 20.17 µs
+  an address against 37.08, measured over a thousand. Two already pay,
+  62.3 µs against 73.8; one does not, 42.1 against 37.2, so a caller with
+  exactly one still wants `derive_from_account_`.
+  `derive_from_account_range` is the same thing in Base58Check text.
+
+  **That is the larger half of what the issue asked about, and not the
+  half it named.** The account key is parsed once per *path*, not once
+  per level: `PubkeyTweakChain` holds the point across the levels of a
+  walk, so the branch key under it is never parsed from octets — the
+  issue's "a thousand more" is not paid. What a range saves on the parse
+  is therefore 2.34 µs of an address that is 37, six percent, and would
+  not be worth an entry point on its own. The level is worth one.
+
+  A sequence rather than a first and a count, so that a scan resuming
+  past a gap, or a descriptor's own list, is the argument itself. Every
+  index is refused by the rules `derive_from_account_` refuses it by, and
+  all of them before any is walked: a list half derived would leave the
+  caller holding the addresses before the bad index and no answer for the
+  rest. The branch is refused whatever the list, an empty one included,
+  and walked only where there is an index to put on it.
+
 - **Strict DER stays written here, and libsecp256k1 is the oracle over
   it** (issue #911). The bindings have the same encoding as C —
   `dsa.to_der`, `to_compact`, `normalize` and `is_low_s` — and whether

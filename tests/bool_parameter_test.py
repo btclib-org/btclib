@@ -84,6 +84,8 @@ from btclib.bip32.bip32 import (
     derive,
     derive_from_account,
     derive_from_account_,
+    derive_from_account_range,
+    derive_from_account_range_,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
@@ -808,6 +810,22 @@ _TRUTHS = (
         {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_index": 0},
         reason="the flag of `derive_from_account` above, in the spelling"
         " that answers the key rather than its Base58Check text",
+    ),
+    _Case(
+        "btclib.bip32.bip32.derive_from_account_range",
+        "branches_0_1_only",
+        derive_from_account_range,
+        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_indexes": [0]},
+        reason="the flag of `derive_from_account` above, over many"
+        " addresses of one branch rather than over one",
+    ),
+    _Case(
+        "btclib.bip32.bip32.derive_from_account_range_",
+        "branches_0_1_only",
+        derive_from_account_range_,
+        {"mxkey": _ACCOUNT_XPRV, "branch": 0, "address_indexes": [0]},
+        reason="the flag of `derive_from_account_range` above, in the"
+        " spelling that answers the keys rather than their text",
     ),
     _Case(
         "btclib.curves.sec_point.point_from_octets",
