@@ -31,7 +31,10 @@ dependencies = [
     # root. The same version for `keys.pubkey_sum`, `xonly.pubkey_verify`
     # and `xonly.to_pubkey` (btclib-secp256k1#171), which `curves.curve`
     # calls -- one sum instead of a combine per term, and the two
-    # questions about an x asked as x-only questions -- and for
+    # questions about an x asked as x-only questions. The same version
+    # again for `keys.pubkey_tweak_mul_sum` (btclib-secp256k1#182), which
+    # is that sum with its terms as well, so that no product of a
+    # multi-scalar multiplication crosses the boundary; and for
     # `ssa.Signer` (btclib-secp256k1#154), which `ecc.ssa.Signer` holds so
     # that a keypair is built once per key rather than once per signature.
     # The version is not on PyPI yet -- `[tool.uv.sources]` below is what

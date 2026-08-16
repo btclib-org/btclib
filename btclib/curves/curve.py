@@ -43,7 +43,9 @@ from btclib_secp256k1.keys import (
 )
 from btclib_secp256k1.keys import pubkey_sum as libsecp256k1_pubkey_sum
 from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
-from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib_secp256k1.keys import (
+    pubkey_tweak_mul_sum as libsecp256k1_pubkey_tweak_mul_sum,
+)
 from btclib_secp256k1.xonly import pubkey_verify as libsecp256k1_xonly_pubkey_verify
 from btclib_secp256k1.xonly import to_pubkey as libsecp256k1_xonly_to_pubkey
 
@@ -495,9 +497,8 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
     ec.y, and `xonly.pubkey_verify` answers the same of the x alone in
     2.4, being secp256k1_xonly_pubkey_parse and a verdict -- the same
     answer three ways, all three refusing the same x. It is
-    libsecp256k1's own shape,
-    `secp256k1_ge_x_on_curve_var` being `secp256k1_fe_is_square_var` of
-    x^3 + ax + b and nothing else.
+    libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var` being
+    `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
 
     A bool rather than an exception, because the value that names itself
     in an error message is the caller's and not this x: dsa.Sig's
@@ -572,10 +573,12 @@ def _libsecp256k1_multi_mult_(
 ) -> bytes | None:
     """Return sum(scalars[i]*points[i]) as octets, None for infinity.
 
-    The bytes-in/bytes-out layer the gain lives on: a term is one
-    ec_pubkey_tweak_mul, the running total one ec_pubkey_combine, and no
-    intermediate becomes a Point -- each of those would pay a parse on
-    the way out and a serialization on the way back in.
+    The bytes-in/bytes-out layer the gain lives on: one
+    `keys.pubkey_tweak_mul_sum`, which is an ec_pubkey_tweak_mul per term
+    and one ec_pubkey_combine over them, and no intermediate crosses the
+    boundary at all -- neither as a Point, which would pay a parse on the
+    way out and a serialization on the way back in, nor as the octets a
+    term written here would be, which is the same pair one layer down.
 
     None rather than octets, because infinity has no serialization: a
     libsecp256k1 pubkey is a point of the curve and never the identity.
@@ -585,31 +588,35 @@ def _libsecp256k1_multi_mult_(
     answer for: u*H + v*Q with v*Q == -u*H, and v = n - u with Q == H is
     the one-line case of it.
 
-    `keys.pubkey_sum` is what answers it, being `pubkey_combine` with that
-    one sum answered rather than refused: libsecp256k1 reports 0 both for
-    a key it could not read and for a total at infinity, and the first
-    raises through the illegal callback, so a None back from here is the
+    The sum inside answers it, being `pubkey_combine` with that one sum
+    answered rather than refused: libsecp256k1 reports 0 both for a key
+    it could not read and for a total at infinity, and the first raises
+    through the illegal callback, so a None back from here is the
     infinity and nothing else. What that replaces is a combine per term
     with a running total this side compared coordinates on, the only way
     of telling the two zeros apart while the sum was assembled here.
-    Terms first, then one sum, which is worth about a third of the call
-    from eight terms up. Two terms -- double_mult_var, and the shape most
-    callers have -- pay nothing either way: one combine, and now no
-    comparison. The measurement per term count is in the CHANGELOG entry
-    that made the change, which is where a figure belongs: an entry is
-    read as the history of a release and this is read as a statement
-    about the code as it stands.
 
-    At least one term, `pubkey_sum` refusing an empty sequence as
-    `pubkey_combine` does. That is no narrowing of what the callers below
-    reach: fewer than two terms is not a multi_mult_var, and the two other
-    entry points hand over one and two.
+    The terms stopped crossing after it, which is the other half and the
+    smaller one: a `pubkey_tweak_mul` per term serialized its product for
+    a `pubkey_sum` that parsed it straight back, a seventh of what the
+    call cost with them, from three terms up and a little less at two --
+    which is `double_mult_var`'s count and the one most callers have.
+    Handing over the whole equation is what stops it, and that is the one
+    composition the bindings hold rather than this side
+    (btclib-secp256k1#182): a term of a multi-scalar multiplication is a
+    `secp256k1_pubkey` nobody outside the sum has a use for, and this
+    library holds no parsed key by design. The measurement per term count
+    is in the CHANGELOG entry that took each half, which is where a
+    figure belongs: an entry is read as the history of a release and this
+    is read as a statement about the code as it stands.
+
+    At least one term, the sum refusing an empty sequence as
+    `pubkey_combine` does, and as many scalars as points, which is what
+    the entry point raises for itself. Neither narrows what the callers
+    below reach: fewer than two terms is not a multi_mult_var, and the two
+    other entry points hand over one and two, each with its scalar.
     """
-    terms = [
-        libsecp256k1_pubkey_tweak_mul(sec, m, False)
-        for m, sec in zip(scalars, secs, strict=True)
-    ]
-    return libsecp256k1_pubkey_sum(terms, False)
+    return libsecp256k1_pubkey_tweak_mul_sum(secs, scalars, False)
 
 
 def _multi_mult_x_only_var(
@@ -627,16 +634,17 @@ def _multi_mult_x_only_var(
     takes a `Point`, so there the lift is the work and is paid here. That
     is why this takes x-coordinates rather than points, and why the
     concatenation is written here rather than left to `xonly.to_pubkey`:
-    what the octets are on their way to is `pubkey_tweak_mul`, which
-    reads a public key, and libsecp256k1 has no x-only multiplication to
-    hand them to instead. It is the same rule `_x_octets` above serves,
+    what the octets are on their way to is `pubkey_tweak_mul_sum`, whose
+    terms are public keys, and libsecp256k1 has no x-only multiplication
+    to hand them to instead. It is the same rule `_x_octets` above serves,
     reached through the one door that exists for it.
 
     `_libsecp256k1_multi_mult_` and not the public `multi_mult_var`, that
     one taking points -- which is the form the lift would have to build
-    and the multiplication would then write straight back out. Sixteen
-    signatures end to end, i.e. the thirty-two terms: 592.6 us against
-    681.3 with both terms lifted by the caller.
+    and the multiplication would then write straight back out. The
+    thirty-two terms of sixteen signatures: 301.9 us against 387.5 with
+    both terms lifted by the caller, of the 553.9 that batch costs end to
+    end.
 
     Every scalar is required to be in 1..n-1 and every x to be an
     x-coordinate. The caller is what holds to that -- ssa's rand is drawn

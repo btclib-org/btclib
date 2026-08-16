@@ -4982,6 +4982,55 @@ documented at release-notes length in the first place, and are still in
   already in hand. The guard on an infinite P stays, that one being
   true.
 
+- **No term of a multi-scalar multiplication crosses the boundary any
+  more** (issue #917). The sum stopped crossing per term when
+  `keys.pubkey_sum` arrived; the terms went on doing it, each
+  `pubkey_tweak_mul` serializing its product as 65 octets for the
+  `pubkey_sum` that parsed them straight back.
+  `keys.pubkey_tweak_mul_sum` (btclib-secp256k1#182) takes the whole
+  equation instead — a `secp256k1_ec_pubkey_tweak_mul` per term and one
+  `secp256k1_ec_pubkey_combine` over them, every product staying a
+  `secp256k1_pubkey` — so `curves.curve._libsecp256k1_multi_mult_` is
+  one call.
+
+  | terms | term at a time | one call |
+  | --- | --- | --- |
+  | 2 | 19.09 µs | 16.63 µs |
+  | 3 | 26.88 µs | 23.35 µs |
+  | 5 | 42.78 µs | 36.84 µs |
+  | 8 | 66.56 µs | 57.11 µs |
+  | 20 | 163.93 µs | 140.49 µs |
+  | 64 | 522.73 µs | 449.20 µs |
+
+  About a seventh of the call from three terms up and a little less at
+  two — 12.9% there against 14.1 to 14.3 above it — which is where it
+  differs from the sum it follows: that one was worth a third at eight
+  terms and nothing at two, and this is one serialization and one parse
+  a term whatever the count. End to end at the callers, and
+  `double_mult_var` is the two-term shape most of them have:
+
+  | caller | term at a time | one call |
+  | --- | --- | --- |
+  | `double_mult_var` | 21.77 µs | 19.36 µs |
+  | `multi_mult_var`, 20 terms | 186.38 µs | 162.89 µs |
+  | `multi_mult_var`, 64 terms | 592.49 µs | 518.36 µs |
+  | `musig2.key_agg`, 2 signers | 36.20 µs | 32.99 µs |
+  | … 5 signers | 94.20 µs | 88.58 µs |
+  | … 20 signers | 388.09 µs | 363.54 µs |
+  | `ssa.assert_batch_as_valid_`, 16 signatures | 595.02 µs | 553.70 µs |
+
+  Measured on an Apple M5, macOS 26.6, arm64, CPython 3.14.6, best of
+  seven alternating rounds, with the old spelling patched in as the
+  other arm and `mult` as the noise detector (8.85 µs across every
+  round).
+
+  The composition is the bindings' now and not this side's, which is
+  where issue #917 said it belonged: a term is a `secp256k1_pubkey`
+  nobody outside the sum has a use for, and btclib holds no parsed key
+  by design. It is the second function there that is more than one
+  libsecp256k1 decision, and btclib-secp256k1#182 is where the rule
+  admitting it is written down.
+
 - **A silent-payment scan stops looking for labels a wallet has none of**
   (issue #916). `scan_outputs` called `_labelled` for every output that
   did not match directly, and `_labelled` is a lift of the output key and
