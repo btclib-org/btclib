@@ -5,6 +5,7 @@
 """Tests for the `btclib.curve` module."""
 
 import copy
+import functools
 import itertools
 from functools import partial
 from hashlib import sha256, sha512
@@ -44,6 +45,7 @@ from btclib.curves.curve import (
     _libsecp256k1_multi_mult_,
     _libsecp256k1_serves,
     _sec_from_point,
+    _sum_var,
     _tweak_add_var,
     _y_even_var,
 )
@@ -1035,6 +1037,46 @@ def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
             assert _tweak_add_var(P, t, other) == other.add_var(
                 P, mult(t, other.G, other)
             )
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_sum_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A sum of points is the additions it stands for, however it is made.
+
+    `_sum_var` is one secp256k1_ec_pubkey_combine where the curve allows
+    it and a chain of `add_var` everywhere else, so the two have to be
+    one answer: asserted over runs of every length the callers reach, and
+    over each of the values libsecp256k1 has no public key for -- a term
+    at infinity, which is the identity and is dropped, the empty sum,
+    which is infinity, and the sum at infinity, which comes back as a
+    value now rather than a refusal.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    points = [mult(k) for k in (1, 2, 3, 7, 11, ec.n - 1)]
+    for n in range(len(points) + 1):
+        run = points[:n]
+        expected = functools.reduce(ec.add_var, run, INF)
+        assert _sum_var(run, ec) == expected
+
+    # infinity is the identity, wherever in the run it falls
+    assert _sum_var([INF], ec) == INF
+    assert _sum_var([INF, mult(7), INF], ec) == mult(7)
+
+    # and the sum at infinity, which is no public key on either side
+    assert _sum_var([mult(7), ec.negate(mult(7))], ec) == INF
+    assert _sum_var([mult(3), mult(7), ec.negate(mult(10))], ec) == INF
+
+    # a point that is not on the curve is refused rather than summed
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        _sum_var([ec.G, (ec.G[0], ec.G[1] + 1)], ec)
+
+    # and a curve the bindings do not serve takes the same lines
+    for other in low_card_curves.values():
+        run = [mult(k, other.G, other) for k in range(1, min(5, other.n))]
+        assert _sum_var(run, other) == functools.reduce(other.add_var, run, INF)
 
 
 def test_libsecp256k1_arbitrary_point() -> None:

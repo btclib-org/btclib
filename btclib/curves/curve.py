@@ -972,6 +972,65 @@ def double_mult_var(
     return ec.aff_from_jac_var(R)
 
 
+def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
+    """Return the sum of points, no scalar in it.
+
+    `ec.add_var` is one modular inversion and a few products, and the
+    reason to hand it over was not obvious: a delegated addition is two
+    serializations and a parse around one C addition, where the Python is
+    an extended Euclid. Measured, the Euclid is what dominates: one
+    addition 4.41 us delegated against 11.03, and the gap widens with
+    every term -- an addition of the Python chain costs 11 us where a
+    term added to a delegated sum costs 0.46. The crossing is cheap
+    because it is the uncompressed serialization `_sec_from_point`
+    writes, which ec_pubkey_parse reads without lifting an x; a
+    compressed one would be a field square root a term.
+
+    A sequence and not a pair, because the callers are sums: BIP352's
+    `pub_key_sum` over the eligible inputs and MuSig2's `nonce_agg` over
+    the signers, where one `keys.pubkey_sum` of all the terms replaces a
+    running total that crossed the boundary at every step, and is worth
+    better than half of both. The measurement per term count, and at
+    those two callers, is in the CHANGELOG entry that took it, an entry
+    being read as the history of a release where this is read as a
+    statement about the code as it stands.
+
+    Infinity is the identity and libsecp256k1 has no public key for it,
+    so a term at infinity is dropped rather than handed over, and a sum
+    at infinity comes back as the None `pubkey_sum` answers with -- which
+    is the whole of what used to keep these callers on the Python
+    arithmetic, an intermediate sum at infinity being a BIP352 vector.
+    """
+    for Q in points:
+        ec.require_on_curve(Q)
+
+    if _libsecp256k1_serves(ec, None):
+        # infinity is the identity and libsecp256k1 has no public key for
+        # it, so a term at infinity is dropped rather than handed over.
+        # y == 0 is infinity and nothing else *here*: the one real point
+        # with a zero y is the two-torsion one, and a group of prime
+        # order has none -- which this arm is, secp256k1 being what
+        # `_libsecp256k1_serves` above has just agreed to. The Python arm
+        # below cannot make that assumption and does not: `add_aff_var`
+        # tests the same y and says why in its own comment
+        secs = [_sec_from_point(Q) for Q in points if Q[1]]
+        # and a run with no addition left in it is answered without
+        # crossing: one term is that term, and none is infinity. 7.11 us
+        # against 10.31 for BIP352's one-input sum, which is a crossing
+        # to be told what was handed over
+        if len(secs) < 2:
+            return _point_from_sec(secs[0]) if secs else INF
+        total = libsecp256k1_pubkey_sum(secs, False)
+        return INF if total is None else _point_from_sec(total)
+
+    # already on the curve, so add_aff_var rather than add_var, which
+    # would ask it again of every partial sum as well
+    total_point: Point = INF
+    for Q in points:
+        total_point = ec.add_aff_var(total_point, Q)
+    return total_point
+
+
 def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     """Return P + t*G, a point plus a multiple of the generator.
 

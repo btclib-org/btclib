@@ -64,11 +64,11 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from btclib.alias import INF, NetworkType, Octets, Point, String
+from btclib.alias import NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, decode, encode
 from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
-from btclib.curves.curve import _tweak_add_var
+from btclib.curves.curve import _sum_var, _tweak_add_var
 from btclib.curves.sec_point import _mult_sec_var
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -465,13 +465,14 @@ def pub_key_sum(pub_keys: Sequence[PubKey]) -> Point:
     sequence is the same answer, and is what a transaction of nothing but
     skipped inputs sums to.
 
-    Added one at a time rather than through `multi_mult_var`: an intermediate
-    sum at infinity is a BIP352 vector, and infinity is exactly what
-    libsecp256k1 has no public key for.
+    One `keys.pubkey_sum` of all the terms rather than a running total
+    added one at a time: what kept it here was that an intermediate sum
+    at infinity is a BIP352 vector and infinity is what libsecp256k1 has
+    no public key for, and `_sum_var` is where that stopped being a
+    reason -- a sum at infinity comes back as a value now, and this
+    function still refuses it.
     """
-    total: Point = INF
-    for pub_key in pub_keys:
-        total = secp256k1.add_var(total, point_from_pub_key(pub_key))
+    total = _sum_var([point_from_pub_key(pub_key) for pub_key in pub_keys], secp256k1)
     if total[1] == 0:
         raise BTClibValueError("input public keys sum to infinity")
     return total

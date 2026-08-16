@@ -75,7 +75,7 @@ from hashlib import sha256
 
 from btclib.alias import INF, Octets, Point
 from btclib.curves import mult, multi_mult_var, secp256k1
-from btclib.curves.curve import _tweak_add_var
+from btclib.curves.curve import _sum_var, _tweak_add_var
 from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
@@ -493,14 +493,16 @@ def nonce_agg(pub_nonces: Sequence[Octets]) -> bytes:
     nonces = [bytes_from_octets(nonce, _NONCE_SIZE) for nonce in pub_nonces]
     agg_nonce = b""
     for j in (0, 1):
-        R_j = INF
+        R_j: list[Point] = []
         for i, pub_nonce in enumerate(nonces):
             try:
-                R_ij = _cpoint(pub_nonce[j * _PK_SIZE : (j + 1) * _PK_SIZE])
+                R_j.append(_cpoint(pub_nonce[j * _PK_SIZE : (j + 1) * _PK_SIZE]))
             except BTClibValueError as e:
                 raise InvalidContributionError(i, "pubnonce") from e
-            R_j = secp256k1.add_var(R_j, R_ij)
-        agg_nonce += _cbytes_ext(R_j)
+        # the terms handed over at once rather than added into a running
+        # total that crossed the boundary at every signer: the sum at
+        # infinity above is a value now, which is what the placeholder is
+        agg_nonce += _cbytes_ext(_sum_var(R_j, secp256k1))
     return agg_nonce
 
 

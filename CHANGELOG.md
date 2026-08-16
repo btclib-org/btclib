@@ -4600,6 +4600,54 @@ documented at release-notes length in the first place, and are still in
 
 ### Performance
 
+- **A sum of points is one call to the bindings** (issue #912). The
+  issue expected this to be a loss and asked for the measurement rather
+  than the assumption, and the measurement went the other way:
+
+  | points | `ec.add_var` chain | one `pubkey_sum` |
+  | --- | --- | --- |
+  | 2 (one addition) | 11.03 µs | 4.41 µs |
+  | 3 | 23.14 µs | 4.94 µs |
+  | 8 | 79.26 µs | 7.25 µs |
+  | 20 | 215.21 µs | 13.01 µs |
+  | 64 | 714.37 µs | 33.75 µs |
+
+  What the estimate had wrong
+  is which side is expensive — the Python arm's `mod_inv_var` is an
+  extended Euclid, and the crossing is the *uncompressed* serialization
+  `_sec_from_point` writes, which `ec_pubkey_parse` reads without lifting
+  an x. A compressed one would have been a field square root a term, and
+  the estimate's 33-byte assumption is where its six crossings came from.
+
+  `curves.curve._sum_var` is the dispatch, a sequence rather than a pair
+  because the callers are sums: BIP352's `pub_key_sum` over the eligible
+  inputs and MuSig2's `nonce_agg` over the signers, both of which added
+  one term at a time into a running total that crossed at every step.
+
+  | caller | running total | `_sum_var` |
+  | --- | --- | --- |
+  | `pub_key_sum`, 1 input | 7.02 µs | 6.47 µs |
+  | … 2 inputs | 24.40 µs | 16.79 µs |
+  | … 5 inputs | 76.46 µs | 36.19 µs |
+  | … 20 inputs | 335.39 µs | 133.07 µs |
+  | `nonce_agg`, 2 signers | 47.85 µs | 33.31 µs |
+  | … 5 signers | 148.07 µs | 68.47 µs |
+  | … 20 signers | 653.16 µs | 241.81 µs |
+
+  A run with
+  no addition left in it does not cross at all — one term is that term,
+  none is infinity — which is what keeps BIP352's one-input sum at 6.47
+  µs rather than the 10.31 a crossing would make of it.
+
+  What kept both callers on the Python arithmetic is stated in
+  `pub_key_sum`'s own docstring and stopped being true: an intermediate
+  sum at infinity is a BIP352 vector, and infinity is what libsecp256k1
+  has no public key for. `keys.pubkey_sum` (btclib-secp256k1#171)
+  answers it as a value, so the sum at infinity comes back and
+  `pub_key_sum` still refuses it, where MuSig2 still writes BIP327's
+  33-zero-byte placeholder for it. A term at infinity is the identity and
+  is dropped rather than handed over.
+
 - **BIP340 batch verification stops lifting two points a signature**
   (issue #919). `assert_batch_as_valid_` built each term as a `Point` —
   `_y_even_var` of `r`, and the lift inside
