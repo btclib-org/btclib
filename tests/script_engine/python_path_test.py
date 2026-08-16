@@ -21,10 +21,12 @@ only became visible as a whole engine accepting a whole transaction it
 must refuse.
 
 The alternative, a CI job installing without the bindings, is not a job
-but a partial revert: all five bindings imports are plain imports, so
-`import btclib` itself fails without them and the optional-bindings
-install would have to come back in order to be tested.
-This costs no packaging change and no fallback code in the library.
+but a partial revert as the tree stands: every bindings import is a plain
+import, so `import btclib` fails without them and there is nothing for
+such a job to run until the optional-bindings install comes back. Issue
+#966 is that work, and guarding those imports is the step it waits on;
+this module is what holds the vectors meanwhile, at no packaging change
+and no fallback code in the engine.
 
 The substitution is the one already used for ripemd160 in
 tests/hashes_test.py: a module-level name, swapped, to reach the second
