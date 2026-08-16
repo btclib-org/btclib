@@ -107,8 +107,9 @@ def test_a_shorter_key_is_the_longer_one_cut(hf: HashF) -> None:
     The blocks depend on the counter alone, so what a size changes is
     where the answer stops. The keying data is written into one buffer of
     whole blocks and the last of them is the one the size cuts: a buffer
-    handed back whole, or a block written at the wrong offset, breaks
-    this while every size still has the length it asked for.
+    handed back whole is caught by the length, and a block written at the
+    wrong offset is not -- it is the comparison that catches that one,
+    every size still having exactly the length it asked for.
     """
     hf_size = hf().digest_size
     longest = ansi_x9_63_kdf(b"z", 3 * hf_size, hf, b"deadbeef")

@@ -91,11 +91,17 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     # the whole buffer is asked for once, and the blocks are written into
     # it. A list of digests joined and then sliced holds the keying data
     # three times over -- the digests, the join's copy, the slice's --
-    # and reaches that total a digest at a time, so a size no allocator
-    # can serve exhausts the host rather than being refused (issue 948).
-    # The peak falls by a factor of three for a fifth of a microsecond,
-    # which is a quarter to a half of the derivation and around one
-    # percent of the scalar multiplication a caller reaches it through
+    # where this holds it twice: deriving 64 MiB peaks at 2.00x the
+    # output against 5.79x. It costs about 0.03 us a block, so a fifth of
+    # a microsecond at the one or two blocks `diffie_hellman` asks for,
+    # which is around one percent of the 15.2 us multiplication it
+    # arrives through -- and a tenth of the derivation at sizes far
+    # beyond that
+    #
+    # the `memoryview` is what makes each write exact: a bytearray slice
+    # assignment of the wrong length resizes the buffer and shifts every
+    # block after it, where this raises. At the end `bytes(view[:size])`
+    # copies once, where `bytes(keying_data[:size])` would copy twice
     n_blocks = ceil(size / hf_size)
     keying_data = bytearray(n_blocks * hf_size)
     view = memoryview(keying_data)
