@@ -313,6 +313,21 @@ def test_a_challenge_is_refused_where_it_would_check_nothing() -> None:
         fetcher(network="signet", signet_challenge=CUSTOM_CHALLENGE)
 
 
+@pytest.mark.parametrize("network", ["testnet", "testnet4"])
+def test_a_challenge_is_refused_for_a_testnet_too(network: str) -> None:
+    """The refusal is inequality with signet, not an ordering against it.
+
+    The chain names are compared as strings, and `main` and `regtest` both
+    sort before `signet` where an ordering and an inequality agree. The
+    testnets sort after it, so they are the two networks a comparison
+    would accept a challenge for -- one that could never be checked,
+    because there is no signet challenge in a testnet's genesis to hold it
+    to.
+    """
+    with pytest.raises(BTClibValueError, match=f"challenge for {network}"):
+        fetcher(network=network, verify_network=True, signet_challenge=CUSTOM_CHALLENGE)
+
+
 def test_a_challenge_that_is_no_script_is_refused_at_construction() -> None:
     """Derived once here, so that the failure is at the line that wrote it.
 
