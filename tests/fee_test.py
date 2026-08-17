@@ -342,6 +342,21 @@ def test_the_package_is_rounded_once_and_not_twice() -> None:
     assert package_fee(400, rate, ancestor_vsize=400) == 1
 
 
+def test_ancestors_that_paid_nothing_are_what_the_default_says() -> None:
+    """`ancestor_fee` defaults to nothing already paid.
+
+    The case above leaves the default in place too, and cannot see it: the
+    800 vB package owes 0.8 there, the ceiling makes it 1, and the child's
+    own fee is 1, so the larger of the two is 1 whether nothing or one
+    satoshi is subtracted. At 1200 vB the package owes 2 and the child
+    still owes 1, which is where a default of one satoshi would read 1
+    instead.
+    """
+    rate = FeeRate(sats_per_kvbyte=1)
+    assert package_fee(400, rate, ancestor_vsize=800) == 2
+    assert package_fee(400, rate, ancestor_vsize=800, ancestor_fee=1) == 1
+
+
 def test_a_zero_rate_owes_zero_however_much_was_paid() -> None:
     """No discount goes the other way either: a fee is never negative."""
     rate = FeeRate(sats_per_kvbyte=0)

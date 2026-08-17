@@ -215,6 +215,23 @@ def test_a_satoshi_amount_that_int_refuses_is_refused_in_kind() -> None:
             valid_sats_amount(other)
 
 
+@pytest.mark.parametrize("amount", [1.5, -1.5, Decimal("2.5"), Decimal("-2.5")])
+def test_a_fraction_of_a_satoshi_is_refused_at_either_sign(amount: object) -> None:
+    """A negative fraction is refused as a non-integer, not as a range.
+
+    `int()` truncates towards zero, so the truncation is *below* a
+    positive amount and *above* a negative one. A check that the
+    truncation changed the value therefore has to be an inequality and
+    not a comparison: at -1.5 the truncation is -1, which is greater, and
+    an ordering test lets it through to the range check below -- where it
+    is still refused, but as an invalid amount rather than as a
+    non-integer one. Which exception a caller catches is the distinction
+    this function's own comment is about.
+    """
+    with pytest.raises(BTClibTypeError, match="non-integer satoshi amount"):
+        valid_sats_amount(amount)
+
+
 @pytest.mark.parametrize(
     "amount",
     [float("inf"), float("-inf"), Decimal("Infinity"), Decimal("-Infinity")],
