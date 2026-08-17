@@ -154,24 +154,31 @@ def _argument_less_bools() -> dict[str, bool]:
     for path in sorted(_LIBRARY.rglob("*.py")):
         module = ".".join(path.relative_to(_LIBRARY.parent).with_suffix("").parts)
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+        # classes and what is in them, not `ast.walk(tree)`: a property is
+        # a class thing, which is what `_class_members` below says in as
+        # many words, so a module-level function is out of scope however
+        # few arguments it takes and cannot be told to become one
+        for cls in ast.walk(tree):
+            if not isinstance(cls, ast.ClassDef):
                 continue
-            if node.returns is None or ast.unparse(node.returns) != "bool":
-                continue
-            arguments = [
-                a.arg
-                for a in [
-                    *node.args.posonlyargs,
-                    *node.args.args,
-                    *node.args.kwonlyargs,
+            for node in ast.walk(cls):
+                if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
+                    continue
+                if node.returns is None or ast.unparse(node.returns) != "bool":
+                    continue
+                arguments = [
+                    a.arg
+                    for a in [
+                        *node.args.posonlyargs,
+                        *node.args.args,
+                        *node.args.kwonlyargs,
+                    ]
+                    if a.arg != "self"
                 ]
-                if a.arg != "self"
-            ]
-            if arguments:
-                continue
-            decorated = {ast.unparse(d) for d in node.decorator_list}
-            found[f"{module}.{node.name}"] = _is_a_read(decorated)
+                if arguments:
+                    continue
+                decorated = {ast.unparse(d) for d in node.decorator_list}
+                found[f"{module}.{node.name}"] = _is_a_read(decorated)
     return found
 
 

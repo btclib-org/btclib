@@ -91,9 +91,11 @@ from btclib.curves.curve import (
     Curve,
     PreparedPoint,
     double_mult_var,
+    is_libsecp256k1_serving,
     mult,
     multi_mult_var,
     secp256k1,
+    set_libsecp256k1_serving,
 )
 from btclib.curves.curve_group import CurveGroup
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
@@ -113,8 +115,10 @@ __all__ = [
     "double_mult_var",
     "find_all_points",
     "find_subgroup_points",
+    "is_libsecp256k1_serving",
     "mult",
     "multi_mult_var",
     "point_from_octets",
     "secp256k1",
+    "set_libsecp256k1_serving",
 ]

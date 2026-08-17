@@ -1507,6 +1507,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The switch that turns the bindings off is public** (issue #992, step
+  6 of issue #966). `curve._libsecp256k1_available` is private, and its
+  only documented consumer was btclib's own suite; issue #198 puts a
+  consumer outside, since a test framework built on btclib must not check
+  Bitcoin Core's use of libsecp256k1 with libsecp256k1 — the rule Core's
+  own framework already keeps, `test/functional/test_framework` holding
+  no `ctypes` and no `libsecp` anywhere in it.
+
+  Two ways in, because they answer at different times.
+  `BTCLIB_NO_LIBSECP256K1`, set to a non-empty value, is read once at
+  import and makes the initial state False: that is what a test runner
+  wants, settling before the interpreter reaches `import btclib`, where
+  a function call cannot. `curves.set_libsecp256k1_serving(serving=…)`
+  is the same decision from inside a running process, and
+  `curves.is_libsecp256k1_serving()` reads it back.
+
+  One observable state and not two: installed-and-refused answers what
+  absent answers, because the difference is not something a caller can
+  act on. Asking for the bindings where none are installed is refused
+  rather than ignored — a caller that asked for C and was left on Python
+  would be timing Python and calling it C.
+
+  `SECURITY.md` says so too, and had to: its "Limitations, not
+  vulnerabilities" section was written on the premise that the delegation
+  cannot be turned off from outside the test suite, and said as much
+  three times — "which no caller can", "no argument of a caller's selects
+  either", "`dsa.verify` and `ssa.verify` are one libsecp256k1 call
+  each". A caller can now, twice over, and those are the sentences a
+  reader worried about constant-time behaviour reads.
+
 - **`import btclib` no longer needs the bindings installed** (issue #989,
   step 3 of issue #966). Eleven modules imported `btclib_secp256k1` at
   module level, so the seam meant to switch the dispatch off could not be

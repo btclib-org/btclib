@@ -96,7 +96,11 @@ from btclib.bip32.der_path import (
     int_from_index_str,
 )
 from btclib.block.block import Block
-from btclib.curves.curve import Curve, SEC2v1_params2
+from btclib.curves.curve import (
+    Curve,
+    SEC2v1_params2,
+    set_libsecp256k1_serving,
+)
 from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
@@ -641,6 +645,19 @@ _KINDS = (
         KeyGroup,
         {"threshold": 2, "keys": [_XPUB, _XPUB]},
         valid=False,
+    ),
+    # `serving` chooses which implementation every later call reaches, so
+    # it is as much a kind as `compressed` is: a value read for its truth
+    # would let `serving="no"` ask for C and `serving=0` for Python, and
+    # a caller that asked for one and got the other would be timing the
+    # other and calling it the one. `valid=True` and not False, so that
+    # the call this file makes leaves the state an installation with the
+    # bindings is normally in
+    _Case(
+        "btclib.curves.curve.set_libsecp256k1_serving",
+        "serving",
+        set_libsecp256k1_serving,
+        {},
     ),
 )
 

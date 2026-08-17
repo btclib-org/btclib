@@ -106,6 +106,18 @@ used to teach and to prototype as much as to build:
     or xpub string handed to `derive` or `derive_from_account`: the
     decoded key stays reachable from that cache, bounded by its
     `maxsize`, past whatever reference the caller itself still holds
+- the boundary is not always there. Everything the next bullet says
+    describes an installation whose dispatch is on, which is the default
+    and what the README's install gives you.
+    `curves.set_libsecp256k1_serving(serving=False)` turns it off for the
+    whole process, and `BTCLIB_NO_LIBSECP256K1` set in the environment
+    makes that the state from the first call — a test framework built on
+    btclib wants exactly that, having to check libsecp256k1 with
+    something other than libsecp256k1. With the dispatch off, every
+    operation named below is the Python arithmetic the last bullet
+    describes: tens of times slower, and not constant-time.
+    `curves.is_libsecp256k1_serving()` answers which of the two the next
+    call will take
 - not every operation crosses that boundary. `mult`, `double_mult_var` and
     `multi_mult_var` reach the bindings for secp256k1 and any point of it, a
     zero scalar and the point at infinity excepted — libsecp256k1 has no
@@ -119,7 +131,8 @@ used to teach and to prototype as much as to build:
     nonce and the offsetting of a parent key by the left half of an hmac
     being four other places a secret meets the curve.
     Verification crosses it whole, not only in its multiplication:
-    `dsa.verify` and `ssa.verify` are one libsecp256k1 call each for
+    `dsa.verify` and `ssa.verify` are one libsecp256k1 call each, where
+    the dispatch is on, for
     secp256k1 with sha256, a high-s signature being normalized first
     where the lower-s form is not being enforced. Batch verification is
     the exception, libsecp256k1 having no call for it, so
@@ -143,13 +156,12 @@ used to teach and to prototype as much as to build:
     `bms.sign` is delegated outright, `recovery.sign` signing and naming
     the recovery flag in one call: message signing is defined for
     secp256k1 alone, so there is no argument that sends it down the
-    Python path — which the test suite reaches by switching the dispatch
-    off, and which no caller can. BIP32 derivation is the same case, and
+    Python path — the switch above is what reaches it, and nothing a
+    caller passes does. BIP32 derivation is the same case, and
     for the same reason: `bip32.derive` adds the offset with
     `keys.prvkey_tweak_add` privately and `keys.PubkeyTweakChain`
     publicly, and the Python arm behind them — BIP32's two sums, on
-    integers and on a point — is one no argument of a caller's selects
-    either.
+    integers and on a point — is one no argument selects either.
     Anything else — another
     curve, another hash function, a nonce of your own — runs the Python
     implementation, whose scalar multiplication is

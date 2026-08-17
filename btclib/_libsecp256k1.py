@@ -33,8 +33,20 @@ checks by importing btclib with the bindings out of reach.
 
 from __future__ import annotations
 
+import os
+
+# the environment variable that refuses the bindings without uninstalling
+# them, read once and here: a caller settling it after `import btclib`
+# would be settling it after this module has answered. `BTCLIB_` and "set
+# to ask for it", which is the spelling the suite's own switches use --
+# BTCLIB_INTEGRATION, BTCLIB_HWI_SIGN -- and an empty value is not set,
+# so `BTCLIB_NO_LIBSECP256K1=` leaves them serving
+NO_LIBSECP256K1 = "BTCLIB_NO_LIBSECP256K1"
+
 __all__ = [
-    "AVAILABLE",
+    "ENABLED",
+    "INSTALLED",
+    "NO_LIBSECP256K1",
     "PubkeyTweakChain",
     "dsa",
     "dsa_verify",
@@ -70,7 +82,7 @@ try:
     from btclib_secp256k1.xonly import pubkey_verify as xonly_pubkey_verify
     from btclib_secp256k1.xonly import to_pubkey as xonly_to_pubkey
 
-    AVAILABLE = True
+    INSTALLED = True
 except ImportError:  # pragma: no cover
     # None and not a callable that raises: what would raise is never
     # called, so the object would be a second thing to keep true. The
@@ -85,4 +97,9 @@ except ImportError:  # pragma: no cover
     pubkey_tweak_mul_sum = pubkey_verify = ssa_verify = None  # type: ignore[assignment]
     xonly_pubkey_verify = xonly_to_pubkey = None  # type: ignore[assignment]
 
-    AVAILABLE = False
+    INSTALLED = False
+
+# installed and not refused, which is one state and not two: a caller
+# asking whether the bindings serve has no use for the difference, and
+# `curves.curve` starts its seam from this
+ENABLED = INSTALLED and not os.environ.get(NO_LIBSECP256K1)

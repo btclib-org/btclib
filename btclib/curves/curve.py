@@ -35,7 +35,8 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
-from btclib._libsecp256k1 import AVAILABLE as _bindings_available
+from btclib._libsecp256k1 import ENABLED as _bindings_enabled
+from btclib._libsecp256k1 import INSTALLED as _bindings_installed
 from btclib._libsecp256k1 import (
     PubkeyTweakChain as Libsecp256k1PubkeyTweakChain,
 )
@@ -84,9 +85,11 @@ __all__ = [
     "SEC2v2",
     "SEC2v2_params2",
     "double_mult_var",
+    "is_libsecp256k1_serving",
     "mult",
     "multi_mult_var",
     "secp256k1",
+    "set_libsecp256k1_serving",
 ]
 
 
@@ -447,7 +450,53 @@ secp256k1 = CURVES["secp256k1"]
 # It is also the seam whatever wants the Python arithmetic closes to
 # reach it -- the test suite included, which assigns False to it where
 # the bindings are installed and serving
-_libsecp256k1_available = _bindings_available
+_libsecp256k1_available = _bindings_enabled
+
+
+def is_libsecp256k1_serving() -> bool:
+    """Return True if the bindings are what this process delegates to.
+
+    One question and not two: installed, and not refused. A caller has no
+    use for the difference -- what it can act on is whether the answer it
+    is about to get comes from libsecp256k1 or from the Python
+    arithmetic -- and two observable states where there is one is how a
+    caller comes to handle only the state it happened to meet.
+
+    The public reading of the seam every dispatch consults. It is what a
+    project built on btclib asks when it must not check libsecp256k1 with
+    libsecp256k1: Bitcoin Core's own test framework keeps that rule --
+    `crypto/secp256k1.py` is "designed for ease of understanding, not
+    performance" -- and issue #198 is btclib's side of it.
+    """
+    return _libsecp256k1_available
+
+
+def set_libsecp256k1_serving(*, serving: bool) -> None:
+    """Ask for the bindings, or for the Python arithmetic, from here on.
+
+    Process-wide and immediate: every dispatch in the package asks
+    `_libsecp256k1_serves`, and that predicate reads the global this
+    assigns, so nothing has to be re-imported and no module keeps an
+    answer of its own.
+
+    `serving=True` with the bindings not installed is a request that
+    cannot be served, and is refused rather than silently ignored:
+    a caller that asked for C and got Python would be timing Python and
+    calling it C. `is_libsecp256k1_serving` is how the answer is read back.
+
+    The environment variable is the other way in, and the earlier one:
+    `BTCLIB_NO_LIBSECP256K1` set to a non-empty value makes the initial
+    state False, which is what a test runner wants -- it settles before
+    the first import, where this function cannot.
+    """
+    assert_type(serving, bool, "serving")
+    if serving and not _bindings_installed:
+        raise BTClibValueError(
+            "btclib_secp256k1 is not installed: the bindings cannot serve"
+        )
+
+    global _libsecp256k1_available  # noqa: PLW0603
+    _libsecp256k1_available = serving
 
 
 def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:

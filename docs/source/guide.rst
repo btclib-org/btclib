@@ -66,6 +66,28 @@ btclib requires python 3.10 or later and pulls in
 optional accelerator: installing needs one of its wheels or a C
 toolchain to build it.
 
+secp256k1 arithmetic is delegated to those bindings, and the delegation
+can be turned off. Setting ``BTCLIB_NO_LIBSECP256K1`` to a non-empty
+value in the environment, before btclib is imported, makes *off* the
+state the process starts in:
+
+.. code-block:: shell
+
+   BTCLIB_NO_LIBSECP256K1=1 python your_script.py
+
+:func:`btclib.curves.set_libsecp256k1_serving` changes it from inside a
+running process — including back on, so the variable sets the initial
+state rather than locking one — and
+:func:`btclib.curves.is_libsecp256k1_serving` reads the answer back.
+Both are one state and not two: what they report is whether the next
+call goes to libsecp256k1 or to the Python arithmetic, which is the only
+difference a caller can act on.
+
+The Python arithmetic is a second implementation and not a fallback of
+convenience: it is slower — tens of times, and ``SECURITY.md`` publishes
+that it is not constant-time — and it is what a project must run when it
+has to check libsecp256k1 with something that is not libsecp256k1.
+
 .. doctest is the reason the version is asserted loosely: the value
    moves with every release, and pinning it here would make this page
    fail on the release commit rather than on a real defect

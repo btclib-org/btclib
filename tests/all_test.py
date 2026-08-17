@@ -347,10 +347,12 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         "double_mult_var",
         "find_all_points",
         "find_subgroup_points",
+        "is_libsecp256k1_serving",
         "mult",
         "multi_mult_var",
         "point_from_octets",
         "secp256k1",
+        "set_libsecp256k1_serving",
     ]
 
     # the implementations are still there, in the module that defines them
