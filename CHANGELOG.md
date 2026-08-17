@@ -1507,6 +1507,32 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The Python arm's inventory of authorities that are not the bindings**
+  (issue #993). The suite validates the Python arithmetic *against*
+  libsecp256k1, which is right for btclib and is exactly the circle a
+  test framework built on btclib cannot stand in (issue #198). So
+  `tests/python_arm_authority_test.py` records, per arm, which vectors of
+  somebody else's making reach it — a BIP's, Bitcoin Core's, Project
+  Wycheproof's, an RFC's — and fails when an arm is added without an
+  entry, the arms being counted from the source rather than listed.
+
+  The entries were measured and not reasoned: each candidate module run
+  on its own, with no bindings installed, reading back which lines of
+  each arm ran. Thirty-three of the thirty-five arms are reached that
+  way. The two that are not are named, with what would close them:
+  `ecc.commit_nonce.commit_nonce_`, whose sign-to-contract tweak has no
+  published vector set to vendor, and `ecc.dsa.recover_pub_keys_`, the
+  plural spelling, which nothing third-party asks for — a message
+  signature names its own key_id.
+
+  The attribution is per module and the file says so: a module built on
+  third-party vectors may hold tests btclib wrote as well, and
+  sharpening the claim means selecting the vector-driven tests inside a
+  module, which no marker in the tree expresses today. It says the other
+  limit too — nothing re-runs the measurement, so the table's *shape* is
+  gated and its *content* is not, and a module that stops reaching an arm
+  leaves the entry standing.
+
 - **CI runs the suite with no bindings installed** (issue #991, step 5 of
   issue #966, and the step the other four were only claims without). A
   `no-bindings` job installs the `harness` dependency group — the suite's
