@@ -21,35 +21,30 @@ timeout = 300
 
 excluded-modules = []
 
-# 183 mutants, complete: 129 killed, 54 survived, 33 the deferred-
-# annotation class documented in this session's other profiles. Of the
-# 17 real candidates, seven are fixed by the tests in this commit and the
-# one before it:
+# 177 mutants, complete: 114 killed, 63 survived. One of the 63 is killed
+# now -- `chain_from_network(self.network) != "signet"` weakened to `<`,
+# which accepted a challenge for the two testnets whose chain names sort
+# after `signet`, where mainnet's and regtest's sort before it and an
+# ordering cannot be told from an inequality (issue #978). The 62 left are
+# three classes and no missing test among them:
 #
-# - `tx.id.hex() != tx_id` weakened to `>` was tested with a requested id
-#   sorting below the actual one only; one sorting above closes the
-#   other half.
-# - `out_point.vout >= len(tx.vout)` weakened to `==` or to `is` was
-#   tested at the exact boundary only; a vout far past it and outside
-#   CPython's interned range closes both.
-# - `Fetcher`'s three abstract methods were only ever exercised together.
-# - `chain != expected_chain` weakened to `>` was tested in the direction
-#   where the actual chain sorts after the expected one only.
-# - `_signet_magic` was never called by a test asserting its output.
-# - `RpcError`/`HttpError`'s translation checked the code, status and
-#   data carried across, never the message itself -- one assertion on
-#   the message text kills the mutant in both `fetcher.py`'s shared
-#   translation and, being the same line, every caller of it.
-# - `esplora.py`'s `status != 200` weakened to `> 200` was tested above
-#   200 only; 100 is what tells them apart.
+# - 55 are three `X | None` annotations in `bitcoin_core.py`, mutated
+#   eleven ways on one and twenty-two on each of the others: the class
+#   under Python 3.14's deferred annotation evaluation (PEP 649) that
+#   numeric.toml documents at length. Nine tenths of this profile's
+#   survivors are those three lines, which is what its rate is, and no
+#   test can reach any of them.
+# - 4 in `fetcher.py` are equivalent by inspection: `==` against `is` on
+#   the very object `NETWORKS` holds, and three `check_validity=False`
+#   turned `True`, which validates data already valid.
+# - 3 are the keyword-only `*` marker turned `/`, in this package's two
+#   fetchers. Nothing in the library asserts a keyword-only parameter is
+#   one -- 89 public callables take 132 of them -- so these three survive
+#   for a reason that is neither this profile's nor a test to write here.
+#   Issue #980 is where that is decided.
 #
-# Two are left open. `network == "mainnet"` weakened to `<=` is
-# equivalent for every name `NETWORKS` currently holds -- mainnet sorts
-# first alphabetically among mainnet/regtest/signet/testnet/testnet4 --
-# but the equivalence is fragile: a network named before "mainnet" would
-# break it silently. `check_validity=True` surviving where `tx_for_network`
-# builds a relabelled `Tx` is the same deferred class parsers.toml's
-# follow-up already names.
+# So the rate to read from this profile is the annotations', and a verdict
+# that moves in it is a verdict outside those three lines.
 
 [cosmic-ray.distributor]
 name = "local"
