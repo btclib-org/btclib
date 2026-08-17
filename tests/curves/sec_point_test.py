@@ -21,6 +21,7 @@ from btclib.curves import (
 from btclib.curves.curve import CURVES
 from btclib.curves.sec_point import _mult_sec_var, _sec_from_octets
 from btclib.exceptions import BTClibValueError
+from tests import needs_bindings
 
 # test curves: very low cardinality
 # 13 % 4 = 1; 13 % 8 = 5
@@ -149,7 +150,13 @@ def test_hybrid_prefixes_are_admitted_only_when_asked() -> None:
     assert point_from_octets(b"\x04" + body, ec) == Q
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_sec_from_octets(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """Octets in, the same octets out, and the refusals unmoved.
 
@@ -269,7 +276,13 @@ def test_infinity_point_from_octets() -> None:
         point_from_octets(inf_bytes)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """m*P from the octets is m*P from the point, on every curve.
 

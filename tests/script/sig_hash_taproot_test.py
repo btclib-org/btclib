@@ -46,6 +46,12 @@ from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
+# what a refused BIP340 signature says, on either arm: libsecp256k1
+# answers a boolean and btclib supplies the sentence, while the Python
+# arm names the check that failed. Issue #998 is whether the two should
+# agree; until it is decided, both are asserted rather than neither
+_REFUSED = "signature verification failed|y_K is odd"
+
 TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 
 
@@ -400,19 +406,28 @@ def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
     tx.vin[0].script_witness = Witness([witness_element])
     verify_transaction(prevouts, tx)
 
-    # the two ways issue 124 got a "signature verification failed", each
-    # on its own. sign reduces its argument with hf and sign_ does not, so
-    # the pair that verifies is sign_/assert_as_valid_ (or sign/
-    # assert_as_valid, which signs a hash of the sig_hash and is
-    # self-consistent rather than valid on the network)
+    # the two ways issue 124 got a refusal, each on its own. sign reduces
+    # its argument with hf and sign_ does not, so the pair that verifies
+    # is sign_/assert_as_valid_ (or sign/assert_as_valid, which signs a
+    # hash of the sig_hash and is self-consistent rather than valid on
+    # the network).
+    #
+    # An alternation and not a bare class, because the two arms of
+    # `assert_as_valid_` word it differently: libsecp256k1 answers one
+    # bit and btclib says "signature verification failed", while the
+    # Python arm knows which of BIP340's checks failed and says so -- "y_K
+    # is odd" for these signatures. Both are BTClibRuntimeError, which is
+    # the contract, and dropping the match outright would throw away in
+    # both configurations a check that has held since issue #124. Issue
+    # #998 is whether the wording should agree
     wrong = ssa.sign(msg, output_prvkey(prv_key, script_tree))
-    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+    with pytest.raises(BTClibRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
     # and the key from the script is the tweaked one, the internal key
     # being what the tweak is computed from
     wrong = ssa.sign_(msg, prv_key)
-    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+    with pytest.raises(BTClibRuntimeError, match=_REFUSED):
         ssa.assert_as_valid_(msg, pub_key, wrong)
 
 

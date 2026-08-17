@@ -208,6 +208,55 @@ jobs:
           uv run --locked --no-default-groups --group test
           pytest --cov
 
+  # the configuration issue #966 exists for, and the one thing that keeps
+  # its guard from being a claim nobody checks: btclib installed without
+  # btclib_secp256k1, answering on its own Python arithmetic. The suite
+  # reaches those arms locally by clearing the seam, which is not the same
+  # configuration -- an unguarded import would fail before a seam could be
+  # cleared, and every arm gated on availability alone is chosen here by
+  # the absence rather than by a monkeypatch.
+  # `--group harness` and not `--group test`: `test` includes `bindings`,
+  # and uv's `--no-group` suppresses a group that was selected, not one
+  # another group includes. So the split in pyproject.toml is what this
+  # job is, and there is no second lock file.
+  # `--no-cov`, because the delegated arms are unreachable here by
+  # construction: a coverage report of this run would fail the 100% gate
+  # for the one reason the run exists to create. The `coverage` job above
+  # is where that number comes from.
+  # The tests that hold both implementations and compare them are marked
+  # `bindings` and skip themselves; everything else runs, which is what
+  # makes this a suite and not a smoke test
+  no-bindings:
+    name: Run the suite with no bindings installed
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.14"
+      # asked before the suite, and asked of the interpreter rather than
+      # of the resolver: a job that silently kept the bindings would pass
+      # every test below while checking nothing, which is exactly the
+      # failure this job exists to make impossible
+      - name: Assert the bindings are absent
+        run: >
+          uv run --locked --no-default-groups --group harness
+          python -c "from btclib._libsecp256k1 import INSTALLED;
+          assert not INSTALLED, 'btclib_secp256k1 is installed';
+          from btclib.curves import is_libsecp256k1_serving;
+          assert not is_libsecp256k1_serving()"
+      - name: Run pytest
+        run: >
+          uv run --locked --no-default-groups --group harness
+          pytest --no-cov
+
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a
   # problem is too late, a version being consumed by the upload that
@@ -357,7 +406,7 @@ jobs:
     # day either grows a second one, this pattern and a change to the rule
     # are what that costs
     name: "test: every job passed"
-    needs: [suite, coverage, dist]
+    needs: [suite, coverage, no-bindings, dist]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail

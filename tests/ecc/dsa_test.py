@@ -9,9 +9,9 @@ from hashlib import sha1, sha256, sha512
 from typing import Any
 
 import pytest
-from btclib_secp256k1 import dsa as libsecp256k1_dsa
-from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
+from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import INF, JacPoint, Point
 from btclib.curves import (
     Curve,
@@ -32,7 +32,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv_var
 from btclib.to_pub_key import pub_keyinfo_from_prv_key, pub_keyinfo_from_pub_key
-from tests import load, vector_id
+from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 from tests.to_key_test import Q as pub_key_point
 from tests.to_key_test import Q_compressed as pub_key_compressed
@@ -572,6 +572,7 @@ def test_prv_key_is_not_a_pub_key() -> None:
         assert dsa.verify(msg, pub_key, sig_sha1, hf=sha1)
 
 
+@needs_bindings
 def test_the_two_secret_multiplications_answer_the_python_point(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -603,6 +604,7 @@ def test_the_two_secret_multiplications_answer_the_python_point(
         assert sig.r == ec.x_aff_from_jac_var(_mult(nonce, ec.GJ, ec)) % ec.n
 
 
+@needs_bindings
 def test_libsecp256k1() -> None:
     """Verify btclib and the bindings sign and verify byte-for-byte."""
     msg = b"Satoshi Nakamoto"
@@ -662,6 +664,7 @@ def test_grinding_lands_on_a_low_r() -> None:
     assert 20 < unchanged < 44
 
 
+@needs_bindings
 def test_grinding_retries_with_cores_own_counter() -> None:
     """The retry sequence, rebuilt from the bindings beside the loop.
 
@@ -699,6 +702,7 @@ def test_grinding_retries_with_cores_own_counter() -> None:
     assert max(retries) > 1
 
 
+@needs_bindings
 def test_grinding_agrees_on_both_arithmetics(monkeypatch: pytest.MonkeyPatch) -> None:
     """The counter reaches one nonce through the bindings and through RFC6979.
 
@@ -859,6 +863,7 @@ _CORE_VECTORS = [
 
 
 @pytest.mark.parametrize("prv_key, msg_hash, der, retries", _CORE_VECTORS)
+@needs_bindings
 def test_core_grinds_the_same_signatures(
     prv_key: int, msg_hash: str, der: str, retries: int
 ) -> None:
@@ -928,6 +933,7 @@ def _recovered_(key_id: int, msg_hash: bytes, sig: dsa.Sig) -> Point | None:
         return None
 
 
+@needs_bindings
 def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
     """`recover_pub_key` through secp256k1_ecdsa_recover.
 
@@ -979,6 +985,7 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
             assert _recovered(key_id ^ 1, msg, malleated) == Q
 
 
+@needs_bindings
 def test_the_low_s_rule_is_asked_for_and_not_assumed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1086,6 +1093,7 @@ def test_recover_pub_keys_takes_the_hash_that_recover_pub_keys_reduces() -> None
             assert dsa.recover_pub_keys(msg, malleated, hf=hf) == malleated_keys
 
 
+@needs_bindings
 def test_recovery_multiplies_in_libsecp256k1(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1138,6 +1146,7 @@ def test_recovery_multiplies_in_libsecp256k1(
     [(2, [0, 1, 2, 3]), (7, [2, 3])],
     ids=["four-candidates", "the-j-one-pair-alone"],
 )
+@needs_bindings
 def test_the_enumeration_asks_for_the_j_one_candidates(
     r: int, expected_key_ids: list[int], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1255,6 +1264,7 @@ def test_the_key_id_search_reports_a_key_it_cannot_reach() -> None:
         _search_key_id(msg, sig, other_Q)
 
 
+@needs_bindings
 def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1296,6 +1306,7 @@ def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
             assert dsa.sign_recoverable(msg, prv_key) == (sig, key_id)
 
 
+@needs_bindings
 def test_the_key_id_survives_what_the_bindings_decline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1332,6 +1343,7 @@ def test_the_key_id_survives_what_the_bindings_decline(
     assert key_id == _search_key_id(msg, sig, Q)
 
 
+@needs_bindings
 def test_recover_pub_key_dispatches_to_the_bindings_for_0_to_3_only() -> None:
     """The bindings take a recovery id of 0, 1, 2 or 3, and nothing wider.
 
@@ -1441,6 +1453,7 @@ def signature_vectors(fname: str) -> list[Any]:
 # 199 vectors, JSON-equal to upstream and reformatted on the way in;
 # tests/_data/README.md pins the revision, for this and the file below
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_sig.json"))
+@needs_bindings
 def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
     """Reproduce secp256k1-py's ECDSA vectors on both implementations."""
     msg_hash = bytes.fromhex(vector["msg"])
@@ -1465,6 +1478,7 @@ def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
 # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_custom_nonce_sig.json
 # 199 vectors, same upstream, same reformatting
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_custom_nonce_sig.json"))
+@needs_bindings
 def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
     """Reproduce secp256k1-py's custom-nonce ECDSA vectors."""
     msg_hash = bytes.fromhex(vector["msg"])
@@ -1500,6 +1514,7 @@ def test_verify_infinity_point() -> None:
         )
 
 
+@needs_bindings
 def test_verify_with_another_hash_function_on_both_arithmetics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1675,7 +1690,13 @@ def test_a_prepared_key_stops_the_per_signature_table(
     assert not builds
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_a_key_that_is_no_point_is_refused_by_the_verification_itself(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -42,8 +42,19 @@ from btclib.script.engine import tapscript as engine_tapscript
 # test function into this module too, and pytest then collects it here as
 # well -- with its own parametrize and without the fixture below, which
 # is 5184 vectors run a second time against the bindings for nothing
+from tests import needs_bindings
 from tests.script_engine import script_test as script_vector_module
 from tests.script_engine import transactions_test as tx_vector_module
+
+# the whole module, because with the bindings absent it is the run
+# `script_test` and `transactions_test` have just made, on the same
+# arithmetic: this file exists to run the two implementations in one
+# session, and there is one implementation in that session. 5186 tests
+# not re-run, over vectors two sibling modules have just put through the
+# same code -- the count is the argument, and no wall clock is quoted
+# beside it because the spread between three runs of the same head is
+# the size of the saving
+pytestmark = needs_bindings
 
 
 @pytest.fixture

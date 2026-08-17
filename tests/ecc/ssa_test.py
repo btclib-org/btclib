@@ -10,8 +10,8 @@ from hashlib import sha256 as hf
 from typing import Any
 
 import pytest
-from btclib_secp256k1 import ssa as libsecp256k1_ssa
 
+from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import INF, Octets, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import (
@@ -30,7 +30,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv_var
 from btclib.utils import int_from_bits
-from tests import load_csv, replace_unchecked, vector_id
+from tests import load_csv, needs_bindings, replace_unchecked, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 
 
@@ -389,6 +389,7 @@ def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
         ssa._assert_as_valid_(e, QJ, r, s_prime, ec, ec._fixed_points)
 
 
+@needs_bindings
 def test_a_message_of_any_size_reaches_the_bindings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -648,7 +649,13 @@ def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) ->
         ssa.assert_batch_as_valid(msgs, Qs, sigs)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_a_batch_refuses_a_bad_key_in_the_lift_s_words(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -986,6 +993,7 @@ def test_threshold() -> None:
     assert (q1 + q2 + q3) % ec.n in {secret, ec.n - secret}
 
 
+@needs_bindings
 def test_libsecp256k1() -> None:
     """Check btclib's signature is byte-identical to the bindings' own."""
     msg = b"Satoshi Nakamoto"
@@ -1003,6 +1011,7 @@ def test_libsecp256k1() -> None:
     assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 
 
+@needs_bindings
 def test_libsecp256k1_x_only_conversion() -> None:
     """The x-only key handed to the bindings is btclib's to derive.
 
@@ -1180,7 +1189,13 @@ def test_verification_under_a_prepared_key(monkeypatch: pytest.MonkeyPatch) -> N
         no_bindings(monkeypatch)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_a_key_that_is_no_x_coordinate_is_refused_in_the_lift_s_words(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1213,7 +1228,14 @@ def test_a_key_that_is_no_x_coordinate_is_refused_in_the_lift_s_words(
         assert str(verified.value) == str(lifted.value)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+@needs_bindings
 def test_signer_signs_what_sign_signs(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:

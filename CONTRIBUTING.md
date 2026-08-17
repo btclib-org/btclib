@@ -349,6 +349,27 @@ cannot gate on a scope a contributor's run does not have. The flag is
 written out here even though addopts already carries it, this being the
 job's command verbatim.
 
+The `no-bindings` job, which runs the suite against a btclib that has no
+`btclib_secp256k1` to delegate to:
+
+```shell
+uv run --locked --no-default-groups --group harness \
+    python -c "from btclib._libsecp256k1 import INSTALLED; \
+      assert not INSTALLED, 'btclib_secp256k1 is installed'; \
+      from btclib.curves import is_libsecp256k1_serving; \
+      assert not is_libsecp256k1_serving()"
+uv run --locked --no-default-groups --group harness pytest --no-cov
+```
+
+`harness` and not `test`: `test` is `harness` plus `bindings`, and uv's
+`--no-group` suppresses a group that was selected rather than one another
+group includes, so the split in pyproject.toml is what this job is.
+`--no-cov` because the delegated arms are unreachable in this
+configuration by construction, so a report of this run would fail the
+100% gate for the one reason the run exists to create. The tests that
+hold both implementations and compare them carry the `bindings` marker
+and skip themselves; everything else runs.
+
 The `dist` job, which inspects what would be published and then
 installs it. The first two commands after the build read the *members* of
 the two archives, which the three that follow do not: an allowlist of what

@@ -59,7 +59,7 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv_var, mod_sqrt_var
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from tests import load, vector_id
+from tests import load, needs_bindings, vector_id
 
 # test curves: very low cardinality. The name is p and n, in that order,
 # so the four with the larger second number are the n > p ones -- ec13_19,
@@ -673,6 +673,7 @@ def test_ec_repr_groups_its_hex() -> None:
     )
 
 
+@needs_bindings
 def test_curve_equality() -> None:
     """A curve is its parameters, not the object that holds them."""
     # the dispatch to the libsecp256k1 bindings compares ec against
@@ -751,6 +752,7 @@ def test_each_catalogue_holds_what_it_is_named_after() -> None:
             assert CURVES[ec_name] is ec
 
 
+@needs_bindings
 def test_libsecp256k1_serves() -> None:
     """Verify the dispatch takes secp256k1 with sha256, nothing else."""
     assert _libsecp256k1_serves(secp256k1, None)
@@ -1005,7 +1007,13 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(curve, "Libsecp256k1PubkeyTweakChain", refuse)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """P + t*G is the addition of the multiplication, however it is reached.
 
@@ -1043,7 +1051,13 @@ def test_tweak_add_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
             )
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """A chain of steps answers what a tweak of the base answers.
 
@@ -1101,7 +1115,13 @@ def test_tweak_chain(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
                 assert chain.point(t) == _tweak_add_var(base, t, other)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_sum_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """A sum of points is the additions it stands for, however it is made.
 
@@ -1185,7 +1205,13 @@ def test_libsecp256k1_arbitrary_point() -> None:
         assert multi_mult_var(scalars, points + points[:2]) == libsecp256k1_answer
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_multiplications_the_bindings_decline(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1238,6 +1264,7 @@ def test_multiplications_the_bindings_decline(
     assert double_mult_var(5, H, 5, H) == mult(10, H)
 
 
+@needs_bindings
 def test_libsecp256k1_multi_mult_bytes() -> None:
     """The bytes boundary the dispatch is built on.
 
@@ -1256,7 +1283,13 @@ def test_libsecp256k1_multi_mult_bytes() -> None:
     assert _libsecp256k1_multi_mult_([5, secp256k1.n - 5], [sec, sec]) is None
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_x_coordinate_lift(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """The two delegated square roots, against the Python arithmetic.
 

@@ -19,6 +19,8 @@ from typing import Any
 import pytest
 from hypothesis import settings
 
+from btclib._libsecp256k1 import INSTALLED
+
 # The deadline is a per-example time limit, measured on a run whose cost
 # the interpreter and the runner decide: pypy meets these tests with a
 # cold JIT, and the matrix runs them on emulated arm64 as well as on
@@ -214,3 +216,37 @@ def check_golden(path: Path, name: str, value: Any, module: str) -> None:
             f"  {REGENERATE}=1 uv run pytest {module}\n\n"
             f"{diff}"
         )
+
+
+def _skip_what_needs_the_bindings(items: list[pytest.Item]) -> None:  # pragma: no cover
+    """Skip every test marked `bindings`, naming why once.
+
+    Runs only where `btclib_secp256k1` is absent, which no coverage run
+    measures: the job that builds that configuration passes `--no-cov`,
+    the delegated arms being unreachable in it by construction.
+    """
+    skip = pytest.mark.skip(reason="btclib_secp256k1 is not installed")
+    for item in items:
+        # `iter_markers` and not `item.keywords`: keywords is what `-k`
+        # matches, so it holds the module name, the test name and the
+        # parametrize id as well -- and this tree has seventeen
+        # parametrize decorators whose first id is `bindings`, whose
+        # arms would then be skipped by the spelling of an id rather
+        # than by a mark. Those arms do need skipping, so the suite
+        # would stay green and the two names this marker exists to keep
+        # equal would already differ; renaming one id is all it would
+        # take to turn that into fourteen errors saying nothing
+        if any(mark.name == "bindings" for mark in item.iter_markers()):
+            item.add_marker(skip)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Turn the `bindings` marker into a skip where there is nothing to compare.
+
+    The marker is what `tests.needs_bindings` applies and what `pytest -m
+    "not bindings"` selects on; this is what makes it a skip as well, so
+    that one name does the selecting and the skipping and cannot drift
+    into doing only one.
+    """
+    if not INSTALLED:
+        _skip_what_needs_the_bindings(items)  # pragma: no cover

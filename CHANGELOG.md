@@ -1507,6 +1507,54 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **CI runs the suite with no bindings installed** (issue #991, step 5 of
+  issue #966, and the step the other four were only claims without). A
+  `no-bindings` job installs the `harness` dependency group — the suite's
+  tools without what the suite delegates to — asserts that the bindings
+  really are absent before running anything, and runs the whole suite:
+  22,108 tests pass and 5,812 skip, against 27,914 with the bindings
+  serving.
+
+  `harness` is a group of its own because uv's `--no-group` suppresses a
+  group that was selected and not one another group includes, so `test`
+  is `harness` plus `bindings` and the job is the first of the two.
+  `--no-cov`, the delegated arms being unreachable in that configuration
+  by construction: a report of that run would fail the 100% gate for the
+  one reason the run exists to create.
+
+  The tests that hold both implementations and compare them carry a
+  `bindings` marker — twenty-odd of them, in five modules that used to
+  import `btclib_secp256k1` directly and now import it through
+  `btclib._libsecp256k1`, which answers None instead of raising. The
+  marker does two jobs from one name: `tests/conftest.py` turns it into a
+  skip where the bindings are absent, and `pytest -m "not bindings"`
+  selects the same set the job runs, which is what a contributor wants
+  long before a second install. `tests/script_engine/python_path_test.py`
+  carries it for the whole module: with the dispatch already off it
+  re-runs the vectors its siblings have just run, on the same
+  arithmetic — 5,186 tests, and the count is the argument rather than a
+  wall clock, three runs of one head spreading as widely as the saving.
+
+  The skip reads `iter_markers()` and not `item.keywords`, which is what
+  `-k` matches: keywords hold the parametrize id as well, and seventeen
+  decorators in the tree spell their first id `bindings`. Their delegated
+  arms do need skipping, so the suite would have stayed green while the
+  two names this marker exists to keep equal already differed — and
+  renaming one id would have turned that into fourteen errors saying
+  nothing about why. Those arms carry `pytest.param(True,
+  marks=needs_bindings)` now, so `-m bindings` and the skip name one
+  set. `tests/bool_parameter_test.py` asks
+  `set_libsecp256k1_serving` for what the configuration it is in can
+  give, which is a no-op either way.
+
+  Nine cases of `sig_hash_taproot_test.py::test_key_path_spend_round_trip`
+  assert an alternation where they asserted one wording: the delegated
+  arm says "signature verification failed" and the Python one names the
+  BIP340 check that failed. Both are `BTClibRuntimeError`, which is the
+  contract, and dropping the match outright would have thrown away in
+  both configurations a check that has held since issue #124; issue #998
+  is whether the wording should agree too.
+
 - **`btclib_secp256k1` is the `secp256k1` extra, not a dependency**
   (issue #990, step 4 of issue #966). What a consumer installs is
   `btclib[secp256k1]`, which is what README.md, the guide and

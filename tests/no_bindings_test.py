@@ -49,6 +49,7 @@ from btclib.curves import (
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
+from tests import needs_bindings
 
 # the seed, key and message the child works from: constants, because the
 # two processes have to be asked the same question
@@ -135,6 +136,7 @@ def _child_answers(sec: str, sig: str) -> dict[str, Any]:
     return answers
 
 
+@needs_bindings
 def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     """Import and answer, and answer what the bindings answer.
 
@@ -172,6 +174,7 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     assert answers["engine"] is True
 
 
+@needs_bindings
 def test_the_environment_variable_refuses_the_installed_bindings() -> None:
     """`BTCLIB_NO_LIBSECP256K1` is the way in that settles before import.
 
@@ -238,6 +241,7 @@ def test_the_switch_refuses_to_promise_bindings_that_are_not_there(
         set_libsecp256k1_serving(serving=ENABLED)
 
 
+@needs_bindings
 def test_the_switch_is_read_back_by_the_reader() -> None:
     """The pair is one state: what is set is what is read."""
     assert is_libsecp256k1_serving() is curve._libsecp256k1_available

@@ -80,6 +80,7 @@ from typing import Any
 import pytest
 
 from btclib import b32, b58, bip322, core_import, slip132, var_bytes
+from btclib._libsecp256k1 import INSTALLED
 from btclib.bip32.bip32 import (
     _PythonPubKeyTweakChain,
     derive,
@@ -658,6 +659,7 @@ _KINDS = (
         "serving",
         set_libsecp256k1_serving,
         {},
+        valid=INSTALLED,
     ),
 )
 

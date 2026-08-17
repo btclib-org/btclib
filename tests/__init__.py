@@ -37,6 +37,8 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 import btclib
 
 _TESTS_DIR = Path(__file__).parent
@@ -148,3 +150,28 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
     current = {field.name: getattr(instance, field.name) for field in fields(instance)}
     current.update(changes)
     return type(instance)(**current, check_validity=False)
+
+
+# What a test asking libsecp256k1 for the right answer is marked with.
+#
+# The suite validates btclib's Python arithmetic *against* the bindings,
+# so a few tests hold both implementations and compare them. Those cannot
+# run where only one exists, and marking them is what lets the rest of
+# the suite -- twenty-two thousand tests that ask btclib a question and
+# not libsecp256k1 -- run in the configuration issue #966 is about.
+#
+# A marker and not a `skipif`, with `conftest.py` turning it into a skip
+# where the bindings are absent. One name then does both jobs: `pytest -m
+# "not bindings"` names the same set the no-bindings job runs, which is
+# what a contributor wants long before a second install, and the
+# registration in pyproject.toml has something to be strict about. A
+# `skipif` alone skips and selects nothing; `pytest.mark.bindings` around
+# one does not compose -- a MarkDecorator is not a test function, so it
+# is stored as an argument of the outer mark and the skip is lost, which
+# a run with the bindings uninstalled reports as 503 failures.
+#
+# Here rather than in `conftest.py`: conftest is pytest's to import, and
+# importing it by name as well is the shape that bites when an import
+# mode or a rootdir changes. This package already holds the shared
+# loaders these same modules import.
+needs_bindings = pytest.mark.bindings

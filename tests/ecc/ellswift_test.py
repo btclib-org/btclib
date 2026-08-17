@@ -16,15 +16,15 @@ import secrets
 from typing import Any
 
 import pytest
-from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
 
+from btclib._libsecp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.curves import mult, secp256k1
 from btclib.curves.curve import CURVES
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import ellswift
 from btclib.ecc.ellswift import _xswiftec_inv_var, _xswiftec_var
 from btclib.exceptions import BTClibValueError
-from tests import load_csv, vector_id
+from tests import load_csv, needs_bindings, vector_id
 
 # the other three Koblitz curves of the catalogue: a == 0 and a square
 # -3, which is all the map wants, so the Python path serves them and this
@@ -54,6 +54,7 @@ def xswiftec_inv_vectors() -> list[Any]:
 
 
 @pytest.mark.parametrize("row", decode_vectors())
+@needs_bindings
 def test_ellswift_decode_vectors(row: list[str]) -> None:
     """BIP324's decode vectors, against the map and against the bindings.
 
@@ -79,6 +80,7 @@ def test_ellswift_decode_vectors(row: list[str]) -> None:
 
 
 @pytest.mark.parametrize("row", decode_vectors())
+@needs_bindings
 def test_the_python_decode_is_the_bindings_one(
     row: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -120,6 +122,7 @@ def test_xswiftec_inv_vectors(row: list[str]) -> None:
             assert _xswiftec_var(u, t, secp256k1) == x
 
 
+@needs_bindings
 def test_create_and_encode_round_trip() -> None:
     """What create and encode produce, decode takes back to the key.
 
@@ -137,6 +140,7 @@ def test_create_and_encode_round_trip() -> None:
             assert libsecp256k1_ellswift.decode(ell) == bytes_from_point(Q)
 
 
+@needs_bindings
 def test_the_python_create_and_encode_are_the_bindings_ones(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -163,6 +167,7 @@ def test_the_python_create_and_encode_are_the_bindings_ones(
             assert ellswift.decode_var(ell) == Q
 
 
+@needs_bindings
 def test_xdh_agrees_between_parties_and_with_the_bindings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

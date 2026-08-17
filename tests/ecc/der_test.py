@@ -5,11 +5,12 @@
 """Tests for the `btclib.der` module."""
 
 import pytest
-from btclib_secp256k1 import dsa as libsecp256k1_dsa
 
+from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib.curves import secp256k1
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError
+from tests import needs_bindings
 
 ec = secp256k1
 
@@ -200,6 +201,7 @@ def _malformed(good: bytes) -> list[tuple[str, bytes]]:
     ]
 
 
+@needs_bindings
 def test_der_agrees_with_libsecp256k1_except_where_it_is_stricter() -> None:
     """libsecp256k1 as the oracle on a DER encoding, and where it is not one.
 
@@ -254,6 +256,7 @@ def test_der_agrees_with_libsecp256k1_except_where_it_is_stricter() -> None:
         assert libsecp256k1_dsa.to_compact(bad)[zeroed] == bytes(32), name
 
 
+@needs_bindings
 def test_der_low_s_agrees_with_libsecp256k1() -> None:
     """The low-s verdict and the normalization, against their C twins.
 

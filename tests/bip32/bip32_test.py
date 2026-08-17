@@ -14,9 +14,9 @@ from dataclasses import FrozenInstanceError, fields, replace
 from typing import Any
 
 import pytest
-from btclib_secp256k1 import keys as libsecp256k1_keys
 
 from btclib import base58
+from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.b58 import p2pkh
 from btclib.bip32 import (
     BIP328_CHAIN_CODE,
@@ -61,7 +61,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS
 from btclib.to_pub_key import pub_keyinfo_from_key
-from tests import load, replace_unchecked, vector_id
+from tests import load, needs_bindings, replace_unchecked, vector_id
 from tests.curves.curve_test import no_bindings
 
 
@@ -281,7 +281,13 @@ def bip32_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 @pytest.mark.parametrize("seed, der_path, xpub, xprv", bip32_vectors())
 def test_bip32_vectors(
     seed: str,
@@ -334,6 +340,7 @@ def test_invalid_bip32_xkeys(xkey: str, err_msg: str) -> None:
         BIP32KeyData.b58decode(xkey)
 
 
+@needs_bindings
 def test_public_key_validation_does_not_lift(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -371,6 +378,7 @@ def test_public_key_validation_does_not_lift(
     assert excinfo.value.__cause__ is None
 
 
+@needs_bindings
 def test_public_derivation_builds_no_point(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -794,6 +802,7 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
     assert child_pub.key == bytes_from_prv_key_int(child_prv_key)
 
 
+@needs_bindings
 def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """The Python arm must be Python throughout, or it has no reason to be.
 
@@ -861,6 +870,7 @@ def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> 
     ) == delegated
 
 
+@needs_bindings
 def test_the_python_arm_answers_what_the_primitive_answers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -945,6 +955,7 @@ def test_the_python_arm_answers_what_the_primitive_answers(
                 libsecp256k1_keys.prvkey_tweak_add(key, offset)
 
 
+@needs_bindings
 def test_the_chain_contract_no_derivation_here_asks_for() -> None:
     """`compressed`, and what a call that raised leaves the chain holding.
 
@@ -989,7 +1000,13 @@ def test_the_chain_contract_no_derivation_here_asks_for() -> None:
     assert chain.tweak_add(tweak) == compressed
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_invalid_child_prv_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """Refuse the two invalid private children, on a dictated hmac.
 
@@ -1017,7 +1034,13 @@ def test_invalid_child_prv_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) 
         derive(rootxprv, "m/0")
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_invalid_child_pub_key(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     """Refuse the two invalid public children, on a dictated hmac.
 
@@ -1323,7 +1346,13 @@ def test_pub_key_derivation_tweaks_are_32_bytes_each() -> None:
     assert all(len(tweak) == 32 for tweak in tweaks)
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_a_path_of_no_steps_still_looks_at_the_public_key(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1432,7 +1461,13 @@ def test_check_validity_defaults_to_true() -> None:
     assert BIP32KeyData.parse(as_bytes, check_validity=False) == invalid
 
 
-@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
 def test_the_tweaks_of_a_public_derivation_are_the_derivation(
     bindings: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
