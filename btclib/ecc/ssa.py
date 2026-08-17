@@ -450,7 +450,20 @@ def sign_(
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
-        return Sig.parse(libsecp256k1_ssa.sign_custom(msg, q, aux))
+        # verify=True, written rather than left to the default, as
+        # `dsa.sign_recoverable_` writes it and `dsa.sign_` writes its
+        # False: the policy belongs where the call is. BIP340 puts the
+        # step inside *Default Signing* -- "If Verify(bytes(P), m, sig)
+        # returns failure, abort" -- so this is one of the two calls a
+        # specification asks it of, the other being `Signer.sign_`'s
+        # delegated arm below, which is why both are written out where
+        # ECDSA's two are a policy of btclib's own. It is the cheaper
+        # step besides, the keypair holding the point where ECDSA has to
+        # derive one: 12.7 microseconds against ECDSA's 19.5
+        # (btclib-secp256k1#224). Written out, it survives the day that
+        # issue asks again whether the wrapper's default should be per
+        # scheme
+        return Sig.parse(libsecp256k1_ssa.sign_custom(msg, q, aux, verify=True))
 
     # k is the nonce: an integer in the range 1..n-1.
     k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
@@ -665,7 +678,16 @@ class Signer:
         # would put back the gate issue 169 removed -- and would put it
         # back in only one of this class's two arms, the python one
         # signing what the delegated one refused
-        return self._signer.sign_custom(msg, aux)
+        #
+        # verify=True for `sign_`'s reason above, and this is where the
+        # check is the largest share of what it is added to: the keypair
+        # was built when this signer was, so the signature is 8.18
+        # microseconds where a fresh one is 15.87, and the same check on
+        # it is 61% of the call against 44% there
+        # (btclib-secp256k1#224). The one of btclib's four signing calls
+        # a caller would most plausibly want to decline is the one whose
+        # policy would otherwise be invisible
+        return self._signer.sign_custom(msg, aux, verify=True)
 
     def sign(self, msg: Octets, aux: Octets | None = None) -> bytes:
         """Return the signature of a message, reducing it with hf first."""

@@ -1507,6 +1507,73 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The grinding loop stops paying for a check once per attempt, and pays
+  it once for the signature it keeps** (issue #983, and the urgent half of
+  issue #982). `dsa.sign`, `ssa.sign_custom` and `recovery.sign` in
+  btclib-secp256k1 grew a keyword-only `verify` defaulting to True — the
+  library verifies what it has just computed before answering with it,
+  which is `CKey::Sign`'s policy — and `[tool.uv.sources]` pins the
+  bindings to their branch, so this repository started paying for it
+  without a line changing. `_grind_low_r` calls into them once per attempt,
+  so the bill was 19.5 microseconds *an attempt*: seven times the
+  `check_validity` congruence the comment right above declines, and on an
+  eight-attempt grind more than the grind.
+- **What the attempts pay and what the survivor pays are different
+  questions**, which is why this is not `verify=False` and nothing else.
+  The attempts do not need checking: a faulted one that is discarded cost
+  an attempt. The one the loop settles on does, and Core's `CKey::Sign`,
+  the bindings' own `dsa._sign_` and issue #982 all describe the same order
+  — grind first, check the survivor. So the attempts pass `verify=False`
+  and the signature that comes back is verified once, with
+  `libsecp256k1_dsa.verify` under the key derived from `q`. That costs
+  20.25 microseconds against the 19.56 the bindings' own default costs per
+  call; the 0.7 between them is the serialization and the parse a caller of
+  the public halves pays and their private ones do not. The *uncompressed*
+  sec is passed for the same kind of reason: parsing `02 || x` is a field
+  square root, and the compressed one would cost 22.20. Alternated in one
+  process, 15 rounds of 3000 calls, minimum kept, noise 0.05 — an Apple M5,
+  macOS 26.6, arm64, CPython 3.14.6. The raise carries `# pragma: no cover`
+  and `dleq.sign`'s reasoning: no input reaches it, and what it reports is
+  the computation having gone wrong.
+- **`recovery.sign` is passed `verify=True` rather than left to the
+  default.** Its check is not a verification — the bindings recover the key
+  and refuse one that is not the signer's, which reads the recovery id, and
+  the id is a value this call is made for that nothing downstream
+  re-derives. A faulted `r` or `s` fails the first verification anybody
+  makes; a wrong id does not. 22.4 microseconds, once per signature, this
+  path not grinding. Written out because the policy belongs at the call
+  site, which is the same argument that writes `False` in the loop above,
+  and because it survives the day btclib-secp256k1#224 asks again whether
+  that default should be per scheme.
+- **BIP340 keeps its check, and now says so where the calls are.** An
+  earlier revision of this change passed `verify=False` to
+  `ssa.sign_custom` too, for one policy across the call sites. With the
+  ECDSA path checking its survivor, one policy means the opposite: a check
+  per signature, which is exactly what BIP340's single call already pays.
+  Declining it there would have left the scheme whose *Default Signing*
+  ends in a verification as the only one btclib does not check — and the
+  remedy offered to a caller who wanted it back, verifying the answer,
+  costs more than the step declined: `ssa.verify` is 14.275 microseconds
+  against 12.7 for the inline check, which has the point in hand where a
+  caller's has to parse a serialized x-only key. So the keyword is written
+  out as `verify=True`, as `sign_recoverable_` writes its own and `sign_`
+  writes its `False`: **all four** of btclib's calls into the bindings'
+  signers state their policy, and the one a specification asks for is not
+  the one left to a default. The fourth is `ssa.Signer.sign_`'s delegated
+  arm, where the check is the largest share of what it is added to — the
+  keypair built when the signer was takes the signature down to 8.18
+  microseconds against a fresh one's 15.87, so the same check is 61% of the
+  call against 44% there, and it is the call a caller would most plausibly
+  want to decline. The recorder in `tests/ecc/ssa_test.py` takes the
+  keyword and forwards it, a stub that swallowed it recording a call the
+  package does not make; nothing records the `Signer` path, which is issue
+  #986.
+- **What stays open is the rest of issue #982**, and it is the larger part:
+  a `verify` keyword of btclib's own on `dsa.sign_`, `ssa.sign_` and
+  `ssa.Signer`, honoured on *both* arms. Today the bindings arm checks what
+  it signed and the pure-Python arm does not, which is a guarantee that
+  depends on which arm the dispatch took — and a caller has no way to ask
+  for it or to decline it. Neither is new here, and neither is fixed here.
 - **BIP32 derivation has its Python arm back, so closing the dispatch
   reaches it** (issue #966). Both sums went to libsecp256k1
   unconditionally — `keys.prvkey_tweak_add` for the private child and

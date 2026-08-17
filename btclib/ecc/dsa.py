@@ -41,6 +41,7 @@ from io import BytesIO
 from typing import overload
 
 from btclib_secp256k1 import dsa as libsecp256k1_dsa
+from btclib_secp256k1 import keys as libsecp256k1_keys
 from btclib_secp256k1 import recovery as libsecp256k1_recovery
 
 from btclib import var_bytes
@@ -711,16 +712,55 @@ def sign_(
         # paragraph left open: reading r alone and building one Sig after
         # the loop is now worth 0.32 us an attempt rather than 0.7, and it
         # would still cost a second reader beside this one
-        return _grind_low_r(
+        #
+        # verify=False on the attempts, and one check on the one the loop
+        # keeps: Core's order in `CKey::Sign` and the bindings' own inside
+        # `dsa._sign_`, which grinds and then checks once. The bindings
+        # verify by default (btclib-secp256k1#224), and a loop calling
+        # them once per attempt pays a point multiplication and a
+        # verification for signatures it is about to throw away -- 19.5 us
+        # an attempt, seven times the congruence declined two paragraphs
+        # up, and on an eight-attempt grind more than the grind. A
+        # discarded attempt that was faulted costs an attempt; only what
+        # is returned needs checking (issue #982)
+        signature = _grind_low_r(
             lambda counter: _sig_from_compact(
                 libsecp256k1_dsa.sign(
-                    msg_hash, q, _grind_entropy(counter), compact=True
+                    msg_hash, q, _grind_entropy(counter), compact=True, verify=False
                 ),
                 ec,
             ),
             grind,
             ec,
         )
+        # the check itself, and it is not the congruence declined above:
+        # that one would ask the library to prove r is an x-coordinate of
+        # a point the library multiplied, where this asks whether the
+        # arithmetic ran correctly at all -- a fault in memory or induced,
+        # whose cost is a published signature that is invalid and may say
+        # something about the key. 20.25 us the way it is written here,
+        # against 19.56 for the bindings' own per-call default: the 0.7 is
+        # the serialization and parse a caller of the public halves pays
+        # and their private ones do not. The *uncompressed* key for the
+        # same reason it is not `q`'s compressed sec: parsing 02||x is a
+        # field square root, and passing it costs 22.20 instead. Measured
+        # alternated in one process, 15 rounds of 3000 calls, minimum
+        # kept, noise 0.05 -- an Apple M5, macOS 26.6, arm64, CPython
+        # 3.14.6
+        verified = libsecp256k1_dsa.verify(
+            msg_hash,
+            libsecp256k1_keys.pubkey_from_prvkey(q, compressed=False),
+            _compact(signature),
+            compact=True,
+        )
+        if not verified:  # pragma: no cover
+            # unreachable from an input, as dleq.sign's own last step is:
+            # what it reports is the computation having gone wrong, which
+            # is what a BTClibRuntimeError means here
+            raise BTClibRuntimeError(
+                "signing produced a signature that does not verify"
+            )
+        return signature
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
@@ -874,7 +914,19 @@ def sign_recoverable_(
         # the compact form, r || s, and the recid beside it: the DER
         # encoding sign_ parses would have to be taken apart again, the
         # key_id being what this call is made for
-        sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q)
+        #
+        # verify=True, written rather than left to the default, because
+        # this call site is where the policy belongs -- the same argument
+        # `sign_` above makes for writing False there. What the bindings
+        # do for a recoverable signature is not a verification: they
+        # recover the key and refuse one that is not the signer's, which
+        # reads the recovery id, and the id is a value this call is made
+        # for and that nothing downstream re-derives -- a faulted r or s
+        # fails the first verification anybody makes, a wrong id does not.
+        # 22.4 us (btclib-secp256k1#224), once per signature, this path
+        # not grinding. Written out, it survives the day the wrapper's
+        # default is asked again in btclib-secp256k1#224
+        sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q, verify=True)
         # `_sig_from_compact` for `sign_`'s reason, stated there: these
         # are the values secp256k1_ecdsa_sign_recoverable has just
         # computed, and nothing here proves the library its own output

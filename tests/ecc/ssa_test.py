@@ -415,9 +415,12 @@ def test_a_message_of_any_size_reaches_the_bindings(
     # are not parsed twice (issue 887)
     real_verify = libsecp256k1_ssa.verify
 
-    def sign_custom(msg: bytes, prvkey: int, aux: bytes) -> bytes:
+    # `verify` taken and forwarded rather than swallowed: the signing
+    # path writes the keyword out, and a recorder that dropped it would
+    # both fail here and record a call the package does not make
+    def sign_custom(msg: bytes, prvkey: int, aux: bytes, *, verify: bool) -> bytes:
         calls.append(("sign_custom", len(msg)))
-        return real_sign_custom(msg, prvkey, aux)
+        return real_sign_custom(msg, prvkey, aux, verify=verify)
 
     def verify(msg: bytes, pubkey_bytes: bytes, sig: bytes) -> bool:
         calls.append(("verify", len(msg)))
