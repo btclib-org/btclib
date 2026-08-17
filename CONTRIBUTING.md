@@ -49,8 +49,9 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependencies are `btclib_secp256k1>=0.8.0.3` and
-`bitcoin-core-rpc>=2026.8.13`, with no upper bound**, and the absence of a
+**The declared dependencies are `bitcoin-core-rpc>=2026.8.13` and, as
+the `secp256k1` extra, `btclib_secp256k1>=0.8.0.3`, with no upper
+bound**, and the absence of a
 ceiling is a decision. Both are btclib-org projects developed by the same
 people, and the bindings' whole purpose is to be the bindings this library
 calls, so a breaking change there is coordinated with the release here —
@@ -359,8 +360,10 @@ allowlist is stated in prose in
 which the suite compares against the script's own constants, so changing
 a rule means changing both. The last
 commands ask for the wheel and nothing else, so
-what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel
-carries; the lock arrives as constraints, which bind a version without
+what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel carries
+for the `secp256k1` extra — which those commands name on both sides, a
+wheel installed without it declaring nothing to resolve. The lock
+arrives as constraints, which bind a version without
 requesting a package, so a release of the bindings cannot turn a required
 check red while the wheel's own metadata still does the work. They run
 from an empty directory, or the import finds the source tree instead of
@@ -376,10 +379,11 @@ uv run --locked --only-group build twine check --strict dist/*
 uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
 tmp=$(mktemp -d)
-uv export --locked --no-dev --no-emit-project --no-hashes \
-    -o "$tmp"/constraints.txt
+uv export --locked --no-dev --extra secp256k1 --no-emit-project \
+    --no-hashes -o "$tmp"/constraints.txt
 cd "$tmp" && uv venv &&
-    uv pip install --constraints constraints.txt "$OLDPWD"/dist/*.whl &&
+    set -- "$OLDPWD"/dist/*.whl &&
+    uv pip install --constraints constraints.txt "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
       from btclib.ecc import dsa; \
       from btclib.to_pub_key import pub_keyinfo_from_prv_key; \

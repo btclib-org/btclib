@@ -44,12 +44,14 @@ The library is not limited to secp256k1, and for that curve it always
 calls
 [btclib_secp256k1](https://github.com/btclib-org/btclib-secp256k1),
 FFI bindings to Bitcoin Core's optimized C library
-[libsecp256k1](https://github.com/bitcoin-core/secp256k1). They are a
-required dependency and not an optional accelerator, so installing btclib
-needs one of their wheels or a C toolchain. The Python arithmetic serves
-every other curve, and the suite validates it against the bindings:
-libsecp256k1 says what the right answer is, being what bitcoin consensus
-relies on.
+[libsecp256k1](https://github.com/bitcoin-core/secp256k1). They are the
+recommended install and what `pip install "btclib[secp256k1]"` asks for,
+needing one of their wheels or a C toolchain; without them btclib still
+answers, on the Python arithmetic, tens of times more slowly and not in
+constant time — `SECURITY.md` publishes both. That Python arithmetic
+serves every other curve anyway, and the suite validates it against the
+bindings: libsecp256k1 says what the right answer is, being what bitcoin
+consensus relies on.
 
 Included features are:
 

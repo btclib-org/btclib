@@ -281,6 +281,12 @@ jobs:
       # `Requires-Dist` the wheel itself carries, resolved from the index
       # -- which is the question, metadata being what the three checks
       # above only read.
+      # The extra is named on both sides for that reason: the bindings
+      # are `Requires-Dist ... ; extra == "secp256k1"` now, so a wheel
+      # installed without it declares nothing to resolve and the question
+      # goes unasked. `--extra secp256k1` on the export is what puts the
+      # bindings in the constraints, the direct reference below being
+      # where their version comes from
       # The lock arrives as constraints and not as requirements: a
       # requirements file installs the bindings whether or not the wheel
       # asks for them, so a wheel declaring nothing would pass. A
@@ -308,12 +314,19 @@ jobs:
       # an incompatible API imports fine and answers wrongly
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
-          uv export --locked --no-dev --no-emit-project --no-hashes \
-            -o "$RUNNER_TEMP"/constraints.txt
+          uv export --locked --no-dev --extra secp256k1 \
+            --no-emit-project --no-hashes -o "$RUNNER_TEMP"/constraints.txt
           cd "$RUNNER_TEMP"
           uv venv
-          uv pip install --constraints constraints.txt \
-            "$GITHUB_WORKSPACE"/dist/*.whl
+          # `set --` and not `echo`, which would collapse a second wheel
+          # into one space-separated word and fail about a path with a
+          # space in it rather than about there being two; and not a
+          # named array either, whose first element is `[0]` in bash and
+          # `[1]` in zsh, where CONTRIBUTING.md's copy of this command is
+          # pasted. The positional parameters are sh, bash and zsh alike,
+          # so the two stay one string, and a second wheel is `$2`
+          set -- "$GITHUB_WORKSPACE"/dist/*.whl
+          uv pip install --constraints constraints.txt "$1[secp256k1]"
           .venv/bin/python -c "import btclib; \
             from btclib.ecc import dsa; \
             from btclib.to_pub_key import pub_keyinfo_from_prv_key; \

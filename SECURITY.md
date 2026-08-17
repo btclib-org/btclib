@@ -106,18 +106,23 @@ used to teach and to prototype as much as to build:
     or xpub string handed to `derive` or `derive_from_account`: the
     decoded key stays reachable from that cache, bounded by its
     `maxsize`, past whatever reference the caller itself still holds
-- the boundary is not always there. Everything the next bullet says
-    describes an installation whose dispatch is on, which is the default
-    and what the README's install gives you.
+- the boundary is not always there, and an install decides whether it
+    is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
+    the guide give -- installs the bindings, and everything the next
+    bullet says describes that installation. `pip install btclib`
+    installs no C at all: signing, verification, BIP32 derivation and key
+    agreement all run the Python arithmetic the last bullet describes,
+    which is tens of times slower and not constant-time. Nothing raises
+    to say so, and `curves.is_libsecp256k1_serving()` is how a caller
+    asks which of the two it has.
+    The dispatch is a runtime switch besides:
     `curves.set_libsecp256k1_serving(serving=False)` turns it off for the
     whole process, and `BTCLIB_NO_LIBSECP256K1` set in the environment
     makes that the state from the first call — a test framework built on
     btclib wants exactly that, having to check libsecp256k1 with
     something other than libsecp256k1. With the dispatch off, every
-    operation named below is the Python arithmetic the last bullet
-    describes: tens of times slower, and not constant-time.
-    `curves.is_libsecp256k1_serving()` answers which of the two the next
-    call will take
+    operation named below is the Python arithmetic, whichever way the
+    library was installed
 - not every operation crosses that boundary. `mult`, `double_mult_var` and
     `multi_mult_var` reach the bindings for secp256k1 and any point of it, a
     zero scalar and the point at infinity excepted — libsecp256k1 has no

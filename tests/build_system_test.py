@@ -88,3 +88,43 @@ def test_the_backend_is_the_declarative_one() -> None:
     assert match, "[build-system] declares no build-backend"
 
     assert match.group(1) == "setuptools.build_meta"
+
+
+# the same requirement declared twice on purpose, and the two spellings:
+# `[project.optional-dependencies]` is what a consumer of the wheel asks
+# for, `[dependency-groups]` what this repository resolves for itself.
+# uv has no default extra, so a group is what keeps `uv sync` and every
+# `--group` command of CONTRIBUTING.md on the delegated configuration
+_EXTRA = re.compile(r"^secp256k1 = \[(.*?)^\]", re.MULTILINE | re.DOTALL)
+_GROUP = re.compile(r"^bindings = \[(.*?)\]", re.MULTILINE | re.DOTALL)
+
+
+def _bindings_requirements() -> tuple[list[str], list[str]]:
+    """Return the bindings requirement, as the extra and as the group."""
+    text = _PYPROJECT.read_text(encoding="utf-8")
+    extra = _EXTRA.search(text)
+    group = _GROUP.search(text)
+    assert extra is not None, "no secp256k1 extra in pyproject.toml"
+    assert group is not None, "no bindings dependency group in pyproject.toml"
+    return _QUOTED.findall(extra.group(1)), _QUOTED.findall(group.group(1))
+
+
+def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
+    """One floor, written twice, and this is what keeps them equal.
+
+    The extra is the published fact -- `pip install btclib[secp256k1]` --
+    and the group is how this repository puts the bindings in its own
+    environment, uv having no way to make an extra the default. Two
+    declarations of one requirement drift, and the direction that drifts
+    silently is the dangerous one: a group left behind resolves the suite
+    against a bindings older than the extra promises, so every comparison
+    the suite makes is made against the wrong authority.
+
+    The requirement itself is not spelled here, for the reason the build
+    system above is not: the floor moves with the features btclib calls,
+    and its reason is written beside it in pyproject.toml.
+    """
+    extra, group = _bindings_requirements()
+    assert extra == group, f"the extra asks {extra}, the group asks {group}"
+    assert len(extra) == 1, f"the extra names more than the bindings: {extra}"
+    assert extra[0].startswith("btclib_secp256k1"), extra[0]

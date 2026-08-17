@@ -25,22 +25,6 @@ license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
-    # 0.8.0.3 for `xonly.tweak_add_` (btclib-secp256k1#158), which
-    # `script.taproot` calls: it tweaks the parsed internal key, where
-    # `xonly.tweak_add` parses the x again and that parse is a field square
-    # root. The same version for `keys.pubkey_sum`, `xonly.pubkey_verify`
-    # and `xonly.to_pubkey` (btclib-secp256k1#171), which `curves.curve`
-    # calls -- one sum instead of a combine per term, and the two
-    # questions about an x asked as x-only questions. The same version
-    # again for `keys.pubkey_tweak_mul_sum` (btclib-secp256k1#182), which
-    # is that sum with its terms as well, so that no product of a
-    # multi-scalar multiplication crosses the boundary; and for
-    # `ssa.Signer` (btclib-secp256k1#154), which `ecc.ssa.Signer` holds so
-    # that a keypair is built once per key rather than once per signature.
-    # The version is not on PyPI yet -- `[tool.uv.sources]` below is what
-    # resolves it here -- so this floor is also what stops a release going
-    # out against a bindings that cannot serve it
-    "btclib_secp256k1>=0.8.0.3",
     "bitcoin-core-rpc>=2026.8.13",
 ]
 keywords = [
@@ -99,6 +83,39 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+# The bindings are the default and the recommended install -- `pip
+# install "btclib[secp256k1]"`, quoted because zsh is macOS's login
+# shell and answers `no matches found` to the bare form, and it is
+# what README.md and the guide tell a reader to run -- and an extra
+# rather than a dependency because
+# btclib answers without them: every delegation asks a dispatch that
+# declines where they are absent, and `btclib._libsecp256k1` is the one
+# import that decides it. What that buys is a btclib a distribution can
+# package with no C toolchain in reach, and a caller that must not check
+# libsecp256k1 with libsecp256k1 (issue #198). What it costs is in
+# HISTORY.md, because an upgrade that stops installing them is an
+# upgrade onto the Python arithmetic, which is tens of times slower and
+# is not constant-time -- SECURITY.md publishes both
+secp256k1 = [
+    # 0.8.0.3 for `xonly.tweak_add_` (btclib-secp256k1#158), which
+    # `script.taproot` calls: it tweaks the parsed internal key, where
+    # `xonly.tweak_add` parses the x again and that parse is a field square
+    # root. The same version for `keys.pubkey_sum`, `xonly.pubkey_verify`
+    # and `xonly.to_pubkey` (btclib-secp256k1#171), which `curves.curve`
+    # calls -- one sum instead of a combine per term, and the two
+    # questions about an x asked as x-only questions. The same version
+    # again for `keys.pubkey_tweak_mul_sum` (btclib-secp256k1#182), which
+    # is that sum with its terms as well, so that no product of a
+    # multi-scalar multiplication crosses the boundary; and for
+    # `ssa.Signer` (btclib-secp256k1#154), which `ecc.ssa.Signer` holds so
+    # that a keypair is built once per key rather than once per signature.
+    # The version is not on PyPI yet -- `[tool.uv.sources]` below is what
+    # resolves it here -- so this floor is also what stops a release going
+    # out against a bindings that cannot serve it
+    "btclib_secp256k1>=0.8.0.3",
+]
+
 [project.urls]
 homepage = "https://btclib.org"
 documentation = "https://btclib.readthedocs.io/"
@@ -109,7 +126,20 @@ issues = "https://github.com/btclib-org/btclib/issues"
 pull_requests = "https://github.com/btclib-org/btclib/pulls"
 
 [dependency-groups]
+# The extra of `project.optional-dependencies` again, as a group. uv has
+# no default extra -- `[tool.uv]` takes `default-groups` and nothing that
+# would make an extra one -- so an extra alone would leave `uv sync` and
+# every `--group` command of CONTRIBUTING.md resolving a btclib without
+# the bindings, which is half a suite: the tests that matter most here
+# compare the two implementations against each other.
+#
+# So the specifier is written twice, and `tests/build_system_test.py`
+# refuses the day the two stop agreeing. What the group buys is that no
+# documented command had to grow an `--extra`, and that the job of issue
+# #991 is those same commands with this group left out
+bindings = ["btclib_secp256k1>=0.8.0.3"]
 test = [
+    { include-group = "bindings" },
     "coverage",
     "hypothesis",
     "pytest",
@@ -117,12 +147,17 @@ test = [
     "pytest-randomly",
     "pytest-xdist",
 ]
-lint = ["mypy", "pre-commit", "ruff"]
+lint = [{ include-group = "bindings" }, "mypy", "pre-commit", "ruff"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
-docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
+docs = [
+    { include-group = "bindings" },
+    "myst-parser",
+    "sphinx",
+    "sphinx_rtd_theme",
+]
 dev = [
     { include-group = "test" },
     { include-group = "lint" },

@@ -1507,6 +1507,46 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`btclib_secp256k1` is the `secp256k1` extra, not a dependency**
+  (issue #990, step 4 of issue #966). What a consumer installs is
+  `btclib[secp256k1]`, which is what README.md, the guide and
+  CONTRIBUTING.md now tell a reader to run; a plain `pip install btclib`
+  needs no C toolchain and no wheel of the bindings, and answers on the
+  Python arithmetic. HISTORY.md carries what that costs, an upgrade that
+  forgets the extra being a quiet change of implementation rather than an
+  error.
+
+  uv has no default extra — `[tool.uv]` takes `default-groups` and
+  nothing that would make an extra one — so the same requirement is also
+  a `bindings` dependency group, included by `test`, `lint` and `docs`.
+  That is what keeps `uv sync` and every `--group` command of
+  CONTRIBUTING.md resolving the delegated configuration, with no
+  documented command growing an `--extra`; and it is what makes the job
+  of issue #991 those same commands with one group left out. The
+  requirement is therefore written twice, and
+  `tests/build_system_test.py` fails the day the two stop agreeing.
+
+  `SECURITY.md` says which install gets which arithmetic, which is where
+  this stops being a packaging change: after it, `pip install btclib` —
+  the spelling in every tutorial and every requirements.txt — is a btclib
+  whose signing, verification, BIP32 derivation and key agreement all run
+  the Python arithmetic, and nothing raises to say so. That file is what
+  README.md, HISTORY.md, the guide and the `pyproject.toml` comment all
+  cite for "tens of times slower and not constant-time".
+
+  The wheel is named through the positional parameters — `set -- …/*.whl`
+  and `"$1[secp256k1]"` — rather than through `echo`, which would
+  collapse a second wheel into one space-separated word, or through a
+  named array, whose first element is `[0]` in bash and `[1]` in zsh:
+  CONTRIBUTING.md carries each job's command verbatim and is pasted into
+  whatever shell the reader has, so the two have to be one string.
+
+  The `dist` job names the extra on both sides. The bindings are
+  `Requires-Dist … ; extra == "secp256k1"` now, so a wheel installed
+  without it declares nothing to resolve and the question that job exists
+  to ask — does the published metadata pull the bindings in — would go
+  unasked.
+
 - **The switch that turns the bindings off is public** (issue #992, step
   6 of issue #966). `curve._libsecp256k1_available` is private, and its
   only documented consumer was btclib's own suite; issue #198 puts a

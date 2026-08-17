@@ -20,6 +20,17 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`pip install btclib` no longer installs `btclib_secp256k1`.** The
+  bindings are the `secp256k1` extra now — `pip install
+  "btclib[secp256k1]"` — and an install that does not ask for them gets a
+  btclib that answers on its own Python arithmetic: tens of times slower,
+  and not constant-time, both of which `SECURITY.md` publishes. Nothing
+  raises and no import fails, so an upgrade that forgets the extra is a
+  quiet change of implementation rather than an error; ask
+  `btclib.curves.is_libsecp256k1_serving()` if the answer matters.
+  Environments that resolve from a lock file are unaffected until the
+  lock is regenerated.
+
 - **`dsa.recover_pub_key_` reports a key_id outside 0..3 as a
   `BTClibValueError`.** It raised `BTClibRuntimeError` — "signature
   verification failed" — for a key_id whose `x_K = r + j*n` is no field

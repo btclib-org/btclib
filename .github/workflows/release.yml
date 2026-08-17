@@ -408,7 +408,11 @@ jobs:
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           cd "$RUNNER_TEMP"
-          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+          # `set --` for the reason dist-py's copy of this states: the
+          # positional parameters are sh, bash and zsh alike, where a
+          # named array is 0-indexed in one and 1-indexed in another
+          set -- "$GITHUB_WORKSPACE"/dist/*.whl
+          uv run --isolated --no-project --with "$1[secp256k1]" \
             python -c "import btclib; \
               from btclib.ecc import dsa; \
               from btclib.to_pub_key import pub_keyinfo_from_prv_key; \

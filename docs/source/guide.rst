@@ -59,12 +59,14 @@ Installing
 
 .. code-block:: shell
 
-   python -m pip install --upgrade btclib
+   python -m pip install --upgrade "btclib[secp256k1]"
 
-btclib requires python 3.10 or later and pulls in
-``btclib_secp256k1``, which is a required dependency and not an
-optional accelerator: installing needs one of its wheels or a C
-toolchain to build it.
+btclib requires python 3.10 or later. The ``secp256k1`` extra pulls in
+``btclib_secp256k1``, and it is the recommended install: it needs one of
+that package's wheels or a C toolchain to build it. Plain ``pip install
+btclib`` works and installs no C at all — btclib then answers on its own
+Python arithmetic, tens of times more slowly and not in constant time,
+which ``SECURITY.md`` publishes.
 
 secp256k1 arithmetic is delegated to those bindings, and the delegation
 can be turned off. Setting ``BTCLIB_NO_LIBSECP256K1`` to a non-empty

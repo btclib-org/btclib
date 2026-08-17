@@ -314,10 +314,17 @@ version = "2026.9"
 source = { editable = "." }
 dependencies = [
     { name = "bitcoin-core-rpc" },
+]
+
+[package.optional-dependencies]
+secp256k1 = [
     { name = "btclib-secp256k1" },
 ]
 
 [package.dev-dependencies]
+bindings = [
+    { name = "btclib-secp256k1" },
+]
 build = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
@@ -325,6 +332,7 @@ build = [
     { name = "twine" },
 ]
 dev = [
+    { name = "btclib-secp256k1" },
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
@@ -347,6 +355,7 @@ dev = [
     { name = "twine" },
 ]
 docs = [
+    { name = "btclib-secp256k1" },
     { name = "myst-parser", version = "4.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "myst-parser", version = "5.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -355,6 +364,7 @@ docs = [
     { name = "sphinx-rtd-theme" },
 ]
 lint = [
+    { name = "btclib-secp256k1" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "ruff" },
@@ -363,6 +373,7 @@ mutation = [
     { name = "cosmic-ray" },
 ]
 test = [
+    { name = "btclib-secp256k1" },
     { name = "coverage" },
     { name = "hypothesis" },
     { name = "pytest" },
@@ -374,10 +385,12 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.8.13" },
-    { name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
+    { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
 ]
+provides-extras = ["secp256k1"]
 
 [package.metadata.requires-dev]
+bindings = [{ name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" }]
 build = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
@@ -385,6 +398,7 @@ build = [
     { name = "twine" },
 ]
 dev = [
+    { name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
@@ -404,17 +418,20 @@ dev = [
     { name = "twine" },
 ]
 docs = [
+    { name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
     { name = "myst-parser" },
     { name = "sphinx" },
     { name = "sphinx-rtd-theme" },
 ]
 lint = [
+    { name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "ruff" },
 ]
 mutation = [{ name = "cosmic-ray" }]
 test = [
+    { name = "btclib-secp256k1", git = "https://github.com/btclib-org/btclib-secp256k1.git?branch=main" },
     { name = "coverage" },
     { name = "hypothesis" },
     { name = "pytest" },
