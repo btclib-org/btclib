@@ -747,6 +747,22 @@ _TRUTHS = (
         " parsed out of what both readings accept is one signature",
     ),
     _Case(
+        "btclib.ecc.dsa.sign_",
+        "verify",
+        dsa.sign_,
+        {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with;"
+        " the signature is the same either way, the check being a"
+        " verification of what has already been computed",
+    ),
+    _Case(
+        "btclib.ecc.dsa.sign",
+        "verify",
+        dsa.sign,
+        {"msg": _MSG, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
         "btclib.psbt.psbt.assert_signed",
         "allow_partial",
         assert_signed,

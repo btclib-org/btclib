@@ -1719,3 +1719,316 @@ def test_a_key_that_is_no_point_is_refused_by_the_verification_itself(
     for no_point in (b"\x02" + bytes(32), b"\x03" + b"\xff" * 32):
         with pytest.raises(BTClibValueError, match="not a public key"):
             dsa.assert_as_valid(msg, no_point, sig)
+
+
+_ARMS = [
+    pytest.param(True, marks=needs_bindings, id="bindings"),
+    pytest.param(False, id="python"),
+]
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_the_check_changes_no_signature(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`verify` is a truth: what it turns on reads, and writes nothing.
+
+    The three spellings answer the same octets, which is what puts the
+    flag in `_TRUTHS` rather than beside `lower_s` and `grind` in
+    `_KINDS`, and what makes declining the check a decision about time
+    and not about which signature a key and a message make.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message signed three ways"
+    sec = bytes_from_point(Q)
+
+    checked = dsa.sign(msg, q)
+    assert checked == dsa.sign(msg, q, verify=False)
+    assert checked == dsa.sign(msg, q, pub_key=sec)
+    # and grinding is still Core's sequence, the check being of the
+    # signature the loop kept rather than of the ones it discarded
+    assert checked == dsa.sign(msg, q, grind=True, pub_key=Q)
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_key_handed_in_is_the_key_that_would_have_been_derived(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every spelling of the signer's own key is accepted, and is the same key.
+
+    Compressed and uncompressed differ only in what the check pays to
+    parse -- the field square root that recovers y -- and a `Point` or a
+    `PreparedPoint` is what a caller of the Python arithmetic holds. All
+    four are the key the check would have derived, so all four verify.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message signed under a key already held"
+    expected = dsa.sign(msg, q, verify=False)
+
+    for key in (
+        bytes_from_point(Q),
+        bytes_from_point(Q, compressed=False),
+        Q,
+        PreparedPoint(Q),
+    ):
+        assert dsa.sign(msg, q, pub_key=key) == expected
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_the_wrong_key_is_told_apart_from_a_wrong_computation(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A key that is not this private key's is a ValueError, not a fault.
+
+    The whole reason the failing branch derives: a wrong argument and a
+    faulted computation fail the same verification, and reporting one as
+    the other tells a caller their hardware is broken because they
+    mistyped. `BTClibRuntimeError` stays what it has always meant here.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, _ = dsa.gen_keys(0x1234567890ABCDEF)
+    _, other = dsa.gen_keys(0xFEDCBA0987654321)
+    msg = b"a message signed under someone else's key"
+
+    with pytest.raises(BTClibValueError, match="not this private key's"):
+        dsa.sign(msg, q, pub_key=bytes_from_point(other))
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_key_is_refused_beside_the_flag_that_declines_the_check(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller contradicting themselves is answered, not resolved.
+
+    Raised before anything is signed and before the key is parsed, so
+    what a caller hears is about the two arguments rather than about the
+    octets of one of them -- and raised on both arms, so that a dispatch
+    nobody asked for is not what decides which error arrives.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    with pytest.raises(BTClibValueError, match="verify=False declines"):
+        dsa.sign(b"a message", q, verify=False, pub_key=bytes_from_point(Q))
+    with pytest.raises(BTClibValueError, match="verify=False declines"):
+        dsa.sign_(sha256(b"a message").digest(), q, verify=False, pub_key=Q)
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_key_fixed_in_advance_cannot_pass_a_signature_of_another_key(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What makes taking the key on trust safe, stated as a property.
+
+    The keys a signature verifies under are a property of that signature
+    -- `recover_pub_keys_` walks them -- so a key chosen before the
+    signature exists is not one of them. That is why the trust can cost a
+    wrong diagnosis and never a wrong success, and it is checked here
+    over keys and messages rather than argued in a docstring.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    _, wrong = dsa.gen_keys(0x1234567890ABCDEF)
+    for i in range(1, 21):
+        q, _ = dsa.gen_keys(0xFEDCBA0987654321 + i)
+        with pytest.raises(BTClibValueError, match="not this private key's"):
+            dsa.sign(i.to_bytes(32, "big"), q, pub_key=wrong)
+
+
+def test_the_two_arms_answer_the_same_refusals(monkeypatch: pytest.MonkeyPatch) -> None:
+    """One contract, two implementations, and the same words for a failure.
+
+    A fallback that answered differently from the arm it stands in for
+    would be two libraries wearing one name: the signature, the exception
+    type and the message are all held equal here, which is the thing no
+    per-arm test can say.
+    """
+    q, _ = dsa.gen_keys(0x1234567890ABCDEF)
+    _, other = dsa.gen_keys(0xFEDCBA0987654321)
+    msg = b"a message both arms sign"
+
+    def answers() -> tuple[Any, ...]:
+        signature = dsa.sign(msg, q, pub_key=None)
+        with pytest.raises(BTClibValueError) as wrong_key:
+            dsa.sign(msg, q, pub_key=bytes_from_point(other))
+        with pytest.raises(BTClibValueError) as contradiction:
+            dsa.sign(msg, q, verify=False, pub_key=bytes_from_point(other))
+        # the third failure a supplied key can have, and the one this
+        # test's name promised without holding: octets that are no point
+        with pytest.raises(BTClibValueError) as no_point:
+            dsa.sign(msg, q, pub_key=b"\x02" + bytes(32))
+        return (
+            signature,
+            str(wrong_key.value),
+            str(contradiction.value),
+            str(no_point.value),
+        )
+
+    delegated = answers()
+    with monkeypatch.context() as python:
+        python.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
+        assert answers() == delegated
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_key_that_is_no_point_is_refused_before_anything_is_signed(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Refused by both arms, and on the Python one before it has signed.
+
+    A caller who mistyped an argument should not be told about it by a
+    check on a signature they are now holding -- which with grinding
+    would be after the whole loop. Both arms refuse before signing: the
+    delegated one because the bindings parse `pubkey` on the way in, the
+    Python one because `_python_key` is hoisted above the signing, where
+    the check would have paid the same parse anyway.
+
+    Only the second half is asserted here, and the asymmetry is the
+    point rather than an omission. On the delegated arm the call that
+    parses and the call that signs are one crossing, so nothing this
+    side of it can watch the order; that property is
+    `test_octets_that_are_not_a_key_are_refused_before_anything_is_signed`
+    in btclib-secp256k1, which is where it can be seen. What is held on
+    both arms here is that the refusal arrives and is btclib's own
+    exception.
+
+    The words are held equal too, and that is the cheap half: the
+    delegated arm translates the bindings' `invalid public key` into
+    this package's own `not a public key`, which is what
+    `assert_as_valid_` and `point_from_pub_key` say. Unifying it by
+    proving the key here instead would be a field square root the
+    bindings then repeat, some 2.2 of the 5.8 microseconds handing a key
+    in saves. Pinning the message is what makes the translation safe: a
+    wording that moves upstream fails here rather than quietly ceasing
+    to match.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, _ = dsa.gen_keys(0x1234567890ABCDEF)
+    no_point = b"\x02" + bytes(32)
+
+    with pytest.raises(BTClibValueError, match="^not a public key$"):
+        dsa.sign(b"a message", q, pub_key=no_point)
+
+    if bindings:
+        return
+
+    real = dsa._sign_
+    signed = []
+
+    def counting(*args: Any, **kwargs: Any) -> Any:
+        signed.append(1)
+        return real(*args, **kwargs)
+
+    with monkeypatch.context() as counted:
+        counted.setattr(dsa, "_sign_", counting)
+        # the counter is wired to the call that signs, and this says so:
+        # without it the assertion below would pass on a patch of the
+        # wrong function. grind=False so that "exactly one" is a property
+        # of the code rather than of this key and message drawing a low r
+        # on the first attempt -- true here, and a puzzling failure for
+        # whoever changes the message
+        dsa.sign(b"a message", q, verify=False, grind=False)
+        assert signed == [1]
+
+        signed.clear()
+        with pytest.raises(BTClibValueError, match="^not a public key$"):
+            dsa.sign(b"a message", q, pub_key=no_point)
+    assert not signed, "the key was refused after something was signed"
+
+
+def test_a_fault_is_not_reported_as_a_wrong_key() -> None:
+    """The other half of the discrimination, and the one no input reaches.
+
+    A fresh signature verifies under the key that made it, so neither
+    `BTClibRuntimeError` is reachable from an argument -- what they
+    report is memory that flipped or a fault induced on purpose.
+    `_abort_unless_checked` takes the verification as a callable exactly
+    so that this can be said without patching the arithmetic: all four
+    of its branches are entered here, and an inversion of the two causes
+    fails the test rather than passing quietly.
+    """
+    signer = b"\x02" + bytes(31) + b"\x01"
+    other = b"\x02" + bytes(31) + b"\x02"
+    derivations = 0
+
+    def derive() -> bytes:
+        nonlocal derivations
+        derivations += 1
+        return signer
+
+    # nothing supplied, and the signature verifies: the common path,
+    # which pays the derivation because it has no other key to ask about
+    dsa._abort_unless_checked(lambda _: True, derive, None)
+    assert derivations == 1
+
+    # nothing supplied, and it does not: the fault this check is for
+    with pytest.raises(BTClibRuntimeError, match="does not verify"):
+        dsa._abort_unless_checked(lambda _: False, derive, None)
+    assert derivations == 2
+
+    # supplied and verifying: the derivation is not reached at all, which
+    # is the whole of what supplying the key buys
+    dsa._abort_unless_checked(lambda _: True, derive, other)
+    assert derivations == 2
+
+    # supplied, failing, and the signer's own key fails too: a fault
+    # under a handed-in key, which must not be reported as a wrong key
+    with pytest.raises(BTClibRuntimeError, match="does not verify"):
+        dsa._abort_unless_checked(lambda _: False, derive, other)
+    assert derivations == 3
+
+    # supplied, failing, and the signer's own key verifies: a wrong key
+    with pytest.raises(BTClibValueError, match="not this private key's"):
+        dsa._abort_unless_checked(lambda key: key == signer, derive, other)
+    assert derivations == 4
+
+
+@needs_bindings
+def test_the_delegated_grind_is_the_sequence_the_python_arm_walks() -> None:
+    """The defence the delegation rests on, and the reason it is here.
+
+    `sign_` no longer grinds on the delegated arm: libsecp256k1's own
+    `grind` walks Core's `CKey::Sign` counter and so does
+    `_grind_low_r`, so looping here would re-derive what the bindings
+    already do and pay a crossing per attempt -- two on average.
+
+    What that costs is Core's sequence living in two places, and it is
+    only affordable while the two agree. They are held equal here over
+    keys and messages rather than at the one input a smoke test would
+    use, so a change of sequence on either side is a red suite instead
+    of a signature nobody else can reproduce. The signatures are
+    compared, not merely the low-r property: two different low-r
+    signatures of one message would pass that and be the bug this is
+    for.
+    """
+    for i in range(1, 61):
+        q, _ = dsa.gen_keys(0xFEDCBA0987654321 + i * 7919)
+        msg_hash = sha256(i.to_bytes(8, "big")).digest()
+
+        delegated = dsa.sign_(msg_hash, q, grind=True, verify=False)
+        compact = libsecp256k1_dsa.sign(
+            msg_hash, q, compact=True, grind=True, verify=False
+        )
+        assert delegated.r == int.from_bytes(compact[:32], "big")
+        assert delegated.s == int.from_bytes(compact[32:], "big")
+
+        # and it is the signature btclib's own loop reaches, which is the
+        # half that says the delegation changed no answer
+        with pytest.MonkeyPatch.context() as python:
+            python.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
+            assert dsa.sign_(msg_hash, q, grind=True, verify=False) == delegated
+
+        # the point of grinding at all, and cheap to say here
+        assert dsa._is_low_r(delegated.r, secp256k1)

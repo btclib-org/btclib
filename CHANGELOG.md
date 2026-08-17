@@ -1724,18 +1724,65 @@ documented at release-notes length in the first place, and are still in
   The attempts do not need checking: a faulted one that is discarded cost
   an attempt. The one the loop settles on does, and Core's `CKey::Sign`,
   the bindings' own `dsa._sign_` and issue #982 all describe the same order
-  — grind first, check the survivor. So the attempts pass `verify=False`
-  and the signature that comes back is verified once, with
-  `libsecp256k1_dsa.verify` under the key derived from `q`. That costs
-  20.25 microseconds against the 19.56 the bindings' own default costs per
-  call; the 0.7 between them is the serialization and the parse a caller of
-  the public halves pays and their private ones do not. The *uncompressed*
-  sec is passed for the same kind of reason: parsing `02 || x` is a field
-  square root, and the compressed one would cost 22.20. Alternated in one
-  process, 15 rounds of 3000 calls, minimum kept, noise 0.05 — an Apple M5,
-  macOS 26.6, arm64, CPython 3.14.6. The raise carries `# pragma: no cover`
-  and `dleq.sign`'s reasoning: no input reaches it, and what it reports is
-  the computation having gone wrong.
+  — grind first, check the survivor. The arrangement that answered this
+  first, and shipped in no release, was a loop of `verify=False` attempts
+  with one `libsecp256k1_dsa.verify` after it under a key derived here;
+  the bullet below replaces it, the whole of it now being one call. The
+  raise carries `# pragma: no cover` and `dleq.sign`'s reasoning: no input
+  reaches it, and what it reports is the computation having gone wrong.
+- **The caller can decline the check, and hand it the key it already
+  has** (issue #982). `dsa.sign` and `dsa.sign_` take a keyword-only
+  `verify`, defaulting to True because `CKey::Sign` offers no way out and
+  what the check catches is a computation that went wrong — and a
+  keyword-only `pub_key`, the key it verifies under, so that a caller
+  already holding it does not pay for deriving one per signature. That
+  derivation is most of what ECDSA's check costs over BIP340's, and it is
+  why `ssa`'s own `sign_` has no such argument: there the keypair holds
+  the point already, so the argument would buy nothing and sell one thing,
+  a second reason a check can fail.
+
+  The key is taken on trust and never checked against the private key,
+  because checking it would cost the multiplication it exists to avoid.
+  So a failed check now says which of two things failed:
+  `BTClibValueError` where the signature verifies under the private key's
+  own public key and not under the one given, `BTClibRuntimeError` where
+  it verifies under neither, which is the fault this check has always
+  been for. The failing branch pays the derivation the common one saved.
+  A key beside `verify=False` is refused rather than ignored, and a key
+  that is no point is refused before anything is signed, both arms saying
+  `not a public key`.
+
+  What the trust cannot do is let a bad signature through: the keys a
+  signature verifies under are a property of that signature, which
+  `recover_pub_keys_` walks, so a key fixed before the signature exists
+  is not one of them. The trust can cost a wrong diagnosis, never a wrong
+  success, and that is a test over keys rather than a paragraph.
+- **The delegated arm grinds where it signs**, so Core's low-R counter
+  stops being written twice on the one path that has a library
+  implementing it. `grind` crosses with `verify` and `pub_key`, and
+  libsecp256k1 grinds, keeps the low-r survivor and checks that one
+  inside a single call — `_grind_low_r` is no longer reached there, and
+  neither is a verification of btclib's own. `_grind_low_r` stays the
+  implementation everywhere the delegated arm cannot be taken: a caller's
+  nonce, a commitment, another curve, or no bindings at all.
+  `test_the_delegated_grind_is_the_sequence_the_python_arm_walks` is what
+  lets the sequence live in two places, holding the two to the same
+  signature — not merely to the low-r property, two different low-r
+  signatures of one message being the bug it is for.
+- **What that costs, measured.** The check is 19.54 microseconds with the
+  key derived, 15.99 with a compressed key handed in and 13.75 with an
+  uncompressed one, against a signature of 13.52 — the longer encoding
+  being the cheaper argument because parsing `02 || x` is a field square
+  root. Alternated in one process, 9 rounds of 3000 calls, minimum kept,
+  the unchecked row run again at the end for a noise of 0.04 — an Apple
+  M5, macOS 26.6, arm64, CPython 3.14.6.
+
+  Delegating the grind is worth under a microsecond at the draw counts a
+  signature takes: 0.46 at one draw and 1.61 at five, which is the figure
+  and not the argument. A run of its own, since it has to hold the draw
+  count fixed to say anything — a loop of crossings with a check after it
+  against one call that does both, 9 rounds of 500 calls, minimum kept,
+  noise 0.04, the same machine.
 - **`recovery.sign` is passed `verify=True` rather than left to the
   default.** Its check is not a verification — the bindings recover the key
   and refuse one that is not the signer's, which reads the recovery id, and

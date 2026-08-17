@@ -395,6 +395,36 @@ full year, short month, short day (YYYY-M-D)
   where it read `non-minimal encoding of zero`, the general check now
   answering for it too.
 
+### Worth knowing, though nothing raises
+
+- **Signing on the Python arm now checks the signature before answering
+  with it**, where it did not check at all. Bitcoin Core's `CKey::Sign`
+  does the same and the delegated arm always did, so this is the fallback
+  ceasing to answer differently from the arm it stands in for — a
+  signature that does not verify is a computation that went wrong, and
+  the protection is not publishing one.
+
+  Nothing raises that did not raise before and no signature changes: the
+  same key and message give the same octets. What moves is the time, and
+  it moves a long way. On an installation without the bindings a call
+  that took 165.09 microseconds takes 907.87 — five and a half times what
+  it was — the check adding 742.78, which is about four and a half
+  signatures. One session, 5 rounds of 300 calls, minimum kept, noise
+  0.24, an Apple M5, macOS 26.6, arm64, CPython 3.14.6.
+
+  What to act on, and only if that shows: `dsa.sign(..., verify=False)`
+  declines the check and gives the old time back, and
+  `dsa.sign(..., pub_key=...)` hands in the key the check would otherwise
+  derive, which brings the call to 754.17 — the check down to 589.08.
+
+  Neither is needed on an installation with the bindings, where the call
+  is 33.06 against 13.52 unchecked: the check adds 19.54 there, and
+  handing the key in takes that to 13.75. Same process as the figures
+  above and not the same run — a signature there being a twelfth of one
+  here, those rows are 9 rounds of 3000 calls, noise 0.04.
+  `btclib.curves.is_libsecp256k1_serving()` is what says which arm is
+  answering.
+
 ### The bindings are now `btclib_secp256k1`
 
 - **The secp256k1 bindings were renamed, and btclib requires the new

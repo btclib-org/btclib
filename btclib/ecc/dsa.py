@@ -38,11 +38,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
-from typing import overload
+from typing import TypeVar, overload
 
 from btclib import var_bytes
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
-from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, PreparedPoint, mult, secp256k1
@@ -548,6 +547,15 @@ def _grind_low_r(attempt: Callable[[int], Sig], grind: bool, ec: Curve) -> Sig:
     `extra_entropy[32]` for every counter it reaches, electrum-ecc's
     `counter.to_bytes(32, "little")` and embit's the same.
 
+    The implementation that matters to this file, though, is
+    libsecp256k1's own `grind`: `sign_`'s delegated arm asks for it and
+    the signature it answers with *is* its output, so this loop is what
+    btclib walks where that arm cannot be taken -- a nonce of the
+    caller's, a commitment, a curve of its own, or no bindings at all.
+    The two are held to the same signature by
+    `test_the_delegated_grind_is_the_sequence_the_python_arm_walks`, and
+    that test is why the sequence may be written twice at all.
+
     No attempt cap. Core has none, and one would answer an event of
     probability 2**-k with an error a caller can do nothing about; embit
     breaks its loop at 200, which is a 2**-200 signature that is not low-R
@@ -564,6 +572,200 @@ def _grind_low_r(attempt: Callable[[int], Sig], grind: bool, ec: Curve) -> Sig:
     return sig
 
 
+def _python_key(key: PubKey, ec: Curve) -> tuple[Point, frozenset[JacPoint]]:
+    # the parse the check needs, and the one that refuses a key that is
+    # no point. Its own function because *when* it runs is the point of
+    # it: called before anything is signed, a mistyped argument is a
+    # mistyped argument, where called inside the check it would arrive as
+    # a failed verification of a signature the caller is now holding --
+    # and with grinding, after the whole loop has run. It costs nothing
+    # to hoist, the check paying this parse either way
+    Q = point_from_pub_key(key, ec)
+    # the key's own memoized tables where the caller prepared the point,
+    # which is the shape a signer checking under a key it already holds
+    # is in -- see curves.PreparedPoint
+    fixed = key.fixed if isinstance(key, PreparedPoint) else ec._fixed_points
+    return Q, fixed
+
+
+def _python_verified(
+    c: int, sig: Sig, ec: Curve, key: tuple[Point, frozenset[JacPoint]]
+) -> bool:
+    # the boolean `_abort_unless_checked` asks for, on the arm where the
+    # verification is this package's own arithmetic. lower_s=False for
+    # `assert_as_valid_`'s reason: which of the two s values a signature
+    # carries was settled by whoever signed it, and here that was the
+    # call above -- asking again would be this function refusing what
+    # `lower_s=False` was explicitly allowed to produce
+    Q, fixed = key
+    try:
+        _assert_as_valid_(c, (Q[0], Q[1], 1), sig.r, sig.s, ec, fixed, lower_s=False)
+    except (ValueError, BTClibRuntimeError):
+        return False
+    return True
+
+
+# what a public key is here differs by arm -- SEC octets where the
+# bindings verify, the point and its tables where the Python arithmetic
+# does -- and `_abort_unless_checked` never looks inside one: it hands
+# whatever it is to `verified`. The variable says that, where `PubKey`
+# would have claimed the two arms agree on a representation they do not
+_Key = TypeVar("_Key")
+
+
+def _abort_unless_checked(
+    verified: Callable[[_Key], bool],
+    derive: Callable[[], _Key],
+    given: _Key | None,
+) -> None:
+    """Refuse a signature that does not verify, and say which way it failed.
+
+    The rule, not the only place it is obeyed. The delegated arm never
+    reaches this function -- libsecp256k1 grinds, checks and
+    discriminates inside one call, `dsa._checked` there being this rule
+    written in the package that holds the parsed objects. What is shared
+    is therefore the contract and not the code: a bare verification under
+    the signer's own public key, a supplied key taken on trust, and the
+    two causes of a failure told apart rather than guessed at. This is
+    the Python arm's copy of it, and
+    `test_the_two_arms_answer_the_same_refusals` is what holds the two to
+    the same exception and the same words.
+
+    A key the caller supplied is taken on trust and never checked against
+    the private key on the way in, because checking it would cost the
+    very multiplication supplying it exists to avoid. What that leaves is
+    an ambiguity, since a key that is not this private key's fails
+    verification exactly as a faulted computation does -- so the failing
+    branch, and only the failing branch, derives the key and asks again.
+    It is the rare one by construction, so the derivation costs nothing
+    in practice, and telling a caller their hardware is wrong because
+    they mistyped an argument is worse than the microseconds are worth.
+
+    What the trust cannot do is let a bad signature through. The keys a
+    signature verifies under are a property of that signature --
+    ``recover_pub_keys_`` walks them -- so a key fixed before the
+    signature exists is not one of them, and the trust can cost a wrong
+    diagnosis but never a wrong success.
+
+    Args:
+        verified: whether the signature verifies under a public key.
+        derive: the signer's own public key, computed only where it is
+            needed, which is where nothing was supplied or a supplied
+            key failed.
+        given: the public key the caller supplied, or None.
+
+    Raises:
+        BTClibValueError: if the signature verifies under the private
+            key's own public key and not under the one given.
+        BTClibRuntimeError: if it verifies under neither, which is the
+            fault this check has always been for.
+    """
+    if given is not None:
+        if verified(given):
+            return
+        # the two reasons a supplied key can fail are told apart here
+        # rather than guessed at. This branch also sees what the derived
+        # one cannot: a private key corrupted before it was signed with
+        # agrees with a public key derived from the same corrupt octets,
+        # and disagrees with one that came from anywhere else
+        if verified(derive()):
+            raise BTClibValueError("the public key given is not this private key's")
+        raise BTClibRuntimeError("signing produced a signature that does not verify")
+
+    if not verified(derive()):
+        raise BTClibRuntimeError("signing produced a signature that does not verify")
+
+
+def _libsecp256k1_sign_(
+    msg_hash: bytes,
+    q: int,
+    grind: bool,
+    ec: Curve,
+    *,
+    verify: bool,
+    pub_key: PubKey | None,
+) -> Sig:
+    # Private function: the caller has asked `_libsecp256k1_serves` and
+    # settled the four things this arm cannot answer -- no nonce of its
+    # own, no commitment, and lower_s.
+    #
+    # One call, and that is the whole point of it. Grinding is Core's
+    # `CKey::Sign` counter and libsecp256k1's own `grind` walks the same
+    # sequence, so a loop here would be btclib re-deriving what the
+    # bindings already do -- and would pay a crossing per attempt. What
+    # that is worth is under a microsecond at the draw counts a signature
+    # actually takes, which is small and is the figure rather than the
+    # argument: the argument is that Core's counter stopped being written
+    # twice on the one arm that has a library implementing it.
+    # The two are held to the same signature by
+    # `test_the_delegated_grind_is_the_sequence_the_python_arm_walks`,
+    # which is the defence this delegation rests on: identical on 500 of
+    # 500 keys and messages -- 998 draws taken and 14 in the worst case,
+    # reported in btclib-org/btclib#1005 where that run is -- so a change
+    # of sequence on either side is a red suite and not a signature
+    # nobody can reproduce.
+    #
+    # `verify` and `pub_key` go with it, so the check is the bindings'
+    # too and happens once, on the signature the grind kept rather than
+    # on the attempts it discarded -- `dsa._checked` there being the same
+    # discrimination rule `_abort_unless_checked` is here. That leaves
+    # this arm with no verification of its own to write, which is what
+    # btclib-org/btclib#982 asked for: one crossing, and the rule in one
+    # place.
+    #
+    # check_validity=False, and here the provenance is the argument
+    # (issue 888): what `Sig.parse` would validate is r in 1..n-1, s in
+    # 1..n-1 and r congruent to a valid x-coordinate, of the very values
+    # secp256k1_ecdsa_sign has just computed -- r is the x of the nonce
+    # point reduced mod n and s is a scalar beside it, so neither can be
+    # out of range and an r it produced cannot fail a congruence it was
+    # built from.
+    #
+    # The compact form, r || s, and not the DER `sign` answers by
+    # default: a signature is two scalars, and the DER would be written
+    # by libsecp256k1 and taken apart again here -- 1.25 us to read
+    # against the 0.32 of `_sig_from_compact` (issue 922).
+    #
+    # A key the caller supplied crosses as they hold it, compressed or
+    # not, rather than being brought to the cheaper encoding first: what
+    # makes 02||x dear to parse is the field square root that recovers y,
+    # and that is the same square root re-encoding it would have to do
+    # above the `try`, which holds the foreign call and nothing else: a
+    # `BTClibValueError` this conversion raises -- a tuple that is not on
+    # the curve, an xpub with the wrong prefix -- would otherwise be
+    # caught as a ValueError and re-raised as a new one, btclib
+    # translating its own exception into itself and blaming the library
+    # for it in the `__cause__` chain
+    sec = None if pub_key is None else _sec_from_pub_key(pub_key)
+    try:
+        compact = libsecp256k1_dsa.sign(
+            msg_hash, q, None, compact=True, grind=grind, verify=verify, pubkey=sec
+        )
+    except ValueError as e:
+        # the discrimination is theirs, but the hierarchy has to be
+        # btclib's: a caller catching BTClibValueError should not have to
+        # know which arm answered. Their two ValueErrors are told apart
+        # by asking this package's own question rather than by reading
+        # their wording -- octets that are no point are octets
+        # `point_from_pub_key` cannot parse either, and a key that parses
+        # was simply not this private key's. That is the field square
+        # root declined above, paid only on a branch that has already
+        # failed and is about to raise, which is `_abort_unless_checked`'s
+        # rule one level up. Both arms then say `not a public key`, and
+        # `test_the_two_arms_answer_the_same_refusals` holds them to it
+        if pub_key is not None:
+            try:
+                point_from_pub_key(pub_key, ec)
+            except BTClibValueError:
+                raise BTClibValueError("not a public key") from e
+        raise BTClibValueError(str(e)) from e
+    except RuntimeError as e:  # pragma: no cover
+        # unreachable from an argument, as the Python arm's own is: what
+        # it reports is the computation having gone wrong
+        raise BTClibRuntimeError(str(e)) from e
+    return _sig_from_compact(compact, ec)
+
+
 @overload
 def sign_(
     msg_hash: Octets,
@@ -574,6 +776,8 @@ def sign_(
     hf: HashF = ...,
     *,
     grind: bool = ...,
+    verify: bool = ...,
+    pub_key: PubKey | None = ...,
     commit_hash: None = None,
 ) -> Sig: ...
 
@@ -588,6 +792,8 @@ def sign_(
     hf: HashF = ...,
     *,
     grind: bool = ...,
+    verify: bool = ...,
+    pub_key: PubKey | None = ...,
     commit_hash: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -601,6 +807,8 @@ def sign_(
     hf: HashF = sha256,
     *,
     grind: bool = True,
+    verify: bool = True,
+    pub_key: PubKey | None = None,
     commit_hash: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
@@ -625,6 +833,27 @@ def sign_(
     ec and hf are positional here and a flag inserted before them would
     renumber both.
 
+    verify asks for the signature to be checked before it is answered
+    with, and defaults to True on both implementations: Bitcoin Core's
+    `CKey::Sign` does it without offering a way out, and what it catches
+    is not a bad argument -- those have all raised by then -- but a
+    computation that went wrong, whose cost is a published signature that
+    is invalid and may say something about the key. It is a whole
+    verification, so the flag exists for the caller who has measured that
+    against their own threat model rather than for the one who has not.
+
+    pub_key is the key the check verifies under, for a caller who already
+    holds it: without it the check derives one per signature and throws
+    it away, and that generator multiplication is most of what ECDSA's
+    check costs over BIP340's -- which is why `ssa`'s own `sign_` has no
+    such argument and its absence there is a decision. It is taken on
+    trust and never checked against the private key,
+    `_abort_unless_checked` being where that trust is described and paid
+    for, and it is parsed before anything is signed so that a mistyped
+    argument is not reported as a check on a signature the caller is now
+    holding. Refused beside verify=False, which declines the check it is
+    for.
+
     commit_hash is a value to commit to inside the nonce, sign-to-contract
     style: the signature is an ordinary one, and the receipt returned
     beside it is what opens the commitment (see
@@ -639,6 +868,19 @@ def sign_(
     # both are kinds and neither is read for its truth
     assert_type(lower_s, bool, "lower_s")
     assert_type(grind, bool, "grind")
+    # and not `verify`, which is the line those two are on the other side
+    # of: it turns a check on and changes no answer, so it is read for
+    # whether it is true as `bip39.seed_from_mnemonic`'s verify_checksum
+    # is -- tests/bool_parameter_test.py is where that division is kept
+
+    # the contradiction before anything is signed, and before the key is
+    # parsed: a caller who declined the check and supplied a key to check
+    # with should hear about the two arguments rather than about the
+    # octets of one of them. The bindings refuse the same pair
+    # (btclib-secp256k1#245), and this raises it on both arms so that a
+    # dispatch nobody asked for is not what decides
+    if pub_key is not None and not verify:
+        raise BTClibValueError("pub_key is for the check that verify=False declines")
 
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
@@ -687,98 +929,54 @@ def sign_(
         and lower_s
         and commit_hash is None
     ):
-        # check_validity=False, and here the provenance is the argument
-        # (issue 888): what `Sig.parse` would validate is r in 1..n-1, s in
-        # 1..n-1 and r congruent to a valid x-coordinate, of the very values
-        # secp256k1_ecdsa_sign has just computed -- r is the x of the nonce
-        # point reduced mod n and s is a scalar beside it, so neither can be
-        # out of range and an r it produced cannot fail a congruence it was
-        # built from. The congruence is another ec_pubkey_parse, of
-        # 0x02 || r, and grinding pays the whole check once per attempt:
-        # 4.05 us against 1.25 for the parse alone, so 2.8 us an attempt.
-        # Per attempt and not per signature, because how many attempts
-        # there are is a property of the key and the message rather than of
-        # the machine -- `_grind_low_r` walks Core's sequence until r is low
-        # -- and a grinding figure without its attempt count says nothing:
-        # one attempt is 16.99 us against 14.22, eight are 132.76 against
-        # 110.53.
-        #
-        # The compact form, r || s, and not the DER `sign` answers by
-        # default: a signature is two scalars, and the DER would be
-        # written by libsecp256k1 and taken apart again here -- 1.25 us to
-        # read against the 0.32 of `_sig_from_compact` (issue 922), once
-        # per attempt. What that also settles is the question the previous
-        # paragraph left open: reading r alone and building one Sig after
-        # the loop is now worth 0.32 us an attempt rather than 0.7, and it
-        # would still cost a second reader beside this one
-        #
-        # verify=False on the attempts, and one check on the one the loop
-        # keeps: Core's order in `CKey::Sign` and the bindings' own inside
-        # `dsa._sign_`, which grinds and then checks once. The bindings
-        # verify by default (btclib-secp256k1#224), and a loop calling
-        # them once per attempt pays a point multiplication and a
-        # verification for signatures it is about to throw away -- 19.5 us
-        # an attempt, seven times the congruence declined two paragraphs
-        # up, and on an eight-attempt grind more than the grind. A
-        # discarded attempt that was faulted costs an attempt; only what
-        # is returned needs checking (issue #982)
-        signature = _grind_low_r(
-            lambda counter: _sig_from_compact(
-                libsecp256k1_dsa.sign(
-                    msg_hash, q, _grind_entropy(counter), compact=True, verify=False
-                ),
-                ec,
-            ),
-            grind,
-            ec,
+        return _libsecp256k1_sign_(
+            msg_hash, q, grind, ec, verify=verify, pub_key=pub_key
         )
-        # the check itself, and it is not the congruence declined above:
-        # that one would ask the library to prove r is an x-coordinate of
-        # a point the library multiplied, where this asks whether the
-        # arithmetic ran correctly at all -- a fault in memory or induced,
-        # whose cost is a published signature that is invalid and may say
-        # something about the key. 20.25 us the way it is written here,
-        # against 19.56 for the bindings' own per-call default: the 0.7 is
-        # the serialization and parse a caller of the public halves pays
-        # and their private ones do not. The *uncompressed* key for the
-        # same reason it is not `q`'s compressed sec: parsing 02||x is a
-        # field square root, and passing it costs 22.20 instead. Measured
-        # alternated in one process, 15 rounds of 3000 calls, minimum
-        # kept, noise 0.05 -- an Apple M5, macOS 26.6, arm64, CPython
-        # 3.14.6
-        verified = libsecp256k1_dsa.verify(
-            msg_hash,
-            libsecp256k1_keys.pubkey_from_prvkey(q, compressed=False),
-            _compact(signature),
-            compact=True,
-        )
-        if not verified:  # pragma: no cover
-            # unreachable from an input, as dleq.sign's own last step is:
-            # what it reports is the computation having gone wrong, which
-            # is what a BTClibRuntimeError means here
-            raise BTClibRuntimeError(
-                "signing produced a signature that does not verify"
-            )
-        return signature
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
+
+    # the key parsed before the signing rather than inside the check,
+    # which is where the moment matters: see `_python_key`
+    parsed = None if pub_key is None else _python_key(pub_key, ec)
+
+    def _checked(signature: Sig) -> Sig:
+        # the same contract as the single call into the bindings above --
+        # sign, one check, the key on trust, discriminate on failure --
+        # and the same default, because a fallback answering differently
+        # from the arm it stands in for is two libraries wearing one name.
+        # What it costs here is not what it costs there: a verification is
+        # about five signatures on this arm, where the bindings' check is
+        # rather less than one, and that is an argument for the keyword
+        # existing rather than for a second default
+        if verify:
+            _abort_unless_checked(
+                lambda key: _python_verified(c, signature, ec, key),
+                lambda: (mult(q, ec.G, ec), ec._fixed_points),
+                parsed,
+            )
+        return signature
 
     if commit_hash is None:
         # nonce: an integer in the range 1..n-1.
         if nonce is not None:
             # second part delegated to helper function
-            return _sign_(c, q, int_from_prv_key(nonce, ec), lower_s, ec)
-        return _grind_low_r(
-            lambda counter: _sign_(
-                c,
-                q,
-                _rfc6979_nonce_(c, q, ec, hf, _grind_entropy(counter)),  # 1
-                lower_s,
+            return _checked(_sign_(c, q, int_from_prv_key(nonce, ec), lower_s, ec))
+        # the check is of the signature the loop keeps and not of every
+        # attempt, which is Core's order in `CKey::Sign` and the bindings'
+        # own: a discarded attempt that was faulted costs an attempt
+        return _checked(
+            _grind_low_r(
+                lambda counter: _sign_(
+                    c,
+                    q,
+                    _rfc6979_nonce_(c, q, ec, hf, _grind_entropy(counter)),  # 1
+                    lower_s,
+                    ec,
+                ),
+                grind,
                 ec,
-            ),
-            grind,
-            ec,
+            )
         )
 
     # the commitment enters twice: once as RFC6979 additional data, so
@@ -788,7 +986,11 @@ def sign_(
     entropy = commit_entropy_(commit_hash, _S2C_DATA_TAG, hf)
     nonce = _rfc6979_nonce_(c, q, ec, hf, entropy)
     nonce, receipt = commit_nonce_(commit_hash, nonce, _S2C_POINT_TAG, ec, hf)
-    return _sign_(c, q, nonce, lower_s, ec), receipt
+    # the signature is checked and the receipt is not: what opens the
+    # commitment is `commit_point_` under the same r, which the caller
+    # verifies with commit_hash and receipt in hand. A check here would
+    # be `_assert_commitment_`'s, on this call's own output
+    return _checked(_sign_(c, q, nonce, lower_s, ec)), receipt
 
 
 @overload
@@ -801,6 +1003,8 @@ def sign(
     hf: HashF = ...,
     *,
     grind: bool = ...,
+    verify: bool = ...,
+    pub_key: PubKey | None = ...,
     commit: None = None,
 ) -> Sig: ...
 
@@ -815,6 +1019,8 @@ def sign(
     hf: HashF = ...,
     *,
     grind: bool = ...,
+    verify: bool = ...,
+    pub_key: PubKey | None = ...,
     commit: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -828,6 +1034,8 @@ def sign(
     hf: HashF = sha256,
     *,
     grind: bool = True,
+    verify: bool = True,
+    pub_key: PubKey | None = None,
     commit: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """ECDSA signature with canonical low-s preference.
@@ -850,6 +1058,10 @@ def sign(
     grind asks for a low-R signature, as in `sign_`, which is where the
     loop and the default are explained.
 
+    verify asks for the signature to be checked before it is answered
+    with and pub_key is the key it is checked under, both as in `sign_`,
+    which is where the rule and the reason for the default are written.
+
     commit is a value to commit to inside the nonce, and is reduced by hf
     as msg is: `sign_` is the spelling that takes the two hashes.
 
@@ -858,10 +1070,29 @@ def sign(
     """
     msg_hash = reduce_to_hlen(msg, hf)
     if commit is None:
-        return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf, grind=grind)
+        return sign_(
+            msg_hash,
+            prv_key,
+            nonce,
+            lower_s,
+            ec,
+            hf,
+            grind=grind,
+            verify=verify,
+            pub_key=pub_key,
+        )
     commit_hash = reduce_to_hlen(commit, hf)
     return sign_(
-        msg_hash, prv_key, nonce, lower_s, ec, hf, grind=grind, commit_hash=commit_hash
+        msg_hash,
+        prv_key,
+        nonce,
+        lower_s,
+        ec,
+        hf,
+        grind=grind,
+        verify=verify,
+        pub_key=pub_key,
+        commit_hash=commit_hash,
     )
 
 
