@@ -1507,6 +1507,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **The script engine's two signature verifications ask the dispatch every
+  other delegation in the library asks** (issue #988, step 2 of issue
+  #966). `engine.script.dsa_verify` and `engine.tapscript.ssa_verify`
+  called libsecp256k1 with no predicate in front of them, so
+  `curve._libsecp256k1_available` — the seam meant to switch the whole
+  package's dispatch at once — switched everything except the two
+  verdicts consensus turns on. Both now ask `_libsecp256k1_serves` and
+  answer through `ecc.dsa` and `ecc.ssa` when it declines: the Python arm
+  is code the library runs, not a substitution a test injects.
+
+  `hybrid=True` is what that arm needs and the bindings do not:
+  `ec_pubkey_parse` takes the 0x06/0x07 prefixes always, while
+  `point_from_octets` takes them only when asked, and CHECKSIG must
+  succeed for a hybrid key wherever STRICTENC is off. One `try` covers
+  both arms, because the contract is one — a key or a signature that
+  cannot be parsed is a failed verification and not an exception the
+  interpreter loop sees — and the two arms refuse in two ways: the
+  bindings raise ValueError, `point_from_octets` raises BTClibValueError,
+  `verify_` answers False.
+
+  `tests/script_engine/python_path_test.py` reruns Core's script and
+  transaction vectors with the seam cleared, and clearing it is now the
+  whole fixture: one assignment where there were four monkeypatches, two
+  of them substituting functions the engine no longer needs. The
+  arithmetic goes down the Python arm with the verdict, which is the only
+  configuration an installation without the bindings can be in — 2.95 s
+  against 17.21 s for those vectors, one process, and the suite runs
+  distributed.
+
 - **The grinding loop stops paying for a check once per attempt, and pays
   it once for the signature it keeps** (issue #983, and the urgent half of
   issue #982). `dsa.sign`, `ssa.sign_custom` and `recovery.sign` in

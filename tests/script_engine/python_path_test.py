@@ -4,42 +4,37 @@
 
 """The vendored consensus vectors, judged by the Python implementation.
 
-The engine imports its signature verification from the bindings, which
-are a required dependency, so the Python implementations never face
-these vectors otherwise: a defect in them is unreachable rather than
-absent. Issue #129 found two hiding exactly there, each accepting a
-transaction the data calls invalid.
+btclib keeps two implementations of a signature verification, and an
+installation that has the bindings runs one of them: the vectors below
+reach the Python one only where something asks for it, so a defect there
+is unreachable rather than absent. Issue #129 found two hiding exactly
+there, each accepting a transaction the data calls invalid.
 
-This module is the bindings-less verification, without the packaging:
-the two symbols the engine imports from the bindings are replaced by the
-Python implementations and the same vector sets run again through them,
-so a disagreement between the two implementations about the *verdict*
-on a transaction is caught. Unit tests cannot do that job: neither #129
-defect was "this function is lax" -- one was `Sig.parse` dropping a
-byte, the other `point_from_octets` refusing a hybrid key -- and both
-only became visible as a whole engine accepting a whole transaction it
-must refuse.
+This module is what asks. The dispatch is switched off and the same
+vector sets run again, so a disagreement between the two implementations
+about the *verdict* on a transaction is caught. Unit tests cannot do that
+job: neither #129 defect was "this function is lax" -- one was
+`Sig.parse` dropping a byte, the other `point_from_octets` refusing a
+hybrid key -- and both only became visible as a whole engine accepting a
+whole transaction it must refuse.
 
-The alternative, a CI job installing without the bindings, is not a job
-but a partial revert as the tree stands: every bindings import is a plain
-import, so `import btclib` fails without them and there is nothing for
-such a job to run until the optional-bindings install comes back. Issue
-#966 is that work, and guarding those imports is the step it waits on;
-this module is what holds the vectors meanwhile, at no packaging change
-and no fallback code in the engine.
-
-The substitution is the one already used for ripemd160 in
-tests/hashes_test.py: a module-level name, swapped, to reach the second
-implementation of a primitive that has two.
+It is not the same thing as a CI job installing without the bindings, and
+does not replace one: every bindings import is a plain import, so `import
+btclib` fails without them and there is nothing for such a job to run
+until the optional-bindings install arrives. Issue #966 is that work,
+issue #989 the step it waits on, and issue #991 the job. What this module
+does that no job will is run the two implementations over the same
+vectors in the same session, which is what makes a disagreement visible
+as a disagreement rather than as two red suites nobody compares.
 """
 
 from typing import Any
 
 import pytest
 
-from btclib.curves import point_from_octets
-from btclib.ecc import dsa, ssa
-from btclib.exceptions import BTClibValueError
+# the module, not the name in it: `_libsecp256k1_available` is an
+# attribute of `curve`, and every dispatch in the package reads it there
+from btclib.curves import curve
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 
@@ -51,58 +46,34 @@ from tests.script_engine import script_test as script_vector_module
 from tests.script_engine import transactions_test as tx_vector_module
 
 
-def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """Verify an ECDSA signature through the Python implementation.
-
-    `hybrid=True` is the second half of issue #129: `point_from_octets`
-    takes the hybrid 0x06/0x07 prefixes only when asked,
-    `ec_pubkey_parse` takes them always (eckey_impl.h), and
-    consensus wants CHECKSIG to succeed for a hybrid key whenever
-    STRICTENC is off. Raising rather than returning False is deliberate
-    and is what the bindings do: `dsa_verify` catches ValueError, and
-    BTClibValueError is one.
-    """
-    Q = point_from_octets(pub_key, hybrid=True)
-    return dsa.verify_(msg_hash, Q, sig)
-
-
-def python_ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """Verify a BIP340 signature through the Python implementation."""
-    return ssa.verify_(msg_hash, pub_key, sig)
-
-
 @pytest.fixture
 def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Route the engine's signature verification through Python.
+    """Run the whole engine, and everything under it, in Python.
 
-    Two patches per algorithm, and both are needed: the engine holds its
-    own reference to the bindings' verify, and `btclib.ecc` would hand
-    secp256k1 with sha256 straight back to them -- the very dispatch that
-    makes the Python path unreachable in the first place.
+    One assignment, and it has to be the global rather than a predicate
+    per module: `_libsecp256k1_serves` reads
+    `curve._libsecp256k1_available`, so clearing it is the package's
+    dispatch switched off at once -- the engine's two verifications,
+    `ecc.dsa` and `ecc.ssa` beneath them, and the field and group
+    arithmetic beneath those. Patching the predicate where a module
+    imported it would reach that module alone and leave the arm mixed:
+    Python down to the verdict and C under it, which is a configuration
+    nothing ships and issue #968 says an arm chosen by availability may
+    never be in.
 
-    The arithmetic under the verdict stays delegated: no third patch on
-    `curves.curve`, whose dispatch is what `dsa._assert_as_valid_` and
-    `ssa._assert_as_valid_` reach for a `double_mult_var` and for the two
-    square roots that lift a key and answer for an r. Patching it off
-    would send those down the Python path on every vector below, at the
-    ratios `curves/curve.py` states beside each of them, and would buy a
-    comparison `tests/curves/curve_test.py` already makes against the
-    bindings -- `test_libsecp256k1_arbitrary_point` for the
-    multiplications, `test_x_coordinate_lift` for the roots -- on a
-    chosen spread of inputs rather than on whatever these vectors happen
-    to carry.
+    It is also the only configuration these vectors can be run in that
+    exists: with the bindings absent nothing is left to delegate to, so
+    a run that keeps the multiplications in C is measuring something no
+    installation will do.
 
-    So the line is drawn where the second implementation is otherwise
-    unreached: `Sig.parse`, the hybrid prefix `point_from_octets` takes
-    only when asked, and the parity and the x comparison
-    `_assert_as_valid_` makes -- which is where both #129 defects were.
-    The field and group arithmetic under all of that is the bindings',
-    as it is everywhere else.
+    The price is real and was measured rather than assumed: the vectors
+    of this module take 2.95 s with the arithmetic delegated and 17.21 s
+    without, one process, `-p no:randomly`, one machine. The suite runs
+    distributed, so what a contributor waits is the slowest worker and
+    not this; and the alternative buys back fourteen seconds by testing a
+    configuration nobody installs.
     """
-    monkeypatch.setattr(dsa, "_libsecp256k1_serves", lambda *_: False)
-    monkeypatch.setattr(ssa, "_libsecp256k1_serves", lambda *_: False)
-    monkeypatch.setattr(engine_script, "_libsecp256k1_dsa_verify", python_dsa_verify)
-    monkeypatch.setattr(engine_tapscript, "_libsecp256k1_ssa_verify", python_ssa_verify)
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
 
 
 # the sibling test functions are called rather than reimplemented: two
@@ -143,20 +114,36 @@ def test_invalid_taproot_vectors(vector: dict[str, Any]) -> None:
     tx_vector_module.test_invalid_taproot(vector)
 
 
-def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
+@pytest.mark.parametrize("delegated", [True, False], ids=["bindings", "python"])
+def test_verify_answers_false_for_what_cannot_be_parsed(
+    monkeypatch: pytest.MonkeyPatch, *, delegated: bool
+) -> None:
     """A malformed signature is a failed CHECKSIG, not an exception.
 
-    `engine_script.dsa_verify` wraps the bindings' verify in a
-    `try/except ValueError` for this, and the vectors never reach it: DER
-    strictness is enforced earlier, by `fix_signature` under any of
-    DERSIG, LOW_S and STRICTENC, so by the time the engine verifies, the
-    encoding has already been ruled on. What is left is the contract
-    itself, which the
-    Python substitute above is written to honour -- it raises where the
-    bindings raise -- and which the bindings do raise: measured, a
-    ValueError of "invalid DER signature" and one of "invalid public
-    key".
+    The contract of both adapters, and it is one contract for two arms
+    that refuse in two different ways: the bindings raise a ValueError of
+    "invalid DER signature" or "invalid public key", `point_from_octets`
+    raises BTClibValueError, and `ecc.dsa.verify_` and `ecc.ssa.verify_`
+    answer False for what they decline. Whichever it is, the interpreter
+    loop must see False.
+
+    The vectors above never reach this: DER strictness is enforced
+    earlier, by `fix_signature` under any of DERSIG, LOW_S and STRICTENC,
+    so by the time the engine verifies, the encoding has been ruled on.
+    So the contract is asserted here, and against both arms rather than
+    the one this installation happens to have.
     """
+    if delegated and not curve._libsecp256k1_available:  # pragma: no cover
+        # the id would say `bindings` and the run would be the Python arm:
+        # both answer False here, so nothing would go red and half the
+        # parametrization would check the same thing twice. Skipped rather
+        # than asserted, this file having to pass wherever it is run --
+        # and unreachable while the bindings are a required dependency,
+        # which is what the pragma is for and what issue #990 changes
+        pytest.skip("the bindings are not serving in this configuration")
+    if not delegated:
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
     msg_hash = b"\x11" * 32
     # a signature that is not DER at all
     assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x33" * 32, b"garbage")
@@ -164,7 +151,7 @@ def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
     minimal_der = bytes.fromhex("3006020101020101")
     assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)
 
-    # the same input through the Python substitute raises instead, which
-    # is the asymmetry the wrapper exists to absorb
-    with pytest.raises(BTClibValueError):
-        python_dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)
+    # the same two refusals of the tapscript adapter: an x that is no
+    # x-coordinate, and a signature of the wrong length
+    assert not engine_tapscript.ssa_verify(msg_hash, b"\x00" * 32, b"\x00" * 64)
+    assert not engine_tapscript.ssa_verify(msg_hash, b"\x33" * 32, b"garbage")

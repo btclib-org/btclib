@@ -12,6 +12,9 @@ from btclib_secp256k1.ssa import verify as _libsecp256k1_ssa_verify
 
 from btclib import var_bytes
 from btclib.alias import ScriptList
+from btclib.curves import secp256k1
+from btclib.curves.curve import _libsecp256k1_serves
+from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
@@ -46,9 +49,16 @@ __all__ = [
 def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a BIP340 signature, returning False if it is malformed.
 
+    The dispatch `engine.script.dsa_verify` makes and for its reason:
+    `ecc.ssa` answers the same question in Python, and the arm is what
+    there is to reach with libsecp256k1 out of reach. No hybrid prefix to
+    ask for here -- an x-only key is 32 bytes and BIP340 says which of
+    the two points it is -- so the arm is the prepared spelling alone.
+
     The bindings raise a ValueError on a signature or x-only public key
-    that libsecp256k1 refuses to parse, while the caller treats it as a
-    failed verification and raises BTClibValueError itself.
+    that libsecp256k1 refuses to parse, and `ssa.verify_` answers False
+    for the same; the caller treats either as a failed verification and
+    raises BTClibValueError itself.
 
     `bytes` and nothing wider, as in `engine.script.dsa_verify` and for
     its reason.
@@ -56,7 +66,9 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
+        if _libsecp256k1_serves(secp256k1, None):
+            return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
+        return ssa.verify_(msg_hash, pub_key, sig)
     except ValueError:
         return False
 

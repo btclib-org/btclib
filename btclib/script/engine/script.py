@@ -11,6 +11,9 @@ from collections.abc import Mapping
 from btclib_secp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
 from btclib.alias import ScriptList
+from btclib.curves import point_from_octets, secp256k1
+from btclib.curves.curve import _libsecp256k1_serves
+from btclib.ecc import dsa
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import (
     BTClibRuntimeError,
@@ -77,10 +80,32 @@ def _assert_bytes_arguments(**arguments: object) -> None:
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.
 
-    The bindings raise a ValueError on a signature or public key that
-    libsecp256k1 refuses to parse, while the engine treats it as a failed
-    verification: DER strictness is enforced upstream, by fix_signature,
-    under the STRICT_DER_FLAGS below.
+    The dispatch every delegation in this library makes, and this one has
+    a second implementation to reach when it declines: `ecc.dsa` answers
+    the same question in Python, so libsecp256k1 out of reach leaves an
+    arm to take rather than an ImportError to raise.
+
+    `hybrid=True` is what the Python arm needs and the bindings do not:
+    `ec_pubkey_parse` takes the 0x06/0x07 prefixes always (eckey_impl.h)
+    while `point_from_octets` takes them only when asked, and consensus
+    wants CHECKSIG to succeed for a hybrid key wherever STRICTENC is off.
+    Both defects of issue #129 were in that arm and neither was a lax
+    function -- one was `Sig.parse` dropping a byte, the other this very
+    prefix -- so what the arm has to agree with the bindings about is the
+    verdict on a whole transaction.
+
+    One try around both arms, because the contract is one: a signature or
+    a public key that cannot be parsed is a failed verification, not an
+    exception the interpreter loop sees. The bindings raise ValueError
+    for it, `point_from_octets` raises BTClibValueError, which is one,
+    and `dsa.verify_` catches its own. DER strictness is enforced
+    upstream either way, by fix_signature under the STRICT_DER_FLAGS
+    below -- and so is the lower-s form, which is what keeps the two arms
+    from disagreeing about a high s: the bindings' `dsa.verify` refuses
+    one where `_assert_as_valid_(..., lower_s=False)` accepts it, and by
+    the time either is asked fix_signature has already negated a high s
+    wherever no flag refuses the signature outright, which is Core's own
+    behaviour.
 
     `bytes` and nothing wider, which is what the three declare: the
     bindings would answer a float with "the message hash must be bytes",
@@ -91,7 +116,9 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     _assert_bytes_arguments(msg_hash=msg_hash, pub_key=pub_key, sig=sig)
 
     try:
-        return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
+        if _libsecp256k1_serves(secp256k1, None):
+            return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
+        return dsa.verify_(msg_hash, point_from_octets(pub_key, hybrid=True), sig)
     except ValueError:
         return False
 
