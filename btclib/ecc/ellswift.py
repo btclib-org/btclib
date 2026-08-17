@@ -43,8 +43,7 @@ from __future__ import annotations
 
 import secrets
 
-from btclib_secp256k1 import ellswift as libsecp256k1_ellswift
-
+from btclib._libsecp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import (

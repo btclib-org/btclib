@@ -6,12 +6,11 @@
 
 import contextlib
 
-from btclib_secp256k1.keys import (
+from btclib._libsecp256k1 import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
-from btclib_secp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib_secp256k1.keys import pubkey_verify as libsecp256k1_pubkey_verify
-
+from btclib._libsecp256k1 import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib._libsecp256k1 import pubkey_verify as libsecp256k1_pubkey_verify
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,

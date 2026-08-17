@@ -40,11 +40,10 @@ from hashlib import sha256
 from io import BytesIO
 from typing import overload
 
-from btclib_secp256k1 import dsa as libsecp256k1_dsa
-from btclib_secp256k1 import keys as libsecp256k1_keys
-from btclib_secp256k1 import recovery as libsecp256k1_recovery
-
 from btclib import var_bytes
+from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib._libsecp256k1 import keys as libsecp256k1_keys
+from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, PreparedPoint, mult, secp256k1
 from btclib.curves.curve import (

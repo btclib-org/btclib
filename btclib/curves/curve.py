@@ -35,20 +35,22 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
-from btclib_secp256k1.keys import (
+from btclib._libsecp256k1 import AVAILABLE as _bindings_available
+from btclib._libsecp256k1 import (
     PubkeyTweakChain as Libsecp256k1PubkeyTweakChain,
 )
-from btclib_secp256k1.keys import (
+from btclib._libsecp256k1 import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
-from btclib_secp256k1.keys import pubkey_sum as libsecp256k1_pubkey_sum
-from btclib_secp256k1.keys import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
-from btclib_secp256k1.keys import (
+from btclib._libsecp256k1 import pubkey_sum as libsecp256k1_pubkey_sum
+from btclib._libsecp256k1 import pubkey_tweak_add as libsecp256k1_pubkey_tweak_add
+from btclib._libsecp256k1 import (
     pubkey_tweak_mul_sum as libsecp256k1_pubkey_tweak_mul_sum,
 )
-from btclib_secp256k1.xonly import pubkey_verify as libsecp256k1_xonly_pubkey_verify
-from btclib_secp256k1.xonly import to_pubkey as libsecp256k1_xonly_to_pubkey
-
+from btclib._libsecp256k1 import (
+    xonly_pubkey_verify as libsecp256k1_xonly_pubkey_verify,
+)
+from btclib._libsecp256k1 import xonly_to_pubkey as libsecp256k1_xonly_to_pubkey
 from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (
     HEX_THRESHOLD,
@@ -439,10 +441,13 @@ secp256k1 = CURVES["secp256k1"]
 # that import it by name, so a caller that names them delegates in
 # silence wherever it forgets one, and times C while calling it Python.
 #
-# btclib_secp256k1 is a required dependency, so this is never False
-# because the bindings are missing: it is the seam whatever wants the
-# Python arithmetic closes to reach it, the test suite included
-_libsecp256k1_available = True
+# What the import answered, and not a constant: `btclib._libsecp256k1` is
+# the one place the bindings are imported, so an installation without
+# them starts here at False and every dispatch in the package declines.
+# It is also the seam whatever wants the Python arithmetic closes to
+# reach it -- the test suite included, which assigns False to it where
+# the bindings are installed and serving
+_libsecp256k1_available = _bindings_available
 
 
 def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:

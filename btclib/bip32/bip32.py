@@ -27,10 +27,10 @@ import functools
 import hmac
 from collections.abc import Sequence
 from dataclasses import dataclass
-
-from btclib_secp256k1 import keys as libsecp256k1_keys
+from typing import TYPE_CHECKING
 
 from btclib import base58
+from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import BinaryData, Octets, String
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -754,8 +754,16 @@ class _PythonPubKeyTweakChain:
 
 
 # the two implementations of one chain: what a caller of the function
-# below holds, and neither of them a state the other has to allow for
-_PubKeyTweakChain = libsecp256k1_keys.PubkeyTweakChain | _PythonPubKeyTweakChain
+# below holds, and neither of them a state the other has to allow for.
+#
+# Under TYPE_CHECKING, because the union is the annotation of two
+# signatures and of nothing else: `from __future__ import annotations`
+# leaves an annotation a string, while a union built at module level is
+# an object, and building this one would ask the bindings for a class
+# where they may not be installed. Nothing calls `get_type_hints` on
+# either signature, which is what would want the name back at runtime
+if TYPE_CHECKING:
+    _PubKeyTweakChain = libsecp256k1_keys.PubkeyTweakChain | _PythonPubKeyTweakChain
 
 
 def _pub_key_tweak_chain(key: bytes) -> _PubKeyTweakChain:

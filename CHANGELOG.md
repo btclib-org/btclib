@@ -1507,6 +1507,34 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`import btclib` no longer needs the bindings installed** (issue #989,
+  step 3 of issue #966). Eleven modules imported `btclib_secp256k1` at
+  module level, so the seam meant to switch the dispatch off could not be
+  reached in the one configuration it exists for: the import failed
+  first. `btclib/_libsecp256k1.py` is now the single place the bindings
+  are imported — one `try`, one `AVAILABLE`, and the whole of the surface
+  btclib asks of them in one list — and `curve._libsecp256k1_available`
+  is what that import answered rather than a constant `True`. The eleven
+  modules import their names from there under the spellings they used, so
+  no call site changed and no call pays an attribute lookup it did not
+  pay before.
+
+  One module-level use of the bindings was not an import:
+  `bip32._PubKeyTweakChain`, a union built eagerly out of the bindings'
+  `PubkeyTweakChain`. It is under `TYPE_CHECKING` now — it annotates two
+  signatures and nothing else, and `from __future__ import annotations`
+  leaves an annotation a string.
+
+  `tests/no_bindings_test.py` is what checks it, and it has to be a child
+  interpreter: by the time a test runs, btclib is imported and its answer
+  is bound. A meta path finder refuses `btclib_secp256k1` in the child,
+  btclib is imported after it, and the arithmetic, both signature
+  schemes, both BIP32 derivations and the script engine's adapter are
+  compared with what this process computes with the bindings serving.
+  That is not the CI job issue #991 asks for and does not replace it —
+  the wheel is still installed — but it makes the configuration
+  answerable on every platform the matrix runs.
+
 - **The script engine's two signature verifications ask the dispatch every
   other delegation in the library asks** (issue #988, step 2 of issue
   #966). `engine.script.dsa_verify` and `engine.tapscript.ssa_verify`

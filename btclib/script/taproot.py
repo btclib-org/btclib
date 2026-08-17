@@ -16,9 +16,8 @@ from __future__ import annotations
 from io import BytesIO
 from typing import cast
 
-from btclib_secp256k1 import xonly as libsecp256k1_xonly
-
 from btclib import var_bytes
+from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import (
     BinaryData,
     Octets,

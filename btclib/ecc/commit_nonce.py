@@ -62,8 +62,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 
-from btclib_secp256k1 import keys as libsecp256k1_keys
-
+from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_serves, _tweak_add_var
