@@ -1757,6 +1757,55 @@ documented at release-notes length in the first place, and are still in
   `recover_pub_keys_` walks, so a key fixed before the signature exists
   is not one of them. The trust can cost a wrong diagnosis, never a wrong
   success, and that is a test over keys rather than a paragraph.
+- **`ssa` takes the same `verify`, and its Python arm checks at all**
+  (issue #982). `ssa.sign`, `ssa.sign_` and both spellings of
+  `ssa.Signer` grew the keyword-only flag `dsa` has, defaulting to True —
+  and here the default is the specification's rather than this library's
+  policy, BIP340 putting the step inside *Default Signing*: "If
+  Verify(bytes(P), m, sig) returns failure, abort". The delegated arm
+  passes it across, where it used to write `verify=True` and give a
+  caller nowhere to turn; the Python arm performs the check, where it
+  performed none.
+
+  A `Signer` is the call this was worth exposing for: it holds the
+  keypair, so the signature is the cheap part and the check is not, and
+  it was the one signing call in the library whose policy a caller could
+  neither see nor decline.
+
+  **No `pub_key` beside it, and the absence is the decision.** What such
+  an argument buys in `dsa` is the generator multiplication the check
+  would otherwise do per signature; BIP340 has none to save, the keypair
+  holding the point already, so it would buy nothing and sell one thing
+  — a second reason a check can fail, and the discrimination step that
+  costs. What the check costs on the delegated arm is measured in
+  btclib-secp256k1#224 and cited rather than re-measured here: a figure
+  of theirs kept in this repository is one that ages when they change
+  and says nothing when it does.
+- **A failed check says the same thing whichever arm answered, and says
+  it as one of this package's own exceptions** (issue #1008). Both arms
+  now raise `BTClibRuntimeError("signing produced a signature that does
+  not verify")`, which is `dsa`'s sentence on both of its arms and the
+  bindings' own. The delegated arm used to let their bare `RuntimeError`
+  through, so a caller who wrote the `except BTClibException` this
+  package publishes did not catch the one failure signing has; the
+  Python arm answered `assert_as_valid_`'s words — `y_K is odd`,
+  `signature verification failed` — which are a verifier's and say what
+  the check saw rather than what happened. Those are kept as the cause,
+  so the reason is still in hand, and the two arms are held to one
+  exception type and one message by a test — for both faults the check
+  can refuse: a signature that does not verify, and one whose K lands on
+  the point at infinity, which has no y to answer with and refuses in
+  the other hierarchy.
+- **What the Python arm's check costs, measured**, that arm being
+  btclib's own arithmetic and therefore btclib's to measure. A signature
+  is 305.50 microseconds and the checked call 962.81, so signing there is
+  3.15 times what it was, the check adding 657.31 — about two signatures,
+  where `dsa`'s is about four and a half. BIP340 pays less because the
+  key is in hand: `bip340_nonce_` has already computed the point to
+  answer x_Q, and only the even-y lift is done again. Alternated in one
+  process, 9 rounds of 300 calls, minimum kept, the unchecked row run
+  again at the end for a noise of 3.01 — an Apple M5, macOS 26.6, arm64,
+  CPython 3.14.6.
 - **The delegated arm grinds where it signs**, so Core's low-R counter
   stops being written twice on the one path that has a library
   implementing it. `grind` crosses with `verify` and `pub_key`, and

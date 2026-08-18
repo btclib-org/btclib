@@ -108,7 +108,7 @@ from btclib.curves.sec_point import (
     point_from_octets,
 )
 from btclib.descriptors.descriptors import parse as descriptor_from_string
-from btclib.ecc import bms, dsa, musig2
+from btclib.ecc import bms, dsa, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
@@ -760,6 +760,36 @@ _TRUTHS = (
         "verify",
         dsa.sign,
         {"msg": _MSG, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
+        "btclib.ecc.ssa.sign_",
+        "verify",
+        ssa.sign_,
+        {"msg": _MSG, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with;"
+        " the signature is the same either way, the check being a"
+        " verification of what has already been computed",
+    ),
+    _Case(
+        "btclib.ecc.ssa.sign",
+        "verify",
+        ssa.sign,
+        {"msg": _MSG, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
+        "btclib.ecc.ssa.Signer.sign_",
+        "verify",
+        ssa.Signer(_PRV_KEY).sign_,
+        {"msg": _MSG},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
+        "btclib.ecc.ssa.Signer.sign",
+        "verify",
+        ssa.Signer(_PRV_KEY).sign,
+        {"msg": _MSG},
         reason="whether the signature is checked before it is answered with",
     ),
     _Case(

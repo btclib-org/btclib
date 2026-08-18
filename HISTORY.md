@@ -425,6 +425,21 @@ full year, short month, short day (YYYY-M-D)
   `btclib.curves.is_libsecp256k1_serving()` is what says which arm is
   answering.
 
+- **The same is true of BIP340 signing**, and there the check is the
+  specification's own step rather than a policy of this library:
+  `ssa.sign`, `ssa.sign_` and `ssa.Signer` now check before answering,
+  where the Python arm checked not at all. On an installation without the
+  bindings a call that took 305.50 microseconds takes 962.81 — 3.15 times
+  what it was — the check adding 657.31, which is about two signatures.
+  One session, 9 rounds of 300 calls, minimum kept, noise 3.01, the same
+  machine as above.
+
+  `verify=False` declines it, on the free functions and on a `Signer`
+  alike. There is no key to hand in as there is for ECDSA: BIP340 checks
+  under a point the signer already holds, which is why that scheme pays
+  two signatures where ECDSA pays four and a half, and why no `pub_key`
+  argument exists here to bring it down.
+
 ### The bindings are now `btclib_secp256k1`
 
 - **The secp256k1 bindings were renamed, and btclib requires the new

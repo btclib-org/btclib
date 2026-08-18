@@ -370,6 +370,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    verify: bool = ...,
     commit_hash: None = None,
 ) -> Sig: ...
 
@@ -382,6 +383,7 @@ def sign_(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    verify: bool = ...,
     commit_hash: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -393,6 +395,7 @@ def sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
+    verify: bool = True,
     commit_hash: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign a message of any size according to BIP340 signature algorithm.
@@ -405,6 +408,27 @@ def sign_(
 
     If the deterministic nonce is not provided, the BIP340 specification
     (not RFC6979) is used.
+
+    verify asks for the signature to be checked before it is answered
+    with, and defaults to True. Here the default is the specification's
+    and not only this library's policy: BIP340 puts the step inside
+    *Default Signing* -- "If Verify(bytes(P), m, sig) returns failure,
+    abort" -- where ECDSA's comes from Bitcoin Core. The flag exists for
+    the caller who has measured the check against their own threat model,
+    and `dsa.sign_` is where the same keyword is described at length. A
+    check that fails raises BTClibRuntimeError saying that signing
+    produced a signature that does not verify -- the words both arms use
+    and `dsa`'s own -- with what the verification saw kept as the cause.
+
+    No pub_key beside it, and that absence is a decision rather than an
+    omission. What such an argument buys in `dsa` is the generator
+    multiplication the check would otherwise do per signature; here there
+    is none to save, the keypair holding the point already, so the check
+    costs what it costs whether the caller holds the key or not --
+    btclib-secp256k1#224 is where that is measured, and #982 is where the
+    two schemes are put side by side. It would buy nothing and sell one
+    thing: a second reason a check can fail, and with it the
+    discrimination step `dsa._abort_unless_checked` has to pay for.
 
     commit_hash is a value to commit to inside the nonce, sign-to-contract
     style: the signature is an ordinary BIP340 one, and the receipt
@@ -449,28 +473,78 @@ def sign_(
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
-        # verify=True, written rather than left to the default, as
-        # `dsa.sign_recoverable_` writes it and `dsa.sign_` writes its
-        # False: the policy belongs where the call is. BIP340 puts the
-        # step inside *Default Signing* -- "If Verify(bytes(P), m, sig)
-        # returns failure, abort" -- so this is one of the two calls a
-        # specification asks it of, the other being `Signer.sign_`'s
-        # delegated arm below, which is why both are written out where
-        # ECDSA's two are a policy of btclib's own. It is the cheaper
-        # step besides, the keypair holding the point where ECDSA has to
-        # derive one: 12.7 microseconds against ECDSA's 19.5
-        # (btclib-secp256k1#224). Written out, it survives the day that
-        # issue asks again whether the wrapper's default should be per
-        # scheme
-        return Sig.parse(libsecp256k1_ssa.sign_custom(msg, q, aux, verify=True))
+        # the caller's `verify`, crossing with the rest: the bindings
+        # perform the check and there is nothing for this arm to add,
+        # BIP340's step being a bare verification under a point the
+        # keypair already holds. What it costs is measured where it is
+        # performed -- 12.7 microseconds against ECDSA's 19.5,
+        # btclib-secp256k1#224 -- and is not re-measured here, a figure
+        # of theirs kept in this file being one that ages when they
+        # change and says nothing when it does
+        try:
+            signature = libsecp256k1_ssa.sign_custom(msg, q, aux, verify=verify)
+        except RuntimeError as e:
+            # the refusal is theirs and the hierarchy has to be btclib's,
+            # which is `dsa`'s rule at its own call into the bindings: a
+            # caller catching BTClibException should not have to know
+            # which arm answered. Their sentence is kept rather than
+            # reworded, `_checked` below raising the same one, so the two
+            # arms refuse in the same words as well as under the same type
+            raise BTClibRuntimeError(str(e)) from e
+        return Sig.parse(signature)
 
     # k is the nonce: an integer in the range 1..n-1.
     k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
 
+    def _checked(c: int, signature: Sig) -> Sig:
+        # the same contract as the single call into the bindings above,
+        # the same default and the same refusal: a fallback answering
+        # differently from the arm it stands in for is two libraries
+        # wearing one name, and the answer to a check that failed is half
+        # of what it answers. The challenge is passed in because the
+        # commitment path recomputes it after the tweak, and it is the
+        # tweaked one the signature commits to.
+        #
+        # The lift is the one thing this arm pays that the delegated one
+        # does not: `bip340_nonce_` computes Q to answer x_Q and keeps
+        # only the x, so the even-y point has to be recovered here --
+        # `assert_as_valid_` does the same and for the same reason. No
+        # `pub_key` argument would remove it, the caller's key being
+        # x-only in this scheme, which is the second half of why the
+        # docstring declines one
+        if not verify:
+            return signature
+        QJ = x_Q, _y_even_var(x_Q, ec), 1
+        try:
+            _assert_as_valid_(c, QJ, signature.r, signature.s, ec, ec._fixed_points)
+        except (ValueError, BTClibRuntimeError) as e:
+            # its words are a verifier's -- `y_K is odd`, `signature
+            # verification failed`, `INF has no y-coordinate` -- and are
+            # not this caller's: they say what the check saw, where a
+            # signer needs to hear what happened, which is that the
+            # computation went wrong. They cannot be changed either, the
+            # public `assert_as_valid_` sharing them, so the signing
+            # sentence is raised over them and they are kept as the
+            # cause. It is the bindings' own sentence and `dsa`'s on both
+            # of its arms.
+            #
+            # Both hierarchies, which is the pair this file catches at
+            # `verify_` and `verify` and `dsa` catches at the same
+            # helper: a K that lands on infinity has no y to answer with
+            # and is a ValueError, and that is the shape a nonce zeroed
+            # after its point was computed takes -- s = c*q, so
+            # sG - cQ is the point at infinity. `BTClibRuntimeError` by
+            # name and not `RuntimeError`, because a RecursionError is
+            # one and is not an answer about a signature
+            raise BTClibRuntimeError(
+                "signing produced a signature that does not verify"
+            ) from e
+        return signature
+
     if commit_hash is None:
         # the challenge
         c = challenge_(msg, x_Q, x_K, ec, hf)
-        return _sign_(c, q, k, x_K, ec)
+        return _checked(c, _sign_(c, q, k, x_K, ec))
 
     # the tweak moves the nonce's point, and BIP340 signs with the
     # even-y one: k comes back from bip340_nonce_ already normalized,
@@ -484,7 +558,10 @@ def sign_(
 
     c = challenge_(msg, x_Q, x_K, ec, hf)
 
-    return _sign_(c, q, k, x_K, ec), receipt
+    # the signature is checked and the receipt is not: what opens the
+    # commitment is `commit_point_` under the same r, which the caller
+    # verifies with commit_hash and receipt in hand
+    return _checked(c, _sign_(c, q, k, x_K, ec)), receipt
 
 
 @overload
@@ -495,6 +572,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    verify: bool = ...,
     commit: None = None,
 ) -> Sig: ...
 
@@ -507,6 +585,7 @@ def sign(
     ec: Curve = ...,
     hf: HashF = ...,
     *,
+    verify: bool = ...,
     commit: Octets,
 ) -> tuple[Sig, Point]: ...
 
@@ -518,6 +597,7 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     *,
+    verify: bool = True,
     commit: Octets | None = None,
 ) -> Sig | tuple[Sig, Point]:
     """Sign message according to BIP340 signature algorithm.
@@ -536,13 +616,25 @@ def sign(
 
     The BIP340 deterministic nonce (not RFC6979) is used.
 
+    verify asks for the signature to be checked before it is answered
+    with, as in `sign_`, which is where the default and the absence of a
+    pub_key beside it are explained.
+
     commit is a value to commit to inside the nonce, and is reduced by hf
     as msg is: `sign_` is the spelling that takes the two hashes.
     """
     msg_hash = reduce_to_hlen(msg, hf)
     if commit is None:
-        return sign_(msg_hash, prv_key, aux, ec, hf)
-    return sign_(msg_hash, prv_key, aux, ec, hf, commit_hash=reduce_to_hlen(commit, hf))
+        return sign_(msg_hash, prv_key, aux, ec, hf, verify=verify)
+    return sign_(
+        msg_hash,
+        prv_key,
+        aux,
+        ec,
+        hf,
+        verify=verify,
+        commit_hash=reduce_to_hlen(commit, hf),
+    )
 
 
 class Signer:
@@ -650,17 +742,27 @@ class Signer:
         self._q = 0
         self._wiped = True
 
-    def sign_(self, msg: Octets, aux: Octets | None = None) -> bytes:
+    def sign_(
+        self, msg: Octets, aux: Octets | None = None, *, verify: bool = True
+    ) -> bytes:
         """Return the signature of a prepared message, as its octets.
 
         The message is signed as it is, of any size, which is what the
         trailing underscore says throughout this module.
+
+        verify is the free function's, and this is the call where it is
+        the largest share of what it turns off: the keypair was built
+        when this signer was, so the signature is the cheap part and the
+        check is not. See `sign_` for the default and for why no pub_key
+        joins it.
         """
         if self._wiped:
             raise BTClibValueError("the signer is wiped")
 
         if self._signer is None:
-            return sign_(msg, self._q, aux, self._ec, self._hf).serialize()
+            return sign_(
+                msg, self._q, aux, self._ec, self._hf, verify=verify
+            ).serialize()
 
         # the aux `sign_` would have drawn, drawn here for the same
         # reason: BIP340's auxiliary randomness is per signature, and a
@@ -678,19 +780,27 @@ class Signer:
         # back in only one of this class's two arms, the python one
         # signing what the delegated one refused
         #
-        # verify=True for `sign_`'s reason above, and this is where the
-        # check is the largest share of what it is added to: the keypair
-        # was built when this signer was, so the signature is 8.18
-        # microseconds where a fresh one is 15.87, and the same check on
-        # it is 61% of the call against 44% there
-        # (btclib-secp256k1#224). The one of btclib's four signing calls
-        # a caller would most plausibly want to decline is the one whose
-        # policy would otherwise be invisible
-        return self._signer.sign_custom(msg, aux, verify=True)
+        # the caller's `verify`, and this is where the check is the
+        # largest share of what it is added to: the keypair was built
+        # when this signer was, so the signature is 8.18 microseconds
+        # where a fresh one is 15.87, and the same check on it is 61% of
+        # the call against 44% there (btclib-secp256k1#224). It is the
+        # one of btclib's signing calls a caller would most plausibly
+        # want to decline, which is why the keyword reaching here is the
+        # point of exposing it at all
+        try:
+            return self._signer.sign_custom(msg, aux, verify=verify)
+        except RuntimeError as e:
+            # translated as at `sign_`'s own crossing above, and for the
+            # same reason: this is the second of the two calls that let
+            # the bindings' bare RuntimeError out
+            raise BTClibRuntimeError(str(e)) from e
 
-    def sign(self, msg: Octets, aux: Octets | None = None) -> bytes:
+    def sign(
+        self, msg: Octets, aux: Octets | None = None, *, verify: bool = True
+    ) -> bytes:
         """Return the signature of a message, reducing it with hf first."""
-        return self.sign_(reduce_to_hlen(msg, self._hf), aux)
+        return self.sign_(reduce_to_hlen(msg, self._hf), aux, verify=verify)
 
 
 def _assert_as_valid_(

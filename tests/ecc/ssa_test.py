@@ -1335,3 +1335,208 @@ def test_a_signer_refuses_what_sign_refuses() -> None:
         ssa.Signer(secp256k1.n)
     with pytest.raises(BTClibTypeError):
         ssa.Signer(0x1234567890ABCDEF, secp256k1, "not a hash function")  # type: ignore[arg-type]
+
+
+_ARMS = [
+    pytest.param(True, marks=needs_bindings, id="bindings"),
+    pytest.param(False, id="python"),
+]
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_the_check_changes_no_signature(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`verify` is a truth: what it turns on reads, and writes nothing.
+
+    Every spelling answers the same octets, which is what puts the flag
+    in `_TRUTHS` rather than beside the kinds, and what makes declining
+    the check a decision about time and not about which signature a key
+    and a message make. `aux` is fixed because BIP340 draws it at random
+    otherwise, and two signatures of one message would differ for a
+    reason that has nothing to do with the flag.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    prv_key = 0x1234567890ABCDEF
+    msg = b"a message signed twice"
+    aux = bytes(32)
+
+    checked = ssa.sign(msg, prv_key, aux)
+    assert checked == ssa.sign(msg, prv_key, aux, verify=False)
+    assert checked == ssa.sign_(reduce_to_hlen(msg, hf), prv_key, aux)
+    assert checked == ssa.sign_(reduce_to_hlen(msg, hf), prv_key, aux, verify=False)
+
+    # the commitment path answers the same pair either way, and its check
+    # is of the signature and not of the receipt
+    committed = ssa.sign(msg, prv_key, aux, commit=b"a commitment")
+    assert committed == ssa.sign(
+        msg, prv_key, aux, commit=b"a commitment", verify=False
+    )
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_signer_answers_what_the_free_function_answers(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The flag reaches the call it was exposed for.
+
+    A `Signer` holds the keypair, so the signature is the cheap part and
+    the check is not -- which is why this is the signing call a caller
+    would most plausibly decline. Both of its spellings take the keyword
+    and both answer the free function's signature.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    prv_key = 0x1234567890ABCDEF
+    msg = b"a message signed by a signer"
+    aux = bytes(32)
+    expected = ssa.sign(msg, prv_key, aux).serialize()
+
+    with ssa.Signer(prv_key) as signer:
+        assert signer.sign(msg, aux) == expected
+        assert signer.sign(msg, aux, verify=False) == expected
+        assert signer.sign_(reduce_to_hlen(msg, hf), aux) == expected
+        assert signer.sign_(reduce_to_hlen(msg, hf), aux, verify=False) == expected
+
+
+def test_the_python_arm_refuses_a_signature_that_does_not_verify() -> None:
+    """The check is wired to the raise, not merely written near it.
+
+    No input reaches it -- a fresh signature verifies under the key that
+    made it -- so what says the branch is live is a substituted
+    verification, as `tests/ecc/dsa_test.py` does for the same reason.
+    Read in both directions: with the check refusing everything the
+    signature is not answered with, and with `verify=False` the
+    substitution is never reached at all, which is what says the flag is
+    honoured rather than ignored on a path whose output does not change.
+
+    What comes back is the signing sentence and not the check's own
+    words, which are a verifier's; the check's are kept as the cause, so
+    what the verification saw is still in hand.
+    """
+
+    def refuse(*_: Any, **__: Any) -> None:
+        raise BTClibRuntimeError("signature verification failed")
+
+    prv_key = 0x1234567890ABCDEF
+    msg = b"a message whose check is made to fail"
+    aux = bytes(32)
+
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(ssa, "_libsecp256k1_serves", lambda *_: False)
+        unchecked = ssa.sign(msg, prv_key, aux, verify=False)
+        patched.setattr(ssa, "_assert_as_valid_", refuse)
+        with pytest.raises(BTClibRuntimeError, match="does not verify") as plain:
+            ssa.sign(msg, prv_key, aux)
+        assert str(plain.value.__cause__) == "signature verification failed"
+        with pytest.raises(BTClibRuntimeError, match="does not verify") as committed:
+            ssa.sign(msg, prv_key, aux, commit=b"a commitment")
+        assert str(committed.value.__cause__) == "signature verification failed"
+        # and the flag is read: the same substitution is not reached,
+        # and the signature that comes back is the one the checked call
+        # would have answered had its check not been made to fail
+        assert ssa.sign(msg, prv_key, aux, verify=False) == unchecked
+
+
+@needs_bindings
+def test_the_two_arms_answer_the_same_signature_and_the_same_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One contract, two implementations, checked or not.
+
+    A fallback answering differently from the arm it stands in for would
+    be two libraries wearing one name, and how it refuses is half of
+    what it answers: the signatures, the exception type and the message
+    are all held equal here, as `tests/ecc/dsa_test.py`'s namesake holds
+    them. `verify` adds no failure an argument can reach -- BIP340's
+    check is a bare verification under a point the keypair already
+    holds, so there is no key to hand in and no second reason to fail --
+    so each arm is driven into its real failing branch instead.
+
+    The fault is installed in a different place per arm because that is
+    where each arm's check lives: the bindings' own verification for the
+    delegated one, and for the Python one a signature that is not the
+    one the nonce and the key make, which its own `_assert_as_valid_`
+    then refuses. Nothing about either refusal is fabricated, so the two
+    rows are the words each implementation really says.
+
+    Twice on the Python arm, because its check refuses in two
+    hierarchies: a signature that simply does not verify, and one whose
+    K lands on the point at infinity -- what a nonce zeroed after its
+    point was computed leaves behind -- which has no y to answer with
+    and comes back as a `ValueError`. Both have to arrive as the one
+    sentence, and the second is the one a clause naming only
+    `BTClibRuntimeError` lets through.
+
+    Marked for the bindings because the delegated row is what the Python
+    one is compared against; without them both rows would be the Python
+    arm.
+    """
+    prv_key = 0x1234567890ABCDEF
+    msg = b"a message both arms sign"
+    aux = bytes(32)
+
+    def signatures() -> tuple[Any, ...]:
+        return (
+            ssa.sign(msg, prv_key, aux),
+            ssa.sign(msg, prv_key, aux, verify=False),
+            ssa.sign(msg, prv_key, aux, commit=b"a commitment"),
+        )
+
+    def refusal() -> tuple[Any, ...]:
+        with pytest.raises(BTClibRuntimeError) as refused:
+            ssa.sign(msg, prv_key, aux)
+        return type(refused.value), str(refused.value)
+
+    delegated = signatures()
+    with monkeypatch.context() as faulted:
+        # their `_abort_unless_verified` reads this and raises, so the
+        # words this row contributes are the bindings' own
+        faulted.setattr(libsecp256k1_ssa, "_verify_", lambda *_, **__: False)
+        delegated_refusal = refusal()
+
+    signed = ssa._sign_
+    with monkeypatch.context() as python:
+        python.setattr(ssa, "_libsecp256k1_serves", lambda *_: False)
+        assert signatures() == delegated
+
+        def a_signature_that_cannot_verify(*args: Any) -> ssa.Sig:
+            signature = signed(*args)
+            return ssa.Sig(signature.r, signature.s + 1, signature.ec)
+
+        python.setattr(ssa, "_sign_", a_signature_that_cannot_verify)
+        assert refusal() == delegated_refusal
+
+        def a_signature_whose_point_is_at_infinity(
+            c: int, q: int, k: int, x_K: int, ec: Curve
+        ) -> ssa.Sig:
+            # s = c*q is what a zeroed nonce leaves, and sG - cQ is then
+            # the point at infinity: the same check, refusing in the
+            # other hierarchy
+            return ssa.Sig(x_K, c * q % ec.n, ec)
+
+        python.setattr(ssa, "_sign_", a_signature_whose_point_is_at_infinity)
+        assert refusal() == delegated_refusal
+
+
+@needs_bindings
+def test_a_signer_refuses_under_the_same_sentence(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The other crossing into the bindings, translated as the first is.
+
+    `Signer.sign_` calls them rather than going through `sign_`, so the
+    two calls are two chances for a bare RuntimeError to reach a caller
+    who wrote the hierarchy this package publishes. Driven into the
+    bindings' own failing branch the way the test above drives it.
+    """
+    monkeypatch.setattr(libsecp256k1_ssa, "_verify_", lambda *_, **__: False)
+
+    with (
+        ssa.Signer(0x1234567890ABCDEF) as signer,
+        pytest.raises(BTClibRuntimeError, match="does not verify"),
+    ):
+        signer.sign(b"a message whose check is made to fail")
