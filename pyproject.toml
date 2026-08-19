@@ -221,6 +221,8 @@ ignore = [
     # gate enforces, and no more part of a distribution than the website
     # below is
     ".vscode/*",
+    # Claude Code's own workspace config, same argument as .vscode/* above
+    ".claude/*",
     "CNAME",
     "Gemfile",
     "_config.yml",
