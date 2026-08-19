@@ -6322,6 +6322,19 @@ documented at release-notes length in the first place, and are still in
   `test_the_delegated_arm_forwards_verify` holds `ssa.sign_`'s to the
   caller's own value too, beside the existing recorder that already held
   the keyword itself to being forwarded and not dropped.
+- **A keyword-only parameter is asserted to stay keyword-only**
+  (issue #980). `*` in a signature is a calling-convention promise --
+  `check_validity`, `network`, and a dozen other names that recur -- and
+  nothing tested it: a mutant turning `*` to `/` drops the keyword-only
+  rule and adds a positional-only one in its place, and every test still
+  passed, at every public callable that took a keyword-only parameter.
+  `tests/keyword_only_test.py` walks every module's `__all__` once,
+  frozen as `KEYWORD_ONLY`, and asserts two things against the live
+  signature of every recorded site: one parametrized test per
+  `(callable, parameter)` pair, so a single mutant fails by name instead
+  of by count; and one completeness test that recomputes the walk and
+  diffs it against the table, so a keyword-only parameter added to the
+  surface without a line here fails a test rather than running none.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a
