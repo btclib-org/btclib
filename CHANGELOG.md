@@ -3575,6 +3575,27 @@ documented at release-notes length in the first place, and are still in
   and `BOS_COSTER_THRESHOLD` sends the call to Bos-Coster, which builds no
   table at all.
 
+### Security
+
+- **`SECURITY.md` says the bindings offer a buffer for a secret, and
+  that btclib takes none of them** (issue #973). `btclib_secp256k1`
+  lets a caller own the buffer a secret is written into, a
+  keyword-only `into=` on eight entry points that produce one, and
+  btclib passes none of them at the four call sites of its own that
+  could. At three of the four — `bip32.derive`,
+  `commit_nonce.commit_nonce_` and `taproot._tweaked_prvkey` — the
+  answer becomes a Python `int` one line later regardless, and an
+  `int` is not zeroizable and outlives the call, so the buffer would
+  buy nothing there without a change to how btclib holds a private
+  key. `ellswift.xdh` is the fourth, and the one that returns octets
+  rather than an int, so it is the one site where the buffer could
+  matter on its own terms — and btclib declines it there too, rather
+  than grow a public signature and own the contract that comes with
+  it. No code changed: the limitation `SECURITY.md` already stated
+  covers the consequence, and this entry is what makes not using
+  `into=` a decision on the record rather than something nobody
+  noticed.
+
 ### The public API and the module layout
 
 - **BIP32 derivation has a spelling that does not go through Base58Check**
@@ -6285,6 +6306,22 @@ documented at release-notes length in the first place, and are still in
   above does not show.
 
 ### Tests
+
+- **A recorder per bindings signing call site asserts what `verify` it
+  crosses with** (issue #986). `dsa.sign_`'s delegated arm, its
+  `sign_recoverable_`, and `ssa.sign_`'s all cross into the bindings with
+  a `verify` keyword, and the keyword changes no output byte -- the
+  bindings' own suite states that as the reason a signature can never
+  tell which value was passed. Nothing else here can either, so each
+  crossing is recorded and the value it received is asserted directly:
+  `test_the_delegated_arm_asks_the_bindings_to_verify` holds `dsa.sign_`
+  to one crossing per call, carrying the caller's own `verify`, whether
+  it grinds or not; `test_sign_recoverable_asks_the_bindings_to_verify`
+  holds the hardcoded `verify=True` `sign_recoverable_` writes there
+  rather than leaving to the bindings' default; and
+  `test_the_delegated_arm_forwards_verify` holds `ssa.sign_`'s to the
+  caller's own value too, beside the existing recorder that already held
+  the keyword itself to being forwarded and not dropped.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a
