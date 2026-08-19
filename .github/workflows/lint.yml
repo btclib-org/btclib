@@ -26,8 +26,15 @@ on:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all
-    types: [opened, reopened, synchronize, ready_for_review]
+    # would wait for its next push to be checked at all.
+    # closed too, though the job below declines the real work on it: a
+    # merge or a close is neither a push nor a synchronize, so a run this
+    # ref's concurrency group is still holding survives either unless the
+    # closed event lands in that same group -- which this type is what
+    # makes it do, cancel-in-progress above turning the landing into the
+    # cancellation. A closed pull request has nothing left to ask this
+    # workflow, the merge commit being main's own push trigger's question
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   # lets the release workflow gate publication on these same checks
   workflow_call:
   # the escape hatch: a run on demand for a branch whose pull request is
@@ -58,7 +65,10 @@ jobs:
     # request is marked ready, which is why ready_for_review is a
     # trigger type above.
     # The exception is by base branch, and it is the release pull
-    if: ${{ !github.event.pull_request.draft }}
+    # A closed pull request spends no runner either, for the reason the
+    # trigger above gives: closed is taken only to supersede a run this
+    # ref's group is still holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     # nothing here takes minutes; a job that does is hung
     timeout-minutes: 20
