@@ -333,18 +333,23 @@ def test_the_python_shared_point_is_the_bindings_one(
 
 @needs_bindings
 def test_a_normal_dU_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """An ordinary key takes the multiplication into libsecp256k1.
+    """An ordinary key takes the direct multiplication into libsecp256k1.
 
     `diffie_hellman` reduces the key with `d = dU % ec.n` before the guard
-    that gates the bindings on `d` being nonzero: a mutant of that one
-    line -- `ReplaceBinaryOperator_Mod_FloorDiv` turning it to `dU //
-    ec.n`, `_Mod_RShift` to `dU >> ec.n` -- makes `d` zero for every `dU`
-    below `n`, which is every caller, and the guard then falls to the
-    Python endomorphism path instead. `ansi_x9_63_kdf` derives the same
-    bytes off either path's point, so no assertion on the shared key
+    that gates the direct `pubkey_tweak_mul` call on `d` being nonzero: a
+    mutant of that one line -- `ReplaceBinaryOperator_Mod_FloorDiv`
+    turning it to `dU // ec.n`, `_Mod_RShift` to `dU >> ec.n` -- makes `d`
+    zero for every `dU` below `n`, which is every caller, and the guard
+    then falls through to `mult(dU, QV, ec)` instead. That call still
+    reaches libsecp256k1: it reduces `dU` on its own and dispatches
+    through `_libsecp256k1_multi_mult`/`pubkey_tweak_mul_sum`, a second
+    constant-time binding rather than the Python endomorphism arithmetic
+    -- so the mutant costs this line's direct entry point and not the
+    constant-time guarantee itself. `ansi_x9_63_kdf` derives the same
+    bytes off either binding's point, so no assertion on the shared key
     tells the two apart (issue 975); this records the call into
     `pubkey_tweak_mul` instead of the answer it returns, so a mutant that
-    silently disables the delegation fails here rather than matching it.
+    skips the direct delegation fails here rather than matching it.
     """
     calls: list[int] = []
     real_tweak_mul = libsecp256k1_keys.pubkey_tweak_mul

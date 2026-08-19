@@ -630,14 +630,19 @@ def test_a_plain_sign_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> N
 
     `sign_`'s guard -- `_libsecp256k1_serves(ec, hf) and nonce is None and
     lower_s and commit_hash is None` -- is every default a caller who
-    passes none of the three keeps, and `q` is a secret both arms would
-    reach the same signature from: nothing about the result says which
-    one signed it (issue 975, asked in general of every guard a computed
-    value could disable rather than of this one, which has none). This
+    passes none of the three keeps, and both arms it chooses between
+    reach the same signature from the same secret key: nothing about the
+    result says which one produced it (issue 975, asked in general of
+    every guard a computed value could disable rather than of this one,
+    which has none). What differs is not the nonce's own point --
+    `mult(k, ec.G, ec)` reaches libsecp256k1 either way while it serves,
+    SECURITY.md's own accounting of it -- but its modular inverse, which
+    this call does inside libsecp256k1's own constant time and the
+    Python arm below draws as a blinded Python integer instead. This
     records the call into `libsecp256k1_dsa.sign` instead of the answer
-    it returns, so a change that silently routed the default path to the
-    Python arithmetic SECURITY.md documents as not constant-time would
-    fail here rather than reproduce it byte for byte.
+    it returns, so a change that silently stopped taking it would fail
+    here rather than reproduce the same signature from the arm it
+    stands in for.
     """
     calls: list[int] = []
     real_sign = libsecp256k1_dsa.sign

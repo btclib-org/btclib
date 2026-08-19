@@ -1048,14 +1048,18 @@ def test_a_plain_sign_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> N
 
     `sign_`'s guard -- `_libsecp256k1_serves(ec, hf) and commit_hash is
     None` -- is what every caller with no commitment keeps by default,
-    and the secret it signs with reaches the same signature from either
-    arm: nothing about the result says which one signed it (issue 975,
-    asked in general of every guard a computed value could disable rather
-    than of this one, which has none). This records the call into
-    `libsecp256k1_ssa.sign_custom` instead of the answer it returns, so a
-    change that silently routed the default path to the Python
-    arithmetic SECURITY.md documents as not constant-time would fail
-    here rather than reproduce it byte for byte.
+    and both arms it chooses between reach the same signature from the
+    same secret key: nothing about the result says which one produced it
+    (issue 975, asked in general of every guard a computed value could
+    disable rather than of this one, which has none). `ssa.sign` for
+    secp256k1 with sha256, any message size and no commitment is one
+    call SECURITY.md names as crossing the boundary whole; the Python
+    arm below composes the same signature from `bip340_nonce_` and a
+    linear combination instead, its own two point multiplications still
+    reaching libsecp256k1 while it serves. This records the call into
+    `libsecp256k1_ssa.sign_custom` instead of the answer it returns, so
+    a change that silently stopped taking it would fail here rather
+    than reproduce the same signature from the arm it stands in for.
     """
     calls: list[int] = []
     real_sign_custom = libsecp256k1_ssa.sign_custom
