@@ -1043,6 +1043,35 @@ def test_libsecp256k1() -> None:
 
 
 @needs_bindings
+def test_a_plain_sign_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default call signs a secret key through libsecp256k1, not Python.
+
+    `sign_`'s guard -- `_libsecp256k1_serves(ec, hf) and commit_hash is
+    None` -- is what every caller with no commitment keeps by default,
+    and the secret it signs with reaches the same signature from either
+    arm: nothing about the result says which one signed it (issue 975,
+    asked in general of every guard a computed value could disable rather
+    than of this one, which has none). This records the call into
+    `libsecp256k1_ssa.sign_custom` instead of the answer it returns, so a
+    change that silently routed the default path to the Python
+    arithmetic SECURITY.md documents as not constant-time would fail
+    here rather than reproduce it byte for byte.
+    """
+    calls: list[int] = []
+    real_sign_custom = libsecp256k1_ssa.sign_custom
+
+    def record(msg: bytes, prvkey: int, *args: Any, **kwargs: Any) -> bytes:
+        calls.append(prvkey)
+        return real_sign_custom(msg, prvkey, *args, **kwargs)
+
+    monkeypatch.setattr(libsecp256k1_ssa, "sign_custom", record)
+
+    q, _x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    ssa.sign_(b"Satoshi Nakamoto", q)
+    assert calls == [q]
+
+
+@needs_bindings
 def test_libsecp256k1_x_only_conversion() -> None:
     """The x-only key handed to the bindings is btclib's to derive.
 

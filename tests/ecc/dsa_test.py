@@ -624,6 +624,35 @@ def test_libsecp256k1() -> None:
     assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
 
+@needs_bindings
+def test_a_plain_sign_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default call signs a secret key through libsecp256k1, not Python.
+
+    `sign_`'s guard -- `_libsecp256k1_serves(ec, hf) and nonce is None and
+    lower_s and commit_hash is None` -- is every default a caller who
+    passes none of the three keeps, and `q` is a secret both arms would
+    reach the same signature from: nothing about the result says which
+    one signed it (issue 975, asked in general of every guard a computed
+    value could disable rather than of this one, which has none). This
+    records the call into `libsecp256k1_dsa.sign` instead of the answer
+    it returns, so a change that silently routed the default path to the
+    Python arithmetic SECURITY.md documents as not constant-time would
+    fail here rather than reproduce it byte for byte.
+    """
+    calls: list[int] = []
+    real_sign = libsecp256k1_dsa.sign
+
+    def record(msg_bytes: bytes, prvkey: int, *args: Any, **kwargs: Any) -> bytes:
+        calls.append(prvkey)
+        return real_sign(msg_bytes, prvkey, *args, **kwargs)
+
+    monkeypatch.setattr(libsecp256k1_dsa, "sign", record)
+
+    q, _Q = dsa.gen_keys(0x1234)
+    dsa.sign(b"Satoshi Nakamoto", q, grind=False)
+    assert calls == [q]
+
+
 # Core's low-R grinding (issue #638): the loop is `dsa._grind_low_r`, and
 # what follows holds it to the three implementations that have it -- Core's
 # `CKey::Sign` since its PR 13666, electrum-ecc's `ECPrivkey.ecdsa_sign`
