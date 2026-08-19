@@ -437,12 +437,17 @@ jobs:
     # not for a dependency's own result -- unlike failure(), which walks
     # needs -- so this condition goes false, and the job skips instead
     # of failing, only when the run as a whole was superseded. A skipped
-    # job satisfies a required check the way integration.yml's
-    # `paths`-filtered runs already do (REPOSITORY.md); a run that was
-    # not cancelled still reaches the step below even when a dependency
-    # failed, or was individually cancelled (a matrix cell hitting its
-    # own timeout-minutes, say), because cancelled() does not go true
-    # for that.
+    # job satisfies a required check -- this job's own draft/closed
+    # condition below already relies on exactly that, and has since
+    # before this change; integration.yml, by contrast, deliberately
+    # carries no `paths` filter, for the same reason stated in
+    # REPOSITORY.md and in that workflow's own comment: a required check
+    # that never runs blocks a merge, where a skipped one satisfies it,
+    # and a filter would make it never run rather than skip. A run that
+    # was not cancelled still reaches the step below even when a
+    # dependency failed, or was individually cancelled (a matrix cell
+    # hitting its own timeout-minutes, say), because cancelled() does not
+    # go true for that.
     # and the draft condition every job above carries, so a draft
     # skips uniformly rather than tripping the check below -- the
     # closed one for the same reason, added at the trigger above
