@@ -581,6 +581,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Merging a pull request no longer has a chance of cancelling its own
+  merge commit's checks.** `closed`, added to `lint.yml`, `docs.yml`,
+  `integration.yml`, `test.yml`, `links.yml`, `vendored-vectors.yml` and
+  `website.yml`'s `pull_request` types by PR 1023 so the event could
+  land in a stale run's concurrency group and cancel it, keyed that
+  group on plain `github.ref` — which for a *merged* pull request's
+  `closed` event is the base branch, not the merge ref the same event
+  carries while the pull request is open. That put every merge's closed
+  event in the same group as the merge commit's own `push` run, and
+  `cancel-in-progress` cancelled whichever of the two GitHub queued
+  second — the push run about half the time, showing a cancelled `X` on
+  a required check instead of a result. The group now keys on
+  `github.head_ref`, set only for `pull_request` events and always the
+  pull request's own branch regardless of how it closed, so the closed
+  event lands in its own group and the push run is never contended.
+
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**
   `.gitignore` covers these, but the sdist's file list comes from

@@ -33,10 +33,15 @@ on:
     # would wait for its next push to be checked at all.
     # closed too, though the job below declines the real work on it: a
     # merge or a close is neither a push nor a synchronize, so a run this
-    # ref's concurrency group is still holding survives either unless the
-    # closed event lands in that same group -- which this type is what
-    # makes it do, cancel-in-progress above turning the landing into the
-    # cancellation
+    # PR's own concurrency group is still holding survives either unless
+    # the closed event lands in that same group -- which this type is
+    # what makes it do, cancel-in-progress above turning the landing
+    # into the cancellation. The group below keys on github.head_ref
+    # rather than plain github.ref for exactly this event: a merged pull
+    # request's closed event sets github.ref to the base branch, not the
+    # merge ref, which used to land it in main's own group -- racing the
+    # monthly schedule run for cancellation (PR 1023's bug) instead of
+    # the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/vendored-vectors.yml
@@ -47,8 +52,14 @@ permissions:
   contents: read
   issues: write
 
+# head_ref falls back to ref rather than being used bare: it is set only
+# for pull_request events, to the PR's head branch, so a scheduled or
+# dispatched run (ref refs/heads/main) still gets its own group -- and a
+# pull_request event always groups by the PR's branch, closed and
+# merged ones included, so it never collides with that group the way
+# bare ref did
 concurrency:
-  group: vendored-vectors-${{ github.ref }}
+  group: vendored-vectors-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
