@@ -53,6 +53,13 @@ documented at release-notes length in the first place, and are still in
   `workflow_dispatch`: both jobs read the pull request or the comment
   that triggered them, so a manual run would have nothing to read.
 
+  Both jobs refuse to start without the credential, which is not
+  belt and braces: measured on the first run after the organization
+  secret was deleted, the action found `CLAUDE_CODE_OAUTH_TOKEN` empty,
+  reviewed nothing and reported **success**. A green check that read no
+  diff is worse than a red one, so the step that would have been silent
+  now names the secret and fails.
+
 - **The landing convention says what actually happens: the squash
   button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
   push rather than a button", `RELEASING.md` that the button was the
