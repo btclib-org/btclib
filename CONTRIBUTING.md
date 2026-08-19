@@ -1356,6 +1356,12 @@ before it, and say in the pull request that the head moved and why.
 
 **A pull request needs an approving review from somebody other than its
 author before it can merge** — GitHub does not allow a self-approval.
+[REVIEWING.md](./REVIEWING.md) is the standard that review is written
+against, and is this file's other half: what a review establishes before
+it gives an ack, how a finding states its severity, and why everything it
+notices that the pull request is not about becomes an issue rather than a
+comment. Read before opening a pull request, it is what the pull request
+will be answered against.
 
 **`main` enforces four things on every commit that reaches it, not only
 on review**: a verified signature, linear history, no force push, no

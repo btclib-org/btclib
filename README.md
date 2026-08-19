@@ -327,4 +327,5 @@ On Windows the second line is `venv_btclib\Scripts\activate` in CMD and
 PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 
 [CONTRIBUTING](./CONTRIBUTING.md) is for development,
+[REVIEWING](./REVIEWING.md) for what a pull request is answered against,
 [SECURITY](./SECURITY.md) for reporting a vulnerability.
