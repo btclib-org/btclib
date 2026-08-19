@@ -36,8 +36,15 @@ on:
     # ready_for_review, so a pull request marked ready gets the run the
     # draft condition below withheld while it was a draft: the default
     # types do not include it, and without it a readied pull request
-    # would wait for its next push to be checked at all
-    types: [opened, reopened, synchronize, ready_for_review]
+    # would wait for its next push to be checked at all.
+    # closed too, though every job below declines the real work on it: a
+    # merge or a close is neither a push nor a synchronize, so a run this
+    # ref's concurrency group is still holding survives either unless the
+    # closed event lands in that same group -- which this type is what
+    # makes it do, cancel-in-progress above turning the landing into the
+    # cancellation. A closed pull request has nothing left to ask this
+    # workflow, the merge commit being main's own push trigger's question
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   # allows the release workflow to reuse the whole build/test pipeline
   workflow_call:
   # the escape hatch: the matrix on demand for a branch whose pull
@@ -70,8 +77,12 @@ jobs:
     # the whole matrix on a tree its author is not asking anyone to
     # review yet. The gate below carries the same condition, so a draft
     # skips uniformly and the gate does not read that skip as a job that
-    # should have run
-    if: ${{ !github.event.pull_request.draft }}
+    # should have run.
+    # A closed pull request spends none either: the trigger above takes
+    # the closed event only to supersede a run this ref's group is still
+    # holding, and every job here carries the same skip for the reason
+    # the draft one already does
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -176,7 +187,7 @@ jobs:
   # reports before it reads a number, so the pair needs no job of its own
   coverage:
     name: Measure coverage, gated at 100%
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -228,7 +239,7 @@ jobs:
   # makes this a suite and not a smoke test
   no-bindings:
     name: Run the suite with no bindings installed
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -269,7 +280,7 @@ jobs:
   # could only be red, for a reason nobody could fix from a branch
   dist:
     name: Build the distribution and install it
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -411,8 +422,9 @@ jobs:
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
     # and the draft condition every job above carries, so a draft
-    # skips uniformly rather than tripping the skip check below
-    if: ${{ always() && !github.event.pull_request.draft }}
+    # skips uniformly rather than tripping the skip check below -- the
+    # closed one for the same reason, added at the trigger above
+    if: ${{ always() && !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -441,6 +441,37 @@ def test_a_message_of_any_size_reaches_the_bindings(
     ]
 
 
+@needs_bindings
+def test_the_delegated_arm_forwards_verify(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`verify` reaches `secp256k1_schnorrsig_sign_custom`, as `sign_` took it.
+
+    The recorder above holds that `sign_custom` is called and forwards
+    the keyword -- a dropped one raises `TypeError` there, its own local
+    `sign_custom` declaring `verify` with no default -- but every call it
+    makes is at the caller's own default, `verify=True`. Nothing held the
+    *value* that crosses to be the caller's own rather than one written
+    over on the way (issue 986): BIP340 is the one scheme #984 argues
+    must keep the check on, which is exactly what a silent `verify=True`
+    written at this crossing would still pass.
+    """
+    real_sign_custom = libsecp256k1_ssa.sign_custom
+    calls: list[bool] = []
+
+    def sign_custom(*args: Any, **kwargs: Any) -> bytes:
+        calls.append(kwargs["verify"])
+        return real_sign_custom(*args, **kwargs)
+
+    q, _ = ssa.gen_keys(0x1234567890ABCDEF)
+    msg = b"a message"
+
+    with monkeypatch.context() as patch:
+        patch.setattr(libsecp256k1_ssa, "sign_custom", sign_custom)
+        for verify in (True, False):
+            calls.clear()
+            ssa.sign_(msg, q, verify=verify)
+            assert calls == [verify]
+
+
 def test_verify_with_a_message_that_is_not_32_bytes_on_both_arithmetics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

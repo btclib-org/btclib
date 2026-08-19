@@ -24,6 +24,34 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The landing convention says what actually happens: the squash
+  button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
+  push rather than a button", `RELEASING.md` that the button was the
+  wrong landing for a release, and `REPOSITORY.md` that no button was
+  the landing at all. `main` has been taking squash merges GitHub
+  composes and signs with its web-flow key throughout, which is what the
+  branch rule asks for: a valid signature, not a particular signer. The
+  three files now say that, and say that it is the only way in: the
+  `main-self-merge` bypass moves from `always` to `pull_request` mode,
+  so it excuses the approving review a solo repository cannot produce
+  and excuses nothing else — a direct push to `main` is refused for
+  everyone, the holder of the bypass included — and the ruleset names
+  `squash` as the only merge method it accepts, stating the constraint
+  where the rule is rather than only in a repository toggle. The
+  command-line fast-forward that used to be the landing is therefore
+  gone rather than demoted. Its one remaining use, keeping a stacked
+  child's base alive, is paid for instead with a rebase and a fresh run
+  of the matrix: a button recreates rather than moves, GitHub's
+  documentation saying rebase-and-merge "always updates the committer
+  information and creates new commit SHAs", so the count of commits was
+  never what decided it. `REPOSITORY.md`'s "maintainer's second path"
+  section goes with it: there is no second path, so what described one —
+  the push sequence, the two cases of whether GitHub reconciles what
+  landed, the deletion left to do by hand — is replaced by the one case
+  that remains. Every landing is a pull request GitHub merges, so the
+  `Closes #N` in the description always fires and the head branch always
+  goes.
+
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better
   than it found it, which is not the diff the reviewer would have
@@ -55,6 +83,59 @@ documented at release-notes length in the first place, and are still in
   own: it says which files to read, `REVIEWING.md` first.
   `check-manifest`'s ignore entry becomes `.claude/**`, `.claude/*` being
   one level and the commands now a directory deeper.
+- **Three facts that were in two files are in one.** The concurrency
+  ceiling and what it measured were stated in full in both
+  `CONTRIBUTING.md` and `REPOSITORY.md`, the first pointing at the
+  second and then repeating it anyway; `CONTRIBUTING.md` keeps the
+  consequence its workflow table is about — which rows a pull request
+  waits for, and the macOS and Windows figures that decided the other
+  rows — and REPOSITORY.md keeps the number. Self-approval was stated
+  from scratch in `REPOSITORY.md` where `CONTRIBUTING.md` already
+  states it, and now points. "Squash is the only button" was in three
+  files and is now in `REPOSITORY.md` alone.
+
+- **`REPOSITORY.md`'s "Merge methods" no longer corrects itself in
+  place.** It opened by naming the squash button as how a pull request
+  lands, then said in the next paragraph that the section had done so
+  and that the landing is the fast-forward two headings above. Prose
+  that carries the history of its own edit is what
+  `CONTRIBUTING.md`'s "no history" rule is against: the section now
+  states the landing first and the button settings as what bounds a
+  landing nobody drove from a shell.
+
+- **Seven more mutation profiles filter the deferred-annotation `BitOr`
+  class already named in each one's own report** (issue #987):
+  `bip32.toml`, `block.toml`, `bms.toml`, `fetch.toml`, `mnemonic.toml`,
+  `numeric.toml` and `signatures.toml`. Each was measured rather than
+  assumed, the way `script.toml`'s own comment on the same exclusion
+  argues: `grep -n ' | '` over the scope's modules, confirming every hit
+  is an annotation, and `cosmic_ray.tools.filters.operators_filter` run
+  locally against the configuration, confirming the mutants it marks
+  `SKIPPED` are exactly those the file's own prose already found
+  equivalent by inspection — 22 to 880 of them per profile today, at or
+  above what each session originally reported, the difference where the
+  file has grown since.
+  Left unfiltered, checked the same way and found to carry real `|`
+  arithmetic rather than annotations alone: `bip322.toml` (script-flag
+  combination), `codecs.toml` (`bech32`'s bit-packing), `engine.toml`
+  (the same script-flag combination), `sig_hash.toml`
+  (`ANYONECANPAY | ALL` and its siblings) and `curve_group.toml` (GLV
+  scalar recoding and set union).
+
+  Measuring `bms.toml` this way turned up a second, unrelated error in
+  its own comment: "496 of the 977 mutants sampled" was never what
+  `cosmic-ray init` enumerates for that file, on any commit or
+  cosmic-ray version checked — 496 is complete, and 977 does not belong
+  to it. `mutation.yml`'s job comment carried the same 977 for
+  `bip322.toml` too; both are corrected to their actual counts, 496 and
+  552.
+
+  `curve_group.toml` itself was written for issue #822 and never wired
+  into a job — `mutation.yml`'s matrix named twenty of the twenty-one
+  configurations under `.github/mutation/`, and `cosmic-ray init` over
+  this one enumerates 5529 mutants for nothing every week. A twelfth
+  job, `curves`, runs it now, budgeted like `signatures.toml`'s own job
+  for a scope nearly double that pair's size.
 
 - **The numeric mutation profile finishes its scope instead of sampling a
   fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
@@ -6286,6 +6367,41 @@ documented at release-notes length in the first place, and are still in
   above does not show.
 
 ### Tests
+
+- **A recorder per bindings signing call site asserts what `verify` it
+  crosses with** (issue #986). `dsa.sign_`'s delegated arm, its
+  `sign_recoverable_`, and `ssa.sign_`'s all cross into the bindings with
+  a `verify` keyword, and the keyword changes no output byte -- the
+  bindings' own suite states that as the reason a signature can never
+  tell which value was passed. Nothing else here can either, so each
+  crossing is recorded and the value it received is asserted directly:
+  `test_the_delegated_arm_asks_the_bindings_to_verify` holds `dsa.sign_`
+  to one crossing per call, carrying the caller's own `verify`, whether
+  it grinds or not; `test_sign_recoverable_asks_the_bindings_to_verify`
+  holds the hardcoded `verify=True` `sign_recoverable_` writes there
+  rather than leaving to the bindings' default; and
+  `test_the_delegated_arm_forwards_verify` holds `ssa.sign_`'s to the
+  caller's own value too, beside the existing recorder that already held
+  the keyword itself to being forwarded and not dropped.
+- **A keyword-only parameter is asserted to stay keyword-only**
+  (issue #980). `*` in a signature is a calling-convention promise --
+  `check_validity`, `network`, and a dozen other names that recur -- and
+  nothing tested it: a mutant turning `*` to `/` drops the keyword-only
+  rule and adds a positional-only one in its place, and every test still
+  passed, at every public callable that took a keyword-only parameter.
+  `tests/keyword_only_test.py` walks every module's `__all__` once,
+  frozen as `KEYWORD_ONLY`, and asserts two things against the live
+  signature of every recorded site: one parametrized test per
+  `(callable, parameter)` pair, so a single mutant fails by name instead
+  of by count; and one completeness test that recomputes the walk and
+  diffs it against the table, so a keyword-only parameter added to the
+  surface without a line here fails a test rather than running none. A
+  class is walked once per public method of its own, not only its
+  `__init__`: an alternate constructor -- `Bip21.parse`, a dozen
+  `from_dict`s and `b58decode`s -- carries `check_validity` the same
+  way, and a table stopping at the constructor would leave the walk's
+  own completeness test agreeing with itself while missing every one of
+  them.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a

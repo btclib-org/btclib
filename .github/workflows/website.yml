@@ -48,8 +48,15 @@ on:
       - .github/workflows/website.yml
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the
-    # draft condition below withheld while it was a draft
-    types: [opened, reopened, synchronize, ready_for_review]
+    # draft condition below withheld while it was a draft.
+    # closed too, though the job below declines the real work on it: a
+    # merge or a close is neither a push nor a synchronize, so a run this
+    # ref's concurrency group is still holding survives either unless the
+    # closed event lands in that same group -- which this type is what
+    # makes it do, cancel-in-progress above turning the landing into the
+    # cancellation. A closed pull request has nothing left to ask this
+    # workflow, the merge commit being main's own push trigger's question
+    types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - README.md
       - _config.yml
@@ -79,7 +86,11 @@ concurrency:
 jobs:
   website:
     name: Build the website
-    if: ${{ !github.event.pull_request.draft }}
+    # a draft pull request is work in progress and spends no runner here
+    # either. A closed one spends none either -- the trigger above takes
+    # the closed event only to supersede a run this ref's group is still
+    # holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     # a minute of bundler and seconds of jekyll; a job that takes ten is
     # hung rather than slow
