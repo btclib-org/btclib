@@ -256,6 +256,7 @@ read by every checkout of this repository.
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a node, two device emulators |
 | `website` | pull request, push, on website files | — |
+| `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | push to main, Tuesday | 2 languages |
 | `windows` | Saturday, a release | 2 Windows images × 7 interpreters |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
