@@ -31,13 +31,20 @@ documented at release-notes length in the first place, and are still in
   the landing at all. `main` has been taking squash merges GitHub
   composes and signs with its web-flow key throughout, which is what the
   branch rule asks for: a valid signature, not a particular signer. The
-  three files now say that, and reserve the command-line fast-forward
-  for the one case that still wants it — a single-commit pull request
-  that is the base of a stacked one, where a button would orphan the
-  child. A button recreates rather than moves, GitHub's documentation
-  saying rebase-and-merge "always updates the committer information and
-  creates new commit SHAs", so the number of commits is not what decides
-  it.
+  three files now say that, and say that it is the only way in: the
+  `main-self-merge` bypass moves from `always` to `pull_request` mode,
+  so it excuses the approving review a solo repository cannot produce
+  and excuses nothing else — a direct push to `main` is refused for
+  everyone, the holder of the bypass included — and the ruleset names
+  `squash` as the only merge method it accepts, stating the constraint
+  where the rule is rather than only in a repository toggle. The
+  command-line fast-forward that used to be the landing is therefore
+  gone rather than demoted. Its one remaining use, keeping a stacked
+  child's base alive, is paid for instead with a rebase and a fresh run
+  of the matrix: a button recreates rather than moves, GitHub's
+  documentation saying rebase-and-merge "always updates the committer
+  information and creates new commit SHAs", so the count of commits was
+  never what decided it.
 
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better

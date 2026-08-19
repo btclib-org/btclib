@@ -1317,10 +1317,9 @@ by branch rule, and one change is one commit there.
 **How that commit reaches `main` is the squash button**, pressed by
 auto-merge once the review and the checks are in. GitHub composes it and
 signs it with its web-flow key, which is a valid signature and therefore
-all the branch rule asks for. REPOSITORY.md has the setting, and the one
-exception: a single-commit pull request that is the base of a stacked
-one is fast-forwarded from the command line instead, so that its sha
-survives and the child is not left needing a rebase.
+all the branch rule asks for. There is no other path: `main` takes a
+pull request and nothing else, a direct push being refused for everyone.
+REPOSITORY.md has the settings that make that true.
 
 Either way the decision belongs to the landing and not to the branch,
 which is why a correction added on top of a reviewed branch is still the

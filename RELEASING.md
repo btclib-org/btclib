@@ -290,13 +290,12 @@ word, and step 1 asks it of both.
 
    And land it the way every other pull request here lands: the squash
    button, pressed by auto-merge once the review and the checks are in.
-   Nothing about a release asks for the fast-forward exception —
-   REPOSITORY.md reserves that for a single-commit pull request that is
-   the base of a stacked one, which a release is not. That the commit
-   under the tag carries GitHub's web-flow signature rather than the
-   maintainer's costs nothing: the branch rule asks for a valid
-   signature and not for a particular signer, and the attestation that
-   is the maintainer's own is the tag, which `git tag -s` signs.
+   There is no other way in: `main` takes a pull request and nothing
+   else. That the commit under the tag carries GitHub's web-flow
+   signature rather than the maintainer's costs nothing — the branch
+   rule asks for a valid signature and not for a particular signer, and
+   the attestation that is the maintainer's own is the tag, which
+   `git tag -s` signs.
 
    This branch is the squashed case every time, a version bump and two
    retitles never being one commit, so push the squash to the branch

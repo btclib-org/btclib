@@ -378,16 +378,24 @@ gh api repos/btclib-org/btclib \
 
 answers `true` for the first and `false` for the other two.
 
-**The fast-forward of the sequence above is the exception, not the
-rule**, and it is worth one case: a single-commit pull request that is
-the base of a stacked one. A button recreates rather than moves —
-GitHub's own documentation says rebase-and-merge "always updates the
-committer information and creates new commit SHAs", and a squash mints a
-commit that never existed — so either leaves the child's base orphaned
-and costs it a rebase and a fresh run of the matrix. A fast-forward
-moves a pointer at an object that already exists and is already signed,
-so the sha survives and the child keeps applying. Nothing else is a
-reason to reach for it.
+**There is no second path: `main` is reachable through a pull request
+and nothing else.** The `main-self-merge` bypass is scoped to
+`pull_request` mode, so it excuses the maintainer from the approving
+review a solo repository cannot produce and excuses nothing else — a
+direct push is refused for everyone, holder of the bypass included. The
+ruleset also names `squash` as the only merge method it will accept, so
+the constraint is stated where the rule is and not only in a repository
+toggle a setting page can flip.
+
+What that costs is a stacked pull request: once the parent lands, the
+child's base is an object no longer on `main` — a button recreates
+rather than moves, GitHub's documentation saying rebase-and-merge
+"always updates the committer information and creates new commit SHAs"
+— so the child is rebased and pays a fresh run of the matrix. That is
+the price of having no way to write to `main` by hand, and it is the
+one worth paying: the afternoon this rule was written, a `git merge` run
+in the wrong working tree advanced `main` locally, and only the absence
+of a push kept it off the remote.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The
