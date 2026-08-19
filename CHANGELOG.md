@@ -6334,7 +6334,13 @@ documented at release-notes length in the first place, and are still in
   `(callable, parameter)` pair, so a single mutant fails by name instead
   of by count; and one completeness test that recomputes the walk and
   diffs it against the table, so a keyword-only parameter added to the
-  surface without a line here fails a test rather than running none.
+  surface without a line here fails a test rather than running none. A
+  class is walked once per public method of its own, not only its
+  `__init__`: an alternate constructor -- `Bip21.parse`, a dozen
+  `from_dict`s and `b58decode`s -- carries `check_validity` the same
+  way, and a table stopping at the constructor would leave the walk's
+  own completeness test agreeing with itself while missing every one of
+  them.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a

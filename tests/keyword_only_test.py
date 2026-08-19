@@ -25,12 +25,20 @@ kind frozen above -- a `*` a mutant turned to `/` is read here as
 `POSITIONAL_ONLY` where the table says `KEYWORD_ONLY`, and the two no
 longer agree.
 
-A class is named by its `__init__`, which is where a keyword-only
-parameter of a dataclass or a plain one lives; a function under a
-package's `__all__` is named directly. Deduplicated by the id of the
-callable object once resolved, so a name re-exported under a second
-`__all__` -- `btclib.fetch.bitcoin_core` aliasing the `bitcoin-core-rpc`
-package, `all_test.py`'s `REEXPORTED` -- is one entry and not two.
+A function under a package's `__all__` is named directly; a class is
+named once per public method of its own -- `__init__`, and every other
+name in its own `__dict__` that does not start with an underscore, so
+an alternate constructor (`parse`, `b58decode`, `from_dict`) and an
+instance method (`serialize`, `b58encode`) are sites of their own and
+not only `__init__`. `Bip21.parse`'s `check_validity` is exactly the
+shape `Bip21.__init__`'s does not cover: a classmethod the walk would
+have missed had it stopped at the constructor, `*` turned to `/` there
+passing both tests below in an earlier revision of this file. Inherited
+methods are not walked a second time under a subclass that does not
+override them, deduplication being by the id of the underlying function
+once resolved, so a name re-exported under a second `__all__` --
+`btclib.fetch.bitcoin_core` aliasing the `bitcoin-core-rpc` package,
+`all_test.py`'s `REEXPORTED` -- is one entry and not two either.
 """
 
 from __future__ import annotations
@@ -53,11 +61,25 @@ from tests.all_test import library_modules
 # test_the_recorded_surface_is_the_whole_of_it asks for
 KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.bip21:Bip21.__init__": ["check_validity"],
+    "btclib.bip21:Bip21.parse": ["check_validity"],
+    "btclib.bip21:Bip21.serialize": ["check_validity"],
+    "btclib.bip322:Sig.b64decode": ["check_validity"],
+    "btclib.bip322:Sig.b64encode": ["check_validity"],
+    "btclib.bip322:Sig.serialize": ["check_validity"],
     "btclib.bip322:assert_as_valid": ["legacy"],
     "btclib.bip322:to_sign": ["version", "lock_time", "sequence", "extra_inputs"],
     "btclib.bip322:verify": ["legacy"],
     "btclib.bip32:BIP32KeyData.__init__": ["check_validity"],
+    "btclib.bip32:BIP32KeyData.b58decode": ["check_validity"],
+    "btclib.bip32:BIP32KeyData.b58encode": ["check_validity"],
+    "btclib.bip32:BIP32KeyData.parse": ["check_validity"],
+    "btclib.bip32:BIP32KeyData.serialize": ["check_validity"],
     "btclib.bip32:BIP32KeyOrigin.__init__": ["check_validity"],
+    "btclib.bip32:BIP32KeyOrigin.from_description": ["check_validity"],
+    "btclib.bip32:BIP32KeyOrigin.from_dict": ["check_validity"],
+    "btclib.bip32:BIP32KeyOrigin.parse": ["check_validity"],
+    "btclib.bip32:BIP32KeyOrigin.serialize": ["check_validity"],
+    "btclib.bip32:BIP32KeyOrigin.to_dict": ["check_validity"],
     "btclib.bip32:decode_from_bip32_derivs": ["check_validity"],
     "btclib.bip32:hardenings_from_der_path": ["bip380_enforced"],
     "btclib.bip32:indexes_from_der_path": ["bip380_enforced"],
@@ -65,8 +87,16 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.block.mining:candidate_block_header": ["version"],
     "btclib.block.proof_of_work:next_bits": ["pow_limit_bits"],
     "btclib.block:Block.__init__": ["check_validity"],
+    "btclib.block:Block.from_dict": ["check_validity"],
+    "btclib.block:Block.parse": ["check_validity"],
+    "btclib.block:Block.serialize": ["check_validity"],
+    "btclib.block:Block.to_dict": ["check_validity"],
     "btclib.block:BlockContext.__init__": ["check_validity"],
     "btclib.block:BlockHeader.__init__": ["check_validity"],
+    "btclib.block:BlockHeader.from_dict": ["check_validity"],
+    "btclib.block:BlockHeader.parse": ["check_validity"],
+    "btclib.block:BlockHeader.serialize": ["check_validity"],
+    "btclib.block:BlockHeader.to_dict": ["check_validity"],
     "btclib.core_import:account_import_requests": ["active", "key_range"],
     "btclib.core_import:import_request": [
         "internal",
@@ -91,7 +121,13 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.descriptors:WpkhDescriptor.__init__": ["network"],
     "btclib.descriptors:WshDescriptor.__init__": ["network"],
     "btclib.ecc.bms:Sig.__init__": ["check_validity"],
+    "btclib.ecc.bms:Sig.b64decode": ["check_validity"],
+    "btclib.ecc.bms:Sig.b64encode": ["check_validity"],
+    "btclib.ecc.bms:Sig.parse": ["check_validity"],
+    "btclib.ecc.bms:Sig.serialize": ["check_validity"],
     "btclib.ecc.dsa:Sig.__init__": ["check_validity"],
+    "btclib.ecc.dsa:Sig.parse": ["check_validity", "strict"],
+    "btclib.ecc.dsa:Sig.serialize": ["check_validity"],
     "btclib.ecc.dsa:assert_as_valid": ["commit", "receipt"],
     "btclib.ecc.dsa:assert_as_valid_": ["commit_hash", "receipt"],
     "btclib.ecc.dsa:sign": ["grind", "verify", "pub_key", "commit"],
@@ -99,9 +135,18 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.dsa:verify": ["commit", "receipt"],
     "btclib.ecc.dsa:verify_": ["commit_hash", "receipt"],
     "btclib.ecc.ecies:Envelope.__init__": ["check_validity"],
+    "btclib.ecc.ecies:Envelope.b64decode": ["magic", "check_validity"],
+    "btclib.ecc.ecies:Envelope.b64encode": ["check_validity"],
+    "btclib.ecc.ecies:Envelope.from_ciphertext": ["magic"],
+    "btclib.ecc.ecies:Envelope.parse": ["magic", "check_validity"],
+    "btclib.ecc.ecies:Envelope.serialize": ["check_validity"],
     "btclib.ecc.ecies:decrypt": ["magic"],
     "btclib.ecc.ecies:encrypt": ["eph_prv_key", "magic"],
     "btclib.ecc.ssa:Sig.__init__": ["check_validity"],
+    "btclib.ecc.ssa:Sig.parse": ["check_validity"],
+    "btclib.ecc.ssa:Sig.serialize": ["check_validity"],
+    "btclib.ecc.ssa:Signer.sign": ["verify"],
+    "btclib.ecc.ssa:Signer.sign_": ["verify"],
     "btclib.ecc.ssa:assert_as_valid": ["commit", "receipt"],
     "btclib.ecc.ssa:assert_as_valid_": ["commit_hash", "receipt"],
     "btclib.ecc.ssa:sign": ["verify", "commit"],
@@ -128,6 +173,17 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "timeout",
         "transport",
     ],
+    "btclib.fetch:BitcoinCoreRpcClient.assert_chain": ["signet_challenge"],
+    "btclib.fetch:BitcoinCoreRpcClient.call": ["request_timeout", "max_body_size"],
+    "btclib.fetch:BitcoinCoreRpcClient.from_chain": [
+        "user",
+        "password",
+        "cookie_path",
+        "timeout",
+        "transport",
+        "verify_chain",
+        "signet_challenge",
+    ],
     "btclib.fetch:EsploraFetcher.__init__": ["network", "timeout", "transport"],
     "btclib.fetch:urlopen_transport": ["max_body_size"],
     "btclib.hwi:HwiSigner.__init__": [
@@ -146,6 +202,8 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "emulators",
     ],
     "btclib.network:Network.__init__": ["check_validity"],
+    "btclib.network:Network.from_dict": ["check_validity"],
+    "btclib.network:Network.to_dict": ["check_validity"],
     "btclib.psbt.musig2:add_participant_pub_keys": ["sort"],
     "btclib.psbt.musig2:nonce_gen": ["leaf_hash", "extra_in"],
     "btclib.psbt.musig2:partial_sig_verify": ["leaf_hash"],
@@ -157,8 +215,27 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.psbt.psbt_utils:serialize_sized_int": ["signed"],
     "btclib.psbt.psbt_utils:taproot_bip32_from_dict": ["check_validity"],
     "btclib.psbt:Psbt.__init__": ["check_validity"],
+    "btclib.psbt:Psbt.b64decode": ["check_validity"],
+    "btclib.psbt:Psbt.b64encode": ["check_validity"],
+    "btclib.psbt:Psbt.from_dict": ["check_validity"],
+    "btclib.psbt:Psbt.from_tx": ["check_validity"],
+    "btclib.psbt:Psbt.parse": ["check_validity"],
+    "btclib.psbt:Psbt.serialize": ["check_validity"],
+    "btclib.psbt:Psbt.to_dict": ["check_validity"],
     "btclib.psbt:PsbtIn.__init__": ["check_validity"],
+    "btclib.psbt:PsbtIn.from_dict": ["check_validity"],
+    "btclib.psbt:PsbtIn.parse": ["psbt_version", "check_validity"],
+    "btclib.psbt:PsbtIn.serialize": ["psbt_version", "check_validity"],
+    "btclib.psbt:PsbtIn.to_dict": ["check_validity"],
     "btclib.psbt:PsbtOut.__init__": ["check_validity"],
+    "btclib.psbt:PsbtOut.from_dict": ["check_validity"],
+    "btclib.psbt:PsbtOut.parse": ["psbt_version", "check_validity"],
+    "btclib.psbt:PsbtOut.serialize": ["psbt_version", "check_validity"],
+    "btclib.psbt:PsbtOut.to_dict": ["check_validity"],
+    "btclib.psbt:PsbtView.ecdsa_sig_hash": ["hash_type"],
+    "btclib.psbt:PsbtView.input": ["check_validity"],
+    "btclib.psbt:PsbtView.output": ["check_validity"],
+    "btclib.psbt:PsbtView.taproot_sig_hash": ["leaf_hash", "hash_type"],
     "btclib.psbt:assert_signed": ["allow_partial"],
     "btclib.psbt:ecdsa_sig_hash": ["hash_type"],
     "btclib.psbt:estimated_input_sizes": ["sizer"],
@@ -166,21 +243,52 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.psbt:finalize": ["solver"],
     "btclib.psbt:taproot_sig_hash": ["leaf_hash", "hash_type"],
     "btclib.psbt_signer:SoftwareSigner.__init__": ["musig2"],
+    "btclib.psbt_signer:SoftwareSigner.from_accounts": ["musig2"],
     "btclib.psbt_signer_contract:assert_psbt_signer": ["der_path", "signable"],
     "btclib.script.sig_hash:from_tx": ["codesep_index"],
     "btclib.script:Script.__init__": ["check_validity"],
     "btclib.script:ScriptPubKey.__init__": ["check_validity"],
+    "btclib.script:ScriptPubKey.from_address": ["check_validity"],
+    "btclib.script:ScriptPubKey.nulldata": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2ms": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2pk": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2pkh": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2sh": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2tr": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2wpkh": ["check_validity"],
+    "btclib.script:ScriptPubKey.p2wsh": ["check_validity"],
     "btclib.script:Witness.__init__": ["check_validity"],
+    "btclib.script:Witness.from_dict": ["check_validity"],
+    "btclib.script:Witness.parse": ["check_validity"],
+    "btclib.script:Witness.serialize": ["check_validity"],
+    "btclib.script:Witness.to_dict": ["check_validity"],
     "btclib.tx:OutPoint.__init__": ["check_validity"],
+    "btclib.tx:OutPoint.from_dict": ["check_validity"],
+    "btclib.tx:OutPoint.parse": ["check_validity"],
+    "btclib.tx:OutPoint.serialize": ["check_validity"],
+    "btclib.tx:OutPoint.to_dict": ["check_validity"],
     "btclib.tx:Tx.__init__": ["check_validity"],
+    "btclib.tx:Tx.assert_valid": ["unsigned_template"],
+    "btclib.tx:Tx.from_dict": ["check_validity"],
+    "btclib.tx:Tx.parse": ["check_validity"],
+    "btclib.tx:Tx.serialize": ["check_validity"],
+    "btclib.tx:Tx.to_dict": ["check_validity"],
     "btclib.tx:TxIn.__init__": ["check_validity"],
+    "btclib.tx:TxIn.from_dict": ["check_validity"],
+    "btclib.tx:TxIn.parse": ["check_validity"],
+    "btclib.tx:TxIn.serialize": ["check_validity"],
+    "btclib.tx:TxIn.to_dict": ["check_validity"],
     "btclib.tx:TxOut.__init__": ["check_validity"],
+    "btclib.tx:TxOut.from_dict": ["check_validity"],
+    "btclib.tx:TxOut.parse": ["check_validity"],
+    "btclib.tx:TxOut.serialize": ["check_validity"],
+    "btclib.tx:TxOut.to_dict": ["check_validity"],
     "btclib.tx_or_psbt:tx_or_psbt_from_any": ["check_validity"],
 }
 
 
 def _resolve(label: str) -> Any:
-    """Import `module:Class.__init__` or `module:function` back to the object.
+    """Import `module:Class.method` or `module:function` back to the object.
 
     The colon is the split point rather than the last dot: a module name
     is dotted too (`btclib.ecc.dsa`), so the pair is stored apart instead
@@ -193,13 +301,54 @@ def _resolve(label: str) -> Any:
     return obj
 
 
+def _kwonly_names(signature: inspect.Signature) -> list[str]:
+    """Return the keyword-only parameter names of one signature, in order."""
+    return [
+        parameter.name
+        for parameter in signature.parameters.values()
+        if parameter.kind == inspect.Parameter.KEYWORD_ONLY
+    ]
+
+
+def _class_sites(
+    module: Any, name: str, cls: type, seen_ids: set[int]
+) -> dict[str, list[str]]:
+    """Every public method of one exported class that is keyword-only somewhere.
+
+    `__init__` plus every name in the class's own `__dict__` that does
+    not start with an underscore, so an alternate constructor (`parse`,
+    `b58decode`, `from_dict`) and an instance method (`serialize`,
+    `b58encode`) are sites of their own rather than invisible because
+    they are not the constructor. A method inherited and not overridden
+    is in a base class's own `__dict__` instead, so it is walked once,
+    there.
+    """
+    found: dict[str, list[str]] = {}
+    attr_names = sorted(
+        attr for attr in vars(cls) if attr == "__init__" or not attr.startswith("_")
+    )
+    for attr_name in attr_names:
+        bound = getattr(cls, attr_name)
+        if not (inspect.isfunction(bound) or inspect.ismethod(bound)):
+            continue  # a property or a plain class attribute
+        target = bound.__func__ if inspect.ismethod(bound) else bound
+        if id(target) in seen_ids:
+            continue
+        seen_ids.add(id(target))
+        kwonly = _kwonly_names(inspect.signature(bound))
+        if kwonly:
+            found[f"{module.__name__}:{name}.{attr_name}"] = kwonly
+    return found
+
+
 def _live_keyword_only() -> dict[str, list[str]]:
     """Recompute `KEYWORD_ONLY` from the tree currently under test.
 
     The same walk that produced the table above, run again: every
-    module's `__all__`, a class read as its own `__init__` and skipped
-    when it has none of its own, deduplicated by the id of the resolved
-    callable so one object reachable under two names is one entry.
+    module's `__all__`, a function named directly and a class expanded
+    by `_class_sites`. Deduplicated by the id of the resolved function --
+    `__func__` for a bound classmethod, the function itself otherwise --
+    so an object reachable under two names is one entry.
     """
     seen_ids: set[int] = set()
     found: dict[str, list[str]] = {}
@@ -209,28 +358,15 @@ def _live_keyword_only() -> dict[str, list[str]]:
             continue
         for name in names:
             obj = getattr(module, name)
-            if inspect.ismodule(obj):
-                continue
             if inspect.isclass(obj):
-                target = obj.__dict__.get("__init__")
-                if target is None:
-                    continue
-                label = f"{module.__name__}:{name}.__init__"
+                found.update(_class_sites(module, name, obj, seen_ids))
             elif inspect.isfunction(obj) or inspect.isbuiltin(obj):
-                target = obj
-                label = f"{module.__name__}:{name}"
-            else:
-                continue
-            if id(target) in seen_ids:
-                continue
-            seen_ids.add(id(target))
-            kwonly = [
-                parameter.name
-                for parameter in inspect.signature(target).parameters.values()
-                if parameter.kind == inspect.Parameter.KEYWORD_ONLY
-            ]
-            if kwonly:
-                found[label] = kwonly
+                if id(obj) in seen_ids:
+                    continue
+                seen_ids.add(id(obj))
+                kwonly = _kwonly_names(inspect.signature(obj))
+                if kwonly:
+                    found[f"{module.__name__}:{name}"] = kwonly
     return found
 
 
