@@ -21,11 +21,17 @@ on:
     # draft condition below withheld while it was a draft.
     # closed too, though the job below declines the real work on it: a
     # merge or a close is neither a push nor a synchronize, so a run this
-    # ref's concurrency group is still holding survives either unless the
-    # closed event lands in that same group -- which this type is what
-    # makes it do, cancel-in-progress above turning the landing into the
-    # cancellation. A closed pull request has nothing left to ask this
-    # workflow, the merge commit being main's own push trigger's question
+    # PR's own concurrency group is still holding survives either unless
+    # the closed event lands in that same group -- which this type is
+    # what makes it do, cancel-in-progress above turning the landing
+    # into the cancellation. A closed pull request has nothing left to
+    # ask this workflow, the merge commit being main's own push
+    # trigger's question. The group below keys on github.head_ref rather
+    # than plain github.ref for exactly this event: a merged pull
+    # request's closed event sets github.ref to the base branch, not the
+    # merge ref, which used to land it in main's own push group and race
+    # the merge commit's run for cancellation (PR 1023's bug) instead of
+    # the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
   # lets the release workflow gate publication on this check too
   workflow_call:
@@ -43,9 +49,14 @@ permissions:
 # The group is named literally rather than with github.workflow, which in a
 # called workflow is the caller's name: the release workflow calls this one
 # alongside test.yml and lint.yml, and with that expression they would share
-# a group and cancel each other
+# a group and cancel each other.
+# head_ref falls back to ref rather than being used bare: it is set only
+# for pull_request events, to the PR's head branch, so a push run (ref
+# refs/heads/main) still gets its own group -- and a pull_request event
+# always groups by the PR's branch, closed and merged ones included, so
+# it never collides with a push's group the way bare ref did
 concurrency:
-  group: docs-${{ github.ref }}
+  group: docs-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
