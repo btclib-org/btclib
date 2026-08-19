@@ -24,6 +24,7 @@ from typing import Any
 import pytest
 
 from btclib import b32, b58
+from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import Point
 from btclib.b58 import h160_from_address
 from btclib.bip32 import bip32
@@ -34,7 +35,8 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.mnemonic import bip39
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from tests import load, vector_id
+from tests import load, needs_bindings, vector_id
+from tests.curves.curve_test import no_bindings_anywhere
 
 ec = secp256k1
 
@@ -1032,6 +1034,41 @@ def test_the_python_path_answers_the_same(
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(curve, "_libsecp256k1_available", False)
         vector_test()
+
+
+@needs_bindings
+def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The recovery gated on availability alone must be Python throughout.
+
+    A mixed arm is the one shape that is never right: with libsecp256k1 in
+    reach `_libsecp256k1_recover_sec_` is the better call, and out of
+    reach there is nothing to mix. `assert_as_valid`'s guard picks between
+    that and `dsa.recover_pub_key(..., sha256)` for its Python arm, itself
+    a dispatch on the same predicate rather than a call that could
+    delegate on its own.
+
+    `no_bindings_anywhere` is the check `tests.bip32.bip32_test` and
+    `tests.script.taproot_test` use for the same shape: it puts the whole
+    of btclib_secp256k1 out of reach, module and already-bound name alike,
+    and switches the dispatch off -- which `dsa.recover_pub_key`'s own
+    guard then reads the same way `assert_as_valid`'s does, so the walk
+    covering `_libsecp256k1_recover_sec_` covers this arm's delegate too.
+    """
+    wif, addr = bms.gen_keys()
+    msg = b"a message signed once and recovered from twice"
+    sig = bms.sign(msg, wif)
+    # what the bindings answer, taken while they are still in reach
+    delegated = bms.verify(msg, addr, sig)
+    assert delegated
+
+    no_bindings_anywhere(monkeypatch)
+
+    # what bms itself would have called, so that a walk reaching nothing
+    # would fail here rather than pass by touching nothing
+    with pytest.raises(AssertionError, match="reached libsecp256k1"):
+        libsecp256k1_recovery.recover(bytes(32), bytes(64), 0, True)
+
+    assert bms.verify(msg, addr, sig) == delegated
 
 
 def test_parse_length_is_not_a_validity_opinion() -> None:
