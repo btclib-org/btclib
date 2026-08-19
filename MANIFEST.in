@@ -88,14 +88,25 @@ recursive-include docs Makefile
 # directory the cache sits under -- but that reach is spent on getting
 # to the cache directory, and does not carry through to what is inside
 # it: a wildcard segment matches one path component, not several, so
-# the cache's own depth needs one line per level, deep enough for a
-# cache mirroring the tree it was told to check:
-#   find btclib tests -type d | awk -F/ '{print NF}' | sort -un
+# the cache's own depth needs one line per level.
+#
+# mypy names a cache entry after the checked module's fully qualified
+# name, one directory per dotted component, under a python-version
+# directory of its own -- btclib.script.engine.flags caches to
+# .mypy_cache/<pyver>/btclib/script/engine/flags.data.json regardless
+# of where .mypy_cache itself sits -- so the level a mypy cache needs is
+# the tree's own deepest *package*, plus one for <pyver> and one for the
+# file itself:
+#   find btclib tests -type d | grep -v /__pycache__ \
+#       | awk -F/ '{print NF}' | sort -un
+# tops out at 3, btclib/script/engine/ being the one package this deep,
+# so 3 + 2 = 5 levels inside .mypy_cache/ cover it
 recursive-exclude * .mypy_cache
 recursive-exclude * .mypy_cache/*
 recursive-exclude * .mypy_cache/*/*
 recursive-exclude * .mypy_cache/*/*/*
 recursive-exclude * .mypy_cache/*/*/*/*
+recursive-exclude * .mypy_cache/*/*/*/*/*
 recursive-exclude * .pytest_cache
 recursive-exclude * .pytest_cache/*
 recursive-exclude * .pytest_cache/*/*
