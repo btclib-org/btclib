@@ -42,6 +42,10 @@ documented at release-notes length in the first place, and are still in
   so the job would start, find the token empty and fail on the pull
   requests of the people least able to read that failure. `@claude`
   still answers there, `issue_comment` being a base-repository event.
+  Both jobs carry `id-token: write`, which is not about workload
+  identity federation: the action mints a GitHub OIDC token during
+  its own startup whatever the Anthropic credential is, and without
+  it the run dies before reaching authentication at all.
 
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better

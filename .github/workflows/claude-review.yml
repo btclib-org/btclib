@@ -76,8 +76,15 @@ jobs:
       cancel-in-progress: true
     permissions:
       contents: read
-      # what posting the review takes, and the only elevation here
+      # what posting the review takes
       pull-requests: write
+      # not for workload identity federation, which this does not use: the
+      # action mints a GitHub OIDC token during its own startup whatever
+      # the Anthropic credential is. Measured by leaving it out -- the run
+      # died before reaching authentication at all, with "Could not fetch
+      # an OIDC token. Did you remember to add `id-token: write` to
+      # your workflow permissions?"
+      id-token: write
     steps:
       # every action pinned to a commit SHA with the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
@@ -150,6 +157,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      # the same startup OIDC token the review job above needs
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
