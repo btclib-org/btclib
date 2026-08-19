@@ -83,6 +83,19 @@ try:
     from btclib_secp256k1.xonly import to_pubkey as xonly_to_pubkey
 
     INSTALLED = True
+# issue #1002 measured this branch rather than assuming it stays
+# transitional: `test.yml`'s `no-bindings` job executes it every run, and
+# `coverage-union` combines that run's data with the `coverage` job's.
+# The combined report is 100% with this pragma removed -- so the branch
+# is reached and is not dead code -- and the pragma still belongs here
+# regardless, because `coverage-union` is a second gate beside the
+# `coverage` job's, not instead of it: that job's own report, `pytest
+# --cov` on this configuration alone, has bindings installed by
+# construction, an `ImportError` only reachable by actually removing
+# them, and a subprocess that does (`tests/no_bindings_test.py`) whose
+# coverage that job does not collect. So this branch is a structural
+# miss in that report regardless of the union, and removing the pragma
+# would fail the one gate this issue chose to leave unchanged
 except ImportError:  # pragma: no cover
     # None and not a callable that raises: what would raise is never
     # called, so the object would be a second thing to keep true. The

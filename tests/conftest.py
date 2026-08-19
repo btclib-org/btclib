@@ -221,9 +221,17 @@ def check_golden(path: Path, name: str, value: Any, module: str) -> None:
 def _skip_what_needs_the_bindings(items: list[pytest.Item]) -> None:  # pragma: no cover
     """Skip every test marked `bindings`, naming why once.
 
-    Runs only where `btclib_secp256k1` is absent, which no coverage run
-    measures: the job that builds that configuration passes `--no-cov`,
-    the delegated arms being unreachable in it by construction.
+    Runs only where `btclib_secp256k1` is absent, `INSTALLED` being set
+    once at import and not something a test can fake in-process. Issue
+    #1002 asked whether that still leaves this unmeasured, given
+    `test.yml`'s `coverage-union` job: it does not go unmeasured -- the
+    no-bindings job's own `--cov` reaches this function and the combined
+    report is 100% with the pragma removed -- but the pragma stays,
+    because `coverage-union` gates beside the `coverage` job's report and
+    not instead of it, and that job's own single run has the bindings
+    installed, so `INSTALLED` is always True there and this function is
+    never called. Removing the pragma would fail that gate, which this
+    issue chose to leave exactly as it was.
     """
     skip = pytest.mark.skip(reason="btclib_secp256k1 is not installed")
     for item in items:
