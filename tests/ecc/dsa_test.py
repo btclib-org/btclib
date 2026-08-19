@@ -2032,3 +2032,73 @@ def test_the_delegated_grind_is_the_sequence_the_python_arm_walks() -> None:
 
         # the point of grinding at all, and cheap to say here
         assert dsa._is_low_r(delegated.r, secp256k1)
+
+
+@needs_bindings
+def test_the_delegated_arm_asks_the_bindings_to_verify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`verify` reaches `secp256k1_ecdsa_sign` once, as the caller wrote it.
+
+    Nothing before this recorded it: the crossing above shows the two
+    arms agree on the signature `grind=True, verify=False` produces, not
+    that `verify` is the argument deciding whether a check follows it, or
+    that grinding pays for one crossing and not one per attempt (issue
+    986). `_grind_low_r`'s own loop is the Python arm's; the delegated
+    arm's grinding is `secp256k1_ecdsa_sign`'s own, which this call does
+    not see -- what it can see, and what this asserts, is that btclib
+    crosses into it once per `sign_` call, whether that call grinds or
+    not.
+    """
+    real_sign = libsecp256k1_dsa.sign
+    calls: list[bool] = []
+
+    def sign(*args: Any, **kwargs: Any) -> bytes:
+        calls.append(kwargs["verify"])
+        return real_sign(*args, **kwargs)
+
+    q, _ = dsa.gen_keys(prv_key_int)
+    msg_hash = sha256(b"a message").digest()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(libsecp256k1_dsa, "sign", sign)
+        for grind in (True, False):
+            for verify in (True, False):
+                calls.clear()
+                dsa.sign_(msg_hash, q, grind=grind, verify=verify)
+                # one crossing, carrying the caller's own verify -- not
+                # zero, which is #982's bill, and not two, which is the
+                # grinding loop this arm no longer walks
+                assert calls == [verify]
+
+
+@needs_bindings
+def test_sign_recoverable_asks_the_bindings_to_verify(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`verify=True` reaches `secp256k1_ecdsa_sign_recoverable`, written out.
+
+    `sign_recoverable_` takes no `verify` of its own: the comment at its
+    call into the bindings argues why True belongs there rather than at
+    the bindings' default, the recovery id being a value nothing
+    downstream re-derives the way a faulted r or s is caught by the
+    first verification anybody makes of a plain signature. Nothing held
+    that argument to the keyword actually written before this (issue
+    986): a refactor dropping it, or writing False, changes no signature
+    and no recovered key, and would still be caught by nothing.
+    """
+    real_sign = libsecp256k1_recovery.sign
+    calls: list[bool] = []
+
+    def sign(*args: Any, **kwargs: Any) -> tuple[bytes, int]:
+        calls.append(kwargs["verify"])
+        return real_sign(*args, **kwargs)
+
+    q, _ = dsa.gen_keys(prv_key_int)
+    msg_hash = sha256(b"a message").digest()
+
+    with monkeypatch.context() as patch:
+        patch.setattr(libsecp256k1_recovery, "sign", sign)
+        dsa.sign_recoverable_(msg_hash, q)
+
+    assert calls == [True]

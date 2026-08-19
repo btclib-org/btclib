@@ -6252,6 +6252,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **A recorder per bindings signing call site asserts what `verify` it
+  crosses with** (issue #986). `dsa.sign_`'s delegated arm, its
+  `sign_recoverable_`, and `ssa.sign_`'s all cross into the bindings with
+  a `verify` keyword, and the keyword changes no output byte -- the
+  bindings' own suite states that as the reason a signature can never
+  tell which value was passed. Nothing else here can either, so each
+  crossing is recorded and the value it received is asserted directly:
+  `test_the_delegated_arm_asks_the_bindings_to_verify` holds `dsa.sign_`
+  to one crossing per call, carrying the caller's own `verify`, whether
+  it grinds or not; `test_sign_recoverable_asks_the_bindings_to_verify`
+  holds the hardcoded `verify=True` `sign_recoverable_` writes there
+  rather than leaving to the bindings' default; and
+  `test_the_delegated_arm_forwards_verify` holds `ssa.sign_`'s to the
+  caller's own value too, beside the existing recorder that already held
+  the keyword itself to being forwarded and not dropped.
+
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a
   native exception got out and here is its class, nothing was raised at
