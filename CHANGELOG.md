@@ -53,12 +53,22 @@ documented at release-notes length in the first place, and are still in
   `workflow_dispatch`: both jobs read the pull request or the comment
   that triggered them, so a manual run would have nothing to read.
 
-  Both jobs refuse to start without the credential, which is not
-  belt and braces: measured on the first run after the organization
-  secret was deleted, the action found `CLAUDE_CODE_OAUTH_TOKEN` empty,
-  reviewed nothing and reported **success**. A green check that read no
-  diff is worse than a red one, so the step that would have been silent
-  now names the secret and fails.
+  Two things it refuses to do silently, both of which it did before
+  being asked not to. Without `CLAUDE_CODE_OAUTH_TOKEN` the action
+  reviewed nothing and reported **success**; and the action refuses to
+  run at all when this file differs from the copy on the default branch
+  — a pull request must not be able to edit the workflow holding the
+  credential — reporting that refusal by skipping, green. Two runs were
+  read as evidence that this workflow worked before the log said
+  otherwise. It now fails on an empty secret, and fails when the
+  action's `execution_file` output is empty, which is exactly when no
+  review was written.
+
+  The consequence is deliberate: on a pull request that adds or edits
+  this file the job is red until the change is on `main`, because that
+  is when the action starts running it. It gates nothing, and a red
+  check saying "no review happened" is the honest shape of a review that
+  did not happen.
 
 - **The landing convention says what actually happens: the squash
   button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
