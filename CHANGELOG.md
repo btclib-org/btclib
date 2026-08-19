@@ -581,6 +581,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
+  `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**
+  `.gitignore` covers these, but the sdist's file list comes from
+  `MANIFEST.in`'s own include rules walking the tree, not from
+  `.gitignore`, so a cache the VS Code mypy extension writes beside the
+  file it just checked was shipped whole: its `.json` files matched
+  `recursive-include btclib *.json` the same way a vendored vector does
+  (issue #985). `global-exclude` cannot take it back out — it drops a
+  member whose own name matches the pattern, not what a matched
+  directory contains — so the fix is `recursive-exclude`, wildcarded to
+  reach the cache under any top-level directory the same way
+  `recursive-include` reaches a vendored vector, with one line per depth
+  for the cache's own nesting, which a wildcard segment does not cross.
+
 - **The bindings floor is `btclib_secp256k1>=0.8.0.3`, and
   `[tool.uv.sources]` points at their `main` until PyPI serves it.**
   That version carries `xonly.tweak_add_` (btclib-secp256k1#158), which
