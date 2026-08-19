@@ -6448,6 +6448,28 @@ documented at release-notes length in the first place, and are still in
   way, and a table stopping at the constructor would leave the walk's
   own completeness test agreeing with itself while missing every one of
   them.
+- **The bindings arm of a secret multiplication is asserted, not only
+  agreed with** (issue #975). `diffie_hellman` reduces `dU` with `d = dU %
+  ec.n` before the guard `if d and _libsecp256k1_serves(ec, None)` that
+  gates its direct `pubkey_tweak_mul` call, and a mutant of that one line
+  -- `%` to `//` or to `>>` -- makes `d` zero for every `dU` below `n`,
+  which is every caller: the guard then falls through to
+  `mult(dU, QV, ec)` instead, which still reaches libsecp256k1 through a
+  second entry point, `pubkey_tweak_mul_sum`, rather than the direct call
+  this line exists to take. `dsa.sign` and `ssa.sign_` reach the bindings
+  by the same shape of guard for an ordinary key, with nothing computed
+  for a mutant to falsify but the same blindness: the signature is one of
+  two implementations' making and nothing about it says which -- and for
+  `dsa.sign` specifically, what the Python arm draws differently is the
+  nonce's modular inverse, blinded there and inside libsecp256k1's own
+  constant time here. All three now record the call into
+  `pubkey_tweak_mul`, `libsecp256k1_dsa.sign` and
+  `libsecp256k1_ssa.sign_custom` for a default call and assert it was
+  made, the technique already in `bip32_test.py` for
+  `PubkeyTweakChain.tweak_add`: a refactor or a mutant that silently
+  stops taking the delegation each line exists for now fails a test
+  instead of reproducing a byte-exact answer from the arm it stands in
+  for.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a

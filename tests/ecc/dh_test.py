@@ -8,6 +8,7 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 import pytest
 
+from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import HashF
 from btclib.curves import bytes_from_point, mult
 from btclib.curves.curve import CURVES
@@ -17,6 +18,7 @@ from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
 )
+from tests import needs_bindings
 
 
 def test_ecdh() -> None:
@@ -327,6 +329,41 @@ def test_the_python_shared_point_is_the_bindings_one(
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(dh, "_libsecp256k1_serves", lambda *_: False)
         assert diffie_hellman(a, B, 32) == shared_key
+
+
+@needs_bindings
+def test_a_normal_dU_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ordinary key takes the direct multiplication into libsecp256k1.
+
+    `diffie_hellman` reduces the key with `d = dU % ec.n` before the guard
+    that gates the direct `pubkey_tweak_mul` call on `d` being nonzero: a
+    mutant of that one line -- `ReplaceBinaryOperator_Mod_FloorDiv`
+    turning it to `dU // ec.n`, `_Mod_RShift` to `dU >> ec.n` -- makes `d`
+    zero for every `dU` below `n`, which is every caller, and the guard
+    then falls through to `mult(dU, QV, ec)` instead. That call still
+    reaches libsecp256k1: it reduces `dU` on its own and dispatches
+    through `_libsecp256k1_multi_mult`/`pubkey_tweak_mul_sum`, a second
+    constant-time binding rather than the Python endomorphism arithmetic
+    -- so the mutant costs this line's direct entry point and not the
+    constant-time guarantee itself. `ansi_x9_63_kdf` derives the same
+    bytes off either binding's point, so no assertion on the shared key
+    tells the two apart (issue 975); this records the call into
+    `pubkey_tweak_mul` instead of the answer it returns, so a mutant that
+    skips the direct delegation fails here rather than matching it.
+    """
+    calls: list[int] = []
+    real_tweak_mul = libsecp256k1_keys.pubkey_tweak_mul
+
+    def record(pubkey_bytes: bytes, tweak: int, compressed: bool = True) -> bytes:
+        calls.append(tweak)
+        return real_tweak_mul(pubkey_bytes, tweak, compressed)
+
+    monkeypatch.setattr(libsecp256k1_keys, "pubkey_tweak_mul", record)
+
+    a, _A = dsa.gen_keys()  # Alice
+    _b, B = dsa.gen_keys()  # Bob
+    diffie_hellman(a, B, 32)
+    assert calls == [a % CURVES["secp256k1"].n]
 
 
 def test_infinity_shared_secret() -> None:
