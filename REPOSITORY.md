@@ -364,26 +364,30 @@ same.
 
 ## Merge methods
 
-**No button is how a pull request lands here.** Every landing is the
-fast-forward of the sequence above, through the `main-self-merge` bypass,
-with the squash a multi-commit branch needs made locally before it. What
-that buys is what a button cannot: the commit is signed by the maintainer
-rather than by GitHub's web-flow key, and where what lands is the head CI
-ran on, its sha does not change either, so a branch stacked on it keeps
-applying instead of needing a rebase and a fresh run of the matrix per
-level.
-
-What the settings below bound is therefore a landing nobody drove from a
-shell, and **squash is the only *button* enabled**:
+**Squash is the only *button* enabled, and it is how a pull request
+lands here** — auto-merge presses it once the review and the checks are
+in, so the default landing is one GitHub performs and signs with its
+web-flow key. That signature satisfies `main-integrity` exactly as the
+maintainer's own would: what the rule requires is a valid signature, not
+a particular signer.
 
 ```shell
 gh api repos/btclib-org/btclib \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
 ```
 
-answers `true` for the first and `false` for the other two. The
-auto-merge dropdown below is what reaches that button, and GitHub's key
-is what signs whatever it presses.
+answers `true` for the first and `false` for the other two.
+
+**The fast-forward of the sequence above is the exception, not the
+rule**, and it is worth one case: a single-commit pull request that is
+the base of a stacked one. A button recreates rather than moves —
+GitHub's own documentation says rebase-and-merge "always updates the
+committer information and creates new commit SHAs", and a squash mints a
+commit that never existed — so either leaves the child's base orphaned
+and costs it a rebase and a fresh run of the matrix. A fast-forward
+moves a pointer at an object that already exists and is already signed,
+so the sha survives and the child keeps applying. Nothing else is a
+reason to reach for it.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The

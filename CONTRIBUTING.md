@@ -1314,18 +1314,17 @@ per landed change. A merge commit would put the branch's steps into
 `main` and a rebase merge would replay them one by one — `main` is linear
 by branch rule, and one change is one commit there.
 
-**How that commit reaches `main` is a push rather than a button**, which
-is the maintainer's own path and needs a ruleset bypass no contributor
-has: REPOSITORY.md describes it, squashing the branch locally where it
-carries more than one commit and fast-forwarding the result. It is worth
-knowing about from here for two reasons. The commit that lands is signed
-by the maintainer rather than by GitHub's web-flow key; and where what
-lands is the head CI ran on, its sha does not change, so a branch stacked
-on that one keeps applying where a squash composed at the merge would
-have rewritten its base. Which is why a correction added on top of a
-reviewed branch is still the right shape: whether the branch is squashed
-or fast-forwarded is decided when it lands, and by then the review has
-its record either way.
+**How that commit reaches `main` is the squash button**, pressed by
+auto-merge once the review and the checks are in. GitHub composes it and
+signs it with its web-flow key, which is a valid signature and therefore
+all the branch rule asks for. REPOSITORY.md has the setting, and the one
+exception: a single-commit pull request that is the base of a stacked
+one is fast-forwarded from the command line instead, so that its sha
+survives and the child is not left needing a rebase.
+
+Either way the decision belongs to the landing and not to the branch,
+which is why a correction added on top of a reviewed branch is still the
+right shape: by the time it is squashed the review has its record.
 
 What that commit says is the repository's to answer, not this file's:
 
@@ -1343,10 +1342,9 @@ and a squash made locally follows the same convention by hand, the
 setting being the statement of what the message should say rather than
 only of what a press produces.
 
-**It is a setting and not a choice made once per pull request.** Squash is
-the only *button* the repository enables, so there is no other to read;
-REPOSITORY.md has that setting, what the other two would have cost, and
-the fast-forward that is not a button at all.
+**It is a setting and not a choice made once per pull request**, so
+there is no other button to read. REPOSITORY.md has it, what the other
+two would have cost, and the fast-forward exception above.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

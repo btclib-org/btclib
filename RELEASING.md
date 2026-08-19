@@ -288,15 +288,15 @@ word, and step 1 asks it of both.
    enforces, and a pull request that never mentions them reads exactly
    like one that skipped them.
 
-   And land it the way every other pull request here lands: squashed
-   locally into one signed commit where it carries more than one — a
-   version bump and two retitles, not a cycle of work, and
-   CONTRIBUTING.md gives the rest of the reason — and fast-forwarded onto
-   `main`, REPOSITORY.md having the sequence and the bypass it needs.
-   The squash button REPOSITORY.md leaves enabled is the wrong landing
-   here in particular: it is the release commit that gets tagged, so a
-   squash composed by GitHub would leave the tag over a commit signed by
-   the web-flow key rather than by the maintainer.
+   And land it the way every other pull request here lands: the squash
+   button, pressed by auto-merge once the review and the checks are in.
+   Nothing about a release asks for the fast-forward exception —
+   REPOSITORY.md reserves that for a single-commit pull request that is
+   the base of a stacked one, which a release is not. That the commit
+   under the tag carries GitHub's web-flow signature rather than the
+   maintainer's costs nothing: the branch rule asks for a valid
+   signature and not for a particular signer, and the attestation that
+   is the maintainer's own is the tag, which `git tag -s` signs.
 
    This branch is the squashed case every time, a version bump and two
    retitles never being one commit, so push the squash to the branch

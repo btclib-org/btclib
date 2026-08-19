@@ -24,6 +24,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The landing convention says what actually happens: the squash
+  button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
+  push rather than a button", `RELEASING.md` that the button was the
+  wrong landing for a release, and `REPOSITORY.md` that no button was
+  the landing at all. `main` has been taking squash merges GitHub
+  composes and signs with its web-flow key throughout, which is what the
+  branch rule asks for: a valid signature, not a particular signer. The
+  three files now say that, and reserve the command-line fast-forward
+  for the one case that still wants it — a single-commit pull request
+  that is the base of a stacked one, where a button would orphan the
+  child. A button recreates rather than moves, GitHub's documentation
+  saying rebase-and-merge "always updates the committer information and
+  creates new commit SHAs", so the number of commits is not what decides
+  it.
+
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better
   than it found it, which is not the diff the reviewer would have
@@ -64,8 +79,7 @@ documented at release-notes length in the first place, and are still in
   rows — and REPOSITORY.md keeps the number. Self-approval was stated
   from scratch in `REPOSITORY.md` where `CONTRIBUTING.md` already
   states it, and now points. "Squash is the only button" was in three
-  files; `RELEASING.md` keeps only the reason it is the wrong landing
-  for a release, the tag going over a commit GitHub's key signed.
+  files and is now in `REPOSITORY.md` alone.
 
 - **`REPOSITORY.md`'s "Merge methods" no longer corrects itself in
   place.** It opened by naming the squash button as how a pull request
