@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 
 from btclib import b32
+from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import ScriptList
 from btclib.curves import bytes_from_point, curve_group, mult
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -41,8 +42,8 @@ from btclib.script.taproot import (
     tree_helper,
 )
 from btclib.tx import TxOut
-from tests import load, vector_id
-from tests.curves.curve_test import low_card_curves
+from tests import load, needs_bindings, vector_id
+from tests.curves.curve_test import low_card_curves, no_bindings_anywhere
 from tests.script import serialize_non_canonical
 
 
@@ -219,6 +220,56 @@ def test_the_python_prvkey_tweak_lifts_nothing(
         no_bindings.setattr(curve_group, "mod_sqrt_var", refuse)
         for tree, expected in zip(SCRIPT_TREES, delegated, strict=True):
             assert output_prvkey(prv_key, tree) == expected
+
+
+@needs_bindings
+def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Three of the four guards this module keeps must be Python throughout.
+
+    A mixed arm is the one shape that is never right: with libsecp256k1 in
+    reach `libsecp256k1_xonly.tweak_add` and `.prvkey_tweak_add` are the
+    better calls, and out of reach there is nothing to mix.
+    `_output_pubkey_and_internal_key`'s choice of which form of the
+    internal key to build, `_tweaked_pubkey`'s tweak and
+    `_tweaked_prvkey`'s are that shape, gated on `secp256k1` and nothing
+    else, and `output_pubkey` together with `output_prvkey` reach all
+    three between them.
+
+    `check_output_pubkey`'s guard is not: it adds `len(q) == 32` to the
+    same predicate, so with the bindings in reach and a q of another
+    length its Python arm still runs, and that arm calls `mult`, which
+    delegates on its own -- the mixed arm SECURITY.md documents for dsa
+    and ssa, real there for the same reason it is real here. That guard
+    is left out of this test on purpose; the fallthrough it takes with
+    the bindings installed is what
+    `test_check_output_pubkey_of_a_key_that_is_not_32_bytes` exercises.
+
+    `no_bindings_anywhere` is the check `tests.bip32.bip32_test` uses for
+    the same shape: it puts the whole of btclib_secp256k1 out of reach,
+    module and already-bound name alike, and switches the dispatch off.
+    """
+    prv_key = 0xC0FFEE
+    pub_key = mult(prv_key)
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    # what the bindings answer, taken while they are still in reach
+    delegated = (
+        output_pubkey(pub_key, script_tree),
+        output_prvkey(prv_key, script_tree),
+    )
+
+    no_bindings_anywhere(monkeypatch)
+
+    # the two taproot itself would have called, so that a walk reaching
+    # nothing would fail here rather than pass by touching nothing
+    with pytest.raises(AssertionError, match="reached libsecp256k1"):
+        libsecp256k1_xonly.tweak_add(bytes(32), bytes(32))
+    with pytest.raises(AssertionError, match="reached libsecp256k1"):
+        libsecp256k1_xonly.prvkey_tweak_add(bytes(32), bytes(32))
+
+    assert (
+        output_pubkey(pub_key, script_tree),
+        output_prvkey(prv_key, script_tree),
+    ) == delegated
 
 
 def test_the_python_commitment_check_is_the_bindings_one(
