@@ -24,6 +24,34 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The landing convention says what actually happens: the squash
+  button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
+  push rather than a button", `RELEASING.md` that the button was the
+  wrong landing for a release, and `REPOSITORY.md` that no button was
+  the landing at all. `main` has been taking squash merges GitHub
+  composes and signs with its web-flow key throughout, which is what the
+  branch rule asks for: a valid signature, not a particular signer. The
+  three files now say that, and say that it is the only way in: the
+  `main-self-merge` bypass moves from `always` to `pull_request` mode,
+  so it excuses the approving review a solo repository cannot produce
+  and excuses nothing else — a direct push to `main` is refused for
+  everyone, the holder of the bypass included — and the ruleset names
+  `squash` as the only merge method it accepts, stating the constraint
+  where the rule is rather than only in a repository toggle. The
+  command-line fast-forward that used to be the landing is therefore
+  gone rather than demoted. Its one remaining use, keeping a stacked
+  child's base alive, is paid for instead with a rebase and a fresh run
+  of the matrix: a button recreates rather than moves, GitHub's
+  documentation saying rebase-and-merge "always updates the committer
+  information and creates new commit SHAs", so the count of commits was
+  never what decided it. `REPOSITORY.md`'s "maintainer's second path"
+  section goes with it: there is no second path, so what described one —
+  the push sequence, the two cases of whether GitHub reconciles what
+  landed, the deletion left to do by hand — is replaced by the one case
+  that remains. Every landing is a pull request GitHub merges, so the
+  `Closes #N` in the description always fires and the head branch always
+  goes.
+
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better
   than it found it, which is not the diff the reviewer would have
@@ -55,6 +83,25 @@ documented at release-notes length in the first place, and are still in
   own: it says which files to read, `REVIEWING.md` first.
   `check-manifest`'s ignore entry becomes `.claude/**`, `.claude/*` being
   one level and the commands now a directory deeper.
+- **Three facts that were in two files are in one.** The concurrency
+  ceiling and what it measured were stated in full in both
+  `CONTRIBUTING.md` and `REPOSITORY.md`, the first pointing at the
+  second and then repeating it anyway; `CONTRIBUTING.md` keeps the
+  consequence its workflow table is about — which rows a pull request
+  waits for, and the macOS and Windows figures that decided the other
+  rows — and REPOSITORY.md keeps the number. Self-approval was stated
+  from scratch in `REPOSITORY.md` where `CONTRIBUTING.md` already
+  states it, and now points. "Squash is the only button" was in three
+  files and is now in `REPOSITORY.md` alone.
+
+- **`REPOSITORY.md`'s "Merge methods" no longer corrects itself in
+  place.** It opened by naming the squash button as how a pull request
+  lands, then said in the next paragraph that the section had done so
+  and that the landing is the fast-forward two headings above. Prose
+  that carries the history of its own edit is what
+  `CONTRIBUTING.md`'s "no history" rule is against: the section now
+  states the landing first and the button settings as what bounds a
+  landing nobody drove from a shell.
 
 - **Seven more mutation profiles filter the deferred-annotation `BitOr`
   class already named in each one's own report** (issue #987):
