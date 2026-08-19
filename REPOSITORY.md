@@ -271,96 +271,68 @@ branch, and it is the only branch there is. Issue #158 was the other
 arrangement — two bots pushing through an integration branch that carried
 no protection at all — and one branch is what closed it.
 
-### The maintainer's second path: two rulesets beside the classic rule
+### Two rulesets beside the classic rule
 
 `enforce_admins` off is one switch that exempts an administrator from
 every rule above at once — there is no way, inside the classic rule
 alone, to relax the review requirement for a solo merge while keeping
-signatures and linear history unconditional. Every issue tracking a
-change to the library gets one of two endings: a pull request that
-carries a real review from somebody else, which closes it automatically
-on merge (`Closes #N`); or, when the maintainer is working alone, this
-second path, which closes it by hand, referencing the commit that
-landed.
-
-Two rulesets carry that split, additive to the classic rule rather than
-replacing it — rules aggregate across rulesets and classic protection,
-taking the most restrictive combination wherever they overlap:
+signatures and linear history unconditional. Two rulesets carry that
+split, additive to the classic rule rather than replacing it: rules
+aggregate across rulesets and classic protection, taking the most
+restrictive combination wherever they overlap.
 
 - `main-integrity`: required signatures, required linear history, no
   force pushes, no deletions. No bypass actor, for anyone, ever.
-- `main-self-merge`: require a pull request (one approving review,
-  dismiss stale reviews, conversation resolution). Bypass: the
-  maintainer, "Always" mode.
+- `main-self-merge`: require a pull request — one approving review,
+  dismiss stale reviews, conversation resolution — and `squash` as the
+  only merge method it will accept. Bypass: the maintainer, in
+  **`pull_request` mode**.
 
-"Always" is what permits a direct push rather than only a PR merge
-without review, and it is scoped to `main-self-merge` alone: being
-bypassed there does not exempt from `main-integrity`, which has no
-bypass entry for anyone. Verified on a disposable branch before either
-ruleset touched `main`: a direct push with no bypass was rejected
-("Changes must be made through a pull request"); the same push,
-bypassed, was accepted as a fast-forward with no new commit created
-("Bypassed rule violations"); a force-push under that same bypass was
-still rejected ("Cannot force-push to this branch"), which is the proof
-that the isolation holds rather than an assumption about it.
+**The bypass mode is the whole of the design.** `pull_request` excuses
+its holder from the rule *while merging a pull request* and at no other
+time, so it answers the one thing a solo-maintainer repository cannot
+do — produce an approving review from somebody else — and answers
+nothing further. A direct push to `main` is refused for everyone, the
+holder included: outside a pull request there is no bypass to apply, and
+the rule says changes must come through one.
 
-What the maintainer cannot do, with or without the bypass, is land
-something on `main` that is unsigned or that rewrites history:
-`main-integrity` answers that question the same way for every push,
-admin or not. Exercising the bypass is therefore always the same
-sequence — the fast-forward is what has to hold, not a force push
-standing in for one:
+The other mode, `always`, permits a direct push as well, and it is not
+used here. What it would buy is a landing that keeps the maintainer's
+own signature on the commit; what it costs is a `main` any local mistake
+can reach. The first half is worth nothing once the branch rule is read
+as asking for a valid signature rather than for a particular signer,
+which makes GitHub's web-flow key as good as the maintainer's — and the
+second half is not hypothetical: a `git merge` run in the wrong working
+tree is enough to advance `main` locally, and under `always` the push
+that follows would be accepted.
+
+Read the two back rather than trusting either:
 
 ```shell
-git fetch origin && git rebase origin/main   # must end fast-forwardable
-git log --format='%h %G?' origin/main..      # every commit G, none N
-# local gates: pytest, pre-commit run --all-files, the sphinx -W build
-git push origin <branch>:main
+gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
+  | xargs -I{} gh api repos/btclib-org/btclib/rulesets/{} \
+    --jq '{name, rules: [.rules[].type],
+           bypass: [.bypass_actors[] | .bypass_mode]}'
 ```
 
-Where the branch carries more than one commit it is squashed into a
-single signed commit first — `git reset --soft origin/main && git
-commit`, with `--author` where the branch is somebody else's, GitHub's
-button being what would otherwise have kept their name on it — and that
-commit is what the push fast-forwards. Squashing here rather than
-pressing the button is the whole of what keeps the signature the
-maintainer's: GitHub composes a squash server-side and signs it with its
-own web-flow key, while a push signs nothing and has nothing to sign, the
-commit arriving with the signature it already carried.
+`main-integrity` answers with an empty bypass list, and it is what makes
+an unsigned commit or a rewritten history unlandable by anyone, admin or
+not, through a pull request or otherwise.
 
-**The bypass is not the whole of the permission.** The classic protection
-still carries `required_pull_request_reviews` and its `strict` required
-checks, and what a push to `main` clears those with is `enforce_admins`
-being `false` and the pusher holding `admin`; the ruleset bypass alone
-would not be enough. So the path depends on two settings, and the fragile
-one is that: turning `enforce_admins` on closes the fast-forward whatever
-the ruleset says.
+**Two settings hold the door, not one.** The classic protection still
+carries `required_pull_request_reviews`, and what clears it for the
+maintainer is `enforce_admins` being `false` together with holding
+`admin` — the ruleset bypass alone would not be enough. Turning
+`enforce_admins` on would therefore deadlock every solo merge, the
+classic review requirement having no bypass list to be named in.
 
-**Whether GitHub reconciles the push depends on one thing: whether what
-lands is the sha the pull request names at that moment**, a pull request
-being marked merged when its head becomes reachable from the base branch.
-
-- **it names what lands** — the branch's own head is fast-forwarded,
-  whether it reached that shape as one commit or as a squash **pushed to
-  the branch first**, and a rebase force-pushed to the branch is this
-  case too. GitHub marks the pull request **Merged** on its own, the
-  `Closes #N` in its description closes the issue, and
-  `delete_branch_on_merge` takes the head branch a second later.
-- **it names something else** — the squash or the rebase was made locally
-  and pushed straight to `main`. What lands is an object no pull request
-  names, so nothing is reconciled and nothing is deleted: close it by
-  hand, and let the issue close from the `Closes #N` in the *commit
-  message*, which is the reason for the keyword to be there and not only
-  in the description.
-
-Which is an argument for pushing the squash to the branch before landing
-it: CI then runs on the very object that will land rather than on a head
-that never will, and the reconciliation does the closing. Both halves
-were measured here — #953 was squashed straight onto `main` and is
-**Closed** with `mergedAt: null`, its issue having closed twenty-two
-seconds earlier from the commit message, and #930 was deleted ahead of
-the reconciliation and came out Closed with its commit on `main` all the
-same.
+**Every landing is now a pull request GitHub merges**, which is what
+retires the question this section used to answer at length: whether the
+object arriving on `main` is the one the pull request names. It always
+is. GitHub marks the pull request **Merged**, the `Closes #N` in its
+description closes the issue, and `delete_branch_on_merge` takes the
+head branch a second later — with nothing left to close by hand, and no
+case where a commit lands that no pull request knows about.
 
 ## Merge methods
 
@@ -436,13 +408,13 @@ head. And a pull request **closed without merging** keeps its head branch:
 GitHub cannot know whether that work was abandoned or is waiting, so those
 are the ones still worth looking at now and then.
 
-A fast-forward is covered where GitHub reconciles it, the setting hanging
-on the merge GitHub records rather than on the one a button performed.
-Measured in btclib-secp256k1, whose configuration is this one: a squash
-pushed to the branch and then fast-forwarded was marked Merged at
-12:39:19 and had `head_ref_deleted` at 12:39:20, with nobody asking. What
-is left there is not to get ahead of it, #930 being what that costs; the
-deletion by hand belongs to the landing GitHub never sees.
+The setting hangs on the merge GitHub records, and every landing here is
+one it records, so nothing is left to delete by hand. Measured in
+btclib-secp256k1, whose configuration is this one: a pull request marked
+Merged at 12:39:19 had `head_ref_deleted` at 12:39:20, with nobody
+asking. The thing not to do is get ahead of it — #930 was deleted before
+the reconciliation and came out Closed rather than Merged, with its
+commit on `main` all the same.
 
 ## Token permissions
 

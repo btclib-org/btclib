@@ -1343,7 +1343,8 @@ only of what a press produces.
 
 **It is a setting and not a choice made once per pull request**, so
 there is no other button to read. REPOSITORY.md has it, what the other
-two would have cost, and the fast-forward exception above.
+two would have cost, and the ruleset that names `squash` as the only
+merge method it accepts.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

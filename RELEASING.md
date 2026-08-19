@@ -297,13 +297,11 @@ word, and step 1 asks it of both.
    the attestation that is the maintainer's own is the tag, which
    `git tag -s` signs.
 
-   This branch is the squashed case every time, a version bump and two
-   retitles never being one commit, so push the squash to the branch
-   before fast-forwarding it: the checks below then run on the object
-   that lands, and GitHub still marks the pull request Merged. Land the
-   squash straight from a worktree instead and nothing is reconciled —
-   the pull request has to be closed by hand, which is a surprise worth
-   not having between here and the tag.
+   This branch carries more than one commit every time, a version bump
+   and two retitles never being one, so the commit that lands is one
+   GitHub composes at the button and no local object matches it. That
+   is why the checks are read again below, on what `main` ends up at
+   rather than on the branch head they ran against.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:

@@ -44,7 +44,13 @@ documented at release-notes length in the first place, and are still in
   of the matrix: a button recreates rather than moves, GitHub's
   documentation saying rebase-and-merge "always updates the committer
   information and creates new commit SHAs", so the count of commits was
-  never what decided it.
+  never what decided it. `REPOSITORY.md`'s "maintainer's second path"
+  section goes with it: there is no second path, so what described one —
+  the push sequence, the two cases of whether GitHub reconciles what
+  landed, the deletion left to do by hand — is replaced by the one case
+  that remains. Every landing is a pull request GitHub merges, so the
+  `Closes #N` in the description always fires and the head branch always
+  goes.
 
 - **The review standard is written down, in `REVIEWING.md`.** What a review
   establishes before it gives an ack — the diff leaves the tree better
