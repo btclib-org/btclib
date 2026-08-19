@@ -269,19 +269,18 @@ The first four rows are what a merge waits for, and between them they report
 the four required checks: `lint` and `docs` share a row and report one each.
 
 What the other rows have in common is that a pull request does not wait for
-them, and the reason is one number: GitHub Free gives an organization twenty
-concurrent jobs. A commit used to ask for thirty-nine, and a repository at
-that ceiling spends a pull request's wall clock waiting for a slot rather
-than running the suite — measured over a working afternoon, nineteen or
-twenty jobs were running for 1375 of 2100 seconds. So a platform row earns
-its place before a review only if it is cheap to wait for: macOS queued 29.4
+them, and the reason is one number: the ceiling GitHub Free puts on an
+organization's concurrent jobs. REPOSITORY.md measures it and what it cost,
+and the consequence is this table's: at that ceiling a pull request's wall
+clock is the wait for a slot rather than the suite, so a platform row earns
+its place before a review only if it is cheap to wait for. macOS queued 29.4
 and 23.2 minutes on average against 0.5 to 1.6 elsewhere, and the fourteen
 Windows cells were 2357 of the 3556 seconds of matrix work per commit, the
 slowest rows and the longest queues. Both answer weekly and before a
 release instead, which is a regression sitting on `main` for at most a week
 against every review paying for it. `codeql` is there for the same
 arithmetic, with `zizmor` in `lint` still reading these workflows on every
-pull request; REPOSITORY.md has that trade in full.
+pull request.
 
 `macos` and `latest` share a morning half an hour apart, which is what makes
 the pair readable: red in both is the platform, red in `latest` alone is the
@@ -1315,18 +1314,16 @@ per landed change. A merge commit would put the branch's steps into
 `main` and a rebase merge would replay them one by one — `main` is linear
 by branch rule, and one change is one commit there.
 
-**How that commit reaches `main` is a push rather than a button**, which
-is the maintainer's own path and needs a ruleset bypass no contributor
-has: REPOSITORY.md describes it, squashing the branch locally where it
-carries more than one commit and fast-forwarding the result. It is worth
-knowing about from here for two reasons. The commit that lands is signed
-by the maintainer rather than by GitHub's web-flow key; and where what
-lands is the head CI ran on, its sha does not change, so a branch stacked
-on that one keeps applying where a squash composed at the merge would
-have rewritten its base. Which is why a correction added on top of a
-reviewed branch is still the right shape: whether the branch is squashed
-or fast-forwarded is decided when it lands, and by then the review has
-its record either way.
+**How that commit reaches `main` is the squash button**, pressed by
+auto-merge once the review and the checks are in. GitHub composes it and
+signs it with its web-flow key, which is a valid signature and therefore
+all the branch rule asks for. There is no other path: `main` takes a
+pull request and nothing else, a direct push being refused for everyone.
+REPOSITORY.md has the settings that make that true.
+
+Either way the decision belongs to the landing and not to the branch,
+which is why a correction added on top of a reviewed branch is still the
+right shape: by the time it is squashed the review has its record.
 
 What that commit says is the repository's to answer, not this file's:
 
@@ -1344,10 +1341,10 @@ and a squash made locally follows the same convention by hand, the
 setting being the statement of what the message should say rather than
 only of what a press produces.
 
-**It is a setting and not a choice made once per pull request.** Squash is
-the only *button* the repository enables, so there is no other to read;
-REPOSITORY.md has that setting, what the other two would have cost, and
-the fast-forward that is not a button at all.
+**It is a setting and not a choice made once per pull request**, so
+there is no other button to read. REPOSITORY.md has it, what the other
+two would have cost, and the ruleset that names `squash` as the only
+merge method it accepts.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/main` on a branch whose base has moved, which is how a

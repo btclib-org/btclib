@@ -288,23 +288,18 @@ word, and step 1 asks it of both.
    enforces, and a pull request that never mentions them reads exactly
    like one that skipped them.
 
-   And land it the way every other pull request here lands: squashed
-   locally into one signed commit where it carries more than one — a
-   version bump and two retitles, not a cycle of work, and
-   CONTRIBUTING.md gives the rest of the reason — and fast-forwarded onto
-   `main`, REPOSITORY.md having the sequence and the bypass it needs.
-   Squash is the only *button* the repository enables, and it is the
-   wrong landing here in particular: it is the release commit that gets
-   tagged, so a squash composed by GitHub would leave the tag over a
-   commit signed by the web-flow key rather than by the maintainer.
+   And land it the way every other pull request here lands: the squash
+   button, pressed by auto-merge once the review and the checks are in.
+   There is no other way in: `main` takes a pull request and nothing
+   else. That the commit under the tag carries GitHub's web-flow
+   signature rather than the maintainer's costs nothing: the branch rule
+   asks for a valid signature and not for a particular signer.
 
-   This branch is the squashed case every time, a version bump and two
-   retitles never being one commit, so push the squash to the branch
-   before fast-forwarding it: the checks below then run on the object
-   that lands, and GitHub still marks the pull request Merged. Land the
-   squash straight from a worktree instead and nothing is reconciled —
-   the pull request has to be closed by hand, which is a surprise worth
-   not having between here and the tag.
+   This branch carries more than one commit every time, a version bump
+   and two retitles never being one, so the commit that lands is one
+   GitHub composes at the button and no local object matches it. That
+   is why the checks are read again below, on what `main` ends up at
+   rather than on the branch head they ran against.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
