@@ -292,10 +292,8 @@ word, and step 1 asks it of both.
    button, pressed by auto-merge once the review and the checks are in.
    There is no other way in: `main` takes a pull request and nothing
    else. That the commit under the tag carries GitHub's web-flow
-   signature rather than the maintainer's costs nothing — the branch
-   rule asks for a valid signature and not for a particular signer, and
-   the attestation that is the maintainer's own is the tag, which
-   `git tag -s` signs.
+   signature rather than the maintainer's costs nothing: the branch rule
+   asks for a valid signature and not for a particular signer.
 
    This branch carries more than one commit every time, a version bump
    and two retitles never being one, so the commit that lands is one

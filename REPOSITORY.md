@@ -350,16 +350,12 @@ gh api repos/btclib-org/btclib \
 
 answers `true` for the first and `false` for the other two.
 
-**There is no second path: `main` is reachable through a pull request
-and nothing else.** The `main-self-merge` bypass is scoped to
-`pull_request` mode, so it excuses the maintainer from the approving
-review a solo repository cannot produce and excuses nothing else — a
-direct push is refused for everyone, holder of the bypass included. The
-ruleset also names `squash` as the only merge method it will accept, so
-the constraint is stated where the rule is and not only in a repository
-toggle a setting page can flip.
+**There is no second path**, the section above having the bypass mode
+that closes it and the ruleset entry that names `squash` as the only
+merge method the rule will accept.
 
-What that costs is a stacked pull request: once the parent lands, the
+What a pull request as the only way in costs is a stacked pull
+request: once the parent lands, the
 child's base is an object no longer on `main` — a button recreates
 rather than moves, GitHub's documentation saying rebase-and-merge
 "always updates the committer information and creates new commit SHAs"
@@ -412,9 +408,7 @@ The setting hangs on the merge GitHub records, and every landing here is
 one it records, so nothing is left to delete by hand. Measured in
 btclib-secp256k1, whose configuration is this one: a pull request marked
 Merged at 12:39:19 had `head_ref_deleted` at 12:39:20, with nobody
-asking. The thing not to do is get ahead of it — #930 was deleted before
-the reconciliation and came out Closed rather than Merged, with its
-commit on `main` all the same.
+asking.
 
 ## Token permissions
 
