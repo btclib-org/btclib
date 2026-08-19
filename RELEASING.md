@@ -293,10 +293,10 @@ word, and step 1 asks it of both.
    version bump and two retitles, not a cycle of work, and
    CONTRIBUTING.md gives the rest of the reason — and fast-forwarded onto
    `main`, REPOSITORY.md having the sequence and the bypass it needs.
-   Squash is the only *button* the repository enables, and it is the
-   wrong landing here in particular: it is the release commit that gets
-   tagged, so a squash composed by GitHub would leave the tag over a
-   commit signed by the web-flow key rather than by the maintainer.
+   The squash button REPOSITORY.md leaves enabled is the wrong landing
+   here in particular: it is the release commit that gets tagged, so a
+   squash composed by GitHub would leave the tag over a commit signed by
+   the web-flow key rather than by the maintainer.
 
    This branch is the squashed case every time, a version bump and two
    retitles never being one commit, so push the squash to the branch

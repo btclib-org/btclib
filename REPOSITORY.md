@@ -251,12 +251,12 @@ request: the four checks above with `strict`, one approving review,
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-That last one is what carries the review. A review cannot be satisfied by
-its author, GitHub not allowing self-approval, so on a solo-maintainer
-repository the rule as written stops every pull request the maintainer
-opens, and the bypass is what lets one merge at all. The trade is the
-review's other half: it is there for a contributor's pull request, where
-there *is* somebody else to ask.
+That last one is what carries the review. CONTRIBUTING.md states why a
+review cannot be satisfied by its author; the consequence here is that on
+a solo-maintainer repository the rule as written stops every pull request
+the maintainer opens, and the bypass is what lets one merge at all. The
+trade is the review's other half: it is there for a contributor's pull
+request, where there *is* somebody else to ask.
 
 Required signatures cost the maintainer nothing when a pull request is
 what lands on `main`: the only thing writing to it is a merge GitHub
@@ -364,29 +364,26 @@ same.
 
 ## Merge methods
 
-**Squash is the only *button* enabled**, so it is a setting and not only
-the convention CONTRIBUTING.md states:
+**No button is how a pull request lands here.** Every landing is the
+fast-forward of the sequence above, through the `main-self-merge` bypass,
+with the squash a multi-commit branch needs made locally before it. What
+that buys is what a button cannot: the commit is signed by the maintainer
+rather than by GitHub's web-flow key, and where what lands is the head CI
+ran on, its sha does not change either, so a branch stacked on it keeps
+applying instead of needing a rebase and a fresh run of the matrix per
+level.
+
+What the settings below bound is therefore a landing nobody drove from a
+shell, and **squash is the only *button* enabled**:
 
 ```shell
 gh api repos/btclib-org/btclib \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
 ```
 
-answers `true` for the first and `false` for the other two.
-
-It is not how a pull request lands at all, and this section named it as
-if it were while the section above it documented the other: **every
-landing is the fast-forward** of that sequence, through the
-`main-self-merge` bypass, with the squash a multi-commit branch needs
-made locally before it. What that buys is what a button cannot: the
-commit is signed by the maintainer rather than by GitHub's web-flow key,
-and where what lands is the head CI ran on, its sha does not change
-either, so a branch stacked on it keeps applying instead of needing a
-rebase and a fresh run of the matrix per level.
-
-The setting is what bounds a landing nobody drove from a shell: the
-auto-merge dropdown the next paragraph describes is what reaches the
-button, and GitHub's key is what signs whatever it presses.
+answers `true` for the first and `false` for the other two. The
+auto-merge dropdown below is what reaches that button, and GitHub's key
+is what signs whatever it presses.
 
 The merge commit was refused by the required linear history above already,
 so turning it off takes away a button that could not have worked. The

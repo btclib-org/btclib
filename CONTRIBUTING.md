@@ -269,19 +269,18 @@ The first four rows are what a merge waits for, and between them they report
 the four required checks: `lint` and `docs` share a row and report one each.
 
 What the other rows have in common is that a pull request does not wait for
-them, and the reason is one number: GitHub Free gives an organization twenty
-concurrent jobs. A commit used to ask for thirty-nine, and a repository at
-that ceiling spends a pull request's wall clock waiting for a slot rather
-than running the suite — measured over a working afternoon, nineteen or
-twenty jobs were running for 1375 of 2100 seconds. So a platform row earns
-its place before a review only if it is cheap to wait for: macOS queued 29.4
+them, and the reason is one number: the ceiling GitHub Free puts on an
+organization's concurrent jobs. REPOSITORY.md measures it and what it cost,
+and the consequence is this table's: at that ceiling a pull request's wall
+clock is the wait for a slot rather than the suite, so a platform row earns
+its place before a review only if it is cheap to wait for. macOS queued 29.4
 and 23.2 minutes on average against 0.5 to 1.6 elsewhere, and the fourteen
 Windows cells were 2357 of the 3556 seconds of matrix work per commit, the
 slowest rows and the longest queues. Both answer weekly and before a
 release instead, which is a regression sitting on `main` for at most a week
 against every review paying for it. `codeql` is there for the same
 arithmetic, with `zizmor` in `lint` still reading these workflows on every
-pull request; REPOSITORY.md has that trade in full.
+pull request.
 
 `macos` and `latest` share a morning half an hour apart, which is what makes
 the pair readable: red in both is the platform, red in `latest` alone is the

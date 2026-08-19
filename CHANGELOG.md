@@ -55,6 +55,26 @@ documented at release-notes length in the first place, and are still in
   own: it says which files to read, `REVIEWING.md` first.
   `check-manifest`'s ignore entry becomes `.claude/**`, `.claude/*` being
   one level and the commands now a directory deeper.
+- **Three facts that were in two files are in one.** The concurrency
+  ceiling and what it measured were stated in full in both
+  `CONTRIBUTING.md` and `REPOSITORY.md`, the first pointing at the
+  second and then repeating it anyway; `CONTRIBUTING.md` keeps the
+  consequence its workflow table is about — which rows a pull request
+  waits for, and the macOS and Windows figures that decided the other
+  rows — and REPOSITORY.md keeps the number. Self-approval was stated
+  from scratch in `REPOSITORY.md` where `CONTRIBUTING.md` already
+  states it, and now points. "Squash is the only button" was in three
+  files; `RELEASING.md` keeps only the reason it is the wrong landing
+  for a release, the tag going over a commit GitHub's key signed.
+
+- **`REPOSITORY.md`'s "Merge methods" no longer corrects itself in
+  place.** It opened by naming the squash button as how a pull request
+  lands, then said in the next paragraph that the section had done so
+  and that the landing is the fast-forward two headings above. Prose
+  that carries the history of its own edit is what
+  `CONTRIBUTING.md`'s "no history" rule is against: the section now
+  states the landing first and the button settings as what bounds a
+  landing nobody drove from a shell.
 
 - **The numeric mutation profile finishes its scope instead of sampling a
   fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
