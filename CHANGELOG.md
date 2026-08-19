@@ -596,6 +596,19 @@ documented at release-notes length in the first place, and are still in
   `github.head_ref`, set only for `pull_request` events and always the
   pull request's own branch regardless of how it closed, so the closed
   event lands in its own group and the push run is never contended.
+- **The workflow comments still named `test-py` and `dist-py`, the jobs
+  renamed `suite` and `dist`.** CHANGELOG.md, CONTRIBUTING.md and
+  RELEASING.md were corrected at the rename; the workflow files' own
+  comments were not, and they are where a reader following a
+  cross-reference ends up. Nine workflows' checkout step read `see the
+  checkout of the test-py job in test.yml` -- a job `test.yml` no longer
+  has -- in `docs.yml`, `hwi-integration.yml`, `integration.yml`,
+  `latest.yml`, `links.yml`, `lint.yml`, `mutation.yml`, `release.yml`
+  and `website.yml`; `release.yml`'s prose about what `dist` builds and
+  checks, and `published.yml`'s about its blind spot, said `dist-py` in
+  nine more places. Nothing fails on either: `actionlint` reads the YAML
+  and not the comments, and the `needs:` graph uses the real ids, which
+  is how it survived (issue #1004).
 
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**

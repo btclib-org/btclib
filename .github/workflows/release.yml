@@ -50,7 +50,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the test-py job in test.yml
+          # see the checkout of the suite job in test.yml
           persist-credentials: false
           # the whole history, where every other checkout in these
           # workflows takes the default single commit: the ancestry check
@@ -307,14 +307,14 @@ jobs:
           # uv.lock, which otherwise declared the unsuffixed version inside
           # a distribution named for the suffixed one
           uv lock
-      # one thing the rehearsal does not cover, deliberately: dist-py, in
+      # one thing the rehearsal does not cover, deliberately: dist, in
       # the workflow this one calls, validates the tree as committed, while
       # this job ships the suffixed version, so twine and pyroma never see
       # the metadata that reaches TestPyPI. What they judge is metadata
       # syntax, README rendering and metadata quality, and a .dev<N> suffix
       # is valid PEP 440 that changes none of them. The smoke test below is
       # the exception, and the reason it is below rather than left to
-      # dist-py: it installs the suffixed wheel itself. Should a packaging
+      # dist: it installs the suffixed wheel itself. Should a packaging
       # check ever become version-sensitive, the suffix has to be plumbed
       # into test.yml as a workflow_call input instead
       # uv build builds the sdist first and then the wheel from it, not
@@ -322,7 +322,7 @@ jobs:
       # from source takes is therefore the one that produced the wheel,
       # which is why no separate "install from the sdist" job is needed.
       # What this job does not do is inspect what it builds: twine,
-      # check-wheel-contents and pyroma run in the dist-py job of the
+      # check-wheel-contents and pyroma run in the dist job of the
       # test workflow, which this workflow calls, so they gate every
       # pull request as well as this one tag. check-manifest is a
       # pre-commit hook, gated by the lint workflow, which this one calls
@@ -389,26 +389,26 @@ jobs:
         with:
           name: sbom
           path: sbom/
-      # dist-py installs a wheel too, but not this one: it builds its own
+      # dist installs a wheel too, but not this one: it builds its own
       # copy, on another runner and -- in a rehearsal -- from another
       # version, the step above having patched pyproject.toml and
       # re-locked. What reaches an index is this artifact, so this one is
       # imported, from an empty directory so the import resolves to the
       # wheel and not to the btclib/ source tree.
-      # Unconstrained, where dist-py pins the runtime dependencies to
+      # Unconstrained, where dist pins the runtime dependencies to
       # uv.lock: no pull request waits on this job, so it can afford the
       # question a required check cannot -- whether the newest published
       # btclib_secp256k1 satisfies the wheel about to be published,
       # which is what a user installing it resolves. A release stopping
       # on that answer is the outcome wanted.
-      # The three assertions are dist-py's, and there for the same
+      # The three assertions are dist's, and there for the same
       # reasons: metadata can be missing (issue #150), `import btclib`
       # runs only __init__.py and touches no binding, and a bindings
       # release can install and still answer wrongly
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           cd "$RUNNER_TEMP"
-          # `set --` for the reason dist-py's copy of this states: the
+          # `set --` for the reason dist's copy of this states: the
           # positional parameters are sh, bash and zsh alike, where a
           # named array is 0-indexed in one and 1-indexed in another
           set -- "$GITHUB_WORKSPACE"/dist/*.whl

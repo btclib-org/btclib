@@ -12,7 +12,7 @@ name: published
 # btclib/*/_data/ -- the twelve BIP39 wordlists among them -- are opened
 # by path at the first call that needs one, not imported, so a wheel
 # missing one of them installs cleanly, imports cleanly, and only fails
-# there. dist-py's smoke test and release.yml's share that blind spot;
+# there. dist's smoke test and release.yml's share that blind spot;
 # this workflow's second check is the one that does not have it.
 #
 # Version-independent on purpose, checking a BIP39 vector and a BIP340
@@ -159,7 +159,7 @@ jobs:
         run: |
           uv venv --python ${{ matrix.python }}
           uv pip install --verbose btclib
-      # BIP340 vector 0 for the ecc surface, exactly what dist-py and
+      # BIP340 vector 0 for the ecc surface, exactly what dist and
       # release.yml already assert; a signature round trip is the one
       # thing an import cannot get wrong by itself, and a bindings release
       # that installs and answers incorrectly is what this catches
