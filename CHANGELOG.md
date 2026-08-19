@@ -629,6 +629,30 @@ documented at release-notes length in the first place, and are still in
   nine more places. Nothing fails on either: `actionlint` reads the YAML
   and not the comments, and the `needs:` graph uses the real ids, which
   is how it survived (issue #1004).
+- **`test.yml`'s aggregate no longer turns a superseded run into a failed
+  required check, and no longer goes green while a step of its own was
+  silently skipped.** Two separate defects, both in `test-passed`.
+  Issue #1025: the job carried `if: always()`, and its one step failed
+  on `contains(needs.*.result, 'cancelled')` -- so a run the concurrency
+  group cancelled in favour of a newer push reported a **failure** that
+  described no defect, sometimes leaving a red and a green check of the
+  same name on the same head sha. The job condition is now
+  `!cancelled()`, which answers for the run itself rather than walking
+  `needs` the way `failure()` does, so the job skips -- and a skipped
+  job satisfies a required check -- only when the run as a whole was
+  superseded; a dependency that failed, or was individually cancelled
+  while the run was not, still reaches the step below. Issue #1001: that
+  step was gated by a boolean `contains(needs.*.result, ...)` expression,
+  and on a run where four `suite` cells died in "Set up job" on an
+  action download's HTTP 429, `needs.suite.result` was not `'failure'`
+  by that expression's reckoning, so the step was skipped and the job
+  reported **success** with the run's own conclusion `failure`. The step
+  is now unconditional and loops over `needs.*.result` in the shell,
+  echoing what it saw before failing on anything but `success` -- so it
+  cannot itself be skipped out from under the job, and the log carries
+  the evidence the next time a run's conclusion and this check disagree.
+  `REPOSITORY.md` records the aggregate's resulting semantics and the
+  command to read a run's own job list when the two disagree.
 
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**
