@@ -1696,6 +1696,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`dsa.assert_as_valid_` and `ssa.assert_as_valid_` keep disagreeing on
+  the message, on purpose** (issue #998). Both raise
+  `BTClibRuntimeError` on either arm for an invalid signature, which is
+  the contract; the delegated arm always says "signature verification
+  failed", the one sentence a libsecp256k1 bool leaves room for, while
+  the Python arm names which check failed -- "y_K is odd", "invalid
+  (INF) key" -- because it has the arithmetic to say so. Left as is
+  rather than squared either way: silencing the Python arm's diagnosis
+  for a cosmetic match costs real information, and having the delegated
+  arm re-run the failing verification in Python to recover it costs a
+  second verification pass on a path a caller catching
+  `BTClibRuntimeError` may hit often. A comment at each raise records the
+  decision, `dsa` and `ssa` read the same way as the issue asked.
+
 - **The Python arm's inventory of authorities that are not the bindings**
   (issue #993). The suite validates the Python arithmetic *against*
   libsecp256k1, which is right for btclib and is exactly the circle a
