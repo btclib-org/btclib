@@ -7,9 +7,6 @@
 import hmac
 import itertools
 import re
-import sys
-import types
-from collections.abc import Callable
 from dataclasses import FrozenInstanceError, fields, replace
 from typing import Any
 
@@ -48,9 +45,9 @@ from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import (
     bytes_from_point,
     bytes_from_prv_key_int,
-    # the module: `_libsecp256k1_available` is an attribute of it, and
-    # clearing it is how the two tests below reach the Python arm
-    curve,
+    # the module: `mod_sqrt_var` is a function on it, and patching it to
+    # raise is how the test below pins that validating an xpub takes no
+    # modular square root
     curve_group,
     mult,
     point_from_octets,
@@ -62,7 +59,7 @@ from btclib.hashes import hash160
 from btclib.network import NETWORKS
 from btclib.to_pub_key import pub_keyinfo_from_key
 from tests import load, needs_bindings, replace_unchecked, vector_id
-from tests.curves.curve_test import no_bindings
+from tests.curves.curve_test import no_bindings, no_bindings_anywhere
 
 
 def test_exceptions() -> None:
@@ -815,11 +812,13 @@ def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> 
     arm. Construction is a thing to check rather than to trust, and a
     per-operation dispatch would end it without touching this file.
 
-    Checked by putting the whole of btclib_secp256k1 out of reach, which
-    takes both halves: the package's own callables, for a caller holding
-    the module and reaching through it as bip32 does, and every name
-    btclib has already bound from it, `from ... import x as y` having
-    copied the object rather than looked it up again.
+    `no_bindings_anywhere` is the check, generic to any arm of this shape:
+    it puts the whole of btclib_secp256k1 out of reach, which takes both
+    halves -- the package's own callables, for a caller holding the module
+    and reaching through it as bip32 does, and every name btclib has
+    already bound from it, `from ... import x as y` having copied the
+    object rather than looked it up again -- and switches the dispatch
+    off.
 
     Not the same thing as `no_bindings_bip32` below, which switches the
     dispatch off and refuses bip32's own module: this refuses what every
@@ -835,33 +834,14 @@ def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> 
         pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2"),
     )
 
-    def refuse(what: str) -> Callable[..., Any]:
-        def asked(*_args: object, **_kwargs: object) -> Any:
-            # a green suite is one where this never runs
-            raise AssertionError(  # pragma: no cover
-                f"the Python arm reached libsecp256k1: {what}"
-            )
+    no_bindings_anywhere(monkeypatch)
 
-        return asked
-
-    for mod_name, mod in list(sys.modules.items()):
-        if mod_name.split(".")[0] not in {"btclib", "btclib_secp256k1"}:
-            continue
-        for attr, value in list(vars(mod).items()):
-            if isinstance(value, types.ModuleType) or not callable(value):
-                continue
-            origin = getattr(value, "__module__", None) or ""
-            if origin.split(".")[0] == "btclib_secp256k1":
-                monkeypatch.setattr(mod, attr, refuse(f"{mod_name}.{attr}"))
-
-    # the two bip32 itself would have called, so that a loop reaching
+    # the two bip32 itself would have called, so that a walk reaching
     # nothing would fail here rather than pass by touching nothing
     with pytest.raises(AssertionError, match="reached libsecp256k1"):
         libsecp256k1_keys.prvkey_tweak_add(b"\x01" * 32, b"\x02" * 32)
     with pytest.raises(AssertionError, match="reached libsecp256k1"):
         libsecp256k1_keys.PubkeyTweakChain(b"\x02" + b"\x01" * 32)
-
-    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
 
     assert (
         derive(rootxprv, "m/0h/1/2h"),

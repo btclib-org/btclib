@@ -106,6 +106,32 @@ used to teach and to prototype as much as to build:
     or xpub string handed to `derive` or `derive_from_account`: the
     decoded key stays reachable from that cache, bounded by its
     `maxsize`, past whatever reference the caller itself still holds
+- the bindings also let a caller own the buffer a secret is written
+    into: a keyword-only `into=`, on every entry point that produces
+    one — `keys.prvkey_negate`, `keys.prvkey_tweak_add`,
+    `keys.prvkey_tweak_mul`, `xonly.prvkey_tweak_add`,
+    `ecdh.shared_secret`, `ellswift.xdh`, `dsa.nonce_rfc6979` and
+    `ssa.nonce_bip340`. btclib passes none of them, and that is a
+    decision, not an oversight. Three call sites read one of those
+    straight into a Python `int`: `bip32.derive`
+    (`btclib/bip32/bip32.py:624`), `commit_nonce.commit_nonce_`
+    (`btclib/ecc/commit_nonce.py:145`) and `taproot._tweaked_prvkey`
+    (`btclib/script/taproot.py:429`). A caller-owned buffer can be
+    wiped once the call that filled it returns; the `int` it is read
+    into cannot be, and outlives the call regardless —
+    `bip32.derive` keeps `prv_key_int` for the life of the key
+    object — so taking the buffer at these three would cost a public
+    signature and buy nothing, short of btclib no longer holding a
+    private key as a Python `int`, which is a change to that
+    representation and not to a call site. `ellswift.xdh`
+    (`btclib/ecc/ellswift.py:346`) is the one of them that returns
+    octets rather than an `int`, so a caller-owned buffer there would
+    hold what it wiped: taking it means growing `xdh`'s public
+    signature with `into=` and owning the contract that comes with
+    it — a buffer too short, a buffer that is not writable, what the
+    function then returns. btclib declines that too, for the reason
+    the bullet above already gives: no Python object holding a secret
+    is zeroized, on either path, and this one is no exception to it
 - the boundary is not always there, and an install decides whether it
     is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
     the guide give -- installs the bindings, and everything the next

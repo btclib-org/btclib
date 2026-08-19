@@ -7,9 +7,13 @@
 import copy
 import functools
 import itertools
+import sys
+import types
+from collections.abc import Callable
 from functools import partial
 from hashlib import sha256, sha512
 from math import ceil, isqrt, sqrt
+from typing import Any
 
 import pytest
 
@@ -1005,6 +1009,52 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     # a class rather than a function, which is the one dispatch that
     # builds an object instead of calling through
     monkeypatch.setattr(curve, "Libsecp256k1PubkeyTweakChain", refuse)
+
+
+def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Put every already-bound btclib_secp256k1 callable out of reach.
+
+    `no_bindings` above answers for `curve.py`'s own six names and the one
+    class beside them, which is what every arm gated on the curve and the
+    hash function alone reaches through. An arm gated on availability
+    alone can hold a binding of its own a module further out --
+    `bip32.bip32` imports `keys`, `script.taproot` imports `xonly`,
+    `ecc.bms` imports `dsa`, whose own `_libsecp256k1_recover_sec_` binds
+    `recovery` -- and `from ... import x as y` copies the object rather
+    than looking it up again, so a patch on the module the bindings live
+    in does not reach a name already copied out of it.
+
+    So this walks every module already loaded under `btclib` or
+    `btclib_secp256k1` and replaces every callable there whose
+    `__module__` traces back to the bindings with one that raises,
+    whichever module holds the name; `_libsecp256k1_available` is cleared
+    alongside it, since a caller with the flag still on and every name
+    unreachable is not the configuration a missing install produces. An
+    arm this does not cover fails by calling through instead of passing
+    by measuring the bindings against themselves.
+    """
+
+    def refuse(what: str) -> Callable[..., Any]:
+        def asked(*_args: object, **_kwargs: object) -> Any:
+            # a green suite is one where this never runs, the same pragma
+            # no_bindings above carries for a call the dispatch rules out
+            raise AssertionError(  # pragma: no cover
+                f"the Python arm reached libsecp256k1: {what}"
+            )
+
+        return asked
+
+    for mod_name, mod in list(sys.modules.items()):
+        if mod_name.split(".")[0] not in {"btclib", "btclib_secp256k1"}:
+            continue
+        for attr, value in list(vars(mod).items()):
+            if isinstance(value, types.ModuleType) or not callable(value):
+                continue
+            origin = getattr(value, "__module__", None) or ""
+            if origin.split(".")[0] == "btclib_secp256k1":
+                monkeypatch.setattr(mod, attr, refuse(f"{mod_name}.{attr}"))
+
+    monkeypatch.setattr(curve, "_libsecp256k1_available", False)
 
 
 @pytest.mark.parametrize(

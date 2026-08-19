@@ -103,6 +103,40 @@ documented at release-notes length in the first place, and are still in
   states the landing first and the button settings as what bounds a
   landing nobody drove from a shell.
 
+- **Seven more mutation profiles filter the deferred-annotation `BitOr`
+  class already named in each one's own report** (issue #987):
+  `bip32.toml`, `block.toml`, `bms.toml`, `fetch.toml`, `mnemonic.toml`,
+  `numeric.toml` and `signatures.toml`. Each was measured rather than
+  assumed, the way `script.toml`'s own comment on the same exclusion
+  argues: `grep -n ' | '` over the scope's modules, confirming every hit
+  is an annotation, and `cosmic_ray.tools.filters.operators_filter` run
+  locally against the configuration, confirming the mutants it marks
+  `SKIPPED` are exactly those the file's own prose already found
+  equivalent by inspection — 22 to 880 of them per profile today, at or
+  above what each session originally reported, the difference where the
+  file has grown since.
+  Left unfiltered, checked the same way and found to carry real `|`
+  arithmetic rather than annotations alone: `bip322.toml` (script-flag
+  combination), `codecs.toml` (`bech32`'s bit-packing), `engine.toml`
+  (the same script-flag combination), `sig_hash.toml`
+  (`ANYONECANPAY | ALL` and its siblings) and `curve_group.toml` (GLV
+  scalar recoding and set union).
+
+  Measuring `bms.toml` this way turned up a second, unrelated error in
+  its own comment: "496 of the 977 mutants sampled" was never what
+  `cosmic-ray init` enumerates for that file, on any commit or
+  cosmic-ray version checked — 496 is complete, and 977 does not belong
+  to it. `mutation.yml`'s job comment carried the same 977 for
+  `bip322.toml` too; both are corrected to their actual counts, 496 and
+  552.
+
+  `curve_group.toml` itself was written for issue #822 and never wired
+  into a job — `mutation.yml`'s matrix named twenty of the twenty-one
+  configurations under `.github/mutation/`, and `cosmic-ray init` over
+  this one enumerates 5529 mutants for nothing every week. A twelfth
+  job, `curves`, runs it now, budgeted like `signatures.toml`'s own job
+  for a scope nearly double that pair's size.
+
 - **The numeric mutation profile finishes its scope instead of sampling a
   fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
   and its session budget 25 minutes rather than 15. About one mutant in
@@ -3588,6 +3622,27 @@ documented at release-notes length in the first place, and are still in
   and `BOS_COSTER_THRESHOLD` sends the call to Bos-Coster, which builds no
   table at all.
 
+### Security
+
+- **`SECURITY.md` says the bindings offer a buffer for a secret, and
+  that btclib takes none of them** (issue #973). `btclib_secp256k1`
+  lets a caller own the buffer a secret is written into, a
+  keyword-only `into=` on eight entry points that produce one, and
+  btclib passes none of them at the four call sites of its own that
+  could. At three of the four — `bip32.derive`,
+  `commit_nonce.commit_nonce_` and `taproot._tweaked_prvkey` — the
+  answer becomes a Python `int` one line later regardless, and an
+  `int` is not zeroizable and outlives the call, so the buffer would
+  buy nothing there without a change to how btclib holds a private
+  key. `ellswift.xdh` is the fourth, and the one that returns octets
+  rather than an int, so it is the one site where the buffer could
+  matter on its own terms — and btclib declines it there too, rather
+  than grow a public signature and own the contract that comes with
+  it. No code changed: the limitation `SECURITY.md` already stated
+  covers the consequence, and this entry is what makes not using
+  `into=` a decision on the record rather than something nobody
+  noticed.
+
 ### The public API and the module layout
 
 - **BIP32 derivation has a spelling that does not go through Base58Check**
@@ -6298,6 +6353,22 @@ documented at release-notes length in the first place, and are still in
   above does not show.
 
 ### Tests
+
+- **A recorder per bindings signing call site asserts what `verify` it
+  crosses with** (issue #986). `dsa.sign_`'s delegated arm, its
+  `sign_recoverable_`, and `ssa.sign_`'s all cross into the bindings with
+  a `verify` keyword, and the keyword changes no output byte -- the
+  bindings' own suite states that as the reason a signature can never
+  tell which value was passed. Nothing else here can either, so each
+  crossing is recorded and the value it received is asserted directly:
+  `test_the_delegated_arm_asks_the_bindings_to_verify` holds `dsa.sign_`
+  to one crossing per call, carrying the caller's own `verify`, whether
+  it grinds or not; `test_sign_recoverable_asks_the_bindings_to_verify`
+  holds the hardcoded `verify=True` `sign_recoverable_` writes there
+  rather than leaving to the bindings' default; and
+  `test_the_delegated_arm_forwards_verify` holds `ssa.sign_`'s to the
+  caller's own value too, beside the existing recorder that already held
+  the keyword itself to being forwarded and not dropped.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a

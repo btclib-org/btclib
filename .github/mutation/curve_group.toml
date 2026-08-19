@@ -34,10 +34,13 @@ timeout = 300
 excluded-modules = []
 
 # no session has run yet. `cosmic-ray init` over this file enumerates
-# 5548 mutants, more than double signatures.toml's dsa.py/ssa.py pair at
-# 2475 -- sampled there rather than finished, and likely sampled here
-# too. The wall clock a sample takes, and what it finds, are issue
-# #822's follow-up rather than a guess written down here in their place
+# 5529 mutants today (5548 when this profile was written, both modules
+# having changed some since -- re-checked for issue #987, which is what
+# wires this profile into a job at last), nearly double
+# signatures.toml's dsa.py/ssa.py pair at 2980 -- sampled there rather
+# than finished, and likely sampled here too. The wall clock a sample
+# takes, and what it finds, are issue #822's follow-up rather than a
+# guess written down here in their place
 
 [cosmic-ray.distributor]
 name = "local"
