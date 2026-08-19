@@ -3555,6 +3555,27 @@ documented at release-notes length in the first place, and are still in
   and `BOS_COSTER_THRESHOLD` sends the call to Bos-Coster, which builds no
   table at all.
 
+### Security
+
+- **`SECURITY.md` says the bindings offer a buffer for a secret, and
+  that btclib takes none of them** (issue #973). `btclib_secp256k1`
+  lets a caller own the buffer a secret is written into, a
+  keyword-only `into=` on eight entry points that produce one, and
+  btclib passes none of them at the four call sites of its own that
+  could. At three of the four — `bip32.derive`,
+  `commit_nonce.commit_nonce_` and `taproot._tweaked_prvkey` — the
+  answer becomes a Python `int` one line later regardless, and an
+  `int` is not zeroizable and outlives the call, so the buffer would
+  buy nothing there without a change to how btclib holds a private
+  key. `ellswift.xdh` is the fourth, and the one that returns octets
+  rather than an int, so it is the one site where the buffer could
+  matter on its own terms — and btclib declines it there too, rather
+  than grow a public signature and own the contract that comes with
+  it. No code changed: the limitation `SECURITY.md` already stated
+  covers the consequence, and this entry is what makes not using
+  `into=` a decision on the record rather than something nobody
+  noticed.
+
 ### The public API and the module layout
 
 - **BIP32 derivation has a spelling that does not go through Base58Check**
