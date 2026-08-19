@@ -21,6 +21,24 @@ timeout = 300
 
 excluded-modules = []
 
+# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# Measured rather than assumed, as script.toml's own comment on this
+# exclusion asks:
+#
+#   grep -n ' | ' btclib/fetch/transport.py btclib/fetch/esplora.py \
+#       btclib/fetch/bitcoin_core.py btclib/fetch/fetcher.py
+#
+# Every hit is an annotation. Confirmed by running the filter itself
+# rather than by the grep alone: `cosmic-ray init` over this file still
+# enumerates the 177 mutants the session below did, and
+# `cosmic_ray.tools.filters.operators_filter` marks 55 of them SKIPPED
+# -- the same 55 the session below already found equivalent by
+# inspection, and the "class fetch.toml documents" every other
+# profile's own comment points back to -- leaving 122 for a future
+# session to have an opinion about (issue #987).
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
 # 177 mutants, complete: 114 killed, 63 survived. One of the 63 is killed
 # now -- `chain_from_network(self.network) != "signet"` weakened to `<`,
 # which accepted a challenge for the two testnets whose chain names sort

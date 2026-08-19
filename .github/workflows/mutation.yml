@@ -42,7 +42,7 @@ on:
     inputs:
       profile:
         # one scope's numbers are what a question about that scope needs,
-        # and without this the only way to ask is the whole matrix: eleven
+        # and without this the only way to ask is the whole matrix: twelve
         # runners and, at the consensus job's ceiling, most of an
         # afternoon. Re-measuring one configuration -- a budget changed, a
         # timeout argued about, a survivor that moved -- is worth minutes
@@ -65,6 +65,7 @@ on:
           - block
           - shared
           - signatures
+          - curves
           - descriptors
           - psbt
           - script
@@ -225,6 +226,20 @@ jobs:
             ceiling: 100
             sessions: |
               signatures.toml 90m
+          # the pure-Python point arithmetic under the two signing modules
+          # above: 5548 mutants, more than double their pair, and written
+          # for issue #822 -- which this scope answers and signatures.toml's
+          # own header still names as the profile with none of it yet --
+          # but never added to a job of its own, so no session has run it.
+          # 90 minutes, matching signatures.toml's budget for a scope more
+          # than double the size, is a first sample rather than a measured
+          # one; what it finds is #822's follow-up, the same note
+          # curve_group.toml itself makes
+          - profile: the pure-Python curve arithmetic
+            slug: curves
+            ceiling: 100
+            sessions: |
+              curve_group.toml 90m
           # output descriptors and miniscript, and the largest scope in
           # this matrix by a factor of three: 10831 mutants, of which the
           # first session judged 383 in 31 minutes -- 4.9 s each with four
