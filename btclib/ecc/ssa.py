@@ -827,14 +827,12 @@ def _assert_as_valid_(
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
     #
-    # This arm names which BIP340 check failed, where the delegated one
-    # at assert_as_valid_'s libsecp256k1_ssa.verify call can only say
-    # "signature verification failed" -- it has a bool to work with and
-    # this function has the arithmetic. Kept deliberately unequal rather
-    # than squared either way: silencing the diagnosis here for a
-    # cosmetic match, or re-deriving it on the delegated arm by re-running
-    # the failing verification in Python, are the other two options
-    # issue 998 weighs and declines
+    # This arm names which check failed, "y_K is odd" here and
+    # "signature verification failed" below, where the delegated one at
+    # assert_as_valid_'s libsecp256k1_ssa.verify call always says the
+    # latter -- it has a bool to work with and this function has the
+    # arithmetic. Left unequal on purpose (issue 998, dsa.py's own
+    # `_assert_as_valid_` reading the same for the reason stated there)
     if ec.y_aff_from_jac_var(KJ) % 2:
         raise BTClibRuntimeError("y_K is odd")
 
