@@ -256,6 +256,7 @@ read by every checkout of this repository.
 | `lint`, `docs` | pull request, push | — |
 | `integration` | pull request, push | a node, two device emulators |
 | `website` | pull request, push, on website files | — |
+| `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | push to main, Tuesday | 2 languages |
 | `windows` | Saturday, a release | 2 Windows images × 7 interpreters |
 | `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
@@ -290,6 +291,9 @@ Wednesday the queue this arrangement exists to remove. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for `codeql` and
 the two platform workflows it is the only way to ask about a branch at all.
+`claude-review` is the exception, and takes none: both its jobs read the
+pull request or the comment that triggered them, so a manual dispatch
+would start a run with nothing to read.
 
 ### Reproducing what CI runs
 
