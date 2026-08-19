@@ -8,6 +8,13 @@ permissions, publishing environments, secret scanning — is in
 `REPOSITORY.md`. Read that file before changing a workflow, a branch rule
 or a repository setting. Writing code does not need it.
 
+Reviewing a pull request — what a review establishes before it gives an
+ack, what a finding must contain, and why everything it notices that the
+diff is not about becomes an issue rather than a comment — is
+`REVIEWING.md`, and `/review` is that file as a command. Read it before
+reviewing a pull request, and before opening one: it is what the pull
+request will be answered against.
+
 ## Commands
 
 uv is the only tool that must be installed; it fetches interpreters,

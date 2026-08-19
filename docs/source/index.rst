@@ -11,6 +11,7 @@ btclib documentation
    GUIDE <guide>
    PYTHON PACKAGE <modules>
    CONTRIBUTING <contributing_link.md>
+   REVIEWING <reviewing_link.md>
    SECURITY <security_link.md>
    PACKAGE CONTENT POLICY <package-content-policy.md>
    HISTORY <history_link.md>

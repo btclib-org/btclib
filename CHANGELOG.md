@@ -24,6 +24,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The review standard is written down, in `REVIEWING.md`.** What a review
+  establishes before it gives an ack — the diff leaves the tree better
+  than it found it, which is not the diff the reviewer would have
+  written — what a finding says and how it labels its severity, and what
+  becomes of everything a reviewer notices that the diff is not about:
+  every collateral finding is filed as an issue rather than asked for in
+  a comment, a finding the author cannot address without leaving the
+  subject being a round of review spent on what the pull request was not
+  for. A fix small enough to read at a glance is proposed as a
+  `suggestion` block rather than described, the commit GitHub writes for
+  an accepted one carrying its web-flow signature, which is the valid
+  signature `main` asks for, and landing on top of the branch rather
+  than amending it. It states no new rule: the rules it cites stay in
+  the files that state them, and it names the line rather than keeping a
+  copy. Registered the way `CONTRIBUTING.md` is, being its other half —
+  published on btclib.org, a page of the sphinx toctree through a
+  `reviewing_link.md` shim, and named from the README. The name is the
+  gerund `CONTRIBUTING.md` and `RELEASING.md` already use: `REVIEW.md`
+  reads as one review rather than as the standard for reviewing.
+
+- **`REVIEWING.md` reaches the tooling that reviews, which reads
+  `CLAUDE.md` and not it.** No file in a repository root is discovered by
+  name for this — the review command of Claude Code's own `code-review`
+  plugin gathers the root `CLAUDE.md` and the ones under the directories
+  a pull request touched, and nothing else — so a review standard nothing
+  points at is read by nobody automatic. `CLAUDE.md` now names it, and
+  `.claude/commands/review.md` is that file as the `/review` command,
+  tracked so that a checkout has it. The command holds no rule of its
+  own: it says which files to read, `REVIEWING.md` first.
+  `check-manifest`'s ignore entry becomes `.claude/**`, `.claude/*` being
+  one level and the commands now a directory deeper.
+
 - **The numeric mutation profile finishes its scope instead of sampling a
   fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
   and its session budget 25 minutes rather than 15. About one mutant in
