@@ -15,7 +15,33 @@ timeout = 300
 
 excluded-modules = []
 
-# 496 of the 977 mutants sampled in 1200 s: 360 killed, 136 survived. 66
+# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# Measured rather than assumed, as script.toml's own comment on this
+# exclusion asks:
+#
+#   grep -n ' | ' btclib/ecc/bms.py
+#
+# Every hit outside the docstring's own recovery-flag table is an
+# annotation -- none of the arithmetic the session below found
+# equivalent for `+`/`|`/`^` is a literal `|` in the source, that being
+# a mutation of `+` and not of this operator. Confirmed by running the
+# filter itself: `cosmic-ray init` over this file enumerates 494
+# mutants today, close to the 496 the session below completed, and
+# `cosmic_ray.tools.filters.operators_filter` marks 66 of them SKIPPED
+# -- the same 66 that session already found equivalent by inspection --
+# leaving 428, so a future session does not spend a run on them (issue
+# #987).
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 496 mutants, complete: 360 killed, 136 survived. Its own comment once
+# read "496 of the 977 sampled in 1200 s" -- 977 was never what
+# `cosmic-ray init` enumerates for this file, on any commit or cosmic-ray
+# version checked, and 360 + 136 already equals the 496 above it, which
+# is what a complete session looks like rather than a partial one.
+# `mutation.yml`'s own comment on the job this profile runs in carried
+# the same 977, for bip322.toml too, and is corrected there as well
+# (issue #987, caught incidentally while adding the exclusion above). 66
 # are the deferred-annotation class fetch.toml documents, 5 the keyword-
 # only marker, 2 an `is` CPython's small-int cache makes indistinguishable
 # from `==`.

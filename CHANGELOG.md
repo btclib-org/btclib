@@ -56,6 +56,40 @@ documented at release-notes length in the first place, and are still in
   `check-manifest`'s ignore entry becomes `.claude/**`, `.claude/*` being
   one level and the commands now a directory deeper.
 
+- **Seven more mutation profiles filter the deferred-annotation `BitOr`
+  class already named in each one's own report** (issue #987):
+  `bip32.toml`, `block.toml`, `bms.toml`, `fetch.toml`, `mnemonic.toml`,
+  `numeric.toml` and `signatures.toml`. Each was measured rather than
+  assumed, the way `script.toml`'s own comment on the same exclusion
+  argues: `grep -n ' | '` over the scope's modules, confirming every hit
+  is an annotation, and `cosmic_ray.tools.filters.operators_filter` run
+  locally against the configuration, confirming the mutants it marks
+  `SKIPPED` are exactly those the file's own prose already found
+  equivalent by inspection — 22 to 880 of them per profile today, at or
+  above what each session originally reported, the difference where the
+  file has grown since.
+  Left unfiltered, checked the same way and found to carry real `|`
+  arithmetic rather than annotations alone: `bip322.toml` (script-flag
+  combination), `codecs.toml` (`bech32`'s bit-packing), `engine.toml`
+  (the same script-flag combination), `sig_hash.toml`
+  (`ANYONECANPAY | ALL` and its siblings) and `curve_group.toml` (GLV
+  scalar recoding and set union).
+
+  Measuring `bms.toml` this way turned up a second, unrelated error in
+  its own comment: "496 of the 977 mutants sampled" was never what
+  `cosmic-ray init` enumerates for that file, on any commit or
+  cosmic-ray version checked — 496 is complete, and 977 does not belong
+  to it. `mutation.yml`'s job comment carried the same 977 for
+  `bip322.toml` too; both are corrected to their actual counts, 496 and
+  552.
+
+  `curve_group.toml` itself was written for issue #822 and never wired
+  into a job — `mutation.yml`'s matrix named twenty of the twenty-one
+  configurations under `.github/mutation/`, and `cosmic-ray init` over
+  this one enumerates 5529 mutants for nothing every week. A twelfth
+  job, `curves`, runs it now, budgeted like `signatures.toml`'s own job
+  for a scope nearly double that pair's size.
+
 - **The numeric mutation profile finishes its scope instead of sampling a
   fifth of it.** Its per-mutant `timeout` is 30 seconds rather than 300,
   and its session budget 25 minutes rather than 15. About one mutant in
