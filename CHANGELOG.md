@@ -24,6 +24,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`claude-review.yml` reads a pull request against `REVIEWING.md`.**
+  Two jobs: one on every non-draft pull request, whose prompt names that
+  file rather than restating it, so the standard moves without the
+  workflow being edited; one answering `@claude` in a comment, carrying
+  no prompt of ours on purpose — the action reads the comment that
+  triggered it, where a prompt would answer something else. Both need
+  `id-token: write`, which is not about workload identity federation:
+  the action mints a GitHub OIDC token during its own startup whatever
+  the Anthropic credential is, and without it the run dies before
+  reaching authentication at all.
+
+  It gates nothing and must not: `main`'s required contexts are named
+  outside the repository, and a review that held a merge would make a
+  model's judgement a branch rule. The one deviation from `REVIEWING.md`
+  is written into the prompt — the gates are not re-run, `test.yml`,
+  `lint.yml` and `docs.yml` running them beside it on the same sha.
+  Concurrency is per job rather than per workflow, so a push cancelling
+  a superseded review leaves an `@claude` question running. The
+  automatic job skips a pull request from a fork, which is not a policy
+  but what secrets do: none but `GITHUB_TOKEN` reaches a runner a fork
+  triggered, so the job would start, find the token empty and fail on
+  the pull requests of the people least able to read that failure.
+  `@claude` still answers there, `issue_comment` being a
+  base-repository event.
+
+  It is the one workflow in `CONTRIBUTING.md`'s table that takes no
+  `workflow_dispatch`: both jobs read the pull request or the comment
+  that triggered them, so a manual run would have nothing to read.
+
 - **The landing convention says what actually happens: the squash
   button.** `CONTRIBUTING.md` said "how that commit reaches `main` is a
   push rather than a button", `RELEASING.md` that the button was the
