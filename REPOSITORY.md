@@ -28,7 +28,7 @@ by name in a shell loop that always runs rather than a boolean
 expression a skipped step could leave unevaluated. (Issue #1025 and
 issue #1001.) Read the cells, not the aggregate, when a run's own
 conclusion and this check disagree:
-`gh api repos/{owner}/{repo}/actions/runs/<id>/jobs`.
+`gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
 
 `main` requires four checks, and only four:
 
