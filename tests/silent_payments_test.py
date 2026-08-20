@@ -29,6 +29,7 @@ from typing import Any
 import pytest
 
 from btclib import silent_payments
+from btclib._libsecp256k1 import silentpayments as libsecp256k1_silentpayments
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, encode
 from btclib.curves import bytes_from_point, mult, secp256k1
@@ -37,7 +38,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
-from tests import load, vector_id
+from tests import load, needs_bindings, vector_id
 
 _VECTORS = load("_data", "send_and_receive_test_vectors.json", encoding="utf-8")
 
@@ -484,6 +485,130 @@ def test_a_spending_key_of_zero_is_refused() -> None:
     tweak = secp256k1.n - _B_SPEND_PRV
     with pytest.raises(BTClibValueError, match="sum to zero"):
         silent_payments.prv_key_from_tweak(_B_SPEND_PRV, tweak)
+
+
+@needs_bindings
+@pytest.mark.parametrize("index,test", _SENDING, ids=_SENDING_IDS)
+def test_output_keys_matches_across_arms(
+    index: int, test: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The delegated and the Python arm answer the same set of outputs.
+
+    `output_keys`'s own dispatch is `_libsecp256k1_serves(secp256k1,
+    None)`, imported into this module's own namespace the way `dsa` and
+    `ssa` import theirs, so a vector is run twice with the predicate
+    patched between the two -- the same shape `dsa_test.py`'s own
+    cross-arm tests use. `test_sending_vectors` already carries every
+    other assertion this file makes about a vector, including the two
+    refusals (a zero private-key sum, more than K_MAX recipients sharing
+    a scan key), which is why this asks only whether the two arms refuse
+    together or agree on the answer.
+    """
+    given, expected = test["given"], test["expected"]
+    prv_keys = [
+        (v["private_key"], v["prevout"]["scriptPubKey"]["hex"])
+        for v in given["vin"]
+        if _pub_key_of(v) is not None
+    ]
+    if not prv_keys:
+        pytest.skip("nothing eligible to derive a secret from")
+    addresses = [recipient["address"] for recipient in _recipients(given)]
+    outpoints = _outpoints(given["vin"])
+
+    def _keys(*, delegated: bool) -> list[bytes] | None:
+        with monkeypatch.context() as arm:
+            if not delegated:
+                arm.setattr(silent_payments, "_libsecp256k1_serves", lambda *_a: False)
+            try:
+                return silent_payments.output_keys(prv_keys, outpoints, addresses)
+            except BTClibValueError:
+                return None
+
+    delegated_keys = _keys(delegated=True)
+    python_keys = _keys(delegated=False)
+    assert (delegated_keys is None) == (python_keys is None)
+    if delegated_keys is not None:
+        assert python_keys is not None
+        assert set(delegated_keys) == set(python_keys)
+        assert expected["outputs"] and any(
+            {key.hex() for key in delegated_keys} == set(valid)
+            for valid in expected["outputs"]
+        )
+
+
+@needs_bindings
+def test_output_keys_interleaved_groups_match_across_arms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two scan keys interleaved, one of them labelled, taproot and not.
+
+    The vector file has no case mixing a taproot and a non-taproot input
+    while addressing two recipients out of order -- X, Y, X's second
+    label -- so this is the case built by hand: it is the one shape where
+    a grouping mismatch between the two arms would show up as a wrong
+    *set*, not merely a wrong order, because `keys_from_address(X)`'s
+    second address shares X's group and gets the next k after X's first.
+    """
+    a_taproot = 0xEADC78165FF1F8EA94AD7CFDC54990738A4C53F6E0507B42154201B8E5DFF3B1
+    a_legacy = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCD
+    taproot_script = "5120" + bytes_from_point(mult(a_taproot))[1:].hex()
+    legacy_script = "0014" + hash160(bytes_from_point(mult(a_legacy))).hex()
+    prv_keys = [(a_taproot, taproot_script), (a_legacy, legacy_script)]
+    outpoints = [OutPoint("00" * 31 + "01", 0), OutPoint("00" * 31 + "02", 1)]
+
+    x_scan, x_spend = 0x11, 0x22
+    y_scan, y_spend = 0x33, 0x44
+    x_address = silent_payments.address_from_keys(mult(x_scan), mult(x_spend))
+    y_address = silent_payments.address_from_keys(mult(y_scan), mult(y_spend))
+    x_labelled = silent_payments.labeled_address_from_keys(x_scan, mult(x_spend), 1)
+    addresses = [x_address, y_address, x_labelled]
+
+    delegated = silent_payments.output_keys(prv_keys, outpoints, addresses)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(silent_payments, "_libsecp256k1_serves", lambda *_a: False)
+        python = silent_payments.output_keys(prv_keys, outpoints, addresses)
+    assert len(delegated) == len(addresses)
+    assert set(delegated) == set(python)
+
+
+def test_output_keys_pays_nothing_for_no_addresses() -> None:
+    """No recipient is nothing to derive, on either arm.
+
+    `create_outputs` itself refuses an empty recipient list -- "at least
+    one recipient is required" -- so `output_keys` answers before
+    reaching it, the same `[]` the Python loop below would have built
+    from an empty `groups`.
+    """
+    script_pub_key = "0014" + hash160(bytes_from_point(mult(_B_SCAN_PRV))).hex()
+    outpoints = [OutPoint("00" * 31 + "01", 0)]
+    assert (
+        silent_payments.output_keys([(_B_SCAN_PRV, script_pub_key)], outpoints, [])
+        == []
+    )
+
+
+@needs_bindings
+def test_output_keys_wraps_a_delegated_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`create_outputs`'s own ValueError still comes back a BTClibValueError.
+
+    `prv_key_sum` and `input_hash` already cover the two refusals a real
+    transaction can trigger -- a zero private-key sum, no outpoint -- so
+    this is not a case the vector file has: the bindings' own message for
+    whatever else `secp256k1_silentpayments_sender_create_outputs` itself
+    refuses (an output landing on the point at infinity, say) is
+    substituted for rather than reproduced.
+    """
+
+    def _refuse(*_args: object, **_kwargs: object) -> list[bytes]:
+        raise ValueError("silent payment output creation failed")
+
+    monkeypatch.setattr(libsecp256k1_silentpayments, "create_outputs", _refuse)
+    script_pub_key = "0014" + hash160(bytes_from_point(mult(_B_SCAN_PRV))).hex()
+    outpoints = [OutPoint("00" * 31 + "01", 0)]
+    with pytest.raises(BTClibValueError, match="silent payment output creation failed"):
+        silent_payments.output_keys(
+            [(_B_SCAN_PRV, script_pub_key)], outpoints, [_address()]
+        )
 
 
 def test_the_whole_round_trip_without_a_vector() -> None:

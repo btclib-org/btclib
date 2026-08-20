@@ -64,11 +64,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
+from btclib._libsecp256k1 import silentpayments as libsecp256k1_silentpayments
 from btclib.alias import NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, decode, encode
 from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
-from btclib.curves.curve import _sum_var, _tweak_add_var, _TweakChain
+from btclib.curves.curve import (
+    _libsecp256k1_serves,
+    _sum_var,
+    _tweak_add_var,
+    _TweakChain,
+)
 from btclib.curves.sec_point import _mult_sec_var
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -566,6 +572,60 @@ def output_key(secret: PubKey, B_m: PubKey, k: int) -> bytes:
     return _x_only(_tweak_add_var(point_from_pub_key(B_m), t_k, secp256k1))
 
 
+def _delegated_output_keys(
+    prv_keys: Sequence[tuple[PrvKey, Octets]],
+    outpoints: Sequence[OutPoint],
+    groups: Mapping[Point, list[Point]],
+) -> list[bytes]:
+    """`output_keys` over `silentpayments.create_outputs`, secp256k1 only.
+
+    `groups` is already validated -- `output_keys` built it and checked
+    every K_MAX bound before calling this. Recipients are flattened group
+    by group, each group's addresses kept in the order they were appended,
+    which is the order `output_keys`'s own Python loop would assign k in:
+    `secp256k1_silentpayments_sender_create_outputs` assigns k by a scan
+    key's position of first appearance and increments it per repeat, the
+    same rule BIP352's reference algorithm groups by, so handing it the
+    recipients in that order derives the identical k for every one of
+    them. The list it returns is not re-sorted into address order --
+    `test_sending_vectors` already compares the *set* `output_keys`
+    answers, output order never having been part of the contract.
+
+    The taproot split is `prv_key_sum`'s own -- `is_p2tr` of the script a
+    private key spends -- except the negation for an odd-y point is not
+    redone here: `keypair` on the bindings' side is a
+    `secp256k1_keypair_create` per taproot input, which is BIP340's own
+    even-y normalization and does that negation internally, the same way
+    `ssa.Signer` never negates a key by hand either.
+    """
+    outpoint_smallest36 = min(outpoint.serialize() for outpoint in outpoints)
+    recipients_bytes = [
+        (bytes_from_point(B_scan, secp256k1), bytes_from_point(B_m, secp256k1))
+        for B_scan, B_m_values in groups.items()
+        for B_m in B_m_values
+    ]
+    taproot_prvkeys: list[int] = []
+    prvkeys: list[int] = []
+    for prv_key, script_pub_key in prv_keys:
+        bucket = (
+            taproot_prvkeys if is_p2tr(bytes_from_octets(script_pub_key)) else prvkeys
+        )
+        bucket.append(int_from_prv_key(prv_key))
+    try:
+        return libsecp256k1_silentpayments.create_outputs(
+            recipients_bytes, outpoint_smallest36, taproot_prvkeys, prvkeys
+        )
+    except ValueError as e:
+        # `prv_key_sum` and `input_hash` already ran, above, and are what
+        # give a caller the specific "sum to zero" or "no outpoint"
+        # wording for the two common refusals -- what reaches here is
+        # libsecp256k1's own, coarser message for whatever else its own
+        # validation catches, kept a BTClibValueError rather than left a
+        # bare one so a caller catching this library's exceptions still
+        # does
+        raise BTClibValueError(str(e)) from e
+
+
 def output_keys(
     prv_keys: Sequence[tuple[PrvKey, Octets]],
     outpoints: Sequence[OutPoint],
@@ -596,6 +656,15 @@ def output_keys(
     t_k for both would make the difference of the two output keys equal
     the difference of the two published addresses, which is the recipient
     named in public.
+
+    Where the bindings serve secp256k1 -- BIP352 has no other curve to
+    ask them for -- this is `silentpayments.create_outputs`'s own
+    derivation rather than the Python arithmetic below: one keypair build
+    per taproot input and one shared-secret multiplication per recipient
+    group inside libsecp256k1, in place of `mult` and `_mult_sec_var`
+    here. `a` and `h` are computed either way, for the refusal a zero
+    private-key sum or an empty outpoint sequence already has a specific
+    message for -- see `_delegated_output_keys`.
     """
     a = prv_key_sum(prv_keys)
     h = input_hash(outpoints, mult(a))
@@ -612,6 +681,12 @@ def output_keys(
             err_msg = f"too many recipients sharing one scan key: {len(B_m_values)}"
             err_msg += f" > K_MAX ({K_MAX})"
             raise BTClibValueError(err_msg)
+
+    if not groups:
+        return []
+
+    if _libsecp256k1_serves(secp256k1, None):
+        return _delegated_output_keys(prv_keys, outpoints, groups)
 
     keys: list[bytes] = []
     for B_scan, B_m_values in groups.items():
