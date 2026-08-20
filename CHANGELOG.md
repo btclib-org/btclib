@@ -4113,10 +4113,16 @@ documented at release-notes length in the first place, and are still in
   written down and read back arrives as whatever it was written as and
   `"false"` is true; a flag that decides only *whether a check runs* is
   read for its truth. Applying it meant the census, and the census is
-  `tests/bool_parameter_test.py`: seventy-eight `bool` parameters besides
-  `check_validity`, fifty-three of them kinds and twenty-five truths, with
-  every one of the seventy-eight in one of the two tables or the run is
-  red.
+  `tests/bool_parameter_test.py`: two tables, every `bool` parameter of the
+  library but `check_validity` in one of them, and a walk that turns the
+  run red on a flag in neither. The split is measured rather than stated,
+  the file having grown since:
+
+  ```shell
+  uv run python -c 'import sys; sys.path.insert(0, ".")
+  from tests.bool_parameter_test import _bool_parameters, _KINDS, _TRUTHS
+  print(len(_bool_parameters()), len(_KINDS), len(_TRUTHS))'
+  ```
 
   What was open were the two the issue names, and thirty-odd more of the
   same shape:
@@ -4151,15 +4157,61 @@ documented at release-notes length in the first place, and are still in
   The truths are the other half of the census and they stay read for their
   truth, each with the reason in the table: `check_validity` (whose own
   file holds it), `check_root_xkey`, `verify_checksum`, `strict`,
-  `bip380_enforced`, `forbid_zero_size`, `allow_partial`, `check_amounts`,
-  `verify_network`, `branches_0_1_only`, `hybrid`, `power_of_two`,
-  `order_check`, `weakness_check`, the four `enforce_same_*`,
-  `unsigned_template` on `Tx.assert_valid`, and the engine's `final` and
-  `verified`. What makes the classification checkable rather than asserted
-  is that a truth is *driven* too: it is called with `"no"`, `0` and `1` on
-  a fixture its `True` accepts, and all three go through. A truth that
-  starts refusing fails that test, and the entry has to move to the kinds
-  rather than the test being edited.
+  `bip380_enforced`, `forbid_zero_size`, `check_amounts`,
+  `verify_network`, `branches_0_1_only`, `power_of_two`, `order_check`,
+  `weakness_check`, the four `enforce_same_*`, `unsigned_template` on
+  `Tx.assert_valid`, and the engine's `final`. What makes the
+  classification checkable rather than asserted is that a truth is
+  *driven* too: it is called with `"no"`, `0` and `1` on a fixture its
+  `True` accepts, and all three go through. A truth that starts refusing
+  fails that test, and the entry has to move to the kinds rather than the
+  test being edited. Three that this bullet filed as truths are kinds now,
+  moved by the polarity rule the bullet below is.
+
+- **A truth's `True` has to be its conservative value, and three whose
+  `True` was the permissive one are kinds now** (issue #884). The issue
+  asked about the script engine's `verified` and `final`, the two truths
+  of the census its author was least sure of, and the answer turned out to
+  be neither "both" nor "the engine": every wrong value is true, so the
+  misreading a non-bool makes is never "the flag was off" — it is always
+  the one the flag's `True` stands for. That, and not the fact that a
+  truth changes no answer, is what has been making the truths safe.
+  `verify_checksum="no"` checks the checksum, `strict="no"` is strict,
+  `forbid_zero_size="no"` forbids: the wrong value falls on the side that
+  refuses more, which is the side that cannot accept what was to be
+  refused.
+
+  So the classifying question is the polarity of the flag's own name, and
+  a flag whose `True` is the permissive value is a kind however little it
+  computes. Three were, each waiving the refusal it was written to make:
+
+  ```text
+  assert_nullfail(flags, verified="no", sigs, op)  -> NULLFAIL never fires
+  assert_signed(psbt, allow_partial="no")          -> an input nobody signed
+  point_from_octets(sec, hybrid="no")              -> 0x06 and 0x07 parsed
+  ```
+
+  `verified` is the one that costs money. It is not a caller's waiver but
+  a fact the engine derived — `op_checksig`'s answer, passed on — and its
+  `True` suppresses NULLFAIL, so a non-bool lets a non-empty signature
+  that failed to verify through a consensus rule, which is btclib calling
+  valid a transaction the network rejects. `allow_partial` stores as
+  complete a psbt still going round a signing session, and `hybrid` parses
+  the very prefixes it is off by default to keep out.
+
+  `verify_script`'s `final` stays a truth, which is the contrast that
+  shows the rule is about direction and not about the engine: it demands
+  the script end on a true stack, so a non-bool there fails a script
+  rather than passing one, and a script that fails is nobody's money. That
+  `segwit` beside it was already a kind is no longer the asymmetry the
+  issue reported — `segwit` picks a digest, `final` tightens an ending,
+  and the two are refused and read by the same rule read twice.
+
+  A caller passing a `bool` is unaffected; `0` and `1` are refused too, as
+  everywhere the kinds are. CONTRIBUTING.md states the rule beside the one
+  it completes, and `tests/bool_parameter_test.py` carries the three under
+  a comment of their own, being kinds by their polarity rather than by any
+  answer they choose.
 
 - **The input contract reaches `ec`, which had no check anywhere** (issue
   #868). The census of parameters behind a default put it fourth by

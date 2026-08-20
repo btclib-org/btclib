@@ -969,6 +969,21 @@ only *whether a check runs* is read for its truth: `check_validity` and
 `slip132`'s `check_root_xkey` either run a check or skip one, and neither
 changes an answer. `tests/check_validity_test.py` owns that convention.
 
+**A truth's `True` has to be its conservative value**, which is the second
+half of the same rule and the one issue #884 asked for. Every wrong value
+is true, so the misreading is never "the flag was off": it is always the
+one the flag's `True` stands for. That is what makes a truth safe —
+`verify_checksum="no"` checks the checksum, `strict="no"` is strict,
+`forbid_zero_size="no"` forbids — and it is a fact about the *name*, not
+about the check. So a flag whose `True` is the permissive value is a kind
+however little it computes, because the misreading waives the very refusal
+it was written to make: `verified` suppressing the script engine's NULLFAIL
+is the sharp one, with `allow_partial` accepting an input nobody signed and
+`hybrid` parsing the prefixes it was written to keep out. `verify_script`'s
+`final` beside `verified` is the contrast that shows the rule is about
+direction and not about the engine: it demands a true stack, so a non-bool
+there fails a script rather than passing one.
+
 **Which of the two a flag is, is written down for every one of them.**
 `tests/bool_parameter_test.py` is the census: two tables, a kind driven
 until it refuses `"no"`, `0` and `1`, a truth driven until it accepts all
