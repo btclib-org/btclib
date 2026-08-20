@@ -488,6 +488,33 @@ full year, short month, short day (YYYY-M-D)
   `verify`, which no longer raises here. CHANGELOG.md has why the check
   is a `BTClibValueError` and not `BorromeanRingError`.
 
+- **`BorromeanSig(e0, [[]], ...)` -- a ring with no keys -- is refused,
+  where it used to build silently.** Before: `BorromeanSig.__init__` and
+  `BorromeanSig.parse`, both with `check_validity`'s default of `True`,
+  accepted it; `assert_as_valid` then reached a bare `IndexError`
+  indexing `e[i][0]` on the empty list built for that ring, escaping
+  `verify`'s `except (ValueError, BTClibRuntimeError)` the same way
+  issue #1088's did. Now: `BorromeanSig.assert_valid` refuses it as
+  `BTClibValueError`, so construction and `BorromeanSig.parse` raise it
+  directly, `assert_as_valid` raises it in place of the `IndexError`,
+  and `verify` answers `False` for it like any other invalid signature.
+  A caller building a `BorromeanSig` with `check_validity=False` to hold
+  one anyway still has it refused the moment `assert_as_valid`,
+  `serialize` or `assert_valid` itself runs. CHANGELOG.md has why the
+  check lives on `BorromeanSig` and not beside `_assert_matches_pubk_rings`.
+
+- **`borromean.sign` refuses a `sign_key_idx[i]` that is not a position
+  in its own ring.** Before: a value at or past the ring's size walked
+  `s[i][j - 1]` and `pubk_rings[i][j - 1]` past the end of the ring's
+  tuple in step 2, a bare `IndexError`; a negative value did not raise
+  at all, Python's own negative indexing quietly signing a different
+  position than the one named and returning a `BorromeanSig` that does
+  not verify. Both are `BTClibValueError` now, naming the ring, its size
+  and the index, raised once before step 1 -- which is also what refuses
+  a ring with no keys on the signing side, no index being valid into an
+  empty one. CHANGELOG.md has why this is a bound on `sign_key_idx` and
+  not a copy of the empty-ring check above.
+
 ### Worth knowing, though nothing raises
 
 - **Signing on the Python arm now checks the signature before answering

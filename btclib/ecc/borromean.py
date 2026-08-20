@@ -192,7 +192,7 @@ class BorromeanSig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Refuse a bad curve, no rings, or a scalar s outside 0..n-1."""
+        """Refuse a bad curve, no rings, an empty ring, or an out-of-range s."""
         # the curve first, as in dsa.Sig.assert_valid and ssa.Sig.assert_valid
         # and for their reason: every s below is read against it
         _assert_valid_ec(self.ec)
@@ -207,6 +207,19 @@ class BorromeanSig:
             raise BTClibValueError("no rings")
 
         for i, ring in enumerate(self.s):
+            # a ring with no keys proves nothing about any key, the same
+            # degeneracy as no rings at all, one level down: left
+            # unrefused here, `assert_as_valid` indexed e[i][0] on the
+            # empty list `_initialize` builds for it and a bare
+            # IndexError escaped where `verify` is documented to answer
+            # `False` (issue #1094). Checked here rather than in
+            # `assert_as_valid` or `_assert_matches_pubk_rings` because
+            # it holds for `self.s` alone, independent of whatever
+            # `pubk_rings` a caller later checks it against -- and this
+            # way `BorromeanSig(e0, [[]], ec)` is already refused at
+            # construction, check_validity's default being True
+            if not ring:
+                raise BTClibValueError(f"ring {i} has no keys")
             for j, value in enumerate(ring):
                 if not 0 <= value < self.ec.n:
                     err_msg = "scalar s not in 0..n-1: "
@@ -327,6 +340,33 @@ def _assert_matches_pubk_rings(
             raise BTClibValueError(err_msg)
 
 
+def _assert_sign_key_idx_in_range(
+    pubk_rings: Sequence[PubkeyRing], sign_key_idx: Sequence[int]
+) -> None:
+    """Refuse a sign_key_idx[i] that is not a position in pubk_rings[i].
+
+    Nothing bounded what a value of `sign_key_idx` pointed at: `sign`'s
+    own length check only compares the *counts* of `pubk_rings`,
+    `sign_key_idx`, `ks` and `sign_keys`, one entry per ring on all four,
+    and says nothing about what a value inside `sign_key_idx` names.
+    Unchecked, step 1's `(j_star + 1) % keys_size` is a ZeroDivisionError
+    for a ring with no keys (issue #1094, on the signing side --
+    `BorromeanSig.assert_valid`'s own check cannot reach this walk, which
+    runs before any `BorromeanSig` is built), and step 2's `range(1,
+    j_star + 1)` walks past the end of a ring's tuple for a value at or
+    past its size (issue #1095); a negative value does not raise at all,
+    Python's own negative indexing quietly reading a different position
+    than the one named. `0 <= sign_key_idx[i] < len(pubk_rings[i])`
+    refuses all three, checked here once before either step.
+    """
+    for i, (pubk_ring, j_star) in enumerate(zip(pubk_rings, sign_key_idx, strict=True)):
+        if not 0 <= j_star < len(pubk_ring):
+            key_word = "key" if len(pubk_ring) == 1 else "keys"
+            err_msg = f"ring {i} has {len(pubk_ring)} {key_word}, "
+            err_msg += f"sign_key_idx {j_star} is not a valid index"
+            raise BTClibValueError(err_msg)
+
+
 def sign(
     msg: Octets,
     ks: Sequence[int],
@@ -345,6 +385,11 @@ def sign(
     key in each ring, `sign_keys` the real private key of each ring --
     `sign_keys[i]` signs at `pubk_rings[i][sign_key_idx[i]]` -- and
     `pubk_rings` the full public rings, real key included.
+    `sign_key_idx[i]` must be a valid index into `pubk_rings[i]`, refused
+    with `BTClibValueError` naming the ring, the index and the ring's
+    size otherwise -- a ring with no keys has none, whatever the index
+    (issue #1094), and a value the ring's size does not reach either
+    (issue #1095).
 
     A `BorromeanSig`, because that is what it is: the result verifies
     with `assert_as_valid`/`verify`, serializes with
@@ -381,6 +426,14 @@ def sign(
         err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes, "
         err_msg += f"{len(ks)} nonces and {len(sign_keys)} signing keys"
         raise BTClibValueError(err_msg)
+
+    # sign_key_idx[i] is the real signer's position in pubk_rings[i], and
+    # nothing checked it was one before step 1 read it -- see the
+    # docstring above for the two ways that went wrong (issues #1094,
+    # #1095). Checked once here, before either step, the same shape as
+    # the length check just above and #1088's decision on the
+    # verification side
+    _assert_sign_key_idx_in_range(pubk_rings, sign_key_idx)
 
     # step 1
     for i, (pubk_ring, j_star, k) in enumerate(
@@ -488,7 +541,11 @@ def assert_as_valid(
     different number of s-values than it has keys -- is refused first,
     as a plain `BTClibValueError` naming the ring and the counts: two
     arguments that do not describe the same object is not a check that
-    ran and failed, so it is not a `BorromeanRingError` (issue #1088).
+    ran and failed, so it is not a `BorromeanRingError` (issue #1088). A
+    `sig` carrying a ring with no keys is refused too, by `sig.assert_valid`
+    below rather than here -- it proves nothing about any key regardless
+    of what `pubk_rings` says, so `BorromeanSig`'s own invariant is what
+    refuses it (issue #1094).
 
     `sig` as octets is parsed with `BorromeanSig.parse`, which reads
     secp256k1 and sha256 always -- `ec` and `hf` are then not what
