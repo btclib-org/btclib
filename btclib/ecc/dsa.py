@@ -1263,26 +1263,20 @@ class Signer:
     the arithmetic of `_sign_` or one call into the bindings either way,
     and the check is what a held key removes from it.
 
-    **This hands the caller the lifetime of a secret on both arms, which
-    issue #1009 first found a real limit on the delegated one.** ECDSA
-    has no persistent object in libsecp256k1 the way BIP340 does --
+    **This hands the caller the lifetime of a secret on both arms.**
+    ECDSA has no persistent object in libsecp256k1 the way BIP340 does --
     `secp256k1_ecdsa_sign` reads the private key from a bare pointer on
-    every call rather than from a `secp256k1_keypair` built once -- and
-    at the time that finding stood, the bindings' own wrapper coerced
-    whatever was passed into a fresh immutable `bytes` object on every
-    call regardless, `_scalar.scalar()`, so a `Signer` holding one copy
-    of the key had nothing to overwrite: every signature left an
-    unreachable one of its own in the bindings' memory
-    (btclib-secp256k1#247). That coercion is what btclib-secp256k1#253
-    removed for exactly this case: `dsa.sign`'s `prvkey` argument now
-    takes a cffi array of exactly 32 octets and passes it through
-    unconverted, so a caller who owns the buffer keeps owning it. This
-    class builds one such buffer at construction --
+    every call rather than from a `secp256k1_keypair` built once -- so a
+    `Signer` holding one copy of the key needs somewhere of its own to
+    keep it. `dsa.sign`'s `prvkey` argument takes a cffi array of
+    exactly 32 octets and passes it through unconverted
+    (btclib-secp256k1#253), so a caller who owns the buffer keeps owning
+    it. This class builds one such buffer at construction --
     `ffi.new("unsigned char[32]", ...)` -- and hands the bindings that
-    same pointer on every signature it makes rather than the plain `int`
-    the class held before, so there is now one copy of the secret this
-    holds throughout its life, on both arms, and `wipe` overwrites it on
-    both: the buffer's own 32 octets here, `secp256k1_keypair`'s there.
+    same pointer on every signature it makes, so there is one copy of
+    the secret this holds throughout its life, on both arms, and `wipe`
+    overwrites it on both: the buffer's own 32 octets here,
+    `secp256k1_keypair`'s there.
 
     On the delegated arm, secp256k1 with sha256 by default and therefore
     the common case, `wipe` zeroes that buffer. On any other curve or
