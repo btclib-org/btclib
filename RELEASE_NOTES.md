@@ -20,6 +20,16 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`psbt.musig2.session_context` returns `Session`, not a bare
+  `SessionContext`.** `session_context(psbt, vin_i, aggregate_pub_key) ->
+  musig2.SessionContext` is now `-> Session`, a `NamedTuple` of
+  `.context` (the `SessionContext` it used to return alone) and
+  `.key_agg_ctx` (the `KeyAggContext` it built the session on). A caller
+  reading the result as a `SessionContext` -- passing it to
+  `btclib.ecc.musig2.sign` or `partial_sig_verify_`, or reading
+  `.pub_keys`, `.tweaks`, `.is_xonly`, `.msg` or `.agg_nonce` off it --
+  takes `.context` first. CHANGELOG.md has why.
+
 - **`pip install btclib` no longer installs `btclib_secp256k1`.** The
   bindings are the `secp256k1` extra now — `pip install
   "btclib[secp256k1]"` — and an install that does not ask for them gets a
