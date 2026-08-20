@@ -636,16 +636,18 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     """Derive the session values from the context, as every party does.
 
     Memoized on `session_ctx`: `sign`, `partial_sig_verify_` and
-    `partial_sig_agg` each call this once per signer, so one session
-    that signs, verifies every partial signature and aggregates would
+    whichever of `partial_sig_agg` or `partial_sig_agg_adaptor` a
+    session uses each call this once per signer, so one session that
+    signs, verifies every partial signature and aggregates would
     otherwise run the O(n) key aggregation below 2n+1 times over
-    inputs that never change. `SessionContext._values` is declared
-    `compare=False`, so it is excluded from the dataclass's generated
-    `__eq__` and `__hash__` by construction, and two contexts spelling
-    the same session remain equal regardless of which one has already
-    been used to sign; `object.__setattr__` reaches past `frozen=True`
-    to set it, exactly as `SessionContext.__init__` already does for
-    its declared fields.
+    inputs that never change -- one call to aggregate either way, the
+    two never both reaching the same session.
+    `SessionContext._values` is declared `compare=False`, so it is
+    excluded from the dataclass's generated `__eq__` and `__hash__` by
+    construction, and two contexts spelling the same session remain
+    equal regardless of which one has already been used to sign;
+    `object.__setattr__` reaches past `frozen=True` to set it, exactly
+    as `SessionContext.__init__` already does for its declared fields.
 
     `L`, `second` and `pub_keys_set` are computed here too, once, and
     not because deriving them needs anything above -- they are pure
