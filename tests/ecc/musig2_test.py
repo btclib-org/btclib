@@ -628,6 +628,34 @@ def test_session_context_normalizes() -> None:
     assert from_octets == musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG)
 
 
+def test_session_values_cache_is_invisible_to_equality() -> None:
+    """A populated `session_values` cache must not perturb equality.
+
+    `session_values` memoizes its answer as `_values` in
+    `SessionContext.__dict__`, outside the five fields the frozen
+    dataclass declares -- `__eq__` and `__hash__` are generated from
+    those fields alone, so a context whose cache has been populated by
+    signing must stay equal, and equally hashing, to an untouched twin
+    built from the same arguments, and the twin's own cache must stay
+    unpopulated: comparing two contexts does not itself derive one.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    agg_nonce = musig2.nonce_agg([pub_nonce])
+    session_ctx = musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG)
+    twin = musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG)
+    hash_before = hash(session_ctx)
+    assert session_ctx == twin
+    assert hash_before == hash(twin)
+
+    musig2.sign(sec_nonce, _SK_1, session_ctx)  # populates the cache
+    assert "_values" in session_ctx.__dict__
+    assert "_values" not in twin.__dict__
+
+    assert session_ctx == twin
+    assert hash(session_ctx) == hash_before == hash(twin)
+
+
 def test_tweaks_and_is_xonly_pair_up() -> None:
     """Verify tweaks and is_xonly of unequal lengths are refused."""
     pk_1 = musig2.individual_pub_key(_SK_1)

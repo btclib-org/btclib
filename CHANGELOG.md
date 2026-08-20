@@ -6993,9 +6993,9 @@ documented at release-notes length in the first place, and are still in
   to: its docstring now points a caller that verifies every signer at
   `partial_sig_verify_` with one shared context instead, which is the
   spelling the table above measures. `btclib/psbt/musig2.py`'s three
-  public entry points -- `write_partial_sig`, `partial_sig_verify` and
+  public entry points -- `partial_sign`, `partial_sig_verify` and
   `partial_sigs_agg` -- each build their own `SessionContext`, so
-  nothing is shared *across* them; within `write_partial_sig`, though,
+  nothing is shared *across* them; within `partial_sign`, though,
   `sign` and `partial_sig_verify_` already share one context, and this
   change does halve that pair's aggregation down to one. What it does
   not reach is `partial_sigs_agg`'s own direct `key_agg_and_tweak` call
