@@ -203,6 +203,22 @@ jobs:
     name: Run the test workflow
     needs: version-check
     uses: ./.github/workflows/test.yml
+    # a called workflow's jobs are capped at what the caller grants here,
+    # not at what the called workflow's own top-level default declares:
+    # this workflow's contents: read alone would leave test.yml's
+    # `changes` job, which asks for pull-requests: read to list a pull
+    # request's files, refused before a single job starts, version-check
+    # included -- `changes` never actually reads a file list on a
+    # release, answering code=true unconditionally off anything that is
+    # not a pull_request event, but the check is against what the job
+    # declares, not against what it goes on to do. contents: read is
+    # repeated rather than left to test.yml's own default for the same
+    # reason: a caller's grant replaces the callee's default outright, so
+    # anything this list leaves off becomes none for every job over
+    # there, not only for the one this comment names
+    permissions:
+      contents: read
+      pull-requests: read
 
   # and the same checks a pull request lints with: without this, a tag
   # push could publish code the pre-commit hooks reject. Not gated on

@@ -1372,6 +1372,42 @@ documented at release-notes length in the first place, and are still in
   running, uploading code quality results rather than security ones. Code
   quality is a separate setting, which `code-scanning/default-setup` does
   not report.
+- **A pull request that changes only prose no longer runs the whole
+  matrix** (issue #1044, porting `btclib-secp256k1`'s own #189).
+  `changes` is one ubuntu job that lists a pull request's files through
+  the API and answers whether anything the matrix builds or tests
+  changed; `suite`, `coverage`, `no-bindings`, `dist` and `coverage-union`
+  each take it as a `needs` and read its output in their own `if`, so a
+  job whose needs did not run is skipped in turn rather than spending a
+  runner to prove nothing changed. `test-passed` takes `changes` as a
+  `needs` too, so a failure listing the files fails the gate instead of
+  skipping everything and reporting a pass; its own aggregate step, which
+  issue #1001 made loop over `needs.*.result` and demand `success` from
+  every one of them, now allows `skipped` beside it for exactly this
+  reason, an unanticipated result still failing it the same as before.
+
+  The allowlist this job answers off is not `btclib-secp256k1`'s own:
+  `README.md` is excluded there too, being the package's long
+  description, which the `dist` job's twine and pyroma checks render and
+  rate; but unlike that repository, `CHANGELOG.md` and `RELEASE_NOTES.md`
+  cannot be, `tests/release_notes_test.py` parsing and validating their
+  format in the very suite a prose-only skip would leave unrun. Nor is
+  anything under `docs/`, which `MANIFEST.in` carries into the sdist and
+  which `tests/docs_test.py` and `tests/docs_examples_test.py` read
+  directly.
+
+  `release.yml`'s call into `test.yml` grants `pull-requests: read` now,
+  `contents: read` beside it (issue #1044's other half, filed alongside
+  the port itself after it broke a tag push in `btclib-secp256k1`,
+  `v0.8.0.3` there returning `startup_failure` with zero jobs scheduled).
+  A called workflow's jobs are capped at what the caller grants, not at
+  what the called workflow's own top-level default declares, and a
+  caller's grant replaces the callee's default outright rather than
+  adding to it -- so leaving this list at `contents: read` alone would
+  have refused `changes` before a single job started, `version-check`
+  included, even though `changes` never actually reads a file list on a
+  release, answering `code=true` unconditionally off any event that is
+  not `pull_request`.
 
 ### Transactions, blocks and PSBT
 
@@ -6098,6 +6134,21 @@ documented at release-notes length in the first place, and are still in
   libsecp256k1's `secp256k1_gej_eq_x_var`, measures 1.00x because the
   bindings hand back a point whose Z is 1 -- and 1.01x where the
   multiplication is Python's, an inverse being 8.8 us of 1148.
+
+- **`pedersen.second_generator`'s docstring now says what it derives**
+  (issue #1055). Its `H`, for `(secp256k1, sha256)`, equals
+  libsecp256k1-zkp's hardcoded `secp256k1_generator_h` -- the `H` of
+  Elements and of Confidential Transactions -- which the docstring
+  already claimed by naming zkp as a source, and which nothing in the
+  tree checked: `tests/ecc/pedersen_test.py::test_second_generator`
+  asserted the value without saying what it was pinning. The docstrings
+  of `second_generator`, `commit` and the test now say so, and say it
+  is a fact about that one `(ec, hf)` pair rather than about every
+  curve and hash function the parameterized `second_generator`
+  accepts, since no published value exists to check the others
+  against. The zkp reference also moved: the fork is
+  `BlockstreamResearch`'s now, and the constant lives in its
+  `generator` module rather than `rangeproof`.
 
 ### Performance
 

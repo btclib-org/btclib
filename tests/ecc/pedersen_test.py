@@ -18,10 +18,11 @@ secp384r1 = CURVES["secp384r1"]
 
 
 def test_second_generator() -> None:
-    """See the remarks on secp256-zkp prefix.
+    """Pin H for (secp256k1, sha256): it is Elements' and CT's H.
 
-    About compressed encoding of the second generator:
-    - https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+    `second_generator`'s docstring says what the constant is and why
+    only this one `(ec, hf)` pair is pinned; the two other pairs below
+    are only exercised, not pinned, for that same reason.
     """
     H = (
         0x50929B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC0,
