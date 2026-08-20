@@ -1816,6 +1816,53 @@ documented at release-notes length in the first place, and are still in
   second verification pass on a path a caller catching
   `BTClibRuntimeError` may hit often. A comment at each raise records the
   decision, `dsa` and `ssa` read the same way as the issue asked.
+- **`ecc.dsa.Signer` signs several messages under one key, deriving and
+  parsing the public key once** (issue #1009, the fourth item of #982's
+  design, split out because the other three -- `verify` on `dsa.sign_`
+  and `dsa.sign`, the same keyword on both of `ssa`'s spellings and
+  `ssa.Signer`, and the grinding loop checking once rather than per
+  attempt -- had landed and this one had not). `sign_` derives the
+  public key whenever `verify` asks for a check, and on the delegated
+  arm parses it again where a compressed key costs a field square root;
+  a `Signer` holds both instead, one `mult` at construction -- the same
+  multiplication `gen_keys` makes -- and, where the bindings serve
+  `ec` and `hf`, one `_sec_from_pub_key` beside it.
+
+  | ECDSA signature, checked | `sign_` per call | one held `Signer` |
+  | --- | --- | --- |
+  | delegated arm | 31.4 µs | 24.5 µs |
+  | Python arm | 783.9 µs | 657.7 µs |
+
+  **What this does not hand the caller, unlike `ssa.Signer`, is the
+  lifetime of a secret, and that is a limit rather than an omission.**
+  BIP340 signing through the bindings takes a `secp256k1_keypair` --
+  memory this package owns and can overwrite, built once and reused for
+  every signature the object makes. ECDSA has no such object in
+  libsecp256k1: `secp256k1_ecdsa_sign` reads the key from a bare pointer
+  on every call, and the bindings' own wrapper builds that pointer by
+  coercing whatever was passed into a fresh immutable `bytes` object
+  first, on every call, whatever form the key arrived in --
+  `_scalar.scalar()` (btclib-secp256k1#247). So a `Signer` backed by the
+  delegated arm -- secp256k1 with sha256, the default -- hands the
+  bindings a new, unreachable copy of the key on every signature it
+  makes, and `wipe` would be promising an erasure the object structurally
+  cannot do. It raises `NotImplementedError` naming that issue instead of
+  dropping a reference and calling the drop a wipe, which is the shape
+  the class's own docstring argues is worse than not offering `wipe` at
+  all. On any other curve or hash function -- where every signature is
+  the Python arithmetic of `_sign_`, which never crosses into the
+  bindings -- `wipe` genuinely lets go of the scalar, an `int`'s own
+  limit aside: it cannot be overwritten, only dropped, which SECURITY.md
+  already states for the library at large. Which arm a given instance
+  uses is fixed at construction from `ec` and `hf` alone: `sign_` and
+  `sign` take no nonce, no lower-s override and no commitment, unlike the
+  free functions, so nothing a caller passes afterwards can move an
+  instance from one arm to the other -- `wipe`'s promise would otherwise
+  depend on a later call rather than on the object itself.
+
+  No `pub_key` argument either, matching `ssa.Signer`: every signature
+  checks under the key this object already holds, so there is nothing for
+  a caller to supply that is not already parsed.
 
 - **The Python arm's inventory of authorities that are not the bindings**
   (issue #993). The suite validates the Python arithmetic *against*
