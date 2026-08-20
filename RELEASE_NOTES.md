@@ -413,6 +413,16 @@ full year, short month, short day (YYYY-M-D)
   where it read `non-minimal encoding of zero`, the general check now
   answering for it too.
 
+- **`borromean.sign` and `borromean.assert_as_valid` compute a
+  different challenge hash.** The four-part preimage has been `m || R
+  || ring || position` since `v2023.7.12`, the message hash before the
+  point or the closing `e0`; it is `R || m || ring || position` now,
+  matching secp256k1-zkp's `rangeproof` module. Every borromean
+  signature this module ever produced was made with the old order and
+  does not verify under the new one, and there is no version byte in
+  the wire format to switch on -- CHANGELOG.md has why the break was
+  worth paying.
+
 ### Worth knowing, though nothing raises
 
 - **Signing on the Python arm now checks the signature before answering

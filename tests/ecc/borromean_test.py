@@ -62,6 +62,37 @@ def test_borromean() -> None:
         borromean.assert_as_valid(b"another message", sig[0], sig[1], pubk_rings)
 
 
+def test_challenge_hash_matches_zkps_preimage_order() -> None:
+    """`_hash`'s preimage order, pinned against secp256k1-zkp's by hand.
+
+    secp256k1-zkp's rangeproof module builds this challenge as `e || m
+    || ring || pos` (`secp256k1_borromean_hash`,
+    `src/modules/rangeproof/borromean_impl.h`, read at its current tip
+    on 2026-08-20): the point -- or the `e0` closing the rings -- first,
+    then the message hash, then the ring index and the position each as
+    4 bytes big-endian (issue #1070). There is no vendored zkp in this
+    tree to call, so this pins that order computed by hand from zkp's
+    documented source rather than from any live cross-check against
+    zkp's own code -- and pins it against a `m || R || i || j` order,
+    which is what this function computed, and what this test would have
+    caught, before #1070.
+    """
+    m = hashlib.sha256(b"message hash, pretending to be one").digest()
+    r = hashlib.sha256(b"nonce point, or e0, pretending to be one").digest()
+    ring, position = 3, 7
+    expected = hashlib.sha256(
+        r + m + ring.to_bytes(4, "big") + position.to_bytes(4, "big")
+    ).digest()
+
+    assert borromean._hash(m, r, ring, position, sha256) == expected
+    # the order the preimage used to have, and would still equal if
+    # #1070 had not been fixed
+    swapped = hashlib.sha256(
+        m + r + ring.to_bytes(4, "big") + position.to_bytes(4, "big")
+    ).digest()
+    assert borromean._hash(m, r, ring, position, sha256) != swapped
+
+
 def test_the_curve_and_the_hash_function_are_parameters() -> None:
     """As module globals, selecting either would be process-wide.
 
@@ -174,26 +205,28 @@ def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
 
     # step 2, the e derived from e0
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        borromean.sign(b"\x00\x00\x00\x00", [1], [0], [1], [[Q1]], ec=ec)
+        borromean.sign(b"\x00\x00\x00\x00", [3], [0], [1], [[Q1]], ec=ec)
 
     # step 1, the e derived from the nonce's own point
     with pytest.raises(BTClibRuntimeError, match=err_msg):
-        borromean.sign(b"\x00\x00\x00\x01", [3], [0], [1], [[Q1, Q2]], ec=ec)
+        borromean.sign(b"\x00\x00\x00\x00", [1], [0], [1], [[Q1, Q2]], ec=ec)
 
     # and both guards in verification, where nothing is random: the first
-    # e of a ring, and one derived from a preceding r
+    # e of a ring, and one derived from a preceding r. Both e0 values are
+    # specific to #1070's preimage order -- e || m || ring || pos -- and
+    # were found by searching, not derived
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (8).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+            b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
         )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1, 1]], [[Q1, Q2]], ec=ec
+            b"\x00\x00\x00\x00", (47).to_bytes(32, "big"), [[1, 1]], [[Q1, Q2]], ec=ec
         )
     # verify answers False, as it does for any input that is not a valid
     # signature: BTClibRuntimeError is one of the two it catches
     assert not borromean.verify(
-        b"\x00\x00\x00\x00", (8).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+        b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
     )
 
 
@@ -209,13 +242,15 @@ def test_the_point_at_infinity_is_the_other_corner_case() -> None:
     ec = low_card_curves["ec13_11"]
     Q1 = mult(1, ec.G, ec)
 
+    # this e0, like the ones above, is specific to #1070's preimage
+    # order and was found by searching
     with pytest.raises(BTClibValueError, match="no bytes representation"):
         borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (21).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+            b"\x00\x00\x00\x00", (14).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
         )
     # ValueError being the other exception verify catches
     assert not borromean.verify(
-        b"\x00\x00\x00\x00", (21).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+        b"\x00\x00\x00\x00", (14).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
     )
 
 

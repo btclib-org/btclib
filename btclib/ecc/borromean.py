@@ -11,6 +11,27 @@ References:
 Both are also cited inside `sign`, which is not where a reader looks
 first; they are here because the module is what one arrives at.
 
+`_hash`'s challenge preimage matches secp256k1-zkp's `rangeproof`
+module -- `secp256k1_borromean_hash`,
+`src/modules/rangeproof/borromean_impl.h` -- which is the only other
+implementation of this construction anything reads, Elements and
+Confidential Transactions among its callers: `e || m || ring || pos`,
+the point or `e0` bytes first, then the message hash, then the ring
+index and the position each as 4 bytes big-endian. It did not always:
+issue #1070 found the message and the point swapped, and every
+signature this module produced before that fix does not verify after
+it and never will -- there is no version byte in the wire format to
+switch on, `sign` and `assert_as_valid` compute this hash the same way
+every time, and RELEASE_NOTES.md's breaking-changes list has the
+"before" and "after" this cost.
+
+`_get_msg_format` was checked against zkp too, in the same issue, and
+has nothing to align with: zkp's rangeproof never hashes a caller's
+message together with caller-supplied pubkey rings the way this
+function does, because it reconstructs its rings from a value
+commitment and hashes that commitment, the generator point and the
+proof's own header bytes instead. There is no zkp construction here to
+diverge from or to match, so this one is untouched.
 """
 
 from __future__ import annotations
@@ -46,8 +67,15 @@ __all__ = [
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
+    # R (the nonce point, or e0 closing the rings) before m: zkp's
+    # secp256k1_borromean_hash writes e || m || ring || pos, and this
+    # used to write m || R -- the two swapped, a byte-for-byte different
+    # preimage over identical inputs (issue #1070). Aligning it is a
+    # hard break with no migration: every signature this module ever
+    # produced was made with the old order and stops verifying under
+    # this one
     temp = b"".join(
-        [m, R, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
+        [R, m, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
     )
     hasher = hf()
     hasher.update(temp)
@@ -60,6 +88,9 @@ PubkeyRing = Sequence[Point]
 def _get_msg_format(
     msg: bytes, pubk_rings: Sequence[PubkeyRing], ec: Curve, hf: HashF
 ) -> bytes:
+    # unlike _hash, nothing to align here: zkp never hashes a message
+    # together with caller-supplied pubkey rings, so there is no zkp
+    # preimage this one could diverge from (issue #1070)
     t = b"".join(
         b"".join(bytes_from_point(Q, ec) for Q in pubk_ring) for pubk_ring in pubk_rings
     )
