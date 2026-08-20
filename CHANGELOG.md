@@ -4010,6 +4010,22 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`hashes.siphash` implements SipHash-2-4** (issue #373), the keyed
+  hash BIP158's filter and BIP152's short transaction IDs both build on
+  a peer- or block-derived secret rather than a general-purpose digest.
+  `siphash(k0, k1, octets)` takes the 128-bit key as the two 64-bit
+  words Core's `CSipHasher(k0, k1)` and its Python mirror take them,
+  and octets in every spelling `Octets` already accepts; the answer is
+  an unsigned 64-bit int, never wider than 8 bytes. No separate
+  32-byte/`uint256` convenience is added: Core's Python
+  `siphash256(k0, k1, num)` exists only to turn a `uint256` read as a
+  Python int back into the 32 bytes `siphash` was going to hash, and
+  btclib already carries a 32-byte hash as bytes in that same internal
+  order, so a caller here passes it to `siphash` directly and there is
+  no byte-order code left for a wrapper to save. Every one of Core's
+  146 `src/test/data/siphash.json` vectors passes; `tests/_data/README.md`
+  pins the file.
+
 - **BIP32 derivation has a spelling that does not go through Base58Check**
   (issue #886). `derive` took an xprv/xpub string and returned one, and so
   did `rootxprv_from_seed` and `xpub_from_xprv`, so a caller holding a seed
