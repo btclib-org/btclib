@@ -6959,6 +6959,46 @@ documented at release-notes length in the first place, and are still in
   optional too would sell the one defence left for a factor the table
   above does not show.
 
+- **A MuSig2 session no longer re-aggregates the same keys at every
+  step** (issue #1045). `session_values` opened by calling
+  `key_agg_and_tweak` over every participant key, and `sign`,
+  `partial_sig_verify_` and `partial_sig_agg` each called it once per
+  signer: a session that signs, has every signer verified against
+  BIP327 and aggregates runs that O(n) aggregation 2n+1 times over
+  inputs that never change, so the whole session was quadratic in the
+  number of signers. It is now memoized on the `SessionContext`
+  instance -- the class is `frozen=True` without `slots`, so it still
+  has a `__dict__`, and `object.__setattr__` reaches it exactly as
+  `__init__` already does. The cached attribute sits outside the
+  dataclass's declared fields, so it is invisible to the `__eq__` and
+  `__hash__` those fields generate, and two contexts spelling the same
+  session stay equal whichever of them has already signed.
+
+  Measured on an Apple M5, macOS 26.6.2, arm64, CPython 3.14.7, bindings
+  serving, timing a whole session (nonce generation, signing, verifying
+  every partial signature, aggregating) with and without the
+  memoization, best of five:
+
+  | n | before | after | |
+  | ---: | ---: | ---: | ---: |
+  | 2 | 0.60 ms | 0.33 ms | 1.82x |
+  | 5 | 1.90 ms | 0.75 ms | 2.53x |
+  | 10 | 5.46 ms | 1.44 ms | 3.80x |
+  | 20 | 17.45 ms | 2.87 ms | 6.09x |
+  | 50 | 94.39 ms | 7.05 ms | 13.38x |
+  | 100 | 361.25 ms | 14.49 ms | 24.92x |
+
+  `partial_sig_verify`, the convenience spelling that builds a fresh
+  `SessionContext` per call, cannot benefit from this and does not try
+  to: its docstring now points a caller that verifies every signer at
+  `partial_sig_verify_` with one shared context instead, which is the
+  spelling the table above measures. `btclib/psbt/musig2.py` builds a
+  fresh `SessionContext` at each public entry point too, so this
+  memoization does not reach that layer; its own redundancy is a
+  separate concern. The cached value holds no secret -- Q, gacc, tacc,
+  b, R and e are all public -- so nothing here changes what
+  `SECURITY.md` publishes.
+
 ### Tests
 
 - **A recorder per bindings signing call site asserts what `verify` it
