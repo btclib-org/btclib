@@ -8,8 +8,9 @@ Two parties, each holding the other's public key, compute the same
 shared secret -- their key pair times the other's public point -- and
 derive symmetric keying data from it through a key derivation
 function. The curve and the KDF are the two things the parties must
-agree on beforehand; ansi_x9_63_kdf is SEC 1's KDF, and
-diffie_hellman is the agreement built on it.
+agree on beforehand; SEC 1's KDF is `kdf.ansi_x9_63_kdf`, which
+btclib.kdf holds beside RFC 5869's, and diffie_hellman is the agreement
+built on it.
 
 **Why `ecdh.shared_secret` of the bindings has no caller in btclib, and
 this is the place that says so** (issue 909). That function multiplies
@@ -40,81 +41,22 @@ here do not, and the fourth already does.
 from __future__ import annotations
 
 from hashlib import sha256
-from math import ceil
 
+# the module and not the function it calls: `from btclib.kdf import
+# ansi_x9_63_kdf` would bind that name here too, leaving
+# `btclib.ecc.dh.ansi_x9_63_kdf` a live spelling of a function this
+# module no longer defines, and `btclib.kdf` the only place it is
+# defined is the whole of what moving it was for
+from btclib import kdf
 from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import _assert_valid_ec, _libsecp256k1_serves
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.utils import is_integer
+from btclib.exceptions import BTClibRuntimeError
 
 __all__ = [
-    "ansi_x9_63_kdf",
     "diffie_hellman",
 ]
-
-
-def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) -> bytes:
-    """Return keying data according to ANSI-X9.63-KDF.
-
-    Return a keying data octet sequence of the requested size according
-    to ANSI-X9.63-KDF specifications for the key derivation function.
-
-    `size` is a positive number of octets, SEC 1's keydatalen: a
-    BTClibTypeError if it is no integer, a BTClibValueError if it is zero,
-    negative, or above what the hash function can derive.
-
-    http://www.secg.org/sec1-v2.pdf,
-    section 3.6.1
-    """
-    # the range is checked before the loop bound is computed from it, and
-    # the type before the range. Unchecked, a negative size made the loop
-    # empty and the final negative slice returned b"" -- an empty key
-    # where the caller asked for keying material, which is the one answer
-    # a key derivation function must never invent (issue 321). A float
-    # went further still and reached that slice, leaving through a bare
-    # TypeError from underneath the library rather than through its own
-    # exception contract
-    if not is_integer(size):
-        raise BTClibTypeError(f"non-integer keying data size: {size}")
-    # zero and not merely negative: SEC 1 3.6.1 states keydatalen as a
-    # positive integer, and a caller asking for no octets of key is a
-    # caller with a bug rather than one with an empty key
-    if size <= 0:
-        raise BTClibValueError(f"invalid keying data size: {size}")
-    hf_size = hf().digest_size
-    max_size = hf_size * (2**32 - 1)
-    if size > max_size:
-        raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
-    # the whole buffer is asked for once, and the blocks are written into
-    # it. A list of digests joined and then sliced holds the keying data
-    # three times over -- the digests, the join's copy, the slice's --
-    # where this holds it twice: deriving 64 MiB peaks at 2.00x the
-    # output against 5.79x. It costs about 0.03 us a block, so a fifth of
-    # a microsecond at the one or two blocks `diffie_hellman` asks for,
-    # which is around one percent of the 15.2 us multiplication it
-    # arrives through -- and a tenth of the derivation at sizes far
-    # beyond that
-    #
-    # the `memoryview` is what makes each write exact: a bytearray slice
-    # assignment of the wrong length resizes the buffer and shifts every
-    # block after it, where this raises. At the end `bytes(view[:size])`
-    # copies once, where `bytes(keying_data[:size])` would copy twice
-    n_blocks = ceil(size / hf_size)
-    keying_data = bytearray(n_blocks * hf_size)
-    view = memoryview(keying_data)
-    for counter in range(1, n_blocks + 1):
-        h = hf()
-        hash_input = (
-            z
-            + counter.to_bytes(4, byteorder="big", signed=False)
-            + (b"" if shared_info is None else shared_info)
-        )
-        h.update(hash_input)
-        start = (counter - 1) * hf_size
-        view[start : start + hf_size] = h.digest()
-    return bytes(view[:size])
 
 
 def diffie_hellman(
@@ -155,7 +97,7 @@ def diffie_hellman(
         sec = libsecp256k1_keys.pubkey_tweak_mul(
             bytes_from_point(QV, ec, compressed=False), d
         )
-        return ansi_x9_63_kdf(sec[1:], size, hf, shared_info)
+        return kdf.ansi_x9_63_kdf(sec[1:], size, hf, shared_info)
 
     shared_secret_point = mult(dU, QV, ec)
     # a degenerate dU, zero mod n, maps every QV here
@@ -164,4 +106,4 @@ def diffie_hellman(
         raise BTClibRuntimeError(err_msg)
     shared_secret_field_element = shared_secret_point[0]
     z = shared_secret_field_element.to_bytes(ec.p_size, byteorder="big", signed=False)
-    return ansi_x9_63_kdf(z, size, hf, shared_info)
+    return kdf.ansi_x9_63_kdf(z, size, hf, shared_info)

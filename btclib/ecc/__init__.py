@@ -12,7 +12,9 @@ of a public key with the x-only ECDH on it, the BIP374 proof that two
 points share one discrete logarithm, and the RFC6979, BIP340 and
 sign-to-contract nonces. The curve arithmetic underneath is
 btclib.curves, and the rule between the two is that direction: ecc
-imports curves, never the other way round.
+imports curves, never the other way round. The key derivation functions
+the agreement uses are btclib.kdf: a KDF is a hash construction with no
+curve in it, and its own module says why it is not here.
 
 The two names are easy to conflate -- everything here is also about
 curves -- so the anchor is worth stating: `from btclib.curves import mult`,
@@ -34,8 +36,8 @@ spelling, as `btclib.ecc.dsa` is.
 What is *not* here is a module's own functions, plain or prepared:
 `dsa.sign` and `dsa.sign_` are both in `dsa.__all__` and neither is in
 this one, and nor are `musig2.key_agg`, `ecies.encrypt` or
-`ellswift.xdh`. The three loose helpers ``__all__`` names above are the
-whole of the exception. So the trailing underscore is no part of the
+`ellswift.xdh`. The loose helpers ``__all__`` names above are the whole
+of the exception. So the trailing underscore is no part of the
 decision, and for four names there is no decision to make: dsa and ssa
 both define `sign_`, `verify_` and `assert_as_valid_`, ssa and
 rfc6979_nonce both define `challenge_`, and a package-level export of
@@ -75,11 +77,10 @@ from btclib.ecc import (
     rfc6979_nonce,
     ssa,
 )
-from btclib.ecc.dh import ansi_x9_63_kdf, diffie_hellman
+from btclib.ecc.dh import diffie_hellman
 from btclib.ecc.pedersen import second_generator
 
 __all__ = [
-    "ansi_x9_63_kdf",
     "bip340_nonce",
     "bms",
     "borromean",

@@ -12,16 +12,27 @@ and what BIP324's v2 handshake needs of the keys it carries.
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
-This module stops at ElligatorSwift key encoding and x-only ECDH. It does
-not implement BIP324's v2 transport: HKDF-SHA256, ChaCha20-Poly1305,
-forward-secure rekeying, length obfuscation, and packet framing are
-outside btclib's scope. Those belong beside a P2P client, which btclib
-does not provide. Shipping them here would either put a pure-Python cipher
-on a production network path or make a new cipher dependency mandatory for
-every installation; accepting a cipher from the caller would still
-leave a framing layer that is not useful on its own. A complete transport
-belongs in a separate optional package or extra, backed by an established
-cryptographic implementation and BIP324's packet vectors.
+This module stops at ElligatorSwift key encoding and x-only ECDH, and
+each piece of BIP324's v2 transport it leaves out has a reason of its
+own (issue 1066). The key schedule's HKDF-SHA256 is not one of them:
+it is a construction over a hash, `hmac` and `hashlib` and nothing else,
+and it is `kdf.hkdf`.
+
+- **ChaCha20-Poly1305** is the cipher, and `ecc.ecies` is where the rule
+  about a cipher is stated: btclib takes one from its caller rather than
+  shipping one. A cipher in the standard library is what would change
+  that; a hand-rolled one is not, being the only implementation, on by
+  default, for every installation, on a network path.
+- **Forward-secure rekeying and length obfuscation** are cipher
+  invocations, so a caller-supplied cipher leaves them written against
+  something no test here can exercise. They follow the cipher and cannot
+  precede it.
+- **Packet framing** is the transport itself, which belongs beside a P2P
+  client that btclib does not provide.
+
+A complete transport therefore belongs in a separate optional package or
+extra, backed by an established cryptographic implementation and BIP324's
+packet vectors.
 
 `decode` is the map, and it is deterministic. `encode` and `create` are
 its inverse, and are not: up to eight (u, t) pairs decode to one

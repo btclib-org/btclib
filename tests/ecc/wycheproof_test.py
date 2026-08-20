@@ -81,6 +81,7 @@ from typing import Any, Protocol
 
 import pytest
 
+from btclib import kdf
 from btclib.alias import HashF, HashObject, Point
 from btclib.curves import mult, point_from_octets, secp256k1
 from btclib.ecc import dh, dsa
@@ -563,4 +564,4 @@ def test_ecdh(
     assert mult(prv_key, pub_key, secp256k1)[0] == int.from_bytes(
         shared, byteorder="big"
     )
-    assert shared_key == dh.ansi_x9_63_kdf(shared, _KEY_SIZE, sha256, None)
+    assert shared_key == kdf.ansi_x9_63_kdf(shared, _KEY_SIZE, sha256, None)

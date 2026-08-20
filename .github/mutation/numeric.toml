@@ -1,8 +1,9 @@
 # The numeric and monetary validators, mutated: satoshi amounts, fee rates,
-# and the X9.63 KDF's output length. Issue #327 proposed this scope beside
-# the wire-format and fetch profiles, listing the same defect class each
-# time -- negative, zero, maximum and maximum-plus-one, a bool passing
-# where a bool is not a number, and the rounding direction of a fee.
+# and the output length of both key derivation functions. Issue #327
+# proposed this scope beside the wire-format and fetch profiles, listing
+# the same defect class each time -- negative, zero, maximum and
+# maximum-plus-one, a bool passing where a bool is not a number, and the
+# rounding direction of a fee.
 # tests/integer_policy_test.py is beside each module's own file because it
 # is where the bool-is-not-a-number refusal (#326) is asserted for
 # `amount.py` and `fee.py` by name.
@@ -12,11 +13,12 @@ module-path = [
     "btclib/amount.py",
     "btclib/fee.py",
     "btclib/ecc/dh.py",
+    "btclib/kdf.py",
 ]
 
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/amount_test.py tests/fee_test.py tests/ecc/dh_test.py \
-  tests/integer_policy_test.py"""
+  tests/kdf_test.py tests/integer_policy_test.py"""
 
 # 30 seconds, narrow where sig_hash.toml's is wide, and measured rather
 # than inherited. What that file's width is for does not arise here: a
@@ -48,23 +50,26 @@ excluded-modules = []
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
-#   grep -n ' | ' btclib/amount.py btclib/fee.py btclib/ecc/dh.py
+#   grep -n ' | ' btclib/amount.py btclib/fee.py btclib/ecc/dh.py \
+#     btclib/kdf.py
 #
 # Every hit is an annotation. Confirmed by running the filter itself
-# rather than by the grep alone: `cosmic-ray init` over this file still
-# enumerates the 602 mutants the session below did, and
-# `cosmic_ray.tools.filters.operators_filter` marks 22 of them SKIPPED
-# -- the same 22 the session below already found equivalent by
-# inspection -- leaving 580 for a future session to have an opinion
+# rather than by the grep alone: `cosmic-ray init` over this file
+# enumerates 720 mutants and
+# `cosmic_ray.tools.filters.operators_filter` marks 66 of them SKIPPED,
+# which is every `bytes | None` annotation the grep finds at eleven
+# mutants apiece, leaving 654 for a future session to have an opinion
 # about (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 602 mutants, all of them: 553 killed, 49 survived, 8.14%. The first
-# session of this profile to finish rather than sample, which is what the
-# budget and the timeout above buy together -- and what lets this state a
-# rate at all, a sample being readable only for the verdicts that move in
-# it.
+# The last full session judged 602 mutants: 553 killed, 49 survived,
+# 8.14%. The first session of this profile to finish rather than sample,
+# which is what the budget and the timeout above buy together -- and what
+# lets this state a rate at all, a sample being readable only for the
+# verdicts that move in it. The enumeration above is the larger number
+# because `btclib/kdf.py`'s HKDF is outside that session's scope, and no
+# session has had an opinion about those mutants yet.
 #
 # Of the 49, thirty-seven fall into four shapes:
 #

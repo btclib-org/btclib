@@ -134,6 +134,13 @@ btclib.hwi module
    :members:
    :show-inheritance:
 
+btclib.kdf module
+-----------------
+
+.. automodule:: btclib.kdf
+   :members:
+   :show-inheritance:
+
 btclib.network module
 ---------------------
 

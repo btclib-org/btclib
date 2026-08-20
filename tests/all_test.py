@@ -388,7 +388,6 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
 def test_ecc_exports_the_signature_schemes() -> None:
     """Guards against dsa, ssa and bms dropping out of the export list."""
     assert sorted(btclib.ecc.__all__) == [
-        "ansi_x9_63_kdf",
         "bip340_nonce",
         "bms",
         "borromean",
