@@ -9,9 +9,11 @@ from pathlib import Path
 
 import pytest
 
+from btclib import var_int
+from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
-from btclib.tx import OutPoint, Tx, TxIn
+from btclib.tx import OutPoint, Tx, TxIn, TxOut, input_weight
 from tests.conftest import JsonGolden
 
 
@@ -205,3 +207,132 @@ def test_script_sig_is_not_validated_and_that_is_the_answer() -> None:
     tx = Tx(vin=[TxIn()], vout=[], check_validity=False)
     with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
         tx.assert_valid()
+
+
+def test_input_weight() -> None:
+    """Match Core's TestFrameworkWalletUtil.test_calculate_input_weight.
+
+    Its cases transcribed from
+    test/functional/test_framework/wallet_util.py at bitcoin/bitcoin
+    42330922, with Core's `witness_stack_hex=None` spelled `None` and its
+    `[]` spelled `Witness()`. They are chosen for the two boundaries the
+    arithmetic can be wrong at: a length of 252 against one of 253, where
+    a var_int grows from one byte to three, on the script_sig and on the
+    witness item count alike; and no witness against an empty stack.
+    """
+    SKELETON_BYTES = 32 + 4 + 4  # prevout-txid, prevout-index, sequence
+    SMALL_LEN_BYTES = 1  # a var_int announcing a length below 253
+    LARGE_LEN_BYTES = 3  # a var_int announcing 253 or more
+
+    # empty script_sig, no witness
+    assert (
+        input_weight(b"") == (SKELETON_BYTES + SMALL_LEN_BYTES) * WITNESS_SCALE_FACTOR
+    )
+    assert (
+        input_weight(b"", None)
+        == (SKELETON_BYTES + SMALL_LEN_BYTES) * WITNESS_SCALE_FACTOR
+    )
+    # small script_sig, no witness
+    script_sig_small = b"\x00" * 252
+    assert (
+        input_weight(script_sig_small, None)
+        == (SKELETON_BYTES + SMALL_LEN_BYTES + 252) * WITNESS_SCALE_FACTOR
+    )
+    # small script_sig, empty witness stack
+    assert (
+        input_weight(script_sig_small, Witness())
+        == (SKELETON_BYTES + SMALL_LEN_BYTES + 252) * WITNESS_SCALE_FACTOR
+        + SMALL_LEN_BYTES
+    )
+    # large script_sig, no witness
+    script_sig_large = b"\x00" * 253
+    assert (
+        input_weight(script_sig_large, None)
+        == (SKELETON_BYTES + LARGE_LEN_BYTES + 253) * WITNESS_SCALE_FACTOR
+    )
+    # large script_sig, empty witness stack
+    assert (
+        input_weight(script_sig_large, Witness())
+        == (SKELETON_BYTES + LARGE_LEN_BYTES + 253) * WITNESS_SCALE_FACTOR
+        + SMALL_LEN_BYTES
+    )
+    # empty script_sig, 5 small witness stack items
+    assert (
+        input_weight(b"", Witness(["00", "11", "22", "33", "44"]))
+        == (SKELETON_BYTES + SMALL_LEN_BYTES) * WITNESS_SCALE_FACTOR
+        + SMALL_LEN_BYTES
+        + 5 * SMALL_LEN_BYTES
+        + 5
+    )
+    # empty script_sig, 253 small witness stack items
+    assert (
+        input_weight(b"", Witness(["00"] * 253))
+        == (SKELETON_BYTES + SMALL_LEN_BYTES) * WITNESS_SCALE_FACTOR
+        + LARGE_LEN_BYTES
+        + 253 * SMALL_LEN_BYTES
+        + 253
+    )
+    # small script_sig, 3 large witness stack items
+    assert (
+        input_weight(script_sig_small, Witness(["00" * 253] * 3))
+        == (SKELETON_BYTES + SMALL_LEN_BYTES + 252) * WITNESS_SCALE_FACTOR
+        + SMALL_LEN_BYTES
+        + 3 * LARGE_LEN_BYTES
+        + 3 * 253
+    )
+    # large script_sig, 3 large witness stack items
+    assert (
+        input_weight(script_sig_large, Witness(["00" * 253] * 3))
+        == (SKELETON_BYTES + LARGE_LEN_BYTES + 253) * WITNESS_SCALE_FACTOR
+        + SMALL_LEN_BYTES
+        + 3 * LARGE_LEN_BYTES
+        + 3 * 253
+    )
+
+
+def test_input_weight_sums_to_tx_weight() -> None:
+    """Sum the inputs of a built transaction and land on Tx.weight.
+
+    Core's vectors above fix the answer against a third party; this fixes
+    it against btclib's own weight arithmetic, which is what a caller
+    composes it with -- and it is where the `None`/`Witness()` split is
+    load-bearing rather than merely documented. The second transaction is
+    segwit with one input carrying an empty stack: reading that input as
+    having no witness would lose the one byte of its var_int, and reading
+    the legacy transaction's input as having an empty one would invent
+    that byte.
+    """
+    prev_out = OutPoint(b"\x01" * 32, 0)
+    tx_out = TxOut(1000, "0014" + "00" * 20)
+    p2pkh_script_sig = b"\x00" * 107
+    p2wpkh_witness = Witness(["00" * 72, "00" * 33])
+    p2sh_p2wpkh_script_sig = b"\x16" + b"\x00" * 22
+
+    legacy = Tx(vin=[TxIn(prev_out, p2pkh_script_sig, 0xFFFFFFFF)], vout=[tx_out])
+    segwit = Tx(
+        vin=[
+            TxIn(prev_out, b"", 0xFFFFFFFF, p2wpkh_witness),
+            TxIn(prev_out, p2sh_p2wpkh_script_sig, 0xFFFFFFFF, Witness()),
+        ],
+        vout=[tx_out],
+    )
+
+    for tx in (legacy, segwit):
+        inputs = sum(
+            input_weight(
+                tx_in.script_sig, tx_in.script_witness if tx.is_segwit else None
+            )
+            for tx_in in tx.vin
+        )
+        # everything the inputs are not: version, the two counts, the
+        # outputs and the lock time, all of them non-witness bytes, plus
+        # the two bytes of the segwit marker and flag, which are witness
+        # bytes and weigh one each
+        rest = WITNESS_SCALE_FACTOR * (
+            4
+            + len(var_int.serialize(len(tx.vin)))
+            + len(var_int.serialize(len(tx.vout)))
+            + sum(tx_out_._serialized_size() for tx_out_ in tx.vout)
+            + 4
+        ) + (2 if tx.is_segwit else 0)
+        assert tx.weight == inputs + rest

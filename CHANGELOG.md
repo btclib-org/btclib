@@ -1411,6 +1411,40 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **`tx.input_weight` answers what an input will weigh before the input
+  exists** (issue #1067). A fee is chosen before the transaction is
+  signed, so the weight it is computed from cannot be read off the
+  transaction whose shape that fee decides, and `Tx.weight` needs a
+  transaction already built. `input_weight(script_sig, witness=None)` is
+  BIP141's rule applied to one input: the non-witness bytes -- the
+  36-byte outpoint, the script_sig behind its var_int length, the 4-byte
+  sequence -- weigh `WITNESS_SCALE_FACTOR` each, and the serialized
+  witness stack weighs one each. It is Bitcoin Core's
+  `calculate_input_weight`, of
+  `test/functional/test_framework/wallet_util.py`, whose
+  `TestFrameworkWalletUtil.test_calculate_input_weight` beside it is the
+  third-party vector set the test transcribes, at bitcoin/bitcoin
+  42330922: the two var_int boundaries, 252 bytes against 253 on the
+  script_sig and on the witness item count, and no witness against an
+  empty stack.
+
+  Those last two are a byte apart, and that is the subtlety the type
+  carries. An input of a transaction with no witness section contributes
+  nothing beyond its non-witness bytes; an empty stack in a segwit
+  transaction still serializes the var_int announcing no elements. Core
+  takes a list of hex items and has to document the difference as a rule
+  about its `None` default, where `Witness | None` makes it unspeakable
+  to get wrong. It is why this is a free function and not a `TxIn`
+  property: `TxIn.script_witness` is a `Witness` and never `None`, so an
+  input alone cannot say whether the transaction it will sit in has a
+  witness section at all -- an empty one there is both a legacy input
+  and an unsigned segwit one, and a property would have to pick.
+
+  It sits in `btclib.tx.tx_in` beside that input rather than in
+  `btclib.fee`, taking no rate and answering a weight; `fee_from_vsize`
+  is what turns one into money. Coin selection and fee estimation are
+  still not here, and what a caller does with the number is theirs.
+
 - **`psbt.musig2.partial_sigs_agg` aggregates the participant list once,
   not four times** (issue #1046). Every public function of the module
   built a fresh `SessionContext` from the psbt, so issue #1045's own
