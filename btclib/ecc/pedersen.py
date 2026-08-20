@@ -68,9 +68,10 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     For (secp256k1, sha256), the pair used everywhere else in this
     module by default, the derived H equals the H hardcoded as
     `secp256k1_generator_h` in libsecp256k1-zkp -- the H of Elements and
-    of Confidential Transactions. `pedersen_test.py::test_second_generator`
-    pins that value; no published constant exists to pin it against on
-    another curve or hash function.
+    of Confidential Transactions.
+    `tests/ecc/pedersen_test.py::test_second_generator` pins that
+    value; no published constant exists to pin it against on another
+    curve or hash function.
 
     idea:
     https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
