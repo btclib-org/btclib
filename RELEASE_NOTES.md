@@ -422,6 +422,18 @@ full year, short month, short day (YYYY-M-D)
   does not verify under the new one, and there is no version byte in
   the wire format to switch on -- CHANGELOG.md has why the break was
   worth paying.
+- **`musig2.partial_sig_agg` refuses a session that carries an
+  adaptor.** It briefly answered `ssa.Sig | PreSignature`, the type
+  depending on `session_ctx.adaptor`; that shipped on `main` for under
+  an hour before this release, so "before" is that commit rather than
+  a numbered release. It is `-> ssa.Sig` again, exactly as every
+  caller before adaptor signatures existed already relied on, and
+  raises `BTClibValueError` for a session that carries an adaptor. The
+  new `partial_sig_agg_adaptor` is the spelling for that session,
+  answering the `PreSignature` the union used to. CHANGELOG.md has
+  why: a return type keyed on a field of an argument taxes every
+  caller that will never touch an adaptor, and it moved against where
+  secp256k1-zkp#330 is taking the C API.
 
 ### Worth knowing, though nothing raises
 

@@ -65,7 +65,7 @@ from btclib.bip32 import BIP328_CHAIN_CODE, pub_key_derivation_tweaks
 from btclib.curves import secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import musig2, ssa
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, tagged_hash
 from btclib.psbt.psbt import (
     Psbt,
@@ -518,13 +518,6 @@ def partial_sigs_agg(
     sig = musig2.partial_sig_agg(
         [partial_sigs[key] for key in session.context.pub_keys], session.context
     )
-    if not isinstance(sig, ssa.Sig):
-        # unreachable: session_context (above) never sets
-        # SessionContext.adaptor, BIP373 having no field for one yet
-        # (btclib-org/btclib#1051), so partial_sig_agg cannot answer a
-        # PreSignature here. The check is what tells mypy that, since
-        # nothing in the type system does
-        raise BTClibRuntimeError("unexpected musig2 pre-signature")  # pragma: no cover
     x_only_pub_key = session.key_agg_ctx.x_only_pub_key
     if not ssa.verify_(session.context.msg, x_only_pub_key, sig):
         # a partial signature that verifies on its own and does not add
