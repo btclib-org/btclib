@@ -51,9 +51,9 @@ than "this vector reaches this arm" and is what the measurement supports.
 Sharpening it means selecting the vector-driven tests within a module,
 which no marker in the tree expresses today.
 
-Three arms are reached by no such module at all, and two of them are the
-answer to the second half of issue #993 -- where nothing says it, what
-would:
+Some arms are reached by no such module at all, and some of those are
+the answer to the second half of issue #993 -- where nothing says it,
+what would:
 
 - `ecc.commit_nonce.commit_nonce_`, the sign-to-contract nonce tweak.
   There is no published vector set to vendor: the primitive is
