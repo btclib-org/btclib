@@ -52,23 +52,31 @@ __all__ = [
 # share by accident.
 @lru_cache(maxsize=128)
 def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
-    """Second (with respect to G) elliptic curve generator.
+    """Second (with respect to G) Nothing-Up-My-Sleeve (NUMS) generator.
 
-    Second (with respect to G) Nothing-Up-My-Sleeve (NUMS)
-    elliptic curve generator.
-
-    The hash of G is coerced it to a point (x_H, y_H).
-    If the resulting point is not on the curve, keep on
-    incrementing x_H until a valid curve point (x_H, y_H) is obtained.
+    A commitment rG+vH is only binding if nobody knows log_G(H): a
+    committer who did could open the same commitment to any (r, v) of
+    their choosing. H is therefore not chosen but derived -- the hash of
+    G is read as a candidate x-coordinate, and the candidate is
+    incremented until it lands on the curve -- so that computing a
+    discrete logarithm relating H to G is the only way to a value this
+    function could also have produced, and nobody has one.
 
     The result is cached on (ec, hf): it is a constant for that pair,
     recomputing it on every call cost 71% of a commitment (issue #287).
+
+    For (secp256k1, sha256), the pair used everywhere else in this
+    module by default, the derived H equals the H hardcoded as
+    `secp256k1_generator_h` in libsecp256k1-zkp -- the H of Elements and
+    of Confidential Transactions. `pedersen_test.py::test_second_generator`
+    pins that value; no published constant exists to pin it against on
+    another curve or hash function.
 
     idea:
     https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
 
     source:
-    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
+    https://github.com/BlockstreamResearch/secp256k1-zkp/blob/master/src/modules/generator/main_impl.h
     """
     # the generator is read off the curve before anything is done with
     # it, so this is where the three functions below first reach theirs;
@@ -92,10 +100,11 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 
 
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
-    """Commit to r, returning rG+vH.
+    """Commit to v under blinding factor r, returning rG+vH.
 
-    Commit to r, returning rG+vH. H is the second Nothing-Up-My-Sleeve
-    (NUMS) generator of the curve.
+    H is `second_generator`: opening the commitment to any (r, v) other
+    than the one committed to would need its discrete logarithm with
+    respect to G, which nobody has.
     """
     H = second_generator(ec, hf)
     Q = double_mult_var(v, H, r, ec.G, ec)
