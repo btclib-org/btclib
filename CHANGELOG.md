@@ -6149,6 +6149,20 @@ documented at release-notes length in the first place, and are still in
   against. The zkp reference also moved: the fork is
   `BlockstreamResearch`'s now, and the constant lives in its
   `generator` module rather than `rangeproof`.
+- **`ecc.musig2`'s module docstring states the history behind "the
+  earlier commit-then-reveal defence"** (issue #1052). MuSig was first
+  proposed with two rounds and no nonce commitment; it was withdrawn
+  once a signer choosing its nonce adaptively, after seeing everyone
+  else's, was shown to defeat the proof. The docstring already named
+  the revision that fixed it -- three rounds, a commitment round in
+  front -- without saying why it existed, and it renders on the
+  website through `docs/source/btclib.ecc.rst`'s autodoc, so a reader
+  meets the correction there.
+
+  `tests/ecc/ssa_test.py`'s MuSig demo is that three-round scheme now,
+  not the withdrawn one: `test_musig` is `test_musig1`, a round-1
+  commitment precedes the round-2 nonce reveal, and a forged nonce is
+  asserted to fail the commitment check rather than pass silently.
 
 ### Performance
 
