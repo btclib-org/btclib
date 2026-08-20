@@ -277,6 +277,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
     "ecc.ellswift.decode_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.encode_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.xdh": ("ecc/ellswift_test.py",),
+    "ecc.musig2.partial_sig_verify_": ("ecc/musig2_test.py",),
     "ecc.ssa.__init__": ("ecc/ssa_test.py",),
     "ecc.ssa.assert_as_valid_": (
         "bip322_test.py",

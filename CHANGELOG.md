@@ -4511,6 +4511,60 @@ documented at release-notes length in the first place, and are still in
   the same iteration before that read -- so nothing depended on the
   four stray bytes it briefly held; only the initializer is removed,
   and it cost no test.
+- **`musig2.partial_sig_verify_` delegates to
+  `btclib_secp256k1.musig` where it can** (issue #1049), and is the
+  only MuSig2 entry point that does: `key_agg`, `key_sort` and
+  `nonce_agg` measured too close to their Python cost (1.39x-1.66x, and
+  narrowing as the signer count grows) or run once per session already,
+  to be worth a second code path -- the measurement decided it, not
+  symmetry with `sign` or `partial_sig_agg`. Delegating needs a C
+  `KeyAggCache` (`musig_pubkey_agg` plus any tweaks) and a `Session`
+  (`musig_nonce_process`), both per-session rather than per-signer
+  work; `SessionContext` gets a second cache beside `session_values`'s
+  own (issue #1045), `_bindings_ctx`, built once on first use and
+  reused for every signer a session verifies rather than rebuilt per
+  call, which is what makes delegating a win rather than a wash.
+  `musig_nonce_process` takes a fixed 32-byte `msg32` with no length
+  parameter -- the shape of issue 169 without the `sign_custom` that
+  resolved it there -- and the bindings have no adaptor extension at
+  all (issue #1051), so a message that is not 32 bytes or a session
+  carrying an adaptor keeps the Python arm regardless of whether the
+  bindings serve. The signer's pubkey has to be a member of the
+  session's list, a check with no C equivalent that runs on both arms
+  and stays a `BTClibValueError` either way; a malformed pubnonce or
+  pubkey the delegated arm's own parse refuses is a `BTClibValueError`
+  too, `btclib_secp256k1.musig`'s own docstring being explicit that a
+  parse failure carries no message to translate. **Not a
+  RELEASE_NOTES.md entry**: the *type* is unchanged for every input,
+  and the *message* only differs, for a malformed pubnonce or pubkey,
+  when calling `partial_sig_verify_` directly rather than through
+  `partial_sig_verify` -- which already screens both through
+  `nonce_agg` and `session_values` before either arm's own parse would
+  ever run. That message was never a single sentence to begin with
+  (`point_from_octets` names the reason it found, "not a point: prefix
+  0x00" among them, depending on what is wrong), so it was already
+  diagnostic rather than API in the sense issue #998 drew that line for
+  `ssa`; this is the same line for `musig2`, not a new one.
+
+  Measured against this pull request's own base, best of 3000 calls
+  with `session_values` and the delegated session already cached (the
+  steady state `#1045` created), one signer's own partial signature
+  verified against a two-signer session:
+
+  | | per call |
+  | --- | ---: |
+  | Python arithmetic, `mult`/`add_var` still delegated underneath | 75.7 us |
+  | `musig_partial_sig_verify`, this change | 28.8 us |
+  | **speedup** | **2.63x** |
+
+  Issue #1049 measured 74.2 vs 19.9 us, a 3.7x speedup, on an Apple M5
+  running CPython 3.14.6; this run is on the same machine and
+  interpreter and the 74-75 us side agrees, so the difference is on the
+  28.8 vs 19.9 us side -- this measurement times the full public call,
+  `partial_sig_verify_(psig, pub_nonce, pub_key, session_ctx)`, where
+  the issue's 19.9 us looks to have timed nearer the raw C call alone.
+  Both numbers say the same thing about where the win is, at a
+  narrower margin than the issue quoted.
 
 ### Security
 

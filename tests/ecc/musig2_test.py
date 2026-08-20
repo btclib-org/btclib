@@ -48,7 +48,7 @@ from typing import Any
 import pytest
 
 from btclib._libsecp256k1 import INSTALLED
-from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.curves import bytes_from_point, is_libsecp256k1_serving, mult, secp256k1
 from btclib.ecc import musig2, ssa
 from btclib.exceptions import (
     BTClibTypeError,
@@ -772,6 +772,124 @@ def test_session(tweaks: list[bytes], is_xonly: list[bool]) -> None:
     sig = musig2.partial_sig_agg(psigs, session_ctx)
     assert ssa.verify_(_MSG, agg_pk, sig)
     ssa.assert_as_valid_(_MSG, agg_pk, sig)
+
+
+# issue #1049: partial_sig_verify_'s delegated arm, exercised past what
+# the BIP327 vectors reach on their own. _MSG32 rather than _MSG above --
+# _delegates_partial_sig_verify wants exactly 32 bytes, which _MSG is not
+_MSG32 = bytes(range(32))
+
+
+@pytest.mark.skipif(
+    not is_libsecp256k1_serving(),
+    reason="partial_sig_verify_ takes the Python arm here, nothing to cache",
+)
+def test_partial_sig_verify_reuses_the_bindings_session() -> None:
+    """A second signer verified against the same session_ctx hits the cache.
+
+    `partial_sig_verify` (no trailing underscore) builds a fresh
+    `SessionContext` on every call, which is why none of the vector-driven
+    tests above can exercise this: they all go through that spelling. This
+    calls `partial_sig_verify_` directly, twice, against one `session_ctx`
+    -- the first call builds the (KeyAggCache, Session) pair and caches it
+    there, the second reuses it, which is the whole point of caching it on
+    the session rather than rebuilding it once per signer (issue #1049's
+    own reasoning for why `nonce_process`'s flat cost is worth paying once).
+
+    `skipif` on `is_libsecp256k1_serving`, not `needs_bindings`: the two
+    ask different questions (`INSTALLED` against `ENABLED`, in
+    `btclib._libsecp256k1`'s own naming), and this test is about whether
+    `partial_sig_verify_` actually delegates -- false under
+    `BTCLIB_NO_LIBSECP256K1=1` although the bindings remain installed,
+    which `needs_bindings` alone would not catch.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)
+    pub_keys = musig2.key_sort([pk_1, pk_2])
+    sk_of = {pk_1: _SK_1, pk_2: _SK_2}
+    nonces = {pk: musig2.nonce_gen(sk_of[pk], pk, None, _MSG32) for pk in pub_keys}
+    agg_nonce = musig2.nonce_agg([nonces[pk][1] for pk in pub_keys])
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], _MSG32)
+    psigs = {pk: musig2.sign(nonces[pk][0], sk_of[pk], session_ctx) for pk in pub_keys}
+
+    assert session_ctx._bindings_ctx is None
+    for pk in pub_keys:
+        assert musig2.partial_sig_verify_(psigs[pk], nonces[pk][1], pk, session_ctx)
+    assert session_ctx._bindings_ctx is not None
+
+
+@pytest.mark.skipif(
+    not is_libsecp256k1_serving(),
+    reason="partial_sig_verify_ takes the Python arm here, its own _cpoint",
+)
+def test_partial_sig_verify_refuses_a_malformed_own_pub_nonce() -> None:
+    """The delegated arm still raises BTClibValueError for a bad own nonce.
+
+    No BIP327 vector reaches this path directly: sign_verify_vectors.json's
+    own invalid-pubnonce case is caught by `nonce_agg`, inside
+    `partial_sig_verify`, before `partial_sig_verify_` ever parses the
+    signer's own nonce (`test_verify_error_vectors` above). Calling the
+    trailing-underscore spelling directly, with a 66-byte value that is not
+    two valid points, is what forces the bindings' own parse to fail and
+    this function's `except ValueError` to translate it.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG32)
+    session_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce]), [pk_1], [], [], _MSG32
+    )
+    psig = musig2.sign(sec_nonce, _SK_1, session_ctx)
+    with pytest.raises(BTClibValueError, match="invalid pubnonce or pubkey"):
+        musig2.partial_sig_verify_(psig, bytes(66), pk_1, session_ctx)
+
+
+def test_partial_sig_verify_refuses_a_foreign_pub_key() -> None:
+    """A well-formed pubkey outside the session's list stays one message.
+
+    Both arms agree, deliberately: the delegated arm's own docstring
+    checks membership *after* the delegated call, once the bindings have
+    parsed `pub_key` without refusing it, which is exactly where the
+    Python arm below checks it once it has computed `P` from the same
+    bytes -- so a well-formed but foreign key answers `_SIGNER_PK_ERR`
+    either way, never the delegated arm's own parse-failure message. Run
+    unconditionally, like the adaptor test above: both arms reach the
+    same membership check on this input, so there is nothing here for
+    `BTCLIB_NO_LIBSECP256K1=1` to change.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)  # never joins the session
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG32)
+    session_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce]), [pk_1], [], [], _MSG32
+    )
+    psig = musig2.sign(sec_nonce, _SK_1, session_ctx)
+    with pytest.raises(BTClibValueError, match="must be included in the list"):
+        musig2.partial_sig_verify_(psig, pub_nonce, pk_2, session_ctx)
+
+
+def test_partial_sig_verify_takes_the_python_arm_for_an_adaptor_session() -> None:
+    """A session with an adaptor is not delegated even where bindings serve.
+
+    The bindings have no adaptor extension at all (this module's own
+    docstring): a C session built from `musig_nonce_process` folds no T
+    into R_1, so delegating here would check `sign`'s own partial
+    signature against the wrong effective nonce and the wrong challenge.
+    Verifying still answers True, which it could not if
+    `partial_sig_verify_` silently used that session instead of the
+    Python arm's adaptor-aware one. Run unconditionally, unlike the two
+    tests above: `session_ctx._bindings_ctx` staying `None` is correct
+    whether that is this guard or the bindings not serving at all, so
+    there is nothing here for `BTCLIB_NO_LIBSECP256K1=1` to break.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG32)
+    adaptor = bytes_from_point(mult(12345, ec=secp256k1), secp256k1)
+    session_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce]), [pk_1], [], [], _MSG32, adaptor
+    )
+    psig = musig2.sign(sec_nonce, _SK_1, session_ctx)
+    assert musig2.partial_sig_verify_(psig, pub_nonce, pk_1, session_ctx)
+    assert session_ctx._bindings_ctx is None
 
 
 def test_adapt_and_extract_adaptor_round_trip() -> None:

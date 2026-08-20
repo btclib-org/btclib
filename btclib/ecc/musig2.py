@@ -112,10 +112,12 @@ import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from hashlib import sha256
+from typing import TYPE_CHECKING
 
+from btclib._libsecp256k1 import musig as libsecp256k1_musig
 from btclib.alias import INF, Octets, Point
 from btclib.curves import mult, multi_mult_var, secp256k1
-from btclib.curves.curve import _sum_var, _tweak_add_var
+from btclib.curves.curve import _libsecp256k1_serves, _sum_var, _tweak_add_var
 from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
@@ -155,6 +157,15 @@ __all__ = [
     "sign",
 ]
 
+# `SessionContext._bindings_ctx`'s element types, under TYPE_CHECKING for
+# the reason `bip32.py`'s own `_PubKeyTweakChain` union is: `from __future__
+# import annotations` leaves an annotation a string, so nothing here is
+# evaluated at runtime and the bindings need not be installed for the
+# module to import -- this is only for mypy, which runs where they are
+if TYPE_CHECKING:
+    from btclib_secp256k1.musig import KeyAggCache as _KeyAggCache
+    from btclib_secp256k1.musig import Session as _Session
+
 # the tags of BIP327, which are what makes a MuSig2 hash a MuSig2 hash:
 # a different string is a different scheme, incompatible with every other
 # implementation, so these are frozen by the specification and not by
@@ -178,12 +189,18 @@ _NONCE_SIZE = 66
 # aggregate nonce is always 66 bytes on the wire
 _INF_BYTES = bytes(_PK_SIZE)
 
-# Four error messages below are BIP327's own, verbatim and in its
-# punctuation rather than in btclib's lower-case house style, because the
-# vector files carry the text: `error.message` of an error test case is
-# compared byte for byte, so a paraphrase would cost the comparison and a
-# translation table in the test would drift from both sides at once.
-# Everything else raises what the btclib helper it called raises
+# BIP327's reference raises several of its own verbatim strings besides
+# the four named below -- "first secnonce value is out of range." here
+# and its "second" twin, and "Public key does not match nonce_gen
+# argument" among them (`sign`, further down). What earns a name here is
+# not "BIP327's own": it is whether a vector compares the string byte for
+# byte, `assert_error` doing that for a "value" case's `error.message` --
+# a paraphrase there would cost the comparison and a translation table in
+# the test would drift from both sides at once. Only the four below and
+# "first secnonce value is out of range." are compared that way today;
+# `_TWEAK_SIZE_ERR` is named and untested by any vector regardless, for
+# the reader rather than the suite. Everything else raises what the
+# btclib helper it called raises, verbatim BIP327 string or not
 _TWEAK_SIZE_ERR = "The tweak must be a 32-byte array."
 _TWEAK_RANGE_ERR = "The tweak must be less than n."
 _TWEAK_INF_ERR = "The result of tweaking cannot be infinity."
@@ -580,6 +597,18 @@ class SessionContext:
         default=None, init=False, repr=False, compare=False
     )
 
+    # `partial_sig_verify_`'s own delegated-arm cache, the same idiom as
+    # `_values` above and for the same reason: `musig_pubkey_agg` (+ its
+    # tweaks) into a `KeyAggCache` and `musig_nonce_process` into a
+    # `Session` are per-session, not per-signer, so building them once and
+    # reusing them for every signer verified against this context is what
+    # makes delegating the per-signer arithmetic a net win rather than a
+    # wash -- issue #1049's own measurement of `nonce_process` staying
+    # flat regardless of how many signers a session has
+    _bindings_ctx: tuple[_KeyAggCache, _Session] | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
     # written out rather than an InitVar and a __post_init__: as in
     # ssa.Sig, and here it also normalizes -- the fields hold bytes and
     # tuples whatever the caller passed, so that a hex string and the
@@ -842,6 +871,39 @@ def deterministic_sign(
     return pub_nonce, sign(sec_nonce, q, session_ctx)
 
 
+def _bindings_session(session_ctx: SessionContext) -> tuple[_KeyAggCache, _Session]:
+    """Return the session's (KeyAggCache, Session) pair, building it once.
+
+    `partial_sig_verify_`'s delegated arm alone, cached on `session_ctx`
+    the way `session_values` caches `SessionValues` and for the same
+    reason: `musig_pubkey_agg` (+ its tweaks) into a `KeyAggCache` and
+    `musig_nonce_process` into a `Session` are per-session rather than
+    per-signer work, so a session that gets every one of its n partial
+    signatures verified pays for this once instead of n times -- which is
+    what turns delegating the per-signer arithmetic into a net win rather
+    than a wash, `nonce_process` alone measuring flat regardless of n
+    (issue #1049).
+
+    Every input here has already gone through `session_values`, which
+    `partial_sig_verify_` calls before ever asking whether to delegate: a
+    `pub_keys` entry that is not a point, a tweak out of range, or one
+    that lands the aggregate on infinity has already raised there, so
+    nothing below can fail on an input this module itself built and
+    already validated.
+    """
+    if session_ctx._bindings_ctx is not None:
+        return session_ctx._bindings_ctx
+    cache = libsecp256k1_musig.KeyAggCache(session_ctx.pub_keys)
+    for tweak, xonly in zip(session_ctx.tweaks, session_ctx.is_xonly, strict=True):
+        (cache.pubkey_xonly_tweak_add if xonly else cache.pubkey_ec_tweak_add)(tweak)
+    bindings_session = libsecp256k1_musig.Session(
+        session_ctx.agg_nonce, session_ctx.msg, cache
+    )
+    bindings_ctx = (cache, bindings_session)
+    object.__setattr__(session_ctx, "_bindings_ctx", bindings_ctx)
+    return bindings_ctx
+
+
 def partial_sig_verify_(
     psig: Octets, pub_nonce: Octets, pub_key: Octets, session_ctx: SessionContext
 ) -> bool:
@@ -851,18 +913,72 @@ def partial_sig_verify_(
     nonces itself, which is what btclib's trailing underscore
     distinguishes -- whether the caller prepared the input or the
     library does it.
+
+    Delegated to `btclib_secp256k1.musig` for secp256k1, sha256, a
+    32-byte message and a session with no adaptor (issue #1049): the
+    three point multiplications below are what a signer pays once per
+    session and a verifier once per signer it checks, and are 3.7x
+    slower here than in the bindings. secp256k1 and sha256 are this
+    module's only pair (its own docstring), so `_libsecp256k1_serves`
+    reduces to whether the bindings are installed and enabled.
+    `musig_nonce_process` takes a fixed 32-byte `msg32` with no length
+    parameter -- the shape of issue 169 without the `sign_custom` that
+    resolved it there, and BIP327's own empty-message and
+    38-byte-message vectors are what keeps this Python arm live and
+    validated for a message of any size. The bindings have no adaptor
+    extension at all (this module's own docstring's "Cross-validating
+    this construction against zkp" paragraph), so a session that
+    carries one takes the Python arm regardless of the other two
+    conditions. Nothing else in this module is delegated -- `key_agg`,
+    `key_sort` and `nonce_agg` measured too close to their Python cost,
+    or run once per session already, to be worth a second code path.
+
+    The signer's pubkey has to be one of the session's -- a membership
+    test with no C equivalent, `musig_partial_sig_verify` answering a
+    verdict for whatever pubkey it is given rather than asking whether it
+    was ever aggregated. `_session_key_agg_coeff` is what checks it, and
+    the delegated arm below calls it for that check alone, discarding the
+    coefficient the bindings compute on their own -- *after* the
+    delegated call, once C has parsed `pub_nonce` and `pub_key` without
+    refusing them, exactly where the Python arm below checks it once it
+    has computed `P` from the same two. Both arms therefore refuse a key
+    that is malformed the same way -- the parse failure, whichever arm's
+    parse finds it -- and a key that is well-formed but foreign the same
+    other way, `_SIGNER_PK_ERR`, so which `BTClibValueError` a caller sees
+    does not depend on which arm answered it.
     """
     values = session_values(session_ctx)
-    s = int.from_bytes(bytes_from_octets(psig, _SCALAR_SIZE), "big")
+    psig_bytes = bytes_from_octets(psig, _SCALAR_SIZE)
+    s = int.from_bytes(psig_bytes, "big")
     if s >= secp256k1.n:
         return False
     pub_nonce = bytes_from_octets(pub_nonce, _NONCE_SIZE)
+    pub_key = bytes_from_octets(pub_key, _PK_SIZE)
+    if (
+        _libsecp256k1_serves(secp256k1, sha256)
+        and len(session_ctx.msg) == _SCALAR_SIZE
+        and session_ctx.adaptor is None
+    ):
+        cache, bindings_session = _bindings_session(session_ctx)
+        try:
+            verified = bindings_session.partial_sig_verify(
+                psig_bytes, pub_nonce, pub_key, cache
+            )
+        except ValueError as e:
+            # a parse failure: `btclib_secp256k1.musig`'s own docstring --
+            # "a parse failure ... tells this package nothing" -- so
+            # there is no message of the bindings' own to translate, only
+            # the contract this public function keeps on either arm: a
+            # pubnonce or pubkey that is not a point is a BTClibValueError
+            err_msg = "invalid pubnonce or pubkey"
+            raise BTClibValueError(err_msg) from e
+        _session_key_agg_coeff(session_ctx, pub_key)
+        return bool(verified)
     R_s1 = _cpoint(pub_nonce[:_PK_SIZE])
     R_s2 = _cpoint(pub_nonce[_PK_SIZE:])
     R_s = secp256k1.add_var(R_s1, mult(values.b, R_s2, secp256k1))
     if values.R[1] % 2:
         R_s = secp256k1.negate(R_s)
-    pub_key = bytes_from_octets(pub_key, _PK_SIZE)
     P = _cpoint(pub_key)
     a = _session_key_agg_coeff(session_ctx, pub_key)
     g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
