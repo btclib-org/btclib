@@ -671,9 +671,11 @@ documented at release-notes length in the first place, and are still in
   `coverage report --fail-under=100` on the result: a line reachable in
   either configuration is a line this library runs, and locally, with
   every no-bindings-only pragma in the tree removed, that combined
-  report reaches exactly 100.00% (41485 statements, 0 missed) —
-  confirming both that the mechanism works and that nothing today is
-  invisible to both runs at once.
+  report reaches exactly 100.00% — confirming both that the mechanism
+  works and that nothing today is invisible to both runs at once. The
+  percentage is what `--fail-under=100` re-checks on every run; the
+  statement count behind it moves with every commit touching `btclib/`
+  or `tests/` and is not repeated here for that reason.
 
   The gate is added beside the `coverage` job's existing 100%, not
   instead of it, deliberately: a line covered only by the no-bindings
