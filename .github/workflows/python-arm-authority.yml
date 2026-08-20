@@ -6,8 +6,9 @@ name: python arm authority
 # answer, landed by #1000. Its own four tests check the table's shape
 # against the source and against itself, and none of them re-runs the
 # coverage that produced its values, because that measurement is minutes
-# and not seconds: eighteen modules, each under coverage, each in an
-# environment with no bindings installed. Issue #1003 is this workflow --
+# and not seconds: every module `_THIRD_PARTY_VECTORS` names, each under
+# coverage, each in an environment with no bindings installed. Issue
+# #1003 is this workflow --
 # a pull request should not pay what a schedule can pay once a month.
 #
 # This reimplements the no-bindings environment test.yml's own
@@ -21,8 +22,8 @@ name: python arm authority
 #
 # `.github/scripts/check_python_arm_authority.py` does the comparing: it
 # imports `_AUTHORITY` straight from the test module rather than parsing
-# a second copy of it, runs each of the eighteen third-party-vector
-# modules under coverage on its own, and diffs what it measures against
+# a second copy of it, runs each `_THIRD_PARTY_VECTORS` module under
+# coverage on its own, and diffs what it measures against
 # what the table claims, in every direction issue #1003 names -- an
 # entry citing a module whose run no longer reaches the arm, a module
 # reaching an arm its entry does not name, and something newly reaching
@@ -56,10 +57,15 @@ on:
     # would wait for its next push to be checked at all.
     # closed too, though the job below declines the real work on it: a
     # merge or a close is neither a push nor a synchronize, so a run this
-    # ref's concurrency group is still holding survives either unless the
-    # closed event lands in that same group -- which this type is what
-    # makes it do, cancel-in-progress above turning the landing into the
-    # cancellation
+    # PR's own concurrency group is still holding survives either unless
+    # the closed event lands in that same group -- which this type is
+    # what makes it do, cancel-in-progress above turning the landing
+    # into the cancellation. The group below keys on github.head_ref
+    # rather than plain github.ref for exactly this event: a merged pull
+    # request's closed event sets github.ref to the base branch, not the
+    # merge ref, which would land it in the scheduled run's own group
+    # and race it for cancellation (PR 1023's bug, PR 1026's fix) instead
+    # of the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/python-arm-authority.yml
@@ -69,8 +75,14 @@ on:
 permissions:
   contents: read
 
+# head_ref falls back to ref rather than being used bare: it is set only
+# for pull_request events, to the PR's head branch, so a scheduled or
+# dispatched run (ref refs/heads/main) still gets its own group -- and a
+# pull_request event always groups by the PR's branch, closed and
+# merged ones included, so it never collides with that group the way
+# bare ref did
 concurrency:
-  group: python-arm-authority-${{ github.ref }}
+  group: python-arm-authority-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
