@@ -624,12 +624,13 @@ documented at release-notes length in the first place, and are still in
   contents already agree, and every entry it has ever made about the old
   name stays written as it was true then.
 
-  Fourteen files pointed at the old name, past `CHANGELOG.md` itself and
-  a historical fixture in `tests/release_notes_test.py` quoting the
-  literal old link, both left alone for the same reason. Two were
-  load-bearing: `release.yml` lifts the GitHub release notes out of the
-  tag's own section by filename, and `version-check` refuses a tag whose
-  heading is not retitled, in both files it reads by name. `.gitattributes`
+  Every other file pointing at the old name moved too, past
+  `CHANGELOG.md` itself and a historical fixture in
+  `tests/release_notes_test.py` quoting the literal old link, both left
+  alone for the same reason. Two were load-bearing: `release.yml` lifts
+  the GitHub release notes out of the tag's own section by filename,
+  and `version-check` refuses a tag whose heading is not retitled, in
+  both files it reads by name. `.gitattributes`
   keeps `merge=union` under the new name, so a parallel release-note
   bullet still resolves without a conflict. `docs/source/history_link.md`
   moves to `docs/source/release_notes_link.md`, its toctree entry
