@@ -1444,6 +1444,7 @@ documented at release-notes length in the first place, and are still in
   `btclib.fee`, taking no rate and answering a weight; `fee_from_vsize`
   is what turns one into money. Coin selection and fee estimation are
   still not here, and what a caller does with the number is theirs.
+
 - **A transaction builder: `btclib.tx_builder.build_psbt`** (issue
   #1068). Every part of composing a spend was already here and nothing
   composed them, so every caller composed them again -- this repository
@@ -1481,6 +1482,14 @@ documented at release-notes length in the first place, and are still in
   `bad-txns-inputs-duplicate` and a double count in the fee arithmetic
   both; `Tx.assert_valid` implements the rest of `CheckTransaction` and
   not that rule, which is issue #1073.
+
+  `tx.input_weight` of issue #1067 is not what the fee is computed
+  from, and the two do not compose: that answers for one input, where a
+  fee is bought by a whole transaction, and `Psbt.weight_estimate`
+  already sums the per-input estimates into the one arithmetic
+  `Tx.weight` is. The per-input number is what the layer above wants --
+  coin selection pricing a candidate before there is a psbt to put it
+  in -- and the module docstring points there.
 
   The test module's oracles are `fee`'s own functions for the
   arithmetic -- on both sides of the dust threshold, to the satoshi --

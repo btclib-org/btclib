@@ -51,7 +51,11 @@ elsewhere too:
 
 - **coin selection**. Which utxos to spend is policy with a literature
   behind it, and keeping it out is what lets a caller bring its own;
-  this spends the ones it is given, all of them.
+  this spends the ones it is given, all of them. `tx.input_weight` is
+  the number that caller prices a candidate with -- one input, before
+  there is a psbt to put it in -- where what a fee is bought by here is
+  the whole transaction, which `Psbt.vsize_estimate` is the one arithmetic
+  for.
 - **a node, an rpc, or wallet state**. The same arguments give the same
   answer forever, which is `fee`'s own boundary: what is downstream of a
   network -- a fee estimate for a confirmation target, which utxos are
