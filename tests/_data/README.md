@@ -1078,20 +1078,23 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. Core's BIP158 vector file, vendored whole and
-read in part: every row carries a height, a block hash and a full
+read whole: every row carries a height, a block hash and a full
 serialized block before its filter columns, and `blockfilters_test.py`
-reads those three. All ten blocks parse under the full validity check,
+reads all of them. All ten blocks parse under the full validity check,
 round-trip byte for byte, hash to the hash the row states, and the six at
 or above testnet's BIP34 activation height commit the height the row
 states — in the bytes Core builds, `assert_valid_coinbase_height`
 comparing them. The four below it commit nothing, which is what makes the
 file the vector for the activation gate as well.
 
-btclib implements no block filter, so the filter columns are unread. The
-file is here under its own name anyway rather than as a btclib-named
-extract of the block column: a btclib name has no upstream name to be
-compared against, which is what the naming section above is about, and
-the whole file is 17,816 bytes.
+The filter columns are what `btclib.block.block_filter` is held to: the
+previous output scripts a filter needs and a block does not carry, and
+then the two answers, so every basic filter of the file is rebuilt from
+its block and reproduced octet for octet, and every basic header is
+chained onto the previous header the row states. Vendoring the file
+whole is what made that possible without a second pull — and it is what
+the naming section above asks for anyway, a btclib-named extract of the
+block column having no upstream name to be compared against.
 
 The ten are testnet, where the four blocks of `tests/block/_data/` are
 mainnet, and Core picked them for the shapes their scripts have: a

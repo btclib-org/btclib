@@ -1375,6 +1375,32 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **BIP158 basic compact block filters** (issue #374, on the SipHash-2-4
+  of issue #373). `btclib.block.block_filter` is the new module and
+  `BasicBlockFilter` the type: `from_block` builds the filter of a block,
+  `parse` and `serialize` are the wire form, `match` and `match_any` ask
+  whether a script may be in the block, and `header` chains a filter onto
+  the previous one as Core's `BlockFilter::ComputeHeader` does. All ten
+  of Core's vectors are reproduced octet for octet, filters and chained
+  headers alike, from the `blockfilters.json` this suite had already
+  vendored whole and read three columns of.
+
+  A block does not carry the outputs its inputs spend, so the previous
+  output scripts are the caller's: `from_block` takes one per
+  non-coinbase input, in the order the block spends them, and refuses a
+  list of any other length -- a filter built from the wrong prevouts is
+  wrong with nothing to show for it. `prevout_scripts_from_utxos` is the
+  typed adapter for a caller holding an `OutPoint` to `TxOut` mapping,
+  and neither spelling needs a node.
+
+  Parsing is btclib-strict where Core's test helpers assert: a truncated
+  unary quotient or remainder, a non-canonical CompactSize, an element
+  count above what a block has inputs and outputs to fill, an octet the
+  deltas never reached, a pad bit that is not zero, and a delta sum
+  reaching `N * M` are each a `BTClibValueError` naming what was wrong.
+  BIP157's peer-to-peer messages and Core's filter index stay out of
+  scope
+
 - **Twenty-one million is written once** (issue #962). `_MAX_SATOSHI` and
   `_MAX_BITCOIN` each spelled the bound out, so nothing held them to each
   other and the paragraph explaining why it is `MAX_MONEY` rather than the

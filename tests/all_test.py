@@ -148,7 +148,13 @@ CHILD_MODULES = {
     },
     "btclib.block": {
         "groups": ["merkle_proof", "mining", "proof_of_work"],
-        "unpublished": ["block", "block_context", "block_header", "limits"],
+        "unpublished": [
+            "block",
+            "block_context",
+            "block_filter",
+            "block_header",
+            "limits",
+        ],
     },
     "btclib.curves": {
         "groups": [],
