@@ -48,6 +48,8 @@ pip-delete-this-directory.txt
 htmlcov/
 .coverage
 .coverage.*
+coverage-data-bindings
+coverage-data-no-bindings
 .cache
 nosetests.xml
 coverage.xml
