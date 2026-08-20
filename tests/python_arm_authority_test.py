@@ -183,8 +183,8 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# the two the measurement found nothing for, named so that closing one is
-# a line deleted here rather than a number nobody re-derives
+# the ones the measurement found nothing for, named so that closing one
+# is a line deleted here rather than a number nobody re-derives
 _WITHOUT_AN_AUTHORITY = frozenset(
     {
         "ecc.commit_nonce.commit_nonce_",
@@ -252,7 +252,7 @@ def test_every_python_arm_is_in_the_inventory() -> None:
     )
 
 
-def test_the_arms_without_an_authority_are_the_two_that_are_known() -> None:
+def test_the_arms_without_an_authority_are_the_ones_that_are_known() -> None:
     """Empty entries and the named set are one fact, stated twice."""
     empty = {arm for arm, sources in _AUTHORITY.items() if not sources}
     assert empty == _WITHOUT_AN_AUTHORITY, (
