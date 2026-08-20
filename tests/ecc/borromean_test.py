@@ -7,12 +7,13 @@
 import hashlib
 import inspect
 import secrets
+from collections.abc import Callable
 from hashlib import sha256
 
 import pytest
 
 from btclib.alias import Point
-from btclib.curves import mult, secp256k1
+from btclib.curves import Curve, mult, secp256k1
 from btclib.ecc import borromean, dsa
 from btclib.exceptions import (
     BTClibRuntimeError,
@@ -243,3 +244,95 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
     err_msg = "2 rings, 1 signing indexes and 2 nonces"
     with pytest.raises(BTClibValueError, match=err_msg):
         borromean.sign(msg, [1, 2], sign_key_idx[:1], sign_keys, pubk_rings)
+
+
+# each maps an s-value to a key `_guess_signer` maximizes over the ring: a
+# published signature must not let any of them recover which position was
+# the real signer. "bit_length" and "value" are the two the unreduced real
+# s used to fail on -- twice the bits and, following from that, easily the
+# largest integer in the ring; "value mod 4" is neither, and is here so
+# that the test is not merely bit_length restated
+_S_VALUE_STATISTICS: dict[str, Callable[[int], int]] = {
+    "bit_length": int.bit_length,
+    "value": lambda x: x,
+    "value mod 4": lambda x: x % 4,
+}
+
+
+def _guess_signer(s: list[int], statistic: Callable[[int], int]) -> int:
+    return max(range(len(s)), key=lambda j: statistic(s[j]))
+
+
+def _assert_no_statistic_of_s_correlates_with_the_signer(
+    ec: Curve, ring_size: int, trials: int, tolerance: float
+) -> None:
+    """Sign `trials` times with the real index re-drawn every time.
+
+    None of `_S_VALUE_STATISTICS` may guess the real index at better than
+    chance, `1 / ring_size`. `tolerance` is a margin over chance for the
+    binomial noise of `trials` draws, not an allowance for a weaker
+    correlation: the bit_length statistic that used to leak the signer
+    scored close to 1.0, not chance plus a little.
+    """
+    prv_keys = [1 + secrets.randbelow(ec.n - 1) for _ in range(ring_size)]
+    pubk_ring = [mult(q, ec.G, ec) for q in prv_keys]
+    msg = b"anonymity"
+    correct = dict.fromkeys(_S_VALUE_STATISTICS, 0)
+    for _ in range(trials):
+        sign_idx = secrets.randbelow(ring_size)
+        while True:
+            k = 1 + secrets.randbelow(ec.n - 1)
+            try:
+                _, s = borromean.sign(
+                    msg, [k], [sign_idx], [prv_keys[sign_idx]], [pubk_ring], ec=ec
+                )
+            except (BTClibRuntimeError, BTClibValueError):
+                # the "implausible signature failure" guards, and the
+                # point-at-infinity corner case beside them that raises
+                # a BTClibValueError instead -- both documented in
+                # borromean.sign as one-in-n events on a low-cardinality
+                # curve rather than the 2**-255 and 2**-128 accidents
+                # they are on secp256k1, so this loop sees several of
+                # them per ring and reaches this branch at ordinary odds
+                continue
+            break
+        for name, statistic in _S_VALUE_STATISTICS.items():
+            if _guess_signer(s[0], statistic) == sign_idx:
+                correct[name] += 1
+    chance = 1 / ring_size
+    for name, count in correct.items():
+        rate = count / trials
+        assert rate < chance + tolerance, f"{name} correlates with the signer: {rate}"
+
+
+def test_no_statistic_of_s_correlates_with_the_signer() -> None:
+    """The property a ring signature exists for, checked rather than assumed.
+
+    Before the fix, the real signer's s-value was unreduced and about
+    twice the bit length of the forged ones, so `max(s, key=bit_length)`
+    named the signer with no cryptanalysis at all. Reducing the real
+    value and drawing the forged ones from the same range removes the
+    signal; this asserts that removal statistically instead of taking it
+    on faith.
+    """
+    _assert_no_statistic_of_s_correlates_with_the_signer(
+        secp256k1, ring_size=8, trials=300, tolerance=0.15
+    )
+
+
+def test_no_statistic_of_s_correlates_with_the_signer_on_a_low_cardinality_curve() -> (
+    None
+):
+    """The same property where the second half of the fix bites.
+
+    `randbits(256)` is uniform over `[0, 2**256)`, not over the scalars;
+    the gap is a `2**-127` fraction of secp256k1's range and invisible
+    there, but on a curve whose order is small relative to 256 bits a
+    forged value drawn that way is the one a statistic can still pick
+    out. `randbelow(ec.n)` draws forged and real values from the same
+    distribution regardless of the curve, which is what this checks.
+    """
+    ec = low_card_curves["ec23_31"]
+    _assert_no_statistic_of_s_correlates_with_the_signer(
+        ec, ring_size=4, trials=300, tolerance=0.25
+    )
