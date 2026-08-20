@@ -1058,7 +1058,7 @@ into blocks (so that a multi-block input and its byte-for-byte
 concatenation are the same case, on purpose), and the expected output
 of two constructions this library implements one of:
 `expected.siphash24` is standard SipHash-2-4, what `hashes.siphash`
-answers and what `tests/hashes_test.py` checks every row against, input
+answers and what `tests/siphash_test.py` checks every row against, input
 blocks joined back into one octet string first. `expected.siphash13uj`
 is Core's unpadded, jumbo-block SipHash-1-3 variant
 (`crypto/siphash.h`'s `SipHasher13UJ`), present on 64 of the 146 rows —
