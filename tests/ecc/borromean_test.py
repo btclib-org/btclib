@@ -9,13 +9,16 @@ import inspect
 import secrets
 from collections.abc import Callable
 from hashlib import sha256
+from io import BytesIO
 
 import pytest
 
 from btclib.alias import Point
 from btclib.curves import Curve, mult, secp256k1
 from btclib.ecc import borromean, dsa
+from btclib.ecc.borromean import BorromeanSig
 from btclib.exceptions import (
+    BorromeanRingError,
     BTClibRuntimeError,
     BTClibTypeError,
     BTClibValueError,
@@ -42,24 +45,147 @@ def test_borromean() -> None:
     sig = borromean.sign(
         msg, list(range(1, nring + 1)), sign_key_idx, sign_keys, pubk_rings
     )
+    assert isinstance(sig, BorromeanSig)
+    assert sig.ec is secp256k1
 
-    borromean.assert_as_valid(msg, sig[0], sig[1], pubk_rings)
-    assert borromean.verify(msg, sig[0], sig[1], pubk_rings)
+    borromean.assert_as_valid(msg, sig, pubk_rings)
+    assert borromean.verify(msg, sig, pubk_rings)
+    # the serialized octets verify too, and are what a caller reaches
+    # for once the signature leaves the process: verify/assert_as_valid
+    # parse them back with BorromeanSig.parse, which reads secp256k1
+    # and sha256 -- this signature's own, here
+    assert borromean.verify(msg, sig.serialize(), pubk_rings)
+    borromean.assert_as_valid(msg, sig.serialize(), pubk_rings)
+
     # bytes, not str: a str msg is taken as hex, so "another message"
     # would fail to parse and never reach the ring verification
-    assert not borromean.verify(b"another message", sig[0], sig[1], pubk_rings)
+    assert not borromean.verify(b"another message", sig, pubk_rings)
     # a msg that is neither bytes nor a hex-str is a caller error, and
     # verify says so instead of answering False: catching Exception would
     # report an int msg as a failed ring signature
     with pytest.raises(BTClibTypeError, match="invalid octets type: int"):
-        borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore[arg-type]
+        borromean.verify(0, sig, pubk_rings)  # type: ignore[arg-type]
 
     # a forged signature must raise, not merely return a falsy value:
     # assert_as_valid is called as a statement, so a return value
-    # would be silently discarded
-    err_msg = "signature verification failed"
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        borromean.assert_as_valid(b"another message", sig[0], sig[1], pubk_rings)
+    # would be silently discarded. No ring of its own: the mismatch is
+    # in the final e0 check, a property of the whole signature
+    with pytest.raises(
+        BorromeanRingError, match="signature verification failed"
+    ) as excinfo:
+        borromean.assert_as_valid(b"another message", sig, pubk_rings)
+    assert (excinfo.value.ring, excinfo.value.position) == (None, None)
+
+
+def test_borromean_sig_serialization_matches_zkps_layout() -> None:
+    """e0 || s, ec.n_size bytes per s, ring-major -- byte for byte.
+
+    secp256k1-zkp's `rangeproof` module writes exactly this for this
+    signature (`secp256k1_rangeproof_sign_impl`, one `e0[32]` then one
+    `secp256k1_scalar_get_b32` per public key in ring order), and this
+    checks the layout against a hand-built expectation rather than
+    trusting `serialize`'s own loop to have done what its docstring
+    says.
+    """
+    ring_sizes = [2, 3]
+    sign_key_idx = [0, 2]
+    key_rings = [[dsa.gen_keys() for _ in range(size)] for size in ring_sizes]
+    sign_keys = [key_rings[i][sign_key_idx[i]][0] for i in range(2)]
+    pubk_rings = [[key_rings[i][j][1] for j in range(ring_sizes[i])] for i in range(2)]
+    msg = b"wire format"
+
+    sig = borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings)
+    data = sig.serialize()
+
+    assert data[:32] == sig.e0
+    offset = 32
+    for ring in sig.s:
+        for value in ring:
+            chunk = data[offset : offset + 32]
+            assert int.from_bytes(chunk, "big") == value
+            offset += 32
+    assert offset == len(data)
+
+    rsizes = [len(ring) for ring in pubk_rings]
+    parsed = BorromeanSig.parse(data, rsizes)
+    assert parsed == sig
+    assert borromean.verify(msg, parsed, pubk_rings)
+
+
+def test_borromean_sig_parse_refuses_short_and_trailing_data() -> None:
+    """`parse` checks the length of every field, and what follows them.
+
+    e0 and each s are read with `read_exactly`, which is what makes a
+    short buffer a `BTClibValueError` rather than a `BorromeanSig`
+    whose last scalar is a few bytes narrower than the rest;
+    `assert_no_trailing` is what refuses bytes appended after a
+    complete signature -- the malleability two different byte strings
+    decoding to the one object would otherwise be. This drives the
+    three properties `tests/parse_contract_test.py` holds every other
+    `parse` to, `BorromeanSig` excluded there because its `rsizes`
+    makes the boundary the caller's rather than the encoding's own --
+    driven here with the `rsizes` a real `pubk_rings` carries instead.
+    """
+    ring_sizes = [2]
+    key_ring = [dsa.gen_keys() for _ in range(2)]
+    sign_keys = key_ring[0][0]
+    pubk_rings = [[key_ring[0][1], key_ring[1][1]]]
+    msg = b"parse"
+
+    sig = borromean.sign(msg, [1], [0], [sign_keys], pubk_rings)
+    data = sig.serialize()
+
+    # no prefix of the encoding is an object, at every offset
+    for size in range(len(data)):
+        with pytest.raises(BTClibValueError):
+            BorromeanSig.parse(data[:size], ring_sizes)
+
+    # the octets are one whole object: what follows them is refused,
+    # hex-string included
+    assert BorromeanSig.parse(data, ring_sizes) == sig
+    with pytest.raises(BTClibValueError, match="bytes after the borromean ring"):
+        BorromeanSig.parse(data + b"\x00", ring_sizes)
+    with pytest.raises(BTClibValueError, match="bytes after the borromean ring"):
+        BorromeanSig.parse((data + b"\x00").hex(), ring_sizes)
+
+    # a stream may carry more, and is left on the byte after the object
+    stream = BytesIO(data + b"junk")
+    assert BorromeanSig.parse(stream, ring_sizes) == sig
+    assert stream.read() == b"junk"
+
+    # the two specific fields a truncation lands in, named
+    with pytest.raises(BTClibValueError, match="not enough data for the borromean e0"):
+        BorromeanSig.parse(data[:16], ring_sizes)
+    with pytest.raises(
+        BTClibValueError, match=r"not enough data for the borromean s \(ring 0"
+    ):
+        BorromeanSig.parse(data[:40], ring_sizes)
+
+
+def test_borromean_sig_assert_valid_holds_s_to_0_n() -> None:
+    """A scalar out of `0..n-1` is refused at construction, not later.
+
+    `check_validity=False` is what lets an out-of-range value into the
+    object at all, `dsa.Sig`/`ssa.Sig` doing the same for the same
+    reason: a test exploring the boundary needs to build the invalid
+    value before refusing it.
+    """
+    ec = secp256k1
+    Q1 = mult(1, ec.G, ec)
+    with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1"):
+        BorromeanSig((0).to_bytes(32, "big"), [[ec.n]], ec)
+
+    sig = BorromeanSig((0).to_bytes(32, "big"), [[ec.n]], ec, check_validity=False)
+    with pytest.raises(
+        BTClibValueError, match=r"scalar s not in 0..n-1.*ring 0, position 0"
+    ):
+        sig.assert_valid()
+    with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1"):
+        sig.serialize()
+    # Q1 unused otherwise -- kept to mirror the other low-cardinality
+    # tests' setup and to document that assert_valid does not touch the
+    # curve's points at all, only its order
+    assert Q1
 
 
 def test_challenge_hash_matches_zkps_preimage_order() -> None:
@@ -137,15 +263,16 @@ def test_another_hash_function_gives_another_signature() -> None:
     sig_512 = borromean.sign(
         msg, ks, sign_key_idx, sign_keys, pub_keys, hf=hashlib.sha512
     )
-    assert sig_256[0] != sig_512[0]
+    assert sig_256.e0 != sig_512.e0
+    # e0's width is the digest's, not the curve's: sha512 doubles it
+    assert len(sig_256.e0) == 32
+    assert len(sig_512.e0) == 64
 
     # each verifies under its own hash function and under no other
-    assert borromean.verify(msg, sig_256[0], sig_256[1], pub_keys)
-    assert borromean.verify(msg, sig_512[0], sig_512[1], pub_keys, hf=hashlib.sha512)
-    assert not borromean.verify(
-        msg, sig_256[0], sig_256[1], pub_keys, hf=hashlib.sha512
-    )
-    assert not borromean.verify(msg, sig_512[0], sig_512[1], pub_keys)
+    assert borromean.verify(msg, sig_256, pub_keys)
+    assert borromean.verify(msg, sig_512, pub_keys, hf=hashlib.sha512)
+    assert not borromean.verify(msg, sig_256, pub_keys, hf=hashlib.sha512)
+    assert not borromean.verify(msg, sig_512, pub_keys)
 
 
 # a message per curve, because a low-cardinality curve makes the corner
@@ -180,13 +307,23 @@ def test_another_curve_signs_and_verifies(name: str) -> None:
     msg = ROUND_TRIP_MSG[name].to_bytes(4, "big")
     pubk_rings = [[mult(2, ec.G, ec)]]
 
-    e0, s = borromean.sign(msg, [3], [0], [2], pubk_rings, ec=ec)
+    sig = borromean.sign(msg, [3], [0], [2], pubk_rings, ec=ec)
+    assert sig.ec is ec
+    # s's width comes from ec, not from a hardcoded 32: ec13_11's n
+    # fits in far fewer bytes than secp256k1's
+    assert len(sig.serialize()) == 32 + ec.n_size
 
-    borromean.assert_as_valid(msg, e0, s, pubk_rings, ec=ec)
-    assert borromean.verify(msg, e0, s, pubk_rings, ec=ec)
-    assert not borromean.verify(b"\xff\xff\xff\xff", e0, s, pubk_rings, ec=ec)
-    # and it is a signature on that curve, not on secp256k1
-    assert not borromean.verify(msg, e0, s, pubk_rings)
+    borromean.assert_as_valid(msg, sig, pubk_rings, ec=ec)
+    assert borromean.verify(msg, sig, pubk_rings, ec=ec)
+    assert not borromean.verify(b"\xff\xff\xff\xff", sig, pubk_rings, ec=ec)
+    # a BorromeanSig argument carries its own ec, as ssa.Sig does, so
+    # verify's ec default is not what decides the curve here -- omitting
+    # ec=ec still verifies. The octets it serializes to do not: parsed
+    # with ec defaulting to secp256k1, every s is read ec13_11's few
+    # bytes short of secp256k1's n_size, so this is where "the ec
+    # argument has to reach the arithmetic" still bites
+    assert borromean.verify(msg, sig, pubk_rings)
+    assert not borromean.verify(msg, sig.serialize(), pubk_rings)
 
 
 def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
@@ -204,30 +341,32 @@ def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
     err_msg = "implausible signature failure"
 
     # step 2, the e derived from e0
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
+    with pytest.raises(BorromeanRingError, match=err_msg) as excinfo:
         borromean.sign(b"\x00\x00\x00\x00", [3], [0], [1], [[Q1]], ec=ec)
+    assert (excinfo.value.ring, excinfo.value.position) == (0, 0)
 
     # step 1, the e derived from the nonce's own point
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
+    with pytest.raises(BorromeanRingError, match=err_msg) as excinfo:
         borromean.sign(b"\x00\x00\x00\x00", [1], [0], [1], [[Q1, Q2]], ec=ec)
+    assert (excinfo.value.ring, excinfo.value.position) == (0, 1)
 
     # and both guards in verification, where nothing is random: the first
     # e of a ring, and one derived from a preceding r. Both e0 values are
     # specific to #1070's preimage order -- e || m || ring || pos -- and
     # were found by searching, not derived
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
-        )
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (47).to_bytes(32, "big"), [[1, 1]], [[Q1, Q2]], ec=ec
-        )
+    sig1 = BorromeanSig((0).to_bytes(32, "big"), [[1]], ec=ec)
+    with pytest.raises(BorromeanRingError, match=err_msg) as excinfo:
+        borromean.assert_as_valid(b"\x00\x00\x00\x00", sig1, [[Q1]], ec=ec)
+    assert (excinfo.value.ring, excinfo.value.position) == (0, 0)
+
+    sig2 = BorromeanSig((47).to_bytes(32, "big"), [[1, 1]], ec=ec)
+    with pytest.raises(BorromeanRingError, match=err_msg) as excinfo:
+        borromean.assert_as_valid(b"\x00\x00\x00\x00", sig2, [[Q1, Q2]], ec=ec)
+    assert (excinfo.value.ring, excinfo.value.position) == (0, 1)
+
     # verify answers False, as it does for any input that is not a valid
     # signature: BTClibRuntimeError is one of the two it catches
-    assert not borromean.verify(
-        b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
-    )
+    assert not borromean.verify(b"\x00\x00\x00\x00", sig1, [[Q1]], ec=ec)
 
 
 def test_the_point_at_infinity_is_the_other_corner_case() -> None:
@@ -244,14 +383,11 @@ def test_the_point_at_infinity_is_the_other_corner_case() -> None:
 
     # this e0, like the ones above, is specific to #1070's preimage
     # order and was found by searching
+    sig = BorromeanSig((14).to_bytes(32, "big"), [[1]], ec=ec)
     with pytest.raises(BTClibValueError, match="no bytes representation"):
-        borromean.assert_as_valid(
-            b"\x00\x00\x00\x00", (14).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
-        )
+        borromean.assert_as_valid(b"\x00\x00\x00\x00", sig, [[Q1]], ec=ec)
     # ValueError being the other exception verify catches
-    assert not borromean.verify(
-        b"\x00\x00\x00\x00", (14).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
-    )
+    assert not borromean.verify(b"\x00\x00\x00\x00", sig, [[Q1]], ec=ec)
 
 
 def test_one_nonce_and_one_signing_index_per_ring() -> None:
@@ -271,7 +407,9 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
     pubk_rings = [[key_rings[i][j][1] for j in range(ring_sizes[i])] for i in range(2)]
     msg = b"Borromean ring signature"
 
-    assert borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings)
+    assert isinstance(
+        borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings), BorromeanSig
+    )
 
     err_msg = "2 rings, 2 signing indexes and 1 nonces"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -294,7 +432,7 @@ _S_VALUE_STATISTICS: dict[str, Callable[[int], int]] = {
 }
 
 
-def _guess_signer(s: list[int], statistic: Callable[[int], int]) -> int:
+def _guess_signer(s: tuple[int, ...], statistic: Callable[[int], int]) -> int:
     return max(range(len(s)), key=lambda j: statistic(s[j]))
 
 
@@ -318,7 +456,7 @@ def _assert_no_statistic_of_s_correlates_with_the_signer(
         while True:
             k = 1 + secrets.randbelow(ec.n - 1)
             try:
-                _, s = borromean.sign(
+                sig = borromean.sign(
                     msg, [k], [sign_idx], [prv_keys[sign_idx]], [pubk_ring], ec=ec
                 )
             except (BTClibRuntimeError, BTClibValueError):
@@ -332,7 +470,7 @@ def _assert_no_statistic_of_s_correlates_with_the_signer(
                 continue
             break
         for name, statistic in _S_VALUE_STATISTICS.items():
-            if _guess_signer(s[0], statistic) == sign_idx:
+            if _guess_signer(sig.s[0], statistic) == sign_idx:
                 correct[name] += 1
     chance = 1 / ring_size
     for name, count in correct.items():

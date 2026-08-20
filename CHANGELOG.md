@@ -4291,6 +4291,62 @@ documented at release-notes length in the first place, and are still in
   agrees now is the primitive underneath, not the whole of what
   Elements calls a rangeproof.
 
+- **`borromean` gets a signature object with a wire format, and errors
+  that name the ring and the position** (issue #1054). `sign` handed
+  back `tuple[bytes, SValues]` -- python integers of whatever width the
+  arithmetic left them, no serialization anywhere in the module -- and
+  the five `BTClibRuntimeError("implausible signature failure")` sites
+  plus `assert_as_valid`'s bare `"signature verification failed"` never
+  said which ring or which position, though the index was already in
+  hand at every one of them. Both are what issue #1053 turns out to
+  have been a symptom of: a signature that knew its own encoding could
+  not have expressed that leak.
+
+  `BorromeanSig` is `ssa.Sig`'s precedent taken here: `e0`, `s` and
+  `ec` as fields, `assert_valid` on construction holding every scalar
+  to `[0, n)`, `serialize`/`BorromeanSig.parse` for the wire format,
+  and `sign` returns one where it returned a bare tuple. `verify` and
+  `assert_as_valid` take a `BorromeanSig | Octets` in place of the
+  separate `e0`/`s` arguments, parsing octets with `BorromeanSig.parse`
+  exactly as `ssa.verify` parses a `Sig | Octets`.
+
+  **The wire format was settled against zkp's, not invented here**:
+  `serialize` writes `e0` followed by every `s`, `ec.n_size` bytes
+  each, ring-major, no other framing -- secp256k1-zkp's `rangeproof`
+  module's own layout for this signature, `ec.n_size` generalizing
+  zkp's hardcoded 32 rather than contradicting it (issue 183; zkp only
+  ever runs on secp256k1, where the two agree). With #1070's challenge
+  hash landed first, the *primitive* now interoperates over secp256k1
+  with sha256: a signature this module produces there verifies under
+  zkp's `secp256k1_borromean_verify`, and one zkp produces verifies
+  here. `BorromeanSig.parse` reads exactly that case -- secp256k1 and
+  sha256, always, the same limit `ssa.Sig.parse` has for BIP340's one
+  curve and for the same reason: the serialization does not name
+  either, so a `BorromeanSig` on another curve or hash function is
+  built directly rather than parsed from octets. What this does not
+  claim: a CT rangeproof, which wraps this signature in framing
+  `btclib.ecc.borromean` has no counterpart for and which issue #1072
+  is the filed, decided-wanted rest of that distance -- after
+  btclib-org/btclib-secp256k1#283 gives it something to check the
+  answer against.
+
+  **The five guards and the closing mismatch name where they happened.**
+  `BorromeanRingError(message, ring, position)` is a new
+  `BTClibRuntimeError`, `exceptions.py`'s home for it beside
+  `InvalidContributionError` and for the same reason a musig2 signer's
+  own class does not fit: that one names a party to an interactive
+  protocol and what it contributed, and a ring signature is not
+  interactive and has no party to accuse, only a ring and a position
+  that either close or do not. `ring` and `position` are `None` for the
+  one failure with no ring of its own -- the final `e0` not matching
+  what every ring converges on, a property of the whole signature.
+
+  `tests/ecc/borromean_test.py` keeps `ec13_11` exercised: four of the
+  five guards are reached only on a low-cardinality curve, and the
+  suite's own hardcoded `e0`/nonce values there needed re-finding once
+  already, for #1070 -- a fact worth remembering rather than relearning
+  the same way twice.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and

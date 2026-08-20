@@ -126,7 +126,7 @@ _PUBK_RINGS = [
 ]
 _SIGN_KEY_IDX = [0, 1]
 _SIGN_KEYS = [_RING_KEYS[0][0], _RING_KEYS[3][0]]
-_E0, _S = borromean.sign(_MSG, [1, 2], _SIGN_KEY_IDX, _SIGN_KEYS, _PUBK_RINGS)
+_BORROMEAN_SIG = borromean.sign(_MSG, [1, 2], _SIGN_KEY_IDX, _SIGN_KEYS, _PUBK_RINGS)
 
 # the two group explorers walk every point, so their ec is a group small
 # enough to be walked -- and a CurveGroup, which is the type they declare:
@@ -227,12 +227,17 @@ _CASES = (
     _Case(
         "btclib.ecc.borromean.verify",
         borromean.verify,
-        {"msg": _MSG, "e0": _E0, "s": _S, "pubk_rings": _PUBK_RINGS},
+        {"msg": _MSG, "sig": _BORROMEAN_SIG, "pubk_rings": _PUBK_RINGS},
     ),
     _Case(
         "btclib.ecc.borromean.assert_as_valid",
         borromean.assert_as_valid,
-        {"msg": _MSG, "e0": _E0, "s": _S, "pubk_rings": _PUBK_RINGS},
+        {"msg": _MSG, "sig": _BORROMEAN_SIG, "pubk_rings": _PUBK_RINGS},
+    ),
+    _Case(
+        "btclib.ecc.borromean.BorromeanSig.__init__",
+        borromean.BorromeanSig,
+        {"e0": _MSG_HASH, "s": [[1]]},
     ),
     _Case(
         "btclib.ecc.commit_nonce.commit_nonce_",

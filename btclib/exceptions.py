@@ -67,6 +67,7 @@ __all__ = [
     "BTClibTypeError",
     "BTClibUserWarning",
     "BTClibValueError",
+    "BorromeanRingError",
     "FetchError",
     "HttpError",
     "InconclusiveError",
@@ -348,6 +349,42 @@ class InvalidContributionError(BTClibRuntimeError):
     def __str__(self) -> str:
         who = "the aggregator" if self.signer is None else f"signer {self.signer}"
         return f"invalid {self.contrib} from {who}"
+
+
+class BorromeanRingError(BTClibRuntimeError):
+    """A borromean ring signature check failed, and where names it.
+
+    `ring` is the index into `pubk_rings` and `position` the index
+    within that ring: an e-value landing on zero, a nonce point at
+    infinity's neighbour, a ring that does not close, each happen at
+    one ring and one position, and `btclib.ecc.borromean.sign` and
+    `assert_as_valid` already have both in hand at every one of their
+    raises. Naming them is what tells a caller building on this
+    primitive which key rejected the signature rather than only that
+    the whole thing did.
+
+    Both are None for the one failure with no ring of its own: the
+    final `e0` not matching what every ring converges on is a property
+    of the whole signature, not of any single ring in it.
+
+    A BTClibRuntimeError and not `InvalidContributionError`: that class
+    names a party to an interactive multi-round protocol -- MuSig2 --
+    and which of its contributions was wrong, where a borromean ring
+    signature is not interactive and has no parties to accuse, only
+    positions in a signature that either close their ring or do not.
+    A BTClibRuntimeError still, so code catching that keeps catching
+    this, as `verify` already does.
+    """
+
+    def __init__(self, message: str, ring: int | None, position: int | None) -> None:
+        self.ring = ring
+        self.position = position
+        super().__init__(message, ring, position)
+
+    def __str__(self) -> str:
+        if self.ring is None:
+            return str(self.args[0])
+        return f"{self.args[0]} (ring {self.ring}, position {self.position})"
 
 
 class BTClibUserWarning(UserWarning):

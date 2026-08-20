@@ -32,20 +32,52 @@ function does, because it reconstructs its rings from a value
 commitment and hashes that commitment, the generator point and the
 proof's own header bytes instead. There is no zkp construction here to
 diverge from or to match, so this one is untouched.
+
+`BorromeanSig.serialize` follows zkp's `rangeproof` module's own
+layout for this signature: `e0` followed by every `s`, `ec.n_size`
+bytes each, ring-major, no other framing -- generalizing zkp's
+hardcoded 32 to `ec.n_size` (issue 183) rather than contradicting it,
+the two agreeing wherever `ec` is secp256k1, zkp's only curve.
+`BorromeanSig.parse` reads that layout back at secp256k1 and sha256
+always, as `ssa.Sig.parse` reads BIP340's one curve: the serialization
+does not name either, so a `BorromeanSig` on another curve or hash
+function is built directly rather than parsed. With the challenge hash
+aligned too (issue #1070), the *primitive* now interoperates over
+secp256k1 with sha256: a signature this module produces there verifies
+under zkp's `secp256k1_borromean_verify`, and one zkp produces verifies
+here. That is not the same as producing a
+Confidential Transactions rangeproof: `rangeproof_impl.h` wraps this
+signature in a digit decomposition, a value commitment and an
+exponent/mantissa/min-value/sign-bits header this module has no
+counterpart for, rebuilding its pubkey rings from that commitment
+where this module takes them as an explicit argument. Issue #1072 is
+that remaining distance, filed and decided wanted -- after
+btclib-org/btclib-secp256k1#283 gives it something to check the
+answer against.
 """
 
 from __future__ import annotations
 
 import secrets
 from collections.abc import Sequence
+from dataclasses import dataclass
 from hashlib import sha256
 
-from btclib.alias import HashF, Octets, Point
+from btclib.alias import BinaryData, HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, double_mult_var, mult, secp256k1
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.utils import bytes_from_octets, int_from_bits
+from btclib.curves.curve import _assert_valid_ec
+from btclib.exceptions import BorromeanRingError, BTClibRuntimeError, BTClibValueError
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hex_string,
+    int_from_bits,
+    read_exactly,
+)
 
 __all__ = [
+    "BorromeanSig",
     "PubkeyRing",
     "SValues",
     "assert_as_valid",
@@ -102,6 +134,125 @@ def _get_msg_format(
 SValues = Sequence[list[int]]
 
 
+@dataclass(frozen=True, init=False)
+class BorromeanSig:
+    """A borromean ring signature: e0 and one s per ring member.
+
+    `s` is one tuple of scalars per ring, in the ring's own order:
+    `s[i][j]` is the value for `pubk_rings[i][j]` wherever this
+    signature is later handed to `verify` or `assert_as_valid` along
+    with the pubkey rings argument. `e0` is the hash that pins where
+    every ring starts, an `hf` digest and not a curve value -- its
+    width is `hf().digest_size`, not `ec.n_size`, so a BorromeanSig
+    does not say by itself which hash function produced it, the same
+    way it does not carry `hf` as a field: `sign`, `verify` and
+    `assert_as_valid` all take `hf` as their own argument, as
+    `ssa.sign`/`verify` take theirs.
+
+    `serialize`/`parse` follow secp256k1-zkp's `rangeproof` module's own
+    layout for this signature -- the module docstring has why that is
+    not only a format but, since issue #1070, an interoperable one.
+    """
+
+    e0: bytes
+    s: tuple[tuple[int, ...], ...]
+    ec: Curve = secp256k1
+
+    # written out rather than an InitVar[bool] field and a __post_init__:
+    # see the comment on dsa.Sig.__init__
+    def __init__(
+        self,
+        e0: bytes,
+        s: SValues,
+        ec: Curve = secp256k1,
+        *,
+        check_validity: bool = True,
+    ) -> None:
+        object.__setattr__(self, "e0", e0)
+        object.__setattr__(self, "s", tuple(tuple(ring) for ring in s))
+        object.__setattr__(self, "ec", ec)
+
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        """Refuse a curve with no arithmetic, or a scalar s outside 0..n-1."""
+        # the curve first, as in dsa.Sig.assert_valid and ssa.Sig.assert_valid
+        # and for their reason: every s below is read against it
+        _assert_valid_ec(self.ec)
+
+        for i, ring in enumerate(self.s):
+            for j, value in enumerate(ring):
+                if not 0 <= value < self.ec.n:
+                    err_msg = "scalar s not in 0..n-1: "
+                    err_msg += (
+                        f"'{hex_string(value)}'" if value > 0xFFFFFFFF else f"{value}"
+                    )
+                    err_msg += f" (ring {i}, position {j})"
+                    raise BTClibValueError(err_msg)
+
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return e0 followed by every s, ec.n_size bytes each, ring-major.
+
+        secp256k1-zkp's own layout for this signature: `e0`, then one
+        `secp256k1_scalar_get_b32` per public key in ring order.
+        `ec.n_size` generalizes zkp's hardcoded 32 (issue 183) rather
+        than contradicting it -- the two agree wherever `ec` is
+        secp256k1, zkp's only curve.
+        """
+        if check_validity:
+            self.assert_valid()
+
+        out = self.e0
+        for ring in self.s:
+            for value in ring:
+                out += value.to_bytes(self.ec.n_size, byteorder="big", signed=False)
+        return out
+
+    @classmethod
+    def parse(
+        cls: type[BorromeanSig],
+        data: BinaryData,
+        rsizes: Sequence[int] = (),
+        *,
+        check_validity: bool = True,
+    ) -> BorromeanSig:
+        """Build a BorromeanSig from e0 || s, secp256k1 and sha256 -- zkp's own.
+
+        The serialization does not name its curve or its hash function,
+        the same reason `ssa.Sig.parse` reads BIP340's alone: `e0` is a
+        32-byte sha256 digest and each `s` is secp256k1's 32-byte
+        scalar, which is what makes this the interoperable spelling. A
+        BorromeanSig on another curve or another hash function is built
+        directly, as `ssa.Sig.parse`'s docstring says for BIP340's one
+        curve.
+
+        `rsizes` is how many scalars each ring holds -- the ring sizes
+        a verifier's own `pubk_rings` argument already carries -- because
+        the wire format has no framing of its own to recover them from:
+        zkp's `secp256k1_borromean_verify` takes `rsizes` as a
+        caller-supplied argument for the same reason, rather than
+        reading it out of the proof. Empty by default, which parses a
+        ring-less signature -- `e0` alone -- rather than refusing a
+        caller who left it out, `block_filter.BasicBlockFilter.parse`'s
+        `block_hash` default being the same kind of harmless one.
+        """
+        stream = bytesio_from_binarydata(data)
+        e0 = read_exactly(stream, sha256().digest_size, "borromean e0")
+
+        s = []
+        for i, rsize in enumerate(rsizes):
+            ring = []
+            for j in range(rsize):
+                what = f"borromean s (ring {i}, position {j})"
+                chunk = read_exactly(stream, secp256k1.n_size, what)
+                ring.append(int.from_bytes(chunk, byteorder="big", signed=False))
+            s.append(ring)
+        assert_no_trailing(data, stream, "borromean ring signature")
+
+        return cls(e0, s, secp256k1, check_validity=check_validity)
+
+
 def _initialize(
     msg: Octets, pubk_rings: Sequence[PubkeyRing], ec: Curve, hf: HashF
 ) -> tuple[bytes, bytes, SValues]:
@@ -119,17 +270,21 @@ def sign(
     pubk_rings: Sequence[PubkeyRing],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> tuple[bytes, SValues]:
-    """Borromean ring signature - signing algorithm.
+) -> BorromeanSig:
+    """Sign msg with a borromean ring signature, one key per ring.
 
     https://github.com/ElementsProject/borromean-signatures-writeup
     https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
 
-    inputs:
-    - msg: message to be signed (bytes)
-    - sign_key_idx: list of indexes representing each signing key per ring
-    - sign_keys: list containing the whole set of signing keys (one per ring)
-    - pubk_rings: dictionary of sequences representing single rings of pub_keys
+    `ks` is one nonce per ring, `sign_key_idx` the position of the real
+    key in each ring, `sign_keys` the real private key of each ring --
+    `sign_keys[i]` signs at `pubk_rings[i][sign_key_idx[i]]` -- and
+    `pubk_rings` the full public rings, real key included.
+
+    A `BorromeanSig`, because that is what it is: the result verifies
+    with `assert_as_valid`/`verify`, serializes with
+    `BorromeanSig.serialize`, and handing back a bare `(bytes,
+    SValues)` tuple would only make the caller build one to do either.
     """
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
@@ -177,7 +332,7 @@ def sign(
                 # raise, and the three below it, on that curve
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausible signature failure"
-                    raise BTClibRuntimeError(err_msg)
+                    raise BorromeanRingError(err_msg, i, j)
                 t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
                 r = bytes_from_point(t, ec)
         e0bytes += r
@@ -191,7 +346,7 @@ def sign(
         # zero e again: the same accident documented above
         if not 0 < e[i][0] < ec.n:
             err_msg = "implausible signature failure"
-            raise BTClibRuntimeError(err_msg)
+            raise BorromeanRingError(err_msg, i, 0)
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbelow(ec.n)
             t = double_mult_var(
@@ -206,7 +361,7 @@ def sign(
             # than something a chosen message can arrange
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausible signature failure"  # pragma: no cover
-                raise BTClibRuntimeError(err_msg)  # pragma: no cover
+                raise BorromeanRingError(err_msg, i, j)  # pragma: no cover
         # reduced mod n, like every forged value above: unreduced, this
         # is about twice the bit length of the others -- k and
         # sign_keys[i] * e[i][j_star] are each near n, so their sum is
@@ -216,30 +371,29 @@ def sign(
         # Every consumer already reduces mod n (`mult`, `double_mult_var`),
         # so this changes no signature, only what it discloses.
         s[i][j_star] = (k + sign_keys[i] * e[i][j_star]) % ec.n
-    return e0, s
+    return BorromeanSig(e0, s, ec)
 
 
 def verify(
     msg: Octets,
-    e0: bytes,
-    s: SValues,
+    sig: BorromeanSig | Octets,
     pubk_rings: Sequence[PubkeyRing],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> bool:
-    """Borromean ring signature - verification algorithm.
+    """Return whether sig is a valid borromean ring signature of msg.
 
-    inputs:
-
-    - msg: message to be signed
-    - e0: pinned e-value needed to start the verification algorithm
-    - s: s-values, both real (one per ring) and forged
-    - pubk_rings: sequence of PubKey rings
+    `sig` is a `BorromeanSig`, or its `serialize`d octets -- parsed with
+    `BorromeanSig.parse`, secp256k1 and sha256 always, as `ssa.verify`
+    parses a `Sig | Octets` over BIP340's one curve. A `BorromeanSig`
+    argument keeps its own `ec`, which need not be the one this
+    function defaults to; `assert_as_valid`'s docstring has what `ec`
+    and `hf` are for either way.
     """
     # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
     # and for its reasons, which it states
     try:
-        assert_as_valid(msg, e0, s, pubk_rings, ec, hf)
+        assert_as_valid(msg, sig, pubk_rings, ec, hf)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -248,33 +402,61 @@ def verify(
 
 def assert_as_valid(
     msg: Octets,
-    e0: bytes,
-    s: SValues,
+    sig: BorromeanSig | Octets,
     pubk_rings: Sequence[PubkeyRing],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> None:
     """Refuse an invalid borromean ring signature.
 
-    The rings are walked forward from e0 and must close on the e0 they
-    started from; errors carry the reason, verify being the boolean
-    answer.
+    The rings are walked forward from `sig.e0` and must close on the
+    `e0` they started from; errors carry the reason and which ring and
+    position it happened at (`BorromeanRingError`), `verify` being the
+    boolean answer.
+
+    `sig` as octets is parsed with `BorromeanSig.parse`, which reads
+    secp256k1 and sha256 always -- `ec` and `hf` are then not what
+    decides the curve or the hash, the same limit `ssa.verify` has for
+    a `Sig | Octets` argument and for the same reason: the wire format
+    does not name either. They still decide what a `BorromeanSig`
+    argument is checked against if it says otherwise: `ec` only for its
+    type (`sig.ec` is what is actually used, below), `hf` for real, to
+    recompute the challenge of a signature `sign` made with another one.
     """
+    # ahead of everything, and checked whatever sig turns out to be: a
+    # BorromeanSig argument makes ec's own value the signature's below,
+    # or the octets path hardcodes secp256k1 regardless of what was
+    # passed, but a caller's wrong-typed ec is still this function's
+    # own mistake to report either way -- tests/curve_parameter_test.py
+    # drives every public function taking a Curve with one, and neither
+    # path may make the parameter stop being checked
+    _assert_valid_ec(ec)
+
+    if isinstance(sig, BorromeanSig):
+        sig.assert_valid()
+    else:
+        rsizes = [len(pubk_ring) for pubk_ring in pubk_rings]
+        sig = BorromeanSig.parse(sig, rsizes)
+    # the signature's own curve wins over the caller's default, as
+    # sig.ec already does in ssa.assert_as_valid_ -- secp256k1 always,
+    # on the octets path just taken
+    ec = sig.ec
+
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
 
     for i, pubk_ring in enumerate(pubk_rings):
         keys_size = len(pubk_ring)
-        e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
+        e[i][0] = int_from_bits(_hash(m, sig.e0, i, 0, hf), ec.nlen) % ec.n
         # a zero e: the same accident documented in sign, and here
         # nothing is random -- the whole signature is an argument -- so a
         # chosen e0 reaches it on a low-cardinality curve
         if e[i][0] == 0:
             err_msg = "implausible signature failure"
-            raise BTClibRuntimeError(err_msg)
+            raise BorromeanRingError(err_msg, i, 0)
         r = b"\0x00"
         for j in range(keys_size):
-            t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
+            t = double_mult_var(-e[i][j], pubk_ring[j], sig.s[i][j], ec.G, ec)
             r = bytes_from_point(t, ec)
             if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1, hf)
@@ -282,11 +464,13 @@ def assert_as_valid(
                 # a zero e: the same accident, one ring position later
                 if e[i][j + 1] == 0:
                     err_msg = "implausible signature failure"
-                    raise BTClibRuntimeError(err_msg)
+                    raise BorromeanRingError(err_msg, i, j + 1)
             else:
                 e0bytes += r
     hasher = hf()
     hasher.update(e0bytes)
     e0_prime = hasher.digest()
-    if e0_prime != e0:
-        raise BTClibRuntimeError("signature verification failed")
+    if e0_prime != sig.e0:
+        # no ring of its own: every ring fed e0bytes, so no single one
+        # of them is where a mismatch happened
+        raise BorromeanRingError("signature verification failed", None, None)
