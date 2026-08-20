@@ -310,13 +310,18 @@ client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
 and `TxOut`, and checks the chain the node reports against the network
 those are labelled for.
 
-The dependency stops at `btclib/fetch/`. bitcoin-core-rpc declares its own
-`FetchError`, importing nothing of btclib's being what lets its file be
-vendored, and `btclib.fetch.fetcher.client_errors` re-raises it as
-`btclib.exceptions`' own, with the `status` and the `code` carried across:
-an `except FetchError` written against btclib catches what a fetcher
-raises, and no module outside that package loads `urllib.request`.
-Constructing a client opens no socket; the first call does.
+The dependency stops at `btclib/fetch/` and at `btclib/p2p/magic.py`,
+which is where the p2p message start is — that package's table, not a
+second copy of it. bitcoin-core-rpc declares its own `FetchError`,
+importing nothing of btclib's being what lets its file be vendored, and
+`btclib.fetch.fetcher.client_errors` re-raises it as `btclib.exceptions`'
+own, with the `status` and the `code` carried across: an `except
+FetchError` written against btclib catches what a fetcher raises. No
+module loads `urllib.request` on its way to anything else: importing it
+is what reaching that package costs, so `btclib.p2p` publishes the
+message start without importing it and a caller who parses messages pays
+nothing for a client it never uses. Constructing a client opens no
+socket; the first call does.
 
 ---
 

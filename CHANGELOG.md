@@ -4621,6 +4621,19 @@ documented at release-notes length in the first place, and are still in
   into the package can no longer raise the package's own exception
   class.
 
+  **The three message-start names are published without being
+  imported.** `btclib/p2p/magic.py` reaches the rpc package, which brings
+  `urllib.request`, `ssl` and `socket` with it, and a codec has no use
+  for any of them -- README.md states the property that would cost, and
+  `btclib.exceptions` had the same machinery taken off it for the same
+  reason. So `btclib/p2p/__init__.py` answers the three through PEP 562,
+  as `btclib/script/__init__.py` answers `sig_hash` and `engine`:
+  `import btclib.p2p` loads no socket machinery at all, and asking for a
+  message start is what pays for one. `tests/imports_test.py` measures
+  both halves. What it costs is that the package spelling is `Any` to
+  mypy, which is the trade `btclib/__init__.py` already makes; a caller
+  who wants the signatures checked imports `btclib.p2p.magic`.
+
   **A message that has not all arrived is told from one that never
   will.** `IncompleteMessageError` -- a `BTClibRuntimeError`, on
   `FetchError`'s reasoning that nothing the caller passed is wrong and

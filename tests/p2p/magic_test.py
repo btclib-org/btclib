@@ -10,6 +10,11 @@ against Core. What is btclib's is the vocabulary and the exceptions --
 `NETWORKS` is keyed by BIP network names where the package takes Core's
 chain names -- and that is the whole of what `magic_from_network` adds.
 
+The names are imported from `btclib.p2p.magic` and not from the package,
+which publishes them through `__getattr__`: that spelling is `Any` to
+mypy, so a call with a wrong type would be a call nothing checks. The
+package spelling is asserted to be these same objects instead.
+
 The walk over `NETWORKS` below is the other half: nothing at run time
 re-checks that every btclib network is a chain Core has, so this is where
 that stops being true visibly rather than at a caller.
@@ -20,9 +25,11 @@ from __future__ import annotations
 import bitcoin_core_rpc
 import pytest
 
+import btclib.p2p
+import btclib.p2p.magic
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
-from btclib.p2p import (
+from btclib.p2p.magic import (
     magic_from_chain,
     magic_from_network,
     magic_from_signet_challenge,
@@ -112,3 +119,26 @@ def test_the_default_signet_challenge_derives_the_tabulated_magic() -> None:
     other = magic_from_signet_challenge("51")  # OP_1: anyone may mine
     assert len(other) == 4
     assert other != default
+
+
+def test_the_package_publishes_the_three_without_importing_them() -> None:
+    """PEP 562 here, as in `btclib/script/__init__.py`, and why.
+
+    Reaching `bitcoin_core_rpc` brings `urllib.request`, `ssl` and
+    `socket` with it, and a codec has no use for any of them --
+    `tests/imports_test.py` is where that cost is measured. What is left
+    to check is the publication itself: each name reachable off the
+    package, offered to a prompt, and nothing else answered.
+    """
+    published = (
+        "magic_from_chain",
+        "magic_from_network",
+        "magic_from_signet_challenge",
+    )
+    for name in published:
+        assert name in btclib.p2p.__all__
+        assert getattr(btclib.p2p, name) is getattr(btclib.p2p.magic, name)
+
+    assert set(btclib.p2p.__all__) <= set(dir(btclib.p2p))
+    with pytest.raises(AttributeError, match="has no attribute 'magic_from_chains'"):
+        _ = btclib.p2p.magic_from_chains

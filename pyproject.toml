@@ -797,12 +797,16 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
 # preview mode's undefined-export does not special-case a module-level
-# __getattr__ (astral-sh/ruff#18504, open): both modules publish every
-# submodule this way, as each docstring says, and F822 sees no import to
-# bind the name to. tests/all_test.py already walks `__all__` with
-# getattr and fails on the same drift this rule would catch, so nothing
-# here goes unchecked while the upstream rule does not know the pattern
+# __getattr__ (astral-sh/ruff#18504, open): these modules publish this
+# way, as each docstring says, and F822 sees no import to bind the name
+# to. btclib and btclib.script publish submodules; btclib.p2p publishes
+# three functions, so that a codec does not import the rpc package the
+# message start comes from. tests/all_test.py already walks `__all__`
+# with getattr and fails on the same drift this rule would catch, so
+# nothing here goes unchecked while the upstream rule does not know the
+# pattern
 "btclib/__init__.py" = ["F822"]
+"btclib/p2p/__init__.py" = ["F822"]
 "btclib/script/__init__.py" = ["F822"]
 # collecting entropy from dice is a conversation: the module prompts with
 # input() and prints how many rolls it needs and which ones count, so its
