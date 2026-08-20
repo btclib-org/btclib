@@ -1375,6 +1375,29 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **`psbt.musig2.partial_sigs_agg` aggregates the participant list once,
+  not four times** (issue #1046). Every public function of the module
+  built a fresh `SessionContext` from the psbt, so issue #1045's own
+  memoization on that class never had an instance to attach to, and
+  `partial_sigs_agg` paid for `key_agg_and_tweak` four times over: once in
+  `_session_parts` for the tweaked key, again inside `session_context`,
+  again inside `musig2.partial_sig_agg`'s own `session_values`, and a
+  fourth time to read `key_agg_ctx.x_only_pub_key` back -- a value
+  `_session_parts` had already returned as `tweaked_pub_key`.
+
+  `session_context` now returns `Session`, a `NamedTuple` of the
+  `SessionContext` it built and the `KeyAggContext` behind it, rather than
+  the `SessionContext` alone: `partial_sigs_agg` takes the tweaked key from
+  `.key_agg_ctx` instead of aggregating the participants a second time, and
+  the Finalizer's own check at what was `:497` still verifies against a key
+  `_session_parts` computed and validated, not one carried along untested.
+  `partial_sign` and `partial_sig_verify` unpack `.context` and sign or
+  verify exactly as before. The alternative -- a cache on `_session_parts`,
+  keyed off the psbt -- was the one to distrust: `partial_sigs_agg` writes
+  to the very psbt fields a cache would key on, in the same call, so
+  nothing would own invalidating it. `RELEASE_NOTES.md` has the
+  source-breaking shape
+
 - **BIP158 basic compact block filters** (issue #374, on the SipHash-2-4
   of issue #373). `btclib.block.block_filter` is the new module and
   `BasicBlockFilter` the type: `from_block` builds the filter of a block,
