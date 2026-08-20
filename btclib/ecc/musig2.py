@@ -990,7 +990,7 @@ def adapt(pre_sig: PreSignature, t: PrvKey, session_ctx: SessionContext) -> ssa.
     """Complete a pre-signature into a signature, given the secret adaptor.
 
     `session_ctx` is the session `pre_sig` was built from -- the same
-    one `partial_sig_agg` took -- because the one bit this needs and
+    one `partial_sig_agg_adaptor` took -- because the one bit this needs and
     does not carry on its own is the parity `session_values` already
     derived, `R[1] % 2` on the final nonce R = R_1 + T + b*R_2.
 
