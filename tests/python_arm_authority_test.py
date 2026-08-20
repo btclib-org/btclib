@@ -332,6 +332,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script_engine/transactions_test.py",
     ),
     "silent_payments.output_keys": ("silent_payments_test.py",),
+    "silent_payments.scan_transaction_outputs": ("silent_payments_test.py",),
 }
 
 # the ones the measurement found nothing for, named so that closing one

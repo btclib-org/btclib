@@ -216,10 +216,14 @@ validates against the bindings but which is not constant-time. So a caller
 whose threat model includes timing should stay on the delegated paths, or
 keep the key out of the process altogether: `btclib.hwi` drives a hardware
 wallet through HWI, behind the same `PsbtSigner` contract a software
-signer answers. `silent_payments.scan_outputs`, the recipient's half of
-BIP352, is Python-only regardless: it accepts the shared secret already
+signer answers. `silent_payments.scan_outputs`, BIP352's light-client
+scan, is Python-only regardless: it accepts the shared secret already
 reduced, the shape a light client has and the bindings have no entry
-point for.
+point for. `scan_transaction_outputs`, its full-node sibling, is not:
+where the bindings serve secp256k1 it reaches them with `b_scan`, the
+recipient's scan private key, the same as `output_keys` above — a
+caller holding the transaction itself gets the delegated path a light
+client cannot reach.
 
 What that path does about it is in the names, and it is worth knowing
 before calling one. **A function whose duration follows the value it is

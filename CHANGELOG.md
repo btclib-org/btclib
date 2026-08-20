@@ -4013,6 +4013,57 @@ documented at release-notes length in the first place, and are still in
   composes those steps and exposes none of them separately, so there is
   nothing here for them to delegate to.
 
+- **`silent_payments.scan_transaction_outputs` reaches
+  `btclib_secp256k1.silentpayments.scan_outputs` where the bindings serve
+  secp256k1** (issue #910), the recipient's half joining `output_keys` on
+  the delegated path -- through a new sibling function, not `scan_outputs`
+  itself. `scan_outputs` takes `tweak`, the already-reduced
+  `input_hash * A_sum` a light client holds under BIP352's Appendix A,
+  and stays exactly as it was: `silentpayments.scan_outputs` wants a
+  `prevouts_summary` built from the transaction's outpoints and input
+  public keys, which a light client never has, and widening
+  `scan_outputs`'s own signature to demand that of every caller was the
+  option the issue's own follow-up comment declined.
+  `scan_transaction_outputs` is the shape that data does fit --
+  `pub_keys` pairs each eligible input's public key with the
+  script_pub_key it spends, exactly as `output_keys`'s `prv_keys` does on
+  the sending side -- and reaches the delegated arm with a
+  `prevouts_summary` computed once, the shape a wallet scanning a block
+  needs.
+
+  The issue's own measurement is why a second entry point was worth
+  writing rather than folding into the first: without a label the two
+  arms are close, the Python one ahead at a hundred outputs (44.3 us
+  against 277.7); with the change label BIP352 asks every wallet to
+  check (m = 0), the bindings are 6.4x faster (341.9 us against 2190.7 at
+  a hundred outputs) -- and the labelled case is the normal one, not the
+  first row of that table. The Python arm is unchanged, and is still
+  what `scan_outputs` and every caller holding only a light client's
+  tweak runs.
+
+  `label_lookup` answers `dict[bytes, bytes]` now, 33-byte label to
+  32-byte tweak -- `silentpayments.scan_outputs`'s own spelling of a
+  label cache, which refuses a `bytearray` or a `memoryview` as a key
+  and is what `scan_transaction_outputs` hands the delegated arm
+  unconverted. `scan_outputs`'s own `labels` parameter takes the same
+  shape now; its Python loop reads the tweak through `int_from_prv_key`,
+  which already accepts 32-octet input, so neither arm pays a conversion
+  this function did not already do once, per wallet rather than per
+  scan. This is issue #910's third decision, and it is a signature
+  change with nothing in RELEASE_NOTES.md to show for it: `silent_payments`
+  (#640) is itself new in this unreleased cycle, `label_lookup` included,
+  so there is no prior release whose callers this could break.
+
+  What this does not do: touch `output_keys`. PR #1035 delegated it to
+  `silentpayments.create_outputs` before this issue's own measurement
+  comment was posted, and that comment's first decision reads the
+  opposite way -- `scan_outputs` yes, `output_keys` no, the sender's side
+  having no measured gain and `psbt.silent_payments` unable to use
+  `create_outputs` at all. This pull request does not revert what
+  already shipped; the discrepancy is named here for the maintainer to
+  resolve -- keep it, revert it, or declare the first decision
+  superseded -- rather than resolved by this change.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and
@@ -4033,6 +4084,16 @@ documented at release-notes length in the first place, and are still in
   covers the consequence, and this entry is what makes not using
   `into=` a decision on the record rather than something nobody
   noticed.
+
+- **`SECURITY.md` and `README.md`'s enumeration of what reaches the
+  bindings with a secret gains `silent_payments.scan_transaction_outputs`**
+  (issue #910). Both files already said `scan_outputs` -- the light
+  client's entry point -- is Python-only regardless, which stays true;
+  neither said anything about `scan_transaction_outputs`, the full-node
+  sibling this cycle adds, and a caller reading either for what is and
+  is not constant-time would have found no answer for it. It reaches
+  `silentpayments.scan_outputs` with `b_scan` wherever the bindings
+  serve secp256k1, the same as `output_keys` above it in both lists.
 
 ### The public API and the module layout
 

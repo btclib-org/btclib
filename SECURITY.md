@@ -207,11 +207,17 @@ used to teach and to prototype as much as to build:
     `silentpayments.create_outputs` for every private key an eligible
     input carries, a keypair built and wiped per taproot input and a
     scalar buffer per other one, exactly as `dsa.sign` and `ssa.sign`
-    build and wipe theirs. `scan_outputs`, the recipient's half, is not
-    delegated — it takes the shared secret already reduced, which is the
-    shape a BIP352 light client has and the bindings' own `scan_outputs`
+    build and wipe theirs. `scan_outputs`, BIP352's light-client scan, is
+    not delegated — it takes the shared secret already reduced, which is
+    the shape a light client has and the bindings' own `scan_outputs`
     does not accept, wanting the raw inputs to derive it from instead —
     so every secret that function meets is still Python's alone.
+    `scan_transaction_outputs`, the full-node sibling a wallet holding
+    the transaction itself can call, is a fourth case: where the
+    bindings serve secp256k1 it reaches `silentpayments.scan_outputs`
+    with `b_scan`, the recipient's scan private key, built once for a
+    whole transaction rather than once per input; off that path it falls
+    back to `scan_outputs` above and stays Python's alone.
     Anything else — another
     curve, another hash function, a nonce of your own — runs the Python
     implementation, whose scalar multiplication is
