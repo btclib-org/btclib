@@ -4347,6 +4347,30 @@ documented at release-notes length in the first place, and are still in
   already, for #1070 -- a fact worth remembering rather than relearning
   the same way twice.
 
+  **The point at infinity is named too, since review.** `s*G - e*Q` can
+  land there, and `bytes_from_point` has no octets for it -- previously
+  a bare `BTClibValueError`, matching neither `ring` nor `position`
+  though both were in hand at every one of the four call sites that can
+  reach it (the real signer's own nonce point, and three positions'
+  `r`). `_bytes_from_ring_point` wraps `bytes_from_point` there and
+  raises `BorromeanRingError` instead, a `BTClibRuntimeError` now where
+  it was a `ValueError`: a caller catching `ValueError` around this one
+  corner case catches nothing anymore, `BTClibRuntimeError` being what
+  to catch instead, as it already was for the other four guards.
+
+  **`BorromeanSig.parse`'s `rsizes` default was checked for the same
+  mistake it is meant to guard other arguments against (issue #856,
+  "an annotation that accepts the mistake")**, also since review:
+  `rsizes: Sequence[int] = ()` exists only so a wrong-typed `data` is
+  still refused ahead of it, the shape
+  `tests/serialization_boundary_test.py` requires of every `parse`'s
+  own extra argument -- not because a signature with no rings is a
+  value worth building. `assert_valid` now refuses one (`"no rings"`),
+  so a caller who leaves `rsizes` out and hands `parse` real octets is
+  refused there or by the trailing bytes those octets still carry,
+  never handed back an object that looks like a signature and signs
+  nothing.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and

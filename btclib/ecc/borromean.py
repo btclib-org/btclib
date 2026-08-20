@@ -114,6 +114,22 @@ def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     return hasher.digest()
 
 
+def _bytes_from_ring_point(Q: Point, ec: Curve, ring: int, position: int) -> bytes:
+    # bytes_from_point's one remaining refusal on a point this module's
+    # own arithmetic produced is the point at infinity: s*G - e*Q can
+    # land there, and there is no octet encoding for it to hash. ring
+    # and position are always in hand at every call site this wraps --
+    # the nonce point of the real signer's own position, or the r a
+    # forged or real (e, s) pair produces at any other -- the same as
+    # every "implausible signature failure" guard beside them, so this
+    # failure is named the same way rather than left a bare
+    # BTClibValueError with neither
+    try:
+        return bytes_from_point(Q, ec)
+    except BTClibValueError as exc:
+        raise BorromeanRingError(str(exc), ring, position) from exc
+
+
 PubkeyRing = Sequence[Point]
 
 
@@ -176,10 +192,19 @@ class BorromeanSig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Refuse a curve with no arithmetic, or a scalar s outside 0..n-1."""
+        """Refuse a bad curve, no rings, or a scalar s outside 0..n-1."""
         # the curve first, as in dsa.Sig.assert_valid and ssa.Sig.assert_valid
         # and for their reason: every s below is read against it
         _assert_valid_ec(self.ec)
+
+        # a ring signature with no ring signs nothing: refusing it here
+        # is what keeps BorromeanSig.parse's rsizes default -- (), kept
+        # only so a wrong-typed data argument is still refused ahead of
+        # it, as every other parse's own extra argument is -- from
+        # quietly building an object that looks like a signature and is
+        # not one, for a caller who simply left rsizes out
+        if not self.s:
+            raise BTClibValueError("no rings")
 
         for i, ring in enumerate(self.s):
             for j, value in enumerate(ring):
@@ -232,10 +257,14 @@ class BorromeanSig:
         the wire format has no framing of its own to recover them from:
         zkp's `secp256k1_borromean_verify` takes `rsizes` as a
         caller-supplied argument for the same reason, rather than
-        reading it out of the proof. Empty by default, which parses a
-        ring-less signature -- `e0` alone -- rather than refusing a
-        caller who left it out, `block_filter.BasicBlockFilter.parse`'s
-        `block_hash` default being the same kind of harmless one.
+        reading it out of the proof. It defaults to `()` only so a
+        wrong-typed `data` is refused ahead of it, the same as every
+        other `parse`'s own extra argument in
+        `tests/serialization_boundary_test.py`'s table -- not because a
+        signature with no rings is a value worth building: `assert_valid`
+        refuses one, so a caller who leaves `rsizes` out and hands over
+        real octets is refused too, either there or by the trailing
+        bytes those octets still carry.
         """
         stream = bytesio_from_binarydata(data)
         e0 = read_exactly(stream, sha256().digest_size, "borromean e0")
@@ -318,7 +347,8 @@ def sign(
     ):
         keys_size = len(pubk_ring)
         start_idx = (j_star + 1) % keys_size
-        r = bytes_from_point(mult(k, ec.G, ec), ec)
+        # the real signer's own position: r here is R_{j_star} = k*G
+        r = _bytes_from_ring_point(mult(k, ec.G, ec), ec, i, j_star)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
@@ -334,7 +364,7 @@ def sign(
                     err_msg = "implausible signature failure"
                     raise BorromeanRingError(err_msg, i, j)
                 t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
-                r = bytes_from_point(t, ec)
+                r = _bytes_from_ring_point(t, ec, i, j)
         e0bytes += r
     hasher = hf()
     hasher.update(e0bytes)
@@ -352,7 +382,7 @@ def sign(
             t = double_mult_var(
                 -e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G, ec
             )
-            r = bytes_from_point(t, ec)
+            r = _bytes_from_ring_point(t, ec, i, j - 1)
             e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
             # zero e again, and the one guard of the four that stays
             # unreachable from a test: this e hashes an r built from
@@ -457,7 +487,7 @@ def assert_as_valid(
         r = b"\0x00"
         for j in range(keys_size):
             t = double_mult_var(-e[i][j], pubk_ring[j], sig.s[i][j], ec.G, ec)
-            r = bytes_from_point(t, ec)
+            r = _bytes_from_ring_point(t, ec, i, j)
             if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1, hf)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n

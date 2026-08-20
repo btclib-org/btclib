@@ -445,7 +445,11 @@ full year, short month, short day (YYYY-M-D)
   its wire format, and `verify`/`assert_as_valid` also accept the
   `serialize()`d octets directly in `sig`'s place. A caller unpacking
   the old tuple reads `sig.e0`/`sig.s` instead; a caller passing `e0`
-  and `s` as two arguments passes `sig` as one. CHANGELOG.md has why.
+  and `s` as two arguments passes `sig` as one. `sign`/`assert_as_valid`
+  answering the point at infinity with a bare `BTClibValueError` also
+  changes, to a `BorromeanRingError` (a `BTClibRuntimeError`): a caller
+  catching `ValueError` around that one corner case catches nothing
+  now. CHANGELOG.md has why, for both.
 
 ### Worth knowing, though nothing raises
 

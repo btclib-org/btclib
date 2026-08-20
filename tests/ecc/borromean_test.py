@@ -19,7 +19,6 @@ from btclib.ecc import borromean, dsa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.exceptions import (
     BorromeanRingError,
-    BTClibRuntimeError,
     BTClibTypeError,
     BTClibValueError,
 )
@@ -186,6 +185,28 @@ def test_borromean_sig_assert_valid_holds_s_to_0_n() -> None:
     # tests' setup and to document that assert_valid does not touch the
     # curve's points at all, only its order
     assert Q1
+
+
+def test_borromean_sig_refuses_no_rings() -> None:
+    """A signature with no rings signs nothing, built directly or parsed.
+
+    `BorromeanSig.parse`'s `rsizes` defaults to `()` only so a
+    wrong-typed `data` argument is still refused ahead of it, as
+    `tests/serialization_boundary_test.py`'s table requires of every
+    `parse`'s own extra argument -- not because an empty ring structure
+    is a value worth accepting. This is what closes that gap: a caller
+    who leaves `rsizes` out and hands real octets to `parse` is refused
+    here rather than handed an object that looks like a signature and
+    is not one.
+    """
+    with pytest.raises(BTClibValueError, match="no rings"):
+        BorromeanSig((0).to_bytes(32, "big"), [])
+
+    # the exact shape a caller who forgot rsizes on real octets would
+    # trip: e0 alone, no trailing bytes for assert_no_trailing to catch
+    # first -- assert_valid is what catches it instead
+    with pytest.raises(BTClibValueError, match="no rings"):
+        BorromeanSig.parse((0).to_bytes(32, "big"))
 
 
 def test_challenge_hash_matches_zkps_preimage_order() -> None:
@@ -370,13 +391,16 @@ def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
 
 
 def test_the_point_at_infinity_is_the_other_corner_case() -> None:
-    """`s*G - e*Q` can be INF, and the hash input has no encoding for it.
+    """`s*G - e*Q` can be INF, and `_bytes_from_ring_point` is what names it.
 
-    The one-in-n neighbour of a zero e, and unguarded on purpose: `r` is a
-    hash input, `bytes_from_point` is what produces it, and there is no
-    serialization of the point at infinity to hash. So it raises where a
-    zero e raises "implausible signature failure", and the caller's answer
-    is another nonce -- on secp256k1, a 2**-128 event nobody will see.
+    The one-in-n neighbour of a zero e: `r` is a hash input,
+    `bytes_from_point` is what produces it, and there is no
+    serialization of the point at infinity to hash -- `bytes_from_point`
+    itself raises a bare `BTClibValueError` for that, with no ring and
+    no position. `_bytes_from_ring_point` wraps it into a
+    `BorromeanRingError` instead, the same as the "implausible signature
+    failure" guards beside it, ring and position both in hand at every
+    call site that wraps it.
     """
     ec = low_card_curves["ec13_11"]
     Q1 = mult(1, ec.G, ec)
@@ -384,9 +408,11 @@ def test_the_point_at_infinity_is_the_other_corner_case() -> None:
     # this e0, like the ones above, is specific to #1070's preimage
     # order and was found by searching
     sig = BorromeanSig((14).to_bytes(32, "big"), [[1]], ec=ec)
-    with pytest.raises(BTClibValueError, match="no bytes representation"):
+    with pytest.raises(BorromeanRingError, match="no bytes representation") as excinfo:
         borromean.assert_as_valid(b"\x00\x00\x00\x00", sig, [[Q1]], ec=ec)
-    # ValueError being the other exception verify catches
+    assert (excinfo.value.ring, excinfo.value.position) == (0, 0)
+    # BorromeanRingError being a BTClibRuntimeError, the other exception
+    # verify catches
     assert not borromean.verify(b"\x00\x00\x00\x00", sig, [[Q1]], ec=ec)
 
 
@@ -459,14 +485,14 @@ def _assert_no_statistic_of_s_correlates_with_the_signer(
                 sig = borromean.sign(
                     msg, [k], [sign_idx], [prv_keys[sign_idx]], [pubk_ring], ec=ec
                 )
-            except (BTClibRuntimeError, BTClibValueError):
+            except BorromeanRingError:
                 # the "implausible signature failure" guards, and the
-                # point-at-infinity corner case beside them that raises
-                # a BTClibValueError instead -- both documented in
-                # borromean.sign as one-in-n events on a low-cardinality
-                # curve rather than the 2**-255 and 2**-128 accidents
-                # they are on secp256k1, so this loop sees several of
-                # them per ring and reaches this branch at ordinary odds
+                # point-at-infinity corner case beside them -- both
+                # documented in borromean.sign as one-in-n events on a
+                # low-cardinality curve rather than the 2**-255 and
+                # 2**-128 accidents they are on secp256k1, so this loop
+                # sees several of them per ring and reaches this branch
+                # at ordinary odds
                 continue
             break
         for name, statistic in _S_VALUE_STATISTICS.items():
