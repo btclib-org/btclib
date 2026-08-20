@@ -173,7 +173,7 @@ def psbt_from_spend(tx: Tx) -> Psbt | None:
     """
     tx = deepcopy(tx)
     inputs: list[PsbtIn] = []
-    for tx_in in tx.vin:
+    for i, tx_in in enumerate(tx.vin):
         built = psbt_input_from_spend(tx_in)
         if built is None:
             return None
@@ -183,11 +183,15 @@ def psbt_from_spend(tx: Tx) -> Psbt | None:
             # a psbt whose non_witness_utxo does not hash to the outpoint
             # is one assert_valid refuses -- so the outpoint is moved to
             # the transaction built here, which changes no size: an
-            # outpoint is 36 bytes whatever is in it
+            # outpoint is 36 bytes whatever is in it.
+            # One such transaction per input, told apart by the index it
+            # spends: two inputs paying the same script_pub_key would
+            # otherwise be funded by the same transaction and left naming
+            # one outpoint twice, which is `bad-txns-inputs-duplicate`
             prev_tx = Tx(
                 1,
                 0,
-                [TxIn(OutPoint(b"\x01" * 32, 0))],
+                [TxIn(OutPoint(b"\x01" * 32, i))],
                 [TxOut(1000, script_pub_key, check_validity=False)],
                 check_validity=False,
             )
