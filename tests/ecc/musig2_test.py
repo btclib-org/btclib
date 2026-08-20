@@ -622,19 +622,28 @@ def _msg32_gated(cases: list[dict[str, Any]], msgs: list[bytes]) -> list[Any]:
     "case", _msg32_gated(_SIGN_VERIFY["valid_test_cases"], _SV_MSGS)
 )
 def test_sign_verified_by_bindings(case: dict[str, Any]) -> None:
-    """musig_partial_sig_verify accepts the partial signature sign produced."""
+    """musig_partial_sig_verify accepts the partial signature sign produces.
+
+    What is crossed into the bindings is `sign`'s own return value, not
+    the vector's pinned `expected` -- that equality is already
+    `test_sign_verify_valid_vectors`'s, and checking it again here would
+    let this test pass on the vector's word instead of on `sign`'s.
+    """
     pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
     pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
     agg_nonce = _SV_AGG_NONCES[case["aggnonce_index"]]
     msg = _SV_MSGS[case["msg_index"]]
-    expected = bytes.fromhex(case["expected"])
     signer = case["signer_index"]
+
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], msg)
+    # a copy: signing consumes the secnonce, and every valid case in this
+    # file signs with the vector file's one secnonce, index 0, exactly as
+    # test_sign_verify_valid_vectors does
+    sig = musig2.sign(bytearray(_SV_SEC_NONCES[0]), _SV_SK, session_ctx)
 
     cache = libsecp256k1_musig.KeyAggCache(pub_keys)
     session = libsecp256k1_musig.Session(agg_nonce, msg, cache)
-    assert session.partial_sig_verify(
-        expected, pub_nonces[signer], pub_keys[signer], cache
-    )
+    assert session.partial_sig_verify(sig, pub_nonces[signer], pub_keys[signer], cache)
 
 
 @needs_bindings
