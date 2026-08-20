@@ -372,10 +372,11 @@ def sign(
     # BTClibValueError's class with none of its content, naming "argument
     # 3" and no parameter of this function; strict=True stays, as the
     # assertion that this check and those loops cannot drift apart.
-    # sign_keys used to be left out of this: a short one is the same
-    # shape mismatch _assert_matches_pubk_rings refuses on the
-    # verification side, and was reaching `sign_keys[i]` in step 2 as a
-    # bare IndexError instead (issue #1088)
+    # sign_keys is part of this check for the same reason as the other
+    # three: step 2 indexes it per ring (`sign_keys[i]`), so a shorter
+    # sequence there is the same shape exposure _assert_matches_pubk_rings
+    # refuses on the verification side, one ring's worth of tuple away
+    # from a bare IndexError instead of this message
     if not len(pubk_rings) == len(sign_key_idx) == len(ks) == len(sign_keys):
         err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes, "
         err_msg += f"{len(ks)} nonces and {len(sign_keys)} signing keys"
@@ -536,14 +537,6 @@ def assert_as_valid(
         if e[i][0] == 0:
             err_msg = "implausible signature failure"
             raise BorromeanRingError(err_msg, i, 0)
-        # no seed value: the loop below is the only reader of r, always
-        # assigning it in the same iteration before that read -- `else:
-        # e0bytes += r` fires on the loop's own last iteration, never
-        # before its first -- so a dead placeholder had nothing to seed
-        # (issue #1089). What used to be here, `b"\0x00"`, was not even
-        # an honest one: `\0` is Python's own NUL escape, so the literal
-        # read as the four bytes b"\x00x00", not the single null byte
-        # it looked like
         for j in range(keys_size):
             t = double_mult_var(-e[i][j], pubk_ring[j], sig.s[i][j], ec.G, ec)
             r = _bytes_from_ring_point(t, ec, i, j)

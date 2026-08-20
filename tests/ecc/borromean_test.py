@@ -426,10 +426,10 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
     `strict=True` stays as the assertion that the two cannot drift
     apart.
 
-    `sign_keys` used to be left out of this check (issue #1088): a short
-    one reached `sign_keys[i]` in step 2 as a bare `IndexError`, the same
-    ring-count exposure `assert_as_valid` has for a mismatched `s` --
-    checked here now, before either walk, for the same reason.
+    `sign_keys` is part of the same check: step 2 indexes it per ring
+    (`sign_keys[i]`), so a short one is the same ring-count exposure
+    `assert_as_valid` refuses for a mismatched `s`, checked here before
+    either walk for the same reason.
     """
     ring_sizes = [3, 4]
     sign_key_idx = [2, 1]
@@ -456,17 +456,14 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
 def test_a_ring_shape_that_disagrees_with_pubk_rings_is_refused() -> None:
     """A caller-built BorromeanSig whose shape disagrees with pubk_rings.
 
-    Before this fix, nothing checked that `sig.s` and `pubk_rings`
-    described the same shape before the walk indexed `sig.s[i][j]`
-    against `pubk_ring[j]`: a mismatch reached a bare `IndexError`,
-    neither a `BTClibValueError` nor a `BTClibRuntimeError`, so it
-    escaped `verify`'s `except (ValueError, BTClibRuntimeError)` too --
-    `verify` raised where it is documented to answer `False` (issue
-    #1088). The two cases named separately, as the issue's decision
-    asked: a ring with fewer scalars than keys, and fewer rings than
-    `pubk_rings` -- "the same defect one level up" -- each asserted
-    through both `assert_as_valid` and `verify`, since the escaping
-    `IndexError` was visible only through the second.
+    `assert_as_valid` raises `BTClibValueError`, naming the ring and the
+    counts, for a `sig.s` whose shape does not match `pubk_rings`: the
+    two cases issue #1088 names separately, a ring with fewer scalars
+    than keys and fewer rings than `pubk_rings` -- "the same defect one
+    level up". `verify` is asserted for each case too, and not only
+    `assert_as_valid`: it is documented to answer `False` for an invalid
+    signature, and only calling it exercises that promise for this
+    input.
     """
     ec = secp256k1
     q1 = mult(1, ec.G, ec)
