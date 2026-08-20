@@ -131,7 +131,16 @@ used to teach and to prototype as much as to build:
     it — a buffer too short, a buffer that is not writable, what the
     function then returns. btclib declines that too, for the reason
     the bullet above already gives: no Python object holding a secret
-    is zeroized, on either path, and this one is no exception to it
+    is zeroized, on either path, and this one is no exception to it.
+    `dsa.Signer.__init__` (`btclib/ecc/dsa.py:1346`) crosses the same
+    boundary the other way, once, at construction: the plain `int`
+    `int_from_prv_key` already produced becomes a transient `bytes` via
+    `self._q.to_bytes(32, "big")` on the way into the owned buffer
+    `wipe` overwrites afterwards. That `bytes` is dropped rather than
+    erased, same as the `int` it replaces — one call rather than the
+    buffer's whole lifetime, which is the trade this class exists to
+    make, and stated here for the same reason the other three call
+    sites are
 - the boundary is not always there, and an install decides whether it
     is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
     the guide give -- installs the bindings, and everything the next

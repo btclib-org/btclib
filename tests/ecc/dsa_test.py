@@ -2157,9 +2157,6 @@ def test_a_signer_answers_what_sign_answers(
 
     q, Q = dsa.gen_keys(prv_key_int)
 
-    # not a `with` block: on the delegated arm `wipe` -- which `__exit__`
-    # calls -- refuses rather than running, and this signer is used for
-    # nothing but comparing signatures
     signer = dsa.Signer(prv_key_int)
     for msg in (b"", b"a message", bytes(32), bytes(1000)):
         msg_hash = reduce_to_hlen(msg)
