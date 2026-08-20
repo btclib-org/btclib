@@ -45,6 +45,7 @@ recursive-include tests *.py
 # website's files, whose absence is check-manifest's configuration and not
 # this file's; [tool.check-manifest] ignore names them too, a tracked
 # file the sdist omits being exactly what that tool reports
+exclude tests/check_python_arm_authority_test.py
 exclude tests/check_vendored_vectors_test.py
 exclude tests/generate_sbom_test.py
 exclude tests/mutation_counts_test.py

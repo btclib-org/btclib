@@ -241,6 +241,7 @@ ignore = [
     # .github and therefore not shipped either. The suite an sdist carries
     # has to be runnable from it, and a test whose subject is absent is not
     # a test but a fixture error; MANIFEST.in excludes them and says the same
+    "tests/check_python_arm_authority_test.py",
     "tests/check_vendored_vectors_test.py",
     "tests/generate_sbom_test.py",
     "tests/mutation_counts_test.py",
