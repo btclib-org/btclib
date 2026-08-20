@@ -49,6 +49,10 @@ publishes a vector for each:
 `session_context` is where those four are read off the psbt, and it is
 public because a signer needs it for what BIP327 asks beyond signing:
 `btclib.ecc.musig2.partial_sig_verify_` against another signer's nonce.
+It returns the `KeyAggContext` it built the session on, alongside the
+session itself: `partial_sigs_agg` is a caller that needs the tweaked
+key, and the alternative -- aggregating the participants over again to
+get it -- is the quadratic shape issue #1046 fixed.
 """
 
 from __future__ import annotations
@@ -81,6 +85,7 @@ from btclib.to_prv_key import PrvKey
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
+    "Session",
     "add_participant_pub_keys",
     "assert_valid_participants",
     "nonce_gen",
@@ -207,6 +212,11 @@ class _SessionParts(NamedTuple):
     the aggregate key carried through the derivation and the taproot
     tweak (`SignMuSig2` in script/sign.cpp), and a psbt keyed either
     other way is one no other implementation reads.
+
+    `key_agg_ctx` is the `KeyAggContext` `tweaked_pub_key` was read off of
+    -- carried along rather than dropped, so that a caller needing it
+    (`session_context`, on to `partial_sigs_agg`) does not aggregate the
+    participants a second time to get it back.
     """
 
     participants: list[bytes]
@@ -214,6 +224,7 @@ class _SessionParts(NamedTuple):
     is_xonly: list[bool]
     msg: bytes
     tweaked_pub_key: bytes
+    key_agg_ctx: musig2.KeyAggContext
 
 
 def _session_parts(
@@ -250,6 +261,7 @@ def _session_parts(
         is_xonly,
         msg,
         bytes_from_point(key_agg_ctx.Q, secp256k1),
+        key_agg_ctx,
     )
 
 
@@ -267,10 +279,24 @@ def _script_key(psbt_in: PsbtIn, leaf_hash: bytes) -> bytes:
     return single_leaf_key(script)
 
 
+class Session(NamedTuple):
+    """A BIP327 session, and the `KeyAggContext` it was built on.
+
+    `context` is what `btclib.ecc.musig2.sign` and `partial_sig_verify_`
+    take. `key_agg_ctx` is the aggregation `_session_parts` already did to
+    reach it -- handed back rather than left for a caller that needs the
+    tweaked key, `x_only_pub_key` included, to aggregate the participants
+    a second time.
+    """
+
+    context: musig2.SessionContext
+    key_agg_ctx: musig2.KeyAggContext
+
+
 def session_context(
     psbt: Psbt, vin_i: int, aggregate_pub_key: Octets, *, leaf_hash: Octets = b""
-) -> musig2.SessionContext:
-    """Return the BIP327 session the psbt describes for one aggregate key.
+) -> Session:
+    """Return the BIP327 session the psbt describes, and its key aggregation.
 
     The aggregate nonce is the sum of the public nonces the input carries
     for this session, so every signer that has published one is in it: a
@@ -296,9 +322,10 @@ def session_context(
     agg_nonce = musig2.nonce_agg(
         [pub_nonces[key] for key in parts.participants if key in pub_nonces]
     )
-    return musig2.SessionContext(
+    context = musig2.SessionContext(
         agg_nonce, parts.participants, parts.tweaks, parts.is_xonly, parts.msg
     )
+    return Session(context, parts.key_agg_ctx)
 
 
 def _key_data(
@@ -407,9 +434,9 @@ def partial_sign(
         err_msg += aggregate_pub_key.hex()
         raise BTClibValueError(err_msg)
 
-    session_ctx = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
-    psig = musig2.sign(sec_nonce, prv_key, session_ctx)
-    if not musig2.partial_sig_verify_(psig, pub_nonce, pub_key, session_ctx):
+    session = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
+    psig = musig2.sign(sec_nonce, prv_key, session.context)
+    if not musig2.partial_sig_verify_(psig, pub_nonce, pub_key, session.context):
         # unreachable short of a defect in either this module or `sign`:
         # the context is the one the signature was just made against.
         # It stays because what it costs is one verification against a
@@ -450,8 +477,10 @@ def partial_sig_verify(
         err_msg = f"no musig2 partial signature of {participant_pub_key.hex()} "
         err_msg += f"for aggregate key {aggregate_pub_key.hex()}"
         raise BTClibValueError(err_msg)
-    session_ctx = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
-    return musig2.partial_sig_verify_(psig, pub_nonce, participant_pub_key, session_ctx)
+    session = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
+    return musig2.partial_sig_verify_(
+        psig, pub_nonce, participant_pub_key, session.context
+    )
 
 
 def partial_sigs_agg(
@@ -477,29 +506,25 @@ def partial_sigs_agg(
     aggregate_pub_key = bytes_from_octets(aggregate_pub_key, MUSIG2_PUB_KEY_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
-    tweaked_pub_key = _session_parts(
-        psbt, vin_i, aggregate_pub_key, leaf_hash
-    ).tweaked_pub_key
-    session_ctx = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
+    session = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
+    tweaked_pub_key = bytes_from_point(session.key_agg_ctx.Q, secp256k1)
     partial_sigs = _session_partial_sigs(psbt_in, tweaked_pub_key, leaf_hash)
-    missing = [key for key in session_ctx.pub_keys if key not in partial_sigs]
+    missing = [key for key in session.context.pub_keys if key not in partial_sigs]
     if missing:
         err_msg = "missing musig2 partial signature of "
         err_msg += ", ".join(key.hex() for key in missing)
         raise BTClibValueError(err_msg)
 
     sig = musig2.partial_sig_agg(
-        [partial_sigs[key] for key in session_ctx.pub_keys], session_ctx
+        [partial_sigs[key] for key in session.context.pub_keys], session.context
     )
-    key_agg_ctx = musig2.key_agg_and_tweak(
-        session_ctx.pub_keys, session_ctx.tweaks, session_ctx.is_xonly
-    )
-    if not ssa.verify_(session_ctx.msg, key_agg_ctx.x_only_pub_key, sig):
+    x_only_pub_key = session.key_agg_ctx.x_only_pub_key
+    if not ssa.verify_(session.context.msg, x_only_pub_key, sig):
         # a partial signature that verifies on its own and does not add
         # up is what a peer sending one of another session produces, so
         # this is the Finalizer's check and not a belt-and-braces one
         err_msg = "the musig2 partial signatures do not add up to a signature "
-        err_msg += f"of {key_agg_ctx.x_only_pub_key.hex()}"
+        err_msg += f"of {x_only_pub_key.hex()}"
         raise BTClibValueError(err_msg)
 
     signature = sig.serialize()
@@ -507,9 +532,7 @@ def partial_sigs_agg(
         # BIP341: the type is appended, and its absence is SIGHASH_DEFAULT
         signature += psbt_in.sig_hash_type.to_bytes(1, "big")
     if leaf_hash:
-        psbt_in.taproot_script_spend_signatures[
-            key_agg_ctx.x_only_pub_key + leaf_hash
-        ] = signature
+        psbt_in.taproot_script_spend_signatures[x_only_pub_key + leaf_hash] = signature
     else:
         psbt_in.taproot_key_spend_signature = signature
 

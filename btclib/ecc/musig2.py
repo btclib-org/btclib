@@ -34,7 +34,11 @@ forgery on a message nobody signed. Committing two points and combining
 them as R_1 + b*R_2, with b a hash of the aggregate nonce, the aggregate
 key and the message, makes the effective nonce depend on values the
 adversary cannot fix in advance -- and buys back the round that the
-earlier commit-then-reveal defence had to spend.
+earlier commit-then-reveal defence had to spend. That defence was
+itself a correction: MuSig's first proposal had two rounds and no nonce
+commitment, and it was withdrawn once a signer choosing its nonce
+adaptively -- after seeing everyone else's -- was shown to defeat the
+proof.
 
 Key aggregation is not a plain sum either: sum(P_i) lets a rogue signer
 publish P_n = P - sum(P_1..P_n-1) for a P it controls, and sign alone
