@@ -5,8 +5,8 @@
 """The hash functions of bitcoin.
 
 ripemd160 and sha1 through sha256, the hash160 and hash256 pairs,
-BIP340's tagged hash, the BMS magic envelope, and the merkle roots
-and branches of a block.
+BIP340's tagged hash, SipHash-2-4, the BMS magic envelope, and the
+merkle roots and branches of a block.
 """
 
 from __future__ import annotations
@@ -32,8 +32,11 @@ __all__ = [
     "ripemd160",
     "sha1",
     "sha256",
+    "siphash",
     "tagged_hash",
 ]
+
+_MASK64 = 0xFFFFFFFFFFFFFFFF
 
 
 def _hashlib_has_ripemd160() -> bool:
@@ -116,6 +119,102 @@ def hash160(octets: Octets) -> bytes:
 def hash256(octets: Octets) -> bytes:
     """Return the SHA256(SHA256(*)) of the input octet sequence."""
     return sha256(sha256(octets))
+
+
+def _sip_key_word(value: int, name: str) -> int:
+    """Return value, refusing anything that is not an unsigned 64-bit word."""
+    if not is_integer(value):
+        raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if not 0 <= value <= _MASK64:
+        raise BTClibValueError(f"{name} out of range: {value}")
+    return value
+
+
+def _rotl64(n: int, b: int) -> int:
+    """Return the 64-bit left rotation of n by b bits, 0 < b < 64."""
+    return ((n << b) | (n >> (64 - b))) & _MASK64
+
+
+def _siphash_round(v0: int, v1: int, v2: int, v3: int) -> tuple[int, int, int, int]:
+    """Return the state after one SipRound, `crypto/siphash.h`'s SipRound."""
+    v0 = (v0 + v1) & _MASK64
+    v1 = _rotl64(v1, 13)
+    v1 ^= v0
+    v0 = _rotl64(v0, 32)
+    v2 = (v2 + v3) & _MASK64
+    v3 = _rotl64(v3, 16)
+    v3 ^= v2
+    v0 = (v0 + v3) & _MASK64
+    v3 = _rotl64(v3, 21)
+    v3 ^= v0
+    v2 = (v2 + v1) & _MASK64
+    v1 = _rotl64(v1, 17)
+    v1 ^= v2
+    v2 = _rotl64(v2, 32)
+    return v0, v1, v2, v3
+
+
+def siphash(k0: int, k1: int, octets: Octets) -> int:
+    """Return SipHash-2-4 of octets, keyed by the 128-bit (k0, k1).
+
+    k0 and k1 are the two 64-bit words of the key, in the order Core's
+    `CSipHasher(k0, k1)` takes them (`crypto/siphash.h`) and its Python
+    mirror `siphash(k0, k1, data)`
+    (`test/functional/test_framework/crypto/siphash.py`) reads them out
+    of a key: two rounds of compression per eight-byte word of octets,
+    padded with a trailing byte counting the input length mod 256, and
+    four rounds of finalization. The result is an unsigned 64-bit
+    integer, `v0 ^ v1 ^ v2 ^ v3` of the finalized state, never negative
+    and never wider than 8 bytes.
+
+    A hash keyed on a peer- or block-derived secret and not a
+    general-purpose digest: BIP158's filter and BIP152's short
+    transaction IDs both build their key from data no counterparty
+    chooses, which is what keeps this fast, non-cryptographic
+    construction from being a hash-flooding target.
+
+    Bitcoin Core's Python test framework offers a second entry point,
+    `siphash256(k0, k1, num)`, for hashing a 256-bit integer -- `num`
+    is Core's `uint256` read as a Python int, and the wrapper is only
+    `num.to_bytes(32, 'little')` ahead of the call above. btclib
+    represents a 32-byte hash as bytes already in that same internal
+    order (`hashes.merkle_root` and its callers), so a caller here
+    passes such a value to octets directly, and no such wrapper is
+    provided: it would restate the conversion this library never
+    needed in the first place.
+    """
+    k0 = _sip_key_word(k0, "k0")
+    k1 = _sip_key_word(k1, "k1")
+    data = bytes_from_octets(octets)
+
+    v0 = 0x736F6D6570736575 ^ k0
+    v1 = 0x646F72616E646F6D ^ k1
+    v2 = 0x6C7967656E657261 ^ k0
+    v3 = 0x7465646279746573 ^ k1
+
+    count = 0
+    pending = 0
+    for byte in data:
+        pending |= byte << (8 * (count % 8))
+        count = (count + 1) & 0xFF
+        if count & 7 == 0:
+            v3 ^= pending
+            v0, v1, v2, v3 = _siphash_round(v0, v1, v2, v3)
+            v0, v1, v2, v3 = _siphash_round(v0, v1, v2, v3)
+            v0 ^= pending
+            pending = 0
+
+    pending |= count << 56
+    v3 ^= pending
+    v0, v1, v2, v3 = _siphash_round(v0, v1, v2, v3)
+    v0, v1, v2, v3 = _siphash_round(v0, v1, v2, v3)
+    v0 ^= pending
+
+    v2 ^= 0xFF
+    for _ in range(4):
+        v0, v1, v2, v3 = _siphash_round(v0, v1, v2, v3)
+
+    return v0 ^ v1 ^ v2 ^ v3
 
 
 def _assert_valid_hf(hf: HashF) -> None:

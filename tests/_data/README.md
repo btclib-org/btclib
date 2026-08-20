@@ -130,7 +130,8 @@ csv files followed on 2026-08-03, at the tip of their paths too, the
 two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
 beside them, the two BIP374 csv files, BIP352's
 `send_and_receive_test_vectors.json` and BIP375's
-`bip375_test_vectors.json` on 2026-08-13.
+`bip375_test_vectors.json` on 2026-08-13, and Core's `siphash.json` on
+2026-08-20.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1040,6 +1041,30 @@ what reads them is `base58._b58encode`/`_b58decode` and not the checked
 `encode`/`decode` — one row is 256 bytes, 348 base58 characters,
 which the checked decoder would refuse on `MAX_LENGTH` before looking at
 it.
+
+### `tests/_data/siphash.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/siphash.json
+commit  3aea85411f61e8890b34e1de5fd348a4bcc85552  2026-07-18
+blob    19b4aaadd4a71da46bfa25b82e309dfbbd1218e9
+pulled  2026-08-20
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 146 cases. Each carries a key, an input split
+into blocks (so that a multi-block input and its byte-for-byte
+concatenation are the same case, on purpose), and the expected output
+of two constructions this library implements one of:
+`expected.siphash24` is standard SipHash-2-4, what `hashes.siphash`
+answers and what `tests/hashes_test.py` checks every row against, input
+blocks joined back into one octet string first. `expected.siphash13uj`
+is Core's unpadded, jumbo-block SipHash-1-3 variant
+(`crypto/siphash.h`'s `SipHasher13UJ`), present on 64 of the 146 rows —
+those whose blocks are each 8 or 32 bytes, the two Core evaluates that
+variant on — and unread here: btclib has no hash-table use for it and
+implements no jumbo-block hasher.
 
 ### `tests/block/_data/blockfilters.json`
 
@@ -2111,7 +2136,7 @@ Against a pinned upstream blob:
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
-  `base58_encode_decode.json`, `blockfilters.json`,
+  `base58_encode_decode.json`, `siphash.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
   `bip39_test_vectors.json`, the eight BIP327 vector files,
   `send_and_receive_test_vectors.json`, and the Wycheproof vector files.
