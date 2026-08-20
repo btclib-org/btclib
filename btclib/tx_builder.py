@@ -146,6 +146,12 @@ def _assert_spends_once(inputs: Sequence[PsbtIn]) -> None:
     amount the transaction does not have. `Tx.assert_valid` implements
     the rest of `CheckTransaction` and not this rule (issue #1073), so
     the psbt this returns would not be refused by its own validation.
+
+    Asked after the psbt has been validated, and that is the order rather
+    than an accident: `PsbtIn.prev_out` reads a missing output index as
+    0, so an input carrying none would be a duplicate of whatever else
+    spends index 0 of the same transaction -- where `Psbt.assert_valid`
+    refuses it under its own name, as a missing PSBT_IN_OUTPUT_INDEX.
     """
     outpoints = [psbt_in.prev_out for psbt_in in inputs]
     if len(set(outpoints)) != len(outpoints):
@@ -200,7 +206,6 @@ def build_psbt(
     _assert_arguments(inputs, outputs, fee_rate, dust_fee_rate)
     if not inputs:
         raise BTClibValueError("no inputs")
-    _assert_spends_once(inputs)
     change_script = (
         None
         if change_script_pub_key is None
@@ -233,6 +238,8 @@ def build_psbt(
         check_validity=False,
     )
     total_in = sum(prev_out.value for prev_out in prevouts(psbt))
+    # after `prevouts`, which is what validates; its own docstring says why
+    _assert_spends_once(inputs)
     total_out = sum(tx_out.value for tx_out in outputs)
     remainder = total_in - total_out
 

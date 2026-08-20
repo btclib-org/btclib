@@ -279,6 +279,19 @@ def test_one_outpoint_is_spent_once() -> None:
             [TxOut(60_000, PAY_SCRIPT)],
             TEN_SAT_PER_VBYTE,
         )
+    # an input naming no output index is refused under its own name, the
+    # psbt being validated before the duplicates are looked for: read the
+    # other way round it would be a duplicate of whatever spends index 0
+    # of the same transaction
+    nameless = spendable(100_000)
+    nameless.output_index = None
+    with pytest.raises(BTClibValueError, match="missing PSBT_IN_OUTPUT_INDEX"):
+        build_psbt(
+            [nameless, spendable(100_000)],
+            [TxOut(60_000, PAY_SCRIPT)],
+            TEN_SAT_PER_VBYTE,
+        )
+
     # the same output index of two different transactions is two utxos
     built = build_psbt(
         [spendable(100_000), spendable(100_000, tx_id=b"\x07" * 32)],
