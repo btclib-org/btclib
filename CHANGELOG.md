@@ -12,13 +12,13 @@
 -->
 
 Every change of a release, in full: what changed, why, and what it cost.
-[HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
-to act on; this file is the record behind them, and is where a claim in
-those notes can be checked.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
+what a user has to act on; this file is the record behind them, and is
+where a claim in those notes can be checked.
 
 Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
-[HISTORY.md](./HISTORY.md) rather than duplicated here.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) rather than duplicated here.
 
 ## v2026.9 (work in progress, not released yet)
 
@@ -8212,10 +8212,10 @@ documented at release-notes length in the first place, and are still in
 ## v2026.8.7
 
 Grouped, and the order runs from what breaks a caller to what only
-maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
-changes on their own. Neither file counts its entries: `grep -c '^- '`
-does that, whereas a stated number is a line every open branch has to
-edit.
+maintainers see; `HISTORY.md` lists the source-breaking changes on their
+own -- the name this file had at the time, renamed to `RELEASE_NOTES.md`
+by issue #1011. Neither file counts its entries: `grep -c '^- '` does
+that, whereas a stated number is a line every open branch has to edit.
 
 ### Repository
 
