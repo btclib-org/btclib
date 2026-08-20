@@ -22,13 +22,17 @@ workflows with a job named the same thing produce one ambiguous check.
 That aggregate skips, rather than fails, when the run itself was
 cancelled by the concurrency group superseding it -- a skip satisfies a
 required check, the same as this very job's own draft/closed condition
-already relies on -- and fails hard on anything else a dependency
-reports that is not success, checked
-by name in a shell loop that always runs rather than a boolean
-expression a skipped step could leave unevaluated. (Issue #1025 and
-issue #1001.) Read the cells, not the aggregate, when a run's own
-conclusion and this check disagree:
-`gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
+already relies on. A `changes` job gates `suite`, `coverage`,
+`no-bindings`, `dist` and `coverage-union` on whether a pull request
+touched anything the matrix reads, so `skipped` from any one of those
+five is legitimate too, on purpose, whenever the diff is prose alone
+(issue #1044) -- not only the whole-run-cancelled case. The aggregate
+fails hard on anything else a dependency reports, `success` or
+`skipped` and nothing besides, checked by name in a shell loop that
+always runs rather than a boolean expression a skipped step could
+leave unevaluated. (Issues #1025, #1001 and #1044.) Read the cells,
+not the aggregate, when a run's own conclusion and this check
+disagree: `gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
 
 `main` requires four checks, and only four:
 
@@ -435,20 +439,33 @@ asking.
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-needing more must declare it. Four of those declarations are in
+needing more must declare it. Most of those declarations are in
 `release.yml`: `contents: write` on `github-release`, `id-token: write` on
-the two publish jobs, and `id-token: write` with `attestations: write` on
-`attest`. The fifth is `codeql.yml`'s `analyze`, whose
-`security-events: write` is what uploading a SARIF to code scanning takes,
-with `actions: read` beside it — redundant while this repository is public,
-and written down so that the file does not quietly stop working the day it
-is not. Its aggregate job needs none of that and declares none of it: one
+the two publish jobs, `id-token: write` with `attestations: write` on
+`attest`, and `contents: read` with `pull-requests: read` on `test` — that
+last one there because `test` calls `test.yml`, and a caller's
+`permissions:` block replaces the callee's default outright rather than
+adding to it, so it has to grant what `test.yml`'s own jobs declare, not
+only what `release.yml` itself needs. `test.yml` has one such declaration
+of its own, on `changes`: `pull-requests: read`, to list a pull request's
+files. And `codeql.yml`'s `analyze` has one: `security-events: write` is
+what uploading a SARIF to code scanning takes, with `actions: read` beside
+it — redundant while this repository is public, and written down so that
+the file does not quietly stop working the day it is not. Every
+workflow's aggregate job needs none of that and declares none of it: one
 elevation per job is the shape to keep — the job that writes releases holds
 no OIDC token, and the job that signs writes no release — and
 `vendored-vectors.yml` is the one place that departs from it, declaring
 `issues: write` at the workflow level where its only job would do.
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
+
+```shell
+git grep -n "permissions:$" -- .github/workflows/*.yml
+```
+
+re-derives the current list, whenever it's wanted, rather than a count
+here going stale the next time a job's own needs change.
 
 ## Publishing
 
