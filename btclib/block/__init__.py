@@ -11,6 +11,7 @@ from btclib.block.block import (
     merkle_root_and_mutated_from_transactions,
 )
 from btclib.block.block_context import BlockContext
+from btclib.block.block_filter import BasicBlockFilter, prevout_scripts_from_utxos
 from btclib.block.block_header import BlockHeader
 
 # btclib.block.limits is not here, as btclib.script.limits is not in
@@ -24,6 +25,7 @@ from btclib.block.block_header import BlockHeader
 # header against it -- so a caller checking a block by hand needs the same
 # function rather than a second one written from the BIP
 __all__ = [
+    "BasicBlockFilter",
     "Block",
     "BlockContext",
     "BlockHeader",
@@ -31,5 +33,6 @@ __all__ = [
     "merkle_proof",
     "merkle_root_and_mutated_from_transactions",
     "mining",
+    "prevout_scripts_from_utxos",
     "proof_of_work",
 ]

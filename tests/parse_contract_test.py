@@ -254,6 +254,17 @@ _EXCLUDED = {
         " three properties are false of it by design; the boundary it does"
         " owe its caller is the test above"
     ),
+    "btclib.block.block_filter.BasicBlockFilter": (
+        "a Golomb-coded set has no length of its own, only the count of the"
+        " values coded in it, so a filter is the whole of the octets it is"
+        " given: nothing can trail it -- a further octet is a delta the"
+        " count does not admit, which assert_valid refuses -- and there is"
+        " no stream left for a caller to read on from. What the three"
+        " properties protect is kept by construction all the same: the set"
+        " is held as the octets it was parsed from, so a truncated buffer"
+        " and a padded one are two objects, each serializing back to the"
+        " buffer it came from"
+    ),
     "btclib.ecc.dsa.Sig": (
         "the one parser here with a flag in front of the rule, and the flag"
         " is Bitcoin Core's: trailing octets are refused under `strict`"

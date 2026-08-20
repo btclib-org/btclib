@@ -33,9 +33,9 @@ boundary that reads a file.
 **`to_dict`, `serialize` and `b64encode` mostly have nothing to drive**:
 their input is the object, which `check_validity_test.py` and
 `built_object_contract_test.py` own between them. The exceptions are the
-four arguments `_EXTRA_ARGUMENTS` records, and the last test is what
-keeps that record honest -- a fifth added to this family fails here until
-it is driven.
+arguments `_EXTRA_ARGUMENTS` records, and the last test is what keeps
+that record honest -- one more added to this family fails here until it
+is driven.
 
 `check_validity` is not driven anywhere in this file: it is a flag that
 decides whether a check runs rather than what is computed, so it is read
@@ -64,7 +64,7 @@ from btclib import bip322, var_bytes, var_int
 from btclib.bip21 import Bip21
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.block import Block, BlockHeader
+from btclib.block import BasicBlockFilter, Block, BlockHeader
 from btclib.descriptors import descriptors, miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -167,6 +167,7 @@ _OCTETS_DECODERS = (
     ("Tx.parse", Tx, "parse"),
     ("BlockHeader.parse", BlockHeader, "parse"),
     ("Block.parse", Block, "parse"),
+    ("BasicBlockFilter.parse", BasicBlockFilter, "parse"),
     ("Psbt.parse", Psbt, "parse"),
     ("PsbtIn.parse", PsbtIn, "parse"),
     ("PsbtOut.parse", PsbtOut, "parse"),
@@ -196,9 +197,9 @@ _TEXT_IDS = tuple(label for label, _, _ in _TEXT_DECODERS)
 
 # what any of these methods takes beyond the object it is about, the
 # octets or the mapping it reads, and the `check_validity` that
-# `check_validity_test.py` owns. Nine arguments over seventy methods,
-# which is the shape of the family: the object is the input, and this is
-# everything else a caller can get wrong.
+# `check_validity_test.py` owns. Few of them over the whole family,
+# which is its shape: the object is the input, and this is everything
+# else a caller can get wrong.
 #
 # Each is driven below except `strict`, which is a flag deciding whether a
 # check runs -- Bitcoin Core's IsValidSignatureEncoding, and `dsa.Sig.parse`
@@ -207,6 +208,7 @@ _TEXT_IDS = tuple(label for label, _, _ in _TEXT_DECODERS)
 _EXTRA_ARGUMENTS = {
     ("btclib.tx.tx.Tx", "serialize"): "include_witness",
     ("btclib.block.block.Block", "serialize"): "include_witness",
+    ("btclib.block.block_filter.BasicBlockFilter", "parse"): "block_hash",
     ("btclib.psbt.psbt_in.PsbtIn", "serialize"): "psbt_version",
     ("btclib.psbt.psbt_in.PsbtIn", "parse"): "psbt_version",
     ("btclib.psbt.psbt_out.PsbtOut", "serialize"): "psbt_version",
@@ -529,8 +531,25 @@ def test_a_map_is_written_and_read_as_a_version_that_exists(cls: type[Any]) -> N
             cls.parse(map_.serialize(), psbt_version=wrong_value)
 
 
+def test_a_block_filter_is_read_against_the_hash_of_its_block() -> None:
+    """The block hash a filter is keyed by, which its octets do not carry.
+
+    BIP157 names the block beside the filter rather than inside it, so
+    the hash is an argument of `parse`; the SipHash key every element is
+    hashed with is derived from it, so a value of no bytes type is no
+    key, and it is refused as the octets it is not.
+    """
+    block_filter = BasicBlockFilter(_BLOCK.header.hash, 0, b"")
+    serialized = block_filter.serialize()
+    assert BasicBlockFilter.parse(serialized, _BLOCK.header.hash) == block_filter
+
+    for wrong in _WRONG_TYPES:
+        with pytest.raises(BTClibTypeError, match="invalid octets type"):
+            BasicBlockFilter.parse(serialized, block_hash=wrong)
+
+
 def test_an_envelope_is_read_against_magic_bytes_that_are_bytes() -> None:
-    """The one argument of this family that is neither a flag nor a version.
+    """An argument of this family that is neither a flag nor a version.
 
     Compared against the first four octets of the buffer, so a magic of
     no bytes type is unequal to whatever is there: every envelope was

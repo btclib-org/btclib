@@ -82,7 +82,7 @@ _OTHER_CONTRACT: dict[str, str] = {
 
 # A bool need not carry one of the four prefixes: an English predicate is
 # the same family and the same contract, and `is_` would cost the reading.
-# Six of them, each with the reason it keeps the name it has -- and the
+# Each entry carries the reason it keeps the name it has -- and the
 # ratchet below is what closes the vocabulary all the same, an entry that
 # has gained a prefix being one this list no longer excuses (issue #814)
 _ITS_STANDARD_SPELLING = (
@@ -96,7 +96,16 @@ _A_PREDICATE_WITH_A_SUBJECT = (
     " script: `is_read_back` would ask who reads it"
 )
 
+_THE_STANDARD_NAMES_THE_OPERATION = (
+    "BIP158 queries a Golomb-coded set with `gcs_match`, and Core spells"
+    " the pair `GCSFilter::Match` and `MatchAny`: an `is_` would rename"
+    " the operation the standard defines, and the answer is not a"
+    " property of the filter but of the element it is asked about"
+)
+
 _ENGLISH_PREDICATE: dict[str, str] = {
+    "btclib.block.block_filter.match": _THE_STANDARD_NAMES_THE_OPERATION,
+    "btclib.block.block_filter.match_any": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.descriptors.miniscript.has_duplicate_keys": (_ITS_STANDARD_SPELLING),
     "btclib.descriptors.miniscript.mixes_timelocks": (_ITS_STANDARD_SPELLING),
     "btclib.descriptors.miniscript.reads_back": _A_PREDICATE_WITH_A_SUBJECT,

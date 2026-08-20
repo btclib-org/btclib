@@ -18,6 +18,13 @@ btclib.block.block\_context module
    :members:
    :show-inheritance:
 
+btclib.block.block\_filter module
+---------------------------------
+
+.. automodule:: btclib.block.block_filter
+   :members:
+   :show-inheritance:
+
 btclib.block.block\_header module
 ---------------------------------
 
