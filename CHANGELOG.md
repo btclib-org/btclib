@@ -6988,6 +6988,57 @@ documented at release-notes length in the first place, and are still in
   optional too would sell the one defence left for a factor the table
   above does not show.
 
+- **A MuSig2 session no longer re-aggregates the same keys at every
+  step** (issue #1045). `session_values` opened by calling
+  `key_agg_and_tweak` over every participant key, and `sign`,
+  `partial_sig_verify_` and `partial_sig_agg` each called it once per
+  signer: a session that signs, has every signer verified against
+  BIP327 and aggregates runs that O(n) aggregation 2n+1 times over
+  inputs that never change, so the whole session was quadratic in the
+  number of signers. It is now memoized on the `SessionContext`
+  instance, in a `_values` field declared `compare=False` -- the same
+  idiom `curves.curve.PreparedPoint.fixed` already uses for a value
+  derived rather than passed, which is what keeps a cached field out
+  of the `__eq__` and `__hash__` a frozen dataclass generates from its
+  other fields by construction, not by the field being merely
+  undeclared. `object.__setattr__` reaches past `frozen=True` to set
+  it, exactly as `__init__` already does for the declared fields, and
+  two contexts spelling the same session stay equal whichever of them
+  has already signed.
+
+  Measured on an Apple M5, macOS 26.6.2, arm64, CPython 3.14.7, bindings
+  serving, timing a whole session (nonce generation, signing, verifying
+  every partial signature, aggregating) with and without the
+  memoization, best of five:
+
+  | n | before | after | speedup |
+  | ---: | ---: | ---: | ---: |
+  | 2 | 0.60 ms | 0.33 ms | 1.82x |
+  | 5 | 1.90 ms | 0.75 ms | 2.53x |
+  | 10 | 5.46 ms | 1.44 ms | 3.80x |
+  | 20 | 17.45 ms | 2.87 ms | 6.09x |
+  | 50 | 94.39 ms | 7.05 ms | 13.38x |
+  | 100 | 361.25 ms | 14.49 ms | 24.92x |
+
+  `partial_sig_verify`, the convenience spelling that builds a fresh
+  `SessionContext` per call, cannot benefit from this and does not try
+  to: its docstring now points a caller that verifies every signer at
+  `partial_sig_verify_` with one shared context instead, which is the
+  spelling the table above measures. `btclib/psbt/musig2.py`'s three
+  public entry points -- `partial_sign`, `partial_sig_verify` and
+  `partial_sigs_agg` -- each build their own `SessionContext` via
+  `session_context`, so nothing is shared *across* them; within
+  `partial_sign`, though, `sign` and `partial_sig_verify_` already
+  share one context, and this change does halve that pair's
+  aggregation down to one. `partial_sigs_agg` used to call
+  `key_agg_and_tweak` there too, a second aggregation of the same
+  participants -- issue #1046 removed that call, so
+  `btclib/psbt/musig2.py` now aggregates the participants exactly
+  once, in `_session_parts`, and there is nothing left at that layer
+  for this memoization to reach. The cached value holds no secret --
+  Q, gacc, tacc, b, R and e are all public -- so nothing here changes
+  what `SECURITY.md` publishes.
+
 ### Tests
 
 - **A recorder per bindings signing call site asserts what `verify` it

@@ -74,7 +74,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 
 from btclib.alias import INF, Octets, Point
@@ -526,6 +526,19 @@ class SessionContext:
     is_xonly: tuple[bool, ...]
     msg: bytes
 
+    # `session_values`'s memoized answer, PreparedPoint.fixed's idiom for
+    # a derived value on an otherwise-frozen dataclass: `compare=False`
+    # keeps it out of the generated `__eq__`/`__hash__` by construction,
+    # which is what lets two contexts spelling the same session stay
+    # equal whichever of them a caller has already signed with, rather
+    # than by the field being merely undeclared. `init=False` on the
+    # decorator means the class attribute this default becomes is what
+    # every fresh instance reads until `session_values`'s own
+    # `object.__setattr__` gives it an instance one
+    _values: SessionValues | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
     # written out rather than an InitVar and a __post_init__: as in
     # ssa.Sig, and here it also normalizes -- the fields hold bytes and
     # tuples whatever the caller passed, so that a hex string and the
@@ -565,7 +578,22 @@ class SessionValues:
 
 
 def session_values(session_ctx: SessionContext) -> SessionValues:
-    """Derive the session values from the context, as every party does."""
+    """Derive the session values from the context, as every party does.
+
+    Memoized on `session_ctx`: `sign`, `partial_sig_verify_` and
+    `partial_sig_agg` each call this once per signer, so one session
+    that signs, verifies every partial signature and aggregates would
+    otherwise run the O(n) key aggregation below 2n+1 times over
+    inputs that never change. `SessionContext._values` is declared
+    `compare=False`, so it is excluded from the dataclass's generated
+    `__eq__` and `__hash__` by construction, and two contexts spelling
+    the same session remain equal regardless of which one has already
+    been used to sign; `object.__setattr__` reaches past `frozen=True`
+    to set it, exactly as `SessionContext.__init__` already does for
+    its declared fields.
+    """
+    if session_ctx._values is not None:
+        return session_ctx._values
     key_agg_ctx = key_agg_and_tweak(
         session_ctx.pub_keys, session_ctx.tweaks, session_ctx.is_xonly
     )
@@ -590,7 +618,12 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     # the one btclib's own BIP340 verifier recomputes, byte for byte and
     # for a message of any size
     e = ssa.challenge_(session_ctx.msg, Q[0], R[0], secp256k1, sha256)
-    return SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
+    values = SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
+    # nothing cached here is secret -- Q, gacc, tacc, b, R, e are all
+    # public -- so caching them on the context changes no security
+    # property this module publishes
+    object.__setattr__(session_ctx, "_values", values)
+    return values
 
 
 def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
@@ -749,6 +782,14 @@ def partial_sig_verify(
     Every signer should verify every other signer's partial signature
     before aggregating: an aggregate signature that does not verify says
     only that somebody misbehaved, while this says who.
+
+    This spelling builds a fresh `SessionContext` on every call, so
+    `session_values`'s memoization buys it nothing: calling this once
+    per signer re-aggregates the keys once per signer. A caller that
+    verifies every signer of one session should build the
+    `SessionContext` once and call `partial_sig_verify_` with it
+    instead, which is what shares the cached session values across
+    those calls.
     """
     if len(pub_nonces) != len(pub_keys):
         err_msg = "The `pubnonces` and `pubkeys` arrays must have the same length."
