@@ -953,6 +953,16 @@ def partial_sig_verify_(
     if s >= secp256k1.n:
         return False
     pub_nonce = bytes_from_octets(pub_nonce, _NONCE_SIZE)
+    # ahead of pub_nonce's own point-parsing below: the delegated branch
+    # needs pub_key as validated-length bytes before it can hand it to
+    # the bindings, and this length check is the one line both arms
+    # share, so it runs once here rather than once per arm. The only
+    # input this ordering affects is a direct partial_sig_verify_ call
+    # carrying both a wrong-length pub_key and a malformed pub_nonce at
+    # once -- unreachable through partial_sig_verify, which screens both
+    # first -- where pub_key's length is what raises rather than
+    # pub_nonce's parse; the exception type is the same either way, and
+    # no vector pins which one a caller sees
     pub_key = bytes_from_octets(pub_key, _PK_SIZE)
     if (
         _libsecp256k1_serves(secp256k1, sha256)
