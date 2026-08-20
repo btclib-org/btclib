@@ -324,11 +324,11 @@ class InvalidContributionError(BTClibRuntimeError):
     Which party, and which of its contributions: `signer` is the index
     in the list the caller passed, None for the aggregator -- who has no
     index, having no key -- and `contrib` names what was wrong, one of
-    "pubkey", "pubnonce", "aggnonce", "aggothernonce" or "psig". That is
-    the whole point of the class: a multi-round protocol that merely
-    fails leaves every participant a suspect, and the answer a caller
-    needs is who to hold accountable and to exclude from the next
-    attempt.
+    "pubkey", "pubnonce", "aggnonce", "aggothernonce", "psig" or
+    "adaptor". That is the whole point of the class: a multi-round
+    protocol that merely fails leaves every participant a suspect, and
+    the answer a caller needs is who to hold accountable and to exclude
+    from the next attempt.
 
     A BTClibRuntimeError and not a BTClibValueError, which is the other
     obvious base and the one BIP327 keeps separate: its reference
