@@ -94,7 +94,7 @@ classifiers = [
 # import that decides it. What that buys is a btclib a distribution can
 # package with no C toolchain in reach, and a caller that must not check
 # libsecp256k1 with libsecp256k1 (issue #198). What it costs is in
-# HISTORY.md, because an upgrade that stops installing them is an
+# RELEASE_NOTES.md, because an upgrade that stops installing them is an
 # upgrade onto the Python arithmetic, which is tens of times slower and
 # is not constant-time -- SECURITY.md publishes both
 secp256k1 = [
@@ -124,7 +124,7 @@ secp256k1 = [
 homepage = "https://btclib.org"
 documentation = "https://btclib.readthedocs.io/"
 download = "https://github.com/btclib-org/btclib/releases"
-changelog = "https://github.com/btclib-org/btclib/blob/main/HISTORY.md"
+changelog = "https://github.com/btclib-org/btclib/blob/main/RELEASE_NOTES.md"
 repository = "https://github.com/btclib-org/btclib"
 issues = "https://github.com/btclib-org/btclib/issues"
 pull_requests = "https://github.com/btclib-org/btclib/pulls"
@@ -484,9 +484,9 @@ CPY = "CPY"
 # the hook corrects those quotations into nonsense -- prose saying
 # `lenght` is now `length` reads as prose saying nothing, and a key or a
 # message quoted from elsewhere stops being the thing quoted. Narrow enough
-# that `y-simmetry`, unquoted in HISTORY.md, was still found and fixed
-# with the rule already in place
-extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
+# that `y-simmetry`, unquoted in RELEASE_NOTES.md, was still found and
+# fixed with the rule already in place
+extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
 [tool.typos.type.mixed-case-vectors]
@@ -656,7 +656,7 @@ explicit-preview-rules = true
 # library sites are the module-level `datadir` of btclib.curves.curve and
 # btclib.network, each a path a caller can read directly, so its type
 # changes from str to Path there too -- a breaking change, recorded in
-# HISTORY.md, and not one this rule set finds on its own: ruff has no
+# RELEASE_NOTES.md, and not one this rule set finds on its own: ruff has no
 # opinion on what a module chooses to expose.
 #
 # What the same survey rejected, with the reason it was rejected rather

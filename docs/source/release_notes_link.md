@@ -1,4 +1,4 @@
 <!-- markdownlint-disable MD041 -->
-```{include} ../../HISTORY.md
+```{include} ../../RELEASE_NOTES.md
 ```
 <!-- markdownlint-enable MD041 -->

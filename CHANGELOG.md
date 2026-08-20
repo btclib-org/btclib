@@ -611,6 +611,33 @@ documented at release-notes length in the first place, and are still in
   nobody needs and a day that is not the day are read as facts by whoever
   finds them, and there is nothing in a run to say otherwise.
 
+- **`HISTORY.md` is `RELEASE_NOTES.md` now** (issue #1011). Its own H1
+  always read `# Release notes`; the filename did not, and in common
+  usage the two words that were split name the same file, where a
+  project that does split them puts it the other way round — [Keep a
+  Changelog](https://keepachangelog.com/) defines CHANGELOG.md as the
+  curated, human-facing list, which is what this file is here. PyPI's
+  own **Changelog** link, read off `pyproject.toml`'s `changelog` url,
+  pointed past CHANGELOG.md at the file not named changelog — accurate
+  about its content and wrong about the one thing a stranger meets
+  first. `CHANGELOG.md` is unchanged: it is the file whose name and
+  contents already agree, and every entry it has ever made about the old
+  name stays written as it was true then.
+
+  Fourteen files pointed at the old name, past `CHANGELOG.md` itself and
+  a historical fixture in `tests/release_notes_test.py` quoting the
+  literal old link, both left alone for the same reason. Two were
+  load-bearing: `release.yml` lifts the GitHub release notes out of the
+  tag's own section by filename, and `version-check` refuses a tag whose
+  heading is not retitled, in both files it reads by name. `.gitattributes`
+  keeps `merge=union` under the new name, so a parallel release-note
+  bullet still resolves without a conflict. `docs/source/history_link.md`
+  moves to `docs/source/release_notes_link.md`, its toctree entry
+  relabelled `RELEASE NOTES` to match. `btclib.org/HISTORY.md` 404s now
+  rather than redirecting: nothing in this repository serves a redirect
+  today, and the file's git history is where the old name is still
+  reachable.
+
 ### Packaging, linting and CI
 
 - **Merging a pull request no longer has a chance of cancelling its own
