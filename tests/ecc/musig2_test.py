@@ -10,6 +10,36 @@ under `tests/ecc/_data/`; `tests/_data/README.md` pins the revision.
 Every case of every file is exercised, the error cases included, and an
 error case is checked against the exception the file names -- which
 party misbehaved and how, or the message of a plain value error.
+
+btclib-org/btclib#1048 adds a second authority beside those vectors:
+`btclib_secp256k1.musig`, the wrapper btclib-org/btclib-secp256k1#282
+built around libsecp256k1's own MuSig2 module. Every "matches bindings"
+or "verified by bindings" test below calls it and compares -- the tree's
+stated position since btclib-org/btclib#993 is that the bindings are the
+reference implementation, and agreeing with them is the property worth
+checking, not the vectors' own numbers a second time.
+
+Two operations have no such oracle, and that absence is recorded here
+rather than left for a reader to notice on their own, per #993's rule
+that a missing third-party vector is said so in the inventory instead of
+being counted twice: `nonce_gen_` derives a nonce libsecp256k1's own
+`musig_nonce_gen` derives differently, so nothing below crosses the
+derivation, only the arithmetic relating a pubnonce to a secnonce that
+`tests.ecc.musig2_test.test_sign_verify_vectors_consistency` and
+`test_tweak_vectors_consistency` already check with btclib's own `mult`;
+`nonce_gen_vectors.json` stays the sole authority on the derivation.
+`deterministic_sign` has no libsecp256k1 counterpart at all --
+`musig_nonce_gen_counter` is a different construction, for a
+non-repeating counter rather than for collapsing the two rounds -- so
+`det_sign_vectors.json` is and stays its only authority.
+
+The gate every oracle test below has to pass through: `musig_nonce_gen`
+and `musig_nonce_process` take a fixed `msg32`, with no length
+parameter, so BIP327's own empty-message and 38-byte-message vectors
+(`sign_verify_vectors.json`'s messages at index 1 and 2) cannot reach the
+C call at all. Those cases are not filtered out of the parameter list --
+they are skipped by `pytest.mark.skip`, with the reason stated, so the
+skip is visible in a test report rather than an absence nobody notices.
 """
 
 import secrets
@@ -17,6 +47,7 @@ from typing import Any
 
 import pytest
 
+from btclib._libsecp256k1 import INSTALLED
 from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import musig2, ssa
 from btclib.exceptions import (
@@ -24,7 +55,14 @@ from btclib.exceptions import (
     BTClibValueError,
     InvalidContributionError,
 )
-from tests import load, vector_id
+from tests import load, needs_bindings, vector_id
+
+if INSTALLED:
+    from btclib_secp256k1 import musig as libsecp256k1_musig
+else:  # pragma: no cover
+    # never called from a skipped test, mirroring the fallback
+    # `btclib._libsecp256k1` gives every name it wraps
+    libsecp256k1_musig = None  # type: ignore[assignment]
 
 # the two exception types BIP327 tells apart: a caller's own bad
 # argument, and a peer's bad contribution
@@ -491,6 +529,183 @@ def test_sig_agg_error_vectors(case: dict[str, Any]) -> None:
     with pytest.raises(_ERRORS) as excinfo:
         musig2.partial_sig_agg(psigs, session_ctx)
     assert_error(case["error"], excinfo.value)
+
+
+# The bindings oracle, issue #1048: every test below cross-validates
+# btclib's answer against `libsecp256k1_musig`, reusing the vectors and
+# the helpers already loaded above rather than a second copy of either.
+
+
+@needs_bindings
+@pytest.mark.parametrize("pub_keys, expected", key_agg_valid_vectors())
+def test_key_agg_matches_bindings(pub_keys: list[bytes], expected: bytes) -> None:
+    """key_agg answers the same Q as musig_pubkey_agg, byte for byte."""
+    cache = libsecp256k1_musig.KeyAggCache(pub_keys)
+    assert cache.agg_pubkey == expected
+    assert musig2.key_agg(pub_keys).x_only_pub_key == cache.agg_pubkey
+
+
+def tweak_pub_keys_and_tweaks_vectors() -> list[Any]:
+    """One (pub_keys, tweaks, is_xonly) per tweak_vectors.json valid case."""
+    return [
+        pytest.param(
+            [_TW_PUB_KEYS[i] for i in case["key_indices"]],
+            [_TW_TWEAKS[i] for i in case["tweak_indices"]],
+            case["is_xonly"],
+            id=vector_id(index, case["comment"]),
+        )
+        for index, case in enumerate(_TWEAK["valid_test_cases"])
+    ]
+
+
+@needs_bindings
+@pytest.mark.parametrize(
+    "pub_keys, tweaks, is_xonly", tweak_pub_keys_and_tweaks_vectors()
+)
+def test_apply_tweak_matches_bindings(
+    pub_keys: list[bytes], tweaks: list[bytes], is_xonly: list[bool]
+) -> None:
+    """apply_tweak answers the same Q as the matching *_tweak_add call.
+
+    Applied one tweak at a time, over the same sequence key_agg_and_tweak
+    would run, so this is that entry point's oracle as well as
+    apply_tweak's own: there is no separate C call to aggregate and tweak
+    in one step, `musig.KeyAggCache` accumulating both the same way
+    `KeyAggContext` does.
+    """
+    ctx = musig2.key_agg(pub_keys)
+    cache = libsecp256k1_musig.KeyAggCache(pub_keys)
+    assert ctx.x_only_pub_key == cache.agg_pubkey
+    for tweak, xonly in zip(tweaks, is_xonly, strict=True):
+        ctx = musig2.apply_tweak(ctx, tweak, xonly)
+        tweak_add = cache.pubkey_xonly_tweak_add if xonly else cache.pubkey_ec_tweak_add
+        assert tweak_add(tweak) == bytes_from_point(ctx.Q, secp256k1)
+
+
+@needs_bindings
+@pytest.mark.parametrize("pub_nonces, expected", nonce_agg_valid_vectors())
+def test_nonce_agg_matches_bindings(pub_nonces: list[bytes], expected: bytes) -> None:
+    """nonce_agg answers the same 66-byte aggnonce as musig_nonce_agg."""
+    assert libsecp256k1_musig.nonce_agg(pub_nonces) == expected
+    assert musig2.nonce_agg(pub_nonces) == expected
+
+
+def _msg32_gated(cases: list[dict[str, Any]], msgs: list[bytes]) -> list[Any]:
+    """One param per case, `pytest.mark.skip` where its message is not 32 bytes.
+
+    `musig_nonce_process` takes a fixed-size `msg32`: a case whose message
+    is not exactly 32 bytes cannot reach the C call this module's tests
+    make, and is skipped by this predicate rather than left out of the
+    parameter list -- the module docstring's "gate" paragraph says why.
+    """
+    params = []
+    for index, case in enumerate(cases):
+        msg = msgs[case["msg_index"]]
+        marks = (
+            pytest.mark.skip(
+                reason=(
+                    "musig_nonce_process takes a fixed 32-byte msg32; this "
+                    f"vector's message is {len(msg)} bytes"
+                )
+            )
+            if len(msg) != 32
+            else ()
+        )
+        params.append(
+            pytest.param(case, marks=marks, id=vector_id(index, case.get("comment")))
+        )
+    return params
+
+
+@needs_bindings
+@pytest.mark.parametrize(
+    "case", _msg32_gated(_SIGN_VERIFY["valid_test_cases"], _SV_MSGS)
+)
+def test_sign_verified_by_bindings(case: dict[str, Any]) -> None:
+    """musig_partial_sig_verify accepts the partial signature sign produces.
+
+    What is crossed into the bindings is `sign`'s own return value, not
+    the vector's pinned `expected` -- that equality is already
+    `test_sign_verify_valid_vectors`'s, and checking it again here would
+    let this test pass on the vector's word instead of on `sign`'s.
+    """
+    pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
+    pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
+    agg_nonce = _SV_AGG_NONCES[case["aggnonce_index"]]
+    msg = _SV_MSGS[case["msg_index"]]
+    signer = case["signer_index"]
+
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], msg)
+    # a copy: signing consumes the secnonce, and every valid case in this
+    # file signs with the vector file's one secnonce, index 0, exactly as
+    # test_sign_verify_valid_vectors does
+    sig = musig2.sign(bytearray(_SV_SEC_NONCES[0]), _SV_SK, session_ctx)
+
+    cache = libsecp256k1_musig.KeyAggCache(pub_keys)
+    session = libsecp256k1_musig.Session(agg_nonce, msg, cache)
+    assert session.partial_sig_verify(sig, pub_nonces[signer], pub_keys[signer], cache)
+
+
+@needs_bindings
+@pytest.mark.parametrize(
+    "case", _msg32_gated(_SIGN_VERIFY["verify_fail_test_cases"], _SV_MSGS)
+)
+def test_partial_sig_verify_matches_bindings(case: dict[str, Any]) -> None:
+    """partial_sig_verify and musig_partial_sig_verify answer the same verdict.
+
+    Every case here is one BIP327 says fails: what the bindings are
+    checked against is not a hardcoded False but their own verdict, so
+    agreement is what the test asks rather than the vector's own number a
+    second time.
+    """
+    pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
+    pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
+    msg = _SV_MSGS[case["msg_index"]]
+    signer = case["signer_index"]
+    psig = bytes.fromhex(case["sig"])
+
+    btclib_verdict = musig2.partial_sig_verify(
+        psig, pub_nonces, pub_keys, [], [], msg, signer
+    )
+    cache = libsecp256k1_musig.KeyAggCache(pub_keys)
+    agg_nonce = libsecp256k1_musig.nonce_agg(pub_nonces)
+    session = libsecp256k1_musig.Session(agg_nonce, msg, cache)
+    try:
+        bindings_verdict = session.partial_sig_verify(
+            psig, pub_nonces[signer], pub_keys[signer], cache
+        )
+    except ValueError:
+        # "Signature exceeds group size": s >= n does not parse, so
+        # musig_partial_sig_verify is never reached -- the bindings' own
+        # `musig.py` module docstring's "a parse failure ... tells this
+        # package nothing" applies, and a refusal to parse is the same
+        # refusal partial_sig_verify_'s own `s >= secp256k1.n` check
+        # answers
+        bindings_verdict = False
+    assert btclib_verdict == bindings_verdict
+
+
+@needs_bindings
+@pytest.mark.parametrize("case", sig_agg_valid_vectors())
+def test_partial_sig_agg_matches_bindings(case: dict[str, Any]) -> None:
+    """partial_sig_agg answers the same signature as musig_partial_sig_agg."""
+    pub_nonces = [_SA_PUB_NONCES[i] for i in case["nonce_indices"]]
+    pub_keys = [_SA_PUB_KEYS[i] for i in case["key_indices"]]
+    tweaks = [_SA_TWEAKS[i] for i in case["tweak_indices"]]
+    is_xonly = case["is_xonly"]
+    psigs = [_SA_PSIGS[i] for i in case["psig_indices"]]
+    agg_nonce = bytes.fromhex(case["aggnonce"])
+
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, tweaks, is_xonly, _SA_MSG)
+    sig = musig2.partial_sig_agg(psigs, session_ctx)
+
+    cache = libsecp256k1_musig.KeyAggCache(pub_keys)
+    for tweak, xonly in zip(tweaks, is_xonly, strict=True):
+        (cache.pubkey_xonly_tweak_add if xonly else cache.pubkey_ec_tweak_add)(tweak)
+    session = libsecp256k1_musig.Session(
+        libsecp256k1_musig.nonce_agg(pub_nonces), _SA_MSG, cache
+    )
+    assert session.partial_sig_agg(psigs) == sig.serialize()
 
 
 # btclib's own tests, past the vectors: the whole interactive protocol,

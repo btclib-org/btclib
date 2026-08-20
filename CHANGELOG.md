@@ -7805,6 +7805,25 @@ documented at release-notes length in the first place, and are still in
   the bindings' `Mapping[bytes, bytes]` for this one call -- issue #910's
   third decision, which stays test-local because production code never
   reaches it.
+- **`btclib.ecc.musig2` is now cross-validated against
+  `btclib_secp256k1.musig`** (issue #1048), the shape issue #910 gave
+  BIP352 and issue #993's own rule applied to the one arm of `ecc` that
+  had no oracle beside BIP327's vectors: `key_agg`, `apply_tweak` and
+  `key_agg_and_tweak` are checked against `musig_pubkey_agg` and the two
+  tweak calls, `nonce_agg` against `musig_nonce_agg`, `sign` against a
+  `musig_partial_sig_verify` of what it produced, `partial_sig_verify_`
+  against the same call's own verdict, and `partial_sig_agg` against
+  `musig_partial_sig_agg`, all in `tests/ecc/musig2_test.py`. `nonce_gen_`
+  and `deterministic_sign` are not: libsecp256k1 derives a nonce
+  differently in the first case and has no construction at all for the
+  second, so the module's docstring records the absence rather than
+  leaving it to be inferred from a missing test. `musig_nonce_gen` and
+  `musig_nonce_process` take a fixed-size `msg32`, so BIP327's own
+  empty-message and 38-byte-message vectors cannot reach the bindings at
+  all; those two cases are skipped by `pytest.mark.skip` with the reason
+  stated, rather than left out of the parameter list where the gap would
+  not be visible. `btclib/` does not change: this is validation of the
+  existing Python arithmetic, not delegation to the bindings.
 
 ## v2026.8.9
 
