@@ -103,9 +103,8 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """Commit to v under blinding factor r, returning rG+vH.
 
-    H is `second_generator`: opening the commitment to any (r, v) other
-    than the one committed to would need its discrete logarithm with
-    respect to G, which nobody has.
+    H is `second_generator`, whose docstring has why nobody can open
+    this to a different (r, v).
     """
     H = second_generator(ec, hf)
     Q = double_mult_var(v, H, r, ec.G, ec)
