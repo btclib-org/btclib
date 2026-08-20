@@ -676,10 +676,11 @@ def test_partial_sig_verify_matches_bindings(case: dict[str, Any]) -> None:
         )
     except ValueError:
         # "Signature exceeds group size": s >= n does not parse, so
-        # musig_partial_sig_verify is never reached -- the module
-        # docstring's "a parse failure ... tells this package nothing"
-        # applies, and a refusal to parse is the same refusal
-        # partial_sig_verify_'s own `s >= secp256k1.n` check answers
+        # musig_partial_sig_verify is never reached -- the bindings' own
+        # `musig.py` module docstring's "a parse failure ... tells this
+        # package nothing" applies, and a refusal to parse is the same
+        # refusal partial_sig_verify_'s own `s >= secp256k1.n` check
+        # answers
         bindings_verdict = False
     assert btclib_verdict == bindings_verdict
 
