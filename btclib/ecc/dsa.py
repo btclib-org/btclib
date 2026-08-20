@@ -38,6 +38,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
+from types import TracebackType
 from typing import TypeVar, overload
 
 from btclib import var_bytes
@@ -72,6 +73,7 @@ from btclib.utils import (
 
 __all__ = [
     "Sig",
+    "Signer",
     "anti_exfil_host_commit",
     "anti_exfil_host_verify",
     "anti_exfil_sign",
@@ -1189,6 +1191,256 @@ def sign_recoverable(
     """
     msg_hash = reduce_to_hlen(msg, hf)
     return sign_recoverable_(msg_hash, prv_key, nonce, lower_s, ec, hf)
+
+
+def _delegated_sign_(
+    msg_hash: bytes,
+    q: int,
+    grind: bool,
+    ec: Curve,
+    *,
+    verify: bool,
+    pubkey_sec: bytes,
+) -> Sig:
+    """`_libsecp256k1_sign_` over a public key already in SEC octets.
+
+    `Signer.sign_` calls this rather than `_libsecp256k1_sign_`: that one
+    takes `pub_key` however a caller spelled it and derives its SEC
+    encoding, `_sec_from_pub_key(pub_key)`, on every signature it checks.
+    A `Signer` derives its own public key once, at construction, so
+    handing it in already encoded is the second half of the floor it
+    exists for -- the parse `_libsecp256k1_sign_`'s own comment prices at
+    a field square root for a compressed key, and this call never pays
+    even the cheaper uncompressed one twice.
+
+    `pubkey_sec` is held back where `verify` declines the check it is
+    for -- the bindings refuse the pair, `pubkey is for the check that
+    verify=False declines`, the same contradiction `sign_` itself raises
+    on before anything is signed for a caller-supplied key. A `Signer`
+    cannot raise it the same way: the key is always its own and always
+    in hand, so passing it through unconditionally would turn a caller's
+    `verify=False` into that refusal on every call instead of the
+    cheaper signature it asked for.
+    """
+    try:
+        compact = libsecp256k1_dsa.sign(
+            msg_hash,
+            q,
+            None,
+            compact=True,
+            grind=grind,
+            verify=verify,
+            pubkey=pubkey_sec if verify else None,
+        )
+    except RuntimeError as e:  # pragma: no cover
+        # unreachable from an argument, as `_libsecp256k1_sign_`'s own is:
+        # what it reports is the computation having gone wrong
+        raise BTClibRuntimeError(str(e)) from e
+    return _sig_from_compact(compact, ec)
+
+
+class Signer:
+    """Sign several messages under one key, building the public key once.
+
+    `sign_` derives the public key, when `verify` asks for the check --
+    or the bindings do, on their own arm -- and parses it again where the
+    check is a compressed key's, throwing both away once the call
+    returns. This holds one across calls instead: `mult` once at
+    construction, the generator multiplication `gen_keys` pays, and on
+    the delegated arm the SEC encoding of it besides, so that
+    `_delegated_sign_` hands the bindings octets rather than a point to
+    re-derive. Both are read and never recomputed, which is the floor
+    issue #982 measured and this class is built to reach: a signature is
+    the arithmetic of `_sign_` or one call into the bindings either way,
+    and the check is what a held key removes from it.
+
+    **What this does not hand the caller is the lifetime of a secret,
+    and that is a limit rather than an omission.** `ssa.Signer` can,
+    because BIP340 signing through the bindings takes a
+    `secp256k1_keypair` -- a pointer into memory this package owns and
+    can overwrite, built once and reused for every signature the object
+    makes. ECDSA has no such object in libsecp256k1: `secp256k1_ecdsa_sign`
+    reads the private key from a bare pointer on every call, and the
+    bindings' own wrapper builds that pointer by coercing whatever was
+    passed -- an `int`, `bytes`, a `bytearray` -- into a fresh immutable
+    `bytes` object first, `_scalar.scalar()`, every time
+    (btclib-secp256k1#247). So a `Signer` backed by that arm does not
+    hold one copy of the secret it could later overwrite: it hands the
+    bindings a new, unreachable one on every signature it makes, for as
+    long as it is asked to sign, and `wipe` arriving afterwards would
+    have nothing of that trail left to reach. Promising erasure there
+    would be worse than not offering it, so `wipe` refuses outright
+    rather than pretending a dropped reference undoes what already
+    happened -- see its own docstring.
+
+    That is the delegated arm, secp256k1 with sha256 by default and
+    therefore the common case. On any other curve or hash function --
+    the bindings declining, or `curves.set_libsecp256k1_serving(False)`
+    turning them off for the whole process -- every signature is the
+    Python arithmetic of `_sign_`, which never crosses into the bindings
+    at all: the secret this object holds is a plain integer the whole of
+    its life, and `wipe` genuinely lets go of it, an `int`'s own limit
+    aside -- it cannot be overwritten, only dropped, which SECURITY.md's
+    limitations section states for the library at large. Which arm a
+    given instance uses is decided once, at construction, from `ec` and
+    `hf` alone: `sign_` and `sign` take no nonce, no lower-s override and
+    no commitment, unlike the free functions, precisely so that nothing
+    a caller passes afterwards could move an instance from one arm to
+    the other -- `wipe`'s promise would otherwise depend on an argument
+    to a later call rather than on the object itself.
+
+    No `pub_key` argument either, matching `ssa.Signer`: the point of
+    holding one is that every signature checks under it, so there is
+    nothing for a caller to supply that this object does not already
+    have parsed.
+    """
+
+    def __init__(
+        self, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    ) -> None:
+        _assert_valid_hf(hf)
+        # the scalar, whatever spelling the key arrived in, and the
+        # validation with it -- this is a public constructor and the
+        # refusal belongs at it rather than at the first signature
+        self._q = int_from_prv_key(prv_key, ec)
+        self._ec = ec
+        self._hf = hf
+        self._hf_len = hf().digest_size
+
+        # derived once: the same multiplication `gen_keys` makes, paid
+        # here instead of on every signature that checks
+        Q = mult(self._q, ec=ec)
+        self._python_key: tuple[Point, frozenset[JacPoint]] = (Q, ec._fixed_points)
+
+        # parsed once too, and only where the delegated arm would
+        # otherwise re-derive it per call: `None` doubles as "this
+        # instance signs on the Python arm", the same role `ssa.Signer`
+        # gives `self._signer`, and is what `wipe` and `sign_` both read
+        # rather than asking `_libsecp256k1_serves` again -- the
+        # dispatch is decided once, at construction, and not
+        # reconsidered against a switch that may have moved since
+        self._pub_key_sec: bytes | None = (
+            _sec_from_pub_key(Q) if _libsecp256k1_serves(ec, hf) else None
+        )
+        self._wiped = False
+
+    def __enter__(self) -> Signer:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.wipe()
+
+    def wipe(self) -> None:
+        """Let go of the key, where letting go means something.
+
+        On the Python arm -- `self._pub_key_sec is None` -- the scalar
+        this object signs with is the whole of what it holds, and
+        dropping the reference is genuinely the end of its lifetime
+        here: nothing else in this package still has it, and a wiped
+        signer refuses to sign rather than signing with the zeros.
+        Idempotent, so that a caller may wipe a signer it is not sure
+        about; the `with` statement is the customary way to run one.
+
+        On the delegated arm this raises instead of doing that, and the
+        class docstring is where the reason is written in full: every
+        signature already made left an unreachable copy of the key in
+        the bindings' own memory, one that dropping `self._q` does
+        nothing about, so there is no operation left here whose name
+        could honestly be `wipe`. `NotImplementedError` and not
+        `BTClibValueError` or a silent no-op -- `sign_`'s "the signer is
+        wiped" is a caller who asked to keep using a signer that has
+        already let go, which is not this: this is a caller asking for
+        an erasure that btclib-secp256k1#247 makes unavailable, so the
+        signer itself is not marked wiped and goes on signing exactly as
+        before, waiting for that issue to close.
+        """
+        if self._pub_key_sec is not None:
+            raise NotImplementedError(
+                "the bindings coerce a private key into a fresh immutable "
+                "bytes object on every ECDSA signature, and libsecp256k1 "
+                "holds no persistent keypair for ECDSA the way it does for "
+                "BIP340 -- so this signer keeps no secret that wiping "
+                "could reach, and every signature already made left one "
+                "nothing here can overwrite (btclib-secp256k1#247)"
+            )
+        self._q = 0
+        self._wiped = True
+
+    def sign_(
+        self, msg_hash: Octets, *, grind: bool = True, verify: bool = True
+    ) -> bytes:
+        """Return the signature of a hf_len bytes message, as DER octets.
+
+        grind and verify are `sign_`'s own, over the key and public key
+        this signer already holds: grinding is Core's low-R search and
+        the default pairs with it, `verify` is the post-sign check BIP66
+        does not ask for and Bitcoin Core's `CKey::Sign` always makes,
+        and declining it is the caller's to do, exactly as the free
+        function documents. No `nonce`, `lower_s` override or
+        `commit_hash` -- see the class docstring for why the arm this
+        instance uses has to stay the one decided at construction.
+        """
+        if self._wiped:
+            raise BTClibValueError("the signer is wiped")
+
+        # a kind, as `sign_`'s own is and for the same reason: it decides
+        # which signature comes back, so it is not read for its truth
+        assert_type(grind, bool, "grind")
+
+        msg_hash = bytes_from_octets(msg_hash, self._hf_len)
+
+        if self._pub_key_sec is not None:
+            sig = _delegated_sign_(
+                msg_hash,
+                self._q,
+                grind,
+                self._ec,
+                verify=verify,
+                pubkey_sec=self._pub_key_sec,
+            )
+            # check_validity=False, as `_libsecp256k1_sign_`'s own answer
+            # is: these are the bindings' own computed scalars
+            return sig.serialize(check_validity=False)
+
+        # the challenge
+        c = challenge_(msg_hash, self._ec, self._hf)
+
+        def _checked(signature: Sig) -> Sig:
+            # `given=None` always: this object checks under its own key
+            # and takes no other, so there is nothing to trust and
+            # nothing to discriminate against -- `_abort_unless_checked`
+            # still carries the rule for the one key there is
+            if verify:
+                _abort_unless_checked(
+                    lambda key: _python_verified(c, signature, self._ec, key),
+                    lambda: self._python_key,
+                    None,
+                )
+            return signature
+
+        sig = _grind_low_r(
+            lambda counter: _sign_(
+                c,
+                self._q,
+                _rfc6979_nonce_(
+                    c, self._q, self._ec, self._hf, _grind_entropy(counter)
+                ),
+                True,
+                self._ec,
+            ),
+            grind,
+            self._ec,
+        )
+        return _checked(sig).serialize()
+
+    def sign(self, msg: Octets, *, grind: bool = True, verify: bool = True) -> bytes:
+        """Return the signature of a message, reducing it with hf first."""
+        return self.sign_(reduce_to_hlen(msg, self._hf), grind=grind, verify=verify)
 
 
 def _assert_as_valid_(

@@ -254,6 +254,11 @@ _CASES = (
         dsa.Sig,
         {"r": _DSA_SIG.r, "s": _DSA_SIG.s},
     ),
+    _Case(
+        "btclib.ecc.dsa.Signer.__init__",
+        dsa.Signer,
+        {"prv_key": _PRV_KEY},
+    ),
     _Case("btclib.ecc.dsa.gen_keys", dsa.gen_keys, {"prv_key": _PRV_KEY}),
     # the same function with the key it draws itself, which is the branch
     # that reads n off the curve rather than reaching int_from_prv_key
