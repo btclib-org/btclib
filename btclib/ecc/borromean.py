@@ -291,6 +291,42 @@ def _initialize(
     return msg_, m, e
 
 
+def _assert_matches_pubk_rings(
+    pubk_rings: Sequence[PubkeyRing], s: Sequence[Sequence[int]]
+) -> None:
+    """Refuse an s whose ring shape disagrees with pubk_rings.
+
+    `sign` and `assert_as_valid` both walk `s[i][j]` against
+    `pubk_rings[i][j]` -- `_initialize` is where the two already meet,
+    building `e` in that same shape from `pubk_rings` alone. Unless `s`
+    describes the identical shape, one ring per pubkey ring and one
+    value per key, that walk runs past the end of a ring's tuple and a
+    bare `IndexError` escapes where `verify` is documented to answer
+    `False` (issue #1088). Checked once, here, before the walk -- not as
+    each index into `s` is taken, which is what let the `IndexError`
+    through in the first place.
+
+    `sign` has no such argument to check: its own `s` is built from
+    `pubk_rings` two lines below its call into this module, so it cannot
+    disagree with it by construction. What `sign` takes instead is one
+    flat, per-ring index (`sign_key_idx`) and one flat, per-ring key
+    (`sign_keys`) -- checked where they are declared, against the same
+    `pubk_rings` and for the same reason.
+    """
+    if len(s) != len(pubk_rings):
+        pubk_word = "ring" if len(pubk_rings) == 1 else "rings"
+        s_word = "ring" if len(s) == 1 else "rings"
+        err_msg = f"{len(pubk_rings)} pubkey {pubk_word} and {len(s)} s-value {s_word}"
+        raise BTClibValueError(err_msg)
+    for i, (pubk_ring, s_ring) in enumerate(zip(pubk_rings, s, strict=True)):
+        if len(s_ring) != len(pubk_ring):
+            s_word = "s-value" if len(s_ring) == 1 else "s-values"
+            key_word = "key" if len(pubk_ring) == 1 else "keys"
+            err_msg = f"ring {i} has {len(s_ring)} {s_word} for {len(pubk_ring)}"
+            err_msg += f" {key_word}"
+            raise BTClibValueError(err_msg)
+
+
 def sign(
     msg: Octets,
     ks: Sequence[int],
@@ -328,17 +364,22 @@ def sign(
         for pubk_ring in pubk_rings
     ]
 
-    # one entry per ring in each of the three, checked here rather than
+    # one entry per ring in each of the four, checked here rather than
     # left to the `strict=True` of the two loops below: a short ks would
     # truncate them silently and sign a subset of the rings -- a signature
     # over fewer rings than the caller asked for, which is the one thing a
     # ring signature must not do quietly. zip's own message is a
     # BTClibValueError's class with none of its content, naming "argument
     # 3" and no parameter of this function; strict=True stays, as the
-    # assertion that this check and those loops cannot drift apart
-    if not len(pubk_rings) == len(sign_key_idx) == len(ks):
-        err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes"
-        err_msg += f" and {len(ks)} nonces"
+    # assertion that this check and those loops cannot drift apart.
+    # sign_keys is part of this check for the same reason as the other
+    # three: step 2 indexes it per ring (`sign_keys[i]`), so a shorter
+    # sequence there is the same shape exposure _assert_matches_pubk_rings
+    # refuses on the verification side, one ring's worth of tuple away
+    # from a bare IndexError instead of this message
+    if not len(pubk_rings) == len(sign_key_idx) == len(ks) == len(sign_keys):
+        err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes, "
+        err_msg += f"{len(ks)} nonces and {len(sign_keys)} signing keys"
         raise BTClibValueError(err_msg)
 
     # step 1
@@ -442,7 +483,12 @@ def assert_as_valid(
     The rings are walked forward from `sig.e0` and must close on the
     `e0` they started from; errors carry the reason and which ring and
     position it happened at (`BorromeanRingError`), `verify` being the
-    boolean answer.
+    boolean answer. A `sig` whose ring shape disagrees with
+    `pubk_rings` -- a different number of rings, or a ring with a
+    different number of s-values than it has keys -- is refused first,
+    as a plain `BTClibValueError` naming the ring and the counts: two
+    arguments that do not describe the same object is not a check that
+    ran and failed, so it is not a `BorromeanRingError` (issue #1088).
 
     `sig` as octets is parsed with `BorromeanSig.parse`, which reads
     secp256k1 and sha256 always -- `ec` and `hf` are then not what
@@ -472,6 +518,13 @@ def assert_as_valid(
     # on the octets path just taken
     ec = sig.ec
 
+    # the octets path above cannot disagree with pubk_rings -- rsizes,
+    # read off pubk_rings itself, is what BorromeanSig.parse built sig.s
+    # from -- but a BorromeanSig handed in directly carries no such
+    # guarantee, and the walk below indexes sig.s[i][j] against
+    # pubk_ring[j] without ever re-checking it (issue #1088)
+    _assert_matches_pubk_rings(pubk_rings, sig.s)
+
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
 
@@ -484,7 +537,6 @@ def assert_as_valid(
         if e[i][0] == 0:
             err_msg = "implausible signature failure"
             raise BorromeanRingError(err_msg, i, 0)
-        r = b"\0x00"
         for j in range(keys_size):
             t = double_mult_var(-e[i][j], pubk_ring[j], sig.s[i][j], ec.G, ec)
             r = _bytes_from_ring_point(t, ec, i, j)
