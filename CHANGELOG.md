@@ -7039,6 +7039,59 @@ documented at release-notes length in the first place, and are still in
   Q, gacc, tacc, b, R and e are all public -- so nothing here changes
   what `SECURITY.md` publishes.
 
+- **A MuSig2 session's per-signer coefficient is O(1), not O(n)**
+  (issue #1069, the third quadratic path issue #1045 and #1046 did not
+  touch, all three raised by the review bot on PR #1060 and left each
+  time to a person to decide whether they became their own issue).
+  `_session_key_agg_coeff` ran three O(n) traversals of
+  `session_ctx.pub_keys` per call -- the membership test,
+  `_hash_pub_keys`'s join-and-hash and `_second_pub_key`'s scan -- and
+  `sign` and `partial_sig_verify_` each call it once per signer, so it
+  ran 2n times per session over inputs that never change.
+
+  `L`, `second` and `pub_keys_set` -- what a coefficient is computed
+  from -- are now three more fields on `SessionValues`, computed once
+  by `session_values` the way `key_agg` already computes its own `L`
+  and `second` once, at `:300-301`, rather than recomputed by every
+  one of `_session_key_agg_coeff`'s 2n callers. Not threaded out of
+  `key_agg_and_tweak` instead, which already computes the same `L` and
+  `second` internally to aggregate Q: doing that would widen
+  `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
+  this module already read, for a value only the coefficient wants.
+  Not a second cached field on `SessionContext` beside `_values`
+  either, which issue #1069 posed as the alternative: both of
+  `_session_key_agg_coeff`'s callers already call `session_values`
+  first, so a `SessionValues` field costs nothing beyond what
+  assembling the session already paid for, where a second cache would
+  only earn its keep for a caller wanting the coefficient without the
+  rest of the session -- which neither `sign` nor `partial_sig_verify_`
+  is. The membership test stays a check of its own, answered by the
+  new `pub_keys_set` frozenset in O(1): `_SIGNER_PK_ERR` is one of
+  BIP327's verbatim messages, pinned byte for byte by the vectors, so
+  folding it into a dict lookup that raises something else was never
+  an option.
+
+  Measured the same way as the table above, on the same machine, best
+  of five:
+
+  | n | before | after | speedup |
+  | ---: | ---: | ---: | ---: |
+  | 2 | 0.35 ms | 0.34 ms | 1.02x |
+  | 5 | 0.78 ms | 0.77 ms | 1.01x |
+  | 10 | 1.50 ms | 1.48 ms | 1.02x |
+  | 20 | 2.93 ms | 2.89 ms | 1.02x |
+  | 50 | 7.33 ms | 7.16 ms | 1.02x |
+  | 100 | 14.81 ms | 14.21 ms | 1.04x |
+
+  A small, honest gain and not a mistake in the measurement: this path
+  does O(n) *byte* work per call -- a join, a tagged hash, a linear
+  scan -- where `session_values` did O(n) *curve* work, so removing it
+  buys a few percent rather than the multiples the table above
+  measures. It is worth doing anyway: what it removes is a quadratic,
+  and a quadratic built from byte operations is still the one a
+  large-enough `n` eventually notices, the constant being small today
+  and not forever.
+
 ### Tests
 
 - **A recorder per bindings signing call site asserts what `verify` it
