@@ -289,6 +289,12 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.tx:TxOut.parse": ["check_validity"],
     "btclib.tx:TxOut.serialize": ["check_validity"],
     "btclib.tx:TxOut.to_dict": ["check_validity"],
+    "btclib.tx_builder:build_psbt": [
+        "tx_version",
+        "lock_time",
+        "dust_fee_rate",
+        "sizer",
+    ],
     "btclib.tx_or_psbt:tx_or_psbt_from_any": ["check_validity"],
 }
 

@@ -1445,6 +1445,60 @@ documented at release-notes length in the first place, and are still in
   is what turns one into money. Coin selection and fee estimation are
   still not here, and what a caller does with the number is theirs.
 
+- **A transaction builder: `btclib.tx_builder.build_psbt`** (issue
+  #1068). Every part of composing a spend was already here and nothing
+  composed them, so every caller composed them again -- this repository
+  included, in `tests/integration/conftest.py`'s `spending_psbt`, which
+  takes one utxo, a hardcoded `fee: int = 1_000`, and splits the amount
+  in half. `build_psbt` takes the psbt input maps to spend, the outputs
+  to pay, a `FeeRate` and a change script, and answers a `FundedPsbt`:
+  the psbt, the `fee` it pays, and `change_index`, which is Bitcoin
+  Core's `fundrawtransaction` triple under btclib's names.
+
+  A psbt and not a transaction, because the fee cannot be priced off
+  something unsigned: `Tx.vsize` is read from a serialization the
+  signatures are not in yet, where `Psbt.vsize_estimate` sizes them from
+  each input's utxo and scripts. The unsigned transaction is
+  `built.psbt.tx`, so a second entry point answering with a `Tx` would
+  have been a second spelling rather than a second answer. An input is a
+  `PsbtIn` for the same reason it is not a pair of an outpoint and a
+  `TxOut`: what a wrapped or multisig input will push is in its redeem
+  or witness script, which the map carries and a pair does not, and
+  nothing here fetches anything -- an outpoint alone says neither what
+  it is worth nor what it spends, and a builder that fetches is a
+  builder with a node in it.
+
+  Change below `dust_threshold` for its own script is not created and
+  its value goes to the fee, which is the branch hand-written builders
+  get wrong; the transaction is then smaller than the one that was
+  priced, so what it owes is computed again rather than the larger
+  figure reused. The dust threshold is taken at Core's `-dustrelayfee`
+  default rather than at the transaction's own rate, `dust_fee_rate`
+  being where a caller says otherwise. Coin selection stays out, which
+  is what lets a caller bring its own, and so does everything
+  downstream of a network: the anti-fee-sniping `lock_time` a wallet
+  would set needs a chain tip, so it is an argument here and defaults
+  to none. An outpoint spent twice is refused, Core's
+  `bad-txns-inputs-duplicate` and a double count in the fee arithmetic
+  both; `Tx.assert_valid` implements the rest of `CheckTransaction` and
+  not that rule, which is issue #1073.
+
+  `tx.input_weight` of issue #1067 is not what the fee is computed
+  from, and the two do not compose: that answers for one input, where a
+  fee is bought by a whole transaction, and `Psbt.weight_estimate`
+  already sums the per-input estimates into the one arithmetic
+  `Tx.weight` is. The per-input number is what the layer above wants --
+  coin selection pricing a candidate before there is a psbt to put it
+  in -- and the module docstring points there.
+
+  The test module's oracles are `fee`'s own functions for the
+  arithmetic -- on both sides of the dust threshold, to the satoshi --
+  and, for the whole flow, a psbt signed by `SoftwareSigner`, finalized,
+  extracted and run under btclib's script engine, once per BIP44
+  encoding: the size that was really signed is compared with the size
+  the fee was bought at, the estimate being an upper bound and the
+  transaction therefore never below the rate it was built for.
+
 - **`psbt.musig2.partial_sigs_agg` aggregates the participant list once,
   not four times** (issue #1046). Every public function of the module
   built a fresh `SessionContext` from the psbt, so issue #1045's own

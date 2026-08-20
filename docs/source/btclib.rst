@@ -190,6 +190,13 @@ btclib.to\_pub\_key module
    :members:
    :show-inheritance:
 
+btclib.tx\_builder module
+-------------------------
+
+.. automodule:: btclib.tx_builder
+   :members:
+   :show-inheritance:
+
 btclib.tx\_or\_psbt module
 --------------------------
 
