@@ -51,20 +51,22 @@ excluded-modules = []
 #   grep -n ' | ' btclib/amount.py btclib/fee.py btclib/ecc/dh.py
 #
 # Every hit is an annotation. Confirmed by running the filter itself
-# rather than by the grep alone: `cosmic-ray init` over this file still
-# enumerates the 602 mutants the session below did, and
-# `cosmic_ray.tools.filters.operators_filter` marks 22 of them SKIPPED
-# -- the same 22 the session below already found equivalent by
-# inspection -- leaving 580 for a future session to have an opinion
+# rather than by the grep alone: `cosmic-ray init` over this file
+# enumerates 720 mutants and
+# `cosmic_ray.tools.filters.operators_filter` marks 66 of them SKIPPED,
+# which is every `bytes | None` annotation the grep finds at eleven
+# mutants apiece, leaving 654 for a future session to have an opinion
 # about (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 602 mutants, all of them: 553 killed, 49 survived, 8.14%. The first
-# session of this profile to finish rather than sample, which is what the
-# budget and the timeout above buy together -- and what lets this state a
-# rate at all, a sample being readable only for the verdicts that move in
-# it.
+# The last full session judged 602 mutants: 553 killed, 49 survived,
+# 8.14%. The first session of this profile to finish rather than sample,
+# which is what the budget and the timeout above buy together -- and what
+# lets this state a rate at all, a sample being readable only for the
+# verdicts that move in it. The enumeration above is the larger number
+# because `ecc.dh`'s HKDF is outside that session's scope, and no session
+# has had an opinion about those mutants yet.
 #
 # Of the 49, thirty-seven fall into four shapes:
 #

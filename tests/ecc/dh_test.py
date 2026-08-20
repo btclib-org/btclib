@@ -12,7 +12,15 @@ from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import HashF
 from btclib.curves import bytes_from_point, mult
 from btclib.curves.curve import CURVES
-from btclib.ecc import ansi_x9_63_kdf, dh, diffie_hellman, dsa
+from btclib.ecc import (
+    ansi_x9_63_kdf,
+    dh,
+    diffie_hellman,
+    dsa,
+    hkdf,
+    hkdf_expand,
+    hkdf_extract,
+)
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibTypeError,
@@ -372,3 +380,150 @@ def test_infinity_shared_secret() -> None:
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         diffie_hellman(0, ec.G, 32)
+
+
+# RFC 5869 Appendix A, the seven vectors it publishes: hash function,
+# ikm, salt, info, L, prk, okm. A salt of `None` is the appendix's "not
+# provided" and `""` its "(0 octets)", the two spellings section 2.2
+# makes one; the SHA-1 rows are here because the appendix publishes
+# them, `hkdf` taking whatever hash function the caller passes.
+#
+# https://www.rfc-editor.org/rfc/rfc5869.html, appendix A
+# fmt: off
+_RFC5869_VECTORS: list[tuple[HashF, str, str | None, str, int, str, str]] = [
+    (sha256,
+     "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+     "000102030405060708090a0b0c",
+     "f0f1f2f3f4f5f6f7f8f9",
+     42,
+     "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5",
+     "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865"),
+    (sha256,
+     "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
+     "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+     "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+     82,
+     "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244",
+     "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87"),
+    (sha256,
+     "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+     "",
+     "",
+     42,
+     "19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04",
+     "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8"),
+    (sha1,
+     "0b0b0b0b0b0b0b0b0b0b0b",
+     "000102030405060708090a0b0c",
+     "f0f1f2f3f4f5f6f7f8f9",
+     42,
+     "9b6c18c432a7bf8f0e71c8eb88f4b30baa2ba243",
+     "085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896"),
+    (sha1,
+     "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
+     "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+     "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+     82,
+     "8adae09a2a307059478d309b26c4115a224cfaf6",
+     "0bd770a74d1160f7c9f12cd5912a06ebff6adcae899d92191fe4305673ba2ffe8fa3f1a4e5ad79f3f334b3b202b2173c486ea37ce3d397ed034c7f9dfeb15c5e927336d0441f4c4300e2cff0d0900b52d3b4"),
+    (sha1,
+     "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+     "",
+     "",
+     42,
+     "da8c8a73c7fa77288ec6f5e7c297786aa0d32d01",
+     "0ac1af7002b3d761d1e55298da9d0506b9ae52057220a306e07b6b87e8df21d0ea00033de03984d34918"),
+    (sha1,
+     "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+     None,
+     "",
+     42,
+     "2adccada18779e7c2077ad2eb19d3f3e731385dd",
+     "2c91117204d745f3500d636a62f64f0ab3bae548aa53d423b0d1f27ebba6f5e5673a081d70cce7acfc48"),
+]
+# fmt: on
+
+
+@pytest.mark.parametrize("hf,ikm,salt,info,size,prk,okm", _RFC5869_VECTORS)
+def test_rfc5869_appendix_a(
+    hf: HashF, ikm: str, salt: str | None, info: str, size: int, prk: str, okm: str
+) -> None:
+    """RFC 5869's own vectors, each step and the composition of the two.
+
+    The steps are asserted apart as well as together because only the
+    appendix pins the intermediate: a `hkdf` that extracted and expanded
+    with the arguments crossed over would still answer bytes of the right
+    length, and only the published prk says which bytes.
+
+    - https://www.rfc-editor.org/rfc/rfc5869.html, appendix A
+    """
+    ikm_bytes = bytes.fromhex(ikm)
+    salt_bytes = None if salt is None else bytes.fromhex(salt)
+    info_bytes = bytes.fromhex(info)
+
+    assert hkdf_extract(ikm_bytes, salt_bytes, hf).hex() == prk
+    assert hkdf_expand(bytes.fromhex(prk), size, hf, info_bytes).hex() == okm
+    assert hkdf(ikm_bytes, size, hf, salt_bytes, info_bytes).hex() == okm
+
+
+def test_an_absent_salt_and_an_absent_info_are_the_empty_ones() -> None:
+    """`None` and `b""` derive one key, which is not obvious of the salt.
+
+    RFC 5869 section 2.2 sets a salt that is not provided to HashLen zero
+    octets rather than to nothing at all, and those are the same HMAC key
+    only because a key shorter than the block size is zero-padded to it.
+    Appendix A pins the derivation for each spelling above -- case 7 the
+    absent salt, cases 3 and 6 the empty one -- and this is what says the
+    two meet.
+    """
+    ikm = bytes.fromhex("0b" * 22)
+    assert hkdf(ikm, 42, sha256, None, None) == hkdf(ikm, 42, sha256, b"", b"")
+
+
+def test_hkdf_derives_at_most_255_digests() -> None:
+    """RFC 5869's ceiling is reachable, where SEC 1's is not.
+
+    The counter is a single octet, from 1, so 255 digests is the whole of
+    what expand can number: 8160 octets under sha256, a length a test can
+    ask for and measure, where `ansi_x9_63_kdf`'s four-octet counter puts
+    its own ceiling a hundred and thirty-seven gigabytes out of reach and
+    leaves it checked one past instead.
+    """
+    hf_size = sha256().digest_size
+    prk = hkdf_extract(b"z", None, sha256)
+    assert len(hkdf_expand(prk, 255 * hf_size, sha256, None)) == 255 * hf_size
+    with pytest.raises(BTClibValueError, match="cannot derive a key larger than "):
+        hkdf_expand(prk, 255 * hf_size + 1, sha256, None)
+
+
+@pytest.mark.parametrize("size", [-1, 0, -(2**32)])
+def test_hkdf_refuses_a_key_of_no_octets(size: int) -> None:
+    """The size checks are `ansi_x9_63_kdf`'s, RFC 5869's L being one too.
+
+    Section 2.3 states L as a positive length at most 255 * HashLen, so
+    the refusals the SEC 1 KDF makes are the refusals this one makes, and
+    both leave through `_assert_valid_keying_data_size`.
+    """
+    with pytest.raises(BTClibValueError, match="invalid keying data size"):
+        hkdf(b"z", size, sha256, None, None)
+
+
+@pytest.mark.parametrize("size", [1.5, 32.0, "32", None, True, False])
+def test_hkdf_refuses_a_size_that_is_no_integer(size: object) -> None:
+    """As this library's TypeError, whichever KDF was asked."""
+    with pytest.raises(BTClibTypeError, match="non-integer keying data size"):
+        hkdf(b"z", size, sha256, None, None)  # type: ignore[arg-type]
+
+
+def test_hkdf_expand_refuses_a_short_pseudorandom_key() -> None:
+    """A prk below a digest is not the key RFC 5869 section 2.3 asks for.
+
+    The expand step keys HMAC with it and never hashes it down, so a
+    short prk is a short key throughout, and the strength of every octet
+    derived is that key's. Refused rather than accepted quietly, which is
+    what a caller expanding something other than `hkdf_extract`'s answer
+    has to be told.
+    """
+    hf_size = sha256().digest_size
+    with pytest.raises(BTClibValueError, match="pseudorandom key shorter than "):
+        hkdf_expand(bytes(hf_size - 1), 42, sha256, None)

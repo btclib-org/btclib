@@ -2094,6 +2094,52 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`ecc.dh.hkdf` derives keying data per RFC 5869**, extract and expand
+  (issue #1080). `hkdf_extract` concentrates the entropy of input keying
+  material into one digest under an optional salt, `hkdf_expand` stretches
+  a pseudorandom key to the requested length under optional context, and
+  `hkdf` is the composition; all three are re-exported by `btclib.ecc`.
+  It is `hmac` and `hashlib` and nothing else, which is what puts it in
+  btclib at all: issue #1066 settled BIP324's transport line as "what can
+  be built out of the standard library is in scope, what would need a
+  hand-rolled cipher is not", and HKDF-SHA256 is the one piece of that
+  key schedule on the near side of it. ChaCha20, Poly1305, the AEAD, the
+  forward-secure rekeying and the packet encoding stay out, and so do
+  BIP324's own labels, which are transport work with no consumer here.
+
+  RFC 5869's appendix A is the authority the tests use -- all seven
+  vectors, SHA-256 and SHA-1, the zero-length salt, the absent salt and
+  the zero-length info among them -- and it is third-party rather than
+  Bitcoin Core's, which is the kind of vector issue #993 asked for. Each
+  step is asserted against the published intermediate as well as the
+  composition against the final output: a `hkdf` with the two arguments
+  crossed over answers bytes of the right length, and only the prk says
+  which bytes.
+
+  Held in `ecc/dh.py` beside `ansi_x9_63_kdf` rather than moved with it
+  into a KDF module of its own. RFC 5869 has no Diffie-Hellman in it, but
+  `ansi_x9_63_kdf` is SEC 1 section 3.6.1 and `diffie_hellman` is section
+  6.1 built on it -- its only caller here -- so a split would separate a
+  scheme from the derivation its own specification defines for it, and
+  `btclib.ecc` re-exports both KDFs anyway, so `from btclib.ecc import
+  hkdf` is the spelling either way. Nothing is source-breaking and
+  RELEASE_NOTES.md does not move. The size checks the two KDFs share are
+  now one `_assert_valid_keying_data_size`, the ceiling being the only
+  difference: SEC 1 numbers its blocks with four octets and RFC 5869 with
+  one, so 255 digests is a length a test can ask for and measure where
+  the other's ceiling is a hundred and thirty-seven gigabytes out of
+  reach. `hkdf_expand` also refuses a pseudorandom key below a digest,
+  which section 2.3 states as its input and which HMAC would otherwise
+  zero-pad in silence.
+
+  `btclib/ecc/ellswift.py`'s paragraph narrows with it: HKDF-SHA256 leaves
+  the list of what BIP324 work is out of scope, and what remains carries
+  a reason apiece rather than one blanket reason -- the cipher because
+  `ecc.ecies` states the rule that btclib takes a cipher from its caller,
+  the rekeying and the length obfuscation because they are cipher
+  invocations, the framing because it is the transport and belongs beside
+  a P2P client. One blanket reason is what let issue #198's census reverse
+  the whole paragraph in a single bullet.
 - **`dsa.assert_as_valid_` and `ssa.assert_as_valid_` keep disagreeing on
   the message, on purpose** (issue #998). Both raise
   `BTClibRuntimeError` on either arm for an invalid signature, which is

@@ -2,14 +2,14 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Diffie-Hellman elliptic curve key agreement, per SEC 1 v.2.
+"""Diffie-Hellman elliptic curve key agreement, and the KDFs beside it.
 
 Two parties, each holding the other's public key, compute the same
 shared secret -- their key pair times the other's public point -- and
 derive symmetric keying data from it through a key derivation
 function. The curve and the KDF are the two things the parties must
 agree on beforehand; ansi_x9_63_kdf is SEC 1's KDF, and
-diffie_hellman is the agreement built on it.
+diffie_hellman is the agreement built on it, per SEC 1 v.2.
 
 **Why `ecdh.shared_secret` of the bindings has no caller in btclib, and
 this is the place that says so** (issue 909). That function multiplies
@@ -35,10 +35,23 @@ So the verdict is not that the function is wrong: it is that a shared
 secret is a protocol's own derivation, and only a protocol agreeing with
 libsecp256k1's default can hand the whole of it over. Three of the four
 here do not, and the fourth already does.
+
+**Why hkdf is here rather than in a KDF module of its own** (issue
+1080). RFC 5869's extract-and-expand is a construction over a hash, with
+no Diffie-Hellman in it, so the question is whether both KDFs move out
+instead. They do not. `ansi_x9_63_kdf` is SEC 1's section 3.6.1 and
+`diffie_hellman` is section 6.1 built on it -- its only caller here --
+so a split would separate a scheme from the derivation its own
+specification defines for it. And `btclib.ecc` re-exports both KDFs, so
+`from btclib.ecc import hkdf` is the spelling either way and no caller
+has to name this module to reach one. A module of its own would buy a
+tidier file name and cost a source break; one drawer is also where the
+next KDF goes.
 """
 
 from __future__ import annotations
 
+import hmac
 from hashlib import sha256
 from math import ceil
 
@@ -52,7 +65,36 @@ from btclib.utils import is_integer
 __all__ = [
     "ansi_x9_63_kdf",
     "diffie_hellman",
+    "hkdf",
+    "hkdf_expand",
+    "hkdf_extract",
 ]
+
+
+def _assert_valid_keying_data_size(size: int, max_size: int) -> None:
+    """Refuse an output length no key derivation function can answer.
+
+    `max_size` is what the caller's KDF can derive under the caller's
+    hash function: SEC 1's 2**32 - 1 blocks, RFC 5869's 255.
+    """
+    # the range is checked before the loop bound is computed from it, and
+    # the type before the range. Unchecked, a negative size made the loop
+    # empty and the final negative slice returned b"" -- an empty key
+    # where the caller asked for keying material, which is the one answer
+    # a key derivation function must never invent (issue 321). A float
+    # went further still and reached that slice, leaving through a bare
+    # TypeError from underneath the library rather than through its own
+    # exception contract
+    if not is_integer(size):
+        raise BTClibTypeError(f"non-integer keying data size: {size}")
+    # zero and not merely negative: SEC 1 3.6.1 states keydatalen as a
+    # positive integer, RFC 5869 states L as at most 255 * HashLen, and a
+    # caller asking for no octets of key is a caller with a bug rather
+    # than one with an empty key
+    if size <= 0:
+        raise BTClibValueError(f"invalid keying data size: {size}")
+    if size > max_size:
+        raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
 
 
 def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) -> bytes:
@@ -68,25 +110,10 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     http://www.secg.org/sec1-v2.pdf,
     section 3.6.1
     """
-    # the range is checked before the loop bound is computed from it, and
-    # the type before the range. Unchecked, a negative size made the loop
-    # empty and the final negative slice returned b"" -- an empty key
-    # where the caller asked for keying material, which is the one answer
-    # a key derivation function must never invent (issue 321). A float
-    # went further still and reached that slice, leaving through a bare
-    # TypeError from underneath the library rather than through its own
-    # exception contract
-    if not is_integer(size):
-        raise BTClibTypeError(f"non-integer keying data size: {size}")
-    # zero and not merely negative: SEC 1 3.6.1 states keydatalen as a
-    # positive integer, and a caller asking for no octets of key is a
-    # caller with a bug rather than one with an empty key
-    if size <= 0:
-        raise BTClibValueError(f"invalid keying data size: {size}")
     hf_size = hf().digest_size
-    max_size = hf_size * (2**32 - 1)
-    if size > max_size:
-        raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
+    # the counter is four octets, so 2**32 - 1 blocks is what the
+    # construction can number
+    _assert_valid_keying_data_size(size, hf_size * (2**32 - 1))
     # the whole buffer is asked for once, and the blocks are written into
     # it. A list of digests joined and then sliced holds the keying data
     # three times over -- the digests, the join's copy, the slice's --
@@ -165,3 +192,81 @@ def diffie_hellman(
     shared_secret_field_element = shared_secret_point[0]
     z = shared_secret_field_element.to_bytes(ec.p_size, byteorder="big", signed=False)
     return ansi_x9_63_kdf(z, size, hf, shared_info)
+
+
+def hkdf_extract(ikm: bytes, salt: bytes | None, hf: HashF) -> bytes:
+    """Return the pseudorandom key of HKDF's extract step.
+
+    `ikm` is the input keying material, which need not be uniformly
+    distributed -- concentrating whatever entropy it has into one digest
+    is what this step is for. `salt` is an optional non-secret value,
+    which may be reused. The answer is one digest of `hf`, and is what
+    `hkdf_expand` takes as its `prk`.
+
+    https://www.rfc-editor.org/rfc/rfc5869.html, section 2.2
+
+    An `ikm` that is already a uniformly random key of full length does
+    not need this step: RFC 5869 section 3.3 says to skip it and expand
+    that key directly, which `hkdf_expand` is separately public for.
+    """
+    # RFC 5869 sets an absent salt to HashLen zero octets, and b"" is the
+    # same HMAC key: a key shorter than the block size is zero-padded to
+    # it, so both spellings hash the same first block. Appendix A carries
+    # a vector for each of them, and they arrive here as one
+    return hmac.new(b"" if salt is None else salt, ikm, hf).digest()
+
+
+def hkdf_expand(prk: bytes, size: int, hf: HashF, info: bytes | None) -> bytes:
+    """Return output keying material of the requested size.
+
+    `prk` is a pseudorandom key, `hkdf_extract`'s answer or a uniformly
+    random key of at least a digest's length. `info` is optional context
+    -- a protocol label, a party's identity -- which binds the output to
+    an application, so that one `prk` yields independent keys.
+
+    `size` is a positive number of octets, RFC 5869's L: a
+    BTClibTypeError if it is no integer, a BTClibValueError if it is
+    zero, negative, or above 255 digests. A `prk` below a digest is a
+    BTClibValueError too.
+
+    https://www.rfc-editor.org/rfc/rfc5869.html, section 2.3
+    """
+    hf_size = hf().digest_size
+    # the counter is a single octet, from 1, so 255 blocks is what the
+    # construction can number -- 8160 octets under sha256
+    _assert_valid_keying_data_size(size, 255 * hf_size)
+    # section 2.3 states the prk as at least HashLen octets, and the
+    # length is worth refusing rather than deriving from: HMAC pads a
+    # short key with zeros instead of stretching it, so every octet
+    # expanded out of one is only as strong as the key was. `hkdf` cannot
+    # reach this, `hkdf_extract` answering one digest exactly; a
+    # caller skipping the extract step per section 3.3 can
+    if len(prk) < hf_size:
+        raise BTClibValueError(f"pseudorandom key shorter than {hf_size} bytes")
+    context = b"" if info is None else info
+    # a list joined, where `ansi_x9_63_kdf` writes into one buffer: that
+    # one has no ceiling short of gigabytes, so the copies the join makes
+    # are worth avoiding there, while 255 blocks put a few kilobytes at
+    # the top of this one. Each block is also the next block's input, so
+    # the sequence is held either way
+    blocks: list[bytes] = []
+    block = b""
+    for counter in range(1, ceil(size / hf_size) + 1):
+        block = hmac.new(prk, block + context + bytes([counter]), hf).digest()
+        blocks.append(block)
+    return b"".join(blocks)[:size]
+
+
+def hkdf(
+    ikm: bytes, size: int, hf: HashF, salt: bytes | None, info: bytes | None
+) -> bytes:
+    """Return keying data according to HKDF, extract then expand.
+
+    The composition of the two steps above, which is how RFC 5869 is
+    used unless the caller already holds a uniformly random key: extract
+    concentrates the entropy of `ikm` under `salt`, expand stretches the
+    result to `size` octets under `info`.
+
+    https://www.rfc-editor.org/rfc/rfc5869.html, section 2
+    """
+    return hkdf_expand(hkdf_extract(ikm, salt, hf), size, hf, info)
