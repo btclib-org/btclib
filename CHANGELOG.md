@@ -4085,6 +4085,16 @@ documented at release-notes length in the first place, and are still in
   `into=` a decision on the record rather than something nobody
   noticed.
 
+- **`SECURITY.md` and `README.md`'s enumeration of what reaches the
+  bindings with a secret gains `silent_payments.scan_transaction_outputs`**
+  (issue #910). Both files already said `scan_outputs` -- the light
+  client's entry point -- is Python-only regardless, which stays true;
+  neither said anything about `scan_transaction_outputs`, the full-node
+  sibling this cycle adds, and a caller reading either for what is and
+  is not constant-time would have found no answer for it. It reaches
+  `silentpayments.scan_outputs` with `b_scan` wherever the bindings
+  serve secp256k1, the same as `output_keys` above it in both lists.
+
 ### The public API and the module layout
 
 - **`hashes.siphash` implements SipHash-2-4** (issue #373), the keyed
