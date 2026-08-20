@@ -128,6 +128,8 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.dsa:Sig.__init__": ["check_validity"],
     "btclib.ecc.dsa:Sig.parse": ["check_validity", "strict"],
     "btclib.ecc.dsa:Sig.serialize": ["check_validity"],
+    "btclib.ecc.dsa:Signer.sign": ["grind", "verify"],
+    "btclib.ecc.dsa:Signer.sign_": ["grind", "verify"],
     "btclib.ecc.dsa:assert_as_valid": ["commit", "receipt"],
     "btclib.ecc.dsa:assert_as_valid_": ["commit_hash", "receipt"],
     "btclib.ecc.dsa:sign": ["grind", "verify", "pub_key", "commit"],

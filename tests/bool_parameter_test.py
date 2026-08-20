@@ -376,6 +376,15 @@ _KINDS = (
         {"msg_hash": _MSG_HASH, "prv_key": _PRV_KEY},
     ),
     _Case("btclib.ecc.dsa.sign", "grind", dsa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}),
+    _Case(
+        "btclib.ecc.dsa.Signer.sign_",
+        "grind",
+        dsa.Signer(_PRV_KEY).sign_,
+        {"msg_hash": _MSG_HASH},
+    ),
+    _Case(
+        "btclib.ecc.dsa.Signer.sign", "grind", dsa.Signer(_PRV_KEY).sign, {"msg": _MSG}
+    ),
     # the script engine: `segwit` says which digest a signature commits
     # to and which script code it is checked against, so it is a
     # consensus answer and not a check
@@ -760,6 +769,20 @@ _TRUTHS = (
         "verify",
         dsa.sign,
         {"msg": _MSG, "prv_key": _PRV_KEY},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
+        "btclib.ecc.dsa.Signer.sign_",
+        "verify",
+        dsa.Signer(_PRV_KEY).sign_,
+        {"msg_hash": _MSG_HASH},
+        reason="whether the signature is checked before it is answered with",
+    ),
+    _Case(
+        "btclib.ecc.dsa.Signer.sign",
+        "verify",
+        dsa.Signer(_PRV_KEY).sign,
+        {"msg": _MSG},
         reason="whether the signature is checked before it is answered with",
     ),
     _Case(

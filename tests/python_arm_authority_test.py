@@ -51,14 +51,21 @@ than "this vector reaches this arm" and is what the measurement supports.
 Sharpening it means selecting the vector-driven tests within a module,
 which no marker in the tree expresses today.
 
-Two arms are reached by no such module at all, and they are the answer to
-the second half of issue #993 -- where nothing says it, what would:
+Some arms are reached by no such module at all, and some of those are
+the answer to the second half of issue #993 -- where nothing says it,
+what would:
 
 - `ecc.commit_nonce.commit_nonce_`, the sign-to-contract nonce tweak.
   There is no published vector set to vendor: the primitive is
   libsecp256k1-zkp's `s2c` module, whose vectors are C, and no BIP states
   it. Closing this means either vendoring what that module tests itself
   against, or a comparison against a second Python implementation.
+- `ecc.dsa.__init__`, `Signer`'s constructor (issue #1009). Every
+  existing third-party vector reaches `dsa.sign_` or
+  `dsa.assert_as_valid_` directly, through the free functions, and
+  nothing yet builds a `Signer` over one. Closing this means pointing
+  one of those same modules at the class instead, which is a test to
+  write rather than a vector to find.
 - `ecc.dsa.recover_pub_keys_`, the plural spelling. `signmessage.json`
   reaches the singular `recover_pub_key_` through `ecc.bms`, and nothing
   third-party asks for every key_id of one signature at once -- a message
@@ -143,6 +150,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
     "ecc.bms.assert_as_valid": ("ecc/bms_test.py", "bip322_test.py"),
     "ecc.commit_nonce.commit_nonce_": (),
     "ecc.dh.diffie_hellman": ("ecc/wycheproof_test.py",),
+    "ecc.dsa.__init__": (),
     "ecc.dsa.assert_as_valid_": (
         "ecc/wycheproof_test.py",
         "script_engine/transactions_test.py",
@@ -175,10 +183,14 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
     ),
 }
 
-# the two the measurement found nothing for, named so that closing one is
-# a line deleted here rather than a number nobody re-derives
+# the ones the measurement found nothing for, named so that closing one
+# is a line deleted here rather than a number nobody re-derives
 _WITHOUT_AN_AUTHORITY = frozenset(
-    {"ecc.commit_nonce.commit_nonce_", "ecc.dsa.recover_pub_keys_"}
+    {
+        "ecc.commit_nonce.commit_nonce_",
+        "ecc.dsa.__init__",
+        "ecc.dsa.recover_pub_keys_",
+    }
 )
 
 
@@ -240,7 +252,7 @@ def test_every_python_arm_is_in_the_inventory() -> None:
     )
 
 
-def test_the_arms_without_an_authority_are_the_two_that_are_known() -> None:
+def test_the_arms_without_an_authority_are_the_ones_that_are_known() -> None:
     """Empty entries and the named set are one fact, stated twice."""
     empty = {arm for arm, sources in _AUTHORITY.items() if not sources}
     assert empty == _WITHOUT_AN_AUTHORITY, (

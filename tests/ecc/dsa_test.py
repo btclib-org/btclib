@@ -2136,3 +2136,229 @@ def test_sign_recoverable_asks_the_bindings_to_verify(
         dsa.sign_recoverable_(msg_hash, q)
 
     assert calls == [True]
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_a_signer_answers_what_sign_answers(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A held key changes what a signature costs and not what it is.
+
+    `Signer.sign_` is `sign_` over a key derived once, so the two answer
+    the same DER octets -- asserted with `verify` both ways and over
+    both `sign_` and `sign`, which reduces with hf first as the free
+    spelling does. And over the arm that holds no bindings key at all --
+    a curve or a hash function the bindings decline -- where `sign_` is
+    the whole of the implementation.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    q, Q = dsa.gen_keys(prv_key_int)
+
+    # not a `with` block: on the delegated arm `wipe` -- which `__exit__`
+    # calls -- refuses rather than running, and this signer is used for
+    # nothing but comparing signatures
+    signer = dsa.Signer(prv_key_int)
+    for msg in (b"", b"a message", bytes(32), bytes(1000)):
+        msg_hash = reduce_to_hlen(msg)
+        for verify in (True, False):
+            expected = dsa.sign_(msg_hash, q, verify=verify).serialize()
+            assert signer.sign_(msg_hash, verify=verify) == expected
+            assert (
+                signer.sign(msg, verify=verify)
+                == dsa.sign(msg, q, verify=verify).serialize()
+            )
+        assert dsa.verify_(msg_hash, Q, signer.sign_(msg_hash))
+
+    # grind reaches the same loop `sign_` walks on both arms
+    for grind in (True, False):
+        expected = dsa.sign(b"grind", q, grind=grind).serialize()
+        assert signer.sign(b"grind", grind=grind) == expected
+
+
+@needs_bindings
+def test_a_signer_derives_and_parses_the_public_key_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The floor this class is for: held once, and never recomputed.
+
+    `Signer.__init__` derives the public key with one `mult` -- the same
+    multiplication `gen_keys` makes -- and on the delegated arm parses it
+    into SEC octets once with `_sec_from_pub_key`, `_delegated_sign_`'s
+    own docstring pricing that parse. What a later `sign_` call reads is
+    the object `__init__` built, asserted here by its identity rather
+    than by a call count: `mult` is not this class's alone, the Python
+    arm's own nonce point costing one per signature, so counting every
+    call would conflate the two. `_sec_from_pub_key` has no such second
+    caller on this path, so it is counted as well, for the one call the
+    constructor is asked to make and `_delegated_sign_` never repeats.
+    """
+    # `getattr`, not `dsa._sec_from_pub_key`: the name is imported into
+    # `dsa` rather than defined there, so mypy's `--no-implicit-reexport`
+    # refuses the plain attribute read even though `setattr` below patches
+    # the same name -- and has to, `Signer.__init__` reading the copy
+    # `from ... import` bound in `dsa`'s own namespace and not a fresh
+    # lookup in `to_pub_key`
+    real_sec = getattr(dsa, "_sec_from_pub_key")  # noqa: B009
+    sec_calls: list[object] = []
+
+    def counting_sec(*args: Any, **kwargs: Any) -> Any:
+        sec_calls.append(1)
+        return real_sec(*args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(dsa, "_sec_from_pub_key", counting_sec)
+        signer = dsa.Signer(prv_key_int)
+        assert sec_calls == [1]
+        python_key = signer._python_key
+        pub_key_sec = signer._pub_key_sec
+        assert pub_key_sec is not None
+
+        for msg in (b"a", b"b", b"c"):
+            signer.sign(msg)
+        assert sec_calls == [1]
+        assert signer._python_key is python_key
+        assert signer._pub_key_sec is pub_key_sec
+
+    with monkeypatch.context() as patch:
+        no_bindings(patch)
+        python_signer = dsa.Signer(prv_key_int)
+        assert python_signer._pub_key_sec is None
+        held = python_signer._python_key
+
+        for msg in (b"a", b"b", b"c"):
+            python_signer.sign(msg)
+        assert python_signer._python_key is held
+
+
+def test_a_signer_refuses_what_the_constructor_refuses() -> None:
+    """The key and the hash function are read at the constructor.
+
+    A public constructor, so the refusal belongs at it rather than at
+    the first signature -- which is the only place a caller could hear
+    it, the public key being derived here.
+    """
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        dsa.Signer(0)
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        dsa.Signer(secp256k1.n)
+    with pytest.raises(BTClibTypeError):
+        dsa.Signer(prv_key_int, secp256k1, "not a hash function")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("bindings", _ARMS)
+def test_the_arms_refuse_a_signature_that_does_not_verify(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The check is wired to the raise, not merely written near it.
+
+    No input reaches it -- a fresh signature verifies under the key that
+    made it -- so what says the branch is live is a substituted
+    verification: the bindings' own `_verify_` for the delegated arm,
+    `_python_verified` for the Python one, each where its own check
+    lives. Nothing about either refusal is fabricated, so the sentence
+    is the one the real implementation raises.
+    """
+    msg = b"a message whose check is made to fail"
+
+    if bindings:
+        signer = dsa.Signer(prv_key_int)
+        with monkeypatch.context() as patch:
+            patch.setattr(libsecp256k1_dsa, "_verify_", lambda *_, **__: False)
+            with pytest.raises(BTClibRuntimeError, match="does not verify"):
+                signer.sign(msg)
+            # verify=False never reaches the substituted check
+            signer.sign(msg, verify=False)
+        return
+
+    no_bindings(monkeypatch)
+    signer = dsa.Signer(prv_key_int)
+    with monkeypatch.context() as patch:
+        patch.setattr(dsa, "_python_verified", lambda *_, **__: False)
+        with pytest.raises(BTClibRuntimeError, match="does not verify"):
+            signer.sign(msg)
+        signer.sign(msg, verify=False)
+
+
+def test_a_wiped_python_signer_refuses_rather_than_signing_with_the_zeros(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The lifetime a signer hands its caller, on the arm that can give it.
+
+    `wipe` is the instruction and the `with` block is how to give it
+    without having to remember; both leave a signer that refuses, and
+    neither can be undone -- what the signer held it no longer holds. On
+    this arm the scalar is the whole of what signing needs, so dropping
+    it is genuinely the end of this signer's lifetime, an `int`'s own
+    limit aside.
+    """
+    no_bindings(monkeypatch)
+
+    signer = dsa.Signer(prv_key_int)
+    assert signer.sign_(sha256(b"a message").digest())
+    assert signer._q
+    signer.wipe()
+    assert not signer._q
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        signer.sign_(sha256(b"a message").digest())
+    # idempotent, as `close` is on the signer contract
+    signer.wipe()
+    assert not signer._q
+
+    with dsa.Signer(prv_key_int) as block_signer:
+        assert block_signer.sign(b"a message")
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        block_signer.sign(b"a message")
+
+    # and the block wipes on the way out of an exception too
+    raising = dsa.Signer(prv_key_int)
+    with pytest.raises(ZeroDivisionError), raising:
+        _ = 1 / 0
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        raising.sign(b"a message")
+
+
+@needs_bindings
+def test_a_delegated_signer_s_wipe_refuses_rather_than_pretending() -> None:
+    """`wipe` here would be a promise this arm cannot keep, so it refuses.
+
+    ECDSA has no libsecp256k1 keypair the way BIP340 does: every
+    signature this arm makes hands the bindings a fresh, unreachable copy
+    of the key (btclib-secp256k1#247), so there is no persistent secret a
+    later `wipe` could still reach -- unlike the Python arm, dropping
+    `self._q` here would not undo anything already done. `NotImplementedError`
+    says so rather than a silent no-op that would let a caller believe
+    the key is gone, and the signer is left exactly as usable as before,
+    the refusal not being recorded as a wipe.
+    """
+    signer = dsa.Signer(prv_key_int)
+    assert signer.sign(b"a message")
+
+    with pytest.raises(NotImplementedError, match="btclib-secp256k1#247"):
+        signer.wipe()
+    # refused, not silently accepted: the signer still holds its key and
+    # still signs, which is what "not marked wiped" means in practice
+    assert signer.sign(b"a message")
+    with pytest.raises(NotImplementedError, match="btclib-secp256k1#247"):
+        signer.wipe()
+
+    # the `with` statement wipes on the way out, so it raises too -- even
+    # where the block signed nothing and ended cleanly
+    with (
+        pytest.raises(NotImplementedError, match="btclib-secp256k1#247"),
+        dsa.Signer(prv_key_int) as block_signer,
+    ):
+        assert block_signer.sign(b"a message")
+
+    # and where the block itself raised, python's own `with` semantics
+    # are what decide the outcome and not this class's: `__exit__`
+    # raising a new exception replaces the one the block was propagating,
+    # chaining it on as `__context__` rather than losing it -- a caller
+    # who wants to know the block itself failed reads that attribute
+    with (
+        pytest.raises(NotImplementedError, match="btclib-secp256k1#247") as raised,
+        dsa.Signer(prv_key_int),
+    ):
+        _ = 1 / 0
+    assert isinstance(raised.value.__context__, ZeroDivisionError)
