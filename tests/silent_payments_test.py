@@ -698,6 +698,60 @@ def test_scan_transaction_outputs_matches_across_arms(
 
 
 @needs_bindings
+@pytest.mark.parametrize("index,test", _RECEIVING, ids=_RECEIVING_IDS)
+def test_scan_transaction_outputs_accepts_no_labels_on_the_real_bindings(
+    index: int, test: dict[str, Any]
+) -> None:
+    """`labels=None` reaches `silentpayments.scan_outputs` unconverted.
+
+    Every other real-bindings call in this file always builds a
+    `label_lookup(...)` map first -- `test_receiving_vectors` and
+    `test_scan_transaction_outputs_matches_across_arms` both do --  and
+    `test_scan_transaction_outputs_wraps_a_delegated_refusal` calls with
+    `labels=None` but monkeypatches `scan_outputs` itself, so the real
+    function never sees `None` in either case. This is the one test that
+    does, and it asks the same question `test_receiving_vectors` asks of
+    the filled-map case: that the full-node entry point's delegated arm
+    agrees with the light client's own Python arm, `scan_outputs`, on the
+    same input -- here, no labels at all.
+    """
+    given, expected = test["given"], test["expected"]
+    b_scan = given["key_material"]["scan_priv_key"]
+    b_spend = given["key_material"]["spend_priv_key"]
+    B_spend = mult(b_spend)
+
+    pub_keys = [
+        (pub_key, v["prevout"]["scriptPubKey"]["hex"])
+        for v in given["vin"]
+        if (pub_key := _pub_key_of(v)) is not None
+    ]
+    if not pub_keys:
+        pytest.skip("nothing eligible to derive a shared secret from")
+
+    outpoints = _outpoints(given["vin"])
+
+    try:
+        delegated_found = silent_payments.scan_transaction_outputs(
+            b_scan, B_spend, outpoints, pub_keys, given["outputs"], labels=None
+        )
+    except BTClibValueError:
+        # the input public keys sum to infinity: BIP352 skips the
+        # transaction, the same fact `test_receiving_vectors` reads as an
+        # empty outputs list for this same vector
+        assert expected["outputs"] == []
+        return
+
+    A_sum = silent_payments.pub_key_sum([pub_key for pub_key, _ in pub_keys])
+    tweak = silent_payments.tweak_data(outpoints, A_sum)
+    light_client_found = silent_payments.scan_outputs(
+        b_scan, B_spend, tweak, given["outputs"], labels=None
+    )
+    assert {(o.pub_key, o.prv_key_tweak) for o in delegated_found} == {
+        (o.pub_key, o.prv_key_tweak) for o in light_client_found
+    }
+
+
+@needs_bindings
 def test_scan_transaction_outputs_wraps_a_delegated_refusal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

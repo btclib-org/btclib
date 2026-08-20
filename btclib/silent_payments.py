@@ -933,14 +933,18 @@ def scan_transaction_outputs(
     through `int_from_prv_key`.
     """
     A_sum = pub_key_sum([pub_key for pub_key, _script_pub_key in pub_keys])
-    input_hash(outpoints, A_sum)
+    h = input_hash(outpoints, A_sum)
 
     if _libsecp256k1_serves(secp256k1, None):
         return _delegated_scan_outputs(
             b_scan, outpoints, pub_keys, B_spend, outputs_to_check, labels
         )
 
-    tweak = tweak_data(outpoints, A_sum)
+    # `tweak_data` would recompute `input_hash`, redoing the outpoint sort
+    # and the tagged hash over the same data: `h` is already this
+    # transaction's, same as `output_keys` reuses its own `h` rather than
+    # letting a helper derive it again
+    tweak = mult(h, A_sum)
     return scan_outputs(b_scan, B_spend, tweak, outputs_to_check, labels)
 
 
