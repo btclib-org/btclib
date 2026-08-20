@@ -3,7 +3,7 @@ name: python arm authority
 
 # tests/python_arm_authority_test.py's `_AUTHORITY` says, per Python arm,
 # which third-party-vector-driven test module reaches it -- issue #993's
-# answer, landed by #1000. Its own four tests check the table's shape
+# answer, landed by #1000. Its own tests check the table's shape
 # against the source and against itself, and none of them re-runs the
 # coverage that produced its values, because that measurement is minutes
 # and not seconds: every module `_THIRD_PARTY_VECTORS` names, each under

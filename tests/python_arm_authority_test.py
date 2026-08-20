@@ -33,7 +33,7 @@ each arm ran. A module is named here when its run reached the arm's body,
 the `def` line excluded -- that line runs at import and would report
 every arm of every imported module as reached.
 
-**Nothing here re-runs the measurement.** The four tests below check the
+**Nothing here re-runs the measurement.** The tests below check the
 table's shape -- its keys against the parser, its empty entries against
 the named set, its cited modules against the vector table, its entries
 against that same table -- and none reruns the coverage that produced
