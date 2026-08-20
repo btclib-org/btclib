@@ -38,9 +38,9 @@ table's shape -- its keys against the parser, its empty entries against
 the named set, its cited modules against the vector table, its entries
 against that same table -- and none reruns the coverage that produced
 `_AUTHORITY`'s values, because a pull request is not where that question
-belongs: eighteen modules under coverage, in an environment with no
-bindings, is minutes rather than seconds, and nothing here asks a
-contributor's branch to pay for it.
+belongs: every module `_THIRD_PARTY_VECTORS` names, under coverage, in
+an environment with no bindings, is minutes rather than seconds, and
+nothing here asks a contributor's branch to pay for it.
 
 That re-derivation runs monthly instead, is
 `.github/workflows/python-arm-authority.yml`, calling
