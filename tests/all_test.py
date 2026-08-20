@@ -209,7 +209,15 @@ CHILD_MODULES = {
     },
     "btclib.p2p": {
         "groups": [],
-        "unpublished": ["limits", "magic", "message"],
+        "unpublished": [
+            "address",
+            "handshake",
+            "keepalive",
+            "limits",
+            "magic",
+            "message",
+            "payload",
+        ],
     },
     "btclib.psbt": {
         "groups": ["musig2", "silent_payments"],

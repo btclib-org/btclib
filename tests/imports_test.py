@@ -142,6 +142,15 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     A subprocess for the reason the test above gives: `unimported_btclib`
     takes btclib out of `sys.modules` and leaves `bitcoin_core_rpc` where
     an earlier test put it.
+
+    What the package *does* import eagerly, and what a reader of the
+    above would otherwise wonder about, is `ipaddress`: a `version` and an
+    `addr` carry sixteen-octet addresses, and that module is what holds
+    one. It is arithmetic and text -- it imports `functools` and nothing
+    else -- where `socket.inet_pton`, which is the other way to write the
+    same conversion, would put the C library's resolver behind a codec.
+    btclib_node uses `socket.inet_pton`, and it is a package that does
+    open connections.
     """
     reached_only_by_asking = ("'urllib.request'", "'bitcoin_core_rpc'")
 

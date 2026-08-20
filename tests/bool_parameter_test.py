@@ -136,6 +136,7 @@ from btclib.mnemonic.entropy import (
     bin_str_entropy_from_rolls,
 )
 from btclib.mnemonic.mnemonic import WordLists
+from btclib.p2p import Version
 from btclib.psbt import musig2 as psbt_musig2
 from btclib.psbt.psbt import Psbt, assert_signed
 from btclib.psbt.psbt import join as psbt_join
@@ -726,6 +727,17 @@ _KINDS = (
         {"pub_key": _SEC},
         reason="`True` accepts the 0x06 and 0x07 prefixes, so a non-bool"
         " parses the very forms it was written down to keep out",
+    ),
+    _Case(
+        "btclib.p2p.handshake.Version.__init__",
+        "relay",
+        Version,
+        {},
+        optional=True,
+        reason="BIP37's flag, and what is written is a function of its"
+        " value: one octet for True or False and none for None, so a"
+        " non-bool would serialize as the True a peer reading it takes"
+        " for a request to relay transactions",
     ),
 )
 

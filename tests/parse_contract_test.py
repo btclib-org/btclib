@@ -31,7 +31,15 @@ from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader
 from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
-from btclib.p2p import Message
+from btclib.p2p import (
+    Addr,
+    Message,
+    NetworkAddress,
+    Ping,
+    Pong,
+    TimestampedNetworkAddress,
+    Verack,
+)
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -65,6 +73,12 @@ def _tx() -> Tx:
     )
 
 
+def _addr() -> Addr:
+    """Return an `addr` of one entry, which is the wiki's captured one."""
+    address = NetworkAddress(1, "10.0.0.1", 8333)
+    return Addr([TimestampedNetworkAddress(0x4D1015E2, address)])
+
+
 def _psbt() -> Psbt:
     """Return the psbt of the transaction above, maps and all."""
     return Psbt.from_tx(_tx())
@@ -89,6 +103,20 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),
     ("psbt_out", PsbtOut, PsbtOut(redeem_script=b"\x51").serialize()),
     ("p2p_message", Message, Message("f9beb4d9", "ping", bytes(8)).serialize()),
+    (
+        "p2p_network_address",
+        NetworkAddress,
+        NetworkAddress(1, "10.0.0.1", 8333).serialize(),
+    ),
+    (
+        "p2p_timestamped_address",
+        TimestampedNetworkAddress,
+        _addr().addresses[0].serialize(),
+    ),
+    ("p2p_addr", Addr, _addr().serialize()),
+    ("p2p_verack", Verack, Verack().serialize()),
+    ("p2p_ping", Ping, Ping(1).serialize()),
+    ("p2p_pong", Pong, Pong(1).serialize()),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -285,6 +313,21 @@ _EXCLUDED = {
         " alone, where IsValidSignatureEncoding is called, and refused in a"
         " stream as well -- no caller in this library reads a signature out"
         " of the middle of one. Sig.parse says so where it does it"
+    ),
+    "btclib.p2p.handshake.Version": (
+        "BIP37's relay flag is the last field of a `version` and may not"
+        " be on the wire at all, so the hundred-octet payload a pre-BIP37"
+        " peer sends is a prefix of the hundred-and-one-octet one a modern"
+        " peer sends: a prefix of an encoding *is* an object here, by"
+        " construction. What that property protects is kept all the same,"
+        " and that is the difference from an oversight -- the two buffers"
+        " are two objects, each serializing back to the buffer it came"
+        " from, where the property exists to refuse two buffers decoding"
+        " to one. `parse` takes `Octets` for the same reason, a stream"
+        " being unable to say whether the next octet is the flag or the"
+        " next message, so the third property has no stream to be about"
+        " either. btclib/p2p/handshake.py states both, and"
+        " tests/p2p/handshake_test.py drives what is true instead"
     ),
     "btclib.ecc.ecies.Envelope": (
         "BIE1 writes the ciphertext between fixed offsets with no length in"

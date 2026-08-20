@@ -276,9 +276,9 @@ any key representation and hand back one. `bip32` and `mnemonic` derive
 keys. `script`, `tx`, `block` and `psbt` build and validate what goes on
 the chain, and `script.engine` runs a transaction against the consensus
 rules. `p2p` is the wire format peers speak — the message envelope, its
-framing, and the message start each network begins with — and it opens no
-socket: `fetch` is the one package that goes and asks, and neither
-imports the other.
+framing, the message start each network begins with, and the payloads a
+connection opens with — and it opens no socket: `fetch` is the one
+package that goes and asks, and neither imports the other.
 
 Above them, `bip44` composes `bip32`, `script.taproot` and both address
 encodings into an address from an extended key and a derivation path, and
