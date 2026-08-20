@@ -7446,6 +7446,19 @@ documented at release-notes length in the first place, and are still in
   stops taking the delegation each line exists for now fails a test
   instead of reproducing a byte-exact answer from the arm it stands in
   for.
+- **`parse`/`serialize` are asserted to take no `ec` or `hf`, not
+  merely agreed to** (issue #1084). Parametric above the byte boundary
+  and mono-format at it already held everywhere in the family -- no
+  `parse` reads a curve or a hash function a caller names, each
+  reading the one its own format is defined over instead -- and
+  nothing failed if that stopped being true: a `parse` growing an `ec`
+  parameter passed every existing test.
+  `test_the_family_takes_no_ec_or_hf` walks the same `tests/__init__.py`
+  inventory `serialization_boundary_test.py`'s other gates already
+  share, class methods and module functions both, so a class or
+  function this cannot reach is one no caller can import either.
+  `_EXTRA_ARGUMENTS`'s own docstring is corrected beside it: a record
+  of what the rule decided, not the rule itself.
 
 - **The input-validation gate's own verdict is exercised** (issue #776).
   `_classify` is the three answers a call can give -- the rule held, a

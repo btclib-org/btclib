@@ -59,6 +59,13 @@ in every call whatever its position: `ec` is the last parameter of the
 `curves` functions, the fifth of `dsa.sign_` and the first of the two
 group explorers, and none of these signatures has a positional-only
 parameter.
+
+## Where the walk finds nothing on purpose
+
+`parse` and `serialize` never declare `ec`, so the whole family is
+absent from the table below -- not an omission, a rule:
+`serialization_boundary_test.py`'s module docstring states it and why,
+and `test_the_family_takes_no_ec_or_hf` is its gate (issue #1084).
 """
 
 from __future__ import annotations

@@ -37,6 +37,30 @@ arguments `_EXTRA_ARGUMENTS` records, and the last test is what keeps
 that record honest -- one more added to this family fails here until it
 is driven.
 
+**Parametric above the byte boundary, mono-format at it.** `ec` and
+`hf` are arguments everywhere arithmetic and protocol take them --
+`sign`, `verify`, `key_agg` -- and nowhere in this family: no `parse`
+or `serialize` here declares either, and
+`test_the_family_takes_no_ec_or_hf` is what turns that from an
+agreement into a gate (issue #1084). The reason is not efficiency, and
+nothing parametric is given up for it: the *object* keeps its curve
+regardless -- `ssa.Sig` declares `ec: Curve = secp256k1` as a field, so
+a signature on `ec13_11` is built, validated, signed and verified
+exactly as one on secp256k1. What it cannot do is round-trip through a
+format that curve was never defined over. The encoding does not name
+its curve or its hash function, so `parse(data, ec=...)` would not be
+parsing -- it would be decoding under instruction, accepting in
+silence a caller who names the wrong one and handing back a
+well-formed object built from octets that meant something else. That
+is issue #856's "annotation that accepts the mistake", at the one
+boundary where the input is a file, a peer or another implementation.
+
+`_EXTRA_ARGUMENTS` records what that rule decided, and does not decide
+it -- a data shape in a test, cited as though it were a law during PR
+#1079, and it is not one: it maps `(class, method)` to a single string
+because no member of the family has needed two, and is changeable to a
+tuple the day one does.
+
 `check_validity` is not driven anywhere in this file: it is a flag that
 decides whether a check runs rather than what is computed, so it is read
 for its truth, and `check_validity_test.py` owns that convention.
@@ -758,3 +782,42 @@ def test_the_family_takes_no_argument_this_file_does_not_drive() -> None:
                 found[name, method] = parameter
 
     assert found == _EXTRA_ARGUMENTS
+
+
+def test_the_family_takes_no_ec_or_hf() -> None:
+    """No member of the family takes a curve or a hash function.
+
+    Parametric above the byte boundary, mono-format at it: `parse`
+    reads the curve and the hash function the format is defined over,
+    not ones a caller names, so neither is ever a parameter here --
+    the module docstring is the reason. No exclusion list, the same
+    state `test_every_decoder_is_covered` keeps: an `ec` or an `hf`
+    added to any member of this family, class method or module
+    function, fails here rather than waiting for a reader to notice.
+    """
+    # unconditional, so that every line here runs whether or not a name
+    # is ever found offending: the branch this test is for is the one
+    # below, and a codebase with nothing to catch must not leave a line
+    # of its own catcher uncovered
+    found: dict[str, set[str]] = {}
+    for method in _FAMILY:
+        for name in public_classes_with(method):
+            module_name, _, class_name = name.rpartition(".")
+            cls = getattr(import_module(module_name), class_name)
+            found[f"{name}.{method}"] = set(signature(getattr(cls, method)).parameters)
+
+    for module_name in (
+        "btclib",
+        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    ):
+        module = import_module(module_name)
+        for method in _FAMILY:
+            function = getattr(module, method, None)
+            if not callable(function) or isinstance(function, type):
+                continue
+            if getattr(function, "__module__", "") != module_name:
+                continue
+            found[f"{module_name}.{method}"] = set(signature(function).parameters)
+
+    offenders = {name for name, params in found.items() if params & {"ec", "hf"}}
+    assert not offenders
