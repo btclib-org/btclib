@@ -96,9 +96,10 @@ class Tx:  # noqa: PLW1641
     `hash` are computed from the current state on every read, so they
     follow the edits. assert_valid checks what CheckTransaction checks
     of a lone transaction -- field ranges, the inputs and outputs one
-    by one, the coinbase script size, the MAX_MONEY bound on the
-    output sum; whether it spends what it claims needs the prevouts,
-    which is script.engine.verify_transaction's question.
+    by one, the coinbase script size, no outpoint spent twice, the
+    MAX_MONEY bound on the output sum; whether it spends what it claims
+    needs the prevouts, which is script.engine.verify_transaction's
+    question.
     """
 
     # 4 bytes, _signed_ little endian
@@ -320,8 +321,8 @@ class Tx:  # noqa: PLW1641
         unsigned_template=True drops the two rules a PSBT's global unsigned
         transaction cannot satisfy, and only those: at least one input and
         at least one output. Everything else still applies -- the version
-        and lock time ranges, each input and output on its own, the
-        MAX_MONEY bound on their sum.
+        and lock time ranges, each input and output on its own, no outpoint
+        spent twice, the MAX_MONEY bound on their sum.
 
         Those two rules are right for a transaction, Core's
         CheckTransaction rejecting an empty vin or vout, and wrong for a
@@ -348,6 +349,20 @@ class Tx:  # noqa: PLW1641
             raise BTClibValueError("Missing inputs")
         for tx_in in self.vin:
             tx_in.assert_valid()
+
+        # CheckTransaction's `bad-txns-inputs-duplicate` (CVE-2018-17144):
+        # an outpoint named twice would be spent twice, and every arithmetic
+        # over the inputs -- a fee, a total, an ancestor set -- counts what
+        # it names once. `OutPoint` is frozen and hashable for this, so the
+        # rule is the set, and the inputs are judged one by one above first,
+        # a tx_id of the wrong length being reported as that rather than as
+        # a member of a set. Unconditional, unsigned_template or not: the
+        # flag drops the two rules a psbt's transaction cannot satisfy while
+        # it is being built, and a Constructor adding an input already there
+        # builds a transaction no node accepts, incomplete or finished
+        outpoints = [tx_in.prev_out for tx_in in self.vin]
+        if len(set(outpoints)) != len(outpoints):
+            raise BTClibValueError("the same outpoint is spent twice")
 
         if not unsigned_template and not self.vout:
             raise BTClibValueError("Missing outputs")

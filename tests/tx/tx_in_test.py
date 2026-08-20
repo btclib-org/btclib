@@ -303,6 +303,10 @@ def test_input_weight_sums_to_tx_weight() -> None:
     that byte.
     """
     prev_out = OutPoint(b"\x01" * 32, 0)
+    # the second output of that same transaction: one outpoint spent
+    # twice is a transaction `Tx.assert_valid` refuses, and an outpoint
+    # weighs what an outpoint weighs whichever output it names
+    other_prev_out = OutPoint(b"\x01" * 32, 1)
     tx_out = TxOut(1000, "0014" + "00" * 20)
     p2pkh_script_sig = b"\x00" * 107
     p2wpkh_witness = Witness(["00" * 72, "00" * 33])
@@ -312,7 +316,7 @@ def test_input_weight_sums_to_tx_weight() -> None:
     segwit = Tx(
         vin=[
             TxIn(prev_out, b"", 0xFFFFFFFF, p2wpkh_witness),
-            TxIn(prev_out, p2sh_p2wpkh_script_sig, 0xFFFFFFFF, Witness()),
+            TxIn(other_prev_out, p2sh_p2wpkh_script_sig, 0xFFFFFFFF, Witness()),
         ],
         vout=[tx_out],
     )

@@ -272,17 +272,23 @@ def test_a_transaction_needs_an_input_and_an_output() -> None:
 
 
 def test_one_outpoint_is_spent_once() -> None:
-    """A double count in the fee arithmetic, and `bad-txns-inputs-duplicate`."""
+    """A double count in the fee arithmetic, and `bad-txns-inputs-duplicate`.
+
+    `Tx.assert_valid`'s rule, reached here through the `prevouts` that
+    reads what the inputs are worth: the fee is what that sum buys, so
+    the refusal comes before the number it would corrupt.
+    """
     with pytest.raises(BTClibValueError, match="spent twice"):
         build_psbt(
             [spendable(100_000), spendable(100_000)],
             [TxOut(60_000, PAY_SCRIPT)],
             TEN_SAT_PER_VBYTE,
         )
-    # an input naming no output index is refused under its own name, the
-    # psbt being validated before the duplicates are looked for: read the
-    # other way round it would be a duplicate of whatever spends index 0
-    # of the same transaction
+    # an input naming no output index is refused under its own name,
+    # `Psbt.assert_valid` checking the input fields before the transaction
+    # it builds out of them: `PsbtIn.prev_out` reads a missing index as 0,
+    # so read the other way round this would be a duplicate of whatever
+    # spends index 0 of the same transaction
     nameless = spendable(100_000)
     nameless.output_index = None
     with pytest.raises(BTClibValueError, match="missing PSBT_IN_OUTPUT_INDEX"):

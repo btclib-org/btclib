@@ -319,13 +319,14 @@ def test_invalid_legacy(vector: list[Any]) -> None:
     """Reproduce Core's tx_invalid.json."""
     prevouts, check_amounts = prevouts_of(vector)
 
-    # Tx.parse inside the raises block, not before it: 8 of these
-    # transactions are malformed enough that btclib refuses them there,
-    # and refusing them there is refusing them -- parsed first and
-    # skipped on failure, those 8 would assert nothing at all.
-    # BTClibValueError alone, as above: all 93 leave through one,
-    # measured, so naming IndexError and KeyError too is width that buys
-    # nothing and would hide the next contract break
+    # Tx.parse inside the raises block, not before it: some of these
+    # transactions are refused there -- malformed, or invalid as a lone
+    # transaction, which is what Core's own BADTX marker says of the
+    # duplicate-input vector -- and refusing them there is refusing them;
+    # parsed first and skipped on failure, those would assert nothing at
+    # all. BTClibValueError alone, as above: every vector leaves through
+    # one, measured, so naming IndexError and KeyError too is width that
+    # buys nothing and would hide the next contract break
     with pytest.raises(BTClibValueError):
         tx = Tx.parse(vector[1])
         # the vector's own flags, and only those: an invalid transaction
@@ -345,3 +346,22 @@ def test_invalid_amount() -> None:
     # Output amount greater than sum of inputs
     with pytest.raises(BTClibValueError):
         verify_amounts([prevout], tx)
+
+
+def test_a_prevout_per_input() -> None:
+    """Verify each input against its own prevout: one list each, one length.
+
+    The caller brings the prevouts, an outpoint saying neither what it is
+    worth nor what it locks, so nothing but this check says they are the
+    prevouts of *this* transaction: one short and the loop below would
+    verify the inputs it has against the wrong outputs, or fall off the
+    list.
+    """
+    prevout = TxOut(10, ScriptPubKey(""))
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"1" * 32, 1)), TxIn(OutPoint(b"1" * 32, 2))],
+        vout=[TxOut(10, ScriptPubKey(""))],
+    )
+
+    with pytest.raises(BTClibValueError, match="1 prevouts for 2 transaction inputs"):
+        verify_transaction([prevout], tx)
