@@ -6979,7 +6979,7 @@ documented at release-notes length in the first place, and are still in
   every partial signature, aggregating) with and without the
   memoization, best of five:
 
-  | n | before | after | |
+  | n | before | after | speedup |
   | ---: | ---: | ---: | ---: |
   | 2 | 0.60 ms | 0.33 ms | 1.82x |
   | 5 | 1.90 ms | 0.75 ms | 2.53x |
@@ -6992,11 +6992,17 @@ documented at release-notes length in the first place, and are still in
   `SessionContext` per call, cannot benefit from this and does not try
   to: its docstring now points a caller that verifies every signer at
   `partial_sig_verify_` with one shared context instead, which is the
-  spelling the table above measures. `btclib/psbt/musig2.py` builds a
-  fresh `SessionContext` at each public entry point too, so this
-  memoization does not reach that layer; its own redundancy is a
-  separate concern. The cached value holds no secret -- Q, gacc, tacc,
-  b, R and e are all public -- so nothing here changes what
+  spelling the table above measures. `btclib/psbt/musig2.py`'s three
+  public entry points -- `write_partial_sig`, `partial_sig_verify` and
+  `partial_sigs_agg` -- each build their own `SessionContext`, so
+  nothing is shared *across* them; within `write_partial_sig`, though,
+  `sign` and `partial_sig_verify_` already share one context, and this
+  change does halve that pair's aggregation down to one. What it does
+  not reach is `partial_sigs_agg`'s own direct `key_agg_and_tweak` call
+  when it re-derives the aggregate key to verify the total signature --
+  a second, already-filed redundancy of that layer (issue #1046),
+  separate from this one. The cached value holds no secret -- Q, gacc,
+  tacc, b, R and e are all public -- so nothing here changes what
   `SECURITY.md` publishes.
 
 ### Tests
