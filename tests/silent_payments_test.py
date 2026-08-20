@@ -36,8 +36,11 @@ from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
+from btclib.script.script_pub_key import is_p2tr
 from btclib.script.witness import Witness
+from btclib.to_prv_key import int_from_prv_key
 from btclib.tx.out_point import OutPoint
+from btclib.utils import bytes_from_octets
 from tests import load, needs_bindings, vector_id
 
 _VECTORS = load("_data", "send_and_receive_test_vectors.json", encoding="utf-8")
@@ -609,6 +612,91 @@ def test_output_keys_wraps_a_delegated_refusal(monkeypatch: pytest.MonkeyPatch) 
         silent_payments.output_keys(
             [(_B_SCAN_PRV, script_pub_key)], outpoints, [_address()]
         )
+
+
+@needs_bindings
+@pytest.mark.parametrize("index,test", _RECEIVING, ids=_RECEIVING_IDS)
+def test_scan_outputs_matches_the_bindings(index: int, test: dict[str, Any]) -> None:
+    """The Python scan agrees with the bindings', given the same inputs.
+
+    `scan_outputs` has no `_libsecp256k1_serves` guard to flip the way
+    `output_keys`'s cross-arm tests do above: it stays Python regardless
+    of the bindings, because `tweak` is the already-reduced tweak data a
+    light client holds under BIP352's Appendix A, where
+    `silentpayments.scan_outputs` wants a `prevouts_summary` built from
+    the transaction's own outpoints and input public keys -- exactly the
+    data a light client never has, and exactly why this tree's dispatch
+    does not reach the bindings for this half of BIP352 (see the module
+    docstring and `SECURITY.md`). That mismatch is a reason not to
+    dispatch, not a reason to leave the arithmetic unchecked against the
+    bindings: this builds the summary a full node *could* hand them, from
+    the outpoints and input public keys `test_receiving_vectors` already
+    reads out of this same vector, and asks whether the two answer the
+    same set of outputs and spend tweaks.
+
+    The label cache is the one value reshaped for this call alone:
+    `label_lookup` returns `dict[bytes, int]`, where the bindings want
+    each tweak as 32 bytes -- decision 3 of issue #910, which stays a
+    test-local conversion because `scan_outputs` does not delegate.
+    """
+    given = test["given"]
+    b_scan = given["key_material"]["scan_priv_key"]
+    b_spend = given["key_material"]["spend_priv_key"]
+    B_spend = mult(b_spend)
+
+    pub_keys = []
+    taproot_pubkeys_bytes = []
+    pubkeys_bytes = []
+    for v in given["vin"]:
+        pub_key = _pub_key_of(v)
+        if pub_key is None:
+            continue
+        pub_keys.append(pub_key)
+        script_pub_key = bytes_from_octets(v["prevout"]["scriptPubKey"]["hex"])
+        if is_p2tr(script_pub_key):
+            taproot_pubkeys_bytes.append(bytes_from_point(pub_key)[1:])
+        else:
+            pubkeys_bytes.append(bytes_from_point(pub_key))
+    if not pub_keys:
+        pytest.skip("nothing eligible to derive a shared secret from")
+
+    outpoints = _outpoints(given["vin"])
+    try:
+        A_sum = silent_payments.pub_key_sum(pub_keys)
+    except BTClibValueError:
+        pytest.skip("input public keys sum to infinity")
+
+    outpoint_smallest36 = min(outpoint.serialize() for outpoint in outpoints)
+    summary = libsecp256k1_silentpayments.prevouts_summary(
+        outpoint_smallest36, taproot_pubkeys_bytes, pubkeys_bytes
+    )
+    labels = silent_payments.label_lookup(b_scan, given["labels"])
+    bindings_labels = {
+        label: tweak.to_bytes(32, "big") for label, tweak in labels.items()
+    }
+    tx_outputs_bytes = [bytes.fromhex(output) for output in given["outputs"]]
+
+    bindings_found = libsecp256k1_silentpayments.scan_outputs(
+        tx_outputs_bytes,
+        int_from_prv_key(b_scan),
+        summary,
+        bytes_from_point(B_spend),
+        bindings_labels,
+    )
+    tweak = silent_payments.tweak_data(outpoints, A_sum)
+    python_found = silent_payments.scan_outputs(
+        b_scan, B_spend, tweak, given["outputs"], labels
+    )
+
+    bindings_set = {
+        (pub_key.hex(), spend_tweak.hex())
+        for pub_key, spend_tweak, _label in bindings_found
+    }
+    python_set = {
+        (output.pub_key.hex(), output.prv_key_tweak.to_bytes(32, "big").hex())
+        for output in python_found
+    }
+    assert bindings_set == python_set
 
 
 def test_the_whole_round_trip_without_a_vector() -> None:
