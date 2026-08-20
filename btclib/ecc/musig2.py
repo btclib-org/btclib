@@ -291,13 +291,6 @@ def _key_agg_coeff_(L: bytes, second: bytes, pub_key: bytes) -> int:
     )
 
 
-def _key_agg_coeff(pub_keys: tuple[bytes, ...], pub_key: bytes) -> int:
-    # the list hash and the second key are the same for every key in the
-    # list, so aggregation computes them once and calls the spelling
-    # above; this one is for the single coefficient a signer needs
-    return _key_agg_coeff_(_hash_pub_keys(pub_keys), _second_pub_key(pub_keys), pub_key)
-
-
 @dataclass(frozen=True)
 class KeyAggContext:
     """The aggregate public key, and what tweaking it has accumulated.
@@ -612,6 +605,11 @@ class SessionValues:
     - b is the coefficient combining the two halves of the nonce
     - R is the effective nonce point, R_1 + b*R_2
     - e is the BIP340 challenge, over R, Q and the message
+    - L, second and pub_keys_set are what a per-signer key-aggregation
+      coefficient is computed from -- issue #1069, the same shape #1045
+      solved for the fields above: fixed for the session, so computed
+      here once rather than by every one of `_session_key_agg_coeff`'s
+      2n callers
     """
 
     Q: Point
@@ -620,6 +618,9 @@ class SessionValues:
     b: int
     R: Point
     e: int
+    L: bytes
+    second: bytes
+    pub_keys_set: frozenset[bytes]
 
 
 def session_values(session_ctx: SessionContext) -> SessionValues:
@@ -636,6 +637,20 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     been used to sign; `object.__setattr__` reaches past `frozen=True`
     to set it, exactly as `SessionContext.__init__` already does for
     its declared fields.
+
+    `L`, `second` and `pub_keys_set` are computed here too, once, and
+    not because deriving them needs anything above -- they are pure
+    functions of `session_ctx.pub_keys` alone, the same as `key_agg`'s
+    own `L` and `second`, which it likewise computes once and reuses
+    for every key. Computed again here rather than threaded out of
+    `key_agg_and_tweak` above: doing that would widen
+    `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
+    this module already read, for a value only `_session_key_agg_coeff`
+    wants. What earns them a place on `SessionValues` instead of a
+    second cached field on `SessionContext` is that every caller of
+    `_session_key_agg_coeff` -- `sign` and `partial_sig_verify_` --
+    already calls this function first, so a `SessionValues` field costs
+    nothing beyond what assembling the session already paid for.
     """
     if session_ctx._values is not None:
         return session_ctx._values
@@ -677,18 +692,37 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     # the one btclib's own BIP340 verifier recomputes, byte for byte and
     # for a message of any size
     e = ssa.challenge_(session_ctx.msg, Q[0], R[0], secp256k1, sha256)
-    values = SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
-    # nothing cached here is secret -- Q, gacc, tacc, b, R, e are all
-    # public -- so caching them on the context changes no security
-    # property this module publishes
+    L = _hash_pub_keys(session_ctx.pub_keys)
+    second = _second_pub_key(session_ctx.pub_keys)
+    pub_keys_set = frozenset(session_ctx.pub_keys)
+    values = SessionValues(
+        Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e, L, second, pub_keys_set
+    )
+    # nothing cached here is secret -- Q, gacc, tacc, b, R, e, L, second
+    # and pub_keys_set are all public -- so caching them on the context
+    # changes no security property this module publishes
     object.__setattr__(session_ctx, "_values", values)
     return values
 
 
 def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
-    if pub_key not in session_ctx.pub_keys:
+    # issue #1069: this used to be three O(n) traversals of pub_keys per
+    # call -- the membership test, `_hash_pub_keys`'s join-and-hash and
+    # `_second_pub_key`'s scan -- and ran 2n times per session, once per
+    # signer from `sign` and once per signer from `partial_sig_verify_`.
+    # `session_values` now derives `L`, `second` and `pub_keys_set` once
+    # per session instead, the same fixed-input shape issue #1045 solved
+    # for the curve arithmetic above; what is left here is an O(1)
+    # frozenset membership test and one hash of constant size.
+    #
+    # The membership test stays a check of its own rather than folding
+    # into the frozenset lookup below it: `_SIGNER_PK_ERR` is one of
+    # BIP327's verbatim messages, pinned byte for byte by the vectors,
+    # and a dict access raising `KeyError` would not produce it
+    values = session_values(session_ctx)
+    if pub_key not in values.pub_keys_set:
         raise BTClibValueError(_SIGNER_PK_ERR)
-    return _key_agg_coeff(session_ctx.pub_keys, pub_key)
+    return _key_agg_coeff_(values.L, values.second, pub_key)
 
 
 def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> bytes:

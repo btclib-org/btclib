@@ -753,6 +753,35 @@ def test_session_values_cache_is_invisible_to_equality() -> None:
     assert hash(session_ctx) == hash_before == hash(twin)
 
 
+def test_key_agg_coeff_cache_is_invisible_to_equality() -> None:
+    """A populated key-aggregation-coefficient cache must not perturb equality.
+
+    Issue #1069's `L`, `second` and `pub_keys_set` are folded into the
+    same `_values` `test_session_values_cache_is_invisible_to_equality`
+    above already pins, rather than a second cached field on
+    `SessionContext` -- so this is the same invariant, checked with two
+    signers so that `second` is a real key rather than the one-signer
+    placeholder, and populated through `partial_sig_verify_`,
+    `_session_key_agg_coeff`'s other caller.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)
+    pub_keys = musig2.key_sort([pk_1, pk_2])
+    sk_of = {pk_1: _SK_1, pk_2: _SK_2}
+    nonces = {pk: musig2.nonce_gen(sk_of[pk], pk, None, _MSG) for pk in pub_keys}
+    agg_nonce = musig2.nonce_agg([nonces[pk][1] for pk in pub_keys])
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], _MSG)
+    twin = musig2.SessionContext(agg_nonce, pub_keys, [], [], _MSG)
+    hash_before = hash(session_ctx)
+
+    signer = pub_keys[0]
+    psig = musig2.sign(nonces[signer][0], sk_of[signer], session_ctx)
+    assert musig2.partial_sig_verify_(psig, nonces[signer][1], signer, twin)
+
+    assert session_ctx == twin
+    assert hash(session_ctx) == hash_before == hash(twin)
+
+
 def test_tweaks_and_is_xonly_pair_up() -> None:
     """Verify tweaks and is_xonly of unequal lengths are refused."""
     pk_1 = musig2.individual_pub_key(_SK_1)

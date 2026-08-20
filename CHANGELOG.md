@@ -1411,6 +1411,40 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **`tx.input_weight` answers what an input will weigh before the input
+  exists** (issue #1067). A fee is chosen before the transaction is
+  signed, so the weight it is computed from cannot be read off the
+  transaction whose shape that fee decides, and `Tx.weight` needs a
+  transaction already built. `input_weight(script_sig, witness=None)` is
+  BIP141's rule applied to one input: the non-witness bytes -- the
+  36-byte outpoint, the script_sig behind its var_int length, the 4-byte
+  sequence -- weigh `WITNESS_SCALE_FACTOR` each, and the serialized
+  witness stack weighs one each. It is Bitcoin Core's
+  `calculate_input_weight`, of
+  `test/functional/test_framework/wallet_util.py`, whose
+  `TestFrameworkWalletUtil.test_calculate_input_weight` beside it is the
+  third-party vector set the test transcribes, at bitcoin/bitcoin
+  42330922: the two var_int boundaries, 252 bytes against 253 on the
+  script_sig and on the witness item count, and no witness against an
+  empty stack.
+
+  Those last two are a byte apart, and that is the subtlety the type
+  carries. An input of a transaction with no witness section contributes
+  nothing beyond its non-witness bytes; an empty stack in a segwit
+  transaction still serializes the var_int announcing no elements. Core
+  takes a list of hex items and has to document the difference as a rule
+  about its `None` default, where `Witness | None` makes it unspeakable
+  to get wrong. It is why this is a free function and not a `TxIn`
+  property: `TxIn.script_witness` is a `Witness` and never `None`, so an
+  input alone cannot say whether the transaction it will sit in has a
+  witness section at all -- an empty one there is both a legacy input
+  and an unsigned segwit one, and a property would have to pick.
+
+  It sits in `btclib.tx.tx_in` beside that input rather than in
+  `btclib.fee`, taking no rate and answering a weight; `fee_from_vsize`
+  is what turns one into money. Coin selection and fee estimation are
+  still not here, and what a caller does with the number is theirs.
+
 - **`psbt.musig2.partial_sigs_agg` aggregates the participant list once,
   not four times** (issue #1046). Every public function of the module
   built a fresh `SessionContext` from the psbt, so issue #1045's own
@@ -7077,6 +7111,60 @@ documented at release-notes length in the first place, and are still in
   for this memoization to reach. The cached value holds no secret --
   Q, gacc, tacc, b, R and e are all public -- so nothing here changes
   what `SECURITY.md` publishes.
+
+- **A MuSig2 session's per-signer coefficient is O(1), not O(n)**
+  (issue #1069, the third quadratic path issue #1045 and #1046 did not
+  touch, all three raised by the review bot on PR #1060 and left each
+  time to a person to decide whether they became their own issue).
+  `_session_key_agg_coeff` ran three O(n) traversals of
+  `session_ctx.pub_keys` per call -- the membership test,
+  `_hash_pub_keys`'s join-and-hash and `_second_pub_key`'s scan -- and
+  `sign` and `partial_sig_verify_` each call it once per signer, so it
+  ran 2n times per session over inputs that never change.
+
+  `L`, `second` and `pub_keys_set` -- what a coefficient is computed
+  from -- are now three more fields on `SessionValues`, computed once
+  by `session_values` the way `key_agg` already computes its own `L`
+  and `second` once and reuses them for every key, rather than
+  recomputed by every one of `_session_key_agg_coeff`'s 2n callers.
+  Not threaded out of
+  `key_agg_and_tweak` instead, which already computes the same `L` and
+  `second` internally to aggregate Q: doing that would widen
+  `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
+  this module already read, for a value only the coefficient wants.
+  Not a second cached field on `SessionContext` beside `_values`
+  either, which issue #1069 posed as the alternative: both of
+  `_session_key_agg_coeff`'s callers already call `session_values`
+  first, so a `SessionValues` field costs nothing beyond what
+  assembling the session already paid for, where a second cache would
+  only earn its keep for a caller wanting the coefficient without the
+  rest of the session -- which neither `sign` nor `partial_sig_verify_`
+  is. The membership test stays a check of its own, answered by the
+  new `pub_keys_set` frozenset in O(1): `_SIGNER_PK_ERR` is one of
+  BIP327's verbatim messages, pinned byte for byte by the vectors, so
+  folding it into a dict lookup that raises something else was never
+  an option.
+
+  Measured the same way as the table above, on the same machine, best
+  of five:
+
+  | n | before | after | speedup |
+  | ---: | ---: | ---: | ---: |
+  | 2 | 0.35 ms | 0.34 ms | 1.02x |
+  | 5 | 0.78 ms | 0.77 ms | 1.01x |
+  | 10 | 1.50 ms | 1.48 ms | 1.02x |
+  | 20 | 2.93 ms | 2.89 ms | 1.02x |
+  | 50 | 7.33 ms | 7.16 ms | 1.02x |
+  | 100 | 14.81 ms | 14.21 ms | 1.04x |
+
+  A small, honest gain and not a mistake in the measurement: this path
+  does O(n) *byte* work per call -- a join, a tagged hash, a linear
+  scan -- where `session_values` did O(n) *curve* work, so removing it
+  buys a few percent rather than the multiples the table above
+  measures. It is worth doing anyway: what it removes is a quadratic,
+  and a quadratic built from byte operations is still the one a
+  large-enough `n` eventually notices, the constant being small today
+  and not forever.
 
 ### Tests
 
