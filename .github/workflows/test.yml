@@ -229,6 +229,30 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group test
           pytest --cov
+        env:
+          # not the default `.coverage`: the `coverage-union` job downloads
+          # this artifact beside the `no-bindings` job's, and two files
+          # named alike would overwrite each other on the runner that
+          # combines them. `COVERAGE_FILE` is `--data-file`'s environment
+          # variable, coverage's own, so `pytest --cov` writes here without
+          # a second flag naming what the report step above already reads
+          # from tool.coverage.run
+          COVERAGE_FILE: coverage-data-bindings
+      # issue #1002: this run already fails at 100% on its own, unchanged
+      # above, and this is the second, weaker thing the same data buys --
+      # the union `coverage-union` gates below. Uploaded rather than kept
+      # only as the percentage this job already reported, because a
+      # percentage cannot be combined with another job's and a line
+      # reachable only from the `no-bindings` run is invisible to it
+      - name: Upload coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-bindings
+          path: coverage-data-bindings
+          # a coverage data file with nothing collected would mean this
+          # job did not run pytest at all, which the run above failing
+          # already reports -- the default here would hide that
+          if-no-files-found: error
 
   # the configuration issue #966 exists for, and the one thing that keeps
   # its guard from being a claim nobody checks: btclib installed without
@@ -241,10 +265,18 @@ jobs:
   # and uv's `--no-group` suppresses a group that was selected, not one
   # another group includes. So the split in pyproject.toml is what this
   # job is, and there is no second lock file.
-  # `--no-cov`, because the delegated arms are unreachable here by
-  # construction: a coverage report of this run would fail the 100% gate
-  # for the one reason the run exists to create. The `coverage` job above
-  # is where that number comes from.
+  # `--cov --cov-fail-under=0`, not `--no-cov`, since issue #1002: the
+  # delegated arms are still unreachable here by construction, and a
+  # report of this run *alone* would still fail the 100% gate for the one
+  # reason the run exists to create -- `--cov-fail-under=0` is what keeps
+  # this job from being that report, collecting the data without gating
+  # this run on it. The data goes into `coverage-union` below, which
+  # gates the union of this run and the `coverage` job's at 100% as well,
+  # answering the question this job's own comment used to leave open: a
+  # test marked `needs_bindings` too broadly, or a Python arm no test
+  # here reaches, now shows up as a line neither run covers rather than
+  # as nothing. What it costs is this job's wall clock, now instrumented
+  # like the `coverage` job's rather than the `suite` matrix's
   # The tests that hold both implementations and compare them are marked
   # `bindings` and skip themselves; everything else runs, which is what
   # makes this a suite and not a smoke test
@@ -277,7 +309,87 @@ jobs:
       - name: Run pytest
         run: >
           uv run --locked --no-default-groups --group harness
-          pytest --no-cov
+          pytest --cov --cov-fail-under=0
+        env:
+          # the `coverage` job's comment on its own `COVERAGE_FILE` is why
+          # this is not `.coverage` either: the two artifacts land beside
+          # each other in `coverage-union` below
+          COVERAGE_FILE: coverage-data-no-bindings
+      - name: Upload coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-no-bindings
+          path: coverage-data-no-bindings
+          if-no-files-found: error
+
+  # the union `coverage` and `no-bindings` together answer for, and the
+  # gate is added to what `coverage` already is rather than instead of
+  # it. A line reachable only from this job's run is a line the delegated
+  # configuration -- the one an ordinary `pip install btclib[secp256k1]`
+  # gets -- never executes, and the `coverage` job's own 100% already
+  # says so by going red. Combining the two runs into one report and
+  # gating only that report would let such a line pass in silence, which
+  # is not the question issue #1002 asks: the question is what line no
+  # test anywhere reaches, not which configuration reaches which.
+  # This is why no `# pragma: no cover` in the tree became removable the
+  # day this job was added, despite what #995 and #1002 both hoped:
+  # `btclib/_libsecp256k1.py`'s `except ImportError:` and
+  # `tests/conftest.py`'s `_skip_what_needs_the_bindings` are reached by
+  # this job's own run and would make the union 100% without their
+  # pragma, and are unreachable in the `coverage` job's single run by
+  # construction all the same -- so removing either pragma fails that
+  # job's own gate, which stands exactly as it did before this job
+  # existed. What this job protects instead is every line beside those:
+  # new dead code in either configuration, or a `needs_bindings` marker
+  # drawn wider than it should be, now shows up as a line neither run
+  # covers rather than as nothing.
+  # What it costs: a third job, an artifact round trip in each direction,
+  # and coverage.py's own combine step, which is the same trade the
+  # `coverage` job already made against the `suite` matrix, applied once
+  # more
+  coverage-union:
+    name: Combine coverage from both runs, gated at 100% too
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    needs: [coverage, no-bindings]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # the source files coverage.py reports against: a data file alone
+      # names lines by path and number, not by content
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.14"
+      - name: Download coverage data from the coverage job
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-data-bindings
+      - name: Download coverage data from the no-bindings job
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-data-no-bindings
+      # `--group harness` and not `--group test`: combining and reporting
+      # read coverage.py's own data files and the source tree checked out
+      # above, neither of which needs btclib importable, let alone the
+      # bindings
+      - name: Combine the two runs
+        run: >
+          uv run --locked --no-default-groups --group harness
+          coverage combine coverage-data-bindings coverage-data-no-bindings
+      # `fail_under` in pyproject.toml is what the `coverage` job's report
+      # already reads; asked for explicitly here too, since this report is
+      # of the combined file the block comment above argues for gating
+      # rather than of the one `tool.coverage.run`'s default location
+      # would have produced
+      - name: Report the union, gated at 100%
+        run: >
+          uv run --locked --no-default-groups --group harness
+          coverage report --fail-under=100
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a
@@ -428,7 +540,7 @@ jobs:
     # day either grows a second one, this pattern and a change to the rule
     # are what that costs
     name: "test: every job passed"
-    needs: [suite, coverage, no-bindings, dist]
+    needs: [suite, coverage, no-bindings, coverage-union, dist]
     # !cancelled(), not always(): a run superseded by the concurrency
     # group above -- the next push landing on this ref, or a re-run
     # cancelled from the UI -- cancels every job still in flight, and

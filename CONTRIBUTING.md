@@ -342,7 +342,8 @@ the coverage command rather than this one.
 The `coverage` job, gated by `fail_under` in pyproject.toml:
 
 ```shell
-uv run --locked --no-default-groups --group test pytest --cov
+COVERAGE_FILE=coverage-data-bindings \
+    uv run --locked --no-default-groups --group test pytest --cov
 ```
 
 What `--cov` measures and how it reports are `tool.coverage.run`'s
@@ -350,7 +351,14 @@ What `--cov` measures and how it reports are `tool.coverage.run`'s
 and the bare `uv run pytest` above are the same measurement: the job
 cannot gate on a scope a contributor's run does not have. The flag is
 written out here even though addopts already carries it, this being the
-job's command verbatim.
+job's command verbatim. `COVERAGE_FILE` is `--data-file`'s environment
+variable, coverage's own, and is the job's real step verbatim too, not a
+local-reproduction addition: the two artifacts this job and `no-bindings`
+below produce would overwrite each other under the default `.coverage`
+name once both land in the `coverage-union` job that reads them. The job
+then uploads the data file this command wrote as an artifact, for
+`coverage-union` to read; that step has no command of its own to
+reproduce, being a plain `actions/upload-artifact`.
 
 The `no-bindings` job, which runs the suite against a btclib that has no
 `btclib_secp256k1` to delegate to:
@@ -361,17 +369,43 @@ uv run --locked --no-default-groups --group harness \
       assert not INSTALLED, 'btclib_secp256k1 is installed'; \
       from btclib.curves import is_libsecp256k1_serving; \
       assert not is_libsecp256k1_serving()"
-uv run --locked --no-default-groups --group harness pytest --no-cov
+COVERAGE_FILE=coverage-data-no-bindings \
+    uv run --locked --no-default-groups --group harness \
+    pytest --cov --cov-fail-under=0
 ```
 
 `harness` and not `test`: `test` is `harness` plus `bindings`, and uv's
 `--no-group` suppresses a group that was selected rather than one another
 group includes, so the split in pyproject.toml is what this job is.
-`--no-cov` because the delegated arms are unreachable in this
-configuration by construction, so a report of this run would fail the
-100% gate for the one reason the run exists to create. The tests that
-hold both implementations and compare them carry the `bindings` marker
-and skip themselves; everything else runs.
+`--cov --cov-fail-under=0`, not `--no-cov` (issue #1002): the delegated
+arms are still unreachable in this configuration by construction, so a
+report of this run *alone* would still fail the 100% gate for the one
+reason the run exists to create — `--cov-fail-under=0` collects the data
+without gating this run on it. The tests that hold both implementations
+and compare them carry the `bindings` marker and skip themselves;
+everything else runs. This job's data is uploaded as an artifact too,
+under the name `COVERAGE_FILE` gave it above, so it does not collide
+with the `coverage` job's when both are downloaded into the same job.
+
+The `coverage-union` job, which combines the two data files above and
+gates their union at 100% as well — beside the `coverage` job's own
+gate on the delegated run alone, not instead of it, so that a line
+covered only by the no-bindings run cannot pass in silence just because
+the union reached it:
+
+```shell
+uv run --locked --no-default-groups --group harness \
+    coverage combine coverage-data-bindings coverage-data-no-bindings
+uv run --locked --no-default-groups --group harness \
+    coverage report --fail-under=100
+```
+
+Reproducing this one locally needs the two data files the commands above
+already produced, under the two names they already wrote them with — no
+renaming step, since `COVERAGE_FILE` on each command is what named them
+that way in the first place. The two commands above run in two passes
+either way, one `.venv` not being able to hold and lack the bindings at
+once.
 
 The `dist` job, which inspects what would be published and then
 installs it. The first two commands after the build read the *members* of

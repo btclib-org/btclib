@@ -653,6 +653,56 @@ documented at release-notes length in the first place, and are still in
   the evidence the next time a run's conclusion and this check disagree.
   `REPOSITORY.md` records the aggregate's resulting semantics and the
   command to read a run's own job list when the two disagree.
+- **`test.yml` gains a `coverage-union` job, and `# pragma: no cover`
+  markers stay put (issue #1002).** The `no-bindings` job's whole
+  purpose is that the Python arms are reached by absence rather than by
+  a monkeypatch, and nothing checked that they were: it ran with
+  `--no-cov`, which the job's own comment defended on the grounds that
+  the delegated arms are unreachable there by construction — true of
+  those arms, and beside the point for the one line that is not one of
+  them, `btclib/_libsecp256k1.py`'s `except ImportError:`. #995 called
+  its pragma transitional, pending #991; #991 is this very job, and it
+  measured nothing, so the pragma was permanent and dishonest about it.
+
+  `no-bindings` now runs `pytest --cov --cov-fail-under=0`, collecting
+  data without gating this run on it alone, and uploads it as an
+  artifact beside the one the `coverage` job now also uploads.
+  `coverage-union` downloads both, runs `coverage combine`, then
+  `coverage report --fail-under=100` on the result: a line reachable in
+  either configuration is a line this library runs, and locally, with
+  every no-bindings-only pragma in the tree removed, that combined
+  report reaches exactly 100.00% — confirming both that the mechanism
+  works and that nothing today is invisible to both runs at once. The
+  percentage is what `--fail-under=100` re-checks on every run; the
+  statement count behind it moves with every commit touching `btclib/`
+  or `tests/` and is not repeated here for that reason.
+
+  The gate is added beside the `coverage` job's existing 100%, not
+  instead of it, deliberately: a line covered only by the no-bindings
+  run is a line the delegated configuration — the one `pip install
+  btclib[secp256k1]` gets — never executes, and only the unchanged
+  `coverage` job says so, by going red. A union gated alone would not;
+  it would let such a line pass in silence, and the two configurations
+  are not equally important. What that decision costs, measured against
+  keeping the `coverage` job's report and its pragmas exactly as they
+  are: `# pragma: no cover` still owed to `_libsecp256k1.py`'s `except
+  ImportError:` and to `tests/conftest.py`'s
+  `_skip_what_needs_the_bindings` and its call, none of them removable
+  after all — the `coverage` job's own single run has the bindings
+  installed by construction, so `INSTALLED` is always True and
+  `except ImportError` only reachable by a subprocess whose coverage
+  that job does not collect (`tests/no_bindings_test.py`), and removing
+  either pragma fails that unchanged gate on its own, regardless of
+  what `coverage-union` reports. The union's standing benefit is
+  therefore not today's pragma count but tomorrow's: new dead code
+  specific to either configuration, or a `needs_bindings` marker drawn
+  too wide, now shows up as a line neither run covers rather than as
+  nothing — which is the second half of what issue #1002 asked for, and
+  what issue #993's inventory can be checked against instead of read by
+  hand. What it costs beyond the design point above: a third job, an
+  artifact round trip in each direction, and the `no-bindings` job's
+  wall clock, now instrumented like the `coverage` job's rather than
+  the `suite` matrix's.
 
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**
