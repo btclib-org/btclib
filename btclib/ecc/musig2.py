@@ -596,8 +596,9 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     `L`, `second` and `pub_keys_set` are computed here too, once, and
     not because deriving them needs anything above -- they are pure
     functions of `session_ctx.pub_keys` alone, the same as `key_agg`'s
-    own `L` and `second` at `:300-301`, computed again rather than
-    threaded out of `key_agg_and_tweak` above: doing that would widen
+    own `L` and `second`, which it likewise computes once and reuses
+    for every key. Computed again here rather than threaded out of
+    `key_agg_and_tweak` above: doing that would widen
     `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
     this module already read, for a value only `_session_key_agg_coeff`
     wants. What earns them a place on `SessionValues` instead of a

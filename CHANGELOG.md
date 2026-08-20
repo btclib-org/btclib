@@ -7052,8 +7052,9 @@ documented at release-notes length in the first place, and are still in
   `L`, `second` and `pub_keys_set` -- what a coefficient is computed
   from -- are now three more fields on `SessionValues`, computed once
   by `session_values` the way `key_agg` already computes its own `L`
-  and `second` once, at `:300-301`, rather than recomputed by every
-  one of `_session_key_agg_coeff`'s 2n callers. Not threaded out of
+  and `second` once and reuses them for every key, rather than
+  recomputed by every one of `_session_key_agg_coeff`'s 2n callers.
+  Not threaded out of
   `key_agg_and_tweak` instead, which already computes the same `L` and
   `second` internally to aggregate Q: doing that would widen
   `KeyAggContext`, which `btclib/psbt/musig2.py` and callers outside
