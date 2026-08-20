@@ -6982,12 +6982,15 @@ documented at release-notes length in the first place, and are still in
   BIP327 and aggregates runs that O(n) aggregation 2n+1 times over
   inputs that never change, so the whole session was quadratic in the
   number of signers. It is now memoized on the `SessionContext`
-  instance -- the class is `frozen=True` without `slots`, so it still
-  has a `__dict__`, and `object.__setattr__` reaches it exactly as
-  `__init__` already does. The cached attribute sits outside the
-  dataclass's declared fields, so it is invisible to the `__eq__` and
-  `__hash__` those fields generate, and two contexts spelling the same
-  session stay equal whichever of them has already signed.
+  instance, in a `_values` field declared `compare=False` -- the same
+  idiom `curves.curve.PreparedPoint.fixed` already uses for a value
+  derived rather than passed, which is what keeps a cached field out
+  of the `__eq__` and `__hash__` a frozen dataclass generates from its
+  other fields by construction, not by the field being merely
+  undeclared. `object.__setattr__` reaches past `frozen=True` to set
+  it, exactly as `__init__` already does for the declared fields, and
+  two contexts spelling the same session stay equal whichever of them
+  has already signed.
 
   Measured on an Apple M5, macOS 26.6.2, arm64, CPython 3.14.7, bindings
   serving, timing a whole session (nonce generation, signing, verifying

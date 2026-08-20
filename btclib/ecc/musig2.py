@@ -74,7 +74,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 
 from btclib.alias import INF, Octets, Point
@@ -526,6 +526,19 @@ class SessionContext:
     is_xonly: tuple[bool, ...]
     msg: bytes
 
+    # `session_values`'s memoized answer, PreparedPoint.fixed's idiom for
+    # a derived value on an otherwise-frozen dataclass: `compare=False`
+    # keeps it out of the generated `__eq__`/`__hash__` by construction,
+    # which is what lets two contexts spelling the same session stay
+    # equal whichever of them a caller has already signed with, rather
+    # than by the field being merely undeclared. `init=False` on the
+    # decorator means the class attribute this default becomes is what
+    # every fresh instance reads until `session_values`'s own
+    # `object.__setattr__` gives it an instance one
+    _values: SessionValues | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
     # written out rather than an InitVar and a __post_init__: as in
     # ssa.Sig, and here it also normalizes -- the fields hold bytes and
     # tuples whatever the caller passed, so that a hex string and the
@@ -571,18 +584,16 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     `partial_sig_agg` each call this once per signer, so one session
     that signs, verifies every partial signature and aggregates would
     otherwise run the O(n) key aggregation below 2n+1 times over
-    inputs that never change. `SessionContext` is `frozen=True` but
-    not `slots=True`, so it still keeps a `__dict__`, and
-    `object.__setattr__` reaches into it exactly as `SessionContext.__init__`
-    already does; the cached attribute falls outside the dataclass's
-    declared fields, so the `__eq__` and `__hash__` that dataclass
-    generates from those fields do not see it, and two contexts
-    spelling the same session remain equal regardless of which one has
-    already been used to sign.
+    inputs that never change. `SessionContext._values` is declared
+    `compare=False`, so it is excluded from the dataclass's generated
+    `__eq__` and `__hash__` by construction, and two contexts spelling
+    the same session remain equal regardless of which one has already
+    been used to sign; `object.__setattr__` reaches past `frozen=True`
+    to set it, exactly as `SessionContext.__init__` already does for
+    its declared fields.
     """
-    cached: SessionValues | None = session_ctx.__dict__.get("_values")
-    if cached is not None:
-        return cached
+    if session_ctx._values is not None:
+        return session_ctx._values
     key_agg_ctx = key_agg_and_tweak(
         session_ctx.pub_keys, session_ctx.tweaks, session_ctx.is_xonly
     )
