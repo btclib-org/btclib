@@ -7013,22 +7013,14 @@ documented at release-notes length in the first place, and are still in
   `session_context`, so nothing is shared *across* them; within
   `partial_sign`, though, `sign` and `partial_sig_verify_` already
   share one context, and this change does halve that pair's
-  aggregation down to one. `partial_sigs_agg`'s own direct
-  `key_agg_and_tweak` call, the layer's second redundancy and separate
-  from this one, is closed on its own by issue #1046. The cached value
-  holds no secret -- Q, gacc, tacc, b, R and e are all public -- so
-  nothing here changes what
-  public entry points -- `write_partial_sig`, `partial_sig_verify` and
-  `partial_sigs_agg` -- each build their own `SessionContext`, so
-  nothing is shared *across* them; within `write_partial_sig`, though,
-  `sign` and `partial_sig_verify_` already share one context, and this
-  change does halve that pair's aggregation down to one. What it does
-  not reach is `partial_sigs_agg`'s own direct `key_agg_and_tweak` call
-  when it re-derives the aggregate key to verify the total signature --
-  a second, already-filed redundancy of that layer (issue #1046),
-  separate from this one. The cached value holds no secret -- Q, gacc,
-  tacc, b, R and e are all public -- so nothing here changes what
-  `SECURITY.md` publishes.
+  aggregation down to one. `partial_sigs_agg` used to call
+  `key_agg_and_tweak` there too, a second aggregation of the same
+  participants -- issue #1046 removed that call, so
+  `btclib/psbt/musig2.py` now aggregates the participants exactly
+  once, in `_session_parts`, and there is nothing left at that layer
+  for this memoization to reach. The cached value holds no secret --
+  Q, gacc, tacc, b, R and e are all public -- so nothing here changes
+  what `SECURITY.md` publishes.
 
 ### Tests
 
