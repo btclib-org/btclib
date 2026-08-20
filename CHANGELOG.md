@@ -4573,6 +4573,88 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` is a new package: the p2p message envelope, and no
+  socket** (issue #1082). `Message(magic, command, payload)` is the
+  header Bitcoin Core's `CMessageHeader` describes together with the
+  payload it announces; `Message.parse` reads one message off octets or
+  off a caller's stream and `serialize` writes it back. No line of the
+  package opens a connection, which is the property `btclib.fetch` was
+  written not to have -- "the one place that goes and asks" -- and
+  neither package imports the other: a fetcher asks a server a question
+  where a peer is a party to a protocol, and the only thing the two
+  would share is the socket this one refuses to hold. The envelope knows
+  no payload type, so an unrecognized command round-trips as opaque
+  octets rather than being refused; the payload types are issue #1083's
+  later children, and a codec that refused what it did not recognize
+  could not be written before them.
+
+  **Two of the four header fields are not fields.** The checksum is
+  `hashes.hash256(payload)[:4]` and is a property, so no instance can
+  hold one that disagrees with the payload beside it; the payload length
+  is `len(payload)` for the same reason. What is left is the magic, the
+  command and the payload, which is what the octets do not determine.
+  The command is text without the NUL padding -- Core's
+  `IsMessageTypeValid` is applied verbatim, printable ascii before the
+  first NUL and NUL from there on -- so the twelve octets and the text
+  are one to one in both directions: a non-canonical padding is refused
+  rather than normalized, where trimming at the first NUL would map two
+  wire values onto one object and keeping the field verbatim would
+  round-trip a header Core drops the sender for.
+
+  **btclib holds no magic table, and this is not a new decision.**
+  `btclib/network.py`'s `Network` docstring already said where the
+  message start lives -- "the code that speaks to a node,
+  `bitcoin_core_rpc.magic_from_chain` being where it is, because a custom
+  signet's is a function of its challenge and therefore not a field any
+  table can hold" -- so `btclib.p2p.magic_from_chain` and
+  `magic_from_signet_challenge` are that package's own objects under
+  btclib's name, as `btclib.fetch.transport` re-exports its HTTP
+  transport. Giving `Network` the field would have contradicted a
+  docstring that states its own reason, and the reason is the fifth
+  network: two signets report the same chain and are different networks,
+  so a field would be right for four of them and a lie for the fifth.
+  `btclib.p2p.magic_from_network` is what btclib's own vocabulary
+  reaches, `NETWORKS` being keyed by the BIP names where Core says
+  "main" and "test"; it runs the name through
+  `network._validated_network_name` first, so the tolerance every
+  `network: str` parameter has (issue #216) is here too and what crosses
+  into the package can no longer raise the package's own exception
+  class.
+
+  **A message that has not all arrived is told from one that never
+  will.** `IncompleteMessageError` -- a `BTClibRuntimeError`, on
+  `FetchError`'s reasoning that nothing the caller passed is wrong and
+  reading more is what fixes it -- carries `missing`, the octets still
+  wanted to finish the header or, once the header is read, the payload;
+  and `parse` rewinds the stream to where the message started, so the
+  caller appends what its socket gave it and calls again. Every other
+  refusal is final and none of them rewinds. The header is read as one
+  unit rather than field by field, which is Core's own split between
+  `V1Transport`'s header phase and its body phase and is what makes
+  `missing` a number the caller can ask a socket for. btclib_node's
+  `Connection.parse_messages` already branches on this difference, which
+  is the evidence that it is worth a class rather than a flag.
+
+  **A payload length no network would send is refused before the payload
+  is read.** `btclib.p2p.limits.MAX_PROTOCOL_MESSAGE_LENGTH` is Core's
+  bound from src/net.h, its own name rather than an import of
+  `consensus.MAX_BLOCK_WEIGHT`, which is the same number today and is a
+  different constant -- one bounds what a peer may announce and the
+  other what a block may weigh. Neither that check nor the checksum
+  answers to `check_validity`: the length field is the peer's to choose
+  and a defence a caller can turn off is not one, and a skipped checksum
+  would let two buffers decode to the one object that serializes back to
+  only one of them.
+
+  The tests are btclib's own round trips plus the `version` and `verack`
+  the Bitcoin Wiki's Protocol documentation publishes with their octets,
+  and `tests/p2p/message_test.py` says plainly that this is weaker than
+  a vendored vector set: Core publishes no envelope vectors to pin the
+  way `tests/_data/README.md` pins `siphash.json`, the citation is a
+  wiki revision rather than a commit, and what makes those two messages
+  evidence is that each header's checksum is recomputed here from the
+  payload beside it.
+
 - **`hashes.siphash` implements SipHash-2-4** (issue #373), the keyed
   hash BIP158's filter and BIP152's short transaction IDs both build on
   a peer- or block-derived secret rather than a general-purpose digest.

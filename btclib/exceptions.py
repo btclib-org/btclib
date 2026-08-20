@@ -70,6 +70,7 @@ __all__ = [
     "BorromeanRingError",
     "FetchError",
     "HttpError",
+    "IncompleteMessageError",
     "InconclusiveError",
     "InvalidContributionError",
     "InvalidPrvKeyError",
@@ -237,6 +238,45 @@ class SignerNotFoundError(SignerError):
     `code` is None, as for every failure of the exchange rather than of a
     device.
     """
+
+
+class IncompleteMessageError(BTClibRuntimeError):
+    """A p2p message is not all there yet, and `missing` says by how much.
+
+    What `btclib.p2p.Message.parse` raises where the octets end inside a
+    message: fewer than the header's, or a header whose payload length
+    the octets after it do not reach. `missing` is how many more would
+    take the parse past where this one stopped -- the rest of the header,
+    or the rest of the payload once the header has been read -- so a
+    caller accumulating from a socket has a number to ask for rather than
+    a guess.
+
+    A BTClibRuntimeError and not a BTClibValueError, which is the class
+    every other short read in this library raises: nothing the caller
+    passed is wrong. `BTClibValueError` is "a value no valid input could
+    carry" and these octets are the valid input's own prefix; what failed
+    is a check on it, which is what `BTClibRuntimeError` says. Reading
+    more can fix it and correcting an argument cannot, which is
+    `FetchError`'s reasoning for the same base.
+
+    Not a `FetchError` itself, kin though the reasoning is: that class is
+    a backend that did not answer, and nothing in `btclib.p2p` goes out
+    and asks -- the caller already holds the octets, and holds the socket
+    this library never opens. Nor a bare `BTClibRuntimeError`: the whole
+    point is that a socket caller tells this from every other refusal
+    `parse` gives, and one class two answers share is one a caller cannot
+    branch on. Everything else `parse` raises is final -- a magic no
+    further octet changes, a length over
+    `btclib.p2p.limits.MAX_PROTOCOL_MESSAGE_LENGTH`, a checksum that does
+    not verify -- and the peer that sent it is the thing to drop.
+    """
+
+    def __init__(self, message: str, missing: int) -> None:
+        self.missing = missing
+        super().__init__(message, missing)
+
+    def __str__(self) -> str:
+        return f"{self.args[0]}: {self.missing} more bytes wanted"
 
 
 class ScriptError(BTClibValueError):

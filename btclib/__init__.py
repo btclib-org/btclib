@@ -100,6 +100,7 @@ __all__ = [
     "mnemonic",
     "network",
     "number_theory",
+    "p2p",
     "psbt",
     "psbt_signer",
     "psbt_signer_contract",

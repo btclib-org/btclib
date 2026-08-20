@@ -275,7 +275,10 @@ accepts, much of it taking anything convertible rather than one type, and
 any key representation and hand back one. `bip32` and `mnemonic` derive
 keys. `script`, `tx`, `block` and `psbt` build and validate what goes on
 the chain, and `script.engine` runs a transaction against the consensus
-rules.
+rules. `p2p` is the wire format peers speak — the message envelope, its
+framing, and the message start each network begins with — and it opens no
+socket: `fetch` is the one package that goes and asks, and neither
+imports the other.
 
 Above them, `bip44` composes `bip32`, `script.taproot` and both address
 encodings into an address from an extended key and a derivation path, and
@@ -287,8 +290,8 @@ is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
 Nothing in the library imports `bip21`, `bip322`, `bip85`, `slip132`,
-`fee`, `wallet`, `hwi` or `fetch`: they are the top of the stack, and
-`fetch` is the only one that goes out to the network. `wallet` remembers
+`fee`, `wallet`, `hwi`, `p2p` or `fetch`: they are the top of the stack,
+and `fetch` is the only one that goes out to the network. `wallet` remembers
 which addresses it has handed out — over `bip44`, over `descriptors` or
 over a script template of its own — and its key wallets sign for one with
 `ecc.bms`.

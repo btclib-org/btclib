@@ -114,6 +114,10 @@ REEXPORTED = {
             "urlopen_transport",
         ],
     ),
+    "btclib.p2p.magic": (
+        bitcoin_core_rpc,
+        ["magic_from_chain", "magic_from_signet_challenge"],
+    ),
     "btclib.block.limits": (
         consensus,
         ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"],
@@ -202,6 +206,10 @@ CHILD_MODULES = {
             "slip39",
         ],
         "unpublished": [],
+    },
+    "btclib.p2p": {
+        "groups": [],
+        "unpublished": ["limits", "magic", "message"],
     },
     "btclib.psbt": {
         "groups": ["musig2", "silent_payments"],

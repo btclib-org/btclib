@@ -14,6 +14,7 @@ Subpackages
    btclib.ecc
    btclib.fetch
    btclib.mnemonic
+   btclib.p2p
    btclib.psbt
    btclib.script
    btclib.tx
