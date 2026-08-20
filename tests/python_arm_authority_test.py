@@ -87,7 +87,7 @@ what would:
   an authority of its own or is the singular one enumerated.
 
 `ecc.commit_nonce.commit_nonce_`, the sign-to-contract nonce tweak, was
-the other -- issue #1003's re-derivation found `ecc/ssa_test.py` does
+among them -- issue #1003's re-derivation found `ecc/ssa_test.py` does
 reach it, through `ssa.sign(..., commit=...)`, a test btclib wrote rather
 than a BIP340 vector. That is the module-not-vector weakness two
 paragraphs up made concrete: the entry now says a module built on

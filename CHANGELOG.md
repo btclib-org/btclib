@@ -721,17 +721,19 @@ documented at release-notes length in the first place, and are still in
   `vendored-vectors` and `published` already share the 1st.
 
   The re-derivation found the table itself out of date the first time it
-  ran, of the thirty-five entries: twenty understated their arm's
-  reach — mostly the arithmetic `curves/curve.py` and `curves/sec_point.py`
-  hold in common, which nearly every module that signs or verifies
-  anything exercises once the bindings are absent — and
-  `ecc.commit_nonce.commit_nonce_` turned out to have an authority after
-  all, `ecc/ssa_test.py`'s own sign-to-contract test reaching it through
-  `ssa.sign(..., commit=...)` — a test btclib wrote, inside a module built
-  on BIP340 vectors, which is the module-not-vector weakness the file's
-  docstring already names. Both are corrected against the fresh
-  measurement here rather than left for the sentinel's first scheduled
-  run to report on a table this pull request could have landed accurate.
+  ran — most entries understated their arm's reach, mostly the arithmetic
+  `curves/curve.py` and `curves/sec_point.py` hold in common, which
+  nearly every module that signs or verifies anything exercises once the
+  bindings are absent — and `ecc.commit_nonce.commit_nonce_` turned out
+  to have an authority after all, `ecc/ssa_test.py`'s own
+  sign-to-contract test reaching it through `ssa.sign(..., commit=...)`
+  — a test btclib wrote, inside a module built on BIP340 vectors, which
+  is the module-not-vector weakness the file's docstring already names.
+  Both are corrected against the fresh measurement here rather than left
+  for the sentinel's first scheduled run to report on a table this pull
+  request could have landed accurate. `uv sync --no-default-groups
+  --group harness && python .github/scripts/check_python_arm_authority.py`
+  repeats the measurement, whenever the count is wanted.
 
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**
