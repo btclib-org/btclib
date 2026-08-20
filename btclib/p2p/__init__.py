@@ -21,13 +21,13 @@ exactly as it reads one it knows: the payload types are separate work
 be written before them.
 
 **The message start is published without being imported**, which is the
-asymmetry to know about here. `magic_from_chain`,
-`magic_from_network` and `magic_from_signet_challenge` are
-`btclib.p2p.magic`'s, and that module reaches the `bitcoin-core-rpc`
-package -- which imports `urllib.request`, `ssl` and `socket` on its way
-in, none of which a codec has any use for. README.md states the property
-that would cost: "no module outside that package loads
-`urllib.request`". So `__getattr__` below publishes the three the way
+asymmetry to know about here. `magic_from_chain`, `magic_from_network`
+and `magic_from_signet_challenge` are `btclib.p2p.magic`'s, and that
+module reaches the `bitcoin-core-rpc` package -- which imports
+`urllib.request`, and `ssl` and `socket` under it, none of which a codec
+has any use for. README.md states the property that would cost: "No
+module loads `urllib.request` on its way to anything else." So
+`__getattr__` below publishes the three the way
 `btclib/script/__init__.py` publishes `sig_hash` and `engine`, and
 `import btclib.p2p` stays what a parser needs and nothing else. Asking
 for a message start is what pays for one.
