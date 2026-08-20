@@ -39,10 +39,11 @@ from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 from types import TracebackType
-from typing import TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from btclib import var_bytes
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib._libsecp256k1 import ffi as libsecp256k1_ffi
 from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, PreparedPoint, mult, secp256k1
@@ -1195,7 +1196,7 @@ def sign_recoverable(
 
 def _delegated_sign_(
     msg_hash: bytes,
-    q: int,
+    prvkey_buffer: Any,
     grind: bool,
     ec: Curve,
     *,
@@ -1213,6 +1214,14 @@ def _delegated_sign_(
     a field square root for a compressed key, and this call never pays
     even the cheaper uncompressed one twice.
 
+    `prvkey_buffer` is the `unsigned char[32]` the `Signer` built and
+    holds, not an `int`: `dsa.sign`'s `prvkey` argument passes a cffi
+    array of exactly that length straight through to libsecp256k1
+    unconverted rather than coercing it to a fresh `bytes`
+    (btclib-secp256k1#253), which is what lets the class docstring's
+    `wipe` reach every signature this makes and not only the reference
+    this object drops.
+
     `pubkey_sec` is held back where `verify` declines the check it is
     for -- the bindings refuse the pair, `pubkey is for the check that
     verify=False declines`, the same contradiction `sign_` itself raises
@@ -1225,7 +1234,7 @@ def _delegated_sign_(
     try:
         compact = libsecp256k1_dsa.sign(
             msg_hash,
-            q,
+            prvkey_buffer,
             None,
             compact=True,
             grind=grind,
@@ -1254,40 +1263,44 @@ class Signer:
     the arithmetic of `_sign_` or one call into the bindings either way,
     and the check is what a held key removes from it.
 
-    **What this does not hand the caller is the lifetime of a secret,
-    and that is a limit rather than an omission.** `ssa.Signer` can,
-    because BIP340 signing through the bindings takes a
-    `secp256k1_keypair` -- a pointer into memory this package owns and
-    can overwrite, built once and reused for every signature the object
-    makes. ECDSA has no such object in libsecp256k1: `secp256k1_ecdsa_sign`
-    reads the private key from a bare pointer on every call, and the
-    bindings' own wrapper builds that pointer by coercing whatever was
-    passed -- an `int`, `bytes`, a `bytearray` -- into a fresh immutable
-    `bytes` object first, `_scalar.scalar()`, every time
-    (btclib-secp256k1#247). So a `Signer` backed by that arm does not
-    hold one copy of the secret it could later overwrite: it hands the
-    bindings a new, unreachable one on every signature it makes, for as
-    long as it is asked to sign, and `wipe` arriving afterwards would
-    have nothing of that trail left to reach. Promising erasure there
-    would be worse than not offering it, so `wipe` refuses outright
-    rather than pretending a dropped reference undoes what already
-    happened -- see its own docstring.
+    **This hands the caller the lifetime of a secret on both arms, which
+    issue #1009 first found a real limit on the delegated one.** ECDSA
+    has no persistent object in libsecp256k1 the way BIP340 does --
+    `secp256k1_ecdsa_sign` reads the private key from a bare pointer on
+    every call rather than from a `secp256k1_keypair` built once -- and
+    at the time that finding stood, the bindings' own wrapper coerced
+    whatever was passed into a fresh immutable `bytes` object on every
+    call regardless, `_scalar.scalar()`, so a `Signer` holding one copy
+    of the key had nothing to overwrite: every signature left an
+    unreachable one of its own in the bindings' memory
+    (btclib-secp256k1#247). That coercion is what btclib-secp256k1#253
+    removed for exactly this case: `dsa.sign`'s `prvkey` argument now
+    takes a cffi array of exactly 32 octets and passes it through
+    unconverted, so a caller who owns the buffer keeps owning it. This
+    class builds one such buffer at construction --
+    `ffi.new("unsigned char[32]", ...)` -- and hands the bindings that
+    same pointer on every signature it makes rather than the plain `int`
+    the class held before, so there is now one copy of the secret this
+    holds throughout its life, on both arms, and `wipe` overwrites it on
+    both: the buffer's own 32 octets here, `secp256k1_keypair`'s there.
 
-    That is the delegated arm, secp256k1 with sha256 by default and
-    therefore the common case. On any other curve or hash function --
-    the bindings declining, or `curves.set_libsecp256k1_serving(False)`
-    turning them off for the whole process -- every signature is the
-    Python arithmetic of `_sign_`, which never crosses into the bindings
-    at all: the secret this object holds is a plain integer the whole of
-    its life, and `wipe` genuinely lets go of it, an `int`'s own limit
-    aside -- it cannot be overwritten, only dropped, which SECURITY.md's
-    limitations section states for the library at large. Which arm a
-    given instance uses is decided once, at construction, from `ec` and
-    `hf` alone: `sign_` and `sign` take no nonce, no lower-s override and
-    no commitment, unlike the free functions, precisely so that nothing
-    a caller passes afterwards could move an instance from one arm to
-    the other -- `wipe`'s promise would otherwise depend on an argument
-    to a later call rather than on the object itself.
+    On the delegated arm, secp256k1 with sha256 by default and therefore
+    the common case, `wipe` zeroes that buffer. On any other curve or
+    hash function -- the bindings declining, or
+    `curves.set_libsecp256k1_serving(False)` turning them off for the
+    whole process -- every signature is the Python arithmetic of
+    `_sign_`, which never crosses into the bindings at all: the secret
+    this object holds there is a plain integer the whole of its life,
+    and `wipe` lets go of it -- an `int`'s own limit rather than this
+    class's, since it cannot be overwritten, only dropped, which
+    SECURITY.md's limitations section states for the library at large.
+    Which arm a given instance uses is decided once, at construction,
+    from `ec` and `hf` alone: `sign_` and `sign` take no nonce, no
+    lower-s override and no commitment, unlike the free functions,
+    precisely so that nothing a caller passes afterwards could move an
+    instance from one arm to the other -- `wipe`'s promise would
+    otherwise depend on an argument to a later call rather than on the
+    object itself.
 
     No `pub_key` argument either, matching `ssa.Signer`: the point of
     holding one is that every signature checks under it, so there is
@@ -1322,6 +1335,26 @@ class Signer:
         self._pub_key_sec: bytes | None = (
             _sec_from_pub_key(Q) if _libsecp256k1_serves(ec, hf) else None
         )
+
+        # the buffer `_delegated_sign_` hands the bindings on every
+        # signature and `wipe` overwrites on the way out, built here
+        # rather than left as the `int` above: `dsa.sign`'s `prvkey`
+        # passes a 32-octet cffi array through unconverted
+        # (btclib-secp256k1#253), so this is the one copy of the secret
+        # this arm holds for the whole of the instance's life
+        self._prvkey_buffer: Any | None = (
+            libsecp256k1_ffi.new("unsigned char[32]", self._q.to_bytes(32, "big"))
+            if self._pub_key_sec is not None
+            else None
+        )
+        if self._prvkey_buffer is not None:
+            # the same reasoning `ssa.Signer` already gives for its own
+            # `self._q = 0` beside a keypair: the buffer above holds the
+            # same secret in memory this object can overwrite, so
+            # keeping the int beside it would be a second copy held for
+            # nothing -- and the one copy of the two that cannot be
+            # erased, at that
+            self._q = 0
         self._wiped = False
 
     def __enter__(self) -> Signer:
@@ -1341,33 +1374,25 @@ class Signer:
         On the Python arm -- `self._pub_key_sec is None` -- the scalar
         this object signs with is the whole of what it holds, and
         dropping the reference is genuinely the end of its lifetime
-        here: nothing else in this package still has it, and a wiped
-        signer refuses to sign rather than signing with the zeros.
-        Idempotent, so that a caller may wipe a signer it is not sure
-        about; the `with` statement is the customary way to run one.
+        here: nothing else in this package still has it.
 
-        On the delegated arm this raises instead of doing that, and the
-        class docstring is where the reason is written in full: every
-        signature already made left an unreachable copy of the key in
-        the bindings' own memory, one that dropping `self._q` does
-        nothing about, so there is no operation left here whose name
-        could honestly be `wipe`. `NotImplementedError` and not
-        `BTClibValueError` or a silent no-op -- `sign_`'s "the signer is
-        wiped" is a caller who asked to keep using a signer that has
-        already let go, which is not this: this is a caller asking for
-        an erasure that btclib-secp256k1#247 makes unavailable, so the
-        signer itself is not marked wiped and goes on signing exactly as
-        before, waiting for that issue to close.
+        On the delegated arm the buffer built at construction is what is
+        overwritten, `ffi.buffer(self._prvkey_buffer)[:] = bytes(32)`
+        (btclib-secp256k1#253 is what makes it the same memory every
+        signature reads, rather than a copy the bindings threw away):
+        this arm's every signature has read the same 32 octets this
+        instance holds, so wiping them reaches every one of them at
+        once, unlike the free `sign` this class replaces, which never
+        held a buffer to wipe in the first place.
+
+        Either way a wiped signer refuses to sign rather than signing
+        with the zeros. Idempotent, so that a caller may wipe a signer
+        it is not sure about; the `with` statement is the customary way
+        to run one.
         """
-        if self._pub_key_sec is not None:
-            raise NotImplementedError(
-                "the bindings coerce a private key into a fresh immutable "
-                "bytes object on every ECDSA signature, and libsecp256k1 "
-                "holds no persistent keypair for ECDSA the way it does for "
-                "BIP340 -- so this signer keeps no secret that wiping "
-                "could reach, and every signature already made left one "
-                "nothing here can overwrite (btclib-secp256k1#247)"
-            )
+        if self._prvkey_buffer is not None:
+            libsecp256k1_ffi.buffer(self._prvkey_buffer)[:] = bytes(32)
+            self._prvkey_buffer = None
         self._q = 0
         self._wiped = True
 
@@ -1397,7 +1422,7 @@ class Signer:
         if self._pub_key_sec is not None:
             sig = _delegated_sign_(
                 msg_hash,
-                self._q,
+                self._prvkey_buffer,
                 grind,
                 self._ec,
                 verify=verify,

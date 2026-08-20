@@ -109,7 +109,11 @@ secp256k1 = [
     # is that sum with its terms as well, so that no product of a
     # multi-scalar multiplication crosses the boundary; and for
     # `ssa.Signer` (btclib-secp256k1#154), which `ecc.ssa.Signer` holds so
-    # that a keypair is built once per key rather than once per signature.
+    # that a keypair is built once per key rather than once per signature;
+    # and for `dsa.sign` accepting a caller-owned 32-octet cffi array as
+    # `prvkey` and passing it through unconverted (btclib-secp256k1#253),
+    # which `ecc.dsa.Signer` now holds so that `wipe` reaches the
+    # delegated arm too (issue #1009).
     # The version is not on PyPI yet -- `[tool.uv.sources]` below is what
     # resolves it here -- so this floor is also what stops a release going
     # out against a bindings that cannot serve it

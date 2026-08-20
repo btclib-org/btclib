@@ -3897,6 +3897,22 @@ documented at release-notes length in the first place, and are still in
   and `BOS_COSTER_THRESHOLD` sends the call to Bos-Coster, which builds no
   table at all.
 
+- **`ecc.dsa.Signer.wipe()` reaches the delegated arm now** (issue
+  #1009). It used to raise `NotImplementedError` there: ECDSA has no
+  persistent keypair in libsecp256k1 the way BIP340 does, and the
+  bindings coerced whatever private key was passed into a fresh
+  immutable `bytes` object on every signature regardless
+  (btclib-secp256k1#247), so a `Signer` holding one copy of the key had
+  nothing left to overwrite by the time `wipe` was called.
+  btclib-secp256k1#253 removed that coercion for this case: `dsa.sign`'s
+  `prvkey` argument now accepts a caller-owned 32-octet cffi array and
+  passes it through unconverted rather than copying it. `Signer` now
+  builds one such buffer at construction and hands the bindings that
+  same pointer on every signature it makes, so `wipe` overwrites the 32
+  octets every signature has read from, on the delegated arm exactly as
+  it already did on the Python one. The bindings pin moves to pick up
+  btclib-secp256k1#253.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and

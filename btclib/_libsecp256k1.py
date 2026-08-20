@@ -51,6 +51,7 @@ __all__ = [
     "dsa",
     "dsa_verify",
     "ellswift",
+    "ffi",
     "keys",
     "pubkey_from_prvkey",
     "pubkey_sum",
@@ -67,7 +68,14 @@ __all__ = [
 ]
 
 try:
-    from btclib_secp256k1 import dsa, ellswift, keys, recovery, ssa, xonly
+    # `ffi` is the one object here that is not a wrapped call: issue #1009
+    # is why it is needed at all -- `ecc.dsa.Signer` builds its own
+    # `unsigned char[32]` with it, to hold a private key in memory this
+    # package can overwrite, the way `ssa.Signer` already can through the
+    # keypair `ssa` itself builds. Nothing else here needs it, `dsa.sign`
+    # and every other wrapped call taking that buffer as the `prvkey` a
+    # caller may already hold (btclib-secp256k1#253)
+    from btclib_secp256k1 import dsa, ellswift, ffi, keys, recovery, ssa, xonly
     from btclib_secp256k1.dsa import verify as dsa_verify
     from btclib_secp256k1.keys import (
         PubkeyTweakChain,
@@ -101,7 +109,7 @@ except ImportError:  # pragma: no cover
     # called, so the object would be a second thing to keep true. The
     # ignore is on the assignment and not on the module: every other
     # name here keeps the type the try branch gave it
-    dsa = ellswift = keys = recovery = ssa = xonly = None  # type: ignore[assignment]
+    dsa = ellswift = ffi = keys = recovery = ssa = xonly = None  # type: ignore[assignment]
     # a class rather than a function, so mypy calls it an assignment to
     # a type and wants the second code as well
     PubkeyTweakChain = None  # type: ignore[misc, assignment]
