@@ -44,6 +44,18 @@ documented at release-notes length in the first place, and are still in
   repository-settings level rather than documenting it, is the issue's
   other option and is left for a separate, maintainer-authorized change.
 
+- **A `tag-integrity` ruleset now enforces the other half of issue
+  #1022**, requiring `required_signatures` on `refs/tags/v*`, with no
+  bypass actor. `RELEASING.md`'s tagging step already produces a signed
+  tag by default, so nothing about the release procedure changes; what
+  the ruleset adds is that an unsigned `v*` tag is now refused outright
+  rather than merely undocumented. It carries no `deletion` or
+  `non_fast_forward` rule on purpose: RELEASING.md's own recovery path
+  deletes and re-tags a release that failed before `publish-pypi`, and
+  either rule would block that. Existing tags are unaffected — the
+  ruleset applies to pushes going forward, not retroactively — closing
+  the issue now that both options it named are done.
+
 - **`claude-review.yml` reads a pull request against `REVIEWING.md`.**
   Two jobs: one on every non-draft pull request, whose prompt names that
   file rather than restating it, so the standard moves without the

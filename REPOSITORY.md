@@ -282,7 +282,7 @@ branch, and it is the only branch there is. Issue #158 was the other
 arrangement — two bots pushing through an integration branch that carried
 no protection at all — and one branch is what closed it.
 
-### Two rulesets beside the classic rule
+### Three rulesets beside the classic rule
 
 `enforce_admins` off is one switch that exempts an administrator from
 every rule above at once — there is no way, inside the classic rule
@@ -290,7 +290,10 @@ alone, to relax the review requirement for a solo merge while keeping
 signatures and linear history unconditional. Two rulesets carry that
 split, additive to the classic rule rather than replacing it: rules
 aggregate across rulesets and classic protection, taking the most
-restrictive combination wherever they overlap.
+restrictive combination wherever they overlap. A third targets tags
+rather than `main`, for an unrelated reason: `release.yml` publishes to
+PyPI on `push: tags: ["v*"]`, and that tag was the one unattested link
+in an otherwise fully-signed chain (issue #1022).
 
 - `main-integrity`: required signatures, required linear history, no
   force pushes, no deletions. No bypass actor, for anyone, ever.
@@ -298,6 +301,13 @@ restrictive combination wherever they overlap.
   dismiss stale reviews, conversation resolution — and `squash` as the
   only merge method it will accept. Bypass: the maintainer, in
   **`pull_request` mode**.
+- `tag-integrity`, `target: tag`, `refs/tags/v*`: required signatures,
+  and nothing else. No `deletion` or `non_fast_forward` rule, on
+  purpose — RELEASING.md's own recovery path deletes and re-tags a
+  release that failed before `publish-pypi`, and either rule would
+  block exactly that. No bypass actor, for anyone, ever: RELEASING.md's
+  tagging step already produces a signed tag by default, so there is no
+  case that needs one.
 
 **The bypass mode is the whole of the design.** `pull_request` excuses
 its holder from the rule *while merging a pull request* and at no other
@@ -317,7 +327,7 @@ second half is not hypothetical: a `git merge` run in the wrong working
 tree is enough to advance `main` locally, and under `always` the push
 that follows would be accepted.
 
-Read the two back rather than trusting either:
+Read the three back rather than trusting any one:
 
 ```shell
 gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
@@ -326,8 +336,9 @@ gh api repos/btclib-org/btclib/rulesets --jq '.[].id' \
            bypass: [.bypass_actors[] | .bypass_mode]}'
 ```
 
-`main-integrity` answers with an empty bypass list, and it is what makes
-an unsigned commit or a rewritten history unlandable by anyone, admin or
+`main-integrity` and `tag-integrity` both answer with an empty bypass
+list, and it is what makes an unsigned commit or a rewritten history
+unlandable, and an unsigned `v*` tag unpushable, by anyone, admin or
 not, through a pull request or otherwise.
 
 **Two settings hold the door, not one.** The classic protection still
