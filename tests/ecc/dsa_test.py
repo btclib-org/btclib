@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib._libsecp256k1 import ffi as libsecp256k1_ffi
 from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib.alias import INF, JacPoint, Point
 from btclib.curves import (
@@ -2320,45 +2321,42 @@ def test_a_wiped_python_signer_refuses_rather_than_signing_with_the_zeros(
 
 
 @needs_bindings
-def test_a_delegated_signer_s_wipe_refuses_rather_than_pretending() -> None:
-    """`wipe` here would be a promise this arm cannot keep, so it refuses.
+def test_a_delegated_signer_s_wipe_zeroes_the_buffer_it_signs_from() -> None:
+    """`wipe` reaches this arm's key now, not only the reference to it.
 
-    ECDSA has no libsecp256k1 keypair the way BIP340 does: every
-    signature this arm makes hands the bindings a fresh, unreachable copy
-    of the key (btclib-secp256k1#247), so there is no persistent secret a
-    later `wipe` could still reach -- unlike the Python arm, dropping
-    `self._q` here would not undo anything already done. `NotImplementedError`
-    says so rather than a silent no-op that would let a caller believe
-    the key is gone, and the signer is left exactly as usable as before,
-    the refusal not being recorded as a wipe.
+    btclib-secp256k1#253 is what makes this true: `dsa.sign`'s `prvkey`
+    argument passes a 32-octet cffi array through unconverted rather
+    than coercing it to a fresh, unreachable `bytes` on every call
+    (btclib-secp256k1#247, closed by that change), so the buffer this
+    signer built at construction is the same 32 octets every signature
+    it has made was read from, and overwriting it now reaches every one
+    of them at once -- not only the copy this object happens to be
+    holding when `wipe` is called.
     """
     signer = dsa.Signer(prv_key_int)
     assert signer.sign(b"a message")
 
-    with pytest.raises(NotImplementedError, match="btclib-secp256k1#247"):
-        signer.wipe()
-    # refused, not silently accepted: the signer still holds its key and
-    # still signs, which is what "not marked wiped" means in practice
-    assert signer.sign(b"a message")
-    with pytest.raises(NotImplementedError, match="btclib-secp256k1#247"):
-        signer.wipe()
+    buffer = signer._prvkey_buffer
+    assert bytes(libsecp256k1_ffi.buffer(buffer)) != bytes(32)
+    signer.wipe()
+    assert bytes(libsecp256k1_ffi.buffer(buffer)) == bytes(32)
+    assert signer._prvkey_buffer is None
 
-    # the `with` statement wipes on the way out, so it raises too -- even
-    # where the block signed nothing and ended cleanly
-    with (
-        pytest.raises(NotImplementedError, match="btclib-secp256k1#247"),
-        dsa.Signer(prv_key_int) as block_signer,
-    ):
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        signer.sign(b"a message")
+    # idempotent, as `close` is on the signer contract
+    signer.wipe()
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        signer.sign(b"a message")
+
+    with dsa.Signer(prv_key_int) as block_signer:
         assert block_signer.sign(b"a message")
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        block_signer.sign(b"a message")
 
-    # and where the block itself raised, python's own `with` semantics
-    # are what decide the outcome and not this class's: `__exit__`
-    # raising a new exception replaces the one the block was propagating,
-    # chaining it on as `__context__` rather than losing it -- a caller
-    # who wants to know the block itself failed reads that attribute
-    with (
-        pytest.raises(NotImplementedError, match="btclib-secp256k1#247") as raised,
-        dsa.Signer(prv_key_int),
-    ):
+    # and the block wipes on the way out of an exception too
+    raising = dsa.Signer(prv_key_int)
+    with pytest.raises(ZeroDivisionError), raising:
         _ = 1 / 0
-    assert isinstance(raised.value.__context__, ZeroDivisionError)
+    with pytest.raises(BTClibValueError, match="the signer is wiped"):
+        raising.sign(b"a message")
