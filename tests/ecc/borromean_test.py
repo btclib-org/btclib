@@ -425,6 +425,11 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
     `zip` and no parameter of `sign`. The check is `sign`'s own now, and
     `strict=True` stays as the assertion that the two cannot drift
     apart.
+
+    `sign_keys` used to be left out of this check (issue #1088): a short
+    one reached `sign_keys[i]` in step 2 as a bare `IndexError`, the same
+    ring-count exposure `assert_as_valid` has for a mismatched `s` --
+    checked here now, before either walk, for the same reason.
     """
     ring_sizes = [3, 4]
     sign_key_idx = [2, 1]
@@ -437,12 +442,48 @@ def test_one_nonce_and_one_signing_index_per_ring() -> None:
         borromean.sign(msg, [1, 2], sign_key_idx, sign_keys, pubk_rings), BorromeanSig
     )
 
-    err_msg = "2 rings, 2 signing indexes and 1 nonces"
+    err_msg = "2 rings, 2 signing indexes, 1 nonces and 2 signing keys"
     with pytest.raises(BTClibValueError, match=err_msg):
         borromean.sign(msg, [1], sign_key_idx, sign_keys, pubk_rings)
-    err_msg = "2 rings, 1 signing indexes and 2 nonces"
+    err_msg = "2 rings, 1 signing indexes, 2 nonces and 2 signing keys"
     with pytest.raises(BTClibValueError, match=err_msg):
         borromean.sign(msg, [1, 2], sign_key_idx[:1], sign_keys, pubk_rings)
+    err_msg = "2 rings, 2 signing indexes, 2 nonces and 1 signing keys"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(msg, [1, 2], sign_key_idx, sign_keys[:1], pubk_rings)
+
+
+def test_a_ring_shape_that_disagrees_with_pubk_rings_is_refused() -> None:
+    """A caller-built BorromeanSig whose shape disagrees with pubk_rings.
+
+    Before this fix, nothing checked that `sig.s` and `pubk_rings`
+    described the same shape before the walk indexed `sig.s[i][j]`
+    against `pubk_ring[j]`: a mismatch reached a bare `IndexError`,
+    neither a `BTClibValueError` nor a `BTClibRuntimeError`, so it
+    escaped `verify`'s `except (ValueError, BTClibRuntimeError)` too --
+    `verify` raised where it is documented to answer `False` (issue
+    #1088). The two cases named separately, as the issue's decision
+    asked: a ring with fewer scalars than keys, and fewer rings than
+    `pubk_rings` -- "the same defect one level up" -- each asserted
+    through both `assert_as_valid` and `verify`, since the escaping
+    `IndexError` was visible only through the second.
+    """
+    ec = secp256k1
+    q1 = mult(1, ec.G, ec)
+    q2 = mult(2, ec.G, ec)
+
+    # one ring, two keys, one s-value: fewer scalars than keys
+    sig = BorromeanSig((0).to_bytes(32, "big"), [[5]], ec)
+    err_msg = "ring 0 has 1 s-value for 2 keys"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.assert_as_valid(b"msg", sig, [[q1, q2]])
+    assert not borromean.verify(b"msg", sig, [[q1, q2]])
+
+    # one ring in the signature, two in pubk_rings: fewer rings
+    err_msg = "2 pubkey rings and 1 s-value ring"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.assert_as_valid(b"msg", sig, [[q1], [q2]])
+    assert not borromean.verify(b"msg", sig, [[q1], [q2]])
 
 
 # each maps an s-value to a key `_guess_signer` maximizes over the ring: a

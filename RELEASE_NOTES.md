@@ -471,6 +471,21 @@ full year, short month, short day (YYYY-M-D)
   catching `ValueError` around that one corner case catches nothing
   now. CHANGELOG.md has why, for both.
 
+- **`borromean.verify` answers `False`, not a bare `IndexError`, for a
+  `sig` whose ring shape disagrees with `pubk_rings`; `assert_as_valid`
+  refuses one with `BTClibValueError`, not the same `IndexError`.**
+  Before: a `sig` with fewer rings than `pubk_rings`, or a ring with
+  fewer s-values than it has keys, indexed past the end of a ring's
+  tuple in both, and the plain `IndexError` that raised was neither
+  caught by `verify`'s `except (ValueError, BTClibRuntimeError)` nor
+  documented by either function. Now: `assert_as_valid` raises
+  `BTClibValueError` naming the ring and the counts, and `verify`
+  answers `False` for it, the same as any other invalid signature. A
+  caller catching `IndexError` around either call to detect this case
+  has to catch `BTClibValueError`, or nothing at all against `verify`,
+  which no longer raises here. CHANGELOG.md has why the check is a
+  `BTClibValueError` and not `BorromeanRingError`.
+
 ### Worth knowing, though nothing raises
 
 - **Signing on the Python arm now checks the signature before answering

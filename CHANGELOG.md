@@ -4481,6 +4481,37 @@ documented at release-notes length in the first place, and are still in
   never handed back an object that looks like a signature and signs
   nothing.
 
+- **`borromean.assert_as_valid` refuses a `sig` whose ring shape
+  disagrees with `pubk_rings`, and `verify` answers `False` for one
+  rather than raising** (issue #1088). Nothing checked that `sig.s` and
+  `pubk_rings` described the same shape before the walk indexed
+  `sig.s[i][j]` against `pubk_ring[j]`: a mismatched signature -- fewer
+  rings than `pubk_rings`, or a ring with fewer s-values than it has
+  keys -- reached a bare `IndexError`, which is neither a
+  `BTClibValueError` nor a `BTClibRuntimeError`, so it escaped `verify`'s
+  `except (ValueError, BTClibRuntimeError)` and `verify` raised where it
+  is documented to answer `False`. The check is a `BTClibValueError`
+  naming the ring and the counts -- not `BorromeanRingError`, which is a
+  `BTClibRuntimeError` for a check that ran and failed, where a shape
+  mismatch is two arguments that never described the same object in the
+  first place -- and it runs once, before the walk, in both
+  `assert_as_valid` and `sign`: `sign` had the same exposure through
+  `sign_keys`, left out of its own existing ring-count check and
+  reaching `sign_keys[i]` in step 2 as the same bare `IndexError`.
+  `verify`'s `except` clause is unchanged and does not add `IndexError`
+  to it: the existing `BTClibValueError` arm already catches the new
+  check, and widening the clause would hide this class of bug rather
+  than fix it.
+
+- **The `r = b"\0x00"` seed at the top of `assert_as_valid`'s per-ring
+  loop is gone** (issue #1089). It was never a null byte: `\0` is
+  Python's own NUL escape, so the literal read as the four bytes
+  `b"\x00x00"`, not the placeholder it looked like. It was also dead --
+  the loop below is the only reader of `r`, and always assigns it in
+  the same iteration before that read -- so nothing depended on the
+  four stray bytes it briefly held; only the initializer is removed,
+  and it cost no test.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and
