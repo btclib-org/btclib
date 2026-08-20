@@ -275,7 +275,10 @@ accepts, much of it taking anything convertible rather than one type, and
 any key representation and hand back one. `bip32` and `mnemonic` derive
 keys. `script`, `tx`, `block` and `psbt` build and validate what goes on
 the chain, and `script.engine` runs a transaction against the consensus
-rules.
+rules. `p2p` is the wire format peers speak — the message envelope, its
+framing, and the message start each network begins with — and it opens no
+socket: `fetch` is the one package that goes and asks, and neither
+imports the other.
 
 Above them, `bip44` composes `bip32`, `script.taproot` and both address
 encodings into an address from an extended key and a derivation path, and
@@ -287,8 +290,8 @@ is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
 Nothing in the library imports `bip21`, `bip322`, `bip85`, `slip132`,
-`fee`, `wallet`, `hwi` or `fetch`: they are the top of the stack, and
-`fetch` is the only one that goes out to the network. `wallet` remembers
+`fee`, `wallet`, `hwi`, `p2p` or `fetch`: they are the top of the stack,
+and `fetch` is the only one that goes out to the network. `wallet` remembers
 which addresses it has handed out — over `bip44`, over `descriptors` or
 over a script template of its own — and its key wallets sign for one with
 `ecc.bms`.
@@ -307,13 +310,18 @@ client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
 and `TxOut`, and checks the chain the node reports against the network
 those are labelled for.
 
-The dependency stops at `btclib/fetch/`. bitcoin-core-rpc declares its own
-`FetchError`, importing nothing of btclib's being what lets its file be
-vendored, and `btclib.fetch.fetcher.client_errors` re-raises it as
-`btclib.exceptions`' own, with the `status` and the `code` carried across:
-an `except FetchError` written against btclib catches what a fetcher
-raises, and no module outside that package loads `urllib.request`.
-Constructing a client opens no socket; the first call does.
+The dependency stops at `btclib/fetch/` and at `btclib/p2p/magic.py`,
+which is where the p2p message start is — that package's table, not a
+second copy of it. bitcoin-core-rpc declares its own `FetchError`,
+importing nothing of btclib's being what lets its file be vendored, and
+`btclib.fetch.fetcher.client_errors` re-raises it as `btclib.exceptions`'
+own, with the `status` and the `code` carried across: an `except
+FetchError` written against btclib catches what a fetcher raises. No
+module loads `urllib.request` on its way to anything else: importing it
+is what reaching that package costs, so `btclib.p2p` publishes the
+message start without importing it and a caller who parses messages pays
+nothing for a client it never uses. Constructing a client opens no
+socket; the first call does.
 
 ---
 

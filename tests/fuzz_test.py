@@ -37,6 +37,7 @@ from btclib.curves.sec_point import point_from_octets
 from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.p2p.message import Message
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
@@ -84,6 +85,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "psbt_utils.parse_leaf_script": psbt_utils.parse_leaf_script,
     "psbt_utils.parse_taproot_tree": psbt_utils.parse_taproot_tree,
     "psbt_utils.parse_taproot_bip32": psbt_utils.parse_taproot_bip32,
+    "Message.parse": Message.parse,
     "BIP32KeyData.parse": BIP32KeyData.parse,
     "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,
@@ -192,6 +194,10 @@ TX_BIN = bytes.fromhex(
     "53ae00000000"
 )
 PSBT_BIN = _first_valid_psbt()
+# a p2p envelope carrying a payload, so that the mutations reach the
+# checksum and the length field with octets behind them rather than a
+# header alone
+MESSAGE_BIN = Message("f9beb4d9", "ping", bytes(8)).serialize()
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -216,6 +222,11 @@ def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
 
 
 MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
+    # a p2p envelope is the one sample here whose mutations are all
+    # reachable: 24 octets of header, so a flipped bit lands in the magic,
+    # the command, the length or the checksum rather than deep inside a
+    # structure the outermost check has already refused
+    "Message.parse": (Message.parse, MESSAGE_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),

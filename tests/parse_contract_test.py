@@ -31,6 +31,7 @@ from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader
 from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.p2p import Message
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -87,6 +88,7 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("psbt", Psbt, _psbt().serialize()),
     ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),
     ("psbt_out", PsbtOut, PsbtOut(redeem_script=b"\x51").serialize()),
+    ("p2p_message", Message, Message("f9beb4d9", "ping", bytes(8)).serialize()),
 ]
 
 _IDS = [case[0] for case in _CASES]

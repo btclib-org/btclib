@@ -113,6 +113,55 @@ def test_exceptions_imports_nothing_of_btclibs_and_no_client(
     assert "'urllib.request'" not in loaded
 
 
+def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
+    """`btclib.p2p` publishes the message start without importing it.
+
+    The package's whole claim is that it opens no socket, and the module
+    holding the message start reaches `bitcoin_core_rpc`, which brings
+    `urllib.request` in with it -- and `ssl` and `socket` under that --
+    none of which a codec has any use for. README.md states the property
+    this keeps: "No module loads `urllib.request` on its way to anything
+    else".
+
+    So `btclib/p2p/__init__.py` answers the three names through PEP 562,
+    as `btclib/script/__init__.py` answers `sig_hash` and `engine`, and
+    what is pinned here is both halves: importing the package costs
+    nothing, and asking for a message start is what pays.
+
+    The two names asserted are the two the test above asserts, and
+    `socket` is deliberately not a third. `btclib/__init__.py` reads the
+    version with `importlib.metadata`, which imports `email.utils` on
+    every interpreter before 3.13, and that module imports `socket` for
+    `make_msgid` -- so `socket` is in `sys.modules` after importing
+    anything of btclib's, says nothing about this package, and asserting
+    its absence passes here and fails on most of the matrix. What
+    re-measures it, on any interpreter: `UV_PROJECT_ENVIRONMENT=.venv-3.11
+    uv run --python 3.11 python -c "import btclib.p2p, sys;
+    print('socket' in sys.modules)"`.
+
+    A subprocess for the reason the test above gives: `unimported_btclib`
+    takes btclib out of `sys.modules` and leaves `bitcoin_core_rpc` where
+    an earlier test put it.
+    """
+    reached_only_by_asking = ("'urllib.request'", "'bitcoin_core_rpc'")
+
+    probe = "import btclib.p2p, sys; print(sorted(sys.modules))"
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
+    ).stdout
+    for name in reached_only_by_asking:
+        assert name not in loaded, name
+
+    # and the other half, so that the first is a property of the codec
+    # and not of a dependency that stopped importing what it imports
+    probe = "import btclib.p2p as p; p.magic_from_chain; import sys; print(sorted(sys.modules))"
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
+    ).stdout
+    for name in reached_only_by_asking:
+        assert name in loaded, name
+
+
 def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     """b58 and b32 must not import btclib.script.
 
