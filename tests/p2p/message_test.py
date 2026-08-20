@@ -41,7 +41,7 @@ the same way.
 from __future__ import annotations
 
 import copy
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from io import BytesIO
 
 import pytest
@@ -278,12 +278,23 @@ def test_a_payload_length_no_network_would_send_is_refused() -> None:
     header = bytearray(_VERSION[:_HEADER_SIZE])
     header[16:20] = (MAX_PROTOCOL_MESSAGE_LENGTH + 1).to_bytes(4, "little")
 
-    with pytest.raises(BTClibValueError, match="invalid payload length"):
+    with pytest.raises(BTClibValueError, match="invalid payload length") as refusal:
         Message.parse(BytesIO(bytes(header)))
+    # the sharp end of it: the payload is absent, as it is for every
+    # `IncompleteMessageError` above, and this is not one -- no further
+    # octet makes such a header acceptable, so there is nothing to wait for
+    assert not isinstance(refusal.value, IncompleteMessageError)
 
     header[16:20] = (0xFFFFFFFF).to_bytes(4, "little")
     with pytest.raises(BTClibValueError, match="invalid payload length"):
         Message.parse(BytesIO(bytes(header)))
+
+    # and the octet below the bound is a length this reads, so what is
+    # refused is the bound and not the size of the buffer
+    header[16:20] = MAX_PROTOCOL_MESSAGE_LENGTH.to_bytes(4, "little")
+    with pytest.raises(IncompleteMessageError) as wanted:
+        Message.parse(BytesIO(bytes(header)))
+    assert wanted.value.missing == MAX_PROTOCOL_MESSAGE_LENGTH
 
 
 def test_the_bound_is_the_one_core_publishes() -> None:
@@ -392,3 +403,4 @@ def test_frozen() -> None:
     regtest = Message(magic_from_chain("regtest"), "verack")
     assert regtest != message
     assert regtest.serialize()[4:] == message.serialize()[4:]
+    assert replace(message, magic=magic_from_chain("regtest")) == regtest

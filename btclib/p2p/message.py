@@ -10,10 +10,10 @@ little-endian and four of checksum, followed by the payload the last two
 describe. Core's own test framework writes the same header by hand, in
 `test/functional/test_framework/p2p.py`.
 
-"command" is what the wire documentation, the BIPs and every other
-implementation call the second field; Core renamed its own spelling to
-`m_msg_type` and kept the field where it was. The name here is the one a
-reader of the protocol meets.
+Core spells the second field `m_msg_type`, where the wire documentation,
+the BIPs and every other implementation say "command". The name here is
+the one a reader of the protocol meets; the citations are Core's, so both
+spellings are worth having in one place.
 """
 
 from __future__ import annotations
@@ -89,12 +89,13 @@ def _command_from_bytes(octets: bytes) -> str:
 class Message:
     """One p2p message: which network it is for, what it is, and its payload.
 
-    The header has four fields and this has three, because two of them
-    are not the object's to hold. The checksum is the first
-    `_CHECKSUM_SIZE` octets of `hash256(payload)` and is a property, so
-    that no instance can carry one disagreeing with the payload beside
-    it; the payload length is `len(payload)` for the same reason. What is
-    left is what the payload does not determine.
+    Three fields, where the header has four and the payload follows it,
+    because two of the four are not the object's to hold. The checksum is
+    the first `_CHECKSUM_SIZE` octets of `hash256(payload)` and is a
+    property, so that no instance can carry one disagreeing with the
+    payload beside it; the payload length is `len(payload)` for the same
+    reason. What is left -- the magic, the command and the payload -- is
+    what the octets do not determine.
 
     `magic` is four octets and is looked up nowhere: an unfamiliar one
     round-trips, a custom signet's being derived from its challenge
