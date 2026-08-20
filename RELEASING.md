@@ -319,7 +319,7 @@ word, and step 1 asks it of both.
    the tag back before pushing it:
 
    ```shell
-   git tag -a v2026.8.4 -m "release v2026.8.4" <sha of the release commit>
+   git tag -s v2026.8.4 -m "release v2026.8.4" <sha of the release commit>
    git show v2026.8.4:pyproject.toml | grep '^version'
    git push origin v2026.8.4
    ```
@@ -519,7 +519,7 @@ above needs no `uv sync` to produce the published bytes.
 
   Both lines, and the local one is the half that is easy to skip: a tag
   is per-repository where a branch is per-worktree, so deleting it in one
-  worktree leaves it in every other, and the `git tag -a` that follows
+  worktree leaves it in every other, and the `git tag -s` that follows
   answers `fatal: tag 'v2026.8.4' already exists` — from a checkout that
   looks uninvolved. Delete locally wherever it is, then re-create.
 
