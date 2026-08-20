@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The TxIn dataclass; the class docstring has the contract."""
+"""The TxIn dataclass and input_weight; the class docstring has the contract."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from typing import Any
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
+from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
@@ -27,6 +28,7 @@ from btclib.utils import (
 __all__ = [
     "TX_IN_COMPARES_WITNESS",
     "TxIn",
+    "input_weight",
 ]
 
 TX_IN_COMPARES_WITNESS = True
@@ -224,3 +226,40 @@ class TxIn:
         return cls(
             prev_out, script_sig, sequence, Witness(), check_validity=check_validity
         )
+
+
+def input_weight(script_sig: Octets, witness: Witness | None = None) -> int:
+    """Return the weight one input adds to a transaction, per BIP141.
+
+    Bitcoin Core's `calculate_input_weight`, of
+    test/functional/test_framework/wallet_util.py: the non-witness bytes
+    weigh WITNESS_SCALE_FACTOR each -- the 36-byte outpoint, the
+    script_sig behind its var_int length, the 4-byte sequence -- and the
+    serialized witness stack weighs one each. Which output is spent and
+    what the sequence says do not enter the answer, both fields being
+    fixed-width, so neither is an argument.
+
+    It is computable before the input exists, which is the point: a fee
+    is chosen before the transaction is signed, so the weight the fee is
+    computed from cannot be read off the finished transaction.
+    `Tx.weight` is the same arithmetic over one already built.
+
+    `witness` is `None` for an input of a transaction with no witness
+    section and a `Witness` for one of a transaction that has it --
+    `Witness()` being the empty stack a non-segwit input carries there.
+    The two differ by a byte, that stack still serializing the var_int
+    announcing no elements, and a caller that cannot tell them apart
+    misprices an input by one. Core, taking a list of hex items, has to
+    document the distinction as a rule about `None`; here it is the
+    type's.
+    """
+    # a TxIn measured rather than its fixed 40 bytes restated here: what
+    # an outpoint and a sequence weigh is _serialized_size's to know, and
+    # building the input is what Core does for the same reason
+    weight = TxIn(script_sig=script_sig)._serialized_size() * WITNESS_SCALE_FACTOR
+    # `is not None` and not a truth test: Witness defines __len__, so the
+    # empty stack is falsy, and it is exactly the case that must not be
+    # read as no witness at all
+    if witness is not None:
+        weight += witness._serialized_size()
+    return weight
