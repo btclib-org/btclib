@@ -68,6 +68,34 @@ One rule outlives every abstraction here: **a secret nonce signs once**.
 Two signatures under one secnonce hand out the private key by
 elementary algebra, which is why `sign` zeroes the bytearray it is given
 rather than merely reading it.
+
+Adaptor signatures are the one capability BIP327 does not cover:
+`SessionContext.adaptor` carries a public point T, and `partial_sig_agg`
+then answers a *pre-signature* -- a `PreSignature`, not an `ssa.Sig`,
+because it does not verify -- that `adapt` turns into a real signature
+given the secret t behind T, or that `extract_adaptor` recovers t from,
+given both the pre-signature and the signature `adapt` produced. A DLC's
+contract execution transaction, an atomic swap across two chains and a
+payment channel's revocation all build on the same trade: whoever
+completes the signature is whoever knew t, and revealing the signature
+beside its pre-signature reveals t to anyone holding both.
+
+There is no BIP for this and no vector file, so the construction is read
+off secp256k1-zkp, the de facto specification:
+https://github.com/BlockstreamResearch/secp256k1-zkp/blob/master/src/modules/musig/session_impl.h
+and .../adaptor_impl.h beside it. Two details are where an
+implementation goes wrong and zkp does not: T is added to R_1 *before*
+b is hashed, not to the final R afterward, so the challenge itself
+commits to T and it cannot be swapped in once b is fixed; and `adapt`
+negates t exactly when the final nonce has odd y, because the
+pre-signature's nonce is then really -(r+t)*G rather than (r+t)*G --
+`adaptor_impl.h`'s own comment gives this reasoning in full.
+
+Cross-validating this construction against zkp is
+btclib-org/btclib#156's open question, not answered here: the vendored
+library, mainline `bitcoin-core/secp256k1`, has no adaptor support at
+all, so the round-trip tests below are this module's only check for
+now.
 """
 
 from __future__ import annotations
@@ -97,10 +125,13 @@ from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "KeyAggContext",
+    "PreSignature",
     "SessionContext",
     "SessionValues",
+    "adapt",
     "apply_tweak",
     "deterministic_sign",
+    "extract_adaptor",
     "individual_pub_key",
     "key_agg",
     "key_agg_and_tweak",
@@ -518,6 +549,13 @@ class SessionContext:
     the tweaks with their kinds, and the message. Two signers with
     different session contexts produce partial signatures that do not
     add up, which `partial_sig_verify` is there to catch.
+
+    `adaptor` is `None` for an ordinary session and a 33-byte compressed
+    point T for an adaptor one -- session data every party signs under,
+    not an argument to `sign`, since a signer that did not agree to T
+    must not sign a pre-signature it becomes valid for. Optional and
+    last, so an existing positional call is still five arguments and
+    still means what it meant.
     """
 
     agg_nonce: bytes
@@ -525,6 +563,7 @@ class SessionContext:
     tweaks: tuple[bytes, ...]
     is_xonly: tuple[bool, ...]
     msg: bytes
+    adaptor: bytes | None
 
     # `session_values`'s memoized answer, PreparedPoint.fixed's idiom for
     # a derived value on an otherwise-frozen dataclass: `compare=False`
@@ -550,12 +589,18 @@ class SessionContext:
         tweaks: Sequence[Octets],
         is_xonly: Sequence[bool],
         msg: Octets,
+        adaptor: Octets | None = None,
     ) -> None:
         object.__setattr__(self, "agg_nonce", bytes_from_octets(agg_nonce, _NONCE_SIZE))
         object.__setattr__(self, "pub_keys", _pub_keys(pub_keys))
         object.__setattr__(self, "tweaks", _tweaks(tweaks))
         object.__setattr__(self, "is_xonly", _flags(is_xonly))
         object.__setattr__(self, "msg", bytes_from_octets(msg))
+        object.__setattr__(
+            self,
+            "adaptor",
+            None if adaptor is None else bytes_from_octets(adaptor, _PK_SIZE),
+        )
         _require_same_length(self.tweaks, self.is_xonly)
 
 
@@ -599,13 +644,27 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     )
     Q = key_agg_ctx.Q
     x_Q = key_agg_ctx.x_only_pub_key
-    t = tagged_hash(_NONCE_COEFF_TAG, session_ctx.agg_nonce + x_Q + session_ctx.msg)
-    b = int.from_bytes(t, "big") % secp256k1.n
     try:
         R_1 = _cpoint_ext(session_ctx.agg_nonce[:_PK_SIZE])
         R_2 = _cpoint_ext(session_ctx.agg_nonce[_PK_SIZE:])
     except BTClibValueError as err:
         raise InvalidContributionError(None, "aggnonce") from err
+    # the adaptor point, folded into R_1 before b is hashed and not into
+    # the final R afterward: b must commit to T, or an adaptor could be
+    # swapped in once the pre-signature is already fixed. With no
+    # adaptor R_1 is unchanged and _cbytes_ext round-trips it back to
+    # exactly the bytes session_ctx.agg_nonce already carried, which is
+    # what keeps every BIP327 vector byte-identical to before this
+    if session_ctx.adaptor is not None:
+        try:
+            T = _cpoint(session_ctx.adaptor)
+        except BTClibValueError as err:
+            raise InvalidContributionError(None, "adaptor") from err
+        R_1 = secp256k1.add_var(R_1, T)
+    t = tagged_hash(
+        _NONCE_COEFF_TAG, _cbytes_ext(R_1) + _cbytes_ext(R_2) + x_Q + session_ctx.msg
+    )
+    b = int.from_bytes(t, "big") % secp256k1.n
     R = secp256k1.add_var(R_1, mult(b, R_2, secp256k1))
     # an aggregate nonce of infinity is a session the signers can still
     # complete: G stands in for R, the resulting signature is invalid
@@ -799,13 +858,40 @@ def partial_sig_verify(
     return partial_sig_verify_(psig, pub_nonces[i], pub_keys[i], session_ctx)
 
 
-def partial_sig_agg(psigs: Sequence[Octets], session_ctx: SessionContext) -> ssa.Sig:
-    """Aggregate the partial signatures into one BIP340 signature.
+@dataclass(frozen=True)
+class PreSignature:
+    """A MuSig2 pre-signature: (x_R, s_pre), over a session with an adaptor.
 
-    An `ssa.Sig`, because that is what it is: the result verifies under
-    the x-only aggregate key with `btclib.ecc.ssa.verify_` and with
-    every other BIP340 verifier, and handing back 64 bytes would only
-    make the caller parse them again to find out.
+    `partial_sig_agg` answers one of these instead of an `ssa.Sig`
+    whenever `session_ctx.adaptor` is set. The two share `ssa.Sig`'s
+    shape -- r an x-coordinate, s a scalar reduced mod n -- and nothing
+    else: `ssa.Sig`'s whole point is a value that verifies, and a
+    pre-signature does not, until `adapt` supplies the secret behind the
+    adaptor. Keeping it a different class is what stops a caller from
+    handing this to `ssa.verify_` and reading a failure as "bad
+    signature" rather than "not adapted yet", and it carries no
+    `serialize`/`parse` of its own: BIP373 has no field for a
+    pre-signature (`btclib.ecc.musig2`'s own docstring says so), so
+    there is no wire format to answer to yet, and one invented here would
+    have no caller to check it against.
+    """
+
+    r: int
+    s: int
+
+
+def partial_sig_agg(
+    psigs: Sequence[Octets], session_ctx: SessionContext
+) -> ssa.Sig | PreSignature:
+    """Aggregate the partial signatures into one signature, or pre-signature.
+
+    An `ssa.Sig` for an ordinary session: the result verifies under the
+    x-only aggregate key with `btclib.ecc.ssa.verify_` and with every
+    other BIP340 verifier, and handing back 64 bytes would only make the
+    caller parse them again to find out. For a session carrying an
+    adaptor, a `PreSignature` instead -- the arithmetic is the same sum,
+    but the result does not verify, and returning an `ssa.Sig` for it
+    would claim otherwise.
     """
     values = session_values(session_ctx)
     s = 0
@@ -818,4 +904,54 @@ def partial_sig_agg(psigs: Sequence[Octets], session_ctx: SessionContext) -> ssa
     # signer adds: the group tweaked the key, no single signer did
     g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
     s = (s + values.e * g * values.tacc) % secp256k1.n
-    return ssa.Sig(values.R[0], s, secp256k1)
+    if session_ctx.adaptor is None:
+        return ssa.Sig(values.R[0], s, secp256k1)
+    return PreSignature(values.R[0], s)
+
+
+def adapt(pre_sig: PreSignature, t: PrvKey, session_ctx: SessionContext) -> ssa.Sig:
+    """Complete a pre-signature into a signature, given the secret adaptor.
+
+    `session_ctx` is the session `pre_sig` was built from -- the same
+    one `partial_sig_agg` took -- because the one bit this needs and
+    does not carry on its own is the parity `session_values` already
+    derived, `R[1] % 2` on the final nonce R = R_1 + T + b*R_2.
+
+    BIP340 signs the even-y nonce; when the parity is odd, the
+    pre-signature's x-only nonce is really that of -(r+t)*G rather than
+    (r+t)*G, so completing it needs -t rather than t.
+    `secp256k1_musig_adapt` (`adaptor_impl.h`) is the source of this and
+    negates the same way, and is also this function's authority: no
+    BIP or vector file covers adaptor signatures.
+
+    Nothing here re-verifies the result: a wrong `t` returns a `Sig`
+    that fails `ssa.assert_as_valid_`, which is the caller's to run
+    against the aggregate key it already has.
+    """
+    values = session_values(session_ctx)
+    t_ = int_from_prv_key(t, secp256k1)
+    if values.R[1] % 2:
+        t_ = secp256k1.n - t_
+    s = (pre_sig.s + t_) % secp256k1.n
+    return ssa.Sig(pre_sig.r, s, secp256k1)
+
+
+def extract_adaptor(
+    sig: ssa.Sig, pre_sig: PreSignature, session_ctx: SessionContext
+) -> bytes:
+    """Return the secret adaptor a signature reveals against its pre-signature.
+
+    The inverse of `adapt`, over the same `session_ctx`: whoever holds a
+    valid signature and the pre-signature it was adapted from recovers
+    exactly the `t` that `adapt` consumed. That is the second half of
+    what makes an adaptor signature useful -- releasing the signature is
+    releasing the secret -- and it is why `sig` is not checked against
+    the aggregate key here: extraction is arithmetic on two scalars, and
+    a `sig` that does not verify still yields the `t` that would make it
+    the one `adapt` would have produced from a matching `pre_sig`.
+    """
+    values = session_values(session_ctx)
+    t = (sig.s - pre_sig.s) % secp256k1.n
+    if values.R[1] % 2:
+        t = -t % secp256k1.n
+    return t.to_bytes(_SCALAR_SIZE, "big")

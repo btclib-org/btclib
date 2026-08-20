@@ -12,11 +12,12 @@ error case is checked against the exception the file names -- which
 party misbehaved and how, or the message of a plain value error.
 """
 
+import secrets
 from typing import Any
 
 import pytest
 
-from btclib.curves import bytes_from_point, mult
+from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import musig2, ssa
 from btclib.exceptions import (
     BTClibTypeError,
@@ -461,6 +462,9 @@ def test_sig_agg_valid_vectors(case: dict[str, Any]) -> None:
 
     session_ctx = musig2.SessionContext(agg_nonce, pub_keys, tweaks, is_xonly, _SA_MSG)
     sig = musig2.partial_sig_agg(psigs, session_ctx)
+    # no adaptor on this session_ctx, so partial_sig_agg answers an
+    # ssa.Sig rather than a PreSignature
+    assert isinstance(sig, ssa.Sig)
     assert sig.serialize() == bytes.fromhex(case["expected"])
     # the aggregate is an ordinary BIP340 signature, and btclib's own
     # verifier is what says so
@@ -554,8 +558,101 @@ def test_session(tweaks: list[bytes], is_xonly: list[bool]) -> None:
     )
 
     sig = musig2.partial_sig_agg(psigs, session_ctx)
+    # no adaptor on this session_ctx, so partial_sig_agg answers an
+    # ssa.Sig rather than a PreSignature
+    assert isinstance(sig, ssa.Sig)
     assert ssa.verify_(_MSG, agg_pk, sig)
     ssa.assert_as_valid_(_MSG, agg_pk, sig)
+
+
+def test_adapt_and_extract_adaptor_round_trip() -> None:
+    """A pre-signature does not verify; adapt and extract_adaptor invert.
+
+    No vector file covers adaptor signatures, so this is the round trip
+    the module docstring calls the floor: `partial_sig_agg` on a session
+    carrying an adaptor answers a `PreSignature` that fails
+    `ssa.verify_`; `adapt` with the secret behind it answers an `ssa.Sig`
+    that passes `ssa.assert_as_valid_`; and `extract_adaptor` on that
+    pair answers exactly the secret `adapt` consumed.
+
+    Both parities of the final nonce R are exercised in the same run,
+    fresh keys and adaptor each time, rather than pinned offline for one
+    parity and pragma'd for the other as `ssa_test.test_musig1` pins
+    randomness against the coverage gate: `adapt` and `extract_adaptor`
+    each negate on the odd parity, which is exactly where a sign error
+    would hide, and this is the test the issue asks be strong enough to
+    catch one.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)
+    pub_keys = musig2.key_sort([pk_1, pk_2])
+    agg_pk = musig2.key_agg(pub_keys).x_only_pub_key
+    sk_of = {pk_1: _SK_1, pk_2: _SK_2}
+
+    parities_seen: set[int] = set()
+    for _ in range(64):
+        t = 1 + secrets.randbelow(secp256k1.n - 1)
+        adaptor = bytes_from_point(mult(t, ec=secp256k1), secp256k1)
+
+        sec_nonce_of = {}
+        pub_nonce_of = {}
+        for pk, sk in ((pk_1, _SK_1), (pk_2, _SK_2)):
+            sec_nonce_of[pk], pub_nonce_of[pk] = musig2.nonce_gen(sk, pk, agg_pk, _MSG)
+        agg_nonce = musig2.nonce_agg([pub_nonce_of[pk] for pk in pub_keys])
+        session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], _MSG, adaptor)
+        parities_seen.add(musig2.session_values(session_ctx).R[1] % 2)
+
+        psigs = [
+            musig2.sign(sec_nonce_of[pk], sk_of[pk], session_ctx) for pk in pub_keys
+        ]
+        pre_sig = musig2.partial_sig_agg(psigs, session_ctx)
+        assert isinstance(pre_sig, musig2.PreSignature)
+        assert not ssa.verify_(_MSG, agg_pk, ssa.Sig(pre_sig.r, pre_sig.s, secp256k1))
+
+        sig = musig2.adapt(pre_sig, t, session_ctx)
+        ssa.assert_as_valid_(_MSG, agg_pk, sig)
+
+        extracted = musig2.extract_adaptor(sig, pre_sig, session_ctx)
+        assert extracted == t.to_bytes(32, "big")
+
+    assert parities_seen == {0, 1}
+
+
+def test_a_pre_signature_needs_the_matching_adaptor() -> None:
+    """Verify adapt with the wrong secret answers a signature that fails."""
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    agg_nonce = musig2.nonce_agg([pub_nonce])
+    t = 1 + secrets.randbelow(secp256k1.n - 1)
+    adaptor = bytes_from_point(mult(t, ec=secp256k1), secp256k1)
+    session_ctx = musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG, adaptor)
+    psig = musig2.sign(sec_nonce, _SK_1, session_ctx)
+    pre_sig = musig2.partial_sig_agg([psig], session_ctx)
+    assert isinstance(pre_sig, musig2.PreSignature)
+
+    agg_pk = musig2.key_agg([pk_1]).x_only_pub_key
+    wrong_t = 1 + secrets.randbelow(secp256k1.n - 1)
+    sig = musig2.adapt(pre_sig, wrong_t, session_ctx)
+    assert not ssa.verify_(_MSG, agg_pk, sig)
+
+
+def test_adaptor_must_be_a_valid_point() -> None:
+    """Verify a malformed adaptor is InvalidContributionError, not a crash.
+
+    The all-zero placeholder is what `_cpoint_ext` reads as infinity for
+    an aggregate nonce; the adaptor point is parsed with the plain
+    `_cpoint` instead, which refuses it -- a public adaptor, unlike a
+    nonce half, is never the infinity point.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    del sec_nonce
+    agg_nonce = musig2.nonce_agg([pub_nonce])
+    session_ctx = musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG, bytes(33))
+    with pytest.raises(InvalidContributionError) as exc_info:
+        musig2.session_values(session_ctx)
+    assert exc_info.value.signer is None
+    assert exc_info.value.contrib == "adaptor"
 
 
 def test_sec_nonce_signs_once() -> None:

@@ -4123,6 +4123,45 @@ documented at release-notes length in the first place, and are still in
   resolve -- keep it, revert it, or declare the first decision
   superseded -- rather than resolved by this change.
 
+- **`ecc.musig2` answers MuSig2 adaptor signatures** (issue #1051).
+  `SessionContext` takes an optional `adaptor`, a public point T;
+  `partial_sig_agg` on a session that carries one now answers a
+  `PreSignature` rather than an `ssa.Sig` -- the sum is the same
+  arithmetic, but the result does not verify, and returning an
+  `ssa.Sig` for it would claim otherwise. `adapt` turns a pre-signature
+  into a real one given the secret behind T, and `extract_adaptor`
+  recovers that secret from a pre-signature and the signature `adapt`
+  produced from it, which is the other half of what makes an adaptor
+  signature useful: releasing the signature releases the secret. This
+  is what a DLC's contract execution transaction, an atomic swap and a
+  payment channel's revocation all build on.
+
+  There is no BIP for this and no vector file -- BIP327 does not cover
+  adaptor signatures -- so the construction is read off
+  secp256k1-zkp's `src/modules/musig/session_impl.h` and
+  `adaptor_impl.h`, the de facto specification. Two details are where
+  an implementation goes wrong and zkp does not: T is folded into R_1
+  *before* the nonce coefficient b is hashed, not into the final R
+  afterward, so the challenge itself commits to T; and completing a
+  pre-signature negates the secret exactly when the final nonce has
+  odd y, because the pre-signature's nonce is then really -(r+t)*G
+  rather than (r+t)*G. `session_values` now reserializes the two nonce
+  halves before hashing b instead of reading `agg_nonce` verbatim,
+  which is what folding T in ahead of the hash requires; with no
+  adaptor the reserialization round-trips to the same bytes, so all
+  eight BIP327 vector files still answer byte for byte what they did
+  before this.
+
+  Cross-validating the construction against secp256k1-zkp is
+  btclib-org/btclib#156's open question and stays open: mainline
+  `bitcoin-core/secp256k1`, the vendored library, has no adaptor
+  support at all -- `musig_adapt`, `musig_extract_adaptor` and
+  `musig_nonce_parity` are absent, and `musig_nonce_process` takes five
+  arguments where zkp's takes six -- so this is delegated to nothing
+  and checked by its own round-trip tests, both parities of the final
+  nonce exercised in the same run rather than pinned for one and
+  pragma'd for the other.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and
