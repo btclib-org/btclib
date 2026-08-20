@@ -264,6 +264,7 @@ read by every checkout of this repository.
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | monthly | upstream's vectors |
 | `published` | monthly, a release | what PyPI serves |
+| `python-arm-authority` | monthly | the arm-to-vector-module table |
 | `release` | a tag | calls test, lint, docs, macos, windows, published |
 
 The first four rows are what a merge waits for, and between them they report

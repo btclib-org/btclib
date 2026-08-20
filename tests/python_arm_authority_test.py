@@ -33,15 +33,28 @@ each arm ran. A module is named here when its run reached the arm's body,
 the `def` line excluded -- that line runs at import and would report
 every arm of every imported module as reached.
 
-**Nothing here re-runs the measurement.** Three of the four tests below
-check the table's shape -- its keys against the parser, its empty entries
-against the named set, its cited modules against the vector table -- and
-none checks its content. If `ecc/wycheproof_test.py` stops reaching
-`ecc.dsa.assert_as_valid_`, the arm keeps its entry, the entry keeps its
-module, the module keeps naming its vectors, and the claim quietly
-becomes false. That is the one thing in this file that can rot without a
-red suite, and it is the file's whole content; a job that re-derives the
-table is what would close it.
+**Nothing here re-runs the measurement.** The four tests below check the
+table's shape -- its keys against the parser, its empty entries against
+the named set, its cited modules against the vector table, its entries
+against that same table -- and none reruns the coverage that produced
+`_AUTHORITY`'s values, because a pull request is not where that question
+belongs: eighteen modules under coverage, in an environment with no
+bindings, is minutes rather than seconds, and nothing here asks a
+contributor's branch to pay for it.
+
+That re-derivation runs monthly instead, is
+`.github/workflows/python-arm-authority.yml`, calling
+`.github/scripts/check_python_arm_authority.py` -- issue #1003's answer.
+It repeats the measurement above, module by module, and fails loudly on
+any of three disagreements: an entry claims a module that no longer
+reaches the arm (stale, the harmful direction), a module reaches an arm
+its entry does not name (the table understates, still worth knowing), or
+something now reaches an arm in `_WITHOUT_AN_AUTHORITY` (the good news
+this file is written to notice). A sentinel and not a gate: it has no
+branch rule, so between one run and the next -- and on any pull request
+that is not itself about this file, the script or the workflow -- the
+table can go stale exactly as it could before, for up to a month rather
+than forever.
 
 **The attribution is per module, and a module may also hold tests btclib
 wrote.** `tests/curves/curve_test.py` is the clearest case: it reads
@@ -72,6 +85,18 @@ what would:
   signature names its own. Vectors would have to be built rather than
   vendored, which is a decision about whether the plural spelling wants
   an authority of its own or is the singular one enumerated.
+
+`ecc.commit_nonce.commit_nonce_`, the sign-to-contract nonce tweak, was
+the other -- issue #1003's re-derivation found `ecc/ssa_test.py` does
+reach it, through `ssa.sign(..., commit=...)`, a test btclib wrote rather
+than a BIP340 vector. That is the module-not-vector weakness two
+paragraphs up made concrete: the entry now says a module built on
+third-party vectors reaches the arm, which is true and is what the
+measurement supports, and not that a third-party vector exercises the
+sign-to-contract tweak itself -- no BIP states that primitive and no
+vector set for it exists to vendor, libsecp256k1-zkp's `s2c` module being
+C. Sharpening the entry to the vector-driven tests within the module
+would leave this arm without one again.
 """
 
 from __future__ import annotations
@@ -127,75 +152,197 @@ _THIRD_PARTY_VECTORS: dict[str, tuple[str, ...]] = {
 # empty tuple is an arm no third-party vector reaches, and the module
 # docstring says what would
 _AUTHORITY: dict[str, tuple[str, ...]] = {
-    "bip32.bip32.__prv_key_derivation": ("ecc/bms_test.py", "bip32/bip32_test.py"),
+    "bip32.bip32.__prv_key_derivation": ("bip32/bip32_test.py", "ecc/bms_test.py"),
     "bip32.bip32._pub_key_tweak_chain": ("bip32/bip32_test.py",),
-    "curves.curve.__init__": ("silent_payments_test.py", "curves/curve_test.py"),
-    "curves.curve._jac_double_mult": ("ecc/wycheproof_test.py", "ecc/ssa_test.py"),
-    "curves.curve._mult_checked": ("ecc/wycheproof_test.py", "ecc/ssa_test.py"),
+    "curves.curve.__init__": ("curves/curve_test.py", "silent_payments_test.py"),
+    "curves.curve._jac_double_mult": (
+        "bip322_test.py",
+        "ecc/bms_test.py",
+        "ecc/musig2_test.py",
+        "ecc/rfc6979_test.py",
+        "ecc/ssa_test.py",
+        "ecc/wycheproof_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script_engine/script_test.py",
+        "script_engine/transactions_test.py",
+        "silent_payments_test.py",
+    ),
+    "curves.curve._mult_checked": (
+        "bip32/bip32_test.py",
+        "bip322_test.py",
+        "curves/curve_test.py",
+        "curves/sec_point_test.py",
+        "ecc/bms_test.py",
+        "ecc/dleq_test.py",
+        "ecc/ellswift_test.py",
+        "ecc/musig2_test.py",
+        "ecc/rfc6979_test.py",
+        "ecc/ssa_test.py",
+        "ecc/wycheproof_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
+        "script_engine/script_test.py",
+        "script_engine/transactions_test.py",
+        "silent_payments_test.py",
+    ),
     "curves.curve._multi_mult_x_only_var": ("ecc/ssa_test.py",),
-    "curves.curve._sum_var": ("ecc/musig2_test.py", "silent_payments_test.py"),
-    "curves.curve._tweak_add_var": ("ecc/musig2_test.py", "silent_payments_test.py"),
-    "curves.curve._x_octets": ("ecc/wycheproof_test.py", "ecc/ssa_test.py"),
-    "curves.curve.double_mult_var": ("ecc/ssa_test.py", "ecc/dleq_test.py"),
-    "curves.curve.multi_mult_var": ("ecc/ssa_test.py", "ecc/musig2_test.py"),
-    "curves.sec_point._mult_sec_var": ("silent_payments_test.py",),
+    "curves.curve._sum_var": (
+        "curves/curve_test.py",
+        "ecc/musig2_test.py",
+        "silent_payments_test.py",
+    ),
+    "curves.curve._tweak_add_var": (
+        "curves/curve_test.py",
+        "ecc/musig2_test.py",
+        "silent_payments_test.py",
+    ),
+    "curves.curve._x_octets": (
+        "bip32/bip32_test.py",
+        "bip322_test.py",
+        "curves/curve_test.py",
+        "curves/sec_point_test.py",
+        "ecc/bms_test.py",
+        "ecc/dleq_test.py",
+        "ecc/ellswift_test.py",
+        "ecc/musig2_test.py",
+        "ecc/rfc6979_test.py",
+        "ecc/ssa_test.py",
+        "ecc/wycheproof_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
+        "script_engine/script_test.py",
+        "script_engine/transactions_test.py",
+        "silent_payments_test.py",
+    ),
+    "curves.curve.double_mult_var": (
+        "curves/curve_test.py",
+        "ecc/dleq_test.py",
+        "ecc/ssa_test.py",
+    ),
+    "curves.curve.multi_mult_var": (
+        "bip32/bip32_test.py",
+        "curves/curve_test.py",
+        "ecc/musig2_test.py",
+        "ecc/ssa_test.py",
+    ),
+    "curves.sec_point._mult_sec_var": (
+        "curves/sec_point_test.py",
+        "silent_payments_test.py",
+    ),
     "curves.sec_point._sec_from_octets": (
+        "bip322_test.py",
+        "curves/sec_point_test.py",
         "ecc/bms_test.py",
         "script_engine/script_test.py",
+        "script_engine/transactions_test.py",
     ),
     "curves.sec_point.bytes_from_prv_key_int": (
         "bip32/bip32_test.py",
+        "bip322_test.py",
+        "curves/curve_test.py",
+        "curves/sec_point_test.py",
+        "ecc/bms_test.py",
         "ecc/musig2_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script_engine/script_test.py",
     ),
-    "ecc.bms.assert_as_valid": ("ecc/bms_test.py", "bip322_test.py"),
-    "ecc.commit_nonce.commit_nonce_": (),
+    "ecc.bms.assert_as_valid": ("bip322_test.py", "ecc/bms_test.py"),
+    "ecc.commit_nonce.commit_nonce_": ("ecc/ssa_test.py",),
     "ecc.dh.diffie_hellman": ("ecc/wycheproof_test.py",),
     "ecc.dsa.__init__": (),
     "ecc.dsa.assert_as_valid_": (
+        "bip322_test.py",
+        "ecc/bms_test.py",
+        "ecc/rfc6979_test.py",
         "ecc/wycheproof_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
-    "ecc.dsa.recover_pub_key_": ("ecc/bms_test.py", "bip322_test.py"),
+    "ecc.dsa.recover_pub_key_": ("bip322_test.py", "ecc/bms_test.py"),
     "ecc.dsa.recover_pub_keys_": (),
-    "ecc.dsa.sign_": ("ecc/rfc6979_test.py", "script_engine/script_test.py"),
-    "ecc.dsa.sign_recoverable_": ("ecc/bms_test.py", "bip322_test.py"),
+    "ecc.dsa.sign_": (
+        "bip322_test.py",
+        "ecc/bms_test.py",
+        "ecc/rfc6979_test.py",
+        "script/sig_hash_legacy_test.py",
+        "script_engine/script_test.py",
+    ),
+    "ecc.dsa.sign_recoverable_": ("bip322_test.py", "ecc/bms_test.py"),
     "ecc.ellswift.create_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.decode_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.encode_var": ("ecc/ellswift_test.py",),
     "ecc.ellswift.xdh": ("ecc/ellswift_test.py",),
     "ecc.ssa.__init__": ("ecc/ssa_test.py",),
-    "ecc.ssa.assert_as_valid_": ("ecc/ssa_test.py", "script/sig_hash_taproot_test.py"),
-    "ecc.ssa.sign_": ("ecc/ssa_test.py", "script/sig_hash_taproot_test.py"),
+    "ecc.ssa.assert_as_valid_": (
+        "bip322_test.py",
+        "ecc/musig2_test.py",
+        "ecc/ssa_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script_engine/script_test.py",
+        "script_engine/transactions_test.py",
+        "silent_payments_test.py",
+    ),
+    "ecc.ssa.sign_": (
+        "bip322_test.py",
+        "ecc/ssa_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script_engine/script_test.py",
+        "silent_payments_test.py",
+    ),
     "script.engine.script.dsa_verify": (
+        "bip322_test.py",
+        "script/sig_hash_legacy_test.py",
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
     "script.engine.tapscript.ssa_verify": (
+        "bip322_test.py",
         "script/sig_hash_taproot_test.py",
+        "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
-    "script.taproot._output_pubkey_and_internal_key": ("script/taproot_test.py",),
-    "script.taproot._tweaked_prvkey": ("script/taproot_test.py",),
-    "script.taproot._tweaked_pubkey": ("script/taproot_test.py",),
-    "script.taproot.check_output_pubkey": (
+    "script.taproot._output_pubkey_and_internal_key": (
+        "bip322_test.py",
+        "script/sig_hash_taproot_test.py",
         "script/taproot_test.py",
+        "script_engine/script_test.py",
+    ),
+    "script.taproot._tweaked_prvkey": (
+        "bip322_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
+        "script_engine/script_test.py",
+    ),
+    "script.taproot._tweaked_pubkey": (
+        "bip322_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
+        "script_engine/script_test.py",
+    ),
+    "script.taproot.check_output_pubkey": (
+        "bip322_test.py",
+        "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
+        "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
 }
 
 # the ones the measurement found nothing for, named so that closing one
-# is a line deleted here rather than a number nobody re-derives
-_WITHOUT_AN_AUTHORITY = frozenset(
-    {
-        "ecc.commit_nonce.commit_nonce_",
-        "ecc.dsa.__init__",
-        "ecc.dsa.recover_pub_keys_",
-    }
-)
+# is a line deleted here rather than a number nobody re-derives.
+# `ecc.commit_nonce.commit_nonce_` was among them, until issue #1003's
+# re-derivation found `ecc/ssa_test.py` does reach it -- the module
+# docstring above says through what
+_WITHOUT_AN_AUTHORITY = frozenset({"ecc.dsa.__init__", "ecc.dsa.recover_pub_keys_"})
 
 
-def _python_arms() -> set[str]:
-    """Return every function of btclib that holds a dispatch to the bindings.
+def _arm_locations() -> dict[str, tuple[Path, int, int]]:
+    """Return every Python arm, mapped to where its body runs.
 
     The definition issue #968 used, applied by the parser rather than by
     hand: a function whose source calls `_libsecp256k1_serves` has two
@@ -219,8 +366,16 @@ def _python_arms() -> set[str]:
       arm unexamined. `curves.curve.__init__` and `ecc.ssa.__init__` are
       already that shape, in two modules; a third in either would be the
       case to watch.
+
+    The range is the function's own body -- `node.body[0].lineno` through
+    `node.end_lineno`, the `def` line itself excluded on purpose, since it
+    runs at import regardless of whether the function is ever called and
+    would otherwise report every arm of every imported module as reached.
+    `.github/scripts/check_python_arm_authority.py` is what reads this
+    range against a coverage run's `executed_lines` to re-derive
+    `_AUTHORITY`; `_python_arms()` below reads only the keys.
     """
-    found: set[str] = set()
+    found: dict[str, tuple[Path, int, int]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
         source = path.read_text(encoding="utf-8")
         module = ".".join(path.relative_to(_LIBRARY).with_suffix("").parts)
@@ -231,8 +386,22 @@ def _python_arms() -> set[str]:
                 continue
             segment = ast.get_source_segment(source, node) or ""
             if "_libsecp256k1_serves(" in segment:
-                found.add(f"{module}.{node.name}")
+                assert node.end_lineno is not None  # set by ast.parse always
+                found[f"{module}.{node.name}"] = (
+                    path,
+                    node.body[0].lineno,
+                    node.end_lineno,
+                )
     return found
+
+
+def _python_arms() -> set[str]:
+    """Return every function of btclib that holds a dispatch to the bindings.
+
+    The keys of `_arm_locations()`, which is where the counting rule --
+    and the collision it can hit -- is written down.
+    """
+    return set(_arm_locations())
 
 
 def test_every_python_arm_is_in_the_inventory() -> None:
@@ -241,8 +410,8 @@ def test_every_python_arm_is_in_the_inventory() -> None:
     The inventory is worth nothing if it can go quietly out of date: a
     dispatch added tomorrow would have an unexamined Python arm, and the
     claim this file makes -- that every arm has an authority other than
-    the bindings, or is one of the two that do not -- would be about the
-    tree of the day it was written.
+    the bindings, or is the one that does not -- would be about the tree
+    of the day it was written.
     """
     listed = set(_AUTHORITY)
     found = _python_arms()

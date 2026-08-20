@@ -703,6 +703,35 @@ documented at release-notes length in the first place, and are still in
   artifact round trip in each direction, and the `no-bindings` job's
   wall clock, now instrumented like the `coverage` job's rather than
   the `suite` matrix's.
+- **`python-arm-authority.yml` re-derives `_AUTHORITY` against a fresh
+  measurement, monthly** (issue #1003). Issue #993's inventory —
+  `tests/python_arm_authority_test.py`, landed by #1000 — was checked for
+  shape and never for content: nothing reran the by-hand coverage that
+  produced its values, so a test module that stopped reaching an arm
+  would leave the entry standing on an otherwise green suite.
+  `.github/scripts/check_python_arm_authority.py` reruns it, one
+  third-party-vector module at a time under coverage in a no-bindings
+  environment — the same environment `test.yml`'s `no-bindings` job
+  builds, reimplemented here rather than made to depend on issue #1002's
+  still-unmerged coverage-artifact plumbing — and diffs the result
+  against the table in every direction: an entry claiming a module whose
+  run no longer reaches the arm, a module reaching an arm its entry does
+  not name, and something newly reaching an arm the table says nothing
+  reaches. A sentinel and not a gate, on the 15th at 04:07 UTC —
+  `vendored-vectors` and `published` already share the 1st.
+
+  The re-derivation found the table itself out of date the first time it
+  ran, of the thirty-five entries: twenty understated their arm's
+  reach — mostly the arithmetic `curves/curve.py` and `curves/sec_point.py`
+  hold in common, which nearly every module that signs or verifies
+  anything exercises once the bindings are absent — and
+  `ecc.commit_nonce.commit_nonce_` turned out to have an authority after
+  all, `ecc/ssa_test.py`'s own sign-to-contract test reaching it through
+  `ssa.sign(..., commit=...)` — a test btclib wrote, inside a module built
+  on BIP340 vectors, which is the module-not-vector weakness the file's
+  docstring already names. Both are corrected against the fresh
+  measurement here rather than left for the sentinel's first scheduled
+  run to report on a table this pull request could have landed accurate.
 
 - **`MANIFEST.in` prunes a nested `.mypy_cache`, `.pytest_cache`,
   `.ruff_cache` or `__pycache__`, at whatever depth a tool left one.**

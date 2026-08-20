@@ -1,0 +1,118 @@
+---
+name: python arm authority
+
+# tests/python_arm_authority_test.py's `_AUTHORITY` says, per Python arm,
+# which third-party-vector-driven test module reaches it -- issue #993's
+# answer, landed by #1000. Its own four tests check the table's shape
+# against the source and against itself, and none of them re-runs the
+# coverage that produced its values, because that measurement is minutes
+# and not seconds: eighteen modules, each under coverage, each in an
+# environment with no bindings installed. Issue #1003 is this workflow --
+# a pull request should not pay what a schedule can pay once a month.
+#
+# This reimplements the no-bindings environment test.yml's own
+# `no-bindings` job builds, rather than depending on issue #1002's
+# coverage-artifact plumbing: that issue is a separate, unmerged pull
+# request, and until it lands -- if it lands -- there is no artifact here
+# to consume. Once it does, the two assert-and-sync steps below could
+# become a download instead, which is the simplification #1003 itself
+# names as the reason it "depends on #1002, or at least on the same
+# plumbing".
+#
+# `.github/scripts/check_python_arm_authority.py` does the comparing: it
+# imports `_AUTHORITY` straight from the test module rather than parsing
+# a second copy of it, runs each of the eighteen third-party-vector
+# modules under coverage on its own, and diffs what it measures against
+# what the table claims, in every direction issue #1003 names -- an
+# entry citing a module whose run no longer reaches the arm, a module
+# reaching an arm its entry does not name, and something newly reaching
+# an arm `_WITHOUT_AN_AUTHORITY` says nothing reaches. It exits non-zero
+# on any of the three, which is what makes this job red.
+#
+# No `issues: write`, unlike `vendored-vectors.yml`: that workflow's
+# subject is a vendored file nothing else in this repository ever looks
+# at again, so a failed run's notification is the only signal a drifted
+# pin gets and a persistent issue is what carries it past that one
+# email. `_AUTHORITY` is different -- it is a tracked file a pull request
+# touching `btclib/curves/` or `btclib/ecc/` can and does edit, reviewed
+# the ordinary way, so a red scheduled run and the Actions tab it lands
+# on are enough, the same choice `links.yml` and `published.yml` already
+# make for a comparable reason.
+
+on:
+  schedule:
+    # the 15th of the month, 04:07 UTC. Not the 1st, which
+    # `vendored-vectors` and `published` already share, and not on the
+    # hour: GitHub queues same-minute scheduled workflows across every
+    # repository that asked for it, and a long queue can drop the run
+    # outright. Minute 07 is not shared with any other cron in this
+    # repository (13, 17, 19, 23, 29, 31, 41, 43, 53)
+    - cron: "07 4 15 * *"
+  workflow_dispatch:
+  pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition below withheld while it was a draft: the default
+    # types do not include it, and without it a readied pull request
+    # would wait for its next push to be checked at all.
+    # closed too, though the job below declines the real work on it: a
+    # merge or a close is neither a push nor a synchronize, so a run this
+    # ref's concurrency group is still holding survives either unless the
+    # closed event lands in that same group -- which this type is what
+    # makes it do, cancel-in-progress above turning the landing into the
+    # cancellation
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    paths:
+      - .github/workflows/python-arm-authority.yml
+      - .github/scripts/check_python_arm_authority.py
+      - tests/python_arm_authority_test.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-arm-authority-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authority:
+    name: Re-derive the Python-arm authority table
+    # a draft pull request is work in progress and spends no runner
+    # here either: a draft is work its author is not asking anyone to
+    # review yet, and its runs are what the required checks already
+    # read. The same condition test.yml's no-bindings job carries, and
+    # ready_for_review is a trigger type above for the same reason.
+    # A closed pull request spends none either -- the trigger above takes
+    # the closed event only to supersede a run this ref's group is still
+    # holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.14"
+
+      # test.yml's own no-bindings job, verbatim: asked before the
+      # measurement and of the interpreter rather than of the resolver,
+      # so a job that silently kept the bindings would report every arm
+      # reached by the bindings-serving path and not the Python one --
+      # exactly the failure this step exists to make impossible
+      - name: Assert the bindings are absent
+        run: >
+          uv run --locked --no-default-groups --group harness
+          python -c "from btclib._libsecp256k1 import INSTALLED;
+          assert not INSTALLED, 'btclib_secp256k1 is installed';
+          from btclib.curves import is_libsecp256k1_serving;
+          assert not is_libsecp256k1_serving()"
+
+      - name: Re-derive the authority table against a fresh measurement
+        run: >
+          uv run --locked --no-default-groups --group harness
+          python .github/scripts/check_python_arm_authority.py
