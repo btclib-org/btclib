@@ -1933,9 +1933,13 @@ def test_join() -> None:
             shuffle_out=False,
         )
 
-    # failure: common inputs
+    # failure: common inputs. The shared input comes from the other psbt,
+    # which is what this refusal is about: each psbt spends its outpoints
+    # once and is valid on its own, and only the join would spend one of
+    # them twice -- a psbt naming one outpoint twice by itself is refused
+    # by `Tx.assert_valid`, which `_ensure_consistency` reaches first
     psbt2 = Psbt.b64decode(psbt2_str)
-    psbt2.inputs.append(psbt2.inputs[0])
+    psbt2.inputs.append(deepcopy(psbt1.inputs[0]))
     err_msg = "common inputs"
     with pytest.raises(BTClibValueError, match=err_msg):
         join(

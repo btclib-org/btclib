@@ -136,28 +136,6 @@ def _assert_arguments(
     assert_type(dust_fee_rate, FeeRate, "dust fee rate")
 
 
-def _assert_spends_once(inputs: Sequence[PsbtIn]) -> None:
-    """Refuse a set of inputs naming one outpoint twice.
-
-    Core's `CheckTransaction` refuses it as `bad-txns-inputs-duplicate`,
-    and what it costs here is not only that the transaction would be
-    rejected: the fee is computed from what the inputs are worth, and an
-    outpoint listed twice is counted twice, so the change would be an
-    amount the transaction does not have. `Tx.assert_valid` implements
-    the rest of `CheckTransaction` and not this rule (issue #1073), so
-    the psbt this returns would not be refused by its own validation.
-
-    Asked after the psbt has been validated, and that is the order rather
-    than an accident: `PsbtIn.prev_out` reads a missing output index as
-    0, so an input carrying none would be a duplicate of whatever else
-    spends index 0 of the same transaction -- where `Psbt.assert_valid`
-    refuses it under its own name, as a missing PSBT_IN_OUTPUT_INDEX.
-    """
-    outpoints = [psbt_in.prev_out for psbt_in in inputs]
-    if len(set(outpoints)) != len(outpoints):
-        raise BTClibValueError("the same outpoint is spent twice")
-
-
 def build_psbt(
     inputs: Sequence[PsbtIn],
     outputs: Sequence[TxOut],
@@ -237,9 +215,11 @@ def build_psbt(
         fallback_lock_time=lock_time,
         check_validity=False,
     )
+    # `prevouts` validates, and the psbt's transaction with it, so the
+    # outpoint spent twice this sum would double count is refused before
+    # the sum is made -- `Tx.assert_valid`'s rule, Core's
+    # `bad-txns-inputs-duplicate`, rather than one this function repeats
     total_in = sum(prev_out.value for prev_out in prevouts(psbt))
-    # after `prevouts`, which is what validates; its own docstring says why
-    _assert_spends_once(inputs)
     total_out = sum(tx_out.value for tx_out in outputs)
     remainder = total_in - total_out
 

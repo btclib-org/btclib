@@ -52,6 +52,16 @@ full year, short month, short day (YYYY-M-D)
   also stops reporting the point at infinity as a recovered key, which
   CHANGELOG.md has.
 
+- **a transaction naming one outpoint twice is refused.**
+  `Tx.assert_valid` implements Core's `bad-txns-inputs-duplicate` now, so
+  building, parsing or serializing such a transaction raises
+  `BTClibValueError` where it used to go through, and so does validating
+  a psbt whose unsigned transaction is one. A caller that was holding a
+  duplicate on purpose -- to measure it, or to feed it to the script
+  engine -- passes `check_validity=False`, which is what that flag is
+  for. CHANGELOG.md has why the rule is not gated on
+  `unsigned_template`.
+
 - **`TxOut.from_dict` refuses a `null` value.** It used to build an output
   of zero satoshi, `valid_sats_amount` reading `None` as zero for the
   caller it was written for; a stored dict carrying `{"value": null}` now

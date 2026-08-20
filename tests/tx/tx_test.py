@@ -342,6 +342,47 @@ def test_output_total_is_bounded() -> None:
         Tx(vin=[tx_in], vout=[TxOut(max_money // 2 + 1, "")] * 2)
 
 
+def test_one_outpoint_is_spent_once() -> None:
+    """An outpoint named twice is refused, as `bad-txns-inputs-duplicate`.
+
+    Core's CheckTransaction has the rule and CVE-2018-17144 is what it
+    was worth: the transaction spends one output twice, so anything
+    computing over its inputs -- a fee, a total, an ancestor set --
+    answers for a transaction that cannot be mined.
+    """
+    out_point = OutPoint(b"\x01" * 32, 0)
+    tx_out = TxOut(1000, "")
+
+    err_msg = "the same outpoint is spent twice"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[TxIn(out_point), TxIn(out_point)], vout=[tx_out])
+
+    # the sequence is no part of the outpoint, so two inputs differing
+    # only there are the same double spend
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[TxIn(out_point, b"", 0), TxIn(out_point, b"", 1)], vout=[tx_out])
+
+    # a psbt's transaction is refused as well: `unsigned_template` drops
+    # the two rules that transaction cannot satisfy while it is being
+    # built, and nothing makes a duplicate one of them
+    tx = Tx(vin=[TxIn(out_point)], vout=[tx_out])
+    tx.vin.append(TxIn(out_point))
+    with pytest.raises(BTClibValueError, match=err_msg):
+        tx.assert_valid(unsigned_template=True)
+
+    # and what the refusal must not take with it: two outputs of one
+    # transaction, and one output index of two transactions, are two
+    # outpoints either way
+    Tx(
+        vin=[TxIn(out_point), TxIn(OutPoint(b"\x01" * 32, 1))],
+        vout=[tx_out],
+    ).assert_valid()
+    Tx(
+        vin=[TxIn(out_point), TxIn(OutPoint(b"\x02" * 32, 0))],
+        vout=[tx_out],
+    ).assert_valid()
+
+
 def test_standard() -> None:
     """Verify assert_standard refuses a version assert_valid accepts."""
     tx_bytes = "010000000001019bdea7abb2fa14dead47dd14d03cf82212a25b6096a8da6b14feec3658dbcf9d0100000000ffffffff02a02526000000000017a914f987c321394968be164053d352fc49763b2be55c874361610000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220421fbbedf2ee096d6289b99973509809d5e09589040d5e0d453133dd11b2f78a02205686dbdb57e0c44e49421e9400dd4e931f1655332e8d078260c9295ba959e05d014730440220398f141917e4525d3e9e0d1c6482cb19ca3188dc5516a3a5ac29a0f4017212d902204ea405fae3a58b1fc30c5ad8ac70a76ab4f4d876e8af706a6a7b4cd6fa100f44016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000"

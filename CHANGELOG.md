@@ -1480,8 +1480,7 @@ documented at release-notes length in the first place, and are still in
   would set needs a chain tip, so it is an argument here and defaults
   to none. An outpoint spent twice is refused, Core's
   `bad-txns-inputs-duplicate` and a double count in the fee arithmetic
-  both; `Tx.assert_valid` implements the rest of `CheckTransaction` and
-  not that rule, which is issue #1073.
+  both -- by `Tx.assert_valid`, which the entry below gave that rule.
 
   `tx.input_weight` of issue #1067 is not what the fee is computed
   from, and the two do not compose: that answers for one input, where a
@@ -1498,6 +1497,54 @@ documented at release-notes length in the first place, and are still in
   encoding: the size that was really signed is compared with the size
   the fee was bought at, the estimate being an upper bound and the
   transaction therefore never below the rate it was built for.
+
+- **`Tx.assert_valid` refuses a transaction naming one outpoint twice**
+  (issue #1073). Core's `CheckTransaction` rejects it as
+  `bad-txns-inputs-duplicate` -- the rule CVE-2018-17144 was the cost of
+  not applying -- and it was the one rule of that function missing here,
+  from a docstring that claimed the set and from the code under it: a
+  transaction spending one output twice was accepted, so anything
+  computing over its inputs, a fee or a total or an ancestor set,
+  answered for a transaction that cannot be mined. `OutPoint` is frozen
+  and hashable, so the rule is the set of the outpoints against their
+  count, and it is asked after the loop that judges each input on its
+  own -- a tx_id of the wrong length is then reported as that rather
+  than as a member of a set.
+
+  Unconditional, `unsigned_template` or not. That flag drops the two
+  rules a psbt's global unsigned transaction cannot satisfy, at least
+  one input and at least one output, and a duplicate is not one of them:
+  a psbt under construction has no duplicate inputs either, and a
+  Constructor adding an input already there builds a transaction no node
+  will accept, finished or not. So `Psbt.assert_valid` gains the rule
+  through the `tx.assert_valid(unsigned_template=True)` it already made,
+  and gains it in the right order: it checks the input maps first, so an
+  input carrying no PSBT_IN_OUTPUT_INDEX is still refused under its own
+  name rather than as a duplicate of whatever spends index 0 --
+  `PsbtIn.prev_out` reads a missing index as 0.
+
+  `tx_builder.build_psbt` loses the `_assert_spends_once` it carried
+  for itself, which is more than redundant now: `prevouts` validates the
+  psbt before the input total is summed, so the private check would have
+  been unreachable, and the message a caller gets is the one it gave.
+  What the builder's own test still pins is the order the fee arithmetic
+  needs -- the refusal before the sum it would corrupt.
+
+  Three test transactions were the duplicates this now refuses, none of
+  them meaning to be: `tests/tx/tx_in_test.py`'s weight sum built its
+  segwit transaction from two inputs of one outpoint, where the weight
+  is the same for any two; `tests/psbt/psbt_size_test.py` rebuilds the
+  psbt behind a block's spends and funded every legacy input from one
+  synthetic previous transaction, so two inputs paying the same
+  script_pub_key were given the same outpoint, and it now builds one per
+  input; and `tests/psbt/psbt_test.py`'s "common inputs" case duplicated
+  an input within one psbt, where what `join` refuses is an input two
+  *valid* psbts share, which is what it duplicates now.
+
+  Core's own `tx_invalid.json` carries one transaction with duplicate
+  inputs, marked `BADTX`, and it is now refused by `Tx.parse` rather
+  than by `verify_transaction` finding one prevout for two inputs. That
+  count check was covered by nothing else, and has a test of its own.
 
 - **`psbt.musig2.partial_sigs_agg` aggregates the participant list once,
   not four times** (issue #1046). Every public function of the module
