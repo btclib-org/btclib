@@ -177,9 +177,20 @@ used to teach and to prototype as much as to build:
     where the lower-s form is not being enforced. Batch verification is
     the exception, libsecp256k1 having no call for it, so
     `ssa.batch_verify` is the Python equation over delegated
-    multiplications. This paragraph is about a secret meeting the curve
-    and verification holds none, which is why it is named here only to
-    say that the sentence below is not about it.
+    multiplications. `musig2.partial_sig_verify_` is a narrower
+    delegation again, of one MuSig2 round-two check rather than of every
+    operation the module offers (issue #1049): for secp256k1, sha256, a
+    32-byte message and a session with no adaptor.
+    `musig_nonce_process` takes a fixed 32-byte `msg32` with no length
+    parameter, so a message of any other size runs the Python equation
+    below regardless of the bindings, as does a session carrying the
+    adaptor extension `btclib.ecc.musig2` implements and the bindings do
+    not. `key_agg`, `key_sort` and `nonce_agg` stay Python's alone
+    either way: measured too close to the delegated arithmetic they
+    already call, or run once per session rather than once per signer,
+    to earn a second code path. This paragraph is about a secret meeting
+    the curve and verification holds none, which is why it is named here
+    only to say that the sentence below is not about it.
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
     and the verification equation of both `dsa` and `ssa` through

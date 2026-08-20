@@ -53,6 +53,7 @@ __all__ = [
     "ellswift",
     "ffi",
     "keys",
+    "musig",
     "pubkey_from_prvkey",
     "pubkey_sum",
     "pubkey_tweak_add",
@@ -81,6 +82,7 @@ try:
         ellswift,
         ffi,
         keys,
+        musig,
         recovery,
         silentpayments,
         ssa,
@@ -119,7 +121,7 @@ except ImportError:  # pragma: no cover
     # called, so the object would be a second thing to keep true. The
     # ignore is on the assignment and not on the module: every other
     # name here keeps the type the try branch gave it
-    dsa = ellswift = ffi = keys = recovery = ssa = xonly = None  # type: ignore[assignment]
+    dsa = ellswift = ffi = keys = musig = recovery = ssa = xonly = None  # type: ignore[assignment]
     silentpayments = None  # type: ignore[assignment]
     # a class rather than a function, so mypy calls it an assignment to
     # a type and wants the second code as well
