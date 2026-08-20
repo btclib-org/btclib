@@ -19,6 +19,17 @@ aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
 carries the workflow because a context is keyed by name alone: two
 workflows with a job named the same thing produce one ambiguous check.
 
+That aggregate skips, rather than fails, when the run itself was
+cancelled by the concurrency group superseding it -- a skip satisfies a
+required check, the same as this very job's own draft/closed condition
+already relies on -- and fails hard on anything else a dependency
+reports that is not success, checked
+by name in a shell loop that always runs rather than a boolean
+expression a skipped step could leave unevaluated. (Issue #1025 and
+issue #1001.) Read the cells, not the aggregate, when a run's own
+conclusion and this check disagree:
+`gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
+
 `main` requires four checks, and only four:
 
 | Check | Produced by |
