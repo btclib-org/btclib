@@ -214,7 +214,9 @@ class Message:
 
         out = self.magic
         out += self.command.encode("ascii").ljust(_COMMAND_SIZE, b"\x00")
-        out += len(self.payload).to_bytes(_LENGTH_SIZE, byteorder="little")
+        out += len(self.payload).to_bytes(
+            _LENGTH_SIZE, byteorder="little", signed=False
+        )
         out += self.checksum
         out += self.payload
         return out
@@ -281,7 +283,9 @@ class Message:
         magic = header[:_MAGIC_SIZE]
         command = _command_from_bytes(header[_MAGIC_SIZE : _MAGIC_SIZE + _COMMAND_SIZE])
         length = int.from_bytes(
-            header[_LENGTH_AT : _LENGTH_AT + _LENGTH_SIZE], byteorder="little"
+            header[_LENGTH_AT : _LENGTH_AT + _LENGTH_SIZE],
+            byteorder="little",
+            signed=False,
         )
         if length > MAX_PROTOCOL_MESSAGE_LENGTH:
             err_msg = f"invalid payload length: {length}"
