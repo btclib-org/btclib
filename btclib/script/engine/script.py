@@ -353,7 +353,19 @@ def op_code_name(op_code: int) -> str:
 def assert_nullfail(
     flags: ScriptFlag, verified: bool, signatures: list[bytes], op: str
 ) -> None:
-    """Reject a signature that failed to verify and was not empty."""
+    """Reject a signature that failed to verify and was not empty.
+
+    `verified` is refused rather than read for its truth, which is what
+    separates it from `verify_script`'s `final` next door: every wrong
+    value is true, so the misreading a non-bool makes is always the one
+    the flag's `True` stands for. `final=True` demands a true stack, so
+    a non-bool there fails a script that would have passed; `True` here
+    *suppresses* this refusal, so `verified="false"` lets a non-empty
+    signature that failed to verify through a consensus rule.
+    CONTRIBUTING.md has that as the polarity a truth needs and this one
+    has not (issue #884).
+    """
+    assert_type(verified, bool, "verified")
     if ScriptFlag.NULLFAIL in flags and not verified and any(signatures):
         raise BTClibValueError(f"non-empty signature for a failed {op}")
 

@@ -22,6 +22,24 @@ A **kind** decides what a non-refusing call computes, returns or writes.
 answer -- the other signature, the other address, the other script code --
 and that is what the refusal is for.
 
+## The polarity a truth has to have
+
+`"no"` is true, and so is every other wrong value, so the misreading is
+never "the flag was off": it is always the one the flag's `True` stands
+for. That is what makes a truth safe rather than the fact that it changes
+no answer -- `verify_checksum="no"` checks the checksum, `strict="no"` is
+strict, `forbid_zero_size="no"` forbids. The wrong value falls on the side
+that refuses more, which is the side that cannot accept what was to be
+refused.
+
+So a truth's `True` has to be its conservative value, and a flag whose
+`True` is the permissive one is a kind however little it computes. Three
+were: `verified`, `allow_partial` and `hybrid`, each waiving the very
+refusal it was written to make. They are in `_KINDS` under a comment of
+their own, and issue #884 is the one that asked, over `verified` and over
+`verify_script`'s `final` beside it -- which stays a truth, its `True`
+being the one that demands the true stack.
+
 The two tests below are that line, one each:
 
 - a kind refuses `"no"`, `0`, `1` and (where the annotation does not
@@ -246,8 +264,10 @@ class _Case:
     # `bool | None` declares None, so it is not a wrong value there. Read
     # off the annotation, not an exemption from anything
     optional: bool = False
-    # a truth's classification, which is prose because it is a judgement:
-    # what the flag turns on, and what it therefore cannot change
+    # the classification, which is prose because it is a judgement: for a
+    # truth what the flag turns on and what it therefore cannot change,
+    # and for a kind only where the kind is the polarity rather than the
+    # answer, three flags below being that
     reason: str = ""
 
 
@@ -670,6 +690,43 @@ _KINDS = (
         {},
         valid=INSTALLED,
     ),
+    # The three below decide no answer, which every kind above does, and
+    # are here for the other half of the line: their `True` is the
+    # permissive value. A truth is safe because a non-bool is true and
+    # its `True` is the conservative one -- `verify_checksum="no"` checks
+    # the checksum, `forbid_zero_size="no"` forbids, `final="no"` demands
+    # the true stack -- so the one misreading a non-bool can make is the
+    # one that refuses more. These read the other way, and each is the
+    # refusal it was written to make, waived
+    _Case(
+        "btclib.script.engine.script.assert_nullfail",
+        "verified",
+        engine.assert_nullfail,
+        {
+            "flags": ScriptFlag.NULLFAIL,
+            "signatures": [b""],
+            "op": "OP_CHECKSIG",
+        },
+        reason="`True` suppresses the NULLFAIL refusal, so a non-bool lets"
+        " a non-empty signature that failed to verify through a consensus"
+        " rule; `verify_script`'s `final` beside it tightens instead",
+    ),
+    _Case(
+        "btclib.psbt.psbt.assert_signed",
+        "allow_partial",
+        assert_signed,
+        {"psbt": _SIGNED_PSBT},
+        reason="`True` accepts an input still unsigned, so a non-bool"
+        " stores as complete a psbt nobody finished signing",
+    ),
+    _Case(
+        "btclib.curves.sec_point.point_from_octets",
+        "hybrid",
+        point_from_octets,
+        {"pub_key": _SEC},
+        reason="`True` accepts the 0x06 and 0x07 prefixes, so a non-bool"
+        " parses the very forms it was written down to keep out",
+    ),
 )
 
 _TRUTHS = (
@@ -816,13 +873,6 @@ _TRUTHS = (
         reason="whether the signature is checked before it is answered with",
     ),
     _Case(
-        "btclib.psbt.psbt.assert_signed",
-        "allow_partial",
-        assert_signed,
-        {"psbt": _SIGNED_PSBT},
-        reason="whether an input still unsigned is allowed",
-    ),
-    _Case(
         "btclib.var_bytes.parse",
         "forbid_zero_size",
         var_bytes.parse,
@@ -927,14 +977,6 @@ _TRUTHS = (
         " spelling that answers the keys rather than their text",
     ),
     _Case(
-        "btclib.curves.sec_point.point_from_octets",
-        "hybrid",
-        point_from_octets,
-        {"pub_key": _SEC},
-        reason="whether the 0x06 and 0x07 prefixes are accepted; the point"
-        " read out of octets both accept is the same point",
-    ),
-    _Case(
         "btclib.mnemonic.mnemonic.WordLists.__init__",
         "power_of_two",
         WordLists,
@@ -964,19 +1006,10 @@ _TRUTHS = (
             "segwit": False,
         },
         reason="whether the script is required to end on a true stack,"
-        " which is the caller saying no script runs after this one",
-    ),
-    _Case(
-        "btclib.script.engine.script.assert_nullfail",
-        "verified",
-        engine.assert_nullfail,
-        {
-            "flags": ScriptFlag.NULLFAIL,
-            "signatures": [b""],
-            "op": "OP_CHECKSIG",
-        },
-        reason="whether the NULLFAIL refusal fires, an empty signature"
-        " being what it demands of a check that failed",
+        " which is the caller saying no script runs after this one; it"
+        " stays here where `verified` did not, being the flag whose"
+        " `True` refuses more -- a non-bool fails a script instead of"
+        " passing one, and that is nobody's money",
     ),
 )
 

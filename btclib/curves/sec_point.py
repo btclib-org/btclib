@@ -105,8 +105,12 @@ def point_from_octets(
     hybrid form to render, and nothing in bitcoin produces one. Consensus
     has to accept what was mined instead: Core rejects hybrid keys only
     under STRICTENC, so the script engine is the one caller that asks for
-    them (issue #129).
+    them (issue #129). It is refused rather than read for its truth: its
+    `True` is the permissive value, and a non-bool is true, so
+    `hybrid="no"` would parse the very prefixes it was written down to
+    keep out.
     """
+    assert_type(hybrid, bool, "hybrid")
     _assert_valid_ec(ec)
     pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
 

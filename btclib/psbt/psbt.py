@@ -2874,7 +2874,11 @@ def assert_signed(psbt: Psbt, *, allow_partial: bool = False) -> None:
     of a signing session still going round: a device holding keys for
     some inputs only -- one psbt spanning several wallets -- leaves the
     others untouched, and which of the two a psbt is is the caller's to
-    say and not this function's to guess.
+    say and not this function's to guess. It is refused rather than read
+    for its truth: its `True` is the permissive value, so the misreading
+    a non-bool always makes -- `allow_partial="false"` out of a
+    configuration file -- is the one that stores as complete a psbt with
+    an input nobody signed.
 
     What neither half asks is whether an input is *satisfied*: one
     signature of a 2-of-2 is an input signed, and whether a spend can be
@@ -2899,6 +2903,7 @@ def assert_signed(psbt: Psbt, *, allow_partial: bool = False) -> None:
     refused with that said rather than reported unsigned, what it now
     carries being a spend for the script engine to verify.
     """
+    assert_type(allow_partial, bool, "allow_partial")
     if not psbt.inputs:
         raise BTClibValueError("nothing is signed: no inputs")
     psbt.assert_valid()

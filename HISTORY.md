@@ -77,7 +77,15 @@ full year, short month, short day (YYYY-M-D)
   being what made the type check no check at all. The flags that decide
   only whether a check runs — `check_validity`, `check_root_xkey`,
   `verify_checksum`, `strict`, `bip380_enforced` and the rest, listed in
-  `tests/bool_parameter_test.py` — are still read for their truth.
+  `tests/bool_parameter_test.py` — are still read for their truth, on the
+  one condition issue #884 added: a truth's `True` has to be its
+  conservative value. Every wrong value is true, so the misreading is
+  always the flag's `True`, and three whose `True` was the permissive one
+  are refused with the kinds above — the script engine's `verified`,
+  which suppressed the NULLFAIL rule for a signature that failed to
+  verify; `assert_signed`'s `allow_partial`, which accepted an input
+  nobody signed; and `point_from_octets`'s `hybrid`, which parsed the
+  0x06 and 0x07 prefixes it was written to keep out.
 
 - **the serialization boundary refuses what it used to take, and reports
   through the exception contract.** A `from_dict` handed a mapping
