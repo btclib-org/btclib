@@ -70,11 +70,19 @@ elementary algebra, which is why `sign` zeroes the bytearray it is given
 rather than merely reading it.
 
 Adaptor signatures are the one capability BIP327 does not cover:
-`SessionContext.adaptor` carries a public point T, and `partial_sig_agg`
-then answers a *pre-signature* -- a `PreSignature`, not an `ssa.Sig`,
-because it does not verify -- that `adapt` turns into a real signature
-given the secret t behind T, or that `extract_adaptor` recovers t from,
-given both the pre-signature and the signature `adapt` produced. A DLC's
+`SessionContext.adaptor` carries a public point T, and
+`partial_sig_agg_adaptor` -- the spelling for a session that carries
+one, `partial_sig_agg` itself refusing that session -- answers a
+*pre-signature*, a `PreSignature` rather than an `ssa.Sig` because it
+does not verify, that `adapt` turns into a real signature given the
+secret t behind T, or that `extract_adaptor` recovers t from, given
+both the pre-signature and the signature `adapt` produced. Splitting
+the entry point rather than widening `partial_sig_agg`'s return type
+keeps every existing caller narrowing nothing, and matches where the
+C library is going: secp256k1-zkp#330 is splitting
+`musig_nonce_process` the same way, back to five arguments plus a
+separate `musig_nonce_process_adaptor`, so the base API stays
+uncontaminated by a capability most callers never touch. A DLC's
 contract execution transaction, an atomic swap across two chains and a
 payment channel's revocation all build on the same trade: whoever
 completes the signature is whoever knew t, and revealing the signature
@@ -140,6 +148,7 @@ __all__ = [
     "nonce_gen",
     "nonce_gen_",
     "partial_sig_agg",
+    "partial_sig_agg_adaptor",
     "partial_sig_verify",
     "partial_sig_verify_",
     "session_values",
@@ -896,36 +905,32 @@ def partial_sig_verify(
 class PreSignature:
     """A MuSig2 pre-signature: (x_R, s_pre), over a session with an adaptor.
 
-    `partial_sig_agg` answers one of these instead of an `ssa.Sig`
-    whenever `session_ctx.adaptor` is set. The two share `ssa.Sig`'s
-    shape -- r an x-coordinate, s a scalar reduced mod n -- and nothing
-    else: `ssa.Sig`'s whole point is a value that verifies, and a
-    pre-signature does not, until `adapt` supplies the secret behind the
-    adaptor. Keeping it a different class is what stops a caller from
-    handing this to `ssa.verify_` and reading a failure as "bad
-    signature" rather than "not adapted yet", and it carries no
-    `serialize`/`parse` of its own: BIP373 has no field for a
-    pre-signature (`btclib.ecc.musig2`'s own docstring says so), so
-    there is no wire format to answer to yet, and one invented here would
-    have no caller to check it against.
+    `partial_sig_agg_adaptor` answers one of these; `ssa.Sig`'s whole
+    point is a value that verifies, and a pre-signature does not, until
+    `adapt` supplies the secret behind the adaptor. Keeping it a
+    different class from `ssa.Sig`, rather than the same class either
+    call might answer, is what stops a caller from handing this to
+    `ssa.verify_` and reading a failure as "bad signature" rather than
+    "not adapted yet" -- and what keeps `partial_sig_agg`'s own return
+    type exactly what it already was. It carries no `serialize`/`parse`
+    of its own: BIP373 has no field for a pre-signature
+    (`btclib.ecc.musig2`'s own docstring says so), so there is no wire
+    format to answer to yet, and one invented here would have no caller
+    to check it against.
     """
 
     r: int
     s: int
 
 
-def partial_sig_agg(
-    psigs: Sequence[Octets], session_ctx: SessionContext
-) -> ssa.Sig | PreSignature:
-    """Aggregate the partial signatures into one signature, or pre-signature.
+def _agg_s(psigs: Sequence[Octets], session_ctx: SessionContext) -> tuple[int, int]:
+    """Return (x_R, s), the sum partial_sig_agg and its adaptor twin share.
 
-    An `ssa.Sig` for an ordinary session: the result verifies under the
-    x-only aggregate key with `btclib.ecc.ssa.verify_` and with every
-    other BIP340 verifier, and handing back 64 bytes would only make the
-    caller parse them again to find out. For a session carrying an
-    adaptor, a `PreSignature` instead -- the arithmetic is the same sum,
-    but the result does not verify, and returning an `ssa.Sig` for it
-    would claim otherwise.
+    Summing the psigs and adding the tweak contribution once. Neither
+    caller below knows or needs to know whether the session carries an
+    adaptor: `session_values` already folded T into R before either is
+    called, so the sum is the same sum either way, and it is only the
+    two callers that decide what the sum is allowed to mean.
     """
     values = session_values(session_ctx)
     s = 0
@@ -938,9 +943,47 @@ def partial_sig_agg(
     # signer adds: the group tweaked the key, no single signer did
     g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
     s = (s + values.e * g * values.tacc) % secp256k1.n
+    return values.R[0], s
+
+
+def partial_sig_agg(psigs: Sequence[Octets], session_ctx: SessionContext) -> ssa.Sig:
+    """Aggregate the partial signatures into one BIP340 signature.
+
+    An `ssa.Sig`, because that is what it is: the result verifies under
+    the x-only aggregate key with `btclib.ecc.ssa.verify_` and with
+    every other BIP340 verifier, and handing back 64 bytes would only
+    make the caller parse them again to find out.
+
+    Refuses a session that carries an adaptor: the sum is still missing
+    the adaptor's secret, so it does not verify, and answering an
+    `ssa.Sig` for it would claim otherwise -- `partial_sig_agg_adaptor`
+    is the spelling for that session, answering a `PreSignature` instead.
+    """
+    if session_ctx.adaptor is not None:
+        err_msg = "session carries an adaptor: call partial_sig_agg_adaptor instead"
+        raise BTClibValueError(err_msg)
+    x_R, s = _agg_s(psigs, session_ctx)
+    return ssa.Sig(x_R, s, secp256k1)
+
+
+def partial_sig_agg_adaptor(
+    psigs: Sequence[Octets], session_ctx: SessionContext
+) -> PreSignature:
+    """Aggregate the partial signatures into a MuSig2 pre-signature.
+
+    `partial_sig_agg`'s own arithmetic, over a session that carries an
+    adaptor: the sum does not verify until `adapt` supplies the secret
+    behind it, which is what makes the result a `PreSignature` and not
+    an `ssa.Sig`.
+
+    Refuses a session with no adaptor -- `partial_sig_agg` is the
+    spelling for that one, answering an `ssa.Sig` the sum already is.
+    """
     if session_ctx.adaptor is None:
-        return ssa.Sig(values.R[0], s, secp256k1)
-    return PreSignature(values.R[0], s)
+        err_msg = "session carries no adaptor: call partial_sig_agg instead"
+        raise BTClibValueError(err_msg)
+    x_R, s = _agg_s(psigs, session_ctx)
+    return PreSignature(x_R, s)
 
 
 def adapt(pre_sig: PreSignature, t: PrvKey, session_ctx: SessionContext) -> ssa.Sig:

@@ -462,9 +462,6 @@ def test_sig_agg_valid_vectors(case: dict[str, Any]) -> None:
 
     session_ctx = musig2.SessionContext(agg_nonce, pub_keys, tweaks, is_xonly, _SA_MSG)
     sig = musig2.partial_sig_agg(psigs, session_ctx)
-    # no adaptor on this session_ctx, so partial_sig_agg answers an
-    # ssa.Sig rather than a PreSignature
-    assert isinstance(sig, ssa.Sig)
     assert sig.serialize() == bytes.fromhex(case["expected"])
     # the aggregate is an ordinary BIP340 signature, and btclib's own
     # verifier is what says so
@@ -558,9 +555,6 @@ def test_session(tweaks: list[bytes], is_xonly: list[bool]) -> None:
     )
 
     sig = musig2.partial_sig_agg(psigs, session_ctx)
-    # no adaptor on this session_ctx, so partial_sig_agg answers an
-    # ssa.Sig rather than a PreSignature
-    assert isinstance(sig, ssa.Sig)
     assert ssa.verify_(_MSG, agg_pk, sig)
     ssa.assert_as_valid_(_MSG, agg_pk, sig)
 
@@ -569,8 +563,8 @@ def test_adapt_and_extract_adaptor_round_trip() -> None:
     """A pre-signature does not verify; adapt and extract_adaptor invert.
 
     No vector file covers adaptor signatures, so this is the round trip
-    the module docstring calls the floor: `partial_sig_agg` on a session
-    carrying an adaptor answers a `PreSignature` that fails
+    the module docstring calls the floor: `partial_sig_agg_adaptor` on a
+    session carrying an adaptor answers a `PreSignature` that fails
     `ssa.verify_`; `adapt` with the secret behind it answers an `ssa.Sig`
     that passes `ssa.assert_as_valid_`; and `extract_adaptor` on that
     pair answers exactly the secret `adapt` consumed.
@@ -605,8 +599,7 @@ def test_adapt_and_extract_adaptor_round_trip() -> None:
         psigs = [
             musig2.sign(sec_nonce_of[pk], sk_of[pk], session_ctx) for pk in pub_keys
         ]
-        pre_sig = musig2.partial_sig_agg(psigs, session_ctx)
-        assert isinstance(pre_sig, musig2.PreSignature)
+        pre_sig = musig2.partial_sig_agg_adaptor(psigs, session_ctx)
         assert not ssa.verify_(_MSG, agg_pk, ssa.Sig(pre_sig.r, pre_sig.s, secp256k1))
 
         sig = musig2.adapt(pre_sig, t, session_ctx)
@@ -627,13 +620,42 @@ def test_a_pre_signature_needs_the_matching_adaptor() -> None:
     adaptor = bytes_from_point(mult(t, ec=secp256k1), secp256k1)
     session_ctx = musig2.SessionContext(agg_nonce, [pk_1], [], [], _MSG, adaptor)
     psig = musig2.sign(sec_nonce, _SK_1, session_ctx)
-    pre_sig = musig2.partial_sig_agg([psig], session_ctx)
-    assert isinstance(pre_sig, musig2.PreSignature)
+    pre_sig = musig2.partial_sig_agg_adaptor([psig], session_ctx)
 
     agg_pk = musig2.key_agg([pk_1]).x_only_pub_key
     wrong_t = 1 + secrets.randbelow(secp256k1.n - 1)
     sig = musig2.adapt(pre_sig, wrong_t, session_ctx)
     assert not ssa.verify_(_MSG, agg_pk, sig)
+
+
+def test_partial_sig_agg_and_its_adaptor_twin_refuse_each_others_sessions() -> None:
+    """Verify each of the two aggregators refuses the other's session.
+
+    `partial_sig_agg` on a session that carries an adaptor would answer
+    a sum still missing the adaptor's secret; `partial_sig_agg_adaptor`
+    on a session with no adaptor would answer a `PreSignature` for a sum
+    that already is a valid `ssa.Sig`. Both are refused rather than
+    silently answered, since the return type says which is which and
+    the session is what a caller might get wrong.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce_plain, pub_nonce_plain = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    plain_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce_plain]), [pk_1], [], [], _MSG
+    )
+    psig_plain = musig2.sign(sec_nonce_plain, _SK_1, plain_ctx)
+    with pytest.raises(BTClibValueError, match="call partial_sig_agg instead"):
+        musig2.partial_sig_agg_adaptor([psig_plain], plain_ctx)
+
+    sec_nonce_adp, pub_nonce_adp = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    t = 1 + secrets.randbelow(secp256k1.n - 1)
+    adaptor = bytes_from_point(mult(t, ec=secp256k1), secp256k1)
+    adaptor_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce_adp]), [pk_1], [], [], _MSG, adaptor
+    )
+    psig_adp = musig2.sign(sec_nonce_adp, _SK_1, adaptor_ctx)
+    with pytest.raises(BTClibValueError, match="call partial_sig_agg_adaptor instead"):
+        musig2.partial_sig_agg([psig_adp], adaptor_ctx)
 
 
 def test_adaptor_must_be_a_valid_point() -> None:

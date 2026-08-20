@@ -4212,11 +4212,17 @@ documented at release-notes length in the first place, and are still in
   superseded -- rather than resolved by this change.
 
 - **`ecc.musig2` answers MuSig2 adaptor signatures** (issue #1051).
-  `SessionContext` takes an optional `adaptor`, a public point T;
-  `partial_sig_agg` on a session that carries one now answers a
-  `PreSignature` rather than an `ssa.Sig` -- the sum is the same
-  arithmetic, but the result does not verify, and returning an
-  `ssa.Sig` for it would claim otherwise. `adapt` turns a pre-signature
+  `SessionContext` takes an optional `adaptor`, a public point T, and a
+  new `partial_sig_agg_adaptor` -- not `partial_sig_agg` itself, which
+  now refuses a session that carries one -- answers a `PreSignature`
+  for it: the sum is the same arithmetic `partial_sig_agg` does, but
+  the result does not verify, and answering an `ssa.Sig` for it would
+  claim otherwise. Splitting the entry point rather than widening
+  `partial_sig_agg`'s own return type keeps every existing caller
+  narrowing nothing for a capability most never touch, and matches
+  where the C library is going: secp256k1-zkp#330 splits
+  `musig_nonce_process` the same way, back to five arguments plus a
+  separate `musig_nonce_process_adaptor`. `adapt` turns a pre-signature
   into a real one given the secret behind T, and `extract_adaptor`
   recovers that secret from a pre-signature and the signature `adapt`
   produced from it, which is the other half of what makes an adaptor
