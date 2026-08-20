@@ -429,26 +429,52 @@ jobs:
     # are what that costs
     name: "test: every job passed"
     needs: [suite, coverage, no-bindings, dist]
-    # not success(): a job whose dependencies failed is skipped, and a
-    # skipped check reports "skipped", which branch protection counts as
-    # satisfied. The gate has to run to be able to fail
+    # !cancelled(), not always(): a run superseded by the concurrency
+    # group above -- the next push landing on this ref, or a re-run
+    # cancelled from the UI -- cancels every job still in flight, and
+    # that means "a newer run is authoritative", not "this tree is
+    # unproven" (issue #1025). cancelled() answers for the run itself,
+    # not for a dependency's own result -- unlike failure(), which walks
+    # needs -- so this condition goes false, and the job skips instead
+    # of failing, only when the run as a whole was superseded. A skipped
+    # job satisfies a required check -- this job's own draft/closed
+    # condition below already relies on exactly that, and has since
+    # before this change; integration.yml, by contrast, deliberately
+    # carries no `paths` filter, for the same reason stated in
+    # REPOSITORY.md and in that workflow's own comment: a required check
+    # that never runs blocks a merge, where a skipped one satisfies it,
+    # and a filter would make it never run rather than skip. A run that
+    # was not cancelled still reaches the step below even when a
+    # dependency failed, or was individually cancelled (a matrix cell
+    # hitting its own timeout-minutes, say), because cancelled() does not
+    # go true for that.
     # and the draft condition every job above carries, so a draft
-    # skips uniformly rather than tripping the skip check below -- the
+    # skips uniformly rather than tripping the check below -- the
     # closed one for the same reason, added at the trigger above
-    if: ${{ always() && !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: ${{ !cancelled() && !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # the condition reads the whole needs context rather than testing
-      # each job by name, so a job added to needs above is covered
-      # without touching this. "skipped" is a failure here too: nothing
-      # in this workflow is conditional, so a skip means something
-      # upstream did not run
+      # unconditional -- no `if:` of its own -- and deciding in the
+      # shell rather than in a boolean `contains(needs.*.result, ...)`
+      # expression: issue #1001 saw four `suite` cells die in "Set up
+      # job" on an action download's HTTP 429, the run's own conclusion
+      # was `failure`, and yet `needs.suite.result` was not `'failure'`
+      # when the old expression checked it -- so that `if:`-gated step
+      # was skipped, and a skipped step leaves the job green by
+      # construction, the same shape the job-level condition used to
+      # have. Looping over every result here instead means the step
+      # always runs and the log always carries what `needs` actually
+      # held, whether or not that matches a run's own conclusion; and it
+      # is what makes a job added to `needs` above covered without
+      # touching this loop, the same as the expression it replaces
       - name: Fail unless every job above succeeded
-        if: >-
-          contains(needs.*.result, 'failure') ||
-          contains(needs.*.result, 'cancelled') ||
-          contains(needs.*.result, 'skipped')
         run: |
-          echo "::error::a job this gate depends on did not succeed"
-          exit 1
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "results: $results"
+          for result in $results; do
+            [ "$result" = success ] || {
+              echo "::error::a job this gate depends on reported $result"
+              exit 1
+            }
+          done
