@@ -561,7 +561,24 @@ class SessionValues:
 
 
 def session_values(session_ctx: SessionContext) -> SessionValues:
-    """Derive the session values from the context, as every party does."""
+    """Derive the session values from the context, as every party does.
+
+    Memoized on `session_ctx`: `sign`, `partial_sig_verify_` and
+    `partial_sig_agg` each call this once per signer, so one session
+    that signs, verifies every partial signature and aggregates would
+    otherwise run the O(n) key aggregation below 2n+1 times over
+    inputs that never change. `SessionContext` is `frozen=True` but
+    not `slots=True`, so it still keeps a `__dict__`, and
+    `object.__setattr__` reaches into it exactly as `SessionContext.__init__`
+    already does; the cached attribute falls outside the dataclass's
+    declared fields, so the `__eq__` and `__hash__` that dataclass
+    generates from those fields do not see it, and two contexts
+    spelling the same session remain equal regardless of which one has
+    already been used to sign.
+    """
+    cached: SessionValues | None = session_ctx.__dict__.get("_values")
+    if cached is not None:
+        return cached
     key_agg_ctx = key_agg_and_tweak(
         session_ctx.pub_keys, session_ctx.tweaks, session_ctx.is_xonly
     )
@@ -586,7 +603,12 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
     # the one btclib's own BIP340 verifier recomputes, byte for byte and
     # for a message of any size
     e = ssa.challenge_(session_ctx.msg, Q[0], R[0], secp256k1, sha256)
-    return SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
+    values = SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
+    # nothing cached here is secret -- Q, gacc, tacc, b, R, e are all
+    # public -- so caching them on the context changes no security
+    # property this module publishes
+    object.__setattr__(session_ctx, "_values", values)
+    return values
 
 
 def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
@@ -745,6 +767,14 @@ def partial_sig_verify(
     Every signer should verify every other signer's partial signature
     before aggregating: an aggregate signature that does not verify says
     only that somebody misbehaved, while this says who.
+
+    This spelling builds a fresh `SessionContext` on every call, so
+    `session_values`'s memoization buys it nothing: calling this once
+    per signer re-aggregates the keys once per signer. A caller that
+    verifies every signer of one session should build the
+    `SessionContext` once and call `partial_sig_verify_` with it
+    instead, which is what shares the cached session values across
+    those calls.
     """
     if len(pub_nonces) != len(pub_keys):
         err_msg = "The `pubnonces` and `pubkeys` arrays must have the same length."
