@@ -6135,6 +6135,21 @@ documented at release-notes length in the first place, and are still in
   bindings hand back a point whose Z is 1 -- and 1.01x where the
   multiplication is Python's, an inverse being 8.8 us of 1148.
 
+- **`pedersen.second_generator`'s docstring now says what it derives**
+  (issue #1055). Its `H`, for `(secp256k1, sha256)`, equals
+  libsecp256k1-zkp's hardcoded `secp256k1_generator_h` -- the `H` of
+  Elements and of Confidential Transactions -- which the docstring
+  already claimed by naming zkp as a source, and which nothing in the
+  tree checked: `tests/ecc/pedersen_test.py::test_second_generator`
+  asserted the value without saying what it was pinning. The docstrings
+  of `second_generator`, `commit` and the test now say so, and say it
+  is a fact about that one `(ec, hf)` pair rather than about every
+  curve and hash function the parameterized `second_generator`
+  accepts, since no published value exists to check the others
+  against. The zkp reference also moved: the fork is
+  `BlockstreamResearch`'s now, and the constant lives in its
+  `generator` module rather than `rangeproof`.
+
 ### Performance
 
 - **`ansi_x9_63_kdf` asks for its buffer once, rather than joining a list
