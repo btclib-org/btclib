@@ -108,6 +108,7 @@ __all__ = [
     "to_prv_key",
     "to_pub_key",
     "tx",
+    "tx_builder",
     "tx_or_psbt",
     "utils",
     "var_bytes",

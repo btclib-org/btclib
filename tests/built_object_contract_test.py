@@ -64,9 +64,12 @@ from btclib import slip132
 from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
 from btclib.descriptors.descriptors import miniscript_sizer, satisfaction_sizer
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.fee import FeeRate
 from btclib.psbt.psbt import Psbt, assert_signatures_only
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_size import estimated_input_sizes
+from btclib.tx import TxOut
+from btclib.tx_builder import build_psbt
 from btclib.wallet.script_wallet import KeyGroup
 from tests.psbt import psbt_cases
 
@@ -94,6 +97,9 @@ _CHANGED.unknown = {b"\x00": b"\x01"}
 
 _PSBT_IN = _SIGNED.inputs[0]
 _TX_IN = _SIGNED.tx.vin[0]
+# a payment small enough for that input to cover it at any rate, to the
+# script the vector's own first output pays
+_TX_OUT = TxOut(1_000, _SIGNED.tx.vout[0].script_pub_key)
 # the input's own keys, which is the caller a satisfaction sizer is for:
 # it sizes the branch these will take, so the quorum has to be theirs
 _SIGNER_KEYS = list(_PSBT_IN.hd_key_paths)
@@ -176,6 +182,17 @@ _CASES = (
         # an input carrying no utxo is a PsbtIn whose type cannot be read,
         # which is what this function raises about rather than guesses at
         {0: PsbtIn()},
+    ),
+    _Case(
+        "tx_builder.build_psbt",
+        build_psbt,
+        ([_PSBT_IN], [_TX_OUT], FeeRate(sats_per_kvbyte=1000)),
+        # an input carrying no utxo is worth nothing this can read, and a
+        # transaction with no output at all is one Core's CheckTransaction
+        # refuses: both are sequences of the declared type holding a value
+        # no valid call carries. The rate has no wrong value -- every
+        # FeeRate its own constructor admits is a price
+        {0: [PsbtIn()], 1: []},
     ),
     # the two SolutionSizers, which take the same pair and owe a caller the
     # same check. Neither has a wrong *value*: "not mine" is what a sizer
