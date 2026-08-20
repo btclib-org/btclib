@@ -483,6 +483,65 @@ def test_a_ring_shape_that_disagrees_with_pubk_rings_is_refused() -> None:
     assert not borromean.verify(b"msg", sig, [[q1], [q2]])
 
 
+def test_a_ring_with_no_keys_is_refused() -> None:
+    """A ring of size zero signs nothing, even where every shape agrees.
+
+    `_assert_matches_pubk_rings` only compares the *counts* of two
+    arguments, so `sig.s == [[]]` against `pubk_rings == [[]]` passes it
+    -- both are one ring of zero. The walk still cannot run: `sign`'s
+    step 1 divides by `keys_size` (`ZeroDivisionError`), and
+    `assert_as_valid` indexes `e[i][0]` on the empty list `_initialize`
+    builds for it (`IndexError`), neither a `BTClibValueError` nor a
+    `BTClibRuntimeError`, so the second escaped `verify`'s own
+    `except (ValueError, BTClibRuntimeError)` (issue #1094).
+
+    The fix is `BorromeanSig.assert_valid`'s own new check, so it holds
+    at construction already -- before `assert_as_valid` or `verify` are
+    even reached -- and `sign`'s new bound on `sign_key_idx[i]`, which a
+    zero-size ring fails for every value since no index is valid there.
+    """
+    ec = secp256k1
+
+    with pytest.raises(BTClibValueError, match="ring 0 has no keys"):
+        BorromeanSig((0).to_bytes(32, "big"), [[]], ec)
+
+    sig = BorromeanSig((0).to_bytes(32, "big"), [[]], ec, check_validity=False)
+    with pytest.raises(BTClibValueError, match="ring 0 has no keys"):
+        borromean.assert_as_valid(b"msg", sig, [[]])
+    assert not borromean.verify(b"msg", sig, [[]])
+
+    err_msg = "ring 0 has 0 keys, sign_key_idx 0 is not a valid index"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(b"msg", [1], [0], [1], [[]])
+
+
+def test_sign_key_idx_out_of_range_is_refused() -> None:
+    """A sign_key_idx[i] that is not a position in its own ring.
+
+    `sign`'s existing shape check compares the *counts* of `pubk_rings`,
+    `sign_key_idx`, `ks` and `sign_keys`, which all agree here -- one
+    entry each. Nothing bounded what `sign_key_idx[0]` itself pointed
+    at: too large a value walked `s[i][j - 1]` and `pubk_rings[i][j - 1]`
+    past the end of the ring's tuple in step 2, a bare `IndexError`
+    (issue #1095); a negative one wrapped to a Python-legal index and
+    signed a position other than the one it named, silently producing a
+    signature that does not verify rather than raising anything at all.
+    Both are now `BTClibValueError`, naming the ring, its size and the
+    index, before either step runs.
+    """
+    ec = secp256k1
+    q1 = mult(1, ec.G, ec)
+    q2 = mult(2, ec.G, ec)
+
+    err_msg = "ring 0 has 2 keys, sign_key_idx 5 is not a valid index"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(b"msg", [1], [5], [1], [[q1, q2]])
+
+    err_msg = "ring 0 has 2 keys, sign_key_idx -1 is not a valid index"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        borromean.sign(b"msg", [1], [-1], [1], [[q1, q2]])
+
+
 # each maps an s-value to a key `_guess_signer` maximizes over the ring: a
 # published signature must not let any of them recover which position was
 # the real signer. "bit_length" and "value" are the two the unreduced real

@@ -4512,6 +4512,39 @@ documented at release-notes length in the first place, and are still in
   four stray bytes it briefly held; only the initializer is removed,
   and it cost no test.
 
+- **`BorromeanSig.assert_valid` refuses a ring with no keys** (issue
+  #1094). A ring of size zero proves nothing about any key, and nothing
+  checked for one: `BorromeanSig(e0, [[]], ec)` built silently, and a
+  zero-key ring that agreed on shape with `pubk_rings` -- so #1088's new
+  `_assert_matches_pubk_rings` had nothing to say about it -- still
+  reached `assert_as_valid` indexing `e[i][0]` on the empty list
+  `_initialize` builds for it, a bare `IndexError` that escaped
+  `verify`'s `except (ValueError, BTClibRuntimeError)` the same way
+  #1088's did. The new check sits beside `assert_valid`'s existing "no
+  rings" one, one ring's worth of nesting down, and runs wherever that
+  method already does: at construction (`check_validity`'s default is
+  `True`), from `BorromeanSig.parse`, and unconditionally inside
+  `assert_as_valid` -- so `verify` answers `False` for it like any other
+  invalid signature. It is not what fixes `sign`'s own exposure to the
+  same input, `(j_star + 1) % keys_size` being a `ZeroDivisionError` for
+  `keys_size == 0` reached long before any `BorromeanSig` is built: the
+  next entry's bound on `sign_key_idx[i]` is what closes that one, a
+  zero-size ring failing it for every value since no index is valid
+  there.
+
+- **`sign` refuses a `sign_key_idx[i]` that is not a position in its own
+  ring** (issue #1095). `sign_key_idx`, `ks`, `sign_keys` and
+  `pubk_rings` were checked to carry one entry per ring, and nothing
+  beyond that: a `sign_key_idx[i]` past the end of its own ring was not
+  bounded by that count, and step 2's inner loop then walked `s` and
+  `pubk_rings` past the end of the ring's tuple, a bare `IndexError`. A
+  negative value did not raise at all -- Python's own negative indexing
+  quietly read a different position than the one named, so `sign`
+  returned a `BorromeanSig` that silently does not verify. The new
+  `_assert_sign_key_idx_in_range` refuses both, once per ring before
+  either step, as a `BTClibValueError` naming the ring, its size and the
+  index.
+
 ### Security
 
 - **`SECURITY.md` says the bindings offer a buffer for a secret, and
