@@ -4195,6 +4195,41 @@ documented at release-notes length in the first place, and are still in
   and checked by its own round-trip tests, both parities of the final
   nonce exercised in the same run rather than pinned for one and
   pragma'd for the other.
+- **`borromean`'s challenge hash now matches secp256k1-zkp's, at the
+  cost of every signature this module ever produced** (issue #1070).
+  `_hash`'s four-part preimage was `m || R || ring || position` since
+  `v2023.7.12`, the message hash before the point; secp256k1-zkp's
+  `rangeproof` module -- `secp256k1_borromean_hash`,
+  `src/modules/rangeproof/borromean_impl.h`, the only other
+  implementation of this construction anything reads, Elements and
+  Confidential Transactions among its callers -- builds `e || m ||
+  ring || pos`, the point first. Found while researching #1054's wire
+  format and checked against zkp's source rather than inferred: same
+  four components, same widths, same big-endian counters, the message
+  and the point swapped. `_hash` now writes them in zkp's order.
+  This is a hard break with no migration: `sign` and `assert_as_valid`
+  compute the same hash every time, there is no version byte in the
+  wire format to switch on, and a signature made before this change
+  does not verify after it. The recommendation #1070 recorded was to
+  keep the old order and only document the divergence -- cheaper, and
+  it breaks nothing already stored -- but the maintainer chose to pay
+  the break instead, because a verifiable-nowhere hash is not worth
+  having a wire format for at all (#1054), and interoperating with the
+  one other implementation anyone reads is. `_get_msg_format` was
+  checked in the same issue and left alone: zkp's rangeproof never
+  hashes a caller's message together with caller-supplied pubkey
+  rings, reconstructing its rings from a value commitment instead, so
+  there is no zkp preimage for this one to diverge from or agree with.
+  `tests/ecc/borromean_test.py` pins the new preimage order against a
+  construction computed by hand from zkp's documented source, there
+  being no vendored zkp in this tree to call.
+  **Aligning the challenge hash is not the same as producing a CT
+  rangeproof**: `rangeproof_impl.h` wraps the borromean signature in
+  mantissa/exponent, min-value, sign bits and x-only pubkey recovery
+  that `btclib.ecc.borromean` has no counterpart for, taking explicit
+  pubkey rings where zkp reconstructs them from a commitment. What
+  agrees now is the primitive underneath, not the whole of what
+  Elements calls a rangeproof.
 
 ### Security
 
