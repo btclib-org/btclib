@@ -102,8 +102,14 @@ def sign(
     """
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
+    # drawn uniformly in [0, ec.n), the same distribution the real
+    # s-value has once step 2 reduces it: randbits(256) is uniform over
+    # [0, 2**256), not over the scalars, and the two ranges diverge by
+    # more than a 2**-127 fraction on a low-cardinality curve -- one
+    # forged this way and the real one reduced would then disagree in
+    # the same distinguishing way the unreduced real value used to
     s = [
-        [secrets.randbits(256) for _ in range(len(pubk_ring))]
+        [secrets.randbelow(ec.n) for _ in range(len(pubk_ring))]
         for pubk_ring in pubk_rings
     ]
 
@@ -156,7 +162,7 @@ def sign(
             err_msg = "implausible signature failure"
             raise BTClibRuntimeError(err_msg)
         for j in range(1, j_star + 1):
-            s[i][j - 1] = secrets.randbits(256)
+            s[i][j - 1] = secrets.randbelow(ec.n)
             t = double_mult_var(
                 -e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G, ec
             )
@@ -170,7 +176,15 @@ def sign(
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausible signature failure"  # pragma: no cover
                 raise BTClibRuntimeError(err_msg)  # pragma: no cover
-        s[i][j_star] = k + sign_keys[i] * e[i][j_star]
+        # reduced mod n, like every forged value above: unreduced, this
+        # is about twice the bit length of the others -- k and
+        # sign_keys[i] * e[i][j_star] are each near n, so their sum is
+        # about 512 bits where a forged s stays at 256 -- and the real
+        # signer's ring position is then the longest s in the ring, with
+        # no computation needed to read it off a published signature.
+        # Every consumer already reduces mod n (`mult`, `double_mult_var`),
+        # so this changes no signature, only what it discloses.
+        s[i][j_star] = (k + sign_keys[i] * e[i][j_star]) % ec.n
     return e0, s
 
 

@@ -274,6 +274,21 @@ used to teach and to prototype as much as to build:
     which btclib does not yet offer: there, the ordering matters as
     well — the signer must publish its `R` before learning the host's
     randomness, and `sign` alone cannot enforce that
+- **a `btclib.ecc.borromean` ring signature made before issue #1053's fix
+    names its own signer.** The real signer's s-value was the only one
+    computed rather than drawn, and the only one left unreduced: it ran
+    to about twice the bit length of the forged values beside it, so the
+    longest s in a ring was the real signer's position, read off a
+    signature that was otherwise valid and without breaking anything
+    cryptographically. The fix reduces that value mod `ec.n`, the same
+    reduction every verifier already applied to it, and draws the forged
+    values from the same range rather than `secrets.randbits(256)`; no
+    signature changes, so a signature made before the fix still verifies
+    after it, and this bullet is about what it already disclosed, not
+    about needing a new one. A ring signature published under the old
+    code is not repaired by upgrading btclib: whatever bit length its
+    published s-values carry is public already, and nothing library-side
+    can withdraw that
 - randomness comes from the operating system through the `secrets`
     module: the auxiliary randomness of BIP340 signing, the entropy of a
     generated mnemonic, and the private keys of the key generation

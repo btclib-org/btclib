@@ -4095,6 +4095,34 @@ documented at release-notes length in the first place, and are still in
   `silentpayments.scan_outputs` with `b_scan` wherever the bindings
   serve secp256k1, the same as `output_keys` above it in both lists.
 
+- **`borromean.sign` no longer leaks which key signed** (issue #1053).
+  The real signer's s-value was the only one computed rather than
+  drawn, and the only one left unreduced: `k + sign_keys[i] * e[i][j_star]`
+  is about twice the bit length of the forged values around it, so
+  `max(s, key=int.bit_length)` named the ring position that signed with
+  no cryptanalysis at all -- read off a signature that was otherwise
+  valid, not a forgery or a key-recovery defect, but the one property a
+  ring signature exists to provide. The fix is two changes to the same
+  function: the real value is now reduced mod `ec.n`, like every value
+  a verifier's `mult` and `double_mult_var` already treat it as; and the
+  forged values, previously `secrets.randbits(256)`, are now
+  `secrets.randbelow(ec.n)` -- uniform over the scalars rather than over
+  `[0, 2**256)`, which on secp256k1 is a `2**-127` fraction of the range
+  and invisible, but on a low-cardinality curve (`ec` being a parameter
+  of this module, issue #183) is the same distinguisher running the
+  other way once the real value is reduced. No signature changes: every
+  consumer of an `s`-value already reduces mod `ec.n` before using it,
+  so a signature produced before the fix still verifies after it, and
+  `tests/ecc/borromean_test.py`'s existing round trips pass unchanged.
+  What changes is what a *newly produced* signature discloses; a
+  signature already published under the old code still carries the
+  bit-length tell, which `SECURITY.md` now says explicitly.
+  `tests/ecc/borromean_test.py` gains the check nothing had made before:
+  over many signatures with the real ring position re-drawn each time,
+  no statistic of the published `s`-values -- bit length, raw value, a
+  residue -- may guess the real position better than chance, on
+  secp256k1 and on a low-cardinality curve both.
+
 ### The public API and the module layout
 
 - **`hashes.siphash` implements SipHash-2-4** (issue #373), the keyed
