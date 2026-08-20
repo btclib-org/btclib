@@ -265,6 +265,18 @@ _EXCLUDED = {
         " and a padded one are two objects, each serializing back to the"
         " buffer it came from"
     ),
+    "btclib.ecc.borromean.BorromeanSig": (
+        "the wire format has no length of its own for the ring structure:"
+        " e0 || s... is only as long as the caller's rsizes says it is,"
+        " the same reason zkp's secp256k1_borromean_verify takes rsizes as"
+        " an argument rather than reading it from the proof. The three"
+        " generic properties assume a self-contained encoding, and driving"
+        " them with rsizes defaulting to empty would test that default's"
+        " artifact rather than a real signature's boundary; the real one is"
+        " tests/ecc/borromean_test.py's own"
+        " test_borromean_sig_parse_refuses_short_and_trailing_data, driven"
+        " with the rsizes an actual pubk_rings carries"
+    ),
     "btclib.ecc.dsa.Sig": (
         "the one parser here with a flag in front of the rule, and the flag"
         " is Bitcoin Core's: trailing octets are refused under `strict`"

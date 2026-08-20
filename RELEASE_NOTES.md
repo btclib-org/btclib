@@ -445,6 +445,22 @@ full year, short month, short day (YYYY-M-D)
   caller that will never touch an adaptor, and it moved against where
   secp256k1-zkp#330 is taking the C API.
 
+- **`borromean.sign` returns a `BorromeanSig`, and `verify` and
+  `assert_as_valid` take one instead of the bare `e0`/`s` pair they
+  have taken since `v2023.7.12`.** Before: `e0, s = borromean.sign(msg,
+  ks, sign_key_idx, sign_keys, pubk_rings)` and `borromean.verify(msg,
+  e0, s, pubk_rings)`. Now: `sig = borromean.sign(...)` and
+  `borromean.verify(msg, sig, pubk_rings)` -- `sig` is a `BorromeanSig`
+  with `.e0`, `.s` and `.ec`, `serialize()`/`BorromeanSig.parse()` for
+  its wire format, and `verify`/`assert_as_valid` also accept the
+  `serialize()`d octets directly in `sig`'s place. A caller unpacking
+  the old tuple reads `sig.e0`/`sig.s` instead; a caller passing `e0`
+  and `s` as two arguments passes `sig` as one. `sign`/`assert_as_valid`
+  answering the point at infinity with a bare `BTClibValueError` also
+  changes, to a `BorromeanRingError` (a `BTClibRuntimeError`): a caller
+  catching `ValueError` around that one corner case catches nothing
+  now. CHANGELOG.md has why, for both.
+
 ### Worth knowing, though nothing raises
 
 - **Signing on the Python arm now checks the signature before answering

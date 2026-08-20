@@ -91,6 +91,7 @@ from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.block import BasicBlockFilter, Block, BlockHeader
 from btclib.descriptors import descriptors, miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
+from btclib.ecc.borromean import BorromeanSig
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
@@ -198,6 +199,7 @@ _OCTETS_DECODERS = (
     ("Witness.parse", Witness, "parse"),
     ("BIP32KeyData.parse", BIP32KeyData, "parse"),
     ("BIP32KeyOrigin.parse", BIP32KeyOrigin, "parse"),
+    ("BorromeanSig.parse", BorromeanSig, "parse"),
     ("bms.Sig.parse", bms.Sig, "parse"),
     ("ssa.Sig.parse", ssa.Sig, "parse"),
     ("dsa.Sig.parse", dsa.Sig, "parse"),
@@ -233,6 +235,7 @@ _EXTRA_ARGUMENTS = {
     ("btclib.tx.tx.Tx", "serialize"): "include_witness",
     ("btclib.block.block.Block", "serialize"): "include_witness",
     ("btclib.block.block_filter.BasicBlockFilter", "parse"): "block_hash",
+    ("btclib.ecc.borromean.BorromeanSig", "parse"): "rsizes",
     ("btclib.psbt.psbt_in.PsbtIn", "serialize"): "psbt_version",
     ("btclib.psbt.psbt_in.PsbtIn", "parse"): "psbt_version",
     ("btclib.psbt.psbt_out.PsbtOut", "serialize"): "psbt_version",
