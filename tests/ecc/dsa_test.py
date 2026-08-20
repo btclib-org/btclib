@@ -2177,6 +2177,7 @@ def test_a_signer_answers_what_sign_answers(
         assert signer.sign(b"grind", grind=grind) == expected
 
 
+@needs_bindings
 def test_a_signer_derives_and_parses_the_public_key_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
