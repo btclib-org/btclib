@@ -5,15 +5,16 @@
 """Where a peer is, what it offers, and the `addr` message that gossips it.
 
 Bitcoin Core's `CAddress`, of src/protocol.h, in the version-1 encoding
-its `SerializeV1`/`UnserializeV1` write: eight octets of service flags,
-sixteen of address and two of port. BIP155's `addrv2` is a different
+its `SERIALIZE_METHODS` writes with `Encoding::V1`: eight octets of
+service flags, then the sixteen of address and two of port that
+`CService` writes under it. BIP155's `addrv2` is a different
 encoding of the same idea and is issue #1083's fifth child, not this
 module.
 
 **Two classes for what Core's prose calls one structure**, because the
 octets are not the same: a `version` message's two addresses carry no
 timestamp and an `addr` message's carry four octets of one in front. Core
-writes that as a serialization parameter -- `CAddress::SetParams` with
+writes that as a serialization parameter -- `CAddress::SerParams` with
 `Format::Disk`, `Format::Network` -- and its test framework as
 `CAddress.deserialize(f, with_time=True)`. A parameter is what btclib_node
 has too, and it is where that implementation loses a round trip: a
@@ -26,8 +27,9 @@ the other belongs is a call mypy refuses rather than octets a peer
 refuses.
 
 **The port is big-endian and it is the only field of this protocol that
-is.** Core writes it through `set_writedata16be` (src/netaddress.cpp),
-network byte order being what a port has been since sockets: everything
+is.** Core writes it through `Using<BigEndianFormatter<2>>(obj.port)`,
+in `CService`'s `SERIALIZE_METHODS` of src/netaddress.h, network byte
+order being what a port has been since sockets: everything
 else in a p2p message, this structure's service flags and timestamp
 included, is little-endian. A self-consistent round trip cannot see this
 being wrong, which is why the test module for this one is driven by a
@@ -213,8 +215,9 @@ class NetworkAddress:
     """Where a peer is and what it offers: (services, ip, port).
 
     Bitcoin Core's `CService` with the service flags in front of it, in
-    the twenty-six octets `CAddress::SerializeV1` writes without a
-    timestamp -- which is what a `version` message's `addr_recv` and
+    the twenty-six octets a `CAddress` writes under `Encoding::V1` with
+    no timestamp in front -- which is what a `version` message's
+    `addr_recv` and
     `addr_from` are. `TimestampedNetworkAddress` is the thirty-octet form
     an `addr` message carries, and the module docstring is why they are
     two classes.
@@ -275,7 +278,7 @@ class NetworkAddress:
         )
         out += self.ip.packed
         # the one big-endian field of this protocol: Core's
-        # set_writedata16be, network byte order as every port is
+        # BigEndianFormatter<2>, network byte order as every port is
         out += self.port.to_bytes(_PORT_SIZE, byteorder="big", signed=False)
         return out
 

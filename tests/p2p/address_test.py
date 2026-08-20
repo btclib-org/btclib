@@ -97,8 +97,9 @@ def test_the_captured_addr_reads_the_port_big_endian() -> None:
 
     Two octets, `208d`. Big-endian they are 8333, which is the port
     Bitcoin listens on; little-endian they are 36128, which is nothing.
-    Core writes them with `set_writedata16be` (src/netaddress.cpp), the
-    only big-endian field of this protocol.
+    Core writes them with `Using<BigEndianFormatter<2>>(obj.port)`, in
+    `CService`'s `SERIALIZE_METHODS` of src/netaddress.h, and they are
+    the only big-endian field of this protocol.
     """
     addr = Addr.parse(_ADDR_PAYLOAD)
     assert addr.addresses[0].address.port == 8333

@@ -7,7 +7,7 @@
 Nothing here reads octets Bitcoin Core wrote: the module holds no wire
 format, only the shape every payload type of this package has and the one
 line that puts one in an envelope. What these tests hold is that the
-shape is uniform -- that the five payload types this package has answer
+shape is uniform -- that every payload type this package has answers
 `command`, `serialize` and `to_message` the same way -- so that the
 payload types still to come (issue #1083) have something to be uniform
 with.
