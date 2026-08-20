@@ -4,7 +4,7 @@ name: release
 # one pipeline, two targets:
 # - pushing a v<version> tag runs the full test matrix, builds and
 #   checks the distribution files, publishes them to PyPI, and turns
-#   the tag into a GitHub release whose notes come from HISTORY.md
+#   the tag into a GitHub release whose notes come from RELEASE_NOTES.md
 # - workflow_dispatch is the rehearsal: the same pipeline from any
 #   branch, publishing to TestPyPI under a unique .dev<N> version.
 #   A rehearsal is never tagged
@@ -150,19 +150,19 @@ jobs:
             echo "::error::$version has no day; $msg"
             exit 1
           fi
-      # the release notes are HISTORY.md's section for the tag, lifted by
-      # the github-release job below, and its fallback fires only on an
-      # *empty* section: "## v2026.8 (work in progress, not released yet)"
-      # matches that job's heading regex, the tag being followed by a
-      # space, so a forgotten retitle publishes the work-in-progress text
-      # as the release notes, silently. This is the check for it, and it
-      # belongs here rather than in github-release because that job runs
-      # after PyPI has accepted the files, and a version cannot be
-      # unpublished.
+      # the release notes are RELEASE_NOTES.md's section for the tag,
+      # lifted by the github-release job below, and its fallback fires
+      # only on an *empty* section: "## v2026.8 (work in progress, not
+      # released yet)" matches that job's heading regex, the tag being
+      # followed by a space, so a forgotten retitle publishes the
+      # work-in-progress text as the release notes, silently. This is the
+      # check for it, and it belongs here rather than in github-release
+      # because that job runs after PyPI has accepted the files, and a
+      # version cannot be unpublished.
       # CHANGELOG.md is checked too: RELEASING.md retitles the two
-      # together, HISTORY.md's section points at CHANGELOG.md's for the
-      # detail, and a heading left as "work in progress" makes that a link
-      # into nothing.
+      # together, RELEASE_NOTES.md's section points at CHANGELOG.md's for
+      # the detail, and a heading left as "work in progress" makes that a
+      # link into nothing.
       # Release-only, like the comparison above, and for the same reason:
       # a rehearsal is what runs *before* the retitle, so requiring it
       # there would forbid the dry run it exists to be.
@@ -173,7 +173,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           version=$(uv version --short)
-          for file in HISTORY.md CHANGELOG.md; do
+          for file in RELEASE_NOTES.md CHANGELOG.md; do
             awk -v tag="v$version" -v file="$file" '
               $0 == "## " tag {heading = NR; next}
               index($0, "## " tag " ") == 1 {heading = NR; extra = $0; next}
@@ -610,20 +610,21 @@ jobs:
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        # the release notes are the tag's own section of HISTORY.md;
+        # the release notes are the tag's own section of RELEASE_NOTES.md;
         # if the section is missing the release still happens, with
         # notes generated from the merged pull requests instead.
         # The fallback is the safety net for a tag pushed past a red
         # version-check, not the check itself: version-check has already
-        # refused a tag whose HISTORY.md heading carries anything after
-        # the version -- "(work in progress, not released yet)" matches
-        # the regex below and is not empty, so nothing here would notice
+        # refused a tag whose RELEASE_NOTES.md heading carries anything
+        # after the version -- "(work in progress, not released yet)"
+        # matches the regex below and is not empty, so nothing here would
+        # notice
         run: |
           awk -v tag="$GITHUB_REF_NAME" '
             $0 ~ "^## " tag "( |$)" {found=1; next}
             /^## / && found {exit}
             found {print}
-          ' HISTORY.md > "$RUNNER_TEMP/notes.md"
+          ' RELEASE_NOTES.md > "$RUNNER_TEMP/notes.md"
           # named for the tag only here, where the ref is one: nothing
           # inside the bundle says which release it belongs to, the way the
           # distribution files' own names do
@@ -636,7 +637,7 @@ jobs:
             gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
               --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
           else
-            echo "::warning::HISTORY.md has no $GITHUB_REF_NAME section"
+            echo "::warning::RELEASE_NOTES.md has no $GITHUB_REF_NAME section"
             gh release create "$GITHUB_REF_NAME" dist/* sbom/* "$bundle" \
               --title "$GITHUB_REF_NAME" --generate-notes
           fi

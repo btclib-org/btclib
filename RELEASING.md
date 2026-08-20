@@ -205,7 +205,7 @@ word, and step 1 asks it of both.
    public object removed, a parameter that changed kind or default or
    moved, an attribute whose value changed — and says nothing at all about
    an addition, so every line it prints wants an entry. What the step asks
-   is that nothing it names is missing from HISTORY.md. The converse is
+   is that nothing it names is missing from RELEASE_NOTES.md. The converse is
    not its to answer: an entry describing a break it did not find is a
    claim about the prose, which review still has to read. It exits 1 on a
    finding.
@@ -215,10 +215,10 @@ word, and step 1 asks it of both.
    was changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks
    nobody, and `__version__` and `__copyright__` report the same way. And
    one systemic change repeats once per site: `check_validity` going
-   keyword-only is dozens of lines on its own and belongs in HISTORY.md
-   once, as a rule, not once per class. Discount those and what is left
-   is short enough to check bullet by bullet — four entries were missing
-   from v2026.8.7's list, and all four were in that remainder.
+   keyword-only is dozens of lines on its own and belongs in
+   RELEASE_NOTES.md once, as a rule, not once per class. Discount those and
+   what is left is short enough to check bullet by bullet — four entries
+   were missing from v2026.8.7's list, and all four were in that remainder.
 
    Not a gate on every commit, and deliberately so: the comparison is
    against the previous *release* tag, so it reports the whole of a
@@ -227,15 +227,15 @@ word, and step 1 asks it of both.
    moving tree, so the tag is the only target it has and a cycle's worth
    of output is the only shape its answer takes.
 
-1. Retitle the "work in progress" section of **both** HISTORY.md and
-   CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
-   release notes from HISTORY.md's section alone, so that one has to
-   read as the release notes it becomes; CHANGELOG.md is the detail it
-   points at, and the two are retitled together or the link goes
+1. Retitle the "work in progress" section of **both** RELEASE_NOTES.md
+   and CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
+   release notes from RELEASE_NOTES.md's section alone, so that one has
+   to read as the release notes it becomes; CHANGELOG.md is the detail
+   it points at, and the two are retitled together or the link goes
    nowhere. `version-check` refuses a tag whose heading still carries
    anything after the version, in either file, or whose section is
    empty: the extraction matches `## v<version>` followed by a space
-   too, so an unretitled HISTORY.md would have published "work in
+   too, so an unretitled RELEASE_NOTES.md would have published "work in
    progress, not released yet" as the release notes. A rehearsal is
    exempt, being what runs before this step.
 
@@ -279,10 +279,10 @@ word, and step 1 asks it of both.
    stay, but what the diff cannot say has to be written, and what a
    reader should not have to discover at the button belongs there too.
 
-   Write it from HISTORY.md's "work in progress" section, which the cycle
-   has been filling one landed change at a time, and check that against
-   `git log v<previous version>..main --oneline` regardless of how
-   current it looks, rather than trust that every line landed when it
+   Write it from RELEASE_NOTES.md's "work in progress" section, which the
+   cycle has been filling one landed change at a time, and check that
+   against `git log v<previous version>..main --oneline` regardless of
+   how current it looks, rather than trust that every line landed when it
    should have. Griffe's result and `latest`'s run belong here too, each
    a line rather than a screenshot — both are steps nothing else
    enforces, and a pull request that never mentions them reads exactly
@@ -354,13 +354,12 @@ word, and step 1 asks it of both.
    is the point of no return, PyPI accepting no file name twice even
    after deletion; the GitHub release follows it, with the distribution
    files attached, `btclib-<version>.cdx.json` and
-   `<tag>.attestation.jsonl` beside them, and the
-   HISTORY.md section as its body. Read those notes
-   once it lands: a run that logs
-   `HISTORY.md has no v<version> section` generated them from the merged
-   pull requests instead — the fallback `version-check` exists to make
-   unreachable, not a second way to write release notes — and they are
-   worth replacing by hand if it ever fires.
+   `<tag>.attestation.jsonl` beside them, and the RELEASE_NOTES.md section
+   as its body. Read those notes once it lands: a run that logs
+   `RELEASE_NOTES.md has no v<version> section` generated them from the
+   merged pull requests instead — the fallback `version-check` exists to
+   make unreachable, not a second way to write release notes — and they
+   are worth replacing by hand if it ever fires.
 
 1. Read the `documented` job rather than the site: read the docs activates
    and builds a new release tag from the automation rule REPOSITORY.md
@@ -434,8 +433,8 @@ word, and step 1 asks it of both.
 
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
-   "work in progress" section in HISTORY.md and CHANGELOG.md, through a
-   pull request like any other.
+   "work in progress" section in RELEASE_NOTES.md and CHANGELOG.md,
+   through a pull request like any other.
 
    Those two sections are where the next release's notes accumulate, one
    landed change at a time, and the merge step above is what reads them

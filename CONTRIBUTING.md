@@ -865,10 +865,10 @@ release is where a break is reported rather than a reason not to make it.
 
 So a census that finds thirty names of one shape and six of another has
 found six to change, not a trade-off to price. What the measurement is
-for is knowing the blast radius and writing HISTORY.md's
+for is knowing the blast radius and writing RELEASE_NOTES.md's
 breaking-changes entry, which is how a user is told: read
-[HISTORY.md](./HISTORY.md) for what that entry looks like, and note that
-`v2026.9`'s list is long on purpose.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) for what that entry looks like,
+and note that `v2026.9`'s list is long on purpose.
 
 The one thing this does not license is a break nobody can act on. An
 entry says the old spelling, the new one, and what a caller does about
@@ -1319,7 +1319,7 @@ whatever prompted it; "this used to be X, until Z" goes — unless the
 old spelling is something a caller can still encounter (a deprecated
 alias, a wire format), in which case it is not history but the
 present. History has two files of its own, `CHANGELOG.md` and
-`HISTORY.md`, and it is complete there.
+`RELEASE_NOTES.md`, and it is complete there.
 
 ### Commit your update
 

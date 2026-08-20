@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""What CHANGELOG.md and HISTORY.md must not say about themselves.
+"""What CHANGELOG.md and RELEASE_NOTES.md must not say about themselves.
 
 A count is the one fact in either file nothing derives: prose can be
 reviewed, a number cannot -- it is right or wrong, and which one is
@@ -39,14 +39,15 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-_FILES = (_ROOT / "CHANGELOG.md", _ROOT / "HISTORY.md")
+_FILES = (_ROOT / "CHANGELOG.md", _ROOT / "RELEASE_NOTES.md")
 
 # The three claims the two files used to make, keyed on the number word
 # and not on the prose around it, `\s+` covering the 80-column wrap that
 # falls in a different place each time a paragraph is reflowed:
-# CHANGELOG.md's and HISTORY.md's entry count, the size of HISTORY.md's
-# breaking-changes list, and CHANGELOG.md's cross-reference to it. Three
-# patterns and not a general "no number words in prose": the entries
+# CHANGELOG.md's and RELEASE_NOTES.md's entry count, the size of
+# RELEASE_NOTES.md's breaking-changes list, and CHANGELOG.md's
+# cross-reference to it. Three patterns and not a general "no number
+# words in prose": the entries
 # themselves say "eighteen became issues" and "the twelve on-chain
 # scripts of issue #123", which are facts about a change and not claims
 # about the file.

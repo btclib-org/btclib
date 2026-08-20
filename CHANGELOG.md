@@ -12,13 +12,13 @@
 -->
 
 Every change of a release, in full: what changed, why, and what it cost.
-[HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
-to act on; this file is the record behind them, and is where a claim in
-those notes can be checked.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
+what a user has to act on; this file is the record behind them, and is
+where a claim in those notes can be checked.
 
 Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
-[HISTORY.md](./HISTORY.md) rather than duplicated here.
+[RELEASE_NOTES.md](./RELEASE_NOTES.md) rather than duplicated here.
 
 ## v2026.9 (work in progress, not released yet)
 
@@ -610,6 +610,34 @@ documented at release-notes length in the first place, and are still in
   the two workflow files change in their comments alone: an instruction
   nobody needs and a day that is not the day are read as facts by whoever
   finds them, and there is nothing in a run to say otherwise.
+
+- **`HISTORY.md` is `RELEASE_NOTES.md` now** (issue #1011). Its own H1
+  always read `# Release notes`; the filename did not, and in common
+  usage the two words that were split name the same file, where a
+  project that does split them puts it the other way round — [Keep a
+  Changelog](https://keepachangelog.com/) defines CHANGELOG.md as the
+  curated, human-facing list, which is what this file is here. PyPI's
+  own **Changelog** link, read off `pyproject.toml`'s `changelog` url,
+  pointed past CHANGELOG.md at the file not named changelog — accurate
+  about its content and wrong about the one thing a stranger meets
+  first. `CHANGELOG.md` is unchanged: it is the file whose name and
+  contents already agree, and every entry it has ever made about the old
+  name stays written as it was true then.
+
+  Every other file pointing at the old name moved too, past
+  `CHANGELOG.md` itself and a historical fixture in
+  `tests/release_notes_test.py` quoting the literal old link, both left
+  alone for the same reason. Two were load-bearing: `release.yml` lifts
+  the GitHub release notes out of the tag's own section by filename,
+  and `version-check` refuses a tag whose heading is not retitled, in
+  both files it reads by name. `.gitattributes`
+  keeps `merge=union` under the new name, so a parallel release-note
+  bullet still resolves without a conflict. `docs/source/history_link.md`
+  moves to `docs/source/release_notes_link.md`, its toctree entry
+  relabelled `RELEASE NOTES` to match. `btclib.org/HISTORY.md` 404s now
+  rather than redirecting: nothing in this repository serves a redirect
+  today, and the file's git history is where the old name is still
+  reachable.
 
 ### Packaging, linting and CI
 
@@ -8185,10 +8213,10 @@ documented at release-notes length in the first place, and are still in
 ## v2026.8.7
 
 Grouped, and the order runs from what breaks a caller to what only
-maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
-changes on their own. Neither file counts its entries: `grep -c '^- '`
-does that, whereas a stated number is a line every open branch has to
-edit.
+maintainers see; `HISTORY.md` lists the source-breaking changes on their
+own -- the name this file had at the time, renamed to `RELEASE_NOTES.md`
+by issue #1011. Neither file counts its entries: `grep -c '^- '` does
+that, whereas a stated number is a line every open branch has to edit.
 
 ### Repository
 

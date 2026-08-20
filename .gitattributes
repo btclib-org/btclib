@@ -12,7 +12,7 @@
 # has — a count is exactly such an edit, and union would have kept both
 # numbers. CLAUDE.md carries the rest of the reasoning.
 CHANGELOG.md merge=union
-HISTORY.md merge=union
+RELEASE_NOTES.md merge=union
 
 # Electrum's Portuguese word-list is Monero's, and the blank lines of the
 # licence header it opens with end in a space upstream. Our copy being byte

@@ -213,13 +213,13 @@ Do not use Fable unless explicitly instructed.
   error, an xfail that passes is a failure. Coverage has a `fail_under`
   ratchet in `pyproject.toml`.
 - **CHANGELOG.md gets an entry for anything a user would notice**, in
-  the group it belongs to; HISTORY.md is the release notes on top of it
-  and only moves for a change a user has to *act* on. The prose of the
-  two is one fact each, deliberately: the breaking-changes list lives in
-  HISTORY.md and the detail behind it in CHANGELOG.md, so neither
-  restates the other. A source-breaking change costs one edit more: a
-  bullet in HISTORY.md's breaking-changes list, with the "before"
-  spelling checked against the `v2023.7.12` tag.
+  the group it belongs to; RELEASE_NOTES.md is the release notes on top
+  of it and only moves for a change a user has to *act* on. The prose of
+  the two is one fact each, deliberately: the breaking-changes list lives
+  in RELEASE_NOTES.md and the detail behind it in CHANGELOG.md, so
+  neither restates the other. A source-breaking change costs one edit
+  more: a bullet in RELEASE_NOTES.md's breaking-changes list, with the
+  "before" spelling checked against the `v2023.7.12` tag.
 - **Never state how many of anything a file holds** — measure it when a
   release wants it, and do not estimate:
 
@@ -232,8 +232,9 @@ Do not use Fable unless explicitly instructed.
   The why is in CONTRIBUTING.md's "Documentation and comments"; what
   this file adds is that nothing states a count now and tests keep it
   that way — `tests/release_notes_test.py` for CHANGELOG.md and
-  HISTORY.md, `tests/vendored_data_test.py` for `tests/_data/README.md`
-  — failing on a stated count rather than on a wrong one.
+  RELEASE_NOTES.md, `tests/vendored_data_test.py` for
+  `tests/_data/README.md` — failing on a stated count rather than on a
+  wrong one.
 - **A wall clock and a linter's findings are counts too**, and nothing
   fails on those: pyproject.toml's comments and tests/README.md state
   none, and keeping it that way is by hand. What a comment carries
@@ -252,7 +253,7 @@ Do not use Fable unless explicitly instructed.
   published — `tests/_data/README.md`'s "121 vectors, Core's entire
   file" — which pins a vendored file rather than measuring this tree,
   and which `tests/vendored_data_test.py` spares on purpose.
-- **CHANGELOG.md and HISTORY.md are `merge=union`**, which is what
+- **CHANGELOG.md and RELEASE_NOTES.md are `merge=union`**, which is what
   `.gitattributes` is for: the insertion point conflicts too — two
   branches appending a bullet to the same group — and union keeps both
   sides' added lines rather than stopping at a conflict with nothing to

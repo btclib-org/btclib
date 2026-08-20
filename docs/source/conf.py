@@ -100,9 +100,9 @@ html_theme = "sphinx_rtd_theme"
 # -- Links out of the included root markdown files ----------------------------
 
 # Some pages of the toctree are this repository's root markdown files --
-# README, CONTRIBUTING, REVIEWING, SECURITY, HISTORY and CHANGELOG -- each
-# pulled into a *_link.md shim by a myst {include}. The shims are what the
-# code below reads, so adding one needs no edit here.
+# README, CONTRIBUTING, REVIEWING, SECURITY, RELEASE_NOTES and CHANGELOG --
+# each pulled into a *_link.md shim by a myst {include}. The shims are what
+# the code below reads, so adding one needs no edit here.
 # Those files are written for the three places that read
 # them unrendered -- the GitHub file view, btclib.org, which is served
 # from master's root, and the PyPI long description -- so "./SECURITY.md"

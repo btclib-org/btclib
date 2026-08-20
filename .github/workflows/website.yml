@@ -141,7 +141,7 @@ jobs:
       # the sources; this is the same claim made about the artifact.
       #
       # An attribute of a real tag, not the string anywhere on the page:
-      # CHANGELOG.md, HISTORY.md, SECURITY.md and AUTHORS.md all recount
+      # CHANGELOG.md, RELEASE_NOTES.md, SECURITY.md and AUTHORS.md all recount
       # that defect and quote the broken tag, and a rendered page carries
       # that prose with the `<` escaped as `&lt;` -- so requiring an
       # unescaped `<tag ... src="` is what separates the page that has the

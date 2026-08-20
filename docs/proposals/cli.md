@@ -750,7 +750,7 @@ pages if it has any -- lives in the new repository, not here.
 btclib's side of this is what a dependent project's is: at most a
 mention where README.md already lists `btclib_secp256k1`, once the
 new repository exists to link to. Nothing in this repository's own
-CHANGELOG.md or HISTORY.md is owed an entry for a project the CLI's
+CHANGELOG.md or RELEASE_NOTES.md is owed an entry for a project the CLI's
 repository, not this one, releases and versions.
 
 ## The decisions this needs
@@ -770,7 +770,7 @@ repository, not this one, releases and versions.
    surface somebody decided rather than one an import section left
    behind — and the traversal contract above is what it reads.
 1. **Do the six renamings go in, and in one commit or six?** Each is
-   source-breaking on its own, and HISTORY.md's breaking-changes list is
+   source-breaking on its own, and RELEASE_NOTES.md's breaking-changes list is
    where a user reads them; one release absorbing all six is one entry
    to read instead of six spread over months.
 1. **Does `HashF` get a name?** The command line needs
