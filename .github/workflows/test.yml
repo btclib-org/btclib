@@ -78,6 +78,86 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # the cheapest job in the workflow, and the one that decides whether the
+  # rest of it runs at all: a pull request that edits only prose changes
+  # nothing the five jobs below build or test, and running the whole
+  # matrix to prove it was the cost. Each of `suite`, `coverage`,
+  # `no-bindings` and `dist` takes this job as a `needs` and reads its
+  # output in its own `if`; `coverage-union` does too, rather than
+  # relying on `coverage` and `no-bindings` skipping under it, because a
+  # job's own `if` here replaces the implicit "needs succeeded" check
+  # rather than adding to it, and its two `needs` would otherwise be
+  # skipped, not failed, leaving it to try downloading artifacts neither
+  # produced
+  #
+  # Three things this must not get wrong:
+  #
+  # - it runs on every trigger, and answers `true` on all but
+  #   `pull_request`: a push to main, the release workflow's call, and a
+  #   manual dispatch have no base to diff against, and a `changes` that
+  #   skipped itself there would leave every dependent reading an empty
+  #   output, not 'true', and the whole workflow -- the release path
+  #   included -- would skip
+  # - README.md is not prose for this purpose: pyproject.toml reads it as
+  #   the package's long description, which the `dist` job's twine and
+  #   pyroma checks actually render and rate. Nor is anything under
+  #   docs/, which the sdist carries (MANIFEST.in) and which
+  #   tests/docs_test.py and tests/docs_examples_test.py read directly.
+  #   Nor are CHANGELOG.md or RELEASE_NOTES.md: tests/release_notes_test.py
+  #   parses and validates their format, in the very suite this job would
+  #   otherwise skip
+  # - test-passed takes this job as a `needs` too, so a failure here
+  #   fails the gate instead of skipping every job below and being read
+  #   as a pass. So does every job that reads its output, `coverage-union`
+  #   included, for the same reason: `needs.changes.outputs.code` is
+  #   undefined in an expression unless the job is named in its own
+  #   `needs`
+  changes:
+    name: Decide whether the matrix has anything to check
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # the file list of a pull request, which contents: read does not carry
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.decide.outputs.code }}
+
+    steps:
+      - name: Ask which files the pull request touches
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # a push to main, a release call and a dispatch build
+          # everything: only a pull request has a base to be a diff
+          # against
+          if [ "$EVENT" != pull_request ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "$EVENT is not a pull request: everything runs"
+            exit 0
+          fi
+          gh api "repos/$REPO/pulls/$NUMBER/files" --paginate \
+            --jq '.[].filename' > files.txt
+          echo "files changed:"
+          cat files.txt
+          # the allowlist is what nothing built or tested reads: the
+          # prose files of the root and of .github, none of README.md,
+          # CHANGELOG.md or RELEASE_NOTES.md among them. An empty list is not
+          # a documentation change, it is a question this could not
+          # answer, so the count is checked before the pattern
+          prose='^(AUTHORS|CLAUDE|CODE_OF_CONDUCT|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$'
+          if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "something the matrix reads changed: everything runs"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "prose only: the matrix has nothing to check"
+          fi
+
   # what the matrix buys: every (os, architecture, interpreter) triple
   # selects a different published wheel of btclib_secp256k1, each with
   # its own compiled libsecp256k1 inside, and the pure Python code meets a
@@ -93,7 +173,10 @@ jobs:
     # the closed event only to supersede a run this ref's group is still
     # holding, and every job here carries the same skip for the reason
     # the draft one already does
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+          && github.event.action != 'closed'
+          && needs.changes.outputs.code == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -144,6 +227,7 @@ jobs:
     # far above what a run of the suite needs: what it bounds is a hung
     # job holding a runner for six hours
     timeout-minutes: 30
+    needs: changes
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move, and these
@@ -198,9 +282,13 @@ jobs:
   # reports before it reads a number, so the pair needs no job of its own
   coverage:
     name: Measure coverage, gated at 100%
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+          && github.event.action != 'closed'
+          && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -282,9 +370,13 @@ jobs:
   # makes this a suite and not a smoke test
   no-bindings:
     name: Run the suite with no bindings installed
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+          && github.event.action != 'closed'
+          && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -349,8 +441,16 @@ jobs:
   # more
   coverage-union:
     name: Combine coverage from both runs, gated at 100% too
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    needs: [coverage, no-bindings]
+    # needs.changes.outputs.code, not reliance on coverage/no-bindings
+    # skipping under it: a job's own `if` here replaces the implicit
+    # "needs succeeded" check, so without this a prose-only pull request
+    # would still run this job -- straight into two "Download coverage
+    # data" steps with nothing uploaded to download
+    if: >-
+      ${{ !github.event.pull_request.draft
+          && github.event.action != 'closed'
+          && needs.changes.outputs.code == 'true' }}
+    needs: [changes, coverage, no-bindings]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -403,9 +503,13 @@ jobs:
   # could only be red, for a reason nobody could fix from a branch
   dist:
     name: Build the distribution and install it
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+          && github.event.action != 'closed'
+          && needs.changes.outputs.code == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: changes
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -540,7 +644,7 @@ jobs:
     # day either grows a second one, this pattern and a change to the rule
     # are what that costs
     name: "test: every job passed"
-    needs: [suite, coverage, no-bindings, coverage-union, dist]
+    needs: [changes, suite, coverage, no-bindings, coverage-union, dist]
     # !cancelled(), not always(): a run superseded by the concurrency
     # group above -- the next push landing on this ref, or a re-run
     # cancelled from the UI -- cancels every job still in flight, and
@@ -579,14 +683,26 @@ jobs:
       # always runs and the log always carries what `needs` actually
       # held, whether or not that matches a run's own conclusion; and it
       # is what makes a job added to `needs` above covered without
-      # touching this loop, the same as the expression it replaces
-      - name: Fail unless every job above succeeded
+      # touching this loop, the same as the expression it replaces.
+      # `skipped` is an allowed result now, not just `success`: `changes`
+      # makes `suite`, `coverage`, `no-bindings`, `dist` and
+      # `coverage-union` conditional on its own output, so a prose-only
+      # pull request means every one of them reports `skipped` on
+      # purpose. `changes` itself is not conditional, and a job that
+      # fails outright still reports `failure`, never `skipped` -- an
+      # allowlist rather than a denylist of the two, since an
+      # unanticipated result (empty string included, issue #1001's own
+      # failure mode) is exactly what this step exists to catch
+      - name: Fail unless every job above succeeded or was legitimately skipped
         run: |
           results='${{ join(needs.*.result, ' ') }}'
           echo "results: $results"
           for result in $results; do
-            [ "$result" = success ] || {
-              echo "::error::a job this gate depends on reported $result"
-              exit 1
-            }
+            case "$result" in
+              success | skipped) ;;
+              *)
+                echo "::error::a job this gate depends on reported $result"
+                exit 1
+                ;;
+            esac
           done
