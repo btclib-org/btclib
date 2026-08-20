@@ -1224,6 +1224,13 @@ def _assert_as_valid_(
 
     # Fail if infinite(K).
     # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)
+    #
+    # This arm names which check failed, "invalid (INF) key" here and
+    # "signature verification failed" below, where the delegated arm at
+    # assert_as_valid_'s libsecp256k1_dsa.verify call always says the
+    # latter -- it has a bool to work with and this function has the
+    # arithmetic. Left unequal on purpose (issue 998, ssa.py's own
+    # `_assert_as_valid_` reading the same for the reason stated there)
     if KJ[2] == 0:  # 5
         err_msg = "invalid (INF) key"
         raise BTClibRuntimeError(err_msg)
@@ -1360,6 +1367,12 @@ def assert_as_valid_(
             # as `to_pub_key` does not echo them either
             raise BTClibValueError("not a public key") from e
         if not verified:
+            # one fixed sentence, as ssa.assert_as_valid_'s own delegated
+            # arm raises: libsecp256k1 answers a bool and this is btclib's
+            # wording for it, where the Python arm below can name which
+            # check failed. Diagnostic, not API -- issue 998 reads dsa and
+            # ssa as the same question and answers both by leaving the
+            # arms' messages unequal rather than paying for a match
             raise BTClibRuntimeError("signature verification failed")
         return
 

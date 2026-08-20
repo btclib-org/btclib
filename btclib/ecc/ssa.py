@@ -826,6 +826,13 @@ def _assert_as_valid_(
     # if moved after 'Fail if x_K ≠ r' it would never be executed
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
+    #
+    # This arm names which check failed, "y_K is odd" here and
+    # "signature verification failed" below, where the delegated one at
+    # assert_as_valid_'s libsecp256k1_ssa.verify call always says the
+    # latter -- it has a bool to work with and this function has the
+    # arithmetic. Left unequal on purpose (issue 998, dsa.py's own
+    # `_assert_as_valid_` reading the same for the reason stated there)
     if ec.y_aff_from_jac_var(KJ) % 2:
         raise BTClibRuntimeError("y_K is odd")
 
@@ -945,6 +952,15 @@ def assert_as_valid_(
         except ValueError as e:
             raise BTClibValueError(_invalid_x(x_Q)) from e
         if not verified:
+            # one fixed sentence, because libsecp256k1 answers a bool and
+            # this is btclib's own wording for it, not a report of which
+            # BIP340 check failed -- the Python arm below says that
+            # instead. Both raise BTClibRuntimeError, which is the
+            # contract; the message is diagnostic, not API, and a caller
+            # is not meant to branch on it (issue 998, deciding to leave
+            # the two arms disagreeing on wording rather than making them
+            # agree at the cost of the diagnosis or of a second
+            # verification pass on this path)
             raise BTClibRuntimeError("signature verification failed")
         return
 
