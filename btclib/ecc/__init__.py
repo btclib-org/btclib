@@ -7,12 +7,14 @@
 **The schemes.** btclib.ecc holds what is built *on* an elliptic curve:
 dsa, ssa, bms and borromean signatures, the MuSig2 aggregation of many
 ssa signers into one, pedersen commitments, the Diffie-Hellman key
-agreement with the two key derivation functions beside it, the BIE1 ECIES
-built on top of it, the ElligatorSwift encoding of a public key with the
-x-only ECDH on it, the BIP374 proof that two points share one discrete
-logarithm, and the RFC6979, BIP340 and sign-to-contract nonces. The curve
-arithmetic underneath is btclib.curves, and the rule between the two is
-that direction: ecc imports curves, never the other way round.
+agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
+of a public key with the x-only ECDH on it, the BIP374 proof that two
+points share one discrete logarithm, and the RFC6979, BIP340 and
+sign-to-contract nonces. The curve arithmetic underneath is
+btclib.curves, and the rule between the two is that direction: ecc
+imports curves, never the other way round. The key derivation functions
+the agreement uses are btclib.kdf: a KDF is a hash construction with no
+curve in it, and its own module says why it is not here.
 
 The two names are easy to conflate -- everything here is also about
 curves -- so the anchor is worth stating: `from btclib.curves import mult`,
@@ -75,17 +77,10 @@ from btclib.ecc import (
     rfc6979_nonce,
     ssa,
 )
-from btclib.ecc.dh import (
-    ansi_x9_63_kdf,
-    diffie_hellman,
-    hkdf,
-    hkdf_expand,
-    hkdf_extract,
-)
+from btclib.ecc.dh import diffie_hellman
 from btclib.ecc.pedersen import second_generator
 
 __all__ = [
-    "ansi_x9_63_kdf",
     "bip340_nonce",
     "bms",
     "borromean",
@@ -96,9 +91,6 @@ __all__ = [
     "dsa",
     "ecies",
     "ellswift",
-    "hkdf",
-    "hkdf_expand",
-    "hkdf_extract",
     "musig2",
     "pedersen",
     "rfc6979_nonce",

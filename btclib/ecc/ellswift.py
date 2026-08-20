@@ -16,7 +16,7 @@ This module stops at ElligatorSwift key encoding and x-only ECDH, and
 each piece of BIP324's v2 transport it leaves out has a reason of its
 own (issue 1066). The key schedule's HKDF-SHA256 is not one of them:
 it is a construction over a hash, `hmac` and `hashlib` and nothing else,
-and it is `ecc.dh.hkdf`.
+and it is `kdf.hkdf`.
 
 - **ChaCha20-Poly1305** is the cipher, and `ecc.ecies` is where the rule
   about a cipher is stated: btclib takes one from its caller rather than

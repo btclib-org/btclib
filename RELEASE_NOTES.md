@@ -20,6 +20,16 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`ansi_x9_63_kdf` is `btclib.kdf.ansi_x9_63_kdf`.** SEC 1's key
+  derivation function moved out of `btclib.ecc.dh` into a module of its
+  own, beside RFC 5869's `hkdf` which arrives with it, so neither `from
+  btclib.ecc import ansi_x9_63_kdf` nor `from btclib.ecc.dh import
+  ansi_x9_63_kdf` resolves any more: write `from btclib.kdf import
+  ansi_x9_63_kdf`. The signature, the answer and the exceptions are
+  unchanged, and `btclib.ecc.dh.diffie_hellman` is unaffected -- it calls
+  the KDF where it now lives. CHANGELOG.md has why a KDF is not under
+  `ecc`.
+
 - **`psbt.musig2.session_context` returns `Session`, not a bare
   `SessionContext`.** `session_context(psbt, vin_i, aggregate_pub_key) ->
   musig2.SessionContext` is now `-> Session`, a `NamedTuple` of

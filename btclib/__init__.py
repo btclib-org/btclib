@@ -96,6 +96,7 @@ __all__ = [
     "fetch",
     "hashes",
     "hwi",
+    "kdf",
     "mnemonic",
     "network",
     "number_theory",
