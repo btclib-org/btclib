@@ -208,14 +208,18 @@ may have copied it meanwhile. The constant-time properties are
 libsecp256k1's, and they hold on the C side of the call — not before it,
 and not after.
 
-Not every operation crosses that call. `dsa.sign` and `ssa.sign` reach the
-bindings for secp256k1 with sha256 and no nonce of the caller's; another
-curve, another hash function, or a nonce you supply runs the Python
-arithmetic instead, which the suite validates against the bindings but
-which is not constant-time. So a caller whose threat model includes timing
-should stay on the delegated paths, or keep the key out of the process
-altogether: `btclib.hwi` drives a hardware wallet through HWI, behind the
-same `PsbtSigner` contract a software signer answers.
+Not every operation crosses that call. `dsa.sign`, `ssa.sign` and
+`silent_payments.output_keys` reach the bindings for secp256k1 with sha256
+and no nonce of the caller's; another curve, another hash function, or a
+nonce you supply runs the Python arithmetic instead, which the suite
+validates against the bindings but which is not constant-time. So a caller
+whose threat model includes timing should stay on the delegated paths, or
+keep the key out of the process altogether: `btclib.hwi` drives a hardware
+wallet through HWI, behind the same `PsbtSigner` contract a software
+signer answers. `silent_payments.scan_outputs`, the recipient's half of
+BIP352, is Python-only regardless: it accepts the shared secret already
+reduced, the shape a light client has and the bindings have no entry
+point for.
 
 What that path does about it is in the names, and it is worth knowing
 before calling one. **A function whose duration follows the value it is

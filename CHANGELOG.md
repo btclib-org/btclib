@@ -3912,6 +3912,40 @@ documented at release-notes length in the first place, and are still in
   octets every signature has read from, on the delegated arm exactly as
   it already did on the Python one. The bindings pin moves to pick up
   btclib-secp256k1#253.
+- **`silent_payments.output_keys` reaches
+  `btclib_secp256k1.silentpayments.create_outputs` where the bindings
+  serve secp256k1** (issue #910), the sender's half of BIP352 joining
+  `dsa.sign` and `ssa.sign` on the delegated path. Addresses are grouped
+  by scan key and flattened group by group, each group's members kept in
+  the order `output_keys`'s own Python loop would assign k in, which is
+  the same order `secp256k1_silentpayments_sender_create_outputs` assigns
+  k by; the taproot split is `prv_key_sum`'s own -- `is_p2tr` of the
+  script a key spends -- except the even-y negation is not repeated by
+  hand, `secp256k1_keypair_create` doing that internally the same way
+  `ssa.Signer` never negates a key itself either.
+
+  `scan_outputs`, the recipient's half, is not delegated here. It takes
+  `tweak: PubKey` -- the already-reduced `input_hash * A_sum` a light
+  client gets from a server per BIP352's Appendix A, with no outpoints or
+  input public keys in sight -- while
+  `btclib_secp256k1.silentpayments.scan_outputs` wants a `prevouts_summary`
+  built from exactly those, and derives the shared secret from the scan
+  key itself rather than accepting one already reduced. The two have no
+  common precondition without widening `scan_outputs`'s own signature to
+  always demand data a light client never has, which is left for a
+  separate issue rather than folded into this one silently.
+
+  The bindings' own `create_outputs` docstring is explicit that
+  addresses, output types and transaction parsing are not its concern --
+  `pub_key_from_input`'s script and witness reading, `NUMS_H`, `K_MAX`
+  and every eligibility rule stay exactly where they were, in Python, on
+  both arms; `psbt.silent_payments`'s BIP375 path, which reaches
+  `output_key` from an ECDH share a psbt carries rather than from a
+  private key, has no entry point in the bindings to reach either and
+  stays Python-only regardless. `shared_secret`, `input_hash`,
+  `tweak_data`, `pub_key_sum` and `prv_key_sum` are unchanged: libsecp256k1
+  composes those steps and exposes none of them separately, so there is
+  nothing here for them to delegate to.
 
 ### Security
 

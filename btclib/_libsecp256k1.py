@@ -4,7 +4,7 @@
 
 """Everything btclib asks of libsecp256k1, imported in one place.
 
-Eleven modules delegate to the bindings and none of them imports them:
+The modules that delegate to the bindings import none of them directly:
 they import from here, so the question "are the bindings installed" is
 asked once, at one import, and answered by `AVAILABLE` rather than by
 eleven `try` blocks that could drift apart. `curves.curve` reads that
@@ -60,6 +60,7 @@ __all__ = [
     "pubkey_tweak_mul_sum",
     "pubkey_verify",
     "recovery",
+    "silentpayments",
     "ssa",
     "ssa_verify",
     "xonly",
@@ -75,7 +76,16 @@ try:
     # keypair `ssa` itself builds. Nothing else here needs it, `dsa.sign`
     # and every other wrapped call taking that buffer as the `prvkey` a
     # caller may already hold (btclib-secp256k1#253)
-    from btclib_secp256k1 import dsa, ellswift, ffi, keys, recovery, ssa, xonly
+    from btclib_secp256k1 import (
+        dsa,
+        ellswift,
+        ffi,
+        keys,
+        recovery,
+        silentpayments,
+        ssa,
+        xonly,
+    )
     from btclib_secp256k1.dsa import verify as dsa_verify
     from btclib_secp256k1.keys import (
         PubkeyTweakChain,
@@ -110,6 +120,7 @@ except ImportError:  # pragma: no cover
     # ignore is on the assignment and not on the module: every other
     # name here keeps the type the try branch gave it
     dsa = ellswift = ffi = keys = recovery = ssa = xonly = None  # type: ignore[assignment]
+    silentpayments = None  # type: ignore[assignment]
     # a class rather than a function, so mypy calls it an assignment to
     # a type and wants the second code as well
     PubkeyTweakChain = None  # type: ignore[misc, assignment]

@@ -202,6 +202,16 @@ used to teach and to prototype as much as to build:
     `keys.prvkey_tweak_add` privately and `keys.PubkeyTweakChain`
     publicly, and the Python arm behind them — BIP32's two sums, on
     integers and on a point — is one no argument selects either.
+    `silent_payments.output_keys` is the sender's half of BIP352, which
+    is the same case a third time: it reaches
+    `silentpayments.create_outputs` for every private key an eligible
+    input carries, a keypair built and wiped per taproot input and a
+    scalar buffer per other one, exactly as `dsa.sign` and `ssa.sign`
+    build and wipe theirs. `scan_outputs`, the recipient's half, is not
+    delegated — it takes the shared secret already reduced, which is the
+    shape a BIP352 light client has and the bindings' own `scan_outputs`
+    does not accept, wanting the raw inputs to derive it from instead —
+    so every secret that function meets is still Python's alone.
     Anything else — another
     curve, another hash function, a nonce of your own — runs the Python
     implementation, whose scalar multiplication is
