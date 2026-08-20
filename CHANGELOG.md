@@ -7134,6 +7134,25 @@ documented at release-notes length in the first place, and are still in
   conventions; the trailing-underscore spelling is untouched, its defaults
   being a promise to its plain sibling rather than a convenience.
 
+- **`silent_payments.scan_outputs`'s Python arm is now tested directly
+  against `btclib_secp256k1.silentpayments.scan_outputs`**, issue #910's
+  fourth decision, the authority comparison `tests/ecc/dsa_test.py` and
+  `tests/ecc/ssa_test.py` already carry for the rest of the library and
+  `output_keys`'s own cross-arm tests now carry for BIP352's sender half.
+  `scan_outputs` still does not delegate -- the mismatch between the
+  `tweak: PubKey` a light client holds and the `prevouts_summary` the
+  bindings want, built from the raw outpoints and input public keys such
+  a client never sees, is unchanged -- so there is no
+  `_libsecp256k1_serves` guard to flip the way those tests do. Instead
+  `test_scan_outputs_matches_the_bindings` builds the summary a full node
+  *could* hand the bindings, from the same outpoints and input public
+  keys `test_receiving_vectors` already reads out of BIP352's own
+  vectors, and asks whether the two arms answer the same set of outputs
+  and spend tweaks. `label_lookup`'s `dict[bytes, int]` is reshaped to
+  the bindings' `Mapping[bytes, bytes]` for this one call -- issue #910's
+  third decision, which stays test-local because production code never
+  reaches it.
+
 ## v2026.8.9
 
 ### Descriptors and miniscript
