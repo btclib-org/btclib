@@ -36,11 +36,8 @@ from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.script.script_pub_key import is_p2tr
 from btclib.script.witness import Witness
-from btclib.to_prv_key import int_from_prv_key
 from btclib.tx.out_point import OutPoint
-from btclib.utils import bytes_from_octets
 from tests import load, needs_bindings, vector_id
 
 _VECTORS = load("_data", "send_and_receive_test_vectors.json", encoding="utf-8")
@@ -217,6 +214,24 @@ def test_receiving_vectors(index: int, test: dict[str, Any]) -> None:
     found = silent_payments.scan_outputs(
         b_scan, B_spend, tweak, given["outputs"], labels
     )
+
+    # the full-node entry point, given the same transaction data rather
+    # than the already-reduced tweak: `scan_outputs`'s light-client
+    # answer is what it has to match, on whichever arm this environment
+    # runs -- delegated where the bindings serve, `scan_outputs` itself
+    # otherwise, which is what makes this the vector this arm's own
+    # entry in `tests/python_arm_authority_test.py` cites
+    pub_keys_with_scripts = [
+        (pub_key, v["prevout"]["scriptPubKey"]["hex"])
+        for v in given["vin"]
+        if (pub_key := _pub_key_of(v)) is not None
+    ]
+    transaction_found = silent_payments.scan_transaction_outputs(
+        b_scan, B_spend, outpoints, pub_keys_with_scripts, given["outputs"], labels
+    )
+    assert {(o.pub_key, o.prv_key_tweak) for o in transaction_found} == {
+        (o.pub_key, o.prv_key_tweak) for o in found
+    }
 
     if "n_outputs" in expected:
         # the K_MAX case, where the file counts rather than lists: the
@@ -616,87 +631,97 @@ def test_output_keys_wraps_a_delegated_refusal(monkeypatch: pytest.MonkeyPatch) 
 
 @needs_bindings
 @pytest.mark.parametrize("index,test", _RECEIVING, ids=_RECEIVING_IDS)
-def test_scan_outputs_matches_the_bindings(index: int, test: dict[str, Any]) -> None:
-    """The Python scan agrees with the bindings', given the same inputs.
+def test_scan_transaction_outputs_matches_across_arms(
+    index: int, test: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The delegated and the Python arm of the full-node scan agree.
 
-    `scan_outputs` has no `_libsecp256k1_serves` guard to flip the way
-    `output_keys`'s cross-arm tests do above: it stays Python regardless
-    of the bindings, because `tweak` is the already-reduced tweak data a
-    light client holds under BIP352's Appendix A, where
-    `silentpayments.scan_outputs` wants a `prevouts_summary` built from
-    the transaction's own outpoints and input public keys -- exactly the
-    data a light client never has, and exactly why this tree's dispatch
-    does not reach the bindings for this half of BIP352 (see the module
-    docstring and `SECURITY.md`). That mismatch is a reason not to
-    dispatch, not a reason to leave the arithmetic unchecked against the
-    bindings: this builds the summary a full node *could* hand them, from
-    the outpoints and input public keys `test_receiving_vectors` already
-    reads out of this same vector, and asks whether the two answer the
-    same set of outputs and spend tweaks.
-
-    The label cache is the one value reshaped for this call alone:
-    `label_lookup` returns `dict[bytes, int]`, where the bindings want
-    each tweak as 32 bytes -- decision 3 of issue #910, which stays a
-    test-local conversion because `scan_outputs` does not delegate.
+    `scan_transaction_outputs`'s own dispatch is `_libsecp256k1_serves(
+    secp256k1, None)`, exactly `output_keys`'s, so a vector is run twice
+    with the predicate patched between the two --
+    `test_output_keys_matches_across_arms`'s own shape, now available
+    because `scan_transaction_outputs` gives the recipient's side a
+    dispatch to flip. `test_receiving_vectors` already checks the light
+    client's `scan_outputs` against the vector file directly; this asks
+    whether the full-node entry point's two arms agree with each other
+    and with that same file.
     """
-    given = test["given"]
+    given, expected = test["given"], test["expected"]
     b_scan = given["key_material"]["scan_priv_key"]
     b_spend = given["key_material"]["spend_priv_key"]
     B_spend = mult(b_spend)
 
-    pub_keys = []
-    taproot_pubkeys_bytes = []
-    pubkeys_bytes = []
-    for v in given["vin"]:
-        pub_key = _pub_key_of(v)
-        if pub_key is None:
-            continue
-        pub_keys.append(pub_key)
-        script_pub_key = bytes_from_octets(v["prevout"]["scriptPubKey"]["hex"])
-        if is_p2tr(script_pub_key):
-            taproot_pubkeys_bytes.append(bytes_from_point(pub_key)[1:])
-        else:
-            pubkeys_bytes.append(bytes_from_point(pub_key))
+    pub_keys = [
+        (pub_key, v["prevout"]["scriptPubKey"]["hex"])
+        for v in given["vin"]
+        if (pub_key := _pub_key_of(v)) is not None
+    ]
     if not pub_keys:
         pytest.skip("nothing eligible to derive a shared secret from")
 
     outpoints = _outpoints(given["vin"])
-    try:
-        A_sum = silent_payments.pub_key_sum(pub_keys)
-    except BTClibValueError:
-        pytest.skip("input public keys sum to infinity")
-
-    outpoint_smallest36 = min(outpoint.serialize() for outpoint in outpoints)
-    summary = libsecp256k1_silentpayments.prevouts_summary(
-        outpoint_smallest36, taproot_pubkeys_bytes, pubkeys_bytes
-    )
     labels = silent_payments.label_lookup(b_scan, given["labels"])
-    bindings_labels = {
-        label: tweak.to_bytes(32, "big") for label, tweak in labels.items()
-    }
-    tx_outputs_bytes = [bytes.fromhex(output) for output in given["outputs"]]
 
-    bindings_found = libsecp256k1_silentpayments.scan_outputs(
-        tx_outputs_bytes,
-        int_from_prv_key(b_scan),
-        summary,
-        bytes_from_point(B_spend),
-        bindings_labels,
-    )
-    tweak = silent_payments.tweak_data(outpoints, A_sum)
-    python_found = silent_payments.scan_outputs(
-        b_scan, B_spend, tweak, given["outputs"], labels
-    )
+    def _scan(*, delegated: bool) -> list[silent_payments.SilentPaymentOutput] | None:
+        with monkeypatch.context() as arm:
+            if not delegated:
+                arm.setattr(silent_payments, "_libsecp256k1_serves", lambda *_a: False)
+            try:
+                return silent_payments.scan_transaction_outputs(
+                    b_scan, B_spend, outpoints, pub_keys, given["outputs"], labels
+                )
+            except BTClibValueError:
+                return None
 
-    bindings_set = {
-        (pub_key.hex(), spend_tweak.hex())
-        for pub_key, spend_tweak, _label in bindings_found
-    }
-    python_set = {
-        (output.pub_key.hex(), output.prv_key_tweak.to_bytes(32, "big").hex())
-        for output in python_found
-    }
-    assert bindings_set == python_set
+    delegated_found = _scan(delegated=True)
+    python_found = _scan(delegated=False)
+    assert (delegated_found is None) == (python_found is None)
+    if delegated_found is None:
+        # the input public keys sum to infinity: BIP352 skips the
+        # transaction, which `test_receiving_vectors` already reads as
+        # an empty outputs list for this same vector
+        assert expected["outputs"] == []
+        return
+    assert python_found is not None
+
+    delegated_set = {(o.pub_key.hex(), o.prv_key_tweak) for o in delegated_found}
+    python_set = {(o.pub_key.hex(), o.prv_key_tweak) for o in python_found}
+    assert delegated_set == python_set
+
+    if "n_outputs" in expected:
+        # the K_MAX case, where the file counts rather than lists
+        assert len(delegated_found) == expected["n_outputs"]
+    else:
+        assert delegated_set == {
+            (o["pub_key"], int(o["priv_key_tweak"], 16)) for o in expected["outputs"]
+        }
+
+
+@needs_bindings
+def test_scan_transaction_outputs_wraps_a_delegated_refusal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`silentpayments.scan_outputs`'s own ValueError comes back wrapped.
+
+    `pub_key_sum` and `input_hash` already cover the two refusals a real
+    transaction can trigger -- infinite input key sum, no outpoint -- the
+    same pair `test_output_keys_wraps_a_delegated_refusal` names, so this
+    is not a case the vector file has either: the bindings' own message
+    for whatever else `secp256k1_silentpayments_receiver_scan_outputs`
+    refuses is substituted for rather than reproduced.
+    """
+
+    def _refuse(*_args: object, **_kwargs: object) -> list[tuple[bytes, bytes, None]]:
+        raise ValueError("silent payment scan failed")
+
+    monkeypatch.setattr(libsecp256k1_silentpayments, "scan_outputs", _refuse)
+    script_pub_key = "0014" + hash160(bytes_from_point(mult(_B_SCAN_PRV))).hex()
+    pub_keys = [(mult(_B_SCAN_PRV), script_pub_key)]
+    outpoints = [OutPoint("00" * 31 + "01", 0)]
+    with pytest.raises(BTClibValueError, match="silent payment scan failed"):
+        silent_payments.scan_transaction_outputs(
+            _B_SCAN_PRV, mult(_B_SPEND_PRV), outpoints, pub_keys, [_NOT_AN_X]
+        )
 
 
 def test_the_whole_round_trip_without_a_vector() -> None:
