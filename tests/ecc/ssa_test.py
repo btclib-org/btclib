@@ -723,14 +723,21 @@ def test_a_batch_refuses_a_bad_key_in_the_lift_s_words(
         assert str(batched.value) == str(lifted.value)
 
 
-def test_musig() -> None:
-    """Testing 3-of-3 MuSig.
+def test_musig1() -> None:
+    """Testing 3-of-3 MuSig1, the three-round scheme MuSig2 replaced.
 
-    - https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
-    - https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
-    - https://eprint.iacr.org/2018/068
-    - https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
-    - https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
+    ePrint 2018/068's first version (2018-01-18) proposed two rounds --
+    exchange nonces, then partial signatures -- and was withdrawn: a
+    signer that saw every other nonce before publishing its own could
+    choose one adaptively, and no proof survives that choice. Its
+    revision (2018-05-20, after the flaw was published as ePrint
+    2018/417) added a round in front, committing to each nonce before
+    revealing it. That three-round scheme is MuSig1, reproduced below.
+    `btclib.ecc.musig2` is the two-round scheme that replaced it in
+    turn, buying the round back with a pair of nonce points rather than
+    a commitment.
+
+    https://eprint.iacr.org/2018/068
     """
     ec = CURVES["secp256k1"]
 
@@ -772,22 +779,51 @@ def test_musig() -> None:
         a2 = ec.n - a2  # pragma: no cover
         a3 = ec.n - a3  # pragma: no cover
 
-    # ready to sign: nonces and nonce commitments
+    # round 1: each signer picks a nonce and publishes only a commitment
+    # to it. Committing before any nonce is visible is the round the
+    # withdrawn two-round scheme skipped -- there, a signer choosing its
+    # nonce after seeing everyone else's could choose adaptively, which
+    # is exactly what a commit-then-reveal round rules out. There is no
+    # standard tagging for this commitment: the paper states a hash
+    # function with no domain separation, so hashing the serialized
+    # point with a bare hf is this demo's choice, not a specification's.
     k1, _ = ssa.gen_keys()
     K1 = mult(k1)
+    t1 = hf(bytes_from_point(K1, ec)).digest()
 
     k2, _ = ssa.gen_keys()
     K2 = mult(k2)
+    t2 = hf(bytes_from_point(K2, ec)).digest()
 
     k3, _ = ssa.gen_keys()
     K3 = mult(k3)
+    t3 = hf(bytes_from_point(K3, ec)).digest()
+
+    # exchange {t_i} (interactive)
+
+    # round 2: each signer reveals its nonce; every signer checks every
+    # other commitment before using any of the revealed nonces. This
+    # check is the point of the round: a nonce that does not match its
+    # commitment must be rejected here, not accepted because it arrived
+    # signed.
+    for i, t_i, K_i in ((1, t1, K1), (2, t2, K2), (3, t3, K3)):
+        assert hf(bytes_from_point(K_i, ec)).digest() == t_i, (
+            f"signer {i} revealed a nonce that does not match its commitment"
+        )
+
+    # a signer revealing a nonce that does not match its commitment must
+    # be caught by that same check, so it has to be a real assertion:
+    # forge a mismatch and confirm round 2 rejects it
+    k_x, _ = ssa.gen_keys()
+    K_x = mult(k_x)
+    with pytest.raises(AssertionError, match="does not match its commitment"):
+        assert hf(bytes_from_point(K_x, ec)).digest() == t1, (
+            "signer 1 revealed a nonce that does not match its commitment"
+        )
 
     # exchange {K_i} (interactive)
 
-    # computes s_i (non interactive)
-    # WARNING: signers must exchange the nonces commitments {K_i}
-    # before sharing {s_i}
-
+    # round 3: computes s_i (non interactive)
     # same for all signers
     K = ec.add_var(ec.add_var(K1, K2), K3)
     # the same coin flip as above, on the aggregated nonce
@@ -939,7 +975,7 @@ def test_threshold() -> None:
     A = [ec.add_var(A1[i], ec.add_var(A2[i], A3[i])) for i in range(m)]
     # aggregated public key
     Q = A[0]
-    # the same coin flip as in test_musig: fresh keys, random parity
+    # the same coin flip as in test_musig1: fresh keys, random parity
     if Q[1] % 2:
         A[1] = ec.negate(A[1])  # pragma: no cover
         alpha1 = ec.n - alpha1  # pragma: no cover
