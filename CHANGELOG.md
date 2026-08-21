@@ -847,6 +847,43 @@ documented at release-notes length in the first place, and are still in
   adoption is per module, and each step of it removes one of the round
   trips above.
 
+- **`.yamllint.yaml` and `.taplo.toml` say what is true of every
+  repository that carries them, and re-derive the rest**
+  (btclib-org/.github#40). Both files are copied byte-for-byte across
+  the organization, and both carried reasoning taken from this tree and
+  read as settled fact everywhere else. `.yamllint.yaml`'s comment
+  recorded a survey — how many findings each disabled rule produced,
+  what share of the action pins sat at or past 80 columns, what a limit
+  of 80 would report and how much of that was pins, the width of the
+  longest pin, how many yaml files the tree held, and two over-length
+  shell lines in `release.yml` — explicitly "so nobody has to run the
+  survey again". Re-measured with the pinned yamllint, not one of those
+  figures still holds here, the tree they were taken from: the rule that
+  fires on a `uses:` pin also fires on a hand-written trailing comment
+  in `codeql.yml`, a third rule of the default set fires that the
+  comment does not mention, nothing in the tree exceeds the configured
+  width any more so the two `release.yml` lines are gone, and the
+  default set is not the size the comment gives it. The survey is
+  replaced by the commands that answer for whichever tree is asking,
+  beside the reasons that do not vary between repositories: dependabot
+  writes one space before a pin's trailing tag, `on:` is the boolean
+  true in yaml 1.1, and a 40-character SHA with its tag has spent most
+  of an 80-column line before the action is named.
+
+  `.taplo.toml`'s indent comment named the mutation configurations under
+  `.github/mutation` as the files the four-space setting moves, and
+  said what they had been written with before it. That is this
+  repository's tree — `btclib-benchmarks` and `btclib-org/.github` share
+  the file and have never had mutation testing — and it is history in a
+  comment besides, which `CONTRIBUTING.md` puts in `CHANGELOG.md`
+  instead. It is not the reason for the setting either: four rather than
+  taplo's own default of two, so that one indent covers every toml,
+  survives without it, and which toml files a repository actually has is
+  already named in that repository's own `.pre-commit-config.yaml`,
+  beside the hook that runs taplo. The `[project]`-and-ruff example under
+  `reorder_keys` goes the same way, `btclib-org/.github` having no
+  `pyproject.toml` at all.
+
 ## v2026.8.21
 
 ### Repository
