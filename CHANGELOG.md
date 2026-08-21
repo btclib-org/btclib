@@ -102,6 +102,33 @@ documented at release-notes length in the first place, and are still in
   is open. Both siblings gain the same trigger in their own
   `RELEASING.md`.
 
+- **`REVIEWING.md` asks a review to run what a diff decides with.** A
+  regex, a grep, a pattern in a hook, a script or a query decides an
+  outcome by matching or computing, and a review of one executes it
+  rather than reading it — against the shapes the diff's own prose
+  claims to cover, and against the shapes the tree actually holds. A
+  claim the prose makes about the tree takes the same treatment, "every
+  link here is already `./`-prefixed" being one `git grep`'s worth of
+  evidence and the reason a change is offered as safe.
+
+  What earned the rule is the `local-link-prefix` pygrep hook proposed
+  across the organization with a byte-identical pattern, here as pull
+  request #1199. Its leading clause `\[[^]]*\]\(` cannot cross the `]`
+  that closes an image's alt text, so on the badge shape
+  `[![alt](./src)](./href)` it examines the image source and never the
+  destination the link itself carries — which is the destination that
+  hook's own comment cites as its motivating case, left free to lose
+  its `./` unreported. Running the clause against a real README line is
+  what found it, on btclib-org/bitcoin-core-rpc#192; the reviews that
+  reasoned about the pattern instead reported it correct.
+
+  The section says what it is not, `claude-review.yml`'s prompt telling
+  a review here not to re-run the gates: those run what the rest of the
+  tree already exercises, where a pattern a diff adds has been run
+  against nothing until a review runs it. The prompt is unchanged — it
+  names `REVIEWING.md` rather than restating it, so the standard moves
+  without the workflow being edited.
+
 ### Packaging, linting and CI
 
 - **`test.yml`'s and `lint.yml`'s concurrency groups take a
