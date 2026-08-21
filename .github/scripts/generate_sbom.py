@@ -13,7 +13,7 @@ metadata declares.
 
 **The wheel's metadata is the source, not pyproject.toml.** They agree on
 a release and not in a rehearsal, where the `build` job appends
-`.dev<run number>` to the version before building: the document has to
+`.dev<run*100+attempt>` to the version before building: the document has to
 describe the files beside it, so it reads the archive it is given. Which
 also means the only version it can report for a dependency is the one the
 metadata pins, and that is deliberate -- what a user's installer resolves
@@ -299,7 +299,7 @@ def main(argv: list[str]) -> int:
 
     # named after the wheel's own first two fields, {distribution} and
     # {version}, so the caller needs to know neither -- which in a
-    # rehearsal, where the version carries a `.dev<run number>` the
+    # rehearsal, where the version carries a `.dev<run*100+attempt>` the
     # workflow patched in, it does not
     distribution, version = wheel.name.split("-")[:2]
     output = Path(argv[2]) / f"{distribution}-{version}.cdx.json"

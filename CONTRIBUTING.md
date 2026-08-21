@@ -559,14 +559,19 @@ uv run --locked --no-default-groups --group test pytest
 ```
 
 The `published` workflow, monthly, on demand and as part of a release,
-installs btclib itself
-from PyPI, nothing checked out, and asks whether it works rather than
-whether it installs: `import btclib` runs `__init__.py` alone, and the
-files under `btclib/*/_data/` — the wordlists among them — are opened by
-path at the first call that needs one, not imported, so a wheel missing
-one would pass the import and fail only here. Both checks are
-version-independent, a BIP340 vector and a BIP39 one whose values are
-fixed forever:
+has two jobs, entitled to different answers about what the index
+serves.
+
+`install-published` installs btclib itself from PyPI, nothing checked
+out, and asks whether it works rather than whether it installs:
+`import btclib` runs `__init__.py` alone, and the files under
+`btclib/*/_data/` — the wordlists among them — are opened by path at the
+first call that needs one, not imported, so a wheel missing one would
+pass the import and fail only here. This install names no extra, so the
+bindings are not asked for and the job is not entitled to assert they
+serve — the supported no-bindings configuration of issues #990, #991
+and #992. The first two checks below are version-independent, a BIP340
+vector and a BIP39 one whose values are fixed forever:
 
 ```shell
 python -m pip install btclib
@@ -582,6 +587,29 @@ python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
       'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53' \
       '495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f0016' \
       '98e7463b04')"
+```
+
+`install-published-secp256k1` installs `btclib[secp256k1]` instead,
+wheels only for both `btclib` and `btclib_secp256k1`, so a wheel the
+index does not have for a platform fails the job rather than falling
+back to a source build that answers a different question. Naming the
+extra is what entitles it to the assertion the other job cannot make: a
+resolution that installs and imports but does not serve — issue #1116,
+live on `main` once already — is invisible to a signature check alone,
+so this one asks `is_libsecp256k1_serving()` first, and the signature
+after it is meaningful because of that:
+
+```shell
+python -m pip install --only-binary btclib --only-binary btclib_secp256k1 \
+    "btclib[secp256k1]"
+python -c "import btclib; \
+    from btclib.curves import is_libsecp256k1_serving; \
+    from btclib.ecc import dsa; \
+    from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+    assert is_libsecp256k1_serving(), \
+      'the secp256k1 extra resolved, the bindings do not serve'; \
+    assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+      dsa.sign(b'btclib', 1))"
 ```
 
 The `links` workflow, weekly and on demand, which is the one that needs a
