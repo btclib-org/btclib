@@ -87,10 +87,10 @@ def test_invalid_psbt_bip174(test_vector: dict[str, str]) -> None:
     """Each case must be refused, with the message this file records.
 
     The message is btclib's, not the BIP's, so the assert is what pins a
-    rejection to its reason rather than to the fact of one. Two cases
-    share "superfluous witness record": the one the BIP describes as a
-    witness serialization, and the one it describes as a value whose size
-    is not the stated size -- whose transaction carries a marker over no
+    rejection to its reason rather than to the fact of one. The case the
+    BIP describes as a witness serialization and the one it describes as
+    a value whose size is not the stated size share "superfluous witness
+    record": the second one's transaction carries a marker over no
     witness, which `Tx.parse` stops on before the size is anything
     (issue 1104).
     """
