@@ -685,6 +685,7 @@ documented at release-notes length in the first place, and are still in
   which is what makes the fix a subtraction rather than a
   correction: the reasoning about a redundant definition survives,
   and only the number that could go stale again is gone.
+
 ### The public API and the module layout
 
 - **`btclib.key` holds the canonical form of a key**, `PubKeyData` and
@@ -692,31 +693,64 @@ documented at release-notes length in the first place, and are still in
   spelled back for the next call to parse again (issue #1188). Every
   converter in the library takes each spelling and answers a tuple, so
   the canonical form was what came *out* of a conversion and never what
-  went *in*; three places already work around the round trip that leaves
-  — `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
-  `taproot._output_pubkey_and_internal_key`, issues 886, 887 and 896 —
-  and this is the cut those three patch locally.
+  went *in*. `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
+  `taproot._output_pubkey_and_internal_key` each work around the round
+  trip that leaves — issues 886, 887 and 896 — and `KeyWallet.add` pays
+  it twice over, deriving a public key and then handing the private one
+  to an address builder that derives it again. This is the cut those
+  patch locally.
 
   The SEC octets are the field and the point is a `cached_property`
-  because the two conversions do not cost the same: serializing a point
-  is a concatenation, where parsing a compressed one is a square root in
-  the field and costs several times as much, so the cheap direction is
-  paid on the way in and the expensive one on first use and kept. That
-  lazy lift is also the *proof*: the constructor reads a length and a
-  prefix, and whether they frame a point of the curve is what `point`
-  answers — which is the trade `_sec_from_pub_key` already states, made
-  explicit and paid once instead of at every caller.
+  because the two conversions do not cost the same. Measured on
+  secp256k1 with the bindings serving, `timeit` over twenty thousand
+  rounds of one key:
+
+  | conversion | us |
+  | --- | --- |
+  | point to sec, compressed | 0.99 |
+  | point to sec, uncompressed | 1.04 |
+  | sec to point, compressed | 3.35 |
+  | sec to point, uncompressed | 1.33 |
+  | prv to pub | 8.00 |
+
+  ```shell
+  uv run python -c "
+  import timeit
+  from btclib.curves import bytes_from_point, bytes_from_prv_key_int, mult
+  from btclib.curves import secp256k1 as ec
+  from btclib.curves.sec_point import point_from_octets
+  q = 0xc28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d
+  Q = mult(q, ec.G, ec)
+  sec_c, sec_u = bytes_from_point(Q, ec, True), bytes_from_point(Q, ec, False)
+  n = 20000
+  for stmt in ('bytes_from_point(Q, ec, True)',
+               'bytes_from_point(Q, ec, False)',
+               'point_from_octets(sec_c, ec)',
+               'point_from_octets(sec_u, ec)',
+               'bytes_from_prv_key_int(q, ec, True)'):
+      print(stmt, timeit.timeit(stmt, globals=globals(), number=n) / n * 1e6)
+  "
+  ```
+
+  Those are this machine's, and they sit beside rather than replace the
+  figures `curves.sec_point.point_from_octets` and
+  `to_pub_key._sec_from_pub_key` record, taken on other hardware. Those
+  two time lifts alone, and agree with the table on the one thing they
+  measure, a compressed lift being the dearer of the two; the three-tier
+  ordering the design rests on — a write cheaper than a lift, a lift than
+  a derivation — is this table's, which is why the command is beside it.
+  So the cheap direction is paid on the way in and the dear one on first
+  use and kept. That lazy lift is also the *proof*: the constructor reads
+  a length and a prefix, and whether they frame a point of the curve is
+  what `point` answers — which is the trade `_sec_from_pub_key` already
+  states, made explicit and paid once instead of at every caller.
   `PrvKeyData.pub` is lazy for the same reason and buys most, a scalar
   multiplication being the dearest conversion of the three.
 
-  One type per half rather than a `PubKeySecData` beside a
-  `PubKeyPointData`: two would hand the caller a choice that is a cache
-  decision and not a meaning, any function taking either would take a
-  union again, and one key in the two types could not compare equal
-  without performing the conversion the split was meant to avoid. Frozen,
-  as `BIP32KeyData` is and for its reason; not `slots=True`, because
-  `cached_property` stores into an instance `__dict__` that a slotted
-  dataclass has none of. Nothing in the library consumes these yet: the
+  The module docstring carries the rest of the reasoning rather than this
+  entry repeating it: why one type per half and not a `PubKeySecData`
+  beside a `PubKeyPointData`, why frozen as `BIP32KeyData` is, and why
+  not `slots=True`. Nothing in the library consumes these yet: the
   adoption is per module, and each step of it removes one of the round
   trips above.
 
