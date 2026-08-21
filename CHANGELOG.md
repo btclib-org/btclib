@@ -98,12 +98,13 @@ documented at release-notes length in the first place, and are still in
   named in this workflow's own header — and a wheel built from an sdist
   that lost one installs and imports cleanly, failing only at the BIP39
   check already in this file. The new cell adds `python: "3.13"` with
-  `no-binary: true` to the `include` list rather than doubling the base
-  matrix over a `["", "--no-binary"]` axis, since the sdist path does not
-  vary by platform or interpreter and one cell exercises it; measured by
-  hand against the published `2026.8.21`, building it from source took
-  under two seconds, btclib carrying no compiled extension to slow it
-  down. Not carried over from `btclib-secp256k1`: its cell also asserts
+  `no-binary: true` to the `include` list rather than a second axis over
+  the base matrix, since the sdist path does not vary by platform or
+  interpreter and one cell exercises it; measured by hand against the
+  published `2026.8.21`, building btclib from source is a packaging step
+  and nothing more, btclib carrying no compiled extension for it to
+  build — unlike `btclib_secp256k1`'s own sdist cell, which compiles a C
+  library. Not carried over from `btclib-secp256k1`: its cell also asserts
   which kind of artifact pip selected, `static` against `dynamic`, a
   property of its wheel layout that btclib has no equivalent of, shipping
   one universal wheel — recorded as a should-differ in

@@ -110,15 +110,16 @@ jobs:
           # not a build failure -- and btclib was the only one of the
           # three publishing repositories with no cell that exercised it
           # (issue #1153). A single extra cell rather than a second axis
-          # over the base matrix: doubling it to watch the sdist path on
-          # every os and python would add eighteen more jobs to sample a
-          # risk that does not vary by platform or interpreter, being the
-          # same sdist everywhere. Pure Python, so nothing here compiles --
-          # measured by hand against the published 2026.8.21, building it
-          # took under two seconds, not the minutes btclib_secp256k1's
-          # cffi extension would cost its own sdist cell. Python 3.13
-          # rather than a version already in the base matrix, so this adds
-          # a job rather than a property to an existing one
+          # over the base matrix: a `["", "--no-binary"]` axis would
+          # multiply the base matrix to watch the sdist path on every os
+          # and python, sampling a risk that does not vary by platform or
+          # interpreter, being the same sdist everywhere. Pure Python, so
+          # nothing here compiles -- measured by hand against the
+          # published 2026.8.21, this is a packaging step and nothing
+          # more, unlike btclib_secp256k1's own sdist cell, which compiles
+          # a C library. Python 3.13 rather than a version already in the
+          # base matrix, so this adds a job rather than a property to an
+          # existing one
           - os: ubuntu-latest
             python: "3.13"
             no-binary: true
