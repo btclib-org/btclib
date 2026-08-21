@@ -50,7 +50,7 @@ uv sync
 ```
 
 **The declared dependencies are `bitcoin-core-rpc>=2026.8.13` and, as
-the `secp256k1` extra, `btclib_secp256k1>=0.8.0.3`, with no upper
+the `secp256k1` extra, `btclib_secp256k1>=0.8.0.4`, with no upper
 bound**, and the absence of a
 ceiling is a decision. Both are btclib-org projects developed by the same
 people, and the bindings' whole purpose is to be the bindings this library
@@ -62,17 +62,34 @@ would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
 changes in the minor.
 
-**0.8.0.3 is not on PyPI yet**, and `[tool.uv.sources]` in
-`pyproject.toml` is what resolves it: the bindings come from their `main`
-branch, so an entry point merged there is callable here before a release
-carries it — `xonly.tweak_add_` is the one this tree calls. A git source
-has no wheels, so `uv sync` builds the bindings from source, submodule and
-C library included; `uv.lock` pins the resolved commit and every job
-passes `--locked`, so the branch is followed only when the lock is
-regenerated. The floor above names the unreleased version deliberately: it
-is what stops a release going out against a bindings that cannot serve
-this tree. One release upstream clears both — the source table goes, the
-floor stays.
+**Both floors name a release PyPI serves**, so `pyproject.toml` carries
+no `[tool.uv.sources]` table and uv resolves the bindings from the index
+like anything else: `uv.lock` pins a version and its wheels, every job
+passes `--locked`, and `uv sync` downloads rather than compiling
+libsecp256k1 in each environment. The floor is then the whole of the
+coordination with that sibling, and it carries weight the specifier
+alone does not show: `btclib/_libsecp256k1.py` imports the bindings'
+surface in a single `try` whose `except ImportError` sets
+`INSTALLED = False`, so an install that resolves one release short of
+what this tree imports does not lose the entry point it is missing — it
+loses every delegation, quietly, on to the Python arithmetic that
+SECURITY.md publishes as slower and not constant-time. Calling something
+new is therefore the same commit that raises the floor in both of its
+places, with the reason written beside it.
+
+Calling an entry point merged upstream but not yet released is what a
+`[tool.uv.sources]` entry pointing `btclib_secp256k1` at its `main`
+branch is for, and it is a state to leave rather than to keep.
+`[tool.uv]` is not distribution metadata, so `dependencies` still
+publishes a plain floor and PyPI still accepts a release — where a
+direct reference written into `dependencies` instead would have to be
+written back over before publication, which is what RELEASING.md's step
+1 refuses. What the entry costs is the wheels: a git source has none, so
+every environment builds the bindings from source, submodule and C
+library included, and `uv.lock` pins the resolved commit, so the branch
+is followed only when the lock is regenerated. One release upstream
+clears it — the source table goes and the floor moves to the version
+that carries what is being called.
 
 What the policy does not cover: dependency metadata is baked into every
 wheel already published, so coordinating the two projects protects the
