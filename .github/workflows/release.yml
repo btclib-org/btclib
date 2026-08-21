@@ -600,17 +600,39 @@ jobs:
           path: attestation.jsonl
 
   # only after PyPI has accepted the files: a GitHub release announces what
-  # users can already install. Both jobs above it and not attest alone:
-  # attest runs in a rehearsal too, so naming it by itself would make this
-  # job -- which has no `if` of its own -- cut a release from a dispatch,
-  # where publish-pypi is skipped and a skipped need is what keeps this to
-  # the tag. attest earns its place in the list by producing the bundle
-  # attached below; a failure there leaves the version published and no
-  # release cut, which `gh run rerun --failed` finishes without rebuilding
-  # anything
+  # users can already install. Both jobs in `needs` and not attest alone:
+  # attest runs in a rehearsal too, so naming it by itself would cut a
+  # release from a dispatch, where publish-pypi is skipped; asking below
+  # for publish-pypi's success is what keeps this job to the tag. attest
+  # earns its place in the list by producing the bundle attached here.
+  # The `if` is spelled out, and it opens with always(), because the
+  # absence of one does not mean "whatever my own needs did": a job with a
+  # skipped job anywhere in its ancestry is force-skipped whatever its
+  # condition says, unless that condition opens with a status function --
+  # and attest's own always(), which is what lets attest run past the
+  # skipped publish-testpypi, does not clear that skip for whoever needs
+  # attest in turn. Every job crossing a skip has to opt out for itself.
+  # Measured on v2026.8.21, the first tag with attest standing between
+  # publish-pypi and here: both needs green, this job skipped in the same
+  # second attest finished, the version on PyPI and no GitHub release cut
+  # at all (issue #1142). That run was also failing an unrelated install
+  # job (issue #1141), which looks like the cause and is not -- sibling
+  # btclib-secp256k1 lost v0.8.0.2 to the same skip on a run with nothing
+  # failing in it, and carries this exact condition as the fix.
+  # A skip is neither a failure nor within that flag's blast radius, so
+  # `gh run rerun --failed` does not recover it: it re-runs failed jobs
+  # and their dependents, and this job is a dependent of neither -- tried
+  # twice on the v2026.8.21 run, skipped both times. What does recover it
+  # is RELEASING.md's other option, the release created by hand from the
+  # run's own dist, sbom and attestation artifacts, with the distribution
+  # files checked against the digests PyPI publishes before they are
+  # attached
   github-release:
     name: Attach the files to the GitHub release
     needs: [publish-pypi, attest]
+    if: >-
+      always() && needs.publish-pypi.result == 'success' &&
+      needs.attest.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

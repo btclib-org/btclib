@@ -22,6 +22,30 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **A tagged release cuts its GitHub release again** (issue #1142).
+  `release.yml`'s `github-release` job carried no `if` of its own, which
+  reads as "run when my needs succeeded" and is not what GitHub does with
+  it: a job with a skipped job anywhere in its ancestry is force-skipped
+  whatever its condition says, unless that condition opens with a status
+  function such as `always()`. `attest`, added for v2026.8.21 between
+  `publish-pypi` and this job, needs `publish-testpypi` — skipped on a tag
+  — and its own `always()` keeps `attest` itself running without clearing
+  that skip for whoever needs `attest` in turn. v2026.8.21 was the first
+  tag under that shape: the version reached PyPI, both of this job's needs
+  were green, and no GitHub release was created at all, the release being
+  recreated by hand from the run's artifacts. The job now asks
+  `always() && needs.publish-pypi.result == 'success' && needs.attest.result
+  == 'success'`, which is what sibling btclib-secp256k1 already carried
+  after losing three releases to the same skip. A rehearsal still cuts
+  nothing, by the condition rather than by omission: `workflow_dispatch`
+  skips `publish-pypi`, so the first `.result` test is false. The comment's
+  other claim goes with it — `gh run rerun --failed` does not finish an
+  interrupted release, that flag reaching failed jobs and their dependents
+  while a skipped job is neither, which is why it left this one skipped on
+  both attempts.
+
 ## v2026.8.21
 
 ### Repository
