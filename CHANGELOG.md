@@ -125,6 +125,11 @@ documented at release-notes length in the first place, and are still in
   failed obscurely. `pyproject.toml`'s group and every `--only-group
   build` call site in `CONTRIBUTING.md`, `test.yml`, `latest.yml` and
   `release.yml` now say `check`, matching `btclib-secp256k1` throughout.
+  A step still asking for the old name no longer installs anything wrong
+  under it: `uv run --locked --only-group build ...` here now exits
+  non-zero, with `` error: Group `build` is not defined in the project's
+  dependency-groups table `` — a copied step stops instead of running
+  against four packages it did not mean to check.
 
 ## v2026.8.21
 
