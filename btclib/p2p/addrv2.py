@@ -209,7 +209,8 @@ def _assert_int_range(value: int, high: int, what: str) -> None:
     the width and the name are literals of this module at every call.
     That twin is written there rather than shared because a validity
     check is one line per field, and sharing it would put a name in
-    `btclib.utils` that no caller outside these two modules has.
+    `btclib.utils` that no caller outside `handshake` and this module
+    has.
     """
     # a bool is an int and would read as the number one or zero, which
     # the range check cannot tell from a field whose value that is
@@ -246,7 +247,7 @@ class NetworkAddressV2:
     """One entry of an `addrv2`: a peer, and the network it is on.
 
     Bitcoin Core's `CAddress` written with `CAddress::V2_NETWORK`, which
-    is BIP155's table of five fields in its order: `timestamp` in four
+    is BIP155's table of fields in its order: `timestamp` in four
     octets little-endian, `services` as a `CompactSize`, `network_id` in
     one octet, `address` as `var_bytes`, and `port` in two octets
     big-endian.

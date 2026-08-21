@@ -594,10 +594,10 @@ def test_an_entry_refuses_a_field_no_width_holds(
 ) -> None:
     """Every field, its type and its range, through btclib's own exceptions.
 
-    A bool is in the list for each of the four integer fields, and it is
-    not pedantry: `True` is the number one, so a `port=True` would read
-    as a peer on port 1 and a `network_id=True` as `IPV4`, which is
-    exactly the value the range check cannot tell from a real one.
+    A bool is in the list for every integer field, and it is not
+    pedantry: `True` is the number one, so a `port=True` would read as a
+    peer on port 1 and a `network_id=True` as `IPV4`, which is exactly
+    the value the range check cannot tell from a real one.
     """
     fields: dict[str, object] = {
         "timestamp": 0,
