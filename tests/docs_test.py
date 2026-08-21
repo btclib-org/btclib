@@ -30,18 +30,32 @@ _DOCS_DIR = _ROOT / "docs" / "source"
 # what a documented module looks like to sphinx: ".. automodule:: name",
 # whatever indentation and options follow it
 _AUTOMODULE = re.compile(r"^\s*\.\.\s+automodule::\s+(\S+)\s*$", re.MULTILINE)
-# and what a documented subpackage looks like: a line of the toctree in
-# btclib.rst, which names the per-package page rather than a module
-_TOCTREE_ENTRY = re.compile(r"^\s{3}(btclib\.\S+)\s*$", re.MULTILINE)
+
+
+def _documented_in(text: str) -> set[str]:
+    """Every module one documentation page publishes the members of.
+
+    An automodule stanza and nothing else. A toctree line naming
+    `btclib.psbt` is not one: it makes the package's *page* reachable
+    from `btclib.rst`, which is what a toctree is for, and says nothing
+    about whether that page renders the package's own `__init__` -- the
+    docstring, and the names re-exported flat that a caller reads
+    `btclib.psbt` for. Counting it as documentation is what would let a
+    package keep its page, its submodules and its toctree line while
+    losing itself out of the middle of them.
+
+    Nothing is lost by not counting it, because the toctree is gated
+    where it belongs: a page no toctree includes is `toc.not_included`,
+    which the `-W` of the documentation workflow turns into a failure.
+    """
+    return set(_AUTOMODULE.findall(text))
 
 
 def _documented() -> set[str]:
-    """Every dotted name the documentation sources mention."""
+    """Every module the documentation sources carry a stanza for."""
     names: set[str] = set()
     for page in _DOCS_DIR.glob("*.rst"):
-        text = page.read_text(encoding="utf-8")
-        names.update(_AUTOMODULE.findall(text))
-        names.update(_TOCTREE_ENTRY.findall(text))
+        names.update(_documented_in(page.read_text(encoding="utf-8")))
     return names
 
 
@@ -49,11 +63,12 @@ def _is_public(parts: tuple[str, ...]) -> bool:
     """Whether a module path names something a user is meant to import.
 
     `__init__` is the package itself and not a private name, which is the
-    only reason this is not a one-line `startswith("_")`. One module under
-    `btclib/` is private, `_ripemd160`, the pure Python fallback
-    `btclib.hashes` reaches where hashlib has no RIPEMD-160: it is not
-    API, so it takes no automodule stanza, and the underscore is what says
-    so. `_data` holds data and no Python.
+    only reason this is not a one-line `startswith("_")`. A module under a
+    private name is not API, so it takes no automodule stanza, and the
+    underscore is the whole of what says so -- `btclib._ripemd160`, the
+    pure Python fallback `btclib.hashes` reaches where hashlib has no
+    RIPEMD-160, and `btclib._libsecp256k1`, where the bindings are
+    imported once for the package. `_data` holds data and no Python.
     """
     return not any(part.startswith("_") for part in parts if part != "__init__")
 
@@ -126,6 +141,29 @@ def test_shipped_module_is_a_dotted_btclib_name(name: str) -> None:
     """
     assert name == "btclib" or name.startswith("btclib.")
     assert not any(part.startswith("_") for part in name.split("."))
+
+
+def test_a_toctree_line_is_not_a_stanza() -> None:
+    """A package page is documentation of the package only if it says so.
+
+    The two tests above are only as good as this scan, and the shape it
+    has to tell apart is the one every per-package page has: a toctree
+    line for `btclib.psbt` in `btclib.rst`, stanzas for the submodules in
+    `btclib.psbt.rst`, and the package's own stanza at the end of it. Read
+    the toctree as documentation and dropping that last stanza passes --
+    the suite finding the name in the toctree, and sphinx warning about
+    nothing, autodoc having no idea a page was meant to carry it.
+    """
+    source = (
+        ".. toctree::\n"
+        "   :maxdepth: 4\n"
+        "\n"
+        "   btclib.psbt\n"
+        "\n"
+        ".. automodule:: btclib.psbt.psbt_utils\n"
+        "   :members:\n"
+    )
+    assert _documented_in(source) == {"btclib.psbt.psbt_utils"}
 
 
 @pytest.mark.parametrize(

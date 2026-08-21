@@ -8394,6 +8394,25 @@ documented at release-notes length in the first place, and are still in
   stated, rather than left out of the parameter list where the gap would
   not be visible. `btclib/` does not change: this is validation of the
   existing Python arithmetic, not delegation to the bindings.
+- **A package is documented by its own stanza, not by its toctree line**
+  (issue #1091). `tests/docs_test.py` compares the modules under `btclib/`
+  against the automodule stanzas in `docs/source/*.rst`, and read a
+  toctree line as documentation too -- which is the one shape that made
+  the comparison lie, because every per-package page has both.
+  `btclib.psbt` is named in `btclib.rst`'s toctree and again by the
+  stanza that ends `btclib.psbt.rst`, so deleting that stanza left the
+  package's own `__init__` -- its docstring, and the names it re-exports
+  flat -- out of the published pages with the suite green and the
+  documentation build silent, autodoc having no idea a page was meant to
+  carry it. Measured by deleting it: `uv run pytest tests/docs_test.py`
+  passed and `docs.yml`'s `sphinx-build -W --keep-going` exited 0 with no
+  warning naming the package. Only the stanzas count now, and
+  `test_a_toctree_line_is_not_a_stanza` pins the distinction on a page
+  holding both shapes. The toctree loses no coverage by this: a page no
+  toctree includes is `toc.not_included`, which that same `-W` already
+  fails on. No page needed a stanza added -- every module and every
+  package under `btclib/` carries one -- so what changes is the gate and
+  not the documentation.
 
 ## v2026.8.9
 
