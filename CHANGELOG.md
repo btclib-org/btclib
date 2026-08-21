@@ -46,6 +46,44 @@ documented at release-notes length in the first place, and are still in
   while a skipped job is neither, which is why it left this one skipped on
   both attempts.
 
+### Packaging, linting and CI
+
+- **`published.yml`'s steps declare `shell: bash`** (issue #1141). The
+  matrix includes `windows-latest` and `windows-11-arm`, where the default
+  shell is PowerShell, and the step that waits for the index to serve the
+  released version is POSIX shell: it died at `Missing opening '(' after
+  keyword 'for'` on every Windows cell of `v2026.8.21`'s release run and
+  on no other cell of it. Those cells never reached the install this
+  workflow exists to make, so they verified nothing at all. Nothing
+  reached a user — PyPI has the wheel and the sdist, and the published
+  version installs and answers — but the sentinel was mute exactly where
+  it was meant to speak. The fix lands here rather than under that
+  release: `v2026.8.21` is tagged, and the tree that tag names does not
+  contain it.
+
+  It reached a release having never run. The step carries `if:
+  inputs.version != ''`, only `release.yml`'s call passes a version, and
+  `published.yml` is otherwise `schedule`/`workflow_dispatch`, so no pull
+  request and no scheduled run takes that branch: the tag was the step's
+  first execution in its life. Whether a run should be able to exercise
+  the release path deliberately is the issue's other half and is left to a
+  decision of its own; this changes no trigger.
+
+  `Install btclib from PyPI` gets the line too, the last step here without
+  one. That step is two plain commands, PowerShell runs it correctly and
+  has on every dispatched run — which is precisely what made the omission
+  invisible on review, since whether a shell-less step works depends on
+  whether its script happens to be portable rather than on anything
+  visible in the diff. With the line on every step, a missing one is
+  visible by its absence, which is the only review signal this file has:
+  `actionlint` reports nothing for a shell-less POSIX script on a Windows
+  runner, measured both under a literal `runs-on: windows-latest` and
+  under a matrix naming it. `btclib-secp256k1` and `bitcoin-core-rpc` both
+  declare it on every run step of their copies of this file, and this one
+  now matches them: the step was written correctly there and lost the line
+  on the way in here, its paragraph of reasoning arriving verbatim and
+  sound without the one declarative line that made it run.
+
 ## v2026.8.21
 
 ### Repository

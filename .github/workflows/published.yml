@@ -99,6 +99,18 @@ jobs:
         python: ["3.10", "3.14", "3.14t"]
     timeout-minutes: 20
     steps:
+      # every run step below declares `shell: bash`, and the matrix is why:
+      # the default shell on a Windows runner is PowerShell, which parses
+      # none of this. The wait step went in without the line (issue #1141)
+      # and took every Windows cell of v2026.8.21's release run with it --
+      # "Missing opening '(' after keyword 'for'" -- having never run
+      # before that tag, the release path being the only one that reaches
+      # it. A step whose script happens to be a couple of plain commands
+      # survives PowerShell unchanged, which is what makes an omission
+      # invisible on review; declaring it on every step is what makes the
+      # absence of one visible instead. Both siblings' copies of this file
+      # already do
+      #
       # the index does not serve a new file the instant the upload returns,
       # and this workflow installs whatever the resolver picks: a run that
       # starts too early tests the *previous* version and reports a pass for
@@ -108,6 +120,7 @@ jobs:
       # every other trigger
       - name: Wait for the index to serve the released version
         if: inputs.version != ''
+        shell: bash
         env:
           TAG: ${{ inputs.version }}
         run: |
@@ -156,6 +169,7 @@ jobs:
       # it: there is no checkout, so nothing of this repository is on the
       # path either way, and that is the property the header claims
       - name: Install btclib from PyPI
+        shell: bash
         run: |
           uv venv --python ${{ matrix.python }}
           uv pip install --verbose btclib
