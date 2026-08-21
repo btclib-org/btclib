@@ -459,6 +459,11 @@ PAGES_REPO_NWO = "PAGES_REPO_NWO"
 # that is not in the source it points at -- which is worse than no
 # citation, being one a reader would go and fail to find
 SerParams = "SerParams"
+# Core's writer for a 256-bit hash, `Ser` for serialize again
+# (src/serialize.h). tests/p2p/block_filters_test.py cites it as the one
+# function every BIP157 hash field is written with, and a citation the
+# spell checker turned into `set_uint256` names nothing
+ser_uint256 = "ser_uint256"
 
 [tool.typos.default.extend-words]
 # "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell

@@ -28,11 +28,21 @@ reach. Every count bound here has the same shape one layer up: `parse`
 reads the count before it builds anything, where btclib_node's own
 message classes loop over whatever `var_int.parse` allowed them, and
 btclib's var_int cap is 33,554,432.
+
+Not every name here is checked by something, and BIP157's are where the
+difference shows: a bound on a *range* whose far end is a block hash
+cannot be applied without the chain that turns the hash into a height,
+so `MAX_GETCFILTERS_SIZE` is published for the caller holding one and
+checked nowhere. Publishing it is what keeps such a caller from writing
+the number down a second time.
 """
 
 __all__ = [
+    "CFCHECKPT_INTERVAL",
     "MAX_ADDRV2_SIZE",
     "MAX_ADDR_TO_SEND",
+    "MAX_GETCFHEADERS_SIZE",
+    "MAX_GETCFILTERS_SIZE",
     "MAX_HEADERS_RESULTS",
     "MAX_INV_SZ",
     "MAX_LOCATOR_SZ",
@@ -111,6 +121,35 @@ MAX_INV_SZ = 50000
 # framework overrides it -- `max_headers_result` among the options -- and
 # the citation is what says where to look when the number moves.
 MAX_HEADERS_RESULTS = 2000
+
+# The most blocks one `getcfilters` may ask the filters of, Core's
+# src/net_processing.cpp: "Maximum number of compact filters that may be
+# requested with one getcfilters. See BIP 157." The BIP states it as a
+# rule about the range -- "the difference MUST be strictly less than
+# 1000" -- and that is what makes it a constant published rather than
+# checked: the far end of the range is a hash, and turning a hash into a
+# height needs the chain. `btclib.p2p.block_filters` holds none, so
+# `GetCFilters` carries the citation and the caller with a chain applies
+# the number.
+MAX_GETCFILTERS_SIZE = 1000
+
+# The most blocks one `getcfheaders` may ask the filter hashes of, Core's
+# src/net_processing.cpp again and BIP157's "strictly less than 2,000".
+# Unchecked in `GetCFHeaders` for the reason above -- and checked in
+# `CFHeaders`, which is where the same number is a count rather than a
+# range: "FilterHashesLength MUST NOT be greater than 2,000", read off
+# the payload before the loop that allocates on it.
+MAX_GETCFHEADERS_SIZE = 2000
+
+# The block height interval between the filter headers a `cfcheckpt`
+# carries, Core's src/index/blockfilterindex.h: "Interval between compact
+# filter checkpoints. See BIP 157." BIP157 spells the same rule as "the
+# block height is a multiple of 1,000 greater than 0", which is what
+# `CFCheckpt.heights` reads off the vector.
+#
+# An interval and not a bound, which is why nothing here caps that
+# vector: what bounds it in the BIP is the length of the chain.
+CFCHECKPT_INTERVAL = 1000
 
 # The most block hashes a `getblocks` or `getheaders` locator may carry,
 # Core's src/net_processing.cpp: "The maximum number of entries in a

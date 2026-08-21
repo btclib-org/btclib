@@ -212,6 +212,7 @@ CHILD_MODULES = {
         "unpublished": [
             "address",
             "addrv2",
+            "block_filters",
             "data",
             "handshake",
             "inventory",
