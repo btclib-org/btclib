@@ -60,6 +60,46 @@ on:
           the only caller that passes one. See the group below.
         type: string
         default: ""
+      version-suffix:
+        description: >
+          Appended to the version in pyproject.toml before the `dist`
+          job builds anything, by the dev-version composite action
+          (issue #1166: this is what lets that job's own build be the
+          one a rehearsal publishes, rather than a second build neither
+          the packaging checks nor the smoke test had inspected). A
+          release passes nothing and ships the version the tree
+          declares; the rehearsal passes a .dev suffix, which is how it
+          reaches TestPyPI with a version that index has not already
+          consumed.
+        type: string
+        default: ""
+      check-newest-bindings:
+        description: >
+          Whether the `dist` job's smoke test also asks about the newest
+          published btclib_secp256k1, unconstrained by uv.lock. Only
+          release.yml sets this: the question is not one a required
+          check can afford (a released binding would redden every open
+          pull request), so a direct trigger of this workflow leaves it
+          at the default and runs the deterministic smoke test alone.
+        type: boolean
+        default: false
+      disable-dist-cache:
+        description: >
+          Whether the `dist` job's own `Setup uv` step fetches its
+          dependencies afresh instead of from cache. Only release.yml's
+          call sets this: a cache entry written by one run is read by
+          another through GitHub's branch/PR cache scoping, so the job
+          whose output actually reaches an index -- a tag's upload or a
+          rehearsal's TestPyPI one, both routed through this same call --
+          is the one build that must not risk a poisoned cache reaching
+          the wheel it ships. An ordinary pull request or push to main
+          builds a copy this job throws away, so caching it is harmless,
+          and a flat `enable-cache: false` here would only cache-penalize
+          every one of them for a property only release.yml's call needs
+          -- the same asymmetry `check-newest-bindings` above expresses
+          for the unconstrained smoke test, applied to caching instead.
+        type: boolean
+        default: false
   # the escape hatch: the matrix on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
@@ -517,16 +557,28 @@ jobs:
   # problem is too late, a version being consumed by the upload that
   # carries it, and then only yankable. The release workflow calls this
   # one, so it runs these checks too, here on the files this job's own
-  # `uv build` produces. Its `build` job builds a second, separate copy
-  # -- the one it actually publishes -- and runs the same three checks on
-  # that copy as well (issue #1154), because passing here said nothing
-  # about files this job never saw.
+  # `uv build` produces -- the same files a tag publishes, issue #1166
+  # below being why there is no second, separate copy of them left to
+  # miss (issue #1154).
   # Installing the wheel is the last of them (issue #131), and it is a
   # gate here rather than in the release workflow alone because the
   # bindings it resolves are published: while they were not, the step
   # could only be red, for a reason nobody could fix from a branch
+  # issue #1166: this job used to build a copy that was checked and then
+  # thrown away, while release.yml's own `build` job built a second,
+  # separate copy -- from the same tree but with no SOURCE_DATE_EPOCH and
+  # no sdist normalization -- and published that one. Passing here said
+  # nothing about the files a tag actually shipped. This job now does what
+  # that job used to: pin the timestamp, apply a rehearsal's version
+  # suffix, build once, and upload what it built before installing
+  # anything. release.yml no longer has a `build` job at all; its publish
+  # jobs download this job's `dist` artifact, its `attest` job signs the
+  # digests this job's upload already fixed, and its `github-release` job
+  # attaches the same files. What used to be two builds checked twice is
+  # one build checked once and shipped unchanged -- btclib-secp256k1 has
+  # had this shape from the start, for the same reason
   dist:
-    name: Build the distribution and install it
+    name: Build the distribution files, check them, install one
     if: >-
       ${{ !github.event.pull_request.draft
           && github.event.action != 'closed'
@@ -539,39 +591,119 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # caching off only when release.yml calls this workflow: this dist
+      # job is then the one whose output is published -- a tag's upload
+      # or a rehearsal's TestPyPI one -- and the reasoning is
+      # version-check's own: a cache entry written by one run is read by
+      # another through GitHub's branch/PR cache scoping, so the build
+      # that actually ships is the one that must fetch its dependencies
+      # afresh rather than risk a poisoned cache reaching the wheel an
+      # index receives. An ordinary pull request's or push's build is
+      # thrown away, so caching it is harmless; `disable-dist-cache`
+      # defaults to false for exactly that reason, the same asymmetry
+      # `check-newest-bindings` above expresses for the smoke test
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          enable-cache: true
+          enable-cache: ${{ !inputs.disable-dist-cache }}
+      # what makes the wheel this job publishes reproducible: without it
+      # setuptools stamps the zip entries with the mtimes of the checkout,
+      # so the same commit built twice gives two digests and the
+      # attestation release.yml's `attest` job signs would vouch for bytes
+      # nobody else can obtain. The commit date, not the tag's: `git log
+      # -1` on a shallow clone reads the tip, which is the commit the tag
+      # points at, and a lightweight tag has no date of its own to prefer.
+      # RELEASING.md has the command that rebuilds a released tag and
+      # verifies it against the attestation
+      - name: Pin the build timestamp to the commit
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+      # empty on every trigger but a release rehearsal: `inputs` is unset
+      # outside a workflow_call, so a direct run of this workflow -- the
+      # matrix a pull request or a push to main gets -- skips this and
+      # ships the version the tree declares, same as a real release does.
+      # TestPyPI refuses a version it has already seen, which is what the
+      # suffix is for; release.yml's `version-check` job computes it once
+      # and passes it down, so every job this workflow runs during one
+      # dispatch agrees on it
+      - name: Make the version unique for TestPyPI (rehearsal only)
+        if: inputs.version-suffix != ''
+        uses: ./.github/actions/dev-version
+        with:
+          suffix: ${{ inputs.version-suffix }}
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree, so what is checked below is what a user
-      # installing from source would get. That the sdist is complete in the
-      # first place is check-manifest's job, a pre-commit hook, gated by
-      # the lint workflow
+      # installing from source would get, and what a rehearsal ships is
+      # built from the tree the step above just re-locked. That the sdist
+      # is complete in the first place is check-manifest's job, a
+      # pre-commit hook, gated by the lint workflow
       - name: Build the distribution files
         run: uv build
-      # what the three checks below do not look at: the members of the two
-      # archives, which is what a user installs. The allowlist and the
-      # reasoning are in the script; release.yml's build job runs the same
-      # command on the files it is about to publish, and this is the copy
-      # that answers before a tag rather than after one.
-      # --no-project, so it runs on the interpreter uv already fetched and
-      # installs nothing: the script imports the standard library only
+      # SOURCE_DATE_EPOCH reaches every entry of the wheel and nothing at
+      # all in the sdist: setuptools honours it in the wheel writer it
+      # vendors and in no other place, so each member of the .tar.gz keeps
+      # a clock -- the checkout's for a file, the build's for the
+      # directory setuptools stages them in -- to sub-second precision, in
+      # a PAX record whose length changes with it. The script rewrites
+      # member metadata and no content, and its docstring has the
+      # measurement. --no-project, so this runs on the interpreter uv
+      # already fetched and installs nothing into the tree it is about to
+      # publish
+      - name: Make the sdist reproducible too
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/normalize_sdist.py dist/
+          sha256sum dist/*
+      # what the packaging checks further down do not look at: the
+      # members of the two archives, which is what a user installs. The
+      # allowlist and the reasoning are in the script.
+      # After the normalizer rather than before: that rewrites member
+      # metadata, and this reads member names
       - name: Check what the distribution files contain
         run: |
           uv run --no-project --python 3.14 \
             .github/scripts/verify_dist_contents.py dist/
-      # and the bill of materials release.yml attaches to a release. Written
-      # here and thrown away, into $RUNNER_TEMP rather than the workspace:
-      # what this gates is that the script still reads a real wheel, which
-      # otherwise nothing would say until a tag ran it for the first time
+      # and what nothing said at all: what the files contain, as a
+      # document rather than as a check. The bill of materials is
+      # reproducible for the reason the two steps above are --
+      # SOURCE_DATE_EPOCH is its timestamp and the two digests its serial
+      # number -- so a rebuild of a released tag writes this file too, and
+      # release.yml's `attest` job signs it beside the distribution files.
+      # Into a directory of its own and not dist/: that directory is
+      # uploaded as the artifact the publish jobs hand to an index, and an
+      # index takes distribution files
       - name: Write the bill of materials
         run: |
-          SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) \
-            uv run --no-project --python 3.14 \
-            .github/scripts/generate_sbom.py dist/ "$RUNNER_TEMP"/sbom/
+          uv run --no-project --python 3.14 \
+            .github/scripts/generate_sbom.py dist/ sbom/
+      # before anything is installed, and that ordering is the point: a
+      # step below runs third-party code -- twine, check-wheel-contents
+      # and pyroma come from a group uv installs, and a `.pth` file in a
+      # dependency executes at interpreter startup, before the first
+      # import -- while dist/ is a writable directory on the same runner.
+      # Uploading first freezes what release.yml's publish jobs will
+      # download, so the worst a compromised dependency can do here is
+      # fail this job, which stops them from ever seeing what it built
+      - name: Upload the distribution files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+      # an artifact of its own, for the reason the step that writes it
+      # gives: release.yml's `attest` and `github-release` jobs both hand
+      # every file in it to a signature or a release, the same way they
+      # do dist's
+      - name: Upload the bill of materials
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom/
       # the same validation PyPI applies on upload: broken metadata, or a
-      # README that does not render, cannot be fixed by reuploading
+      # README that does not render, cannot be fixed by reuploading. After
+      # the two uploads above rather than between them and the build: each
+      # of the three checks below is a dependency this job has to install
+      # to run, and the comment on the first upload already freezes what
+      # the publish jobs will download before anything is installed, a
+      # boundary these steps keep rather than move
       - name: Check the metadata and the long description
         run: uv run --locked --only-group check twine check --strict dist/*
       # what twine does not look at: where the files land once installed,
@@ -615,39 +747,43 @@ jobs:
       # refuses as conflicting once the branch has moved past it. A floor
       # resolves to a release, and a release does not move.
       # Whether the newest bindings still work is asked on a schedule by
-      # latest.yml, and again by the release workflow before it publishes.
-      # Each assertion catches what the others miss: the version is
-      # asserted and not merely printed, since btclib.__version__ falls
-      # back to "unknown" with no metadata installed (issue #150), so a
-      # wheel shipping none would print that and pass; `btclib.ecc.dsa`
-      # is imported because `import btclib` runs only __init__.py, which
-      # reads that metadata and touches no binding, so the bindings could
-      # be missing entirely; the bindings are asserted to be serving
-      # because nothing else here notices when they are not; and a
-      # signature is verified because an installable release of them with
-      # an incompatible API imports fine and answers wrongly.
+      # latest.yml, and again below, release-only. Each assertion catches
+      # what the others miss: the version is asserted and not merely
+      # printed, since btclib.__version__ falls back to "unknown" with no
+      # metadata installed (issue #150), so a wheel shipping none would
+      # print that and pass; `btclib.ecc.dsa` is imported because `import
+      # btclib` runs only __init__.py, which reads that metadata and
+      # touches no binding, so the bindings could be missing entirely; the
+      # bindings are asserted to be serving because nothing else here
+      # notices when they are not; and a signature is verified because an
+      # installable release of them with an incompatible API imports fine
+      # and answers wrongly.
       # The serving one is issue #1117, and what it guards here is not
-      # what it guards in release.yml's unconstrained copy. The
-      # constraints bind a version and request no package, so the only
-      # thing that installs the bindings at all is the wheel's own
-      # `Requires-Dist` for the extra: a wheel that stopped declaring it
-      # resolves nothing, and a btclib_secp256k1 the lock pins that this
-      # tree cannot import lands in `_libsecp256k1`'s `except
-      # ImportError`. Either way `is_libsecp256k1_serving` is False while
-      # the Python arithmetic answers the version and the signature
-      # correctly -- that arm being supported is what the `no-bindings`
-      # job above exists for -- so both would pass unnoticed. Both are
-      # the tree's own state and not the index's, which is what makes the
-      # assertion fit for a required check: what it cannot say is whether
-      # the *newest* bindings serve, which is release.yml's copy and
-      # latest.yml's job.
+      # what it guards in the unconstrained step below. The constraints
+      # bind a version and request no package, so the only thing that
+      # installs the bindings at all is the wheel's own `Requires-Dist`
+      # for the extra: a wheel that stopped declaring it resolves
+      # nothing, and a btclib_secp256k1 the lock pins that this tree
+      # cannot import lands in `_libsecp256k1`'s `except ImportError`.
+      # Either way `is_libsecp256k1_serving` is False while the Python
+      # arithmetic answers the version and the signature correctly --
+      # that arm being supported is what the `no-bindings` job above
+      # exists for -- so both would pass unnoticed. Both are the tree's
+      # own state and not the index's, which is what makes the assertion
+      # fit for a required check: what it cannot say is whether the
+      # *newest* bindings serve, which is the step below and latest.yml's
+      # job.
       # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
       # installed and not refused, so it implies the other, and it is the
       # public reading of the seam every dispatch consults -- the same
       # name the `no-bindings` job asserts the negative of. Asserted
       # before the signature because it is what gives that signature its
       # meaning: verified by libsecp256k1 here rather than by the Python
-      # arm it would otherwise silently be
+      # arm it would otherwise silently be.
+      # After the two uploads, for the reason the twine step's comment
+      # gives: installing a dependency executes its code, and a
+      # compromised one must not reach a `dist/` that still has to be
+      # handed on
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           uv export --locked --no-dev --extra secp256k1 \
@@ -673,6 +809,38 @@ jobs:
               'the secp256k1 extra resolved, the bindings do not serve'; \
             assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
               dsa.sign(b'btclib', 1))"
+      # release.yml's own copy of this question, moved here now that
+      # there is only one build for it to ask about. Unconstrained, where
+      # the step above pins the runtime dependencies to uv.lock: gated on
+      # `inputs.check-newest-bindings`, which only release.yml sets, so
+      # no pull request and no ordinary push to main waits on it -- it can
+      # afford the question a required check cannot, whether the newest
+      # published btclib_secp256k1 satisfies the wheel about to be
+      # published, which is what a user installing it resolves. A release
+      # stopping on that answer is the outcome wanted.
+      # `github.event_name != 'pull_request'` was the alternative
+      # considered and rejected: inside a called workflow that context is
+      # the *caller's* trigger, so it reads the same 'push' or
+      # 'workflow_dispatch' whether release.yml called this job or a bare
+      # push to main did, and this step running on every push to main
+      # would add a run this issue was never asked to add. The explicit
+      # input says only release.yml opts in
+      - name: Smoke-test the wheel against the newest bindings (release only)
+        if: inputs.check-newest-bindings
+        run: |
+          cd "$RUNNER_TEMP"
+          set -- "$GITHUB_WORKSPACE"/dist/*.whl
+          uv run --isolated --no-project --with "$1[secp256k1]" \
+            python -c "import btclib; \
+              from btclib.curves import is_libsecp256k1_serving; \
+              from btclib.ecc import dsa; \
+              from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+              print(btclib.__version__); \
+              assert btclib.__version__ != 'unknown'; \
+              assert is_libsecp256k1_serving(), \
+                'the secp256k1 extra resolved, the bindings do not serve'; \
+              assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+                dsa.sign(b'btclib', 1))"
 
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal

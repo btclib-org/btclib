@@ -429,38 +429,54 @@ that way in the first place. The two commands above run in two passes
 either way, one `.venv` not being able to hold and lack the bindings at
 once.
 
-The `dist` job, which inspects what would be published and then
-installs it. The first two commands after the build read the *members* of
-the two archives, which the three that follow do not: an allowlist of what
-may be in a wheel and an sdist, and the bill of materials a release
-attaches — written here into a temporary directory and thrown away, this
-being the copy that says the script still reads a real wheel. That
-allowlist is stated in prose in
+The `dist` job, which builds the distribution files, checks them and
+then installs one. This is the one build there is (issue #1166):
+`release.yml`'s `test` job calls this workflow, so a tag runs the very
+same job, and its own `publish-testpypi` and `publish-pypi` jobs download
+the `dist` artifact this job uploads rather than building a second copy —
+so what the checks below judge is what an index ends up serving, byte for
+byte. The first two commands after the build are what make the wheel and
+the sdist reproducible — the first is why two checkouts of one commit
+produce the same wheel, the second why they produce the same sdist — and
+`sha256sum` after them is the digest a rebuild from the tag is compared
+against. The two after that read the *members* of the two archives,
+which the three checks further down do not: an allowlist of what may be
+in a wheel and an sdist, and the bill of materials a release attaches.
+That allowlist is stated in prose in
 [the package-content policy](./docs/source/package-content-policy.md),
 which the suite compares against the script's own constants, so changing
-a rule means changing both. The last
-commands ask for the wheel and nothing else, so
-what pulls btclib_secp256k1 in is the `Requires-Dist` the wheel carries
-for the `secp256k1` extra — which those commands name on both sides, a
-wheel installed without it declaring nothing to resolve. The lock
-arrives as constraints, which bind a version without
-requesting a package, so a release of the bindings cannot turn a required
-check red while the wheel's own metadata still does the work. That the
-bindings then *serve* is asserted rather than assumed: with the extra
+a rule means changing both. Both are written before anything is
+installed and uploaded before anything below reads `dist/` — installing
+a dependency executes its code, and a compromised one must not reach a
+`dist/` that still has to be handed on, so what the publish jobs will
+download is frozen before the twine, check-wheel-contents and pyroma
+steps below install anything at all. The two smoke tests ask for the
+wheel and nothing else, so what pulls btclib_secp256k1 in is the
+`Requires-Dist` the wheel carries for the `secp256k1` extra — which they
+name on both sides, a wheel installed without it declaring nothing to
+resolve. The first pins the lock as constraints, which bind a version
+without requesting a package, so a release of the bindings cannot turn a
+required check red while the wheel's own metadata still does the work;
+the second is unconstrained and release-only, asking instead whether the
+*newest* published bindings still satisfy the wheel, which is what a
+user installing it resolves — no pull request waits on it, only
+`release.yml`'s call sets the input that turns it on. That the bindings
+then *serve* is asserted rather than assumed in both: with the extra
 resolving to nothing, or to a release this tree cannot import, btclib
 falls back to the Python arithmetic and answers the version and the
 signature correctly — the supported configuration `no-bindings` runs the
 whole suite in — so the assertion is the only thing between that
-resolution and a green check. They run
-from an empty directory, or the import finds the source tree instead of
-the wheel:
+resolution and a green check. They run from an empty directory, or the
+import finds the source tree instead of the wheel:
 
 ```shell
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
 uv build
+uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
+sha256sum dist/*
 uv run --no-project --python 3.14 \
     .github/scripts/verify_dist_contents.py dist/
-SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv run --no-project \
-    --python 3.14 .github/scripts/generate_sbom.py dist/ "$(mktemp -d)"
+uv run --no-project --python 3.14 .github/scripts/generate_sbom.py dist/ sbom/
 uv run --locked --only-group check twine check --strict dist/*
 uv run --locked --only-group check check-wheel-contents dist/*.whl
 uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
@@ -480,10 +496,33 @@ cd "$tmp" && uv venv &&
         'the secp256k1 extra resolved, the bindings do not serve'; \
       assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
         dsa.sign(b'btclib', 1))"
+cd "$OLDPWD" &&
+    uv run --isolated --no-project --with "$(echo dist/*.whl)[secp256k1]" \
+    python -c "import btclib; \
+      from btclib.curves import is_libsecp256k1_serving; \
+      from btclib.ecc import dsa; \
+      from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+      print(btclib.__version__); \
+      assert btclib.__version__ != 'unknown'; \
+      assert is_libsecp256k1_serving(), \
+        'the secp256k1 extra resolved, the bindings do not serve'; \
+      assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+        dsa.sign(b'btclib', 1))"
 ```
 
-The checks the `release` workflow runs before building anything, the
-first of them being where the tag came from rather than what it says:
+A rehearsal (`workflow_dispatch`) runs one command ahead of the block
+above, which the tag path skips: `.github/actions/dev-version` rewrites
+`pyproject.toml`'s version with the `.dev<run*100+attempt>` suffix
+`release.yml`'s `version-check` job computed and re-locks, so that
+`uv build` above ships a version TestPyPI has not already seen. Neither
+of the two checks minds — what they judge is metadata syntax, README
+rendering, wheel layout and metadata quality, none of which a `.dev<N>`
+suffix changes — and both smoke tests do mind, installing the wheel that
+suffix names.
+
+The checks `release.yml`'s `version-check` job runs before anything is
+built, the first of them being where the tag came from rather than what
+it says:
 
 ```shell
 git merge-base --is-ancestor HEAD origin/main
@@ -491,43 +530,10 @@ uv lock --check
 uv version --short
 ```
 
-Its `build` job runs the same twine, check-wheel-contents and pyroma
-commands above again too, on the files it is about to publish rather
-than on `dist`'s own copy (issue #1154):
-
-```shell
-uv run --locked --only-group check twine check --strict dist/*
-uv run --locked --only-group check check-wheel-contents dist/*.whl
-uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
-```
-
-It then repeats the smoke test above on the wheel it uploads, which is
-not the one `dist` built, and repeats it without the constraints. No
-pull request waits on that job and no branch rule names it, where
-`publish-testpypi` and `publish-pypi` both have it in `needs`: so it is
-the place to ask whether the newest published bindings satisfy the
-artifact, and a release stopping on that answer is the outcome wanted.
-Both run after the upload rather than before, the artifact being what
-the publish jobs download: installing a dependency executes its code,
-and a compromised one must not reach a `dist/` that has still to be
-handed on.
-
-What that job builds is reproducible, and the two steps that make it so
-are the two lines below — the first is why two checkouts of one commit
-produce the same wheel, the second why they produce the same sdist:
-
-```shell
-export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
-uv run --no-project --python 3.14 .github/scripts/normalize_sdist.py dist/
-```
-
-The bill of materials that job writes is reproducible for the same reason,
-that variable being its timestamp, so a rebuild verifies against the
-attestation exactly as the two distribution files do.
-
-RELEASING.md's "Rebuild a release from its tag" has them in the order a
-verifier runs them, with the `gh attestation verify` that gives the
-rebuild a verdict and the two bounds on what that verdict means.
+RELEASING.md's "Rebuild a release from its tag" has the reproducibility
+commands above in the order a verifier runs them, with the
+`gh attestation verify` that gives the rebuild a verdict and the two
+bounds on what that verdict means.
 
 The `latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade

@@ -42,6 +42,8 @@ jobs:
     name: Check the tag and the declared versions
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      version-suffix: ${{ steps.suffix.outputs.version-suffix }}
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move, and these
@@ -90,12 +92,12 @@ jobs:
             exit 1
           fi
           echo "$commit is an ancestor of $DEFAULT_BRANCH"
-      # caching off in this workflow, unlike every other: a cache entry is
-      # written by whichever run populated it, and read here through the
-      # scoping that gives a tag push the caches of the default branch. This
-      # is the workflow that builds what gets uploaded and whose jobs hold
-      # an OIDC token PyPI accepts, so it downloads its dependencies afresh
-      # every time. It costs seconds, once per release.
+      # caching off in this job, unlike every other in these workflows: a
+      # cache entry is written by whichever run populated it, and read here
+      # through the scoping that gives a tag push the caches of the default
+      # branch. This is the workflow whose jobs hold an OIDC token PyPI
+      # accepts, so this one downloads its dependencies afresh every time.
+      # It costs seconds, once per release.
       # Spelled out rather than left off: the input defaults to "auto",
       # which means enabled on a GitHub-hosted runner
       - name: Setup uv
@@ -197,8 +199,43 @@ jobs:
               }
             ' "$file"
           done
+      # TestPyPI refuses a version it has already seen: the rehearsal
+      # appends .dev<run*100+attempt>, unique per dispatch and per re-run
+      # of one, and sorted before the release it rehearses (PEP 440).
+      # A re-run keeps the run's own id and number and only raises
+      # run_attempt, so .dev<run number> alone -- the previous shape of
+      # this suffix -- was identical across every re-run of one dispatch
+      # and collided with itself on TestPyPI the moment a rehearsal was
+      # re-run rather than freshly dispatched (issue #1156). Multiplying
+      # the run number by 100 and adding the attempt keeps both
+      # properties at once: every attempt of every run is still unique,
+      # and, because the attempt never reaches the run number's own
+      # place value, attempt 2 of run 7 (702) still sorts after every
+      # attempt of run 6 (600-699) -- the ordering .dev<run><attempt>
+      # concatenation would have kept only while the two numbers' digit
+      # counts happened to line up. The two digits reserved for the
+      # attempt are checked, not assumed.
+      # Computed here rather than inside test.yml's `dist` job, which is
+      # what applies it (issue #1166): every job this workflow dispatches
+      # during one run has to agree on the same suffix, and this is the
+      # one job every one of them already depends on, directly or through
+      # `test`
+      - name: Compute the rehearsal version suffix
+        id: suffix
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "$GITHUB_RUN_ATTEMPT" -gt 99 ]; then
+            echo "::error::attempt $GITHUB_RUN_ATTEMPT exceeds the two digits reserved for it"
+            exit 1
+          fi
+          suffix=".dev$((GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))"
+          echo "run $GITHUB_RUN_NUMBER attempt $GITHUB_RUN_ATTEMPT: $suffix"
+          echo "version-suffix=$suffix" >> "$GITHUB_OUTPUT"
 
-  # the whole build/test matrix, exactly as a pull request runs it
+  # the whole build/test matrix, exactly as a pull request runs it, and
+  # now the build too: test.yml's `dist` job builds the distribution
+  # files, checks them and uploads them, so this call is what makes them
+  # exist for the publish jobs below to download (issue #1166)
   test:
     name: Run the test workflow
     needs: version-check
@@ -223,6 +260,18 @@ jobs:
       # what keeps this run out of the branch concurrency groups: see the
       # group in test.yml
       concurrency-suffix: "-release"
+      # empty on the tag path, where the step above is skipped and a
+      # skipped step's output is the empty string: a release ships the
+      # version the tree declares
+      version-suffix: ${{ needs.version-check.outputs.version-suffix }}
+      # only this call sets it: see the input's own description in
+      # test.yml
+      check-newest-bindings: true
+      # only this call sets it too: this is the run whose dist job
+      # builds what a tag or a rehearsal actually publishes, so its
+      # Setup uv step must not trust a cache another run wrote. See the
+      # input's own description in test.yml
+      disable-dist-cache: true
 
   # and the same checks a pull request lints with: without this, a tag
   # push could publish code the pre-commit hooks reject. Not gated on
@@ -254,247 +303,9 @@ jobs:
     name: Run the windows workflow
     uses: ./.github/workflows/windows.yml
 
-  build:
-    name: Build the wheel and the sdist
-    needs: version-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      # caching off, for the reason given in the version-check job: this is
-      # the job whose output is published
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
-          enable-cache: false
-      # what makes the wheel this job publishes reproducible: without it
-      # setuptools stamps the zip entries with the mtimes of the checkout,
-      # so the same commit built twice gives two digests and the
-      # attestation below vouches for bytes nobody else can obtain. The
-      # commit date, not the tag's: `git log -1` on a shallow clone reads
-      # the tip, which is the commit the tag points at, and a lightweight
-      # tag has no date of its own to prefer.
-      # RELEASING.md has the command that rebuilds a released tag and
-      # verifies it against the attestation
-      - name: Pin the build timestamp to the commit
-        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
-      # TestPyPI refuses a version it has already seen: the rehearsal
-      # appends .dev<run*100+attempt>, unique per dispatch and per re-run
-      # of one, and sorted before the release it rehearses (PEP 440).
-      # A re-run keeps the run's own id and number and only raises
-      # run_attempt, so .dev<run number> alone -- the previous shape of
-      # this suffix -- was identical across every re-run of one dispatch
-      # and collided with itself on TestPyPI the moment a rehearsal was
-      # re-run rather than freshly dispatched. Multiplying the run number
-      # by 100 and adding the attempt keeps both properties at once:
-      # every attempt of every run is still unique, and, because the
-      # attempt never reaches the run number's own place value, attempt 2
-      # of run 7 (702) still sorts after every attempt of run 6 (600-699)
-      # -- the ordering .dev<run><attempt> concatenation would have kept
-      # only while the two numbers' digit counts happened to line up.
-      # The two digits reserved for the attempt are checked, not assumed
-      - name: Make the version unique for TestPyPI (rehearsal only)
-        if: github.event_name == 'workflow_dispatch'
-        # Python and tomllib, not sed: the value is parsed and only then
-        # located in the text, because a regex for a version key on its own
-        # line would find whichever table came first. The assignment is
-        # rewritten whole, which leaves its spelling as the file had it.
-        # The interpreter comes from uv, --no-project so that nothing is
-        # installed and no lock is consulted: this job sets up no Python of
-        # its own, and tomllib needs 3.11. 3.14 is what .python-version
-        # pins, so this asks for a version uv has already fetched for the
-        # other jobs rather than a second one
-        run: |
-          uv run --no-project --python 3.14 python - <<'PY'
-          import os
-          import re
-          import tomllib
-          from pathlib import Path
-
-          run_number = int(os.environ["GITHUB_RUN_NUMBER"])
-          run_attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
-          if run_attempt > 99:
-              msg = f"attempt {run_attempt} exceeds the two digits reserved for it"
-              raise SystemExit(msg)
-
-          path = Path("pyproject.toml")
-          text = path.read_text(encoding="utf-8")
-          declared = tomllib.loads(text)["project"]["version"]
-          match = re.search(rf'(?m)^version\s*=\s*"{re.escape(declared)}"\s*$', text)
-          if match is None:
-              msg = f"pyproject.toml declares {declared}, which is not a literal in it"
-              raise SystemExit(msg)
-          suffixed = declared + ".dev" + str(run_number * 100 + run_attempt)
-          line = match.group().replace(declared, suffixed, 1)
-          path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
-          PY
-          grep -m1 '^version' pyproject.toml
-          # uv.lock carries the project version, so patching pyproject.toml
-          # leaves the two disagreeing, and every uv command that passes
-          # --locked -- which is all of them, by convention -- then fails
-          # with "the lockfile needs to be updated". Measured: without this
-          # re-lock, "uv run --locked --only-group check" on a patched tree
-          # exits non-zero. This step now has three --locked consumers
-          # downstream in this same job -- the twine, check-wheel-contents
-          # and pyroma steps added for issue #1154 -- and the re-lock is
-          # what keeps every one of them working.
-          # The re-lock is also what makes the sdist coherent: it ships
-          # uv.lock, which otherwise declared the unsuffixed version inside
-          # a distribution named for the suffixed one
-          uv lock
-      # what a rehearsal does differently from a tag: test.yml's dist job,
-      # called by this workflow's own `test` job above, validates the tree
-      # as committed, while the twine/check-wheel-contents/pyroma steps
-      # below run on the version this step just suffixed. Neither minds:
-      # what the three judge is metadata syntax, README rendering, wheel
-      # layout and metadata quality, none of which a .dev<N> suffix
-      # changes. The smoke test further down is the one check that does
-      # depend on the suffix -- it installs the wheel this job built,
-      # suffix and all -- which is why it could never have been left to
-      # test.yml's dist job and needed no plumbing to avoid it
-      # uv build builds the sdist first and then the wheel from it, not
-      # both from the source tree: the packaging path a user installing
-      # from source takes is therefore the one that produced the wheel,
-      # which is why no separate "install from the sdist" job is needed.
-      # check-manifest stays out of this job: it is a pre-commit hook,
-      # gated by the lint workflow, which this one also calls, and its
-      # question is about the tree uv build reads rather than the files
-      # this job goes on to publish
-      - name: Build the distribution files
-        run: uv build
-      # SOURCE_DATE_EPOCH reaches every entry of the wheel and nothing at
-      # all in the sdist: setuptools honours it in the wheel writer it
-      # vendors and in no other place, so each member of the .tar.gz keeps
-      # a clock -- the checkout's for a file, the build's for the directory
-      # setuptools stages them in -- to sub-second precision, in a PAX
-      # record whose length changes with it. The script rewrites member
-      # metadata and no content, and its docstring has the measurement.
-      # --no-project, so this runs on the interpreter uv already fetched
-      # and installs nothing into the tree it is about to publish
-      - name: Make the sdist reproducible too
-        run: |
-          uv run --no-project --python 3.14 \
-            .github/scripts/normalize_sdist.py dist/
-          sha256sum dist/*
-      # what the packaging checks of the dist job do not look at: the
-      # members of the two archives. They read metadata -- whether it is
-      # valid, whether the long description renders, whether the
-      # classifiers are the ones a package should declare -- and the
-      # allowlist in the script is about what is *in* the files. It runs in
-      # that job too, so a pull request is told before a tag is; here it
-      # judges the files that get uploaded, which in a rehearsal are a
-      # different version built from a re-locked tree.
-      # After the normalizer rather than before: that rewrites member
-      # metadata, and this reads member names
-      - name: Check what the distribution files contain
-        run: |
-          uv run --no-project --python 3.14 \
-            .github/scripts/verify_dist_contents.py dist/
-      # and what nothing said at all: what the files contain, as a document
-      # rather than as a check. The bill of materials is reproducible for
-      # the reason the two steps above are -- SOURCE_DATE_EPOCH is its
-      # timestamp and the two digests its serial number -- so a rebuild of
-      # the tag writes this file too, and the attest job below signs it
-      # beside the distribution files.
-      # Into a directory of its own and not dist/: that directory is
-      # uploaded as the artifact the publish jobs hand to an index, and an
-      # index takes distribution files
-      - name: Write the bill of materials
-        run: |
-          uv run --no-project --python 3.14 \
-            .github/scripts/generate_sbom.py dist/ sbom/
-      # before anything is installed, and that ordering is the point: the
-      # step below runs third-party code -- a `.pth` file in a dependency
-      # executes at interpreter startup, before the first import -- while
-      # dist/ is a writable directory on the same runner. Uploading first
-      # freezes what the publish jobs will download, so the worst a
-      # compromised dependency can do here is fail the job, which stops
-      # them: both name this one in `needs`
-      - name: Upload the distribution files
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: dist
-          path: dist/
-      # an artifact of its own, for the reason the step that writes it gives:
-      # the two jobs that download `dist` hand every file in it to an index
-      - name: Upload the bill of materials
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sbom
-          path: sbom/
-      # the same three checks test.yml's dist job runs, and for the same
-      # reason given there: a release is the one place where finding a
-      # packaging problem is too late. They run in both places because
-      # dist builds its own copy of the distribution files rather than
-      # this job's -- issue #1154 -- so passing there was never a
-      # guarantee about the files this job is about to publish; this is
-      # the run that judges those files themselves. After the two uploads
-      # above rather than between them and the build: each of the three is
-      # a dependency this job has to install to run, and the comment on
-      # the first upload above already freezes what the publish jobs will
-      # download before anything is installed, a boundary these steps
-      # keep rather than move
-      - name: Check the metadata and the long description
-        run: uv run --locked --only-group check twine check --strict dist/*
-      - name: Check the wheel contents
-        run: uv run --locked --only-group check check-wheel-contents dist/*.whl
-      - name: Rate the packaging metadata
-        run: uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
-      # dist installs a wheel too, but not this one: it builds its own
-      # copy, on another runner and -- in a rehearsal -- from another
-      # version, the step above having patched pyproject.toml and
-      # re-locked. What reaches an index is this artifact, so this one is
-      # imported, from an empty directory so the import resolves to the
-      # wheel and not to the btclib/ source tree.
-      # Unconstrained, where dist pins the runtime dependencies to
-      # uv.lock: no pull request waits on this job, so it can afford the
-      # question a required check cannot -- whether the newest published
-      # btclib_secp256k1 satisfies the wheel about to be published,
-      # which is what a user installing it resolves. A release stopping
-      # on that answer is the outcome wanted.
-      # The assertions are dist's, and there for the same reasons:
-      # metadata can be missing (issue #150), `import btclib` runs only
-      # __init__.py and touches no binding, the extra can resolve to a
-      # release this tree cannot import, and a bindings release can
-      # install and still answer wrongly.
-      # The serving assertion is what makes the resolution above a
-      # question at all (issue #1117): a bindings release btclib fails
-      # to import lands in `_libsecp256k1`'s `except ImportError`, and
-      # the Python arithmetic then answers the version and the signature
-      # correctly -- that arm being supported and tested is what
-      # test.yml's `no-bindings` job exists for -- so without it this
-      # step goes green on exactly the resolution it is asked about.
-      # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
-      # installed and not refused, so it implies the other, and it is
-      # the public reading of the seam every dispatch consults. It is
-      # asserted before the signature because it is what gives that
-      # signature its meaning -- verified by libsecp256k1 here rather
-      # than by the Python arm it would otherwise silently be
-      - name: Smoke-test the wheel, with its dependencies from PyPI
-        run: |
-          cd "$RUNNER_TEMP"
-          # `set --` for the reason dist's copy of this states: the
-          # positional parameters are sh, bash and zsh alike, where a
-          # named array is 0-indexed in one and 1-indexed in another
-          set -- "$GITHUB_WORKSPACE"/dist/*.whl
-          uv run --isolated --no-project --with "$1[secp256k1]" \
-            python -c "import btclib; \
-              from btclib.curves import is_libsecp256k1_serving; \
-              from btclib.ecc import dsa; \
-              from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
-              print(btclib.__version__); \
-              assert btclib.__version__ != 'unknown'; \
-              assert is_libsecp256k1_serving(), \
-                'the secp256k1 extra resolved, the bindings do not serve'; \
-              assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
-                dsa.sign(b'btclib', 1))"
-
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, windows, build]
+    needs: [test, lint, docs, macos, windows]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -518,7 +329,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, windows, build]
+    needs: [test, lint, docs, macos, windows]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -565,10 +376,10 @@ jobs:
   # what the others contain.
   # A job of its own rather than two more permissions on github-release:
   # this workflow elevates one job at a time, and the one that writes
-  # releases has no reason to also hold an OIDC token. It is not in the
-  # build job for the stronger form of the same reason -- that job runs the
-  # build backend and installs the wheel it just built, and a token minted
-  # there would be minted beside third-party code.
+  # releases has no reason to also hold an OIDC token. It is not in
+  # test.yml's `dist` job for the stronger form of the same reason -- that
+  # job runs the build backend and installs the wheel it just built, and a
+  # token minted there would be minted beside third-party code.
   # After a publish and not after the build, so that a run reaching here is
   # a run the environment approval already let through: without that, a
   # dispatch from any branch would sign whatever that branch built.

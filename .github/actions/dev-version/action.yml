@@ -1,0 +1,64 @@
+---
+# issue #1166: the release workflow used to compute this suffix and
+# rewrite pyproject.toml inline, inside the job that then built the
+# files it published -- the only build in the pipeline that ever saw a
+# rehearsal version. Moving the rewrite here is what lets test.yml's
+# `dist` job apply the same suffix before its own `uv build`, which is
+# what makes that job's build the one and only build a rehearsal
+# publishes too, rather than a second copy neither the packaging checks
+# nor the smoke test had inspected.
+#
+# Referenced by path (`uses: ./.github/actions/dev-version`) and not by
+# commit SHA, which is the rule for every third-party action: this one is
+# the repository's own file, read from the same commit as the workflow
+# that calls it, so there is no owner who could move it.
+name: Append a dev suffix to the version
+description: >-
+  Rewrites the version in pyproject.toml, appending the given suffix, and
+  re-locks so uv.lock agrees -- what a rehearsal needs before it builds a
+  version no index has already seen.
+
+inputs:
+  suffix:
+    description: What to append, e.g. .dev42
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # Python and tomllib, not sed: the value is parsed and only then
+    # located in the text, because a regex for a version key on its own
+    # line would find whichever table came first. The assignment is
+    # rewritten whole, which leaves its spelling as the file had it.
+    # --no-project, so this runs on the interpreter uv already fetched
+    # and installs nothing into the tree the caller is about to build
+    - shell: bash
+      env:
+        SUFFIX: ${{ inputs.suffix }}
+      run: |
+        uv run --no-project --python 3.14 python - <<'PY'
+        import os
+        import re
+        import tomllib
+        from pathlib import Path
+
+        path = Path("pyproject.toml")
+        text = path.read_text(encoding="utf-8")
+        declared = tomllib.loads(text)["project"]["version"]
+        match = re.search(rf'(?m)^version\s*=\s*"{re.escape(declared)}"\s*$', text)
+        if match is None:
+            msg = f"pyproject.toml declares {declared}, which is not a literal in it"
+            raise SystemExit(msg)
+        suffixed = declared + os.environ["SUFFIX"]
+        line = match.group().replace(declared, suffixed, 1)
+        path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
+        PY
+        grep -m1 '^version' pyproject.toml
+        # uv.lock carries the project version, so patching pyproject.toml
+        # leaves the two disagreeing, and every uv command that passes
+        # --locked -- which is all of them, by convention -- then fails
+        # with "the lockfile needs to be updated". The re-lock is also
+        # what makes the sdist coherent: it ships uv.lock, which
+        # otherwise declared the unsuffixed version inside a
+        # distribution named for the suffixed one
+        uv lock

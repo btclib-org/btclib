@@ -318,6 +318,47 @@ documented at release-notes length in the first place, and are still in
   --keep-going` passes on both unchanged, since neither is the broken
   *reference* `-W` already catches — a link myst resolves happily and is
   dead anyway is the whole reason this second check exists.
+- **`release.yml` no longer has a `build` job, and `test.yml`'s `dist`
+  job is now the one build a release publishes** (issue #1166). Two
+  builds from the same tree were checked twice for the reason the entry
+  above gives, `dist`'s copy being thrown away and `build`'s own copy
+  being what got checked and shipped a second time — but two builds
+  still meant the checked files and the published files were only
+  "usually" the same object, "usually" being the whole of that
+  divergence's gap: a defect only the actual build step introduces, and
+  not the tree, can pass the copy that gets checked and ship in the copy
+  that does not. `dist` now pins `SOURCE_DATE_EPOCH` from the commit and
+  normalizes the sdist — both previously `build`-only — uploads the
+  `dist` and `sbom` artifacts before installing anything, and only then
+  runs twine, check-wheel-contents and pyroma once, plus two smoke
+  tests: the existing one, pinned by `uv.lock`, and a second,
+  unconstrained one that asks whether the newest published
+  `btclib_secp256k1` still satisfies the wheel — moved here from `build`,
+  and gated on a new `check-newest-bindings` input only `release.yml`'s
+  call sets, so no pull request pays for a question it cannot afford a
+  red answer to.
+  `dist`'s own `Setup uv` step carries `build`'s caching-off forward the
+  same way, through a new `disable-dist-cache` input rather than a flat
+  `enable-cache: false`: a cache entry written by one run is read by
+  another through GitHub's branch/PR scoping, so the build whose output
+  actually reaches an index must fetch its dependencies afresh, where an
+  ordinary pull request's build is thrown away and caching it costs
+  nothing.
+  `release.yml`'s `publish-testpypi`, `publish-pypi` and `attest` jobs
+  download `dist`'s artifacts unchanged; nothing downloads a second copy
+  because there is no second copy. A rehearsal's `.dev<run*100+attempt>`
+  suffix (issue #1156, the entry above) moves too, from an inline step
+  in `build` to a `.github/actions/dev-version` composite action `dist`
+  runs before its own `uv build`, with the suffix itself computed once
+  in `version-check` and passed down as a `workflow_call` input — every
+  job the release dispatches during one run has to agree on it, and
+  `version-check` is the one job all of them already depend on. The
+  arithmetic is carried over unchanged, not re-derived: this entry
+  moves where it runs, not what it computes.
+  `btclib-secp256k1` has had this shape from the start; `bitcoin-core-rpc`
+  gets its own pull request, and its own gap turns out larger — its
+  `build` job never ran the packaging checks on the files it published at
+  all, only `dist`'s throwaway copy ever saw them.
 
 - **Coverage measures branches and not only statements**
   (`btclib-org/.github#7`). `branch = true` in `[tool.coverage.run]`, the

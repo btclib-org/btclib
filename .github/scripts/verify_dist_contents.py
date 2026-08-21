@@ -60,9 +60,9 @@ Run it on a freshly built dist directory, after `uv build`:
     uv run --no-project --python 3.14 \
         .github/scripts/verify_dist_contents.py dist/
 
-The `dist` job of test.yml runs it on every pull request and the `build`
-job of release.yml on what it is about to publish, which are the same
-command on two trees.
+The `dist` job of test.yml runs it on every pull request, and the same
+job -- reached through release.yml's `test` call -- on the files it is
+about to publish.
 """
 
 from __future__ import annotations

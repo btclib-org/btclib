@@ -363,9 +363,10 @@ def test_main_names_the_file_after_the_wheel(
 ) -> None:
     """The caller passes a directory and needs to know no version.
 
-    Which in a rehearsal it does not: the `build` job patches a
-    `.dev<run*100+attempt>` into the version before building, so the name
-    the workflow would have to construct is not the one in pyproject.toml.
+    Which in a rehearsal it does not: test.yml's `dist` job patches a
+    `.dev<run*100+attempt>` into the version, through
+    `.github/actions/dev-version`, before building, so the name the
+    workflow would have to construct is not the one in pyproject.toml.
     """
     monkeypatch.setenv("SOURCE_DATE_EPOCH", str(_EPOCH))
     write_dist(tmp_path, version="2026.9.dev7")
