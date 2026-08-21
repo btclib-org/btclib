@@ -33,6 +33,7 @@ from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
+    BlockPayload,
     GetBlocks,
     GetData,
     GetHeaders,
@@ -46,6 +47,7 @@ from btclib.p2p import (
     Ping,
     Pong,
     TimestampedNetworkAddress,
+    TxPayload,
     Verack,
 )
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
@@ -148,6 +150,12 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         "p2p_headers",
         Headers,
         Headers([BlockHeader.parse(_block_1()[:80])]).serialize(),
+    ),
+    ("p2p_tx", TxPayload, TxPayload(_tx(), include_witness=True).serialize()),
+    (
+        "p2p_block",
+        BlockPayload,
+        BlockPayload(Block.parse(_block_1()), include_witness=True).serialize(),
     ),
 ]
 

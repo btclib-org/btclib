@@ -11,6 +11,13 @@ btclib.p2p.address module
    :members:
    :show-inheritance:
 
+btclib.p2p.data module
+----------------------
+
+.. automodule:: btclib.p2p.data
+   :members:
+   :show-inheritance:
+
 btclib.p2p.handshake module
 ---------------------------
 

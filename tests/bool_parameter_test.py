@@ -136,7 +136,7 @@ from btclib.mnemonic.entropy import (
     bin_str_entropy_from_rolls,
 )
 from btclib.mnemonic.mnemonic import WordLists
-from btclib.p2p import Version
+from btclib.p2p import BlockPayload, TxPayload, Version
 from btclib.psbt import musig2 as psbt_musig2
 from btclib.psbt.psbt import Psbt, assert_signed
 from btclib.psbt.psbt import join as psbt_join
@@ -524,6 +524,22 @@ _KINDS = (
         {},
     ),
     _Case("btclib.tx.tx.Tx.serialize", "include_witness", _TX.serialize, {}),
+    # and the two p2p payloads that hold the same flag rather than take
+    # it, which is `btclib.p2p.data`'s decision: a `tx` message written
+    # for a peer that negotiated no witness is the stripped encoding, so
+    # the flag chooses which of two messages is sent
+    _Case(
+        "btclib.p2p.data.TxPayload.__init__",
+        "include_witness",
+        TxPayload,
+        {"tx": _TX},
+    ),
+    _Case(
+        "btclib.p2p.data.BlockPayload.__init__",
+        "include_witness",
+        BlockPayload,
+        {"block": _BLOCK},
+    ),
     _Case(
         "btclib.b32.power_of_2_base_conversion",
         "pad",

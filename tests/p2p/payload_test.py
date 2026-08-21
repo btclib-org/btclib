@@ -19,13 +19,16 @@ command nobody wrote down fails here rather than being held to nothing.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
+    BlockPayload,
     GetBlocks,
     GetData,
     GetHeaders,
@@ -38,12 +41,21 @@ from btclib.p2p import (
     Payload,
     Ping,
     Pong,
+    TxPayload,
     Verack,
     Version,
 )
 from btclib.p2p.message import Message as MessageClass
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 _MAINNET = bytes.fromhex("f9beb4d9")
+
+# the block after genesis, which is the smallest valid block there is:
+# a `block` payload holds a `Block`, and one cannot be invented -- the
+# proof of work `Block.assert_valid` asks for has to have been done
+_BLOCK_1 = Block.parse(
+    (Path(__file__).parent.parent / "block" / "_data" / "block_1.bin").read_bytes()
+)
 
 # every payload type of this package, with a value of each: the walk
 # below is what says the list is complete
@@ -59,6 +71,11 @@ _PAYLOADS: tuple[Payload, ...] = (
     GetBlocks(70016, [bytes(32)], bytes(32)),
     GetHeaders(70016, [bytes(32)], bytes(32)),
     Headers(),
+    TxPayload(
+        Tx(1, 0, [TxIn(OutPoint(b"\x11" * 32, 0))], [TxOut(1000, b"\x51")]),
+        include_witness=False,
+    ),
+    BlockPayload(_BLOCK_1, include_witness=False),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)
