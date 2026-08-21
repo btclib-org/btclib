@@ -48,11 +48,11 @@ with no witness is a payload that parses back as `False`. The
 package keeps; the object round-trips exactly wherever the wire can tell
 the two apart, and where it cannot there is nothing to keep.
 
-The one encoding neither class reproduces is BIP144's superfluous witness
-record -- a marker over witnesses that are all empty, which `Tx.parse`
-accepts and re-serializes without the marker, and which Core refuses
-outright (issue #1104). It is `btclib.tx`'s to answer and is not answered
-here.
+BIP144's superfluous witness record -- a marker over witnesses that are
+all empty -- is the encoding neither class could reproduce, and neither
+has to: `Tx.parse` refuses it where it is read, as Core's
+`UnserializeTransaction` does, so no payload here holds one (issue
+#1104). It is `btclib.tx`'s answer and is not repeated here.
 
 **The flag is stored as it was given, never reduced against the
 object.** `include_witness=True` over a transaction with no witness could

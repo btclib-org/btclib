@@ -1004,3 +1004,77 @@ def test_the_size_and_the_serialization_agree() -> None:
         assert tx.weight == 3 * len(
             tx.serialize(include_witness=False, check_validity=False)
         ) + len(tx.serialize(include_witness=True, check_validity=False))
+
+
+def test_a_marker_over_empty_witnesses_is_refused() -> None:
+    """Core's "Superfluous witness record", and the round trip it keeps.
+
+    `serialize` writes the marker and the flag only when some input
+    carries a witness, so octets carrying them over witnesses that are
+    all empty are octets `Tx` cannot write back: the transaction they
+    parse to re-serializes to the stripped encoding, with a different
+    `hash`, and a caller relaying what it parsed would send something
+    other than what it received (issue 1104).
+
+    `UnserializeTransaction` in Bitcoin Core's src/primitives/transaction.h
+    reads the witnesses and then throws for the same reason -- "It's
+    illegal to encode witnesses when all witness stacks are empty" -- so
+    a peer sending these is a peer whose message does not deserialize
+    there either.
+    """
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF)],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    stripped = tx.serialize(include_witness=False)
+    assert Tx.parse(stripped) == tx
+
+    # the same transaction, with a marker, a flag and one empty witness
+    superfluous = stripped[:4] + b"\x00\x01" + stripped[4:-4] + b"\x00" + stripped[-4:]
+    with pytest.raises(BTClibValueError, match="superfluous witness record"):
+        Tx.parse(superfluous)
+
+    # the refusal is about the octets and not about the transaction, so
+    # check_validity -- which gates assert_valid -- does not reach it
+    with pytest.raises(BTClibValueError, match="superfluous witness record"):
+        Tx.parse(superfluous, check_validity=False)
+
+    # no input at all is refused too, Core's HasWitness being false there
+    # as well: the marker still announces what the encoding then lacks
+    no_inputs = (
+        (1).to_bytes(4, "little")
+        + b"\x00\x01"
+        + var_int.serialize(0)
+        + var_int.serialize(0)
+        + (0).to_bytes(4, "little")
+    )
+    with pytest.raises(BTClibValueError, match="superfluous witness record"):
+        Tx.parse(no_inputs, check_validity=False)
+
+
+def test_a_marker_over_one_non_empty_witness_is_accepted() -> None:
+    """The other side of the bound: one witness is enough for the marker.
+
+    The refusal above asks whether *any* input carries a witness, which
+    is `is_segwit` and so is what `serialize` writes the marker for. A
+    transaction of two inputs where only the second is signed is the
+    case that separates the two readings, and it is an ordinary
+    encoding: Core writes an empty stack for the unsigned one.
+    """
+    tx = Tx(
+        1,
+        0,
+        [
+            TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF),
+            TxIn(OutPoint(b"\x22" * 32, 1), b"", 0xFFFFFFFF, Witness([b"\x03" * 64])),
+        ],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    assert tx.is_segwit
+
+    wire = tx.serialize(include_witness=True)
+    parsed = Tx.parse(wire)
+    assert parsed == tx
+    assert parsed.serialize(include_witness=True) == wire

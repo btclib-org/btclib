@@ -72,6 +72,20 @@ full year, short month, short day (YYYY-M-D)
   for. CHANGELOG.md has why the rule is not gated on
   `unsigned_template`.
 
+- **`Tx.parse` refuses a BIP144 marker over witnesses that are all
+  empty.** It used to take such octets and answer the transaction without
+  them, which re-serialized to the stripped encoding -- a different
+  `hash`, so a caller relaying what it had parsed sent something other
+  than what it received. It raises `BTClibValueError("superfluous witness
+  record")` now, which is Bitcoin Core's own refusal of the same bytes,
+  and `Block.parse` inherits it, a block's marker being per transaction.
+  `check_validity=False` does not get past it: that flag gates
+  `assert_valid`, and what is malformed here is the encoding rather than
+  the transaction, which no field records. No transaction on any chain is
+  affected -- Core has never accepted one -- so what changes is what a
+  caller may be handed by a peer or read out of a file. CHANGELOG.md has
+  the reasoning, and what it cost two of BIP174's vectors.
+
 - **`TxOut.from_dict` refuses a `null` value.** It used to build an output
   of zero satoshi, `valid_sats_amount` reading `None` as zero for the
   caller it was written for; a stored dict carrying `{"value": null}` now

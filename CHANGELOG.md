@@ -1411,6 +1411,51 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **`Tx.parse` refuses a BIP144 marker over witnesses that are all
+  empty** (issue #1104). The marker and the flag were read, one witness
+  was read per input, and nothing asked afterwards whether any of them
+  carried anything. `serialize` writes the marker only when `is_segwit`
+  is true, so those octets came back stripped: the transaction parsed
+  equal to the one without them, re-serialized to different bytes with a
+  different `hash`, and a caller relaying what it parsed sent something
+  other than what it received.
+
+  Bitcoin Core refuses the same octets rather than normalising them.
+  `UnserializeTransaction`, of `src/primitives/transaction.h`, reads the
+  witnesses and then throws `std::ios_base::failure("Superfluous witness
+  record")` -- "It's illegal to encode witnesses when all witness stacks
+  are empty" -- and refusing what it cannot reproduce is what this
+  library does everywhere else: `btclib.p2p.inventory`'s module docstring
+  states the property, and `Headers.parse` and `Verack.parse` refuse for
+  it. A marker over no inputs at all is refused too, `HasWitness` being
+  false there as well.
+
+  The refusal does not answer to `check_validity`, and the reason is not
+  the p2p envelope's -- there the checksum and the length are outside the
+  flag because a defence a caller can turn off is not one. Here the flag
+  has nothing to gate: it decides whether `assert_valid` runs, which asks
+  about the transaction, and the transaction is valid. What is malformed
+  is the encoding, which no field records and no later call could ask
+  about. `assert_no_trailing`, five lines below it, is the same shape for
+  the same reason.
+
+  `Block.parse` inherits the rule, a block's marker being per
+  transaction, and inherits it for nothing: every block under
+  `tests/block/_data/` parses unchanged, which is what a chain Core
+  validated has to do. `btclib.p2p.data`'s module docstring named this
+  the one encoding its two payload types could not reproduce, and now
+  names where it is refused instead.
+
+  Two of BIP174's invalid-psbt vectors are refused by it now, ahead of
+  what they used to be refused by -- the witness-serialization one for
+  the encoding rather than for the round trip `psbt_utils.deserialize_tx`
+  compares, and the invalid-value-data one for its transaction's marker
+  rather than for the octets left after it. That leaves
+  `deserialize_tx`'s "wrong tx serialization format" one shape to catch
+  instead of two, a transaction that parses whole and re-serializes to
+  something else, which now needs a witness carrying something; a test
+  builds one.
+
 - **`tx.input_weight` answers what an input will weigh before the input
   exists** (issue #1067). A fee is chosen before the transaction is
   signed, so the weight it is computed from cannot be read off the

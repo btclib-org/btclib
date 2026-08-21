@@ -831,12 +831,11 @@ def deserialize_tx(
     transaction and gets the full check.
 
     The parse itself is unvalidated and assert_valid called afterwards:
-    validating on the way in would make the serialization comparison below
-    unreachable for a value the parse rejects. The BIP174 vector named "an
-    invalid value data due to its size being not the stated size" is
-    exactly such a value -- 51 bytes whose transaction re-serializes to 10
-    -- to be refused for its size, not for having no inputs, which is true
-    of it but not the fault.
+    validating on the way in would report what is wrong with the
+    transaction where what is wrong is the value. A witness serialization
+    of a transaction with no outputs is such a value -- to be refused for
+    the encoding this could not write back, where a validating parse
+    answers "Missing outputs", which is true of it but not the fault.
     """
     # None is a declared value for include_witness -- "either encoding" --
     # and every other non-bool decides which one is accepted
