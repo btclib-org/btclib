@@ -325,7 +325,7 @@ secp256k1 = [
 bindings = [
     { name = "btclib-secp256k1" },
 ]
-build = [
+check = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
     { name = "pyroma" },
@@ -399,7 +399,7 @@ provides-extras = ["secp256k1"]
 
 [package.metadata.requires-dev]
 bindings = [{ name = "btclib-secp256k1", specifier = ">=0.8.0.4" }]
-build = [
+check = [
     { name = "check-manifest" },
     { name = "check-wheel-contents" },
     { name = "pyroma" },

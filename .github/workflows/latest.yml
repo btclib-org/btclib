@@ -266,7 +266,7 @@ jobs:
           uv run --locked --only-group lint
           pre-commit run --all-files --show-diff-on-failure
 
-  # the build group, for the same reason the packaging checks live in
+  # the check group, for the same reason the packaging checks live in
   # test.yml rather than in the release workflow: a release is the one place
   # where finding a problem is too late, a version being consumed by the
   # upload that carries it. twine, check-wheel-contents and pyroma are
@@ -294,8 +294,8 @@ jobs:
       - name: Build the distribution files
         run: uv build
       - name: Check the metadata and the long description
-        run: uv run --locked --only-group build twine check --strict dist/*
+        run: uv run --locked --only-group check twine check --strict dist/*
       - name: Check the wheel contents
-        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
+        run: uv run --locked --only-group check check-wheel-contents dist/*.whl
       - name: Rate the packaging metadata
-        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+        run: uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
