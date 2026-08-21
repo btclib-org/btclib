@@ -12,7 +12,9 @@ goes *in*: a caller that has one has to spell it back for the next call,
 which parses it again. That round trip is what
 `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
 `taproot._output_pubkey_and_internal_key` each work around locally --
-issues 886, 887 and 896, three patches over one cut.
+issues 886, 887 and 896 -- and that `KeyWallet.add` pays twice over,
+deriving a public key and then handing the private one to an address
+builder that derives it again.
 
 `PubKeyData` and `PrvKeyData` are that cut: the spellings stay at the
 boundary, the parse happens once, and what travels afterwards is an
@@ -20,15 +22,16 @@ object that knows which half it is.
 
 **Why the SEC octets are the field and the point is derived.** The two
 conversions do not cost the same. Serializing a point is a byte
-concatenation; parsing a compressed one is a square root in the field.
-Measured on secp256k1 over twenty thousand rounds of one key, a
-compressed point costs 3.35 us to parse against the 0.99 of writing it
--- 3.4x -- where an uncompressed one costs 1.33 against 1.04, both
-coordinates being there to read rather than lifted. Deriving a public
-key from a private one is dearer than either, at 8.00 us.
+concatenation; parsing a compressed one is a modular square root, whose
+cost `curves.sec_point.point_from_octets` records beside the two arms
+that pay it. A write is cheaper than a lift and a lift than a
+derivation. The first of those two gaps is widest exactly where it
+matters, at the compressed form that bitcoin uses.
 
-So the cheap direction is paid on the way in, the expensive one on first
-use and kept, and `PrvKeyData.pub` is where laziness buys most.
+So the cheap direction is paid on the way in, the dear one on first use
+and kept, and `PrvKeyData.pub` is where laziness buys most. The CHANGELOG
+entry for this module carries the measurements and the command that took
+them: one fact in one place, and this is not the place.
 
 That is not only a cache. **`point` is also the proof**: a length and a
 prefix are what the constructor checks, and whether those octets are a
@@ -63,6 +66,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Any
 
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_prv_key_int, point_from_octets
@@ -78,19 +82,48 @@ __all__ = [
 # the two SEC forms, and the prefix each one takes. 0x04 is the
 # uncompressed marker; 0x02 and 0x03 name the parity of y. A hybrid key --
 # 0x06 or 0x07, both coordinates *and* a parity byte -- is SEC1 and is not
-# bitcoin: Core has never relayed one, and `curves.sec_point` refuses it,
-# so this refuses it too rather than parse what the layer below will not
-_COMPRESSED_PREFIXES = (2, 3)
-_UNCOMPRESSED_PREFIX = 4
+# among them: `sec_point.point_from_octets` does parse one when its
+# `hybrid` argument asks for it, the script engine being the caller that
+# has to accept what was mined, and it defaults to `hybrid=False` because
+# nothing in bitcoin produces one. This type takes that default, so a
+# hybrid key is refused here rather than carried as a canonical form
+_COMPRESSED_PREFIXES = (0x02, 0x03)
+_UNCOMPRESSED_PREFIX = 0x04
 
 
-@dataclass(frozen=True)
+def _normalized(network: Any) -> Any:
+    """Return a network name in the one spelling two of them share.
+
+    `network_from_name` accepts " MainNet " for "mainnet" -- the
+    tolerance issue #216 decided to keep, and `network`'s
+    `_validated_network_name` is where that rule is stated. Without the
+    same coercion here the two spellings build objects that are not equal
+    and do not hash alike, and the claim above that equality reads the
+    declared fields would be true of the fields and false of the key.
+
+    A normalization and not a check, which is why it refuses nothing:
+    `check_validity=False` means the validity checks do not run, so that
+    a test can build the invalid object it means to exercise, and a
+    coercion that raised would take that away. Whether the name is a
+    network at all -- and whether it is a string -- stays
+    `assert_valid`'s question.
+
+    `sec` is asymmetric here, and the asymmetry is inherited rather than
+    chosen: `bytes_from_octets` refuses a wrong type whatever
+    `check_validity` says, and it belongs to `utils` rather than to this
+    module.
+    """
+    return network.strip().lower() if isinstance(network, str) else network
+
+
+@dataclass(frozen=True, init=False)
 class PubKeyData:
     """A public key as its SEC octets, on a named network.
 
     The octets are the field because serializing a point is cheap and
     parsing one is not; `point` is the lift, paid on first use and kept.
-    The module docstring carries the measurement and the reasoning.
+    The module docstring carries the reasoning and the CHANGELOG entry
+    the measurements.
     """
 
     sec: bytes
@@ -104,7 +137,7 @@ class PubKeyData:
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "sec", bytes_from_octets(sec))
-        object.__setattr__(self, "network", network)
+        object.__setattr__(self, "network", _normalized(network))
 
         if check_validity:
             self.assert_valid()
@@ -144,21 +177,24 @@ class PubKeyData:
         """Refuse octets no SEC public key has, and an unknown network.
 
         A length and a prefix, and not a point: see `point`, which is
-        where the curve is asked. That `sec` is bytes at all is not
-        asked here: `bytes_from_octets` is what the constructor runs it
-        through, whatever `check_validity` says, so a second check would
-        re-ask a question already answered one layer down.
+        where the curve is asked. That `sec` is bytes at all is not asked
+        here, `bytes_from_octets` having refused anything else in the
+        constructor whatever `check_validity` said; `network` is asked,
+        `_normalized` being a coercion that refuses nothing.
         """
         assert_type(self.network, str, "network")
         # refuses a name no network has, which is what this is called for
         ec = network_from_name(self.network).curve
-        prefix = self.sec[0] if self.sec else None
         if len(self.sec) == ec.p_size + 1:
-            if prefix not in _COMPRESSED_PREFIXES:
-                raise BTClibValueError(f"invalid compressed SEC prefix: {prefix}")
+            if self.sec[0] not in _COMPRESSED_PREFIXES:
+                raise BTClibValueError(
+                    f"invalid compressed SEC prefix: {self.sec[0]:#04x}"
+                )
         elif len(self.sec) == 2 * ec.p_size + 1:
-            if prefix != _UNCOMPRESSED_PREFIX:
-                raise BTClibValueError(f"invalid uncompressed SEC prefix: {prefix}")
+            if self.sec[0] != _UNCOMPRESSED_PREFIX:
+                raise BTClibValueError(
+                    f"invalid uncompressed SEC prefix: {self.sec[0]:#04x}"
+                )
         else:
             # never echo the octets: a caller that reached here with
             # private material spelled them as a public key by mistake,
@@ -166,7 +202,7 @@ class PubKeyData:
             raise BTClibValueError(f"invalid SEC key size: {len(self.sec)}")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class PrvKeyData:
     """A private key as its scalar, on a named network, compressed or not.
 
@@ -175,9 +211,8 @@ class PrvKeyData:
     derives would not be one key but two.
 
     `pub` is the derivation, and it is the most expensive conversion in
-    this module -- a scalar multiplication, some two and a half times
-    what lifting a compressed point costs -- so it is where laziness
-    pays most.
+    this module -- a scalar multiplication, dearer than lifting a
+    compressed point -- so it is where laziness pays most.
     """
 
     q: int
@@ -193,7 +228,7 @@ class PrvKeyData:
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "q", q)
-        object.__setattr__(self, "network", network)
+        object.__setattr__(self, "network", _normalized(network))
         object.__setattr__(self, "compressed", compressed)
 
         if check_validity:
@@ -211,9 +246,21 @@ class PrvKeyData:
 
     @cached_property
     def pub(self) -> PubKeyData:
-        """Return the public key this one derives, multiplying once."""
+        """Return the public key this one derives, multiplying once.
+
+        `check_validity=False`, and it is the one call in this module
+        entitled to it. What makes the skip safe is not that
+        `assert_valid` ran -- on an object built with
+        `check_validity=False` it never did -- but that the two lines
+        above ask everything it would: `self.curve` resolves the network
+        name through `network_from_name`, which refuses one no network
+        has, and `bytes_from_prv_key_int` asserts `compressed` is a bool
+        and answers the SEC form by construction. Asking again is what
+        CONTRIBUTING.md's "checking them a second time buys nothing"
+        names, and it would be this module's own argument run backwards.
+        """
         sec = bytes_from_prv_key_int(self.q, self.curve, self.compressed)
-        return PubKeyData(sec, self.network)
+        return PubKeyData(sec, self.network, check_validity=False)
 
     def assert_valid(self) -> None:
         """Refuse a scalar outside 1..n-1, and an unknown network."""

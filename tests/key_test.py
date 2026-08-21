@@ -58,6 +58,54 @@ def test_pub_key_data_sec_forms_are_not_equal() -> None:
     assert PubKeyData(SEC_COMPRESSED) != PubKeyData(SEC_UNCOMPRESSED)
 
 
+def test_the_lift_is_the_proof() -> None:
+    """Octets of the right shape that are no point are refused by `point`.
+
+    The whole of what makes this design lazy rather than eager: the
+    constructor reads a length and a prefix, and the curve is asked only
+    when somebody wants the point. A key nobody asks has never been
+    proved one, which is deliberate and is what this asserts.
+    """
+    not_a_point = PubKeyData(b"\x02" + b"\x11" * 32)
+    assert not_a_point.is_compressed
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate"):
+        _ = not_a_point.point
+
+
+def test_hybrid_sec_prefixes_are_refused() -> None:
+    """0x06 and 0x07 carry both coordinates, and are not a canonical form.
+
+    `sec_point.point_from_octets` parses one when asked; this type takes
+    that function's default and does not ask, so a hybrid key never
+    becomes a `PubKeyData`.
+    """
+    for prefix in (b"\x06", b"\x07"):
+        with pytest.raises(BTClibValueError, match="invalid uncompressed SEC prefix"):
+            PubKeyData(prefix + SEC_UNCOMPRESSED[1:])
+
+
+def test_a_network_name_is_normalized_on_the_way_in() -> None:
+    """Two spellings of one network are one key, not two.
+
+    `network_from_name` accepts " MainNet ", so without the coercion the
+    two would be unequal and hash apart -- and a dict or a set would hold
+    the same key twice.
+    """
+    plain, spelled = PubKeyData(SEC_COMPRESSED), PubKeyData(SEC_COMPRESSED, " MainNet ")
+    assert plain == spelled
+    assert hash(plain) == hash(spelled)
+    assert len({plain, spelled}) == 1
+    assert spelled.network == "mainnet"
+    assert PrvKeyData(Q_INT, " MainNet ") == PrvKeyData(Q_INT)
+
+
+def test_the_network_travels_to_the_derived_key() -> None:
+    """What the type exists to carry: a derived key is on its parent's chain."""
+    key = PrvKeyData(Q_INT, "testnet")
+    assert key.pub.network == "testnet"
+    assert key.pub.sec == SEC_COMPRESSED
+
+
 def test_pub_key_data_deferred_validity() -> None:
     """`check_validity=False` builds what the constructor would refuse."""
     key = PubKeyData(b"\x02", check_validity=False)

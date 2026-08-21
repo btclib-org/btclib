@@ -40,6 +40,7 @@ from btclib.block.proof_of_work import hash_rate, retarget_first_height
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
+from btclib.key import PrvKeyData
 from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.psbt.psbt import PSBT_V2, Psbt
@@ -120,6 +121,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("header nonce", lambda v: _header(nonce=v)),
     ("block height", lambda v: BlockContext(v, _NOW)),
     ("bip34 height", lambda v: BlockContext(1, _NOW, v)),
+    ("private key scalar", PrvKeyData),
     (
         "bip32 depth",
         lambda v: BIP32KeyData(
