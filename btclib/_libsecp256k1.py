@@ -6,17 +6,30 @@
 
 The modules that delegate to the bindings import none of them directly:
 they import from here, so the question "are the bindings installed" is
-asked once, at one import, and answered by `AVAILABLE` rather than by
-eleven `try` blocks that could drift apart. `curves.curve` reads that
-answer into `_libsecp256k1_available`, which is the seam every dispatch
-in the package consults, so an absent binding is a dispatch that declines
-rather than an `ImportError` raised before any dispatch is reached.
+asked once, at one import, and answered by `INSTALLED` rather than by a
+`try` block in each of them, which could drift apart. `ENABLED` is that
+answer with `BTCLIB_NO_LIBSECP256K1` applied -- installed, and not
+refused -- and `curves.curve` reads it into `_libsecp256k1_available`,
+which is the seam every dispatch in the package consults, so an absent
+binding is a dispatch that declines rather than an `ImportError` raised
+before any dispatch is reached.
+
+Two names because the seam moves and this import does not. `ENABLED` is
+only the state `curves.curve` starts in, and `set_libsecp256k1_serving`
+may have moved it since; `INSTALLED` is settled here and stays, so it is
+what that function reads to refuse `serving=True` where there is nothing
+to serve, and what the suite skips its `bindings` marker on. The
+difference is this module's and the seam's, not a caller's:
+`curves.is_libsecp256k1_serving` publishes one answer -- whether the next
+call goes to libsecp256k1 or to the Python arithmetic -- which is the
+only difference a caller can act on.
 
 A module that imports nothing of btclib, and is therefore below every
 package that reads it -- the placement `consensus.py` has and for its
 reason. What it does import is the whole of the surface btclib uses, so
 this file is also the answer to "what does btclib need these bindings
-for", which was previously spread over the eleven import blocks.
+for", which no reader has to assemble from the delegating modules' own
+imports.
 
 The names are re-exported under the bindings' own spelling and the caller
 aliases them as it always did: a caller holding `keys` and reaching
