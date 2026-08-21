@@ -42,7 +42,6 @@ https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import Iterable
 
 from btclib import b58
@@ -64,10 +63,11 @@ from btclib.bip44 import _ADDRESS_FROM_SCRIPT_TYPE, _script_type_from_purpose
 from btclib.curves import PreparedPoint
 from btclib.ecc import bms
 from btclib.exceptions import BTClibValueError
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_xkeyversion
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import Key, pub_keyinfo_from_key, pub_keyinfo_from_pub_key
+from btclib.to_pub_key import Key, pub_keyinfo_from_pub_key
 from btclib.wallet.wallet import AddressInfo, RangedWallet, Wallet
 
 __all__ = [
@@ -103,16 +103,20 @@ def _checked_script_type(script_type: str) -> BIP44ScriptType:
     return script_type
 
 
-def _wif_if_private(key: Key, network: str) -> str:
-    """Return the WIF of a private key, or "" for a public one.
+def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
+    """Return the canonical form of a key, and which half it is.
 
-    Two of the spellings `to_pub_key.Key` admits say which they are by
-    their type, and are taken first because the ambiguous test below
-    cannot be asked of them: an int is a scalar, so it is a private key,
-    and a point is a pair of coordinates, so it is a public one -- a
-    `PreparedPoint` with it, that being a point and a caller's word about
-    how often it will be multiplied, which says nothing about who can
-    sign.
+    The spellings `to_pub_key.Key` admits stop here: what leaves is one
+    of the two `btclib.key` types, parsed once, and which of them it is
+    is the answer to "can this wallet sign", which `add` therefore reads
+    off a type instead of walking the spellings for it.
+
+    Two of them say which half they are by their type, and are taken
+    first because the ambiguous test below cannot be asked of them: an
+    int is a scalar, so it is a private key, and a point is a pair of
+    coordinates, so it is a public one -- a `PreparedPoint` with it, that
+    being a point and a caller's word about how often it will be
+    multiplied, which says nothing about who can sign.
 
     The rest -- octets, a WIF or an extended key -- are told apart in the
     order `to_pub_key.pub_keyinfo_from_key` tells them apart, public
@@ -120,19 +124,27 @@ def _wif_if_private(key: Key, network: str) -> str:
     that address and unable to sign for it, while anything that is not
     one has to be a private key, and the error raised for a malformed one
     is the diagnosis the caller needs rather than a silent demotion to
-    watch-only.
+    watch-only. Only the converter's refusal is caught, and not
+    `PubKeyData`'s own: what the type refused would otherwise fall
+    through to the private branch and come back as "not a private key",
+    its own diagnosis lost. Nothing reaches that today, and the narrow
+    `try` is so that nothing can rather than that nothing does.
+
+    Both types re-check what the converter that fed them has already
+    guaranteed, which looks redundant and is not: `to_prv_key` admits a
+    `bool` and `PrvKeyData` refuses one, so without this second check
+    `add(True)` is the scalar 1 and an address handed back for it.
     """
     if isinstance(key, int):
-        return b58.wif_from_prv_key(key, network)
+        return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
     if isinstance(key, (tuple, PreparedPoint)):
-        return ""
+        return PubKeyData(*pub_keyinfo_from_pub_key(key, network))
 
-    with contextlib.suppress(BTClibValueError):
-        pub_keyinfo_from_pub_key(key, network)
-        return ""
-
-    q, net, compressed = prv_keyinfo_from_prv_key(key, network)
-    return b58.wif_from_prv_key(q, net, compressed)
+    try:
+        pub_key_info = pub_keyinfo_from_pub_key(key, network)
+    except BTClibValueError:
+        return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
+    return PubKeyData(*pub_key_info)
 
 
 class KeyWallet(Wallet):
@@ -184,18 +196,25 @@ class KeyWallet(Wallet):
         checked = _checked_script_type(
             self.script_type if script_type is None else script_type
         )
-        pub_key, _ = pub_keyinfo_from_key(key, self.network)
+        # parsed once, and the type of what comes back is what says
+        # whether this wallet can sign: `data.pub` derives at most once
+        # and memoizes, so the address builder below is handed those
+        # octets rather than a key it would derive them from again
+        # (issue #1188)
+        data = _key_data(key, self.network)
+        pub = data.pub if isinstance(data, PrvKeyData) else data
         # segwit has no uncompressed form, so the three segwit encodings
         # would silently answer an uncompressed key with the address of
         # its compressed twin -- an address bms cannot then sign for,
         # because the recovery flag it would need says compressed
-        if checked != "p2pkh" and len(pub_key) != 33:
+        if checked != "p2pkh" and not pub.is_compressed:
             err_msg = f"uncompressed key cannot be {checked}:"
             err_msg += " segwit has no uncompressed form"
             raise BTClibValueError(err_msg)
 
-        address = _ADDRESS_FROM_SCRIPT_TYPE[checked](key, self.network)
-        if wif := _wif_if_private(key, self.network):
+        address = _ADDRESS_FROM_SCRIPT_TYPE[checked](pub.sec, self.network)
+        if isinstance(data, PrvKeyData):
+            wif = b58.wif_from_prv_key(data.q, data.network, data.compressed)
             self._prv_keys[address] = wif
         return self._record(AddressInfo(address, checked, ""))
 

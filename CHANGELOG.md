@@ -748,6 +748,41 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`KeyWallet.add` multiplies once where it multiplied twice**, being
+  the first module to take `btclib.key` up (issue #1188). It computed the
+  public key with `pub_keyinfo_from_key` and then handed the *private*
+  one to the address builder, which computed it again: two scalar
+  multiplications on one secret, and on the `pip install btclib` that
+  brings no bindings, twice through the arithmetic `SECURITY.md`
+  publishes as not constant-time.
+
+  `_key_data` replaces `_wif_if_private` and answers a `PrvKeyData` or a
+  `PubKeyData` rather than a WIF or the empty string, so the question
+  "can this wallet sign for this address" is the type of what came back
+  instead of a second walk over the spellings, and the address is built
+  from the SEC octets `PrvKeyData.pub` memoized. The spellings stop at
+  that one function, which is the shape the rest of the adoption takes.
+
+  `tests/wallet/key_wallet_test.py` counts the multiplications, so the
+  saving is a gate rather than a claim. It counts them where they
+  happen — the bindings call and `mult`, inside the module that defines
+  `bytes_from_prv_key_int` — because every caller of that function binds
+  it with a from-import, so a count taken at one caller's name misses
+  the address builder deriving through another's, which is the whole of
+  what this change removes.
+
+  Two things a caller can see change with it. `add(True)` raises
+  `BTClibTypeError` where it used to answer the address of the scalar 1:
+  `to_prv_key` admits a `bool` and `PrvKeyData` refuses one, and the
+  refusal is a `TypeError`, so it escapes an `except BTClibValueError`.
+  A malformed or wrong-network key now leaves with the diagnosis of the
+  parser that refused it — `NotAPrvKeyError` accumulating what each of
+  the three parsers said where none of them recognised the format, and
+  `InvalidPrvKeyError` naming the WIF prefix or the xkey version where
+  one of them did — rather than one `BTClibValueError` saying "not a
+  private or public key for mainnet" for every one of them; all three
+  are `BTClibValueError` subclasses, so only the message differs there.
+
 - **`btclib.key` holds the canonical form of a key**, `PubKeyData` and
   `PrvKeyData`, so that a key parsed once can be carried rather than
   spelled back for the next call to parse again (issue #1188). Every
@@ -755,9 +790,7 @@ documented at release-notes length in the first place, and are still in
   the canonical form was what came *out* of a conversion and never what
   went *in*. `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
   `taproot._output_pubkey_and_internal_key` each work around the round
-  trip that leaves — issues 886, 887 and 896 — and `KeyWallet.add` pays
-  it twice over, deriving a public key and then handing the private one
-  to an address builder that derives it again. This is the cut those
+  trip that leaves — issues 886, 887 and 896. This is the cut those
   patch locally.
 
   The SEC octets are the field and the point is a `cached_property`
