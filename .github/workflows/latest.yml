@@ -121,6 +121,14 @@ jobs:
       # This rewrites uv.lock, harmless on an ephemeral checkout and worth
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
+        # this matrix includes windows-latest, whose default shell is
+        # PowerShell rather than bash -- see windows.yml's suite-windows
+        # job for the failure mode a POSIX-only step hits there unnoticed
+        # (issue #1148). This step and the pytest step below happen not to
+        # use any POSIX-only syntax today, which is exactly the hazard: a
+        # future edit that does would go green on this cell having run
+        # nothing
+        shell: bash
         run: uv lock --upgrade
       # still --locked, which is not a contradiction: the step above just
       # wrote that lock, so this asserts nothing moved between the two and
@@ -141,6 +149,7 @@ jobs:
       # already printed the "Update <pkg> vA -> vB" line the assertion
       # would not have named
       - name: Run pytest
+        shell: bash
         run: uv run --locked --no-default-groups --group test pytest
 
   # narrower than suite-latest above, and for a different reason: that
@@ -181,6 +190,9 @@ jobs:
       # diff of uv.lock. Harmless on an ephemeral checkout; worth
       # knowing before running the same command in a working tree
       - name: Upgrade the bindings to their latest release
+        # this matrix includes windows-latest; see suite-latest above and
+        # windows.yml's suite-windows job (issue #1148)
+        shell: bash
         run: uv lock --upgrade-package btclib_secp256k1
       # test.yml's no-bindings job, with the sense reversed, and here for
       # the mirror image of its reason: asked before the suite, and asked
@@ -218,12 +230,16 @@ jobs:
       # reachable and False leaves only the import, which is what the
       # message says rather than the generic sentence those two carry
       - name: Assert the bindings are serving
+        # see suite-latest above; this one folds a python -c onto the uv
+        # invocation, closer to the shape of ISS #1141's original defect
+        shell: bash
         run: >
           uv run --locked --no-default-groups --group test
           python -c "from btclib.curves import is_libsecp256k1_serving;
           assert is_libsecp256k1_serving(),
           'the newest btclib_secp256k1 does not import'"
       - name: Run pytest
+        shell: bash
         run: uv run --locked --no-default-groups --group test pytest
 
   # mypy is the whole reason this job exists, and it is worth being
