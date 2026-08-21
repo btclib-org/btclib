@@ -106,6 +106,36 @@ used to teach and to prototype as much as to build:
     or xpub string handed to `derive` or `derive_from_account`: the
     decoded key stays reachable from that cache, bounded by its
     `maxsize`, past whatever reference the caller itself still holds
+- **`musig2.nonce_gen` and `sign` stay on this arithmetic by decision,
+    not merely by default** (issue #1050). Delegating them would put
+    `musig_nonce_gen`'s secnonce -- an opaque 132-byte struct the
+    header calls "implementation defined and not guaranteed to be
+    portable between different platforms or versions" -- into
+    `btclib.ecc.musig2`'s public API, against `btclib/psbt/musig2.py`'s
+    own decision to hold no session state at all. What it would buy is
+    measured rather than assumed: the point-multiplication side has
+    been regular since #254, and `sign`'s own line, `s = (k_1_ +
+    values.b * k_2_ + values.e * a * d) % secp256k1.n`
+    (`btclib/ecc/musig2.py:812`), spreads 1.016x over uniform scalars
+    in `[1, n-1]` -- the magnitude leak that remains shows only for
+    scalars with zero high bits, keys already lost for other reasons.
+    The gain left is narrower than that figure suggests: delegating
+    would only keep `k_1` and `k_2` from becoming Python `int`s, and
+    the bullet above already covers why that does not decide anything
+    -- `int_from_prv_key` produces an unzeroizable `int` from the
+    private key on the delegated path too. `btclib_secp256k1` itself
+    takes the equivalent opaque handle for `musig_keyagg_cache` and
+    `musig_session` without this reasoning landing on a different
+    answer there: those have no octets form to begin with, where an
+    `int` here already does the job. The same reasoning answers two
+    more questions this library has never separately decided: it grows
+    no private-key class, because zeroization needs exactly the
+    delegation declined above -- a class that hands out an `int` the
+    moment anything uses it has a session object's ergonomics and none
+    of its guarantee -- and curve arithmetic stays on `int` rather than
+    `bytes`, `bytes` being immutable exactly like `int` while only
+    `bytearray` zeroizes, and bignum arithmetic on a `bytearray` still
+    allocating `int` intermediates at every step
 - the bindings also let a caller own the buffer a secret is written
     into: a keyword-only `into=`, on every entry point that produces
     one — `keys.prvkey_negate`, `keys.prvkey_tweak_add`,

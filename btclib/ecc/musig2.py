@@ -498,6 +498,9 @@ def nonce_gen_(
         msg_prefixed = b"\x01" + len(msg).to_bytes(8, "big") + msg
     extra = b"" if extra_in is None else bytes_from_octets(extra_in)
 
+    # k_1, k_2 become ints here rather than staying inside a delegated
+    # secnonce: SECURITY.md records why, beside sign's own line (issue
+    # #1050)
     k_1 = _nonce_hash(rand, pk, agg_pk, 0, msg_prefixed, extra) % secp256k1.n
     k_2 = _nonce_hash(rand, pk, agg_pk, 1, msg_prefixed, extra) % secp256k1.n
     # k_1 or k_2 zero would be a hash landing on a multiple of n, and the
@@ -803,6 +806,9 @@ def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> 
     a = _session_key_agg_coeff(session_ctx, pk)
     g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
     d = g * values.gacc * d_ % secp256k1.n
+    # this line's timing across k_1_, k_2_ is measured rather than
+    # assumed constant: SECURITY.md records the spread and why MuSig2's
+    # secret half stays undelegated (issue #1050)
     s = (k_1_ + values.b * k_2_ + values.e * a * d) % secp256k1.n
     return s.to_bytes(_SCALAR_SIZE, "big")
 
