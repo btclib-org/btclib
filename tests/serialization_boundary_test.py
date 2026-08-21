@@ -94,7 +94,16 @@ from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
-from btclib.p2p import Message
+from btclib.p2p import (
+    Addr,
+    Message,
+    NetworkAddress,
+    Ping,
+    Pong,
+    TimestampedNetworkAddress,
+    Verack,
+    Version,
+)
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.psbt.psbt_utils import PSBT_V0, PSBT_V2
 from btclib.script import Witness, script, taproot
@@ -206,6 +215,13 @@ _OCTETS_DECODERS = (
     ("dsa.Sig.parse", dsa.Sig, "parse"),
     ("ecies.Envelope.parse", ecies.Envelope, "parse"),
     ("Message.parse", Message, "parse"),
+    ("NetworkAddress.parse", NetworkAddress, "parse"),
+    ("TimestampedNetworkAddress.parse", TimestampedNetworkAddress, "parse"),
+    ("Addr.parse", Addr, "parse"),
+    ("Version.parse", Version, "parse"),
+    ("Verack.parse", Verack, "parse"),
+    ("Ping.parse", Ping, "parse"),
+    ("Pong.parse", Pong, "parse"),
 )
 
 _OCTETS_IDS = tuple(label for label, _, _ in _OCTETS_DECODERS)

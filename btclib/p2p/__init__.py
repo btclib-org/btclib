@@ -16,9 +16,17 @@ would share is the socket this package refuses to hold.
 **The envelope, with the payload as opaque bytes.** `Message` is the
 header Bitcoin Core's `CMessageHeader` describes together with the
 payload it announces, and it reads a command it knows nothing about
-exactly as it reads one it knows: the payload types are separate work
-(issue #1083), and an envelope that refused an unknown command could not
-be written before them.
+exactly as it reads one it knows: an envelope that refused an unknown
+command could not have been written before the payload types, and one
+that stopped doing so now would refuse the next BIP.
+
+**A payload type is a class that knows its own command**, and
+`Payload.to_message` is what puts one in an envelope; `btclib.p2p.payload`
+is where that decision is argued and where what it costs the payload
+types still to come (issue #1083) is written down. There is no table
+mapping a command to a type -- reading a message back into a typed
+payload is `Version.parse(message.payload)` under the caller's own
+`if`, which is the shape `net_processing.cpp` has too.
 
 **The message start is published without being imported**, which is the
 asymmetry to know about here. `magic_from_chain`, `magic_from_network`
@@ -40,10 +48,28 @@ and not this library's.
 
 from typing import Any
 
+from btclib.p2p.address import (
+    Addr,
+    NetworkAddress,
+    ServiceFlags,
+    TimestampedNetworkAddress,
+)
+from btclib.p2p.handshake import Verack, Version
+from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
+from btclib.p2p.payload import Payload
 
 __all__ = [
+    "Addr",
     "Message",
+    "NetworkAddress",
+    "Payload",
+    "Ping",
+    "Pong",
+    "ServiceFlags",
+    "TimestampedNetworkAddress",
+    "Verack",
+    "Version",
     "magic_from_chain",
     "magic_from_network",
     "magic_from_signet_challenge",

@@ -4,6 +4,27 @@ btclib.p2p package
 Submodules
 ----------
 
+btclib.p2p.address module
+-------------------------
+
+.. automodule:: btclib.p2p.address
+   :members:
+   :show-inheritance:
+
+btclib.p2p.handshake module
+---------------------------
+
+.. automodule:: btclib.p2p.handshake
+   :members:
+   :show-inheritance:
+
+btclib.p2p.keepalive module
+---------------------------
+
+.. automodule:: btclib.p2p.keepalive
+   :members:
+   :show-inheritance:
+
 btclib.p2p.limits module
 ------------------------
 
@@ -34,6 +55,13 @@ btclib.p2p.message module
 -------------------------
 
 .. automodule:: btclib.p2p.message
+   :members:
+   :show-inheritance:
+
+btclib.p2p.payload module
+-------------------------
+
+.. automodule:: btclib.p2p.payload
    :members:
    :show-inheritance:
 

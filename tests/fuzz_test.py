@@ -37,6 +37,9 @@ from btclib.curves.sec_point import point_from_octets
 from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
+from btclib.p2p.handshake import Verack, Version
+from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
@@ -86,6 +89,13 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "psbt_utils.parse_taproot_tree": psbt_utils.parse_taproot_tree,
     "psbt_utils.parse_taproot_bip32": psbt_utils.parse_taproot_bip32,
     "Message.parse": Message.parse,
+    "NetworkAddress.parse": NetworkAddress.parse,
+    "TimestampedNetworkAddress.parse": TimestampedNetworkAddress.parse,
+    "Addr.parse": Addr.parse,
+    "Version.parse": Version.parse,
+    "Verack.parse": Verack.parse,
+    "Ping.parse": Ping.parse,
+    "Pong.parse": Pong.parse,
     "BIP32KeyData.parse": BIP32KeyData.parse,
     "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,
@@ -198,6 +208,20 @@ PSBT_BIN = _first_valid_psbt()
 # checksum and the length field with octets behind them rather than a
 # header alone
 MESSAGE_BIN = Message("f9beb4d9", "ping", bytes(8)).serialize()
+# the two p2p payloads with structure behind their first field: a
+# `version`'s two embedded addresses and its var_int-prefixed user agent,
+# and an `addr`'s count. Both are the captured messages of
+# tests/p2p/handshake_test.py and tests/p2p/address_test.py
+VERSION_BIN = bytes.fromhex(
+    "62ea000001000000000000001"
+    "1b2d05000000000"
+    "010000000000000000000000000000000000ffff000000000000"
+    "010000000000000000000000000000000000ffff000000000000"
+    "3b2eb35d8ce617650f2f5361746f7368693a302e372e322fc03e0300"
+)
+ADDR_BIN = bytes.fromhex(
+    "01e215104d010000000000000000000000000000000000ffff0a000001208d"
+)
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -227,6 +251,11 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # the command, the length or the checksum rather than deep inside a
     # structure the outermost check has already refused
     "Message.parse": (Message.parse, MESSAGE_BIN),
+    # and the two payloads whose own fields a mutation can reach: a
+    # length in front of the user agent, a count in front of the
+    # addresses, and the relay flag a `version` may or may not carry
+    "Version.parse": (Version.parse, VERSION_BIN),
+    "Addr.parse": (Addr.parse, ADDR_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),

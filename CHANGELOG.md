@@ -4660,6 +4660,78 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains the handshake and address payloads: `Version`,
+  `Verack`, `Addr`, `Ping`, `Pong`, and the `ServiceFlags` two of them
+  carry** (issue #1098). `NetworkAddress` and
+  `TimestampedNetworkAddress` are the two shapes Bitcoin Core's
+  `CAddress` has -- twenty-six octets in a `version` and thirty in an
+  `addr` -- and `btclib.p2p.limits` gains `MAX_SUBVERSION_LENGTH` and
+  `MAX_ADDR_TO_SEND` beside the length bound already there, each under
+  Core's own name with the header it comes from in a comment.
+
+- **How a payload type meets `Message` is decided by that entry, and
+  every payload type after it copies the answer.** `btclib.p2p.payload`
+  is the module and the argument: a payload is an ordinary btclib wire
+  class that additionally knows its own `command`, and
+  `payload.to_message(magic)` composes the two. The envelope is
+  untouched -- `btclib.p2p.message` imports nothing of the payload
+  types, so a `Message` still costs nothing to parse and a command
+  nobody has a type for still round-trips as opaque octets. There is no
+  reverse: reading a message back into a typed payload is
+  `Version.parse(message.payload)` under the caller's own `if`, which
+  is the branch `net_processing.cpp` is a chain of too, and a registry
+  would be the table issue #1082 kept out of the envelope moved one
+  module along.
+
+- **`Version.relay` is `True`, `False` or `None`, and `None` is not
+  `False`.** BIP37's flag is the last field of a `version` and a peer
+  older than the BIP omits it -- the captured message the tests are
+  driven by is a `/Satoshi:0.7.2/` node's, a hundred octets ending at
+  the start height. Core reads the flag `if (!vRecv.empty())` rather
+  than on the protocol version its own test framework checks, so
+  requiring it refuses peers Core accepts and reading the version number
+  makes the encoding a function of another field. A field keeps the
+  encoding one to one instead: every octet is accounted for and what
+  follows the flag is refused. `Version.is_relay_requested` is BIP37's
+  reading of an absent flag, which is `True` -- Core declares `bool
+  fRelay = true` before it reads the message -- so a caller does not
+  test `version.relay` and answer the opposite of the protocol for every
+  peer that omitted it.
+
+  Two things follow from a last field that may not be there, and both
+  are written down where they are. A prefix of one `Version` encoding
+  *is* another `Version`, so `tests/parse_contract_test.py` names it an
+  exclusion from the generic "no prefix of an encoding is an object"
+  property, with what is true instead driven in
+  `tests/p2p/handshake_test.py`: the two buffers are two objects, each
+  serializing back to the buffer it came from. And `Version.parse` takes
+  `Octets` where the rest of the package takes `BinaryData`, a stream
+  being unable to say whether the next octet is the flag or the first of
+  the next message; `message.payload` is what a caller has, and
+  `BIP32KeyOrigin.parse` is the other parser here that takes `Octets`
+  for a reason of that shape.
+
+- **The port is big-endian and an IPv4 address is sixteen octets**,
+  which are the two things a round trip against btclib's own serializer
+  cannot check. Both are driven by the `addr` message the Bitcoin Wiki's
+  Protocol documentation publishes with its octets, cited by revision
+  and authenticating itself the way the envelope's two do -- its header
+  checksum recomputes from the payload beside it. Read big-endian its
+  two port octets are 8333 and read little-endian they are 36128, and
+  its address is `::ffff:10.0.0.1`. The sixteen octets are what
+  `NetworkAddress.ip` holds, as an `ipaddress.IPv6Address`, rather than
+  four octets and a tag for the family: `ip.ipv4_mapped` answers what
+  the tag would have, and holding the narrower form makes an IPv6
+  address beginning with the mapping prefix parse back as an IPv4 one.
+
+- **An unknown service bit round-trips.** `ServiceFlags` is an
+  `enum.IntFlag` carrying Core's `src/protocol.h` names, and a value
+  with bits none of them names keeps them: bit 1 is BIP64's removed
+  `NODE_GETUTXO`, bits 24-31 are what Core reserves "for temporary
+  experiments", and a peer advertising one of them is offering something
+  newer than this library rather than sending an error. Core's own
+  `serviceFlagsToStr` answers "UNKNOWN[...]" on the same question.
+
 - **`btclib.p2p` is a new package: the p2p message envelope, and no
   socket** (issue #1082). `Message(magic, command, payload)` is the
   header Bitcoin Core's `CMessageHeader` describes together with the
