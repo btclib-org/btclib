@@ -528,10 +528,19 @@ uv lock --upgrade
 That workflow has a second job, `suite-bindings-latest`, upgrading only
 the bindings and re-running the suite — narrower than the upgrade above,
 which moves every dependency, so a red run here names the one responsible
-instead of burying it behind a dozen others:
+instead of burying it behind a dozen others. That the newest release
+then *serves* is asserted before the suite rather than assumed: a release
+this tree cannot import leaves btclib on the Python arithmetic, the
+suite skipping every `bindings`-marked test, and the run failing on
+coverage — which reads as a dependency this tree has not caught up with
+rather than as the answer the job was asked for:
 
 ```shell
 uv lock --upgrade-package btclib_secp256k1
+uv run --locked --no-default-groups --group test python -c \
+    "from btclib.curves import is_libsecp256k1_serving; \
+     assert is_libsecp256k1_serving(), \
+       'the newest btclib_secp256k1 does not import'"
 uv run --locked --no-default-groups --group test pytest
 ```
 
