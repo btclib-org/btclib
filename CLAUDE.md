@@ -68,14 +68,13 @@ address encodings, beside `bip44`. `mnemonic/`, `script/`, `tx/`,
 holds the type aliases the public API accepts, and much of the surface
 takes "anything convertible" rather than one type.
 
-Three of those pairs are one idea split in two, and each split runs one
+Each of those pairs is one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
 `base58` and `bech32` are codecs with no bitcoin in them, `b58` and `b32`
 the bitcoin semantics on top. `ecc` imports `curves`, `b58` imports
 `base58`, `b32` imports `bech32`, and never the reverse. The README
-carries the same layout as a table, and each of the six modules states
-its own direction in its docstring — six places, if the direction ever
-changes.
+carries the same layout as a table, and each of these modules states its
+own direction in its docstring, wherever that direction changes.
 
 ## The primary checkout is the maintainer's
 
@@ -179,7 +178,8 @@ Do not use Fable unless explicitly instructed.
   <version>` rebuilds `.venv`, and a group-restricted command then leaves
   pre-commit out of it: reproducing a matrix cell (`uv run --locked
   --no-default-groups --group test --python 3.10 pytest`) recreates the
-  environment with 15 packages where `uv sync` leaves 84 — and
+  environment with only the `test` group's packages where a plain `uv
+  sync` leaves the full dev set — and
   pre-commit's git hook `exec`s `.venv/bin/python -mpre_commit` by
   absolute path, which exists and lacks the module, so its "did you
   forget to activate your virtualenv" fallback never fires and the next

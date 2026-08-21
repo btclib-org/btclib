@@ -198,7 +198,7 @@ uv run pre-commit run --all-files
 
 The suite writes nothing: it runs against a read-only checkout, and from an
 installed sdist. The one exception is deliberate and has to be asked for.
-Eleven modules compare a dataclass's `to_dict()` against a json file
+Several modules compare a dataclass's `to_dict()` against a json file
 committed beside them, under `tests/**/_generated_files/`, so that a change
 to a serialized form is a failing test rather than something to notice in a
 `git diff`. When such a change is the intended one:
@@ -284,8 +284,9 @@ read by every checkout of this repository.
 | `python-arm-authority` | monthly | the arm-to-vector-module table |
 | `release` | a tag | calls test, lint, docs, macos, windows, published |
 
-The first four rows are what a merge waits for, and between them they report
-the four required checks: `lint` and `docs` share a row and report one each.
+The `test`, `lint`/`docs`, `integration` and `website` rows are what a
+merge waits for, and between them they report the required checks: `lint`
+and `docs` share a row and report one each.
 
 What the other rows have in common is that a pull request does not wait for
 them, and the reason is one number: the ceiling GitHub Free puts on an
@@ -611,12 +612,14 @@ which is the one failure mode of a mutation run that looks like good news.
 excludes by operator, and is a no-op for one that excludes none, so the
 same five commands run any of them: `parsers.toml` is the one that
 excludes a family, and it states which and why. `sig_hash.toml` or
-`engine.toml` in place of it is the consensus profile, at 727 mutants and half
-an hour of cpu against 2768 and five and a half hours; the parser profile
-is 1034 mutants and minutes, so it is the one that finishes. Each
-configuration carries its own arithmetic. The report is `--surviving-only`,
-which is the whole of what anybody acts on: a killed mutant is the suite
-doing its job, and printing all 727 of them buries the dozen that are not.
+`engine.toml` in place of it is the consensus profile, minutes of cpu
+against hours; the parser profile is the one that finishes fastest. Each
+configuration carries its own arithmetic — `cosmic-ray baseline` reports
+the mutant count and the cpu cost for whichever one is run, rather than a
+figure fixed here that the source can grow past. The report is
+`--surviving-only`, which is the whole of what anybody acts on: a killed
+mutant is the suite doing its job, and printing every one of them buries
+the handful that are not.
 
 Three things to know before starting one. The session mutates the source
 file in place and restores it afterwards, so nothing else may read the
@@ -985,14 +988,14 @@ wrong values can build. `tests/built_object_contract_test.py` does the
 same for a function whose parameter is an object the caller already built
 — a `Psbt`, a `PsbtIn`, a sequence of extended keys — which is the family
 `check_validity=False` makes reachable, an invalid object being something a
-caller may legitimately hold. `tests/curve_parameter_test.py` is the
-fourth, over a parameter that carries a *default*: reaching one means every
-argument in front of it has to be valid, which is the table of valid values
-the automatic walk exists to do without, so `ec` is driven from a table
-there as `hf` and `network` are driven where their own checks live. None of
-the four has an exemption list, which is the state to keep: a finding is a
-red test, to be fixed or to be given a reason of its own beside the two
-families that have one.
+caller may legitimately hold. `tests/curve_parameter_test.py` drives
+the same rules over a parameter that carries a *default*: reaching one
+means every argument in front of it has to be valid, which is the table
+of valid values the automatic walk exists to do without, so `ec` is
+driven from a table there as `hf` and `network` are driven where their
+own checks live. None of these test files has an exemption list, which is
+the state to keep: a finding is a red test, to be fixed or to be given a
+reason of its own beside the two families that have one.
 
 **A `bool` parameter is a kind or a truth, and only the first is
 type-checked.** A flag that decides *what is computed* refuses a non-bool,
@@ -1079,17 +1082,17 @@ cannot go wrong beats a checker that catches it going wrong.
 
 What the four prefixes buy is a promise read off the name:
 
-- `assert_*` refuses and returns `None`. There are eighty-odd of them
-  and they are the reason half of the pair above.
+- `assert_*` refuses and returns `None`, and is the reason half of the
+  pair above.
 - `is_*` answers a `bool` about a value, and is total over the declared
   types: `is_p2sh` is False for bytes that are not a p2sh script.
 - `verify*` answers a `bool` about a signature or a proof, on the same
   terms. `assert_as_valid` beside it says why.
 - `check_*` answers a `bool` **and refuses what cannot be an answer** --
-  the one prefix that warns a caller it still needs an `except`. There
-  are two: `script.engine.script.check_pub_key`, where a wrong length is
+  the one prefix that warns a caller it still needs an `except`:
+  `script.engine.script.check_pub_key`, where a wrong length is
   False but a hybrid prefix under STRICTENC is the offence itself, which
-  is how Core's `CheckPubKeyEncoding` splits it; and
+  is how Core's `CheckPubKeyEncoding` splits it — and
   `script.taproot.check_output_pubkey`, where a malformed control block
   is no proof rather than a disproof.
 
@@ -1106,8 +1109,8 @@ name classifies what the call answers, and a caller passes this one
 rather than reading a result off it. What it gates is `assert_valid`, a
 refusal, so the vocabulary above would name it after that if it named it
 at all. It keeps the name it has: `validate` says no more, and the
-alternative is renaming a keyword on eighty-odd public signatures for a
-reading nobody has to make twice.
+alternative is renaming a keyword across every public signature that
+carries it, for a reading nobody has to make twice.
 
 `check_validity=False` is not an exemption from this. It says "do not
 check *now*", not "this object is exempt from here on": these are mutable
@@ -1206,10 +1209,11 @@ random operands of 256 bits down to 64, the ratio between the two ends:
 
 **The suffix is measured, never inherited, and that is what stops it.**
 Every function that *reaches* one of these through some chain of calls
-would otherwise take it: there are 636 of them, 344 public, which is
-`hex_string`, `ripemd160` and `p2pkh` — a suffix on the library, saying
-nothing. Two things break the chain, and both are facts about the caller
-rather than about the callee. Blinding is one: `mult` calls
+would otherwise take it: most of the library's own call graph, public
+functions included, right down to `hex_string`, `ripemd160` and
+`p2pkh` — a suffix on the library, saying nothing. Two things break
+the chain, and both are facts about the caller rather than about the
+callee. Blinding is one: `mult` calls
 `aff_from_jac_var` and is 0.99x in its scalar, because `_blinded_jac`
 randomized the `Z` that inverse is timed on. A public operand is the
 other: `point_from_octets` measures 1.05x, its `y_even_var` being one
@@ -1449,7 +1453,7 @@ notices that the pull request is not about becomes an issue rather than a
 comment. Read before opening a pull request, it is what the pull request
 will be answered against.
 
-**`main` enforces four things on every commit that reaches it, not only
+**`main` enforces this on every commit that reaches it, not only
 on review**: a verified signature, linear history, no force push, no
 branch deletion. These are a GitHub ruleset with no bypass actor, not a
 rule trusted to hold on its own — a commit that is unsigned or that

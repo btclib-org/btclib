@@ -34,7 +34,9 @@ leave unevaluated. (Issues #1025, #1001 and #1044.) Read the cells,
 not the aggregate, when a run's own conclusion and this check
 disagree: `gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
 
-`main` requires four checks, and only four:
+`main` requires these checks, and no others — `gh api
+repos/btclib-org/btclib/branches/main/protection --jq
+'.required_status_checks.checks'` reads the rule back live:
 
 | Check | Produced by |
 | --- | --- |
@@ -46,7 +48,7 @@ disagree: `gh api repos/btclib-org/btclib/actions/runs/<id>/jobs`.
 A workflow needs an aggregate when every one of its jobs has to gate: the
 matrix of `test.yml` is the one, and a context naming one cell of it would
 leave the rest outside the rule. Where a single job is what gates, that job
-*is* the context, which is why three of the four are job names.
+*is* the context, which is why most of the checks above are job names.
 `integration.yml` holds only the regtest job: the HWI jobs — `HWI against a
 Trezor emulator` and `HWI against a Ledger emulator` — live in
 `hwi-integration.yml`, a workflow with no `pull_request` trigger at all, so
@@ -75,7 +77,8 @@ a merge, where a skipped one satisfies it.
 
 `codeql: every job passed` is not among them, and that is the one place a
 check was traded for the wait it cost. GitHub Free gives an organization
-twenty concurrent jobs; a commit here asked for thirty-nine, and measured
+twenty concurrent jobs (as of 2026-08-21); a commit here asked for
+thirty-nine, and measured
 over a working afternoon the repository sat at nineteen or twenty running
 jobs for 1375 of 2100 seconds — so a pull request's wall clock was the wait
 for a slot and not the work. `codeql.yml` now runs on `main` and on its
@@ -224,7 +227,8 @@ gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
 ```
 
 What decided it is the concurrency ceiling and not the queries. GitHub
-Free gives an organization twenty concurrent jobs, a pull request here
+Free gives an organization twenty concurrent jobs (as of 2026-08-21), a
+pull request here
 asks for twenty-one on purpose, and `Analyze (python)` and `Analyze
 (ruby)` were two more on every pull request and every push to `main` —
 `Code Quality: PR #N` in the run list, 80 seconds and 32.
@@ -286,18 +290,19 @@ branch, and it is the only branch there is. Issue #158 was the other
 arrangement — two bots pushing through an integration branch that carried
 no protection at all — and one branch is what closed it.
 
-### Three rulesets beside the classic rule
+### The rulesets beside the classic rule
 
 `enforce_admins` off is one switch that exempts an administrator from
 every rule above at once — there is no way, inside the classic rule
 alone, to relax the review requirement for a solo merge while keeping
-signatures and linear history unconditional. Two rulesets carry that
-split, additive to the classic rule rather than replacing it: rules
-aggregate across rulesets and classic protection, taking the most
-restrictive combination wherever they overlap. A third targets tags
-rather than `main`, for an unrelated reason: `release.yml` publishes to
-PyPI on `push: tags: ["v*"]`, and that tag was the one unattested link
-in an otherwise fully-signed chain (issue #1022).
+signatures and linear history unconditional. `main-integrity` and
+`main-self-merge` carry that split, additive to the classic rule rather
+than replacing it: rules aggregate across rulesets and classic
+protection, taking the most restrictive combination wherever they
+overlap. `tag-integrity` targets tags rather than `main`, for an
+unrelated reason: `release.yml` publishes to PyPI on `push: tags:
+["v*"]`, and that tag was the one unattested link in an otherwise
+fully-signed chain (issue #1022).
 
 - `main-integrity`: required signatures, required linear history, no
   force pushes, no deletions. No bypass actor, for anyone, ever.
@@ -441,7 +446,8 @@ asking.
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it. Most of those declarations are in
 `release.yml`: `contents: write` on `github-release`, `id-token: write` on
-the two publish jobs, `id-token: write` with `attestations: write` on
+`publish-pypi` and `publish-testpypi`, `id-token: write` with
+`attestations: write` on
 `attest`, and `contents: read` with `pull-requests: read` on `test` — that
 last one there because `test` calls `test.yml`, and a caller's
 `permissions:` block replaces the callee's default outright rather than

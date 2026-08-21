@@ -103,10 +103,11 @@ Included features are:
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic key chains
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-  mnemonic for generating deterministic keys, in the twelve wordlists of
-  the reference implementation, with the language read off the words
-- [Electrum](https://electrum.org/#home) standard for mnemonic, in the
-  five wordlists Electrum reads
+  mnemonic for generating deterministic keys, in the wordlists of the
+  reference implementation, with the language read off the words
+- [Electrum](https://electrum.org/#home) standard for mnemonic, reading
+  the same wordlists as BIP39 except for Portuguese, which is Electrum's
+  own list
 - [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
   Shamir backup: a master secret split into mnemonic shares, of which a
   threshold number recovers it
@@ -176,7 +177,7 @@ Included features are:
   owes for the unconfirmed ancestors it is mined with, and the dust
   threshold of any output type, computed as Bitcoin Core computes it
   rather than tabulated
-- wallets, three sources of addresses behind one vocabulary: an extended
+- wallets, several sources of addresses behind one vocabulary: an extended
   key at a BIP44 account or a set of individual keys, which also answer
   the private key that signs for an address — what `sign(address, msg)`
   needs — an output descriptor per chain, and a script template with
@@ -253,8 +254,8 @@ pointer to it.
 
 ## Module layout
 
-Three pairs of modules are one idea split in two, and each split runs one
-way only:
+Each pair of modules below is one idea split in two, and each split runs
+one way only:
 
 | the codec / the arithmetic | the bitcoin semantics on top |
 | --- | --- |
@@ -266,8 +267,8 @@ The right column imports the left one; the left never imports the right.
 
 So `from btclib.ecc import dsa` for a signature,
 `from btclib.curves import mult` for a point multiplication, `btclib.b58`
-for an address, `btclib.base58` for the encoding on its own. Each of the
-six modules says the same in its own docstring.
+for an address, `btclib.base58` for the encoding on its own. Each of
+these modules says the same in its own docstring.
 
 The rest, roughly bottom-up. `alias` holds the types the public API
 accepts, much of it taking anything convertible rather than one type, and
