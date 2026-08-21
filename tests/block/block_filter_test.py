@@ -270,3 +270,20 @@ def test_an_unresolved_previous_output_is_refused() -> None:
     block = _block_170()
     with pytest.raises(BTClibValueError, match="unresolved previous output: "):
         prevout_scripts_from_utxos(block, {})
+
+
+def test_the_flag_still_switches_the_check_off() -> None:
+    """Verify check_validity=False builds a filter of the wrong block hash.
+
+    Every filter above is built checked, so the constructor's
+    `if check_validity:` ran one way only: the default is what the
+    refusal below states, and the flag's own effect is what the line
+    before it does. A hash of the wrong length is the invalidity to
+    carry, `block_hash` being a field rather than something read back out
+    of the coded set.
+    """
+    err_msg = "invalid block hash length: 1 bytes instead of 32"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BasicBlockFilter(b"\x00", 0, b"")
+
+    assert BasicBlockFilter(b"\x00", 0, b"", check_validity=False).block_hash == b"\x00"

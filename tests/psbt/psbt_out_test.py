@@ -182,3 +182,23 @@ def test_scripts_are_rendered_as_asm_and_hex() -> None:
         PsbtOut.from_dict(
             {**dict_, "redeem_script": {"asm": "OP_1", "hex": redeem_script}}
         )
+
+
+def test_a_v2_output_without_an_amount_writes_only_the_script() -> None:
+    """The two BIP370 fields are written one by one, not as a pair.
+
+    An output map carrying a script and no amount is what a Constructor
+    has before the amount is decided, and `is not None` is what makes an
+    amount of zero an amount all the same -- so the field is absent only
+    where it was never set. Every v2 output serialized elsewhere carries
+    both fields, which left the amount's guard measured one way.
+    """
+    script_pub_key = "0014" + "11" * 20
+    without = PsbtOut(script_pub_key=script_pub_key).serialize(psbt_version=2)
+    with_zero = PsbtOut(amount=0, script_pub_key=script_pub_key).serialize(
+        psbt_version=2
+    )
+
+    assert without.hex() == "0104160014" + "11" * 20 + "00"
+    # the amount field, and the script beside it unchanged
+    assert with_zero.hex() == "010308" + "00" * 8 + without.hex()

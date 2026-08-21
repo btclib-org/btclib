@@ -152,7 +152,10 @@ def test_slip132_test_vectors() -> None:
             assert addr == address
             address = b58.p2wpkh_p2sh(xprv)
             assert addr == address
-        elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:
+        # `no branch`: the three versions above are the three the local
+        # vector list holds, so the chain is exhaustive over it and the
+        # last arm never falls through
+        elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:  # pragma: no branch
             address = b32.p2wpkh(xpub)
             assert addr == address
             address = b32.p2wpkh(xprv)

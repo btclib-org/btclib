@@ -410,7 +410,14 @@ def tonelli_var(a: int, p: int) -> int:
     while t != 1:
         # Find the lowest i such that t^(2^i) = 1
         t2i = t
-        for i in range(1, s):
+        # `no branch` on the exhausted loop, which cannot happen: the
+        # legendre symbol above is what rules it out, `a` being a
+        # quadratic residue making `t = a**q` an element of the subgroup
+        # of order 2**(s-1), so squaring it reaches 1 at some i < s. The
+        # bound is the loop's termination and not a fallback -- there is
+        # no value of i to take past it -- which is why nothing follows
+        # the loop but the `while` that reads the new t
+        for i in range(1, s):  # pragma: no branch
             t2i = t2i * t2i % p
             if t2i == 1:
                 # Update next value to iterate

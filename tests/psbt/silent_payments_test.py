@@ -113,7 +113,11 @@ def test_every_invalid_psbt_is_refused(vector: dict[str, Any]) -> None:
     }[category]
     # its own category's check refuses it, and not merely the whole
     with pytest.raises(BTClibValueError):
-        for check in checks:
+        # `no branch`: the first check of the category refuses, which is
+        # what the enclosing `raises` asserts, so the loop is never
+        # exhausted -- the several entries are the checks that must all
+        # be reached across the categories, not several to be run here
+        for check in checks:  # pragma: no branch
             check(psbt)
     with pytest.raises(BTClibValueError):
         role.assert_as_valid(psbt)

@@ -304,6 +304,108 @@ documented at release-notes length in the first place, and are still in
   `btclib-secp256k1` will gain a third copy once its own Read the Docs
   side lands.
 
+- **Coverage measures branches and not only statements**
+  (`btclib-org/.github#7`). `branch = true` in `[tool.coverage.run]`, the
+  setting the organization standard's section 8 states and the one this
+  repository was missing. Statement coverage calls a half-tested `if`
+  fully covered: the line ran, one of its two ways out never did, and the
+  ways out that go unexercised in a library like this one are exactly the
+  ones it exists to get right — a validation that refuses, a serialization
+  path a shorter input takes. The tree was at 100.00% of statements
+  before this and stayed there; what turning branches on found was 29
+  partial branches, and the gate is red until every one of them is either
+  a test or a branch no input can reach.
+
+  Eighteen were a test. Nine of those are one shape repeated: an
+  `if check_validity:` whose flag was never passed false, so nothing ran
+  the call that skips the check — `Bip21`'s constructor and `serialize`,
+  `BasicBlockFilter`'s constructor, `Network`'s constructor and
+  `to_dict`, `BorromeanSig.serialize`,
+  `TimestampedNetworkAddress.serialize`, `Message.serialize` and
+  `Psbt.to_dict`. Each now builds an object its own `assert_valid`
+  refuses and asks the boundary twice, which is what
+  `check_validity_test.py` already does for the transaction classes.
+  Which invalidity a fixture can carry is not free, and two of these say
+  why: an amount out of MoneyRange is refused by `btc_from_sats` on the
+  way into the json whatever the flag says, and a fallback lock time out
+  of range by the `"tx"` entry `Psbt.to_dict` derives, so what stands in
+  is a `bool` timestamp, a short magic, a genesis block of the wrong
+  length, a v0 psbt carrying `PSBT_GLOBAL_TX_MODIFIABLE`.
+
+  The other nine tests are nine gaps of their own, and three of them are
+  answers this library had never been asked for: `_pub_key_from_p2pkh`
+  walking past a window whose hash160 matches and whose 33 octets are no
+  public key, which its own comment describes and nothing exercised; a
+  taproot script-path input whose internal key is *not* BIP341's NUMS,
+  where every vector had the NUMS case that is skipped; and
+  `_pub_key_size` reading past an `hd_key_paths` entry that does not
+  hash to the script's payload, an input having as many keys as an
+  Updater put there. The rest are `bms.gen_keys` taking a network name,
+  `deserialize_tx`'s `include_witness=None`, `_prv_keyinfo_from_xprvwif`
+  handed a parsed `BIP32KeyData`, a v2 output map with a script and no
+  amount, `find_all_points` on a curve with a point of order two — `b = 0`
+  puts one at the origin, and no curve in `CURVES` has one, being of
+  prime order — and a `ValueError` from the delegated `dsa.sign` that is
+  about neither of the two things it can complain about, which only a
+  patched binding can raise and which must still leave as a
+  `BTClibValueError`.
+
+  Eleven branches were not a test. Three were a guard over data that
+  cannot take the other way: `electrum_test`'s `if mnemonic:` over
+  vectors that all carry one, `script_test`'s check that Core writes the
+  amount as the last element of a witness array, and
+  `sig_hash_taproot_test`'s test of whether one transcribed signature is
+  65 octets. Each is now an `assert` instead, which measures the same
+  fact and fails loudly where the guard silently skipped the work below
+  it. The remaining eight carry `# pragma: no branch` with the reason
+  beside them — not `# pragma: no cover`, which would exclude the
+  statement and its whole block where what is unreachable is one arc out
+  of it. Two are in the package: `merkle_proof`'s round-trip comparison,
+  false only for 64 octets that parse and that btclib writes back
+  differently, which var_int's canonical widths and `Tx.parse`'s refusal
+  of a marker over empty witnesses leave no room for; and
+  `number_theory`'s Tonelli-Shanks inner loop, which the legendre symbol
+  above it stops from ever running out of exponents. Six are in the
+  suite, where a walk that visits nothing twice, a blocking dict asked
+  about one language, a helper called only inside `pytest.raises`, an
+  exhaustive `elif` chain over three local vectors and a markdown reader
+  that MD012 keeps from seeing two blank lines are each a loop or a
+  branch with one way out. No `exclude_also` pattern was added: none of
+  these is the same shape at several sites, which is the criterion for
+  one.
+
+- **A `pydoclint` hook holds a docstring to the signature above it**
+  (`btclib-org/.github#7`). Section 4 of the standard names it, and it is
+  the check ruff's `D` family does not make: those ask that a docstring
+  exists, this asks that the `Args`, `Returns` and `Attributes` sections
+  it carries describe what the function actually takes and gives back,
+  which is the half that goes wrong in silence when a signature grows a
+  parameter. Scoped to `btclib/`, the published surface, a caller reading
+  `help()` having that docstring and nothing else; the configuration is
+  in `pyproject.toml` beside ruff's.
+
+  `skip-checking-short-docstrings` is left at pydoclint's default, which
+  is where this differs from sibling `btclib-secp256k1` and from the
+  standard's reference configuration. There the `false` is right: every
+  docstring of a wrapper is one summary line, so switching the skip off
+  is what makes the check reach any of them. Here it reaches 4404
+  findings over 111 files — sections that do not exist, rather than
+  sections that disagree with a signature — which is a rewrite of the
+  package's prose and not a lint fix. Issue #1178 is that measurement,
+  the command that produced it and the count per file.
+  `allow-init-docstring` is on for the same kind of reason: pep257,
+  ruff's convention here, neither asks for a docstring on `__init__` nor
+  forbids one, and this package writes its constructors out by hand
+  wherever a frozen dataclass validates itself. `skip-checking-raises`
+  is on, as in `btclib-secp256k1`: a btclib call refuses mostly through
+  what it delegates to, so what a caller catches is not what the body
+  raises, and the hierarchy that is caught is written down once in
+  `btclib/exceptions.py`.
+
+  Three findings, all fixed: `PreparedPoint`'s class docstring now has
+  the `Attributes` section its three fields ask for, and
+  `SignerDecorator.__init__` keeps the docstring it had.
+
 ## v2026.8.21
 
 ### Repository

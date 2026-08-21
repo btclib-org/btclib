@@ -553,6 +553,17 @@ source = ["btclib", "tests"]
 # defect. What covers them is the opt-in run, and the module docstrings
 # carry the command
 omit = ["*/site-packages/*", "tests/integration/*"]
+# statement coverage alone calls a half-tested `if` fully covered: the
+# line ran, one of its two ways out never did, and the ways out that go
+# unexercised here are exactly the ones the library exists to get right
+# -- a validation that refuses, a curve special case, a serialization
+# path a shorter input takes. Measuring branches costs the ratchet
+# nothing where a test already drives both sides, and where it does not
+# the miss is a real one: it is either a test to write or a branch no
+# input can reach, and the second carries its reason beside it. Not left
+# at statements on the grounds that the total already reads 100.00%: a
+# total that cannot fall is a total that measures less than it says
+branch = true
 
 [tool.coverage.report]
 show_missing = true
@@ -927,3 +938,45 @@ parametrize-names-type = "csv"
 # No file here opens with a shebang, so nothing legitimate sits between
 # byte zero and the notice for the anchor to exclude
 notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
+
+# what keeps the docstrings of the public surface complete, ruff having
+# no rule for a missing argument: the D family below asks that a
+# docstring exists, and this asks that it says what the call takes and
+# what it hands back. Run as a hook over btclib/ only; the comment on
+# the hook has why that is the scope
+[tool.pydoclint]
+# napoleon renders it, which is what docs/source/conf.py enables, so the
+# sections asked for here are the ones sphinx already understands
+style = "google"
+# the types are in the signature, and mypy is strict: repeating them in
+# the docstring is a second place to be wrong, and the one nothing checks
+arg-type-hints-in-docstring = false
+check-return-types = false
+# the default, and not the false sibling btclib-secp256k1 sets. There it
+# is right: every docstring of a wrapper is a line, so switching the skip
+# off is what makes the check reach any of them at all. Here what it
+# reaches is `Args` and `Returns` sections that do not exist rather than
+# sections that disagree with a signature, which is a rewrite of the
+# whole package's prose and not a lint fix. Left at the default, this
+# gates the docstrings that do carry sections, which is where the silent
+# drift is: a signature grows a parameter and the section above it still
+# lists the old ones. Issue #1178 is the stricter setting, how many
+# findings it reaches, and the command that counts them -- no figure is
+# repeated here, a count beside no way of re-measuring it being a line
+# every change to the package can falsify in silence
+skip-checking-short-docstrings = true
+# pep257 -- ruff's convention here -- neither asks for a docstring on
+# __init__ nor forbids one, and this package writes its constructors out
+# by hand wherever a frozen dataclass validates itself. So a constructor
+# that has something of its own to say keeps it, rather than folding it
+# into a class docstring that is about the class
+allow-init-docstring = true
+# and this one is off, deliberately. It compares the Raises section with
+# the `raise` statements of the body, and a btclib call refuses mostly
+# through what it delegates to -- bytes_from_octets, assert_valid, the
+# curve and network lookups -- so what a caller catches is not what this
+# body raises. Kept on, every docstring would document its own body
+# instead of its contract, which is the opposite of what these sections
+# are for; the hierarchy a caller does catch is btclib/exceptions.py's,
+# written down once there
+skip-checking-raises = true

@@ -806,3 +806,45 @@ def test_the_whole_round_trip_without_a_vector() -> None:
     for output in found:
         d = silent_payments.prv_key_from_tweak(_B_SPEND_PRV, output.prv_key_tweak)
         assert ssa.verify_(_MSG, output.pub_key, ssa.sign_(_MSG, d, _AUX))
+
+
+def test_a_hash160_match_that_is_no_public_key_is_walked_past() -> None:
+    """A window whose hash matches need not hold a key: the walk goes on.
+
+    Which is what `_pub_key_from_p2pkh`'s comment says and what nothing
+    exercised: every p2pkh input elsewhere here carries the key the
+    script commits to, so the match was always a key and the loop always
+    returned on it. `0x02` over a value that is no x coordinate is 33
+    bytes that hash to whatever they hash to, and a script_pub_key built
+    from that hash is an input consensus never had to accept -- a
+    scanner reading one off a transaction has bytes, not a promise.
+    """
+    candidate = b"\x02" + _NOT_AN_X
+    script_pub_key = b"\x76\xa9\x14" + hash160(candidate) + b"\x88\xac"
+
+    assert (
+        silent_payments.pub_key_from_input(script_pub_key, b"\x21" + candidate) is None
+    )
+
+
+def test_a_script_path_spend_counts_unless_its_internal_key_is_nums() -> None:
+    """The output key is what a script-path input contributes.
+
+    The NUMS exception is what the vectors exercise, so the comparison
+    ran one way only: an input skipped for saying there is no key path to
+    sign with, and never one that says there is. The key that counts is
+    the output key either way -- not the one the spend used -- so a
+    coinjoin peer who could re-spend through the script path cannot
+    derive the shared secret with one key and publish a transaction
+    proving another.
+    """
+    output_key = bytes_from_point(mult(3))[1:]
+    script_pub_key = b"\x51\x20" + output_key
+    tapscript = b"\x51"
+
+    internal_key = bytes_from_point(mult(7))[1:]
+    witness = Witness([tapscript, b"\xc0" + internal_key])
+    assert silent_payments.pub_key_from_input(script_pub_key, b"", witness) == mult(3)
+
+    nums = Witness([tapscript, b"\xc0" + silent_payments.NUMS_H])
+    assert silent_payments.pub_key_from_input(script_pub_key, b"", nums) is None

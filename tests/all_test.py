@@ -703,8 +703,10 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
             )
             # the set is the frontier's filter rather than a check on the
             # way out: one module reachable from two parents would be
-            # walked twice, and nothing here is
-            if value.__name__ not in seen:
+            # walked twice, and nothing here is -- which is what the
+            # `no branch` says, the tree being one and the filter being
+            # what would keep a future re-export from doubling the walk
+            if value.__name__ not in seen:  # pragma: no branch
                 seen.add(value.__name__)
                 frontier.append(value)
     # the root, the nine packages, the nested one, and the modules they

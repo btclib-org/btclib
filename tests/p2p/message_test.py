@@ -404,3 +404,20 @@ def test_frozen() -> None:
     assert regtest != message
     assert regtest.serialize()[4:] == message.serialize()[4:]
     assert replace(message, magic=magic_from_chain("regtest")) == regtest
+
+
+def test_the_flag_still_switches_the_check_off() -> None:
+    """Verify check_validity=False writes a header of the wrong magic.
+
+    Every message above is built checked, so `serialize`'s
+    `if check_validity:` ran one way only. A short magic is the
+    invalidity to carry: it is written as it stands, where a payload over
+    `MAX_PROTOCOL_MESSAGE_LENGTH` would cost the octets to build one.
+    """
+    invalid = Message(b"\x00", "verack", check_validity=False)
+
+    assert invalid.serialize(check_validity=False) == bytes.fromhex(
+        "0076657261636b000000000000000000005df6e0e2"
+    )
+    with pytest.raises(BTClibValueError, match="invalid magic: 1 instead of 4 bytes"):
+        invalid.serialize()

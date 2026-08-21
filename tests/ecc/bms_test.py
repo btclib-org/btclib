@@ -1143,3 +1143,21 @@ def test_b64decode_requires_the_canonical_encoding() -> None:
         assert base64.b64decode(malleated) == base64.b64decode(b64_sig)
         with pytest.raises(BTClibValueError, match=err_msg):
             bms.Sig.b64decode(malleated)
+
+
+def test_a_drawn_key_takes_the_network_it_is_asked_for() -> None:
+    """`gen_keys(None, network)` draws on that network's curve.
+
+    Every other call above leaves both arguments out, so the `network is
+    None` default was the only way through the draw and the branch that
+    keeps the caller's name never ran. What the name decides is the WIF
+    prefix and the address version, which is what is checked here: the
+    curve is secp256k1 on either network, so nothing else would say the
+    argument had been read.
+    """
+    wif, addr = bms.gen_keys(None, "testnet")
+
+    assert prv_keyinfo_from_prv_key(wif)[1] == "testnet"
+    assert addr == b58.p2pkh(wif)
+    # and the default, which is the same call with the name left out
+    assert prv_keyinfo_from_prv_key(bms.gen_keys()[0])[1] == "mainnet"

@@ -983,16 +983,19 @@ def test_vectors(
     same at greater length.
     """
     lang = "en"
-    if mnemonic:
-        assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
+    # every vector carries one, so it is asserted rather than guarded: a
+    # file refreshed with a case that has none would leave the round trip
+    # below unrun, which is the failure a guard would have hidden
+    assert mnemonic
+    assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
 
-        mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
-        entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-        # entr - 1 and not entr: these are electrum's own output, so the
-        # entropy it was generated from is one below what it encodes and
-        # the first candidate tried is the mnemonic itself
-        mnem = electrum.mnemonic_from_entropy(mnemonic_type, entr - 1, lang)
-        assert mnem == mnemonic
+    mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
+    entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
+    # entr - 1 and not entr: these are electrum's own output, so the
+    # entropy it was generated from is one below what it encodes and
+    # the first candidate tried is the mnemonic itself
+    mnem = electrum.mnemonic_from_entropy(mnemonic_type, entr - 1, lang)
+    assert mnem == mnemonic
 
     assert rmxpub == bip32.xpub_from_xprv(rmxprv)
 
