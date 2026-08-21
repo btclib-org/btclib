@@ -296,10 +296,10 @@ def test_the_length_bip155_fixes_for_each_id(
 ) -> None:
     """BIP155's table, transcribed here and enforced by `assert_valid`.
 
-    The two ids Core acts on for neither are held to it as well: it
-    drops a `TORV2` address through its unknown-id path and has no
-    `YGGDRASIL` at all, so the lengths for those two come from the BIP
-    and from nothing else.
+    `TORV2` and `YGGDRASIL` are held to it as well, and their lengths
+    come from the BIP and from nothing else: Core drops a `TORV2`
+    address through its unknown-id path and has no `YGGDRASIL` at all,
+    so it enforces a length for neither.
     """
     entry = NetworkAddressV2(0, 0, network_id, bytes(size), 8333)
     assert entry.serialize() == NetworkAddressV2.parse(entry.serialize()).serialize()
@@ -403,9 +403,9 @@ def test_a_known_id_with_the_wrong_length_is_refused(
     is what this codec cannot do: a message one address shorter than it
     arrived does not serialize back.
 
-    The lengths are Core's cases where Core has one; `TORV2` and
-    `YGGDRASIL`, which it refuses nothing for, are held to BIP155's
-    table and to nothing else.
+    The lengths are Core's own cases where it has one. `TORV2` and
+    `YGGDRASIL` are the two it refuses nothing for, so those two are
+    held to BIP155's table and to nothing else.
     """
     octets = _entry(f"{network_id:02x}{wrong:02x}" + "00" * wrong)
 
