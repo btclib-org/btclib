@@ -417,10 +417,24 @@ jobs:
       # btclib_secp256k1 satisfies the wheel about to be published,
       # which is what a user installing it resolves. A release stopping
       # on that answer is the outcome wanted.
-      # The three assertions are dist's, and there for the same
-      # reasons: metadata can be missing (issue #150), `import btclib`
-      # runs only __init__.py and touches no binding, and a bindings
-      # release can install and still answer wrongly
+      # The assertions are dist's, and there for the same reasons:
+      # metadata can be missing (issue #150), `import btclib` runs only
+      # __init__.py and touches no binding, the extra can resolve to a
+      # release this tree cannot import, and a bindings release can
+      # install and still answer wrongly.
+      # The serving assertion is what makes the resolution above a
+      # question at all (issue #1117): a bindings release btclib fails
+      # to import lands in `_libsecp256k1`'s `except ImportError`, and
+      # the Python arithmetic then answers the version and the signature
+      # correctly -- that arm being supported and tested is what
+      # test.yml's `no-bindings` job exists for -- so without it this
+      # step goes green on exactly the resolution it is asked about.
+      # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
+      # installed and not refused, so it implies the other, and it is
+      # the public reading of the seam every dispatch consults. It is
+      # asserted before the signature because it is what gives that
+      # signature its meaning -- verified by libsecp256k1 here rather
+      # than by the Python arm it would otherwise silently be
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           cd "$RUNNER_TEMP"
@@ -430,10 +444,13 @@ jobs:
           set -- "$GITHUB_WORKSPACE"/dist/*.whl
           uv run --isolated --no-project --with "$1[secp256k1]" \
             python -c "import btclib; \
+              from btclib.curves import is_libsecp256k1_serving; \
               from btclib.ecc import dsa; \
               from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
               print(btclib.__version__); \
               assert btclib.__version__ != 'unknown'; \
+              assert is_libsecp256k1_serving(), \
+                'the secp256k1 extra resolved, the bindings do not serve'; \
               assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
                 dsa.sign(b'btclib', 1))"
 

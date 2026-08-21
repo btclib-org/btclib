@@ -641,6 +641,44 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The wheel smoke test asserts that the bindings are serving** (issue
+  #1117). `test.yml`'s `dist` job and `release.yml`'s `build` job each
+  install the wheel with its `secp256k1` extra and then check the version
+  and a signature round trip — both of which the Python arithmetic
+  answers correctly, that arm being supported and run in full by the
+  `no-bindings` job. So an extra resolving to nothing, or to a
+  `btclib_secp256k1` release this tree cannot import, landed in
+  `_libsecp256k1`'s `except ImportError`, set `INSTALLED = False` and
+  went green. Issue #1116 was exactly that state on `main`, and neither
+  step would have said so: what the two exist to ask was the one thing
+  they could not answer. `btclib.curves.is_libsecp256k1_serving` is that
+  question in one call, and both now assert it — before the signature,
+  which is what gives that signature its meaning, verified by
+  libsecp256k1 rather than by the Python arm it would otherwise silently
+  be.
+
+  Both and not one, because they guard different things. `dist` exports
+  the lock as constraints, which bind a version and request no package,
+  so what it asks is whether the wheel's own `Requires-Dist` still
+  declares the extra and whether the version `uv.lock` pins is one this
+  tree can import — the tree's own state, deterministic, which is what
+  makes it fit for a required check. `release.yml` installs
+  unconstrained, so it asks what a user installing the published wheel
+  resolves: whether the *newest* published bindings serve it. A release
+  stopping on that answer is the outcome that step was written for, and
+  no pull request waits on it.
+
+  `published.yml` deliberately does not get the assertion, and its
+  comment now says why: that workflow installs `btclib` with no extra, so
+  the bindings are not asked for and nothing there is entitled to them.
+  Asserting it would contradict the supported no-bindings configuration
+  of issues #990, #991 and #992 — which `test.yml`'s `no-bindings` job
+  and `python-arm-authority.yml` assert the negative of, through the same
+  `is_libsecp256k1_serving` call. `INSTALLED` is not asserted beside it:
+  serving is installed and not refused, so it implies the other, and it
+  is the public reading of the seam every dispatch consults.
+  CONTRIBUTING.md's copy of the `dist` commands moves with the step.
+
 - **The bindings floor is `btclib_secp256k1>=0.8.0.4`, and
   `[tool.uv.sources]` goes with it** (issue #1116). The module that
   moves the floor is `musig`, btclib-secp256k1#282: `_libsecp256k1`
