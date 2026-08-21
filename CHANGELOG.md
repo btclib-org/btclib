@@ -746,6 +746,30 @@ documented at release-notes length in the first place, and are still in
   correction: the reasoning about a redundant definition survives,
   and only the number that could go stale again is gone.
 
+- **`.readthedocs.yaml`'s comment states no counts either, and says what
+  the file does not decide** (btclib-org/.github#26). The paragraph on
+  installing btclib so that autodoc can import it carried a figure for
+  the module titles a sphinx-only install leaves bare and another for the
+  signatures the same build renders with btclib importable — measured
+  once, on a tree that has moved, and re-derived by nothing, which is the
+  shape the entry above was written for and which `CLAUDE.md` summarizes
+  as "nothing states a count now". `grep -rl automodule docs/source`
+  stands where the figures were, CONTRIBUTING.md's "Measure, don't
+  assert" asking for the command beside a number; the reasoning is
+  otherwise unchanged.
+
+  A paragraph is added for what this file cannot say at all: *which*
+  versions run it. `latest`, `stable` and each release tag are versions
+  on read the docs' side, and an automation rule is what activates a new
+  tag there — so a release that keeps a permanent URL of its own and one
+  that does not differ in a setting rather than in the tree.
+  `REPOSITORY.md`'s "Read the Docs" section already records those
+  settings with the commands that read them back, and the file now points
+  at it instead of leaving a reader to find out that the question is
+  elsewhere. This repository has the rule and its newest tag is built;
+  what the siblings answer is btclib-org/.github#26's subject, and each
+  of their copies of this file now says so where it is read.
+
 ### The public API and the module layout
 
 - **`KeyWallet.add` multiplies once where it multiplied twice**, being

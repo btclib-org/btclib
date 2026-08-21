@@ -9,9 +9,22 @@
 # The build has to install btclib itself, not sphinx alone: every autodoc
 # directive in docs/source imports its module, a failed import is a
 # sphinx warning rather than an error, and a "requirements:
-# docs/requirements.txt" install therefore publishes 15 bare module
-# titles with no API beneath them, silently. The same build with btclib
-# importable emits 89 signatures, measured on this tree.
+# docs/requirements.txt" install therefore publishes a bare module title
+# in place of each of them, silently. Which pages go empty that way is
+# `grep -rl automodule docs/source`'s answer, and the same build with
+# btclib importable renders their signatures instead: the command rather
+# than the figures it returns, CONTRIBUTING.md's "Measure, don't assert"
+# asking for the command beside a number and nothing here re-deriving
+# the ones this comment used to state.
+#
+# What this file cannot say is *which* versions run it. `latest`,
+# `stable` and each release tag are versions on read the docs' side, and
+# an automation rule is what activates a new tag there -- so a release
+# that keeps a permanent URL of its own and one that does not differ in
+# a setting, not in this file. REPOSITORY.md's "Read the Docs" section
+# records those settings with the commands that read them back, and
+# btclib-org/.github#26 is where the publishing repositories are
+# compared on them.
 
 # Required
 version: 2
