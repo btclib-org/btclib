@@ -4660,6 +4660,71 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains BIP152's four compact-block messages --
+  `SendCmpct`, `CmpctBlock`, `GetBlockTxn` and `BlockTxn` -- with
+  `PrefilledTransaction`, `PartialBlock` and `reconstruct` beside them**
+  (issue #1110). Every payload type before this one was a codec; this is
+  the one that carries an algorithm, and the algorithm rather than the
+  layout is where a compact block goes wrong.
+
+  **A short id is the low 48 bits of the SipHash-2-4 of a transaction's
+  wtxid**, keyed on the first two little-endian 64-bit words of the
+  single-SHA256 of the block header with the nonce appended -- BIP152's
+  three steps, Core's `FillShortTxIDSelector` and `GetShortID`.
+  `CmpctBlock.short_id_key` is the pair and `CmpctBlock.short_id` the
+  derivation, and the vectors behind them are a mainnet block already in
+  the tree with its short ids computed by Bitcoin Core's own SipHash
+  implementation rather than by this library's: an encoder and a decoder
+  that agree with each other and with no peer is what this format
+  invites, and no round trip can see it.
+
+  **Indexes are held absolute and written as differences.** BIP152
+  encodes each index as "the difference between the current index and the
+  previous index, minus one", in a `cmpctblock`'s prefilled vector and in
+  a `getblocktxn` alike; the fields here hold the index BIP152's own
+  Purpose column describes -- "The index into the block at which this
+  transaction is" -- and take the difference at the boundary. Core's
+  `PrefilledTransaction::index` holds the wire's value and says in its
+  own comment that it means two different things depending on which
+  object is holding it, which is the reason not to.
+
+  **Reconstruction is a module function and answers with indexes, not an
+  exception.** `reconstruct(compact_block, pool)` returns a
+  `PartialBlock` whose `missing_indexes` is what a `getblocktxn` is built
+  from and whose `fill` takes the `blocktxn` that answers it -- Core's
+  `PartiallyDownloadedBlock::InitData` and `::FillBlock` in two steps. It
+  is not a method of `CmpctBlock`: every other method of a payload type
+  here is about the payload's own octets, and matching a pool against a
+  block is the one operation that takes something the message did not
+  carry.
+
+  **The two short id collisions get two different answers**, which is
+  BIP152's own split. A `cmpctblock` whose short ids are not unique
+  parses and serializes back -- nodes "MUST NOT be penalized for such
+  collisions" -- and `reconstruct` refuses it, the block having to be
+  asked for the ordinary way; two *pool* transactions answering one short
+  id leave the position missing, so that it is requested rather than
+  guessed. A reconstructor that takes the first match is wrong in a way
+  its own tests cannot see.
+
+  **Version 2 alone is implemented**, and the reason is written down:
+  version 2 is the wtxid-keyed, witness-serialized one, Core's
+  `CMPCTBLOCKS_VERSION`, and its `ProcessMessage` ignores a `sendcmpct`
+  naming anything else -- so version 1 is a dialect no peer will speak.
+  It costs less than it reads: a version 1 message's octets round-trip
+  here unchanged, a version 1 sender writing no witness and
+  `Tx.serialize(include_witness=True)` writing none where there is none.
+  So there is no `include_witness` field, where `btclib.p2p.data` has one
+  on `tx` and `block` -- there both encodings are live today. A
+  `sendcmpct` still reads and writes any version, that being what the
+  field is for.
+
+  `btclib.p2p.limits` gains `MAX_BLOCK_TX_INDEX`, which bounds every
+  count and every index here: Core spells the same
+  `std::numeric_limits<uint16_t>::max()` at both of its checks, throwing
+  "indexes overflowed 16 bits" on one and "differential value overflow"
+  on the other. The name is this library's, Core having none to borrow.
+
 - **`btclib.p2p` gains BIP157's six filter messages: `GetCFilters`,
   `CFilter`, `GetCFHeaders`, `CFHeaders`, `GetCFCheckpt` and
   `CFCheckpt`, with `BlockFilterType` beside them** (issue #1108). The

@@ -41,6 +41,7 @@ __all__ = [
     "CFCHECKPT_INTERVAL",
     "MAX_ADDRV2_SIZE",
     "MAX_ADDR_TO_SEND",
+    "MAX_BLOCK_TX_INDEX",
     "MAX_GETCFHEADERS_SIZE",
     "MAX_GETCFILTERS_SIZE",
     "MAX_HEADERS_RESULTS",
@@ -150,6 +151,33 @@ MAX_GETCFHEADERS_SIZE = 2000
 # An interval and not a bound, which is why nothing here caps that
 # vector: what bounds it in the BIP is the length of the chain.
 CFCHECKPT_INTERVAL = 1000
+
+# The widest transaction index a BIP152 compact block can name, and with
+# it the most transactions such a block can be of: Core's
+# src/blockencodings.h, where `PrefilledTransaction::index` and the
+# element of `BlockTransactionsRequest`'s `std::vector<uint16_t> indexes`
+# are sixteen bits, and where the same bound is spelled out twice --
+# `DifferenceFormatter::Unser` throws "differential value overflow" on a
+# running index past it, and `CBlockHeaderAndShortTxIDs`'s deserializer
+# throws "indexes overflowed 16 bits" on a `BlockTxCount()` past it.
+#
+# **The name is this library's, where every other name here is Core's**,
+# and saying so is better than a citation that does not exist: Core has
+# no constant for this, writing `std::numeric_limits<uint16_t>::max()`
+# inline at both checks. One name and not two, because it is one fact --
+# a compact block's transaction index is a `uint16_t` -- read once as a
+# bound on a value and once as a bound on a count, which is how Core
+# reads it as well.
+#
+# Core applies a second bound on the same count in
+# `PartiallyDownloadedBlock::InitData`, `MAX_BLOCK_WEIGHT /
+# MIN_SERIALIZABLE_TRANSACTION_WEIGHT`, and it is not published here: at
+# a hundred thousand it is the weaker of the two and can never be the one
+# that refuses anything, so a constant for it would be a number to keep
+# true for nothing. `btclib.block.block` holds that expression already,
+# where it bounds a `block` message's own transaction count and where the
+# sixteen bits below have no say.
+MAX_BLOCK_TX_INDEX = (1 << 16) - 1
 
 # The most block hashes a `getblocks` or `getheaders` locator may carry,
 # Core's src/net_processing.cpp: "The maximum number of entries in a

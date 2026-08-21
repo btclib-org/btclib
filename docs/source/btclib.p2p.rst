@@ -25,6 +25,13 @@ btclib.p2p.block\_filters module
    :members:
    :show-inheritance:
 
+btclib.p2p.compact\_blocks module
+---------------------------------
+
+.. automodule:: btclib.p2p.compact_blocks
+   :members:
+   :show-inheritance:
+
 btclib.p2p.data module
 ----------------------
 

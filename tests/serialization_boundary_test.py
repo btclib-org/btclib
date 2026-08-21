@@ -98,10 +98,13 @@ from btclib.p2p import (
     Addr,
     AddrV2,
     BlockPayload,
+    BlockTxn,
     CFCheckpt,
     CFHeaders,
     CFilter,
+    CmpctBlock,
     GetBlocks,
+    GetBlockTxn,
     GetCFCheckpt,
     GetCFHeaders,
     GetCFilters,
@@ -116,7 +119,9 @@ from btclib.p2p import (
     NotFound,
     Ping,
     Pong,
+    PrefilledTransaction,
     SendAddrV2,
+    SendCmpct,
     TimestampedNetworkAddress,
     TxPayload,
     Verack,
@@ -256,6 +261,11 @@ _OCTETS_DECODERS = (
     ("GetBlocks.parse", GetBlocks, "parse"),
     ("GetHeaders.parse", GetHeaders, "parse"),
     ("Headers.parse", Headers, "parse"),
+    ("SendCmpct.parse", SendCmpct, "parse"),
+    ("PrefilledTransaction.parse", PrefilledTransaction, "parse"),
+    ("CmpctBlock.parse", CmpctBlock, "parse"),
+    ("GetBlockTxn.parse", GetBlockTxn, "parse"),
+    ("BlockTxn.parse", BlockTxn, "parse"),
     ("TxPayload.parse", TxPayload, "parse"),
     ("BlockPayload.parse", BlockPayload, "parse"),
 )
@@ -297,6 +307,12 @@ _EXTRA_ARGUMENTS = {
     ("btclib.ecc.ecies.Envelope", "parse"): "magic",
     ("btclib.ecc.ecies.Envelope", "b64decode"): "magic",
     ("btclib.ecc.dsa.Sig", "parse"): "strict",
+    # BIP152 encodes an index as the difference from the one before it,
+    # so writing one and reading one back both need that previous index:
+    # `btclib.p2p.compact_blocks` is where holding the absolute index and
+    # taking the difference at the boundary is argued
+    ("btclib.p2p.compact_blocks.PrefilledTransaction", "parse"): "previous_index",
+    ("btclib.p2p.compact_blocks.PrefilledTransaction", "serialize"): "previous_index",
 }
 
 # the eight names issue #867 measured, which is what the walk runs over,

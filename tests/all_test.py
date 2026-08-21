@@ -213,6 +213,7 @@ CHILD_MODULES = {
             "address",
             "addrv2",
             "block_filters",
+            "compact_blocks",
             "data",
             "handshake",
             "inventory",
