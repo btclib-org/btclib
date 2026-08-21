@@ -38,6 +38,7 @@ from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
+from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
     GetBlocks,
@@ -113,6 +114,11 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "GetBlocks.parse": GetBlocks.parse,
     "GetHeaders.parse": GetHeaders.parse,
     "Headers.parse": Headers.parse,
+    # the two payloads that are a transaction and a block: their own
+    # mutation samples are `Tx.parse`'s and `Block.parse`'s below, the
+    # wrapper adding no octets of its own to flip
+    "TxPayload.parse": TxPayload.parse,
+    "BlockPayload.parse": BlockPayload.parse,
     "BIP32KeyData.parse": BIP32KeyData.parse,
     "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,

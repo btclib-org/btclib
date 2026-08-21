@@ -4660,6 +4660,43 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains the `tx` and `block` payloads: `TxPayload` and
+  `BlockPayload`** (issue #1103), each holding one object this library
+  already parses and serializes. The names carry a suffix where no other
+  payload type does, and it is the collision that decides it: these are
+  the only two whose command names a class btclib already has, so
+  `from btclib.p2p import Tx` would shadow `btclib.tx.Tx` silently.
+  btclib_node has that shape and pays for it, its
+  `p2p/messages/data.py` importing btclib's two as `TxData` and
+  `BlockData`.
+
+- **`include_witness` is a field of the payload rather than an argument
+  of its `serialize`.** `Tx.serialize` and `Block.serialize` take it and
+  a p2p payload has to answer it, and on the wire the answer is the
+  connection's: BIP144 gives the witness to the peer that negotiated
+  `NODE_WITNESS`, and Core answers a `getdata` for `MSG_TX` with the
+  stripped encoding and one for `MSG_WITNESS_TX` with the full one.
+  Holding it as a field is what keeps `Payload.serialize` one signature
+  across every payload type and leaves `to_message` unchanged; an
+  argument would have to be an argument of both, and a payload that
+  always wrote the witness would be a library unable to answer a peer
+  that negotiated none.
+
+  `parse` answers the flag from the object it built, `Tx.parse` and
+  `Block.parse` having read BIP144's marker already. What that cannot
+  recover is which flag a sender held over a transaction with no
+  witness, both answers writing the same octets: `parse` says `False`,
+  so the encoding round-trips exactly and the object round-trips
+  wherever the wire can tell the two apart. The flag is stored as it was
+  given and never reduced against the object, `Tx` and `Block` being
+  mutable dataclasses -- a flag folded into `is_segwit` when the payload
+  was built would lie the moment a caller signs an input.
+
+  Nothing new goes in `btclib.p2p.limits`: `MAX_PROTOCOL_MESSAGE_LENGTH`
+  already bounds a message and a block satisfying `MAX_BLOCK_WEIGHT` is
+  always under it, the weight being three times the stripped size plus
+  the size.
+
 - **`btclib.p2p` gains the inventory payloads: `Inv`, `GetData`,
   `NotFound`, `GetBlocks`, `GetHeaders`, `Headers`, and the `Inventory`
   entry and `InventoryType` codes under them** (issue #1101).

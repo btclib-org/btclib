@@ -54,6 +54,7 @@ from btclib.p2p.address import (
     ServiceFlags,
     TimestampedNetworkAddress,
 )
+from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
     GetBlocks,
@@ -71,6 +72,7 @@ from btclib.p2p.payload import Payload
 
 __all__ = [
     "Addr",
+    "BlockPayload",
     "GetBlocks",
     "GetData",
     "GetHeaders",
@@ -86,6 +88,7 @@ __all__ = [
     "Pong",
     "ServiceFlags",
     "TimestampedNetworkAddress",
+    "TxPayload",
     "Verack",
     "Version",
     "magic_from_chain",
