@@ -166,6 +166,34 @@ documented at release-notes length in the first place, and are still in
   published instead of rebuilt, which is a larger change than this one;
   the issue is the record of it.
 
+- **`documented`'s polling loop can no longer spend the whole job
+  timeout** (btclib-org/.github#18). The loop and `timeout-minutes: 20`
+  used to be the same budget — 30 attempts of a 10s `curl --max-time`
+  plus a 30s `sleep`, on every attempt including the last, is 1200s, and
+  20 minutes is 1200s too — so a response slow enough to spend its own
+  `--max-time` without ever answering ran the loop into the job's own
+  wall and lost the `::error::` line the job exists to print, to a
+  runner-issued "exceeded the maximum execution time" instead. An
+  ordinary fast failure never came close, RTD's 404 for "no build yet"
+  costing the loop well under a second per attempt; only the
+  slow-or-unreachable case bit, and it is the case a reader most needs
+  the pointer for. 20 attempts at the same 10s/30s brings the loop's
+  worst case to 770s against the job's 1200s, a fixed margin the loop
+  cannot spend into, and the last attempt no longer sleeps before giving
+  up. The final message also names what it last saw — the HTTP status
+  RTD answered with, or the transport failure if none came back within
+  10s — rather than repeating "is not served yet". What it still cannot
+  do is tell a build that has not started from one that never will:
+  Read the Docs' own v3 API carries that distinction, but querying it
+  from this job would mean storing an RTD credential for a check that
+  gates nothing, since the job's existing comment already rules the API
+  out for exactly that reason — confirmed here rather than re-litigated,
+  an unauthenticated call from a GitHub-hosted runner is throttled and
+  then blocked outright as a cloud-provider caller. `bitcoin-core-rpc`
+  carries the same job, ported byte-identical, and is not fixed here;
+  `btclib-secp256k1` will gain a third copy once its own Read the Docs
+  side lands.
+
 ## v2026.8.21
 
 ### Repository
