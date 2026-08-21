@@ -165,6 +165,24 @@ documented at release-notes length in the first place, and are still in
   and checked. Reaching that shape here needs `test.yml`'s artifact
   published instead of rebuilt, which is a larger change than this one;
   the issue is the record of it.
+- **A re-run of a finished TestPyPI rehearsal now gets a version of its
+  own** (issue #1156). The suffix was `.dev<run number>`, and a re-run
+  keeps `github.run_number` and only raises `github.run_attempt`,
+  so re-running a rehearsal rebuilt the same version and TestPyPI
+  refused the upload after the whole matrix ran again. `RELEASING.md`'s
+  answer had been a warning to dispatch a fresh run instead of
+  re-running one — a rule to remember at the moment a failed rehearsal
+  is least likely to leave room for it. Fixed the way both sibling
+  repositories' `release.yml` already were (`btclib-secp256k1` first,
+  then `bitcoin-core-rpc`'s issue #157): the suffix is
+  `.dev<run*100+attempt>`, the multiplier keeping every attempt of
+  every run both unique and PEP 440-ordered — attempt 2 of run 7 still
+  sorts after every attempt of run 6 — and the step refuses outright
+  past the two digits it reserves for the attempt rather than wrapping
+  into another run's range. `RELEASING.md`'s warning goes with it, the
+  rule it stated no longer being true, and every other place stating
+  the old template — `generate_sbom.py` and its test among them — now
+  states the new one.
 
 ## v2026.8.21
 

@@ -275,10 +275,20 @@ jobs:
       - name: Pin the build timestamp to the commit
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # TestPyPI refuses a version it has already seen: the rehearsal
-      # appends .dev<run number>, unique per dispatch and sorted before
-      # the release it rehearses (PEP 440). Re-running a finished
-      # rehearsal would reuse its run number and collide on TestPyPI:
-      # dispatch a fresh run instead
+      # appends .dev<run*100+attempt>, unique per dispatch and per re-run
+      # of one, and sorted before the release it rehearses (PEP 440).
+      # A re-run keeps the run's own id and number and only raises
+      # run_attempt, so .dev<run number> alone -- the previous shape of
+      # this suffix -- was identical across every re-run of one dispatch
+      # and collided with itself on TestPyPI the moment a rehearsal was
+      # re-run rather than freshly dispatched. Multiplying the run number
+      # by 100 and adding the attempt keeps both properties at once:
+      # every attempt of every run is still unique, and, because the
+      # attempt never reaches the run number's own place value, attempt 2
+      # of run 7 (702) still sorts after every attempt of run 6 (600-699)
+      # -- the ordering .dev<run><attempt> concatenation would have kept
+      # only while the two numbers' digit counts happened to line up.
+      # The two digits reserved for the attempt are checked, not assumed
       - name: Make the version unique for TestPyPI (rehearsal only)
         if: github.event_name == 'workflow_dispatch'
         # Python and tomllib, not sed: the value is parsed and only then
@@ -297,6 +307,12 @@ jobs:
           import tomllib
           from pathlib import Path
 
+          run_number = int(os.environ["GITHUB_RUN_NUMBER"])
+          run_attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
+          if run_attempt > 99:
+              msg = f"attempt {run_attempt} exceeds the two digits reserved for it"
+              raise SystemExit(msg)
+
           path = Path("pyproject.toml")
           text = path.read_text(encoding="utf-8")
           declared = tomllib.loads(text)["project"]["version"]
@@ -304,7 +320,7 @@ jobs:
           if match is None:
               msg = f"pyproject.toml declares {declared}, which is not a literal in it"
               raise SystemExit(msg)
-          suffixed = declared + ".dev" + os.environ["GITHUB_RUN_NUMBER"]
+          suffixed = declared + ".dev" + str(run_number * 100 + run_attempt)
           line = match.group().replace(declared, suffixed, 1)
           path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
           PY
