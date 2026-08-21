@@ -13,7 +13,12 @@ Two properties are worth more than the field-by-field assertions, and are
 what the release pipeline depends on. The document validates against the
 CycloneDX 1.6 JSON schema, checked once against the published schema and
 its two `$ref` files -- not asserted here, that would need the schema
-vendored and a validator installed for one test. And it is reproducible:
+vendored and a validator installed for one test. The one rule of it a
+test does assert is that the references are distinct, a dependency
+declared across several marker-separated lines being the shape that
+reaches it: that assertion is a comparison over the document the script
+already returns, where the rest of the schema is not. And it is
+reproducible:
 `test_the_document_is_the_same_bytes_twice` is the one that fails if a
 clock or a `uuid4` ever reaches it, which would leave a rebuilt release
 differing from the published one in the one field nobody could check.
@@ -237,6 +242,114 @@ def test_the_extras_of_a_requirement_are_recorded(
 
     (component,) = document["components"]
     assert {"name": "btclib:extras", "value": "socks"} in component["properties"]
+
+
+def test_a_dependency_split_by_marker_is_one_component(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """One component per dependency, whatever it takes to declare it.
+
+    Widening a floor across interpreter versions is several
+    `Requires-Dist` lines differing only by marker, and each of them
+    reads as the same package url.
+    """
+    requirements = (
+        'cffi>=1.17; python_version >= "3.13"',
+        'cffi>=1.16; python_version == "3.12"',
+        'cffi>=1.15; python_version < "3.12"',
+    )
+    document = sbom(script, tmp_path, requirements=requirements)
+
+    (component,) = document["components"]
+    assert component["name"] == "cffi"
+    assert component["purl"] == "pkg:pypi/cffi"
+    # every line kept, in the order the metadata declares them: the
+    # component is a reading of them all and checkable against them
+    assert component["properties"] == [
+        {"name": "btclib:requires-dist", "value": requirement}
+        for requirement in requirements
+    ]
+
+
+def test_the_references_of_a_document_are_distinct(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """`bom-ref` identifies a component, so CycloneDX 1.6 asks it be unique.
+
+    Nothing here runs the schema, and a dependency split by marker is the
+    shape that reaches this rule of it -- in the graph as well as in the
+    components, `dependencies` being keyed by the same reference.
+    """
+    document = sbom(
+        script,
+        tmp_path,
+        requirements=(
+            'cffi>=1.17; python_version >= "3.13"',
+            'cffi>=1.15; python_version < "3.13"',
+            "btclib_secp256k1>=0.8.0",
+        ),
+    )
+
+    references = [document["metadata"]["component"]["bom-ref"]]
+    references += [c["bom-ref"] for c in document["components"]]
+    assert len(set(references)) == len(references)
+    root, *leaves = document["dependencies"]
+    graph = [root["ref"], *(leaf["ref"] for leaf in leaves)]
+    assert len(set(graph)) == len(graph)
+    assert len(set(root["dependsOn"])) == len(root["dependsOn"])
+
+
+def test_a_version_the_lines_disagree_about_is_left_out(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A pin under a marker names a version for one environment.
+
+    Which is not what the wheel pins, so the document names none.
+    """
+    document = sbom(
+        script,
+        tmp_path,
+        requirements=(
+            'tomli==2.0.1; python_version < "3.11"',
+            'tomli==2.2.1; python_version >= "3.11"',
+        ),
+    )
+
+    (component,) = document["components"]
+    assert "version" not in component
+    assert component["purl"] == "pkg:pypi/tomli"
+
+
+def test_a_version_the_lines_agree_on_is_kept(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """Lines that pin the same version pin it for the distribution."""
+    document = sbom(
+        script,
+        tmp_path,
+        requirements=(
+            'tomli==2.2.1; python_version < "3.11"',
+            'tomli==2.2.1; python_version >= "3.11"',
+        ),
+    )
+
+    (component,) = document["components"]
+    assert component["version"] == "2.2.1"
+    assert component["purl"] == "pkg:pypi/tomli@2.2.1"
+
+
+def test_a_line_outside_an_extra_makes_the_dependency_required(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """Optional only where every line naming it is under an extra."""
+    document = sbom(
+        script,
+        tmp_path,
+        requirements=('coverage>=7; extra == "test"', 'coverage>=7; os_name == "nt"'),
+    )
+
+    (component,) = document["components"]
+    assert component["scope"] == "required"
 
 
 def test_the_dependency_graph_names_every_component(
