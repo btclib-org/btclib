@@ -67,19 +67,22 @@ an address is worth keeping rather than whether the octets decode, and
 Core carries them out by parsing the entry and marking the result
 invalid. A parser that refused them would refuse a message Core accepts.
 
-**`TORV2` and `YGGDRASIL` are in the table, and Core has neither.**
-BIP155's table reserves both, and it says "Further network ID numbers
+**`TORV2` and `YGGDRASIL` are in the table, where Core acts on
+neither.** BIP155 reserves both, and says "Further network ID numbers
 MUST be reserved in a new BIP document", so 3 and 7 mean what they mean
-for good. Core's `BIP155Network` stops at 6 and skips nothing,
-`TORV2` being dead and Yggdrasil being carried as ordinary IPv6; its test
-framework's table has neither, and an id 7 from a real Yggdrasil peer is
-an unknown network to a Core node today. Naming them is not offering
-them: an id round-trips whether or not a member names it, so what the
-member changes is only whether a caller reading a captured message sees
-`BIP155Network.TORV2` or `3` -- and a table that jumps from 2 to 4 with
-nothing said is one somebody eventually reuses. The rule the tree already
-follows is `InventoryType`'s: name what the specification names, and not
-what it merely reserves for the future.
+for good. Core names `TORV2` in its own `BIP155Network` and nowhere else
+-- `SetNetFromBIP155Network` has no case for it, so an address under it
+falls through to the unknown-id path and is dropped, and the test
+framework's `ADDRV2_NET_NAME` has no entry for it. `YGGDRASIL` Core has
+not got at all, Yggdrasil being carried there as ordinary IPv6, so an id
+7 from a real Yggdrasil peer is an unknown network to a Core node today.
+
+Naming them is not offering them: an id round-trips whether or not a
+member names it, so what the member changes is only whether a caller
+reading a captured message sees `BIP155Network.TORV2` or `3` -- and a
+table with a hole in it is one somebody eventually reuses. The rule the
+tree already follows is `InventoryType`'s: name what the specification
+names, and not what it merely reserves for the future.
 
 **The port is big-endian**, as it is in `addr`, and the evidence is not a
 round trip: `tests/p2p/addrv2_test.py` is driven by the `addrv2` payload
@@ -111,7 +114,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 
-from btclib import var_int
+from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.address import ServiceFlags, _service_flags_from_int
@@ -158,9 +161,9 @@ class BIP155Network(IntEnum):
     chain -- `btclib.network.Network`, and `btclib.p2p.magic_from_network`
     beside it -- and these are IPv4, Tor and I2P.
 
-    `TORV2` and `YGGDRASIL` are members and are not Core's: the module
-    docstring is why. An id no member names is not an error either, which
-    is `_bip155_network_from_int`.
+    `TORV2` and `YGGDRASIL` are members where Core acts on neither, and
+    the module docstring is why. An id no member names is not an error
+    either, which is `_bip155_network_from_int`.
 
     An `IntEnum` and not an `IntFlag`, for the reason `InventoryType` is
     one: these are exclusive kinds and not bits, so composing two of them
@@ -198,15 +201,15 @@ _ADDRESS_SIZE: dict[int, int] = {
 def _assert_int_range(value: int, high: int, what: str) -> None:
     """Refuse a value that is no integer, or one outside a field's width.
 
-    Four of the five fields here are an unsigned integer of a fixed
-    width, and none of them is signed, so a low end is not a parameter.
+    No low end, where `handshake._assert_int_range` takes one: every
+    integer field of a BIP155 entry is unsigned, and a `version`
+    message's protocol version and timestamp are not.
 
     Private and unvalidated of its own arguments, as a private twin is:
-    the two that follow the value are literals of this module.
-    `handshake._assert_int_range` is the same helper with a low end,
-    written there rather than shared because what a validity check
-    spells is one line per field and what sharing it would cost is a
-    name in `btclib.utils` that no caller outside these modules has.
+    the width and the name are literals of this module at every call.
+    That twin is written there rather than shared because a validity
+    check is one line per field, and sharing it would put a name in
+    `btclib.utils` that no caller outside these two modules has.
     """
     # a bool is an int and would read as the number one or zero, which
     # the range check cannot tell from a field whose value that is
@@ -323,7 +326,7 @@ class NetworkAddressV2:
         out += int(self.network_id).to_bytes(
             _NETWORK_ID_SIZE, byteorder="little", signed=False
         )
-        out += var_int.serialize(len(self.address)) + self.address
+        out += var_bytes.serialize(self.address)
         # the one big-endian field of this protocol, as it is in `addr`:
         # network byte order, as every port is
         out += self.port.to_bytes(_PORT_SIZE, byteorder="big", signed=False)
@@ -359,6 +362,9 @@ class NetworkAddressV2:
             byteorder="little",
             signed=False,
         )
+        # read by hand where `serialize` above uses `var_bytes`:
+        # `var_bytes.parse` reads the length and the octets in one call,
+        # and the bound has to stand between the two
         size = var_int.parse(stream)
         if size > MAX_ADDRV2_SIZE:
             err_msg = f"invalid address length: {size} bytes"

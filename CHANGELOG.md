@@ -4699,11 +4699,14 @@ documented at release-notes length in the first place, and are still in
   for embedding another network -- is receive policy and parses here,
   Core reading both and marking the result invalid.
 
-  **`TORV2` and `YGGDRASIL` are in the table and Core has neither**, the
-  first being dead and the second carried by Core as ordinary IPv6.
-  BIP155 reserves both and says further ids must be reserved by a new
-  BIP, so naming them documents the numbering rather than offering
-  anything: an id round-trips whether or not a member names it.
+  **`TORV2` and `YGGDRASIL` are in the table, where Core acts on
+  neither**: it names `TORV2` in its own `BIP155Network` and gives
+  `SetNetFromBIP155Network` no case for it, so such an address falls
+  through to the unknown-id path, and it has no `YGGDRASIL` at all,
+  Yggdrasil being carried there as ordinary IPv6. BIP155 reserves both
+  and says further ids must be reserved by a new BIP, so naming them
+  documents the numbering rather than offering anything: an id
+  round-trips whether or not a member names it.
 
   `btclib.p2p.limits` gains `MAX_ADDRV2_SIZE`, BIP155's 512-octet bound
   on the address and Core's `CNetAddr::MAX_ADDRV2_SIZE`, checked off the

@@ -65,9 +65,11 @@ from btclib.p2p import (
     AddrV2,
     BIP155Network,
     Message,
+    NetworkAddress,
     NetworkAddressV2,
     SendAddrV2,
     ServiceFlags,
+    TimestampedNetworkAddress,
 )
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 
@@ -294,9 +296,10 @@ def test_the_length_bip155_fixes_for_each_id(
 ) -> None:
     """BIP155's table, transcribed here and enforced by `assert_valid`.
 
-    The two ids Core has no member for are held to it as well: `TORV2` is
-    dead and `YGGDRASIL` is carried by Core as ordinary IPv6, so the
-    lengths for those two come from the BIP and from nothing else.
+    The two ids Core acts on for neither are held to it as well: it
+    drops a `TORV2` address through its unknown-id path and has no
+    `YGGDRASIL` at all, so the lengths for those two come from the BIP
+    and from nothing else.
     """
     entry = NetworkAddressV2(0, 0, network_id, bytes(size), 8333)
     assert entry.serialize() == NetworkAddressV2.parse(entry.serialize()).serialize()
@@ -400,8 +403,9 @@ def test_a_known_id_with_the_wrong_length_is_refused(
     is what this codec cannot do: a message one address shorter than it
     arrived does not serialize back.
 
-    The lengths are Core's cases where Core has one; the two ids it has
-    no member for are held to BIP155's table and to nothing else.
+    The lengths are Core's cases where Core has one; `TORV2` and
+    `YGGDRASIL`, which it refuses nothing for, are held to BIP155's
+    table and to nothing else.
     """
     octets = _entry(f"{network_id:02x}{wrong:02x}" + "00" * wrong)
 
@@ -448,10 +452,12 @@ def test_a_torv2_address_parses_where_core_ignores_it() -> None:
     """Ignoring is receive policy, and this package holds none.
 
     BIP155 names `TORV2` in its table and says clients "MUST ignore them
-    on receive"; Core carries that out by having no member for the id at
-    all, so `cnetaddr_unserialize_v2` reads its `03`/`0a` vector and
-    asserts the result is `!IsValid()` -- parsed and then thrown away.
-    Refusing the octets would refuse a message Core accepts.
+    on receive"; Core carries that out by naming the id in its
+    `BIP155Network` and giving `SetNetFromBIP155Network` no case for it,
+    so it falls through to the unknown-id path --
+    `cnetaddr_unserialize_v2` reads its `03`/`0a` vector and asserts the
+    result is `!IsValid()`, parsed and then thrown away. Refusing the
+    octets would refuse a message Core accepts.
     """
     octets = _entry("030af1f2f3f4f5f6f7f8f9fa")
     entry = NetworkAddressV2.parse(octets)
@@ -464,7 +470,7 @@ def test_a_torv2_address_parses_where_core_ignores_it() -> None:
 def test_an_ipv6_address_in_a_reserved_range_parses() -> None:
     """The other thing BIP155 says to ignore, and the same answer.
 
-    Version 2.1.0 of the BIP added it: an IPv4-in-IPv6 or an OnionCat
+    BIP155 version 2.1.0 states it: an IPv4-in-IPv6 or an OnionCat
     address "MUST NOT be sent with the `IPV6` network ID" and clients
     "SHOULD ignore" one on receive, so that one peer is not two. Core
     reads both -- `cnetaddr_unserialize_v2` has a vector for each -- and
@@ -505,11 +511,11 @@ def test_the_services_have_no_range_check_on_their_compact_size() -> None:
 
 
 def test_a_non_canonical_compact_size_is_refused() -> None:
-    """Btclib's `var_int.parse` is canonical-only, and the field inherits it.
+    """One entry has one serialization, which the encoding is what buys.
 
-    Which is the property that keeps one entry from having two
-    serializations: Core answers the same encoding "non-canonical
-    ReadCompactSize()".
+    btclib's `var_int.parse` is canonical-only and both `CompactSize`
+    fields of an entry inherit it; Core answers the same octets
+    "non-canonical ReadCompactSize()".
     """
     canonical = _entry("010401020304")
     assert NetworkAddressV2.parse(canonical).serialize() == canonical
@@ -640,10 +646,13 @@ def test_an_addrv2_refuses_what_is_not_a_sequence_of_entries() -> None:
     with pytest.raises(BTClibTypeError, match="invalid address type"):
         AddrV2([1])  # type: ignore[list-item]
 
-    # and a `TimestampedNetworkAddress` is not one either, which is the
-    # whole of what two classes buy over one with a flag
+    # and an `addr` entry is not one either, which is the whole of what
+    # two classes buy over one with a mode flag: the octets differ, so
+    # putting one where the other belongs is a call mypy refuses and
+    # `assert_valid` refuses again for the caller who has not run it
+    entry = TimestampedNetworkAddress(0, NetworkAddress(1, "10.0.0.1", 8333))
     with pytest.raises(BTClibTypeError, match="invalid address type"):
-        AddrV2([object()])  # type: ignore[list-item]
+        AddrV2([entry])  # type: ignore[list-item]
 
 
 def test_an_empty_addrv2_is_a_message() -> None:
