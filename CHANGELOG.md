@@ -814,6 +814,32 @@ documented at release-notes length in the first place, and are still in
   adoption is per module, and each step of it removes one of the round
   trips above.
 
+- **`NETWORKS["regtest"].genesis_block` was stored byte-reversed**
+  (issue #1203). It held `06226e46…f188910f`, which is Bitcoin Core's
+  `0f9188f1…466e2206` with its octets in the opposite order; the other
+  networks were right. The library already disagreed with itself about
+  it: given Core's regtest genesis parameters, `BlockHeader.hash`
+  derives the value Core publishes, so what `_data/regtest.json` shipped
+  was the reverse of what this library computes.
+
+  Nothing inside btclib reads the field — `network_from_key_value`'s
+  docstring says no encoding here reads the genesis block — so
+  addresses, WIF and the bip32 versions were never affected, and no
+  other stored value moves. What is affected is a caller seeding a chain
+  from it: the value is well-formed, thirty-two bytes, and looks like a
+  plausible low-difficulty hash, so it is a silent wrong answer rather
+  than an error, and a node seeded with it accepts no regtest chain at
+  all. A caller that compensated for the reversal has to stop.
+
+  The test that should have caught it pinned the genesis of some
+  networks and not others, and regtest was one it did not pin. It now
+  covers every network in `NETWORKS` and asserts its expectation table
+  has an entry for each, so a network added without its genesis block
+  fails rather than passing unchecked. No structural check can catch
+  this class of mistake: a reversed hash is thirty-two well-formed bytes
+  carrying a plausible run of zeros, and only the value tells it from
+  the real one.
+
 ## v2026.8.21
 
 ### Repository

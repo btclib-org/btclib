@@ -182,15 +182,40 @@ def test_the_test_networks_differ_from_testnet_in_the_genesis_block() -> None:
 
     assert NETWORKS["signet"].hrp == "tb"
     assert NETWORKS["testnet4"].hrp == "tb"
-    assert NETWORKS["testnet4"].genesis_block.hex() == (
-        "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043"
-    )
-    assert NETWORKS["signet"].genesis_block.hex() == (
-        "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6"
-    )
     # every network is a distinct chain, and the genesis block says so
     genesis = {net.genesis_block for net in NETWORKS.values()}
     assert len(genesis) == len(NETWORKS)
+
+
+# Bitcoin Core's `getblockhash 0` on each chain, which is the authority
+# for this field: a genesis block is a constant nothing here computes,
+# so a wrong one is wrong quietly. Mainnet's is checked once more, in
+# tests/block/block_test.py, against the vendored block 1 whose
+# previous_block_hash it is; every other network's is checked only here.
+# Every network is named, without exception -- naming only some is how
+# regtest came to hold its hash byte-reversed with the suite green
+# (issue #1203), and the assertion below fails if a network is added
+# here without its genesis.
+_GENESIS_BLOCKS: dict[NetworkName, str] = {
+    "mainnet": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+    "testnet": "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+    "testnet4": "00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043",
+    "signet": "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6",
+    "regtest": "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
+}
+
+
+def test_genesis_block_of_every_network() -> None:
+    """Pin the genesis block of every network, leaving none unpinned.
+
+    Covering the whole table, rather than the networks a reader happens
+    to name, is the point: a byte-reversed hash is still thirty-two
+    well-formed bytes carrying a plausible run of zeros, so no other
+    check in this file can tell it from the real one. Only the value can.
+    """
+    assert set(_GENESIS_BLOCKS) == set(NETWORKS)
+    for name, expected in _GENESIS_BLOCKS.items():
+        assert NETWORKS[name].genesis_block.hex() == expected, name
 
 
 # the prefix fields, i.e. every field a reverse lookup is asked about:
