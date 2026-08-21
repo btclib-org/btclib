@@ -38,6 +38,7 @@ from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
+from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -103,6 +104,9 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "NetworkAddress.parse": NetworkAddress.parse,
     "TimestampedNetworkAddress.parse": TimestampedNetworkAddress.parse,
     "Addr.parse": Addr.parse,
+    "NetworkAddressV2.parse": NetworkAddressV2.parse,
+    "AddrV2.parse": AddrV2.parse,
+    "SendAddrV2.parse": SendAddrV2.parse,
     "Version.parse": Version.parse,
     "Verack.parse": Verack.parse,
     "Ping.parse": Ping.parse,
@@ -245,6 +249,16 @@ VERSION_BIN = bytes.fromhex(
 ADDR_BIN = bytes.fromhex(
     "01e215104d010000000000000000000000000000000000ffff0a000001208d"
 )
+# and the BIP155 form of the same idea, whose fields a mutation reaches
+# that an `addr`'s cannot: the count, then a CompactSize of service flags,
+# a network id and a var_bytes length in front of the address. Core's
+# `stream_addrv2_hex`, which is tests/p2p/addrv2_test.py's sample
+ADDRV2_BIN = bytes.fromhex(
+    "03"
+    "61bc6649000210000000000000000000000000000000010000"
+    "796276830102100000000000000000000000000000000100f1"
+    "fffffffffd4804021000000000000000000000000000000001f1f2"
+)
 # an `inv` of one entry and a `headers` of one header, which are the
 # inventory payloads with a count in front of a fixed-width record: a
 # flipped octet lands in the count, in a type code or inside the header,
@@ -288,6 +302,10 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # addresses, and the relay flag a `version` may or may not carry
     "Version.parse": (Version.parse, VERSION_BIN),
     "Addr.parse": (Addr.parse, ADDR_BIN),
+    # and the BIP155 payload beside it, where a flipped octet lands in a
+    # network id, in the CompactSize of the services or in the length in
+    # front of a variable-width address
+    "AddrV2.parse": (AddrV2.parse, ADDRV2_BIN),
     # and the two inventory payloads of the same shape, where a mutation
     # reaches a count, a four-octet type code and the zero after a header
     "Inv.parse": (Inv.parse, INV_BIN),

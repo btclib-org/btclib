@@ -33,6 +33,8 @@ from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
+    AddrV2,
+    BIP155Network,
     BlockPayload,
     GetBlocks,
     GetData,
@@ -43,9 +45,11 @@ from btclib.p2p import (
     InventoryType,
     Message,
     NetworkAddress,
+    NetworkAddressV2,
     NotFound,
     Ping,
     Pong,
+    SendAddrV2,
     TimestampedNetworkAddress,
     TxPayload,
     Verack,
@@ -89,6 +93,14 @@ def _addr() -> Addr:
     return Addr([TimestampedNetworkAddress(0x4D1015E2, address)])
 
 
+def _addrv2() -> AddrV2:
+    """Return an `addrv2` of one entry, which is Core's first fixture."""
+    address = NetworkAddressV2(
+        0x4966BC61, 0, BIP155Network.IPV6, bytes(15) + b"\x01", 8333
+    )
+    return AddrV2([address])
+
+
 def _inventory() -> Inventory:
     """Return one inventory entry, announcing the block after genesis."""
     return Inventory(InventoryType.MSG_BLOCK, BlockHeader.parse(_block_1()[:80]).hash)
@@ -129,6 +141,13 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         _addr().addresses[0].serialize(),
     ),
     ("p2p_addr", Addr, _addr().serialize()),
+    (
+        "p2p_addrv2_address",
+        NetworkAddressV2,
+        _addrv2().addresses[0].serialize(),
+    ),
+    ("p2p_addrv2", AddrV2, _addrv2().serialize()),
+    ("p2p_sendaddrv2", SendAddrV2, SendAddrV2().serialize()),
     ("p2p_verack", Verack, Verack().serialize()),
     ("p2p_ping", Ping, Ping(1).serialize()),
     ("p2p_pong", Pong, Pong(1).serialize()),

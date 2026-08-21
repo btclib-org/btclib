@@ -8,8 +8,7 @@ Bitcoin Core's `CAddress`, of src/protocol.h, in the version-1 encoding
 its `SERIALIZE_METHODS` writes with `Encoding::V1`: eight octets of
 service flags, then the sixteen of address and two of port that
 `CService` writes under it. BIP155's `addrv2` is a different
-encoding of the same idea and is issue #1083's fifth child, not this
-module.
+encoding of the same idea and is `btclib.p2p.addrv2`, not this module.
 
 **Two classes for what Core's prose calls one structure**, because the
 octets are not the same: a `version` message's two addresses carry no
@@ -177,10 +176,13 @@ def _service_flags_from_int(services: int) -> ServiceFlags | int:
     `assert_valid` one line later to refuse through this library's own
     exception classes.
 
-    Private, and imported by `handshake` all the same: two modules coerce
-    the one field -- an address carries the flags and the `version`
-    message quotes them -- and a converter shared inside a package is what
-    `magic.py` reaching `network._validated_network_name` already is.
+    Private, and imported across the package all the same: `handshake`
+    coerces the flags a `version` message quotes and `addrv2` the ones a
+    BIP155 entry carries, both being this field wherever it appears, and
+    a converter shared inside a package is what `magic.py` reaching
+    `network._validated_network_name` already is. No count of the
+    importers here: a list of names is what a later module has to join,
+    where a number is one it has to notice.
     """
     if is_integer(services) and 0 <= services <= _MAX_SERVICES:
         return ServiceFlags(services)

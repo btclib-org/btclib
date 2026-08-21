@@ -4660,6 +4660,68 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains BIP155's `addrv2` and `sendaddrv2`, and the
+  network-id table with them: `AddrV2`, `SendAddrV2`,
+  `NetworkAddressV2` and `BIP155Network`** (issue #1106). An entry is
+  four octets of timestamp, the service flags as a `CompactSize`, a
+  one-octet network id, the address as `var_bytes` and the big-endian
+  port -- `addr`'s idea in a different encoding, which is why it is a
+  class of its own.
+
+  **A third address type, and one rather than two.** `NetworkAddress`
+  holds an `ipaddress.IPv6Address`, and half of these addresses are not
+  one -- a `TORV3` address is an ed25519 public key -- so the reuse is
+  refused by the field before anything else: a union there would put
+  "which of these is it" on every existing caller of `.ip`, which is the
+  cost issue #1098 declined when it made `TimestampedNetworkAddress` a
+  second class rather than a flag. One class and not two because BIP155
+  defines one record: its `time` is unconditional, so the split that gave
+  `addr` two classes has nothing here to divide, and `NetworkAddressV2`
+  is the counterpart of `TimestampedNetworkAddress` rather than of
+  `NetworkAddress`.
+
+  **An unknown network id round-trips**, as an unrecognized command does
+  in the envelope and an unrecognized type code in `InventoryType`:
+  `network_id` is a `BIP155Network` where a member names the id and the
+  plain `int` where none does. Core drops such an address instead --
+  `SetNetFromBIP155Network` returns false and the octets are consumed
+  into a default `CNetAddr` -- which is right for a node, BIP155 saying
+  clients SHOULD NOT gossip what they cannot validate; that is relay
+  policy, and this package relays nothing.
+
+  **A known id whose address is the wrong length is refused, and the
+  message with it**, which is BIP155's "clients SHOULD reject messages
+  that contain addresses that have a different length than specified in
+  this table" and what Core's `SetNetFromBIP155Network` throws on.
+  Ignoring the entry is what a codec cannot mean: a message one address
+  shorter than it arrived does not serialize back. What the BIP does say
+  to ignore -- a `TORV2` address, an `IPV6` address in a range reserved
+  for embedding another network -- is receive policy and parses here,
+  Core reading both and marking the result invalid.
+
+  **`TORV2` and `YGGDRASIL` are in the table, where Core acts on
+  neither**: it names `TORV2` in its own `BIP155Network` and gives
+  `SetNetFromBIP155Network` no case for it, so such an address falls
+  through to the unknown-id path, and it has no `YGGDRASIL` at all,
+  Yggdrasil being carried there as ordinary IPv6. BIP155 reserves both
+  and says further ids must be reserved by a new BIP, so naming them
+  documents the numbering rather than offering anything: an id
+  round-trips whether or not a member names it.
+
+  `btclib.p2p.limits` gains `MAX_ADDRV2_SIZE`, BIP155's 512-octet bound
+  on the address and Core's `CNetAddr::MAX_ADDRV2_SIZE`, checked off the
+  length field before the read it would size. `MAX_ADDR_TO_SEND` is
+  reused rather than doubled: BIP155's thousand is Core's constant, and
+  Core reads both commands through the one `ProcessAddrs`.
+
+  One place btclib's own default was wrong for this format: the service
+  flags are a `CompactSize` with **no range check**, Core reading them
+  through `Using<CompactSizeFormatter<false>>`, so `var_int.parse` is
+  given the bitfield's 64-bit width in place of its `MAX_SIZE`. That cap
+  is 33,554,432, which is bit 25 exactly -- inside the range Core
+  reserves for temporary experiments -- so the default starts refusing
+  peers one bit above it.
+
 - **`btclib.p2p` gains the `tx` and `block` payloads: `TxPayload` and
   `BlockPayload`** (issue #1103), each holding one object this library
   already parses and serializes. The names carry a suffix where no other

@@ -211,6 +211,7 @@ CHILD_MODULES = {
         "groups": [],
         "unpublished": [
             "address",
+            "addrv2",
             "data",
             "handshake",
             "inventory",
