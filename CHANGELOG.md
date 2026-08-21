@@ -571,6 +571,21 @@ documented at release-notes length in the first place, and are still in
   hand, a vendored schema and a validator being what a test of it would
   cost.
 
+### Documentation and the website
+
+- **`docs/source/conf.py`'s `RootFileLinks` comment no longer states a
+  count of the root markdown files a build-time copy would duplicate**
+  (issue #1195). The paragraph rejecting that alternative said the
+  copies would be "a second definition of ... files that already
+  exist," a number sitting beside the very code that reads the true
+  set from `docs/source`'s `*_link.md` shims rather than from a
+  hand-maintained figure — and it had drifted, a shim having joined the
+  set since the sentence was written. The introductory paragraph
+  above it already names every one of those shims without a count,
+  which is what makes the fix a subtraction rather than a
+  correction: the reasoning about a redundant definition survives,
+  and only the number that could go stale again is gone.
+
 ## v2026.8.21
 
 ### Repository
