@@ -483,8 +483,11 @@ to `latest`'s own result.
    Python dependency. A bill of materials built the way this one is
    would name `cffi` and say nothing about the pin a verifier of that
    package would most want described, which is worse than omitting the
-   document. See issue #1159 for the evaluation and what would change
-   it.
+   document. Issue #1159 has the evaluation. What would change it is
+   btclib-org/.github#24, open because the premise is this repository's
+   own script: `generate_sbom.py` learning to describe a component
+   `Requires-Dist` cannot express would put the asymmetry above back in
+   question.
 
 1. Read the release run's `published` job, which is this workflow called
    with the tag rather than a dispatch to remember: it has no checkout, so

@@ -88,6 +88,20 @@ documented at release-notes length in the first place, and are still in
   release wound up with four assets, not the two the old bullet would
   have produced.
 
+- **RELEASING.md's bill-of-materials step separates the evaluation from
+  what would change it** (btclib-org/.github#24). "See issue #1159 for
+  the evaluation and what would change it" sent both halves of that
+  answer to one issue, and #1159 is no longer open, so the half a reader
+  would come back for sat where nothing watches it. That half is the one
+  that matters, and its premise is a script in this tree rather than
+  anything either sibling ships: `generate_sbom.py` builds `components`
+  from `Requires-Dist`, so what it cannot express is what those releases
+  would have to omit, and a tool limitation is the kind of premise that
+  gets lifted. The evaluation still points at #1159, where it happened;
+  what would reopen the question points at btclib-org/.github#24, which
+  is open. Both siblings gain the same trigger in their own
+  `RELEASING.md`.
+
 ### Packaging, linting and CI
 
 - **`test.yml`'s and `lint.yml`'s concurrency groups take a
