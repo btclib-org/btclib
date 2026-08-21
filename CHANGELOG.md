@@ -523,6 +523,40 @@ documented at release-notes length in the first place, and are still in
   `test.yml`, fixed in a pull request of their own
   (`btclib-org/btclib#1148` is the issue both reference).
 
+- **`generate_sbom.py` writes one component per dependency, where it
+  wrote one per `Requires-Dist` line** (issue #1194). A component's
+  `bom-ref` and `purl` are the requirement's name, its `==` pin and its
+  direct-reference url, and a dependency declared across lines differing
+  only by environment marker — the ordinary way to widen a floor across
+  interpreter versions — reads as the same package url on every one of
+  them. So such a dependency produced components sharing a single
+  reference, which CycloneDX 1.6 requires to be unique, and
+  `dependencies` compounded it: the root's `dependsOn` named that one
+  reference once per line, each followed by an entry of its own, so a
+  single package stood in the graph as several nodes of it. The lines
+  are grouped by the name they normalize to now, and read together. Each
+  survives as a `btclib:requires-dist` property in the order the
+  metadata declares them, so the reading is still checkable against the
+  metadata; a version or a vcs url the lines disagree about is left out
+  rather than taken from whichever came first, being a fact about one
+  installation environment and not about the distribution; and the
+  dependency is `optional` only where every line naming it is under an
+  extra. The alternative was to keep a component per line and mint a
+  unique `bom-ref` for each — a suffix or a qualifier — which satisfies
+  the schema, leaves the graph naming one package as several, and costs
+  a `bom-ref` that is no longer the purl a consumer resolves the package
+  by; the document is read to resolve a dependency graph, so the graph
+  is what has to be right. Nothing published was malformed: no
+  requirement btclib's own metadata carries is split by a marker, so the
+  defect was a split away rather than in the documents attached to a
+  release — and `btclib-secp256k1` declares its `cffi` floor across
+  marker-separated lines already, that split being the routine change
+  rather than an exotic one. `tests/generate_sbom_test.py` asserts that
+  the references of a document are distinct, which is the one rule of the
+  schema the suite checks directly — the rest of it is validated by
+  hand, a vendored schema and a validator being what a test of it would
+  cost.
+
 ## v2026.8.21
 
 ### Repository

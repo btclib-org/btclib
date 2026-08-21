@@ -53,7 +53,7 @@ import zipfile
 from email import message_from_bytes
 from email.message import Message
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import quote
 from uuid import NAMESPACE_URL, uuid5
 
@@ -131,8 +131,19 @@ def purl(name: str, version: str | None, url: str | None) -> str:
     return reference
 
 
-def component(requirement: str) -> dict[str, Any]:
-    """Return the component one `Requires-Dist` line describes."""
+class Reading(NamedTuple):
+    """What one `Requires-Dist` line says about the dependency it names."""
+
+    name: str
+    version: str | None
+    url: str | None
+    extras: str | None
+    optional: bool
+    line: str
+
+
+def reading(requirement: str) -> Reading:
+    """Return the reading of one `Requires-Dist` line."""
     match = REQUIREMENT.match(requirement.strip())
     if match is None:
         msg = f"cannot read the requirement {requirement!r}"
@@ -140,34 +151,81 @@ def component(requirement: str) -> dict[str, Any]:
 
     specifier = (match["specifier"] or "").strip()
     pinned = PINNED.match(specifier)
-    version = pinned["version"] if pinned is not None else None
     marker = match["marker"]
-    reference = purl(match["name"], version, match["url"])
-
-    entry: dict[str, Any] = {
-        "type": "library",
-        "bom-ref": reference,
-        "name": canonical_name(match["name"]),
-        "purl": reference,
+    return Reading(
+        name=canonical_name(match["name"]),
+        version=pinned["version"] if pinned is not None else None,
+        url=match["url"],
+        extras=match["extras"],
         # an extra names a dependency the wheel asks for only when the
         # extra is; nothing else in a marker makes a requirement optional
         # to a bill of materials, an interpreter version being a condition
         # on where it installs rather than on whether it is needed
-        "scope": (
-            "optional" if marker is not None and "extra ==" in marker else "required"
-        ),
+        optional=marker is not None and "extra ==" in marker,
+        line=requirement,
+    )
+
+
+def agreed(values: list[str | None]) -> str | None:
+    """Return the value every line carries, or None where they differ.
+
+    A field one line answers differently from the next is a fact about
+    one installation environment and not about the distribution, so the
+    document states none of it -- the lines are kept below as properties,
+    where each answer is read beside the marker it holds under.
+    """
+    first = values[0]
+    return first if all(value == first for value in values) else None
+
+
+def component(readings: list[Reading]) -> dict[str, Any]:
+    """Return the component the lines naming one dependency describe.
+
+    One component per dependency and not per `Requires-Dist` line. A
+    floor widened across interpreter versions is several lines differing
+    only by marker, and each reads as the same package url: a component
+    per line would give the document several sharing one `bom-ref`, which
+    CycloneDX 1.6 requires to be unique, and would leave `dependencies`
+    standing one package in the graph as several nodes. Minting a unique
+    reference per line instead -- a suffix, a qualifier -- satisfies the
+    schema and keeps that graph, at the price of a `bom-ref` that is no
+    longer the purl a consumer resolves the package by; the document is
+    read to resolve a dependency graph, so the graph is what has to be
+    right, and the lines survive as properties either way (issue #1194).
+    """
+    version = agreed([entry.version for entry in readings])
+    url = agreed([entry.url for entry in readings])
+    reference = purl(readings[0].name, version, url)
+
+    properties: list[dict[str, str]] = []
+    for entry in readings:
         # the line as the metadata carries it, which is the whole of what
         # this document knows about the dependency: the fields above are a
         # reading of it, and the reading is checkable against it
-        "properties": [{"name": "btclib:requires-dist", "value": requirement}],
+        properties.append({"name": "btclib:requires-dist", "value": entry.line})
+        if entry.extras is not None:
+            properties.append({"name": "btclib:extras", "value": entry.extras})
+
+    # optional only where every line naming it is under an extra: one line
+    # asking for it unconditionally is the wheel asking for it
+    optional = all(entry.optional for entry in readings)
+    result: dict[str, Any] = {
+        "type": "library",
+        "bom-ref": reference,
+        "name": readings[0].name,
+        "purl": reference,
+        "scope": "optional" if optional else "required",
+        "properties": properties,
     }
     if version is not None:
-        entry["version"] = version
-    if match["extras"] is not None:
-        entry["properties"].append({"name": "btclib:extras", "value": match["extras"]})
-    if match["url"] is not None:
-        entry["externalReferences"] = [{"type": "vcs", "url": match["url"]}]
-    return entry
+        result["version"] = version
+    # deduplicated and in the order the metadata declares them, a
+    # reference repeated once per line being noise rather than a second
+    # place to look
+    urls = dict.fromkeys(entry.url for entry in readings if entry.url is not None)
+    if urls:
+        result["externalReferences"] = [{"type": "vcs", "url": each} for each in urls]
+    return result
 
 
 def timestamp(epoch: int) -> str:
@@ -235,12 +293,16 @@ def build_sbom(wheel: Path, sdist: Path, epoch: int) -> dict[str, Any]:
             {"name": "btclib:requires-python", "value": requires_python}
         ]
 
+    # grouped by the name the lines normalize to, which is what makes the
+    # references below distinct: the dict keeps each dependency's lines in
+    # the order the metadata declares them
+    by_name: dict[str, list[Reading]] = {}
+    for requirement in metadata.get_all("Requires-Dist", []):
+        declared = reading(requirement)
+        by_name.setdefault(declared.name, []).append(declared)
     components = sorted(
-        (
-            component(requirement)
-            for requirement in metadata.get_all("Requires-Dist", [])
-        ),
-        key=lambda entry: str(entry["bom-ref"]),
+        (component(readings) for readings in by_name.values()),
+        key=lambda dependency: str(dependency["bom-ref"]),
     )
     serial = f"{reference}:{file_hash(wheel)}:{file_hash(sdist)}"
     return {
