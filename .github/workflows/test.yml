@@ -83,6 +83,23 @@ on:
           at the default and runs the deterministic smoke test alone.
         type: boolean
         default: false
+      disable-dist-cache:
+        description: >
+          Whether the `dist` job's own `Setup uv` step fetches its
+          dependencies afresh instead of from cache. Only release.yml's
+          call sets this: a cache entry written by one run is read by
+          another through GitHub's branch/PR cache scoping, so the job
+          whose output actually reaches an index -- a tag's upload or a
+          rehearsal's TestPyPI one, both routed through this same call --
+          is the one build that must not risk a poisoned cache reaching
+          the wheel it ships. An ordinary pull request or push to main
+          builds a copy this job throws away, so caching it is harmless,
+          and a flat `enable-cache: false` here would only cache-penalize
+          every one of them for a property only release.yml's call needs
+          -- the same asymmetry `check-newest-bindings` above expresses
+          for the unconstrained smoke test, applied to caching instead.
+        type: boolean
+        default: false
   # the escape hatch: the matrix on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
@@ -575,10 +592,21 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # caching off only when release.yml calls this workflow: this dist
+      # job is then the one whose output is published -- a tag's upload
+      # or a rehearsal's TestPyPI one -- and the reasoning is
+      # version-check's own: a cache entry written by one run is read by
+      # another through GitHub's branch/PR cache scoping, so the build
+      # that actually ships is the one that must fetch its dependencies
+      # afresh rather than risk a poisoned cache reaching the wheel an
+      # index receives. An ordinary pull request's or push's build is
+      # thrown away, so caching it is harmless; `disable-dist-cache`
+      # defaults to false for exactly that reason, the same asymmetry
+      # `check-newest-bindings` above expresses for the smoke test
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          enable-cache: true
+          enable-cache: ${{ !inputs.disable-dist-cache }}
       # what makes the wheel this job publishes reproducible: without it
       # setuptools stamps the zip entries with the mtimes of the checkout,
       # so the same commit built twice gives two digests and the

@@ -336,6 +336,13 @@ documented at release-notes length in the first place, and are still in
   the wheel — moved here from `build`, and gated on a new
   `check-newest-bindings` input only `release.yml`'s call sets, so no
   pull request pays for a question it cannot afford a red answer to.
+  `dist`'s own `Setup uv` step carries `build`'s caching-off forward the
+  same way, through a new `disable-dist-cache` input rather than a flat
+  `enable-cache: false`: a cache entry written by one run is read by
+  another through GitHub's branch/PR scoping, so the build whose output
+  actually reaches an index must fetch its dependencies afresh, where an
+  ordinary pull request's build is thrown away and caching it costs
+  nothing.
   `release.yml`'s `publish-testpypi`, `publish-pypi` and `attest` jobs
   download `dist`'s artifacts unchanged; nothing downloads a second copy
   because there is no second copy. A rehearsal's `.dev<run*100+attempt>`
