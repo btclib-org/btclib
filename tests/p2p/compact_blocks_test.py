@@ -58,6 +58,7 @@ from btclib.p2p import (
     PartialBlock,
     PrefilledTransaction,
     SendCmpct,
+    compact_blocks,
     reconstruct,
 )
 from btclib.p2p.limits import MAX_BLOCK_TX_INDEX
@@ -458,8 +459,14 @@ def test_two_pool_transactions_of_one_short_id_leave_the_position_missing(
     holds a few -- so the derivation is replaced for the length of this
     test and the bookkeeping over it is what is driven. The derivation
     itself is what the vectors above are for.
+
+    What is replaced is `compact_blocks._short_id` and not
+    `CmpctBlock.short_id`: `reconstruct` derives the key once for the
+    whole pool and asks the module function of each transaction, which is
+    the shape that keeps a mempool from costing one SHA-256 of the header
+    per transaction in it.
     """
-    monkeypatch.setattr(CmpctBlock, "short_id", lambda self, wtxid: 7)
+    monkeypatch.setattr(compact_blocks, "_short_id", lambda key, wtxid: 7)
 
     compact_block = CmpctBlock(
         _BLOCK_1.header, 0, [7], [PrefilledTransaction(0, _BLOCK_1.transactions[0])]

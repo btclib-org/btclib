@@ -252,6 +252,26 @@ def _assert_valid_count(count: int, what: str) -> None:
         raise BTClibValueError(err_msg)
 
 
+def _short_id(key: tuple[int, int], wtxid: Octets) -> int:
+    """Return BIP152's second and third steps over one hash, under a key.
+
+    Written once because it is asked for twice: `CmpctBlock.short_id` is
+    a caller's way in and derives the key for itself, and `reconstruct`
+    derives the key once and then asks this of every transaction of a
+    pool -- which for a real mempool is the header re-serialized and
+    re-hashed tens of thousands of times if the two share the method
+    rather than the derivation.
+
+    The key is not cached on the message instead, and that is the reason
+    for a function rather than a `cached_property`: `BlockHeader` is a
+    mutable dataclass, so a pair cached off one would go on answering
+    after a caller changed the header it was taken from.
+    """
+    k0, k1 = key
+    digest = siphash(k0, k1, bytes_from_octets(wtxid, _HASH_SIZE)[::-1])
+    return digest & _MAX_SHORT_ID
+
+
 def _assert_valid_transaction(tx: Tx, what: str) -> None:
     """Refuse what is no transaction, and no valid transaction."""
     if not isinstance(tx, Tx):
@@ -569,9 +589,7 @@ class CmpctBlock(Payload):
         is the version 1 short id, and which of the two hashes goes in is
         the negotiated version's to say rather than this method's.
         """
-        k0, k1 = self.short_id_key
-        digest = siphash(k0, k1, bytes_from_octets(wtxid, _HASH_SIZE)[::-1])
-        return digest & _MAX_SHORT_ID
+        return _short_id(self.short_id_key, wtxid)
 
     def assert_valid(self) -> None:
         """Refuse a header, a nonce, a short id or an index the fields lack."""
@@ -990,10 +1008,15 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
         )
     )
 
+    # derived once for the whole pool: it is a function of the header
+    # and the nonce, so `CmpctBlock.short_id` per transaction would be
+    # one SHA-256 of the header per transaction of a mempool
+    key = compact_block.short_id_key
+
     wtxid_of: dict[int, bytes] = {}
     collided: set[int] = set()
     for tx in pool:
-        short_id = compact_block.short_id(tx.hash)
+        short_id = _short_id(key, tx.hash)
         if short_id not in position_of or short_id in collided:
             continue
         if short_id not in wtxid_of:
