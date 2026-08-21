@@ -46,14 +46,21 @@ Telling these apart is most of what can go wrong when cutting a release.
 - **`v2026.8.4`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
-- **`2026.8.4.dev7`** is a rehearsal, and nobody types it either half at
-  a time: `.dev<run number>` is the template the `build` job patches into
-  `pyproject.toml` when `workflow_dispatch` starts the workflow, the
-  number being `github.run_number` counted for `release.yml` alone, so
-  the seventh such run rehearsing `2026.8.4` produces exactly that. The
-  count is what makes a rehearsal's version unique, and what makes
-  re-running a finished one collide with itself rather than mint a new
-  one. Nothing commits the result: `uv lock` runs straight after, so the
+- **`2026.8.4.dev701`** is a rehearsal, and nobody types it either half
+  at a time: `.dev<run*100+attempt>` is the template the `build` job
+  patches into `pyproject.toml` when `workflow_dispatch` starts the
+  workflow, `github.run_number` counted for `release.yml` alone and
+  `github.run_attempt` counted for one dispatch of it, so the seventh
+  such run's first attempt rehearsing `2026.8.4` produces exactly that.
+  The multiplier is what makes a re-run a version of its own rather than
+  a collision: a re-run keeps the run's own number and only raises the
+  attempt, so the run number alone was identical across every re-run of
+  one dispatch and PEP 440 could not tell them apart. Placing the
+  attempt below the run number's own place value keeps a run's later
+  attempts sorting after its earlier ones and before the next run's, the
+  attempt therefore capped at two digits and the step refusing a
+  hundredth rather than silently wrapping into the next run's range.
+  Nothing commits the result: `uv lock` runs straight after, so the
   lockfile the sdist ships agrees with the version it is named for
 - **`2026.8.4rc1`**, and a `v2026.8.4rc1` tag, have no place in this
   scheme: there is no pre-release here, only a version not yet tagged.
@@ -63,7 +70,7 @@ Telling these apart is most of what can go wrong when cutting a release.
   comparison against it burning a version `--pre` installs would then
   resolve
 
-PEP 440 sorts `2026.8.4.dev7` before `2026.8.4`, so a rehearsal never
+PEP 440 sorts `2026.8.4.dev701` before `2026.8.4`, so a rehearsal never
 shadows the release it rehearses. `git tag` on its own does not read
 the numbers the same way: measured, `v2026.10` lists before `v2026.7`,
 alphabetically rather than chronologically. `git tag --sort=v:refname`
@@ -110,10 +117,12 @@ it is about to publish), wheel smoke test — and publishes to
    to be dispatched at all, which is the paragraph at the top of this
    file, but it runs against whichever branch is picked.
 
-1. The workflow appends `.dev<run number>` to the version, so every
+1. The workflow appends `.dev<run*100+attempt>` to the version, so every
    rehearsal is unique on TestPyPI and sorts before the release it
-   rehearses. Re-running a finished rehearsal would reuse its run
-   number and be refused by TestPyPI: dispatch a fresh run instead.
+   rehearses, re-runs included: a re-run raises only
+   `github.run_attempt`, which the run number is multiplied by 100 to
+   make room for, so re-running a failed or finished rehearsal mints its
+   own version instead of colliding with the one it repeats.
 
 1. Check the upload on <https://test.pypi.org/project/btclib/>, and
    optionally install it (its dependencies come from the real PyPI):
@@ -122,7 +131,7 @@ it is about to publish), wheel smoke test — and publishes to
    uv run --isolated --no-project \
      --index https://test.pypi.org/simple/ \
      --index-strategy unsafe-best-match \
-     --with btclib==<version>.dev<run number> \
+     --with btclib==<version>.dev<run*100+attempt> \
      python -c "import btclib; print(btclib.__version__)"
    ```
 
@@ -393,7 +402,7 @@ to `latest`'s own result.
    whose claims do not match fails there having uploaded nothing, and
    the version survives — delete the tag, fix the registration, tag
    again. The same holds for a rehearsal failing the same way on
-   TestPyPI: its `.dev<run number>` is not consumed either, and `gh run
+   TestPyPI: its `.dev<run*100+attempt>` is not consumed either, and `gh run
    rerun --failed` re-runs the publish job alone, against the artifacts
    already built, rather than the whole matrix again. The upload itself
    is the point of no return, PyPI accepting no file name twice even
@@ -538,7 +547,7 @@ a mismatch as tampering:
   saw. A mismatch dates the rebuild before it accuses anyone; pinning the
   backend to a version is the fix, and the cost is a floor that ages.
 - **the rehearsal is a different version, by construction.** A TestPyPI
-  dispatch appends `.dev<run number>` to the version, so its files are not
+  dispatch appends `.dev<run*100+attempt>` to the version, so its files are not
   a second build of the release's — they are their own artifact, published
   where they say they are. The attestation the rehearsal writes covers
   those, and no digest is shared with the release.
