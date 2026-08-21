@@ -115,8 +115,8 @@ documented at release-notes length in the first place, and are still in
   [ISS #1152](https://github.com/btclib-org/btclib/issues/1152), and this
   change made that fix wrong a second time.
 - **`docs/source/package-content-policy.md` records why
-  `check-wheel-contents` runs unconfigured here**, closing issue #1160.
-  The survey behind it found two half-measures split across the three
+  `check-wheel-contents` runs unconfigured here** (issue #1160). The
+  survey behind it found two half-measures split across the three
   publishing repositories: this project's `verify_dist_contents.py`, and
   `btclib-secp256k1`'s configured `[tool.check-wheel-contents]`
   (`ignore = ["W003", "W009"]`, for the shared library its dynamic wheel
