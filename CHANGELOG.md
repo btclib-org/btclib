@@ -641,6 +641,48 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The bindings floor is `btclib_secp256k1>=0.8.0.4`, and
+  `[tool.uv.sources]` goes with it** (issue #1116). The module that
+  moves the floor is `musig`, btclib-secp256k1#282: `_libsecp256k1`
+  imports it and `ecc.musig2` calls `KeyAggCache` and `Session` through
+  it, which is issue #1049's delegation of `partial_sig_verify_`, and
+  0.8.0.4 is the first release to carry it. The floor said 0.8.0.3,
+  which does not, and nothing here saw the gap because
+  `[tool.uv.sources]` resolved the bindings from their `main` branch:
+  the development environment never resolves the floor this project
+  publishes.
+
+  What that gap would have cost an install, rather than this tree: the
+  import is one `try` over the whole surface and its
+  `except ImportError` sets `INSTALLED = False`, so
+  `pip install "btclib[secp256k1]"` resolving 0.8.0.3 fails on `musig`
+  alone and then answers on the Python arithmetic for *everything* --
+  silently, with no error and no warning, at the factor issue #198
+  measured and without the constant-time properties SECURITY.md says the
+  bindings are there for. No release went out on that pair, which is the
+  floor doing its job: it is what stops one, and what is corrected here
+  is the number it names rather than a defect a user could have met.
+
+  With 0.8.0.4 on PyPI the source table has nothing left to do, and it
+  was that table's only entry, so the table goes too. `uv.lock` resolves
+  the bindings from the registry again, wheels and all, where a git
+  source had every environment building them from source, submodule and
+  C library included. One workflow comment moves with it: `dist`'s
+  wheel smoke test in `test.yml` is named "with its dependencies from
+  PyPI" and said its constraint for the bindings came from a direct
+  reference, which is what `uv export` emitted for a git source -- so
+  the one dependency the step exists to ask about was the one it did
+  not take from the index. The export now emits a version, and the
+  comment says so. `latest.yml`'s `suite-bindings-latest` needs no edit
+  and changes behaviour anyway: the `--upgrade-package` it runs reached
+  the branch tip, where the job's name and its comment both say "their
+  latest release", and now it reaches one.
+
+  `bitcoin-core-rpc`'s floor does not move beside the bindings':
+  v2026.8.20 is the newest release and its own notes say the library is
+  unchanged since v2026.8.13, everything that cycle being repository
+  tooling.
+
 - **Merging a pull request no longer has a chance of cancelling its own
   merge commit's checks.** `closed`, added to `lint.yml`, `docs.yml`,
   `integration.yml`, `test.yml`, `links.yml`, `vendored-vectors.yml` and

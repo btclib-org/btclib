@@ -114,10 +114,19 @@ secp256k1 = [
     # `prvkey` and passing it through unconverted (btclib-secp256k1#253),
     # which `ecc.dsa.Signer` now holds so that `wipe` reaches the
     # delegated arm too (issue #1009).
-    # The version is not on PyPI yet -- `[tool.uv.sources]` below is what
-    # resolves it here -- so this floor is also what stops a release going
-    # out against a bindings that cannot serve it
-    "btclib_secp256k1>=0.8.0.3",
+    # 0.8.0.4 for the `musig` module (btclib-secp256k1#282), which
+    # `btclib._libsecp256k1` imports and `btclib.ecc.musig2` calls --
+    # `KeyAggCache` and `Session`, which is issue #1049's delegation of
+    # `partial_sig_verify_`.
+    # That last one is why this floor is not decoration.
+    # `btclib._libsecp256k1` imports the whole surface in one `try` whose
+    # `except ImportError` sets `INSTALLED = False`, so a bindings
+    # missing a single name of it costs not that one delegation but every
+    # one of them: the install answers on the Python arithmetic,
+    # silently, tens of times slower and not in constant time. A floor
+    # naming 0.8.0.3 while this tree imports `musig` describes exactly
+    # that install, which is issue #1116
+    "btclib_secp256k1>=0.8.0.4",
 ]
 
 [project.urls]
@@ -141,7 +150,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib_secp256k1>=0.8.0.3"]
+bindings = ["btclib_secp256k1>=0.8.0.4"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
@@ -192,21 +201,6 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
-
-[tool.uv.sources]
-# the bindings from their own main, so that an entry point merged there is
-# callable here before a release carries it -- `xonly.tweak_add_` is the
-# one the floor above names. `[tool.uv]` is not distribution metadata, so
-# `dependencies` still publishes a plain floor and PyPI still accepts a
-# release; a direct reference in `dependencies` would have to be written
-# back over at release time, and was, twice.
-#
-# What it costs: no wheel, so the bindings are built from source in every
-# environment, submodule and C library included. And `uv.lock` pins the
-# resolved commit while every job passes `--locked`, so main is followed
-# when the lock is regenerated and not before -- which is the point. Drop
-# this table once the floor names a version PyPI serves.
-btclib_secp256k1 = { git = "https://github.com/btclib-org/btclib-secp256k1.git", branch = "main" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]

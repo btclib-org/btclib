@@ -572,8 +572,10 @@ jobs:
       # are `Requires-Dist ... ; extra == "secp256k1"` now, so a wheel
       # installed without it declares nothing to resolve and the question
       # goes unasked. `--extra secp256k1` on the export is what puts the
-      # bindings in the constraints, the direct reference below being
-      # where their version comes from
+      # bindings in the constraints, at the version uv.lock resolved: a
+      # version and not a git commit, pyproject.toml carrying no source
+      # table, which is what makes the bindings this step installs the
+      # published ones its own name claims (issue #1116)
       # The lock arrives as constraints and not as requirements: a
       # requirements file installs the bindings whether or not the wheel
       # asks for them, so a wheel declaring nothing would pass. A
