@@ -2094,6 +2094,28 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **`musig2.nonce_gen` and `sign` are not delegated to the bindings,
+  btclib grows no private-key class, and curve arithmetic stays on
+  `int`** (issue #1050). The three reduce to one: delegating MuSig2's
+  secret half would put `musig_nonce_gen`'s opaque, implementation-defined
+  secnonce in `btclib.ecc.musig2`'s public API, against
+  `btclib/psbt/musig2.py`'s own decision to hold no session state at
+  all, and buy only that `k_1` and `k_2` stop being Python `int`s --
+  `int_from_prv_key` already produces an unzeroizable one from the
+  private key on the delegated path too, so neither arm can zeroize it
+  either way. That gain is measured against `sign`'s own line, `s =
+  (k_1_ + values.b * k_2_ + values.e * a * d) % secp256k1.n`
+  (`btclib/ecc/musig2.py:812`): 1.016x over uniform scalars in
+  `[1, n-1]`, the point-multiplication side having been regular since
+  #254 already -- not worth the API shape, and the same reasoning is
+  why the library holds no private-key class and no `bytes`-backed
+  curve arithmetic either, both needing exactly the delegation declined
+  here. `SECURITY.md` carries the full reasoning where it already
+  publishes the Python arm's other limitations, including why
+  `btclib_secp256k1` itself takes the equivalent opaque handle for
+  `musig_keyagg_cache` and `musig_session` without landing on a
+  different answer -- those have no octets form at all, where an `int`
+  here already does the job. No behaviour changes.
 - **`btclib.kdf` is the key derivation functions, and it holds RFC
   5869's HKDF beside SEC 1's `ansi_x9_63_kdf`** (issue #1080).
   `hkdf_extract` concentrates the entropy of input keying material into
