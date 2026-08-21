@@ -47,22 +47,23 @@ Telling these apart is most of what can go wrong when cutting a release.
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
 - **`2026.8.4.dev701`** is a rehearsal, and nobody types it either half
-  at a time: `.dev<run*100+attempt>` is the template the `build` job
-  patches into `pyproject.toml` when `workflow_dispatch` starts the
+  at a time: `.dev<run*100+attempt>` is the template `version-check`
+  computes and the `dev-version` action patches into `pyproject.toml`
+  in test.yml's `dist` job when `workflow_dispatch` starts the
   workflow, `github.run_number` counted for `release.yml` alone and
   `github.run_attempt` counted for one dispatch of it, so the seventh
   such run's first attempt, rehearsing `2026.8.4`, produces exactly
   that. The multiplier is what makes a re-run a version of its own
-  rather than a collision: a re-run keeps the run's own number and only
-  raises the attempt, so the run number alone was identical across
-  every re-run of one dispatch and PEP 440 could not tell them apart.
-  Placing the attempt below the run number's own place value keeps a
-  run's later attempts sorting after its earlier ones and before the
-  next run's, the attempt therefore capped at two digits and the
-  workflow refusing a hundredth rather than silently wrapping into the
-  next run's range. Nothing commits the result: `uv lock` runs straight
-  after, so the lockfile the sdist ships agrees with the version it is
-  named for
+  rather than a collision (issue #1156): a re-run keeps the run's own
+  number and only raises the attempt, so the run number alone was
+  identical across every re-run of one dispatch and PEP 440 could not
+  tell them apart. Placing the attempt below the run number's own place
+  value keeps a run's later attempts sorting after its earlier ones and
+  before the next run's, the attempt therefore capped at two digits and
+  the workflow refusing a hundredth rather than silently wrapping into
+  the next run's range. Nothing commits the result: `uv lock` runs
+  straight after, so the lockfile the sdist ships agrees with the
+  version it is named for
 - **`2026.8.4rc1`**, and a `v2026.8.4rc1` tag, have no place in this
   scheme: there is no pre-release here, only a version not yet tagged.
   `version-check` refuses anything that is not digits and dots, which
@@ -107,9 +108,9 @@ Already done for btclib-org/btclib; kept here for the record.
 ## Rehearse on TestPyPI
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
-packaging checks of the `dist` job (twine, check-wheel-contents,
-pyroma), build (which runs those same three checks again, on the files
-it is about to publish), wheel smoke test — and publishes to
+`dist` job's build, its packaging checks (twine, check-wheel-contents,
+pyroma) and its two wheel smoke tests, one pinned by `uv.lock` and one
+unconstrained — and publishes the very files those checks passed to
 [TestPyPI](https://test.pypi.org/project/btclib/) instead of PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
@@ -514,9 +515,11 @@ to `latest`'s own result.
 
 ## Rebuild a release from its tag
 
-The `build` job exports `SOURCE_DATE_EPOCH` from the commit date and
+test.yml's `dist` job exports `SOURCE_DATE_EPOCH` from the commit date and
 normalizes the sdist, so a rebuild of a released tag is the same bytes as
-what was published. Anyone can check that, and the check is one command
+what was published — that job's own upload is what `publish-pypi`
+publishes, unchanged, so "what was published" and "what that job built"
+are the same files (issue #1166). Anyone can check that, and the check is one command
 short of the provenance one above: verify the *rebuilt* file rather than a
 downloaded one, and it can only pass if the digests agree. A release whose
 assets carry `<tag>.attestation.jsonl` has the signed statement on disk

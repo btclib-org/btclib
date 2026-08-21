@@ -12,7 +12,7 @@ licence, the two files and their digests, and every dependency their
 metadata declares.
 
 **The wheel's metadata is the source, not pyproject.toml.** They agree on
-a release and not in a rehearsal, where the `build` job appends
+a release and not in a rehearsal, where test.yml's `dist` job appends
 `.dev<run*100+attempt>` to the version before building: the document has to
 describe the files beside it, so it reads the archive it is given. Which
 also means the only version it can report for a dependency is the one the
@@ -22,8 +22,8 @@ be a claim the wheel does not make. A requirement pinned with `==` gets a
 `version`; anything else gets the specifier as a property and no version.
 
 **It is reproducible, like the files it describes.** The timestamp is
-`SOURCE_DATE_EPOCH`, which the `build` job exports from the commit date
-for the wheel and the sdist normalizer, and the serial number is a UUID5
+`SOURCE_DATE_EPOCH`, which test.yml's `dist` job exports from the commit
+date for the wheel and the sdist normalizer, and the serial number is a UUID5
 over the purl and the two digests -- so a rebuild of a tag writes the same
 bytes here too, and the attestation over the release assets covers this
 file as well. Nothing is read from the clock, and nothing is random:
