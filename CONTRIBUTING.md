@@ -491,16 +491,26 @@ uv lock --check
 uv version --short
 ```
 
-Its build job then repeats the smoke test above on the wheel it uploads,
-which is not the one `dist` built, and repeats it without the
-constraints. No pull request waits on that job and no branch rule names
-it, where `publish-testpypi` and `publish-pypi` both have it in `needs`:
-so it is the place to ask whether the newest published bindings satisfy
-the artifact, and a release stopping on that answer is the outcome
-wanted. It runs after the upload rather than before, the artifact being
-what the publish jobs download: installing a dependency executes its
-code, and a compromised one must not reach a `dist/` that has still to
-be handed on.
+Its `build` job runs the same twine, check-wheel-contents and pyroma
+commands above again too, on the files it is about to publish rather
+than on `dist`'s own copy (issue #1154):
+
+```shell
+uv run --locked --only-group check twine check --strict dist/*
+uv run --locked --only-group check check-wheel-contents dist/*.whl
+uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
+```
+
+It then repeats the smoke test above on the wheel it uploads, which is
+not the one `dist` built, and repeats it without the constraints. No
+pull request waits on that job and no branch rule names it, where
+`publish-testpypi` and `publish-pypi` both have it in `needs`: so it is
+the place to ask whether the newest published bindings satisfy the
+artifact, and a release stopping on that answer is the outcome wanted.
+Both run after the upload rather than before, the artifact being what
+the publish jobs download: installing a dependency executes its code,
+and a compromised one must not reach a `dist/` that has still to be
+handed on.
 
 What that job builds is reproducible, and the two steps that make it so
 are the two lines below — the first is why two checkouts of one commit
