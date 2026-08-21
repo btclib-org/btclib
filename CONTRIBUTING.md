@@ -441,7 +441,13 @@ for the `secp256k1` extra — which those commands name on both sides, a
 wheel installed without it declaring nothing to resolve. The lock
 arrives as constraints, which bind a version without
 requesting a package, so a release of the bindings cannot turn a required
-check red while the wheel's own metadata still does the work. They run
+check red while the wheel's own metadata still does the work. That the
+bindings then *serve* is asserted rather than assumed: with the extra
+resolving to nothing, or to a release this tree cannot import, btclib
+falls back to the Python arithmetic and answers the version and the
+signature correctly — the supported configuration `no-bindings` runs the
+whole suite in — so the assertion is the only thing between that
+resolution and a green check. They run
 from an empty directory, or the import finds the source tree instead of
 the wheel:
 
@@ -461,10 +467,13 @@ cd "$tmp" && uv venv &&
     set -- "$OLDPWD"/dist/*.whl &&
     uv pip install --constraints constraints.txt "$1[secp256k1]" &&
     .venv/bin/python -c "import btclib; \
+      from btclib.curves import is_libsecp256k1_serving; \
       from btclib.ecc import dsa; \
       from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
+      assert is_libsecp256k1_serving(), \
+        'the secp256k1 extra resolved, the bindings do not serve'; \
       assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
         dsa.sign(b'btclib', 1))"
 ```

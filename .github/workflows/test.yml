@@ -592,15 +592,38 @@ jobs:
       # resolves to a release, and a release does not move.
       # Whether the newest bindings still work is asked on a schedule by
       # latest.yml, and again by the release workflow before it publishes.
-      # The assertions are three, because each catches what the others
-      # miss: the version is asserted and not merely printed, since
-      # btclib.__version__ falls back to "unknown" with no metadata
-      # installed (issue #150), so a wheel shipping none would print that
-      # and pass; `btclib.ecc.dsa` is imported because `import btclib`
-      # runs only __init__.py, which reads that metadata and touches no
-      # binding, so the bindings could be missing entirely; and a
+      # Each assertion catches what the others miss: the version is
+      # asserted and not merely printed, since btclib.__version__ falls
+      # back to "unknown" with no metadata installed (issue #150), so a
+      # wheel shipping none would print that and pass; `btclib.ecc.dsa`
+      # is imported because `import btclib` runs only __init__.py, which
+      # reads that metadata and touches no binding, so the bindings could
+      # be missing entirely; the bindings are asserted to be serving
+      # because nothing else here notices when they are not; and a
       # signature is verified because an installable release of them with
-      # an incompatible API imports fine and answers wrongly
+      # an incompatible API imports fine and answers wrongly.
+      # The serving one is issue #1117, and what it guards here is not
+      # what it guards in release.yml's unconstrained copy. The
+      # constraints bind a version and request no package, so the only
+      # thing that installs the bindings at all is the wheel's own
+      # `Requires-Dist` for the extra: a wheel that stopped declaring it
+      # resolves nothing, and a btclib_secp256k1 the lock pins that this
+      # tree cannot import lands in `_libsecp256k1`'s `except
+      # ImportError`. Either way `is_libsecp256k1_serving` is False while
+      # the Python arithmetic answers the version and the signature
+      # correctly -- that arm being supported is what the `no-bindings`
+      # job above exists for -- so both would pass unnoticed. Both are
+      # the tree's own state and not the index's, which is what makes the
+      # assertion fit for a required check: what it cannot say is whether
+      # the *newest* bindings serve, which is release.yml's copy and
+      # latest.yml's job.
+      # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
+      # installed and not refused, so it implies the other, and it is the
+      # public reading of the seam every dispatch consults -- the same
+      # name the `no-bindings` job asserts the negative of. Asserted
+      # before the signature because it is what gives that signature its
+      # meaning: verified by libsecp256k1 here rather than by the Python
+      # arm it would otherwise silently be
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           uv export --locked --no-dev --extra secp256k1 \
@@ -617,10 +640,13 @@ jobs:
           set -- "$GITHUB_WORKSPACE"/dist/*.whl
           uv pip install --constraints constraints.txt "$1[secp256k1]"
           .venv/bin/python -c "import btclib; \
+            from btclib.curves import is_libsecp256k1_serving; \
             from btclib.ecc import dsa; \
             from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
+            assert is_libsecp256k1_serving(), \
+              'the secp256k1 extra resolved, the bindings do not serve'; \
             assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
               dsa.sign(b'btclib', 1))"
 

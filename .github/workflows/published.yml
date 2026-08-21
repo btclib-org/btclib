@@ -159,10 +159,18 @@ jobs:
         run: |
           uv venv --python ${{ matrix.python }}
           uv pip install --verbose btclib
-      # BIP340 vector 0 for the ecc surface, exactly what dist and
-      # release.yml already assert; a signature round trip is the one
-      # thing an import cannot get wrong by itself, and a bindings release
-      # that installs and answers incorrectly is what this catches
+      # the ecc surface, as dist and release.yml assert it: a signature
+      # round trip is the one thing an import cannot get wrong by itself,
+      # and a bindings release that installs and answers incorrectly is
+      # what this catches.
+      # Those two assert one thing more, that the bindings are serving
+      # (issue #1117), and this deliberately does not: the install above
+      # names btclib and no extra, so the bindings are not asked for and
+      # nothing here is entitled to them. That is the supported
+      # configuration of issues #990, #991 and #992 -- the one
+      # `no-bindings` runs the suite in -- and what it makes this step
+      # answer is that the published wheel works on the Python arithmetic
+      # alone, which is the question a bare `pip install btclib` asks
       - name: Verify a signature, round tripped
         shell: bash
         run: |
