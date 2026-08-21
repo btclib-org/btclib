@@ -46,15 +46,23 @@ Telling these apart is most of what can go wrong when cutting a release.
 - **`v2026.8.4`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
-- **`2026.8.4.dev7`** is a rehearsal, and nobody types it either half at
-  a time: `.dev<run number>` is the template the `build` job patches into
-  `pyproject.toml` when `workflow_dispatch` starts the workflow, the
-  number being `github.run_number` counted for `release.yml` alone, so
-  the seventh such run rehearsing `2026.8.4` produces exactly that. The
-  count is what makes a rehearsal's version unique, and what makes
-  re-running a finished one collide with itself rather than mint a new
-  one. Nothing commits the result: `uv lock` runs straight after, so the
-  lockfile the sdist ships agrees with the version it is named for
+- **`2026.8.4.dev701`** is a rehearsal, and nobody types it either half
+  at a time: `.dev<run*100+attempt>` is the template the `build` job
+  patches into `pyproject.toml` when `workflow_dispatch` starts the
+  workflow, `github.run_number` counted for `release.yml` alone and
+  `github.run_attempt` counted for one dispatch of it, so the seventh
+  such run's first attempt, rehearsing `2026.8.4`, produces exactly
+  that. The multiplier is what makes a re-run a version of its own
+  rather than a collision: a re-run keeps the run's own number and only
+  raises the attempt, so the run number alone was identical across
+  every re-run of one dispatch and PEP 440 could not tell them apart.
+  Placing the attempt below the run number's own place value keeps a
+  run's later attempts sorting after its earlier ones and before the
+  next run's, the attempt therefore capped at two digits and the
+  workflow refusing a hundredth rather than silently wrapping into the
+  next run's range. Nothing commits the result: `uv lock` runs straight
+  after, so the lockfile the sdist ships agrees with the version it is
+  named for
 - **`2026.8.4rc1`**, and a `v2026.8.4rc1` tag, have no place in this
   scheme: there is no pre-release here, only a version not yet tagged.
   `version-check` refuses anything that is not digits and dots, which
@@ -63,7 +71,7 @@ Telling these apart is most of what can go wrong when cutting a release.
   comparison against it burning a version `--pre` installs would then
   resolve
 
-PEP 440 sorts `2026.8.4.dev7` before `2026.8.4`, so a rehearsal never
+PEP 440 sorts `2026.8.4.dev701` before `2026.8.4`, so a rehearsal never
 shadows the release it rehearses. `git tag` on its own does not read
 the numbers the same way: measured, `v2026.10` lists before `v2026.7`,
 alphabetically rather than chronologically. `git tag --sort=v:refname`
@@ -110,10 +118,12 @@ it is about to publish), wheel smoke test — and publishes to
    to be dispatched at all, which is the paragraph at the top of this
    file, but it runs against whichever branch is picked.
 
-1. The workflow appends `.dev<run number>` to the version, so every
-   rehearsal is unique on TestPyPI and sorts before the release it
-   rehearses. Re-running a finished rehearsal would reuse its run
-   number and be refused by TestPyPI: dispatch a fresh run instead.
+1. The workflow appends `.dev<run*100+attempt>` to the version, so
+   every rehearsal is unique on TestPyPI and sorts before the release
+   it rehearses, re-runs included: a re-run raises only
+   `github.run_attempt`, which the run number is multiplied by 100 to
+   make room for, so re-running a failed or finished rehearsal mints
+   its own version instead of colliding with the one it repeats.
 
 1. Check the upload on <https://test.pypi.org/project/btclib/>, and
    optionally install it (its dependencies come from the real PyPI):
@@ -122,7 +132,7 @@ it is about to publish), wheel smoke test — and publishes to
    uv run --isolated --no-project \
      --index https://test.pypi.org/simple/ \
      --index-strategy unsafe-best-match \
-     --with btclib==<version>.dev<run number> \
+     --with btclib==<version>.dev<run*100+attempt> \
      python -c "import btclib; print(btclib.__version__)"
    ```
 
@@ -393,7 +403,7 @@ to `latest`'s own result.
    whose claims do not match fails there having uploaded nothing, and
    the version survives — delete the tag, fix the registration, tag
    again. The same holds for a rehearsal failing the same way on
-   TestPyPI: its `.dev<run number>` is not consumed either, and `gh run
+   TestPyPI: its `.dev<run*100+attempt>` is not consumed either, and `gh run
    rerun --failed` re-runs the publish job alone, against the artifacts
    already built, rather than the whole matrix again. The upload itself
    is the point of no return, PyPI accepting no file name twice even
@@ -460,6 +470,20 @@ to `latest`'s own result.
    requirement is a `==` pin, a floor being a range and not a version.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
+
+   **Neither sibling repository carries one, on purpose.**
+   bitcoin-core-rpc declares `dependencies = []`, and `published.yml`
+   already asserts that against the installed package on every run; a
+   bill of materials there would be an empty `components` list restating
+   a fact CI checks more directly. btclib-secp256k1's interesting
+   dependency is the vendored, statically-linked libsecp256k1 C library
+   pinned in its `secp256k1` submodule, which this generator cannot
+   describe — it reads `Requires-Dist`, and the submodule is not a
+   Python dependency. A bill of materials built the way this one is
+   would name `cffi` and say nothing about the pin a verifier of that
+   package would most want described, which is worse than omitting the
+   document. See issue #1159 for the evaluation and what would change
+   it.
 
 1. Read the release run's `published` job, which is this workflow called
    with the tag rather than a dispatch to remember: it has no checkout, so
@@ -538,10 +562,10 @@ a mismatch as tampering:
   saw. A mismatch dates the rebuild before it accuses anyone; pinning the
   backend to a version is the fix, and the cost is a floor that ages.
 - **the rehearsal is a different version, by construction.** A TestPyPI
-  dispatch appends `.dev<run number>` to the version, so its files are not
-  a second build of the release's — they are their own artifact, published
-  where they say they are. The attestation the rehearsal writes covers
-  those, and no digest is shared with the release.
+  dispatch appends `.dev<run*100+attempt>` to the version, so its files
+  are not a second build of the release's — they are their own artifact,
+  published where they say they are. The attestation the rehearsal
+  writes covers those, and no digest is shared with the release.
 
 `btclib_secp256k1` is not a third bound. It is a runtime dependency,
 resolved by whoever installs the wheel, and the only trace of it in either
@@ -591,5 +615,51 @@ above needs no `uv sync` to produce the published bytes.
   and publish a new patch version (`2026.8.4` → `2026.8.4.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already
-  done; re-run the failed job, or create the release by hand from the
-  `dist` artifact of the run.
+  done. `gh run rerun <run id> --failed` reaches it when the run marks
+  it *failed* — a dependent of a failed job is reached too, which is
+  what usually gets `github-release` from `attest` or `publish-pypi`
+  failing under it. It does not reach a job the run marks *skipped*:
+  a skip is neither a failure nor within that flag's blast radius,
+  which is how v2026.8.21 kept a version on PyPI and no release at
+  all through two reruns (issue #1142; the comment on
+  `github-release`'s `if` in `release.yml` has the measurement). A
+  skipped job needs the recovery below, same as a failed one
+  `--failed` did not reach.
+
+  Either way, the recovery is a release built from the run's own
+  artifacts by hand — three of them, `dist`, `sbom` and `attestation`,
+  not the one `dist` alone:
+
+  ```shell
+  run_id=<the release.yml run>
+  version=<the released version, e.g. 2026.8.4>
+  tag="v$version"
+  gh run download "$run_id" -n dist -n sbom -n attestation
+  ```
+
+  Check the distribution files against the digests PyPI already
+  published for them, before attaching anything: it is what makes
+  "the release carries what the index serves" a fact rather than an
+  assumption, and PyPI accepts no second upload to compare them
+  against.
+
+  ```shell
+  for f in dist/*.whl dist/*.tar.gz; do
+    sha=$(curl -sf "https://pypi.org/pypi/btclib/$version/json" |
+      jq -r --arg n "$(basename "$f")" \
+        '.urls[] | select(.filename==$n) | .digests.sha256')
+    echo "$sha  $f" | sha256sum -c -
+  done
+  ```
+
+  Then attach the same three: the bundle renamed as the job renames
+  it, and every file in the order the "Rebuild a release from its
+  tag" section above verifies them in — wheel, sdist, bill of
+  materials:
+
+  ```shell
+  mv attestation/attestation.jsonl "$tag.attestation.jsonl"
+  gh release create "$tag" dist/*.whl dist/*.tar.gz \
+    sbom/*.cdx.json "$tag.attestation.jsonl" \
+    --title "$tag" --notes-file <the tag's RELEASE_NOTES.md section>
+  ```

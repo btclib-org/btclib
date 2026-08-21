@@ -61,7 +61,59 @@ documented at release-notes length in the first place, and are still in
   while a skipped job is neither, which is why it left this one skipped on
   both attempts.
 
+- **RELEASING.md's `github-release` recovery bullet names the full
+  asset set** (issue #1150). "create the release by hand from the
+  `dist` artifact of the run" named one artifact where the job
+  downloads three — `dist`, `sbom` and `attestation`, each uploaded by
+  a step of its own earlier in the same workflow — and a release built
+  by that instruction would carry the wheel and the sdist while
+  missing the bill of materials and the signed attestation bundle,
+  which the "Rebuild a release from its tag" section a few dozen lines
+  below already assumes with `--bundle <tag>.attestation.jsonl`. The
+  bullet now downloads and attaches all three, the distribution files
+  and the bill of materials in the order the "Rebuild" section's own
+  `gh attestation verify` calls check them — wheel, sdist, bill of
+  materials — with the bundle renamed as `github-release` renames it.
+  It also has the reader check the two distribution files against the
+  digests PyPI already published for them before attaching anything,
+  which is what makes "the release carries what the index serves" a
+  fact rather than an assumption, and states the limit of the other
+  recovery this same bullet names: `gh run rerun --failed` reaches a
+  job the run marks failed, not one it marks skipped, which is why it
+  did not recover `github-release` on either of the runs issue #1142
+  measured. That issue's own `if: always()` fix stops the skip from
+  recurring; the flag's reach is worth stating where a reader is sent
+  to it anyway.
+  Measured while recreating v2026.8.21 by hand after issue #1142: the
+  release wound up with four assets, not the two the old bullet would
+  have produced.
+
 ### Packaging, linting and CI
+
+- **`test.yml`'s and `lint.yml`'s concurrency groups take a
+  `concurrency-suffix` input, and `release.yml` passes `-release` at both
+  call sites; the key changes from `github.head_ref || github.ref` to
+  `github.event.pull_request.number || github.ref`** (issue #1158). Two
+  divergences, in the same lines. First: `release.yml` calls both
+  workflows, and inside a called workflow `github.ref` is the ref of the
+  release run itself — a `workflow_dispatch` rehearsal from `main`
+  computes `refs/heads/main`, the same group a push to `main` holds, with
+  `cancel-in-progress: true`, so one cancelled the other. Not exercised
+  directly — reproducing it costs an actual rehearsal race — but
+  `btclib-secp256k1` had already fixed it with the same
+  `concurrency-suffix` mechanism this copies. Second: `head_ref` is set
+  only for `pull_request` events and is the branch name, so two forks
+  each pushing a branch called, say, `patch-1` collide under it; the pull
+  request number does not repeat across forks. `head_ref` still beat a
+  bare `github.ref` on one count the surviving comment keeps: a closed,
+  merged pull request's event sets `github.ref` to the base branch, not
+  the merge ref, so the fallback still has to be something that gives a
+  closed `pull_request` event its own group, and the pull request number
+  does that too. `CLAUDE.md` is corrected in the same pull request: it
+  had been fixed once already, from `test-${{ github.ref }}` to the
+  `head_ref` form, by the survey behind
+  [ISS #1152](https://github.com/btclib-org/btclib/issues/1152), and this
+  change made that fix wrong a second time.
 
 - **`published.yml`'s steps declare `shell: bash`** (issue #1141). The
   matrix includes `windows-latest` and `windows-11-arm`, where the default
@@ -165,6 +217,64 @@ documented at release-notes length in the first place, and are still in
   and checked. Reaching that shape here needs `test.yml`'s artifact
   published instead of rebuilt, which is a larger change than this one;
   the issue is the record of it.
+- **A re-run of a finished TestPyPI rehearsal now gets a version of its
+  own** (issue #1156). The suffix was `.dev<run number>`, and a re-run
+  keeps `github.run_number` and only raises `github.run_attempt`,
+  so re-running a rehearsal rebuilt the same version and TestPyPI
+  refused the upload after the whole matrix ran again. `RELEASING.md`'s
+  answer had been a warning to dispatch a fresh run instead of
+  re-running one — a rule to remember at the moment a failed rehearsal
+  is least likely to leave room for it. Fixed the way both sibling
+  repositories' `release.yml` already were (`btclib-secp256k1` first,
+  then `bitcoin-core-rpc`'s issue #157): the suffix is
+  `.dev<run*100+attempt>`, the multiplier keeping every attempt of
+  every run both unique and PEP 440-ordered — attempt 2 of run 7 still
+  sorts after every attempt of run 6 — and the step refuses outright
+  past the two digits it reserves for the attempt rather than wrapping
+  into another run's range. `RELEASING.md`'s warning goes with it, the
+  rule it stated no longer being true, and every other place stating
+  the old template — `generate_sbom.py` and its test among them — now
+  states the new one.
+- **`published.yml` gets a second job that installs `btclib[secp256k1]`
+  from the index and checks the bindings serve** (issue #1143).
+  `install-published` names no extra, deliberately: it answers whether
+  the supported no-bindings configuration of issues #990, #991 and #992
+  installs and works, and asserting the bindings there would contradict
+  that configuration. Nothing else asked the question a user who wants
+  the bindings actually types, and its failure is silent —
+  `btclib/_libsecp256k1.py` answers a resolution it cannot import with
+  `INSTALLED = False`, no error and no warning, so a pair broken on the
+  index degrades to the Python arithmetic, tens of times slower and not
+  constant-time, while every check `install-published` runs still
+  passes. Issue #1116 was exactly that state, live on `main`, and only
+  the pre-upload smoke tests of `test.yml`'s `dist` job and `release.yml`'s
+  `build` job — issue #1117 — catch the version *about to be* published;
+  nothing watched the pair afterwards, and it can break on either side's
+  release day without this repository changing at all.
+
+  A job of its own, not a second cell of the existing matrix: doubling
+  the base matrix's os and python axes asks a question that does not
+  vary by interpreter on every cell the no-bindings question already
+  uses, where a job scoped to its own matrix asks it on the cells that
+  do vary for it. Measured against
+  `https://pypi.org/pypi/btclib-secp256k1/json` for the newest release,
+  0.8.0.4: every platform `install-published` already covers has a wheel
+  for every supported interpreter, so the new job keeps that job's full
+  platform axis — a broken pair can hide behind a platform the bindings
+  build independently, a manylinux, a macOS universal2 and a Windows
+  build each being their own job in the bindings' own release workflow —
+  and drops the interpreter axis to one value, 3.14, which also
+  sidesteps `install-published`'s own Windows-arm64-below-3.11 workaround
+  rather than exercising it a second time. `--only-binary` on both
+  `btclib` and `btclib_secp256k1`, for the same reason `install-published`
+  already constrains `btclib` alone (issue #1153): without it, a wheel the
+  bindings have not published for a cell demotes the install to a source
+  build — a C toolchain question a hosted runner may or may not answer —
+  and the run would stay green while never having asked whether a
+  published wheel imports. Both triggers, the schedule and the call from
+  `release.yml`, are inherited from the workflow rather than argued
+  separately: the pair can break on the bindings' release day as well as
+  on btclib's, and a job added to `published.yml` gets both for free.
 
 - **`documented`'s polling loop can no longer spend the whole job
   timeout** (btclib-org/.github#18). The loop and `timeout-minutes: 20`
