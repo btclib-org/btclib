@@ -615,5 +615,51 @@ above needs no `uv sync` to produce the published bytes.
   and publish a new patch version (`2026.8.4` → `2026.8.4.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already
-  done; re-run the failed job, or create the release by hand from the
-  `dist` artifact of the run.
+  done. `gh run rerun <run id> --failed` reaches it when the run marks
+  it *failed* — a dependent of a failed job is reached too, which is
+  what usually gets `github-release` from `attest` or `publish-pypi`
+  failing under it. It does not reach a job the run marks *skipped*:
+  a skip is neither a failure nor within that flag's blast radius,
+  which is how v2026.8.21 kept a version on PyPI and no release at
+  all through two reruns (issue #1142; the comment on
+  `github-release`'s `if` in `release.yml` has the measurement). A
+  skipped job needs the recovery below, same as a failed one
+  `--failed` did not reach.
+
+  Either way, the recovery is a release built from the run's own
+  artifacts by hand — three of them, `dist`, `sbom` and `attestation`,
+  not the one `dist` alone:
+
+  ```shell
+  run_id=<the release.yml run>
+  version=<the released version, e.g. 2026.8.4>
+  tag="v$version"
+  gh run download "$run_id" -n dist -n sbom -n attestation
+  ```
+
+  Check the distribution files against the digests PyPI already
+  published for them, before attaching anything: it is what makes
+  "the release carries what the index serves" a fact rather than an
+  assumption, and PyPI accepts no second upload to compare them
+  against.
+
+  ```shell
+  for f in dist/*.whl dist/*.tar.gz; do
+    sha=$(curl -sf "https://pypi.org/pypi/btclib/$version/json" |
+      jq -r --arg n "$(basename "$f")" \
+        '.urls[] | select(.filename==$n) | .digests.sha256')
+    echo "$sha  $f" | sha256sum -c -
+  done
+  ```
+
+  Then attach the same three: the bundle renamed as the job renames
+  it, and every file in the order the "Rebuild a release from its
+  tag" section above verifies them in — wheel, sdist, bill of
+  materials:
+
+  ```shell
+  mv attestation/attestation.jsonl "$tag.attestation.jsonl"
+  gh release create "$tag" dist/*.whl dist/*.tar.gz \
+    sbom/*.cdx.json "$tag.attestation.jsonl" \
+    --title "$tag" --notes-file <the tag's RELEASE_NOTES.md section>
+  ```
