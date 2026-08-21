@@ -16,6 +16,8 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.9 (work in progress, not released yet)
+
 ## v2026.8.21
 
 ### Breaking changes
