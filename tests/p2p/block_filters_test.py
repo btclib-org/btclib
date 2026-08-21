@@ -329,9 +329,12 @@ def test_an_unknown_filter_type_round_trips_as_an_integer() -> None:
 
     "Nodes receiving `getcfilters` with an unsupported filter type SHOULD
     NOT respond" can only be obeyed by something that has read the
-    message, and Core reads it the same way: the octet is cast to
-    `BlockFilterType` and `PrepareBlockFilterRequest` refuses the request
-    afterwards.
+    message, and Core reads the three requests that way: the octet is
+    cast to `BlockFilterType` and `PrepareBlockFilterRequest` disconnects
+    the peer afterwards. Its `BlockFilter::Unserialize` refuses one
+    instead, because it builds the Golomb parameters as it reads -- which
+    is what `basic_filter` defers, and what lets a `cfilter` of any type
+    be held here.
     """
     for payload in (
         GetCFilters(_UNKNOWN_TYPE),
@@ -355,9 +358,10 @@ def test_an_unknown_filter_type_round_trips_as_an_integer() -> None:
 def test_the_table_names_the_one_code_bip158_defines() -> None:
     """`INVALID = 255` is Core's sentinel and is not a wire code.
 
-    `BlockFilterTypeByName` sets it on a name it cannot match, which is a
-    variable with no filter type in it rather than something a peer
-    sends; naming it here would publish a code the protocol has not got.
+    It is what `BlockFilter::m_filter_type` is initialized to and the one
+    case `BuildParams` answers false for: a filter with no type rather
+    than a type a peer sends, so naming it here would publish a code the
+    protocol has not got.
     """
     assert [member.name for member in BlockFilterType] == ["BASIC"]
     assert 255 not in set(BlockFilterType)

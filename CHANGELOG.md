@@ -4687,11 +4687,15 @@ documented at release-notes length in the first place, and are still in
   in `InventoryType` -- and BIP157's own text is what decides it rather
   than that precedent: "Nodes receiving `getcfilters` with an unsupported
   filter type SHOULD NOT respond" is a rule about answering, which only
-  something that has read the message can apply. Core reads it the same
-  way, casting the octet and leaving `PrepareBlockFilterRequest` to
-  refuse the request. `BlockFilterType` therefore names `BASIC` alone:
-  Core's `INVALID = 255` is the sentinel a variable holds when there is
-  no filter type, not a code a peer sends.
+  something that has read the message can apply. Core reads the three
+  requests the same way, casting the octet and leaving
+  `PrepareBlockFilterRequest` to disconnect the peer. Its `BlockFilter`
+  refuses an unknown type where btclib holds it -- `Unserialize` throws
+  "unknown filter_type" -- because it builds the Golomb parameters as it
+  reads, which is the work `basic_filter` defers.
+  `BlockFilterType` therefore names `BASIC` alone: Core's `INVALID = 255`
+  is what `BlockFilter::m_filter_type` is initialized to, not a code a
+  peer sends.
 
   **`cfheaders` stores the filter hashes the wire holds and derives the
   headers**, which is issue #1101's answer to the same question about

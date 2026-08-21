@@ -46,16 +46,27 @@ what `InventoryType` and BIP155's network id do here, and BIP157's own
 text is what decides it rather than that precedent: "Nodes receiving
 `getcfilters` with an unsupported filter type SHOULD NOT respond" is a
 rule about answering, and a rule about answering can only be applied by
-something that has read the message. Core reads it the same way, casting
-the octet to `BlockFilterType` and leaving `PrepareBlockFilterRequest` to
-refuse the request afterwards.
+something that has read the message. Core reads the three requests that
+way, `ProcessGetCFilters` casting the octet to `BlockFilterType` and
+`PrepareBlockFilterRequest` disconnecting the peer afterwards.
+
+Core's `BlockFilter`, which serializes the very octets a `cfilter`
+carries, does refuse an unknown type instead -- `Unserialize` throws
+`std::ios_base::failure("unknown filter_type")` -- and the reason is the
+line after it: it builds the Golomb parameters on the spot, and
+`BuildParams` has none for a type it does not know. That is the work this
+module defers to `basic_filter`, which is why the same octets can be held
+here and cannot be held there; Core needs no receiving path for a
+`cfilter` at all, being the server of these six messages rather than the
+client.
 
 `BlockFilterType` therefore names `BASIC` and nothing else. Core's own
-enum has a second member, `INVALID = 255`, and it is not here: it is the
-sentinel a `BlockFilterType` variable holds when there is no filter type,
-where BIP158 defines the one code the protocol has -- the same reason
-`InventoryType` does not name the composite BIP144 reserved and Core
-carries commented out.
+enum has a second member, `INVALID = 255`, and it is not here: it is what
+`BlockFilter::m_filter_type` is initialized to and the case `BuildParams`
+returns false for -- a filter with no type rather than a type a peer
+sends -- where BIP158 defines the one code the protocol has. The same
+reason `InventoryType` does not name the composite BIP144 reserved and
+Core carries commented out.
 
 **`cfheaders` stores the filter hashes it carries, and derives the
 headers.** The message holds a previous filter header and a vector of
@@ -160,9 +171,9 @@ class BlockFilterType(IntEnum):
     `BASIC` and nothing after it.
 
     Core's enum has a second member, `INVALID = 255`, and it is not here.
-    That value is what a `BlockFilterType` variable holds when there is
-    no filter type -- `BlockFilterTypeByName` sets it on a name it cannot
-    match -- rather than a code a peer may send, and a library naming it
+    That value is what `BlockFilter::m_filter_type` is initialized to and
+    the one case `BuildParams` answers false for -- a filter that has no
+    type, rather than a type a peer may send -- and a library naming it
     would be publishing a code the protocol has not got. `InventoryType`
     leaves out the composite BIP144 reserved for the same reason.
 
@@ -391,6 +402,11 @@ class CFilter(Payload):
         them here would make the same octets parse under a type code
         nobody has defined and fail under the one that is. They
         round-trip either way, which is the property this package keeps.
+
+        Core's `BlockFilter::Unserialize` does the opposite and throws
+        "unknown filter_type", because it builds the Golomb parameters as
+        it reads; deferring that to `basic_filter` is the whole of the
+        difference, and the module docstring is where it is argued.
 
         Nor are they asked anything else. `bytes_from_octets` is what
         `__init__` coerced them with and there is no width they must
