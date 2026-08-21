@@ -39,6 +39,7 @@ from btclib.psbt.psbt import (
     HAS_SIG_HASH_SINGLE,
     INPUTS_MODIFIABLE,
     OUTPUTS_MODIFIABLE,
+    PSBT_GLOBAL_UNSIGNED_TX,
     PSBT_GLOBAL_VERSION,
     _sig_hash_from_psbt_in,
     _sort_or_shuffle,
@@ -86,10 +87,12 @@ def test_invalid_psbt_bip174(test_vector: dict[str, str]) -> None:
     """Each case must be refused, with the message this file records.
 
     The message is btclib's, not the BIP's, so the assert is what pins a
-    rejection to its reason, and each of the twenty is pinned to its own:
-    the `invalid value data` case is the transaction parser refusing the
-    thirty-nine octets left after the transaction its unsigned-tx value
-    holds, which is the malformation the description names.
+    rejection to its reason rather than to the fact of one. Two cases
+    share "superfluous witness record": the one the BIP describes as a
+    witness serialization, and the one it describes as a value whose size
+    is not the stated size -- whose transaction carries a marker over no
+    witness, which `Tx.parse` stops on before the size is anything
+    (issue 1104).
     """
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
@@ -2101,20 +2104,72 @@ def test_the_global_unsigned_tx_is_mandatory() -> None:
         Psbt.b64decode(no_tx)
 
 
+def _psbt_from_unsigned_tx_value(value: bytes) -> bytes:
+    """Return the smallest psbt carrying `value` as PSBT_GLOBAL_UNSIGNED_TX.
+
+    The two tests below hand it octets no encoder would write, which is
+    what a vector file usually holds; built here instead because what
+    each of them is about is a length, and a base64 string states one
+    where these state where it came from.
+    """
+    return (
+        b"psbt\xff"
+        + var_int.serialize(len(PSBT_GLOBAL_UNSIGNED_TX))
+        + PSBT_GLOBAL_UNSIGNED_TX
+        + var_bytes.serialize(value)
+        + PSBT_SEPARATOR
+    )
+
+
 def test_a_value_that_is_not_the_stated_size_says_so() -> None:
     """The size mismatch is what is reported, and by the parser itself.
 
     The value announces more octets than its transaction holds, and a
     value is one whole transaction: the thirty-nine left over are refused
-    where they are read. Were the length taken on trust, this vector would
-    be reported as "Missing inputs" -- true of it, and not what is wrong
-    with it. The round-trip comparison in deserialize_tx still has the
-    other shape to catch, a transaction that parses whole and
-    re-serializes to something else.
+    where they are read, rather than the length being taken on trust and
+    the remainder dropped in silence.
+
+    BIP174's "invalid value data due to its size being not the stated
+    size" is such a value and no longer reaches this refusal: its
+    transaction carries a witness marker over no witness at all, so
+    `Tx.parse` stops on that first (issue 1104). The shape is what this
+    test is about, so it builds one whose transaction is otherwise
+    well-formed.
     """
-    bad_size = "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF)],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    value = tx.serialize(include_witness=False) + b"\x00" * 39
     with pytest.raises(BTClibValueError, match="39 bytes after the transaction"):
-        Psbt.b64decode(bad_size)
+        Psbt.parse(_psbt_from_unsigned_tx_value(value))
+
+
+def test_an_unsigned_tx_that_re_serializes_to_something_else_is_refused() -> None:
+    """`deserialize_tx` compares the parse against the octets it read.
+
+    BIP174's global unsigned transaction is the stripped serialization,
+    which is why `deserialize_tx` is called with `include_witness` False
+    and compares: a value holding a witness serialization is a value the
+    psbt could not write back.
+
+    A witness carrying something is what reaches that comparison. A
+    template written in witness format has empty stacks by construction
+    -- it is unsigned -- so `Tx.parse` refuses it one layer down for the
+    encoding (issue 1104), and what is left here is the transaction that
+    parses whole and re-serializes to something else.
+    """
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF, Witness([b"\x03" * 64]))],
+        [TxOut(1, ScriptPubKey(b"\x51"))],
+    )
+    value = tx.serialize(include_witness=True)
+    with pytest.raises(BTClibValueError, match="wrong tx serialization format"):
+        Psbt.parse(_psbt_from_unsigned_tx_value(value))
 
 
 # issue 249: the finalizer against btclib's own script engine
