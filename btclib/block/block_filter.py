@@ -37,6 +37,7 @@ __all__ = [
     "BASIC_FILTER_P",
     "MAX_FILTER_ELEMENT_COUNT",
     "BasicBlockFilter",
+    "filter_header",
     "prevout_scripts_from_utxos",
 ]
 
@@ -188,6 +189,31 @@ def _hash_to_range(k0: int, k1: int, element: bytes, upper_bound: int) -> int:
     and Core's `FastRange64`.
     """
     return (siphash(k0, k1, element) * upper_bound) >> 64
+
+
+def filter_header(filter_hash: Octets, previous_header: Octets) -> bytes:
+    """Return the filter header chaining a filter hash onto the previous one.
+
+    Core's `BlockFilter::ComputeHeader`, and BIP157's definition: "the
+    double-SHA256 of the concatenation of the filter hash with the
+    previous filter header", both in the internal order -- so a header
+    commits to every filter down to genesis, which is what lets a light
+    client be told one hash and check the chain of filters against it.
+    The previous header of the genesis block's filter is thirty-two zero
+    octets.
+
+    Both arguments and the answer are in the display order every hash
+    this library hands out is in.
+
+    A function over a hash rather than a method on a filter, because that
+    is the general case: BIP157's `cfheaders` message carries the hashes
+    of filters its receiver has not got, and deriving the headers is the
+    whole of what it is for. `BasicBlockFilter.header` is this over a
+    filter that is at hand.
+    """
+    hash_ = bytes_from_octets(filter_hash, _HF_LEN)
+    previous = bytes_from_octets(previous_header, _HF_LEN)
+    return _HF(hash_[::-1] + previous[::-1])[::-1]
 
 
 def prevout_scripts_from_utxos(
@@ -472,12 +498,8 @@ class BasicBlockFilter:
     def header(self, previous_header: Octets) -> bytes:
         """Return the filter header that chains this filter to the previous.
 
-        Core's `BlockFilter::ComputeHeader`: the double SHA256 of this
-        filter's hash followed by the previous block's filter header,
-        both in the internal order -- so a header commits to every
-        filter down to genesis, which is what lets a light client be
-        told one hash and check the chain of filters against it. The
-        genesis block's previous header is thirty-two zero octets.
+        `filter_header` over this filter's own hash: the module function
+        is the general form, taking the hash a `cfheaders` message
+        carries where the filter itself was never sent.
         """
-        previous = bytes_from_octets(previous_header, _HF_LEN)
-        return _HF(self.hash[::-1] + previous[::-1])[::-1]
+        return filter_header(self.hash, previous_header)

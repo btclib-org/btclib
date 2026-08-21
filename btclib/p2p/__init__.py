@@ -55,6 +55,15 @@ from btclib.p2p.address import (
     TimestampedNetworkAddress,
 )
 from btclib.p2p.addrv2 import AddrV2, BIP155Network, NetworkAddressV2, SendAddrV2
+from btclib.p2p.block_filters import (
+    BlockFilterType,
+    CFCheckpt,
+    CFHeaders,
+    CFilter,
+    GetCFCheckpt,
+    GetCFHeaders,
+    GetCFilters,
+)
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -75,8 +84,15 @@ __all__ = [
     "Addr",
     "AddrV2",
     "BIP155Network",
+    "BlockFilterType",
     "BlockPayload",
+    "CFCheckpt",
+    "CFHeaders",
+    "CFilter",
     "GetBlocks",
+    "GetCFCheckpt",
+    "GetCFHeaders",
+    "GetCFilters",
     "GetData",
     "GetHeaders",
     "Headers",
