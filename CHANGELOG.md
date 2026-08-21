@@ -427,9 +427,9 @@ documented at release-notes length in the first place, and are still in
   where the default shell is PowerShell and `"$GITHUB_ENV"` and the rest
   of the POSIX spelling are literals rather than variables — the same
   defect ISS #1141 shipped in `published.yml`, in the two workflows the
-  sweep behind that fix found but did not open a diff on. All five
-  affected steps are one plain command each and run identically under
-  either shell today, so nothing shipped broken; the hazard is the next
+  sweep behind that fix found but did not open a diff on. All affected
+  steps are one plain command each and run identically under either
+  shell today, so nothing shipped broken; the hazard is the next
   conditional, substitution or loop added to one of them, which would
   fail only on Windows and only on a schedule or a tag, `latest.yml` and
   `windows.yml` running on neither a pull request nor a push to `main`.
