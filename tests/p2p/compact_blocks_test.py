@@ -655,6 +655,42 @@ def test_a_field_no_octets_could_hold_is_refused() -> None:
         PartialBlock(_BLOCK_1.header, ["not a transaction"])  # type: ignore[list-item]
 
 
+def test_reconstruct_says_what_it_was_handed_rather_than_reading_a_field() -> None:
+    """A free function taking a built object checks it, `psbt`'s does too.
+
+    CONTRIBUTING.md's "Every public function validates its inputs": what
+    a caller of this library catches is `BTClibTypeError` and
+    `BTClibValueError`, so "not a compact block at all" must not arrive
+    as an `AttributeError` about `tx_count`.
+    `tests/built_object_contract_test.py` is the gate over the family and
+    drives the two arguments whole; what is driven here is the entry of
+    the pool, which that table replaces as a unit.
+    """
+    compact_block = CmpctBlock(
+        _BLOCK_1.header, 0, [1], [PrefilledTransaction(0, _BLOCK_1.transactions[0])]
+    )
+
+    with pytest.raises(BTClibTypeError, match="invalid compact_block type"):
+        reconstruct("not a compact block")  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid pool type"):
+        reconstruct(compact_block, "ab")  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid pool transaction type"):
+        reconstruct(compact_block, ["not a transaction"])  # type: ignore[list-item]
+
+    # a pool entry is asked its type and not its validity: what
+    # `reconstruct` reads of one is its wtxid, and a mempool re-validated
+    # once per compact block is every transaction of it checked again
+    unchecked = Tx(1, 0, [], [], check_validity=False)
+    assert reconstruct(compact_block, [unchecked]).missing_indexes == [1]
+
+    # and `fill` asks the same of what it is handed, whatever the flag
+    partial = reconstruct(compact_block)
+    with pytest.raises(BTClibTypeError, match="invalid transaction type"):
+        partial.fill(["not a transaction"], check_validity=False)  # type: ignore[list-item]
+    with pytest.raises(BTClibTypeError, match="invalid transactions type"):
+        partial.fill("a", check_validity=False)  # type: ignore[arg-type]
+
+
 def test_a_payload_carries_the_command_bitcoin_core_spells() -> None:
     """The four names, which btclib_node misspells two of (its issue #12)."""
     assert SendCmpct.command == "sendcmpct"

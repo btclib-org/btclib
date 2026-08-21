@@ -272,10 +272,22 @@ def _short_id(key: tuple[int, int], wtxid: Octets) -> int:
     return digest & _MAX_SHORT_ID
 
 
-def _assert_valid_transaction(tx: Tx, what: str) -> None:
-    """Refuse what is no transaction, and no valid transaction."""
+def _assert_tx_type(tx: Tx, what: str) -> None:
+    """Refuse what is no transaction, saying nothing about whether it is valid.
+
+    The half of the check below that a caller of `reconstruct` gets:
+    what that function reads of a pool entry is `Tx.hash`, so what it
+    needs is that each entry is one -- and asking `assert_valid` of a
+    whole mempool would be re-checking every transaction its holder
+    already has, once per compact block that arrives.
+    """
     if not isinstance(tx, Tx):
         raise BTClibTypeError(f"invalid {what} type: {type(tx).__name__}")
+
+
+def _assert_valid_transaction(tx: Tx, what: str) -> None:
+    """Refuse what is no transaction, and no valid transaction."""
+    _assert_tx_type(tx, what)
     tx.assert_valid()
 
 
@@ -932,6 +944,13 @@ class PartialBlock:
         too.
         """
         supplied = _sequence_of(transactions, "transactions")
+        # the type and not the validity, and whatever `check_validity`
+        # says: what these are put into is a `Block`, whose own
+        # `assert_valid` is what asks the second question, and a
+        # `check_validity=False` that let something with no `serialize`
+        # into the list would answer for it with an `AttributeError`
+        for tx in supplied:
+            _assert_tx_type(tx, "transaction")
         missing = self.missing_indexes
         if len(supplied) != len(missing):
             err_msg = f"invalid transactions count: {len(supplied)}"
@@ -983,7 +1002,27 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
     "eating a round-trip due to FillBlock failure would be annoying".
     Taking the first match instead is the bug this shape exists to
     refuse.
+
+    The arguments are checked before any of that, which a free function
+    taking an object a caller already built has to do for itself: a
+    `CmpctBlock` is what the first has to be and a sequence of `Tx` the
+    second, so that "not a compact block at all" leaves as this library's
+    own exception rather than as an `AttributeError` about a field name.
+    `psbt.assert_signatures_only` is the precedent, and
+    `tests/built_object_contract_test.py` the gate over the family.
+
+    What is *not* re-asked is `CmpctBlock.assert_valid`: a message built
+    with `check_validity=False` is the caller's own here as everywhere
+    else in this library. `_assert_positions` is asked all the same,
+    being the one invariant the walk below rests on -- a prefilled index
+    outside the block is an `IndexError` and not an answer.
     """
+    if not isinstance(compact_block, CmpctBlock):
+        err_msg = f"invalid compact_block type: {type(compact_block).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    for tx in _sequence_of(pool, "pool"):
+        _assert_tx_type(tx, "pool transaction")
+
     count = compact_block.tx_count
     if not count:
         raise BTClibValueError("a compact block of no transactions")
