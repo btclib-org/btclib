@@ -11,7 +11,6 @@ or a place to go. The README keeps the ones that can turn red. -->
 [![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2)
 [![pre-commit enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
-[![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 Thank you for investing your time in contributing to our project.
 We are glad you are reading this, because we need volunteer developers
@@ -22,7 +21,11 @@ If you haven't already:
 - see the [README](./README.md) file to get an overview of the project
 - read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community
   approachable and respectable
-- come find us on [Slack](https://bbt-training.slack.com/archives/C01CCJ85AES).
+- open an [issue](https://github.com/btclib-org/btclib/issues) to ask
+  about something, and a
+  [pull request](https://github.com/btclib-org/btclib/pulls) to propose
+  it: both are read, and both leave a record the next reader of this
+  file can find.
 
 In this guide you will get an overview of the contribution workflow from
 opening an issue, creating a PR, reviewing, and merging the PR.

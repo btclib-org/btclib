@@ -24,6 +24,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The Slack badge is gone from README.md and CONTRIBUTING.md**, and
+  with it the "come find us on Slack" bullet that opened the second. A
+  badge reports state, which is the criterion the badge block's own
+  comment states and the one that keeps "we use ruff" out of it; this
+  one reported a route, to a channel of the course workspace the library
+  was first taught in. What answers a question today is the issue
+  tracker and a pull request, and CONTRIBUTING.md now names those two
+  instead — a reader arriving at that bullet is told where to write
+  something the next reader of the file can find, which a chat message
+  is not. The word survives elsewhere in CONTRIBUTING.md, where "no
+  slack" is the coverage ratchet having none. `bitcoin-core-rpc` and
+  `btclib-secp256k1` carry the same badge and are not touched here: one
+  repository's badge block is not the others' to edit from inside a pull
+  request about this one.
+
 - **A tagged release cuts its GitHub release again** (issue #1142).
   `release.yml`'s `github-release` job carried no `if` of its own, which
   reads as "run when my needs succeeded" and is not what GitHub does with
