@@ -458,9 +458,9 @@ uv run --no-project --python 3.14 \
     .github/scripts/verify_dist_contents.py dist/
 SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) uv run --no-project \
     --python 3.14 .github/scripts/generate_sbom.py dist/ "$(mktemp -d)"
-uv run --locked --only-group build twine check --strict dist/*
-uv run --locked --only-group build check-wheel-contents dist/*.whl
-uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+uv run --locked --only-group check twine check --strict dist/*
+uv run --locked --only-group check check-wheel-contents dist/*.whl
+uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
 tmp=$(mktemp -d)
 uv export --locked --no-dev --extra secp256k1 --no-emit-project \
     --no-hashes -o "$tmp"/constraints.txt

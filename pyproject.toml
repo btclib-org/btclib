@@ -168,8 +168,11 @@ harness = [
 test = [{ include-group = "harness" }, { include-group = "bindings" }]
 lint = [{ include-group = "bindings" }, "mypy", "pre-commit", "ruff"]
 # the distribution files are built and published by uv itself: what this
-# group holds is what inspects them, before an upload consumes the version
-build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+# group holds is what inspects them, before an upload consumes the
+# version. Named `check`, not `build`, so `--only-group build` means the
+# same thing here as in btclib-secp256k1, which already has both names:
+# the tools that build a distribution, not the ones that inspect one
+check = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
 docs = [
     { include-group = "bindings" },
@@ -180,7 +183,7 @@ docs = [
 dev = [
     { include-group = "test" },
     { include-group = "lint" },
-    { include-group = "build" },
+    { include-group = "check" },
     { include-group = "docs" },
     { include-group = "mutation" },
 ]

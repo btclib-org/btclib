@@ -114,6 +114,22 @@ documented at release-notes length in the first place, and are still in
   constraining the extra the same way is its own `--only-binary
   btclib_secp256k1`, the same flag applied a second time rather than a
   reason to revisit this one.
+- **The dependency group that inspects a distribution is `check`, not
+  `build`** (issue #1155). `btclib-secp256k1` builds wheels for many
+  platforms and keeps that work in its own `build` group, separate from
+  the `check` group that holds `check-manifest`, `check-wheel-contents`,
+  `pyroma` and `twine`; this repository named the same four packages
+  `build` instead, so `--only-group build` installed the tools that
+  inspect a distribution here and the tools that build one there — a step
+  copied between the two trees installed the wrong four packages and
+  failed obscurely. `pyproject.toml`'s group and every `--only-group
+  build` call site in `CONTRIBUTING.md`, `test.yml`, `latest.yml` and
+  `release.yml` now say `check`, matching `btclib-secp256k1` throughout.
+  A step still asking for the old name no longer installs anything wrong
+  under it: `uv run --locked --only-group build ...` here now exits
+  non-zero, with `` error: Group `build` is not defined in the project's
+  dependency-groups table `` — a copied step stops instead of running
+  against four packages it did not mean to check.
 
 ## v2026.8.21
 

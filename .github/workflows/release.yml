@@ -313,7 +313,7 @@ jobs:
           # leaves the two disagreeing, and every uv command that passes
           # --locked -- which is all of them, by convention -- then fails
           # with "the lockfile needs to be updated". Measured: without this
-          # re-lock, "uv run --locked --only-group build" on a patched tree
+          # re-lock, "uv run --locked --only-group check" on a patched tree
           # exits non-zero. Nothing after this step in this job happens to
           # pass --locked today, so the rehearsal works by the arrangement
           # of the jobs rather than by construction, and moving a packaging

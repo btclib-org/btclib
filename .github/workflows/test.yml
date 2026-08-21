@@ -549,11 +549,11 @@ jobs:
       # the same validation PyPI applies on upload: broken metadata, or a
       # README that does not render, cannot be fixed by reuploading
       - name: Check the metadata and the long description
-        run: uv run --locked --only-group build twine check --strict dist/*
+        run: uv run --locked --only-group check twine check --strict dist/*
       # what twine does not look at: where the files land once installed,
       # a test package shipped by accident, a stray top-level module
       - name: Check the wheel contents
-        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
+        run: uv run --locked --only-group check check-wheel-contents dist/*.whl
       # and what twine cannot see either: metadata that is valid but poor,
       # a missing classifier or url, a version PyPI would sort in a way
       # nobody meant. The pyroma pre-commit hook rates the source tree, for
@@ -561,7 +561,7 @@ jobs:
       # that would actually be shipped. --min 10 is a ratchet, the score
       # being 10 today
       - name: Rate the packaging metadata
-        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+        run: uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
       # what none of the three above does: install the wheel, and install
       # it alone, from an empty directory. The wheel is the only thing
       # asked for, so what pulls btclib_secp256k1 in is the
