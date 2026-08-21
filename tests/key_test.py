@@ -12,6 +12,8 @@ spellings of one key are deliberately unequal, and that a private key
 never reaches a repr.
 """
 
+from typing import Any
+
 import pytest
 
 from btclib.curves import bytes_from_point, mult, secp256k1
@@ -36,6 +38,37 @@ def test_pub_key_data() -> None:
 
     # a hex string is octets, as it is everywhere else in the library
     assert PubKeyData(SEC_COMPRESSED.hex()) == PubKeyData(SEC_COMPRESSED)
+
+
+@pytest.mark.parametrize(
+    "sec",
+    [SEC_COMPRESSED, bytearray(SEC_COMPRESSED), memoryview(SEC_COMPRESSED)],
+    ids=["bytes", "bytearray", "memoryview"],
+)
+def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Any) -> None:
+    """A buffer is octets here, because the field is declared `bytes`.
+
+    `bytes_from_octets` returns a bytearray and a memoryview as they
+    came, deliberately: it is what `assert_valid` reads with, and a read
+    must not rewrite what it reads. A constructor builds instead, and two
+    of this module's promises rest on its field being what it says.
+
+    Equality and hashing read the declared fields, which a bytearray
+    would take away: it is unhashable, so a key spelled that way could
+    not be a dict key or enter a set. And a key whose octets do not
+    concatenate is no use to the callers this type exists for --
+    `script.taproot` joins a merkle root to the x it reads off `sec`
+    before hashing the pair under a tag.
+
+    `Any` and not `Octets`, which is `bytes | str`: the buffers are a
+    run-time spelling the static alias does not name, and
+    `utils.bytes_from_octets` is where that asymmetry is stated.
+    """
+    key = PubKeyData(sec)
+
+    assert isinstance(key.sec, bytes)
+    assert key == PubKeyData(SEC_COMPRESSED)
+    assert hash(key) == hash(PubKeyData(SEC_COMPRESSED))
 
 
 def test_pub_key_data_point_is_computed_once() -> None:

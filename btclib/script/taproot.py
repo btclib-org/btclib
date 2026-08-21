@@ -28,9 +28,9 @@ from btclib.alias import (
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
-from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
+from btclib.key import PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (
     OP_CODE_NAMES,
@@ -39,7 +39,7 @@ from btclib.script.op_codes_tapscript import (
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import Key, _sec_from_key, point_from_key
+from btclib.to_pub_key import Key, _sec_from_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -256,55 +256,44 @@ def _output_pubkey_and_internal_key(
     of an internal key: a form accepted for the output key and refused for
     the control block that proves it would be refused one call after being
     accepted, and one reader cannot drift from another.
+
+    The key travels as a `PubKeyData`, so that neither arm has to say how
+    much of it is worth building (issue #1188): the octets are the field
+    and `point` is a `cached_property`. The bindings arm wants the octets
+    unproven, the tweak's own parse being the proof and a second lift
+    issue 887; the Python arm wants the point it would otherwise lift
+    twice, which is issue 896. The arm that reads the point pays for it
+    and the arm that does not never asks.
     """
     if not internal_pubkey and not script_tree:
         raise BTClibValueError("missing data")
     if internal_pubkey:
-        # a fourth reading of the dispatch, and the only one in this module
-        # that is not about which arithmetic runs: what differs between the
-        # two arms is *how much of the key is worth building*.
+        # `_sec_from_key` and not `pub_keyinfo_from_key`: unproven octets
+        # are what both arms want, and `PubKeyData` proves them in `point`
+        # or not at all. It accepts the 33-byte and the 65-byte form, and
+        # `[1:33]` is the x-coordinate of either.
         #
-        # `_tweaked_pubkey` lifts the x-only key to a point on the Python
-        # path, and validating a key is how a point is built, so the same
-        # modular square root of the same x was taken twice -- 74 us of the
-        # 311 an output key cost there (issue 896). The bindings arm builds
-        # no point of btclib's own and proves nothing either: the tweak
-        # below parses these octets, and that parse is the proof, so a key
-        # that is no point is refused there instead of here (issue 887).
-        # `point_from_key` is 6.58 us against `_sec_from_key`'s 3.74, which
-        # is a sixth of a 17.3 us output key added to the path every
-        # install takes.
-        #
-        # So each arm reads what it uses, and both read the same spellings:
-        # `_sec_from_key` accepts the 33-byte and the 65-byte form as
-        # `point_from_key` does, and `[1:33]` is the x-coordinate of either
-        if _libsecp256k1_serves(secp256k1, None):
-            sec = _sec_from_key(internal_pubkey)
-            pub_key = sec[1:33]
-            y_even: int | None = None
-        else:
-            # which of the two roots the key names is its prefix's business
-            # and not BIP341's, whose lift wants the even one: an 03 key
-            # validates to the odd-y point, and the even y is then a
-            # subtraction from the root already taken rather than a second
-            # root
-            x_P, y_P = point_from_key(internal_pubkey)
-            pub_key = x_P.to_bytes(32, "big")
-            y_even = y_P if y_P % 2 == 0 else secp256k1.p - y_P
-            sec = None
+        # check_validity=False, and not because what arrives is known
+        # good: `assert_valid` reads a length and a prefix, and
+        # `_sec_from_key` answers any prefix at those two lengths -- the
+        # hybrid 06 and 07 among them -- so some of what reaches here it
+        # would refuse. It is skipped because it is half a proof bought
+        # early: whatever these octets are handed to parses them, which is
+        # `_sec_from_key`'s own reason for not proving them, and it names
+        # what is wrong with the key where a prefix check names the prefix
+        key_data = PubKeyData(_sec_from_key(internal_pubkey), check_validity=False)
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-        pub_key = bytes.fromhex(h_str)
         # BIP341's unspendable point is published as an x-only key and
-        # nothing else, so there the 32 octets are all there is
-        y_even = None
-        sec = None
+        # nothing else, so the prefix is this module's to supply -- 02,
+        # BIP341's lift being the even one
+        key_data = PubKeyData(b"\x02" + bytes.fromhex(h_str), check_validity=False)
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
         h = b""
-    q, parity_bit = _tweaked_pubkey(pub_key, h, y_even, sec)
-    return q, parity_bit, pub_key
+    q, parity_bit = _tweaked_pubkey(key_data, h)
+    return q, parity_bit, key_data.sec[1:33]
 
 
 def output_pubkey(
@@ -323,29 +312,20 @@ def output_pubkey(
     return q, parity_bit
 
 
-def _tweaked_pubkey(
-    pub_key: bytes, h: bytes, y_even: int | None, sec: bytes | None
-) -> tuple[bytes, int]:
+def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
     """Return the x-only key an internal key tweaked by h, and its parity.
 
     The half of BIP341's output key that does not care where h came
     from: a tree the caller built, or the merkle root a psbt carries.
 
-    The last two arguments are what the caller already holds of the
-    internal key, one per arm, and None where it holds neither -- a caller
-    with x-only octets and nothing else, which is what a merkle root
-    arrives with.
-
-    y_even is the even y-coordinate of pub_key, which `output_pubkey` has
-    on the Python path: validating the key is a modular square root of
-    this very x, and taking a second one is the redundancy of issue 896.
-    sec is the full public key of the bindings path, uncompressed where
-    the caller had a point to serialize: `xonly.tweak_add` reads the y it
-    is given there, where the 32 x-only octets are a square root to lift
-    -- 4.11 us against 5.92, and the same key either way, `02 || x`,
-    `03 || x` and `04 || x || y` all naming it.
+    One `PubKeyData` for both arms, each reading off it the field it
+    uses (issue #1188). `sec` is what `xonly.tweak_add` prefers whole,
+    `04 || x || y` carrying the y it would otherwise lift -- 4.11 us
+    against 5.92 -- and `02 || x`, `03 || x` and `04 || x || y` all name
+    the same x-only key to it. `point` is the square root, taken once
+    however many readers ask, which is issue 896.
     """
-    t = _tap_tweak(pub_key, h)
+    t = _tap_tweak(pub_key.sec[1:33], h)
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
@@ -355,17 +335,17 @@ def _tweaked_pubkey(
     # while libsecp256k1 needs no such lift, having the y coordinate as
     # it goes.
     #
-    # The predicate is a constant now that the curve is, and the four
-    # guards in this module keep it rather than saying so: it is the
-    # seam the suite closes -- curve._libsecp256k1_available set to
-    # False -- to reach the Python arithmetic below, which is the
-    # reference implementation the bindings are checked against and not
-    # a path any caller takes. Stated here for all four, `output_pubkey`'s
-    # being the one that asks for a different reason: which form of the
-    # internal key is worth building, rather than which arithmetic runs
+    # The predicate is a constant now that the curve is, and the guards
+    # in this module keep it rather than saying so: it is the seam the
+    # suite closes -- curve._libsecp256k1_available set to False -- to
+    # reach the Python arithmetic below, which is the reference
+    # implementation the bindings are checked against and not a path any
+    # caller takes. Stated here for every one of them: whatever else a
+    # guard goes on to read, its `_libsecp256k1_serves` half asks the
+    # one question, which arithmetic runs
     if _libsecp256k1_serves(secp256k1, None):
         try:
-            return libsecp256k1_xonly.tweak_add(pub_key if sec is None else sec, t)
+            return libsecp256k1_xonly.tweak_add(pub_key.sec, t)
         except ValueError as e:
             # this arm hands the tweak octets nothing has proved are a
             # point, deliberately (issue 887): tweak_add's own parse is
@@ -378,31 +358,35 @@ def _tweaked_pubkey(
             # catching BTClibValueError not having to know which arm
             # answered.
             #
-            # Two messages, because only one of the two calls knows what
-            # was refused. With sec None the octets are the x-only key
-            # and there is nothing else for tweak_add to object to, so
-            # the wording is the lift's below and the two arms answer the
-            # same sentence for the same input -- the range check
-            # included, which the lift makes separately and the bindings'
-            # parse does not. With a sec the octets carry a y as well,
-            # unproven for the same reason: a valid x with a y that is
-            # not its own is refused here too, and naming the x would be
-            # naming the half that is right. check_output_pubkey's arm
-            # already says that in these words, this being the same
-            # refusal it cannot decompose either
-            if sec is not None:
+            # Two messages, and what decides between them is what the
+            # octets are rather than which caller handed them over. A
+            # compressed key names its y by its prefix, so its x is all
+            # that is left for tweak_add to object to, and the wording is
+            # the lift's below, so that the two arms say one sentence for
+            # one input: `point_from_octets` is that lift, and it answers
+            # both of `curve_group.y_var`'s complaints -- an x out of
+            # range and an x that is no coordinate -- in the one sentence
+            # this reproduces.
+            #
+            # Anything else carries more than an x. An uncompressed key's
+            # y is unproven for the same reason as its x, and a valid x
+            # with a y that is not its own is refused here too, where
+            # naming the x would name the half that is right; and
+            # `_sec_from_key` answers any prefix at either length, a
+            # prefix being the fault of neither coordinate.
+            # `check_output_pubkey`'s arm already says that in these
+            # words, its refusal being one it cannot decompose either
+            if not (pub_key.is_compressed and pub_key.sec[0] in (0x02, 0x03)):
                 raise BTClibValueError(f"invalid internal public key: {e}") from e
-            x_Q = int.from_bytes(pub_key, "big")
-            err_msg = (
-                "invalid x-coordinate: "
-                if x_Q < secp256k1.p
-                else "x-coordinate not in 0..p-1: "
-            )
-            err_msg += f"{hex_string(x_Q)}" if x_Q > HEX_THRESHOLD else f"{x_Q}"
-            raise BTClibValueError(err_msg) from e
+            x_Q = int.from_bytes(pub_key.sec[1:33], "big")
+            raise BTClibValueError(f"invalid x-coordinate: '{hex_string(x_Q)}'") from e
 
-    P_x = int.from_bytes(pub_key, "big")
-    P_y = secp256k1.y_even_var(P_x) if y_even is None else y_even
+    # which of the two roots the key names is its prefix's business and
+    # not BIP341's, whose lift wants the even one: an 03 key is the odd-y
+    # point, and the even y is then a subtraction from the root already
+    # taken rather than a second root
+    P_x, y_P = pub_key.point
+    P_y = y_P if y_P % 2 == 0 else secp256k1.p - y_P
     Q = secp256k1.add_var((P_x, P_y), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
@@ -425,9 +409,16 @@ def output_pubkey_from_merkle_root(
     reached them in.
     """
     internal_pubkey = bytes_from_octets(internal_pubkey, 32)
-    # y_even=None: x-only octets are all this caller has, so the lift is
-    # `_tweaked_pubkey`'s to make
-    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root), None, None)
+    # 02 and not 03: x-only octets are all this caller has, and BIP341's
+    # lift is the even one, so the prefix says what the key means rather
+    # than adding anything to it
+    return _tweaked_pubkey(
+        # `assert_valid` reads a length and a prefix, and this call
+        # settles both itself: the size is checked on the way in and the
+        # prefix is the one supplied on the line below
+        PubKeyData(b"\x02" + internal_pubkey, check_validity=False),
+        bytes_from_octets(merkle_root),
+    )
 
 
 def output_prvkey(

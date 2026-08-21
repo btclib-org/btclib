@@ -1014,15 +1014,103 @@ documented at release-notes length in the first place, and are still in
   private or public key for mainnet" for every one of them; all three
   are `BTClibValueError` subclasses, so only the message differs there.
 
+- **`script.taproot` carries its internal key as a `PubKeyData`**, which
+  is what let the dispatch in front of it go (issue #1188). That guard
+  read as one of the module's `_libsecp256k1_serves` and was not asking
+  what the others ask: not which arithmetic runs, but *how much of the
+  key is worth building*. The bindings arm
+  wanted unproven octets, a second lift being issue 887; the Python arm
+  wanted the point, a second lift being issue 896. A `cached_property`
+  answers both without either arm saying which it is, so the arm that
+  reads `point` pays for it and the arm that never asks never does.
+
+  `_tweaked_pubkey` takes one object where it took three parameters —
+  the x-only octets, the even y for the arm that had it, the full SEC key
+  for the arm that had that — each a partial view of one key, and the
+  last two `None` where the caller held it in another form.
+
+  Nothing is faster: the modular square roots per output key are the same
+  numbers they were, 1 for a compressed internal key and 0 for an
+  uncompressed one, and `output_pubkey` on the bindings-free arm measures
+  234 against 232 microseconds. What changes is that the count is now
+  asserted: `tests/script/taproot_test.py` gained
+  `test_the_python_output_key_lifts_the_internal_x_once`, which counts
+  `mod_sqrt_var` for both SEC forms and for both readers of
+  `_output_pubkey_and_internal_key`, where before it was a comment.
+
+  The messages that refuse a bad internal key move, on the
+  bindings-free arm. Where the key is octets or a `Point`, one rule
+  covers them: the refusal belongs to the call that parses it rather
+  than to `to_pub_key`, so it names what is wrong with the key where
+  "not a public key" said only that something was. `point_from_octets`
+  answers for octets — an unrecognised prefix, an x that is no
+  coordinate, a y out of range, a pair off the curve — and
+  `bytes_from_point` for a `Point` argument, where a point off the curve
+  and the point at infinity now draw the curve's own complaint instead
+  of "not a valid public key".
+
+  Two refusals go the other way, and both arrive at "not a private or
+  public key": a key of no recognised form, which that arm called "not a
+  public key"; and an extended key whose own key field is no point,
+  which bip32 named and echoed, and which `_sec_from_key` swallows — its
+  `contextlib.suppress` covers the reading as a public key, so the
+  private fallback's message is what surfaces. Both are what the
+  bindings arm already said, which is the direction all of this moves
+  in. None of it reaches that arm, whose messages are what they were.
+
+  `output_pubkey_from_merkle_root` moves for a second reason:
+  `point_from_octets` collapses `curve_group.y_var`'s two complaints
+  into one, so an x at or above p is refused as "invalid x-coordinate"
+  where the range used to be named, and every x is quoted hex where a
+  small one was decimal.
+
+  Which of these echo the key they refuse moves both ways, and neither
+  way by design: an off-curve `Point` stops being echoed, octets start,
+  and each follows from which call refuses rather than from a decision
+  about the message.
+
+  A `memoryview` internal key now reaches the tweak everywhere, and
+  what refused it is Python's own asymmetry: `bytes + memoryview` is a
+  concatenation and `memoryview + bytes` is not, while `_tap_tweak`
+  joins the merkle root to the x it is handed. On `output_pubkey` and
+  `input_script_sig` the bindings arm refused one, taking these octets
+  unproven where the other lifted them to a point and serialized bytes
+  back; `PubKeyData` coercing its own field is what answers those, and
+  is what keeps this change from carrying the refusal over to the arm
+  that worked. `output_pubkey_from_merkle_root` refused one on both
+  arms, and there the `02` this entry point prefixes is the answer,
+  `bytes` being the left operand after it. The `TypeError` that came
+  back was neither a `BTClibValueError` nor documented; a `bytearray`
+  was never affected, being a concatenation Python takes from either
+  side.
+
+  The translation the entry below adds for issue #1214 moves with the
+  signature, and keeps its promise under a new lift. It discriminated on
+  whether the caller had handed over a full SEC key, which stood in for
+  the question it meant to ask; a `PubKeyData` asks that question
+  outright — whether the octets are a compressed key, whose y its prefix
+  names and whose x is therefore all `tweak_add` can be objecting to.
+  What changes for a caller is that the bindings arm names the x for
+  such a key where it said "invalid internal public key", which is what
+  the arm beside it says and what `output_pubkey_from_merkle_root` said
+  already.
+
+  That sentence is `point_from_octets`', because `point_from_octets` is
+  the lift now, and it wraps both of `curve_group.y_var`'s complaints —
+  an x that is no coordinate and an x that is no field element — in one.
+  So taproot's x-only path stops naming the range, and says instead what
+  every other caller of `point_from_octets` in this library says; the
+  hex the message quotes still tells p from p - 1.
+
 - **`btclib.key` holds the canonical form of a key**, `PubKeyData` and
   `PrvKeyData`, so that a key parsed once can be carried rather than
   spelled back for the next call to parse again (issue #1188). Every
   converter in the library takes each spelling and answers a tuple, so
   the canonical form was what came *out* of a conversion and never what
-  went *in*. `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
-  `taproot._output_pubkey_and_internal_key` each work around the round
-  trip that leaves — issues 886, 887 and 896. This is the cut those
-  patch locally.
+  went *in*. `bip32.derive_` and `to_pub_key._sec_from_pub_key` work
+  around the round trip that leaves — issues 886 and 887 — and
+  `taproot._output_pubkey_and_internal_key` did, issue 896, until the
+  entry above. This is the cut those patch locally.
 
   The SEC octets are the field and the point is a `cached_property`
   because the two conversions do not cost the same. Measured on
@@ -1071,12 +1159,21 @@ documented at release-notes length in the first place, and are still in
   `PrvKeyData.pub` is lazy for the same reason and buys most, a scalar
   multiplication being the dearest conversion of the three.
 
+  `sec` is coerced to `bytes` in the constructor, where
+  `bytes_from_octets` on its own would not: that returns a `bytearray`
+  and a `memoryview` as they came, deliberately, being what
+  `assert_valid` reads with and a read having to leave its field alone.
+  A constructor builds instead, and both promises above rest on the
+  field being what it is declared — a key spelled as a `bytearray` would
+  be unhashable, where equality and hashing read the declared fields,
+  and one spelled as a `memoryview` would carry octets that do not
+  concatenate.
+
   The module docstring carries the rest of the reasoning rather than this
   entry repeating it: why one type per half and not a `PubKeySecData`
   beside a `PubKeyPointData`, why frozen as `BIP32KeyData` is, and why
-  not `slots=True`. Nothing in the library consumes these yet: the
-  adoption is per module, and each step of it removes one of the round
-  trips above.
+  not `slots=True`. The adoption is per module, and each step of it
+  removes one of the round trips above.
 
 - **`NETWORKS["regtest"].genesis_block` was stored byte-reversed**
   (issue #1203). It held `06226e46…f188910f`, which is Bitcoin Core's

@@ -19,8 +19,9 @@ import pytest
 from btclib import b32
 from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import ScriptList
-from btclib.curves import bytes_from_point, curve_group, mult, secp256k1
+from btclib.curves import bytes_from_point, curve, curve_group, mult, secp256k1
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.number_theory import mod_sqrt_var
 from btclib.script import (
     TaprootScriptTree,
     Witness,
@@ -128,13 +129,25 @@ def test_one_internal_key_however_it_is_spelled(
     same spellings by sharing one reader rather than by agreeing. Both
     arithmetics, because the arms read the key differently: the bindings one
     wants the octets alone and the Python one the point.
+
+    The buffers are here because the key reaches the tweak as octets to be
+    concatenated, and a memoryview is not one: `bytes_from_octets` returns
+    every buffer as it came, so what makes them octets is `PubKeyData`
+    coercing its own field, and nothing else on this path would.
     """
     prv_key = 0xC0FFEE
     point = mult(prv_key)
-    spellings = (
+    sec = bytes_from_point(point, compressed=True)
+    # `Any` and not `Key`: a bytearray and a memoryview are spellings the
+    # static union does not name and `_KEY_TYPES` accepts, which is the
+    # asymmetry `to_pub_key` states -- the buffers `bytes_from_octets`
+    # takes beside bytes, and passes through as they came
+    spellings: tuple[Any, ...] = (
         point,
-        bytes_from_point(point, compressed=True),
+        sec,
         bytes_from_point(point, compressed=False),
+        bytearray(sec),
+        memoryview(sec),
     )
 
     for script_tree in SCRIPT_TREES:
@@ -184,6 +197,70 @@ def test_the_python_tweak_is_the_bindings_tweak(
 
 
 @pytest.mark.parametrize(
+    "compressed, roots",
+    [(True, 1), (False, 0)],
+    ids=["compressed", "uncompressed"],
+)
+def test_the_python_output_key_lifts_the_internal_x_once(
+    compressed: bool, roots: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One reading of the internal key is one square root, not two.
+
+    Two things want the internal key's point: proving the octets are one,
+    and adding tG to it. Taken separately those are two modular square
+    roots of the same x -- issue 896, which is 74 of the 311 us an output
+    key cost on this arm. `PubKeyData` is what makes them one: `point` is
+    a `cached_property`, so the lift is the proof and the proof is the
+    lift (issue #1188).
+
+    Counting `mod_sqrt_var` rather than forbidding it, which is what
+    `test_the_python_prvkey_tweak_lifts_nothing` does below: here the
+    right answer is not zero, and a test that only refused a second root
+    would pass on a function that took none and answered nothing.
+
+    Both SEC forms, because they are the two sides of what is being
+    asserted: 65 octets carry the y and must lift nothing at all, and 33
+    are exactly the x a second reader would have lifted again.
+
+    `input_script_sig` beside `output_pubkey` because they are the two
+    readers of `_output_pubkey_and_internal_key`, and reading it twice is
+    the shape the count would otherwise hide.
+
+    The dispatch goes off at `curve._libsecp256k1_available` and not at
+    this module's own guard, which is what the test below patches: the
+    lift is `point_from_octets`', and that call delegates on its own, so
+    silencing taproot alone leaves the square root being taken in C where
+    `mod_sqrt_var` never sees it. A count needs every arm Python; a test
+    asserting zero, as that one does, does not.
+    """
+    pub_key = bytes_from_point(mult(0xC0FFEE), compressed=compressed)
+    roots_taken = 0
+
+    # `number_theory` and not the `curve_group` binding being patched: the
+    # two are one function, and reading it off the module that exports it
+    # is what strict mypy allows -- an attribute an `__all__` does not
+    # name cannot be read, only set
+    def counting(a: int, p_: int) -> int:
+        nonlocal roots_taken
+        roots_taken += 1
+        return mod_sqrt_var(a, p_)
+
+    for tree in SCRIPT_TREES:
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(curve, "_libsecp256k1_available", False)
+            no_bindings.setattr(curve_group, "mod_sqrt_var", counting)
+
+            roots_taken = 0
+            output_pubkey(pub_key, tree)
+            assert roots_taken == roots
+
+            if tree is not None:
+                roots_taken = 0
+                input_script_sig(pub_key, tree, 0)
+                assert roots_taken == roots
+
+
+@pytest.mark.parametrize(
     "prv_key, parity", [(0xC0FFEE, 1), (3, 0)], ids=["odd y", "even y"]
 )
 def test_the_python_prvkey_tweak_lifts_nothing(
@@ -224,16 +301,14 @@ def test_the_python_prvkey_tweak_lifts_nothing(
 
 @needs_bindings
 def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Three of the four guards this module keeps must be Python throughout.
+    """Both tweaks this module gates must be Python throughout.
 
     A mixed arm is the one shape that is never right: with libsecp256k1 in
     reach `libsecp256k1_xonly.tweak_add` and `.prvkey_tweak_add` are the
     better calls, and out of reach there is nothing to mix.
-    `_output_pubkey_and_internal_key`'s choice of which form of the
-    internal key to build, `_tweaked_pubkey`'s tweak and
-    `_tweaked_prvkey`'s are that shape, gated on `secp256k1` and nothing
-    else, and `output_pubkey` together with `output_prvkey` reach all
-    three between them.
+    `_tweaked_pubkey`'s tweak and `_tweaked_prvkey`'s are that shape,
+    gated on `secp256k1` and nothing else, and `output_pubkey` together
+    with `output_prvkey` reach both between them.
 
     `check_output_pubkey`'s guard is not: it adds `len(q) == 32` to the
     same predicate, so with the bindings in reach and a q of another
@@ -346,16 +421,19 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     the two answered is a `pip install`, and a caller catching
     `BTClibValueError` is not meant to have to know (issue 1214).
 
-    On the x-only path the sentence agrees too, and has three shapes: 5
-    is no x-coordinate and is written as a decimal, p - 1 is no
-    x-coordinate and is written as hex, and p is not a field element at
-    all, which `y_even_var` says in words of its own and the bindings'
-    parse refuses without distinguishing.
+    On the x-only path the sentence agrees too, and it is one sentence
+    rather than three: the lift is `point_from_octets`, which wraps both
+    of `curve_group.y_var`'s complaints -- an x that is no coordinate and
+    an x that is no field element -- in a single "invalid x-coordinate",
+    and this arm reproduces what the lift says rather than what the
+    lift's own caller would have said. Nothing is lost that the message
+    carried: the three cases below are 5, p - 1 and p, and the hex the
+    sentence quotes still tells them apart.
     """
     for x, err_msg in (
-        (5, "invalid x-coordinate: 5"),
-        (secp256k1.p - 1, "invalid x-coordinate: FFFFFFFF"),
-        (secp256k1.p, r"x-coordinate not in 0\.\.p-1: FFFFFFFF"),
+        (5, "invalid x-coordinate: '05'"),
+        (secp256k1.p - 1, "invalid x-coordinate: 'FFFFFFFF"),
+        (secp256k1.p, "invalid x-coordinate: 'FFFFFFFF"),
     ):
         x_only = x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
@@ -382,8 +460,8 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     is right, and a message naming it would be false -- which is what
     keeps the two arms to agreeing on the class here rather than on the
     sentence: without the bindings the key never reaches the tweak at
-    all, `point_from_key` refusing it a step earlier and in its own
-    words.
+    all, the lift `PubKeyData.point` performs refusing it a step earlier
+    and in the curve's own words.
     """
     Q = mult(7)
     y_not_x_s = (Q[1] + 1) % secp256k1.p
@@ -393,7 +471,7 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
         output_pubkey(sec)
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
-        with pytest.raises(BTClibValueError, match="not a public key"):
+        with pytest.raises(BTClibValueError, match="point not on curve"):
             output_pubkey(sec)
 
 
@@ -501,6 +579,17 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     merkle_root = tree_helper(script_tree)[1]
     assert output_pubkey_from_merkle_root(x_only, merkle_root) == (
+        output_pubkey(internal_pubkey, script_tree)
+    )
+
+    # a memoryview x, which `bytes_from_octets` passes through as it came:
+    # what makes it octets here is the `02` this function prefixes, `bytes`
+    # on the left of a concatenation taking any buffer on the right where
+    # `memoryview + bytes` is not an operation at all. The internal key of
+    # `output_pubkey` becomes bytes one layer lower, in `PubKeyData`, so
+    # this entry point needs its own assertion rather than that one's
+    buffer: Any = memoryview(x_only)  # `Octets` is `bytes | str`, as above
+    assert output_pubkey_from_merkle_root(buffer, merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
     )
 

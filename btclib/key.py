@@ -9,10 +9,10 @@ hex string of them, a point, an xpub -- and a private key has as many.
 Every converter in this library takes all of them and answers a tuple, so
 the canonical form is what comes *out* of a conversion and never what
 goes *in*: a caller that has one has to spell it back for the next call,
-which parses it again. That round trip is what `bip32.derive_`,
-`to_pub_key._sec_from_pub_key` and
-`taproot._output_pubkey_and_internal_key` each work around locally --
-issues 886, 887 and 896.
+which parses it again. That round trip is what `bip32.derive_` and
+`to_pub_key._sec_from_pub_key` work around locally -- issues 886 and
+887. Issue 896 is the same round trip where `script.taproot` reads an
+internal key, and there it is this module that answers it.
 
 `PubKeyData` and `PrvKeyData` are that cut: the spellings stay at the
 boundary, the parse happens once, and what travels afterwards is an
@@ -106,10 +106,11 @@ def _normalized(network: Any) -> Any:
     network at all -- and whether it is a string -- stays
     `assert_valid`'s question.
 
-    `sec` is asymmetric here, and the asymmetry is inherited rather than
-    chosen: `bytes_from_octets` refuses a wrong type whatever
-    `check_validity` says, and it belongs to `utils` rather than to this
-    module.
+    `sec` is asymmetric here, and only the refusal is inherited:
+    `bytes_from_octets` refuses a wrong type whatever `check_validity`
+    says, and it belongs to `utils` rather than to this module. The
+    coercion beside it is this module's own, and the constructor says
+    what it is for.
     """
     return network.strip().lower() if isinstance(network, str) else network
 
@@ -134,7 +135,19 @@ class PubKeyData:
         *,
         check_validity: bool = True,
     ) -> None:
-        object.__setattr__(self, "sec", bytes_from_octets(sec))
+        # `bytes()` around it: `bytes_from_octets` returns a bytearray or
+        # a memoryview as it came, deliberately, and `utils` says why --
+        # `assert_valid` is a read and must not rewrite the field it
+        # reads. Here the field is built rather than read, and it is
+        # declared `bytes`: without the coercion a key made from a
+        # bytearray is unhashable, where the docstring above promises that
+        # equality and hashing read the declared fields, and one made from
+        # a memoryview carries octets no concatenation accepts --
+        # `script.taproot` joins a merkle root to the x it reads off
+        # `sec` before hashing the pair under a tag.
+        # `bytes(b)` on bytes is `b` itself, so the spelling every caller
+        # of this library uses copies nothing
+        object.__setattr__(self, "sec", bytes(bytes_from_octets(sec)))
         object.__setattr__(self, "network", _normalized(network))
 
         if check_validity:
