@@ -641,6 +641,42 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`latest.yml`'s `suite-bindings-latest` asserts that the bindings are
+  serving** (issue #1136). That job upgrades `btclib_secp256k1` alone to
+  its newest release and runs the suite, and RELEASING.md names it as
+  the one worth reading closely before a tag: what it exists to answer
+  is "did my own other release just break this one". It could not answer
+  it. A release this tree cannot import — issue #1116's shape, where
+  `btclib._libsecp256k1` imports the whole surface in one `try` and one
+  missing name lands the lot in `except ImportError` — set `INSTALLED =
+  False`, `tests/conftest.py` skipped every `bindings`-marked test, and
+  the run went red on coverage with the remaining suite passing. Red, so
+  nothing shipped on it, but by accident and mute: RELEASING.md reads
+  that workflow per job, and a coverage shortfall there is the shape of
+  "a dependency moved and this tree has not caught up", which does not
+  block a release, while what had happened is the one shape that does.
+  The step `no-bindings` and `python-arm-authority.yml` already carry,
+  with the sense reversed, now runs before the suite and says so by
+  name. Its message names the import rather than the seam in general:
+  serving is installed and not refused, and nothing in that job sets
+  `BTCLIB_NO_LIBSECP256K1`, so refusal is not reachable there.
+
+  The 100% ratchet is deliberately untouched, and lowering it would have
+  been the wrong fix: it measures a suite that really did skip those
+  tests, and a floor that tolerated the skip would turn this failure
+  green rather than legible. `suite-latest` deliberately does not get
+  the assertion either, and its comment now says why — there everything
+  moved, so the bindings are one suspect among the dozen that job exists
+  to net, and stopping ahead of pytest would trade the failures naming
+  the others for one line about the question the sibling job now asks
+  precisely, on the same matrix and of the same release. `lint-latest`
+  and `dist-latest` are not entitled to it at all: neither runs the
+  suite, mypy names a `btclib_secp256k1` submodule it cannot find in its
+  own words, and nothing in the distribution checks imports btclib.
+  RELEASING.md's "read it per job" paragraph gains the sentence that
+  makes the new failure legible from the run page, and CONTRIBUTING.md's
+  copy of that job's commands moves with the step.
+
 - **The wheel smoke test asserts that the bindings are serving** (issue
   #1117). `test.yml`'s `dist` job and `release.yml`'s `build` job each
   install the wheel with its `secp256k1` extra and then check the version

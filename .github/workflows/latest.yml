@@ -125,7 +125,21 @@ jobs:
       # still --locked, which is not a contradiction: the step above just
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
-      # installs from a lock it has not checked
+      # installs from a lock it has not checked.
+      # No "assert the bindings are serving" in front of it, which
+      # suite-bindings-latest below does have (issue #1136), and the
+      # difference is what these two jobs are for. There the bindings are
+      # the only thing that moved, so they are the answer and stopping on
+      # them costs nothing; here everything moved, so they are one
+      # suspect among the dozen this job exists to net, and an assertion
+      # ahead of pytest would trade the list of failures that names the
+      # others for one line about the one the job below already asks
+      # precisely, on this same matrix, from this same newest release.
+      # The case the two answers differ in is a package moving *under*
+      # the bindings and breaking their import while the bindings
+      # themselves are fine -- and there the upgrade step above has
+      # already printed the "Update <pkg> vA -> vB" line the assertion
+      # would not have named
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest
 
@@ -168,6 +182,47 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade the bindings to their latest release
         run: uv lock --upgrade-package btclib_secp256k1
+      # test.yml's no-bindings job, with the sense reversed, and here for
+      # the mirror image of its reason: asked before the suite, and asked
+      # of the interpreter rather than of the resolver, because the step
+      # above resolves and installs whatever the newest release is
+      # whether or not this tree can import it. `btclib._libsecp256k1`
+      # imports the whole surface in one `try` whose `except ImportError`
+      # sets `INSTALLED = False`, so a release missing one name of it --
+      # issue #1116, where the name was `musig` -- leaves the suite below
+      # answering on the Python arithmetic, tests/conftest.py's
+      # `pytest_collection_modifyitems` skipping every `bindings`-marked
+      # test, and the run answering the one question this job exists to
+      # ask as a coverage shortfall against the 100% ratchet -- the whole
+      # bindings half of the suite having skipped itself. Reproduce it
+      # with the bindings out of reach and read what it says:
+      #
+      #   UV_PROJECT_ENVIRONMENT=.venv-nobind uv run --locked \
+      #       --no-default-groups --group harness pytest
+      #
+      # Red, so nothing shipped on it, but only by accident and saying
+      # nothing -- and RELEASING.md reads this workflow per job, where a
+      # coverage shortfall is the shape of "a dependency moved and this
+      # tree has not caught up", which does not block a release, while
+      # what happened is the one shape that does (issue #1136).
+      # The ratchet is not what is wrong and is deliberately untouched:
+      # it measures a suite that really did skip those tests, and
+      # lowering it would turn this failure green. What was missing is a
+      # step in front of it that says which suite ran.
+      # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
+      # installed and not refused, so it implies the other, and it is the
+      # public reading of the seam every dispatch consults -- the name
+      # the wheel smoke tests assert (issue #1117) and the one
+      # `no-bindings` and python-arm-authority.yml assert the negative
+      # of. Nothing here sets BTCLIB_NO_LIBSECP256K1, so refusal is not
+      # reachable and False leaves only the import, which is what the
+      # message says rather than the generic sentence those two carry
+      - name: Assert the bindings are serving
+        run: >
+          uv run --locked --no-default-groups --group test
+          python -c "from btclib.curves import is_libsecp256k1_serving;
+          assert is_libsecp256k1_serving(),
+          'the newest btclib_secp256k1 does not import'"
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest
 
