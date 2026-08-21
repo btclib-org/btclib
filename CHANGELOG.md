@@ -7057,6 +7057,30 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **Prose no longer states counts nothing checks, and two that had
+  already drifted are fixed** (issue #1144). CONTRIBUTING.md's own
+  "measure, don't assert" rule was not honored in 36 places across
+  CLAUDE.md, RELEASING.md, REPOSITORY.md, CONTRIBUTING.md, README.md
+  and SECURITY.md — a count of something that can grow or shrink,
+  asserted as present-tense fact with nothing guarding it from
+  drifting silently false. Most had the number dropped where the named
+  things already carried the count, or a live command pointed at
+  instead (`gh api ... --jq '.required_status_checks.checks'`,
+  `cosmic-ray baseline`); GitHub's own platform limits (twenty
+  concurrent jobs on the Free plan) kept their number, with a dated
+  qualifier, since that is their policy and not this repository's
+  history.
+
+  Two were already wrong, not just unguarded. README.md said Electrum's
+  mnemonic standard reads "the five wordlists Electrum reads" where
+  `electrum.py`'s own `ELECTRUM_WORDLISTS` reuses `BIP39_LANGUAGE_FILES`
+  entire — twelve languages, only Portuguese overridden. RELEASING.md
+  said "the two `publish-*` jobs are the only holders of `id-token:
+  write`" in `release.yml`, where `attest` holds it too, for its
+  Sigstore OIDC exchange; the review gate the sentence was arguing for
+  still holds, `attest` only running via `needs:` after a publish job
+  succeeds, but the sentence itself was false.
+
 - **`_libsecp256k1`'s docstring names the two states the module
   publishes** (issue #1137). It said the question "are the bindings
   installed" is answered by `AVAILABLE`, and there is no `AVAILABLE` in
