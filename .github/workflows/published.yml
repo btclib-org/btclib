@@ -32,6 +32,22 @@ name: published
 # yet published, asked before publication rather than after, and asking
 # it here would be asking it one step too late to matter to what gets
 # published next
+#
+# Two jobs, not one job asking both questions or one matrix carrying an
+# extra axis, because they are entitled to different answers.
+# install-published names no extra, so it is answering whether the
+# supported no-bindings configuration -- issues #990, #991 and #992 --
+# installs and works; it has not asked the index for the bindings and
+# cannot ask whether they serve. install-published-secp256k1 names the
+# extra a user who wants the bindings actually types, and is the one this
+# workflow lacked until issue #1143: `btclib/_libsecp256k1.py` answers a
+# resolution it cannot import with `INSTALLED = False`, no error and no
+# warning, so a pair broken on the index degrades silently to the Python
+# arithmetic -- tens of times slower, not constant-time -- rather than
+# failing here. An axis over the base matrix would ask that question on
+# every (os, python) cell the no-bindings question already uses; a job of
+# its own asks it on the cells that actually vary for it instead, which
+# is argued where that job's own matrix is
 
 on:
   schedule:
@@ -259,3 +275,104 @@ jobs:
               '8e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c8' \
               '1b2f001698e7463b04'); \
             assert seed == expected, seed"
+
+  install-published-secp256k1:
+    name: >-
+      Install ${{ matrix.python }}[secp256k1] from PyPI on
+      ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+          - macos-26-intel
+          - macos-latest
+          - windows-latest
+          - windows-11-arm
+        # one interpreter, where install-published samples three: the
+        # bindings publish a wheel per (platform, interpreter) pair, so a
+        # broken pair can in principle hide behind either axis, but the
+        # two are not equally likely to hide one. Measured against
+        # https://pypi.org/pypi/btclib-secp256k1/json for the newest
+        # release, 0.8.0.4: every platform below has a wheel for every
+        # supported interpreter, cp310 through cp315(t), so trying a
+        # second interpreter on a platform that already has one answers
+        # the same "does a wheel exist and import here" question again.
+        # A missing wheel is where the two publishing pipelines actually
+        # differ per platform -- a manylinux build, a macOS universal2
+        # build and a Windows build are three independent jobs in the
+        # bindings' own release workflow -- which is why the platform axis
+        # stays install-published's own instead of shrinking to one, the
+        # thing issue #1143 asks to be argued rather than assumed.
+        # 3.14 and not install-published's 3.10 floor: the same JSON API
+        # answer says btclib_secp256k1 ships no win_arm64 wheel below
+        # cp311, which is what makes install-published fetch an emulated
+        # win_amd64 interpreter for its 3.10 cell on windows-11-arm (see
+        # that job's own comment). 3.14 has a native win_arm64 wheel, so
+        # this job resolves the bindings this platform actually ships
+        # rather than exercising that workaround a second time
+        python: ["3.14"]
+    timeout-minutes: 20
+    steps:
+      # the same wait, for the same reason install-published's copy
+      # states: a run started by release.yml's call must not measure the
+      # version the tag is replacing
+      - name: Wait for the index to serve the released version
+        if: inputs.version != ''
+        shell: bash
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          version="${TAG#v}"
+          for attempt in $(seq 20); do
+            if curl -sf --max-time 10 -o /dev/null \
+                "https://pypi.org/pypi/btclib/${version}/json"; then
+              echo "the index serves ${version}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: ${version} is not served yet"
+            sleep 15
+          done
+          echo "::error::${version} never appeared on the index"
+          exit 1
+      - name: Setup uv with Python ${{ matrix.python }}
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: ${{ matrix.python }}
+      # --only-binary on both packages: btclib for the reason
+      # install-published's own comment gives, and btclib_secp256k1 for
+      # the same one applied to the package this job adds. Without it, a
+      # wheel the bindings have not published for this cell demotes the
+      # install to a source build -- a C toolchain question a hosted
+      # runner may or may not answer -- and the run would stay green
+      # while never having asked whether a published wheel imports
+      - name: Install btclib[secp256k1] from PyPI
+        shell: bash
+        run: |
+          uv venv --python ${{ matrix.python }}
+          uv pip install --verbose \
+            --only-binary btclib --only-binary btclib_secp256k1 \
+            "btclib[secp256k1]"
+      # is_libsecp256k1_serving is the assertion install-published's own
+      # comment says it is not entitled to, that job's install naming no
+      # extra. This job names the extra, so it is entitled to the
+      # question and asks it before the signature, which is what gives
+      # that signature its meaning: verified by libsecp256k1 rather than,
+      # unnoticed, by the Python arithmetic it would otherwise silently
+      # be -- issue #1116, live on main once already, is exactly the
+      # failure a passing signature alone cannot distinguish from this
+      - name: Verify the bindings serve, with a signature round tripped
+        shell: bash
+        run: |
+          uv run --no-project python -c "import btclib; \
+            from btclib.curves import is_libsecp256k1_serving; \
+            from btclib.ecc import dsa; \
+            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            print(btclib.__version__); \
+            assert btclib.__version__ != 'unknown'; \
+            assert is_libsecp256k1_serving(), \
+              'the secp256k1 extra resolved, the bindings do not serve'; \
+            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+              dsa.sign(b'btclib', 1))"
