@@ -24,7 +24,23 @@ from typing import Any
 import pytest
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.p2p import Addr, Message, Payload, Ping, Pong, Verack, Version
+from btclib.p2p import (
+    Addr,
+    GetBlocks,
+    GetData,
+    GetHeaders,
+    Headers,
+    Inv,
+    Inventory,
+    InventoryType,
+    Message,
+    NotFound,
+    Payload,
+    Ping,
+    Pong,
+    Verack,
+    Version,
+)
 from btclib.p2p.message import Message as MessageClass
 
 _MAINNET = bytes.fromhex("f9beb4d9")
@@ -37,6 +53,12 @@ _PAYLOADS: tuple[Payload, ...] = (
     Addr(),
     Ping(1),
     Pong(1),
+    Inv([Inventory(InventoryType.MSG_TX, bytes(32))]),
+    GetData([Inventory(InventoryType.MSG_WITNESS_BLOCK, bytes(32))]),
+    NotFound([Inventory(InventoryType.MSG_WTX, bytes(32))]),
+    GetBlocks(70016, [bytes(32)], bytes(32)),
+    GetHeaders(70016, [bytes(32)], bytes(32)),
+    Headers(),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)
@@ -47,9 +69,10 @@ def _payload_subclasses() -> set[type[Any]]:
 
     Two things are skipped, and each for its own reason: a name starting
     with an underscore is a shared body rather than a message type --
-    `keepalive._NoncePayload` is the one -- and a class defined outside
-    `btclib` is another test's, `__subclasses__` being a live registry
-    that whatever ran before this leaves its own subclasses in.
+    `keepalive._NoncePayload` and `inventory`'s two are those -- and a
+    class defined outside `btclib` is another test's, `__subclasses__`
+    being a live registry that whatever ran before this leaves its own
+    subclasses in.
     """
     found: set[type[Any]] = set()
     pending = list(Payload.__subclasses__())

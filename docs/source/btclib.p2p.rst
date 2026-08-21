@@ -18,6 +18,13 @@ btclib.p2p.handshake module
    :members:
    :show-inheritance:
 
+btclib.p2p.inventory module
+---------------------------
+
+.. automodule:: btclib.p2p.inventory
+   :members:
+   :show-inheritance:
+
 btclib.p2p.keepalive module
 ---------------------------
 
