@@ -440,7 +440,23 @@ class Tx:  # noqa: PLW1641
         *,
         check_validity: bool = True,
     ) -> Tx:
-        """Return a Tx by parsing binary data."""
+        """Return a Tx by parsing binary data.
+
+        A BIP144 marker and flag over witnesses that are all empty is
+        refused, which is Core's "Superfluous witness record" of
+        `UnserializeTransaction` in src/primitives/transaction.h. The
+        refusal is what keeps the property this library holds every wire
+        class to -- `btclib.p2p.inventory`'s module docstring states it,
+        `Headers.parse` and `Verack.parse` refuse for it: `serialize`
+        writes the marker only when some input carries a witness, so
+        those octets are ones this class could not write back.
+
+        It does not answer to `check_validity`, and `assert_no_trailing`
+        beside it is the shape being copied: that flag gates
+        `assert_valid`, which asks about the transaction, and the
+        transaction here is valid -- what is malformed is the encoding,
+        which no field records and nothing downstream could ask about.
+        """
         stream = bytesio_from_binarydata(data)
 
         # version is a signed int (int32_t) in bitcoin_core
@@ -485,6 +501,14 @@ class Tx:  # noqa: PLW1641
                 tx_in.script_witness = Witness.parse(
                     stream, check_validity=check_validity
                 )
+            # Core's "Superfluous witness record": the marker said a witness
+            # would follow and none did, and `serialize` drops a marker over
+            # empty witnesses, so these octets do not serialize back. Asked
+            # after the loop and not before, the witnesses being what the
+            # question is about; the docstring has why `check_validity` does
+            # not reach it
+            if not any(tx_in.is_segwit for tx_in in vin):
+                raise BTClibValueError("superfluous witness record")
 
         lock_time = int.from_bytes(
             read_exactly(stream, 4, "lock time"), byteorder="little", signed=False
