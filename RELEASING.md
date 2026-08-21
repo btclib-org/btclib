@@ -159,6 +159,13 @@ btclib that could not be installed beside its own sibling. The paragraph
 above says exactly this about the bindings; it is true of both, word for
 word, and step 1 asks it of both.
 
+Whether to act on a stranger's drift now, or leave it for Dependabot's
+own pull requests to catch up, is a decision worth stating rather than
+defaulting by omission — `uv lock --upgrade` is gated by nothing here,
+so silence at the tag reads as "nobody looked" and not as "looked and
+chose to leave it". State the choice in the release pull request, next
+to `latest`'s own result.
+
 1. Make sure the newest release of **each btclib-org dependency** —
    btclib_secp256k1 and bitcoin-core-rpc — is the one this release
    should depend on, and that `pyproject.toml`'s pin says so. Two
@@ -294,6 +301,35 @@ word, and step 1 asks it of both.
    else. That the commit under the tag carries GitHub's web-flow
    signature rather than the maintainer's costs nothing: the branch rule
    asks for a valid signature and not for a particular signer.
+
+   `gh pr merge <n> --squash` alone can still refuse this pull request —
+   `the base branch policy prohibits the merge` — the way it did on
+   btclib-secp256k1's own v0.8.0.4 (btclib-secp256k1#288): a
+   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
+   client-side mergeable check declines before it asks the server at
+   all, and `--auto` only waits longer for the same review that will not
+   arrive. `--admin` is the flag that clears it — the pair
+   REPOSITORY.md's "Branch protection" names, `enforce_admins` `false`
+   together with holding `admin` — and it is the one to reach for first:
+   measured directly here across #1111, #1113, #1114 and #1133, each
+   landing from `BLOCKED` and `REVIEW_REQUIRED` with a verified
+   signature, one of them (#1113) `BEHIND` as well and cleared the same
+   way. Name the release commit's title and body explicitly when using
+   it — `gh pr merge <n> --squash --admin --subject "<title>"
+   --body-file <path>` — rather than leave them to
+   `squash_merge_commit_message`'s repository default, `COMMIT_MESSAGES`
+   here: this branch carries more than one commit every time (the
+   paragraph below this one), and that default composes the commit under
+   the tag from all of them rather than from what step 3 wrote.
+
+   `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
+   merge_method=squash` is the fallback for when `--admin` is
+   unavailable, and needs `commit_title` and `commit_message` passed the
+   same way for the same reason. It is what landed btclib-secp256k1's
+   0.8.0.4 clean — but only because that branch carried a single commit,
+   so `COMMIT_MESSAGES`'s concatenation and that commit's own message
+   were the same string; a multi-commit release branch without the two
+   parameters would not be so lucky.
 
    This branch carries more than one commit every time, a version bump
    and two retitles never being one, so the commit that lands is one
