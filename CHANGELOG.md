@@ -324,18 +324,19 @@ documented at release-notes length in the first place, and are still in
   above gives, `dist`'s copy being thrown away and `build`'s own copy
   being what got checked and shipped a second time — but two builds
   still meant the checked files and the published files were only
-  "usually" the same object, "usually" being the whole of divergence 9's
-  gap: a defect only the actual build step introduces, and not the tree,
-  can pass the copy that gets checked and ship in the copy that does
-  not. `dist` now pins `SOURCE_DATE_EPOCH` from the commit and normalizes
-  the sdist — both previously `build`-only — uploads the `dist` and
-  `sbom` artifacts before installing anything, and only then runs twine,
-  check-wheel-contents and pyroma once, plus two smoke tests: the
-  existing one, pinned by `uv.lock`, and a second, unconstrained one that
-  asks whether the newest published `btclib_secp256k1` still satisfies
-  the wheel — moved here from `build`, and gated on a new
-  `check-newest-bindings` input only `release.yml`'s call sets, so no
-  pull request pays for a question it cannot afford a red answer to.
+  "usually" the same object, "usually" being the whole of that
+  divergence's gap: a defect only the actual build step introduces, and
+  not the tree, can pass the copy that gets checked and ship in the copy
+  that does not. `dist` now pins `SOURCE_DATE_EPOCH` from the commit and
+  normalizes the sdist — both previously `build`-only — uploads the
+  `dist` and `sbom` artifacts before installing anything, and only then
+  runs twine, check-wheel-contents and pyroma once, plus two smoke
+  tests: the existing one, pinned by `uv.lock`, and a second,
+  unconstrained one that asks whether the newest published
+  `btclib_secp256k1` still satisfies the wheel — moved here from `build`,
+  and gated on a new `check-newest-bindings` input only `release.yml`'s
+  call sets, so no pull request pays for a question it cannot afford a
+  red answer to.
   `dist`'s own `Setup uv` step carries `build`'s caching-off forward the
   same way, through a new `disable-dist-cache` input rather than a flat
   `enable-cache: false`: a cache entry written by one run is read by

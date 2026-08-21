@@ -5,8 +5,9 @@
 """Tests for the distribution-content check of `.github/scripts`.
 
 What CI can show is that a real build passes: the `dist` job of test.yml
-runs the script on every pull request, and the `build` job of release.yml
-on the files it is about to publish. What CI cannot show is that anything
+runs the script on every pull request, and the same job -- reached
+through release.yml's `test` call -- on the files it is about to
+publish. What CI cannot show is that anything
 *fails* -- a wheel with a shared object in it is not something a workflow
 can produce on purpose -- so the archives here are synthetic, one member
 planted per rule, and the assertion is the complaint.
