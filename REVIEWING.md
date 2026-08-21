@@ -247,8 +247,30 @@ the gates are, and the two ways a run of them lies, is `CLAUDE.md`: a
 suite run over a subset is not the coverage gate, and `pre-commit`
 passing is not the lint gate, sphinx being a job of its own.
 
-A gate that fails locally is the strongest finding available. A gate
-that passes is not evidence that the diff is right.
+**Unless they have already been run on this sha and that run is on the
+record.** Then rely on it, and say whose it is. Two runs qualify: the
+workflows of the required checks, running beside a review on the same
+commit — `CLAUDE.md` names which checks those are — and an author handing
+over a branch they gated themselves and said so. What is relied on is
+that those gates run and hold the merge, not the colour of a check, which
+stays none of a reviewer's business for the reason below.
+
+The sha is the whole of the condition: a run on another tree is not a run
+on this one, so a rebase voids it — the branch was gated, and then the
+tree moved under the gate. Naming the run is not a disclaimer but the
+evidence's provenance, "no gates were run by this job, the workflows on
+this sha are what stands" and "the author's statement of what they ran is
+what stands" being the two forms it takes, and it is what lets a reader
+tell a gate relied on from one nobody looked at. A pull request picked up
+with no such run in front of you is the other case, and there they are
+run.
+
+Relying on them settles nothing about what the diff decides with: the
+gates exercise what the tree already held, and the section above is what
+runs the rest.
+
+A gate that fails is the strongest finding available. A gate that passes
+is not evidence that the diff is right.
 
 **CI is not the reviewer's concern.** Do not wait for a workflow run, do
 not read one, do not report a check as a finding, do not withhold a

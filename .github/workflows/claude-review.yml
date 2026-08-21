@@ -131,12 +131,11 @@ jobs:
             about this tree a review has to know, and CONTRIBUTING.md the
             rules a finding cites.
 
-            One deviation from REVIEWING.md, because this is CI and not a
-            session: do not run the gates. They are running beside you on
-            this same sha, in test.yml, lint.yml and docs.yml, and a
-            second run of them here would buy nothing and cost a slot.
-            Review everything else the standard asks for, and say in the
-            summary that the gates were left to those workflows.
+            Do not run the gates. They are running beside you on this
+            same sha, which is the reliance REVIEWING.md provides for and
+            CLAUDE.md makes sound. Review everything else the standard
+            asks for, and say in the summary that no gates were run by
+            this job and that those runs are what stands.
 
             Do not file issues from here: a collateral finding goes in the
             summary comment, under a line saying it is not a finding

@@ -138,6 +138,12 @@ Do not use Fable unless explicitly instructed.
   every change lands through a pull request, Dependabot's and
   pre-commit.ci's included, neither of them naming a branch. Branch
   protection, and why it is what it is, is `REPOSITORY.md`.
+- **The suite, the lint gate, the documentation build and the regtest
+  against Bitcoin Core are the required checks on a pull request**, named
+  by the rule `REPOSITORY.md` reads back from the endpoint. So code does
+  not reach a review without having passed them or passing them beside it
+  on the same sha, and a reviewer may rely on that rather than
+  establishing it again; `REVIEWING.md` has what the reliance takes.
 - **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
   concurrency group is
   `test-${{ github.event.pull_request.number || github.ref }}` (plus a
