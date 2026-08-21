@@ -123,6 +123,37 @@ from it, so `btclib/` is the same set of files in both; a difference
 either way is a file that reaches a user installing from source and not
 one installing the wheel, or the reverse.
 
+## check-wheel-contents needs no configuration here
+
+`check-wheel-contents` runs unconfigured, in the one job
+`verify_dist_contents.py` runs in — `test.yml`'s `dist` job, on every pull
+request and, through `release.yml`'s `test` call, on the files a release
+publishes — and btclib-org/btclib#1160 is where that was decided rather than
+merely left alone. `btclib-secp256k1` configures `[tool.check-wheel-contents]`
+— `ignore = ["W003", "W009"]`, for the shared library its dynamic wheel ships
+beside the package — because its wheel is not one package tree: a legitimate
+top-level member outside `btclib_secp256k1/` is exactly what those two checks
+exist to flag.
+Nothing here ships outside `btclib/`, so neither check would ever fire,
+and an `ignore` list naming codes that can never trigger would be a line
+asserting a fact instead of preventing one.
+
+The stronger question is whether `check-wheel-contents --package btclib`
+would catch something this script does not: a full diff of the wheel's
+`btclib/` against this checkout's own, the same completeness
+`bitcoin-core-rpc` gained by configuring `package = ["bitcoin_core_rpc"]`
+in that repository's own pull request (btclib-org/bitcoin-core-rpc#178),
+for a project with no second check standing behind it. This project
+already has two: `check-manifest`, a pre-commit hook gated by the lint
+workflow, diffs the sdist against this same tree, and the completeness
+check above — `uv build` builds the sdist and then the wheel from it, so
+`btclib/` is the same set of files in both, and a difference either way
+is reported — diffs the wheel against the sdist. Chained, checkout tree
+== sdist == wheel, which is what `--package` would assert directly and
+in one hop; configuring it here would be a third way of asking a question
+two already answer, watching the same failure from a different angle
+rather than closing a gap neither covers.
+
 ## The rules nothing here enforces
 
 Three rules of the policy `diybitcoinhardware/embit` publishes beside its

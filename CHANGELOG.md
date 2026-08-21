@@ -114,6 +114,38 @@ documented at release-notes length in the first place, and are still in
   `head_ref` form, by the survey behind
   [ISS #1152](https://github.com/btclib-org/btclib/issues/1152), and this
   change made that fix wrong a second time.
+- **`docs/source/package-content-policy.md` records why
+  `check-wheel-contents` runs unconfigured here** (issue #1160). The
+  survey behind it found two half-measures split across the three
+  publishing repositories: this project's `verify_dist_contents.py`, and
+  `btclib-secp256k1`'s configured `[tool.check-wheel-contents]`
+  (`ignore = ["W003", "W009"]`, for the shared library its dynamic wheel
+  legitimately ships beside the package). `bitcoin-core-rpc` had
+  neither, and gained a configured `check-wheel-contents` of its own in
+  its own pull request (btclib-org/bitcoin-core-rpc#178) rather than a
+  ported script — a single-module, dependency-free package with no data
+  directory has nothing a completeness diff against its own source tree
+  does not already answer. `btclib-secp256k1` gained a wheel-only
+  script, `verify_wheel_contents.py`, tailored to two wheel kinds
+  (btclib-org/btclib-secp256k1#312): its wheels are not one package
+  tree, so `check-wheel-contents --package` cannot be configured into
+  correctness there the way it could for `bitcoin-core-rpc` — it reports
+  the compiled artifact every one of its wheels legitimately carries at
+  the wheel's own root as "not in package tree".
+
+  Nothing here ships outside `btclib/`, so `W003`/`W009` could never
+  fire, and configuring `check-wheel-contents --package btclib` would be
+  a third way of asking a question this project's own two-hop chain
+  already answers: `check-manifest` diffs the sdist against this
+  checkout, `verify_dist_contents.py`'s completeness check diffs the
+  wheel against the sdist, and chained the two give checkout tree ==
+  sdist == wheel, which is what `--package` would assert directly and
+  in one hop over the same ground. This entry is the whole of what
+  changed in this repository: `verify_dist_contents.py` already ran on
+  the files `release.yml` uploads as well as on every pull request
+  (issue #1154, #1164), so the decision above closes #1160 with no
+  script or workflow change here, only the record of why one was not
+  needed.
 
 - **`published.yml`'s steps declare `shell: bash`** (issue #1141). The
   matrix includes `windows-latest` and `windows-11-arm`, where the default
