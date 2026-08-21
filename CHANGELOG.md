@@ -145,6 +145,26 @@ documented at release-notes length in the first place, and are still in
   non-zero, with `` error: Group `build` is not defined in the project's
   dependency-groups table `` — a copied step stops instead of running
   against four packages it did not mean to check.
+- **`release.yml`'s `build` job runs `twine check --strict`,
+  `check-wheel-contents` and `pyroma --min 10` on the files it is about to
+  publish** (issue #1154). Those three already gated every pull request,
+  in `test.yml`'s `dist` job, but `release.yml`'s own `build` job rebuilds
+  the distribution files from the same tree rather than reusing `dist`'s
+  artifact, and ran none of the three on its own copy — so a tag that
+  passed every check still published files nobody had checked, "usually"
+  identical to the checked ones being the whole of the guarantee. The
+  fix adds the three steps to `build`, after the two `upload-artifact`
+  steps rather than before them: each check installs a dependency of its
+  own, and the comment on the first upload already establishes that
+  nothing gets installed before `dist/` is frozen for the publish jobs to
+  download, a boundary these steps keep rather than move. Left undone,
+  and deliberately: `release.yml` still builds the distribution files
+  twice, once in the `test` job it calls and once in `build`, where
+  sibling `btclib-secp256k1` has no such seam — its `release.yml` has no
+  `build` job at all, publishing the artifact its called `test.yml` built
+  and checked. Reaching that shape here needs `test.yml`'s artifact
+  published instead of rebuilt, which is a larger change than this one;
+  the issue is the record of it.
 
 ## v2026.8.21
 

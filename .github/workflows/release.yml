@@ -314,35 +314,32 @@ jobs:
           # --locked -- which is all of them, by convention -- then fails
           # with "the lockfile needs to be updated". Measured: without this
           # re-lock, "uv run --locked --only-group check" on a patched tree
-          # exits non-zero. Nothing after this step in this job happens to
-          # pass --locked today, so the rehearsal works by the arrangement
-          # of the jobs rather than by construction, and moving a packaging
-          # check back in here would break it silently -- silently
-          # because the rehearsal runs by hand, rarely.
+          # exits non-zero. This step now has three --locked consumers
+          # downstream in this same job -- the twine, check-wheel-contents
+          # and pyroma steps added for issue #1154 -- and the re-lock is
+          # what keeps every one of them working.
           # The re-lock is also what makes the sdist coherent: it ships
           # uv.lock, which otherwise declared the unsuffixed version inside
           # a distribution named for the suffixed one
           uv lock
-      # one thing the rehearsal does not cover, deliberately: dist, in
-      # the workflow this one calls, validates the tree as committed, while
-      # this job ships the suffixed version, so twine and pyroma never see
-      # the metadata that reaches TestPyPI. What they judge is metadata
-      # syntax, README rendering and metadata quality, and a .dev<N> suffix
-      # is valid PEP 440 that changes none of them. The smoke test below is
-      # the exception, and the reason it is below rather than left to
-      # dist: it installs the suffixed wheel itself. Should a packaging
-      # check ever become version-sensitive, the suffix has to be plumbed
-      # into test.yml as a workflow_call input instead
+      # what a rehearsal does differently from a tag: test.yml's dist job,
+      # called by this workflow's own `test` job above, validates the tree
+      # as committed, while the twine/check-wheel-contents/pyroma steps
+      # below run on the version this step just suffixed. Neither minds:
+      # what the three judge is metadata syntax, README rendering, wheel
+      # layout and metadata quality, none of which a .dev<N> suffix
+      # changes. The smoke test further down is the one check that does
+      # depend on the suffix -- it installs the wheel this job built,
+      # suffix and all -- which is why it could never have been left to
+      # test.yml's dist job and needed no plumbing to avoid it
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,
       # which is why no separate "install from the sdist" job is needed.
-      # What this job does not do is inspect what it builds: twine,
-      # check-wheel-contents and pyroma run in the dist job of the
-      # test workflow, which this workflow calls, so they gate every
-      # pull request as well as this one tag. check-manifest is a
-      # pre-commit hook, gated by the lint workflow, which this one calls
-      # too
+      # check-manifest stays out of this job: it is a pre-commit hook,
+      # gated by the lint workflow, which this one also calls, and its
+      # question is about the tree uv build reads rather than the files
+      # this job goes on to publish
       - name: Build the distribution files
         run: uv build
       # SOURCE_DATE_EPOCH reaches every entry of the wheel and nothing at
@@ -405,6 +402,24 @@ jobs:
         with:
           name: sbom
           path: sbom/
+      # the same three checks test.yml's dist job runs, and for the same
+      # reason given there: a release is the one place where finding a
+      # packaging problem is too late. They run in both places because
+      # dist builds its own copy of the distribution files rather than
+      # this job's -- issue #1154 -- so passing there was never a
+      # guarantee about the files this job is about to publish; this is
+      # the run that judges those files themselves. After the two uploads
+      # above rather than between them and the build: each of the three is
+      # a dependency this job has to install to run, and the comment on
+      # the first upload above already freezes what the publish jobs will
+      # download before anything is installed, a boundary these steps
+      # keep rather than move
+      - name: Check the metadata and the long description
+        run: uv run --locked --only-group check twine check --strict dist/*
+      - name: Check the wheel contents
+        run: uv run --locked --only-group check check-wheel-contents dist/*.whl
+      - name: Rate the packaging metadata
+        run: uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
       # dist installs a wheel too, but not this one: it builds its own
       # copy, on another runner and -- in a rehearsal -- from another
       # version, the step above having patched pyproject.toml and
