@@ -81,8 +81,9 @@ documented at release-notes length in the first place, and are still in
   recovery this same bullet names: `gh run rerun --failed` reaches a
   job the run marks failed, not one it marks skipped, which is why it
   did not recover `github-release` on either of the runs issue #1142
-  measured. Issue #1148's fix stops that skip from recurring; the
-  flag's reach is worth stating where a reader is sent to it anyway.
+  measured. That issue's own `if: always()` fix stops the skip from
+  recurring; the flag's reach is worth stating where a reader is sent
+  to it anyway.
   Measured while recreating v2026.8.21 by hand after issue #1142: the
   release wound up with four assets, not the two the old bullet would
   have produced.
