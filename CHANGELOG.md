@@ -733,6 +733,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **CONTRIBUTING.md sends a contributor to the organization standard**
+  (btclib-org/.github#52). `README.md` in `btclib-org/.github` states
+  the toolchain, the lint gate, the workflow set and the branch rules
+  once for this repository and its siblings, and it claims to be linked
+  from each repository's CONTRIBUTING.md. Nothing here named it: the
+  only mentions of that repository in this tree were CHANGELOG.md and
+  RELEASING.md citing issue numbers filed there, so a contributor
+  following CONTRIBUTING.md to REPOSITORY.md to CLAUDE.md was never
+  told a document above them existed — and a rule stated only there was
+  one they could not find, a divergence they introduce one nothing in
+  this tree warned them about. The pointer is in the opening list,
+  where the file already says what to read first, rather than in
+  REPOSITORY.md or CLAUDE.md: the audit and the normalizing checklist
+  are performed *holding* the standard, so the reader who arrives
+  without it is the contributor, and CONTRIBUTING.md is the file that
+  reader is already in. It is also the one of the three that the
+  documentation build renders, `docs/source/contributing_link.md`
+  including it, which is why the destination is the absolute github.com
+  url a sibling repository is linked with elsewhere here and not a
+  relative path — a relative one resolves against btclib.org.
 - **`docs/source/conf.py`'s `RootFileLinks` comment no longer states a
   count of the root markdown files a build-time copy would duplicate**
   (issue #1195). The paragraph rejecting that alternative said the
