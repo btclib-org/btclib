@@ -308,12 +308,28 @@ to `latest`'s own result.
    solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
    client-side mergeable check declines before it asks the server at
    all, and `--auto` only waits longer for the same review that will not
-   arrive. `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
-   merge_method=squash` is what landed that release — no approving
-   review, only comments — asking the endpoint directly rather than
-   gh's own check; `--admin` is gh's suggested flag for the same
-   `enforce_admins`/`admin` pair REPOSITORY.md's "Branch protection"
-   names, not independently measured here.
+   arrive. `--admin` is the flag that clears it — the pair
+   REPOSITORY.md's "Branch protection" names, `enforce_admins` `false`
+   together with holding `admin` — and it is the one to reach for first:
+   measured directly here across #1111, #1113, #1114 and #1133, each
+   landing from `BLOCKED` and `REVIEW_REQUIRED` with a verified
+   signature, one of them (#1113) `BEHIND` as well and cleared the same
+   way. Name the release commit's title and body explicitly when using
+   it — `gh pr merge <n> --squash --admin --subject "<title>"
+   --body-file <path>` — rather than leave them to
+   `squash_merge_commit_message`'s repository default, `COMMIT_MESSAGES`
+   here: this branch carries more than one commit every time (the
+   paragraph below this one), and that default composes the commit under
+   the tag from all of them rather than from what step 3 wrote.
+
+   `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
+   merge_method=squash` is the fallback for when `--admin` is
+   unavailable, and needs `commit_title` and `commit_message` passed the
+   same way for the same reason. It is what landed btclib-secp256k1's
+   0.8.0.4 clean — but only because that branch carried a single commit,
+   so `COMMIT_MESSAGES`'s concatenation and that commit's own message
+   were the same string; a multi-commit release branch without the two
+   parameters would not be so lucky.
 
    This branch carries more than one commit every time, a version bump
    and two retitles never being one, so the commit that lands is one
