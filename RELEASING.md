@@ -1,7 +1,7 @@
 # Releasing btclib
 
 Releases are published by GitHub Actions
-([release.yml](.github/workflows/release.yml)), not from a developer
+([release.yml](./.github/workflows/release.yml)), not from a developer
 machine. Pushing a `v<version>` tag runs the full test matrix, builds
 and checks the distribution files, publishes them to PyPI, and creates
 the GitHub release. There is no PyPI token anywhere: both indices are
