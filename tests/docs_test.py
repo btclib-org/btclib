@@ -63,11 +63,12 @@ def _is_public(parts: tuple[str, ...]) -> bool:
     """Whether a module path names something a user is meant to import.
 
     `__init__` is the package itself and not a private name, which is the
-    only reason this is not a one-line `startswith("_")`. One module under
-    `btclib/` is private, `_ripemd160`, the pure Python fallback
-    `btclib.hashes` reaches where hashlib has no RIPEMD-160: it is not
-    API, so it takes no automodule stanza, and the underscore is what says
-    so. `_data` holds data and no Python.
+    only reason this is not a one-line `startswith("_")`. A module under a
+    private name is not API, so it takes no automodule stanza, and the
+    underscore is the whole of what says so -- `btclib._ripemd160`, the
+    pure Python fallback `btclib.hashes` reaches where hashlib has no
+    RIPEMD-160, and `btclib._libsecp256k1`, where the bindings are
+    imported once for the package. `_data` holds data and no Python.
     """
     return not any(part.startswith("_") for part in parts if part != "__init__")
 
