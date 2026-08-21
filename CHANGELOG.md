@@ -7021,6 +7021,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`_libsecp256k1`'s docstring names the two states the module
+  publishes** (issue #1137). It said the question "are the bindings
+  installed" is answered by `AVAILABLE`, and there is no `AVAILABLE` in
+  the package: what answers is `INSTALLED`, and `ENABLED` is that answer
+  with `BTCLIB_NO_LIBSECP256K1` applied. The same paragraph named
+  `curves.curve`'s `_libsecp256k1_available` correctly two sentences
+  later, which is the likeliest source of the wrong one — and the one
+  sentence telling a reader what to look for sent them after a symbol
+  they could not find.
+
+  Both names are now introduced where the module publishes them, with
+  why it keeps two where `is_libsecp256k1_serving` publishes one:
+  `ENABLED` is only the state the seam starts in and
+  `set_libsecp256k1_serving` may have moved it since, while `INSTALLED`
+  is settled at that import and stays — which is what that function
+  reads to refuse `serving=True` where there is nothing to serve, and
+  what the suite skips its `bindings` marker on. Neither symbol is
+  renamed: issue #1117's smoke tests chose `is_libsecp256k1_serving`
+  over `INSTALLED` because serving is the public reading of the seam,
+  and that is untouched — a caller still has no use for the difference
+  the module needs.
+
+  The count of `try` blocks the single import replaced goes with the
+  rewrite, and so does the second copy of it: a number describing a tree
+  that no longer exists is neither checkable against this one nor of use
+  to a reader of it.
+
 - **Where a measured timing lives is written down** (issue #940).
   CONTRIBUTING.md's "Documentation and comments" already asked for the
   command beside a number, so that a reader can re-measure "instead of
