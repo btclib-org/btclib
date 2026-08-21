@@ -6,9 +6,9 @@
 
 The message that gossips an address of any network, and the one a peer
 sends to say it understands the first. BIP155 is the specification and
-is unusually precise; Core's `CAddress` under `V2_NETWORK` -- src/
-protocol.h and src/netaddress.h -- is the implementation, and where the
-two read differently this module says so and follows the BIP.
+is unusually precise; Core's `CAddress` under `V2_NETWORK`, of
+src/protocol.h and src/netaddress.h, is the implementation, and where
+the two read differently this module says so and follows the BIP.
 
 An entry is `addr`'s idea in a different encoding, not a variant of it:
 four octets of timestamp, then the service flags as a `CompactSize`, a
@@ -17,7 +17,7 @@ port. Nothing about it is an `addr` entry's octets, and the address field
 is not an IP address at all -- a `TORV3` one is an ed25519 public key.
 
 **A class of its own, and one rather than two.** `NetworkAddress` holds
-an `ipaddress.IPv6Address`, which is what half of these addresses are
+an `ipaddress.IPv6Address`, which a `TORV2`, `TORV3` or `I2P` address is
 not, so reuse is refused by the field before it is refused by anything
 else: giving that field a union type would put "which of these is it" on
 every existing caller of `.ip`, which is the cost issue #1098 declined
@@ -52,10 +52,10 @@ the caller apply it.
 message with it.** BIP155: "Clients SHOULD reject messages that contain
 addresses that have a different length than specified in this table for a
 specific network ID, as these are meaningless." Core implements exactly
-that, `SetNetFromBIP155Network` throwing `std::ios_base::failure` on each
-of the five it knows, which fails the whole message rather than the
-entry. So does `assert_valid` here, and refusing is what a codec can
-mean by it: dropping the entry would leave a message that serializes back
+that, `SetNetFromBIP155Network` throwing `std::ios_base::failure` for
+every id it knows, which fails the whole message rather than the entry.
+So does `assert_valid` here, and refusing is what a codec can mean by
+it: dropping the entry would leave a message that serializes back
 one address shorter than it arrived, and there is no value of a field
 that means "this one was ignored".
 
@@ -102,10 +102,10 @@ peers one bit above it.
 **The address itself is opaque octets, and no rendering is offered.**
 That is what BIP155 bought: the field's meaning is the network id's, so a
 type that decoded it would have to hold every network's format and would
-be wrong about the next one. `IPv4Address(entry.address)` is a caller's
-one line for the two ids where it applies; a `.onion` name is SHA3-256
-and a checksum over the same octets, and a `.b32.i2p` name is base32 of
-them, neither of which is a codec's work.
+be wrong about the next one. `IPv4Address(entry.address)` and its v6
+twin are a caller's one line wherever the octets are an IP address at
+all; a `.onion` name is SHA3-256 and a checksum over them, and a
+`.b32.i2p` name is base32 of them, neither of which is a codec's work.
 """
 
 from __future__ import annotations
