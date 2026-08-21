@@ -90,6 +90,31 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`test.yml`'s and `lint.yml`'s concurrency groups take a
+  `concurrency-suffix` input, and `release.yml` passes `-release` at both
+  call sites; the key changes from `github.head_ref || github.ref` to
+  `github.event.pull_request.number || github.ref`** (issue #1158). Two
+  divergences, in the same lines. First: `release.yml` calls both
+  workflows, and inside a called workflow `github.ref` is the ref of the
+  release run itself — a `workflow_dispatch` rehearsal from `main`
+  computes `refs/heads/main`, the same group a push to `main` holds, with
+  `cancel-in-progress: true`, so one cancelled the other. Not exercised
+  directly — reproducing it costs an actual rehearsal race — but
+  `btclib-secp256k1` had already fixed it with the same
+  `concurrency-suffix` mechanism this copies. Second: `head_ref` is set
+  only for `pull_request` events and is the branch name, so two forks
+  each pushing a branch called, say, `patch-1` collide under it; the pull
+  request number does not repeat across forks. `head_ref` still beat a
+  bare `github.ref` on one count the surviving comment keeps: a closed,
+  merged pull request's event sets `github.ref` to the base branch, not
+  the merge ref, so the fallback still has to be something that gives a
+  closed `pull_request` event its own group, and the pull request number
+  does that too. `CLAUDE.md` is corrected in the same pull request: it
+  had been fixed once already, from `test-${{ github.ref }}` to the
+  `head_ref` form, by the survey behind
+  [ISS #1152](https://github.com/btclib-org/btclib/issues/1152), and this
+  change made that fix wrong a second time.
+
 - **`published.yml`'s steps declare `shell: bash`** (issue #1141). The
   matrix includes `windows-latest` and `windows-11-arm`, where the default
   shell is PowerShell, and the step that waits for the index to serve the

@@ -139,10 +139,12 @@ Do not use Fable unless explicitly instructed.
   pre-commit.ci's included, neither of them naming a branch. Branch
   protection, and why it is what it is, is `REPOSITORY.md`.
 - **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
-  concurrency group is `test-${{ github.ref }}` with cancel-in-progress,
-  so the next push kills the run for the previous commit. The local gates
-  below are the evidence; `cancelled` is not `failure`, and waiting for a
-  busy afternoon to settle is waiting for nothing.
+  concurrency group is
+  `test-${{ github.event.pull_request.number || github.ref }}` (plus a
+  release-only suffix) with cancel-in-progress, so the next push kills
+  the run for the previous commit. The local gates below are the
+  evidence; `cancelled` is not `failure`, and waiting for a busy
+  afternoon to settle is waiting for nothing.
 - **A bare `uv run pytest` is the coverage gate too**: `--cov` is in
   addopts, so the 100% ratchet fails locally instead of only in the
   `coverage` job. A run that selects a subset — paths, `-k`, `-m` — is
@@ -196,8 +198,9 @@ Do not use Fable unless explicitly instructed.
 - **Workflows**: every action pinned to a commit SHA with the tag in a
   trailing comment; every workflow declares `permissions: contents: read`
   and `timeout-minutes`; concurrency groups are named literally
-  (`test-${{ github.ref }}`), never through `github.workflow`, which in a
-  called workflow is the caller's name; `checkout` passes
+  (`test-${{ github.event.pull_request.number || github.ref }}`), never
+  through `github.workflow`, which in a called workflow is the caller's
+  name; `checkout` passes
   `persist-credentials: false`; uv commands pass `--locked`, never
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.

@@ -34,15 +34,22 @@ on:
     # what makes it do, cancel-in-progress above turning the landing
     # into the cancellation. A closed pull request has nothing left to
     # ask this workflow, the merge commit being main's own push
-    # trigger's question. The group below keys on github.head_ref rather
-    # than plain github.ref for exactly this event: a merged pull
-    # request's closed event sets github.ref to the base branch, not the
-    # merge ref, which used to land it in main's own push group and race
-    # the merge commit's run for cancellation (PR 1023's bug) instead of
-    # the PR's own group as intended
+    # trigger's question. The group below keys on the pull request's own
+    # number rather than plain github.ref for exactly this event: a
+    # merged pull request's closed event sets github.ref to the base
+    # branch, not the merge ref, which used to land it in main's own
+    # push group and race the merge commit's run for cancellation
+    # (PR 1023's bug) instead of the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
   # lets the release workflow gate publication on these same checks
   workflow_call:
+    inputs:
+      concurrency-suffix:
+        description: >
+          Appended to the concurrency group, and the release workflow is
+          the only caller that passes one. See the group below.
+        type: string
+        default: ""
   # the escape hatch: a run on demand for a branch whose pull request is
   # not open yet
   workflow_dispatch:
@@ -58,13 +65,27 @@ permissions:
 # a called workflow is the caller's name: the release workflow calls both
 # this and test.yml, and with that expression the two would share a group
 # and cancel each other.
-# head_ref falls back to ref rather than being used bare: it is set only
-# for pull_request events, to the PR's head branch, so a push run (ref
-# refs/heads/main) still gets its own group -- and a pull_request event
-# always groups by the PR's branch, closed and merged ones included, so
-# it never collides with a push's group the way bare ref did
+# github.ref has the same shape of problem one level down, and it is why
+# the suffix is there. Inside a called workflow that context is the
+# caller's ref, so a rehearsal -- a workflow_dispatch of release.yml on a
+# branch, which is what RELEASING.md prescribes -- computes
+# lint-refs/heads/<branch>, the very group a push to that branch or a
+# direct dispatch of this workflow computes. One then kills the other:
+# either the rehearsal dies mid-build, or it cancels the run of the push.
+# A tag run is unaffected, refs/tags/v* being a ref nothing else uses.
+# release.yml passes a suffix of its own, which keeps the release path
+# out of the branch groups while still letting a second rehearsal of the
+# same branch supersede the first.
+# github.event.pull_request.number, not github.ref alone, is a third
+# problem with the same shape: for a closed, merged pull request's run,
+# github.ref resolves to the base branch's ref rather than
+# refs/pull/N/merge, colliding with the push trigger's own group --
+# PR 1023's bug, recorded in the pull_request trigger's own comment
+# above. A pull_request run of any action, closed included, now groups
+# by the pull request's own number instead, which a push never carries
+# and so still groups by github.ref, unchanged
 concurrency:
-  group: lint-${{ github.head_ref || github.ref }}
+  group: lint-${{ github.event.pull_request.number || github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

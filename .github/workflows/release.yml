@@ -219,6 +219,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    with:
+      # what keeps this run out of the branch concurrency groups: see the
+      # group in test.yml
+      concurrency-suffix: "-release"
 
   # and the same checks a pull request lints with: without this, a tag
   # push could publish code the pre-commit hooks reject. Not gated on
@@ -226,6 +230,9 @@ jobs:
   lint:
     name: Run the lint workflow
     uses: ./.github/workflows/lint.yml
+    with:
+      # see the test job above
+      concurrency-suffix: "-release"
 
   # and the documentation build, for the reason the lint call above gives: a
   # tag publishes the docstrings read the docs will render from it, so the
