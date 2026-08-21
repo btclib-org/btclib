@@ -54,6 +54,7 @@ from btclib.p2p.address import (
     ServiceFlags,
     TimestampedNetworkAddress,
 )
+from btclib.p2p.addrv2 import AddrV2, BIP155Network, NetworkAddressV2, SendAddrV2
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -72,6 +73,8 @@ from btclib.p2p.payload import Payload
 
 __all__ = [
     "Addr",
+    "AddrV2",
+    "BIP155Network",
     "BlockPayload",
     "GetBlocks",
     "GetData",
@@ -82,10 +85,12 @@ __all__ = [
     "InventoryType",
     "Message",
     "NetworkAddress",
+    "NetworkAddressV2",
     "NotFound",
     "Payload",
     "Ping",
     "Pong",
+    "SendAddrV2",
     "ServiceFlags",
     "TimestampedNetworkAddress",
     "TxPayload",

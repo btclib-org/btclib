@@ -8,8 +8,7 @@ Bitcoin Core's `CAddress`, of src/protocol.h, in the version-1 encoding
 its `SERIALIZE_METHODS` writes with `Encoding::V1`: eight octets of
 service flags, then the sixteen of address and two of port that
 `CService` writes under it. BIP155's `addrv2` is a different
-encoding of the same idea and is issue #1083's fifth child, not this
-module.
+encoding of the same idea and is `btclib.p2p.addrv2`, not this module.
 
 **Two classes for what Core's prose calls one structure**, because the
 octets are not the same: a `version` message's two addresses carry no

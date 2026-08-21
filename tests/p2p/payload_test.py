@@ -28,6 +28,7 @@ from btclib.block import Block
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
+    AddrV2,
     BlockPayload,
     GetBlocks,
     GetData,
@@ -41,6 +42,7 @@ from btclib.p2p import (
     Payload,
     Ping,
     Pong,
+    SendAddrV2,
     TxPayload,
     Verack,
     Version,
@@ -63,6 +65,8 @@ _PAYLOADS: tuple[Payload, ...] = (
     Version(70016, 0, 0, None, None, 1, b"/btclib/", 1, relay=True),
     Verack(),
     Addr(),
+    AddrV2(),
+    SendAddrV2(),
     Ping(1),
     Pong(1),
     Inv([Inventory(InventoryType.MSG_TX, bytes(32))]),

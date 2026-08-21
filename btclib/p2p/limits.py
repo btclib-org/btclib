@@ -31,6 +31,7 @@ btclib's var_int cap is 33,554,432.
 """
 
 __all__ = [
+    "MAX_ADDRV2_SIZE",
     "MAX_ADDR_TO_SEND",
     "MAX_HEADERS_RESULTS",
     "MAX_INV_SZ",
@@ -64,7 +65,28 @@ MAX_SUBVERSION_LENGTH = 256
 # net_processing.cpp and not net.h, which is where the other two are:
 # Core keeps this one beside the address relay that uses it, and the
 # citation is what says where to look when the number moves.
+#
+# `addrv2` is held to this one and not to a second constant of its own:
+# BIP155 says "One message can contain up to 1,000 addresses. Clients
+# SHOULD reject messages with more addresses", and Core reads both
+# commands through the one `ProcessMessage` branch and the one check.
+# The same number under two names is what `MAX_PROTOCOL_MESSAGE_LENGTH`
+# above refuses, and this is the other case: one rule, so one constant.
 MAX_ADDR_TO_SEND = 1000
+
+# The longest address an `addrv2` entry may carry, BIP155's own bound:
+# "Field addr has a variable length, with a maximum of 512 bytes (4096
+# bits). Clients SHOULD reject messages with longer addresses,
+# irrespective of the network ID." Core holds the same number under
+# `CNetAddr::MAX_ADDRV2_SIZE` of src/netaddress.h, which is the name
+# spelled here.
+#
+# Irrespective of the network id is what makes it a bound rather than a
+# validity rule: the length a known id fixes is checked against the table
+# in `btclib.p2p.addrv2`, and this is what stands in front of the octets
+# an id nobody has heard of may claim -- `var_bytes` reads a length the
+# peer chose, and btclib's var_int allows 33,554,432 of them.
+MAX_ADDRV2_SIZE = 512
 
 # The most entries one `inv` or `getdata` may carry, Core's
 # src/net_processing.cpp, where the comment reads "The maximum number of
