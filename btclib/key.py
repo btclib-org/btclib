@@ -9,12 +9,10 @@ hex string of them, a point, an xpub -- and a private key has as many.
 Every converter in this library takes all of them and answers a tuple, so
 the canonical form is what comes *out* of a conversion and never what
 goes *in*: a caller that has one has to spell it back for the next call,
-which parses it again. That round trip is what
-`bip32.derive_`, `to_pub_key._sec_from_pub_key` and
+which parses it again. That round trip is what `bip32.derive_`,
+`to_pub_key._sec_from_pub_key` and
 `taproot._output_pubkey_and_internal_key` each work around locally --
-issues 886, 887 and 896 -- and that `KeyWallet.add` pays twice over,
-deriving a public key and then handing the private one to an address
-builder that derives it again.
+issues 886, 887 and 896.
 
 `PubKeyData` and `PrvKeyData` are that cut: the spellings stay at the
 boundary, the parse happens once, and what travels afterwards is an

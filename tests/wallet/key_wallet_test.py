@@ -6,15 +6,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from btclib import b58
 from btclib.alias import BIP44ScriptType
 from btclib.bip32 import bip32
+from btclib.curves import curve, sec_point
 from btclib.ecc import bms
 from btclib.exceptions import BTClibValueError
 from btclib.wallet import AddressInfo, BIP32KeyWallet, KeyWallet
-from tests import replace_unchecked
+from tests import needs_bindings, replace_unchecked
 
 # the "abandon abandon ... about" seed, whose master key BIP84 and BIP86
 # both publish as their rootpriv and whose addresses SLIP132, BIP49,
@@ -469,3 +472,54 @@ def test_the_output_is_the_script_the_address_pays() -> None:
         assert script_pub_key.address == wallet.address(1, 3)
         assert script_pub_key.network == "mainnet"
         assert wallet.position_of(script_pub_key, 4) == (1, 3)
+
+
+@pytest.mark.parametrize(
+    "bindings",
+    [
+        pytest.param(True, marks=needs_bindings, id="bindings"),
+        pytest.param(False, id="python"),
+    ],
+)
+def test_add_derives_the_public_key_once(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A private key handed to a wallet is multiplied once, not twice.
+
+    `add` computes the public key through `PrvKeyData.pub`, which
+    memoizes, and builds the address out of the SEC octets that answered
+    rather than out of the key that would derive them again -- one scalar
+    multiplication on the secret where there were two (issue #1188).
+
+    What makes that a gate rather than a claim is *where* this counts.
+    Every caller of `bytes_from_prv_key_int` binds it with a from-import,
+    so patching one caller's name leaves the others multiplying
+    uncounted -- which is exactly what the address builder does, through
+    `to_pub_key`'s own binding. Counted here instead are the two calls
+    that name is a wrapper around, in the module that defines it, so
+    every derivation reaching that function is counted whichever caller
+    spelled it -- and both of the ones at issue here do reach it.
+
+    One of those two calls answers per install, which is why both arms
+    run: the bindings for the one that has them, `mult` for the one that
+    does not.
+    """
+    if not bindings:
+        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
+
+    calls = 0
+    for name in ("libsecp256k1_pubkey_from_prvkey", "mult"):
+        original = getattr(sec_point, name)
+
+        def counting(*args: object, _original: Any = original, **kwargs: Any) -> Any:
+            nonlocal calls
+            calls += 1
+            return _original(*args, **kwargs)
+
+        monkeypatch.setattr(sec_point, name, counting)
+
+    wallet = KeyWallet()
+    wallet.add(_WIF_COMPRESSED)
+
+    assert calls == 1
+    assert not wallet.is_watch_only
