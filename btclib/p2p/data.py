@@ -69,15 +69,17 @@ a collision a caller pays for silently. btclib_node has it -- its
 `TxData` and `BlockData` -- and it is the reader of the two modules
 together who cannot then say which is which.
 
-**Nothing here bounds a message length**, and the two constants that
-would tempt one are `btclib.p2p.limits`'s to keep apart.
-`MAX_PROTOCOL_MESSAGE_LENGTH` is the envelope's, checked off the header's
-length field before a payload is allocated and again in
-`Message.assert_valid`; a block satisfying `MAX_BLOCK_WEIGHT` is always
-under it, the weight being `3 * stripped_size + size` and the stripped
-size at least the header and the transaction count, so `size` is short of
-four million by three times that. A second check here would be a second
-number to keep true.
+**Nothing here bounds a message length.**
+`btclib.p2p.limits.MAX_PROTOCOL_MESSAGE_LENGTH` is the envelope's,
+checked off the header's length field before a payload is allocated and
+again in `Message.assert_valid`, and a block satisfying
+`btclib.block.limits.MAX_BLOCK_WEIGHT` is always under it: the weight is
+`3 * stripped_size + size` and the stripped size is at least the header
+and the transaction count, so `size` falls short of the cap by three
+times that. The two constants hold the same number today and are not the
+same constant, which is the coincidence `btclib.p2p.limits` exists to
+keep from becoming an import; a second bound here would be a third place
+for it to be wrong.
 
 **Which encoding answers which request is the caller's**, as it is one
 layer up: `Inventory.is_witness` reads BIP144's bit off a `getdata` entry
