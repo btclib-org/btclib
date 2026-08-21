@@ -739,16 +739,15 @@ documented at release-notes length in the first place, and are still in
   once for this repository and its siblings, and it claims to be linked
   from each repository's CONTRIBUTING.md. Nothing here named it. Every
   mention of that repository in this tree either pointed at an issue
-  filed there or deep-linked
-  one subsection of it to justify one setting, reached only by
-  somebody already reading the paragraph that carries it; not one of
-  them told a reader the document exists.
+  filed there or deep-linked one subsection of it to justify one
+  setting, reached only by somebody already reading the paragraph that
+  carries it; not one of them told a reader the document exists.
   `git grep -n 'btclib-org/\.github'` is what re-derives them, a list
   here going stale the next time one is written. So a contributor
   following CONTRIBUTING.md to REPOSITORY.md to CLAUDE.md was never
-  told a document above them existed — and a rule stated only there was
-  one they could not find, a divergence they introduce one nothing in
-  this tree warned them about. The pointer is in the opening list,
+  told a document above them existed — a rule stated only there was one
+  they could not find, and a divergence they introduce is one nothing
+  in this tree warned them about. The pointer is in the opening list,
   where the file already says what to read first, rather than in
   REPOSITORY.md or CLAUDE.md: the audit and the normalizing checklist
   are performed *holding* the standard, so the reader who arrives
