@@ -119,31 +119,35 @@ jobs:
       # configuration, and it is what would catch a suppression added
       # back.
       #
-      # Two greps, not one, because myst's fallback renders the target
-      # verbatim and a target is written one of two ways across this
-      # organization's three publishing repositories (issue #1157):
-      # "./CONTRIBUTING.md", every relative link this repository's own
-      # root files use, which becomes href="#./CONTRIBUTING.md" if it
-      # breaks -- the first grep -- and a bare "SECURITY.md" with no
-      # "./", the convention btclib-secp256k1 uses instead, which
-      # becomes href="#SECURITY.md" and only the second grep catches.
-      # Each repository used to run one of the two, on the strength of
-      # the convention its own root files happened to follow, which
-      # left it blind to a broken link written the other way -- this
-      # repository's own links are all the first shape today, but
-      # nothing enforces that, and bitcoin-core-rpc ran the very same
-      # single grep on the same assumption. A survey across all three
-      # found no third shape among the links these pages actually
-      # carry, so two greps is the union rather than a guess at how far
-      # to generalize.
+      # One grep, because there is one spelling to look for. myst's
+      # fallback renders the destination verbatim, so what this can
+      # match is decided upstream of here, in how the link was written
+      # -- and the local-link-prefix hook in .pre-commit-config.yaml
+      # refuses a local destination that does not begin "./", in the
+      # commit that writes it. Every destination the included root files
+      # carry therefore renders href="#./<destination>" when it breaks,
+      # anchor, extension and nested path alike (issue
+      # btclib-org/.github#20; the hook's own comment has the
+      # measurement behind that).
+      #
+      # Not a second grep for a bare destination beside it. It would be
+      # unreachable with the hook in place, and it is no superset of
+      # this one even without: a character class of name characters
+      # stops at the "#" of an anchor, so href="#README.md#build" is a
+      # shape both patterns pass over. That is the argument for the hook
+      # rather than for a third pattern -- a check downstream of the
+      # rendering has to anticipate every way a link can be written, and
+      # a rule upstream of it permits one.
       #
       # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
       # is a correct path, and pointing it at docs/build/html would mean
       # building the documentation inside a workflow that gates nothing
       # and re-requesting every external url these pages carry.
-      # Not a pre-commit hook either: it would have to build the
-      # documentation, which is the very reason this job exists apart from
-      # the lint one.
+      # Not the local-link-prefix hook in place of this step either, for
+      # all that it is what settles the spelling: it reads the markdown, and
+      # the claim made here is about the built artifact -- that no page
+      # sphinx wrote carries an anchor to an id nothing has, whatever
+      # emitted it and whatever conf.py is configured to warn about.
       #
       # Not narrowed to myst's own class="xref myst" either. The defect is
       # an href to an id no page has, whoever emitted it, and the prose
@@ -153,13 +157,7 @@ jobs:
       # on the built html
       - name: Check the built pages for unresolved links
         run: |
-          status=0
           if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
             echo "::error::the links above resolve to no page (unresolved relative path)"
-            status=1
+            exit 1
           fi
-          if grep -rn 'href="#[A-Za-z0-9_.-]*\.md"' docs/build/html --include='*.html'; then
-            echo "::error::the links above resolve to no page (unresolved bare .md target)"
-            status=1
-          fi
-          exit $status

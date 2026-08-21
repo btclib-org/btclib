@@ -68,7 +68,8 @@ In priority order, stopping at what this diff can be wrong about:
   A diff carrying an unrelated fix cannot be acked for either question.
 - **Is it correct?** Reason about the code as it will run, not as it
   reads. Where a claim can be checked, check it rather than believing
-  it.
+  it — and where what the diff adds is what does the deciding, checking
+  it means running it, below.
 - **Does it break a rule this repository states?** Not a rule the
   reviewer would have written — one the repository's own documents
   state, cited by the line that states it. This is the class of finding
@@ -194,6 +195,49 @@ Two properties decide when not to:
 A suggestion carries the severity of the finding it belongs to. Offering
 one does not make a blocking finding a nit, and accepting one is what
 closes the thread.
+
+## What a diff decides with is run, not read
+
+A diff that adds a regex, a grep, a pattern in a hook, a script or a
+query adds something that decides an outcome by matching or computing.
+**Run it.** Reading it again is not a second check: the author read it
+and believed it, and a reviewer who only reads reproduces that reading
+rather than testing it. Running it is what makes the verdict something
+the author's own reading did not already decide.
+
+The cases to run are not the reviewer's to invent:
+
+- **The shapes the diff's own prose claims to cover** — the example in
+  the hook's comment, in the `CHANGELOG.md` entry, in the pull request
+  body. A motivating case the pattern does not in fact handle is the
+  finding, and the diff named that case itself.
+- **The shapes the tree actually holds.** `git grep` for the construct
+  the pattern is about and run it against those lines, rather than
+  against an example composed to be matched.
+
+A claim the prose makes *about the tree* takes the same treatment.
+"Every link here is already `./`-prefixed", "nothing calls this any
+more": each is one command's worth of evidence, and each is the reason
+the change is offered as safe. Settle it. Where it is false, the finding
+is not the code but the reason given for it.
+
+What this is not:
+
+- **A run of the gates.** They run what the rest of the tree already
+  exercises; what this diff adds has been run against nothing, and the
+  review is the first thing to run it. A review told to leave the gates
+  to the workflows running beside it on the same sha is told about the
+  gates, and this is not one of them.
+- **A test suite written inside a review.** It is a handful of one-line
+  runs, and their output is the "how it is known" that a finding carries
+  anyway.
+- **A hand trace wearing a run's authority.** Where what is at hand
+  cannot run the thing — a script or a query wanting an interpreter,
+  where a pattern against the tree needs only a grep and is the usual
+  case — say so in the summary, in those words: it was not run. A trace
+  is the author's reading performed a second time, which is what running
+  it is meant to replace; it can carry a finding, and it cannot carry an
+  ack.
 
 ## The gates are the evidence
 

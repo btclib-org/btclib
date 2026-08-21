@@ -282,6 +282,93 @@ repos:
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
+  # how a link destination is spelled, which markdownlint has no rule for
+  # and the documentation build depends on. docs.yml greps the built html
+  # for `href="#./`: that is what myst renders in place of a link the
+  # RootFileLinks transform in docs/source/conf.py cannot resolve -- an
+  # anchor to an id no page has, which -W reports today and would stop
+  # reporting the day suppress_warnings took myst.xref_missing back. A
+  # grep can key on one spelling, so the destinations are spelled one way
+  # and this hook is what keeps them that way, in the commit that writes
+  # the link rather than in the artifact built from it.
+  #
+  # The rule is the prefix and not the extension, and issue #1175's
+  # table is what decides that: "DOES_NOT_EXIST.txt",
+  # "sub/DOES_NOT_EXIST.md", "DOES_NOT_EXIST" and "../DOES_NOT_EXIST.md"
+  # each reach myst's fallback, and each is missed by the union of both
+  # greps a repository ran. An ".md"-scoped rule would leave all four
+  # writable; a prefix refuses all four where they are written, which
+  # answers that issue by prevention rather than by the extra patterns
+  # its Options section contemplates.
+  #
+  # Measured here as well, by building this repository's documentation
+  # with an unresolvable link written each way: "./page.md",
+  # "./page.md#anchor", "./page.txt", "./sub/page.md" and an
+  # extensionless "./page" each render "#./" and the destination, so the
+  # one grep sees every one; the same destinations without the "./"
+  # render the destination alone, which no single pattern reaches
+  # without also matching the autodoc anchors these pages carry --
+  # href="#btclib.ecc.dsa.sign" and href="#module-btclib.b32".
+  #
+  # "../" is the row worth naming on its own, because it is the one
+  # shape with nothing downstream behind it. conf.py's transform
+  # declines a target that normalizes above the repository root --
+  # nothing above the root is a document this build can answer for --
+  # so "../page.md" reaches myst's fallback by design rather than by a
+  # gap in the transform, and renders href="#../page.md", which the grep
+  # in docs.yml does not match and should not be widened to. Refusing it
+  # here is the only place that shape can be caught at all, which is why
+  # it is refused rather than allowed as an ordinary relative path.
+  #
+  # The first branch steps over a nested image, and it has to: a badge is
+  # "[![alt](src)](href)", and link text written "[^]]*" stops at the "]"
+  # that closes the alt text -- so a scan anchored on it checks the image
+  # src and never reaches the badge's own destination. That was this
+  # hook's first shape, and it left every badge href unchecked; the link
+  # text is now "(?:[^]]|\]\([^)]*\))*", a character that is not "]" or a
+  # whole "](...)" group, which steps over the image and, by
+  # backtracking, still checks the src on the way. Measured: a badge href
+  # renders exactly what a plain href renders, so every row of the table
+  # above can be written as a badge destination and only the "./" one is
+  # caught downstream.
+  #
+  # pygrep, and the same hook in every repository of this organization
+  # (btclib-org/.github#20): there is no shared hook repository to put
+  # it in, and `pinned-rev` above is that arrangement already. The
+  # pattern asks for a whole `[text](destination)`, so grep output of the
+  # form `FILE.md:21:](x.md)` carries no "[" and is not matched. The
+  # lookbehind refuses a "[" preceded by a backtick, which is what lets
+  # prose quote the refused shape in a code span -- and one preceded by
+  # "!" or "[" as well, so that a *quoted* badge is escaped whole rather
+  # than re-entered at the image inside it. The leading "!?" is what
+  # keeps a standalone image's own src checked despite that.
+  #
+  # A reference definition is a link too, and the second branch is for
+  # it: "[label]: page.md" renders the same fallback as the inline form
+  # -- measured on the built html -- and carries no "(", so the first
+  # branch cannot see it. That branch is anchored at the start of the
+  # line, which is what keeps it off a *use* site: "[label][ref]: the"
+  # is prose in a sibling repository's changelog, and an unanchored
+  # pattern reported it. At most three leading spaces, four making the
+  # line an indented code block rather than a definition.
+  #
+  # What pygrep cannot see is a fenced block, being line based -- an
+  # example of the refused shape inside one fails this hook, and the
+  # code span is the way round it
+  - repo: local
+    hooks:
+      - id: local-link-prefix
+        name: a local markdown link destination begins with ./
+        language: pygrep
+        # one line, and no literal space in it -- "\x20" is the space the
+        # reference branch allows -- so yamllint reads the value as a
+        # single unbreakable word and its 100-column rule exempts it. A
+        # block scalar rather than a quoted one for the same reason a
+        # folded scalar was rejected: folding joins lines with a space,
+        # which would land inside the regex
+        entry: |-
+          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+        types: [markdown]
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,
   # so the linter judges the formatted file and not the one that was typed.

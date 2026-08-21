@@ -102,6 +102,33 @@ documented at release-notes length in the first place, and are still in
   is open. Both siblings gain the same trigger in their own
   `RELEASING.md`.
 
+- **`REVIEWING.md` asks a review to run what a diff decides with.** A
+  regex, a grep, a pattern in a hook, a script or a query decides an
+  outcome by matching or computing, and a review of one executes it
+  rather than reading it — against the shapes the diff's own prose
+  claims to cover, and against the shapes the tree actually holds. A
+  claim the prose makes about the tree takes the same treatment, "every
+  link here is already `./`-prefixed" being one `git grep`'s worth of
+  evidence and the reason a change is offered as safe.
+
+  What earned the rule is the `local-link-prefix` pygrep hook proposed
+  across the organization with a byte-identical pattern, here as pull
+  request #1199. Its leading clause `\[[^]]*\]\(` cannot cross the `]`
+  that closes an image's alt text, so on the badge shape
+  `[![alt](./src)](./href)` it examines the image source and never the
+  destination the link itself carries — which is the destination that
+  hook's own comment cites as its motivating case, left free to lose
+  its `./` unreported. Running the clause against a real README line is
+  what found it, on btclib-org/bitcoin-core-rpc#192; the reviews that
+  reasoned about the pattern instead reported it correct.
+
+  The section says what it is not, `claude-review.yml`'s prompt telling
+  a review here not to re-run the gates: those run what the rest of the
+  tree already exercises, where a pattern a diff adds has been run
+  against nothing until a review runs it. The prompt is unchanged — it
+  names `REVIEWING.md` rather than restating it, so the standard moves
+  without the workflow being edited.
+
 ### Packaging, linting and CI
 
 - **`test.yml`'s and `lint.yml`'s concurrency groups take a
@@ -536,6 +563,79 @@ documented at release-notes length in the first place, and are still in
   `bitcoin-core-rpc` each had one further instance, in their own
   `test.yml`, fixed in a pull request of their own
   (`btclib-org/btclib#1148` is the issue both reference).
+- **A `local-link-prefix` hook refuses a local markdown link destination
+  that does not begin with `./`, and `docs.yml`'s unresolved-link check
+  is one grep again** (btclib-org/.github#20). What that grep can match
+  is decided by how the link was written, myst rendering the destination
+  of a link `docs/source/conf.py`'s `RootFileLinks` transform cannot
+  resolve verbatim: `./SECURITY.md` breaking gives
+  `href="#./SECURITY.md"`, a bare `SECURITY.md` breaking gives
+  `href="#SECURITY.md"`. The links here were already written the first
+  way, and nothing said they had to be — the hook is what says so, and
+  with it the second grep, added for the bare shape a sibling repository
+  was writing, has nothing left it can catch.
+
+  That second grep was no superset of the first even so: a character
+  class of name characters stops at the `#` of an anchor, so
+  `href="#README.md#build"` is a shape both patterns pass over. Which is
+  the argument for moving the rule upstream rather than writing a third
+  pattern — a check on the rendered page has to anticipate every way a
+  link can be written, and a rule on the source permits one.
+
+  The rule is the prefix and not the extension, and issue #1175's table
+  is what decides that: `DOES_NOT_EXIST.txt`, `sub/DOES_NOT_EXIST.md`,
+  `DOES_NOT_EXIST` and `../DOES_NOT_EXIST.md` each reach MyST's
+  fallback, and each is missed by the union of both greps a repository
+  ran — so an `.md`-scoped rule would leave all four writable. A prefix
+  refuses all four where they are written, which answers that issue by
+  prevention rather than by the extra patterns its Options section
+  contemplates: a grep finds a broken link after somebody writes it, a
+  hook stops it being written. Its six rows, against what lands here —
+  `./X.md` is allowed and, if the target does not exist, the surviving
+  grep catches the rendered `#./X.md`; `X.md`, `X.txt`, `sub/X.md`, `X`
+  and `../X.md` are each refused, so none can be written at all.
+
+  **That claim was checked against every position a destination can
+  occupy, and the check found a hole before it found the answer.** A
+  badge is `[![alt](src)](href)`, and a link text written `[^]]*` stops
+  at the `]` that closes the alt text — so the first version of this
+  pattern checked the image `src` and never the badge's own href, and
+  measured on the built html a badge href renders exactly what a plain
+  href renders. Every row of the table above was therefore still
+  writable as a badge destination, past the hook and past both greps.
+  Link text is now `(?:[^]]|\]\([^)]*\))*`, a character that is not
+  `]` or a whole `](…)` group, which steps over the image and reaches
+  what is behind it while still checking the `src` by backtracking. The
+  six rows were then re-derived across five positions — plain link,
+  badge href, image src, badge src and reference definition — and only
+  `./X.md` is accepted in any of them. This repository carries badge
+  links in `README.md` and `CONTRIBUTING.md`, none of them violating
+  the rule; the siblings' counts differ and the hook is what says so
+  for each.
+
+  `../` is the row worth naming on its own, because it is the only one
+  with nothing downstream behind it: `RootFileLinks` *declines* to
+  resolve a target normalizing above the repository root, nothing above
+  the root being a document this build can answer for, so that shape
+  reaches the fallback by design and renders `href="#../X.md"` — which
+  the surviving grep does not match and should not be widened to reach.
+  The hook is the only place it can be caught.
+
+  Measured here too, by building this documentation with an
+  unresolvable link written each way: `./page.md`, `./page.md#anchor`,
+  `./page.txt`, `./sub/page.md` and an extensionless `./page` each
+  render `#./` followed by the destination, so the one grep sees every
+  one; the same destinations without the `./` render the destination
+  alone, which nothing catches without also matching the autodoc
+  anchors these pages carry. A link reference definition,
+  `[label]: page.md`, renders that same fallback and carries no `(`, so
+  the pattern has a second branch for it, anchored at the start of the
+  line — a reference *use* followed by a colon is ordinary prose, and
+  an unanchored pattern reported one in `btclib-benchmarks`'s
+  changelog. `RELEASING.md`'s link to `release.yml` was the one
+  destination in this repository's markdown that did not begin `./`,
+  and now does. `uv run --locked --only-group lint pre-commit run
+  local-link-prefix --all-files` re-derives the whole of it.
 
 - **`generate_sbom.py` writes one component per dependency, where it
   wrote one per `Requires-Dist` line** (issue #1194). A component's
