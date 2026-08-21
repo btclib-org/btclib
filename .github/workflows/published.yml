@@ -214,12 +214,12 @@ jobs:
       # named, and now the one thing a wheel cell here cannot become by
       # accident. Only btclib is constrained either way, never its
       # dependencies: this install names no extra, so btclib_secp256k1 is
-      # one of them and is left to resolve however pip normally would
-      # (issue #1143 is the open question of asking for it at all,
-      # unaffected by either flag here since neither names that package --
-      # adding the extra later would need its own --only-binary
-      # btclib_secp256k1 alongside this one, the same flag applied a
-      # second time rather than a reason to change this one). An
+      # one of them and is left to resolve however pip normally would,
+      # and neither flag here names it. install-published-secp256k1,
+      # below, is the job that names the extra and is entitled to
+      # constrain btclib_secp256k1 too, with its own --only-binary --
+      # the same flag applied a second time rather than a reason to
+      # change this one. An
       # environment variable and a shell conditional rather than a ${{ }}
       # expression inside run, as both siblings already do: matrix values
       # are not attacker-controlled, but the pattern is worth keeping
