@@ -142,14 +142,30 @@ jobs:
       # starts too early tests the *previous* version and reports a pass for
       # it, which is worse than reporting nothing. So the release path waits
       # for the version its tag names, and fails if it never arrives rather
-      # than measuring the wrong thing. Only there: the input is empty on
-      # every other trigger
+      # than measuring the wrong thing.
+      #
+      # No `if:` here (issue #1151): this step used to run only when
+      # `inputs.version` was set, true only on the one path a tag takes
+      # through `workflow_call`. That left its script untried everywhere
+      # else, and a PowerShell parse defect in it shipped twice for
+      # exactly that reason -- bitcoin-core-rpc's own release hit it and
+      # fixed it the next day, and four months later btclib's release hit
+      # the same defect in the same step, because nothing between the two
+      # had ever run this step to notice the fix had not been carried
+      # across (issue #1141). Now the step runs on every trigger and exits
+      # 0 immediately when `TAG` is empty, which is every trigger but the
+      # one a release calls: a monthly schedule or a dispatch parses and
+      # runs this script exactly as a release would, doing nothing
+      # further, so a defect here is findable without cutting a release
       - name: Wait for the index to serve the released version
-        if: inputs.version != ''
         shell: bash
         env:
           TAG: ${{ inputs.version }}
         run: |
+          if [ -z "$TAG" ]; then
+            echo "no release behind this run; nothing to wait for"
+            exit 0
+          fi
           version="${TAG#v}"
           for attempt in $(seq 20); do
             if curl -sf --max-time 10 -o /dev/null \
