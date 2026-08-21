@@ -314,11 +314,10 @@ jobs:
           # --locked -- which is all of them, by convention -- then fails
           # with "the lockfile needs to be updated". Measured: without this
           # re-lock, "uv run --locked --only-group check" on a patched tree
-          # exits non-zero. Nothing after this step in this job happens to
-          # pass --locked today, so the rehearsal works by the arrangement
-          # of the jobs rather than by construction, and moving a packaging
-          # check back in here would break it silently -- silently
-          # because the rehearsal runs by hand, rarely.
+          # exits non-zero. This step now has three --locked consumers
+          # downstream in this same job -- the twine, check-wheel-contents
+          # and pyroma steps added for issue #1154 -- and the re-lock is
+          # what keeps every one of them working.
           # The re-lock is also what makes the sdist coherent: it ships
           # uv.lock, which otherwise declared the unsuffixed version inside
           # a distribution named for the suffixed one

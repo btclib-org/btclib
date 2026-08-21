@@ -100,7 +100,8 @@ Already done for btclib-org/btclib; kept here for the record.
 
 A rehearsal runs the identical pipeline — lint gate, test matrix, the
 packaging checks of the `dist` job (twine, check-wheel-contents,
-pyroma), build, wheel smoke test — and publishes to
+pyroma), build (which runs those same three checks again, on the files
+it is about to publish), wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/btclib/) instead of PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
