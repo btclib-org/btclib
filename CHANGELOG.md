@@ -61,6 +61,32 @@ documented at release-notes length in the first place, and are still in
   while a skipped job is neither, which is why it left this one skipped on
   both attempts.
 
+- **RELEASING.md's `github-release` recovery bullet names the full
+  asset set** (issue #1150). "create the release by hand from the
+  `dist` artifact of the run" named one artifact where the job
+  downloads three — `dist`, `sbom` and `attestation`, each uploaded by
+  a step of its own earlier in the same workflow — and a release built
+  by that instruction would carry the wheel and the sdist while
+  missing the bill of materials and the signed attestation bundle,
+  which the "Rebuild a release from its tag" section a few dozen lines
+  below already assumes with `--bundle <tag>.attestation.jsonl`. The
+  bullet now downloads and attaches all three, the distribution files
+  and the bill of materials in the order the "Rebuild" section's own
+  `gh attestation verify` calls check them — wheel, sdist, bill of
+  materials — with the bundle renamed as `github-release` renames it.
+  It also has the reader check the two distribution files against the
+  digests PyPI already published for them before attaching anything,
+  which is what makes "the release carries what the index serves" a
+  fact rather than an assumption, and states the limit of the other
+  recovery this same bullet names: `gh run rerun --failed` reaches a
+  job the run marks failed, not one it marks skipped, which is why it
+  did not recover `github-release` on either of the runs issue #1142
+  measured. Issue #1148's fix stops that skip from recurring; the
+  flag's reach is worth stating where a reader is sent to it anyway.
+  Measured while recreating v2026.8.21 by hand after issue #1142: the
+  release wound up with four assets, not the two the old bullet would
+  have produced.
+
 ### Packaging, linting and CI
 
 - **`published.yml`'s steps declare `shell: bash`** (issue #1141). The
