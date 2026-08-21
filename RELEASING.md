@@ -159,6 +159,13 @@ btclib that could not be installed beside its own sibling. The paragraph
 above says exactly this about the bindings; it is true of both, word for
 word, and step 1 asks it of both.
 
+Whether to act on a stranger's drift now, or leave it for Dependabot's
+own pull requests to catch up, is a decision worth stating rather than
+defaulting by omission — `uv lock --upgrade` is gated by nothing here,
+so silence at the tag reads as "nobody looked" and not as "looked and
+chose to leave it". State the choice in the release pull request, next
+to `latest`'s own result.
+
 1. Make sure the newest release of **each btclib-org dependency** —
    btclib_secp256k1 and bitcoin-core-rpc — is the one this release
    should depend on, and that `pyproject.toml`'s pin says so. Two
@@ -294,6 +301,19 @@ word, and step 1 asks it of both.
    else. That the commit under the tag carries GitHub's web-flow
    signature rather than the maintainer's costs nothing: the branch rule
    asks for a valid signature and not for a particular signer.
+
+   `gh pr merge <n> --squash` alone can still refuse this pull request —
+   `the base branch policy prohibits the merge` — the way it did on
+   btclib-secp256k1's own v0.8.0.4 (btclib-secp256k1#288): a
+   solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
+   client-side mergeable check declines before it asks the server at
+   all, and `--auto` only waits longer for the same review that will not
+   arrive. `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
+   merge_method=squash` is what landed that release — no approving
+   review, only comments — asking the endpoint directly rather than
+   gh's own check; `--admin` is gh's suggested flag for the same
+   `enforce_admins`/`admin` pair REPOSITORY.md's "Branch protection"
+   names, not independently measured here.
 
    This branch carries more than one commit every time, a version bump
    and two retitles never being one, so the commit that lands is one
