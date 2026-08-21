@@ -677,11 +677,27 @@ def test_reconstruct_says_what_it_was_handed_rather_than_reading_a_field() -> No
     with pytest.raises(BTClibTypeError, match="invalid pool transaction type"):
         reconstruct(compact_block, ["not a transaction"])  # type: ignore[list-item]
 
+    # the header is read for the short id key, so it is asked too
+    with pytest.raises(BTClibTypeError, match="invalid header type"):
+        reconstruct(CmpctBlock("not a header", 0, [1], check_validity=False))  # type: ignore[arg-type]
+
     # a pool entry is asked its type and not its validity: what
     # `reconstruct` reads of one is its wtxid, and a mempool re-validated
-    # once per compact block is every transaction of it checked again
+    # once per compact block is every transaction of it checked again --
+    # which is also why the `PartialBlock` is built with the flag
+    # cleared, an invalid transaction reaching a position going on being
+    # the caller's own until `fill` puts it in a `Block`
     unchecked = Tx(1, 0, [], [], check_validity=False)
     assert reconstruct(compact_block, [unchecked]).missing_indexes == [1]
+
+    invalid_prefill = CmpctBlock(
+        _BLOCK_1.header,
+        0,
+        [],
+        [PrefilledTransaction(0, unchecked, check_validity=False)],
+        check_validity=False,
+    )
+    assert reconstruct(invalid_prefill).transactions == (unchecked,)
 
     # and `fill` asks the same of what it is handed, whatever the flag
     partial = reconstruct(compact_block)

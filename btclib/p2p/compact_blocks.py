@@ -272,6 +272,24 @@ def _short_id(key: tuple[int, int], wtxid: Octets) -> int:
     return digest & _MAX_SHORT_ID
 
 
+def _assert_valid_header(header: BlockHeader) -> None:
+    """Refuse what is no block header, and no header eighty octets hold.
+
+    Asked by both classes below and by `reconstruct`, which is why it is
+    a function: what a compact block and the partial block it makes both
+    carry is the same eighty octets, and a rule stated twice is a rule to
+    keep true twice.
+
+    Nothing about the work here: `BlockHeader.assert_valid` is the field
+    widths and ranges, and `assert_valid_pow` beside it is the proof --
+    so this asks nothing that depends on which network the header is of.
+    """
+    if not isinstance(header, BlockHeader):
+        err_msg = f"invalid header type: {type(header).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    header.assert_valid()
+
+
 def _assert_tx_type(tx: Tx, what: str) -> None:
     """Refuse what is no transaction, saying nothing about whether it is valid.
 
@@ -605,10 +623,7 @@ class CmpctBlock(Payload):
 
     def assert_valid(self) -> None:
         """Refuse a header, a nonce, a short id or an index the fields lack."""
-        if not isinstance(self.header, BlockHeader):
-            err_msg = f"invalid header type: {type(self.header).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
-        self.header.assert_valid()
+        _assert_valid_header(self.header)
 
         # a bool is an int and would read as the nonce one or zero, which
         # the range check cannot tell from a nonce whose value that is
@@ -909,10 +924,7 @@ class PartialBlock:
 
     def assert_valid(self) -> None:
         """Refuse a header, or an entry that is no transaction and not None."""
-        if not isinstance(self.header, BlockHeader):
-            err_msg = f"invalid header type: {type(self.header).__name__}"  # type: ignore[unreachable]
-            raise BTClibTypeError(err_msg)
-        self.header.assert_valid()
+        _assert_valid_header(self.header)
 
         for tx in self.transactions:
             if tx is not None:
@@ -1013,15 +1025,23 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
 
     What is *not* re-asked is `CmpctBlock.assert_valid`: a message built
     with `check_validity=False` is the caller's own here as everywhere
-    else in this library. `_assert_positions` is asked all the same,
-    being the one invariant the walk below rests on -- a prefilled index
-    outside the block is an `IndexError` and not an answer.
+    else in this library. Two of its checks are asked all the same, being
+    what the walk below rests on -- `_assert_positions`, a prefilled
+    index outside the block being an `IndexError` and not an answer, and
+    the header, which is read for the short id key.
+
+    There is no `check_validity` of its own, and that is because there
+    would be nothing left for it to turn off: this is not a constructor a
+    caller hands fields to, so everything the `PartialBlock` holds either
+    arrived inside the message or was checked on the way in, and the
+    `PartialBlock` is therefore built with the flag cleared.
     """
     if not isinstance(compact_block, CmpctBlock):
         err_msg = f"invalid compact_block type: {type(compact_block).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
     for tx in _sequence_of(pool, "pool"):
         _assert_tx_type(tx, "pool transaction")
+    _assert_valid_header(compact_block.header)
 
     count = compact_block.tx_count
     if not count:
@@ -1065,4 +1085,12 @@ def reconstruct(compact_block: CmpctBlock, pool: Sequence[Tx] = ()) -> PartialBl
             collided.add(short_id)
             available[position_of[short_id]] = None
 
-    return PartialBlock(compact_block.header, available)
+    # `check_validity=False`, and it is the whole point of the checks
+    # above rather than a shortcut past them: the header was asked one
+    # line into this function, and every entry of `available` is either a
+    # transaction the message carried or a pool entry whose type was
+    # checked on the way in. Left at the default, `PartialBlock` would
+    # ask `Tx.assert_valid` of every one of them -- which is the mempool
+    # re-validated once per compact block that arrives, the cost
+    # `_assert_tx_type` exists to keep out
+    return PartialBlock(compact_block.header, available, check_validity=False)
