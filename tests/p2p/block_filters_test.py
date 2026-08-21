@@ -238,7 +238,7 @@ def test_the_cfheaders_derivation_feeds_each_header_into_the_next() -> None:
     assert len(headers) == len(hashes)
 
     # and an empty vector derives nothing rather than the field itself
-    assert CFHeaders(BlockFilterType.BASIC, bytes(32), row[4]).filter_headers == []
+    assert CFHeaders(BlockFilterType.BASIC, bytes(32), row[4]).filter_headers == ()
 
 
 def test_a_cfcheckpt_stores_headers_and_names_their_heights() -> None:

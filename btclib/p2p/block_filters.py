@@ -411,12 +411,15 @@ class CFilter(Payload):
         them here would make the same octets parse under a type code
         nobody has defined and fail under the one that is. They
         round-trip either way, which is the property this package keeps.
+
+        Nor are they asked anything else. `bytes_from_octets` is what
+        `__init__` coerced them with and there is no width they must
+        have, so unlike the two hash fields there is nothing left here to
+        refuse -- a `cfilter` of an empty filter is a message BIP158's
+        own vector file holds.
         """
         _assert_valid_type(self.filter_type)
         _assert_valid_hash(self.block_hash, "block_hash length")
-
-        # bytes() is the type check, never assigned back
-        bytes(self.filter_bytes)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type, the block hash, then the filter behind a length."""
@@ -432,7 +435,16 @@ class CFilter(Payload):
     def parse(
         cls: type[CFilter], data: BinaryData, *, check_validity: bool = True
     ) -> CFilter:
-        """Return the filter octets the payload carries, and their block."""
+        """Return the filter octets the payload carries, and their block.
+
+        NumFilterBytes gets no bound of its own: `var_bytes.parse` reads
+        the length and then reads *from the stream*, so what it can build
+        is what the payload holds, and what the payload holds is the
+        envelope's `MAX_PROTOCOL_MESSAGE_LENGTH`. A filter has no other
+        limit to be held to -- BIP158 bounds the element count and
+        `BasicBlockFilter.parse` checks that, over octets a caller has
+        already been handed.
+        """
         stream = bytesio_from_binarydata(data)
 
         filter_type = read_exactly(stream, _TYPE_SIZE, "filter type")[0]
@@ -500,7 +512,7 @@ class CFHeaders(Payload):
             self.assert_valid()
 
     @property
-    def filter_headers(self) -> list[bytes]:
+    def filter_headers(self) -> tuple[bytes, ...]:
         """Return the filter header of each block of the range, in order.
 
         BIP157: a filter header is "the double-SHA256 of the
@@ -512,13 +524,15 @@ class CFHeaders(Payload):
         filter itself is at hand.
 
         Every hash is in display order, so every header answered is too.
+        A tuple, as `CFCheckpt.filter_headers` is: one name over the two
+        messages, and one type with it.
         """
         headers = []
         previous = self.previous_filter_header
         for filter_hash in self.filter_hashes:
             previous = filter_header(filter_hash, previous)
             headers.append(previous)
-        return headers
+        return tuple(headers)
 
     def assert_valid(self) -> None:
         """Refuse more hashes than BIP157 allows, and any of another width."""
