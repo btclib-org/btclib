@@ -31,10 +31,13 @@ from btclib.p2p import (
     AddrV2,
     BlockFilterType,
     BlockPayload,
+    BlockTxn,
     CFCheckpt,
     CFHeaders,
     CFilter,
+    CmpctBlock,
     GetBlocks,
+    GetBlockTxn,
     GetCFCheckpt,
     GetCFHeaders,
     GetCFilters,
@@ -49,7 +52,9 @@ from btclib.p2p import (
     Payload,
     Ping,
     Pong,
+    PrefilledTransaction,
     SendAddrV2,
+    SendCmpct,
     TxPayload,
     Verack,
     Version,
@@ -65,6 +70,8 @@ _MAINNET = bytes.fromhex("f9beb4d9")
 _BLOCK_1 = Block.parse(
     (Path(__file__).parent.parent / "block" / "_data" / "block_1.bin").read_bytes()
 )
+
+_TX = Tx(1, 0, [TxIn(OutPoint(b"\x11" * 32, 0))], [TxOut(1000, b"\x51")])
 
 # every payload type of this package, with a value of each: the walk
 # below is what says the list is complete
@@ -88,11 +95,12 @@ _PAYLOADS: tuple[Payload, ...] = (
     CFHeaders(BlockFilterType.BASIC, bytes(32), bytes(32), [bytes(32)]),
     GetCFCheckpt(BlockFilterType.BASIC, bytes(32)),
     CFCheckpt(BlockFilterType.BASIC, bytes(32), [bytes(32)]),
-    TxPayload(
-        Tx(1, 0, [TxIn(OutPoint(b"\x11" * 32, 0))], [TxOut(1000, b"\x51")]),
-        include_witness=False,
-    ),
+    TxPayload(_TX, include_witness=False),
     BlockPayload(_BLOCK_1, include_witness=False),
+    SendCmpct(announce=True),
+    CmpctBlock(_BLOCK_1.header, 1, [0x0102_0304_0506], [PrefilledTransaction(1, _TX)]),
+    GetBlockTxn(_BLOCK_1.header.hash, [0, 2, 5]),
+    BlockTxn(_BLOCK_1.header.hash, [_TX]),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)

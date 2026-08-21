@@ -48,6 +48,13 @@ from btclib.p2p.block_filters import (
     GetCFHeaders,
     GetCFilters,
 )
+from btclib.p2p.compact_blocks import (
+    BlockTxn,
+    CmpctBlock,
+    GetBlockTxn,
+    PrefilledTransaction,
+    SendCmpct,
+)
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -133,6 +140,14 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "CFHeaders.parse": CFHeaders.parse,
     "GetCFCheckpt.parse": GetCFCheckpt.parse,
     "CFCheckpt.parse": CFCheckpt.parse,
+    "SendCmpct.parse": SendCmpct.parse,
+    "CmpctBlock.parse": CmpctBlock.parse,
+    # the structure inside a `cmpctblock`, driven on its own because it
+    # is a parser of its own: its index is the differential encoding,
+    # so what a mutation reaches here is one a whole message hides
+    "PrefilledTransaction.parse": PrefilledTransaction.parse,
+    "GetBlockTxn.parse": GetBlockTxn.parse,
+    "BlockTxn.parse": BlockTxn.parse,
     # the two payloads that are a transaction and a block: their own
     # mutation samples are `Tx.parse`'s and `Block.parse`'s below, the
     # wrapper adding no octets of its own to flip
@@ -297,6 +312,18 @@ CFHEADERS_BIN = CFHeaders(
     bytes(32),
     [BLOCK_HEADER_BIN[4:36][::-1]],
 ).serialize()
+# the two BIP152 messages whose octets a mutation can reach: a
+# `cmpctblock` of block 1, whose coinbase is the one prefilled
+# transaction and whose short id vector is the field a flipped count
+# grows, and a `getblocktxn` whose indexes are the differential encoding
+# -- a flipped difference is an index the running sum has to refuse
+CMPCTBLOCK_BIN = CmpctBlock(
+    BlockHeader.parse(BLOCK_HEADER_BIN),
+    1,
+    [0x0102_0304_0506],
+    [PrefilledTransaction(1, Block.parse(BLOCK_BIN).transactions[0])],
+).serialize()
+GETBLOCKTXN_BIN = GetBlockTxn(BLOCK_HEADER_BIN[4:36][::-1], [0, 2, 5]).serialize()
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -344,6 +371,11 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # front of a vector of hashes
     "CFilter.parse": (CFilter.parse, CFILTER_BIN),
     "CFHeaders.parse": (CFHeaders.parse, CFHEADERS_BIN),
+    # and the two BIP152 messages, where a mutation reaches a short id
+    # vector's count, a prefilled transaction's differential index, and
+    # the differences a `getblocktxn` is a list of
+    "CmpctBlock.parse": (CmpctBlock.parse, CMPCTBLOCK_BIN),
+    "GetBlockTxn.parse": (GetBlockTxn.parse, GETBLOCKTXN_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),

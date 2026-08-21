@@ -136,7 +136,7 @@ from btclib.mnemonic.entropy import (
     bin_str_entropy_from_rolls,
 )
 from btclib.mnemonic.mnemonic import WordLists
-from btclib.p2p import BlockPayload, TxPayload, Version
+from btclib.p2p import BlockPayload, SendCmpct, TxPayload, Version
 from btclib.psbt import musig2 as psbt_musig2
 from btclib.psbt.psbt import Psbt, assert_signed
 from btclib.psbt.psbt import join as psbt_join
@@ -743,6 +743,16 @@ _KINDS = (
         {"pub_key": _SEC},
         reason="`True` accepts the 0x06 and 0x07 prefixes, so a non-bool"
         " parses the very forms it was written down to keep out",
+    ),
+    _Case(
+        "btclib.p2p.compact_blocks.SendCmpct.__init__",
+        "announce",
+        SendCmpct,
+        {},
+        reason="BIP152's high-bandwidth mode, and the octet written is"
+        " `int(announce)`: a non-bool writes the one that asks a peer to"
+        " push every new block unasked, where the message it was given"
+        " said not to",
     ),
     _Case(
         "btclib.p2p.handshake.Version.__init__",

@@ -64,6 +64,16 @@ from btclib.p2p.block_filters import (
     GetCFHeaders,
     GetCFilters,
 )
+from btclib.p2p.compact_blocks import (
+    CMPCTBLOCKS_VERSION,
+    BlockTxn,
+    CmpctBlock,
+    GetBlockTxn,
+    PartialBlock,
+    PrefilledTransaction,
+    SendCmpct,
+    reconstruct,
+)
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -81,14 +91,18 @@ from btclib.p2p.message import Message
 from btclib.p2p.payload import Payload
 
 __all__ = [
+    "CMPCTBLOCKS_VERSION",
     "Addr",
     "AddrV2",
     "BIP155Network",
     "BlockFilterType",
     "BlockPayload",
+    "BlockTxn",
     "CFCheckpt",
     "CFHeaders",
     "CFilter",
+    "CmpctBlock",
+    "GetBlockTxn",
     "GetBlocks",
     "GetCFCheckpt",
     "GetCFHeaders",
@@ -103,10 +117,13 @@ __all__ = [
     "NetworkAddress",
     "NetworkAddressV2",
     "NotFound",
+    "PartialBlock",
     "Payload",
     "Ping",
     "Pong",
+    "PrefilledTransaction",
     "SendAddrV2",
+    "SendCmpct",
     "ServiceFlags",
     "TimestampedNetworkAddress",
     "TxPayload",
@@ -115,6 +132,7 @@ __all__ = [
     "magic_from_chain",
     "magic_from_network",
     "magic_from_signet_challenge",
+    "reconstruct",
 ]
 
 # what `btclib.p2p.magic` holds, published here and imported on demand:

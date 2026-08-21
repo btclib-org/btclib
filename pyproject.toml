@@ -369,7 +369,14 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # are real words to codespell's dictionary, so neither can be fixed by
 # writing it differently -- unlike the rest of what this hook found,
 # which was corrected instead of listed here
-ignore-words-list = "wit,nd"
+# "ser" and "unser" join them for a reason of this file's own rather than
+# of the prose: `[tool.typos.default.extend-identifiers]` below has to
+# carry Core's `Ser` and `Unser` as bare TOML keys, and a key cannot be
+# written in the backticks the rule below hides a deliberate misspelling
+# in. Every *prose* mention of either is backticked and already invisible
+# to this hook; what these two entries cover is the two lines that
+# configure the other one
+ignore-words-list = "wit,nd,ser,unser"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the prose
@@ -464,6 +471,16 @@ SerParams = "SerParams"
 # function every BIP157 hash field is written with, and a citation the
 # spell checker turned into `set_uint256` names nothing
 ser_uint256 = "ser_uint256"
+# Core's two halves of a serializer, `Ser` for serialize a third time and
+# `Unser` for the reverse (src/serialize.h, and src/blockencodings.h's
+# `DifferenceFormatter`, which is where BIP152's differential index
+# encoding is written and read). btclib/p2p/compact_blocks.py cites both
+# methods by name as the place each of its two overflow refusals is
+# spelled in Core; the hook runs with --write-changes and turns them into
+# `Set` and one of four guesses, and a citation a spell checker rewrote
+# names a symbol that is not in the source it points at
+Ser = "Ser"
+Unser = "Unser"
 
 [tool.typos.default.extend-words]
 # "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell

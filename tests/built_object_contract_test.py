@@ -56,15 +56,18 @@ from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from btclib import slip132
 from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
+from btclib.block import Block
 from btclib.descriptors.descriptors import miniscript_sizer, satisfaction_sizer
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import FeeRate
+from btclib.p2p import CmpctBlock, PrefilledTransaction, reconstruct
 from btclib.psbt.psbt import Psbt, assert_signatures_only
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_size import estimated_input_sizes
@@ -75,6 +78,23 @@ from tests.psbt import psbt_cases
 
 _ROOT_XPRV = rootxprv_from_seed("00" * 32)
 _XPUB = xpub_from_xprv(_ROOT_XPRV)
+
+# the block after genesis, for the one case here whose argument is a p2p
+# message: a `CmpctBlock` needs a header that is one, and a header cannot
+# be invented -- the proof of work `BlockHeader` is checked against has
+# to have been done
+_BLOCK_1 = Block.parse(
+    (Path(__file__).parent / "block" / "_data" / "block_1.bin").read_bytes()
+)
+# a compact block of two transactions: the coinbase prefilled, and one
+# short id for a transaction a pool may or may not hold
+_CMPCTBLOCK = CmpctBlock(
+    _BLOCK_1.header, 0, [1], [PrefilledTransaction(0, _BLOCK_1.transactions[0])]
+)
+# a compact block of no transactions at all, which is a `CmpctBlock` of a
+# perfectly good type and a value no block has: there is none without a
+# coinbase, and Core's `InitData` refuses it too
+_NO_TRANSACTIONS = CmpctBlock(_BLOCK_1.header, 0)
 
 # the first BIP174 vector carrying signatures, which is what makes a
 # request-and-answer pair out of one published psbt: the answer is the
@@ -168,6 +188,15 @@ _CASES = (
         # wrong length
         {0: 0, 1: [_WRONG_KEY_VALUE, _XPUB], 3: [None]},
         optional=frozenset({3}),
+    ),
+    _Case(
+        "p2p.compact_blocks.reconstruct",
+        reconstruct,
+        (_CMPCTBLOCK, [_BLOCK_1.transactions[0]]),
+        # the pool has no wrong value: every transaction is one a mempool
+        # may hold, and a pool that answers no short id is the ordinary
+        # case rather than a refusal
+        {0: _NO_TRANSACTIONS},
     ),
     _Case(
         "psbt.assert_signatures_only",
