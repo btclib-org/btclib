@@ -142,7 +142,7 @@ used to teach and to prototype as much as to build:
     `keys.prvkey_tweak_mul`, `xonly.prvkey_tweak_add`,
     `ecdh.shared_secret`, `ellswift.xdh`, `dsa.nonce_rfc6979` and
     `ssa.nonce_bip340`. btclib passes none of them, and that is a
-    decision, not an oversight. Three call sites read one of those
+    decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `bip32.derive`
     (`btclib/bip32/bip32.py:624`), `commit_nonce.commit_nonce_`
     (`btclib/ecc/commit_nonce.py:145`) and `taproot._tweaked_prvkey`

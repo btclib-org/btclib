@@ -82,9 +82,11 @@ Already done for btclib-org/btclib; kept here for the record.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
    environments. Both require a review from `fametrano`, so neither
-   index is uploaded to without a human approving that run; the two
-   `publish-*` jobs are the only holders of `id-token: write`, and this
-   is the gate in front of them. `pypi` is additionally restricted to
+   index is uploaded to without a human approving that run; every job
+   holding `id-token: write` either runs under one of those two
+   environments directly, or — `attest` — only after one of them has
+   already succeeded, so nothing exchanges for an OIDC token ahead of
+   the review. `pypi` is additionally restricted to
    `v*` tags, which is the only ref its job runs on anyway — the
    restriction is what makes that true of the environment and not just
    of an `if:` in a file a pull request could change.
@@ -417,10 +419,10 @@ to `latest`'s own result.
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
    only importing it. `import btclib` runs `__init__.py` alone, and the
-   25 files under `_data/` — the twelve BIP39 wordlists among them —
-   are opened by path at the first call that needs one, not imported,
-   so a wheel missing `wordlist.txt` would install and import cleanly
-   and only fail there:
+   files under `_data/` — the BIP39 wordlists among them — are opened
+   by path at the first call that needs one, not imported, so a wheel
+   missing `wordlist.txt` would install and import cleanly and only
+   fail there:
 
    ```shell
    uv run --isolated --no-project --with btclib \
