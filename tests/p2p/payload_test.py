@@ -69,10 +69,10 @@ def _payload_subclasses() -> set[type[Any]]:
 
     Two things are skipped, and each for its own reason: a name starting
     with an underscore is a shared body rather than a message type --
-    `keepalive._NoncePayload` and `inventory`'s two are those -- and a
-    class defined outside `btclib` is another test's, `__subclasses__`
-    being a live registry that whatever ran before this leaves its own
-    subclasses in.
+    `keepalive._NoncePayload`, `inventory._InventoryPayload` and
+    `inventory._LocatorPayload` are those -- and a class defined outside
+    `btclib` is another test's, `__subclasses__` being a live registry
+    that whatever ran before this leaves its own subclasses in.
     """
     found: set[type[Any]] = set()
     pending = list(Payload.__subclasses__())
