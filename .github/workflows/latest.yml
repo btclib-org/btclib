@@ -263,13 +263,38 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-      # keyed on the config file, as in lint.yml: the hook environments
-      # are the slow part and the upgrade above does not touch them
+      # ImageOS is set by the runner image, not by this workflow, so the
+      # env context holds nothing for it and a shell is where it is read.
+      # lint.yml's step of this name carries the rest of that reasoning,
+      # ImageVersion included
+      - name: Identify the runner image
+        id: image
+        run: echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+      # the hook environments are the slow part and the upgrade below does
+      # not touch them, which is why they are cached here at all.
+      # The key carries the runner image and the interpreter as well as the
+      # config hash because what is cached is virtualenvs: on the config
+      # hash alone an ubuntu-latest rotation is not a graceful miss but a
+      # hit, handing the job environments built on the previous image. This
+      # is the job that can least afford one -- it runs to report what a
+      # new release of a dependency breaks, so a failure the cache caused
+      # is read as the thing this workflow was watching for and chased in
+      # the tree instead.
+      # That is the key lint.yml uses, deliberately rather than by
+      # coincidence, and
+      #   git grep -n 'pre-commit-\${{' -- .github/workflows/
+      # is what re-reads the two together: they are meant to agree
       - name: Cache the pre-commit hook environments
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: >-
+            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-${{
+            hashFiles('.pre-commit-config.yaml', '.python-version') }}
+          # a prefix that still names the image, so a partial restore
+          # cannot cross an image boundary either
+          restore-keys: |
+            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-
       - name: Upgrade every dependency to its latest release
         run: uv lock --upgrade
       # --all-files, so pre-commit does not stash the rewritten uv.lock:
