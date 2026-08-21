@@ -461,6 +461,20 @@ to `latest`'s own result.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
 
+   **Neither sibling repository carries one, on purpose.**
+   bitcoin-core-rpc declares `dependencies = []`, and `published.yml`
+   already asserts that against the installed package on every run; a
+   bill of materials there would be an empty `components` list restating
+   a fact CI checks more directly. btclib-secp256k1's interesting
+   dependency is the vendored, statically-linked libsecp256k1 C library
+   pinned in its `secp256k1` submodule, which this generator cannot
+   describe — it reads `Requires-Dist`, and the submodule is not a
+   Python dependency. A bill of materials built the way this one is
+   would name `cffi` and say nothing about the pin a verifier of that
+   package would most want described, which is worse than omitting the
+   document. See issue #1159 for the evaluation and what would change
+   it.
+
 1. Read the release run's `published` job, which is this workflow called
    with the tag rather than a dispatch to remember: it has no checkout, so
    it resolves to what PyPI actually serves rather than to a source tree,
