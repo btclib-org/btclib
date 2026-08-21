@@ -4660,6 +4660,60 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains BIP157's six filter messages: `GetCFilters`,
+  `CFilter`, `GetCFHeaders`, `CFHeaders`, `GetCFCheckpt` and
+  `CFCheckpt`, with `BlockFilterType` beside them** (issue #1108). The
+  filters themselves landed with issue #374, so this is the wire form of
+  something the tree already computes: `getcfilters` asks for the filters
+  of a height range and is answered by one `cfilter` per block,
+  `getcfheaders` asks for the filter hashes of a range, and
+  `getcfcheckpt` asks for every thousandth filter header.
+
+  **A `cfilter` holds the filter as octets rather than as a
+  `BasicBlockFilter`.** BIP157 gives the type code the format -- "Each
+  type is identified by a one byte code, and specifies the contents and
+  serialization format of the filter" -- and only `BASIC` is defined, so
+  octets under any other code are not a BIP158 filter and reading them as
+  one would be inventing an answer. `basic_filter` is the typed reading,
+  and it takes no argument: BIP157 puts BlockHash ahead of FilterBytes,
+  so the SipHash key `BasicBlockFilter.parse` wants arrived with the
+  octets it keys. What no `cfilter` can be checked for is that its filter
+  is its block's -- a block hash is a key and not a commitment, so a
+  mismatched pair decodes exactly as a matching one, and what settles it
+  is the block or the header chain a `cfheaders` carries.
+
+  **An unrecognized filter type round-trips as a plain integer**, as an
+  unrecognized command does in the envelope and an unrecognized type code
+  in `InventoryType` -- and BIP157's own text is what decides it rather
+  than that precedent: "Nodes receiving `getcfilters` with an unsupported
+  filter type SHOULD NOT respond" is a rule about answering, which only
+  something that has read the message can apply. Core reads it the same
+  way, casting the octet and leaving `PrepareBlockFilterRequest` to
+  refuse the request. `BlockFilterType` therefore names `BASIC` alone:
+  Core's `INVALID = 255` is the sentinel a variable holds when there is
+  no filter type, not a code a peer sends.
+
+  **`cfheaders` stores the filter hashes the wire holds and derives the
+  headers**, which is issue #1101's answer to the same question about
+  `headers`' always-zero transaction count: keep what the wire holds, so
+  that every payload serializes back to the octets it came from. The
+  derivation is `filter_headers`, and `btclib.block.block_filter` gains
+  `filter_header` for it -- BIP157 defines a filter header over a filter
+  *hash*, which is the general form, and `BasicBlockFilter.header` is now
+  that function over a filter that is at hand. `CFCheckpt.filter_headers`
+  is the field where `CFHeaders.filter_headers` is the derivation, and
+  `CFCheckpt.heights` is the arithmetic BIP157 states over the vector.
+
+  `btclib.p2p.limits` gains `MAX_GETCFILTERS_SIZE`,
+  `MAX_GETCFHEADERS_SIZE` and `CFCHECKPT_INTERVAL`. Two of BIP157's
+  bounds are on a *range* whose far end is a block hash, and turning a
+  hash into a height needs the chain this package does not hold, so they
+  are published for the caller that does and checked nowhere; the third
+  is `cfheaders`' "FilterHashesLength MUST NOT be greater than 2,000" and
+  is read before the loop that allocates on it. `cfcheckpt`'s vector gets
+  no constant of its own: BIP157 bounds it by the length of the chain,
+  and what stands in front of the loop is the octets.
+
 - **`btclib.p2p` gains BIP155's `addrv2` and `sendaddrv2`, and the
   network-id table with them: `AddrV2`, `SendAddrV2`,
   `NetworkAddressV2` and `BIP155Network`** (issue #1106). An entry is

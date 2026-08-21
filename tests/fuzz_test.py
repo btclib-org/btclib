@@ -39,6 +39,15 @@ from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
+from btclib.p2p.block_filters import (
+    BlockFilterType,
+    CFCheckpt,
+    CFHeaders,
+    CFilter,
+    GetCFCheckpt,
+    GetCFHeaders,
+    GetCFilters,
+)
 from btclib.p2p.data import BlockPayload, TxPayload
 from btclib.p2p.handshake import Verack, Version
 from btclib.p2p.inventory import (
@@ -118,6 +127,12 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "GetBlocks.parse": GetBlocks.parse,
     "GetHeaders.parse": GetHeaders.parse,
     "Headers.parse": Headers.parse,
+    "GetCFilters.parse": GetCFilters.parse,
+    "CFilter.parse": CFilter.parse,
+    "GetCFHeaders.parse": GetCFHeaders.parse,
+    "CFHeaders.parse": CFHeaders.parse,
+    "GetCFCheckpt.parse": GetCFCheckpt.parse,
+    "CFCheckpt.parse": CFCheckpt.parse,
     # the two payloads that are a transaction and a block: their own
     # mutation samples are `Tx.parse`'s and `Block.parse`'s below, the
     # wrapper adding no octets of its own to flip
@@ -268,6 +283,20 @@ INV_BIN = Inv(
     [Inventory(InventoryType.MSG_BLOCK, BLOCK_HEADER_BIN[4:36][::-1])]
 ).serialize()
 HEADERS_BIN = b"\x01" + BLOCK_HEADER_BIN + b"\x00"
+# the two BIP157 answers, which are a filter type and a block hash in
+# front of what a mutation has something to land in: a `cfilter`'s
+# var_bytes length and the Golomb bits it sizes, and a `cfheaders`'
+# CompactSize count in front of fixed-width hashes. The hashes are block
+# 1's, so these samples are the vendored block above as well
+CFILTER_BIN = CFilter(
+    BlockFilterType.BASIC, BLOCK_HEADER_BIN[4:36][::-1], b"\x01\x02\x03"
+).serialize()
+CFHEADERS_BIN = CFHeaders(
+    BlockFilterType.BASIC,
+    BLOCK_HEADER_BIN[4:36][::-1],
+    bytes(32),
+    [BLOCK_HEADER_BIN[4:36][::-1]],
+).serialize()
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -310,6 +339,11 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # reaches a count, a four-octet type code and the zero after a header
     "Inv.parse": (Inv.parse, INV_BIN),
     "Headers.parse": (Headers.parse, HEADERS_BIN),
+    # and the two BIP157 answers, where a mutation reaches the filter
+    # type, the var_bytes length in front of a filter and the count in
+    # front of a vector of hashes
+    "CFilter.parse": (CFilter.parse, CFILTER_BIN),
+    "CFHeaders.parse": (CFHeaders.parse, CFHEADERS_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),
