@@ -136,9 +136,13 @@ def script_vectors() -> list[Any]:
         else:
             i = 1
             stack = x[0]
-            if isinstance(stack[-1], (int, float)):
-                amount = int(stack[-1] * 10**8)
-                stack = stack[:-1]
+            # Core writes the amount as the last element of that array,
+            # always: asserted rather than guarded, so a vector file
+            # refreshed into another shape says so here rather than
+            # being measured against an amount of zero
+            assert isinstance(stack[-1], (int, float))
+            amount = int(stack[-1] * 10**8)
+            stack = stack[:-1]
 
         stack, script_pub_key = taproot_placeholders(stack, x[i + 1])
         vector = ScriptVector(

@@ -181,6 +181,12 @@ def test_borromean_sig_assert_valid_holds_s_to_0_n() -> None:
         sig.assert_valid()
     with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1"):
         sig.serialize()
+    # and the octets the flag still writes, which is the other way out of
+    # `serialize`'s `if check_validity:` and the one no other test takes:
+    # an out-of-range s is `ec.n_size` octets like any other
+    assert sig.serialize(check_validity=False) == (0).to_bytes(
+        32, "big"
+    ) + ec.n.to_bytes(ec.n_size, "big")
     # Q1 unused otherwise -- kept to mirror the other low-cardinality
     # tests' setup and to document that assert_valid does not touch the
     # curve's points at all, only its order

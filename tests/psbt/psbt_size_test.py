@@ -28,6 +28,8 @@ import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.block import Block
+from btclib.curves import mult
+from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import Psbt, PsbtIn, PsbtOut, extract_tx
@@ -577,3 +579,40 @@ def test_a_sizer_is_never_asked_where_this_file_knows() -> None:
     script_path = bip371_psbt(3)
     _ = script_path.vsize_estimate(record)
     assert asked == [script_path.inputs[0]]
+
+
+def test_the_key_of_a_p2pkh_is_looked_up_past_the_ones_that_miss() -> None:
+    """An input's hd_key_paths is not one key, so the lookup is a walk.
+
+    An Updater fills that map with every key a Signer may need, and a
+    wallet watching more than one account puts more than one there. What
+    decides the size is the key that hash160s to the payload of the
+    script: an entry ahead of it is stepped over, and a map that answers
+    for none of it leaves the estimate at the compressed size, which is
+    the assumption the module docstring states.
+
+    Every other p2pkh input here carries exactly the key its script
+    commits to, so the miss was never taken.
+    """
+    uncompressed = bytes_from_point(mult(3), compressed=False)
+    miss = bytes_from_point(mult(4))
+    script_pub_key = ScriptPubKey.p2pkh(uncompressed).script
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+
+    def sizes(*pub_keys: bytes) -> int:
+        # one origin per key, and they have to differ: an hd_key_paths
+        # naming the same derivation twice is what assert_valid refuses
+        psbt_in = PsbtIn(
+            witness_utxo=TxOut(1000, script_pub_key, check_validity=False),
+            hd_key_paths={
+                pub_key: BIP32KeyOrigin("deadbeef", f"m/{index}")
+                for index, pub_key in enumerate(pub_keys)
+            },
+            check_validity=False,
+        )
+        return estimated_input_sizes(psbt_in, tx_in)[0]
+
+    # the miss is walked past, and the entry behind it answers
+    assert sizes(miss, uncompressed) == sizes(uncompressed)
+    # and a map that answers for none of it falls back to compressed
+    assert sizes(uncompressed) - sizes(miss) == len(uncompressed) - len(miss)

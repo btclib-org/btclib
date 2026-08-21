@@ -319,7 +319,11 @@ def test_load_lang_is_not_a_race() -> None:
         """Block inside the assignment the race needed to interleave."""
 
         def __setitem__(self, key: str, value: list[str]) -> None:
-            if key == "en" and value:
+            # `no branch`: this test loads one language, so the guard is
+            # never false here. It is what keeps the block to the
+            # assignment the race needs, another language or the empty
+            # value of a failed load being neither
+            if key == "en" and value:  # pragma: no branch
                 paused.set()
                 release.wait(10)
             super().__setitem__(key, value)

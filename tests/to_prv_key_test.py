@@ -11,6 +11,8 @@ import pytest
 from btclib.alias import INF
 from btclib.b58 import wif_from_prv_key
 from btclib.base58 import encode as b58encode
+from btclib.bip32 import BIP32KeyData
+from btclib.bip32.bip32 import rootxprv_from_seed
 from btclib.curves.curve import CURVES
 from btclib.exceptions import (
     BTClibTypeError,
@@ -20,6 +22,7 @@ from btclib.exceptions import (
 )
 from btclib.to_prv_key import (
     _prv_keyinfo_from_wif,
+    _prv_keyinfo_from_xprvwif,
     int_from_prv_key,
     prv_keyinfo_from_prv_key,
 )
@@ -283,3 +286,23 @@ def test_a_wif_on_a_network_sharing_its_prefix() -> None:
         prv_keyinfo_from_prv_key(wif_from_prv_key(q, "mainnet"), "signet")
     with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif: prefix 0xef"):
         prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet"), "mainnet")
+
+
+def test_the_xprvwif_helper_takes_a_bip32_key_data_too() -> None:
+    """`_prv_keyinfo_from_xprvwif` answers for a parsed xprv, not only a str.
+
+    Both public callers dispatch a `BIP32KeyData` to `_prv_keyinfo_from_xprv`
+    before they reach this helper, so its `isinstance` guard is never False
+    through them and the WIF attempt it skips is what nothing else measures.
+    The guard is the helper's own contract rather than a duplicate of theirs:
+    a parsed xprv is not a string the WIF decoder could be asked about, and
+    handing it to `_prv_keyinfo_from_wif` would be a `NotAPrvKeyError` added
+    to the reasons of a key that is in good order.
+    """
+    xprv = rootxprv_from_seed(b"\x01" * 32)
+    data = BIP32KeyData.b58decode(xprv)
+
+    assert _prv_keyinfo_from_xprvwif(data, None, None) == _prv_keyinfo_from_xprvwif(
+        xprv, None, None
+    )
+    assert _prv_keyinfo_from_xprvwif(data, "mainnet", None)[1] == "mainnet"

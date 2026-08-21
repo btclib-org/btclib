@@ -922,6 +922,13 @@ class PreparedPoint:
     built rather than found. A working desktop rather than a quiesced
     machine: a ratio, not a figure to quote.
 
+    Attributes:
+        point: the point, as the constructor validated it.
+        ec: the curve it was validated against.
+        fixed: the Jacobian set a verification hands straight down,
+            derived by the constructor from the two above; the comment
+            beside the field is what it holds and why it is derived.
+
     Args:
         point: the point to prepare, on the curve and not infinity.
         ec: the curve it belongs to.

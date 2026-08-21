@@ -454,6 +454,25 @@ repos:
         args: [--fix]
       - id: ruff-format
         name: ruff format (in place fixes)
+  # what ruff's D rules do not reach: they ask that a docstring exists,
+  # and this asks that it documents the arguments and the return value --
+  # the half that goes wrong in silence, a signature growing a parameter
+  # while the prose above it still describes the old one. The
+  # configuration is in pyproject.toml, beside the ruff one.
+  #
+  # Scoped to btclib/, which is the published surface: a caller reading
+  # help() or an IDE tooltip has that docstring and nothing else. A test
+  # function documents what it claims rather than its fixtures -- which
+  # is why the D rules are not in per-file-ignores for tests/ and this is
+  # not run over them -- and .github/scripts is read from the tree by
+  # whoever changes it
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.9.1
+    hooks:
+      - id: pydoclint
+        name: pydoclint (arguments and return values)
+        args: [--config=pyproject.toml]
+        files: ^btclib/.*\.py$
   # the other half of pyproject.toml's unspecified-encoding, which reads
   # `open` and the pathlib and tempfile spellings and stops there. A child
   # process decoded through `text=True` takes the locale's encoding by

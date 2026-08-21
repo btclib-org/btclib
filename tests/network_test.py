@@ -28,6 +28,7 @@ from btclib.network import (
     xpubversion_from_xprvversion,
     xpubversions_from_network,
 )
+from tests import replace_unchecked
 from tests.conftest import JsonGolden
 
 
@@ -409,3 +410,21 @@ def test_a_field_no_network_has_is_refused_rather_than_scanned_for() -> None:
     # check is built from and the one NetworkField names for mypy
     for field in fields(Network):
         assert networks_from_key_value(field.name, object()) == []  # type: ignore[arg-type]
+
+
+def test_the_flag_still_switches_the_check_off() -> None:
+    """Verify check_validity=False builds a network and writes its dict.
+
+    Every network above is built checked -- the nine in `NETWORKS` and
+    the ones the refusals raise on -- so both `if check_validity:` lines
+    ran one way only. A genesis block of the wrong length is the
+    invalidity to carry: `to_dict` writes it as hex whatever its width,
+    where a curve of another name would not survive the lookup the dict
+    is read back through.
+    """
+    invalid = replace_unchecked(NETWORKS["mainnet"], genesis_block=b"\x00")
+
+    assert invalid.to_dict(check_validity=False)["genesis_block"] == "00"
+    err_msg = "invalid genesis_block length: 1 bytes instead of 32"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        invalid.to_dict()

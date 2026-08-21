@@ -463,3 +463,19 @@ def test_the_command_and_the_envelope_it_travels_in() -> None:
     assert message.serialize() == _ADDR
     # and the way back, which is the caller's `if` and not a table here
     assert Addr.parse(Message.parse(_ADDR).payload) == addr
+
+
+def test_the_flag_still_switches_the_check_off() -> None:
+    """Verify check_validity=False writes a timestamp of the wrong type.
+
+    Every entry above is built checked, so `serialize`'s
+    `if check_validity:` ran one way only. A `bool` timestamp is the
+    invalidity to carry: a bool is an int, so it passes every range check
+    and `to_bytes` writes it as the one it is, where a timestamp out of
+    range would overflow the four octets before the flag could be read.
+    """
+    invalid = TimestampedNetworkAddress(True, NetworkAddress(), check_validity=False)
+
+    assert invalid.serialize(check_validity=False)[:4] == b"\x01\x00\x00\x00"
+    with pytest.raises(BTClibTypeError, match="invalid timestamp type: bool"):
+        invalid.serialize()

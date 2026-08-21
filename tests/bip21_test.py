@@ -315,3 +315,20 @@ def test_built_rather_than_parsed() -> None:
         Bip21("not an address", None, None, None)
     with pytest.raises(BTClibValueError, match="missing address"):
         Bip21("", None, None, None)
+
+
+def test_the_flag_still_switches_the_check_off() -> None:
+    """Verify check_validity=False builds and writes an addressless URI.
+
+    Every URI above is built checked, so `if check_validity:` was a line
+    that ran one way only, which is what branch coverage reports and
+    statement coverage does not. The empty address is the invalidity to
+    carry here because it is the one a serialization can still write: a
+    bad amount is refused by `valid_btc_amount` on the way in, before the
+    flag is read, so it could not stand in for it.
+    """
+    uri = Bip21("", None, None, None, check_validity=False)
+    assert uri.address == ""
+    assert uri.serialize(check_validity=False) == "bitcoin:"
+    with pytest.raises(BTClibValueError, match="missing address"):
+        uri.serialize()

@@ -2357,3 +2357,30 @@ def test_a_delegated_signer_s_wipe_zeroes_the_buffer_it_signs_from() -> None:
         _ = 1 / 0
     with pytest.raises(BTClibValueError, match="the signer is wiped"):
         raising.sign(b"a message")
+
+
+@needs_bindings
+def test_a_refusal_that_is_not_about_the_key_still_leaves_as_btclib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `ValueError` the bindings raise for anything else is translated too.
+
+    The two `ValueError`s libsecp256k1 raises here are both about the
+    supplied public key -- octets that are no point, and a key that is
+    not this private key's -- so with `pub_key=None` nothing that arm can
+    say reaches the fallback `raise`, and it went unmeasured. That is
+    what the branch is for all the same: the hierarchy is btclib's, and a
+    caller catching `BTClibValueError` must not have a bare `ValueError`
+    escape past them because a later version of the bindings found a
+    third thing to complain about. Patching the call is the only way to
+    ask, the refusal being one no argument can provoke today.
+    """
+
+    def refuse(*_args: Any, **_kwargs: Any) -> bytes:
+        raise ValueError("a refusal of some other kind")
+
+    monkeypatch.setattr(libsecp256k1_dsa, "sign", refuse)
+
+    q, _Q = dsa.gen_keys(0x1234)
+    with pytest.raises(BTClibValueError, match="a refusal of some other kind"):
+        dsa.sign(b"Satoshi Nakamoto", q, pub_key=None)

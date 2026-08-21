@@ -169,11 +169,13 @@ def test_valid_taproot_script_path() -> None:
     witness = Witness(witness_data)
     tx.vin[index].script_witness = witness
 
-    sighash_type = 0  # all
+    # this spend's signature carries its own hash type, so the 65th octet
+    # is what it is signed under: asserted rather than branched on, the
+    # witness above being one fixed transcription and not a vector file
+    assert len(witness.stack[0]) == 65
     signature = witness.stack[0][:64]
-    if len(witness.stack[0]) == 65:
-        sighash_type = witness.stack[0][-1]
-        assert sighash_type != 0
+    sighash_type = witness.stack[0][-1]
+    assert sighash_type != 0
 
     msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
 

@@ -64,3 +64,22 @@ def test_ecf_exceptions() -> None:
         # p (10007) is too big to count all subgroup points
         G = (2, 3265)
         find_subgroup_points(ec, G)
+
+
+def test_a_point_whose_y_is_zero_is_listed_once() -> None:
+    """A point of order two is its own negative, and the walk knows it.
+
+    `y != 0` is what stops `(x, p - y)` being appended beside `(x, y)`
+    where the two are the same point, and F_9739 above has no such point
+    to take that branch with. `b = 0` puts one at the origin -- the roots
+    of `y**2 = x**3 + x` include x = 0 -- and the curve is non-singular
+    there all the same, `4a**3 + 27b**2` being 4.
+    """
+    ec = CurveGroup(11, 1, 0)
+    points = find_all_points(ec)
+
+    ec.require_on_curve((0, 0))
+    assert points.count((0, 0)) == 1
+    # the ordinary case beside it: two distinct roots, both listed
+    assert points.count((9, 1)) == points.count((9, 10)) == 1
+    assert len(points) == len(set(points))

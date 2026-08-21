@@ -72,7 +72,16 @@ def _assert_inner_node_is_not_a_tx(inner_node: bytes) -> None:
         # in every block, and anything else is a bug worth propagating
         return
 
-    if is_a_tx:
+    # `no branch` rather than a test: a false `is_a_tx` would be 64 octets
+    # that parse and that btclib writes back differently, and there are
+    # none. Every field is read as it was written -- the counts and the
+    # lengths are var_ints, and `var_int.parse` takes only the canonical
+    # width of each -- and the one encoding that would not round-trip, a
+    # BIP144 marker over empty witnesses, is what `Tx.parse` refuses on
+    # its own. The comparison stays because that is a property of the
+    # parser rather than of this module, and a parser that stopped
+    # refusing that shape would need it here
+    if is_a_tx:  # pragma: no branch
         err_msg = "inner node of the merkle branch is a valid transaction"
         raise BTClibValueError(err_msg)
 

@@ -4846,3 +4846,27 @@ def test_the_three_entries_that_took_a_psbt_unasked() -> None:
         prevouts(deepcopy(bad))
     with pytest.raises(BTClibValueError, match=err_msg):
         new_signers(deepcopy(bad), deepcopy(good))
+
+
+def test_the_flag_still_switches_the_dict_check_off() -> None:
+    """Verify to_dict writes a psbt its own assert_valid refuses.
+
+    Every psbt written as a dict elsewhere is a valid one, so
+    `Psbt.to_dict`'s `if check_validity:` ran one way only: the refusal
+    below is the default, and the line before it is what the flag does.
+
+    A v0 psbt carrying PSBT_GLOBAL_TX_MODIFIABLE is the invalidity to
+    hold it with, and the reason is
+    `test_a_base_tx_out_dict_refuses_the_amount_either_way`'s: an amount
+    out of MoneyRange is refused by `btc_from_sats` on the way into the
+    json whatever this call was told, and a fallback lock time out of
+    range by the "tx" entry the dict derives. This field is neither -- it
+    is written as it stands, and read back by from_dict.
+    """
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    assert psbt.version == 0
+    psbt.tx_modifiable = 0
+
+    assert psbt.to_dict(check_validity=False)["tx_modifiable"] == 0
+    with pytest.raises(BTClibValueError, match="TX_MODIFIABLE is not allowed"):
+        psbt.to_dict()
