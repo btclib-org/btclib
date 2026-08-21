@@ -420,6 +420,35 @@ documented at release-notes length in the first place, and are still in
   Three findings, all fixed: `PreparedPoint`'s class docstring now has
   the `Attributes` section its three fields ask for, and
   `SignerDecorator.__init__` keeps the docstring it had.
+- **`latest.yml` and `windows.yml` declare `shell: bash` on every step
+  that can land on a Windows runner** (issue #1148). `suite-latest` and
+  `suite-bindings-latest` in `latest.yml`, and `suite-windows` in
+  `windows.yml`, each carry a `windows-latest` or `windows-11-arm` cell,
+  where the default shell is PowerShell and `"$GITHUB_ENV"` and the rest
+  of the POSIX spelling are literals rather than variables — the same
+  defect ISS #1141 shipped in `published.yml`, in the two workflows the
+  sweep behind that fix found but did not open a diff on. All five
+  affected steps are one plain command each and run identically under
+  either shell today, so nothing shipped broken; the hazard is the next
+  conditional, substitution or loop added to one of them, which would
+  fail only on Windows and only on a schedule or a tag, `latest.yml` and
+  `windows.yml` running on neither a pull request nor a push to `main`.
+  Verified with the two draft workflows the issue itself describes:
+  `actionlint` (the pinned linter in the pre-commit gate) reports nothing
+  for a shell-less POSIX step on a Windows runner, under a literal
+  `runs-on: windows-latest` and under a matrix naming it alike.
+
+  Enumerated by parsing every workflow file's `jobs.*.strategy.matrix`
+  (`os` and `include`) and `runs-on` with PyYAML, and flagging a `run:`
+  step whose job's runner set contains `windows` and which declares no
+  `shell:` of its own and inherits none from a job-level `defaults.run`.
+  `dist-latest` and `lint-latest` in `latest.yml` run on `ubuntu-latest`
+  only and are outside that set. `test.yml` in this repository carries no
+  Windows row at all — `windows.yml` is where that matrix moved — so the
+  sweep found nothing else here; `btclib-secp256k1` and
+  `bitcoin-core-rpc` each had one further instance, in their own
+  `test.yml`, fixed in a pull request of their own
+  (`btclib-org/btclib#1148` is the issue both reference).
 
 ## v2026.8.21
 
