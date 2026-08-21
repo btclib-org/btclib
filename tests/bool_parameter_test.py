@@ -130,6 +130,7 @@ from btclib.ecc import bms, dsa, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
+from btclib.key import PrvKeyData
 from btclib.mnemonic import bip39, slip39
 from btclib.mnemonic.entropy import (
     bin_str_entropy_from_random,
@@ -287,6 +288,12 @@ _KINDS = (
         "compressed",
         bytes_from_prv_key_int,
         {"prv_key_int": _PRV_KEY},
+    ),
+    _Case(
+        "btclib.key.PrvKeyData.__init__",
+        "compressed",
+        PrvKeyData,
+        {"q": _PRV_KEY},
     ),
     _Case(
         "btclib.to_prv_key.prv_keyinfo_from_prv_key",

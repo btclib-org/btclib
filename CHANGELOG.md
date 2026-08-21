@@ -685,6 +685,40 @@ documented at release-notes length in the first place, and are still in
   which is what makes the fix a subtraction rather than a
   correction: the reasoning about a redundant definition survives,
   and only the number that could go stale again is gone.
+### The public API and the module layout
+
+- **`btclib.key` holds the canonical form of a key**, `PubKeyData` and
+  `PrvKeyData`, so that a key parsed once can be carried rather than
+  spelled back for the next call to parse again (issue #1188). Every
+  converter in the library takes each spelling and answers a tuple, so
+  the canonical form was what came *out* of a conversion and never what
+  went *in*; three places already work around the round trip that leaves
+  — `bip32.derive_`, `to_pub_key._sec_from_pub_key` and
+  `taproot._output_pubkey_and_internal_key`, issues 886, 887 and 896 —
+  and this is the cut those three patch locally.
+
+  The SEC octets are the field and the point is a `cached_property`
+  because the two conversions do not cost the same: serializing a point
+  is a concatenation, where parsing a compressed one is a square root in
+  the field and costs several times as much, so the cheap direction is
+  paid on the way in and the expensive one on first use and kept. That
+  lazy lift is also the *proof*: the constructor reads a length and a
+  prefix, and whether they frame a point of the curve is what `point`
+  answers — which is the trade `_sec_from_pub_key` already states, made
+  explicit and paid once instead of at every caller.
+  `PrvKeyData.pub` is lazy for the same reason and buys most, a scalar
+  multiplication being the dearest conversion of the three.
+
+  One type per half rather than a `PubKeySecData` beside a
+  `PubKeyPointData`: two would hand the caller a choice that is a cache
+  decision and not a meaning, any function taking either would take a
+  union again, and one key in the two types could not compare equal
+  without performing the conversion the split was meant to avoid. Frozen,
+  as `BIP32KeyData` is and for its reason; not `slots=True`, because
+  `cached_property` stores into an instance `__dict__` that a slotted
+  dataclass has none of. Nothing in the library consumes these yet: the
+  adoption is per module, and each step of it removes one of the round
+  trips above.
 
 ## v2026.8.21
 
