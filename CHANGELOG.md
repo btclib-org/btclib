@@ -153,8 +153,43 @@ documented at release-notes length in the first place, and are still in
   It leaves the entry above where it was. The gates exercise what the
   tree already held, so what a diff decides with has been run by nothing
   whether they ran or not, and a review runs that either way.
+- **`REPOSITORY.md` records the default workflow-token permission, the
+  call that reads it back, and that this repository is untested against
+  the organization default** (btclib-org/.github#23). The value is
+  `read`, with `can_approve_pull_request_reviews` false — and it was
+  already `read` before the organization default moved there on
+  21 August 2026, so this repository was never among the ones that could
+  be seen following that move, and an override set before that day reads
+  back exactly like an inheritance. No endpoint distinguishes the two and
+  none clears an override; that is the organization standard's argument
+  and the new subsection links to it rather than repeating it. What the
+  subsection adds is this repository's own answer, the command that
+  produced it, and the `PUT` that moves this repository by hand the next
+  time the organization default moves. Documentation only: nothing was
+  set, and the read-back is the same object before and after.
 
 ### Packaging, linting and CI
+
+- **`latest.yml`'s pre-commit cache is keyed on the runner image and the
+  interpreter rather than on the config hash alone**
+  (btclib-org/.github#25). What that cache holds is virtualenvs, so the
+  config hash alone survives an `ubuntu-latest` rotation and restores
+  environments built on the previous image — not a graceful miss but a
+  hit, surfacing as whichever hook touches the broken environment first.
+  `lint-latest` is the job with the most to lose from that: it runs to
+  report what a new release of a dependency breaks, so a failure the
+  cache caused arrives looking exactly like the one the workflow exists
+  to find, and is chased in the tree. The `Identify the runner image`
+  step reading `ImageOS` from a shell, the key over `runner.os`, that
+  output and `hashFiles` of `.pre-commit-config.yaml` and
+  `.python-version`, and `restore-keys` still naming the image so a
+  partial restore cannot cross an image boundary, are all `lint.yml`'s,
+  which has carried them since before this was noticed. The comment
+  above the bare key claimed it was keyed "as in `lint.yml`", which was
+  false where it stood and offered that file as the justification; what
+  replaces it is this job's own reason for the key, with
+  `git grep -n 'pre-commit-\${{' -- .github/workflows/` beside it as the
+  command that re-reads both keys together.
 
 - **`test.yml`'s and `lint.yml`'s concurrency groups take a
   `concurrency-suffix` input, and `release.yml` passes `-release` at both

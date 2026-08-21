@@ -473,6 +473,41 @@ git grep -n "permissions:$" -- .github/workflows/*.yml
 re-derives the current list, whenever it's wanted, rather than a count
 here going stale the next time a job's own needs change.
 
+### Whether that default is pinned here is untested
+
+```shell
+gh api repos/btclib-org/btclib/actions/permissions/workflow
+# {"default_workflow_permissions":"read",
+#  "can_approve_pull_request_reviews":false}
+```
+
+`read`, and a false `can_approve_pull_request_reviews` beside it. What
+the call cannot say is whether either value is this repository's own or
+the organization's, no endpoint reporting an override and none clearing
+one: [the standard's tokens
+section](https://github.com/btclib-org/.github/blob/main/README.md#tokens-publishing-scanning)
+is where that is argued, and the answer this file adds is which of the
+two states this repository is in.
+
+It is **untested**, and that is what the date makes it: this repository
+already held `read` when the organization default moved there on
+21 August 2026, so it was not among the ones that could be *seen*
+following the move, and an override set before that day reads back
+exactly like an inheritance does. Nobody has recorded setting one here,
+which is weaker than knowing there is none — `bitcoin-core-rpc` is the
+repository where one was found, by that survey, and its `REPOSITORY.md`
+records it as pinned.
+
+So whoever moves the organization default reads this repository back
+afterwards rather than assuming it followed, and moves it by hand where
+it did not:
+
+```shell
+gh api -X PUT repos/btclib-org/btclib/actions/permissions/workflow \
+  -f default_workflow_permissions=read \
+  -F can_approve_pull_request_reviews=false
+```
+
 ## Publishing
 
 **Publishing waits for an approval**: the `pypi` and `testpypi`
