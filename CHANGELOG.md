@@ -1442,7 +1442,9 @@ documented at release-notes length in the first place, and are still in
   `Block.parse` inherits the rule, a block's marker being per
   transaction, and inherits it for nothing: every block under
   `tests/block/_data/` parses unchanged, which is what a chain Core
-  validated has to do.
+  validated has to do. `btclib.p2p.data`'s module docstring named this
+  the one encoding its two payload types could not reproduce, and now
+  names where it is refused instead.
 
   Two of BIP174's invalid-psbt vectors are refused by it now, ahead of
   what they used to be refused by -- the witness-serialization one for
