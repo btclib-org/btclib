@@ -112,6 +112,16 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block_filter import BasicBlockFilter, filter_header
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+
+# the thirty-two octets of a hash256 and the two checks over them, which
+# is one fact for this package and lives where the first module needing
+# it put them: `btclib.p2p.addrv2` imports `address._service_flags_from_int`
+# the same way. A copy here would be the same eight lines to keep true in
+# two places, and a module of their own is more ceremony than eight lines
+# are worth. `_sequence_of` is what refuses a str or a bytes where a
+# vector of hashes was meant, `bytes_from_octets` coercing each element
+# after it, as `inventory._LocatorPayload` composes the two
+from btclib.p2p.inventory import _HASH_SIZE, _assert_valid_hash, _sequence_of
 from btclib.p2p.limits import CFCHECKPT_INTERVAL, MAX_GETCFHEADERS_SIZE
 from btclib.p2p.payload import Payload
 from btclib.utils import (
@@ -132,10 +142,10 @@ __all__ = [
     "GetCFilters",
 ]
 
-# BIP157's fixed-width fields: the one octet of the type code, the
-# thirty-two of a hash256, and the four of a height
+# BIP157's other two fixed-width fields: the one octet of the type code
+# and the four of a height. The thirty-two of a hash are `_HASH_SIZE`,
+# imported above
 _TYPE_SIZE = 1
-_HASH_SIZE = 32
 _HEIGHT_SIZE = 4
 
 _MAX_TYPE = (1 << (8 * _TYPE_SIZE)) - 1
@@ -194,36 +204,6 @@ def _assert_valid_type(filter_type: BlockFilterType | int) -> None:
         raise BTClibTypeError(err_msg)
     if not 0 <= filter_type <= _MAX_TYPE:
         raise BTClibValueError(f"invalid filter_type: {filter_type}")
-
-
-def _assert_valid_hash(hash_: bytes, what: str) -> None:
-    """Refuse what is not the thirty-two octets of a hash256.
-
-    Private and unvalidated of `what`, as `inventory._assert_valid_hash`
-    is: every caller hands it a literal of this module.
-    """
-    # bytes() is the type check and never assigned back: validating must
-    # not rewrite the object it is asked to inspect
-    value = bytes(hash_)
-    if len(value) != _HASH_SIZE:
-        err_msg = f"invalid {what}: {len(value)} bytes"
-        err_msg += f" instead of {_HASH_SIZE}"
-        raise BTClibValueError(err_msg)
-
-
-def _hashes_of(hashes: Sequence[Octets], what: str) -> tuple[bytes, ...]:
-    """Return the tuple of a hash vector that is not text or octets.
-
-    A str and a bytes are Sequences whose elements are a character and an
-    integer, which is what no field below holds: asked whole here, so
-    that a caller who passed one hash instead of a vector of them is told
-    about the argument rather than about its first character.
-    """
-    if isinstance(hashes, (str, bytes, bytearray, memoryview)) or not isinstance(
-        hashes, Sequence
-    ):
-        raise BTClibTypeError(f"invalid {what} type: {type(hashes).__name__}")
-    return tuple(bytes_from_octets(hash_) for hash_ in hashes)
 
 
 # so that `GetCFilters.parse` answers a `GetCFilters` and not the private
@@ -505,7 +485,12 @@ class CFHeaders(Payload):
             bytes_from_octets(previous_filter_header),
         )
         object.__setattr__(
-            self, "filter_hashes", _hashes_of(filter_hashes, "filter_hashes")
+            self,
+            "filter_hashes",
+            tuple(
+                bytes_from_octets(hash_)
+                for hash_ in _sequence_of(filter_hashes, "filter_hashes")
+            ),
         )
 
         if check_validity:
@@ -704,7 +689,12 @@ class CFCheckpt(Payload):
         )
         object.__setattr__(self, "stop_hash", bytes_from_octets(stop_hash))
         object.__setattr__(
-            self, "filter_headers", _hashes_of(filter_headers, "filter_headers")
+            self,
+            "filter_headers",
+            tuple(
+                bytes_from_octets(header)
+                for header in _sequence_of(filter_headers, "filter_headers")
+            ),
         )
 
         if check_validity:
