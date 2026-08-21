@@ -100,10 +100,12 @@ pre-signature's nonce is then really -(r+t)*G rather than (r+t)*G --
 `adaptor_impl.h`'s own comment gives this reasoning in full.
 
 Cross-validating this construction against zkp is
-btclib-org/btclib#156's open question, not answered here: the vendored
-library, mainline `bitcoin-core/secp256k1`, has no adaptor support at
-all, so the round-trip tests below are this module's only check for
-now.
+btclib-org/btclib-secp256k1#156's open question, not answered here:
+the vendored library, mainline `bitcoin-core/secp256k1`, has no
+adaptor support at all, so the round-trip tests below are this
+module's only check for now. What would supply that delegation,
+btclib-org/btclib-secp256k1#283, is decided and waits on
+secp256k1-zkp#330 upstream.
 """
 
 from __future__ import annotations

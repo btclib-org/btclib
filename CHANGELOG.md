@@ -4379,14 +4379,16 @@ documented at release-notes length in the first place, and are still in
   before this.
 
   Cross-validating the construction against secp256k1-zkp is
-  btclib-org/btclib#156's open question and stays open: mainline
-  `bitcoin-core/secp256k1`, the vendored library, has no adaptor
-  support at all -- `musig_adapt`, `musig_extract_adaptor` and
+  btclib-org/btclib-secp256k1#156's open question and stays open:
+  mainline `bitcoin-core/secp256k1`, the vendored library, has no
+  adaptor support at all -- `musig_adapt`, `musig_extract_adaptor` and
   `musig_nonce_parity` are absent, and `musig_nonce_process` takes five
   arguments where zkp's takes six -- so this is delegated to nothing
   and checked by its own round-trip tests, both parities of the final
   nonce exercised in the same run rather than pinned for one and
-  pragma'd for the other.
+  pragma'd for the other. What would supply that delegation,
+  btclib-org/btclib-secp256k1#283, is decided and waits on
+  secp256k1-zkp#330 upstream.
 - **`borromean`'s challenge hash now matches secp256k1-zkp's, at the
   cost of every signature this module ever produced** (issue #1070).
   `_hash`'s four-part preimage was `m || R || ring || position` since
