@@ -303,6 +303,21 @@ documented at release-notes length in the first place, and are still in
   carries the same job, ported byte-identical, and is not fixed here;
   `btclib-secp256k1` will gain a third copy once its own Read the Docs
   side lands.
+- **`docs.yml`'s unresolved-link grep now carries both known shapes**,
+  closing issue #1157. MyST renders a link its `RootFileLinks` transform
+  cannot resolve as `href="#<target>"` verbatim, so what the grep
+  matches depends on how the target was written — `href="#\./` for
+  `./CONTRIBUTING.md`, this repository's own convention throughout its
+  root files, and `href="#[A-Za-z0-9_.-]*\.md"` for a bare
+  `SECURITY.md` with no `./`, the convention `btclib-secp256k1` uses
+  instead. This repository ran only the first, `bitcoin-core-rpc` ran
+  the same one, and `btclib-secp256k1` ran only the second — each blind
+  to the shape it had not yet been bitten by. Built the documentation
+  with a deliberately unresolved link of each shape and confirmed the
+  added grep reports it before removing it; `sphinx-build -W
+  --keep-going` passes on both unchanged, since neither is the broken
+  *reference* `-W` already catches — a link myst resolves happily and is
+  dead anyway is the whole reason this second check exists.
 
 ## v2026.8.21
 

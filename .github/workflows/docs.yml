@@ -109,14 +109,33 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -W --keep-going -b html docs/source docs/build/html
-      # the one defect the build above cannot report on itself: a relative
-      # link myst cannot resolve is rendered as an anchor on the page it is
-      # already on -- href="#./CONTRIBUTING.md", an id nothing has -- so
-      # -W passes over a dead link (issue 195). conf.py resolves those
-      # links and no longer suppresses myst.xref_missing, which makes the
-      # build fail on the next one; this step is the same claim made about
-      # the artifact rather than about the configuration, and it is what
-      # would catch a suppression added back.
+      # the one defect the build above cannot report on itself: a link
+      # myst cannot resolve is rendered as an anchor on the page it is
+      # already on -- an id nothing has -- so -W passes over a dead link
+      # (issue 195). conf.py resolves every link the included root files
+      # carry and no longer suppresses myst.xref_missing, which makes the
+      # build fail on the one myst still cannot place; this step is the
+      # same claim made about the artifact rather than about the
+      # configuration, and it is what would catch a suppression added
+      # back.
+      #
+      # Two greps, not one, because myst's fallback renders the target
+      # verbatim and a target is written one of two ways across this
+      # organization's three publishing repositories (issue #1157):
+      # "./CONTRIBUTING.md", every relative link this repository's own
+      # root files use, which becomes href="#./CONTRIBUTING.md" if it
+      # breaks -- the first grep -- and a bare "SECURITY.md" with no
+      # "./", the convention btclib-secp256k1 uses instead, which
+      # becomes href="#SECURITY.md" and only the second grep catches.
+      # Each repository used to run one of the two, on the strength of
+      # the convention its own root files happened to follow, which
+      # left it blind to a broken link written the other way -- this
+      # repository's own links are all the first shape today, but
+      # nothing enforces that, and bitcoin-core-rpc ran the very same
+      # single grep on the same assumption. A survey across all three
+      # found no third shape among the links these pages actually
+      # carry, so two greps is the union rather than a guess at how far
+      # to generalize.
       #
       # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
       # is a correct path, and pointing it at docs/build/html would mean
@@ -134,7 +153,13 @@ jobs:
       # on the built html
       - name: Check the built pages for unresolved links
         run: |
+          status=0
           if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
-            echo "::error::the links above resolve to no page"
-            exit 1
+            echo "::error::the links above resolve to no page (unresolved relative path)"
+            status=1
           fi
+          if grep -rn 'href="#[A-Za-z0-9_.-]*\.md"' docs/build/html --include='*.html'; then
+            echo "::error::the links above resolve to no page (unresolved bare .md target)"
+            status=1
+          fi
+          exit $status
