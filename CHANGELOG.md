@@ -129,6 +129,31 @@ documented at release-notes length in the first place, and are still in
   names `REVIEWING.md` rather than restating it, so the standard moves
   without the workflow being edited.
 
+- **`REVIEWING.md` says when a gate already run is relied on rather than
+  repeated, and `CLAUDE.md` says which checks a pull request is gated
+  on.** The condition is the sha and the record: where the gates have
+  been run on this very commit — the required checks running beside a
+  review, or an author handing over a branch they gated and stated the
+  result of — the review relies on that run and names whose it is, and
+  where there is no such run it runs them itself. A run on another tree
+  is not a run on this one, so a rebase voids it, the branch having been
+  gated before the tree moved under the gate.
+
+  What earned it is `claude-review.yml`'s prompt, whose reason for not
+  running the gates was that a second run of them would cost a runner
+  slot. That is an argument about price, and a reviewer reading it
+  generalizes it into "running costs, so do not run" — which is the
+  disposition that acked the `local-link-prefix` pattern of the entry
+  above without running it. The prompt now carries the instruction and
+  points at `CLAUDE.md` for why the reliance is sound, which is also
+  what keeps its hunk small: a pull request editing that file cannot be
+  reviewed at all, the action refusing to run under a workflow differing
+  from the default branch's copy (btclib-org/.github#58).
+
+  It leaves the entry above where it was. The gates exercise what the
+  tree already held, so what a diff decides with has been run by nothing
+  whether they ran or not, and a review runs that either way.
+
 ### Packaging, linting and CI
 
 - **`test.yml`'s and `lint.yml`'s concurrency groups take a
