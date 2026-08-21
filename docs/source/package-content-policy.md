@@ -125,10 +125,12 @@ one installing the wheel, or the reverse.
 
 ## check-wheel-contents needs no configuration here
 
-`check-wheel-contents` runs unconfigured, in both jobs `verify_dist_contents.py`
-runs in, and btclib-org/btclib#1160 is where that was decided rather than merely
-left alone. `btclib-secp256k1` configures `[tool.check-wheel-contents]` —
-`ignore = ["W003", "W009"]`, for the shared library its dynamic wheel ships
+`check-wheel-contents` runs unconfigured, in the one job
+`verify_dist_contents.py` runs in — `test.yml`'s `dist` job, on every pull
+request and, through `release.yml`'s `test` call, on the files a release
+publishes — and btclib-org/btclib#1160 is where that was decided rather than
+merely left alone. `btclib-secp256k1` configures `[tool.check-wheel-contents]`
+— `ignore = ["W003", "W009"]`, for the shared library its dynamic wheel ships
 beside the package — because its wheel is not one package tree: a legitimate
 top-level member outside `btclib_secp256k1/` is exactly what those two checks
 exist to flag.
