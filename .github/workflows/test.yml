@@ -557,10 +557,9 @@ jobs:
   # problem is too late, a version being consumed by the upload that
   # carries it, and then only yankable. The release workflow calls this
   # one, so it runs these checks too, here on the files this job's own
-  # `uv build` produces. Its `build` job builds a second, separate copy
-  # -- the one it actually publishes -- and runs the same three checks on
-  # that copy as well (issue #1154), because passing here said nothing
-  # about files this job never saw.
+  # `uv build` produces -- the same files a tag publishes, issue #1166
+  # below being why there is no second, separate copy of them left to
+  # miss (issue #1154).
   # Installing the wheel is the last of them (issue #131), and it is a
   # gate here rather than in the release workflow alone because the
   # bindings it resolves are published: while they were not, the step
