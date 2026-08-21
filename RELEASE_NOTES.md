@@ -16,7 +16,7 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.21
 
 ### Breaking changes
 
@@ -39,6 +39,17 @@ full year, short month, short day (YYYY-M-D)
   `btclib.ecc.musig2.sign` or `partial_sig_verify_`, or reading
   `.pub_keys`, `.tweaks`, `.is_xonly`, `.msg` or `.agg_nonce` off it --
   takes `.context` first. CHANGELOG.md has why.
+
+- **`musig2.SessionValues` carries three more fields.** The frozen
+  dataclass gained `L`, `second` and `pub_keys_set` after `e`, so
+  `SessionValues(Q, gacc, tacc, b, R, e)` is a `TypeError` now. Reading
+  one is unaffected, and reading is what it is for: it is what
+  `session_values(session_ctx)` hands back, and every field it already
+  had answers the same thing. A caller that builds one itself passes the
+  three, which are what a per-signer key-aggregation coefficient is
+  computed from -- fixed for a session, so computed once here rather
+  than by each of `_session_key_agg_coeff`'s callers. CHANGELOG.md has
+  the measurement.
 
 - **`pip install btclib` no longer installs `btclib_secp256k1`.** The
   bindings are the `secp256k1` extra now — `pip install
