@@ -320,13 +320,28 @@ repos:
   # here is the only place that shape can be caught at all, which is why
   # it is refused rather than allowed as an ordinary relative path.
   #
+  # The first branch steps over a nested image, and it has to: a badge is
+  # "[![alt](src)](href)", and link text written "[^]]*" stops at the "]"
+  # that closes the alt text -- so a scan anchored on it checks the image
+  # src and never reaches the badge's own destination. That was this
+  # hook's first shape, and it left every badge href unchecked; the link
+  # text is now "(?:[^]]|\]\([^)]*\))*", a character that is not "]" or a
+  # whole "](...)" group, which steps over the image and, by
+  # backtracking, still checks the src on the way. Measured: a badge href
+  # renders exactly what a plain href renders, so every row of the table
+  # above can be written as a badge destination and only the "./" one is
+  # caught downstream.
+  #
   # pygrep, and the same hook in every repository of this organization
   # (btclib-org/.github#20): there is no shared hook repository to put
   # it in, and `pinned-rev` above is that arrangement already. The
-  # pattern asks for a whole `[text](destination)` whose "[" is not
-  # preceded by a backtick, which is what lets prose quote the refused
-  # shape in a code span; grep output of the form `FILE.md:21:](x.md)`
-  # carries no "[" and is not matched either.
+  # pattern asks for a whole `[text](destination)`, so grep output of the
+  # form `FILE.md:21:](x.md)` carries no "[" and is not matched. The
+  # lookbehind refuses a "[" preceded by a backtick, which is what lets
+  # prose quote the refused shape in a code span -- and one preceded by
+  # "!" or "[" as well, so that a *quoted* badge is escaped whole rather
+  # than re-entered at the image inside it. The leading "!?" is what
+  # keeps a standalone image's own src checked despite that.
   #
   # A reference definition is a link too, and the second branch is for
   # it: "[label]: page.md" renders the same fallback as the inline form
@@ -345,7 +360,14 @@ repos:
       - id: local-link-prefix
         name: a local markdown link destination begins with ./
         language: pygrep
-        entry: '(?<!`)(?:\[[^]]*\]\(|^ {0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]'
+        # one line, and no literal space in it -- "\x20" is the space the
+        # reference branch allows -- so yamllint reads the value as a
+        # single unbreakable word and its 100-column rule exempts it. A
+        # block scalar rather than a quoted one for the same reason a
+        # folded scalar was rejected: folding joins lines with a space,
+        # which would land inside the regex
+        entry: |-
+          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,

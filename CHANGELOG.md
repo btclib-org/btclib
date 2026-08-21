@@ -568,6 +568,24 @@ documented at release-notes length in the first place, and are still in
   grep catches the rendered `#./X.md`; `X.md`, `X.txt`, `sub/X.md`, `X`
   and `../X.md` are each refused, so none can be written at all.
 
+  **That claim was checked against every position a destination can
+  occupy, and the check found a hole before it found the answer.** A
+  badge is `[![alt](src)](href)`, and a link text written `[^]]*` stops
+  at the `]` that closes the alt text — so the first version of this
+  pattern checked the image `src` and never the badge's own href, and
+  measured on the built html a badge href renders exactly what a plain
+  href renders. Every row of the table above was therefore still
+  writable as a badge destination, past the hook and past both greps.
+  Link text is now `(?:[^]]|\]\([^)]*\))*`, a character that is not
+  `]` or a whole `](…)` group, which steps over the image and reaches
+  what is behind it while still checking the `src` by backtracking. The
+  six rows were then re-derived across five positions — plain link,
+  badge href, image src, badge src and reference definition — and only
+  `./X.md` is accepted in any of them. This repository carries badge
+  links in `README.md` and `CONTRIBUTING.md`, none of them violating
+  the rule; the siblings' counts differ and the hook is what says so
+  for each.
+
   `../` is the row worth naming on its own, because it is the only one
   with nothing downstream behind it: `RootFileLinks` *declines* to
   resolve a target normalizing above the repository root, nothing above
