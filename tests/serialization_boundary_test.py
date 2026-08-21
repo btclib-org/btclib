@@ -96,8 +96,15 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
 from btclib.p2p import (
     Addr,
+    GetBlocks,
+    GetData,
+    GetHeaders,
+    Headers,
+    Inv,
+    Inventory,
     Message,
     NetworkAddress,
+    NotFound,
     Ping,
     Pong,
     TimestampedNetworkAddress,
@@ -222,6 +229,13 @@ _OCTETS_DECODERS = (
     ("Verack.parse", Verack, "parse"),
     ("Ping.parse", Ping, "parse"),
     ("Pong.parse", Pong, "parse"),
+    ("Inventory.parse", Inventory, "parse"),
+    ("Inv.parse", Inv, "parse"),
+    ("GetData.parse", GetData, "parse"),
+    ("NotFound.parse", NotFound, "parse"),
+    ("GetBlocks.parse", GetBlocks, "parse"),
+    ("GetHeaders.parse", GetHeaders, "parse"),
+    ("Headers.parse", Headers, "parse"),
 )
 
 _OCTETS_IDS = tuple(label for label, _, _ in _OCTETS_DECODERS)

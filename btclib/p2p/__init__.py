@@ -55,14 +55,32 @@ from btclib.p2p.address import (
     TimestampedNetworkAddress,
 )
 from btclib.p2p.handshake import Verack, Version
+from btclib.p2p.inventory import (
+    GetBlocks,
+    GetData,
+    GetHeaders,
+    Headers,
+    Inv,
+    Inventory,
+    InventoryType,
+    NotFound,
+)
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
 from btclib.p2p.payload import Payload
 
 __all__ = [
     "Addr",
+    "GetBlocks",
+    "GetData",
+    "GetHeaders",
+    "Headers",
+    "Inv",
+    "Inventory",
+    "InventoryType",
     "Message",
     "NetworkAddress",
+    "NotFound",
     "Payload",
     "Ping",
     "Pong",

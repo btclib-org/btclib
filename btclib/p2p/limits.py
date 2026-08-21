@@ -13,24 +13,28 @@ Core's rather than this library's.
 Core declares them among the constants of peer management and not among
 the consensus ones, which is where they belong: nothing about a block or
 a transaction changes with them, and what each bounds is what a node
-allocates for a count or a length a peer chose. None of the three is a
+allocates for a count or a length a peer chose. Not one of them is a
 consensus rule, so none of them is in `btclib.consensus` -- and
 `MAX_PROTOCOL_MESSAGE_LENGTH` is 4,000,000 as `consensus.MAX_BLOCK_WEIGHT`
 is, which is the coincidence this module exists to keep from becoming an
 import.
 
-An envelope without the first is what btclib_node has -- `verify_headers`
-reads the four octets and waits for `24 + payload_len` with nothing
-between the peer's number and the buffer -- and the bound is the
-difference between refusing such a header at once and holding whatever
-the peer dribbles in against a length it will never reach. The third has
-the same shape one layer up: `Addr.parse` reads a count before it builds
-anything, where btclib_node's `Addr.deserialize` loops over whatever
-`var_int.parse` allowed it, and btclib's own var_int cap is 33,554,432.
+An envelope without `MAX_PROTOCOL_MESSAGE_LENGTH` is what btclib_node has
+-- `verify_headers` reads the four octets and waits for `24 +
+payload_len` with nothing between the peer's number and the buffer -- and
+the bound is the difference between refusing such a header at once and
+holding whatever the peer dribbles in against a length it will never
+reach. Every count bound here has the same shape one layer up: `parse`
+reads the count before it builds anything, where btclib_node's own
+message classes loop over whatever `var_int.parse` allowed them, and
+btclib's var_int cap is 33,554,432.
 """
 
 __all__ = [
     "MAX_ADDR_TO_SEND",
+    "MAX_HEADERS_RESULTS",
+    "MAX_INV_SZ",
+    "MAX_LOCATOR_SZ",
     "MAX_PROTOCOL_MESSAGE_LENGTH",
     "MAX_SUBVERSION_LENGTH",
 ]
@@ -61,3 +65,35 @@ MAX_SUBVERSION_LENGTH = 256
 # Core keeps this one beside the address relay that uses it, and the
 # citation is what says where to look when the number moves.
 MAX_ADDR_TO_SEND = 1000
+
+# The most entries one `inv` or `getdata` may carry, Core's
+# src/net_processing.cpp, where the comment reads "The maximum number of
+# entries in an 'inv' protocol message" and both handlers answer a longer
+# vector with a `Misbehaving`.
+#
+# `notfound` is the third message of that shape and Core bounds it
+# differently -- it reads an over-long one and ignores what is in it --
+# so this is the bound btclib holds it to as well, on the argument that a
+# `notfound` answers a `getdata` and cannot name more than one held.
+# btclib.p2p.inventory's `NotFound` says so where a caller reads it.
+MAX_INV_SZ = 50000
+
+# The most headers one `headers` message carries, Core's
+# src/net_processing.h, whose comment adds what the number is load-
+# bearing for: "We rely on the assumption that if a peer sends less than
+# this number, we reached its tip. Changing this value is a protocol
+# upgrade."
+#
+# net_processing.h and not the .cpp, where MAX_INV_SZ and MAX_LOCATOR_SZ
+# are: Core publishes this one in the header because its own test
+# framework overrides it -- `max_headers_result` among the options -- and
+# the citation is what says where to look when the number moves.
+MAX_HEADERS_RESULTS = 2000
+
+# The most block hashes a `getblocks` or `getheaders` locator may carry,
+# Core's src/net_processing.cpp: "The maximum number of entries in a
+# locator". Small, and it can be: `LocatorEntries` of src/chain.cpp
+# doubles the step back after the first ten entries, so what a hundred
+# and one of them span is a chain no height is in sight of. Exceeding it
+# is a peer Core disconnects.
+MAX_LOCATOR_SZ = 101

@@ -33,8 +33,16 @@ from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
+    GetBlocks,
+    GetData,
+    GetHeaders,
+    Headers,
+    Inv,
+    Inventory,
+    InventoryType,
     Message,
     NetworkAddress,
+    NotFound,
     Ping,
     Pong,
     TimestampedNetworkAddress,
@@ -79,6 +87,11 @@ def _addr() -> Addr:
     return Addr([TimestampedNetworkAddress(0x4D1015E2, address)])
 
 
+def _inventory() -> Inventory:
+    """Return one inventory entry, announcing the block after genesis."""
+    return Inventory(InventoryType.MSG_BLOCK, BlockHeader.parse(_block_1()[:80]).hash)
+
+
 def _psbt() -> Psbt:
     """Return the psbt of the transaction above, maps and all."""
     return Psbt.from_tx(_tx())
@@ -117,6 +130,25 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("p2p_verack", Verack, Verack().serialize()),
     ("p2p_ping", Ping, Ping(1).serialize()),
     ("p2p_pong", Pong, Pong(1).serialize()),
+    ("p2p_inventory", Inventory, _inventory().serialize()),
+    ("p2p_inv", Inv, Inv([_inventory()]).serialize()),
+    ("p2p_getdata", GetData, GetData([_inventory()]).serialize()),
+    ("p2p_notfound", NotFound, NotFound([_inventory()]).serialize()),
+    (
+        "p2p_getblocks",
+        GetBlocks,
+        GetBlocks(70016, [_inventory().hash], _inventory().hash).serialize(),
+    ),
+    (
+        "p2p_getheaders",
+        GetHeaders,
+        GetHeaders(70016, [_inventory().hash], _inventory().hash).serialize(),
+    ),
+    (
+        "p2p_headers",
+        Headers,
+        Headers([BlockHeader.parse(_block_1()[:80])]).serialize(),
+    ),
 ]
 
 _IDS = [case[0] for case in _CASES]

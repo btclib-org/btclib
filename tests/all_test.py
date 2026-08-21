@@ -212,6 +212,7 @@ CHILD_MODULES = {
         "unpublished": [
             "address",
             "handshake",
+            "inventory",
             "keepalive",
             "limits",
             "magic",

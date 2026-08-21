@@ -39,6 +39,16 @@ from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.handshake import Verack, Version
+from btclib.p2p.inventory import (
+    GetBlocks,
+    GetData,
+    GetHeaders,
+    Headers,
+    Inv,
+    Inventory,
+    InventoryType,
+    NotFound,
+)
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
 from btclib.psbt import psbt_utils
@@ -96,6 +106,13 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "Verack.parse": Verack.parse,
     "Ping.parse": Ping.parse,
     "Pong.parse": Pong.parse,
+    "Inventory.parse": Inventory.parse,
+    "Inv.parse": Inv.parse,
+    "GetData.parse": GetData.parse,
+    "NotFound.parse": NotFound.parse,
+    "GetBlocks.parse": GetBlocks.parse,
+    "GetHeaders.parse": GetHeaders.parse,
+    "Headers.parse": Headers.parse,
     "BIP32KeyData.parse": BIP32KeyData.parse,
     "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,
@@ -222,6 +239,15 @@ VERSION_BIN = bytes.fromhex(
 ADDR_BIN = bytes.fromhex(
     "01e215104d010000000000000000000000000000000000ffff0a000001208d"
 )
+# an `inv` of one entry and a `headers` of one header, which are the
+# inventory payloads with a count in front of a fixed-width record: a
+# flipped octet lands in the count, in a type code or inside the header,
+# and the octet after each header is the transaction count that has to be
+# zero. The hash is block 1's, so the sample is the vendored block above
+INV_BIN = Inv(
+    [Inventory(InventoryType.MSG_BLOCK, BLOCK_HEADER_BIN[4:36][::-1])]
+).serialize()
+HEADERS_BIN = b"\x01" + BLOCK_HEADER_BIN + b"\x00"
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -256,6 +282,10 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # addresses, and the relay flag a `version` may or may not carry
     "Version.parse": (Version.parse, VERSION_BIN),
     "Addr.parse": (Addr.parse, ADDR_BIN),
+    # and the two inventory payloads of the same shape, where a mutation
+    # reaches a count, a four-octet type code and the zero after a header
+    "Inv.parse": (Inv.parse, INV_BIN),
+    "Headers.parse": (Headers.parse, HEADERS_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),

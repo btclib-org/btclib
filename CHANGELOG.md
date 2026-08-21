@@ -4660,6 +4660,45 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`btclib.p2p` gains the inventory payloads: `Inv`, `GetData`,
+  `NotFound`, `GetBlocks`, `GetHeaders`, `Headers`, and the `Inventory`
+  entry and `InventoryType` codes under them** (issue #1101).
+  `btclib.p2p.limits` gains `MAX_INV_SZ`, `MAX_HEADERS_RESULTS` and
+  `MAX_LOCATOR_SZ` beside the bounds already there, each under Core's
+  own name with the header it comes from in a comment and each checked
+  off the count field before the loop that would allocate on it. Three
+  commands share one body and so one private base each, as `ping` and
+  `pong` already do: a field naming the command would let a caller build
+  an `inv` that serializes under "getdata".
+
+- **`InventoryType` is an `IntEnum`, where `ServiceFlags` is an
+  `IntFlag`, and the difference is what the field is.** Service flags
+  are a bitfield throughout, so an unnamed bit is a service not yet
+  heard of; a type code is not, `MSG_TX` through `MSG_WTX` being
+  exclusive kinds numbered one to five with only `MSG_WITNESS_FLAG` a
+  bit. An `IntFlag` over them would compose nonsense and answer for it
+  -- `MSG_TX | MSG_CMPCT_BLOCK` is the value of `MSG_WTX`, so a `wtx`
+  announcement would test as a `tx` one. What still round-trips is a
+  code no member names, which `IntEnum` refuses and
+  `Inventory.type_code` therefore holds as a plain `int`: the envelope's
+  rule about an unrecognized command, one layer down.
+  `Inventory.is_witness` is BIP144's bit read rather than compared
+  against the two composites Core happens to have named, and the field
+  is `type_code` and not Core's `type` because a class attribute of that
+  name shadows the builtin inside its own body.
+
+- **A `headers` message's always-zero transaction count is dropped, and
+  a non-zero one is refused.** Core writes each header as a block with
+  no transactions and reads the count back only to throw it away, so
+  storing it would be a second object for one meaning -- a `headers`
+  says nothing about how many transactions a block has. Refusing rather
+  than ignoring is what keeps the property this library keeps
+  everywhere: every payload it accepts serializes back to the octets it
+  came from. The protocol version in front of a `getblocks` or
+  `getheaders` locator is ignored by Core too and *is* stored, the
+  contrast being that it varies over messages peers really send where
+  the transaction count does not vary at all.
+
 - **`btclib.p2p` gains the handshake and address payloads: `Version`,
   `Verack`, `Addr`, `Ping`, `Pong`, and the `ServiceFlags` two of them
   carry** (issue #1098). `NetworkAddress` and
