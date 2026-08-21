@@ -84,6 +84,37 @@ documented at release-notes length in the first place, and are still in
   on the way in here, its paragraph of reasoning arriving verbatim and
   sound without the one declarative line that made it run.
 
+- **`published.yml` installs the wheel cells with `--only-binary btclib`,
+  and one cell now builds the sdist** (issue #1153). The install step used
+  to run `uv pip install --verbose btclib` unconstrained, so a yanked or
+  missing wheel silently demoted a cell to an sdist build and the run
+  stayed green while testing something other than what it reported: both
+  sibling repositories already constrain this install, and
+  `btclib-secp256k1`'s header names exactly this failure mode. btclib was
+  also the only one of the three publishing repositories with no cell that
+  exercised the sdist at all, and the case for one is stronger here than
+  in `bitcoin-core-rpc`, whose comment raised it: btclib ships data files
+  opened by path rather than imported — the BIP39 wordlists among them,
+  named in this workflow's own header — and a wheel built from an sdist
+  that lost one installs and imports cleanly, failing only at the BIP39
+  check already in this file. The new cell adds `python: "3.13"` with
+  `no-binary: true` to the `include` list rather than a second axis over
+  the base matrix, since the sdist path does not vary by platform or
+  interpreter and one cell exercises it; measured by hand against the
+  published `2026.8.21`, building btclib from source is a packaging step
+  and nothing more, btclib carrying no compiled extension for it to
+  build — unlike `btclib_secp256k1`'s own sdist cell, which compiles a C
+  library. Not carried over from `btclib-secp256k1`: its cell also asserts
+  which kind of artifact pip selected, `static` against `dynamic`, a
+  property of its wheel layout that btclib has no equivalent of, shipping
+  one universal wheel — recorded as a should-differ in
+  [ISS #1152](https://github.com/btclib-org/btclib/issues/1152). Neither
+  flag names `btclib_secp256k1`, so this leaves ISS #1143 — whether to
+  install the `secp256k1` extra here at all — untouched; if that lands,
+  constraining the extra the same way is its own `--only-binary
+  btclib_secp256k1`, the same flag applied a second time rather than a
+  reason to revisit this one.
+
 ## v2026.8.21
 
 ### Repository

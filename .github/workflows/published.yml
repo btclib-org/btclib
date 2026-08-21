@@ -80,7 +80,9 @@ concurrency:
 
 jobs:
   install-published:
-    name: "Install ${{ matrix.python }} from PyPI on ${{ matrix.os }}"
+    name: >-
+      ${{ matrix.no-binary && 'Build' || 'Install' }}
+      ${{ matrix.python }} from PyPI on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -94,9 +96,33 @@ jobs:
           - windows-11-arm
         # the two ends of the supported range, plus the free-threaded
         # interpreter: btclib itself ships one universal wheel, so what
-        # varies across this matrix is entirely which wheel of
+        # varies across the base matrix is entirely which wheel of
         # btclib_secp256k1 each cell resolves to
         python: ["3.10", "3.14", "3.14t"]
+        include:
+          # the one cell where the sdist is what gets built, not merely
+          # what a missing wheel would silently fall back to: btclib ships
+          # data files opened by path rather than imported (see the
+          # header), and a wheel built from an sdist that lost one of them
+          # installs and imports cleanly, failing only at the BIP39 check
+          # below. No wheel-only cell can see that kind of drift -- the
+          # risk is MANIFEST.in or [tool.setuptools] listing what ships,
+          # not a build failure -- and btclib was the only one of the
+          # three publishing repositories with no cell that exercised it
+          # (issue #1153). A single extra cell rather than a second axis
+          # over the base matrix: a `["", "--no-binary"]` axis would
+          # multiply the base matrix to watch the sdist path on every os
+          # and python, sampling a risk that does not vary by platform or
+          # interpreter, being the same sdist everywhere. Pure Python, so
+          # nothing here compiles -- measured by hand against the
+          # published 2026.8.21, this is a packaging step and nothing
+          # more, unlike btclib_secp256k1's own sdist cell, which compiles
+          # a C library. Python 3.13 rather than a version already in the
+          # base matrix, so this adds a job rather than a property to an
+          # existing one
+          - os: ubuntu-latest
+            python: "3.13"
+            no-binary: true
     timeout-minutes: 20
     steps:
       # every run step below declares `shell: bash`, and the matrix is why:
@@ -164,15 +190,37 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       # --verbose so the log names the btclib_secp256k1 wheel this cell
-      # resolved to, which is the whole of what varies across the matrix.
-      # A venv of its own, and every step below runs --no-project against
-      # it: there is no checkout, so nothing of this repository is on the
-      # path either way, and that is the property the header claims
+      # resolved to, and on the include cell above where btclib itself is
+      # built from its sdist, what that build did too. --only-binary
+      # btclib on every other cell: without it a yanked or missing wheel
+      # demotes a cell to an sdist build silently, and the run stays green
+      # while testing the wrong thing -- the failure mode issue #1153
+      # named, and now the one thing a wheel cell here cannot become by
+      # accident. Only btclib is constrained either way, never its
+      # dependencies: this install names no extra, so btclib_secp256k1 is
+      # one of them and is left to resolve however pip normally would
+      # (issue #1143 is the open question of asking for it at all,
+      # unaffected by either flag here since neither names that package --
+      # adding the extra later would need its own --only-binary
+      # btclib_secp256k1 alongside this one, the same flag applied a
+      # second time rather than a reason to change this one). An
+      # environment variable and a shell conditional rather than a ${{ }}
+      # expression inside run, as both siblings already do: matrix values
+      # are not attacker-controlled, but the pattern is worth keeping
+      # uniform. A venv of its own, and every step below runs --no-project
+      # against it: there is no checkout, so nothing of this repository is
+      # on the path either way, and that is the property the header claims
       - name: Install btclib from PyPI
         shell: bash
+        env:
+          NO_BINARY: ${{ matrix.no-binary || false }}
         run: |
           uv venv --python ${{ matrix.python }}
-          uv pip install --verbose btclib
+          if [ "$NO_BINARY" = "true" ]; then
+            uv pip install --verbose --no-binary btclib btclib
+          else
+            uv pip install --verbose --only-binary btclib btclib
+          fi
       # the ecc surface, as dist and release.yml assert it: a signature
       # round trip is the one thing an import cannot get wrong by itself,
       # and a bindings release that installs and answers incorrectly is
