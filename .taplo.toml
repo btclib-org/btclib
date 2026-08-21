@@ -4,20 +4,24 @@
 # which for a pre-commit hook is the repository root, so the hook needs no
 # flag.
 #
+# This file is the same in every repository of the organization,
+# deliberately, so nothing written here may be true of one tree only. Which
+# toml files a repository actually has is that repository's own
+# .pre-commit-config.yaml to name, beside the hook that runs this.
+#
 # What is *not* set matters as much: reorder_keys stays at its default of
 # false, the order of a table here being an argument rather than an accident
-# -- [project] reads top to bottom, and the ruff rule sets are grouped by
-# what they cover rather than sorted.
+# -- a table meant to be read top to bottom, or grouped by what its keys
+# cover rather than by how they are spelled, says something that sorting
+# would throw away.
 [formatting]
-# four spaces, which is what pyproject.toml already uses and what
-# ruff-format writes in the Python beside it. The mutation configurations
-# under .github/mutation are the files this moves: they were written with
-# two, and one indent for every toml in the tree is the point of having a
-# formatter at all
+# four spaces, and not taplo's own default of two: one indent for every toml
+# in the organization is the point of having a formatter at all, and four is
+# what a pyproject.toml's arrays are already written with wherever there is
+# one, ruff-format writing the same four in the Python beside them
 indent_string = "    "
 # an array that is exploded stays exploded: one entry per line is what makes
-# adding a module to a mutation session, or a rule set to ruff, a one-line
-# diff, and the default would collapse a short array onto one line and
-# expand it again when it outgrows the width -- churn driven by a column
-# count
+# adding an entry a one-line diff, and the default would collapse a short
+# array onto one line and expand it again when it outgrows the width -- churn
+# driven by a column count
 array_auto_collapse = false

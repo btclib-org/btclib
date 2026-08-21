@@ -1,46 +1,54 @@
 ---
 # yamllint's configuration, in a file of its own because the reasoning
-# below needs more room than a hook argument has -- the same split as
-# codespell and typos, which are configured in pyproject.toml rather than
-# in .pre-commit-config.yaml. yamllint finds this file by name in the
-# directory it runs from, which for a pre-commit hook is the repository
-# root, so the hook needs no -c.
+# below needs more room than a hook argument has, and because a
+# repository with no pyproject.toml has nowhere else to keep it. yamllint
+# finds this file by name in the directory it runs from, which for a
+# pre-commit hook is the repository root, so the hook needs no -c.
 #
-# Two rules of the twelve in the default set are enabled: the width of a
-# line, which ruff measures for Python and markdownlint for markdown and
-# nothing measured here, and the marker that opens a document. The other
-# two that fire report a convention rather than a defect, so each stays
-# off, with the count written down so that nobody has to run the survey
-# again:
-#   - comments, 33 findings, every one of them "too few spaces before
-#     comment" on a "uses: action@sha # v1.2.3" pin. One space is what
-#     dependabot writes when it bumps one, so the rule would report the
-#     bot's own output on every update
-#   - truthy, 6 findings, all of them the "on:" that opens a workflow,
-#     which yaml 1.1 reads as the boolean true. One per workflow, by
-#     construction
+# This file is the same in every repository of the organization,
+# deliberately, so nothing written here may be true of one tree only.
+# What the default set reports is therefore a question for the command
+# below, asked in the tree that wants the answer, rather than a number
+# recorded here and carried into repositories nobody re-measured it in.
+#
+# Enabled: the width of a line, which nothing else here measures for
+# yaml, and the marker that opens a document. The rest of the default set
+# is off, reporting a convention rather than a defect:
+#   - comments wants two spaces before a trailing comment where one is
+#     written. Dependabot writes one when it bumps a
+#     "uses: action@sha # v1.2.3" pin, so the rule would report the bot's
+#     own output on every update
+#   - truthy reports the "on:" that opens a workflow: yaml 1.1 reads that
+#     key as the boolean true, so what the rule objects to is the
+#     spelling GitHub Actions requires, one per workflow by construction
+# What the default set says about this tree today:
+#
+#   git ls-files '*.yml' '*.yaml' | xargs uvx yamllint -f parsable \
+#     -d '{extends: default, rules: {line-length: {max: 100}}}'
 rules:
   line-length:
-    # 100, where markdown and the Python docstrings are held to 80, and
-    # the difference is the pinning convention. An action pinned to a
-    # 40-character commit SHA with its tag in a trailing comment lands
-    # between 77 and 92 columns on the length of its name alone, and 31
-    # of the 35 in this tree are at or past 80: a limit of 80 reports 27
-    # lines, 18 of them such a pin, and buys its 80 with 18 "yamllint
-    # disable-line" comments. A width rule does not get to break a
-    # security one. 100 clears today's longest pin, at 92, by enough
-    # room for an action with a longer name, so a dependabot pull
-    # request cannot go red for having no defect in it; what the rule
-    # still catches is prose, the two shell lines in release.yml at 111
-    # and 117 columns
+    # 100, where markdown is held to 80 and any Python beside it to the
+    # same, and the difference is the pinning convention. An action
+    # pinned to a 40-character commit SHA with its tag in a trailing
+    # comment has spent most of an 80-column line before the name of the
+    # action is written, so a limit of 80 reports the pins and buys its
+    # 80 with a "yamllint disable-line" on each. A width rule does not
+    # get to break a security one. 100 clears today's longest pin with
+    # room for an action whose name is longer, so a dependabot pull
+    # request cannot go red for having no defect in it; what the rule is
+    # left guarding is prose, the one thing here that can be rewrapped.
+    # What 80 would cost, in the tree that is asking:
+    #
+    #   git ls-files '*.yml' '*.yaml' | xargs uvx yamllint -f parsable \
+    #     -d '{rules: {line-length: {max: 80}}}'
     max: 100
     # allow-non-breakable-words stays at its default, true: a line that
     # is one long token has nowhere to break, which is the exemption
     # MD013 already makes for a bare URL
-  # the "---" every one of the 15 yaml files here opens with, which is
-  # yamllint's default and one line each. What it buys is that the files
-  # answer the question the same way instead of each beginning however
-  # its author left it, and that the default set carries one exemption
-  # fewer to justify. On line 1, above the header comment rather than
-  # below it, so there is no second place to look for it
+  # the "---" every yaml file here opens with, which is yamllint's
+  # default and one line each. What it buys is that the files answer the
+  # question the same way instead of each beginning however its author
+  # left it, and that the default set carries one exemption fewer to
+  # justify. On line 1, above the header comment rather than below it, so
+  # there is no second place to look for it
   document-start: enable
