@@ -72,15 +72,17 @@ _ROW = re.compile(
 
 
 def _section() -> str:
-    """Return the declaration section, heading to end of file.
+    """Return the declaration section, heading to the next one or the end.
 
     Read rather than the whole file: a `##` heading elsewhere in
-    tests/README.md must not contribute rows, and the section is the last
-    one, so its end is the end of the file.
+    tests/README.md must not contribute rows. The slice ends at the next
+    `## ` rather than at the end of the file, so that a section added
+    after this one is not read as part of it.
     """
     text = _README.read_text(encoding="utf-8")
     assert text.count(_HEADING) == 1, f"{_README.name} has no one {_HEADING}"
-    return text[text.index(_HEADING) :]
+    section = text[text.index(_HEADING) + len(_HEADING) :]
+    return _HEADING + section.split("\n## ", 1)[0]
 
 
 _SECTION = _section()
