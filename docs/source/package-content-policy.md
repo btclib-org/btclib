@@ -123,36 +123,41 @@ from it, so `btclib/` is the same set of files in both; a difference
 either way is a file that reaches a user installing from source and not
 one installing the wheel, or the reverse.
 
-## check-wheel-contents needs no configuration here
+## check-wheel-contents names the package tree
 
-`check-wheel-contents` runs unconfigured, in the one job
+`check-wheel-contents` runs with `package = ["btclib"]`, in the one job
 `verify_dist_contents.py` runs in — `test.yml`'s `dist` job, on every pull
 request and, through `release.yml`'s `test` call, on the files a release
-publishes — and btclib-org/btclib#1160 is where that was decided rather than
-merely left alone. `btclib-secp256k1` configures `[tool.check-wheel-contents]`
-— `ignore = ["W003", "W009"]`, for the shared library its dynamic wheel ships
-beside the package — because its wheel is not one package tree: a legitimate
-top-level member outside `btclib_secp256k1/` is exactly what those two checks
-exist to flag.
-Nothing here ships outside `btclib/`, so neither check would ever fire,
-and an `ignore` list naming codes that can never trigger would be a line
-asserting a fact instead of preventing one.
+publishes.
 
-The stronger question is whether `check-wheel-contents --package btclib`
-would catch something this script does not: a full diff of the wheel's
-`btclib/` against this checkout's own, the same completeness
-`bitcoin-core-rpc` gained by configuring `package = ["bitcoin_core_rpc"]`
-in that repository's own pull request (btclib-org/bitcoin-core-rpc#178),
-for a project with no second check standing behind it. This project
-already has two: `check-manifest`, a pre-commit hook gated by the lint
-workflow, diffs the sdist against this same tree, and the completeness
-check above — `uv build` builds the sdist and then the wheel from it, so
-`btclib/` is the same set of files in both, and a difference either way
-is reported — diffs the wheel against the sdist. Chained, checkout tree
-== sdist == wheel, which is what `--package` would assert directly and
-in one hop; configuring it here would be a third way of asking a question
-two already answer, watching the same failure from a different angle
-rather than closing a gap neither covers.
+What that flag buys is the one question the tool does not ask without it.
+Unconfigured, it reads the wheel's own `RECORD` and says nothing about the
+tree the wheel was supposed to carry; with the package named it diffs the
+wheel's `btclib/` against this checkout's, file for file and in both
+directions — W101 for what the wheel is missing, W102 for what it has and
+the tree does not. Measured on a wheel with `btclib/py.typed` removed and
+`RECORD` edited to match, which installs and imports cleanly:
+unconfigured, `OK`; configured, `W101: Wheel library is missing files in
+package tree: btclib/py.typed`.
+
+It ran unconfigured until btclib-org/btclib#1200, and the reason recorded
+in btclib-org/btclib#1160 was redundancy rather than inapplicability:
+`check-manifest`, a pre-commit hook gated by the lint workflow, diffs this
+tree against the sdist, and the completeness check above diffs the sdist
+against the wheel, so chained they imply checkout == sdist == wheel. The
+organization standard's section 12 no longer accepts that trade
+(btclib-org/.github#51): *some other check implying the same diff does not
+stand in for the flag where the flag applies*, because the implication is
+the same assertion bought with code to maintain, and it moves what the
+`dist` job knows about the artifact into a chain that holds only while
+every link runs — and the two links here sit in different workflows.
+
+No `ignore` list. Nothing here ships outside `btclib/`, so neither W003
+nor W009 can fire, and a list naming codes that cannot trigger would be a
+line asserting a fact instead of preventing one. `btclib-secp256k1`
+configures `ignore = ["W003", "W009"]` because its dynamic wheel ships a
+shared library beside the package on purpose, which is exactly what those
+two checks exist to flag.
 
 ## The rules nothing here enforces
 

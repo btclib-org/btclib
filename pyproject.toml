@@ -209,6 +209,31 @@ required-version = ">=0.11.31"
 include = ["btclib*"]
 namespaces = true
 
+[tool.check-wheel-contents]
+# the wheel's `btclib/` diffed against this checkout's, file for file and
+# in both directions (W101 missing, W102 extra). With no `package` given
+# check-wheel-contents reads the wheel's own RECORD and asks nothing
+# about the tree the wheel was supposed to carry, so a `py.typed` or a
+# `_data/*.json` dropped by a packaging change builds, installs and
+# imports cleanly and is reported clean.
+#
+# It was left unconfigured here on purpose until now, and the reason was
+# redundancy rather than inapplicability: `check-manifest` below gates
+# this tree against the sdist and `verify_dist_contents.py` gates the
+# sdist against the wheel, so chained they imply tree == sdist == wheel.
+# The organization standard's section 12 no longer accepts that trade
+# (btclib-org/.github#51, issue #1200): some other check implying the
+# same diff does not stand in for the flag where the flag applies,
+# because the implication is the same assertion bought with code to
+# maintain, and the two hops here sit in different workflows -- a
+# pre-commit hook under the lint gate, and `test.yml`'s `dist` job -- so
+# the chain holds only while both run.
+#
+# No `ignore`: nothing ships outside `btclib/`, so neither W003 nor W009
+# can fire, unlike btclib-secp256k1, whose dynamic wheel carries a shared
+# object beside the package on purpose.
+package = ["btclib"]
+
 [tool.check-manifest]
 # the website, not the package. btclib.org is served from this repository's
 # root, so the Jekyll sources sit beside the library: they are tracked, they

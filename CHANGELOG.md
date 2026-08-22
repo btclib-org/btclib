@@ -170,6 +170,37 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`check-wheel-contents` names the package tree** (issue #1200).
+  `package = ["btclib"]`, where it ran unconfigured. Without it the tool
+  reads the wheel's own `RECORD` and asks nothing about the tree the
+  wheel was supposed to carry; with it, the wheel's `btclib/` is diffed
+  against this checkout's, file for file and in both directions -- W101
+  for what the wheel is missing, W102 for what it has and the tree does
+  not. Measured on a wheel with `btclib/py.typed` removed and `RECORD`
+  edited to match, which installs and imports cleanly: unconfigured,
+  `OK`; configured, `W101: Wheel library is missing files in package
+  tree: btclib/py.typed`.
+
+  It was left unconfigured on purpose, and the recorded reason was
+  redundancy rather than inapplicability: `check-manifest` gates this
+  tree against the sdist and `verify_dist_contents.py` gates the sdist
+  against the wheel, so chained they imply checkout == sdist == wheel.
+  The organization standard no longer accepts that trade
+  (btclib-org/.github#51): some other check implying the same diff does
+  not stand in for the flag where the flag applies, the implication
+  being the same assertion bought with code to maintain -- and here the
+  two links sit in different workflows, a pre-commit hook under the lint
+  gate and `test.yml`'s `dist` job, so the chain holds only while both
+  run.
+
+  No `ignore` list: nothing here ships outside `btclib/`, so W003 and
+  W009 cannot fire, and a list naming codes that cannot trigger asserts
+  a fact instead of preventing one.
+  `docs/source/package-content-policy.md`'s section moves with it -- the
+  page and the script are compared in both directions by
+  `tests/verify_dist_contents_test.py`, so the prose is not free to
+  drift from what the tree does.
+
 - **Four workflow comments say what this tree says**
   (btclib-org/.github#22). That issue's sweep had been run over
   `bitcoin-core-rpc` and never here; these are what the mechanically
