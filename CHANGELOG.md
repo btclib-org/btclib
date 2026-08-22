@@ -24,6 +24,23 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`interpreters_test.py` cites the file this repository has**. Its
+  docstring named `test_copyright.py` as the module that reads
+  `pyproject.toml` by regex for the same `tomllib`-arrives-in-3.11
+  reason. That is the name in `btclib-secp256k1`, where the module was
+  written; here every test file is suffixed rather than prefixed and the
+  file is `copyright_test.py`. The substance was right — that module does
+  give that reason, at its own line 16 — and a reader following the
+  citation landed nowhere.
+
+  Found by the review of the same port into `bitcoin-core-rpc`
+  (btclib-org/bitcoin-core-rpc#210), where the repair is different again:
+  that tree has no copyright test at all, and the file that does read
+  `pyproject.toml` by regex reads it for an unrelated reason, so the
+  citation goes rather than moves. Section 15's rule, met three times in
+  one afternoon: check the claim against this tree, not against the
+  sibling the file came from.
+
 - **The interpreters this package claims are the ones it runs on**
   (btclib-org/.github#83). `requires-python`, the per-version
   `Programming Language :: Python ::` classifiers and `test.yml`'s own
