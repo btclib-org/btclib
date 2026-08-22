@@ -24,6 +24,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **A Dependabot pull request can be reviewed**
+  (btclib-org/.github#77). `claude-review.yml`'s review job fails on one,
+  twice over. The credential is the first half and is fixed off the tree:
+  a `pull_request` run whose actor is `dependabot[bot]` reads from
+  GitHub's Dependabot secret store rather than from Actions secrets, and
+  that store was empty, so the guard fired exactly as designed. The
+  second half is this: the action refuses a run a bot initiated unless
+  the bot is named — "Workflow initiated by non-human actor".
+
+  `allowed_bots: "dependabot[bot]"`, named rather than `*`: the input's
+  own description warns that on a public repository `*` lets an external
+  App invoke the action carrying a prompt it wrote. The mention job takes
+  no such input, what triggers it being somebody writing `@claude`.
+
+  Without it a Dependabot pull request is the one class that can never
+  carry the ack of record `REVIEWING.md` requires — the class whose whole
+  value is landing promptly, `latest.yml` having reported on the same
+  upgrade the day before. Measured on btclib-org/bitcoin-core-rpc#207,
+  the first Dependabot pull request opened after the credential guard
+  landed.
+
 - **The Slack badge is gone from README.md and CONTRIBUTING.md**, and
   with it the "come find us on Slack" bullet that opened the second. A
   badge reports state, which is the criterion the badge block's own
