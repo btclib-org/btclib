@@ -221,6 +221,7 @@ CHILD_MODULES = {
             "limits",
             "magic",
             "message",
+            "negotiation",
             "payload",
         ],
     },
