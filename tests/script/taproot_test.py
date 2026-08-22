@@ -442,10 +442,15 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     carried: the three cases below are 5, p - 1 and p, and the hex the
     sentence quotes still tells them apart.
     """
+    # the whole sentence on the last two, and not a prefix of it: they
+    # differ in their final hex group alone, so a pattern stopping short
+    # of it matches either message -- which is the discrimination this
+    # docstring claims, and the one a truncation silently drops
+    head = "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE"
     for x, err_msg in (
         (5, "invalid x-coordinate: '05'"),
-        (secp256k1.p - 1, "invalid x-coordinate: 'FFFFFFFF"),
-        (secp256k1.p, "invalid x-coordinate: 'FFFFFFFF"),
+        (secp256k1.p - 1, f"invalid x-coordinate: '{head} FFFFFC2E'"),
+        (secp256k1.p, f"invalid x-coordinate: '{head} FFFFFC2F'"),
     ):
         x_only = x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
@@ -460,31 +465,49 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
 def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A sec whose y is not its x's is refused without naming the x.
+    """A sec whose fault is not its x is refused without naming one.
 
-    Marked: the first half of it is the delegated arm's own message, so
-    with no bindings installed there is no such arm to reach and nothing
-    to compare the one below against.
+    Marked: the first assertion of each pair is the delegated arm's own
+    message, so with no bindings installed there is no such arm to reach
+    and nothing to compare the second against.
 
     `_sec_from_key` leaves the octets unproven for the reason the arm
-    itself does, so `04 || x || y` with a good x and a y that is not its
-    own reaches `tweak_add` and is refused there. The x is the half that
-    is right, and a message naming it would be false -- which is what
-    keeps the two arms to agreeing on the class here rather than on the
-    sentence: without the bindings the key never reaches the tweak at
-    all, the lift `PubKeyData.point` performs refusing it a step earlier
-    and in the curve's own words.
+    itself does, and `bytes_from_octets(pub_key, (33, 65))` is the whole
+    of what it checks, so what reaches `tweak_add` can be wrong in more
+    than one place. The arm names the x only where the x is the only
+    place left, which these three are not:
+
+    - `04 || x || y`, a good x and a y that is not its own. The x is the
+      half that is right, and naming it would be false.
+    - `05 || x`, a SEC length and no SEC prefix, which is the fault of
+      neither coordinate.
+    - `02 || x || y`, a compressed prefix at the uncompressed length,
+      where the two disagree and neither is wrong on its own.
+
+    The last two are here because they are the two halves of what the
+    arm reads to decide -- a length and a prefix -- and without them
+    dropping either half would leave this suite green while the arm
+    named a valid x.
+
+    The two arms agree on the class here rather than on the sentence.
+    With no bindings the refusal is the lift `PubKeyData.point` performs,
+    in the curve's own words: the tweak is computed either way, and what
+    never happens is the addition it was computed for.
     """
     Q = mult(7)
-    y_not_x_s = (Q[1] + 1) % secp256k1.p
-    sec = b"\x04" + Q[0].to_bytes(32, "big") + y_not_x_s.to_bytes(32, "big")
-
-    with pytest.raises(BTClibValueError, match="invalid internal public key"):
-        output_pubkey(sec)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
-        with pytest.raises(BTClibValueError, match="point not on curve"):
+    x = Q[0].to_bytes(32, "big")
+    y_not_x_s = ((Q[1] + 1) % secp256k1.p).to_bytes(32, "big")
+    for sec, python_msg in (
+        (b"\x04" + x + y_not_x_s, "point not on curve"),
+        (b"\x05" + x, "not a point: prefix 0x05"),
+        (b"\x02" + x + Q[1].to_bytes(32, "big"), "invalid size for compressed point"),
+    ):
+        with pytest.raises(BTClibValueError, match="invalid internal public key"):
             output_pubkey(sec)
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            with pytest.raises(BTClibValueError, match=python_msg):
+                output_pubkey(sec)
 
 
 @pytest.mark.parametrize("spelling", [bytes, bytearray, memoryview])
