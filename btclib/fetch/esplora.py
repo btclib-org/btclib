@@ -5,12 +5,15 @@
 """The block-explorer fallback, for a caller with no node.
 
 Esplora's HTTP api, because it is an api and not a product: Blockstream
-publishes the server as open source, several operators run it, and anyone
-can run their own -- so a client written against it is not written
-against one company's endpoint. `BLOCKSTREAM_INFO` below is the reference
-deployment and is offered as a *value to pass*, never as a default: the
-one decision btclib will not take on a user's behalf is which stranger
-gets to see every address they look up.
+publishes the server as open source, mempool.space serves the same three
+endpoints this module calls, and anyone can run their own -- so a client
+written against it is not written against one company's endpoint.
+`BLOCKSTREAM_INFO` below is the reference deployment and is offered as a
+*value to pass*, never as a default: the one decision btclib will not
+take on a user's behalf is which stranger gets to see every address they
+look up. mempool.space is not offered as a second constant for the same
+reason, and naming it here is the evidence for the sentence above rather
+than a recommendation.
 
 What the fallback promises is the same three answers behind the same
 interface. What it does not promise is that they are true. A node
@@ -27,7 +30,10 @@ trade the fallback exists to offer, and `SECURITY.md` states it.
 Three endpoints, each answering in plain text rather than json:
 `/tx/<txid>/hex`, `/blocks/tip/height` and `/blocks/tip/hash`. The json
 renderings beside them carry the same values with more to disagree about
--- and `/hex` is what makes the id check above possible at all.
+-- and `/hex` is what makes the id check above possible at all. That
+those three are what a second deployment has to serve is why they are
+the thing to check before naming one: a host answering json where this
+expects text is not compatible in the way that matters.
 """
 
 from __future__ import annotations
