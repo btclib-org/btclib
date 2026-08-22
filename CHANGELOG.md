@@ -24,6 +24,19 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The declaration section is read to its own end, not to the file's**
+  (btclib-org/.github#32). `conventions_test.py`'s `_section()` sliced
+  from `## Convention tests` to the end of `tests/README.md`, on the
+  stated ground that it is the last heading there. It is, and a section
+  added after it would have been read as part of it — its table rows
+  parsed as declarations, in silence.
+
+  The slice now ends at the next `##`. This is the same fragility
+  btclib-org/btclib-secp256k1#333 had to remove from a sibling parser in
+  that repository in order to add a section at all, which is where it was
+  noticed: the fix went in there and the pattern it came from was left
+  here.
+
 - **The convention-test sentinel is read when it wraps**
   (btclib-org/.github#32). `conventions_test.py` matched the
   "Not tested here: ..." line with `re.MULTILINE` alone, so it read a
