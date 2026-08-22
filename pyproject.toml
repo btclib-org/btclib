@@ -24,16 +24,10 @@ license = "MIT"
 license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
-# Required, where the bindings below are an extra, and the asymmetry is a
-# decision rather than an accident of history: making this a `fetch` extra
-# was weighed and refused (issue #1126). An optional dependency whose
-# absence changes a speed is a different object from one whose absence
-# removes a capability, and only the first is what an extra is for. The
-# bindings are the first -- btclib answers without them, on a pure-Python
-# arm that is supported, CI-covered and documented -- and nothing stands
-# behind "ask a node": a caller either has a client or does not have the
-# feature, and an extra would turn `btclib.fetch` into a module that
-# imports and then cannot answer.
+# Required, where the bindings below are an extra, and that asymmetry was
+# weighed rather than inherited: a `fetch` extra was considered and
+# refused (issue #1126). CONTRIBUTING.md's dependency paragraph carries
+# the reasoning, beside the ceiling argument it already makes.
 dependencies = [
     "bitcoin-core-rpc>=2026.8.13",
 ]

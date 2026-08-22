@@ -179,15 +179,14 @@ documented at release-notes length in the first place, and are still in
   ask #1126's question again from the files alone, which is what a
   decision made and not recorded looks like.
 
-  The reasoning rather than the conclusion, which is already visible in
-  the file: an optional dependency whose absence changes a *speed* is a
-  different object from one whose absence removes a *capability*, and
-  only the first is what an extra is for. The bindings are the first --
-  btclib answers without them, on a pure-Python arm made supported,
-  CI-covered and documented by issues #990, #991 and #992 -- and nothing
-  stands behind "ask a node". A `fetch` extra was weighed and refused on
-  that: it would leave `btclib.fetch` importable and unable to answer,
-  which is the shape an extra exists to avoid.
+  The reasoning goes in `CONTRIBUTING.md`, beside the ceiling argument
+  that paragraph already makes, and `pyproject.toml` points at it rather
+  than saying it a second time -- what the decision turns on is the
+  difference between an optional dependency whose absence changes a
+  *speed* and one whose absence removes a *capability*, and that
+  argument is a paragraph rather than a line. What goes in the comment
+  is only that the alternative was weighed and refused, and where to
+  read why.
 
 - **A markdown line does not end inside a word**
   (btclib-org/.github#71). Markdown joins two source lines with a space,
