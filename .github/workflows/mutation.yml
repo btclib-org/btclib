@@ -21,6 +21,14 @@ name: mutation
 # commands, not a second copy of them in yaml.
 
 on:
+  # No pull_request trigger, unlike links.yml, which does run itself when
+  # its own configuration changes. The difference is the clock: a link
+  # sweep is a couple of hundred requests, a mutation session is hours, so
+  # a trigger on .github/mutation/*.toml would hang an hours-long job off a
+  # pull request it is not allowed to gate. What that trigger would have
+  # caught is caught cheaply elsewhere -- check-toml parses these files on
+  # every commit, and `cosmic-ray baseline` below fails the run before any
+  # mutant if the test command has gone stale
   schedule:
     # Sundays, 03:41 UTC, so a session measured in hours has the weekend
     # to itself. Not on the hour: GitHub queues scheduled workflows across
@@ -70,14 +78,6 @@ on:
           - psbt
           - script
           - boundaries
-  # No pull_request trigger, unlike links.yml, which does run itself when
-  # its own configuration changes. The difference is the clock: a link
-  # sweep is a couple of hundred requests, a mutation session is hours, so
-  # a trigger on .github/mutation/*.toml would hang an hours-long job off a
-  # pull request it is not allowed to gate. What that trigger would have
-  # caught is caught cheaply elsewhere -- check-toml parses these files on
-  # every commit, and `cosmic-ray baseline` below fails the run before any
-  # mutant if the test command has gone stale
 
 # least privilege for the GITHUB_TOKEN: everything running in a job can
 # read it, and nothing here writes. In particular no issues: write --

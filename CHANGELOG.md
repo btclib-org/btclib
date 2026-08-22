@@ -170,6 +170,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`.yamllint.yaml` turns the default rule set back on**
+  (btclib-org/.github#68). The file listed `line-length` and
+  `document-start` under `rules:` and extended nothing, and yamllint
+  enables no rule a configuration does not name -- so those two were the
+  only rules that had ever run here. Indentation, trailing whitespace,
+  duplicate keys, colon spacing and the rest of the default set were
+  off, while the file's own comment named `comments` and `truthy` as the
+  exceptions and read as though the rest were on.
+
+  Three things kept it out of sight, and each generalizes past this
+  file: the comment said otherwise; the gate stayed green, because
+  removing a check cannot make a conformant tree fail; and the file is
+  shared byte-for-byte across the organization, so the defect travelled
+  by being copied rather than by being written twice. `extends: default`
+  is back, the two exceptions are named under `rules:` as explicit
+  `disable`s with their reasons beside them, and the hook's own name
+  follows -- "yamllint (line width and document start)" was an accurate
+  description of what the hook did, which is the point.
+
+  One finding in the whole tree, and it is the shape the rule exists for:
+  `mutation.yml`'s note about having no `pull_request` trigger sat at the
+  end of the `on:` block, indented two spaces under a list indented ten,
+  above a `permissions:` at zero -- a comment attached to nothing. It now
+  opens the block it is about, where the key under it carries the same
+  indentation, which is also where a reader looking for what triggers
+  that workflow reads first.
+
 - **`latest.yml`'s pre-commit cache is keyed on the runner image and the
   interpreter rather than on the config hash alone**
   (btclib-org/.github#25). What that cache holds is virtualenvs, so the

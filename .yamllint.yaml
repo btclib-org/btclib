@@ -11,21 +11,31 @@
 # below, asked in the tree that wants the answer, rather than a number
 # recorded here and carried into repositories nobody re-measured it in.
 #
-# Enabled: the width of a line, which nothing else here measures for
-# yaml, and the marker that opens a document. The rest of the default set
-# is off, reporting a convention rather than a defect:
-#   - comments wants two spaces before a trailing comment where one is
-#     written. Dependabot writes one when it bumps a
-#     "uses: action@sha # v1.2.3" pin, so the rule would report the bot's
-#     own output on every update
-#   - truthy reports the "on:" that opens a workflow: yaml 1.1 reads that
-#     key as the boolean true, so what the rule objects to is the
-#     spelling GitHub Actions requires, one per workflow by construction
-# What the default set says about this tree today:
+# The default set, minus two rules and with one width changed. extends is
+# what carries the rest: yamllint enables no rule a configuration does
+# not name, so a file that lists rules and extends nothing runs those
+# rules alone -- indentation, trailing whitespace, duplicate keys and the
+# rest silently off, with a lint gate that still passes because a check
+# nobody runs cannot fail. The two exceptions are named under rules
+# below, where a reader can see them, rather than left to be inferred
+# from what is missing.
+#
+# What the whole default set says about this tree today, the two
+# exceptions included, is a question for the tree that is asking:
 #
 #   git ls-files '*.yml' '*.yaml' | xargs uvx yamllint -f parsable \
 #     -d '{extends: default, rules: {line-length: {max: 100}}}'
+extends: default
+
 rules:
+  # two spaces before a trailing comment where one is written. Dependabot
+  # writes one when it bumps a "uses: action@sha # v1.2.3" pin, so the
+  # rule reports the bot's own output on every update
+  comments: disable
+  # the "on:" that opens a workflow: yaml 1.1 reads that key as the
+  # boolean true, so what the rule objects to is the spelling GitHub
+  # Actions requires, one per workflow by construction
+  truthy: disable
   line-length:
     # 100, where markdown is held to 80 and any Python beside it to the
     # same, and the difference is the pinning convention. An action

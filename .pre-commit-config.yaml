@@ -425,7 +425,7 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        name: yamllint (line width and document start)
+        name: yamllint (the default rule set, less two)
   # the width of a toml comment, which was the last prose here held to
   # nothing. pyproject.toml carries more reasoning than any single file
   # the rules above cover, and one of its comments had reached 118
