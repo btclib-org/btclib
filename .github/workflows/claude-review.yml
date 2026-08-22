@@ -118,6 +118,18 @@ jobs:
         uses: anthropics/claude-code-action@d40ddef4c030e508327d6e35a9c45f3368482c50 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # dependabot opens a pull request here every Thursday, and the
+          # action refuses a run a bot initiated unless that bot is named:
+          # "Workflow initiated by non-human actor". Without this those are
+          # the one class of pull request that can never carry the ack of
+          # record, which REVIEWING.md says comes from this workflow.
+          # Named rather than `*`, which this input's own description warns
+          # against on a public repository: with it an external App could
+          # invoke this action carrying a prompt it wrote.
+          # The mention job below takes no such input, deliberately -- what
+          # triggers it is somebody writing @claude, and a bot doing that
+          # is not a thing this repository has asked for
+          allowed_bots: "dependabot[bot]"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
