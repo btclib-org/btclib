@@ -12,9 +12,9 @@
 -->
 
 Every change of a release, in full: what changed, why, and what it cost.
-[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
-what a user has to act on; this file is the record behind them, and is
-where a claim in those notes can be checked.
+The release notes, which say what a user has to *act* on, are in
+[RELEASE_NOTES.md](./RELEASE_NOTES.md); this file is the record behind
+them.
 
 Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
