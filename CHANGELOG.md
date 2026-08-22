@@ -1160,9 +1160,12 @@ documented at release-notes length in the first place, and are still in
   That sentence is `point_from_octets`', because `point_from_octets` is
   the lift now, and it wraps both of `curve_group.y_var`'s complaints —
   an x that is no coordinate and an x that is no field element — in one.
-  So taproot's x-only path stops naming the range, and says instead what
-  every other caller of `point_from_octets` in this library says; the
-  hex the message quotes still tells p from p - 1.
+  So taproot's x-only path stops naming the range and says what its own
+  lift says — which is not what every caller of that lift says:
+  `to_pub_key.point_from_pub_key` replaces the sentence with "not a
+  public key", and going through that replacement is what this module
+  has stopped doing. The hex the message quotes still tells p from
+  p - 1.
 
 - **`btclib.key` holds the canonical form of a key**, `PubKeyData` and
   `PrvKeyData`, so that a key parsed once can be carried rather than
