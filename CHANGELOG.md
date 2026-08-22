@@ -189,13 +189,16 @@ documented at release-notes length in the first place, and are still in
   follows -- "yamllint (line width and document start)" was an accurate
   description of what the hook did, which is the point.
 
-  One finding in the whole tree, and it is the shape the rule exists for:
-  `mutation.yml`'s note about having no `pull_request` trigger sat at the
-  end of the `on:` block, indented two spaces under a list indented ten,
-  above a `permissions:` at zero -- a comment attached to nothing. It now
-  opens the block it is about, where the key under it carries the same
-  indentation, which is also where a reader looking for what triggers
-  that workflow reads first.
+  What the restored set had to say about this tree is the shape the rule
+  exists for: `mutation.yml`'s note about having no `pull_request`
+  trigger sat at the end of the `on:` block, indented two spaces under a
+  list indented ten, above a `permissions:` at zero -- a comment attached
+  to nothing. It now opens the block it is about, where the key under it
+  carries the same indentation, which is also where a reader looking for
+  what triggers that workflow reads first. What it has to say tomorrow is
+  `git ls-files '*.yml' '*.yaml' | xargs uvx yamllint`, in the tree that
+  is asking, which is the answer this entry declines to write down as a
+  number.
 
 - **`latest.yml`'s pre-commit cache is keyed on the runner image and the
   interpreter rather than on the config hash alone**
