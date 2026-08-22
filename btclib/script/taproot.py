@@ -28,6 +28,7 @@ from btclib.alias import (
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
+from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.key import PubKeyData
