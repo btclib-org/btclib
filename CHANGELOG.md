@@ -170,6 +170,42 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Four workflow comments say what this tree says**
+  (btclib-org/.github#22). That issue's sweep had been run over
+  `bitcoin-core-rpc` and never here; these are what the mechanically
+  checkable half of it found -- the claims a command can settle, which
+  is where all three of its findings came from.
+
+  `macos.yml` opened with "test.yml runs four operating systems on every
+  pull request". It runs two, `ubuntu-latest` and `ubuntu-24.04-arm`;
+  four is what `macos.yml` and `windows.yml` carry between them, which
+  `test.yml`'s own matrix comment says correctly twelve lines from the
+  matrix. Two files describing the same split, one of them wrong.
+
+  `integration.yml` listed the weekday sentinels as "links Monday,
+  published Tuesday, latest Wednesday". `published.yml` runs monthly on
+  the 1st and is no weekday sentinel at all; Tuesday is `codeql`, which
+  `codeql.yml`'s own header gets right and is the list this one now
+  carries.
+
+  `published.yml` said "25 files under `btclib/*/_data/`". The count is
+  right and the path is not: that glob answers 19, the other six living
+  in `btclib/_data/` one level up. It now names the command that finds
+  them and no number.
+
+  `claude-review.yml`'s "The four required checks stay what they are" is
+  true here and is a count nothing re-derives -- the same sentence is in
+  the same file in four repositories and is wrong in two of them, which
+  is why it goes rather than gets confirmed.
+
+  Nothing else the sweep could settle mechanically was wrong: every
+  workflow named in a comment exists, every cron matches the day its
+  comment claims, the two minute-uniqueness claims hold, and the
+  trigger claims match each `on:` block. The prose half of the sweep --
+  reading every comment end to end, which is how a stale claim that
+  reads like a true one is found -- is not done here and is what keeps
+  that issue open.
+
 - **`.yamllint.yaml` turns the default rule set back on**
   (btclib-org/.github#68). The file listed `line-length` and
   `document-start` under `rules:` and extended nothing, and yamllint

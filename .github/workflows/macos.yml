@@ -1,9 +1,9 @@
 ---
 name: macos
 
-# the platform the merge gate does not wait for. test.yml runs four
-# operating systems on every pull request and this one runs the two macOS
-# images, weekly and before a release, because macOS is where the wait comes
+# the platform the merge gate does not wait for. test.yml runs the two
+# ubuntu images on every pull request and this one runs the two macOS
+# ones, weekly and before a release, because macOS is where the wait comes
 # from. Measured on one pull request run of the full six: 45 jobs, 93
 # minutes of work and 399 minutes of queueing, the macOS cells waiting 29.4
 # and 23.2 minutes on average for a runner -- one of them 42.2 -- against
