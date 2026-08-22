@@ -20,6 +20,34 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **A bool is no longer accepted as an integer** (issue #1206), which
+  matters most where it was accepted as a *key*:
+
+  ```python
+  b58.wif_from_prv_key(True)   # was a WIF of the key 1
+  ```
+
+  Act on it if you pass `True` or `False` where an integer is expected —
+  a key, a multiplier, a curve parameter, anything typed `Integer`. The
+  class is always `BTClibTypeError`; the message depends on which check
+  the value reaches first, so match on the class and not on the text.
+  A key is the case to watch: `wif_from_prv_key(True)` says "not a
+  private key" and `p2pkh(True)` "not a private or public key", where
+  `mult(True)` and `dsa.sign(msg, True)` say "non-integer: True".
+
+  A BIP340 x-only key is where that lands hardest, `ssa` having answered
+  about a bool rather than refusing one — `True` as the key at x = 1,
+  `False` as a complaint about the coordinate that the `verify`
+  spellings swallow. All nine entry points raise a `BTClibTypeError`
+  now: `point_from_bip340pub_key` where it returned that point, the four
+  `verify` spellings where they returned False, and the four `assert_`
+  spellings where they raised a `BTClibRuntimeError` for `True` and a
+  `BTClibValueError` for `False`. An `except` written for either stops
+  catching this.
+
+  An `IntEnum` is unaffected and stays an integer. CHANGELOG.md has why
+  a bool was reaching a key at all, and what the two arms did with it.
+
 - **`ecc` no longer takes a WIF or an extended key as a private key**
   (issue #1188). The entry points that took a private key however it was
   spelled — every one in `dsa`, `ssa`, `musig2`, `dleq`, `ecies`,
