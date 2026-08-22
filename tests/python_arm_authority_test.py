@@ -307,12 +307,6 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "script_engine/script_test.py",
         "script_engine/transactions_test.py",
     ),
-    "script.taproot._output_pubkey_and_internal_key": (
-        "bip322_test.py",
-        "script/sig_hash_taproot_test.py",
-        "script/taproot_test.py",
-        "script_engine/script_test.py",
-    ),
     "script.taproot._tweaked_prvkey": (
         "bip322_test.py",
         "script/sig_hash_taproot_test.py",
