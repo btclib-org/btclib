@@ -376,10 +376,22 @@ def _tweaked_pubkey(
             # the rule the whole tree follows: the discrimination is
             # theirs, but the hierarchy has to be btclib's, a caller
             # catching BTClibValueError not having to know which arm
-            # answered. The wording is the lift's below, so the two arms
-            # agree on the sentence and not only on the class -- which
-            # takes the range check too, the lift making it separately
-            # and the bindings' parse refusing both the same way
+            # answered.
+            #
+            # Two messages, because only one of the two calls knows what
+            # was refused. With sec None the octets are the x-only key
+            # and there is nothing else for tweak_add to object to, so
+            # the wording is the lift's below and the two arms answer the
+            # same sentence for the same input -- the range check
+            # included, which the lift makes separately and the bindings'
+            # parse does not. With a sec the octets carry a y as well,
+            # unproven for the same reason: a valid x with a y that is
+            # not its own is refused here too, and naming the x would be
+            # naming the half that is right. check_output_pubkey's arm
+            # already says that in these words, this being the same
+            # refusal it cannot decompose either
+            if sec is not None:
+                raise BTClibValueError(f"invalid internal public key: {e}") from e
             x_Q = int.from_bytes(pub_key, "big")
             err_msg = (
                 "invalid x-coordinate: "

@@ -346,11 +346,11 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
     the two answered is a `pip install`, and a caller catching
     `BTClibValueError` is not meant to have to know (issue 1214).
 
-    Three keys, because the sentence has three shapes: 5 is no
-    x-coordinate and is written as a decimal, p - 1 is no x-coordinate
-    and is written as hex, and p is not a field element at all, which
-    `y_even_var` says in words of its own and the bindings' parse refuses
-    without distinguishing.
+    On the x-only path the sentence agrees too, and has three shapes: 5
+    is no x-coordinate and is written as a decimal, p - 1 is no
+    x-coordinate and is written as hex, and p is not a field element at
+    all, which `y_even_var` says in words of its own and the bindings'
+    parse refuses without distinguishing.
     """
     for x, err_msg in (
         (5, "invalid x-coordinate: 5"),
@@ -364,6 +364,32 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
             no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
             with pytest.raises(BTClibValueError, match=err_msg):
                 output_pubkey_from_merkle_root(x_only, b"")
+
+
+def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sec whose y is not its x's is refused without naming the x.
+
+    `_sec_from_key` leaves the octets unproven for the reason the arm
+    itself does, so `04 || x || y` with a good x and a y that is not its
+    own reaches `tweak_add` and is refused there. The x is the half that
+    is right, and a message naming it would be false -- which is what
+    keeps the two arms to agreeing on the class here rather than on the
+    sentence: without the bindings the key never reaches the tweak at
+    all, `point_from_key` refusing it a step earlier and in its own
+    words.
+    """
+    Q = mult(7)
+    y_not_x_s = (Q[1] + 1) % secp256k1.p
+    sec = b"\x04" + Q[0].to_bytes(32, "big") + y_not_x_s.to_bytes(32, "big")
+
+    with pytest.raises(BTClibValueError, match="invalid internal public key"):
+        output_pubkey(sec)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            output_pubkey(sec)
 
 
 def test_invalid_control_block() -> None:

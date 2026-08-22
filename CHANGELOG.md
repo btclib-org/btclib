@@ -1004,13 +1004,23 @@ documented at release-notes length in the first place, and are still in
   states the rule the rest of the tree follows: the discrimination is
   the bindings', but the hierarchy has to be btclib's.
 
-  The arm now raises `BTClibValueError` with the wording the arm beside
-  it uses — `y_even_var`'s "invalid x-coordinate", and its
-  "x-coordinate not in 0..p-1" for an x that is no field element, the
-  bindings' parse refusing both the same way and this making the
-  distinction their message does not. So the two arms agree on the
-  sentence and not only on the class, which a test holds them to over
-  the three shapes that sentence has.
+  The arm now raises `BTClibValueError`, and says as much about what was
+  refused as the call it was refused by can know. Given the x-only key
+  and no `sec`, there is nothing else for `tweak_add` to object to, so
+  the wording is `y_even_var`'s — "invalid x-coordinate", and its
+  "x-coordinate not in 0..p-1" for an x that is no field element, a
+  distinction the bindings' parse does not make and this makes for it —
+  and the two arms answer the same sentence for the same input. Given a
+  `sec`, they cannot: `_sec_from_key` leaves those octets unproven for
+  the same reason this arm does, so `04 || x || y` with a good x and a y
+  that is not its own reaches the tweak and is refused there, and naming
+  the x would be naming the half that is right. That case takes
+  `check_output_pubkey`'s existing words for a refusal it cannot
+  decompose either, "invalid internal public key", and the two arms are
+  held to the class alone — the Python one refusing that key a step
+  earlier, in `point_from_key`, and never reaching the tweak. A test
+  holds both: three shapes of the shared sentence, and the sec whose x
+  is not to blame.
 
   This was issue #1008's defect one occurrence further on, and the sweep
   that closes it is `grep -rn 'libsecp256k1_[a-z_]*\.' btclib/ --include
