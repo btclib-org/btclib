@@ -170,6 +170,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Why `bitcoin-core-rpc` is required and the bindings are an extra is
+  written where a reader meets it** (issue #1131). Issue #1126 decided
+  it and closed on the decision; neither `pyproject.toml`'s comment
+  block nor `CONTRIBUTING.md`'s dependency paragraph carried the
+  reasoning, both arguing the absence of a version *ceiling* at length
+  and saying nothing about the asymmetry above it. A contributor could
+  ask #1126's question again from the files alone, which is what a
+  decision made and not recorded looks like.
+
+  The reasoning rather than the conclusion, which is already visible in
+  the file: an optional dependency whose absence changes a *speed* is a
+  different object from one whose absence removes a *capability*, and
+  only the first is what an extra is for. The bindings are the first --
+  btclib answers without them, on a pure-Python arm made supported,
+  CI-covered and documented by issues #990, #991 and #992 -- and nothing
+  stands behind "ask a node". A `fetch` extra was weighed and refused on
+  that: it would leave `btclib.fetch` importable and unable to answer,
+  which is the shape an extra exists to avoid.
+
 - **A markdown line does not end inside a word**
   (btclib-org/.github#71). Markdown joins two source lines with a space,
   so a word wrapped at its own hyphen renders with the hyphen and then a
