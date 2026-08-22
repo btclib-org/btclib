@@ -282,6 +282,68 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **One cell gates a merge, three weekly sweeps run the matrices whole,
+  and every schedule sits on the organization's grid**
+  (btclib-org/.github#85). `test.yml`'s `suite` job is gone: what a pull
+  request waits for is `ubuntu-latest` on the interpreter
+  `.python-version` pins — the `coverage` job that was already one cell
+  of that matrix — plus `no-bindings`, `coverage-union` and `dist`, and
+  the one-job `lint`, `docs` and `integration` workflows beside them.
+
+  Why: GitHub Free gives the organization twenty concurrent jobs, shared
+  across every repository in it, and a commit here asked for thirty-nine
+  of them, so a review's wall clock was the wait for a slot rather than
+  the suite. Thirteen cells per pull request become none.
+
+  What it costs, said here rather than discovered later: a regression on
+  `3.10`, on arm or on PyPy is no longer refused before a merge. It sits
+  on `main` until the sentinel for it runs, at most six days — the trade
+  `macos.yml` and `windows.yml` were already making for their platforms,
+  applied to the rest.
+
+  `ubuntu.yml` is new and holds what left: `ubuntu-latest` and
+  `ubuntu-24.04-arm` by every interpreter this package claims, the cell
+  the gate runs included. A sweep that subtracted that cell would be a
+  matrix with a hole in it, and whoever asked what ran would have to
+  re-derive the hole from another file. `release.yml` calls it beside
+  `macos.yml` and `windows.yml`, so nothing is published over an
+  interpreter no sweep answered for. The reasoning the deleted job
+  carried moved with the cells rather than going with them — what a
+  matrix buys on a package whose bindings are compiled, why `3.14t` is
+  in the list, why `pypy3.10` is not — and the canonical checkout
+  comment is now the `coverage` job's.
+
+  Every schedule reads `4 <hour> * * <weekday>`: the day belongs to the
+  workflow, the hour separates a day's second run, and minute `:04`
+  belongs to this repository, so no two repositories in the organization
+  ask GitHub for the same slot. `grep -h 'cron:' .github/workflows/*.yml`
+  reads them back; the calendar itself is section 10 of
+  `btclib-org/.github`, and no file here carries a second copy of it.
+  `CONTRIBUTING.md`'s cadence table names no day at all, and a workflow's
+  own comment names its day only to say what it sits beside and why —
+  which is this repository's reason for its slot, not the organization's
+  grid. `published`, `vendored-vectors` and `python-arm-authority` were
+  monthly and are weekly with the rest.
+
+  `integration.yml`'s own cron moves onto the grid beside them, and it
+  keeps every other trigger.
+  Its job is a required check on every pull request and on the commit a
+  merge creates, so the weekly run asks nothing new about the tree; what
+  it asks is whether bitcoincore.org still serves the tarball pinned in
+  the file. That is external rot of exactly the kind `published.yml` is
+  weekly for — both fetch a pinned third-party artifact and verify a hash
+  — and unscheduled it would first appear, after a quiet stretch, as a
+  red required check on the branch of whoever opened the next pull
+  request. A sweep over several Core majors would be a different question
+  again, which is what `bitcoin-core-rpc` has
+  (btclib-org/bitcoin-core-rpc#211).
+
+  `tests/interpreters_test.py` reads the sweeps rather than `test.yml`,
+  the interpreter list having moved, and holds the three of them to one
+  another besides: three copies of a list is three chances for one to be
+  left behind, and a platform quietly running a narrower set than
+  another reads, from the outside, as that platform passing.
+
 - **The Python-arm census runs on the merge commit, and names
   `script/taproot_test.py`** (issue #1003). `main` was red on
   `Re-derive the Python-arm authority table` and nothing said so: the

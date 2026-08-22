@@ -32,23 +32,31 @@ name: integration
 # all produces no check on one, skipped or otherwise. What checks the HWI
 # command line on every commit stays tests/hwi_test.py, whose stand-in
 # device is a subprocess answering HWI's own json.
+#
+# A schedule too, like every other unattended question here, and it is
+# not about the tree: the job below is a required check on every pull
+# request and on the commit a merge creates, so a weekly run asks the
+# same node the same question about a tree nothing has touched. What it
+# asks that nothing else does is whether bitcoincore.org still serves the
+# tarball pinned below. A pruned release or a moved path is external rot
+# of exactly the kind published.yml is weekly for -- both fetch a pinned
+# third-party artifact and verify a hash -- and unscheduled it would
+# first appear during a quiet stretch as a red required check on the
+# branch of whoever opened the next pull request, about something that
+# branch did not do. Sweeping several Core majors would be a different
+# question again, and is what bitcoin-core-rpc has
+# (btclib-org/bitcoin-core-rpc#211)
 
 on:
   schedule:
-    # Fridays, 04:29 UTC. Not on the hour: GitHub queues scheduled
-    # workflows across every repository that asked for the same minute,
-    # and the run can be dropped outright when the queue is long.
-    # After the weekday sentinels that come before it -- links Monday,
-    # codeql Tuesday, latest and macos Wednesday, Dependabot Thursday --
-    # and before the windows run on Saturday and the mutation session
-    # that has the rest of the weekend, so each of the week's
-    # unattended questions is answered on a day of its own and a failure
-    # notification names the workflow by the day it arrived.
-    # Cron runs from the default branch only, so this file asks nothing
-    # until it reaches the default branch -- elsewhere it is reachable
-    # through the
-    # dispatch button below and nowhere else
-    - cron: "29 4 * * 5"
+    # Sunday, the hour after mutation.yml: what this run watches is the
+    # download rather than the tree, so it wants the emptiest day rather
+    # than a particular one, and Sunday holds one other job.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 5 * * 0"
   # the same trigger set as the other gates: main so that the commit a
   # merge creates is asked the question too -- and so that a cache is
   # written where every pull request can read it -- the pull request so
@@ -59,8 +67,8 @@ on:
   push:
     branches: [main]
   workflow_call:
-  # the escape hatch, and the way to ask a node about a Core version the
-  # matrix does not carry
+  # the escape hatch, and the way to ask a node about a Core version
+  # other than the one pinned below
   workflow_dispatch:
   # so a change to the tests this runs, or to this file, is checked by the
   # thing it configures -- links.yml does the same for its ignore list.
@@ -145,7 +153,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -197,9 +205,9 @@ jobs:
               sys.exit(1)
           print(f"{len(ran)} regtest tests ran against the node")
           PY
-      # always(), because a failure is what somebody reads on Friday and
-      # the report is what says whether the node refused the transaction
-      # or the test never reached it
+      # always(), because a failure is what somebody opens this job for
+      # and the report is what says whether the node refused the
+      # transaction or the test never reached it
       - name: Upload the report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -208,5 +216,6 @@ jobs:
           path: integration.xml
           if-no-files-found: error
           # long enough to compare a run with the one before it, short
-          # enough that a weekly job does not accumulate a year of xml
+          # enough that a required check does not accumulate a year of
+          # xml
           retention-days: 90

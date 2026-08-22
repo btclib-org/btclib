@@ -14,18 +14,19 @@ recovered by reading the tree.
 **Never name matrix contexts in the branch rule.** The rule lives outside
 the repository, so a context that stops being produced blocks every merge
 with nothing in the tree to explain why. `test: every job passed` is an
-aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
-`test.yml` belongs in that job's `needs`, or it gates nothing. Its name
-carries the workflow because a context is keyed by name alone: two
-workflows with a job named the same thing produce one ambiguous check.
+aggregate job at the end of `test.yml` that `needs` every other job in
+it; a new job in `test.yml` belongs in that job's `needs`, or it gates
+nothing. Its name carries the workflow because a context is keyed by name
+alone: two workflows with a job named the same thing produce one
+ambiguous check.
 
 That aggregate skips, rather than fails, when the run itself was
 cancelled by the concurrency group superseding it -- a skip satisfies a
 required check, the same as this very job's own draft/closed condition
-already relies on. A `changes` job gates `suite`, `coverage`,
-`no-bindings`, `dist` and `coverage-union` on whether a pull request
-touched anything the matrix reads, so `skipped` from any one of those
-five is legitimate too, on purpose, whenever the diff is prose alone
+already relies on. A `changes` job gates `coverage`, `no-bindings`,
+`dist` and `coverage-union` on whether a pull request touched anything
+those jobs read, so `skipped` from any one of them is legitimate too, on
+purpose, whenever the diff is prose alone
 (issue #1044) -- not only the whole-run-cancelled case. The aggregate
 fails hard on anything else a dependency reports, `success` or
 `skipped` and nothing besides, checked by name in a shell loop that
@@ -40,15 +41,16 @@ repos/btclib-org/btclib/branches/main/protection --jq
 
 | Check | Produced by |
 | --- | --- |
-| `test: every job passed` | `test.yml`, aggregate over the matrix |
+| `test: every job passed` | `test.yml`, aggregate over its own jobs |
 | `Lint and type-check` | `lint.yml`, its only job |
 | `Build the documentation` | `docs.yml`, its only job |
 | `Regtest against Bitcoin Core` | `integration.yml`, its regtest job |
 
-A workflow needs an aggregate when every one of its jobs has to gate: the
-matrix of `test.yml` is the one, and a context naming one cell of it would
-leave the rest outside the rule. Where a single job is what gates, that job
-*is* the context, which is why most of the checks above are job names.
+A workflow needs an aggregate when every one of its jobs has to gate:
+`test.yml` is the one with several, and a context naming any one of them
+would leave the rest outside the rule. Where a single job is what gates,
+that job *is* the context, which is why most of the checks above are job
+names.
 `integration.yml` holds only the regtest job: the HWI jobs — `HWI against a
 Trezor emulator` and `HWI against a Ledger emulator` — live in
 `hwi-integration.yml`, a workflow with no `pull_request` trigger at all, so
@@ -70,21 +72,25 @@ rule is waiting for.
 
 `Regtest against Bitcoin Core` is the newest of the four, and it is here
 because its cost was measured rather than assumed: 36 seconds of work for a
-disposable regtest node, which is less than the matrix it runs beside. It
+disposable regtest node, which is less than the gate it runs beside. It
 answers the one claim the recorded vectors cannot make. `integration.yml`
 therefore carries no `paths` filter: a required check that never runs blocks
 a merge, where a skipped one satisfies it.
 
-`codeql: every job passed` is not among them, and that is the one place a
-check was traded for the wait it cost. GitHub Free gives an organization
-twenty concurrent jobs (as of 2026-08-21); a commit here asked for
-thirty-nine, and measured
-over a working afternoon the repository sat at nineteen or twenty running
-jobs for 1375 of 2100 seconds — so a pull request's wall clock was the wait
-for a slot and not the work. `codeql.yml` now runs on `main` and on its
-schedule, the analysis landing on the merge commit rather than ahead of it,
-and it still produces that aggregate: the name is available, so requiring it
-again is a patch to the rule and nothing in the tree.
+GitHub Free gives an organization twenty concurrent jobs (as of
+2026-08-21). Measured over a working afternoon while a commit here asked
+for thirty-nine, this repository sat at nineteen or twenty running jobs
+for 1375 of 2100 seconds — so a pull request's wall clock was the wait
+for a slot and not the work. That is the measurement the gate and the
+weekly sweeps are arranged around, and it is what the workflows citing
+this file cite.
+
+`codeql: every job passed` is not among the required checks, and that is
+the one place a check was traded for the wait it cost. `codeql.yml` now
+runs on `main` and on its schedule, the analysis landing on the merge
+commit rather than ahead of it, and it still produces that aggregate:
+the name is available, so requiring it again is a patch to the rule and
+nothing in the tree.
 
 What still reads a branch before it merges is the workflow half of the same
 question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
@@ -390,7 +396,7 @@ request: once the parent lands, the
 child's base is an object no longer on `main` — a button recreates
 rather than moves, GitHub's documentation saying rebase-and-merge
 "always updates the committer information and creates new commit SHAs"
-— so the child is rebased and pays a fresh run of the matrix. That is
+— so the child is rebased and pays a fresh run of the gate. That is
 the price of having no way to write to `main` by hand, and it is the
 one worth paying: the afternoon this rule was written, a `git merge` run
 in the wrong working tree advanced `main` locally, and only the absence

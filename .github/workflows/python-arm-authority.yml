@@ -9,7 +9,7 @@ name: python arm authority
 # and not seconds: every module `_THIRD_PARTY_VECTORS` names, each under
 # coverage, each in an environment with no bindings installed. Issue
 # #1003 is this workflow --
-# a pull request should not pay what a schedule can pay once a month.
+# a pull request should not pay what a schedule can pay once a week.
 #
 # This reimplements the no-bindings environment test.yml's own
 # `no-bindings` job builds, rather than depending on issue #1002's
@@ -57,15 +57,13 @@ on:
   push:
     branches: [main]
   schedule:
-    # the 15th of the month, 04:07 UTC. Not the 1st, which
-    # `vendored-vectors` and `published` already share, and not on the
-    # hour: GitHub queues same-minute scheduled workflows across every
-    # repository that asked for it, and a long queue can drop the run
-    # outright. Minute 07 is not shared with any other cron in this
-    # repository, which `grep -h 'cron:' .github/workflows/*.yml` is
-    # what re-derives -- a list written out here is complete only until
-    # the next workflow gains a schedule
-    - cron: "07 4 15 * *"
+    # Tuesday, the hour after codeql.yml: both are censuses of the tree
+    # rather than questions about a dependency, and neither gates.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 5 * * 2"
   workflow_dispatch:
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the

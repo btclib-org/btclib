@@ -52,7 +52,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
           # the whole history, where every other checkout in these
           # workflows takes the default single commit: the ancestry check
@@ -291,10 +291,16 @@ jobs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
 
-  # and the two platforms the merge gate does not wait for: each runs
-  # weekly, so a regression there could otherwise sit on main until the
-  # morning after the tag. Cheap in work and the slowest calls here in wall
-  # clock, which a release is the one place worth paying for
+  # and the three platform sweeps, which between them are every image
+  # and every interpreter this package claims: the gate runs one cell of
+  # ubuntu.yml's matrix and each of these runs its own whole, weekly, so
+  # a regression outside that cell could otherwise sit on main until the
+  # morning after the tag. Cheap in work and the slowest calls here in
+  # wall clock, which a release is the one place worth paying for
+  ubuntu:
+    name: Run the ubuntu workflow
+    uses: ./.github/workflows/ubuntu.yml
+
   macos:
     name: Run the macos workflow
     uses: ./.github/workflows/macos.yml
@@ -317,7 +323,7 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, macos, windows, integration]
+    needs: [test, lint, docs, ubuntu, macos, windows, integration]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -341,7 +347,7 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, macos, windows, integration]
+    needs: [test, lint, docs, ubuntu, macos, windows, integration]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15

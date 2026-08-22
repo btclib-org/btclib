@@ -89,7 +89,7 @@ Staying aligned with a project this does not import is two things, and
 neither is a copy of it. `tests/hwi_test.py` writes out the surface used
 -- the commands, the flags, the answer keys, the error codes -- and
 `tests/_data/README.md` pins `hwilib/_cli.py` and `hwilib/errors.py` to
-the revisions it was read from, so the monthly upstream re-check reports
+the revisions it was read from, so the weekly upstream re-check reports
 a command line that moved. What that already caught: `signtx` answers
 `signed` beside the psbt, which `sign_psbt` now holds the two strings to.
 """

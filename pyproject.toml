@@ -292,20 +292,23 @@ testpaths = ["tests"]
 # -n auto pays here, and the number is worth writing down because a local
 # run says the opposite: on ten cores this suite is 18 seconds either way,
 # six alternating pairs splitting three to three, so a laptop cannot decide
-# this. CI can, and does. One dispatch of test.yml per configuration, the
-# `Run pytest` step compared cell by cell over the 28 of them plus coverage:
+# this. CI can, and does. One dispatch per configuration of each platform
+# sweep, the `Run pytest` step compared cell by cell across the three of
+# them and the coverage job:
 # the pool wins in every single cell, 189s against 87s at the median, 2.2x,
-# and 106 minutes of suite time against 46 across a whole run -- an hour of
-# compute per run. The ratio rises where the runner is slowest: about 2.9x
-# on both arm images against 1.9x on the x86 ones, which is the shape of a
+# which over a full sweep is better than an hour of compute. The ratio
+# rises where the runner is slowest: about 2.9x on the arm images against
+# 1.9x on the x86 ones, which is the shape of a
 # fixed startup cost amortised over more work. bitcoin-core-rpc measured the
 # same question and removed the flag, its 298 socket-free tests finishing
 # before ten workers start; the criterion the two share is in checksig's
 # docs/test-parallelism.md, and it is the length of a cell rather than the
 # count of its tests. To re-derive:
 #
-#     gh workflow run test.yml --ref <a branch with the flag removed>
-#     gh workflow run test.yml --ref main
+#     for w in ubuntu macos windows; do
+#         gh workflow run $w.yml --ref <a branch with the flag removed>
+#         gh workflow run $w.yml --ref main
+#     done
 #     gh api repos/$GITHUB_REPOSITORY/actions/runs/<id>/jobs?per_page=100
 #
 # --dist worksteal rather than xdist's default `load`, because the cost
@@ -799,8 +802,8 @@ select = [
 # the locale's: UTF-8 wherever this suite is usually read, cp1252 on
 # Windows, where a typographic quote in a docstring is a byte that maps
 # to nothing and the module holding it fails to load rather than fails a
-# test. windows.yml answers on Saturday and before a release, so nothing
-# else asks in between.
+# test. windows.yml answers weekly and before a release, so nothing else
+# asks in between.
 # Zero findings when it was selected, which makes it a ratchet and not a
 # cleanup. .pre-commit-config.yaml carries the other half, `text=True`
 # being the same locale-dependent decode one layer out
@@ -885,7 +888,7 @@ ignore = [
 # case it is not about
 ".github/scripts/mutation_counts.py" = ["T201"]
 # and the vendored-vector checker: BEHIND, SKIPPED and the all-clear line
-# are what a monthly run's log says happened, the issue it opens or
+# are what a weekly run's log says happened, the issue it opens or
 # closes being the same report a second way
 ".github/scripts/check_vendored_vectors.py" = ["T201"]
 # and the device wait, whose whole output is one line for the log of the
@@ -894,7 +897,7 @@ ignore = [
 ".github/scripts/wait_for_hwi_device.py" = ["T201"]
 # and the Python-arm authority re-derivation: which module it is
 # measuring, one line per disagreement found, and the all-clear or count
-# at the end are what a monthly run's log says happened
+# at the end are what a weekly run's log says happened
 ".github/scripts/check_python_arm_authority.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure

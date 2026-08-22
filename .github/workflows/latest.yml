@@ -50,17 +50,16 @@ name: latest
 
 on:
   schedule:
-    # weekly, on a minute that is not the hour: everything scheduled on
-    # the hour is queued together, and a run that waits is a run whose
-    # failure is noticed later. Wednesday, the day after codeql.yml's
-    # Tuesday, and the same morning macos.yml runs, half an hour after
-    # it -- that pairing is macos.yml's own comment. Thursday is left
-    # for Dependabot, opening the day after this has already reported.
-    # published.yml is on no weekday at all: its subject is an artifact
-    # already released and therefore fixed, so it asks monthly.
+    # Wednesday, the day before Dependabot's, which is the whole point of
+    # the placement: this reports on the upgrade before the pull request
+    # carrying it opens. published.yml follows an hour later, the pair
+    # asking what moved underneath -- the dependencies here, and what the
+    # index serves there.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "43 4 * * 3"
+    - cron: "4 4 * * 3"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
@@ -105,7 +104,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1

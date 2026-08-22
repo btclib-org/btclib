@@ -1,26 +1,27 @@
 ---
 name: windows
 
-# the second platform the merge gate does not wait for, and it is here for
-# the reason macos.yml is, measured on this repository rather than assumed.
-# GitHub Free gives an organization twenty concurrent jobs, and a commit used
-# to ask for thirty-nine: measured over a working afternoon, the repository
-# sat at nineteen or twenty running jobs for 1375 of 2100 seconds, so a pull
-# request's wall clock was set by waiting for a slot and not by the suite.
-# The fourteen Windows cells were 2357 of the 3556 seconds of matrix work per
-# commit -- windows-11-arm alone 1250, the slowest row and the one with the
-# longest queue -- and they also carry the largest fixed cost per cell, some
-# 50 to 75 seconds of checkout, uv and wheel build against 17 on ubuntu.
-# Moving them here took a commit from 66 runner-minutes to 25. To re-derive:
+# the Windows third of the platform sweep, and it is here for the reason
+# ubuntu.yml's header gives for all three, measured on this repository
+# rather than assumed. REPOSITORY.md holds the concurrency ceiling and
+# what a wider gate cost against it; what is measured here is Windows's
+# share. The fourteen cells below are 2357 of the 3556 seconds of matrix
+# work a full platform sweep spends -- windows-11-arm alone 1250, the
+# slowest row and the one with the longest queue -- and they also carry
+# the largest fixed cost per cell, some 50 to 75 seconds of checkout, uv
+# and wheel build against 17 on ubuntu. Holding them off the gate is what
+# makes a commit cost 25 runner-minutes rather than 66. What a run of
+# this workflow costs is the same query, asked of this workflow:
 #
-#     id=$(gh run list --workflow=test.yml --limit 1 \
+#     id=$(gh run list --workflow=windows.yml --limit 1 \
 #         --json databaseId --jq '.[0].databaseId')
 #     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
 #
-# What these cells buy is what macos.yml's comment says of its own: there is
-# no platform-conditional branch in this library -- no sys.platform and no
-# sys.version_info anywhere, which is the property the coverage job of
-# test.yml records from the other side -- so every cell walks the same lines.
+# What these cells buy is what macos.yml's comment says of its own: there
+# is no platform-conditional branch in this library -- no sys.platform and
+# no sys.version_info anywhere, which is the property the coverage job of
+# test.yml records from the other side -- so every cell walks the same
+# lines.
 # What runs here is the standard library under them, the published
 # btclib_secp256k1 wheel for each interpreter, and the one path separator
 # and line ending this library never sees otherwise.
@@ -32,27 +33,23 @@ name: windows
 # than for the host, so either one links.
 #
 # A workflow of its own rather than a row in macos.yml, which is the same
-# design that file argues for itself: one variable each, so a red cell names
-# a platform. On its own morning too, and that is this workflow's whole
-# point -- macos.yml and latest.yml already share Wednesday, and fourteen
-# more jobs against twenty slots would rebuild on that morning the queue
+# design that file argues for itself: one variable each, so a red cell
+# names a platform. On its own hour too, an hour after macos.yml: fourteen
+# more jobs against twenty slots would rebuild in one morning the queue
 # this file exists to take out of a pull request.
 #
-# It gates no commit and no merge -- a Windows regression sits on main for at
-# most a week -- but release.yml calls it, so one cannot be published
+# It gates no commit and no merge -- a Windows regression sits on main for
+# at most a week -- but release.yml calls it, so one cannot be published
 
 on:
   schedule:
-    # Saturday, the one day nothing else here asks for -- the mutation
-    # session Sunday, links Monday, codeql Tuesday, latest and macos
-    # Wednesday, Dependabot Thursday, integration Friday -- so a failure
-    # notification still names the workflow by the day it arrived, which is
-    # the convention codeql.yml states at its own cron. A minute that is not
-    # the hour, as every schedule here, so the run does not queue behind
-    # everything else cron starts; 19 is unused by the others.
+    # Saturday, the hour after macos.yml: see that file for why the two
+    # platforms share a day and not an hour.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "19 4 * * 6"
+    - cron: "4 5 * * 6"
   # lets release.yml gate a publication on this platform too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
   workflow_call:
@@ -84,15 +81,14 @@ jobs:
       # whole answer, and stopping at the first one hides the rest
       fail-fast: false
       matrix:
-        # the two images test.yml no longer carries. Both, and not the
-        # newest alone: what differs between them is the architecture the
-        # interpreter and the bindings wheel target
+        # both, and not the newest alone: what differs between them is
+        # the architecture the interpreter and the bindings wheel target
         os:
           - windows-latest
           - windows-11-arm
-        # the interpreter set test.yml runs, unchanged: this workflow moves
-        # the platform and nothing else, so a difference between the two is
-        # attributable to the platform
+        # the interpreter set ubuntu.yml names, unchanged: this workflow
+        # moves the platform and nothing else, so a difference against it
+        # is attributable to the platform
         python:
           - "3.10"
           - "3.11"
@@ -106,20 +102,19 @@ jobs:
     # happens before a job starts and is not counted here
     timeout-minutes: 30
     steps:
-      # the three steps of test.yml's suite job, and each `with:` there
-      # carries the reason for itself
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --no-cov for the reason test.yml's suite job gives beside its own
-      # step: this matrix carries the same PyPy cells behind the same
-      # timeout, and the coverage job there is the one place the number is
+      # --no-cov for the reason ubuntu.yml gives beside its own step:
+      # this matrix carries the same PyPy cells behind the same timeout,
+      # and test.yml's coverage job is the one place the number is
       # measured and gated
       #
       # every cell here runs on windows-latest or windows-11-arm, where the

@@ -1,6 +1,16 @@
 ---
 name: test
 
+# the merge gate, and it is one cell of what a sweep runs: ubuntu-latest
+# on the interpreter .python-version pins, which is the `coverage` job
+# below. The platform matrices are ubuntu.yml, macos.yml and windows.yml,
+# weekly and before a release, and ubuntu.yml's header is where the trade
+# is argued -- what a review stops waiting for, and how long a regression
+# outside this cell can sit on main.
+# What stays here beside `coverage` is what is one cell anyway: the
+# no-bindings configuration, the union of the two, and the packaging
+# checks. lint.yml and docs.yml are the same shape in their own files
+
 on:
   push:
     # main only: a push to a branch that has an open pull request would
@@ -18,7 +28,7 @@ on:
     branches: [main]
     # GitHub Pages serves btclib.org from main's root, so a
     # website-only commit lands here and would otherwise run the whole
-    # matrix.
+    # gate.
     # None of these files is imported by the library or read by a test --
     # README.md is the homepage, not a doctest source; CONTRIBUTING.md is
     # checked by markdownlint, which is the lint workflow's business.
@@ -100,7 +110,7 @@ on:
           for the unconstrained smoke test, applied to caching instead.
         type: boolean
         default: false
-  # the escape hatch: the matrix on demand for a branch whose pull
+  # the escape hatch: the gate on demand for a branch whose pull
   # request is not open yet
   workflow_dispatch:
 
@@ -141,10 +151,10 @@ concurrency:
 jobs:
   # the cheapest job in the workflow, and the one that decides whether the
   # rest of it runs at all: a pull request that edits only prose changes
-  # nothing the five jobs below build or test, and running the whole
-  # matrix to prove it was the cost. Each of `suite`, `coverage`,
-  # `no-bindings` and `dist` takes this job as a `needs` and reads its
-  # output in its own `if`; `coverage-union` does too, rather than
+  # nothing the jobs below build or test, and running the whole gate to
+  # prove it is what this saves. Each of `coverage`, `no-bindings` and
+  # `dist` takes this job as a `needs` and reads its output in its own
+  # `if`; `coverage-union` does too, rather than
   # relying on `coverage` and `no-bindings` skipping under it, because a
   # job's own `if` here replaces the implicit "needs succeeded" check
   # rather than adding to it, and its two `needs` would otherwise be
@@ -174,7 +184,7 @@ jobs:
   #   undefined in an expression unless the job is named in its own
   #   `needs`
   changes:
-    name: Decide whether the matrix has anything to check
+    name: Decide whether the jobs below have anything to check
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -213,80 +223,50 @@ jobs:
           prose='^(AUTHORS|CLAUDE|CODE_OF_CONDUCT|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$'
           if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
             echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "something the matrix reads changed: everything runs"
+            echo "something the jobs below read changed: everything runs"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "prose only: the matrix has nothing to check"
+            echo "prose only: the jobs below have nothing to check"
           fi
 
-  # what the matrix buys: every (os, architecture, interpreter) triple
-  # selects a different published wheel of btclib_secp256k1, each with
-  # its own compiled libsecp256k1 inside, and the pure Python code meets a
-  # distinct hashlib and OpenSSL
-  suite:
-    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
-    # a draft pull request is work in progress: every push to one spends
-    # the whole matrix on a tree its author is not asking anyone to
-    # review yet. The gate below carries the same condition, so a draft
-    # skips uniformly and the gate does not read that skip as a job that
-    # should have run.
-    # A closed pull request spends none either: the trigger above takes
+  # the one cell a merge waits for, and the one place coverage is
+  # measured: ubuntu-latest on the interpreter below, which is what the
+  # header calls the gate. ubuntu.yml, macos.yml and windows.yml each run
+  # this cell again inside their own matrix, on purpose -- a sweep that
+  # subtracted it would be a matrix with a hole in it, and whoever asked
+  # what ran would have to re-derive the hole from this file.
+  # Measured here and not on any of those cells: the code base has
+  # no platform- or version-conditional branch (no sys.platform, no
+  # sys.version_info) and no conditional skip, so every one of them walks
+  # the very same lines. The one fallback, btclib.__version__ when no
+  # metadata is installed, is not conditional on the job: they all install
+  # the package, and a test reaches the other branch by making the lookup
+  # raise, which is why it needs no "pragma: no cover" either. Per-job
+  # measurement would buy only the instrumentation overhead, one
+  # coveralls.io upload per job, and the parallel/--finish handshake to
+  # stitch the uploads back together.
+  # The number is a gate rather than a report: fail_under, in
+  # tool.coverage.report, fails this job on a regression. It needs no
+  # secret and no third party, and it applies to every run, where a
+  # coveralls.io upload happens only on a pull request.
+  # A suite that passes is what this job reports before it reads a
+  # number, which is why the gate needs no plain run of the suite beside
+  # it on the same pair
+  coverage:
+    name: Measure coverage, gated at 100%
+    # a draft pull request is work in progress: every push to one would
+    # spend the gate on a tree its author is not asking anyone to review
+    # yet. Every job here carries this same condition, the aggregate
+    # below included, so a draft skips uniformly rather than leaving that
+    # gate reading the skip as a job that should have run.
+    # A closed pull request spends nothing either: the trigger above takes
     # the closed event only to supersede a run this ref's group is still
-    # holding, and every job here carries the same skip for the reason
-    # the draft one already does
+    # holding
     if: >-
       ${{ !github.event.pull_request.draft
           && github.event.action != 'closed'
           && needs.changes.outputs.code == 'true' }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # two, and macos.yml and windows.yml carry the other four, each with
-        # its measurement in its own header: what a platform row costs a
-        # pull request is the wait for a runner, and what it buys is a
-        # standard library under code this library writes no
-        # platform-conditional branch in. The two cheapest and fastest rows
-        # stay, because something has to run the suite before a merge; the
-        # rest answer weekly and before a release
-        os:
-          - ubuntu-latest
-          - ubuntu-24.04-arm
-        # 3.14t is the free-threaded interpreter, and it is in the matrix
-        # for what it installs as much as for what it runs: the bindings
-        # ship a py3-none dynamic wheel for it, and nothing else here
-        # exercises a build without the GIL. python-build-standalone has a
-        # freethreaded build for every platform this repository runs, the
-        # two here and the four of macos.yml and windows.yml, so it needs no
-        # exclusion of its own.
-        # no pypy3.10, and PyPy is still tested: hypothesis ships
-        # compiled wheels from 6.160 on and publishes none for pypy3.10, so
-        # uv falls back to its sdist, whose maturin build needs a PyO3 that
-        # requires PyPy 3.11 or newer. Pinning hypothesis below 6.160
-        # behind an implementation marker buys a suite generating its
-        # inputs with a version nobody else runs, on the older of the two
-        # PyPy releases; pypy3.11 covers the implementation
-        python:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-          - "3.14t"
-          - "pypy3.11"
-        # the one cell the coverage job below already is: same runner image,
-        # same interpreter, the same suite, and the only difference is the
-        # instrumentation. Running both asks one question twice and holds two
-        # of the twenty concurrent jobs GitHub Free gives an organization,
-        # which is what a pull request's wall clock is made of here. Nothing
-        # else in the matrix is excluded: that job is pinned to this pair,
-        # for the reason its own comment gives, so this is the only overlap
-        # there can be
-        exclude:
-          - os: ubuntu-latest
-            python: "3.14"
-    # far above what a run of the suite needs: what it bounds is a hung
-    # job holding a runner for six hours
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
     steps:
@@ -301,63 +281,18 @@ jobs:
           # the workspace would carry it out of the job. No job in any of
           # these workflows performs an authenticated git operation -- the
           # release is created by gh, from GH_TOKEN in its environment --
-          # so nothing needs it to stay
+          # so nothing needs it to stay.
+          # This is the checkout the other workflows here cite: the one
+          # on the gate, which runs on every pull request.
+          # claude-review.yml still names the job this one replaced,
+          # because a pull request editing that file is refused a review
+          # by it -- btclib-org/.github#91
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          # the cache holds the wheels uv.lock resolves, this matrix
-          # fetching the same ones on every run of every commit
-          enable-cache: true
-          python-version: ${{ matrix.python }}
-      # --no-cov, against the --cov that pyproject.toml's addopts carries:
-      # what this matrix asks is whether every (os, architecture,
-      # interpreter) triple passes, and the job below is where coverage is
-      # measured and gated. Instrumenting these cells measures the same
-      # lines over again -- that job's comment is why they are the same
-      # lines -- and on the PyPy cells it costs enough wall clock to reach
-      # the timeout above with every test passed, coverage.py collecting
-      # there through a trace hook the JIT cannot compile through. It also
-      # keeps `fail_under` where pyproject.toml's comment argues it
-      # belongs, on the one interpreter the statement count was checked
-      # against, rather than enforced on every cell of the matrix
-      - name: Run pytest
-        run: uv run --locked --no-default-groups --group test pytest --no-cov
-
-  # coverage is measured once, not once per matrix job: the code base has
-  # no platform- or version-conditional branch (no sys.platform, no
-  # sys.version_info) and no conditional skip, so every job walks the very
-  # same lines. The one fallback, btclib.__version__ when no metadata is
-  # installed, is not conditional on the job: every one of them installs
-  # the package, and a test reaches the other branch by making the lookup
-  # raise, which is why it needs no "pragma: no cover" either. Per-job
-  # measurement would buy only the instrumentation overhead, one
-  # coveralls.io upload per job, and the parallel/--finish handshake to
-  # stitch the uploads back together.
-  # The number is a gate rather than a report: fail_under, in
-  # tool.coverage.report, fails this job on a regression. It needs no
-  # secret and no third party, and it applies to every run, where a
-  # coveralls.io upload happens only on a pull request.
-  # It is also the (3.14, ubuntu-latest) cell of the matrix above, which is
-  # why that pair is excluded there: a suite that passes is what this job
-  # reports before it reads a number, so the pair needs no job of its own
-  coverage:
-    name: Measure coverage, gated at 100%
-    if: >-
-      ${{ !github.event.pull_request.draft
-          && github.event.action != 'closed'
-          && needs.changes.outputs.code == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: changes
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
-        with:
+          # the cache holds the wheels uv.lock resolves, which every run
+          # of every commit otherwise fetches again
           enable-cache: true
           # 3.14, i.e. what .python-version pins and what a bare `uv run`
           # gives a maintainer locally: the number this job gates on is a
@@ -425,7 +360,8 @@ jobs:
   # test marked `needs_bindings` too broadly, or a Python arm no test
   # here reaches, now shows up as a line neither run covers rather than
   # as nothing. What it costs is this job's wall clock, now instrumented
-  # like the `coverage` job's rather than the `suite` matrix's
+  # like the `coverage` job's, which is the same instrumentation and
+  # the same reason
   # The tests that hold both implementations and compare them are marked
   # `bindings` and skip themselves; everything else runs, which is what
   # makes this a suite and not a smoke test
@@ -498,7 +434,7 @@ jobs:
   # covers rather than as nothing.
   # What it costs: a third job, an artifact round trip in each direction,
   # and coverage.py's own combine step, which is the same trade the
-  # `coverage` job already made against the `suite` matrix, applied once
+  # `coverage` job already makes for the number it gates, applied once
   # more
   coverage-union:
     name: Combine coverage from both runs, gated at 100% too
@@ -619,7 +555,7 @@ jobs:
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
       # empty on every trigger but a release rehearsal: `inputs` is unset
       # outside a workflow_call, so a direct run of this workflow -- the
-      # matrix a pull request or a push to main gets -- skips this and
+      # gate a pull request or a push to main gets -- skips this and
       # ships the version the tree declares, same as a real release does.
       # TestPyPI refuses a version it has already seen, which is what the
       # suffix is for; release.yml's `version-check` job computes it once
@@ -844,15 +780,14 @@ jobs:
 
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
-  # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair -- `gh api` on a run's jobs counts
-  # them, and the count moves whenever the matrix does: naming those
-  # directly means every matrix edit has to be mirrored in a setting no
-  # pull request can
-  # review, and a name that stops being produced -- macos-latest moving
-  # on, 3.10 aging out in its turn -- becomes a required check that never
-  # reports, which blocks every merge until someone remembers where the
-  # rule lives.
+  # strings, stored outside the repository. A job's name is what such a
+  # rule matches, and a name that stops being produced -- a job renamed,
+  # a job moved out to a sentinel the way the platform matrix lives in
+  # ubuntu.yml, macos.yml and windows.yml -- becomes a required check
+  # that never reports, which blocks every merge until
+  # someone remembers where the rule lives. Naming the jobs below
+  # directly would mean every edit here has to be mirrored in a setting
+  # no pull request can review.
   # This job depends on the others instead, so the rule names one thing
   # that never changes and adding a job here is enough to gate on it
   test-passed:
@@ -864,7 +799,7 @@ jobs:
     # day either grows a second one, this pattern and a change to the rule
     # are what that costs
     name: "test: every job passed"
-    needs: [changes, suite, coverage, no-bindings, coverage-union, dist]
+    needs: [changes, coverage, no-bindings, coverage-union, dist]
     # !cancelled(), not always(): a run superseded by the concurrency
     # group above -- the next push landing on this ref, or a re-run
     # cancelled from the UI -- cancels every job still in flight, and
@@ -893,9 +828,10 @@ jobs:
     steps:
       # unconditional -- no `if:` of its own -- and deciding in the
       # shell rather than in a boolean `contains(needs.*.result, ...)`
-      # expression: issue #1001 saw four `suite` cells die in "Set up
-      # job" on an action download's HTTP 429, the run's own conclusion
-      # was `failure`, and yet `needs.suite.result` was not `'failure'`
+      # expression: issue #1001 saw four matrix cells die in "Set up job"
+      # on an action download's HTTP 429, the run's own conclusion was
+      # `failure`, and
+      # yet that job's `needs.<job>.result` was not `'failure'`
       # when the old expression checked it -- so that `if:`-gated step
       # was skipped, and a skipped step leaves the job green by
       # construction, the same shape the job-level condition used to
@@ -905,7 +841,7 @@ jobs:
       # is what makes a job added to `needs` above covered without
       # touching this loop, the same as the expression it replaces.
       # `skipped` is an allowed result now, not just `success`: `changes`
-      # makes `suite`, `coverage`, `no-bindings`, `dist` and
+      # makes `coverage`, `no-bindings`, `dist` and
       # `coverage-union` conditional on its own output, so a prose-only
       # pull request means every one of them reports `skipped` on
       # purpose. `changes` itself is not conditional, and a job that

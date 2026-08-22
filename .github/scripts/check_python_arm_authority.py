@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Re-derive tests/python_arm_authority_test.py's `_AUTHORITY`, monthly.
+"""Re-derive tests/python_arm_authority_test.py's `_AUTHORITY`, weekly.
 
 That file's docstring documents the measurement by hand: per third-party
 test module, in an environment with no bindings installed,

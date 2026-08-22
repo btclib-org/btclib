@@ -1,0 +1,138 @@
+---
+name: ubuntu
+
+# every ubuntu cell the merge gate does not spend, and the one it does.
+# The gate is a single cell -- ubuntu-latest on the interpreter
+# .python-version pins, which is test.yml's `coverage` job -- and this
+# workflow is the rest of that matrix: both architectures, every
+# interpreter, once a week and before a release.
+#
+# What the gate gives up is the point of the arrangement rather than a
+# cost it hides. The gate does not refuse a regression on 3.10, on arm or
+# on PyPy: one sits on main until this runs, at most six days. What that
+# buys is every pull request. GitHub Free gives an organization twenty
+# concurrent jobs, shared across every repository in it, and a gate wider
+# than one cell spends a review's wall clock waiting for a slot rather
+# than running the suite; REPOSITORY.md has that measurement,
+# windows.yml the runner seconds and macos.yml the queueing.
+#
+# What a matrix buys here is not the pure Python, which is the same
+# everywhere: every (os, architecture, interpreter) triple selects a
+# different published wheel of btclib_secp256k1, each with its own
+# compiled libsecp256k1 inside, and that code meets a distinct hashlib
+# and a distinct OpenSSL under it. macos.yml and windows.yml make the
+# same argument for their own images, and each says what its cells add.
+#
+# Both images, and not the newest alone: what differs between them is the
+# architecture the interpreter and the bindings wheel target, and
+# ubuntu-24.04-arm is the cheapest place this package is asked about
+# aarch64 at all.
+#
+# It gates no commit and no merge -- a regression outside the gate's cell
+# sits on main for at most a week -- but release.yml calls it, so one
+# cannot be published over an interpreter this never answered for
+
+on:
+  schedule:
+    # Friday, with hwi-integration.yml an hour later: a platform sentinel
+    # is two images times every interpreter, and three of them in one
+    # morning is the queue this arrangement exists to avoid, so the three
+    # take separate mornings. What shares this one is two emulator jobs.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 4 * * 5"
+  # lets release.yml gate a publication on these cells too, which is what
+  # keeps a weekly sentinel from being the only thing that ever asks
+  workflow_call:
+  # the escape hatch: the matrix on demand, for a branch that touches
+  # anything an interpreter version or an architecture reaches
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs: the subject here is the commit, which a newer one
+# supersedes. Named literally rather than with github.workflow, which in a
+# called workflow is the caller's name -- release.yml calls this one
+# alongside test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: ubuntu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-ubuntu:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # every cell to the end: which interpreter fails on which image is
+      # the whole answer, and stopping at the first one hides the rest
+      fail-fast: false
+      matrix:
+        # both images, the one the gate runs included: the cell
+        # test.yml's `coverage` job spends is here rather than excluded,
+        # because a matrix with the gate's cell cut out of it is one
+        # nobody can read the shape of, and whoever asked what ran would
+        # have to re-derive the hole from another file
+        os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+        # 3.14t is the free-threaded interpreter, and it is in the matrix
+        # for what it installs as much as for what it runs: the bindings
+        # ship a py3-none dynamic wheel for it, and nothing else here
+        # exercises a build without the GIL. python-build-standalone has a
+        # freethreaded build for every platform this repository runs, the
+        # two here and the four of macos.yml and windows.yml, so it needs
+        # no exclusion of its own.
+        # no pypy3.10, and PyPy is still tested: hypothesis ships
+        # compiled wheels from 6.160 on and publishes none for pypy3.10,
+        # so uv falls back to its sdist, whose maturin build needs a PyO3
+        # that requires PyPy 3.11 or newer. Pinning hypothesis below 6.160
+        # behind an implementation marker buys a suite generating its
+        # inputs with a version nobody else runs, on the older of the two
+        # PyPy releases; pypy3.11 covers the implementation.
+        # macos.yml and windows.yml name this same list, which
+        # tests/interpreters_test.py is what holds to one another and to
+        # pyproject.toml's classifiers
+        python:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.14t"
+          - "pypy3.11"
+    # far above what a run of the suite needs, and it bounds a hung job
+    # rather than a slow one: the queueing this workflow exists to move
+    # happens before a job starts and is not counted here
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the coverage job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # --no-cov, against the --cov that pyproject.toml's addopts carries:
+      # what this matrix asks is whether every (os, architecture,
+      # interpreter) triple passes, and test.yml's coverage job is where
+      # the number is measured and gated. Instrumenting these cells
+      # measures the same lines over again -- that job's comment is why
+      # they are the same lines -- and on the PyPy cells it costs enough
+      # wall clock to reach the timeout above with every test passed,
+      # coverage.py collecting there through a trace hook the JIT cannot
+      # compile through. It also keeps `fail_under` where pyproject.toml's
+      # comment argues it belongs, on the one interpreter the statement
+      # count was checked against, rather than enforced on every cell.
+      # macos.yml and windows.yml pass the flag citing this step
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov

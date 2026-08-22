@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Re-check every vendored-vector pin against upstream, monthly.
+"""Re-check every vendored-vector pin against upstream, weekly.
 
 tests/_data/README.md pins each vendored file to a commit and a git blob
 SHA-1, with a documented manual procedure to re-check one -- last done
@@ -142,9 +142,9 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
     path has been renamed or deleted: the sharpest drift there is, a pin
     naming a file that is not there any more. This used to unpack one
     commit out of an empty list and raise `ValueError` instead, so the
-    monthly run went red and `report` was never reached -- no issue
-    opened, on the one kind of drift nobody would otherwise notice, which
-    is what this workflow exists for.
+    run went red and `report` was never reached -- no issue opened, on
+    the one kind of drift nobody would otherwise notice, which is what
+    this workflow exists for.
     """
     result = subprocess.run(  # noqa: S603
         [

@@ -209,7 +209,7 @@ and under upstream's own names: `key_sort_vectors.json`,
 path per pin, rather than to one placeholder path shared by all eight:
 a placeholder is not a path GitHub's own "commits touching a path" API
 can be asked about, which is what kept every one of the eight out of
-the monthly check. It also papered over a real difference between
+the weekly check. It also papered over a real difference between
 them: six were untouched since the commit that added all eight,
 `87394eaeb436d02e0a68b38a1e94bc526d50056e` (2023-03-27, "Add BIP327:
 MuSig2 for BIP340-compatible Multi-Signatures"); `sign_verify_vectors.json`
@@ -349,7 +349,7 @@ unlike BIP327 above, there is no exception a shared pin would have
 papered over here. Each is pinned below in its own entry, one real path
 per pin, rather than to one placeholder path standing in for both: a
 placeholder is not a path GitHub's own "commits touching a path" API can
-be asked about, which is what kept the pair out of the monthly check.
+be asked about, which is what kept the pair out of the weekly check.
 
 ### `tests/ecc/_data/ellswift_decode_test_vectors.csv`
 
@@ -540,7 +540,7 @@ and again on 2026-08-06 — both times still test vectors 1 to 5 and no
 sixth, every extended key in it one of ours, 48 matching the key
 pattern: our 34 valid plus 14 of the 16 invalid, the other 2 being the
 zero-prefix keys of test vector 5, which serialize outside it — the pin
-above is now that tip, so the monthly automated check can carry it.
+above is now that tip, so the weekly automated check can carry it.
 
 ### `tests/bip32/_data/bip32_invalid_keys.json`
 
@@ -560,7 +560,7 @@ pinned commit and on master today.
 btclib is the upstream here, not the consumer: commit ee2e0598, "added
 invalid extended keys vectors", is Ferdinando Ametrano's, and is what
 first put these 16 keys into the BIP. The pin above is the tip of the
-same path rather than that commit, so the monthly automated check can
+same path rather than that commit, so the weekly automated check can
 carry it too; the second column of the file is btclib's own regardless —
 it holds btclib error messages, which the BIP does not and should not
 carry, and which change when the messages change. Refreshing from
@@ -769,7 +769,7 @@ commit added both and one has touched them since — `3ab70c98`
 `d77863fb` (2026-05-06, "BIP-0322: update test vectors"), which is the
 tip of both paths — and each is pinned below in its own entry all the
 same, a shared placeholder path being what kept eight BIP327 files out of
-the monthly check.
+the weekly check.
 
 Between them they are what `tests/bip322_test.py` runs: three
 transaction hashes, eight *simple* signatures, ten *full*, three
@@ -1153,7 +1153,7 @@ tool -- and what re-derives the file is reading those calls again.
 
 Not vendored as the file itself because there is no data file upstream:
 the vectors are arguments to a C++ function. The blob above is that source
-file, so the monthly re-check still reports a case added to it.
+file, so the weekly re-check still reports a case added to it.
 
 Four of the calls are not here, being loops rather than literals: the
 `multi_a()` of twenty-one keys, the three `and_b()` chains that pass the
@@ -1188,7 +1188,7 @@ of the four Core expands from the private form alone, and the two
 Not vendored as a file because there is no file: the values are literals
 in C++ source, so a copy of it would be a copy of a test program. What
 this pin buys instead is the upstream re-check: a case added to that
-function moves the commit, and the monthly run says so.
+function moves the commit, and the weekly run says so.
 
 The subset is deliberate and is what a refresh would revisit: Core's file
 also holds `CheckUnparsable` cases, which this module has as `UNPARSABLE`
@@ -1207,7 +1207,7 @@ commands and flags a caller sends, and the numbers it gets back.
 
 Which makes these pins do something the others do not. A vector file is
 refreshed or it is not; an interface that moves is code here that stops
-working against the next release somebody installs — so the monthly
+working against the next release somebody installs — so the weekly
 re-check is the alignment, and `tests/hwi_test.py` carries the
 transcription it is checked against.
 
