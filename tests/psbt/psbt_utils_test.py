@@ -9,7 +9,7 @@ from io import BytesIO
 import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt.psbt_utils import (
     deserialize_map,
     deserialize_tx,
@@ -103,29 +103,20 @@ def test_deserialize_map_unterminated() -> None:
 
 
 def test_deserialize_tx_reads_include_witness_for_its_truth() -> None:
-    """`None` waives the type check, and then refuses what `False` refuses.
+    """`True` accepts either encoding, `False` demands the round trip.
 
-    Two separate readings of the one parameter, and only the first treats
-    `None` as its own value: `assert_type` is guarded by `is not None`,
-    so `None` is the one non-bool this signature takes, and that guard is
-    the branch nothing else reaches -- every psbt field calling this names
-    a bool. The round trip below it is guarded by `not include_witness`
-    instead, which is a truth: false for `True` alone, so `True` is the
-    value that accepts either encoding, and `False` and `None` both take
-    the strict arm that refuses a witness serialization.
+    Two values and two behaviours, which is what issue #1190 settled:
+    the flag is read as a truth, `not include_witness` being false for
+    `True` alone, so `True` is the one that does not ask for the round
+    trip and `False` is the one that refuses a witness serialization.
+    `None` used to be declared here too, documented as "either encoding"
+    and doing what `False` does, and is now a `BTClibTypeError` like any
+    other non-bool.
 
     Asserted rather than described, and asserted on octets that tell the
     two encodings apart: a legacy serialization is accepted by every
     value of the flag, so a test that fed only one could not have seen
     which arm ran.
-
-    Whether that is the contract this parameter was meant to have is
-    btclib-org/btclib#1190, which asks for a decision and not a patch --
-    the comment on `deserialize_tx` reads the two guards as one and says
-    `None` means "either", which is the opposite of what the second does.
-    This pins the behaviour as it stands, so that whichever way the issue
-    is answered, the answer changing is a red test rather than a silent
-    change of what a psbt is refused for.
     """
     tx = Tx(
         1,
@@ -144,13 +135,11 @@ def test_deserialize_tx_reads_include_witness_for_its_truth() -> None:
     assert deserialize_tx(b"\x00", witness, "tx", True) == tx
     assert deserialize_tx(b"\x00", legacy, "tx", True) == stripped
 
-    # False and None: the same arm, and neither is a third answer
-    err_msg = "wrong tx serialization format"
-    for flag in (False, None):
-        assert deserialize_tx(b"\x00", legacy, "tx", flag) == stripped
-        with pytest.raises(BTClibValueError, match=err_msg):
-            deserialize_tx(b"\x00", witness, "tx", flag)
+    # False: the round trip is the check, and the witness form fails it
+    assert deserialize_tx(b"\x00", legacy, "tx", False) == stripped
+    with pytest.raises(BTClibValueError, match="wrong tx serialization format"):
+        deserialize_tx(b"\x00", witness, "tx", False)
 
-    # what `None` does waive is the type check, and not the length one
-    with pytest.raises(BTClibValueError, match="invalid tx key length: 2"):
-        deserialize_tx(b"\x00\x00", legacy, "tx", None)
+    # None is no longer a third spelling of False; it is a wrong type
+    with pytest.raises(BTClibTypeError):
+        deserialize_tx(b"\x00", legacy, "tx", None)  # type: ignore[arg-type]

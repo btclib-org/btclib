@@ -515,7 +515,6 @@ _KINDS = (
         deserialize_tx,
         {"k": b"\x00", "v": _TX_BYTES, "type_": "field"},
         valid=False,
-        optional=True,
     ),
     _Case(
         "btclib.psbt.psbt_utils.deserialize_tx",

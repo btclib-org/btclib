@@ -864,6 +864,33 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`deserialize_tx` stops declaring an `include_witness` value that
+  meant nothing** (issue #1190). The signature was `bool | None`, and
+  the comment above the guard said `None` was "either encoding". It was
+  not: the round trip is guarded by `not include_witness`, and `not
+  None` is `not False`, so `None` took the strict arm that refuses a
+  witness serialization -- exactly what `False` does. `True`, the
+  default, is the value that accepts either. Three declared values, two
+  behaviours, and the documented mapping named the wrong one.
+
+  Nothing in this tree passed `None`, which is why nothing was
+  observably wrong and why it was worth removing rather than
+  documenting: a parameter whose contract is stated only in a comment,
+  whose wrong case is unreachable, is a trap primed for the first caller
+  who reads the comment and believes it. It had propagated once already
+  -- a test repeated the claim in its own docstring and could not have
+  caught the discrepancy, having fed non-witness octets to both arms.
+
+  `None` is now a `BTClibTypeError` like any other non-bool, and the
+  `is not None` guard around `assert_type` is gone with it. The
+  alternative was to keep `None` as a synonym for `False` and say why a
+  third spelling exists, and there is no why: it was declared by an
+  annotation and read by nothing. The test that pinned the old behaviour
+  -- written so that answering this issue would be a red test rather
+  than a silent change -- now pins the new one, and
+  `tests/bool_parameter_test.py` drops the `optional=True` that read
+  `None` off the annotation.
+
 - **`KeyWallet.add` multiplies once where it multiplied twice**, being
   the first module to take `btclib.key` up (issue #1188). It computed the
   public key with `pub_keyinfo_from_key` and then handed the *private*
