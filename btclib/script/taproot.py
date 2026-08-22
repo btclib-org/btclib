@@ -28,6 +28,7 @@ from btclib.alias import (
 )
 from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
+from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -43,6 +44,7 @@ from btclib.utils import (
     assert_type,
     bytes_from_octets,
     bytesio_from_binarydata,
+    hex_string,
     is_integer,
 )
 
@@ -362,7 +364,30 @@ def _tweaked_pubkey(
     # being the one that asks for a different reason: which form of the
     # internal key is worth building, rather than which arithmetic runs
     if _libsecp256k1_serves(secp256k1, None):
-        return libsecp256k1_xonly.tweak_add(pub_key if sec is None else sec, t)
+        try:
+            return libsecp256k1_xonly.tweak_add(pub_key if sec is None else sec, t)
+        except ValueError as e:
+            # this arm hands the tweak octets nothing has proved are a
+            # point, deliberately (issue 887): tweak_add's own parse is
+            # the proof, and lifting first would be a second square root
+            # of one x. What comes with that trade is that the refusal
+            # arrives from the bindings rather than from btclib's own
+            # validation, and it arrives as a bare ValueError. dsa states
+            # the rule the whole tree follows: the discrimination is
+            # theirs, but the hierarchy has to be btclib's, a caller
+            # catching BTClibValueError not having to know which arm
+            # answered. The wording is the lift's below, so the two arms
+            # agree on the sentence and not only on the class -- which
+            # takes the range check too, the lift making it separately
+            # and the bindings' parse refusing both the same way
+            x_Q = int.from_bytes(pub_key, "big")
+            err_msg = (
+                "invalid x-coordinate: "
+                if x_Q < secp256k1.p
+                else "x-coordinate not in 0..p-1: "
+            )
+            err_msg += f"{hex_string(x_Q)}" if x_Q > HEX_THRESHOLD else f"{x_Q}"
+            raise BTClibValueError(err_msg) from e
 
     P_x = int.from_bytes(pub_key, "big")
     P_y = secp256k1.y_even_var(P_x) if y_even is None else y_even

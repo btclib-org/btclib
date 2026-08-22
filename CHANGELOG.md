@@ -988,6 +988,38 @@ documented at release-notes length in the first place, and are still in
   this class of mistake: a reversed hash is thirty-two well-formed bytes
   carrying a plausible run of zeros, and only the value tells it from
   the real one.
+### Malformed input and the exception contract
+
+- **taproot's tweak translates the bindings' refusal, as every other arm
+  in the tree does** (issue #1214). `_tweaked_pubkey`'s delegated arm
+  hands `libsecp256k1_xonly.tweak_add` octets nothing has proved are a
+  point, deliberately: `tweak_add`'s own parse is the proof, and lifting
+  first would be a second square root of one x (issue #887). What went
+  with that trade is that the refusal now comes from the bindings rather
+  than from btclib's validation, and it came back as their bare
+  `ValueError` — through `output_pubkey`, `input_script_sig` and
+  `output_pubkey_from_merkle_root` alike, so `except BTClibException`,
+  the hierarchy issue #743 exists to publish, did not catch it and which
+  exception a caller had to name was decided by `pip install`. `dsa`
+  states the rule the rest of the tree follows: the discrimination is
+  the bindings', but the hierarchy has to be btclib's.
+
+  The arm now raises `BTClibValueError` with the wording the arm beside
+  it uses — `y_even_var`'s "invalid x-coordinate", and its
+  "x-coordinate not in 0..p-1" for an x that is no field element, the
+  bindings' parse refusing both the same way and this making the
+  distinction their message does not. So the two arms agree on the
+  sentence and not only on the class, which a test holds them to over
+  the three shapes that sentence has.
+
+  This was issue #1008's defect one occurrence further on, and the sweep
+  that closes it is `grep -rn 'libsecp256k1_[a-z_]*\.' btclib/ --include
+  '*.py'`: every other call reaches the bindings with input the line
+  above it has already validated — `int_from_prv_key`, `point_from_key`,
+  `_ell_from_octets` — or, for `ellswift.decode`, with octets that
+  cannot be refused at all, every encoding of the right size decoding by
+  construction. `_tweaked_prvkey` and `tweak_add_check`, the two other
+  calls in this module, are the first and the last of those.
 
 ### Tests
 
