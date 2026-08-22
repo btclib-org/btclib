@@ -74,10 +74,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
-    err_msg = "not a BIP340 public key"
-    with pytest.raises(BTClibTypeError, match=err_msg):
+    # a value and not a type: the point at infinity is a `Point`, and
+    # what is wrong with it is which point it is. It read as a type error
+    # until the spelling dispatch stopped guessing (issue #1188)
+    err_msg = "not a valid public key"
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, INF, sig)
-    with pytest.raises(BTClibTypeError, match=err_msg):
+    with pytest.raises(BTClibValueError, match=err_msg):
         ssa.point_from_bip340pub_key(INF)
 
     sig_invalid = ssa.Sig(sig.ec.p, sig.s, check_validity=False)
@@ -291,17 +294,89 @@ def test_point_from_bip340pub_key() -> None:
         ssa.point_from_bip340pub_key(bytes_from_point(Q, compressed=False).hex()) == Q
     )
 
+
+def test_an_extended_key_is_no_longer_a_bip340_key() -> None:
+    """The three spellings of a public xpub, refused (issue #1188).
+
+    An extended key is bip32's object, and turning one into a public key
+    is bip32's call to make; `ssa` reaching it was `to_pub_key`'s doing,
+    through a `point_from_pub_key` whose own union names `BIP32KeyData`.
+    Dropping that import is what withdraws all three at once, and the
+    annotation would otherwise say so while the code went on accepting
+    them.
+
+    The key field is replaced with a point of the curve, so what refuses
+    these is their being extended keys and not their contents. Only the
+    public half is here because only the public half ever arrived: an
+    xprv was refused as octets that would not parse, and a private
+    `BIP32KeyData` by name, both before this change.
+    """
+    q, _ = ssa.gen_keys()
+    Q = mult(q)
     xpub_data = BIP32KeyData.b58decode(
         "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     )
     xpub_data = replace_unchecked(xpub_data, key=bytes_from_point(Q))
-    # BIP32KeyData
-    assert ssa.point_from_bip340pub_key(xpub_data) == Q
-    # BIP32Key encoded str
     xpub = xpub_data.b58encode()
-    assert ssa.point_from_bip340pub_key(xpub) == Q
-    # BIP32Key str
-    assert ssa.point_from_bip340pub_key(xpub.encode("ascii")) == Q
+
+    with pytest.raises(BTClibTypeError, match="not a BIP340 public key"):
+        ssa.point_from_bip340pub_key(xpub_data)
+    # the two text spellings are refused as the octets they are not, and
+    # not by the same complaint: a `str` is read as hex and the Base58
+    # alphabet is not hex, where the same characters as `bytes` are
+    # already octets and are refused for their length. Both are what
+    # dropping the union leaves -- a string reaching here is octets or
+    # it is nothing
+    with pytest.raises(BTClibValueError, match="invalid hex string"):
+        ssa.point_from_bip340pub_key(xpub)
+    err_msg = r"invalid size: 111 bytes instead of \(32, 33, 65\)"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.point_from_bip340pub_key(xpub.encode("ascii"))
+
+
+def test_a_buffer_is_octets_at_every_size_this_takes() -> None:
+    """A bytearray and a memoryview, at all three sizes (issue #1188).
+
+    They are what `bytes_from_octets` accepts beside `Octets` and returns
+    as they came, and what `to_pub_key` names at run time beside the
+    static union -- the asymmetry `alias` states and this module
+    inherits.
+
+    All three sizes because two of them worked and one did not: the
+    dispatch this replaces reached `point_from_octets` for a SEC key,
+    which takes any buffer, and fell through to an x-only branch that
+    asked for `(str, bytes)` and so refused the same value one size
+    down. Nothing decided that; it was where the fallback sat.
+    """
+    q, x_Q = ssa.gen_keys()
+    Q = mult(q)
+    spellings = (
+        x_Q.to_bytes(32, "big"),
+        bytes_from_point(Q),
+        bytes_from_point(Q, compressed=False),
+    )
+
+    for octets in spellings:
+        # `Any`, because `Octets` is `bytes | str` and these are neither:
+        # the annotation is narrower than what every consumer of it
+        # takes, which is the asymmetry issue #1238 asks about
+        buffers: tuple[Any, ...] = (bytearray(octets), memoryview(octets))
+        for buffer in buffers:
+            assert ssa.point_from_bip340pub_key(buffer) == Q
+
+
+def test_octets_of_no_key_size_name_every_size_there_is() -> None:
+    """Three sizes are accepted here, so three are named (issue #1188).
+
+    `point_from_octets` knows two of them, the SEC pair, and this module
+    adds the x-only one on top -- so a refusal delegated to it would
+    tell a caller that 32 octets are wrong when they are the spelling
+    BIP340 itself defines.
+    """
+    for size in (0, 31, 34, 64):
+        err_msg = f"invalid size: {size} bytes instead of \\(32, 33, 65\\)"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            ssa.point_from_bip340pub_key(b"\x11" * size)
 
 
 def test_low_cardinality() -> None:

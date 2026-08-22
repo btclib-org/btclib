@@ -20,6 +20,55 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`ecc.ssa` no longer accepts a BIP32 extended key as a BIP340 public
+  key** (issue #1188). `BIP340PubKey` was
+
+  ```python
+  BIP340PubKey = Integer | Octets | BIP32Key | Point | PreparedPoint
+  ```
+
+  — with `BIP32Key` in it as far back as `v2023.7.12` — and is now
+
+  ```python
+  BIP340PubKey = int | Octets | Point | PreparedPoint
+  ```
+
+  Act on it if you pass a **public** extended key — an xpub as text, the
+  same text as ASCII bytes, or a public `BIP32KeyData` — to
+  `ssa.verify`, `ssa.verify_`, `ssa.assert_as_valid`,
+  `ssa.assert_as_valid_`, `ssa.point_from_bip340pub_key` or the
+  batch-verification entry points. That is the whole of the withdrawal:
+  an xprv and a private `BIP32KeyData` were refused before this change
+  too, the first as octets it could not parse and the second by name.
+
+  Convert it first. From a `BIP32KeyData` the public key is `.key`, and
+  from either text spelling it is `BIP32KeyData.b58decode(xpub).key`:
+  33 compressed SEC octets, which these still take. One check does not
+  survive the conversion: an xpub handed to a non-secp256k1 `ec` was
+  refused, its version bytes matched against the curve — as text the
+  complaint that surfaced was about octets, as a `BIP32KeyData` it was
+  about the type. The 33 octets carry no version, so nothing compares
+  them to the curve; what is left is the lift, which on a curve of the
+  same size answers for about half of them and refuses the rest. On
+  `secp256k1`, which is BIP340's curve, the answer is the same as
+  before.
+
+  Everything else is unchanged, and one thing is wider: an `int`, the
+  p-size octets BIP340 defines, 33 or 65 SEC octets, their hex, a
+  `Point` and a `PreparedPoint` all still work, and a `bytearray` or
+  `memoryview` now works at the p-size too, where before it worked only
+  at the SEC sizes.
+
+  Refusals move as well, and the one to act on is a class change. What
+  the old dispatch could not tell apart it reported as a type error,
+  and each of those is a value error now: a `Point` off the curve, the
+  point at infinity, a tuple that is malformed or out of range, a
+  buffer of no key size, and a buffer of a key size that is no point.
+  Code catching `BTClibTypeError` alone around any of them has to
+  widen to `BTClibValueError` or to `BTClibException` — which is the
+  rule rather than the list, the list being what was measured.
+  CHANGELOG.md has the wording changes, which need no action.
+
 - **`fingerprint` is `btclib.bip32`'s, and takes a BIP32 key** (issue
   #1188). It was
 

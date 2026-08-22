@@ -52,7 +52,6 @@ ECDSA.
 
 from __future__ import annotations
 
-import contextlib
 import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -61,9 +60,8 @@ from types import TracebackType
 from typing import overload
 
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
-from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
-from btclib.bip32 import BIP32Key
-from btclib.curves import Curve, PreparedPoint, secp256k1
+from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
+from btclib.curves import Curve, PreparedPoint, point_from_octets, secp256k1
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -80,7 +78,6 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv_var
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import (
     assert_no_trailing,
     assert_type,
@@ -231,11 +228,13 @@ class Sig:
         return cls(r, s, ec, check_validity=check_validity)
 
 
-# hex-string or bytes representation of an int
-# 33 or 65 bytes or hex-string
-# BIP32Key as dict or String
-# tuple Point
-BIP340PubKey = Integer | Octets | BIP32Key | Point | PreparedPoint
+# an x-only key is an x, and these are the ways of writing one down:
+# the integer itself; p-size octets or their hex, which is BIP340's own
+# encoding of it; the 33 or 65 octets of a SEC point, whose x it is; and
+# the point, prepared or not. An extended key is not among them -- it is
+# bip32's object, and turning one into a key is bip32's call to make
+# (issue #1188)
+BIP340PubKey = int | Octets | Point | PreparedPoint
 
 
 def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
@@ -252,20 +251,49 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
     anything: it is validated as far as its spelling goes, and whoever
     lifts or parses it is what refuses the rest. Private for that reason.
     """
-    # BIP340 key as integer
+    # BIP340 key as integer. A bool is one to `isinstance` and is
+    # answered as the number it subclasses, as the key converters do and
+    # as `utils.is_integer` exists to stop elsewhere -- `var_int` and a
+    # satoshi amount refuse one. Which of the two rules the key path
+    # should follow is issue #1206, and is not settled in passing
     if isinstance(x_Q, int):
         return x_Q
 
-    # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
-    # both classes, this being a guess at the spelling: a type no public
-    # key has may still be a BIP340 one -- an int is, and is a private
-    # key to `to_pub_key` -- so the refusal that names BIP340 is the one
-    # at the end
-    with contextlib.suppress(BTClibTypeError, BTClibValueError):
-        return point_from_pub_key(x_Q, ec)[0]
-    # BIP340 key as bytes or hex-string
-    if isinstance(x_Q, (str, bytes)):
-        return int.from_bytes(bytes_from_octets(x_Q, ec.p_size), "big", signed=False)
+    if isinstance(x_Q, PreparedPoint):
+        x_Q = x_Q.point
+    if isinstance(x_Q, tuple):
+        # the same check `to_pub_key.point_from_pub_key` made for a point
+        # before this function stopped going through it: on the curve,
+        # and a y that is not zero -- `alias` marks infinity that way,
+        # no affine point of a prime-order group having y = 0
+        if ec.is_on_curve(x_Q) and x_Q[1] != 0:
+            return x_Q[0]
+        raise BTClibValueError(f"not a valid public key: {x_Q}")
+
+    if isinstance(x_Q, (str, bytes, bytearray, memoryview)):
+        # the buffers beside `Octets`, which is `bytes | str`: they are
+        # what `bytes_from_octets` takes and returns as they came, and
+        # what `to_pub_key` names at run time beside the static union.
+        # Accepted at all three sizes here, where the dispatch this
+        # replaces took them at the SEC two and refused them at the
+        # x-only one, its fallback having asked for `(str, bytes)`
+        #
+        # the two octet spellings are told apart by length and not by
+        # trying one and catching the other: p-size is BIP340's x-only
+        # encoding, and the SEC sizes are a point whose x this wants.
+        # `point_from_octets` is the parse and the proof for the second,
+        # where the first is unproved here on purpose -- what an x-only
+        # key is unlifted is an x, and the docstring above says who
+        # proves it
+        # the sizes go to `bytes_from_octets` rather than to
+        # `point_from_octets`, which knows the SEC two: the x-only one is
+        # this function's to accept, so a caller refused by the parse
+        # below would be told that BIP340's own encoding is a wrong size
+        sizes = (ec.p_size, ec.p_size + 1, 2 * ec.p_size + 1)
+        octets = bytes_from_octets(x_Q, sizes)
+        if len(octets) == ec.p_size:
+            return int.from_bytes(octets, "big", signed=False)
+        return point_from_octets(octets, ec)[0]
 
     raise BTClibTypeError("not a BIP340 public key")
 
@@ -275,9 +303,10 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or BIP32KeyData)
-    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - an int, the x-coordinate itself
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
+    - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
+    - a PreparedPoint, read as the point it holds
     - native tuple
     """
     _assert_valid_ec(ec)
