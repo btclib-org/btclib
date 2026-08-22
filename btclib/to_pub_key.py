@@ -107,8 +107,17 @@ def _assert_key_type(key: Key) -> None:
 
     `_assert_pub_key_type`'s wider twin, for the converters that take
     either: an int is a private key, and the two lists differ by it.
+
+    A bool is named here for the sentence and not for the refusal: with
+    the line dropped it still does not become a key, `to_prv_key`'s own
+    gate refusing it one frame down. What it draws there is "not a
+    private key", which is half the union -- where a float, a None and
+    anything else of no key type are refused here and told so. So this
+    line is what makes a bool answer like the rest of them, and
+    `tests/integer_policy_test.py` pins it by its wording, there being
+    no outcome to pin (issue #1206).
     """
-    if not isinstance(key, _KEY_TYPES):
+    if isinstance(key, bool) or not isinstance(key, _KEY_TYPES):
         raise BTClibTypeError("not a private or public key")
 
 
