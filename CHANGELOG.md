@@ -887,6 +887,31 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **The Esplora module names the second deployment its own argument
+  rests on** (issue #1130). Its docstring says the backend is an api and
+  not a product, and gave "several operators run it" as the evidence --
+  naming none of them, in a file whose one concrete deployment is
+  `BLOCKSTREAM_INFO`, the very endpoint the paragraph says it is not
+  tied to. The claim carrying the design decision was the one thing a
+  reader could not check.
+
+  `mempool.space` is named instead, and it was checked before it was
+  written, which the issue asked for and is the whole of what makes the
+  sentence worth more than the one it replaces. All three endpoints this
+  module calls answer there, in the encoding it needs:
+
+  | endpoint | status | content type |
+  | --- | --- | --- |
+  | `/blocks/tip/height` | 200 | `text/plain` |
+  | `/blocks/tip/hash` | 200 | `text/plain` |
+  | `/tx/<txid>/hex` | 200 | `text/plain` |
+
+  It is not offered as a second constant, for the reason
+  `BLOCKSTREAM_INFO` is offered as a value to pass rather than a
+  default: which stranger sees every address a user looks up is not
+  btclib's decision to take. So the name is evidence for the sentence
+  above it and not a recommendation, and the docstring says so.
+
 - **`RELEASING.md`'s reason for attaching no bill of materials to a
   sibling's release holds for both of its wheels** (issue #1189). The
   paragraph described the vendored libsecp256k1 as "statically-linked",
