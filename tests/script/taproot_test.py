@@ -366,10 +366,15 @@ def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
                 output_pubkey_from_merkle_root(x_only, b"")
 
 
+@needs_bindings
 def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A sec whose y is not its x's is refused without naming the x.
+
+    Marked: the first half of it is the delegated arm's own message, so
+    with no bindings installed there is no such arm to reach and nothing
+    to compare the one below against.
 
     `_sec_from_key` leaves the octets unproven for the reason the arm
     itself does, so `04 || x || y` with a good x and a y that is not its
