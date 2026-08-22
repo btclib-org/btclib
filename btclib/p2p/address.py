@@ -135,7 +135,7 @@ def _ipv6_from_ip_address(ip: IPAddress) -> IPv6Address:
     `CNetAddr::SerializeV1Array` writes for one.
 
     Text is read as an address and never as hex, which is where this
-    departs from every other `bytes | str` field of this library:
+    departs from every other `Octets` field of this library:
     `bytes_from_octets` would take "10.0.0.1" for a hex string and refuse
     it, and would take a sixteen-character dotted quad -- there is none --
     for octets. Sixteen octets are the one bytes-shaped input, being what

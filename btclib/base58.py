@@ -153,7 +153,7 @@ def _b58decode_to_int(v: bytes) -> int:
     return i
 
 
-def _b58decode(v: bytes) -> bytes:
+def _b58decode(v: bytes | bytearray | memoryview) -> bytes:
     # bytes for the buffers that are a String and are not bytes: a
     # memoryview has neither translate nor lstrip, and a bytearray
     # answers both in its own type. Free on the path that matters:

@@ -337,7 +337,7 @@ def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:
     q = 0xC0FFEE
     octets = q.to_bytes(32, "big")
     for spelling in (q, octets, octets.hex(), bytearray(octets), memoryview(octets)):
-        assert scalar_from_prv_key(spelling) == q  # type: ignore[arg-type]
+        assert scalar_from_prv_key(spelling) == q
 
     # a WIF and an xprv reach here as text, and text is hex or nothing
     for text in (wif_from_prv_key(q), rootxprv_from_seed("5e" * 32)):

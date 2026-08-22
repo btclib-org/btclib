@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from btclib.alias import String
+from btclib.alias import Octets, String
 from btclib.base58 import decode as b58decode
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import Curve, secp256k1
@@ -39,7 +39,7 @@ __all__ = [
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pub_key-derivation
-PrvKey = int | bytes | str | BIP32KeyData
+PrvKey = int | Octets | BIP32KeyData
 
 # the union at run time, with the buffers bytes_from_octets accepts beside
 # bytes. `to_pub_key._PUB_KEY_TYPES` is the same list plus a Point and

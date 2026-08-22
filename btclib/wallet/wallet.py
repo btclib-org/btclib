@@ -66,6 +66,7 @@ from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
+from btclib.utils import str_from_string
 
 __all__ = [
     "AddressInfo",
@@ -88,8 +89,7 @@ def _address_str(address: String) -> str:
     one the wallet handed out. Base58 is not case insensitive -- `1Lq`
     and `1lq` are different payloads -- so it is left exactly as it came.
     """
-    addr = address.decode("ascii") if isinstance(address, bytes) else address
-    addr = addr.strip()
+    addr = str_from_string(address, "address").strip()
     return addr.lower() if b32.is_segwit_prefixed(addr) else addr
 
 

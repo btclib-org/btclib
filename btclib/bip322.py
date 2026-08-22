@@ -497,7 +497,11 @@ def assert_as_valid(
 
     script_pub_key = ScriptPubKey.from_address(addr).script
 
-    if legacy and isinstance(sig, (str, bytes)) and _is_bms(sig):
+    # `not a Sig` rather than a list of the String spellings: the
+    # question here is whether the signature is still text to be read,
+    # and a list of spellings answers it wrongly the moment `String`
+    # gains one -- a bytearray took the BIP322 branch in silence
+    if legacy and not isinstance(sig, Sig) and _is_bms(sig):
         if type_and_payload(script_pub_key)[0] != "p2pkh":
             err_msg = "a legacy signature is for a p2pkh address alone"
             raise BTClibValueError(err_msg)
@@ -625,7 +629,7 @@ def _is_bms(sig: String) -> bool:
     octets long -- the shortest is a lone BIP340 signature, which its
     count and push length make 66.
     """
-    text = sig.decode("ascii") if isinstance(sig, bytes) else sig
+    text = str_from_string(sig, "base64 signature")
     try:
         return len(base64.b64decode(text.strip(), validate=True)) == _BMS_SIZE
     except ValueError:

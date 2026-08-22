@@ -93,6 +93,25 @@ def test_exceptions() -> None:
     assert rootxprv_from_seed("00" * 64)
 
 
+def test_an_xkey_decodes_however_its_text_is_held() -> None:
+    """`b58decode` takes a String, and a String is text or any buffer.
+
+    They used to be refused outright, with "invalid base58 string type:
+    bytearray", by a check written against the narrower `String` -- and
+    written there rather than left to `base58.decode` for a reason the
+    widening does not remove: the `lru_cache` in front of the decoding
+    keys on the argument, a bytearray cannot key one at all, and a
+    memoryview of one raises `ValueError: cannot hash writable
+    memoryview object`. Copied for the cache before the lookup, so each
+    spelling decodes to what the text decodes to (issue #1238).
+    """
+    xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+    expected = BIP32KeyData.b58decode(xkey)
+    octets = xkey.encode("ascii")
+    for spelling in (octets, bytearray(octets), memoryview(octets)):
+        assert BIP32KeyData.b58decode(spelling) == expected
+
+
 def test_bip32keydata_is_still_a_dataclass() -> None:
     """Frozen trades the hand-written __init__ for object.__setattr__.
 

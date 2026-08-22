@@ -218,8 +218,14 @@ class PsbtView:
     sp_dleq_proofs: dict[bytes, bytes]
 
     def __init__(self, data: BinaryIO | Octets) -> None:
+        # `bytes` where `BytesIO` would take the buffer itself: it copies
+        # either way — what it does not do is flatten a non-contiguous
+        # memoryview, which `Octets` admits and which it refuses with
+        # `BufferError: underlying buffer is not C-contiguous`
         stream: BinaryIO = (
-            BytesIO(bytes_from_octets(data)) if isinstance(data, (bytes, str)) else data
+            BytesIO(bytes(bytes_from_octets(data)))
+            if isinstance(data, (bytes, str, bytearray, memoryview))
+            else data
         )
         if not stream.seekable():
             err_msg = "a psbt view needs a seekable stream: it reads a map "
@@ -302,7 +308,7 @@ class PsbtView:
             offsets.append(_skip_map(stream))
         self._offsets = offsets
 
-        if isinstance(data, (bytes, str)):
+        if isinstance(data, (bytes, str, bytearray, memoryview)):
             # octets are one whole psbt and a stream is the caller's:
             # btclib/utils.py states the rule both halves read. The cast is
             # this branch's own premise -- octets are what the stream above

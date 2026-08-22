@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import contextlib
 
-from btclib.alias import Point
+from btclib.alias import Octets, Point
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
 from btclib.curves import (
     Curve,
@@ -44,11 +44,11 @@ __all__ = [
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point, PreparedPoint]
-PubKey = bytes | str | BIP32KeyData | Point | PreparedPoint
+PubKey = Octets | BIP32KeyData | Point | PreparedPoint
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = int | bytes | str | BIP32KeyData | Point | PreparedPoint
+Key = int | Octets | BIP32KeyData | Point | PreparedPoint
 
 # the two unions at run time, with the buffers bytes_from_octets accepts
 # beside bytes. An int is in one and not the other on purpose: in this

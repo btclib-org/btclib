@@ -377,14 +377,21 @@ class BIP32KeyData:
 
         The type is asked here rather than left to `base58.decode`, which
         does ask it: the cache in front of that call keys on the argument,
-        so an unhashable one -- a list, a bytearray, the mutable buffers
-        `String` does not cover -- left as a TypeError about hashing
-        instead of the refusal decoding would have given.
+        so anything unhashable -- a list, or a mutable buffer -- would
+        leave a complaint about hashing instead of the refusal decoding
+        would have given.
         """
-        assert_type(address, (str, bytes), "base58 string")
+        assert_type(address, (str, bytes, bytearray, memoryview), "base58 string")
 
         if isinstance(address, str):
             address = address.strip()
+        elif not isinstance(address, bytes):
+            # copied for the cache and not for the decoding, which takes
+            # a buffer as it comes: a bytearray is unhashable, and a
+            # memoryview of one raises `ValueError: cannot hash writable
+            # memoryview object` -- two different complaints, neither
+            # about the address, where the copy answers both
+            address = bytes(address)
 
         xkey_bin = _cached_base58_decode(address)
         return cls.parse(xkey_bin, check_validity=check_validity)

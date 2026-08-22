@@ -12,10 +12,9 @@ spellings of one key are deliberately unequal, and that a private key
 never reaches a repr.
 """
 
-from typing import Any
-
 import pytest
 
+from btclib.alias import Octets
 from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
@@ -45,7 +44,7 @@ def test_pub_key_data() -> None:
     [SEC_COMPRESSED, bytearray(SEC_COMPRESSED), memoryview(SEC_COMPRESSED)],
     ids=["bytes", "bytearray", "memoryview"],
 )
-def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Any) -> None:
+def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Octets) -> None:
     """A buffer is octets here, because the field is declared `bytes`.
 
     `bytes_from_octets` returns a bytearray and a memoryview as they
@@ -59,10 +58,6 @@ def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Any) -> Non
     concatenate is no use to the callers this type exists for --
     `script.taproot` joins a merkle root to the x it reads off `sec`
     before hashing the pair under a tag.
-
-    `Any` and not `Octets`, which is `bytes | str`: the buffers are a
-    run-time spelling the static alias does not name, and
-    `utils.bytes_from_octets` is where that asymmetry is stated.
     """
     key = PubKeyData(sec)
 

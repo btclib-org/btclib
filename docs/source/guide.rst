@@ -124,15 +124,18 @@ things that are bytes:
 
 The four aliases:
 
-``Octets = bytes | str``
+``Octets = bytes | str | bytearray | memoryview``
     Bytes, or their hex spelling. Blanks inside the hex string are
     allowed, so ``"02 cc71eb30..."`` is fine. Use
-    ``btclib.utils.bytes_from_octets`` to normalize one yourself.
+    ``btclib.utils.bytes_from_octets`` to normalize one yourself. The
+    mutable buffers are here because every consumer takes one: a
+    ``memoryview`` sliced out of a larger field is octets like any
+    other, and is not copied on its way in.
 
-``String = bytes | str``
-    The same two types, read the other way round: here a ``str`` is
-    *text*, and this is what addresses, WIFs and extended keys are. The
-    alias a function names tells you which reading applies.
+``String = bytes | str | bytearray | memoryview``
+    The same types, read the other way round: here a ``str`` is *text*,
+    and this is what addresses, WIFs and extended keys are. The alias a
+    function names tells you which reading applies.
 
 ``PrvKey``
     An ``int``, an ``Octets`` scalar, a WIF, a BIP32 ``xprv``, or a
