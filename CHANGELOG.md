@@ -24,6 +24,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **Which of section 7's conventions this suite tests is declared, and a
+  test says the declaration is true** (btclib-org/.github#32).
+  `tests/README.md` gains a table naming each of the eight conventions
+  the organization standard lists and the module here that tests it,
+  followed by a line naming the ones it does not — "Not tested here:
+  none", this repository implementing all eight.
+
+  A declaration rather than a `grep` over `tests/`, because a grep cannot
+  answer the question. Section 7 closes by saying a repository needs the
+  conventions its own prose states rather than all of them, which is
+  right and which makes an *absent* convention test read exactly like a
+  convention the repository does not have. And the suites of the
+  organization name the same idea three ways: a module per bullet here, a
+  `test_` prefix in btclib-secp256k1, and in bitcoin-core-rpc several of
+  these checks folded into the one file that is about its single module.
+
+  `tests/conventions_test.py` is what keeps the declaration from being
+  prose — section 7's own rule, that a convention worth stating is worth
+  a test, applied to section 7 itself. Four assertions, each failing on a
+  way the declaration actually rots: a convention invented here rather
+  than taken from the standard, a module renamed or deleted with its row
+  left behind, a module emptied of its tests, and a bullet that stops
+  being accounted for by either half. Each was checked by making the
+  declaration wrong in that way and watching the suite go red.
+
+  What it does not check is whether a module tests the convention it is
+  named against; nothing short of reading it can, and the docstring says
+  so rather than leaving the reader to assume otherwise.
+
 - **A Dependabot pull request can be reviewed**
   (btclib-org/.github#77). `claude-review.yml`'s review job fails on one,
   twice over. The credential is the first half and is fixed off the tree:
