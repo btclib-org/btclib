@@ -440,7 +440,7 @@ def test_a_field_no_network_has_is_refused_rather_than_scanned_for() -> None:
 def test_the_flag_still_switches_the_check_off() -> None:
     """Verify check_validity=False builds a network and writes its dict.
 
-    Every network above is built checked -- the nine in `NETWORKS` and
+    Every network above is built checked -- every one in `NETWORKS` and
     the ones the refusals raise on -- so both `if check_validity:` lines
     ran one way only. A genesis block of the wrong length is the
     invalidity to carry: `to_dict` writes it as hex whatever its width,

@@ -26,6 +26,14 @@ If you haven't already:
   [pull request](https://github.com/btclib-org/btclib/pulls) to propose
   it: both are read, and both leave a record the next reader of this
   file can find.
+- read the
+  [btclib-org repository standard](https://github.com/btclib-org/.github/blob/main/README.md),
+  where the toolchain, the lint gate, the workflow set and the branch
+  rules are stated once for this repository and its siblings, each with
+  the alternative it was decided against. It binds this repository, so a
+  change departing from it is a divergence — and one filed as an issue
+  in that repository rather than here, a difference between two
+  repositories belonging to neither of them.
 
 In this guide you will get an overview of the contribution workflow from
 opening an issue, creating a PR, reviewing, and merging the PR.

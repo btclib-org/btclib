@@ -731,8 +731,70 @@ documented at release-notes length in the first place, and are still in
   hand, a vendored schema and a validator being what a test of it would
   cost.
 
+- **`.yamllint.yaml` and `.taplo.toml` say what is true of every
+  repository that carries them, and re-derive the rest**
+  (btclib-org/.github#40). Both files are copied byte-for-byte across
+  the organization, and both carried reasoning taken from this tree and
+  read as settled fact everywhere else. `.yamllint.yaml`'s comment
+  recorded a survey — how many findings each disabled rule produced,
+  what share of the action pins sat at or past 80 columns, what a limit
+  of 80 would report and how much of that was pins, the width of the
+  longest pin, how many yaml files the tree held, and two over-length
+  shell lines in `release.yml` — explicitly "so nobody has to run the
+  survey again". Re-measured with the pinned yamllint, not one of those
+  figures still holds here, the tree they were taken from: the rule that
+  fires on a `uses:` pin also fires on a hand-written trailing comment
+  in `codeql.yml`, a third rule of the default set fires that the
+  comment does not mention, nothing in the tree exceeds the configured
+  width any more so the two `release.yml` lines are gone, and the
+  default set is not the size the comment gives it. The survey is
+  replaced by the commands that answer for whichever tree is asking,
+  beside the reasons that do not vary between repositories: dependabot
+  writes one space before a pin's trailing tag, `on:` is the boolean
+  true in yaml 1.1, and a 40-character SHA with its tag has spent most
+  of an 80-column line before the action is named.
+
+  `.taplo.toml`'s indent comment named the mutation configurations under
+  `.github/mutation` as the files the four-space setting moves, and
+  said what they had been written with before it. That is this
+  repository's tree — `btclib-benchmarks` and `btclib-org/.github` share
+  the file and have never had mutation testing — and it is history in a
+  comment besides, which `CONTRIBUTING.md` puts in `CHANGELOG.md`
+  instead. It is not the reason for the setting either: four rather than
+  taplo's own default of two, so that one indent covers every toml,
+  survives without it, and which toml files a repository actually has is
+  that repository's own `.pre-commit-config.yaml` to name, beside the
+  hook that runs taplo — which this one does, naming `pyproject.toml`
+  and the mutation sessions there. The `[project]`-and-ruff example under
+  `reorder_keys` goes the same way, `btclib-org/.github` having no
+  `pyproject.toml` at all.
+
 ### Documentation and the website
 
+- **CONTRIBUTING.md sends a contributor to the organization standard**
+  (btclib-org/.github#52). `README.md` in `btclib-org/.github` states
+  the toolchain, the lint gate, the workflow set and the branch rules
+  once for this repository and its siblings, and it claims to be linked
+  from each repository's CONTRIBUTING.md. Nothing here named it. Every
+  mention of that repository in this tree either pointed at an issue
+  filed there or deep-linked one subsection of it to justify one
+  setting, reached only by somebody already reading the paragraph that
+  carries it; not one of them told a reader the document exists.
+  `git grep -n 'btclib-org/\.github'` is what re-derives them, a list
+  here going stale the next time one is written. So a contributor
+  following CONTRIBUTING.md to REPOSITORY.md to CLAUDE.md was never
+  told a document above them existed — a rule stated only there was one
+  they could not find, and a divergence they introduce is one nothing
+  in this tree warned them about. The pointer is in the opening list,
+  where the file already says what to read first, rather than in
+  REPOSITORY.md or CLAUDE.md: the audit and the normalizing checklist
+  are performed *holding* the standard, so the reader who arrives
+  without it is the contributor, and CONTRIBUTING.md is the file that
+  reader is already in. It is also the one of the three that the
+  documentation build renders, `docs/source/contributing_link.md`
+  including it, which is why the destination is the absolute github.com
+  url a sibling repository is linked with elsewhere here and not a
+  relative path — a relative one resolves against btclib.org.
 - **`docs/source/conf.py`'s `RootFileLinks` comment no longer states a
   count of the root markdown files a build-time copy would duplicate**
   (issue #1195). The paragraph rejecting that alternative said the
@@ -745,6 +807,30 @@ documented at release-notes length in the first place, and are still in
   which is what makes the fix a subtraction rather than a
   correction: the reasoning about a redundant definition survives,
   and only the number that could go stale again is gone.
+
+- **`.readthedocs.yaml`'s comment states no counts either, and says what
+  the file does not decide** (btclib-org/.github#26). The paragraph on
+  installing btclib so that autodoc can import it carried a figure for
+  the module titles a sphinx-only install leaves bare and another for the
+  signatures the same build renders with btclib importable — measured
+  once, on a tree that has moved, and re-derived by nothing, which is the
+  shape the entry above was written for and which `CLAUDE.md` summarizes
+  as "nothing states a count now". `grep -rl automodule docs/source`
+  stands where the figures were, CONTRIBUTING.md's "Measure, don't
+  assert" asking for the command beside a number; the reasoning is
+  otherwise unchanged.
+
+  A paragraph is added for what this file cannot say at all: *which*
+  versions run it. `latest`, `stable` and each release tag are versions
+  on read the docs' side, and an automation rule is what activates a new
+  tag there — so a release that keeps a permanent URL of its own and one
+  that does not differ in a setting rather than in the tree.
+  `REPOSITORY.md`'s "Read the Docs" section already records those
+  settings with the commands that read them back, and the file now points
+  at it instead of leaving a reader to find out that the question is
+  elsewhere. This repository has the rule and its newest tag is built;
+  what the siblings answer is btclib-org/.github#26's subject, and each
+  of their copies of this file now says so where it is read.
 
 ### The public API and the module layout
 
@@ -872,6 +958,23 @@ documented at release-notes length in the first place, and are still in
   this class of mistake: a reversed hash is thirty-two well-formed bytes
   carrying a plausible run of zeros, and only the value tells it from
   the real one.
+### Tests
+
+- **`test_the_flag_still_switches_the_check_off`'s docstring stops
+  counting the registry** (issue #1212). It said "the nine in
+  `NETWORKS`", where `NETWORKS` holds five — a number nothing in the
+  suite reads, sitting a hundred lines below `test_numbers_of_networks`,
+  whose `assert len(NETWORKS) == 5` is checked on every run and was
+  right the whole time. The sentence needs no number to say what it
+  means: the point is that *every* network built above it was built
+  checked, so the `check_validity=False` path below is the only one of
+  the two `if check_validity:` lines left unexercised. "Every one in
+  `NETWORKS`" says exactly that and cannot drift when a network is
+  added, which is what CONTRIBUTING.md's "measure, don't assert" asks
+  for — the count it forbids is the one written where nothing runs it.
+  `test_numbers_of_networks`'s own docstring keeps its "five": the
+  assertion that verifies it is the next line, so the run fails in the
+  same breath the sentence goes wrong. Introduced by 2f887453 (#1179).
 
 ## v2026.8.21
 
