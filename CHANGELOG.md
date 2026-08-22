@@ -1247,6 +1247,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Malformed input and the exception contract
 
+- **`taproot.py` gets back the import a merge dropped.**
+  `check_output_pubkey`'s translation reads `HEX_THRESHOLD`, added with
+  it in #1228; #1219 rewrote `_tweaked_pubkey`'s arm in the same file
+  and removed the only other use, and therefore the import. Both landed
+  green, and neither branch's tree ever held the combination: #1228 was
+  BEHIND when it was merged, and a squash of a behind branch produces a
+  tree no gate has run on -- `git tree == what CI tested` holds for each
+  branch and not for their merge.
+
+  It parsed, so nothing refused it: a `NameError` at the one line that
+  reports a refused internal key on the delegated arm. The suite catches
+  it, which is why the fix is one line and the finding is about ordering
+  rather than about the code.
+
 - **`check_output_pubkey`'s two arms agree on the sentence, which its
   own comment already promised** (issue #1218). That comment says the
   two "must agree on what they raise as well as on what they answer",
