@@ -477,10 +477,17 @@ to `latest`'s own result.
    already asserts that against the installed package on every run; a
    bill of materials there would be an empty `components` list restating
    a fact CI checks more directly. btclib-secp256k1's interesting
-   dependency is the vendored, statically-linked libsecp256k1 C library
-   pinned in its `secp256k1` submodule, which this generator cannot
-   describe — it reads `Requires-Dist`, and the submodule is not a
-   Python dependency. A bill of materials built the way this one is
+   dependency is the vendored libsecp256k1 C library at the commit its
+   `secp256k1` submodule pins, which this generator cannot describe — it
+   reads `Requires-Dist`, and the submodule is not a Python dependency.
+   That holds for both wheel kinds it ships and not only the static one:
+   a static build links the library into the extension, a dynamic
+   (ABI-mode) build ships it as a shared object beside the extension
+   instead, and `Requires-Dist` says nothing about the pin either way.
+   Naming the linkage would invite the opposite conclusion, that the
+   dynamic build escapes the gap — where what is missing is the pinned
+   commit however the object code arrives.
+   A bill of materials built the way this one is
    would name `cffi` and say nothing about the pin a verifier of that
    package would most want described, which is worse than omitting the
    document. Issue #1159 has the evaluation. What would change it is

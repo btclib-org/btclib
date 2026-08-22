@@ -837,6 +837,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`RELEASING.md`'s reason for attaching no bill of materials to a
+  sibling's release holds for both of its wheels** (issue #1189). The
+  paragraph described the vendored libsecp256k1 as "statically-linked",
+  which is true of the static wheels alone: `btclib-secp256k1` also
+  ships a dynamic, ABI-mode build that `dlopen`s a shared object beside
+  the extension, and that build is not statically linked to anything.
+
+  The conclusion was right for both and the mechanism was right for one,
+  which is the worse of the two ways to be wrong here: a reader who
+  takes the stated mechanism at face value concludes the gap is an
+  artefact of static linking and that the dynamic build escapes it. It
+  does not. What `Requires-Dist` cannot say is the *pinned commit*,
+  however the object code reaches the wheel -- so the paragraph says
+  that, and names both builds.
+
+  `btclib-secp256k1`'s own `RELEASING.md` was corrected first, in that
+  repository's #307, and this was the copy left behind.
+  `bitcoin-core-rpc#173`'s blockquote is deliberately not touched: it
+  quotes what this file said at the time, and becomes an accurate record
+  of a corrected claim rather than a fifth copy of the error.
+
 - **CONTRIBUTING.md sends a contributor to the organization standard**
   (btclib-org/.github#52). `README.md` in `btclib-org/.github` states
   the toolchain, the lint gate, the workflow set and the branch rules
