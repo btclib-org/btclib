@@ -74,6 +74,7 @@ __all__ = [
     "derive_from_account_",
     "derive_from_account_range",
     "derive_from_account_range_",
+    "fingerprint",
     "pub_key_derivation_tweaks",
     "rootxprv_from_seed",
     "rootxprv_from_seed_",
@@ -520,6 +521,32 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     # check_validity=False: `xpub_from_xprv_` has just made that check on
     # the key it answered
     return xpub_from_xprv_(xprv).b58encode(check_validity=False)
+
+
+def fingerprint(xkey: BIP32Key) -> bytes:
+    """Return the four octets BIP32 identifies an extended key by.
+
+    The first four of the HASH160 of the compressed public key, which is
+    what BIP32 defines the fingerprint as and what a `BIP32KeyOrigin`
+    names its master with.
+
+    Here and not in a converter, because it is bip32's own idea: nothing
+    outside this module's formats has a fingerprint (issue #1188). Every
+    reader of the four octets is this module's or sits above it --
+    `derive` below writes a parent's into each child it makes,
+    `crack_prv_key_var` reads one back to tell whether a parent and a
+    child are that pair, and `psbt`'s origins carry one to name a
+    master.
+
+    An xprv answers with its xpub's, the fingerprint being the public
+    key's: a pair that gave two would identify one key twice. The
+    neutering is `_xpub_from_xprv`'s, so the two spellings share the
+    derivation rather than agreeing by coincidence.
+    """
+    xkey_data = _key_data_from_bip32_key(xkey)
+    if xkey_data.is_private:
+        xkey_data = _xpub_from_xprv(xkey_data)
+    return hash160(xkey_data.key)[:4]
 
 
 # repr=False: a generated __repr__ would print key and prv_key_int, the

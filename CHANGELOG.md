@@ -1014,6 +1014,53 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`fingerprint` moves from `to_pub_key` to `bip32`**, and takes a
+  `BIP32Key` where it took anything a key can be spelled as (issue
+  #1188). The four octets are bip32's own idea — nothing outside its
+  formats has a fingerprint, and every reader of the four octets is that
+  module's or sits above it: `derive` writes a parent's into each child
+  it makes, `crack_prv_key_var` reads one back to tell whether a parent
+  and a child are that pair, and `psbt`'s origins carry one to name a
+  master. So the function belongs to the module that defines them rather
+  than to the converter that could reach them.
+
+  It is the second half of the move that makes it worth doing. `bip32`
+  sits *below* `to_pub_key` and cannot import it, so a `fingerprint`
+  living there cannot take the `Key` union: the narrowing is not a
+  tightening chosen on top of the move, it is what the move costs, and
+  it is the shape the sequence is for.
+
+  No caller in this package passed anything else. Every one inside it
+  hands over Base58Check text — `xkey.b58encode()`, `key.b58encode()`,
+  the `str` a descriptor key expression keeps its `xkey` in, and the
+  b58 text `psbt_signer` holds; the tests passed extended keys
+  throughout, SLIP132's `zprv` and `uprv` among them, save one
+  assertion in `to_pub_key`'s own suite that compared a
+  `PreparedPoint` against the `Point` it holds — a claim about that
+  converter rather than about fingerprints, and the conversions beside
+  it still make it.
+
+  An xprv is answered by its xpub's, as before, and the neutering is
+  `_xpub_from_xprv`'s rather than a second derivation: the two spellings
+  agree because they share the step, not because two computations were
+  checked against each other. `tests/bip32/bip32_test.py` asserts what
+  the four octets are for, which is the assertion that catches them
+  being taken of the wrong key — `derive` writes the parent's
+  fingerprint into the child, so the two agree only if both read the
+  same compressed public key.
+
+  The `network` parameter goes with the move. It reached
+  `pub_keyinfo_from_key`, where it refused a key whose version bytes
+  named another network; nothing in this package passed it, and nothing
+  inherits it. Reconstructing the check is a membership test: the
+  decoded `.version` in `xprvversions_from_network` or
+  `xpubversions_from_network` by the kind of key, which is the pair the
+  argument chose between. Not a `network_from_xkeyversion` name
+  comparison — that answers "testnet" for the versions testnet,
+  regtest, signet and testnet4 share, so it would reject a signet key
+  for being signet, which is the trap `to_prv_key` records as issue
+  #207.
+
 - **`deserialize_tx` stops declaring an `include_witness` value that
   meant nothing** (issue #1190). The signature was `bool | None`, and
   the comment above the guard said `None` was "either encoding". It was

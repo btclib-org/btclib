@@ -20,6 +20,7 @@ from copy import deepcopy
 import pytest
 
 from btclib.alias import Octets
+from btclib.bip32 import fingerprint
 from btclib.bip32.bip32 import derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.bip32.der_path import DerPath
 from btclib.bip32.key_origin import BIP32KeyOrigin
@@ -49,7 +50,6 @@ from btclib.psbt_signer import (
     sign_message,
 )
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import fingerprint
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # the "abandon abandon ... about" root of BIP39, which BIP84 publishes

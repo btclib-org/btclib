@@ -22,7 +22,6 @@ from btclib.curves import (
 from btclib.curves.curve import _assert_valid_ec
 from btclib.curves.sec_point import _sec_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.hashes import hash160
 from btclib.network import (
     curve_from_xkeyversion,
     network_from_name,
@@ -36,7 +35,6 @@ __all__ = [
     "Key",
     "PubKey",
     "PubkeyInfo",
-    "fingerprint",
     "point_from_key",
     "point_from_pub_key",
     "pub_keyinfo_from_key",
@@ -62,17 +60,18 @@ _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 # **A prepared point is read as the point it holds, everywhere below.**
 # `curves.PreparedPoint` is a `Point` plus a caller's word that it will
 # be multiplied again, and the word is the whole of the difference: an
-# address, a fingerprint and a SEC encoding are the point's, so each
-# converter answers a prepared point by asking itself about `.point`.
+# address and a SEC encoding are the point's, so each converter answers
+# a prepared point by asking itself about `.point`.
 # What is *not* the point's is the memoized tables, and
 # `dsa.assert_as_valid_` and `ssa.assert_as_valid_` are the two places
 # that read those, off the object and not through here.
 #
-# Spelled as five one-line recursions rather than as one unwrapping
-# helper, and the types are why: a helper would have to answer the union
-# it was given minus PreparedPoint, which is a different union per
-# converter and two overloads to keep in step, where re-asking the same
-# function is exactly as narrow as the function already is.
+# Spelled as a one-line recursion at each site that unwraps one, rather
+# than as one unwrapping helper, and the types are why: a helper would
+# have to answer the union it was given minus PreparedPoint, a
+# different union per converter and two overloads to keep in step,
+# where re-asking the same function is exactly as narrow as the
+# function already is.
 #
 # Nothing compares a curve on the way through: a prepared point of
 # another curve fails the `is_on_curve` its tuple then faces, exactly as
@@ -388,13 +387,3 @@ def pub_keyinfo_from_prv_key(
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = network_from_name(net).curve
     return bytes_from_prv_key_int(q, ec, compr), net
-
-
-def fingerprint(key: Key, network: str | None = None) -> bytes:
-    """Return the public key fingerprint from a private/public key.
-
-    The fingerprint is the first four bytes of the compressed public key
-    HASH160, which is what BIP32 defines it as.
-    """
-    pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
-    return hash160(pub_key)[:4]

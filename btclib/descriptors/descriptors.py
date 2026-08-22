@@ -150,6 +150,7 @@ from btclib.bip32.bip32 import (
     _derive,
     _key_data_from_bip32_key,
     _xpub_from_xprv,
+    fingerprint,
 )
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -203,7 +204,6 @@ from btclib.script.taproot import (
     tree_helper,
 )
 from btclib.script.witness import Witness
-from btclib.to_pub_key import fingerprint
 from btclib.tx.tx_in import TxIn
 from btclib.utils import assert_type, bytes_from_octets
 
