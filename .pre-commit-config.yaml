@@ -415,10 +415,12 @@ repos:
   # docstrings to the same, and the workflows were a place prose could
   # grow without a limit -- 117 columns at the worst. Toml was the other,
   # and the hook below is what closed it.
+  # Width is the half of this a sibling gate could in principle have
+  # covered; a key written twice, a block indented under nothing, a value
+  # that is octal by accident are read by nothing else at all.
   # Configured in .yamllint.yaml rather than in args here, as codespell
-  # and typos are configured in pyproject.toml: the two rules enabled and
-  # the two left off need a paragraph each, and the width is not 80 for a
-  # reason that has to be written down.
+  # and typos are configured in pyproject.toml: the default set, the two
+  # rules left off, and a width that is not 80 need a paragraph each.
   # No args, and the hook declares none either, so there is nothing here
   # to drop by omission -- unlike zizmor below
   - repo: https://github.com/adrienverge/yamllint
