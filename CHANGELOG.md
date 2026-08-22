@@ -1798,6 +1798,51 @@ documented at release-notes length in the first place, and are still in
 
   Nothing in the package passed a bool, and no test did: the change
   costs the suite nothing and closes the arm disagreement.
+- **`borromean.sign` refuses a scalar outside 1..n-1, and reads one
+  however it is spelled** (issue #1243). `sign_keys[i]` reached step 2's
+  `(k + sign_keys[i] * e[i][j_star]) % ec.n` exactly as the caller wrote
+  it, so three values outside 1..n-1 signed that `dsa.sign` and every
+  other signer in `ecc` refuse: 0, `n`, and `q + n`.
+
+  `q + n` is the one that mattered. That line's own modulo made it the
+  key `q`, silently, so `sign` with `q` and `sign` with `q + n` both
+  return a signature that verifies under the same ring, and a caller who
+  had added `n` to a key was never told. 0 and `n` were the quieter
+  half: they returned a `BorromeanSig` that does not verify under the
+  ring it was signed against, where every other signer says the key is
+  out of range instead of handing one back.
+
+  ```python
+  borromean.sign(msg, [1], [0], [q + secp256k1.n], pubk_rings)  # signed
+  dsa.sign(msg, q + secp256k1.n)   # BTClibValueError: private key not in 1..n-1
+  ```
+
+  Both sequences now read through `curves.scalar_from_prv_key`, which is
+  the range check, before step 1 spends a scalar multiplication. `ks` is
+  the same kind of value and moves with `sign_keys`: a nonce of 0 or of
+  `n` used to draw "no bytes representation for infinity point", which
+  blames the point step 1 built rather than the value that was passed.
+  `sign_key_idx` does not move — it indexes a ring, and an index is not
+  a scalar written in hex.
+
+  The spelling follows from the same call. `ks` and `sign_keys` are
+  `Sequence[Integer]` where they were `Sequence[int]`, so a key held as
+  its `n_size` octets or as hex is passed here as it is passed to `mult`
+  and to `dsa.sign`. That mattered beyond the annotation: the
+  unconverted spellings did not raise this library's own error but
+  Python's, all of them out of the one line that builds the real
+  s-value. A key gets `OverflowError: cannot fit 'int' into an
+  index-sized integer`, `sign_keys[i] * e[i][j_star]` repeating the str
+  or the bytes rather than multiplying it; a nonce gets a `TypeError`
+  from adding an int to that, one sentence per spelling — `can only
+  concatenate str (not "int") to str` for hex, `can't concat int to
+  bytes` for octets. None of the three is a `BTClibValueError` or a
+  `BTClibTypeError`, so all escaped the contract the way issue #1220's
+  `TypeError` did.
+
+  The refusal does not name the ring, where `_assert_sign_key_idx_in_range`
+  does: a ring's size is a fact the caller has to be told, and a key of
+  0 is one they can see in the sequence they passed.
 
 - **`taproot.py` gets back the import a merge dropped.**
   `check_output_pubkey`'s translation reads `HEX_THRESHOLD`, added with

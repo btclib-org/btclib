@@ -47,6 +47,29 @@ full year, short month, short day (YYYY-M-D)
 
   An `IntEnum` is unaffected and stays an integer. CHANGELOG.md has why
   a bool was reaching a key at all, and what the two arms did with it.
+- **`borromean.sign` refuses a private key or a nonce outside 1..n-1**
+  (issue #1243). Neither sequence was read as a scalar, so a key of 0,
+  of `n` or of `q + n` signed, where every other signer in `ecc`
+  refuses all three. `q + n` is the one to look for in your own code:
+  step 2's own `% ec.n` reduced it to `q`, so it produced a signature
+  that verifies, and it now raises `BTClibValueError: private key not
+  in 1..n-1`. A nonce of `k + n` was reduced by the same line and is
+  refused by the same check.
+
+  ```python
+  borromean.sign(msg, ks, idx, [q + secp256k1.n], rings)  # signed
+  borromean.sign(msg, ks, idx, [q % secp256k1.n], rings)  # reduce first
+  ```
+
+  Act on it if you build a key or a nonce by addition and rely on the
+  reduction. An `int` key already in 1..n-1 signs exactly as it did.
+
+  Widened in the same call: `ks` and `sign_keys` are
+  `Sequence[Integer]` where they were `Sequence[int]`, so a scalar held
+  as its `n_size` octets or as hex is taken here as `mult` and
+  `dsa.sign` take it. Those spellings used to leave Python's own
+  `OverflowError` and `TypeError`. `sign_key_idx` is still
+  `Sequence[int]`: it indexes a ring.
 
 - **`ecc` no longer takes a WIF or an extended key as a private key**
   (issue #1188). The entry points that took a private key however it was
@@ -55,8 +78,9 @@ full year, short month, short day (YYYY-M-D)
   `anti_exfil_signer_commit` and `anti_exfil_sign` among them — took a
   WIF, an xprv, an
   `int` or octets. They now take an `int`, its `n_size` octets, or their
-  hex. `borromean` is not among them and never was: it asks for a
-  sequence of `int` outright.
+  hex. `borromean` is not among them and never was: it asked for a
+  sequence of `int` outright, and issue #1243's bullet above is what
+  gave it the same three spellings — never the WIF.
 
   ```python
   dsa.sign(msg, wif)                                  # was
