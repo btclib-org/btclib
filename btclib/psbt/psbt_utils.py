@@ -818,7 +818,7 @@ def deserialize_tx(
     k: bytes,
     v: bytes,
     type_: str,
-    include_witness: bool | None = True,
+    include_witness: bool = True,
     *,
     unsigned_template: bool = False,
 ) -> Tx:
@@ -837,10 +837,15 @@ def deserialize_tx(
     the encoding this could not write back, where a validating parse
     answers "Missing outputs", which is true of it but not the fault.
     """
-    # None is a declared value for include_witness -- "either encoding" --
-    # and every other non-bool decides which one is accepted
-    if include_witness is not None:
-        assert_type(include_witness, bool, "include_witness")
+    # two values and two behaviours, and the flag is read as a truth
+    # below: `not include_witness` is false for True alone, so True is
+    # the one that accepts either encoding and False is the one that
+    # demands the round trip. None used to be declared here as well,
+    # documented as "either encoding" and doing what False does, since
+    # `not None` is `not False` -- a third spelling of the second
+    # behaviour, unreachable from any caller in this tree and a trap for
+    # the first one to read the comment (issue 1190)
+    assert_type(include_witness, bool, "include_witness")
     assert_type(unsigned_template, bool, "unsigned_template")
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"

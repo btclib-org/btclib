@@ -20,6 +20,19 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`psbt.psbt_utils.deserialize_tx` no longer accepts `None` for
+  `include_witness`** (issue #1190). The annotation declared `bool |
+  None` and a comment called `None` "either encoding"; the code took the
+  same strict arm for `None` as for `False`, `not None` being `not
+  False`. A third spelling of the second behaviour, and the only one
+  whose documented meaning was never implemented. Passing `None` now
+  raises `BTClibTypeError` as any other non-bool does.
+
+  Act on it only if you call this function with `None`, which no caller
+  in this package did: pass `False`, which is what `None` was doing.
+  `True` is unchanged and is still the default, and is the value that
+  accepts either encoding.
+
 - **`NETWORKS["regtest"].genesis_block` was byte-reversed and is now
   Bitcoin Core's value** (issue #1203):
 
