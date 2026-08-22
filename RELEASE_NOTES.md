@@ -231,6 +231,35 @@ full year, short month, short day (YYYY-M-D)
   answer rather than an error, and one that had compensated by reversing
   the octets itself has to stop doing so. CHANGELOG.md has why.
 
+### Worth knowing, though nothing raises
+
+- **A `bytearray` and a `memoryview` are octets, and now the signatures
+  say so** (issue #1238). `Octets` and `String` name all four spellings,
+  and `Integer`, `PrvKey`, `PubKey`, `Key` and `Command` are built from
+  them. Every one of those buffers was already accepted at run time —
+  the type checks inside the library listed them — so no call that
+  worked stops working, and nothing new is refused.
+
+  Act on it only if you type-check your own code against btclib: a
+  `# type: ignore[arg-type]` you wrote to pass a buffer is now unused,
+  and mypy reports an unused ignore as an error under
+  `warn_unused_ignores`. Delete those and the annotation says what the
+  library does.
+
+  Several places did not in fact take a buffer, and now do. The two worth
+  reading are the ones that answered rather than raising: a legacy BMS
+  signature held as a bytearray was checked as a BIP322 signature, which
+  it is not, and came back False; and an address handed to `bms.sign` as
+  `bytes` was not stripped of surrounding blanks where the same address
+  as text was, so it signed under a different address than the caller
+  named and said `mismatch between private key and address`.
+
+  One exception class moves with that second fix: a non-ascii address as
+  `bytes` raised Python's `UnicodeDecodeError` and now raises
+  `BTClibValueError: non-ascii character in address`, so an `except
+  UnicodeDecodeError` around `bms.sign` stops catching it.
+  CHANGELOG.md lists them.
+
 ## v2026.8.21
 
 ### Breaking changes

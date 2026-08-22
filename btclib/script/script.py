@@ -378,7 +378,7 @@ def _serialize_str_command(command: str) -> bytes:
     return _serialize_bytes_command(data)
 
 
-def _serialize_bytes_command(command: bytes) -> bytes:
+def _serialize_bytes_command(command: bytes | bytearray | memoryview) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | command.
 
     According to standardness rules (BIP62) the minimum possible
@@ -414,7 +414,7 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     #123). The last branch is Core's own bound, `CScript::operator<<`
     having nothing wider than a four-byte length either.
     """
-    out: list[bytes] = []
+    out: list[bytes | bytearray | memoryview] = []
     length = len(command)
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
@@ -430,7 +430,7 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     return b"".join(out)
 
 
-def _pushdata(i: int, length: int, out: list[bytes]) -> None:
+def _pushdata(i: int, length: int, out: list[bytes | bytearray | memoryview]) -> None:
     out.extend(
         (
             BYTE_FROM_OP_CODE_NAME[f"OP_PUSHDATA{i}"],

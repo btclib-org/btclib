@@ -298,10 +298,8 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     # own serialization without a point in between (issue #127)
     pub_key = bytes_from_prv_key_int(q, compressed=compressed)
 
-    if isinstance(addr, str):
-        addr = addr.strip()
-    elif isinstance(addr, bytes):
-        addr = addr.decode("ascii")
+    if addr is not None:
+        addr = str_from_string(addr, "address").strip()
 
     # finally, calculate the recovery flag
     if addr is None or addr == p2pkh(pub_key, network, compressed):

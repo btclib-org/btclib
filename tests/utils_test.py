@@ -266,12 +266,12 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     """
     assert bytes_from_octets(b"\x00\x01") == b"\x00\x01"
     assert bytes_from_octets("0001") == b"\x00\x01"
-    # every buffer, though `Octets` names only the two spellings a caller
-    # writes: what reaches this is whatever a field was built from
-    assert bytes_from_octets(bytearray(b"\x00\x01")) == b"\x00\x01"  # type: ignore[arg-type]
-    assert bytes_from_octets(memoryview(b"\x00\x01")) == b"\x00\x01"  # type: ignore[arg-type]
+    # every buffer `Octets` names, and what reaches this is whatever a
+    # field was built from rather than only what a caller writes
+    assert bytes_from_octets(bytearray(b"\x00\x01")) == b"\x00\x01"
+    assert bytes_from_octets(memoryview(b"\x00\x01")) == b"\x00\x01"
     # unchanged, and not merely equal
-    buffer: object = bytes_from_octets(bytearray(b"\x00"))  # type: ignore[arg-type]
+    buffer: object = bytes_from_octets(bytearray(b"\x00"))
     assert isinstance(buffer, bytearray)
 
     for not_octets in (tuple(range(33)), [1, 2], None, 1.5):

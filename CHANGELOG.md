@@ -1382,6 +1382,82 @@ documented at release-notes length in the first place, and are still in
   what the module decides: each command spelled as Core's `NetMsgType`
   spells it, a misspelling round-tripping as well as the real thing,
   and a fee rate outside the money range surviving the round trip.
+- **The spelling aliases name every buffer their consumers take**:
+  `Octets` and `String` are `bytes | str | bytearray | memoryview` now,
+  `Integer` is `Octets | int`, and `PrvKey`, `PubKey`, `Key` and
+  `Command` are spelled from those rather than from `bytes | str`
+  (issue #1238). Nothing is added at run time: the check tuples were
+  already the wider list — `to_prv_key._PRV_KEY_TYPES` and
+  `to_pub_key._PUB_KEY_TYPES` name the buffers outright, and
+  `utils.bytes_from_octets` documents why it returns one as it came —
+  so it was the annotations that were narrower than the contract, and
+  a caller who wrote a buffer down needed a `type: ignore` to say what
+  the library already did.
+
+  What that cost was not only noise. mypy could not see the buffer
+  paths, so the places that would break on one were found a caller at a
+  time, which is how issue #1220 was found. Widening the aliases asks
+  the question of the whole tree at once, and these are what it
+  answered:
+
+    - `wallet.__contains__` and `address_info`: `_address_str` promises a
+    `str` and returned what it was handed, so a bytearray reached the
+    dict of handed-out addresses and raised `TypeError: cannot use
+    'bytearray' as a dict key`, and a memoryview never got there —
+    `AttributeError` on the `strip` it does not have
+    - `script_pub_key._script_from`: `invalid script_pub_key type:
+    bytearray`, which is what `Descriptor.index_of` and
+    `RangedWallet.position_of` ask through
+    - `PsbtView`: the buffer was taken for the stream it is not, and died
+    on `AttributeError: 'bytearray' object has no attribute 'seekable'`
+    - `bip322.assert_as_valid`: a legacy BMS signature held as a bytearray
+    took the BIP322 branch instead, where it is not a BIP322 signature,
+    and verified False
+    - `bip32.BIP32KeyData.b58decode`: `invalid base58 string type:
+    bytearray`
+    - `bms.sign`: an address as `bytes` was decoded and not stripped,
+    where one as text was, so `f"  {addr}  ".encode()` did not name the
+    address it holds and the recovery flag came back as
+    `BTClibValueError: mismatch between private key and address` — a
+    complaint about the key, for blanks. Both spellings read through
+    `str_from_string` now, which is the library's one answer for a
+    `String`, and which also puts a non-ascii address inside
+    `BTClibValueError: non-ascii character in address` where the
+    hand-rolled `decode` let Python's own `UnicodeDecodeError` out
+    - `base58._b58decode` and `script._serialize_bytes_command` took every
+    buffer already — the first says so in a comment — and their
+    signatures said `bytes`
+    - `taproot.serialize`: the arm that writes the push after an
+    OP_SUCCESS asked `isinstance(script[0], bytes)`, so it refused a
+    bytearray with "OP_SUCCESS must be followed by a single bytes
+    command" — about a command that is a single bytes command
+    - `fetch.tx_from_raw`: the guard in front of the parse asked the same
+    narrow question, so a backend's answer held in a buffer was refused
+    as `FetchError: transaction <id>: not a serialization, but a
+    bytearray`
+
+  The `isinstance` ones are all the same mistake: `isinstance(x,
+  bytes)` and `isinstance(x, (str, bytes))` were asking "is this the
+  packed form" by naming the types that were the packed form when the
+  line was written. mypy does not flag a narrowing, so those were read
+  for rather than reported — `bip322`'s is now `not isinstance(sig,
+  Sig)`, which is the question it was actually asking.
+
+  `bytes_from_octets` is the one place the widening leaves an untrue
+  annotation: it promises `bytes` and returns the buffer it was given,
+  which is deliberate and documented, and which only the widened
+  `Octets` makes visible. Both returns carry a `type: ignore` naming
+  issue #1255 rather than a silence. Making the signature true is its
+  own change, across the tree rather than in one file, and an
+  `@overload` does not pay for itself — the callers that matter hand it
+  a value already typed `Octets`, so the whole union comes back out and
+  the downstream errors stand. Issue #1255 has the command that
+  measures both.
+
+  `DerPath` is deliberately not widened: it holds `Sequence[int]` beside
+  `bytes`, and a buffer satisfies both, so the same octets already mean
+  two different paths depending on the spelling. That is issue #1258,
+  and it wants a decision rather than a wider union.
 
 - **`ecc` takes a scalar and not a WIF**: `curves.scalar_from_prv_key`
   is the conversion, and the `ecc` modules that resolved a private key

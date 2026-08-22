@@ -4,8 +4,8 @@
 
 """The type aliases of the public API, and the input conventions they name.
 
-Octets and String below are both `bytes | str`, so mypy cannot tell
-one from the other: passing a text string where a hex-string is expected
+Octets and String below are the same union, so mypy cannot tell one
+from the other: passing a text string where a hex-string is expected
 is a type error this file names but no checker can catch. The distinction
 is enforced at run time instead, by the converter each function calls on
 its way in -- bytes_from_octets for Octets, str_from_string for String --
@@ -73,7 +73,15 @@ __all__ = [
 # dsa.Sig (DER serialization of ECDSA signature),
 # ssa.Sig (BIP340 serialization of Schnorr signature)
 # etc.
-Octets = bytes | str
+#
+# Every buffer, and not `bytes` alone: each is accepted at run time by
+# every consumer of an `Octets`, `utils.bytes_from_octets` being the one
+# coercion they share and `to_pub_key._PUB_KEY_TYPES` naming the same
+# list from the other side. Narrower here than in the code, this cost a
+# caller who wrote a buffer down a `type: ignore` -- and cost more than
+# that, mypy not being able to see the buffer paths, so a place that
+# breaks on one was found a caller at a time (issue #1238)
+Octets = bytes | str | bytearray | memoryview
 
 # bytes or text string (not hex-string)
 #
@@ -95,7 +103,11 @@ Octets = bytes | str
 #
 # In those cases often there is no need to encode() to bytes
 # as b58decode/b32decode/etc. will take care of that
-String = bytes | str
+#
+# The buffers for the reason `Octets` has them: `utils.str_from_string`
+# reads every one of them, and `base58.decode` did before either
+# annotation said so
+String = bytes | str | bytearray | memoryview
 
 # binary data, usually to be consumed as byte stream,
 # but possibly provided as Octets too
@@ -108,7 +120,7 @@ BinaryData = BytesIO | Octets
 # resolve by convention here -- a decimal representation is what int itself
 # is for, and int("1234") costs the caller nothing -- so the ambiguity is
 # resolved the way every other str in this file resolves it
-Integer = bytes | str | int
+Integer = Octets | int
 
 # What kind of chain a network is: the real one, or one of the test ones.
 #
@@ -448,7 +460,15 @@ JacPoint = tuple[int, int, int]
 # which sends Q to its two coordinates followed by 1, or by 0 at infinity
 INFJ = 7, 0, 0
 
-Command = int | str | bytes
+# spelled out rather than written `int | Octets`, though the spellings
+# are the same list: a `str` here is an opcode name or hex data and an
+# `Octets` str is hex and nothing else, so the two aliases would be one
+# name for two roles. The buffers are here because a push of a
+# bytearray is a push of what it holds: `script.serialize` wrote one
+# already, and `taproot.serialize` had to be taught to -- its
+# OP_SUCCESS arm asked `isinstance(script[0], bytes)` and refused the
+# other two
+Command = int | str | bytes | bytearray | memoryview
 ScriptList = list[Command]
 
 # A BIP341 taproot script tree: a leaf is a one-element list holding a

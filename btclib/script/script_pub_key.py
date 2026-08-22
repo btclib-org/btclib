@@ -836,8 +836,11 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     """
     if isinstance(script_pub_key, ScriptPubKey):
         return script_pub_key.script
-    if isinstance(script_pub_key, bytes):
-        return script_pub_key
+    if isinstance(script_pub_key, (bytes, bytearray, memoryview)):
+        # copied, where `bytes_from_octets` deliberately does not copy:
+        # this function exists to produce the thing a caller compares and
+        # keys a dict by, and a bytearray is unhashable
+        return bytes(script_pub_key)
     # unreachable to mypy, the annotation having no fourth case, and the
     # whole point to a caller who is not running it: `Octets` is honoured
     # inside btclib and nowhere else

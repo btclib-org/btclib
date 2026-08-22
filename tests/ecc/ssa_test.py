@@ -357,11 +357,7 @@ def test_a_buffer_is_octets_at_every_size_this_takes() -> None:
     )
 
     for octets in spellings:
-        # `Any`, because `Octets` is `bytes | str` and these are neither:
-        # the annotation is narrower than what every consumer of it
-        # takes, which is the asymmetry issue #1238 asks about
-        buffers: tuple[Any, ...] = (bytearray(octets), memoryview(octets))
-        for buffer in buffers:
+        for buffer in (bytearray(octets), memoryview(octets)):
             assert ssa.point_from_bip340pub_key(buffer) == Q
 
 

@@ -230,7 +230,7 @@ def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
     all show up here, as the wrong id rather than as a wrong amount
     somewhere later.
     """
-    if not isinstance(raw, (bytes, str)):
+    if not isinstance(raw, (bytes, str, bytearray, memoryview)):
         # `Tx.parse` reads a stream and lets anything that is not Octets
         # through untouched, so a json number where the hex belongs
         # surfaces as AttributeError on `.read` -- a traceback into the

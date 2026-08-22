@@ -43,6 +43,7 @@ from btclib.script.taproot import (
     serialize,
     tree_helper,
 )
+from btclib.to_pub_key import Key
 from btclib.tx import TxOut
 from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings_anywhere
@@ -139,11 +140,7 @@ def test_one_internal_key_however_it_is_spelled(
     prv_key = 0xC0FFEE
     point = mult(prv_key)
     sec = bytes_from_point(point, compressed=True)
-    # `Any` and not `Key`: a bytearray and a memoryview are spellings the
-    # static union does not name and `_KEY_TYPES` accepts, which is the
-    # asymmetry `to_pub_key` states -- the buffers `bytes_from_octets`
-    # takes beside bytes, and passes through as they came
-    spellings: tuple[Any, ...] = (
+    spellings: tuple[Key, ...] = (
         point,
         sec,
         bytes_from_point(point, compressed=False),
@@ -650,8 +647,7 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     # `memoryview + bytes` is not an operation at all. The internal key of
     # `output_pubkey` becomes bytes one layer lower, in `PubKeyData`, so
     # this entry point needs its own assertion rather than that one's
-    buffer: Any = memoryview(x_only)  # `Octets` is `bytes | str`, as above
-    assert output_pubkey_from_merkle_root(buffer, merkle_root) == (
+    assert output_pubkey_from_merkle_root(memoryview(x_only), merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
     )
 
@@ -742,6 +738,24 @@ def test_invalid_serialization() -> None:
         serialize(["OP_SUCCESS80", 1])
     with pytest.raises(BTClibValueError, match="OP_SUCCESS must be followed"):
         serialize(["OP_SUCCESS80", "00"])
+
+
+def test_op_success_is_followed_by_bytes_however_they_are_held() -> None:
+    """The refusal is about the command's kind, not about how it is held.
+
+    `Command` names every buffer, so the push after an OP_SUCCESS is one
+    whether it arrives as bytes or as a slice of a larger field, and all
+    three write the same script. Asked because the check that guards
+    this branch reads `isinstance(script[0], ...)` and a list of types
+    is what stops being the answer when the alias gains a spelling: a
+    bytearray drew "OP_SUCCESS must be followed by a single bytes
+    command" about a command that is a single bytes command
+    (issue #1238).
+    """
+    push = b"\x01\x02\x03"
+    expected = serialize(["OP_SUCCESS80", push])
+    for spelling in (bytearray(push), memoryview(push)):
+        assert serialize(["OP_SUCCESS80", spelling]) == expected
 
 
 def test_parse_unknown_op_code() -> None:

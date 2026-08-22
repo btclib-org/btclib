@@ -303,6 +303,39 @@ def test_every_recovery_flag_is_ruled_on_by_range_alone() -> None:
                 check(rf)
 
 
+def test_the_address_is_read_the_same_however_it_is_held() -> None:
+    """`sign` takes a String address, and a String is text or any buffer.
+
+    Two spellings of one address used to sign under different flags:
+    text was stripped of blanks and `bytes` was only decoded, so a
+    padded `bytes` address named an address the key does not have and
+    the call came back `mismatch between private key and address` -- a
+    complaint about the key, for blanks around the address. The buffers
+    did not decode at all. All of them read through `str_from_string`
+    now, which strips nothing and is followed by the strip that does
+    (issue #1238).
+    """
+    msg = b"however it is held"
+    wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
+    address = b58.p2pkh(wif)
+    expected = bms.sign(msg, wif, address)
+
+    padded = f"  {address}  "
+    for spelling in (
+        address.encode("ascii"),
+        padded,
+        padded.encode("ascii"),
+        bytearray(address.encode("ascii")),
+        memoryview(address.encode("ascii")),
+    ):
+        assert bms.sign(msg, wif, spelling).rf == expected.rf
+
+    # and a byte outside ascii is this library's complaint about the
+    # address, where the hand-rolled decode let Python's own out
+    with pytest.raises(BTClibValueError, match="non-ascii character in address"):
+        bms.sign(msg, wif, address.encode("ascii") + b"\xc3")
+
+
 def test_one_prv_key_multiple_addresses() -> None:
     """Verify the BIP137 flag binds a signature to its address type."""
     msg = b"Paolo is afraid of ephemeral random numbers"

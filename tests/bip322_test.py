@@ -343,6 +343,17 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     # reaches assert_as_valid's default unless called directly
     bip322.assert_as_valid(msg, p2pkh(WIF), legacy)
 
+    # and the variant does not depend on how the signature is held.
+    # Which branch runs was decided by `isinstance(sig, (str, bytes))`,
+    # a list of spellings where the question is whether the signature is
+    # still text to be read: a bytearray answered that list falsely and
+    # went down the BIP322 branch, where it is not a BIP322 signature at
+    # all (issue #1238)
+    octets = legacy.encode("ascii")
+    for spelling in (octets, bytearray(octets), memoryview(octets)):
+        assert bip322.verify(msg, p2pkh(WIF), spelling)
+        assert not bip322.verify(msg, p2wpkh(WIF), spelling)
+
 
 def test_a_simple_signature_is_not_65_octets() -> None:
     """The size that tells a BMS signature from a witness stack.

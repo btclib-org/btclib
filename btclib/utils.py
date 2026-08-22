@@ -115,7 +115,11 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
         raise BTClibTypeError(err_msg)
 
     if out_size is None:
-        return octets
+        # the annotation says `bytes` and this hands back the buffer it
+        # was given, which the widened `Octets` is what makes visible:
+        # disclosed rather than silenced, because making the signature
+        # true is a change across the tree and its own (issue #1255)
+        return octets  # type: ignore[return-value]
 
     # one size or an iterable of them, and nothing else: `tuple()` on
     # whatever is left would refuse a float with a bare TypeError about
@@ -135,7 +139,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
             raise BTClibTypeError(err_msg)
 
     if len(octets) in sizes:
-        return octets
+        return octets  # type: ignore[return-value]
 
     err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
     raise BTClibValueError(err_msg)
@@ -144,8 +148,8 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
 def str_from_string(s: String, what: str) -> str:
     """Return the text of a String, whether it came as text or as ascii bytes.
 
-    What `bytes_from_octets` is to the other `bytes | str` alias, in the
-    direction the addresses go: an address, a WIF and an xkey are ascii,
+    What `bytes_from_octets` is to `Octets`, in the direction the
+    addresses go: an address, a WIF and an xkey are ascii,
     so a byte outside it is an invalid character like any other and gets
     the same answer -- a UnicodeDecodeError let out would fly past every
     caller written to catch a BTClibValueError.

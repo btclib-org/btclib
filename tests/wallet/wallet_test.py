@@ -129,11 +129,19 @@ def test_next_address_is_one_past_the_top_of_a_branch(
 def test_position_of_takes_every_spelling_of_an_output(
     build: Callable[[], RangedWallet],
 ) -> None:
-    """The output as a ScriptPubKey, as bytes, as hex, or as its address.
+    """The output named any way it can be named.
 
-    One question -- "is this output mine" -- and the answer is the whole
+    As a ScriptPubKey, as octets however held, or as its address. One
+    question -- "is this output mine" -- and the answer is the whole
     script compared at each position, which is why the address is read
     for the script it encodes rather than matched as text.
+
+    The buffers are here because the answer used to depend on how the
+    caller held the octets, which is the one thing it must not depend on:
+    a script as a bytearray or a memoryview was refused outright, with
+    "invalid script_pub_key type", where the same octets as bytes
+    answered (issue #1238). An address is a `str` here and not octets --
+    its own bytes are read as a script, which is what they are.
     """
     wallet = build()
     script_pub_key = wallet.script_pub_key(1, 3)
@@ -142,6 +150,8 @@ def test_position_of_takes_every_spelling_of_an_output(
         script_pub_key.script,
         script_pub_key.script.hex(),
         script_pub_key.address,
+        bytearray(script_pub_key.script),
+        memoryview(script_pub_key.script),
     ):
         assert wallet.position_of(named, 4) == (1, 3)
 
@@ -235,10 +245,27 @@ def test_only_a_key_wallet_records_one_derivation_path() -> None:
 
 
 def test_an_address_of_a_bech32_spelling_is_found_however_it_is_written() -> None:
-    """Which is `Wallet.__contains__` and the lookup under it."""
+    """Which is `Wallet.__contains__` and the lookup under it.
+
+    Held however a caller holds it, `String` naming the buffers too.
+    Neither used to reach the lookup at all: `_address_str` promises a
+    `str` and returned what it was given, so a bytearray arrived at the
+    dict of handed-out addresses and raised `TypeError: cannot use
+    'bytearray' as a dict key`, and a memoryview did not get that far --
+    a bare `AttributeError` on the `strip` it does not have. Two Python
+    errors for a supported spelling, neither of them this library's
+    (issue #1238).
+    """
     wallet = script_wallet()
     address = wallet.address(0, 0)
-    for spelling in (address.upper(), f"  {address}  ", address.encode("ascii")):
+    octets = address.encode("ascii")
+    for spelling in (
+        address.upper(),
+        f"  {address}  ",
+        octets,
+        bytearray(octets),
+        memoryview(octets),
+    ):
         assert spelling in wallet
         assert wallet.address_info(spelling).address == address
 

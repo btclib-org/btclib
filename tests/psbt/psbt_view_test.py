@@ -238,15 +238,31 @@ def test_a_stream_may_carry_more_than_the_psbt() -> None:
 
 
 def test_octets_are_one_whole_psbt() -> None:
-    """What follows the last map in octets is refused, hex string included."""
+    """What follows the last map in octets is refused, however they are held.
+
+    Every spelling `Octets` names, because the octets used to have to be
+    `bytes` or a hex `str` to be octets at all. A psbt handed over as a
+    bytearray or a memoryview -- a slice of a larger buffer being
+    exactly what a caller reaches for here -- was taken for the stream
+    it is not, and died on `AttributeError: 'bytearray' object has no
+    attribute 'seekable'`. The trailing-octets check behind it asked the
+    same narrow question a second time, so it would have been skipped
+    too (issue #1238).
+    """
     raw = _named("PSBT with one P2PKH input. Outputs are empty")
     assert PsbtView(raw).input_count == 1
+    assert PsbtView(bytearray(raw)).input_count == 1
+    assert PsbtView(memoryview(raw)).input_count == 1
 
     for trailing in (b"\x00", b"junk"):
-        with pytest.raises(BTClibValueError, match="bytes after the psbt"):
-            PsbtView(raw + trailing)
-        with pytest.raises(BTClibValueError, match="bytes after the psbt"):
-            PsbtView((raw + trailing).hex())
+        for spelling in (
+            raw + trailing,
+            (raw + trailing).hex(),
+            bytearray(raw + trailing),
+            memoryview(raw + trailing),
+        ):
+            with pytest.raises(BTClibValueError, match="bytes after the psbt"):
+                PsbtView(spelling)
 
 
 def test_no_prefix_of_a_psbt_is_a_view() -> None:

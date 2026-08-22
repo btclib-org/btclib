@@ -21,7 +21,7 @@ from typing import Any, get_args, get_type_hints
 
 import pytest
 
-from btclib.alias import HashDigestF, HashF, HashObject
+from btclib.alias import HashDigestF, HashF, HashObject, Octets
 from btclib.hashes import hash256, merkle_root, reduce_to_hlen, tagged_hash
 
 
@@ -100,7 +100,9 @@ def test_the_aliases_are_distinct() -> None:
     assert returns is HashObject
 
     # a one-shot digest: Octets in, bytes out. The arities alone make the
-    # two unassignable to each other, which is what a checker acts on
+    # two unassignable to each other, which is what a checker acts on.
+    # Against `Octets` itself and not against what it expands to: the
+    # spellings it names are its own to change
     parameters, returns = get_args(HashDigestF)
-    assert parameters == [bytes | str]
+    assert parameters == [Octets]
     assert returns is bytes

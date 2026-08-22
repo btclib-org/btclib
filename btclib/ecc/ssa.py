@@ -283,10 +283,9 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
         raise BTClibValueError(f"not a valid public key: {x_Q}")
 
     if isinstance(x_Q, (str, bytes, bytearray, memoryview)):
-        # the buffers beside `Octets`, which is `bytes | str`: they are
-        # what `bytes_from_octets` takes and returns as they came, and
-        # what `to_pub_key` names at run time beside the static union.
-        # Accepted at all three sizes here, where the dispatch this
+        # every spelling `Octets` names, which is what
+        # `bytes_from_octets` takes and returns as it came. Accepted at
+        # all three sizes here, where the dispatch this
         # replaces took them at the SEC two and refused them at the
         # x-only one, its fallback having asked for `(str, bytes)`
         #

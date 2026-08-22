@@ -100,7 +100,9 @@ def serialize(script: ScriptList) -> bytes:
         elif isinstance(command, str):
             r.append(_serialize_str_command(command))
             if "OP_SUCCESS" in command:
-                if len(script) != 1 or not isinstance(script[0], bytes):
+                if len(script) != 1 or not isinstance(
+                    script[0], (bytes, bytearray, memoryview)
+                ):
                     raise BTClibValueError(
                         "OP_SUCCESS must be followed by a single bytes command"
                     )

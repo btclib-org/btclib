@@ -141,10 +141,19 @@ def test_the_label_is_what_an_address_is_rendered_from() -> None:
 
 
 def test_tx_from_raw_returns_the_transaction_asked_for() -> None:
-    """Parse the raw hex into the transaction with the requested id."""
-    tx = tx_from_raw(RAW, TX_ID, "mainnet")
-    assert tx.id.hex() == TX_ID
-    assert len(tx.vout) == 2
+    """Parse the raw serialization into the transaction with that id.
+
+    However the caller holds it: the guard in front of the parse used to
+    ask `isinstance(raw, (bytes, str))`, which is the packed form named
+    by the types that were the packed form when the line was written, so
+    a backend's answer kept in a buffer was refused as "not a
+    serialization, but a bytearray" (issue #1238).
+    """
+    octets = bytes.fromhex(RAW)
+    for spelling in (RAW, octets, bytearray(octets), memoryview(octets)):
+        tx = tx_from_raw(spelling, TX_ID, "mainnet")
+        assert tx.id.hex() == TX_ID
+        assert len(tx.vout) == 2
 
 
 def test_tx_from_raw_catches_the_answer_to_another_question() -> None:
