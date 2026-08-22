@@ -76,11 +76,10 @@ import secrets
 from dataclasses import dataclass
 from hashlib import sha256, sha512
 
-from btclib.alias import CipherF, Octets, String
-from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.alias import CipherF, Integer, Octets, String
+from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
 from btclib.curves.sec_point import _mult_sec_var
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
@@ -108,7 +107,7 @@ _MAC_SIZE = 32
 _BLOCK_SIZE = 16
 
 
-def derive_keys(prv_key: PrvKey, pub_key: PubKey) -> tuple[bytes, bytes, bytes]:
+def derive_keys(prv_key: Integer, pub_key: PubKey) -> tuple[bytes, bytes, bytes]:
     """Return the (iv, key_e, key_m) triple BIE1 derives from an ECDH exchange.
 
     The shared point is serialized compressed and hashed with sha512; the
@@ -124,10 +123,10 @@ def derive_keys(prv_key: PrvKey, pub_key: PubKey) -> tuple[bytes, bytes, bytes]:
 
     No infinity check on the shared point, unlike
     :func:`btclib.ecc.dh.diffie_hellman`, which takes a bare int: the
-    scalars that could produce one are exactly those `int_from_prv_key`
+    scalars that could produce one are exactly those `scalar_from_prv_key`
     rejects, and both inputs here go through a validating conversion.
     """
-    q = int_from_prv_key(prv_key)
+    q = scalar_from_prv_key(prv_key)
     # the public key stays octets: no coordinate of it is read here, and
     # `_mult_sec_var` is the multiplication without the point in between
     sec = pub_keyinfo_from_pub_key(pub_key)[0]
@@ -350,7 +349,7 @@ def encrypt(
     pub_key: PubKey,
     encrypt_f: CipherF,
     *,
-    eph_prv_key: PrvKey | None = None,
+    eph_prv_key: Integer | None = None,
     magic: bytes = MAGIC,
 ) -> str:
     """Encrypt a message to a public key, returning the BIE1 base64 armor.
@@ -370,7 +369,7 @@ def encrypt(
     if eph_prv_key is None:
         # in the range [1, n-1], as everywhere else a key is generated here
         eph_prv_key = 1 + secrets.randbelow(secp256k1.n - 1)
-    q = int_from_prv_key(eph_prv_key)
+    q = scalar_from_prv_key(eph_prv_key)
 
     iv, key_e, key_m = derive_keys(q, pub_key)
     ciphertext = encrypt_f(key_e, iv, msg)
@@ -392,7 +391,7 @@ def encrypt(
 
 def decrypt(
     armor: String,
-    prv_key: PrvKey,
+    prv_key: Integer,
     decrypt_f: CipherF,
     *,
     magic: bytes = MAGIC,

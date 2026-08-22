@@ -28,7 +28,57 @@ __all__ = [
     "bytes_from_point",
     "bytes_from_prv_key_int",
     "point_from_octets",
+    "scalar_from_prv_key",
 ]
+
+
+def scalar_from_prv_key(prv_key: Integer, ec: Curve = secp256k1) -> int:
+    """Return a verified-as-valid private key integer.
+
+    Here rather than in a converter, and beside `bytes_from_prv_key_int`
+    for its reason: a scalar in 1..n-1 is a fact about the curve and
+    nothing above it knows more about it than this file does.
+
+    `Integer` and not a `PrvKey` of this module's own, which would be
+    that same union of types under a second name and so nothing mypy
+    could check; the parameter carries the role the way `mult`'s `m_int`
+    does. The spellings this takes are narrower than the ones `Integer`
+    names -- `int_from_integer` reads "0xc0ffee" and a short hex string,
+    where a key is `n_size` octets or nothing. What rules those out is
+    reading them with `bytes_from_octets` and the size handed to it,
+    rather than with `int_from_integer`; the annotation could not, the
+    two unions being one. A WIF and an extended key are not among the
+    spellings -- they are `b58`'s and `bip32`'s objects, and turning one
+    into a scalar is a call a caller makes rather than a spelling this
+    layer guesses at (issue #1188).
+
+    The range is checked in Python for every curve. `keys.prvkey_verify`
+    is libsecp256k1's answer to the same question and is not called for
+    want of anything to gain: a comparison on a value that is already a
+    Python int, with no constant-time argument to pay for the call with,
+    since whether a key is in range is precisely what the caller is being
+    told. `to_prv_key.int_from_prv_key` carries the measurement behind
+    that, and carries it until issue #1188's last step removes it.
+    """
+    _assert_valid_ec(ec)
+
+    if isinstance(prv_key, int):
+        q = prv_key
+    else:
+        # `n_size` and not a guess: 32 for secp256k1, where a point is 33
+        # or 65, so the size alone separates a scalar from one. That is
+        # not true of every curve in the catalogue -- secp160k1,
+        # secp160r1, secp160r2 and secp224k1 have an `n_size` equal to
+        # their compressed point size -- and there a point is refused by
+        # the range check below instead, its 02 or 03 prefix putting the
+        # integer past n. The refusal is the same; only which line makes
+        # it differs
+        q = int.from_bytes(bytes_from_octets(prv_key, ec.n_size), "big")
+
+    if not 0 < q < ec.n:
+        raise BTClibValueError("private key not in 1..n-1")
+
+    return q
 
 
 def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -> bytes:

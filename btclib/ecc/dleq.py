@@ -43,11 +43,16 @@ from __future__ import annotations
 
 import secrets
 
-from btclib.alias import Octets, Point
-from btclib.curves import bytes_from_point, double_mult_var, mult, secp256k1
+from btclib.alias import Integer, Octets, Point
+from btclib.curves import (
+    bytes_from_point,
+    double_mult_var,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
@@ -107,7 +112,7 @@ def _bytes_xor(a: bytes, b: bytes) -> bytes:
 
 
 def generate_proof(
-    a: PrvKey,
+    a: Integer,
     B: PubKey,
     aux: Octets | None = None,
     G: PubKey = secp256k1.G,
@@ -125,7 +130,7 @@ def generate_proof(
     public key, which are BIP374's two "fail" conditions before any
     arithmetic happens.
     """
-    a_int = int_from_prv_key(a)
+    a_int = scalar_from_prv_key(a)
     B_point = point_from_pub_key(B)
     G_point = point_from_pub_key(G)
     m = _msg_bytes(msg)

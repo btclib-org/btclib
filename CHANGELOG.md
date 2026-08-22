@@ -1225,6 +1225,84 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`ecc` takes a scalar and not a WIF**: `curves.scalar_from_prv_key`
+  is the conversion, and the `ecc` modules that resolved a private key
+  through `to_prv_key` resolve it through `curves` now (issue #1188).
+  The name says the role and not the Python type, which is the
+  distinction the narrowing is about — and it keeps the new function
+  from colliding with the wide `to_prv_key.int_from_prv_key`, which
+  `tests/curve_parameter_test.py` drives beside it.
+
+  No new alias comes with it. The parameter is an `Integer`, and what
+  the function takes is narrower than what that names: `int_from_integer`
+  reads a "0x" prefix and a short hex string, where a key is `n_size`
+  octets or nothing. What rules those out is reading them with
+  `bytes_from_octets` and the size handed to it, not the annotation,
+  which could not — the two being the same union of types. So a `PrvKey` of
+  `curves`' own would have been that union under a second name, where
+  `mult`'s `m_int` shows that the role belongs in the parameter. Issue
+  #1238 is where the aliases are being asked what they promise.
+
+  ```python
+  to_prv_key.int_from_prv_key(prv_key: PrvKey)   # WIF, xprv, int, octets
+  curves.scalar_from_prv_key(prv_key: Integer)   # int, octets, hex
+  ```
+
+  A private key at this layer is a scalar: the integer, its `n_size`
+  octets, or their hex, and the buffers `bytes_from_octets` takes beside
+  them. A WIF and an extended key are `b58`'s and `bip32`'s objects, and
+  turning one into a scalar is a call a caller makes rather than a
+  spelling the curve layer guesses at. `scalar_from_prv_key` lives beside
+  `bytes_from_prv_key_int` for its reason: whether a scalar is in
+  1..n-1 is a fact about the curve, and nothing above it knows more
+  about that than `curves` does.
+
+  `ecc.bms` keeps `to_prv_key`, and keeps a different function — it
+  wants the `(int, network, compressed)` record, message signing being
+  bitcoin by definition, and of the `ecc` modules that used
+  `to_prv_key` it is the one that stays.
+
+  Three spellings go, on every entry point of those nine modules that
+  takes a private key: a WIF, an xprv as text, and an xprv as
+  `BIP32KeyData`. The first two are refused as the octets they are not —
+  a string reaching this layer is hex or it is nothing — and the third
+  by its type. What is left keeps its answers: an out-of-range int and
+  right-sized out-of-range octets raise the same "private key not in
+  1..n-1" they did.
+
+  Refusals change class as well as wording, and the classes are what a
+  caller has to read. `NotAPrvKeyError`, which named the formats tried
+  and why each declined, is not raised by these modules any more: octets
+  of the wrong size are `bytes_from_octets`' "invalid size", a string
+  that is no hex is its "invalid hex string", and a type no key has is
+  "invalid octets type" rather than "not a private key". `bms` raises it
+  exactly as before, so an `except NotAPrvKeyError` is load-bearing
+  there and dead around `dsa.sign`.
+
+  An extended *public* key spelled as a `BIP32KeyData` is the one shape
+  that crosses families: it was an `InvalidPrvKeyError`, which is a
+  `BTClibValueError`, and is a `BTClibTypeError` now, the `BIP32KeyData`
+  branch being gone and `bytes_from_octets` refusing it on the type. The
+  private one is not a message change at all — it was accepted, and is
+  the third of the three spellings withdrawn above.
+
+  `except BTClibValueError` does not cover everything these modules
+  raise, and did not before either: `_assert_prv_key_type` already
+  answered a `float` or a `None` with a `BTClibTypeError`. What changes
+  is which inputs land there, not that some do. `except BTClibException`
+  was the only complete catch and still is.
+
+  `psbt.musig2` is where the boundary shows. It keeps taking the wide
+  `PrvKey` — a psbt signer holding a WIF is not doing anything wrong —
+  and converts once, explicitly, before calling `ecc.musig2`. That
+  explicit call is what the union was hiding.
+
+  The two conversions coexist until issue #1188's last step deletes the
+  wide one, and they coexist under different names:
+  `tests/curve_parameter_test.py` drives `curves.scalar_from_prv_key`
+  and `to_prv_key.int_from_prv_key` side by side, each under its own,
+  which is what the rename bought.
+
 - **`ecc.ssa` stops taking an extended key**, and `BIP340PubKey`
   narrows from `Integer | Octets | BIP32Key | Point | PreparedPoint` to
   `int | Octets | Point | PreparedPoint` (issue #1188). An extended key

@@ -45,8 +45,14 @@ from btclib import var_bytes
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib._libsecp256k1 import ffi as libsecp256k1_ffi
 from btclib._libsecp256k1 import recovery as libsecp256k1_recovery
-from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
-from btclib.curves import Curve, PreparedPoint, mult, secp256k1
+from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
+from btclib.curves import (
+    Curve,
+    PreparedPoint,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -59,7 +65,6 @@ from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import (
     PubKey,
     _sec_from_pub_key,
@@ -412,10 +417,12 @@ def _sig_from_compact(compact: bytes, ec: Curve) -> Sig:
     return Sig(r, s, ec, check_validity=False)
 
 
-def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:
+def gen_keys(
+    prv_key: Integer | None = None, ec: Curve = secp256k1
+) -> tuple[int, Point]:
     """Return a private/public (int, Point) key-pair."""
     # here rather than in the branch below that reads n off the curve: a
-    # key that was given reaches int_from_prv_key's own check, and one
+    # key that was given reaches scalar_from_prv_key's own check, and one
     # that is drawn reaches nothing else
     _assert_valid_ec(ec)
 
@@ -423,7 +430,7 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
-        q = int_from_prv_key(prv_key, ec)
+        q = scalar_from_prv_key(prv_key, ec)
 
     # mult, not the _mult under it: the scalar is the private key and the
     # point is the generator, which is the one multiplication libsecp256k1
@@ -772,8 +779,8 @@ def _libsecp256k1_sign_(
 @overload
 def sign_(
     msg_hash: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = ...,
+    prv_key: Integer,
+    nonce: Integer | None = ...,
     lower_s: bool = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -788,8 +795,8 @@ def sign_(
 @overload
 def sign_(
     msg_hash: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = ...,
+    prv_key: Integer,
+    nonce: Integer | None = ...,
     lower_s: bool = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -803,8 +810,8 @@ def sign_(
 
 def sign_(
     msg_hash: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    prv_key: Integer,
+    nonce: Integer | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -890,7 +897,7 @@ def sign_(
 
     # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
 
     # the committed value has to reach the nonce derivation, or the
     # untweaked nonce is a function of the message and the key alone and
@@ -964,7 +971,7 @@ def sign_(
         # nonce: an integer in the range 1..n-1.
         if nonce is not None:
             # second part delegated to helper function
-            return _checked(_sign_(c, q, int_from_prv_key(nonce, ec), lower_s, ec))
+            return _checked(_sign_(c, q, scalar_from_prv_key(nonce, ec), lower_s, ec))
         # the check is of the signature the loop keeps and not of every
         # attempt, which is Core's order in `CKey::Sign` and the bindings'
         # own: a discarded attempt that was faulted costs an attempt
@@ -999,8 +1006,8 @@ def sign_(
 @overload
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = ...,
+    prv_key: Integer,
+    nonce: Integer | None = ...,
     lower_s: bool = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -1015,8 +1022,8 @@ def sign(
 @overload
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = ...,
+    prv_key: Integer,
+    nonce: Integer | None = ...,
     lower_s: bool = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -1030,8 +1037,8 @@ def sign(
 
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    prv_key: Integer,
+    nonce: Integer | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -1101,8 +1108,8 @@ def sign(
 
 def sign_recoverable_(
     msg_hash: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    prv_key: Integer,
+    nonce: Integer | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -1136,7 +1143,7 @@ def sign_recoverable_(
 
     # the secret key q: an integer in the range 1..n-1.
     # SEC 1 v.2 section 3.2.1
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
 
     # as in sign_: a nonce of the caller's is the nonce, where what the
     # bindings take is extra entropy for the RFC6979 nonce they derive
@@ -1172,15 +1179,15 @@ def sign_recoverable_(
     if nonce is None:
         nonce = _rfc6979_nonce_(c, q, ec, hf, None)  # 1
     else:
-        nonce = int_from_prv_key(nonce, ec)
+        nonce = scalar_from_prv_key(nonce, ec)
     # second part delegated to helper function
     return _sign_recoverable_(c, q, nonce, lower_s, ec)
 
 
 def sign_recoverable(
     msg: Octets,
-    prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    prv_key: Integer,
+    nonce: Integer | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -1303,13 +1310,13 @@ class Signer:
     """
 
     def __init__(
-        self, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+        self, prv_key: Integer, ec: Curve = secp256k1, hf: HashF = sha256
     ) -> None:
         _assert_valid_hf(hf)
         # the scalar, whatever spelling the key arrived in, and the
         # validation with it -- this is a public constructor and the
         # refusal belongs at it rather than at the first signature
-        self._q = int_from_prv_key(prv_key, ec)
+        self._q = scalar_from_prv_key(prv_key, ec)
         self._ec = ec
         self._hf = hf
         self._hf_len = hf().digest_size
@@ -1789,7 +1796,7 @@ def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
 
 def anti_exfil_signer_commit(
     msg_hash: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     host_commitment: Octets,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -1807,14 +1814,14 @@ def anti_exfil_signer_commit(
     with.
     """
     c = challenge_(msg_hash, ec, hf)
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
     entropy = bytes_from_octets(host_commitment, hf().digest_size)
     return mult(_rfc6979_nonce_(c, q, ec, hf, entropy), ec.G, ec)
 
 
 def anti_exfil_sign(
     msg_hash: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     rho: Octets,
     lower_s: bool = True,
     ec: Curve = secp256k1,

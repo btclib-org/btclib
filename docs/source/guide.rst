@@ -142,6 +142,14 @@ The four aliases:
     carries neither and everything downstream has to assume mainnet and
     compressed.
 
+    **This is the bitcoin layer's type, not** ``ecc``\ **'s.** The
+    signature schemes take a scalar — an ``int``, its ``n_size`` octets,
+    or their hex — because a WIF and an extended key are ``b58``'s and
+    ``bip32``'s objects, and converting one is a call you make. So
+    ``b58.p2pkh(wif)`` works and ``dsa.sign(msg, wif)`` does not; pass
+    ``prv_keyinfo_from_prv_key(wif)[0]``. ``ecc.bms`` is the exception,
+    message signing being bitcoin: it still takes the lot.
+
 ``Key``
     A public key in any of its spellings — SEC bytes compressed or not,
     an ``(x, y)`` tuple, an ``xpub`` — and also anything that is a

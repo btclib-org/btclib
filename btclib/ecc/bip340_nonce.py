@@ -34,10 +34,9 @@ from __future__ import annotations
 import secrets
 from hashlib import sha256
 
-from btclib.alias import HashF, Octets
-from btclib.curves import Curve, mult, secp256k1
+from btclib.alias import HashF, Integer, Octets
+from btclib.curves import Curve, mult, scalar_from_prv_key, secp256k1
 from btclib.hashes import tagged_hash
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 __all__ = [
@@ -87,7 +86,7 @@ def _bip340_nonce_(msg: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF)
 
 def bip340_nonce_(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -101,7 +100,7 @@ def bip340_nonce_(
     hf_len = hf().digest_size
     msg = bytes_from_octets(msg)
 
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
 
     x_Q, y_Q = mult(q, ec=ec)
     if y_Q % 2:

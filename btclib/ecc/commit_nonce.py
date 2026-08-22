@@ -63,12 +63,17 @@ from __future__ import annotations
 from hashlib import sha256
 
 from btclib._libsecp256k1 import keys as libsecp256k1_keys
-from btclib.alias import HashF, Octets, Point
-from btclib.curves import Curve, bytes_from_point, mult, secp256k1
+from btclib.alias import HashF, Integer, Octets, Point
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import _libsecp256k1_serves, _tweak_add_var
 from btclib.exceptions import BTClibRuntimeError
 from btclib.hashes import tagged_hash
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 __all__ = [
@@ -118,7 +123,7 @@ def _tweak(
 
 def commit_nonce_(
     commit_hash: Octets,
-    nonce: PrvKey,
+    nonce: Integer,
     tag: bytes,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -129,7 +134,7 @@ def commit_nonce_(
     tweak hashes, so a verifier given the committed value can recompute
     the tweak and reach the point the signature carries.
     """
-    nonce = int_from_prv_key(nonce, ec)
+    nonce = scalar_from_prv_key(nonce, ec)
     receipt = mult(nonce, ec.G, ec)
     tweak = _tweak(commit_hash, receipt, tag, ec, hf)
 

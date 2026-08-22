@@ -20,6 +20,50 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`ecc` no longer takes a WIF or an extended key as a private key**
+  (issue #1188). The entry points that took a private key however it was
+  spelled — every one in `dsa`, `ssa`, `musig2`, `dleq`, `ecies`,
+  `ellswift` and the three nonce modules, `gen_keys`, `Signer`,
+  `anti_exfil_signer_commit` and `anti_exfil_sign` among them — took a
+  WIF, an xprv, an
+  `int` or octets. They now take an `int`, its `n_size` octets, or their
+  hex. `borromean` is not among them and never was: it asks for a
+  sequence of `int` outright.
+
+  ```python
+  dsa.sign(msg, wif)                                  # was
+  dsa.sign(msg, prv_keyinfo_from_prv_key(wif)[0])     # is
+  ```
+
+  `prv_keyinfo_from_prv_key` is the converter that decodes every
+  spelling, and it answers the network and the compression flag beside
+  the scalar; take the first of the three. The point is that the
+  conversion is now a call you write, where it used to be a try-and-see
+  inside the signer.
+
+  Act on it if you hand one of those nine anything but a scalar.
+  **`ecc.bms` is not among them**: message signing is bitcoin, so it
+  still takes a WIF, an xprv and everything else it took, and everything
+  below is about the nine and not about it.
+
+  Refusals change with the input. `NotAPrvKeyError` is no longer raised
+  by the nine — wrong-size octets, a non-hex string and a bad-checksum
+  WIF are `bytes_from_octets`' own complaints now — and `bms` raises it
+  exactly as before, so an `except NotAPrvKeyError` around `bms.sign`
+  stays load-bearing while one around `dsa.sign` stops catching.
+
+  One shape changes exception *family*: an extended **public** key
+  spelled as a `BIP32KeyData` was an `InvalidPrvKeyError`, which is a
+  `BTClibValueError`, and is now a `BTClibTypeError`. The private one
+  does not appear here because it was accepted before and is withdrawn,
+  not re-messaged.
+
+  `except BTClibValueError` does not cover everything these nine raise —
+  but it never did, a wrong type having always been a `BTClibTypeError`.
+  If that is your catch, widen it to `BTClibException`; the advice is
+  the same as it always was, and this change makes more inputs reach
+  it.
+
 - **`ecc.ssa` no longer accepts a BIP32 extended key as a BIP340 public
   key** (issue #1188). `BIP340PubKey` was
 

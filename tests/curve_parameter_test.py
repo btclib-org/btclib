@@ -94,6 +94,7 @@ from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
     point_from_octets,
+    scalar_from_prv_key,
 )
 from btclib.ecc import borromean, dsa, ellswift, pedersen, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
@@ -209,6 +210,11 @@ _CASES = (
         "btclib.curves.sec_point.bytes_from_prv_key_int",
         bytes_from_prv_key_int,
         {"prv_key_int": _PRV_KEY},
+    ),
+    _Case(
+        "btclib.curves.sec_point.scalar_from_prv_key",
+        scalar_from_prv_key,
+        {"prv_key": _PRV_KEY},
     ),
     _Case(
         "btclib.curves.sec_point.point_from_octets",
