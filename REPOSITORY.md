@@ -77,16 +77,20 @@ answers the one claim the recorded vectors cannot make. `integration.yml`
 therefore carries no `paths` filter: a required check that never runs blocks
 a merge, where a skipped one satisfies it.
 
-`codeql: every job passed` is not among them, and that is the one place a
-check was traded for the wait it cost. GitHub Free gives an organization
-twenty concurrent jobs (as of 2026-08-21); a commit here asked for
-thirty-nine, and measured
-over a working afternoon the repository sat at nineteen or twenty running
-jobs for 1375 of 2100 seconds — so a pull request's wall clock was the wait
-for a slot and not the work. `codeql.yml` now runs on `main` and on its
-schedule, the analysis landing on the merge commit rather than ahead of it,
-and it still produces that aggregate: the name is available, so requiring it
-again is a patch to the rule and nothing in the tree.
+GitHub Free gives an organization twenty concurrent jobs (as of
+2026-08-21). Measured over a working afternoon while a commit here asked
+for thirty-nine, this repository sat at nineteen or twenty running jobs
+for 1375 of 2100 seconds — so a pull request's wall clock was the wait
+for a slot and not the work. That is the measurement the gate and the
+weekly sweeps are arranged around, and it is what the workflows citing
+this file cite.
+
+`codeql: every job passed` is not among the required checks, and that is
+the one place a check was traded for the wait it cost. `codeql.yml` now
+runs on `main` and on its schedule, the analysis landing on the merge
+commit rather than ahead of it, and it still produces that aggregate:
+the name is available, so requiring it again is a patch to the rule and
+nothing in the tree.
 
 What still reads a branch before it merges is the workflow half of the same
 question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very

@@ -13,9 +13,8 @@ name: ubuntu
 # buys is every pull request. GitHub Free gives an organization twenty
 # concurrent jobs, shared across every repository in it, and a gate wider
 # than one cell spends a review's wall clock waiting for a slot rather
-# than running the suite; REPOSITORY.md measures that ceiling against
-# what a commit here asks for, windows.yml has the runner seconds and
-# macos.yml the queueing.
+# than running the suite; REPOSITORY.md has that measurement,
+# windows.yml the runner seconds and macos.yml the queueing.
 #
 # What a matrix buys here is not the pure Python, which is the same
 # everywhere: every (os, architecture, interpreter) triple selects a

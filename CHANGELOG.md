@@ -325,7 +325,8 @@ documented at release-notes length in the first place, and are still in
   grid. `published`, `vendored-vectors` and `python-arm-authority` were
   monthly and are weekly with the rest.
 
-  `integration.yml` gains a cron with them and keeps every other trigger.
+  `integration.yml`'s own cron moves onto the grid beside them, and it
+  keeps every other trigger.
   Its job is a required check on every pull request and on the commit a
   merge creates, so the weekly run asks nothing new about the tree; what
   it asks is whether bitcoincore.org still serves the tarball pinned in
