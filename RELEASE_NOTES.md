@@ -18,6 +18,23 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`NETWORKS["regtest"].genesis_block` was byte-reversed and is now
+  Bitcoin Core's value** (issue #1203):
+
+  ```text
+  0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206
+  ```
+
+  where it read the same octets in the opposite order,
+  `06226e46…f188910f`. Nothing inside btclib reads the field, so
+  addresses, WIF and the bip32 versions are unaffected, and no other
+  network's value moves. A caller that read it — seeding a regtest
+  chain, or comparing against `getblockhash 0` — got a silent wrong
+  answer rather than an error, and one that had compensated by reversing
+  the octets itself has to stop doing so. CHANGELOG.md has why.
+
 ## v2026.8.21
 
 ### Breaking changes
