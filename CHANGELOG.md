@@ -933,6 +933,24 @@ documented at release-notes length in the first place, and are still in
   adoption is per module, and each step of it removes one of the round
   trips above.
 
+### Tests
+
+- **`test_the_flag_still_switches_the_check_off`'s docstring stops
+  counting the registry** (issue #1212). It said "the nine in
+  `NETWORKS`", where `NETWORKS` holds five — a number nothing in the
+  suite reads, sitting a hundred lines below `test_numbers_of_networks`,
+  whose `assert len(NETWORKS) == 5` is checked on every run and was
+  right the whole time. The sentence needs no number to say what it
+  means: the point is that *every* network built above it was built
+  checked, so the `check_validity=False` path below is the only one of
+  the two `if check_validity:` lines left unexercised. "Every one in
+  `NETWORKS`" says exactly that and cannot drift when a network is
+  added, which is what CONTRIBUTING.md's "measure, don't assert" asks
+  for — the count it forbids is the one written where nothing runs it.
+  `test_numbers_of_networks`'s own docstring keeps its "five": the
+  assertion that verifies it is the next line, so the run fails in the
+  same breath the sentence goes wrong. Introduced by 2f887453 (#1179).
+
 ## v2026.8.21
 
 ### Repository
