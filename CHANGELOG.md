@@ -1222,6 +1222,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Malformed input and the exception contract
 
+- **`check_output_pubkey`'s two arms agree on the sentence, which its
+  own comment already promised** (issue #1218). That comment says the
+  two "must agree on what they raise as well as on what they answer",
+  and they agreed on the class and the bool alone: for a control block
+  whose internal key is no point, the bindings arm answered "invalid
+  internal public key: invalid public key" and the Python one "invalid
+  x-coordinate: 5". A promise kept in one half is worse than one not
+  made.
+
+  Issue #1216 settled the neighbouring question for `_tweaked_pubkey`:
+  the sentence agrees where the call knows what was refused, and only
+  the class agrees where it does not. This call knows.
+  `tweak_add_check` is handed the internal key's x alone, with no `sec`
+  carrying a y beside it, and a `q` that is no x-coordinate is answered
+  `False` by both arms rather than raised on -- measured, not reasoned
+  -- so the only refusal it can produce is about that x. The wording is
+  now the lift's, range check included, and the test holds both arms to
+  all three shapes that sentence has.
+
 - **taproot's tweak translates the bindings' refusal, as every other arm
   in the tree does** (issue #1214). `_tweaked_pubkey`'s delegated arm
   hands `libsecp256k1_xonly.tweak_add` octets nothing has proved are a
