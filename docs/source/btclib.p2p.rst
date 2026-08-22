@@ -93,6 +93,13 @@ btclib.p2p.message module
    :members:
    :show-inheritance:
 
+btclib.p2p.negotiation module
+-----------------------------
+
+.. automodule:: btclib.p2p.negotiation
+   :members:
+   :show-inheritance:
+
 btclib.p2p.payload module
 -------------------------
 

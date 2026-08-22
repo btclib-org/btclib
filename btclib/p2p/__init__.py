@@ -88,6 +88,13 @@ from btclib.p2p.inventory import (
 )
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
+from btclib.p2p.negotiation import (
+    FeeFilter,
+    GetAddr,
+    Mempool,
+    SendHeaders,
+    WtxidRelay,
+)
 from btclib.p2p.payload import Payload
 
 __all__ = [
@@ -102,6 +109,8 @@ __all__ = [
     "CFHeaders",
     "CFilter",
     "CmpctBlock",
+    "FeeFilter",
+    "GetAddr",
     "GetBlockTxn",
     "GetBlocks",
     "GetCFCheckpt",
@@ -113,6 +122,7 @@ __all__ = [
     "Inv",
     "Inventory",
     "InventoryType",
+    "Mempool",
     "Message",
     "NetworkAddress",
     "NetworkAddressV2",
@@ -124,11 +134,13 @@ __all__ = [
     "PrefilledTransaction",
     "SendAddrV2",
     "SendCmpct",
+    "SendHeaders",
     "ServiceFlags",
     "TimestampedNetworkAddress",
     "TxPayload",
     "Verack",
     "Version",
+    "WtxidRelay",
     "magic_from_chain",
     "magic_from_network",
     "magic_from_signet_challenge",

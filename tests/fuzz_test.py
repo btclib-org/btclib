@@ -69,6 +69,13 @@ from btclib.p2p.inventory import (
 )
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
+from btclib.p2p.negotiation import (
+    FeeFilter,
+    GetAddr,
+    Mempool,
+    SendHeaders,
+    WtxidRelay,
+)
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
@@ -123,6 +130,11 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "NetworkAddressV2.parse": NetworkAddressV2.parse,
     "AddrV2.parse": AddrV2.parse,
     "SendAddrV2.parse": SendAddrV2.parse,
+    "GetAddr.parse": GetAddr.parse,
+    "Mempool.parse": Mempool.parse,
+    "SendHeaders.parse": SendHeaders.parse,
+    "WtxidRelay.parse": WtxidRelay.parse,
+    "FeeFilter.parse": FeeFilter.parse,
     "Version.parse": Version.parse,
     "Verack.parse": Verack.parse,
     "Ping.parse": Ping.parse,

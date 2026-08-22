@@ -1,0 +1,215 @@
+# Copyright (c) The btclib developers
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
+
+"""Tests for the `btclib.p2p.negotiation` module.
+
+**No capture stands behind these, and for this module there is nothing
+a capture would settle.** All but `feefilter` are the empty payload,
+whose whole content is the command in the envelope --
+`tests/p2p/message_test.py` is where the command's octets are driven --
+and `feefilter` is eight octets of a little-endian integer. The traps a
+captured message exists to catch in `tests/p2p/address_test.py` are the
+one big-endian field of this protocol and a sixteen-octet address with
+a narrower one inside it; neither shape is in this format.
+
+What is worth asserting instead is what this module decides: that each
+command is spelled the way Bitcoin Core's `NetMsgType` spells it -- a
+misspelling round-trips as well as the real thing, which is how
+btclib_node sent "sendcmpt" to the whole network -- and that a
+`feefilter` outside the money range is parsed rather than refused, Core
+asking `MoneyRange` about a value it has already read.
+"""
+
+from __future__ import annotations
+
+from dataclasses import FrozenInstanceError, replace
+from io import BytesIO
+
+import pytest
+
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.p2p import (
+    FeeFilter,
+    GetAddr,
+    Mempool,
+    Message,
+    SendHeaders,
+    WtxidRelay,
+)
+
+_MAINNET = bytes.fromhex("f9beb4d9")
+
+# the empty-payload classes as one type, rather than `type[Payload]`:
+# the base declares no constructor and no `parse`, so a parametrized
+# test typed against it could not build one of these or read one back
+_Empty = type[GetAddr] | type[Mempool] | type[SendHeaders] | type[WtxidRelay]
+
+# Bitcoin Core's NetMsgType, which is the authority on each of these:
+# the command is the whole of what an empty payload carries, so a name
+# only this library agrees with is a message nobody answers
+_EMPTY: tuple[tuple[_Empty, str], ...] = (
+    (GetAddr, "getaddr"),
+    (Mempool, "mempool"),
+    (SendHeaders, "sendheaders"),
+    (WtxidRelay, "wtxidrelay"),
+)
+_EMPTY_IDS = tuple(command for _, command in _EMPTY)
+
+
+@pytest.mark.parametrize("cls, command", _EMPTY, ids=_EMPTY_IDS)
+def test_an_empty_payload_travels_under_core_s_name(cls: _Empty, command: str) -> None:
+    """The command is the message, so the spelling is the whole of it."""
+    assert cls.command == command
+    assert cls().to_message(_MAINNET).command == command
+    assert Message.parse(cls().to_message(_MAINNET).serialize()).command == command
+
+
+@pytest.mark.parametrize("cls, command", _EMPTY, ids=_EMPTY_IDS)
+def test_an_empty_payload_is_no_octets_at_all(cls: _Empty, command: str) -> None:
+    """Nothing out, and nothing is what parses back."""
+    assert cls().serialize() == b""
+    assert cls().serialize(check_validity=False) == b""
+    assert cls.parse(b"") == cls()
+    assert cls.parse(b"", check_validity=False) == cls()
+    assert cls(check_validity=False) == cls()
+
+
+@pytest.mark.parametrize("cls, command", _EMPTY, ids=_EMPTY_IDS)
+def test_an_octet_after_an_empty_payload_is_refused(cls: _Empty, command: str) -> None:
+    """Core ignores what such a message carries; this refuses it.
+
+    The rule this library keeps everywhere: a buffer that deserializes
+    to an object serializing back to less than the buffer is
+    malleability, and a `getaddr` with a payload is exactly that.
+    """
+    for trailing in (b"\x00", b"junk"):
+        with pytest.raises(
+            BTClibValueError, match=f"bytes after the {command} payload"
+        ):
+            cls.parse(trailing)
+
+
+@pytest.mark.parametrize("cls, command", _EMPTY, ids=_EMPTY_IDS)
+def test_an_empty_payload_consumes_nothing_from_a_stream(
+    cls: _Empty, command: str
+) -> None:
+    """A caller's stream is left where it was: there is nothing to read."""
+    stream = BytesIO(b"junk")
+    assert cls.parse(stream) == cls()
+    assert stream.read() == b"junk"
+
+
+def test_an_empty_payload_is_its_own_class() -> None:
+    """One shape, several message types, and the command is which.
+
+    A `command` field on one class would let a caller build a `getaddr`
+    that serializes under "mempool"; a class apiece makes that
+    unsayable, and the generated `__eq__` compares the class, so objects
+    of no octets at all are still distinct values.
+    """
+    payloads = [cls() for cls, _ in _EMPTY]
+    assert len(set(payloads)) == len(_EMPTY)
+    assert len({payload.serialize() for payload in payloads}) == 1
+
+    # through `object`, because mypy refuses the direct comparison as
+    # non-overlapping -- which is the property being asserted, said
+    # statically; what runs here is the runtime half of it
+    getaddr: object = GetAddr()
+    assert getaddr != Mempool()
+
+
+@pytest.mark.parametrize("cls, command", _EMPTY, ids=_EMPTY_IDS)
+def test_an_empty_payload_is_frozen(cls: _Empty, command: str) -> None:
+    """A message is a value, and one with no fields is still one."""
+    with pytest.raises(FrozenInstanceError):
+        cls().command = "other"  # type: ignore[misc]
+
+    assert hash(cls()) == hash(cls())
+    assert replace(cls()) == cls()
+
+
+@pytest.mark.parametrize(
+    "feerate",
+    [0, 1, 1000, 21_000_000 * 100_000_000, -1, -(2**63), 2**63 - 1],
+)
+def test_the_fee_rate_round_trips(feerate: int) -> None:
+    """Eight octets, little-endian and signed, and back.
+
+    A negative rate and one above the money supply among them: BIP133's
+    field is a `CAmount`, Core reads it and *then* asks `MoneyRange`, so
+    what it declines to act on is still what it parsed.
+    """
+    message = FeeFilter(feerate)
+    assert len(message.serialize()) == 8
+    assert FeeFilter.parse(message.serialize()) == message
+    assert FeeFilter.parse(message.serialize()).feerate == feerate
+
+
+def test_the_fee_rate_is_satoshi_per_kvb_and_the_command_is_core_s() -> None:
+    """BIP133's units, and the name the message goes out under."""
+    assert FeeFilter.command == "feefilter"
+    assert FeeFilter(48_508).serialize().hex() == "7cbd000000000000"
+    assert FeeFilter().feerate == 0
+    assert FeeFilter(1).to_message(_MAINNET).command == "feefilter"
+
+
+def test_what_no_signed_eight_octets_hold_is_refused() -> None:
+    """`assert_valid` at the object boundary, and the type rule with it."""
+    with pytest.raises(BTClibValueError, match="invalid feerate"):
+        FeeFilter(2**63)
+    with pytest.raises(BTClibValueError, match="invalid feerate"):
+        FeeFilter(-(2**63) - 1)
+
+    with pytest.raises(BTClibTypeError, match="invalid feerate type"):
+        FeeFilter(1.5)  # type: ignore[arg-type]
+    # a bool is an int and would read as the fee rate one or zero, which
+    # the range check cannot tell from one whose value that is
+    with pytest.raises(BTClibTypeError, match="invalid feerate type"):
+        FeeFilter(True)
+
+    # and what is refused at the object boundary is refused on the way
+    # out too, an unchecked object being one a caller may hold
+    unchecked = FeeFilter(2**63, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid feerate"):
+        unchecked.serialize()
+    # what turning the check off buys is skipping the check, and not
+    # octets for a value there are none of: an unchecked object whose
+    # rate does fit writes exactly what a checked one writes
+    assert FeeFilter(1).serialize(check_validity=False) == FeeFilter(1).serialize()
+    assert FeeFilter.parse(FeeFilter(1).serialize(), check_validity=False) == FeeFilter(
+        1
+    )
+
+
+def test_the_fee_rate_octets_end_where_the_field_does() -> None:
+    """A short read is a truncation, and what follows is refused."""
+    for size in range(8):
+        with pytest.raises(BTClibValueError, match="not enough data for the feerate"):
+            FeeFilter.parse(bytes(size))
+
+    for trailing in (b"\x00", b"junk"):
+        with pytest.raises(BTClibValueError, match="bytes after the feefilter payload"):
+            FeeFilter.parse(bytes(8) + trailing)
+
+    with pytest.raises(BTClibTypeError, match="invalid octets type"):
+        FeeFilter.parse(None)  # type: ignore[arg-type]
+
+
+def test_a_fee_filter_leaves_a_stream_after_its_own_octets() -> None:
+    """Eight octets wide, so a stream reads one message and stops."""
+    stream = BytesIO(FeeFilter(7).serialize() + b"junk")
+    assert FeeFilter.parse(stream) == FeeFilter(7)
+    assert stream.read() == b"junk"
+
+
+def test_a_fee_filter_is_frozen() -> None:
+    """Refuse assignment to the rate: a message is a value."""
+    fee_filter = FeeFilter(1)
+
+    with pytest.raises(FrozenInstanceError):
+        fee_filter.feerate = 2  # type: ignore[misc]
+
+    assert replace(fee_filter, feerate=2) == FeeFilter(2)
+    assert isinstance(replace(fee_filter, feerate=2), FeeFilter)
+    assert hash(fee_filter) == hash(FeeFilter(1))

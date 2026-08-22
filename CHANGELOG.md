@@ -1303,6 +1303,86 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **The messages by which a peer says what it wants sent to it**:
+  `btclib.p2p.negotiation` carries `getaddr`, `mempool`, `sendheaders`,
+  `wtxidrelay` and `feefilter` (issue #1119). `getaddr` wants addresses,
+  `mempool` wants what is in the mempool, `sendheaders` wants a new
+  block announced as a header rather than as an inventory,
+  `wtxidrelay` wants transactions announced by wtxid, and `feefilter`
+  wants nothing below a fee rate. That is the one idea they share, and
+  the module is named for the larger half of it: three of them negotiate
+  how the rest of the connection is written, and two are one-off
+  requests. Issue #1119 is titled for both — "the p2p negotiation and
+  request messages" — and a filename cannot be.
+
+  Why they are together is not that they answer to nothing. Every other
+  request in the package sits beside the message that answers it —
+  `getdata` beside `inv`, `getcfilters` beside `cfilter`, `getblocktxn`
+  beside `blocktxn` — and the two requests here cannot follow that rule:
+  a `getaddr` is answered by an `addr` *or* an `addrv2`, so sitting
+  beside its answer means picking one of two modules, and a `mempool` is
+  answered by an `inv`, where `inventory` is the module about
+  inventories rather than about what a peer holds. The three negotiators
+  have the opposite problem: they turn nothing on that this package
+  encodes, so there is no codec for them to sit beside at all.
+  `sendaddrv2` and `sendcmpct` are not here for exactly that reason —
+  each *is* about a message this package encodes, so each stays beside
+  the codec it turns on.
+
+  All but `feefilter` are the empty payload `Verack` and `SendAddrV2`
+  already are, down to the one thing an empty payload has to get right:
+  `parse` refuses trailing octets rather than ignoring them, a message
+  the class could not have written not being one it may answer. Core
+  ignores what such a message carries; this refuses it, on the rule the
+  rest of the library keeps -- a buffer that deserializes to an object
+  serializing back to less than the buffer is malleability.
+
+  They repeat those lines rather than share a base, which is the
+  position `addrv2.SendAddrV2` already states: `keepalive._NoncePayload`
+  is a base because two commands have one *body*, and the absence of a
+  body is not a body to share. One class with `command` as a field is
+  refused for `payload.py`'s reason -- the command is the message's
+  identity, and a field would let a caller build a `getaddr` that
+  serializes under "mempool".
+
+  `FeeFilter.feerate` is the `int64_t` BIP133 defines the message as
+  containing, "interpreted as satoshis per kilobyte", and signed is not
+  an accident of the type Core happened to declare: Core reads the field
+  into a `CAmount` and asks `MoneyRange` about the value only
+  afterwards, so a rate outside the money range is octets it parses and
+  declines to act on. This parses them too — the money range is policy
+  about a value, and this package holds none — while refusing a value no
+  eight octets hold, which is the field boundary rather than a
+  judgement. The eight octets themselves are the Bitcoin Wiki's Protocol
+  documentation, cited by revision the way the envelope's tests cite it;
+  BIP133 states the type and the units and not the encoding.
+
+  What is not modelled is placement, and the rules differ enough that
+  each class carries its own rather than sharing one sentence.
+  `wtxidrelay` must arrive before the `verack` and Core disconnects a
+  peer that sends one after; `sendheaders` has no such rule and Core
+  honours one whenever it arrives, BIP130 being permissive in both
+  directions; `getaddr` is answered once per connection and only to an
+  inbound peer; `mempool` is served only where Core advertises
+  `NODE_BLOOM` *itself* or the asking peer is permitted; and a
+  `feefilter` goes out from protocol version 70013 unless Core is
+  ignoring incoming transactions, the peer has the force-relay
+  permission, or the connection is block-relay-only. Each is a rule
+  about *when* or *to whom*, which needs a connection to hold and this
+  package has none — the line `SendAddrV2` already draws for BIP155's
+  placement rule.
+
+  No capture stands behind the tests, and they say so: the empty
+  payloads are the command in the envelope, which
+  `tests/p2p/message_test.py` drives, and `feefilter` is a
+  little-endian integer. The traps a captured message exists to catch
+  in `tests/p2p/address_test.py` — the one big-endian field of this
+  protocol, and a sixteen-octet address with a narrower one inside it —
+  are neither of them this format's shape. What the tests do assert is
+  what the module decides: each command spelled as Core's `NetMsgType`
+  spells it, a misspelling round-tripping as well as the real thing,
+  and a fee rate outside the money range surviving the round trip.
+
 - **`ecc` takes a scalar and not a WIF**: `curves.scalar_from_prv_key`
   is the conversion, and the `ecc` modules that resolved a private key
   through `to_prv_key` resolve it through `curves` now (issue #1188).

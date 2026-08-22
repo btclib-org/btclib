@@ -36,6 +36,8 @@ from btclib.p2p import (
     CFHeaders,
     CFilter,
     CmpctBlock,
+    FeeFilter,
+    GetAddr,
     GetBlocks,
     GetBlockTxn,
     GetCFCheckpt,
@@ -47,6 +49,7 @@ from btclib.p2p import (
     Inv,
     Inventory,
     InventoryType,
+    Mempool,
     Message,
     NotFound,
     Payload,
@@ -55,9 +58,11 @@ from btclib.p2p import (
     PrefilledTransaction,
     SendAddrV2,
     SendCmpct,
+    SendHeaders,
     TxPayload,
     Verack,
     Version,
+    WtxidRelay,
 )
 from btclib.p2p.message import Message as MessageClass
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -101,6 +106,11 @@ _PAYLOADS: tuple[Payload, ...] = (
     CmpctBlock(_BLOCK_1.header, 1, [0x0102_0304_0506], [PrefilledTransaction(1, _TX)]),
     GetBlockTxn(_BLOCK_1.header.hash, [0, 2, 5]),
     BlockTxn(_BLOCK_1.header.hash, [_TX]),
+    GetAddr(),
+    Mempool(),
+    SendHeaders(),
+    WtxidRelay(),
+    FeeFilter(1000),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)
