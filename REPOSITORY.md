@@ -82,8 +82,7 @@ GitHub Free gives an organization twenty concurrent jobs (as of
 for thirty-nine, this repository sat at nineteen or twenty running jobs
 for 1375 of 2100 seconds — so a pull request's wall clock was the wait
 for a slot and not the work. That is the measurement the gate and the
-weekly sweeps are arranged around, and it is what the workflows citing
-this file cite.
+weekly sweeps are arranged around.
 
 `codeql: every job passed` is not among the required checks, and that is
 the one place a check was traded for the wait it cost. `codeql.yml` now
@@ -234,10 +233,9 @@ gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
 
 What decided it is the concurrency ceiling and not the queries. GitHub
 Free gives an organization twenty concurrent jobs (as of 2026-08-21), a
-pull request here
-asks for twenty-one on purpose, and `Analyze (python)` and `Analyze
-(ruby)` were two more on every pull request and every push to `main` —
-`Code Quality: PR #N` in the run list, 80 seconds and 32.
+pull request here asks for twenty-one on purpose, and `Analyze (python)`
+and `Analyze (ruby)` were two more on every pull request and every push
+to `main` — `Code Quality: PR #N` in the run list, 80 seconds and 32.
 
 What they produced in exchange cannot be read from here at all. There is
 no `code-quality/alerts` and no `code-quality/analyses`, both 404, and a

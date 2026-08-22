@@ -279,6 +279,22 @@ documented at release-notes length in the first place, and are still in
   produced it, and the `PUT` that moves this repository by hand the next
   time the organization default moves. Documentation only: nothing was
   set, and the read-back is the same object before and after.
+- **`REPOSITORY.md` drops a false claim about what cites its concurrency
+  measurement**. The passage closed with "it is what the workflows citing
+  this file cite", and most of what cites this file cites something else:
+  the required-contexts rule, the order settings are exchanged in, the
+  permissions shape, a paths filter, a rename recipe, the required-checks
+  table, the Read the Docs section, the Pages setting. `grep -rn
+  REPOSITORY.md .github/workflows` is what a reader would have checked the
+  clause against, and the clause loses. The sentence before it already
+  scopes the measurement to the gate and the weekly sweeps, which is a
+  claim about this file rather than about a citation set nobody
+  enumerated, so the paragraph ends there.
+- **Two paragraphs wrap through, rather than at the seam an edit landed
+  on.** `CONTRIBUTING.md`'s `integration` paragraph had `tests/README.md`
+  alone on a line of its own; `REPOSITORY.md`'s CodeQL paragraph had "pull
+  request here". Each came of reflowing part of a paragraph and stopping
+  where the edit stopped.
 
 ### Packaging, linting and CI
 
