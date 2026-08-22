@@ -548,6 +548,68 @@ def test_sign_key_idx_out_of_range_is_refused() -> None:
         borromean.sign(b"msg", [1], [-1], [1], [[q1, q2]])
 
 
+def test_a_scalar_outside_1_to_n_minus_1_is_refused() -> None:
+    """The range check every other signer in `ecc` has, and this had not.
+
+    `sign_keys[i]` reached step 2's `(k + sign_keys[i] * e[i][j_star]) %
+    ec.n` as it came, so three values outside 1..n-1 signed that
+    `dsa.sign` refuses: 0, `n`, and `q + n`. The last is the one that
+    mattered -- that line's own modulo made it silently the key `q`, so
+    two different inputs produced signatures that both verify under one
+    ring, and a caller who had added `n` to a key was never told
+    (issue #1243).
+
+    Zero and `n` were the quieter half: they produced a `BorromeanSig`
+    that verifies under nothing, where every other signer says so
+    instead of handing one back. `ks` is the same scalar and gets the
+    same reading -- a nonce of 0 or of `n` drew "no bytes representation
+    for infinity point", blaming the point step 1 built rather than the
+    value the caller passed.
+    """
+    ec = secp256k1
+    q = 3
+    pubk_rings = [[mult(1, ec.G, ec), mult(q, ec.G, ec)]]
+    err_msg = "private key not in 1..n-1"
+
+    for bad in (0, ec.n, q + ec.n):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            borromean.sign(b"msg", [1], [1], [bad], pubk_rings)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            borromean.sign(b"msg", [bad], [1], [q], pubk_rings)
+
+    # the key itself still signs, and the ring still verifies: what the
+    # check refuses is the three values, not the shape of the call
+    sig = borromean.sign(b"msg", [1], [1], [q], pubk_rings)
+    assert borromean.verify(b"msg", sig, pubk_rings)
+
+
+def test_a_key_and_a_nonce_are_spelled_the_way_ecc_spells_a_scalar() -> None:
+    """`Integer`, which is what `mult` and `dsa.sign` take.
+
+    `Sequence[int]` was this signer's alone, so a caller holding a key as
+    octets or hex converted for it and for nothing else -- and the
+    conversion they skipped did not raise btclib's own error but
+    Python's, all of them out of the one line that builds the real
+    s-value: an `OverflowError` where the key repeats a str or a bytes
+    instead of multiplying, the challenge being far too large a repeat
+    count to fit the index-sized integer CPython wants, and a
+    `TypeError` where the nonce adds an int to one -- a different
+    sentence per spelling. None of the three is a `BTClibValueError` or
+    a `BTClibTypeError`, so all escaped the contract (issue #1243).
+    """
+    ec = secp256k1
+    q = 3
+    pubk_rings = [[mult(1, ec.G, ec), mult(q, ec.G, ec)]]
+
+    for key in (q, f"{q:064x}", q.to_bytes(ec.n_size, "big")):
+        sig = borromean.sign(b"msg", [1], [1], [key], pubk_rings)
+        assert borromean.verify(b"msg", sig, pubk_rings)
+
+    for nonce in (1, f"{1:064x}", (1).to_bytes(ec.n_size, "big")):
+        sig = borromean.sign(b"msg", [nonce], [1], [q], pubk_rings)
+        assert borromean.verify(b"msg", sig, pubk_rings)
+
+
 # each maps an s-value to a key `_guess_signer` maximizes over the ring: a
 # published signature must not let any of them recover which position was
 # the real signer. "bit_length" and "value" are the two the unreduced real

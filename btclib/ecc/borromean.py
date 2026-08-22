@@ -63,8 +63,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 
-from btclib.alias import BinaryData, HashF, Octets, Point
-from btclib.curves import Curve, bytes_from_point, double_mult_var, mult, secp256k1
+from btclib.alias import BinaryData, HashF, Integer, Octets, Point
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    double_mult_var,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import BorromeanRingError, BTClibRuntimeError, BTClibValueError
 from btclib.utils import (
@@ -369,9 +376,9 @@ def _assert_sign_key_idx_in_range(
 
 def sign(
     msg: Octets,
-    ks: Sequence[int],
+    ks: Sequence[Integer],
     sign_key_idx: Sequence[int],
-    sign_keys: Sequence[int],
+    sign_keys: Sequence[Integer],
     pubk_rings: Sequence[PubkeyRing],
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -385,6 +392,12 @@ def sign(
     key in each ring, `sign_keys` the real private key of each ring --
     `sign_keys[i]` signs at `pubk_rings[i][sign_key_idx[i]]` -- and
     `pubk_rings` the full public rings, real key included.
+
+    `ks` and `sign_keys` are scalars, spelled as `Integer` the way `dsa`
+    and `ssa` spell one, and each is read through
+    `curves.scalar_from_prv_key`: in 1..n-1, or refused (issue #1243).
+    `sign_key_idx` is not one of them and stays `int` -- it indexes a
+    ring, and an index is not a scalar written in hex.
     `sign_key_idx[i]` must be a valid index into `pubk_rings[i]`, refused
     with `BTClibValueError` naming the ring, the index and the ring's
     size otherwise -- a ring with no keys has none, whatever the index
@@ -418,10 +431,11 @@ def sign(
     # 3" and no parameter of this function; strict=True stays, as the
     # assertion that this check and those loops cannot drift apart.
     # sign_keys is part of this check for the same reason as the other
-    # three: step 2 indexes it per ring (`sign_keys[i]`), so a shorter
-    # sequence there is the same shape exposure _assert_matches_pubk_rings
-    # refuses on the verification side, one ring's worth of tuple away
-    # from a bare IndexError instead of this message
+    # three: step 2 indexes it per ring, through the `q_ints` built from
+    # it one entry at a time, so a shorter sequence there is the same
+    # shape exposure _assert_matches_pubk_rings refuses on the
+    # verification side, one ring's worth of tuple away from a bare
+    # IndexError instead of this message
     if not len(pubk_rings) == len(sign_key_idx) == len(ks) == len(sign_keys):
         err_msg = f"{len(pubk_rings)} rings, {len(sign_key_idx)} signing indexes, "
         err_msg += f"{len(ks)} nonces and {len(sign_keys)} signing keys"
@@ -435,9 +449,26 @@ def sign(
     # verification side
     _assert_sign_key_idx_in_range(pubk_rings, sign_key_idx)
 
+    # both sequences are scalars and neither was read as one. Step 2 took
+    # `sign_keys[i]` as it came, so a key of 0, of n, or of q + n signed
+    # where every other signer in `ecc` refuses all three -- q + n
+    # silently the same key as q, the reduction being that line's own
+    # `% ec.n` -- and the octets and hex spellings `Integer` names left
+    # Python's `OverflowError` for a key and its `TypeError` for a nonce,
+    # neither of them anything this library declares (issue #1243).
+    # Read before step 1 rather than in the loop that consumes each, so
+    # a scalar a later ring's would have refused costs no scalar
+    # multiplication first.
+    #
+    # The ring is not named here, where `_assert_sign_key_idx_in_range`
+    # names it: a ring's size is a fact the caller has to be told, and a
+    # key of 0 is one they can see in the sequence they passed.
+    k_ints = [scalar_from_prv_key(k, ec) for k in ks]
+    q_ints = [scalar_from_prv_key(q, ec) for q in sign_keys]
+
     # step 1
     for i, (pubk_ring, j_star, k) in enumerate(
-        zip(pubk_rings, sign_key_idx, ks, strict=True)
+        zip(pubk_rings, sign_key_idx, k_ints, strict=True)
     ):
         keys_size = len(pubk_ring)
         start_idx = (j_star + 1) % keys_size
@@ -465,7 +496,7 @@ def sign(
     e0 = hasher.digest()
     # step 2
     # strict=True: see step 1
-    for i, (j_star, k) in enumerate(zip(sign_key_idx, ks, strict=True)):
+    for i, (j_star, k) in enumerate(zip(sign_key_idx, k_ints, strict=True)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # zero e again: the same accident documented above
         if not 0 < e[i][0] < ec.n:
@@ -488,13 +519,13 @@ def sign(
                 raise BorromeanRingError(err_msg, i, j)  # pragma: no cover
         # reduced mod n, like every forged value above: unreduced, this
         # is about twice the bit length of the others -- k and
-        # sign_keys[i] * e[i][j_star] are each near n, so their sum is
+        # q_ints[i] * e[i][j_star] are each near n, so their sum is
         # about 512 bits where a forged s stays at 256 -- and the real
         # signer's ring position is then the longest s in the ring, with
         # no computation needed to read it off a published signature.
         # Every consumer already reduces mod n (`mult`, `double_mult_var`),
         # so this changes no signature, only what it discloses.
-        s[i][j_star] = (k + sign_keys[i] * e[i][j_star]) % ec.n
+        s[i][j_star] = (k + q_ints[i] * e[i][j_star]) % ec.n
     return BorromeanSig(e0, s, ec)
 
 
