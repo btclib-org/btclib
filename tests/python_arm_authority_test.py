@@ -42,7 +42,7 @@ belongs: every module `_THIRD_PARTY_VECTORS` names, under coverage, in
 an environment with no bindings, is minutes rather than seconds, and
 nothing here asks a contributor's branch to pay for it.
 
-That re-derivation runs monthly instead, is
+That re-derivation runs weekly instead, is
 `.github/workflows/python-arm-authority.yml`, calling
 `.github/scripts/check_python_arm_authority.py` -- issue #1003's answer.
 It repeats the measurement above, module by module, and fails loudly on

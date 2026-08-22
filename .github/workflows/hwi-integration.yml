@@ -28,9 +28,13 @@ name: hwi-integration
 
 on:
   schedule:
-    # the same slot integration.yml answers Friday's other half in --
-    # Fridays, 04:29 UTC, not on the hour for the reason given there
-    - cron: "29 4 * * 5"
+    # Friday, the hour after ubuntu.yml: an emulator is a service to keep
+    # working, and a week is as often as anybody acts on the answer.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 5 * * 5"
   push:
     branches: [main]
   workflow_call:
@@ -107,7 +111,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1

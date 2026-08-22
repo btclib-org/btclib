@@ -11,17 +11,17 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full
 rehearsal against TestPyPI. A rehearsal is never tagged.
 
-**A workflow GitHub has not registered cannot be dispatched, and it
-registers one only once its file has reached the default branch.** That
-makes `release.yml`, `latest.yml`, `published.yml`, `macos.yml` and
-`windows.yml` — `schedule` and `workflow_dispatch` only, so nothing else
-ever triggers them — answer `gh: Not Found (HTTP 404)` until the release
-pull request is merged. It bites once, on the first release after any of
-them is written, and it inverts the order below: the TestPyPI rehearsal
-and the `latest` run that this file asks for *before* the merge can only
-happen after it, still before the tag. It also means such a workflow
-reaches `main` having never run, which is how `published.yml` shipped a
-`windows-11-arm` cell that failed at setup.
+**A workflow GitHub has not registered cannot be dispatched, and it registers
+one only once its file has reached the default branch.** That makes
+`release.yml`, `latest.yml`, `published.yml`, `ubuntu.yml`, `macos.yml` and
+`windows.yml` — `schedule` and `workflow_dispatch` only, so nothing else ever
+triggers them — answer `gh: Not Found (HTTP 404)` until the release pull
+request is merged. It bites once, on the first release after any of them is
+written, and it inverts the order below: the TestPyPI rehearsal and the
+`latest` run that this file asks for *before* the merge can only happen after
+it, still before the tag. It also means such a workflow reaches `main` having
+never run, which is how `published.yml` shipped a `windows-11-arm` cell that
+failed at setup.
 
 ## Which version string is which
 
@@ -140,7 +140,7 @@ unconstrained — and publishes the very files those checks passed to
 ## Release to PyPI
 
 `latest` is worth dispatching before the tag rather than waiting for its
-Wednesday cron, because what it answers is cheaper to know before a version
+weekly cron, because what it answers is cheaper to know before a version
 is consumed than after. It gates nothing, so it will not stop you:
 reading it is the point. Its `suite-bindings-latest` job is the one worth
 reading closely: it asks about the newest btclib_secp256k1 release
@@ -504,7 +504,7 @@ to `latest`'s own result.
    vector against the `_data/` files a wheel missing one would still
    install and import cleanly, and a BIP340 vector besides — both fixed
    forever, so neither needs an edit after a release the way a
-   version-pinned assertion would. From then on it runs monthly on its
+   version-pinned assertion would. From then on it runs weekly on its
    own, and a failure means the outside world moved, not this repository —
    a new interpreter release, PyPI serving a file that does not match its
    own hash — which is why it is a workflow of its own rather than a job

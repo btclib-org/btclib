@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for `compare()`, the diff logic of the monthly Python-arm sentinel.
+"""Tests for `compare()`, the diff logic of the weekly Python-arm sentinel.
 
 `measure()` is what actually runs the suite under coverage, module by
 module -- exactly what this repository collects no coverage from, the

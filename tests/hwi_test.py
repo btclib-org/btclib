@@ -25,7 +25,7 @@ run over it here.
 The tables below that transcription is written out in are the other half
 of staying aligned with a project btclib does not import: they say what
 btclib sends and reads, and `tests/_data/README.md` pins the two upstream
-paths they were read from, so the monthly re-check reports a command line
+paths they were read from, so the weekly re-check reports a command line
 that moved. The module cites, the README carries the revision -- the same
 split every vendored vector here has.
 """
@@ -116,7 +116,7 @@ else:
 
 # The surface btclib depends on, transcribed from HWI's `_cli.py` and
 # `errors.py`; `tests/_data/README.md` carries the revision each is
-# pinned to, so the monthly upstream re-check reports a path that moved.
+# pinned to, so the weekly upstream re-check reports a path that moved.
 #
 # Written out rather than derived from `btclib.hwi`: a table that read
 # the adapter would agree with it by construction and say nothing. This

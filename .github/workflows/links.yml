@@ -18,16 +18,14 @@ name: links
 
 on:
   schedule:
-    # Mondays, 04:17 UTC. Not on the hour: GitHub queues scheduled
-    # workflows across every repository that asked for the same minute, and
-    # the run can be dropped outright when the queue is long.
-    # First among the weekday sentinels: whether an external page still
-    # resolves is the least volatile of the questions this week asks --
-    # latest.yml (Wednesday) and Dependabot (Thursday) each ask something
-    # that changes more often than the last. published.yml asks the
-    # quietest of them all and asks it monthly, its subject being an
-    # artifact already released and therefore fixed
-    - cron: "17 4 * * 1"
+    # Monday, with vendored-vectors.yml an hour later: both ask whether
+    # what this tree points at is still where it says, one over the
+    # internet and one over a pinned blob.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 4 * * 1"
   # the escape hatch, and the way to check a branch before merging a
   # documentation change that adds links
   workflow_dispatch:
@@ -104,7 +102,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Check the links
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0

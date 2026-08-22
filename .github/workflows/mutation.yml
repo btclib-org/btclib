@@ -30,20 +30,17 @@ on:
   # every commit, and `cosmic-ray baseline` below fails the run before any
   # mutant if the test command has gone stale
   schedule:
-    # Sundays, 03:41 UTC, so a session measured in hours has the weekend
-    # to itself. Not on the hour: GitHub queues scheduled workflows across
-    # every repository that asked for the same minute, and the run can be
-    # dropped outright when the queue is long.
-    # The weekday sentinels run Monday through Thursday in the order the
-    # questions build on each other (links, codeql, latest, then
-    # Dependabot's pull request), and this one asks something on a
-    # different axis entirely -- the suite's own quality, not a
-    # dependency's -- which is what leaves it the weekend on its own.
+    # Sunday, an hour before integration.yml and nothing else: a session
+    # measured in hours gets the emptiest day the grid has. It also asks
+    # something on a different axis from every other sentinel here -- the
+    # suite's own quality, not a dependency's or a platform's.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches the default branch -- elsewhere it is reachable
     # through the
     # dispatch button below and nowhere else
-    - cron: "41 3 * * 0"
+    - cron: "4 4 * * 0"
   # the escape hatch, and the way to spend a whole afternoon on the engine
   # session that the weekly budget only samples
   workflow_dispatch:
@@ -307,7 +304,7 @@ jobs:
         if: env.SELECTED == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Setup uv
         if: env.SELECTED == 'true'

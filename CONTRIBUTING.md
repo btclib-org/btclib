@@ -291,49 +291,68 @@ read by every checkout of this repository.
 
 | workflow | when | what it varies |
 | --- | --- | --- |
-| `test` | pull request, push | 2 platforms × 7 interpreters |
+| `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
-| `integration` | pull request, push | a node, two device emulators |
+| `integration` | pull request, push, weekly | a node |
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `codeql` | push to main, Tuesday | 2 languages |
-| `windows` | Saturday, a release | 2 Windows images × 7 interpreters |
-| `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
-| `latest` | Wednesday | platforms sampled, deps upgraded |
+| `codeql` | push to main, and weekly | 2 languages |
+| `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
+| `macos` | weekly, a release | 2 macOS images × 7 interpreters |
+| `windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `latest` | weekly | platforms sampled, deps upgraded |
+| `hwi-integration` | weekly, push to main | two device emulators |
 | `links`, `mutation` | weekly | — |
-| `vendored-vectors` | monthly | upstream's vectors |
-| `published` | monthly, a release | what PyPI serves |
-| `python-arm-authority` | monthly | the arm-to-vector-module table |
-| `release` | a tag | calls test, lint, docs, macos, windows, published |
+| `vendored-vectors` | weekly | upstream's vectors |
+| `published` | weekly, a release | what PyPI serves |
+| `python-arm-authority` | weekly, push to main | the arm-authority table |
+| `release` | a tag | the workflows `release.yml` names in a `uses:` |
+
+That last cell is a pointer rather than a list on purpose: which
+workflows a release calls is read out of the file, where a list here goes
+stale the next time one is added or dropped.
+
+```shell
+grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
+```
 
 The `test`, `lint`/`docs`, `integration` and `website` rows are what a
 merge waits for, and between them they report the required checks: `lint`
-and `docs` share a row and report one each.
+and `docs` share a row and report one each. They run one image on one
+interpreter: `ubuntu-latest`, and the version `.python-version` names.
+Which day each of the rest runs is section 10 of the organization
+standard, in `btclib-org/.github`, and not this file's to restate — one
+calendar covering six repositories is one thing to remember, and six
+copies of it are six things to keep true.
 
-What the other rows have in common is that a pull request does not wait for
-them, and the reason is one number: the ceiling GitHub Free puts on an
-organization's concurrent jobs. REPOSITORY.md measures it and what it cost,
-and the consequence is this table's: at that ceiling a pull request's wall
-clock is the wait for a slot rather than the suite, so a platform row earns
-its place before a review only if it is cheap to wait for. macOS queued 29.4
-and 23.2 minutes on average against 0.5 to 1.6 elsewhere, and the fourteen
-Windows cells were 2357 of the 3556 seconds of matrix work per commit, the
-slowest rows and the longest queues. Both answer weekly and before a
-release instead, which is a regression sitting on `main` for at most a week
-against every review paying for it. `codeql` is there for the same
-arithmetic, with `zizmor` in `lint` still reading these workflows on every
-pull request.
+Why so little gates is one number: the ceiling GitHub Free puts on an
+organization's concurrent jobs, twenty shared across every repository in
+it. REPOSITORY.md measures what a wider gate cost against that ceiling,
+and the consequence is this table's: at that ceiling a pull request's
+wall clock is the wait for a slot rather than the suite. `macos.yml` and
+`windows.yml` each carry the measurement for their own cells, the
+queueing and the runner seconds. `codeql` is off the gate for the same
+arithmetic, with `zizmor` in `lint` still reading these workflows on
+every pull request.
 
-`macos` and `latest` share a morning half an hour apart, which is what makes
-the pair readable: red in both is the platform, red in `latest` alone is the
-upgrade. `windows` takes a morning of its own, Saturday being the day
-nothing else here asks for — fourteen jobs beside those two would rebuild on
-Wednesday the queue this arrangement exists to remove. Every workflow in the
+The trade, stated here rather than discovered later: the gate does not
+refuse a regression on `3.10`, on arm, on PyPy or on a platform. It sits
+on `main` until the sentinel for it runs, at most six days.
+
+**What a sentinel varies, it varies whole.** `ubuntu` runs the images and
+the interpreters the gate leaves alone *and* the cell it spends. A matrix
+with the gate's cell cut out of it is one nobody can read the shape of,
+and whoever asked what ran would have to re-derive the hole from
+`test.yml`.
+
+`ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
+the platform; `latest` moves both. Red in one of the three with `latest`
+green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for `codeql` and
-the two platform workflows it is the only way to ask about a branch at all.
-`claude-review` is the exception, and takes none: both its jobs read the
-pull request or the comment that triggered them, so a manual dispatch
+the three platform workflows it is the only way to ask about a branch at
+all. `claude-review` is the exception, and takes none: both its jobs read
+the pull request or the comment that triggered them, so a manual dispatch
 would start a run with nothing to read.
 
 ### Reproducing what CI runs
@@ -353,9 +372,10 @@ uv run --locked --only-group lint \
 `Build the documentation` is a workflow of its own, `docs.yml`, and its
 command is the one below under "The documentation".
 
-One cell of the `suite` matrix of `test.yml`. The interpreter is chosen with
-`--python`, which accepts any of the ones the matrix lists, `3.14t` and
-`pypy3.11` included, and downloads it if the machine has none:
+One cell of the matrix `ubuntu.yml`, `macos.yml` and `windows.yml` each
+carry. The interpreter is chosen with `--python`, which accepts any of the
+ones those workflows list, `3.14t` and `pypy3.11` included, and downloads
+it if the machine has none:
 
 ```shell
 uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
@@ -370,15 +390,16 @@ touching `.venv`. The command is what CI runs, verbatim, and CI has no
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
 whether that (os, architecture, interpreter) triple passes. The job below
-is where coverage is measured, and `macos.yml` and `windows.yml` pass the
-flag for the same reason. `latest.yml` does not: it runs no PyPy cell and
-has no coverage job of its own, so the ratchet meeting an upgraded
-coverage.py is one of the things that workflow exists to find out.
+is where coverage is measured, which is the reason `ubuntu.yml` gives and
+the other two cite. `latest.yml` does not pass the flag: it runs no PyPy
+cell and has no coverage job of its own, so the ratchet meeting an
+upgraded coverage.py is one of the things that workflow exists to find
+out.
 
-One pair is missing from that matrix, `(3.14, ubuntu-latest)`, and the
-coverage job below is it: same image, same interpreter, same suite, and the
-only difference is the instrumentation. Reproducing that cell is therefore
-the coverage command rather than this one.
+The `(3.14, ubuntu-latest)` cell of those matrices is the gate, and the
+job below is it: same image, same interpreter, same suite, and the only
+difference is the instrumentation. Reproducing that cell is therefore the
+coverage command rather than this one.
 
 The `coverage` job, gated by `fail_under` in pyproject.toml:
 
@@ -583,7 +604,7 @@ uv run --locked --no-default-groups --group test python -c \
 uv run --locked --no-default-groups --group test pytest
 ```
 
-The `published` workflow, monthly, on demand and as part of a release,
+The `published` workflow, weekly, on demand and as part of a release,
 has two jobs, entitled to different answers about what the index
 serves.
 
@@ -716,8 +737,11 @@ Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
 The `integration` workflow, which gates and is the exception here: it
-runs on every pull request, weekly besides, and `Regtest against Bitcoin
-Core` is required on `main`. It asks the one question the rest of CI
+runs on every pull request, on every push to `main` and before a release,
+and `Regtest against Bitcoin Core` is required on `main`. It has no
+schedule of its own, and that workflow's own header says why: it pins one
+Core release, so a weekly run would ask the gate's question again about a
+tree nothing had touched. It asks the one question the rest of CI
 cannot, whether Bitcoin Core accepts what btclib built. It downloads a
 pinned Core release,
 verifies its published sha256, and runs the tests `tests/README.md`
@@ -898,7 +922,7 @@ Three consequences worth knowing before editing any of them:
   `paths` filter, and a required check that produces no run blocks a merge.
 
 Because Pages serves from `main`, a website-only commit there also
-triggers the full test matrix; `test.yml`'s `push` trigger carries a
+triggers the whole gate; `test.yml`'s `push` trigger carries a
 `paths-ignore` for these files so that it does not. The `pull_request`
 trigger deliberately does not: those checks are required on `main`, and a
 required check that produces no run blocks the merge.

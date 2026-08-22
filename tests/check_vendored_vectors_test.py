@@ -252,9 +252,9 @@ def test_latest_commit_is_none_when_upstream_has_no_commit_for_the_path(
     `repos/{repo}/commits?path=` answers `[]` with a 200 when upstream
     has no commit touching that path -- it was renamed, moved or deleted.
     Unpacking one commit out of that raised `ValueError`, which took
-    `find_drift` down with it and left `report` unreached: a red monthly
-    run and no issue, on the one drift a vendored file nobody re-reads
-    would otherwise hide.
+    `find_drift` down with it and left `report` unreached: a red run and
+    no issue, on the one drift a vendored file nobody re-reads would
+    otherwise hide.
     """
     fake_gh.commits["btclib-org/btclib", "tests/gone.json"] = None
     assert checker._latest_commit("btclib-org/btclib", "tests/gone.json") is None

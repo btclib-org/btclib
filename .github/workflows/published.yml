@@ -20,12 +20,11 @@ name: published
 # one whose values are fixed forever, so neither needs an edit after a
 # release the way a version-pinned assertion would.
 #
-# A schedule this quiet is also the one GitHub itself might stop
-# firing: it suspends a workflow's cron trigger after sixty days
-# without repository activity, and says so only by email. That is
-# exactly the interval this sentinel exists to cover, so a silence
-# from it is worth a look at the Actions tab before it is read as
-# green.
+# A schedule is also something GitHub itself stops firing: it suspends a
+# workflow's cron trigger after sixty days without repository activity,
+# and says so only by email. Sixty quiet days is exactly the stretch this
+# sentinel exists to cover, so a silence from it is worth a look at the
+# Actions tab before it is read as green.
 #
 # What this is not: a sentinel for whether the newest btclib_secp256k1
 # breaks this tree. That question -- issue #397 -- belongs to latest.yml's
@@ -52,24 +51,26 @@ name: published
 
 on:
   schedule:
-    # The first of the month, at a minute that is not the hour: everything
-    # scheduled on the hour queues together, and a run that waits is a run
-    # whose failure is noticed later. Monthly and not weekly because the
-    # subject does not change: an already-released artifact is fixed, and
-    # what can move under it -- a new interpreter, an index serving a file
-    # that does not match its own hash -- moves on nobody's week. The one
-    # moment the answer can change is a release, and that is a call from
-    # release.yml rather than a day on the calendar.
+    # Wednesday, the hour after latest.yml, and the pair is why this is
+    # weekly: latest.yml upgrades every dependency and runs the suite,
+    # this asks what the index actually serves, and read together they
+    # separate a break this tree caused from one that arrived. What it
+    # watches is external rot -- a new interpreter, an index serving a
+    # file that does not match its own hash -- which a week samples as
+    # well as anything longer, and after a release the trigger below
+    # answers immediately regardless.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "31 4 1 * *"
+    - cron: "4 5 * * 3"
   # after a release, which is the one moment this workflow's answer can
   # change: a call does not forget, where RELEASING.md's step is a verdict
   # to read. Called by release.yml rather than triggered by
   # workflow_run, which zizmor rates a dangerous trigger and rightly -- it
   # runs the default branch's copy with the token of a push nobody reviewed
   # -- where a call runs inside the release that gated it. The caller passes
-  # the tag, and only the caller does: the monthly run and a dispatch have
+  # the tag, and only the caller does: the weekly run and a dispatch have
   # no particular version in mind, which is the point of them
   workflow_call:
     inputs:

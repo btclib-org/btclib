@@ -77,21 +77,14 @@ on:
     # against
     branches: [main]
   schedule:
-    # Tuesdays, 04:23 UTC. Not on the hour: GitHub queues scheduled
-    # workflows across every repository that asked for the same minute,
-    # and the run can be dropped outright when the queue is long.
-    # Tuesday is a day nothing else here asks for -- links Monday, latest
-    # and macos Wednesday, Dependabot Thursday, integration Friday, windows
-    # Saturday and the mutation session Sunday -- so a failure notification
-    # still names the workflow by the day it arrived; and it is the day
-    # btclib-secp256k1 and bitcoin-core-rpc analyse on, so "did CodeQL
-    # go red anywhere" has one morning to read rather than three. Weekly, as
-    # default setup was: what a scheduled analysis catches is a query
-    # CodeQL added since the last commit, which arrives with the bundle
-    # rather than with a branch.
+    # Weekly, as default setup was: what a scheduled analysis catches is
+    # a query CodeQL added since the last commit, which arrives with the
+    # bundle rather than with a branch.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
     # Cron runs from the default branch only, so this asks nothing until
     # it reaches main; elsewhere the dispatch below is the way in
-    - cron: "23 4 * * 2"
+    - cron: "4 4 * * 2"
   # the escape hatch, and with no pull_request trigger above it is the only
   # way to analyse a branch before it is merged: worth reaching for on one
   # that touches a workflow, which is what the actions queries read
@@ -162,7 +155,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7

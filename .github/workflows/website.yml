@@ -111,7 +111,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # see the checkout of the suite job in test.yml
+          # see the checkout of the coverage job in test.yml
           persist-credentials: false
       # 3.3.4 is what Pages runs, from the same versions.json the Gemfile
       # names: a build that passes here on a ruby Pages does not have says

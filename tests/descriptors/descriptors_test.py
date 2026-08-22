@@ -17,7 +17,7 @@ Not vendored as files, those and BIP387's and BIP390's alike: the values
 are read out of C++ source and mediawiki prose rather than copied from a
 data file, so what this module cites is the path and the case, and
 `tests/_data/README.md` carries the revision each is pinned to -- which
-is also what the monthly upstream re-check reads.
+is also what the weekly upstream re-check reads.
 
 Four of those descriptors have no public spelling to check, and Core's
 own flags say why: HARDENED and DERIVE_HARDENED mark a derivation that
