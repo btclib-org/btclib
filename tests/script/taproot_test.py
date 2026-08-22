@@ -503,15 +503,15 @@ def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
     this: the wrong spelling is accepted at the door and refused
     halfway (issue 1220).
     """
-    tree: list[Any] = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     q, _ = output_pubkey(0xC0FFEE, tree)
     witness = input_script_sig(0xC0FFEE, tree, 0)
     script, control = serialize(witness[0]), witness[1]
 
-    assert check_output_pubkey(q, spelling(script), spelling(control))
+    assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
-        assert check_output_pubkey(q, spelling(script), spelling(control))
+        assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
 
 
 def test_invalid_control_block() -> None:
