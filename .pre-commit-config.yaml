@@ -369,6 +369,16 @@ repos:
         entry: |-
           (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
+      # a word wrapped at its own hyphen, which markdown renders with a
+      # space inside it. Section 4 of the organization standard is the
+      # rule: why a line ending inside a word is the shape to refuse,
+      # what the pattern cannot see, and what the measurement was before
+      # it was proposed
+      - id: no-hyphen-at-end-of-line
+        name: a word is not wrapped at its own hyphen
+        language: pygrep
+        entry: "[A-Za-z0-9]-$"
+        types: [markdown]
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,
   # so the linter judges the formatted file and not the one that was typed.
