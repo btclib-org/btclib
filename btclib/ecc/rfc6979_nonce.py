@@ -28,10 +28,9 @@ import hashlib
 import hmac
 from hashlib import sha256
 
-from btclib.alias import HashF, Octets
-from btclib.curves import Curve, secp256k1
+from btclib.alias import HashF, Integer, Octets
+from btclib.curves import Curve, scalar_from_prv_key, secp256k1
 from btclib.curves.curve import _assert_valid_ec
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 __all__ = [
@@ -117,7 +116,7 @@ def _rfc6979_nonce_(
 
 def rfc6979_nonce_(
     msg_hash: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
     extra_entropy: Octets | None = None,
@@ -135,7 +134,7 @@ def rfc6979_nonce_(
     function underneath it gives the same 32 octets.
     """
     c = challenge_(msg_hash, ec, hf)
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
     extra = None if extra_entropy is None else bytes_from_octets(extra_entropy)
 
     return _rfc6979_nonce_(c, q, ec, hf, extra)

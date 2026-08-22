@@ -55,8 +55,14 @@ from __future__ import annotations
 import secrets
 
 from btclib._libsecp256k1 import ellswift as libsecp256k1_ellswift
-from btclib.alias import Octets, Point
-from btclib.curves import Curve, bytes_from_point, mult, secp256k1
+from btclib.alias import Integer, Octets, Point
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -67,7 +73,6 @@ from btclib.curves.curve import (
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.number_theory import mod_inv_var, mod_sqrt_var
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
@@ -273,7 +278,7 @@ def _ell_from_octets(ell: Octets, ec: Curve) -> bytes:
     return ell
 
 
-def create_var(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
+def create_var(prv_key: Integer, ec: Curve = secp256k1) -> bytes:
     """Return an ElligatorSwift encoding of the private key's public key.
 
     The private key is its own entropy for the encoding, which is what
@@ -281,9 +286,9 @@ def create_var(prv_key: PrvKey, ec: Curve = secp256k1) -> bytes:
     encoding the public key: a caller cannot supply randomness that is a
     function of the key, because it supplies none.
     """
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
 
-    # the bindings hold the private key to the same 1..n-1 int_from_prv_key
+    # the bindings hold the private key to the same 1..n-1 scalar_from_prv_key
     # does, so what reaches them is a key they take
     if _libsecp256k1_serves(ec, None):
         return libsecp256k1_ellswift.create(q)
@@ -333,7 +338,7 @@ def decode_var(ell: Octets, ec: Curve = secp256k1) -> Point:
 def xdh(
     ell_a: Octets,
     ell_b: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     party: int,
     ec: Curve = secp256k1,
 ) -> bytes:
@@ -351,7 +356,7 @@ def xdh(
     if party not in {0, 1}:
         err_msg = f"invalid party: {party}, not 0 (A) or 1 (B)"
         raise BTClibValueError(err_msg)
-    q = int_from_prv_key(prv_key, ec)
+    q = scalar_from_prv_key(prv_key, ec)
 
     if _libsecp256k1_serves(ec, None):
         return libsecp256k1_ellswift.xdh(ell_a, ell_b, q, party)

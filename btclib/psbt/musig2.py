@@ -81,7 +81,7 @@ from btclib.psbt.psbt_utils import (
     assert_valid_musig2_pub_key,
 )
 from btclib.script import type_and_payload
-from btclib.to_prv_key import PrvKey
+from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -386,14 +386,18 @@ def nonce_gen(
     aggregate_pub_key = bytes_from_octets(aggregate_pub_key, MUSIG2_PUB_KEY_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     parts = _session_parts(psbt, vin_i, aggregate_pub_key, leaf_hash)
-    pub_key = musig2.individual_pub_key(prv_key)
+    # the scalar here rather than the spelling below: `ecc.musig2` takes
+    # an int and the octets of one, and a WIF or an xprv is this layer's
+    # to decode -- an explicit call where a union guessed (issue #1188)
+    q = int_from_prv_key(prv_key)
+    pub_key = musig2.individual_pub_key(q)
     if pub_key not in parts.participants:
         err_msg = f"{pub_key.hex()} is not a participant of aggregate key "
         err_msg += aggregate_pub_key.hex()
         raise BTClibValueError(err_msg)
 
     sec_nonce, pub_nonce = musig2.nonce_gen(
-        prv_key, pub_key, parts.tweaked_pub_key[1:], parts.msg, extra_in
+        q, pub_key, parts.tweaked_pub_key[1:], parts.msg, extra_in
     )
     key_data = _key_data(pub_key, parts.tweaked_pub_key, leaf_hash)
     psbt.inputs[vin_i].musig2_pub_nonces[key_data] = pub_nonce
@@ -423,7 +427,9 @@ def partial_sign(
     aggregate_pub_key = bytes_from_octets(aggregate_pub_key, MUSIG2_PUB_KEY_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
-    pub_key = musig2.individual_pub_key(prv_key)
+    # as in `nonce_gen` above, and for its reason
+    q = int_from_prv_key(prv_key)
+    pub_key = musig2.individual_pub_key(q)
     tweaked_pub_key = _session_parts(
         psbt, vin_i, aggregate_pub_key, leaf_hash
     ).tweaked_pub_key
@@ -435,7 +441,7 @@ def partial_sign(
         raise BTClibValueError(err_msg)
 
     session = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
-    psig = musig2.sign(sec_nonce, prv_key, session.context)
+    psig = musig2.sign(sec_nonce, q, session.context)
     if not musig2.partial_sig_verify_(psig, pub_nonce, pub_key, session.context):
         # unreachable short of a defect in either this module or `sign`:
         # the context is the one the signature was just made against.

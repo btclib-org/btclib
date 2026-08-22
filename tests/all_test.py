@@ -378,6 +378,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
         "mult",
         "multi_mult_var",
         "point_from_octets",
+        "scalar_from_prv_key",
         "secp256k1",
         "set_libsecp256k1_serving",
     ]

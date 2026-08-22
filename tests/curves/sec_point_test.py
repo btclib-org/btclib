@@ -7,6 +7,8 @@
 import pytest
 
 from btclib.alias import INF
+from btclib.b58 import wif_from_prv_key
+from btclib.bip32 import BIP32KeyData, rootxprv_from_seed
 from btclib.curves import (
     Curve,
     bytes_from_point,
@@ -17,10 +19,12 @@ from btclib.curves import (
     curve,
     mult,
     point_from_octets,
+    scalar_from_prv_key,
+    secp256k1,
 )
 from btclib.curves.curve import CURVES
 from btclib.curves.sec_point import _mult_sec_var, _sec_from_octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import needs_bindings
 
 # test curves: very low cardinality
@@ -313,3 +317,35 @@ def test_mult_sec_var(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
     x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
         _mult_sec_var(b"\x02" + x_Q.to_bytes(ec.p_size, "big"), 2, ec)
+
+
+def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:
+    """What a private key may be spelled as at this layer (issue #1188).
+
+    The integer, its `n_size` octets, their hex, and the buffers
+    `bytes_from_octets` takes beside them. A WIF and an extended key are
+    not among them: they are `b58`'s and `bip32`'s objects, and this file
+    knows about a curve and not about bitcoin, so it could not decode one
+    without importing a layer above itself.
+
+    On secp256k1 the size alone separates a scalar from a point --
+    `n_size` is 32 where a point is 33 or 65. That is a coincidence and
+    not a rule: `sec_point` names the catalogued curves whose `n_size`
+    is their compressed size, and there a point is refused by the range
+    check instead.
+    """
+    q = 0xC0FFEE
+    octets = q.to_bytes(32, "big")
+    for spelling in (q, octets, octets.hex(), bytearray(octets), memoryview(octets)):
+        assert scalar_from_prv_key(spelling) == q  # type: ignore[arg-type]
+
+    # a WIF and an xprv reach here as text, and text is hex or nothing
+    for text in (wif_from_prv_key(q), rootxprv_from_seed("5e" * 32)):
+        with pytest.raises(BTClibValueError, match="invalid hex string"):
+            scalar_from_prv_key(text)
+    with pytest.raises(BTClibTypeError, match="invalid octets type: BIP32KeyData"):
+        scalar_from_prv_key(BIP32KeyData.b58decode(rootxprv_from_seed("5e" * 32)))  # type: ignore[arg-type]
+
+    for out_of_range in (0, secp256k1.n):
+        with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+            scalar_from_prv_key(out_of_range)

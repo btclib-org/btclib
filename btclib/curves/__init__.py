@@ -80,10 +80,19 @@ argument and every path, and reaching past them is reaching past that. The
 test suite takes each variant from the module that defines it, which is
 what a private name is still good for.
 
-The codec has a third function, bytes_from_prv_key_int: the composition of
-a multiplication and an encoding that every private-to-public conversion
-is, answered for secp256k1 out of the bindings' own serialization, without
-materializing the point (issue #127).
+Beside the two point conversions the codec carries bytes_from_prv_key_int,
+the composition of a multiplication and an encoding that every
+private-to-public conversion is, answered for secp256k1 out of the
+bindings' own serialization, without materializing the point (issue #127);
+and scalar_from_prv_key, which reads a private key the other way, as the
+scalar in 1..n-1 that it is. What a private key may be spelled as at this
+layer is the integer, its n_size octets, or their hex. That is narrower
+than everything Integer takes -- int_from_integer reads a "0x" prefix
+and a short hex string, which a key of a fixed size must not be -- and
+the annotation is Integer because the two are the same union of types
+and a second name for it would say nothing mypy could check. A WIF and
+an extended key are not among the spellings at all, belonging to b58 and
+bip32, above here (issue #1188).
 """
 
 from btclib.curves.curve import (
@@ -103,6 +112,7 @@ from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
     point_from_octets,
+    scalar_from_prv_key,
 )
 
 __all__ = [
@@ -119,6 +129,7 @@ __all__ = [
     "mult",
     "multi_mult_var",
     "point_from_octets",
+    "scalar_from_prv_key",
     "secp256k1",
     "set_libsecp256k1_serving",
 ]

@@ -60,8 +60,14 @@ from types import TracebackType
 from typing import overload
 
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
-from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
-from btclib.curves import Curve, PreparedPoint, point_from_octets, secp256k1
+from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
+from btclib.curves import (
+    Curve,
+    PreparedPoint,
+    point_from_octets,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import (
     _assert_valid_ec,
     _is_x_coordinate_var,
@@ -77,7 +83,6 @@ from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv_var
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import (
     assert_no_trailing,
     assert_type,
@@ -320,7 +325,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     return x, _y_even_var(x, ec)
 
 
-def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
+def gen_keys(prv_key: Integer | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
     """Return a BIP340 private/public (int, int) key-pair."""
     # as in dsa.gen_keys, and for its reason
     _assert_valid_ec(ec)
@@ -328,7 +333,7 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
     if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
-        q = int_from_prv_key(prv_key, ec)
+        q = scalar_from_prv_key(prv_key, ec)
 
     x_Q, y_Q = mult(q, ec=ec)
     if y_Q % 2:
@@ -394,7 +399,7 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
 @overload
 def sign_(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -407,7 +412,7 @@ def sign_(
 @overload
 def sign_(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -419,7 +424,7 @@ def sign_(
 
 def sign_(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -499,9 +504,9 @@ def sign_(
     # A commitment stays with the Python path: it tweaks the nonce, and
     # the nonce is the bindings' own to derive
     if _libsecp256k1_serves(ec, hf) and commit_hash is None:
-        # the bindings take a scalar, not the many representations of a
-        # private key btclib accepts
-        q = int_from_prv_key(prv_key, ec)
+        # the bindings take a scalar, and so does this module now: what
+        # the call still buys is the range check and the octets
+        q = scalar_from_prv_key(prv_key, ec)
         # the caller's `verify`, crossing with the rest: the bindings
         # perform the check and there is nothing for this arm to add,
         # BIP340's step being a bare verification under a point the
@@ -596,7 +601,7 @@ def sign_(
 @overload
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -609,7 +614,7 @@ def sign(
 @overload
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = ...,
     ec: Curve = ...,
     hf: HashF = ...,
@@ -621,7 +626,7 @@ def sign(
 
 def sign(
     msg: Octets,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -716,13 +721,13 @@ class Signer:
     """
 
     def __init__(
-        self, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+        self, prv_key: Integer, ec: Curve = secp256k1, hf: HashF = sha256
     ) -> None:
         _assert_valid_hf(hf)
         # the scalar, whatever spelling the key arrived in, and the
         # validation with it -- this is a public constructor and the
         # refusal belongs at it rather than at the first signature
-        self._q = int_from_prv_key(prv_key, ec)
+        self._q = scalar_from_prv_key(prv_key, ec)
         self._ec = ec
         self._hf = hf
         self._hf_len = hf().digest_size

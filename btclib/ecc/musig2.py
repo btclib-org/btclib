@@ -117,8 +117,8 @@ from hashlib import sha256
 from typing import TYPE_CHECKING
 
 from btclib._libsecp256k1 import musig as libsecp256k1_musig
-from btclib.alias import INF, Octets, Point
-from btclib.curves import mult, multi_mult_var, secp256k1
+from btclib.alias import INF, Integer, Octets, Point
+from btclib.curves import mult, multi_mult_var, scalar_from_prv_key, secp256k1
 from btclib.curves.curve import _libsecp256k1_serves, _sum_var, _tweak_add_var
 from btclib.curves.sec_point import (
     bytes_from_point,
@@ -132,7 +132,6 @@ from btclib.exceptions import (
     InvalidContributionError,
 )
 from btclib.hashes import tagged_hash
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -274,9 +273,9 @@ def _flags(is_xonly: Sequence[bool]) -> tuple[bool, ...]:
     return tuple(_flag(flag) for flag in is_xonly)
 
 
-def individual_pub_key(prv_key: PrvKey) -> bytes:
+def individual_pub_key(prv_key: Integer) -> bytes:
     """Return the plain (33-byte, compressed) public key of a signer."""
-    return bytes_from_prv_key_int(int_from_prv_key(prv_key, secp256k1), secp256k1)
+    return bytes_from_prv_key_int(scalar_from_prv_key(prv_key, secp256k1), secp256k1)
 
 
 def key_sort(pub_keys: Sequence[Octets]) -> list[bytes]:
@@ -449,7 +448,7 @@ def _nonce_hash(
 
 def nonce_gen_(
     rand_: Octets,
-    prv_key: PrvKey | None,
+    prv_key: Integer | None,
     pub_key: Octets,
     agg_x_only_pub_key: Octets | None = None,
     msg: Octets | None = None,
@@ -485,7 +484,7 @@ def nonce_gen_(
         # the key is masked by xor with the hashed randomness, rather
         # than hashed together with it, as BIP340 does: the fewer
         # operations touch the secret, the less there is to measure
-        q = int_from_prv_key(prv_key, secp256k1)
+        q = scalar_from_prv_key(prv_key, secp256k1)
         rand = _bytes_xor(q.to_bytes(_SCALAR_SIZE, "big"), tagged_hash(_AUX_TAG, rand_))
     pk = bytes_from_octets(pub_key, _PK_SIZE)
     agg_pk = (
@@ -516,7 +515,7 @@ def nonce_gen_(
 
 
 def nonce_gen(
-    prv_key: PrvKey | None,
+    prv_key: Integer | None,
     pub_key: Octets,
     agg_x_only_pub_key: Octets | None = None,
     msg: Octets | None = None,
@@ -770,7 +769,7 @@ def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
     return _key_agg_coeff_(values.L, values.second, pub_key)
 
 
-def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> bytes:
+def sign(sec_nonce: bytearray, prv_key: Integer, session_ctx: SessionContext) -> bytes:
     """Return the 32-byte partial signature of one signer.
 
     The secnonce is consumed: its first 64 bytes are zeroed the moment
@@ -801,7 +800,7 @@ def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> 
     if values.R[1] % 2:
         k_1_, k_2_ = secp256k1.n - k_1_, secp256k1.n - k_2_
 
-    d_ = int_from_prv_key(prv_key, secp256k1)
+    d_ = scalar_from_prv_key(prv_key, secp256k1)
     pk = individual_pub_key(d_)
     if pk != bytes(sec_nonce[2 * _SCALAR_SIZE :]):
         raise BTClibValueError("Public key does not match nonce_gen argument")
@@ -832,7 +831,7 @@ def _det_nonce_hash(
 
 
 def deterministic_sign(
-    prv_key: PrvKey,
+    prv_key: Integer,
     agg_other_nonce: Octets,
     pub_keys: Sequence[Octets],
     tweaks: Sequence[Octets],
@@ -852,7 +851,7 @@ def deterministic_sign(
     key is what a deterministic scheme must not do -- pass `rand` when
     there is any doubt.
     """
-    q = int_from_prv_key(prv_key, secp256k1)
+    q = scalar_from_prv_key(prv_key, secp256k1)
     sk = q.to_bytes(_SCALAR_SIZE, "big")
     if rand is not None:
         sk = _bytes_xor(sk, tagged_hash(_AUX_TAG, bytes_from_octets(rand)))
@@ -1122,7 +1121,7 @@ def partial_sig_agg_adaptor(
     return PreSignature(x_R, s)
 
 
-def adapt(pre_sig: PreSignature, t: PrvKey, session_ctx: SessionContext) -> ssa.Sig:
+def adapt(pre_sig: PreSignature, t: Integer, session_ctx: SessionContext) -> ssa.Sig:
     """Complete a pre-signature into a signature, given the secret adaptor.
 
     `session_ctx` is the session `pre_sig` was built from -- the same
@@ -1142,7 +1141,7 @@ def adapt(pre_sig: PreSignature, t: PrvKey, session_ctx: SessionContext) -> ssa.
     against the aggregate key it already has.
     """
     values = session_values(session_ctx)
-    t_ = int_from_prv_key(t, secp256k1)
+    t_ = scalar_from_prv_key(t, secp256k1)
     if values.R[1] % 2:
         t_ = secp256k1.n - t_
     s = (pre_sig.s + t_) % secp256k1.n
