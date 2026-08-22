@@ -1113,6 +1113,62 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`ecc.ssa` stops taking an extended key**, and `BIP340PubKey`
+  narrows from `Integer | Octets | BIP32Key | Point | PreparedPoint` to
+  `int | Octets | Point | PreparedPoint` (issue #1188). An extended key
+  is bip32's object, and turning one into a public key is bip32's call
+  to make; `ssa` is the module #1188 names as reaching it *around* the
+  converters rather than through them, by importing `BIP32Key` itself.
+
+  Dropping the union alone would have changed nothing. The spellings did
+  not arrive through that annotation: they arrived through
+  `to_pub_key.point_from_pub_key`, whose own union names `BIP32KeyData`,
+  so an annotation without `BIP32Key` in front of a body that still
+  called it would have said one thing and done another. What withdraws
+  them is `ssa` parsing the spellings itself, with `curves`, and that is
+  also what leaves the module free of `to_pub_key` on its public-key
+  side.
+
+  The dispatch that replaces it is a branch per type where there was a
+  `contextlib.suppress` around a guess — the module's own comment called
+  it one, "this being a guess at the spelling". Refusals improve as a
+  consequence, each of them a case the guess used to swallow.
+
+  A `Point` off the curve, and the point at infinity, were
+  `BTClibTypeError` "not a BIP340 public key" and are now
+  `BTClibValueError` naming the point. That is a class change as well as
+  a message: a point that is not on the curve is a wrong value and not a
+  wrong type, and it read as the second only because the suppress caught
+  the accurate refusal and let the function fall through to its own.
+
+  Thirty-three or sixty-five octets that are no point were "invalid
+  size: 33 bytes instead of 32" — the size complaint of the x-only path
+  they fell through to — and are now what `point_from_octets` says of
+  them, a prefix or a curve.
+
+  Octets of any other size were "invalid size: N bytes instead of 32"
+  and now name all three sizes this function accepts. Delegating that
+  complaint would name the two `point_from_octets` knows and so call
+  BIP340's own encoding wrong.
+
+  A tuple that is malformed or out of range moves with them. Where it is
+  the shape or the y that is wrong, the refusal is now `curve_group`'s --
+  "point must be a tuple[int, int]", or the negative-integer complaint;
+  a bad x is still this module's own "not a valid public key", the
+  on-curve test reaching it first. The class changes in every case, the
+  wording in some.
+
+  One thing widens. A `bytearray` or `memoryview` reached
+  `point_from_octets` at the SEC sizes and was refused at the x-only
+  one, whose fallback asked for `(str, bytes)`; the branch per size
+  takes them at all three. They are the buffers `bytes_from_octets`
+  accepts beside `Octets`, and `to_pub_key` names the same asymmetry
+  between what a union declares and what the run time takes.
+
+  Nothing in this package passed an extended key to `ssa`: its callers
+  pass x-only octets or points. The only exercise of the spelling was a
+  test that built an xpub and then replaced its key field with a point.
+
 - **`fingerprint` moves from `to_pub_key` to `bip32`**, and takes a
   `BIP32Key` where it took anything a key can be spelled as (issue
   #1188). The four octets are bip32's own idea — nothing outside its
