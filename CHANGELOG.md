@@ -988,6 +988,7 @@ documented at release-notes length in the first place, and are still in
   this class of mistake: a reversed hash is thirty-two well-formed bytes
   carrying a plausible run of zeros, and only the value tells it from
   the real one.
+
 ### Malformed input and the exception contract
 
 - **taproot's tweak translates the bindings' refusal, as every other arm
