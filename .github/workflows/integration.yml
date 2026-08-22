@@ -38,9 +38,10 @@ on:
     # Fridays, 04:29 UTC. Not on the hour: GitHub queues scheduled
     # workflows across every repository that asked for the same minute,
     # and the run can be dropped outright when the queue is long.
-    # After the four weekday sentinels -- links Monday, published
-    # Tuesday, latest Wednesday, Dependabot Thursday -- and before the
-    # mutation session that has the weekend, so each of the week's
+    # After the weekday sentinels that come before it -- links Monday,
+    # codeql Tuesday, latest and macos Wednesday, Dependabot Thursday --
+    # and before the windows run on Saturday and the mutation session
+    # that has the rest of the weekend, so each of the week's
     # unattended questions is answered on a day of its own and a failure
     # notification names the workflow by the day it arrived.
     # Cron runs from the default branch only, so this file asks nothing

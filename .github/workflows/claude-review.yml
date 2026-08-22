@@ -10,7 +10,8 @@ name: claude-review
 # comment, which is an opinion for the author to weigh -- REPOSITORY.md's
 # rule is that `main`'s required contexts are named outside the repository,
 # and a review that gates a merge would make a model's judgement a branch
-# rule. The four required checks stay what they are.
+# rule. The required checks stay what they are, and which ones those
+# are is REPOSITORY.md's to record and the endpoint's to answer.
 #
 # It is one more job on every pull request, which is not free: GitHub Free
 # gives this organization twenty concurrent jobs and REPOSITORY.md measures

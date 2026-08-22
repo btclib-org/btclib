@@ -8,11 +8,11 @@ name: published
 # guarantees the checks below resolve to what was installed from the
 # index and not to a source tree.
 #
-# `import btclib` runs __init__.py alone, and 25 files under
-# btclib/*/_data/ -- the twelve BIP39 wordlists among them -- are opened
-# by path at the first call that needs one, not imported, so a wheel
-# missing one of them installs cleanly, imports cleanly, and only fails
-# there. dist's smoke test and release.yml's share that blind spot;
+# `import btclib` runs __init__.py alone, and the data files under
+# btclib/ -- `git ls-files | grep '^btclib/.*_data/'` is which, the BIP39
+# wordlists among them -- are opened by path at the first call that needs
+# one, not imported, so a wheel missing one of them installs cleanly,
+# imports cleanly, and only fails there. dist's smoke test and release.yml's share that blind spot;
 # this workflow's second check is the one that does not have it.
 #
 # Version-independent on purpose, checking a BIP39 vector and a BIP340
