@@ -41,6 +41,21 @@ name: python arm authority
 # make for a comparable reason.
 
 on:
+  # a merge creates a commit no pull request measured, and this census is
+  # the one gate here with nothing on that commit: issue #1219 removed an
+  # arm and the entry that named `script/taproot_test.py` with it, both
+  # correctly, and the same change made that module reach
+  # `bytes_from_prv_key_int` instead. Its own run was green two hours
+  # before it landed, on a tree that stopped being the tree, and main
+  # carried the disagreement until the next pull request to touch a path
+  # below happened to run this.
+  # No `paths` filter here, where the pull_request trigger has one: the
+  # surface a run reads is every module `_THIRD_PARTY_VECTORS` names plus
+  # every arm's own module -- most of the package and most of the suite --
+  # so a filter that named it honestly would be "every merge", spelled at
+  # length and wrong the next time a module moves
+  push:
+    branches: [main]
   schedule:
     # the 15th of the month, 04:07 UTC. Not the 1st, which
     # `vendored-vectors` and `published` already share, and not on the

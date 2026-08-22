@@ -170,6 +170,37 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The Python-arm census runs on the merge commit, and names
+  `script/taproot_test.py`** (issue #1003). `main` was red on
+  `Re-derive the Python-arm authority table` and nothing said so: the
+  workflow had no `push` trigger, so no run ever measured a merge
+  commit, and the disagreement was waiting for the 15th.
+
+  What drifted, and it took two correct changes to do it. #1219 removed
+  the `script.taproot._output_pubkey_and_internal_key` arm — the guard
+  it named is gone, the `cached_property` replacing it being the point
+  of that change — and removed the `_AUTHORITY` entry naming it, which
+  was the only entry that mentioned `script/taproot_test.py`. The same
+  change made that module reach `curves.sec_point.bytes_from_prv_key_int`
+  instead, and nothing added it there. #1219's own census run was green
+  two hours before it landed, on a tree that had stopped being the tree
+  by the time it did.
+
+  The entry now names it, re-derived rather than reasoned about: a fresh
+  no-bindings measurement of every module `_THIRD_PARTY_VECTORS` names
+  agrees with the table again.
+
+  And the workflow triggers on a push to `main`, which is the trigger
+  every other gate here carries for the reason `lint.yml` writes down —
+  a merge creates a commit that is not the one the pull request tested.
+  No `paths` filter on it, where the `pull_request` trigger has one:
+  what a run reads is every module `_THIRD_PARTY_VECTORS` names plus
+  every arm's own module, which is most of the package and most of the
+  suite, so a filter naming that honestly would be "every merge" spelled
+  at length — and neither `btclib/script/taproot.py` nor
+  `tests/script/taproot_test.py` is in the filter that exists, which is
+  exactly how this one got through.
+
 - **Why `bitcoin-core-rpc` is required and the bindings are an extra is
   written where a reader meets it** (issue #1131). Issue #1126 decided
   it and closed on the decision; neither `pyproject.toml`'s comment

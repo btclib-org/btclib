@@ -248,6 +248,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "ecc/musig2_test.py",
         "script/sig_hash_legacy_test.py",
         "script/sig_hash_taproot_test.py",
+        "script/taproot_test.py",
         "script_engine/script_test.py",
     ),
     "ecc.bms.assert_as_valid": ("bip322_test.py", "ecc/bms_test.py"),
