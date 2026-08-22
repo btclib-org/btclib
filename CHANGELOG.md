@@ -24,6 +24,19 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The convention-test sentinel is read when it wraps**
+  (btclib-org/.github#32). `conventions_test.py` matched the
+  "Not tested here: ..." line with `re.MULTILINE` alone, so it read a
+  declaration that fits one line and no other. This repository's fits —
+  "none", all eight being tested — which is why nothing here noticed.
+  btclib-secp256k1 names six conventions there, the line wraps at eighty
+  columns, and the test reported that the sentinel was **missing**: the
+  one failure message that sends a reader looking for the wrong thing.
+
+  `re.DOTALL` beside it, and the consequence written where the pattern
+  is: no name in that list may carry a full stop of its own, the
+  non-greedy match stopping at the first one that ends a line.
+
 - **Which of section 7's conventions this suite tests is declared, and a
   test says the declaration is true** (btclib-org/.github#32).
   `tests/README.md` gains a table naming each of the eight conventions
