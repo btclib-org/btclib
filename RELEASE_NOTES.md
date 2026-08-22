@@ -20,6 +20,44 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **`fingerprint` is `btclib.bip32`'s, and takes a BIP32 key** (issue
+  #1188). It was
+
+  ```python
+  from btclib.to_pub_key import fingerprint
+  fingerprint(key, network)
+  ```
+
+  — the spelling as far back as `v2023.7.12` — and is now
+
+  ```python
+  from btclib.bip32 import fingerprint
+  fingerprint(xkey)
+  ```
+
+  Act on it if you import it from `to_pub_key`, if you pass anything
+  that is not an extended key, or if you pass a network. Any extended
+  key still works, SLIP132's `zprv` and `upub` among them, and so does
+  every spelling of one — the text, that text as bytes, or a
+  `BIP32KeyData`. The first is an import change and nothing more. For
+  the second, the fingerprint of a plain public key was only ever
+  `hash160` of its compressed SEC octets cut to four; take it
+  directly, deriving the public key first if what you hold is a scalar
+  or a WIF, which the old function accepted too.
+
+  For the third, the argument refused a key whose version bytes named
+  another network, and nothing inherits that. Reconstructing the check
+  is a membership test rather than a name comparison: take the version
+  — a `BIP32KeyData` has `.version`, and `BIP32KeyData.b58decode` gets
+  one from the text — and ask whether it is in
+  `xprvversions_from_network(net)` for a private key or
+  `xpubversions_from_network(net)` for a public one, which is the pair
+  the argument chose between by the kind of key it had. Not
+  `network_from_xkeyversion(...) == net`: that reverse lookup answers
+  "testnet" for the versions testnet, regtest, signet and testnet4
+  share, so a name comparison rejects a signet key for being signet,
+  which is the trap `to_prv_key` records as issue #207.
+
 - **`psbt.psbt_utils.deserialize_tx` no longer accepts `None` for
   `include_witness`** (issue #1190). The annotation declared `bool |
   None` and a comment called `None` "either encoding"; the code took the

@@ -29,6 +29,7 @@ from btclib.bip32 import (
     derive_from_account_,
     derive_from_account_range,
     derive_from_account_range_,
+    fingerprint,
     pub_key_derivation_tweaks,
     rootxprv_from_seed,
     rootxprv_from_seed_,
@@ -1702,3 +1703,27 @@ def test_derive_from_account_range_refuses_before_it_walks() -> None:
     err_msg = "unhardened account/master key"
     with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account_range_(xpub_from_xprv(rootxprv_from_seed(seed)), 0, [0])
+
+
+def test_fingerprint_is_the_children_parent_fingerprint() -> None:
+    """A key's fingerprint is what its own children carry as a parent.
+
+    Which is the whole of what BIP32 wants the four octets for, and the
+    one assertion that catches them being taken of the wrong key:
+    `derive` writes the parent's fingerprint into the child and
+    `fingerprint` computes it from the parent, so the two agree only if
+    both read the same compressed public key.
+
+    Both spellings of the parent, because the fingerprint is the public
+    key's and a pair answering two would identify one key twice. What
+    makes them agree is `_xpub_from_xprv`, shared rather than repeated
+    here (issue #1188).
+    """
+    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f"
+    seed += "65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+    xprv = rootxprv_from_seed(seed)
+
+    child = BIP32KeyData.b58decode(derive(xprv, 0x80000000))
+
+    assert fingerprint(xprv) == child.parent_fingerprint
+    assert fingerprint(xpub_from_xprv(xprv)) == child.parent_fingerprint

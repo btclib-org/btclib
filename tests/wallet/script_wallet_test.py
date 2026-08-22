@@ -28,7 +28,7 @@ from __future__ import annotations
 import pytest
 
 from btclib.alias import Command
-from btclib.bip32 import bip32
+from btclib.bip32 import bip32, fingerprint
 from btclib.bip32.bip32 import BIP32KeyData, derive_from_account
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import KeyExpression, add_checksum, parse
@@ -41,7 +41,6 @@ from btclib.psbt.psbt import Psbt
 from btclib.script import script
 from btclib.script.script import op_int
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.to_pub_key import fingerprint
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn

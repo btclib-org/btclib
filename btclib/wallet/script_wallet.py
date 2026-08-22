@@ -134,6 +134,7 @@ from btclib.bip32.bip32 import (
     BIP32KeyData,
     _key_data_from_bip32_key,
     derive_from_account_,
+    fingerprint,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import str_from_index_int
@@ -155,7 +156,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
+from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.utils import assert_type, is_integer
 from btclib.wallet.wallet import RangedWallet
 

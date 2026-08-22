@@ -55,7 +55,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from btclib.alias import BIP44ScriptType, Octets, String
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    derive,
+    fingerprint,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import DerPath, indexes_from_der_path, str_from_der_path
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import Descriptor, account_descriptors
@@ -64,7 +70,7 @@ from btclib.exceptions import BTClibValueError, SignerError
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
+from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.utils import assert_type, bytes_from_octets
 
 if TYPE_CHECKING:

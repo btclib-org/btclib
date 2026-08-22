@@ -10,7 +10,6 @@ import pytest
 
 from btclib.alias import INF, Point
 from btclib.b58 import wif_from_prv_key
-from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.curves import (
     PreparedPoint,
     bytes_from_point,
@@ -24,7 +23,6 @@ from btclib.to_pub_key import (
     PubkeyInfo,
     _sec_from_key,
     _sec_from_pub_key,
-    fingerprint,
     point_from_key,
     point_from_pub_key,
     pub_keyinfo_from_key,
@@ -297,16 +295,6 @@ def test_from_key() -> None:
     )
 
 
-def test_fingerprint() -> None:
-    """Verify the fingerprint matches the child's parent_fingerprint."""
-    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
-    xprv = rootxprv_from_seed(seed)
-    pf = fingerprint(xprv)  # xprv is automatically converted to xpub
-    child_key = derive(xprv, 0x80000000)
-    pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
-    assert pf == pf2
-
-
 def test_no_key_material_in_exceptions() -> None:
     """Private key material must not reach exception messages.
 
@@ -351,7 +339,6 @@ def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
     assert point_from_key(prepared) == point_from_key(Q)
     assert pub_keyinfo_from_pub_key(prepared) == pub_keyinfo_from_pub_key(Q)
     assert pub_keyinfo_from_key(prepared) == pub_keyinfo_from_key(Q)
-    assert fingerprint(prepared) == fingerprint(Q)
     for compressed in (True, False):
         assert pub_keyinfo_from_pub_key(
             prepared, "mainnet", compressed

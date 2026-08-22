@@ -19,7 +19,7 @@ import pytest
 
 from btclib import b32
 from btclib.alias import BIP44ScriptType
-from btclib.bip32 import bip32
+from btclib.bip32 import bip32, fingerprint
 from btclib.bip44 import (
     _ADDRESS_FROM_SCRIPT_TYPE,
     SCRIPT_TYPE_FROM_PURPOSE,
@@ -27,7 +27,6 @@ from btclib.bip44 import (
 )
 from btclib.descriptors import account_descriptors
 from btclib.exceptions import BTClibValueError
-from btclib.to_pub_key import fingerprint
 
 # the "abandon abandon ... about" seed of BIP39, which BIP84 and BIP86
 # publish as a root key: the same key, spelled with two versions

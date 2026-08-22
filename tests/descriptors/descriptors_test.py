@@ -39,7 +39,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib.alias import BIP44ScriptType, Octets
-from btclib.bip32 import BIP32KeyOrigin
+from btclib.bip32 import BIP32KeyOrigin, fingerprint
 from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.der_path import _HARDENING
 from btclib.bip44 import SCRIPT_TYPE_FROM_PURPOSE
@@ -86,7 +86,7 @@ from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
+from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, replace_unchecked, vector_id
 

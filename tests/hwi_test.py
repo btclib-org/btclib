@@ -41,6 +41,7 @@ from pathlib import Path
 
 import pytest
 
+from btclib.bip32 import fingerprint
 from btclib.bip32.bip32 import derive, xpub_from_xprv
 from btclib.descriptors import Descriptor, at_index, parse
 from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
@@ -65,7 +66,6 @@ from btclib.psbt_signer import (
     request_signatures,
     sign_message,
 )
-from btclib.to_pub_key import fingerprint
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # the "abandon abandon ... about" root of BIP39, which BIP84 publishes
