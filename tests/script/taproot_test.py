@@ -317,22 +317,33 @@ def test_check_output_pubkey_of_a_key_that_is_not_32_bytes() -> None:
 def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Both paths refuse an internal key with no y, and refuse it alike.
+    """Both paths refuse an internal key with no y, in the same words.
 
-    x = 5 is not the x-coordinate of a secp256k1 point: 5**3 + 7 is not
-    a quadratic residue. libsecp256k1 rejects it while parsing and
-    ec.y_even_var while lifting it, and the two errors have to be the same
-    kind, the script engine catching the library's own.
+    libsecp256k1 rejects it while parsing and `ec.y_even_var` while
+    lifting it, and the two have to agree on what they raise as well as
+    on what they answer, the script engine catching the library's own.
+    This call can make them agree on the sentence too, unlike
+    `_tweaked_pubkey` given a `sec`: `tweak_add_check` is handed the
+    internal key's x alone, so a refusal is about that x and nothing
+    else (issue 1218).
+
+    Three shapes, as the tweak's own test has: 5 is no x-coordinate and
+    is written as a decimal, p - 1 is no x-coordinate and is written as
+    hex, and p is not a field element at all, which `y_even_var` says in
+    words of its own.
     """
-    control = b"\xc0" + (5).to_bytes(32, "big")
-    err_msg = "invalid"
-
-    with pytest.raises(BTClibValueError, match=err_msg):
-        check_output_pubkey(b"\x00" * 32, b"\x51", control)
-    with monkeypatch.context() as no_bindings:
-        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+    for x, err_msg in (
+        (5, "invalid x-coordinate: 5"),
+        (secp256k1.p - 1, "invalid x-coordinate: FFFFFFFF"),
+        (secp256k1.p, r"x-coordinate not in 0\.\.p-1: FFFFFFFF"),
+    ):
+        control = b"\xc0" + x.to_bytes(32, "big")
         with pytest.raises(BTClibValueError, match=err_msg):
             check_output_pubkey(b"\x00" * 32, b"\x51", control)
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            with pytest.raises(BTClibValueError, match=err_msg):
+                check_output_pubkey(b"\x00" * 32, b"\x51", control)
 
 
 def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(

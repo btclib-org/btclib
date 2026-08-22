@@ -571,8 +571,20 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
             # through a plain ValueError and the Python path below
             # through the BTClibValueError of _y_even_var. The engine
             # catches the library's own error, so the two must agree on
-            # what they raise as well as on what they answer
-            raise BTClibValueError(f"invalid internal public key: {e}") from e
+            # what they raise as well as on what they answer -- and this
+            # call knows which half was refused, unlike _tweaked_pubkey's
+            # arm given a sec: tweak_add_check is handed the internal
+            # key's x alone, and a q that is no x-coordinate is answered
+            # False by both arms rather than raised on. So the wording is
+            # the lift's below, range check included, and the two arms
+            # answer the same sentence for the same control block
+            err_msg = (
+                "invalid x-coordinate: "
+                if p < secp256k1.p
+                else "x-coordinate not in 0..p-1: "
+            )
+            err_msg += f"{hex_string(p)}" if p > HEX_THRESHOLD else f"{p}"
+            raise BTClibValueError(err_msg) from e
 
     # _y_even_var, i.e. secp256k1.y_even_var with the lift delegated: this is
     # the path a q of any other length takes, secp256k1 included, so the
