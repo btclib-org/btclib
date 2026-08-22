@@ -12,13 +12,14 @@ Core rather than anything a BIP publishes.
 tests/_data/README.md pins the revision of each.
 """
 
+from collections.abc import Callable
 from typing import Any
 
 import pytest
 
 from btclib import b32
 from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
-from btclib.alias import ScriptList
+from btclib.alias import Octets, ScriptList
 from btclib.curves import bytes_from_point, curve, curve_group, mult, secp256k1
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt_var
@@ -484,6 +485,33 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
         no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         with pytest.raises(BTClibValueError, match="point not on curve"):
             output_pubkey(sec)
+
+
+@pytest.mark.parametrize("spelling", [bytes, bytearray, memoryview])
+def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
+    spelling: Callable[[bytes], Octets], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every spelling `bytes_from_octets` takes reaches the same answer.
+
+    A memoryview used to raise a bare `TypeError` from the merkle fold,
+    on both arms: `bytes_from_octets` returns every buffer as it came,
+    so a slice of the control block stayed a memoryview and would not
+    order against the `bytes` digest it is compared with. A bytearray
+    was unaffected, ordering against `bytes` where a memoryview does
+    not, which is Python's asymmetry rather than this library's --
+    and it is why the census in `bool_parameter_test.py` could not see
+    this: the wrong spelling is accepted at the door and refused
+    halfway (issue 1220).
+    """
+    tree: list[Any] = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    q, _ = output_pubkey(0xC0FFEE, tree)
+    witness = input_script_sig(0xC0FFEE, tree, 0)
+    script, control = serialize(witness[0]), witness[1]
+
+    assert check_output_pubkey(q, spelling(script), spelling(control))
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        assert check_output_pubkey(q, spelling(script), spelling(control))
 
 
 def test_invalid_control_block() -> None:

@@ -1260,6 +1260,33 @@ documented at release-notes length in the first place, and are still in
   reports a refused internal key on the delegated arm. The suite catches
   it, which is why the fix is one line and the finding is about ordering
   rather than about the code.
+- **`check_output_pubkey` takes a memoryview control block, as every
+  other entry point measured takes one** (issue #1220). It raised a bare
+  `TypeError` from the merkle fold, on both arms: `bytes_from_octets`
+  returns every buffer as it came -- deliberately, `utils` says why, an
+  `assert_valid` being a read that must not rewrite the field it reads
+  -- so `control[33 + 32 * j : 65 + 32 * j]` stayed a memoryview and
+  would not order against the `bytes` digest it is compared with. A
+  `bytearray` was unaffected, ordering against `bytes` where a
+  memoryview does not; the asymmetry is Python's and not this library's.
+
+  A memoryview is a spelling this library accepts on purpose --
+  `to_pub_key._PUB_KEY_TYPES` names it beside `bytes` and `bytearray` --
+  and nothing else measured leaks a non-`BTClibException` for one, so
+  this was one function out of step rather than a spelling nobody
+  promised.
+
+  `control` is coerced once where it is normalized, rather than at the
+  fold: nothing is stored here, it being a local, so the copy costs one
+  allocation of at most `33 + 32 * MAX_TREE_DEPTH` octets and buys every
+  line under it not having to know which spelling arrived. `q` and
+  `script` need no copy -- one is read as an integer, the other hashed
+  -- and are left as they came, which a test over all three spellings of
+  all three parameters holds.
+
+  The census in `tests/bool_parameter_test.py` could not have found it:
+  the wrong spelling is accepted at the door and refused halfway, which
+  is the shape a type census does not see.
 
 - **`check_output_pubkey`'s two arms agree on the sentence, which its
   own comment already promised** (issue #1218). That comment says the
