@@ -200,6 +200,24 @@ documented at release-notes length in the first place, and are still in
   page and the script are compared in both directions by
   `tests/verify_dist_contents_test.py`, so the prose is not free to
   drift from what the tree does.
+- **`documented`'s wait says why its budget is under the job's timeout**
+  (btclib-org/.github#18). The behaviour was already right here -- the
+  loop's worst case is 20 attempts of a 10-second `curl --max-time` plus
+  19 sleeps of 30, which is 770 seconds against a `timeout-minutes: 20`
+  of 1200, and the last attempt does not sleep before giving up. What
+  was missing is the reason, which is the half that keeps it right: the
+  gap is what lets the `::error::` line run at all. Where the loop's
+  budget reaches the timeout the runner kills the job first, and a red
+  run then says only that it exceeded its maximum execution time --
+  a fact about this workflow and not about the documentation, in
+  exactly the case a reader most needs the pointer to the builds page.
+
+  An ordinary failure never comes near it: Read the Docs answers a 404
+  in well under a second while a build has not started. The comment says
+  to re-derive the margin from the values the script sets rather than
+  from the sentence, which is what stops the next change to `attempts`
+  or `interval` from closing the gap silently. `bitcoin-core-rpc` has
+  carried the same paragraph since its own #198.
 
 - **Four workflow comments say what this tree says**
   (btclib-org/.github#22). That issue's sweep had been run over

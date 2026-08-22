@@ -603,6 +603,21 @@ jobs:
   # the one signal the existing curl call already carries for free: the
   # last HTTP status or transport failure it saw, which the final message
   # now names instead of "is not served yet"
+  #
+  # The loop's own budget stays below the job's timeout-minutes, and the
+  # gap is the whole point: an attempt costs its curl --max-time plus the
+  # sleep, so the loop's worst case is the attempt count times that sum,
+  # and where that reaches timeout-minutes the runner kills the job before
+  # the `::error::` line -- the one line the job exists to print -- ever
+  # runs. A red run would then say only that it exceeded its maximum
+  # execution time, which is a fact about this workflow and not about the
+  # documentation. Re-derive the margin from the values the script sets
+  # rather than from this sentence. An ordinary failure never comes near
+  # it, read the docs answering a 404 in well under a second while a build
+  # has not started; what the margin buys is the slow or unreachable case,
+  # which is the case a reader most needs the pointer for. The last
+  # attempt does not sleep before giving up, which would buy nothing.
+  # This is issue btclib-org/.github#18
   documented:
     name: Check read the docs built the tag
     needs: version-check
