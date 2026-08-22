@@ -21,7 +21,7 @@ it holds is the weaker and checkable claim: whatever the three say, they
 say the same thing.
 
 Read with a regex rather than parsed. `tomllib` arrives in 3.11 and the
-floor here is 3.10, which is the reason `test_copyright.py` reads
+floor here is 3.10, which is the reason `copyright_test.py` reads
 pyproject.toml the same way; the workflow is yaml and no group here
 carries a parser for it.
 """
