@@ -59,10 +59,21 @@ def _assert_prv_key_type(prv_key: PrvKey) -> None:
     BIP32 xkey (...); not octets (...)", three formats tried against a
     value no format could have held.
 
+    A bool is refused here rather than answered as the number one.
+    `utils.is_integer` is where that rule is stated -- issue #326 gave it
+    to the fields of this library whose contract is an integer quantity,
+    and `int_from_integer` carries it for every `Integer` parameter. A
+    `PrvKey` is not one of those: the int branch below takes the value as
+    it comes rather than coercing it, so this line and not
+    `int_from_integer` is what refuses a bool spelled as a `PrvKey`
+    (issue #1206). What made it worth a refusal there makes it worth one
+    here and more so: `true` decodes from json to `True`, and a key of
+    one is a key an attacker knows.
+
     Never echo the input, every message in this module being about
     candidate key material.
     """
-    if not isinstance(prv_key, _PRV_KEY_TYPES):
+    if isinstance(prv_key, bool) or not isinstance(prv_key, _PRV_KEY_TYPES):
         raise BTClibTypeError("not a private key")
 
 

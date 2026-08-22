@@ -413,6 +413,10 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
 def int_from_integer(i: Integer) -> int:
     r"""Return an int from many possible integer representations.
 
+    A bool is not one of them, `is_integer` being where this library
+    says so: every `Integer` parameter runs through here, so the refusal
+    is stated once and inherited (issue #1206).
+
     Allowed integer representations are:
 
     * 3735928559
@@ -433,6 +437,13 @@ def int_from_integer(i: Integer) -> int:
     (e.g. "0b11011110101011011011111011101111").
     """
     if isinstance(i, int):
+        # `is_integer` and not the `isinstance` above: a bool is an int
+        # to Python and is not a number to this library, which is the
+        # rule issue #326 gave every integer field and issue #1206 found
+        # the key path without. Here rather than at each caller, this
+        # being the one coercion every `Integer` parameter runs through
+        if not is_integer(i):
+            raise BTClibTypeError(f"non-integer: {i}")
         return i
 
     if isinstance(i, str):

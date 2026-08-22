@@ -24,6 +24,8 @@ import pytest
 from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
+from btclib.b32 import p2wpkh
+from btclib.b58 import p2pkh, wif_from_prv_key
 from btclib.bip32 import BIP32KeyData
 from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
 from btclib.bip32.der_path import (
@@ -37,6 +39,12 @@ from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
 from btclib.block.mining import mine
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
+from btclib.curves import mult, scalar_from_prv_key, secp256k1
+from btclib.ecc.bms import sign as bms_sign
+from btclib.ecc.dsa import sign as dsa_sign
+from btclib.ecc.ssa import point_from_bip340pub_key
+from btclib.ecc.ssa import sign as ssa_sign
+from btclib.ecc.ssa import verify as ssa_verify
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.hashes import merkle_root_from_branch, sha256
@@ -45,12 +53,22 @@ from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
+from btclib.to_prv_key import int_from_prv_key
+from btclib.to_pub_key import point_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets, encode_num, is_integer
+from btclib.utils import (
+    bytes_from_octets,
+    encode_num,
+    hex_string,
+    int_from_integer,
+    is_integer,
+)
 from btclib.wallet.script_wallet import KeyGroup
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
+# the key is 1, so the x-only public key it verifies under is `secp256k1.G[0]`
+_SSA_SIG = ssa_sign(b"msg", 1)
 _NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
 # a one-leaf tree and the prevout of the one input `_tx` builds: what the
 # two index parameters below have to be handed something valid to index
@@ -169,6 +187,33 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hash rate difficulty", lambda v: hash_rate(v, 600.0)),
     ("hash rate timespan", lambda v: hash_rate(1.0, v)),
     ("hash rate block count", lambda v: hash_rate(1.0, 600.0, v)),
+    # the key path, which this census did not reach until issue #1206.
+    # Two lines of the library stand behind all of it: `int_from_integer`,
+    # and `to_prv_key`'s type gate for the int branch that does not reach
+    # the coercion. Neither is alone everywhere -- `bms.sign` is behind
+    # both, and `point_from_key`, `p2pkh` and `p2wpkh` meet `to_pub_key`'s
+    # gate before either -- so dropping one line lets a bool back through
+    # only where nothing else stands behind it, and these cases are here
+    # for the reach of the policy and not as a test apiece. `to_pub_key`'s
+    # gate is a third line and not a third refusal: drop it and
+    # `to_prv_key`'s answers those three one frame down, which is why the
+    # wordings below are what pin it
+    ("integer coercion", int_from_integer),
+    ("hex string", hex_string),
+    ("curve multiplier", mult),
+    ("curve scalar", scalar_from_prv_key),
+    ("private key converter", int_from_prv_key),
+    ("public key converter", point_from_key),
+    ("WIF private key", wif_from_prv_key),
+    ("base58 address key", p2pkh),
+    ("bech32 address key", p2wpkh),
+    ("message signing key", lambda v: bms_sign(b"msg", v)),
+    ("BIP340 x-only key", point_from_bip340pub_key),
+    # not the converter twice: `verify` answers False where it cannot
+    # verify, so what this pins is that the refusal is not one of those
+    # answers -- `BTClibTypeError` is a `TypeError` and the except there
+    # takes `ValueError`, which is issue #814's rule
+    ("BIP340 verification key", lambda v: ssa_verify(b"msg", v, _SSA_SIG)),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -188,6 +233,52 @@ def test_a_bool_is_not_an_integer_field(
     """
     with pytest.raises(BTClibTypeError):
         call(value)
+
+
+# the sentence each of these gives back, CHANGELOG.md and
+# RELEASE_NOTES.md naming which entry points give which. Whichever
+# control reaches the value first writes it, so
+# an entry point moves between these families by gaining or losing a
+# check above it and never by choosing a wording -- which is why the
+# notes tell a caller to match on the class. Three families, and no
+# census of what a bool can draw: these are the sentences this change
+# writes, `_CASES` above is the wider list and pins the class rather
+# than the text, and a refusal older than this one belongs to whatever
+# raises it and not to the key surface -- `PrvKeyData`'s is its own and
+# `key_test.py` has it, where `PubKeyData` gives back
+# `bytes_from_octets`', the sentence every `Octets` parameter shares
+_WORDINGS = [
+    ("integer coercion", int_from_integer, "non-integer: True"),
+    ("hex string", hex_string, "non-integer: True"),
+    ("curve multiplier", mult, "non-integer: True"),
+    ("curve scalar", scalar_from_prv_key, "non-integer: True"),
+    ("dsa signing key", lambda v: dsa_sign(b"msg", v), "non-integer: True"),
+    ("private key converter", int_from_prv_key, "not a private key"),
+    ("WIF private key", wif_from_prv_key, "not a private key"),
+    ("message signing key", lambda v: bms_sign(b"msg", v), "not a private key"),
+    ("public key converter", point_from_key, "not a private or public key"),
+    ("base58 address key", p2pkh, "not a private or public key"),
+    ("bech32 address key", p2wpkh, "not a private or public key"),
+    ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
+]
+
+
+@pytest.mark.parametrize(
+    "call, message",
+    [(case[1], case[2]) for case in _WORDINGS],
+    ids=[case[0] for case in _WORDINGS],
+)
+def test_which_check_refuses_the_bool_decides_the_sentence(
+    call: Callable[[Any], object], message: str
+) -> None:
+    """The wordings the release notes promise, held to what is raised.
+
+    `to_pub_key._assert_key_type`'s bool line has nothing else to be
+    tested by: dropping it leaves every one of these a refusal, and
+    moves the three it answers for onto "not a private key".
+    """
+    with pytest.raises(BTClibTypeError, match=message):
+        call(True)
 
 
 def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
@@ -213,6 +304,18 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert indexes_from_der_path([1, 2]) == [1, 2]
     assert bytes_from_der_path(1).hex() == "01000000"
     assert str_from_der_path([1]) == "m/1"
+    assert int_from_integer(1) == 1
+    assert hex_string(1) == "01"
+    assert mult(1) == secp256k1.G
+    assert scalar_from_prv_key(1) == 1
+    assert int_from_prv_key(1) == 1
+    assert point_from_key(1) == secp256k1.G
+    assert wif_from_prv_key(1).startswith("Kw")
+    assert p2pkh(1).startswith("1")
+    assert p2wpkh(1).startswith("bc1")
+    assert bms_sign(b"msg", 1).dsa_sig.r
+    assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
+    assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
     assert str_from_index_int(1) == "1"
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"

@@ -63,7 +63,12 @@ def scalar_from_prv_key(prv_key: Integer, ec: Curve = secp256k1) -> int:
     _assert_valid_ec(ec)
 
     if isinstance(prv_key, int):
-        q = prv_key
+        # through `int_from_integer` for an int this already has: it is
+        # where the bool rule lives, so a `True` is refused here in the
+        # words every other `Integer` parameter refuses it in, and a real
+        # int comes back untouched. The hex spellings it also takes never
+        # reach it -- the isinstance above is what keeps "0xc0ffee" out
+        q = int_from_integer(prv_key)
     else:
         # `n_size` and not a guess: 32 for secp256k1, where a point is 33
         # or 65, so the size alone separates a scalar from one. That is

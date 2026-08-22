@@ -90,6 +90,7 @@ from btclib.utils import (
     bytesio_from_binarydata,
     hex_string,
     int_from_bits,
+    int_from_integer,
 )
 
 __all__ = [
@@ -256,13 +257,19 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
     anything: it is validated as far as its spelling goes, and whoever
     lifts or parses it is what refuses the rest. Private for that reason.
     """
-    # BIP340 key as integer. A bool is one to `isinstance` and is
-    # answered as the number it subclasses, as the key converters do and
-    # as `utils.is_integer` exists to stop elsewhere -- `var_int` and a
-    # satoshi amount refuse one. Which of the two rules the key path
-    # should follow is issue #1206, and is not settled in passing
+    # BIP340 key as integer, read through the library's one integer
+    # coercion rather than taken as it comes: an x is a number, and a
+    # bool is not one anywhere a number is (issue #326). This was the
+    # last int spelling of a key outside that rule -- the tuple arm below
+    # is not covered by it, `is_on_curve` reading a bool as the number
+    # beside it, which is issue #1249. `isinstance(True, int)` made
+    # `True` the key at x = 1, an x-coordinate of secp256k1, so both
+    # arms lifted it and both answered about it where `dsa.verify`
+    # refused the same value as a type: two schemes disagreeing and not
+    # two arms, where the private side of issue #1206 had one scheme
+    # answering two ways.
     if isinstance(x_Q, int):
-        return x_Q
+        return int_from_integer(x_Q)
 
     if isinstance(x_Q, PreparedPoint):
         x_Q = x_Q.point

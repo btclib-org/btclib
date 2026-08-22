@@ -1660,6 +1660,83 @@ documented at release-notes length in the first place, and are still in
 
 ### Malformed input and the exception contract
 
+- **A bool is not a private key, and not an integer anywhere `Integer`
+  is taken** (issue #1206). `utils.is_integer` has stated the rule since
+  issue #326 — "A boolean is not another spelling of a number" — and the
+  fields that answer an integer quantity apply it, `var_int` and a
+  satoshi amount among them.
+  `int_from_integer` did not, so every `Integer` parameter in the
+  library answered `True` as the number one.
+
+  The key path is where it bit. `b58.wif_from_prv_key(True)` returned a
+  WIF of the key 1; `b58.p2pkh(True)` and `b32.p2wpkh(True)` returned
+  its addresses; and `dsa.sign(msg, True)` **signed under the Python
+  arithmetic and raised under the bindings** — one call, two answers,
+  decided by whether `btclib_secp256k1` is installed, and the bindings'
+  refusal a bare `TypeError` rather than anything this library declares.
+
+  The refusal goes in `int_from_integer` and nowhere else among the
+  `Integer` callers, that being the one coercion every one of them runs
+  through: `mult`, the
+  `Curve` and `CurveGroup` constructors, `bytes_from_prv_key_int` and
+  `hex_string` inherit it without naming it. `to_prv_key` and
+  `to_pub_key`'s type gates refuse a bool beside the types their unions
+  never named, since the int branch there does not reach the coercion,
+  and `curves.scalar_from_prv_key` reads its int through
+  `int_from_integer` rather than repeating the rule.
+
+  So the refusal has three wordings, decided by which check a value
+  reaches first, and one class throughout. `"non-integer: True"` comes
+  from the coercion — `mult`, `dsa.sign`, `scalar_from_prv_key`; `"not a
+  private key"` from `to_prv_key`'s gate — `wif_from_prv_key`,
+  `bms.sign`; and `"not a private or public key"` from `to_pub_key`'s —
+  `p2pkh`, `p2wpkh`. Those three are the change's own and not a census of
+  what a bool can draw: `pub_keyinfo_from_pub_key`, `PrvKeyData`,
+  `number_theory.mod_inv` and `bip32.derive` each refused one in a
+  sentence of their own before this and still do, and `PubKeyData` in
+  `bytes_from_octets`', the sentence every `Octets` parameter of the
+  library shares — which is why the notes tell a caller to match on the class
+  and not on the text. `tests/integer_policy_test.py` pins the three,
+  and that table is also the only test `to_pub_key`'s line can have —
+  drop it and a bool is still refused, one frame down and told it is not
+  a private key.
+
+  `ssa`'s x-only key is the same rule on the public side, and was the
+  last int spelling of a key outside it: `point_from_bip340pub_key(True)`
+  returned the point at x = 1 — carrying the bool itself as the
+  coordinate — so `ssa.verify(msg, True, sig)` answered False about a
+  value `dsa.verify` refused as a type. Not an arm disagreement, that
+  one: 1 is an x-coordinate of secp256k1, so both arms lifted the bool
+  and both answered about it — two schemes disagreeing, where the
+  private side had one scheme answering two ways. A `Point` is the arm
+  this does not reach, `is_on_curve` reading a bool as the number beside
+  it, and is issue #1249.
+
+  It reads its int through `int_from_integer` now and says
+  `"non-integer: True"`. Every entry point taking a `BIP340PubKey` moves
+  with it, `_x_from_bip340pub_key` being what they share — and the two
+  bools did not start from the same place. `True` reached the lift as
+  x = 1, so `point_from_bip340pub_key` returned that point,
+  `assert_as_valid`, `assert_as_valid_`, `assert_batch_as_valid` and
+  `assert_batch_as_valid_` raised a `BTClibRuntimeError` naming a failed
+  verification, and `verify`, `verify_`, `batch_verify` and
+  `batch_verify_` returned False. `False` the lift refused, so those
+  same four `assert_` spellings raised a `BTClibValueError` about the
+  coordinate — and the four `verify` spellings, which swallow exactly
+  that, returned False for it just as they had for `True`. All nine
+  raise a `BTClibTypeError` now, which is neither of the two: that is
+  issue #814's rule rather than an exception to it, those excepts taking
+  `ValueError` and `BTClibRuntimeError` precisely so a caller's own
+  mistake is refused instead of answered.
+
+  An `IntEnum` is untouched. `is_integer` is `isinstance` and not
+  `type(value) is int` precisely so a deliberate integer subclass stays
+  an integer — the distinction issue #273 asked about for the sighash
+  types, and answered with a `Literal` rather than an enum.
+
+  Nothing in the package passed a bool, and no test did: the change
+  costs the suite nothing and closes the arm disagreement.
+
 - **`taproot.py` gets back the import a merge dropped.**
   `check_output_pubkey`'s translation reads `HEX_THRESHOLD`, added with
   it in #1228; #1219 rewrote `_tweaked_pubkey`'s arm in the same file
