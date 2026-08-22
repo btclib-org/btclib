@@ -19,7 +19,7 @@ import pytest
 from btclib import b32
 from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import ScriptList
-from btclib.curves import bytes_from_point, curve_group, mult
+from btclib.curves import bytes_from_point, curve_group, mult, secp256k1
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import (
     TaprootScriptTree,
@@ -333,6 +333,68 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
         no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         with pytest.raises(BTClibValueError, match=err_msg):
             check_output_pubkey(b"\x00" * 32, b"\x51", control)
+
+
+def test_the_tweak_refuses_an_internal_key_that_is_no_point_alike(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both arms of the tweak refuse the same internal key the same way.
+
+    The bindings arm hands `tweak_add` octets nothing has proved are a
+    point, deliberately (issue 887), so its refusal arrives from C as a
+    bare `ValueError` where the arm below raises btclib's own. Which of
+    the two answered is a `pip install`, and a caller catching
+    `BTClibValueError` is not meant to have to know (issue 1214).
+
+    On the x-only path the sentence agrees too, and has three shapes: 5
+    is no x-coordinate and is written as a decimal, p - 1 is no
+    x-coordinate and is written as hex, and p is not a field element at
+    all, which `y_even_var` says in words of its own and the bindings'
+    parse refuses without distinguishing.
+    """
+    for x, err_msg in (
+        (5, "invalid x-coordinate: 5"),
+        (secp256k1.p - 1, "invalid x-coordinate: FFFFFFFF"),
+        (secp256k1.p, r"x-coordinate not in 0\.\.p-1: FFFFFFFF"),
+    ):
+        x_only = x.to_bytes(32, "big")
+        with pytest.raises(BTClibValueError, match=err_msg):
+            output_pubkey_from_merkle_root(x_only, b"")
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+            with pytest.raises(BTClibValueError, match=err_msg):
+                output_pubkey_from_merkle_root(x_only, b"")
+
+
+@needs_bindings
+def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A sec whose y is not its x's is refused without naming the x.
+
+    Marked: the first half of it is the delegated arm's own message, so
+    with no bindings installed there is no such arm to reach and nothing
+    to compare the one below against.
+
+    `_sec_from_key` leaves the octets unproven for the reason the arm
+    itself does, so `04 || x || y` with a good x and a y that is not its
+    own reaches `tweak_add` and is refused there. The x is the half that
+    is right, and a message naming it would be false -- which is what
+    keeps the two arms to agreeing on the class here rather than on the
+    sentence: without the bindings the key never reaches the tweak at
+    all, `point_from_key` refusing it a step earlier and in its own
+    words.
+    """
+    Q = mult(7)
+    y_not_x_s = (Q[1] + 1) % secp256k1.p
+    sec = b"\x04" + Q[0].to_bytes(32, "big") + y_not_x_s.to_bytes(32, "big")
+
+    with pytest.raises(BTClibValueError, match="invalid internal public key"):
+        output_pubkey(sec)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            output_pubkey(sec)
 
 
 def test_invalid_control_block() -> None:
