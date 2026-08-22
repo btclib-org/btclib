@@ -55,11 +55,15 @@ _CONVENTIONS = (
 )
 
 _HEADING = "## Convention tests"
-# the sentinel for the other half of the declaration. "none" is a legal
-# answer and the one this repository gives; a repository testing fewer
-# than eight names the rest here, and the two halves are checked against
+# the sentinel for the other half of the declaration. DOTALL as well as
+# MULTILINE because eighty columns wrap the list of names across lines
+# and the non-greedy match then stops at the first full stop that ends
+# one -- which is why no name in that list may carry a full stop of its
+# own. "none" is a legal answer and the one this repository gives, and it
+# fits a line; the six btclib-secp256k1 names do not, which is where the
+# single-line form was found wanting. The two halves are checked against
 # each other below rather than each against nothing
-_NOT_TESTED = re.compile(r"^Not tested here: (.+?)\.$", re.MULTILINE)
+_NOT_TESTED = re.compile(r"^Not tested here: (.+?)\.$", re.MULTILINE | re.DOTALL)
 # a table row, and the separator row is what the second group's leading
 # backtick excludes: `| --- | --- |` has no backtick to match
 _ROW = re.compile(
