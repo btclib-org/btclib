@@ -24,6 +24,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The interpreters this package claims are the ones it runs on**
+  (btclib-org/.github#83). `requires-python`, the per-version
+  `Programming Language :: Python ::` classifiers and `test.yml`'s own
+  matrix are one fact written three times, and nothing compared them.
+  `tests/interpreters_test.py` does: the floor is the lowest classifier,
+  the classified set and the matrix's CPython set are each other, and the
+  PyPy classifier is present exactly when a PyPy interpreter runs.
+
+  The drift it catches misleads somebody who is not reading this
+  repository — PyPI shows a classifier to whoever is choosing the
+  package, so a version left behind when a floor moves is an interpreter
+  advertised and never touched.
+
+  It does not encode the calendar. The organization standard's rule is
+  that a library covers every Python still in support, which moves twice
+  around each October; python.org keeps that schedule, and a date written
+  here would be one more thing to move. The claim held is the weaker and
+  checkable one: whatever the three say, they say the same thing.
+
 - **The declaration section is read to its own end, not to the file's**
   (btclib-org/.github#32). `conventions_test.py`'s `_section()` sliced
   from `## Convention tests` to the end of `tests/README.md`, on the
