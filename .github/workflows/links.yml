@@ -89,10 +89,8 @@ jobs:
     name: Check the documentation links
     # a draft pull request is work in progress and spends no runner
     # here either: a draft is work its author is not asking anyone to
-    # a draft from one release to the next, and its runs are what
-    # read yet. The same condition lint.yml and
-    # test.yml carry, and ready_for_review is a trigger type above for
-    # the same reason.
+    # read yet. The same condition lint.yml and test.yml carry, and
+    # ready_for_review is a trigger type above for the same reason.
     # A closed pull request spends none either -- the trigger above takes
     # the closed event only to supersede a run this ref's group is still
     # holding
@@ -116,7 +114,12 @@ jobs:
           # reference rather than a link a reader clicks. What is checked
           # is what a user is invited to follow -- the README, which is
           # also the btclib.org homepage and the PyPI long description,
-          # the other root markdown files, and the documentation sources.
+          # the other root markdown files, the documentation sources, and
+          # the markdown kept under tests/, next to what it documents
+          # rather than at the root: README.md is how the suite is run and
+          # profiled, _data/README.md pins every vendored vector to a
+          # commit, and both are prose for a reader rather than a citation
+          # in a comment.
           # --no-progress because the log is not a terminal; the retries,
           # the timeout and the cache are what keep a slow or throttling
           # host from being reported as a dead one.

@@ -51,9 +51,11 @@ on:
     - cron: "29 4 * * 5"
   # the same trigger set as the other gates: main so that the commit a
   # merge creates is asked the question too -- and so that a cache is
-  # written where every pull request can read it -- the pull request so that
-  # the merge result is, and workflow_call so release.yml can reuse the
-  # answer
+  # written where every pull request can read it -- the pull request so
+  # that the merge result is, and workflow_call because release.yml calls
+  # this workflow, as it calls test.yml, lint.yml and docs.yml: a
+  # rehearsal is dispatched from a branch, where the required check this
+  # job's name is on main has asked nothing
   push:
     branches: [main]
   workflow_call:

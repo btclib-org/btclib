@@ -62,7 +62,9 @@ on:
     # hour: GitHub queues same-minute scheduled workflows across every
     # repository that asked for it, and a long queue can drop the run
     # outright. Minute 07 is not shared with any other cron in this
-    # repository (13, 17, 19, 23, 29, 31, 41, 43, 53)
+    # repository, which `grep -h 'cron:' .github/workflows/*.yml` is
+    # what re-derives -- a list written out here is complete only until
+    # the next workflow gains a schedule
     - cron: "07 4 15 * *"
   workflow_dispatch:
   pull_request:

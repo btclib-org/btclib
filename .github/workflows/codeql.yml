@@ -21,15 +21,23 @@ name: codeql
 #   #  "query_suite":"default","threat_model":"remote",
 #   #  "schedule":"weekly","runner_type":"standard"}
 #
-# Ruby is not in that list and not in the matrix below, which is worth a
-# word because default-setup runs here have carried an `Analyze (ruby)`
-# job: GitHub Pages serves btclib.org from main's root, so a Gemfile sits
-# beside the library and autodetection sees it. It analyses nothing -- of
-# the analyses this repository has ever received, every one is python or
-# actions, and none is ruby:
+# Ruby was not in that list and is not in the matrix below, which is
+# worth a word because default-setup runs here did carry an
+# `Analyze (ruby)` job: GitHub Pages serves btclib.org from main's root,
+# so a Gemfile sits beside the library and autodetection saw it. It
+# analysed nothing, and the evidence is the results rather than the
+# absence of the job -- 263 ruby analyses ran here, the last on
+# 2026-07-30, and every one of them found zero:
 #
-#   gh api "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \
-#     --jq '[.[] | .category] | group_by(.) | map({cat: .[0], n: length})'
+#   gh api --paginate \
+#     "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \
+#     --jq '.[] | select(.category == "/language:ruby") | .results_count' \
+#     | sort | uniq -c        # 263 0
+#
+# --paginate is the point of that line and not a detail. Without it the
+# endpoint answers the newest hundred, which since the switch are all
+# python and actions, so the command this comment used to carry
+# confirmed "none is ruby" by never reaching one.
 #
 # `threat_model: remote` is CodeQL's own default, so nothing here sets it;
 # it would take a `config:` block naming `threat-models` to depart from.
@@ -165,10 +173,16 @@ jobs:
           # rather than left to the default because it is the input that
           # would have to change first if a compiled language ever joined
           # the matrix, and because it is what default setup used here:
-          # every analysis this repository has received carries
-          # `"build-mode":"none"` in its environment --
-          #   gh api repos/btclib-org/btclib/code-scanning/analyses \
-          #     --jq '.[0].environment'
+          # every analysis default setup produced carries
+          # `"build-mode":"none"` in its environment, and not one this
+          # workflow has produced does. What an analysis records there
+          # changed when the analysis moved into the tree, so the newest
+          # answers `{"language":"python"}` and says nothing either way
+          # about the input below --
+          #   gh api --paginate \
+          #     "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \
+          #     --jq '.[] | .environment | test("build-mode")' \
+          #     | sort | uniq -c        # 1046 false, 2896 true
           build-mode: none
           # no `queries`, no `packs` and no `config`, which is not an
           # omission: `query_suite: "default"` is precisely the state in

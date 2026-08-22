@@ -33,9 +33,9 @@ name: latest
 # pull request -- that pull request runs the whole matrix, so ruff and the
 # other pinned hooks already have their sentinel. mypy is the exception
 # and the reason the lint job below is here at all: its hook is local and
-# shells out to uv, so it is the lock that pins it. Not sphinx: lint.yml's
-# second job already builds the docs, with --locked, on every pull
-# request, so a broken build surfaces there, not here. What it builds
+# shells out to uv, so it is the lock that pins it. Not sphinx: docs.yml
+# already builds the docs, with --locked, on every pull request, so a
+# broken build surfaces there, not here. What it builds
 # against is the same lock this workflow exists to get ahead of, so a
 # sphinx break in the newest releases is the one gap this file leaves
 # open too, same as everywhere else in it.
@@ -52,10 +52,12 @@ on:
   schedule:
     # weekly, on a minute that is not the hour: everything scheduled on
     # the hour is queued together, and a run that waits is a run whose
-    # failure is noticed later. Wednesday, the day after published.yml's
-    # Tuesday: a fixed, already-released artifact is checked first, this
-    # the more volatile question. Thursday is left for Dependabot,
-    # opening the day after this has already reported.
+    # failure is noticed later. Wednesday, the day after codeql.yml's
+    # Tuesday, and the same morning macos.yml runs, half an hour after
+    # it -- that pairing is macos.yml's own comment. Thursday is left
+    # for Dependabot, opening the day after this has already reported.
+    # published.yml is on no weekday at all: its subject is an artifact
+    # already released and therefore fixed, so it asks monthly.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "43 4 * * 3"

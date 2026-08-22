@@ -125,8 +125,10 @@ jobs:
           ruby-version: "3.3.4"
           bundler-cache: true
       # PAGES_REPO_NWO is what jekyll-github-metadata resolves
-      # `site.github` from, and _layouts/default.html reads four of its
-      # fields. Unauthenticated, so the fields it cannot reach without a
+      # `site.github` from, and _layouts/default.html reads seven of its
+      # fields -- `grep -o 'site\.github\.[a-z_]*' _layouts/default.html
+      # | sort -u` is which, rather than a count to keep in step.
+      # Unauthenticated, so the fields it cannot reach without a
       # token are empty rather than wrong -- the claim this job makes is
       # that the site builds and its own links are well formed, not that
       # the metadata GitHub injects on its side is present here
@@ -141,12 +143,14 @@ jobs:
       # the sources; this is the same claim made about the artifact.
       #
       # An attribute of a real tag, not the string anywhere on the page:
-      # CHANGELOG.md, RELEASE_NOTES.md, SECURITY.md and AUTHORS.md all recount
-      # that defect and quote the broken tag, and a rendered page carries
-      # that prose with the `<` escaped as `&lt;` -- so requiring an
-      # unescaped `<tag ... src="` is what separates the page that has the
-      # bug from the page that describes it. Measured: the first run of
-      # this workflow failed on six such lines and no real URL
+      # CHANGELOG.md recounts that defect and quotes the broken tag, and
+      # CONTRIBUTING.md quotes the `%20` beside it. Both are published --
+      # _config.yml's exclude list is what decides that -- and a rendered
+      # page carries that prose with the `<` escaped as `&lt;`, so
+      # requiring an unescaped `<tag ... src="` is what separates the page
+      # that has the bug from the page that describes it. Measured: the
+      # first run of this workflow failed on six such lines and no real
+      # URL
       - name: The built pages carry no encoded-space URL
         run: |
           if grep -rEn '<[a-zA-Z]+[^>]+(src|href)="[^"]*%20' \
