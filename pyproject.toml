@@ -24,6 +24,10 @@ license = "MIT"
 license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
+# Required, where the bindings below are an extra, and that asymmetry was
+# weighed rather than inherited: a `fetch` extra was considered and
+# refused (issue #1126). CONTRIBUTING.md's dependency paragraph carries
+# the reasoning, beside the ceiling argument it already makes.
 dependencies = [
     "bitcoin-core-rpc>=2026.8.13",
 ]

@@ -73,6 +73,17 @@ would make a published artifact refuse a version it in fact works with; a
 `<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
 changes in the minor.
 
+**One is required and the other is an extra, and that was weighed rather
+than inherited.** Making `bitcoin-core-rpc` a `fetch` extra was
+considered and refused: an optional dependency whose absence changes a
+*speed* is a different object from one whose absence removes a
+*capability*, and only the first is what an extra is for. The bindings
+are the first — btclib answers without them, on a pure-Python arm that
+is supported, covered by CI and documented — and nothing stands behind
+"ask a node". A caller either has a client or does not have the feature,
+so a `fetch` extra would leave `btclib.fetch` importable and unable to
+answer, which is the shape an extra exists to avoid.
+
 **Both floors name a release PyPI serves**, so `pyproject.toml` carries
 no `[tool.uv.sources]` table and uv resolves the bindings from the index
 like anything else: `uv.lock` pins a version and its wheels, every job

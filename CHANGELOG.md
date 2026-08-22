@@ -170,6 +170,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Why `bitcoin-core-rpc` is required and the bindings are an extra is
+  written where a reader meets it** (issue #1131). Issue #1126 decided
+  it and closed on the decision; neither `pyproject.toml`'s comment
+  block nor `CONTRIBUTING.md`'s dependency paragraph carried the
+  reasoning, both arguing the absence of a version *ceiling* at length
+  and saying nothing about the asymmetry above it. A contributor could
+  ask #1126's question again from the files alone, which is what a
+  decision made and not recorded looks like.
+
+  The reasoning goes in `CONTRIBUTING.md`, beside the ceiling argument
+  that paragraph already makes, and `pyproject.toml` points at it rather
+  than saying it a second time -- what the decision turns on is the
+  difference between an optional dependency whose absence changes a
+  *speed* and one whose absence removes a *capability*, and that
+  argument is a paragraph rather than a line. What goes in the comment
+  is only that the alternative was weighed and refused, and where to
+  read why.
+
 - **A markdown line does not end inside a word**
   (btclib-org/.github#71). Markdown joins two source lines with a space,
   so a word wrapped at its own hyphen renders with the hyphen and then a
