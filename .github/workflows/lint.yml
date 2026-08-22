@@ -96,7 +96,6 @@ jobs:
     # yet. A run on the merge result still happens the moment the pull
     # request is marked ready, which is why ready_for_review is a
     # trigger type above.
-    # The exception is by base branch, and it is the release pull
     # A closed pull request spends no runner either, for the reason the
     # trigger above gives: closed is taken only to supersede a run this
     # ref's group is still holding

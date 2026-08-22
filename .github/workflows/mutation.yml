@@ -35,7 +35,7 @@ on:
     # every repository that asked for the same minute, and the run can be
     # dropped outright when the queue is long.
     # The weekday sentinels run Monday through Thursday in the order the
-    # questions build on each other (links, published, latest, then
+    # questions build on each other (links, codeql, latest, then
     # Dependabot's pull request), and this one asks something on a
     # different axis entirely -- the suite's own quality, not a
     # dependency's -- which is what leaves it the weekend on its own.

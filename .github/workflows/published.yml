@@ -12,8 +12,9 @@ name: published
 # btclib/ -- `git ls-files | grep '^btclib/.*_data/'` is which, the BIP39
 # wordlists among them -- are opened by path at the first call that needs
 # one, not imported, so a wheel missing one of them installs cleanly,
-# imports cleanly, and only fails there. dist's smoke test and release.yml's share that blind spot;
-# this workflow's second check is the one that does not have it.
+# imports cleanly, and only fails there. test.yml's dist job shares that
+# blind spot with its own smoke test; this workflow's second check is the
+# one that does not have it.
 #
 # Version-independent on purpose, checking a BIP39 vector and a BIP340
 # one whose values are fixed forever, so neither needs an edit after a
@@ -237,11 +238,11 @@ jobs:
           else
             uv pip install --verbose --only-binary btclib btclib
           fi
-      # the ecc surface, as dist and release.yml assert it: a signature
+      # the ecc surface, as test.yml's dist job asserts it: a signature
       # round trip is the one thing an import cannot get wrong by itself,
       # and a bindings release that installs and answers incorrectly is
       # what this catches.
-      # Those two assert one thing more, that the bindings are serving
+      # That one asserts something more, that the bindings are serving
       # (issue #1117), and this deliberately does not: the install above
       # names btclib and no extra, so the bindings are not asked for and
       # nothing here is entitled to them. That is the supported
@@ -297,7 +298,8 @@ jobs:
         # two are not equally likely to hide one. Measured against
         # https://pypi.org/pypi/btclib-secp256k1/json for the newest
         # release, 0.8.0.4: every platform below has a wheel for every
-        # supported interpreter, cp310 through cp315(t), so trying a
+        # supported interpreter, cp310 through cp315t, win_arm64's floor
+        # of cp311 excepted -- which is the paragraph below -- so trying a
         # second interpreter on a platform that already has one answers
         # the same "does a wheel exist and import here" question again.
         # A missing wheel is where the two publishing pipelines actually

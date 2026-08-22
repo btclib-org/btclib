@@ -200,6 +200,74 @@ documented at release-notes length in the first place, and are still in
   at length — and neither `btclib/script/taproot.py` nor
   `tests/script/taproot_test.py` is in the filter that exists, which is
   exactly how this one got through.
+- **A release now waits for Bitcoin Core, and eleven workflow comments
+  say what this tree says** (btclib-org/.github#22). Every comment in
+  all seventeen workflow files was read end to end against the tree,
+  which is the half of that issue's method a mechanical pass cannot
+  run: the four claims `#1222` fixed were each found by comparing a
+  number or a name, and not one of the eleven below could have been.
+
+  The one that is not prose: `integration.yml` has declared
+  `workflow_call` since it became a gate, with a comment saying
+  "release.yml can reuse the answer", and `release.yml` has never
+  called it — in any commit. So a tag published without Core ever
+  having been asked whether it accepts what btclib built, while the
+  three *other* required checks on `main` are each called again from
+  `release.yml` for the reason that file gives: a rehearsal is
+  dispatched from a branch, where the branch rule has asked nothing.
+  `release.yml` now calls it and both publish jobs need it.
+
+  The ten comments, and what each was:
+
+    - `lint.yml`, `links.yml` and `vendored-vectors.yml` each kept a line of
+      the release-pull-request exemption that `237c86d4` removed. In
+      `lint.yml` it is the orphaned first line of four, describing a
+      `github.base_ref == 'master'` arm the `if:` has not carried since; in
+      the other two it is the *middle* line of the same comment, left in place
+      while the lines above and below it were rewritten, so the sentence reads
+      "a draft is work its author is not asking anyone to / a draft from one
+      release to the next, and its runs are what / read yet".
+    - `codeql.yml` said "of the analyses this repository has ever received,
+      every one is python or actions, and none is ruby", under a command that
+      reads the newest hundred and no more. 263 ruby analyses ran here, the
+      last on 2026-07-30 — so the command as written *confirmed* the claim by
+      never reaching one. The conclusion is right and now carries the evidence
+      that shows it: every one of the 263 has `results_count` 0.
+    - `codeql.yml` also said "every analysis this repository has received
+      carries `"build-mode":"none"` in its environment", with `--jq
+      '.[0].environment'` beside it. That answers `{"language":"python"}`:
+      what an analysis records there changed when the analysis moved into this
+      file, and 1046 of 3942 carry no such key.
+    - `website.yml` said `_layouts/default.html` reads four `site.github`
+      fields. It reads seven, and read seven the day the sentence was written.
+    - `website.yml` also named `CHANGELOG.md`, `RELEASE_NOTES.md`,
+      `SECURITY.md` and `AUTHORS.md` as the published files quoting the `%20`
+      tag the step below greps for. Only `CHANGELOG.md` ever did;
+      `CONTRIBUTING.md`, which does and is published, was not named.
+    - `latest.yml` and `mutation.yml` both put `published.yml` on Tuesday. It
+      is `31 4 1 * *` — monthly, on the first. Tuesday is `codeql`. This is
+      the claim `#1222` corrected in `integration.yml` and these two copies of
+      it survived.
+    - `latest.yml` sent a reader to "lint.yml's second job" for the
+      documentation build. That job left for `docs.yml` in `237c86d4`;
+      `lint.yml` has one job.
+    - `published.yml` credited a smoke test to `release.yml`, twice. `#1180`
+      moved the build into `test.yml`'s `dist` job the day before, and
+      `release.yml` no longer contains the word.
+    - `published.yml`'s first paragraph also carried a 99-column line where
+      every other comment line in all seventeen files fits 80 — an
+      un-rewrapped remainder of `#1222`'s own fix, which is what made it
+      findable at all.
+    - `published.yml` said every platform in its matrix has a wheel for every
+      supported interpreter, and excepted `win_arm64` below cp311 ten lines
+      further down. The exception is the true half.
+
+  Two enumerations were correct and are now commands.
+  `vendored-vectors.yml` listed the other crons' minutes as
+  "(17, 31, 41, 43)"; that was the complete set on 2026-08-06 and is
+  six short today. `python-arm-authority.yml`'s copy of the same list
+  is right, having been written later, and carries the same fragility —
+  both now name `grep -h 'cron:' .github/workflows/*.yml` instead.
 
 - **Why `bitcoin-core-rpc` is required and the bindings are an extra is
   written where a reader meets it** (issue #1131). Issue #1126 decided
