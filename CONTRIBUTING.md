@@ -341,7 +341,7 @@ These requirements are easily checked (and partially fixed) with:
 ```shell
 uv run ruff check --fix
 uv run ruff format
-uv run mypy btclib tests .github/scripts scripts
+uv run mypy btclib tests .github/scripts
 uv run pytest
 ```
 
@@ -449,8 +449,8 @@ and `docs` share a row and report one each. They run one image on one
 interpreter: `ubuntu-latest`, and the version `.python-version` names.
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
-calendar covering six repositories is one thing to remember, and six
-copies of it are six things to keep true.
+calendar in one place is one thing to keep true, where a copy of it in
+every repository would be one more.
 
 Why so little gates is one number: the ceiling GitHub Free puts on an
 organization's concurrent jobs, twenty shared across every repository in
