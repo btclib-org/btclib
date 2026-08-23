@@ -3,8 +3,13 @@
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 #
 # The dotted name is the canonical one; readthedocs.yml is honored too,
-# but documented as deprecated, and "include *.yml" would drag it into
-# the sdist beside the Jekyll configuration.
+# but documented as deprecated. [tool.uv.build-backend] source-include
+# in pyproject.toml names "*.yaml" and not "*.yml", which is why the
+# dotted spelling, and not the other, is what the sdist carries:
+#
+#   uv build --sdist -o dist && tar tzf dist/*.tar.gz | grep readthedocs
+#
+# lists it.
 #
 # The build has to install btclib itself, not sphinx alone: every autodoc
 # directive in docs/source imports its module, a failed import is a
