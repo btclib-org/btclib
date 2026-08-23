@@ -2337,6 +2337,31 @@ documented at release-notes length in the first place, and are still in
   does: a ring's size is a fact the caller has to be told, and a key of
   0 is one they can see in the sequence they passed.
 
+- **`pedersen.commit` refuses a blinding factor of 0 mod n** (issue
+  #1250). `commit(0, v)` returned `v*H`, a point anyone who guesses `v`
+  can recompute, and `commit(ec.n, v)` the same point, `double_mult_var`
+  reducing mod `n` on its own. #1243's `1..n-1` range check is not the
+  instrument here: a Pedersen commitment is additively homomorphic, so
+  the sum of two blinding factors is routinely `>= ec.n` and is still a
+  valid one, and `tests/ecc/pedersen_test.py::test_commitment` asserts
+  exactly that identity. `r % ec.n == 0` is the one value refused; `v`
+  is untouched, a commitment to `v = 0` being an ordinary one.
+
+  The check replaces the module's separate refusal of `r` and `v` both
+  landing on infinity: with `r % ec.n == 0` excluded, `Q` lands there
+  only when `v` is 0 mod `n` too, which the new check already covers,
+  the discrete log of `H` being unknown to make any other pair land
+  there. `assert_as_valid` recomputes through `commit`, and `verify`
+  already turns the `BTClibValueError` this raises into `False`, so
+  neither needed a check of its own.
+
+  `commit`, `assert_as_valid` and `verify` take `r` and `v` as `Integer`
+  now rather than `int`: the octet and hex spellings already reached
+  `double_mult_var`, which takes `Integer`, so the annotation was
+  narrower than what the functions accepted. A bool is refused already,
+  `int_from_integer` being where issue #1206 put that rule for every
+  `Integer` parameter.
+
 - **`taproot.py` gets back the import a merge dropped.**
   `check_output_pubkey`'s translation reads `HEX_THRESHOLD`, added with
   it in #1228; #1219 rewrote `_tweaked_pubkey`'s arm in the same file
