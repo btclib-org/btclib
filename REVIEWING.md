@@ -278,26 +278,24 @@ a pipe into `grep -v Passed` hides the failure it was meant to find.
 **What the gates of this tree are is `CONTRIBUTING.md`'s last
 section**, and so is every way a run of them lies — a suite run over a
 subset that is not the coverage gate, a hook set that is not the whole
-of what CI runs. A reviewer who names a
-gate this repository does not have has reported nothing.
+of what CI runs. A reviewer who names a gate this repository does not
+have has reported nothing.
 
-**The whole suite, every time.** The test suite is run whole, on the
-sha under review, by the reviewer — never a module on its own, a `-k`,
-a `--lf`, a deselect or a marker in its place, and never relied on from
-somebody else's run. What a change breaks is found by the test that did
-not expect to be touched by it, and a subset is chosen by what the
-author expected. Where the suite is long it runs in the background with
-a ceiling, and what is reported is its exit code; a run that was cut
-short or narrowed is reported as no run.
+**Whole, whoever runs it.** A suite is run whole — never a module on
+its own, a `-k`, a `--lf`, a deselect or a marker in its place. What a
+change breaks is found by the test that did not expect to be touched by
+it, and a subset is chosen by what the author expected, so a run that
+was narrowed or cut short is no run and is reported as none. Where the
+suite is long it runs in the background with a ceiling, and what is
+reported is its exit code.
 
-**The other gates, unless they have already been run on this sha and
-that run is on the record.** Then rely on it, and say whose it is. Two
-runs qualify: the workflows of the required checks, running beside a
-review on the same commit — `CONTRIBUTING.md` names which checks those
-are — and an author handing over a branch they gated themselves and
-said so. What is relied on is that those gates run and hold the merge,
-not the colour of a check, which stays none of a reviewer's business
-for the reason below.
+**Unless they have already been run on this sha and that run is on the
+record.** Then rely on it, and say whose it is. Two runs qualify: the
+workflows of the required checks, running beside a review on the same
+commit — `CONTRIBUTING.md` names which checks those are — and an author
+handing over a branch they gated themselves and said so. What is relied
+on is that those gates run and hold the merge, not the colour of a
+check, which stays none of a reviewer's business for the reason below.
 
 The sha is the whole of the condition: a run on another tree is not a run
 on this one, so a rebase voids it — the branch was gated, and then the
