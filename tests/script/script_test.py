@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
@@ -208,6 +209,7 @@ def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
 
     # __len__ lies rather than have the test allocate four gibibytes
     class TooLong(bytes):
+        @override
         def __len__(self) -> int:
             return 4294967296
 

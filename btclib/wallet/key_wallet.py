@@ -44,6 +44,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from typing_extensions import override
+
 from btclib import b58
 from btclib.alias import BIP44ScriptType, Octets, String
 from btclib.bip32.bip32 import (
@@ -183,6 +185,7 @@ class KeyWallet(Wallet):
             self.add(key)
 
     @property
+    @override
     def is_watch_only(self) -> bool:
         """Whether the wallet holds no private key at all."""
         return not self._prv_keys
@@ -338,6 +341,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         return derive_(xkey, indexes[xkey.depth :])
 
     @property
+    @override
     def branches(self) -> tuple[int, ...]:
         """The receiving and change chains, which is what BIP44 defines.
 
@@ -348,6 +352,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         return (0, 1)
 
     @property
+    @override
     def is_watch_only(self) -> bool:
         """Whether the wallet holds no private key at all.
 
@@ -373,6 +378,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         """
         return derive_from_account_(self._xkey, branch, index)
 
+    @override
     def _address(self, branch: int, index: int) -> str:
         # checked again for the narrowing and not for the check, which the
         # constructor already made: see `add` above
@@ -380,6 +386,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
             self._derived_xkey(branch, index), self.network
         )
 
+    @override
     def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
         """Return the output of a position, read back from its address.
 
@@ -392,9 +399,11 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         """
         return ScriptPubKey.from_address(self._address(branch, index))
 
+    @override
     def _der_path(self, branch: int, index: int) -> str:
         return f"{self.der_path}/{branch}/{index}"
 
+    @override
     def redeem_script(self, branch: int = 0, index: int = 0) -> bytes:
         """Return the p2wpkh script a `p2wpkh-p2sh` output commits to.
 
@@ -408,6 +417,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         self._assert_position(branch, index)
         return ScriptPubKey.p2wpkh(self._derived_xkey(branch, index)).script
 
+    @override
     def prv_key(self, address: String) -> str:
         """Return the WIF of the private key signing for an address."""
         info = self.address_info(address)

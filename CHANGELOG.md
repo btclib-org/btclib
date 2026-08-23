@@ -486,6 +486,17 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **mypy's `enable_error_code` is the organization's list.** The same in
+  every repository that runs mypy (btclib-org/.github#165):
+  `explicit-override` and `unused-awaitable` enter, and
+  `narrowed-type-not-subtype` leaves the key, being a check the locked
+  mypy runs unasked. `explicit-override` is the code that reported:
+  every method overriding one of a base class now carries `@override`,
+  imported from `typing_extensions` — the backport of `typing.override`,
+  which 3.12 has and the 3.10 floor does not — so `typing-extensions>=4.4`
+  joins the declared dependencies, its floor the release that adds the
+  decorator.
+
 - **`links.yml` accepts every status lychee accepts unasked, and passes
   no `--cache`.** `--accept 200,206,429` replaced lychee's default of
   `100..=103,200..=299` rather than extending it, so a 201, a 202 or a

@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.exceptions import BTClibValueError
@@ -315,6 +316,7 @@ class _CountingStream(BytesIO):
         super().__init__(initial_bytes)
         self.read_count = 0
 
+    @override
     def read(self, size: int | None = -1, /) -> bytes:
         data = super().read(size)
         self.read_count += len(data)
@@ -470,6 +472,7 @@ def test_a_stream_that_cannot_seek_is_refused() -> None:
     """
 
     class Pipe(BytesIO):
+        @override
         def seekable(self) -> bool:
             return False
 

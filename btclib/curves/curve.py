@@ -35,6 +35,8 @@ from math import isqrt
 from pathlib import Path
 from typing import Any
 
+from typing_extensions import override
+
 from btclib._libsecp256k1 import ENABLED as _bindings_enabled
 from btclib._libsecp256k1 import INSTALLED as _bindings_installed
 from btclib._libsecp256k1 import (
@@ -288,6 +290,7 @@ class Curve(CurveGroup):
 
         self.name = name
 
+    @override
     def __str__(self) -> str:
         result = super().__str__()
         # the generator is rendered as the curve is, in hex above the
@@ -306,6 +309,7 @@ class Curve(CurveGroup):
         result += f"\n cofactor = {self.cofactor}"
         return result
 
+    @override
     def __repr__(self) -> str:
         result = super().__repr__()[:-1]
         if self.p > HEX_THRESHOLD:
@@ -320,6 +324,7 @@ class Curve(CurveGroup):
         result += ")"
         return result
 
+    @override
     def _eq_key(self) -> tuple[int, ...]:
         # name is not part of the curve: the same curve is catalogued as
         # secp256r1 by SEC 2 and as P-256 by NIST, and weakness_check and

@@ -92,6 +92,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from typing_extensions import override
+
 from btclib.alias import BinaryData
 from btclib.block.block import Block
 from btclib.exceptions import BTClibTypeError
@@ -150,6 +152,7 @@ class TxPayload(Payload):
 
         self.tx.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the transaction, witness or not as the field says."""
         if check_validity:
@@ -212,6 +215,7 @@ class BlockPayload(Payload):
 
         self.block.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the block, its witnesses written or stripped."""
         if check_validity:

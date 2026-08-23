@@ -191,10 +191,12 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependencies are `bitcoin-core-rpc>=2026.8.13` and, as
-the `secp256k1` extra, `btclib_secp256k1>=0.8.0.4`, with no upper
-bound**, and the absence of a
-ceiling is a decision. Both are btclib-org projects developed by the same
+**The declared dependencies are `bitcoin-core-rpc>=2026.8.13`,
+`typing-extensions>=4.4` and, as the `secp256k1` extra,
+`btclib_secp256k1>=0.8.0.4`, with no upper bound**, and the absence of a
+ceiling is a decision. `typing-extensions` backports `typing.override`,
+which 3.12 has and the 3.10 floor does not, and its floor is the release
+that adds it. The other two are btclib-org projects developed by the same
 people, and the bindings' whole purpose is to be the bindings this library
 calls, so a breaking change there is coordinated with the release here —
 which is what a version ceiling substitutes for when it cannot be. A
@@ -215,7 +217,7 @@ is supported, covered by CI and documented — and nothing stands behind
 so a `fetch` extra would leave `btclib.fetch` importable and unable to
 answer, which is the shape an extra exists to avoid.
 
-**Both floors name a release PyPI serves**, so `pyproject.toml` carries
+**Both sibling floors name a release PyPI serves**, so `pyproject.toml` carries
 no `[tool.uv.sources]` table and uv resolves the bindings from the index
 like anything else: `uv.lock` pins a version and its wheels, every job
 passes `--locked`, and `uv sync` downloads rather than compiling

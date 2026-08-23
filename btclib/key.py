@@ -66,6 +66,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any
 
+from typing_extensions import override
+
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_prv_key_int, point_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -245,6 +247,7 @@ class PrvKeyData:
         if check_validity:
             self.assert_valid()
 
+    @override
     def __repr__(self) -> str:
         # never echo private key material, as BIP32KeyData's repr does not
         masked = f"{type(self).__name__}(q=..., network={self.network!r}"

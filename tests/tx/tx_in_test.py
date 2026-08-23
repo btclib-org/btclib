@@ -8,6 +8,7 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.consensus import WITNESS_SCALE_FACTOR
@@ -123,6 +124,7 @@ def test_an_empty_witness_is_still_validated() -> None:
     """Validation dispatches to a witness even when its stack is empty."""
 
     class RejectingWitness(Witness):
+        @override
         def assert_valid(self) -> None:
             raise BTClibValueError("invalid witness")
 

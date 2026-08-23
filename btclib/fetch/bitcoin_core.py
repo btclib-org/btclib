@@ -30,6 +30,7 @@ from bitcoin_core_rpc import (
     cookie_auth,
     magic_from_signet_challenge,
 )
+from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -169,6 +170,7 @@ class BitcoinCoreFetcher(Fetcher):
         with client_errors():
             return self.client.call(method, params, **bound)
 
+    @override
     def get_tx(self, tx_id: Octets) -> Tx:
         """Return the transaction with this id.
 
@@ -183,6 +185,7 @@ class BitcoinCoreFetcher(Fetcher):
         raw = self._call("getrawtransaction", [hex_], max_body_size=None)
         return tx_from_raw(raw, hex_, self.network)
 
+    @override
     def get_block_count(self) -> int:
         """Return the height of the node's best chain tip."""
         self._verify_once()
@@ -190,6 +193,7 @@ class BitcoinCoreFetcher(Fetcher):
             reply = self._call("getblockcount", None, max_body_size=_MAX_SMALL_REPLY)
             return int(reply)
 
+    @override
     def get_best_block_id(self) -> bytes:
         """Return the hash of the node's best chain tip, display order."""
         self._verify_once()

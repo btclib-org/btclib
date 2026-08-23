@@ -102,6 +102,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import TypeVar
 
+from typing_extensions import override
+
 from btclib import var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block_header import BlockHeader
@@ -387,6 +389,7 @@ class _InventoryPayload(Payload):
                 raise BTClibTypeError(err_msg)
             item.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the count, then that many inventory entries."""
         if check_validity:
@@ -532,6 +535,7 @@ class _LocatorPayload(Payload):
 
         _assert_valid_hash(self.hash_stop, "hash_stop length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the version, the locator, then the stop hash."""
         if check_validity:
@@ -647,6 +651,7 @@ class Headers(Payload):
                 raise BTClibTypeError(err_msg)
             header.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the count, then each header and the zero after it."""
         if check_validity:

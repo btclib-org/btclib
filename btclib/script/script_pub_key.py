@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from typing_extensions import override
+
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.curves import point_from_octets
@@ -569,6 +571,7 @@ class ScriptPubKey(Script):
         except BTClibValueError:
             return [self.address]
 
+    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ScriptPubKey):
             return NotImplemented
@@ -590,6 +593,7 @@ class ScriptPubKey(Script):
             return False
         return super().__eq__(other)
 
+    @override
     def __hash__(self) -> int:
         # the script and the network *type*, which is what __eq__ above
         # compares: hashing the network *name* would put a signet
@@ -615,6 +619,7 @@ class ScriptPubKey(Script):
         # the script a second time
         super().__init__(script, check_validity=check_validity)
 
+    @override
     def assert_valid(self) -> None:
         """Run Script's checks, then refuse a network name not in NETWORKS."""
         super().assert_valid()

@@ -31,6 +31,8 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 
+from typing_extensions import override
+
 from btclib.bip32.bip32 import (
     BIP328_CHAIN_CODE,
     BIP32KeyData,
@@ -240,6 +242,7 @@ class KeyExpression:
             key_agg(self.participant_keys(index, network, prv_keys)).Q, secp256k1
         )
 
+    @override
     def __str__(self) -> str:
         """Return the KEY expression, in the spelling it was read in.
 

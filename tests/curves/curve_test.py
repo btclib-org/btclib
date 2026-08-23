@@ -16,6 +16,7 @@ from math import ceil, isqrt, sqrt
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.curves import (
@@ -503,32 +504,40 @@ class _CountedInt(int):
 
     calls = 0
 
+    @override
     def __mul__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(self) * int(other))
 
+    @override
     def __rmul__(self, other: int) -> "_CountedInt":
         return self * other
 
+    @override
     def __mod__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(self) % int(other))
 
+    @override
     def __rmod__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(other) % int(self))
 
+    @override
     def __add__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(self) + int(other))
 
+    @override
     def __radd__(self, other: int) -> "_CountedInt":
         return self + other
 
+    @override
     def __sub__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(self) - int(other))
 
+    @override
     def __rsub__(self, other: int) -> "_CountedInt":
         _CountedInt.calls += 1
         return _CountedInt(int(other) - int(self))

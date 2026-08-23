@@ -143,6 +143,8 @@ from copy import deepcopy
 from dataclasses import dataclass, fields, replace
 from typing import Any, cast
 
+from typing_extensions import override
+
 from btclib.alias import BIP44ScriptType, Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import (
     BIP32Key,
@@ -375,6 +377,7 @@ class MultiA:
     # to agree on an address
     sort: bool = False
 
+    @override
     def __str__(self) -> str:
         """Return the ``multi_a()`` or ``sortedmulti_a()`` leaf as text."""
         name = "sortedmulti_a" if self.sort else "multi_a"
@@ -724,6 +727,7 @@ class Descriptor(ABC):
         """Return every KEY expression the descriptor holds."""
 
     @abstractmethod
+    @override
     def __str__(self) -> str:
         """Return the descriptor as text, without its checksum.
 
@@ -1089,17 +1093,21 @@ class PkDescriptor(Descriptor):
 
     key: KeyExpression
 
+    @override
     def __str__(self) -> str:
         return _expression("pk", str(self.key))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.p2pk(self.key.sec(index, self.network, prv_keys)).script]
 
+    @override
     def _stack(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1120,17 +1128,21 @@ class PkhDescriptor(Descriptor):
 
     key: KeyExpression
 
+    @override
     def __str__(self) -> str:
         return _expression("pkh", str(self.key))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.p2pkh(self.key.sec(index, self.network, prv_keys)).script]
 
+    @override
     def _stack(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1150,17 +1162,21 @@ class WpkhDescriptor(Descriptor):
 
     key: KeyExpression
 
+    @override
     def __str__(self) -> str:
         return _expression("wpkh", str(self.key))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.p2wpkh(self.key.sec(index, self.network, prv_keys)).script]
 
+    @override
     def _stack(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1173,6 +1189,7 @@ class WpkhDescriptor(Descriptor):
         sec = self.key.sec(index, self.network, prv_keys)
         return [_required_signature(signatures, sec), sec]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1193,17 +1210,21 @@ class ShDescriptor(Descriptor):
 
     inner: Descriptor
 
+    @override
     def __str__(self) -> str:
         return _expression("sh", str(self.inner))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.p2sh(self.inner.redeem_script(index, prv_keys)).script]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1225,6 +1246,7 @@ class ShDescriptor(Descriptor):
         redeem_script = self.inner.redeem_script(index, prv_keys)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1245,17 +1267,21 @@ class WshDescriptor(Descriptor):
 
     inner: Descriptor
 
+    @override
     def __str__(self) -> str:
         return _expression("wsh", str(self.inner))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.p2wsh(self.inner.redeem_script(index, prv_keys)).script]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1273,6 +1299,7 @@ class WshDescriptor(Descriptor):
         stack = self.inner._stack(signatures, index, prv_keys, spend)
         return b"", Witness([*stack, self.inner.redeem_script(index, prv_keys)])
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1306,17 +1333,21 @@ class MiniscriptDescriptor(Descriptor):
 
     node: Miniscript
 
+    @override
     def __str__(self) -> str:
         return str(self.node)
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the KEY expressions of the fragments, left to right."""
         return self.node.key_expressions
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [self.node.script(index, self.network, prv_keys)]
 
+    @override
     def _stack(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1351,11 +1382,13 @@ class MultiDescriptor(Descriptor):
     # the participants need not agree on an order to agree on an address
     sort: bool = False
 
+    @override
     def __str__(self) -> str:
         name = "sortedmulti" if self.sort else "multi"
         return _expression(name, str(self.threshold), *map(str, self.keys))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the KEY expressions, in descriptor order."""
         return self.keys
@@ -1371,6 +1404,7 @@ class MultiDescriptor(Descriptor):
         pub_keys = [key.sec(index, self.network, prv_keys) for key in self.keys]
         return sorted(pub_keys) if self.sort else pub_keys
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         script_pub_key = ScriptPubKey.p2ms(
             self.threshold,
@@ -1380,6 +1414,7 @@ class MultiDescriptor(Descriptor):
         )
         return [script_pub_key.script]
 
+    @override
     def _stack(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1422,14 +1457,17 @@ class ComboDescriptor(Descriptor):
 
     key: KeyExpression
 
+    @override
     def __str__(self) -> str:
         return _expression("combo", str(self.key))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         pub_key = self.key.sec(index, self.network, prv_keys)
         scripts = [
@@ -1441,6 +1479,7 @@ class ComboDescriptor(Descriptor):
             scripts += [p2wpkh, ScriptPubKey.p2sh(p2wpkh).script]
         return scripts
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1458,6 +1497,7 @@ class ComboDescriptor(Descriptor):
         err_msg = "combo() is four scripts: satisfy the one being spent"
         raise BTClibValueError(err_msg)
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1479,17 +1519,21 @@ class AddrDescriptor(Descriptor):
 
     addr: str
 
+    @override
     def __str__(self) -> str:
         return _expression("addr", self.addr)
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return no KEY expression, the descriptor fixing none."""
         return ()
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.from_address(self.addr).script]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1506,6 +1550,7 @@ class AddrDescriptor(Descriptor):
         """
         raise BTClibValueError("addr() cannot be satisfied: it holds no key")
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1524,17 +1569,21 @@ class RawDescriptor(Descriptor):
 
     script: bytes
 
+    @override
     def __str__(self) -> str:
         return _expression("raw", self.script.hex())
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return no KEY expression, the descriptor fixing none."""
         return ()
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [self.script]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1551,6 +1600,7 @@ class RawDescriptor(Descriptor):
         """
         raise BTClibValueError("raw() cannot be satisfied: it holds no key")
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1570,18 +1620,21 @@ class TrDescriptor(Descriptor):
     internal_key: KeyExpression
     tree: DescriptorTree | None = None
 
+    @override
     def __str__(self) -> str:
         if self.tree is None:
             return _expression("tr", str(self.internal_key))
         return _expression("tr", str(self.internal_key), _tree_expression(self.tree))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the internal key and every leaf key, in tree order."""
         if self.tree is None:
             return (self.internal_key,)
         return (self.internal_key, *_tree_keys(self.tree))
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         script_tree = (
             None
@@ -1683,6 +1736,7 @@ class TrDescriptor(Descriptor):
             self.key_expressions, leaf_hashes, index, self.network, prv_keys
         )
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1758,6 +1812,7 @@ class TrDescriptor(Descriptor):
         scripts = _leaf_scripts(self.tree, 0, index, self.network, prv_keys)
         return [(depth, _TAPSCRIPT_LEAF_VERSION, script) for depth, script in scripts]
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1786,6 +1841,7 @@ class TrDescriptor(Descriptor):
             **_musig2_participants(self.key_expressions, index, self.network, prv_keys),
         }
 
+    @override
     def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Add what an input carries: the merkle root and the leaf scripts.
 
@@ -1801,6 +1857,7 @@ class TrDescriptor(Descriptor):
             **self.taproot_leaf_scripts(index, prv_keys),
         }
 
+    @override
     def _update_out(
         self, psbt_out: PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:
@@ -1835,14 +1892,17 @@ class RawTrDescriptor(Descriptor):
 
     key: KeyExpression
 
+    @override
     def __str__(self) -> str:
         return _expression("rawtr", str(self.key))
 
     @property
+    @override
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
+    @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         # not ScriptPubKey.p2tr, which computes an output key from an
         # internal one: here the key already is the output key, and
@@ -1850,6 +1910,7 @@ class RawTrDescriptor(Descriptor):
         output_key = self.key.sec(index, self.network, prv_keys)[1:]
         return [serialize(["OP_1", output_key])]
 
+    @override
     def _satisfy(
         self,
         signatures: Mapping[bytes, bytes],
@@ -1874,6 +1935,7 @@ class RawTrDescriptor(Descriptor):
             raise BTClibValueError("no signature for the rawtr() output key")
         return b"", Witness([signature])
 
+    @override
     def _update_map(
         self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
     ) -> None:

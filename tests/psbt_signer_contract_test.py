@@ -16,6 +16,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import pytest
+from typing_extensions import override
 
 from btclib.bip32.bip32 import derive
 from btclib.bip32.key_origin import BIP32KeyOrigin
@@ -119,6 +120,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
 
     class _TooLong(_Wrapper):
         @property
+        @override
         def master_fingerprint(self) -> bytes:
             return b"\x00" * 5
 
@@ -129,6 +131,7 @@ def test_a_fingerprint_of_the_wrong_width_is_refused() -> None:
     # three-byte fingerprint is what a key origin would then be written to
     class _TooShort(_Wrapper):
         @property
+        @override
         def master_fingerprint(self) -> bytes:
             return b"\x00" * 3
 
@@ -145,6 +148,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             self._asked = 0
 
         @property
+        @override
         def master_fingerprint(self) -> bytes:
             self._asked += 1
             return bytes([self._asked, 0, 0, 0])
@@ -161,6 +165,7 @@ def test_a_fingerprint_that_changes_is_refused() -> None:
             self._asked = 4
 
         @property
+        @override
         def master_fingerprint(self) -> bytes:
             self._asked -= 1
             return bytes([self._asked, 0, 0, 0])
@@ -173,6 +178,7 @@ def test_an_xpub_that_is_not_an_extended_key_is_refused() -> None:
     """A string is a string: that it spells a key is not a type."""
 
     class _Nonsense(_Wrapper):
+        @override
         def xpub(self, der_path: DerPath) -> str:
             return "not a key at all"
 
@@ -184,6 +190,7 @@ def test_an_xpub_that_is_private_is_refused() -> None:
     """The one answer that is not merely wrong."""
 
     class _Leaking(_Wrapper):
+        @override
         def xpub(self, der_path: DerPath) -> str:
             return derive(bip39.mxprv_from_mnemonic(_MNEMONIC, "", "mainnet"), der_path)
 
@@ -199,6 +206,7 @@ def test_an_xpub_that_changes_is_refused() -> None:
             super().__init__()
             self._asked = 0
 
+        @override
         def xpub(self, der_path: DerPath) -> str:
             self._asked += 1
             return self._signer.xpub(f"m/84h/0h/{self._asked}h")
@@ -213,6 +221,7 @@ def test_an_xpub_that_changes_is_refused() -> None:
             super().__init__()
             self._asked = 4
 
+        @override
         def xpub(self, der_path: DerPath) -> str:
             self._asked -= 1
             return self._signer.xpub(f"m/84h/0h/{self._asked}h")
@@ -232,6 +241,7 @@ def test_signing_an_input_of_another_master_is_refused() -> None:
     """
 
     class _Rogue(_Wrapper):
+        @override
         def sign_psbt(self, psbt: Psbt) -> Psbt:
             answer = deepcopy(psbt)
             psbt_in = answer.inputs[0]
@@ -251,6 +261,7 @@ def test_a_signer_that_signs_nothing_it_was_said_to_sign_is_refused() -> None:
     """The end-to-end half: the caller says it can, so it has to."""
 
     class _Idle(_Wrapper):
+        @override
         def sign_psbt(self, psbt: Psbt) -> Psbt:
             return deepcopy(psbt)
 
@@ -272,6 +283,7 @@ def test_a_conforming_signer_is_closed_twice() -> None:
     closed = 0
 
     class _Counting(_Wrapper):
+        @override
         def close(self) -> None:
             nonlocal closed
             closed += 1
@@ -303,6 +315,7 @@ def test_capabilities_that_change_are_refused() -> None:
             self._asked = 0
 
         @property
+        @override
         def capabilities(self) -> SignerCapabilities:
             self._asked += 1
             return SignerCapabilities(taproot=self._asked % 2 == 0)
@@ -377,6 +390,7 @@ def test_a_signer_that_adds_nothing_to_a_signed_quorum_is_refused() -> None:
     """
 
     class _Idle(_Wrapper):
+        @override
         def sign_psbt(self, psbt: Psbt) -> Psbt:
             return deepcopy(psbt)
 

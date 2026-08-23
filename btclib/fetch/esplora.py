@@ -38,6 +38,8 @@ expects text is not compatible in the way that matters.
 
 from __future__ import annotations
 
+from typing_extensions import override
+
 from btclib.alias import Octets
 from btclib.exceptions import HttpError
 from btclib.fetch.fetcher import (
@@ -148,17 +150,20 @@ class EsploraFetcher(Fetcher):
             raise HttpError(f"HTTP {status} from {url}: {text}", status)
         return text
 
+    @override
     def get_tx(self, tx_id: Octets) -> Tx:
         """Return the transaction, parsed and checked against its txid."""
         hex_ = tx_id_hex(tx_id)
         raw = self.text(f"/tx/{hex_}/hex", _MAX_TX_BODY)
         return tx_from_raw(raw, hex_, self.network)
 
+    @override
     def get_block_count(self) -> int:
         """Return the height of the server's best chain tip."""
         with fetch_errors("blocks/tip/height"):
             return int(self.text("/blocks/tip/height", _MAX_HEIGHT_BODY))
 
+    @override
     def get_best_block_id(self) -> bytes:
         """Return the hash of the server's best chain tip, display order."""
         with fetch_errors("blocks/tip/hash"):

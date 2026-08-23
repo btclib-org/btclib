@@ -61,6 +61,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from typing_extensions import override
+
 __all__ = [
     "BTClibException",
     "BTClibRuntimeError",
@@ -149,6 +151,7 @@ class HttpError(FetchError):
         self.status = status
         super().__init__(message, status)
 
+    @override
     def __str__(self) -> str:
         # the message alone, which is what BaseException returns for a
         # single argument and not for the two this carries
@@ -180,6 +183,7 @@ class RpcError(FetchError):
         self.data = data
         super().__init__(message, code, data)
 
+    @override
     def __str__(self) -> str:
         return f"{self.args[0]} (rpc error code {self.code})"
 
@@ -211,6 +215,7 @@ class SignerError(BTClibRuntimeError):
         self.code = code
         super().__init__(message, code)
 
+    @override
     def __str__(self) -> str:
         if self.code is None:
             return str(self.args[0])
@@ -275,6 +280,7 @@ class IncompleteMessageError(BTClibRuntimeError):
         self.missing = missing
         super().__init__(message, missing)
 
+    @override
     def __str__(self) -> str:
         return f"{self.args[0]}: {self.missing} more bytes wanted"
 
@@ -295,6 +301,7 @@ class ScriptError(BTClibValueError):
         self.stack_depth = stack_depth
         super().__init__(message, index, stack_depth)
 
+    @override
     def __str__(self) -> str:
         where = f"command {self.index}, stack depth {self.stack_depth}"
         return f"{self.args[0]} ({where})"
@@ -386,6 +393,7 @@ class InvalidContributionError(BTClibRuntimeError):
         self.contrib = contrib
         super().__init__(signer, contrib)
 
+    @override
     def __str__(self) -> str:
         who = "the aggregator" if self.signer is None else f"signer {self.signer}"
         return f"invalid {self.contrib} from {who}"
@@ -421,6 +429,7 @@ class BorromeanRingError(BTClibRuntimeError):
         self.position = position
         super().__init__(message, ring, position)
 
+    @override
     def __str__(self) -> str:
         if self.ring is None:
             return str(self.args[0])

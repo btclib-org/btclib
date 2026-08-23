@@ -10,6 +10,7 @@ from typing import Any, get_args
 from unicodedata import normalize
 
 import pytest
+from typing_extensions import override
 
 from btclib.alias import MnemonicLang
 from btclib.exceptions import BTClibValueError
@@ -318,6 +319,7 @@ def test_load_lang_is_not_a_race() -> None:
     class BlockingDict(dict[str, list[str]]):
         """Block inside the assignment the race needed to interleave."""
 
+        @override
         def __setitem__(self, key: str, value: list[str]) -> None:
             # `no branch`: this test loads one language, so the guard is
             # never false here. It is what keeps the block to the
