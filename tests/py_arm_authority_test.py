@@ -44,7 +44,7 @@ nothing here asks a contributor's branch to pay for it.
 
 That re-derivation runs weekly instead, is
 `.github/workflows/py-arm-authority.yml`, calling
-`.github/scripts/check_python_arm_authority.py` -- issue #1003's answer.
+`.github/scripts/check_py_arm_authority.py` -- issue #1003's answer.
 It repeats the measurement above, module by module, and fails loudly on
 any of three disagreements: an entry claims a module that no longer
 reaches the arm (stale, the harmful direction), a module reaches an arm
@@ -369,9 +369,9 @@ def _arm_locations() -> dict[str, tuple[Path, int, int]]:
     `node.end_lineno`, the `def` line itself excluded on purpose, since it
     runs at import regardless of whether the function is ever called and
     would otherwise report every arm of every imported module as reached.
-    `.github/scripts/check_python_arm_authority.py` is what reads this
+    `.github/scripts/check_py_arm_authority.py` is what reads this
     range against a coverage run's `executed_lines` to re-derive
-    `_AUTHORITY`; `_python_arms()` below reads only the keys.
+    `_AUTHORITY`; `_py_arms()` below reads only the keys.
     """
     found: dict[str, tuple[Path, int, int]] = {}
     for path in sorted(_LIBRARY.rglob("*.py")):
@@ -393,7 +393,7 @@ def _arm_locations() -> dict[str, tuple[Path, int, int]]:
     return found
 
 
-def _python_arms() -> set[str]:
+def _py_arms() -> set[str]:
     """Return every function of btclib that holds a dispatch to the bindings.
 
     The keys of `_arm_locations()`, which is where the counting rule --
@@ -402,7 +402,7 @@ def _python_arms() -> set[str]:
     return set(_arm_locations())
 
 
-def test_every_python_arm_is_in_the_inventory() -> None:
+def test_every_py_arm_is_in_the_inventory() -> None:
     """An arm added without an entry fails here, which is the point.
 
     The inventory is worth nothing if it can go quietly out of date: a
@@ -412,7 +412,7 @@ def test_every_python_arm_is_in_the_inventory() -> None:
     of the day it was written.
     """
     listed = set(_AUTHORITY)
-    found = _python_arms()
+    found = _py_arms()
     assert listed == found, (
         f"not in the inventory: {sorted(found - listed)};"
         f" gone from the library: {sorted(listed - found)}"

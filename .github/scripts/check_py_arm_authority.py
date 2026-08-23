@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Re-derive tests/python_arm_authority_test.py's `_AUTHORITY`, weekly.
+"""Re-derive tests/py_arm_authority_test.py's `_AUTHORITY`, weekly.
 
 That file's docstring documents the measurement by hand: per third-party
 test module, in an environment with no bindings installed,
@@ -28,13 +28,13 @@ directions plus the one `_WITHOUT_AN_AUTHORITY` exists to notice:
 - something now reaches an arm in `_WITHOUT_AN_AUTHORITY` -- NEW
   AUTHORITY, the good news that set exists to pick up.
 
-Reuses `tests/python_arm_authority_test.py`'s own `_arm_locations` for
+Reuses `tests/py_arm_authority_test.py`'s own `_arm_locations` for
 where each arm's body lives rather than re-walking the AST: one parser,
 one definition of "arm", read by the shape tests, the content tests and
 this script alike.
 
     uv sync --no-default-groups --group harness
-    python .github/scripts/check_python_arm_authority.py
+    python .github/scripts/check_py_arm_authority.py
 
 Not a gate: `.github/workflows/py-arm-authority.yml` runs this on a
 schedule, with no branch rule attached, for the reason `vendored-vectors`
@@ -53,7 +53,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
-from tests.python_arm_authority_test import (  # noqa: E402
+from tests.py_arm_authority_test import (  # noqa: E402
     _AUTHORITY,
     _THIRD_PARTY_VECTORS,
     _WITHOUT_AN_AUTHORITY,
@@ -65,7 +65,7 @@ def _run_coverage(module: str, report_path: Path) -> dict[str, set[int]]:
     """Run tests/<module> under coverage and return its executed lines by file.
 
     The exact command the docstrings of this file and
-    tests/python_arm_authority_test.py both give, `--cov-report` pointed
+    tests/py_arm_authority_test.py both give, `--cov-report` pointed
     at a file of its own so each module's run leaves the others untouched.
     `check=True`: a test module failing outright is not a disagreement
     this script is built to phrase, and is worth a loud traceback rather
