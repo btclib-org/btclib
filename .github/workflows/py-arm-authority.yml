@@ -97,7 +97,7 @@ permissions:
 # merged ones included, so it never collides with that group the way
 # bare ref did
 concurrency:
-  group: python-arm-authority-${{ github.head_ref || github.ref }}
+  group: py-arm-authority-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:

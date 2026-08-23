@@ -127,7 +127,7 @@ env:
 # always groups by the PR's branch, closed and merged ones included, so
 # it never collides with a push's group the way bare ref did
 concurrency:
-  group: integration-${{ github.head_ref || github.ref }}
+  group: integration-bitcoind-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:

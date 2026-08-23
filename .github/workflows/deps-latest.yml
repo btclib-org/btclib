@@ -72,7 +72,7 @@ permissions:
 # workflow today, but that expression is the caller's name when something
 # does, and the convention is what keeps the groups distinct
 concurrency:
-  group: latest-${{ github.ref }}
+  group: deps-latest-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

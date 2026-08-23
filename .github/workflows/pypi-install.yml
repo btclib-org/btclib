@@ -93,7 +93,7 @@ permissions:
 # samples worth keeping, and neither supersedes the other. A concurrent
 # run queues instead
 concurrency:
-  group: published-${{ github.ref }}
+  group: pypi-install-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

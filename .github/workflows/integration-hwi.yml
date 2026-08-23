@@ -64,7 +64,7 @@ env:
 # github.workflow, as everywhere else here: in a called workflow that
 # expression is the caller's name
 concurrency:
-  group: hwi-integration-${{ github.ref }}
+  group: integration-hwi-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

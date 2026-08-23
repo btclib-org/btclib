@@ -62,7 +62,7 @@ permissions:
 # alongside test.yml, and with that expression the two would share a group
 # and cancel each other
 concurrency:
-  group: ubuntu-${{ github.ref }}
+  group: os-ubuntu-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
