@@ -38,7 +38,7 @@ this script alike.
 
 Not a gate: `.github/workflows/py-arm-authority.yml` runs this on a
 schedule, with no branch rule attached, for the reason `vendored-vectors`
-and `install-published` already establish -- every module under coverage is
+and `pypi-install` already establish -- every module under coverage is
 minutes, and it answers a question no pull request introduces.
 """
 

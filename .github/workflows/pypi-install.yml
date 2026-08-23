@@ -124,8 +124,8 @@ jobs:
           # header), and a wheel built from an sdist that lost one of them
           # installs and imports cleanly, failing only at the BIP39 check
           # below. No wheel-only cell can see that kind of drift -- the
-          # risk is MANIFEST.in or [tool.setuptools] listing what ships,
-          # not a build failure -- and btclib was the only one of the
+          # risk is [tool.uv.build-backend] excluding what ships, not a
+          # build failure -- and btclib was the only one of the
           # three publishing repositories with no cell that exercised it
           # (issue #1153). A single extra cell rather than a second axis
           # over the base matrix: a `["", "--no-binary"]` axis would

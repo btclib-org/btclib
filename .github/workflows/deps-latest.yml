@@ -329,10 +329,13 @@ jobs:
           enable-cache: true
       - name: Upgrade every dependency to its latest release
         run: uv lock --upgrade
-      # setuptools and the build backend are resolved by uv build itself,
-      # not from uv.lock, so this step is at latest whether or not the one
-      # above ran: the build requirement in pyproject.toml is a lower
-      # bound, and uv builds in an isolated environment
+      # the build backend is uv's own, packaged inside the uv binary and
+      # resolved from neither uv.lock nor the index, so this step builds
+      # with whatever backend the installed uv carries whether or not the
+      # one above ran. pyproject.toml bounds it on both sides, which is
+      # what makes "what does the sdist hold" a question with one answer;
+      # a uv older than that floor falls back to resolving uv_build from
+      # the index instead
       - name: Build the distribution files
         run: uv build
       - name: Check the metadata and the long description

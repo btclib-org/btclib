@@ -4,26 +4,24 @@
 
 """Rewrite an sdist so that two builds of one commit are the same bytes.
 
-`SOURCE_DATE_EPOCH` is enough for the wheel and reaches nothing in the
-sdist. setuptools honours the variable in the wheel writer it vendors and
-in no other place, which is one file of the installed package and says so
-whichever release is current:
+The backend already does that, and this runs anyway. `uv_build` writes a
+fixed timestamp into every member of both archives and ignores
+`SOURCE_DATE_EPOCH` entirely, which is measurable in one command:
 
-    uv run --isolated --no-project --with setuptools python -c "
-    import pathlib, setuptools
-    root = pathlib.Path(setuptools.__file__).parent
-    print(setuptools.__version__, [str(p.relative_to(root))
-        for p in root.rglob('*.py')
-        if 'SOURCE_DATE_EPOCH' in p.read_text(encoding='utf-8')])"
+    uv build -o a && SOURCE_DATE_EPOCH=1000000000 uv build -o b \
+      && shasum -a 256 a/* b/*
 
-So every member of the `.tar.gz` keeps whichever clock produced it: the
-directory setuptools stages the sdist in carries the build's, and each
-file copied into that directory carries the checkout's. Both are
-sub-second, both land in a PAX `mtime` record, and two checkouts of one
-commit disagree in the digits after the point:
+answers with one digest per artefact across the two directories, and
+`tarfile` reports a single distinct `mtime` of 0 in the `.tar.gz` against
+`(1980, 1, 1)` in the wheel's zip entries. Nothing here has to be done for
+the archive to be reproducible today.
 
-    28 mtime=1786407122.0157955
-    28 mtime=1786407123.6693566
+What this buys is that the property belongs to this repository rather than
+to the backend. A fixed `mtime` of 0 is uv's choice and uv is free to
+revisit it, while a release rebuilt from its tag has to give the bytes the
+attestation vouches for however many backends later that is. Rewriting the
+metadata to a value derived from the commit makes the answer this tree's,
+and turns a backend change from a broken rebuild into a no-op.
 
 What is *in* the archive is already deterministic; what is not is the
 metadata of the members. This rewrites that metadata and nothing else:

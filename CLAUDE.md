@@ -133,13 +133,11 @@ Do not use Fable unless explicitly instructed.
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.
 - **The prose style — tone, comments, docstrings, no history — is
-  `CONTRIBUTING.md`'s *Documentation and comments***, stated once there
-  because contributors read that file and not this one. It governs the
-  workflows and the pre-commit config too: the reasoning with its
+  section 9 of the organization standard**, which
+  `CONTRIBUTING.md`'s *Documentation and comments* is the pointer to.
+  It governs the workflows and the pre-commit config too: the reasoning with its
   negative results is what makes those files reviewable, so match it
   rather than trimming it.
-- **Markdown wraps at 80 columns**, tables included (MD013 is on), so
-  long commands go in fenced blocks split with `\`.
 - **CHANGELOG.md gets an entry for anything a user would notice**, in
   the group it belongs to; RELEASE_NOTES.md is the release notes on top
   of it and only moves for a change a user has to *act* on. The prose of
@@ -157,9 +155,10 @@ Do not use Fable unless explicitly instructed.
       btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
 
-  The why is in `CONTRIBUTING.md`'s *Documentation and comments*; what
-  this file adds is that nothing states a count now and tests keep it
-  that way — `tests/release_notes_test.py` for CHANGELOG.md and
+  The why is section 9 of the organization standard, which
+  `CONTRIBUTING.md` points at; what this file adds is that nothing states
+  a count now and tests keep it that way —
+  `tests/release_notes_test.py` for CHANGELOG.md and
   RELEASE_NOTES.md, `tests/vendored_data_test.py` for
   `tests/_data/README.md` — failing on a stated count rather than on a
   wrong one.
@@ -185,7 +184,10 @@ Do not use Fable unless explicitly instructed.
 ## Verifying
 
 Run the command as documented before claiming it works, and read its
-exit code rather than its filtered output, for the reason
-`CONTRIBUTING.md`'s *This repository in particular* gives. Prefer
+exit code rather than its filtered output: `pre-commit run ... | grep -v
+Passed` hides a failure, and a `grep` that finds nothing exits 1, which
+is not the gate's answer to anything. `REVIEWING.md`'s *The gates are the
+evidence* is where that rule is written for a reader who is not this
+one. Prefer
 measuring to asserting: every claim in this file was checked against the
 tree, and the tree changes.
