@@ -1476,6 +1476,17 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **CONTRIBUTING.md's documented mypy command and its workflow-schedule
+  sentence match the tree** (issues #1281, #1271). The mypy invocation
+  named a root `scripts` directory; `git ls-files` finds none there, and
+  running the command as printed exits 2, where `.pre-commit-config.yaml`'s
+  own mypy hook, which does not carry that path, passes. The sentence
+  pointing a contributor at the organization standard's schedule table
+  stated how many repositories share that calendar — the shape
+  CONTRIBUTING.md itself asks against — and now keeps only the reasoning
+  for reading the schedule from one place rather than a copy per
+  repository, with no number for the standard's table to outgrow again.
+
 - **The Esplora module names the second deployment its own argument
   rests on** (issue #1130). Its docstring says the backend is an api and
   not a product, and gave "several operators run it" as the evidence --
