@@ -2245,9 +2245,8 @@ documented at release-notes length in the first place, and are still in
   value `dsa.verify` refused as a type. Not an arm disagreement, that
   one: 1 is an x-coordinate of secp256k1, so both arms lifted the bool
   and both answered about it — two schemes disagreeing, where the
-  private side had one scheme answering two ways. A `Point` is the arm
-  this does not reach, `is_on_curve` reading a bool as the number beside
-  it, and is issue #1249.
+  private side had one scheme answering two ways. A `Point` was the
+  same gap one layer down, closed separately by issue #1249.
 
   It reads its int through `int_from_integer` now and says
   `"non-integer: True"`. Every entry point taking a `BIP340PubKey` moves
@@ -2273,6 +2272,25 @@ documented at release-notes length in the first place, and are still in
 
   Nothing in the package passed a bool, and no test did: the change
   costs the suite nothing and closes the arm disagreement.
+- **`CurveGroup.is_on_curve` refuses a bool coordinate** (issue #1249).
+  It recognizes the point at infinity through `Q[1] == 0`, and
+  `False == 0` in Python, so `is_on_curve((x, False))` read any x as
+  infinity; `is_on_curve((True, y))` answered True about the point at
+  x = 1, an x-coordinate nobody has the discrete log of. Neither
+  coordinate was checked for its type at all.
+
+  The check is `is_integer`, run on both coordinates before the
+  infinity check and before the range check, raising
+  `BTClibTypeError` — `"non-integer x-coordinate: True"` or
+  `"non-integer y-coordinate: True"`, naming which one. `is_on_curve`
+  is `CurveGroup`'s method rather than secp256k1's, so the refusal
+  holds for every curve; `curves.curve.PreparedPoint`'s constructor
+  calls `require_on_curve` before building any table, so a bool
+  coordinate there raises the same way. `to_pub_key.point_from_pub_key`,
+  `ecc.ssa._x_from_bip340pub_key` and `curves.sec_point.bytes_from_point`
+  are the three funnels that validate a `Point` through it, and each
+  now raises the same sentence rather than returning a point no caller
+  meant to ask for.
 - **`borromean.sign` refuses a scalar outside 1..n-1, and reads one
   however it is spelled** (issue #1243). `sign_keys[i]` reached step 2's
   `(k + sign_keys[i] * e[i][j_star]) % ec.n` exactly as the caller wrote

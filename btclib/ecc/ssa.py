@@ -260,14 +260,13 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
     # BIP340 key as integer, read through the library's one integer
     # coercion rather than taken as it comes: an x is a number, and a
     # bool is not one anywhere a number is (issue #326). This was the
-    # last int spelling of a key outside that rule -- the tuple arm below
-    # is not covered by it, `is_on_curve` reading a bool as the number
-    # beside it, which is issue #1249. `isinstance(True, int)` made
-    # `True` the key at x = 1, an x-coordinate of secp256k1, so both
-    # arms lifted it and both answered about it where `dsa.verify`
-    # refused the same value as a type: two schemes disagreeing and not
-    # two arms, where the private side of issue #1206 had one scheme
-    # answering two ways.
+    # last int spelling of a key outside that rule; the tuple arm below
+    # is covered by `is_on_curve`'s own refusal of a bool coordinate
+    # (issue #1249). `isinstance(True, int)` made `True` the key at
+    # x = 1, an x-coordinate of secp256k1, so both arms lifted it and
+    # both answered about it where `dsa.verify` refused the same value
+    # as a type: two schemes disagreeing and not two arms, where the
+    # private side of issue #1206 had one scheme answering two ways.
     if isinstance(x_Q, int):
         return int_from_integer(x_Q)
 
