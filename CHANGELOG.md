@@ -30,6 +30,11 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`REVIEWING.md` says the reviewer runs the whole suite, every time.**
+  The organization's copy, shared half byte for byte (section 14): the
+  test suite is run whole on the sha under review, never a subset and
+  never relied on from the author's run.
+
 - **`REVIEWING.md` is the organization's copy.** A review reads the prose
   that stays in the tree, treats a commit message or a pull request's
   body as a finding only where it decides something, and asks a stated
