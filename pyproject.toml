@@ -474,8 +474,15 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # written in the backticks the rule below hides a deliberate misspelling
 # in. Every *prose* mention of either is backticked and already invisible
 # to this hook; what these two entries cover is the two lines that
-# configure the other one
-ignore-words-list = "wit,nd,ser,unser"
+# configure the other one.
+# "te" is what electrum's own NFD spelling of "término" tokenizes into:
+# base "e" and the combining acute accent on it are two codepoints, so
+# the word splits into "te" and "rmino" at the mark, and "te" alone is in
+# codespell's dictionary as a typo for "the"/"be"/"we"/"to". The
+# passphrase in tests/mnemonic/electrum_test.py needs that exact NFD
+# spelling -- issue #1284 has why -- so the split is fixed here rather
+# than by composing the accent away
+ignore-words-list = "wit,nd,ser,unser,te"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the prose
