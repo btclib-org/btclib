@@ -488,6 +488,18 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`pyroma` is no longer skipped on pre-commit.ci.** pyroma's own code
+  (`pyroma/projectdata.py`) asks `build` for the project's metadata
+  without isolation first, and only falls back to an isolated build —
+  which pre-commit.ci cannot create — when that raises. The fallback is
+  what pre-commit.ci was refusing, not an inability to skip isolation at
+  all: `[build-system] requires` names `uv_build`, which was not
+  importable in the hook's own environment, so the first attempt always
+  raised. `additional_dependencies: ["uv_build>=0.12.5,<0.13"]` on the
+  hook, the same range `pyproject.toml` declares, is what makes the
+  non-isolated attempt succeed (btclib-org/btclib-benchmarks#165 is where
+  that project made the same change).
+
 - **`codeql.yml` no longer carries an aggregate job.** `codeql-passed`
   produced `codeql: every job passed`, a context branch protection has
   never named — `codeql.yml`'s `on:` block has no `pull_request` trigger,
