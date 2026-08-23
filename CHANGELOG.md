@@ -497,8 +497,8 @@ documented at release-notes length in the first place, and are still in
   importable in the hook's own environment, so the first attempt always
   raised. `additional_dependencies: ["uv_build>=0.12.5,<0.13"]` on the
   hook, the same range `pyproject.toml` declares, is what makes the
-  non-isolated attempt succeed (btclib-org/.github#118 is where
-  btclib-benchmarks made the same change).
+  non-isolated attempt succeed (btclib-org/btclib-benchmarks#165 is where
+  that project made the same change).
 
 - **`codeql.yml` no longer carries an aggregate job.** `codeql-passed`
   produced `codeql: every job passed`, a context branch protection has
