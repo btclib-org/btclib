@@ -727,7 +727,6 @@ fail_under = 100.0
 [tool.mypy]
 strict = true
 show_column_numbers = true
-show_error_codes = true
 # the organization's list, the same in every repository that runs mypy
 # (section 6 of the standard, btclib-org/.github#165), and nothing else
 # in this key: a code that finds nothing today is a ratchet, catching the
@@ -898,14 +897,6 @@ ignore = [
     # class, and a magic method by the data model it implements
     "undocumented-magic-method",
     "undocumented-public-init",
-    # pydocstyle offers each of these as a mutually exclusive alternative
-    # to a rule the "D" family above already selects -- D211
-    # (blank-line-before-class) and D212 (multi-line-summary-first-line)
-    # in order -- so no docstring can satisfy both sides of either pair
-    # and disabling one is permanent, not a count that a future cleanup
-    # could shrink
-    "incorrect-blank-line-before-class",
-    "multi-line-summary-second-line",
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for this
     # rule to find is what no width can break, almost all of it a test
@@ -1061,18 +1052,19 @@ style = "google"
 # the docstring is a second place to be wrong, and the one nothing checks
 arg-type-hints-in-docstring = false
 check-return-types = false
-# the default, and not the false sibling btclib-secp256k1 sets. There it
-# is right: every docstring of a wrapper is a line, so switching the skip
-# off is what makes the check reach any of them at all. Here what it
-# reaches is `Args` and `Returns` sections that do not exist rather than
-# sections that disagree with a signature, which is a rewrite of the
-# whole package's prose and not a lint fix. Left at the default, this
-# gates the docstrings that do carry sections, which is where the silent
-# drift is: a signature grows a parameter and the section above it still
-# lists the old ones. Issue #1178 is the stricter setting, how many
-# findings it reaches, and the command that counts them -- no figure is
-# repeated here, a count beside no way of re-measuring it being a line
-# every change to the package can falsify in silence
+# the default, and what decides it is the form a docstring's contract
+# takes here: prose. A summary saying what the call returns, and the
+# paragraphs under it carrying whatever a parameter needs said about it,
+# rather than an `Args` list and a `Returns` list. pydoclint reads a
+# section and not a sentence, so `false` asks for each of those facts a
+# second time in a shape it can parse, which section 9 of the standard
+# refuses as one fact in two places. Nor does it find what is actually
+# missing: prose that leaves a parameter unmentioned states no contract
+# for it, and `false` reports that docstring exactly as it reports the
+# prose naming every parameter. Left at the default, this gates the
+# docstrings that do carry sections, which is where the drift is silent:
+# a signature grows a parameter and the section above it still lists the
+# old ones. Issue #1178 is the stricter setting and what it would cost
 skip-checking-short-docstrings = true
 # pep257 -- ruff's convention here -- neither asks for a docstring on
 # __init__ nor forbids one, and this package writes its constructors out

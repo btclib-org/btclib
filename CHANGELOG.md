@@ -30,6 +30,17 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`.gitattributes`'s shared half is the organization's copy byte for
+  byte.** Section 14 of the standard in `btclib-org/.github` makes the
+  file the same in every repository up to `## This repository in
+  particular`, and that copy carries a sentence this one did not: both
+  `merge=union` lines belong in every repository's copy, a tree holding
+  no `RELEASE_NOTES.md` included, because an attribute on a path the
+  tree does not hold matches nothing. `tests/verbatim_test.py` there
+  compares the two halves after stripping the blank line before the
+  marker, and this copy matches the standard's under it
+  (btclib-org/.github#192).
+
 - **The question form names the Slack link beside it rather than
   `CONTRIBUTING.md`.** The sentence pointed at `CONTRIBUTING.md`, which
   carries no such link: the channel is a contact link in
@@ -510,6 +521,49 @@ documented at release-notes length in the first place, and are still in
   where the edit stopped.
 
 ### Packaging, linting and CI
+
+- **`check-sdist` builds the archive with the backend `[build-system]`
+  declares.** The hook's manifest entry drives `uv build`, and given
+  `build-backend = "uv_build"` that packs the archive with the copy of
+  the backend bundled in the running uv and not with the environment's:
+  the manifest installs `uv` and no `uv_build`, and the archive is built
+  regardless. So the `uv_build>=0.12.5,<0.13` range `requires` names
+  governed nothing the gate ran.
+  `args: [--inject-junk, --installer=pip]` sends check-sdist through
+  `python -m build --no-isolation` instead, which does read the
+  environment, and `additional_dependencies` puts that range in it: an
+  environment outside `requires` now fails the hook with `ERROR Missing
+  dependencies`. `--inject-junk` is repeated because `args:` replaces
+  the manifest's list rather than adding to it. What the failure does
+  not catch is a `requires` widened past the hook's line, which leaves
+  that line still satisfying it (btclib-org/.github#197).
+
+- **`[tool.ruff.lint] ignore` no longer names two rules the declared
+  convention settles.** `incorrect-blank-line-before-class` and
+  `multi-line-summary-second-line` are each the disabled half of a pair
+  ruff calls incompatible, and `[tool.ruff.lint.pydocstyle] convention =
+  "pep257"` settles both: with a convention declared ruff reports
+  neither rule and prints no warning about either pair, so the entries
+  read as an enforced choice and decided nothing. Section 5 of the
+  standard in `btclib-org/.github` is where that is written down
+  (btclib-org/.github#178).
+
+- **`[tool.mypy]` no longer sets `show_error_codes`.** mypy carries no
+  such option: `Options` has `hide_error_codes`, `False` before any
+  configuration file is read, and `config_parser.py`'s generic
+  `show_`/`hide_` inversion is the whole of what accepts the key. The
+  line stated a check mypy already performs, which section 6 of the
+  standard in `btclib-org/.github` keeps out of the block
+  (btclib-org/.github#191).
+
+- **The `[tool.pydoclint]` comment names the form this package's
+  docstrings take.** Section 4 of the standard in `btclib-org/.github`
+  decides `skip-checking-short-docstrings` by whether a tree states a
+  docstring's contract in a section or in prose, and this package states
+  it in prose: a summary saying what the call returns, with the
+  paragraphs under it carrying whatever a parameter needs. The comment
+  argued instead the size of the rewrite `false` would ask for, which is
+  issue #1178's to hold (btclib-org/.github#198).
 
 - **Two `pyproject.toml` comments named a reason for an entry that the
   entry does not have.** `[tool.uv.build-backend]`'s `source-include`
