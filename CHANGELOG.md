@@ -499,11 +499,14 @@ documented at release-notes length in the first place, and are still in
   entry does not have.** `[tool.uv.build-backend]`'s `source-include`
   comment justified part of the list by saying the lint gate has to be
   runnable from an unpacked sdist. It does not run there, and no
-  include pattern makes it so: `check-sdist`'s own `default-ignore.txt`
-  keeps `.github` out of every archive the backend builds, so
-  `check-hooks-apply` fails on `check-dependabot`, `actionlint` and
-  `zizmor`, each reading only that directory. The comment now says what
-  the list actually buys — a tool reading `.pre-commit-config.yaml`,
+  include pattern makes it so: nothing in the list names anything
+  under `.github/`, so the backend never puts it in the archive it
+  builds, and `check-hooks-apply` fails on `check-dependabot`,
+  `actionlint` and `zizmor`, each reading only that directory --
+  `check-sdist`'s own `default-ignore.txt` carrying `.github` is why
+  that absence is accepted rather than reported, and controls nothing
+  about what the backend packs. The comment now says what the list
+  actually buys — a tool reading `.pre-commit-config.yaml`,
   `.taplo.toml` or `.secrets.baseline` directly finds it in the sdist
   too (issue #1276).
 
@@ -526,6 +529,7 @@ documented at release-notes length in the first place, and are still in
   hook, the same range `pyproject.toml` declares, is what makes the
   non-isolated attempt succeed (btclib-org/btclib-benchmarks#165 is where
   that project made the same change).
+
 - **`normalize_sdist.py` also rewrites `mode`, and names every field it
   rewrites** (issue #1277). `member.mode` becomes `0o755` for a directory
   and `0o644` for a file, matching `bitcoin-core-rpc`'s copy of the

@@ -232,14 +232,18 @@ module-root = ""
 # module's nor the website's, and `/**` is what recurses.
 #
 # Not that the lint gate is runnable from an unpacked sdist: it is not,
-# and no pattern here can make it so -- check-sdist's own
-# default-ignore.txt keeps .github out of any archive it builds, so
-# check-hooks-apply fails there on check-dependabot, actionlint and
-# zizmor, each reading only that directory. What the list buys instead
-# is that a tool reading one of these files directly finds it in the
-# sdist too: .pre-commit-config.yaml (`*.yaml`) is a hook's own file,
-# and .taplo.toml (`*.toml`) and .secrets.baseline are what a hook of
-# it reads.
+# and no pattern here can make it so. .github is absent from the sdist
+# because nothing above names anything under it, not because
+# check-sdist's default-ignore.txt controls what the backend puts in
+# the archive -- that list only keeps a tracked-but-absent .github from
+# being reported as a mismatch, the role it plays for git-only below.
+# check-hooks-apply still fails on an unpacked sdist, on
+# check-dependabot, actionlint and zizmor, each reading only that
+# directory. What the list above buys instead is that a tool reading
+# one of these files directly finds it in the sdist too:
+# .pre-commit-config.yaml (`*.yaml`) is a hook's own file, and
+# .taplo.toml (`*.toml`) and .secrets.baseline are what a hook of it
+# reads.
 #
 # The Jekyll sources of btclib.org, which is served from this
 # repository's root, are named nowhere here: they are tracked and
