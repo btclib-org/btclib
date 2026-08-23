@@ -395,6 +395,57 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`uv_build` builds the distribution files, and `check-sdist` says
+  what they may carry**. `MANIFEST.in` is gone: what an sdist ships is
+  `[tool.uv.build-backend]`'s `source-include` and `source-exclude`,
+  glob patterns in the file the rest of the configuration was already
+  in.
+
+  Measured at the same content, which is what makes the swap a
+  packaging change and not a release one. Built before and after and
+  compared member for member, the wheel loses
+  `dist-info/top_level.txt`; the sdist loses `setup.cfg` and the
+  `btclib.egg-info/` members, none of them tracked and all of them
+  setuptools' own, and gains `pyproject.toml.orig`, the verbatim copy
+  `uv_build` keeps beside the normalized `pyproject.toml` it writes.
+  Every tracked member is the same file in both, and the two payloads
+  still agree with each other.
+
+  What died with the file is its syntax and not its reasoning. A cache
+  a linter writes beside the file it just checked (issue #985) is one
+  pattern per cache now rather than one per directory level: uv's
+  excludes are unanchored and take everything under a match, where
+  `recursive-exclude * .mypy_cache/*` reached exactly one level and
+  `global-exclude` reached the directory entry and shipped its
+  contents. The tests whose subject `.github/scripts` holds are still
+  excluded by name, and the licence C2SP/wycheproof asks an sdist to
+  redistribute beside its vectors still ships — under `tests/**`, which
+  takes the directory whole and needs no rule for the one file in it
+  with no extension.
+
+  `check-sdist` replaces `check-manifest` as the hook that diffs the
+  tree against the sdist. It builds with `uv build` rather than
+  `python -m build`, so nothing has to create an isolated build
+  environment, which is what pre-commit.ci cannot do; and it reads
+  `source-exclude` itself, so a tracked file the sdist deliberately
+  omits is named in one place instead of in a tool's configuration as
+  well. `[tool.check-sdist]`'s `git-only` names what no include pattern
+  adds in the first place: the website served from this repository's
+  root, and the workspaces of an editor and of an agent.
+
+  The floor `uv_build>=0.12.5` is where that normalized `pyproject.toml`
+  and the `.orig` beside it arrived. Built with 0.11.31, this tree
+  gives a wheel with the same members and an sdist with neither of
+  those two, so a lower floor would leave what the sdist holds with two
+  answers; the ceiling is the next minor, where uv's versioning policy
+  puts a breaking change.
+
+  `verify_dist_contents.py` and the policy page beside it read the new
+  archives: `top_level.txt` is not one of the wheel's metadata files,
+  `btclib.egg-info/` is not a directory the sdist ships — an egg-info
+  under any name is another distribution's leftover now — and
+  `pyproject.toml.orig` is a root file it does.
+
 - **One cell gates a merge, three weekly sweeps run the matrices whole,
   and every schedule sits on the organization's grid**
   (btclib-org/.github#85). `test.yml`'s `suite` job is gone: what a pull

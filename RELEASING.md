@@ -569,11 +569,12 @@ only reason a third `gh attestation verify` can pass at all.
 Two things bound that guarantee, and both are worth knowing before reading
 a mismatch as tampering:
 
-- **the build backend is resolved, not pinned.** `[build-system] requires`
-  asks for `setuptools>=77` and an isolated build takes whatever is
-  current, so a rebuild months later runs a setuptools the release never
-  saw. A mismatch dates the rebuild before it accuses anyone; pinning the
-  backend to a version is the fix, and the cost is a floor that ages.
+- **the build backend is bounded, not pinned.** `[build-system] requires`
+  asks for `uv_build>=0.12.5,<0.13`, and a build takes whichever version
+  in that range the uv running it carries, so a rebuild months later runs
+  a backend the release never saw. A mismatch dates the rebuild before it
+  accuses anyone; pinning the backend to a version is the fix, and the
+  cost is a bound that ages.
 - **the rehearsal is a different version, by construction.** A TestPyPI
   dispatch appends `.dev<run*100+attempt>` to the version, so its files
   are not a second build of the release's — they are their own artifact,

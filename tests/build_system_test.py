@@ -2,26 +2,27 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Nothing but setuptools runs while a distribution is built.
+"""Nothing but the uv build backend runs while a distribution is built.
 
 `docs/source/package-content-policy.md` states what may be in the wheel
 and the sdist, and `.github/scripts/verify_dist_contents.py` refuses a
 build that carries anything else -- an installed wheel therefore executes
 nothing at install time, there being no member left that could. What no
-list of members can see is the *build*: `[build-system] requires` is
-resolved into an isolated environment and every package named there runs
-code while the archives are made, so that one line is the whole of what a
-release trusts, and a diff is the only thing that reads it.
+list of members can see is the *build*: `[build-system] requires` is what
+a build resolves, from an index or from the copy uv carries, and every
+package named there runs code while the archives are made, so that one
+line is the whole of what a release trusts, and a diff is the only thing
+that reads it.
 
 Which is what this is: the line is one requirement long, and a test
 saying so is what a second one would have to go past.
 
-Not an assertion on the exact string. The floor is declared in
-pyproject.toml with the reason for it, and a copy of it here would be a
-second declaration to keep in step, failing on the day it moves for a
+Not an assertion on the exact string. The bounds are declared in
+pyproject.toml with the reason for them, and a copy of them here would be
+a second declaration to keep in step, failing on the day they move for a
 reason that has nothing to do with what runs. The shape is what matters
-and what is checked: one requirement, named setuptools, bounded from
-below and nothing else -- which is also how a direct reference to a url,
+and what is checked: one requirement, named uv_build, bounded below and
+above and nothing else -- which is also how a direct reference to a url,
 an extra and an environment marker are refused, each of them a way to
 name a package that resolves to somebody else's code.
 
@@ -43,8 +44,9 @@ from pathlib import Path
 
 _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
 
-# a name, `>=` and a release: no `@ <url>`, no `[extra]`, no `; marker`
-_LOWER_BOUND = re.compile(r"setuptools>=[0-9]+(?:\.[0-9]+)*")
+# a name and two releases: no `@ <url>`, no `[extra]`, no `; marker`
+_RELEASE = r"[0-9]+(?:\.[0-9]+)*"
+_BOUNDS = re.compile(rf"uv_build>={_RELEASE},<{_RELEASE}")
 
 # the table pip and uv build with, up to whichever table follows it
 _TABLE = re.compile(r"^\[build-system\]$(.*?)(?=^\[)", re.MULTILINE | re.DOTALL)
@@ -68,26 +70,28 @@ def _build_system() -> str:
 _BUILD_SYSTEM = _build_system()
 
 
-def test_the_build_requires_setuptools_and_nothing_else() -> None:
-    """One requirement, and a lower bound is the whole of what it says."""
+def test_the_build_requires_the_uv_backend_and_nothing_else() -> None:
+    """One requirement, and a pair of bounds is the whole of what it says."""
     match = _REQUIRES.search(_BUILD_SYSTEM)
     assert match, "[build-system] declares no requires"
     (requirement,) = _QUOTED.findall(match.group(1))
 
-    assert _LOWER_BOUND.fullmatch(requirement)
+    assert _BOUNDS.fullmatch(requirement)
 
 
-def test_the_backend_is_the_declarative_one() -> None:
-    """`setuptools.build_meta`, and not the `:__legacy__` beside it.
+def test_the_backend_is_the_one_the_tooling_reads() -> None:
+    """`uv_build`, the string two other tools key on.
 
-    That one is the backend for a project configured by `setup.py`: it
-    imports the file and runs it, which is the install-time hook the
-    package-content policy is about, one stage earlier and in the build.
+    uv matches it to use the backend bundled in its own binary rather
+    than resolving the package, and check-sdist matches it to read
+    `source-exclude` when it decides what the sdist is allowed to omit.
+    Either would fall back to a default that is neither, and the fall
+    back is silent.
     """
     match = _BACKEND.search(_BUILD_SYSTEM)
     assert match, "[build-system] declares no build-backend"
 
-    assert match.group(1) == "setuptools.build_meta"
+    assert match.group(1) == "uv_build"
 
 
 # the same requirement declared twice on purpose, and the two spellings:

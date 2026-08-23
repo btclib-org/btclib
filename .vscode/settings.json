@@ -3,7 +3,7 @@
   // the editor fixes on save is what the hook would have fixed, so nothing
   // reaches `git commit` for the first time there. extensions.json beside it
   // names the tool each setting drives. What no extension wraps --
-  // codespell, yamllint, actionlint, zizmor, detect-secrets, check-manifest,
+  // codespell, yamllint, actionlint, zizmor, detect-secrets, check-sdist,
   // pyroma, toml-comment-width -- is only ever seen by
   //
   //   uv run pre-commit run --all-files

@@ -47,16 +47,16 @@ an empty one is a member in its own right and carries no `.pyc`.
 
 An allowlist, it being what lands on `sys.path`: Python source under
 `btclib/`, `btclib/py.typed`, whatever sits in a `_data/` directory, and
-the `.dist-info` metadata setuptools writes. Anything else fails, which
+the `.dist-info` metadata the backend writes. Anything else fails, which
 is what makes a `.pth` file, a stray top-level module and a bundled
 shared object one rule rather than three.
 
 Under `btclib-<version>.dist-info/` — `WHEEL_METADATA_FILES`, beside the
-`licenses/` directory setuptools copies `LICENSE`, `COPYRIGHT` and
+`licenses/` directory the backend copies `LICENSE`, `COPYRIGHT` and
 `AUTHORS.md` into:
 
-- `METADATA`, `RECORD`, `WHEEL`, `top_level.txt` — what setuptools
-    writes for a package configured as this one is
+- `METADATA`, `RECORD`, `WHEEL` — what `uv_build` writes for a package
+    configured as this one is
 
 `entry_points.txt` is deliberately not among them: pyproject.toml
 declares no `[project.scripts]`, and an entry point is a code path a user
@@ -65,51 +65,45 @@ change that has to be read.
 
 ## What the sdist may hold
 
-A structural check rather than an extension allowlist, `MANIFEST.in`
-already being one: `recursive-include tests *.json` is the statement of
-what a vendored vector may be, and a second copy of it here would be one
-more edit per vector while catching nothing that file lets through. What
-this adds is what `MANIFEST.in` cannot say — that every member sits under
-the archive's own root directory, that every member is a regular file or
-a directory (a tar can carry a symlink, a hardlink or a device node,
-where a zip cannot), and that no directory holds the metadata of some
-other distribution.
+A structural check rather than an extension allowlist.
+`[tool.uv.build-backend]` includes `tests/**` and `docs/**` whole, so no
+pattern there says what a vendored vector may be, and saying it here
+would be one more edit per extension while what decides is what git
+tracks — the comparison `check-sdist` makes. What this adds is what
+neither of them can say — that every member sits under the archive's own
+root directory, that every member is a regular file or a directory (a tar
+can carry a symlink, a hardlink or a device node, where a zip cannot),
+and that no directory holds the metadata of some other distribution.
 
 The directories, `SDIST_DIRECTORIES`:
 
 - `btclib` — the package
 - `tests` — its suite
 - `docs` — the documentation sources
-- `btclib.egg-info` — the metadata setuptools generates beside them
 
 The files at that root, `SDIST_ROOT_SUFFIXES` and `SDIST_ROOT_NAMES`.
-`MANIFEST.in` ships most of them by glob, `include *.md` and the two
-beside it, so a file landing at the root is shipped without a packaging
-decision being made; this is where that decision is recorded:
+`source-include` ships most of them by glob, `*.md` and the ones beside
+it, so a file landing at the root is shipped without a packaging decision
+being made; this is where that decision is recorded:
 
 - `.md`, `.toml`, `.yaml`, `.jsonc` — what a reader of an unpacked sdist
     reads, and the configuration of the tools it names
 - `LICENSE`, `COPYRIGHT` — the licence and the copyright notice, which
     `project.license-files` copies into the wheel as well
-- `PKG-INFO`, `setup.cfg` — written by setuptools while it builds the
-    archive, and not files of this tree
-- `MANIFEST.in`, `uv.lock`, `.python-version`, `.secrets.baseline` —
-    what makes an unpacked sdist buildable, and its lint gate runnable,
-    which is `MANIFEST.in`'s own reason for carrying the last two
-
-Under `btclib.egg-info/`, generated metadata and nothing else:
-`SDIST_EGG_INFO_NAMES` and `SDIST_EGG_INFO_SUFFIXES`.
-
-- `PKG-INFO`, `.txt` — what setuptools writes there; anything else is
-    the tree the archive was built in leaking into it
+- `PKG-INFO`, `pyproject.toml.orig` — written by the backend while it
+    builds the archive: the metadata PyPI reads off it, and the verbatim
+    copy of pyproject.toml it keeps beside the normalized one
+- `uv.lock`, `.python-version`, `.secrets.baseline` — what makes an
+    unpacked sdist buildable, and its lint gate runnable, which is why
+    `[tool.uv.build-backend]` names the last two
 
 ## What has to be in there
 
 The wheel, `WHEEL_REQUIRED`, beside the metadata files above, which are
 required as well as allowed:
 
-- `btclib/__init__.py` — a wheel with no package in it at all is the
-    shape a misconfigured `packages.find` produces
+- `btclib/__init__.py` — the archive is what this reads, and a
+    `module-root` pointing at nothing fails the build instead
 - `btclib/py.typed` — PEP 561 makes its absence silent: the package
     installs, imports, and type checks as `Any`
 
@@ -142,7 +136,7 @@ package tree: btclib/py.typed`.
 
 It ran unconfigured until btclib-org/btclib#1200, and the reason recorded
 in btclib-org/btclib#1160 was redundancy rather than inapplicability:
-`check-manifest`, a pre-commit hook gated by the lint workflow, diffs this
+`check-sdist`, a pre-commit hook gated by the lint workflow, diffs this
 tree against the sdist, and the completeness check above diffs the sdist
 against the wheel, so chained they imply checkout == sdist == wheel. The
 organization standard's section 12 no longer accepts that trade
@@ -173,8 +167,8 @@ many words — so what follows each here is what stands in for a check.
     was written for this, which is worth knowing before trimming one to
     what a build happens to produce: it would take a guard with it.
     There is no `setup.py` in the tree at all — `[build-system]` names
-    `setuptools.build_meta`, the configuration is declarative, and
-    pyproject.toml has no field for a command class.
+    `uv_build`, the configuration is declarative, and the backend reads
+    no build script of any kind.
 - **No network access while the package installs.** Which follows from
     the rule above and is not a check of its own: an installed wheel is
     Python source and data, pip runs none of it, and the three shapes
@@ -182,7 +176,7 @@ many words — so what follows each here is what stands in for a check.
 - **No code generated from the network while a release is built.**
     `[build-system] requires` is the one line that can put somebody
     else's code in a build here, and it is one requirement long:
-    `tests/build_system_test.py` asserts it names setuptools and nothing
+    `tests/build_system_test.py` asserts it names `uv_build` and nothing
     else, so a build requirement cannot be added in silence. A diff is
     what reads it; the test is what says a reader has to.
 
