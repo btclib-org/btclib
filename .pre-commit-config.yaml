@@ -21,9 +21,21 @@ ci:
   # lands on
   autoupdate_commit_msg: "Update the pinned pre-commit hook revisions"
   autoupdate_schedule: weekly
-  # the hooks pre-commit.ci cannot run: they shell out to uv, which is not
-  # installed there, and the lint workflow covers them
-  skip: [mypy]
+  # the hooks pre-commit.ci cannot run, each covered by the lint workflow,
+  # which is the required check and runs them all. mypy shells out to uv,
+  # which is not installed there. pyroma builds the project to read its
+  # metadata and gives `build` no way to skip isolation, so it asks for a
+  # virtual environment and gets
+  # "No module named ensurepip" from the interpreter pre-commit.ci offers:
+  #
+  #     https://results.pre-commit.ci/run/github/133639679/
+  #
+  # is where that answer was read. Under the previous backend the build
+  # requirement resolved to setuptools and the isolated environment was
+  # never asked for; uv_build is bundled in the uv binary, and pyroma does
+  # not know to look there. `test.yml`'s dist job runs the same check
+  # against the built archives, where a build environment exists
+  skip: [mypy, pyroma]
 
 repos:
   # this file checking itself, and the only two hooks here with no
