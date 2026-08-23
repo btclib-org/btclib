@@ -138,6 +138,22 @@ documented at release-notes length in the first place, and are still in
   questions the organization asks of every tree, and are asked in
   `## What every review here also checks` rather than twice.
 
+- **`.gitattributes` is the organization's file, and this tree's rule
+  is under `## This repository in particular`.** Section 14 of the
+  standard in `btclib-org/.github` names the file as the same in every
+  repository up to that heading, which git reads as a comment and
+  `tests/verbatim_test.py` there reads as where the comparison stops
+  (btclib-org/.github#102). The shared half is now byte for byte that
+  copy: what this one said beyond it was the closing sentence of the
+  comment, that the rule is recorded in the organization's README.md
+  because this tree has no section of its own for it, which every other
+  copy could say and none needs to. The `-whitespace` line for the
+  vendored Portuguese word-list moves under the heading, with its
+  comment: a rule for one repository's path above it would be a copy for
+  every other to drift from. `git check-attr` still answers `union` for
+  `CHANGELOG.md` and `RELEASE_NOTES.md` and `unset` for the word-list's
+  `whitespace`.
+
 - **`LICENSE` and `.claude/commands/review.md` are the organization's
   copies of themselves.** Section 14 of the standard in
   `btclib-org/.github` names both as the same file in every repository,

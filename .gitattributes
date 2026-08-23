@@ -10,10 +10,14 @@
 # the same existing entry edited on two branches merges in silence rather
 # than being flagged. That is why neither states how many entries it has —
 # a count is exactly such an edit, and union would have kept both numbers.
-# Section 9 of README.md in btclib-org/.github is where this rule is
-# recorded, this repository having no section of its own to record it in.
+# Section 9 of the organization standard, btclib-org/.github's README.md,
+# is where this rule is recorded.
 CHANGELOG.md merge=union
 RELEASE_NOTES.md merge=union
+
+## This repository in particular
+# Everything above is the same file in every repository of the organization;
+# everything below is this one's, and the comparison stops at this heading.
 
 # Electrum's Portuguese word-list is Monero's, and the blank lines of the
 # licence header it opens with end in a space upstream. Our copy being byte
