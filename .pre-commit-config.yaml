@@ -21,21 +21,10 @@ ci:
   # lands on
   autoupdate_commit_msg: "Update the pinned pre-commit hook revisions"
   autoupdate_schedule: weekly
-  # the hooks pre-commit.ci cannot run, each covered by the lint workflow,
-  # which is the required check and runs them all. mypy shells out to uv,
-  # which is not installed there. pyroma builds the project to read its
-  # metadata and gives `build` no way to skip isolation, so it asks for a
-  # virtual environment and gets
-  # "No module named ensurepip" from the interpreter pre-commit.ci offers:
-  #
-  #     https://results.pre-commit.ci/run/github/133639679/
-  #
-  # is where that answer was read. Under the previous backend the build
-  # requirement resolved to setuptools and the isolated environment was
-  # never asked for; uv_build is bundled in the uv binary, and pyroma does
-  # not know to look there. `test.yml`'s dist job runs the same check
-  # against the built archives, where a build environment exists
-  skip: [mypy, pyroma]
+  # the hook pre-commit.ci cannot run, covered by the lint workflow, which
+  # is the required check and runs it: mypy shells out to uv, which is not
+  # installed there
+  skip: [mypy]
 
 repos:
   # this file checking itself, and the only two hooks here with no
@@ -664,3 +653,22 @@ repos:
     rev: "5.0.1"
     hooks:
       - id: pyroma
+        # the backend, in pyroma's own environment. pyroma's command line
+        # has no isolation flag, but its code asks `build` for the
+        # metadata without isolation first and only falls back to an
+        # isolated build when that raises -- and an isolated build is a
+        # virtual environment pre-commit.ci cannot create, the same
+        # constraint the check-sdist hook above answers with
+        # --no-isolation. Without this line the backend named in
+        # [build-system] is not importable in the hook's own environment,
+        # the first attempt raises, and the fallback is what pre-commit.ci
+        # refuses.
+        #
+        # The specifier is [build-system]'s and has to stay it: `build`
+        # skips isolation only when the environment already satisfies
+        # what pyproject.toml requires, so a version here outside that
+        # range puts the fallback back. Not pinned, unlike the additional
+        # dependencies elsewhere in this file: what this has to match is
+        # a range rather than a release, and the isolated build it
+        # replaces would have resolved the same range itself
+        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
