@@ -638,19 +638,43 @@ repos:
       - id: uv-lock
   # what is tracked and not in the sdist, and what is in the sdist and not
   # tracked, both ways round, against the patterns of
-  # [tool.uv.build-backend]. Nothing is configured here: the hook's own
-  # manifest already passes --no-isolation and --inject-junk and installs
-  # uv, which is the whole of what this needs. --no-isolation is what
-  # pre-commit.ci requires -- an isolated build environment cannot be
-  # created there (no ensurepip in the interpreter, read-only virtualenv
-  # app data) -- and it costs nothing to build without one, the backend
-  # being the copy bundled in that uv. --inject-junk drops a cache
-  # directory and an egg-info beside the sources for the length of the
-  # run, which is what the exclusions in [tool.uv.build-backend] answer
+  # [tool.uv.build-backend]. --no-isolation is in the hook's own manifest
+  # entry and is what pre-commit.ci requires: an isolated build
+  # environment cannot be created there, the interpreter having no
+  # ensurepip and the virtualenv app data being read-only.
+  #
+  # --installer=pip is what brings the build under [build-system]. The
+  # default installer is uv, and `uv build` on a project declaring
+  # build-backend = "uv_build" packs the archive with the copy of the
+  # backend bundled in the running uv and not with the environment's:
+  # the manifest installs uv and no uv_build, and the archive is built
+  # regardless. So an additional_dependencies line on its own would
+  # decide nothing.
+  #
+  # With the pip installer check-sdist runs `python -m build
+  # --no-isolation` instead, which does read the environment and refuses
+  # one that does not satisfy `requires`, so the backend that packs the
+  # archive is one pyproject.toml admits.
+  #
+  # What that does not keep is the two specifiers equal: a `requires`
+  # widened past the line below leaves that line still satisfying it, and
+  # the hook still green. The failure catches the environment falling
+  # outside `requires` and never `requires` growing past the environment.
+  #
+  # --inject-junk is repeated because args: replaces the manifest's list
+  # rather than adding to it. It drops a cache directory and an egg-info
+  # beside the sources for the length of the run, which is what the
+  # exclusions in [tool.uv.build-backend] answer. additional_dependencies
+  # replaces the manifest's list the same way, and what the manifest names
+  # there is uv, which the pip path never looks for. The specifier below
+  # is [build-system]'s own range and not a pin, as pyroma's is: what the
+  # build has to satisfy is a declaration
   - repo: https://github.com/henryiii/check-sdist
     rev: v1.6.0
     hooks:
       - id: check-sdist
+        args: [--inject-junk, --installer=pip]
+        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
   - repo: https://github.com/regebro/pyroma
     # the newest *stable* tag: 5.1b1 and 5.1b2 sit above it, and
     # `pre-commit autoupdate` offers a prerelease as readily as a release,

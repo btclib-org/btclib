@@ -12,6 +12,11 @@
 # a count is exactly such an edit, and union would have kept both numbers.
 # Section 9 of the organization standard, btclib-org/.github's README.md,
 # is where this rule is recorded.
+#
+# Both lines are in every repository's copy, a tree carrying no
+# RELEASE_NOTES.md included: section 2 of that README.md gives the
+# release notes to a repository that publishes, and an attribute on a
+# path the tree does not hold matches nothing.
 CHANGELOG.md merge=union
 RELEASE_NOTES.md merge=union
 
