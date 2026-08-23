@@ -30,6 +30,13 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`CONTRIBUTING.md` says where the bare `ruff format` and
+  `pre-commit run --all-files` disagree.** `ruff-pre-commit`'s
+  `ruff-format` hook restricts itself to `types_or: [python, pyi,
+  jupyter]`, so `pre-commit` never reformats a `.md` file; the bare
+  command has no such filter and reformats a fenced-code Python block it
+  finds inside `CHANGELOG.md` or `RELEASE_NOTES.md` (issue #1293).
+
 - **`REVIEWING.md`'s *The gates are the evidence* excepts no gate from
   the run a reviewer may rely on, the test suite included.** The
   organization's copy, shared half byte for byte (section 14): a run is
