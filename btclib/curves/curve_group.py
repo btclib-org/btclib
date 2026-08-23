@@ -24,7 +24,7 @@ from typing_extensions import override
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv_batch_var, mod_inv_var, mod_sqrt_var
-from btclib.utils import assert_type, hex_string, int_from_integer
+from btclib.utils import assert_type, hex_string, int_from_integer, is_integer
 
 __all__ = [
     "BOS_COSTER_THRESHOLD",
@@ -669,6 +669,14 @@ class CurveGroup:
         assert_type(Q, tuple, "point")
         if len(Q) != 2:
             raise BTClibValueError("point must be a tuple[int, int]")
+        # the type before the y==0 infinity check below: `False == 0`
+        # would read any x paired with a bool y as infinity, and
+        # `is_integer` is where this library says a bool is not a number
+        # (issue #1249)
+        if not is_integer(Q[0]):
+            raise BTClibTypeError(f"non-integer x-coordinate: {Q[0]}")
+        if not is_integer(Q[1]):
+            raise BTClibTypeError(f"non-integer y-coordinate: {Q[1]}")
         if Q[1] == 0:  # Infinity point in affine coordinates
             return True
         if not 0 < Q[1] < self.p:  # y cannot be zero

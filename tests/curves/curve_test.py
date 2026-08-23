@@ -807,6 +807,15 @@ def test_is_on_curve() -> None:
         with pytest.raises(BTClibValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
 
+        # a bool coordinate before either check above: `Q[1] == 0` is
+        # how infinity is recognized, and `False == 0` in Python, so a
+        # bool y used to be read as infinity for any x (issue #1249)
+        for y in (True, False):
+            with pytest.raises(BTClibTypeError, match="non-integer x-coordinate"):
+                ec.is_on_curve((y, Q[1]))
+            with pytest.raises(BTClibTypeError, match="non-integer y-coordinate"):
+                ec.is_on_curve((Q[0], y))
+
 
 def test_negate() -> None:
     """Verify P plus its negation is INF; refuse mixed coordinates."""

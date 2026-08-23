@@ -50,6 +50,15 @@ full year, short month, short day (YYYY-M-D)
 
   An `IntEnum` is unaffected and stays an integer. CHANGELOG.md has why
   a bool was reaching a key at all, and what the two arms did with it.
+- **A `Point`'s coordinates are no longer accepted as bools** (issue
+  #1249). `is_on_curve((x, False))` used to answer about the point at
+  infinity for any x, `False == 0` in Python; `is_on_curve((True, y))`
+  about the point at x = 1. Act on it if you build a `Point` tuple from
+  a value that could be a bool — a JSON decoder's `true`/`false`
+  included: `point_from_pub_key`, `point_from_bip340pub_key`,
+  `PreparedPoint` and `bytes_from_point` all raise `BTClibTypeError`
+  now, on every curve. CHANGELOG.md has which coordinate the message
+  names.
 - **`borromean.sign` refuses a private key or a nonce outside 1..n-1**
   (issue #1243). Neither sequence was read as a scalar, so a key of 0,
   of `n` or of `q + n` signed, where every other signer in `ecc`

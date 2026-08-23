@@ -39,7 +39,13 @@ from btclib.block.block import bip34_commitment
 from btclib.block.block_context import BlockContext
 from btclib.block.mining import mine
 from btclib.block.proof_of_work import hash_rate, retarget_first_height
-from btclib.curves import mult, scalar_from_prv_key, secp256k1
+from btclib.curves import (
+    PreparedPoint,
+    bytes_from_point,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.ecc.bms import sign as bms_sign
 from btclib.ecc.dsa import sign as dsa_sign
 from btclib.ecc.ssa import point_from_bip340pub_key
@@ -54,7 +60,7 @@ from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
 from btclib.to_prv_key import int_from_prv_key
-from btclib.to_pub_key import point_from_key
+from btclib.to_pub_key import point_from_key, point_from_pub_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
     bytes_from_octets,
@@ -214,6 +220,23 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # answers -- `BTClibTypeError` is a `TypeError` and the except there
     # takes `ValueError`, which is issue #814's rule
     ("BIP340 verification key", lambda v: ssa_verify(b"msg", v, _SSA_SIG)),
+    # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
+    # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
+    # `bytes_from_point` included, and it read a bool coordinate as an
+    # int -- `Q[1] == 0` marking infinity, so a bool `False` for y was
+    # read as infinity for any x (issue #1249). One case per funnel
+    # pins the reach; `secp256k1.G[1]` is a placeholder y that only the
+    # x-coordinate cases need on the curve, is_on_curve's type check
+    # running before the equation it would otherwise fail
+    ("point x-coordinate", lambda v: secp256k1.is_on_curve((v, secp256k1.G[1]))),
+    ("point y-coordinate", lambda v: secp256k1.is_on_curve((secp256k1.G[0], v))),
+    ("public key point", lambda v: point_from_pub_key((v, secp256k1.G[1]))),
+    (
+        "BIP340 x-only point",
+        lambda v: point_from_bip340pub_key((v, secp256k1.G[1])),
+    ),
+    ("prepared point", lambda v: PreparedPoint((v, secp256k1.G[1]))),
+    ("point to sec bytes", lambda v: bytes_from_point((v, secp256k1.G[1]))),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -260,6 +283,29 @@ _WORDINGS = [
     ("base58 address key", p2pkh, "not a private or public key"),
     ("bech32 address key", p2wpkh, "not a private or public key"),
     ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
+    # separate from the three families above: `is_on_curve`'s own
+    # refusal of a bool coordinate (issue #1249), one sentence per
+    # coordinate and shared by every funnel behind it
+    (
+        "point x-coordinate",
+        lambda v: secp256k1.is_on_curve((v, secp256k1.G[1])),
+        "non-integer x-coordinate: True",
+    ),
+    (
+        "point y-coordinate",
+        lambda v: secp256k1.is_on_curve((secp256k1.G[0], v)),
+        "non-integer y-coordinate: True",
+    ),
+    (
+        "public key point",
+        lambda v: point_from_pub_key((v, secp256k1.G[1])),
+        "non-integer x-coordinate: True",
+    ),
+    (
+        "prepared point",
+        lambda v: PreparedPoint((v, secp256k1.G[1])),
+        "non-integer x-coordinate: True",
+    ),
 ]
 
 
@@ -316,6 +362,10 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert bms_sign(b"msg", 1).dsa_sig.r
     assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
+    assert secp256k1.is_on_curve(secp256k1.G) is True
+    assert point_from_pub_key(secp256k1.G) == secp256k1.G
+    assert PreparedPoint(secp256k1.G).point == secp256k1.G
+    assert bytes_from_point(secp256k1.G).hex().startswith("02")
     assert str_from_index_int(1) == "1"
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
