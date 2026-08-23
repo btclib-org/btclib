@@ -105,7 +105,7 @@ documented at release-notes length in the first place, and are still in
   node, `integration-hwi.yml` for the device emulators. `latest.yml` and
   `published.yml` named neither what was latest nor what was published,
   which their own headers do: they are `deps-latest.yml`, the dependency
-  sentinel, and `install-published.yml`, which asks whether what PyPI
+  sentinel, and `pypi-install.yml`, which asks whether what PyPI
   serves installs. `python-arm-authority.yml` is `py-arm-authority.yml`.
   Each renamed file's `name:` key repeats its stem, as it did before,
   `py-arm-authority.yml` keeping the spaces its own wrote the hyphens

@@ -366,7 +366,7 @@ testpaths = ["tests"]
 # docs/test-parallelism.md, and it is the length of a cell rather than the
 # count of its tests. To re-derive:
 #
-#     for w in ubuntu macos windows; do
+#     for w in os-ubuntu os-macos os-windows; do
 #         gh workflow run $w.yml --ref <a branch with the flag removed>
 #         gh workflow run $w.yml --ref main
 #     done
@@ -863,7 +863,7 @@ select = [
 # the locale's: UTF-8 wherever this suite is usually read, cp1252 on
 # Windows, where a typographic quote in a docstring is a byte that maps
 # to nothing and the module holding it fails to load rather than fails a
-# test. windows.yml answers weekly and before a release, so nothing else
+# test. os-windows.yml answers weekly and before a release, so nothing else
 # asks in between.
 # Zero findings when it was selected, which makes it a ratchet and not a
 # cleanup. .pre-commit-config.yaml carries the other half, `text=True`

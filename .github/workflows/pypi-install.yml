@@ -1,5 +1,5 @@
 ---
-name: install-published
+name: pypi-install
 
 # checks whether what is already on PyPI actually works, not merely
 # installs -- which no pull request asks, checking out the tree it is

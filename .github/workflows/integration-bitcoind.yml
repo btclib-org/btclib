@@ -39,7 +39,7 @@ name: integration-bitcoind
 # same node the same question about a tree nothing has touched. What it
 # asks that nothing else does is whether bitcoincore.org still serves the
 # tarball pinned below. A pruned release or a moved path is external rot
-# of exactly the kind install-published.yml is weekly for -- both fetch
+# of exactly the kind pypi-install.yml is weekly for -- both fetch
 # a pinned third-party artifact and verify a hash -- and unscheduled it
 # would first appear during a quiet stretch as a red required check on
 # the branch of whoever opened the next pull request, about something

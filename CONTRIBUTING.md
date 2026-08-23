@@ -418,19 +418,19 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
-| `integration` | pull request, push, weekly | a node |
+| `integration-bitcoind` | pull request, push, weekly | a node |
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | push to main, and weekly | 2 languages |
-| `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
-| `macos` | weekly, a release | 2 macOS images × 7 interpreters |
-| `windows` | weekly, a release | 2 Windows images × 7 interpreters |
-| `latest` | weekly | platforms sampled, deps upgraded |
-| `hwi-integration` | weekly, push to main | two device emulators |
+| `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
+| `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
+| `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `deps-latest` | weekly | platforms sampled, deps upgraded |
+| `integration-hwi` | weekly, push to main | two device emulators |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | upstream's vectors |
-| `published` | weekly, a release | what PyPI serves |
-| `python-arm-authority` | weekly, push to main | the arm-authority table |
+| `pypi-install` | weekly, a release | what PyPI serves |
+| `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which
@@ -441,7 +441,7 @@ stale the next time one is added or dropped.
 grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
 ```
 
-The `test`, `lint`/`docs`, `integration` and `website` rows are what a
+The `test`, `lint`/`docs`, `integration-bitcoind` and `website` rows are what a
 merge waits for, and between them they report the required checks: `lint`
 and `docs` share a row and report one each. They run one image on one
 interpreter: `ubuntu-latest`, and the version `.python-version` names.
@@ -454,8 +454,8 @@ Why so little gates is one number: the ceiling GitHub Free puts on an
 organization's concurrent jobs, twenty shared across every repository in
 it. REPOSITORY.md measures what a wider gate cost against that ceiling,
 and the consequence is this table's: at that ceiling a pull request's
-wall clock is the wait for a slot rather than the suite. `macos.yml` and
-`windows.yml` each carry the measurement for their own cells, the
+wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
+`os-windows.yml` each carry the measurement for their own cells, the
 queueing and the runner seconds. `codeql` is off the gate for the same
 arithmetic, with `zizmor` in `lint` still reading these workflows on
 every pull request.
@@ -464,14 +464,14 @@ The trade, stated here rather than discovered later: the gate does not
 refuse a regression on `3.10`, on arm, on PyPy or on a platform. It sits
 on `main` until the sentinel for it runs, at most six days.
 
-**What a sentinel varies, it varies whole.** `ubuntu` runs the images and
+**What a sentinel varies, it varies whole.** `os-ubuntu` runs the images and
 the interpreters the gate leaves alone *and* the cell it spends. A matrix
 with the gate's cell cut out of it is one nobody can read the shape of,
 and whoever asked what ran would have to re-derive the hole from
 `test.yml`.
 
-`ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
-the platform; `latest` moves both. Red in one of the three with `latest`
+`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock and move
+the platform; `deps-latest` moves both. Red in one of the three with `deps-latest`
 green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for `codeql` and
@@ -497,7 +497,7 @@ uv run --locked --only-group lint \
 `Build the documentation` is a workflow of its own, `docs.yml`, and its
 command is the one below under "The documentation".
 
-One cell of the matrix `ubuntu.yml`, `macos.yml` and `windows.yml` each
+One cell of the matrix `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
 carry. The interpreter is chosen with `--python`, which accepts any of the
 ones those workflows list, `3.14t` and `pypy3.11` included, and downloads
 it if the machine has none:
@@ -515,8 +515,8 @@ verbatim, and CI has no `.venv` to lose.
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
 whether that (os, architecture, interpreter) triple passes. The job below
-is where coverage is measured, which is the reason `ubuntu.yml` gives and
-the other two cite. `latest.yml` does not pass the flag: it runs no PyPy
+is where coverage is measured, which is the reason `os-ubuntu.yml` gives and
+the other two cite. `deps-latest.yml` does not pass the flag: it runs no PyPy
 cell and has no coverage job of its own, so the ratchet meeting an
 upgraded coverage.py is one of the things that workflow exists to find
 out.
@@ -700,7 +700,7 @@ commands above in the order a verifier runs them, with the
 `gh attestation verify` that gives the rebuild a verdict and the two
 bounds on what that verdict means.
 
-The `latest` workflow, which upgrades every dependency uv resolves before
+The `deps-latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade
 rewrites uv.lock, and here too `git checkout uv.lock` restores it; the
 commands after it are the ones already listed above, so only the first is
@@ -729,7 +729,7 @@ uv run --locked --no-default-groups --group test python -c \
 uv run --locked --no-default-groups --group test pytest
 ```
 
-The `published` workflow, weekly, on demand and as part of a release,
+The `pypi-install` workflow, weekly, on demand and as part of a release,
 has two jobs, entitled to different answers about what the index
 serves.
 
@@ -861,7 +861,7 @@ exits non-zero for one, which is the only thing the workflow is red about.
 Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
-The `integration` workflow, which gates and is the exception here: it runs
+The `integration-bitcoind` workflow, which gates and is the exception here: it runs
 on every pull request, on every push to `main` and before a release, and
 `Regtest against Bitcoin Core` is required on `main`. It runs weekly too,
 and that workflow's own header says what the weekly run asks that the
@@ -882,7 +882,7 @@ A step after it reads that report and fails the job if a regtest test
 skipped: pytest exits 0 for a module that skipped itself, so a job whose
 fixture stopped finding the node would stay green while asking Core
 nothing. The HWI tests skip there by design and are not counted; they are
-`hwi-integration.yml`'s, a workflow of its own rather than a second job
+`integration-hwi.yml`'s, a workflow of its own rather than a second job
 here.
 
 `HWI against a Trezor emulator` is the first of its two jobs, and it
@@ -910,7 +910,7 @@ unreachable `data.trezor.io` or an emulator that stopped starting
 headless is trezor's day rather than the branch's, and a workflow that
 never triggers on a pull request produces no check there, not even a
 skipped one — so it runs weekly, on a push to `main`, and on
-`gh workflow run hwi-integration.yml --ref <branch>`, which is how a
+`gh workflow run integration-hwi.yml --ref <branch>`, which is how a
 branch touching `btclib/hwi.py` is checked before it lands.
 
 `HWI against a Ledger emulator` is the second of the two, and it costs

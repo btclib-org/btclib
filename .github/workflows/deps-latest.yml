@@ -52,7 +52,7 @@ on:
   schedule:
     # Wednesday, the day before Dependabot's, which is the whole point of
     # the placement: this reports on the upgrade before the pull request
-    # carrying it opens. install-published.yml follows an hour later, the pair
+    # carrying it opens. pypi-install.yml follows an hour later, the pair
     # asking what moved underneath -- the dependencies here, and what the
     # index serves there.
     # The time is section 10's grid in btclib-org/.github and not this
@@ -161,7 +161,7 @@ jobs:
   # under the same org, released by the same maintainer, which makes
   # "did my own other release just break this one" a distinct and
   # likely enough question to ask separately from "did some
-  # third-party wheel". Moved here from install-published.yml (issue #397): it
+  # third-party wheel". Moved here from pypi-install.yml (issue #397): it
   # is a question about drift against a tree not yet published, which
   # belongs before publication rather than after
   suite-bindings-latest:

@@ -37,7 +37,7 @@ name: py arm authority
 # email. `_AUTHORITY` is different -- it is a tracked file a pull request
 # touching `btclib/curves/` or `btclib/ecc/` can and does edit, reviewed
 # the ordinary way, so a red scheduled run and the Actions tab it lands
-# on are enough, the same choice `links.yml` and `install-published.yml`
+# on are enough, the same choice `links.yml` and `pypi-install.yml`
 # already make for a comparable reason.
 
 on:

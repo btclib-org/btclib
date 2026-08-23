@@ -13,14 +13,14 @@ rehearsal against TestPyPI. A rehearsal is never tagged.
 
 **A workflow GitHub has not registered cannot be dispatched, and it registers
 one only once its file has reached the default branch.** That makes
-`release.yml`, `deps-latest.yml`, `install-published.yml`, `os-ubuntu.yml`,
+`release.yml`, `deps-latest.yml`, `pypi-install.yml`, `os-ubuntu.yml`,
 `os-macos.yml` and `os-windows.yml` — `schedule` and `workflow_dispatch` only,
 so nothing else ever triggers them — answer `gh: Not Found (HTTP 404)` until
 the release pull request is merged. It bites once, on the first release after
 any of them is written, and it inverts the order below: the TestPyPI rehearsal
 and the `deps-latest` run that this file asks for *before* the merge can only
 happen after it, still before the tag. It also means such a workflow reaches
-`main` having never run, which is how `install-published.yml` shipped a
+`main` having never run, which is how `pypi-install.yml` shipped a
 `windows-11-arm` cell that failed at setup.
 
 ## Which version string is which
@@ -473,7 +473,7 @@ to `deps-latest`'s own result.
    covers it too.
 
    **Neither sibling repository carries one, on purpose.**
-   bitcoin-core-rpc declares `dependencies = []`, and `install-published.yml`
+   bitcoin-core-rpc declares `dependencies = []`, and `pypi-install.yml`
    already asserts that against the installed package on every run; a
    bill of materials there would be an empty `components` list restating
    a fact CI checks more directly. btclib-secp256k1's interesting
