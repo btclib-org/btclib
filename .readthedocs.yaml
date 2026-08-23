@@ -13,7 +13,7 @@
 # in place of each of them, silently. Which pages go empty that way is
 # `grep -rl automodule docs/source`'s answer, and the same build with
 # btclib importable renders their signatures instead: the command rather
-# than the figures it returns, CONTRIBUTING.md's "Measure, don't assert"
+# than the figures it returns, section 9 of the organization standard
 # asking for the command beside a number and nothing here re-deriving
 # the ones this comment used to state.
 #
