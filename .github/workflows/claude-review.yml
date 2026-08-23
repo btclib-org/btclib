@@ -140,13 +140,13 @@ jobs:
             must contain and how it labels its severity, what becomes of
             everything you notice that the diff is not about, and the two
             forms the verdict takes. Follow it rather than the review
-            habits you would otherwise bring. CLAUDE.md has the facts
-            about this tree a review has to know, and CONTRIBUTING.md the
-            rules a finding cites.
+            habits you would otherwise bring. CONTRIBUTING.md's last
+            section has the gates and the rules a finding cites, and
+            CLAUDE.md the facts about this tree a review has to know.
 
             Do not run the gates. They are running beside you on this
             same sha, which is the reliance REVIEWING.md provides for and
-            CLAUDE.md makes sound. Review everything else the standard
+            CONTRIBUTING.md's last section makes sound. Review everything else the standard
             asks for, and say in the summary that no gates were run by
             this job and that those runs are what stands.
 
