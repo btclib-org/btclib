@@ -474,6 +474,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`links.yml` accepts every status lychee accepts unasked, and passes
+  no `--cache`.** `--accept 200,206,429` replaced lychee's default of
+  `100..=103,200..=299` rather than extending it, so a 201, a 202 or a
+  204 read as a dead link to the weekly run, and the 206 the list
+  spent a slot on was one the default already covered; the list is now
+  that default with 429 added, a rate limit being an answer from a host
+  that is alive (btclib-org/.github#110). `--cache --max-cache-age 1d`
+  went: no step restored `.lycheecache` across runs, so the flag
+  decided nothing, and the comment beside it credited the cache with
+  keeping a throttling host from reading as dead — a mechanism the job
+  did not have (btclib-org/.github#111). Restoring the cache was the
+  other answer and was refused: the schedule is weekly and the age one
+  day, so a restored cache would be discarded whole on every run.
+  Measured on this tree with lychee 0.24.2: `lychee --help` gives the
+  default range, and `lychee --offline --no-progress "*.md"` reports
+  more links in Total than Unique with no cache anywhere, the
+  deduplication within a run being lychee's own.
+
 - **`COPYRIGHT` is a file of the repository, not of the distribution.**
   `project.license-files` names `LICENSE` and `AUTHORS.md`; the sdist
   loses its root `COPYRIGHT` and the wheel its

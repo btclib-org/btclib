@@ -119,8 +119,25 @@ jobs:
           # commit, and both are prose for a reader rather than a citation
           # in a comment.
           # --no-progress because the log is not a terminal; the retries,
-          # the timeout and the cache are what keep a slow or throttling
+          # the wait and the timeout are what keep a slow or throttling
           # host from being reported as a dead one.
+          # No --cache: lychee keeps it on disk under the workspace, a
+          # run starts from a fresh one and no step here restores it, so
+          # across runs the flag decides nothing -- and a restore step
+          # would not make it decide much, lychee's default
+          # --max-cache-age of 1d discarding the whole of it on a weekly
+          # schedule. Within a run lychee collapses repeated URLs by
+          # itself: `lychee --offline --no-progress "*.md"` answers more
+          # links in Total than Unique with no cache anywhere.
+          # `--accept` is lychee's own default range with 429 added to it,
+          # rather than a list of codes: the flag replaces the default
+          # instead of extending it, and `lychee --help` gives that
+          # default as 100..=103,200..=299, so a list naming fewer, a
+          # "200,206,429", makes a 201 or a 204 a dead link -- a host
+          # that starts answering 204 to a HEAD does it with nobody
+          # touching the tree -- to add a 206 the default already covers.
+          # 429 is the one code worth adding, a rate limit being an
+          # answer from a host that is alive.
           # --timeout 45, against lychee's default of 20, is not a guess:
           # www.esat.kuleuven.be timed out three times in one run -- 20
           # seconds each, so the retries did happen -- while answering in
@@ -136,9 +153,7 @@ jobs:
             --max-retries 3
             --retry-wait-time 10
             --timeout 45
-            --cache
-            --max-cache-age 1d
-            --accept 200,206,429
+            --accept 100..=103,200..=299,429
             "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
           # fail the job, rather than only summarizing: a green run that
           # found dead links is the state this workflow exists to end
