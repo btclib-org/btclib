@@ -24,6 +24,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`.yamllint.yaml` is the organization's copy, and `document-start`
+  gates instead of reporting.** Section 14 of the standard in
+  `btclib-org/.github` names the file as the same one in every
+  repository, and the copy here predated its fix. The default set
+  carries that rule at warning; the hook declares no args, so it runs
+  plain `yamllint` with no `--strict`, and a warning exits 0 — measured,
+  on a yaml file opening without `---`: exit 0 under the copy here, exit
+  1 under the standard's. The entry said the rule bought a convention
+  the files answer the same way, and at the inherited level it bought
+  nothing.
+
+  Raising it costs this tree nothing:
+
+  ```shell
+  git ls-files '*.yml' '*.yaml' \
+    | xargs -I{} sh -c 'head -1 {} | grep -q "^---" || echo {}'
+  ```
+
+  answers with nothing here.
+
 - **`CLAUDE.md` holds what only a session needs.** The environment, the
   commands and the gates are `CONTRIBUTING.md`'s last section, a human
   having no reason to open an agent's file to learn how to run a gate;
