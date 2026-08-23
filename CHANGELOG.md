@@ -24,6 +24,23 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`REVIEWING.md` is the organization's file, and this tree's half is
+  under `## This repository in particular`.** A review that means one
+  thing here and another in a sibling is not a standard, so everything
+  above that heading is byte for byte the copy in `btclib-org/.github`,
+  which is the half `tests/verbatim_test.py` compares. Below it stays
+  what a review of this tree checks and a generic one does not: the two
+  arithmetic paths under `curves/` and `ecc/`, the vendored vectors
+  under `tests/**/_data/` and the pins `tests/_data/README.md` holds
+  them to, the exception to the count rule that a count of what upstream
+  published is, and `_config.yml` deciding whether a new file in the
+  root becomes a page on btclib.org.
+
+  What went the other way is the shared half's own. The count rule, the
+  rebase reading of `CHANGELOG.md` and the workflow conventions are
+  questions the organization asks of every tree, and are asked in
+  `## What every review here also checks` rather than twice.
+
 - **`LICENSE` and `.claude/commands/review.md` are the organization's
   copies of themselves.** Section 14 of the standard in
   `btclib-org/.github` names both as the same file in every repository,
