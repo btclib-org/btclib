@@ -2,33 +2,41 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Rewrite an sdist so that two builds of one commit are the same bytes.
+"""Rewrite an sdist's member metadata to this repository's own values.
 
-The backend already does that, and this runs anyway. `uv_build` writes a
-fixed timestamp into every member of both archives and ignores
-`SOURCE_DATE_EPOCH` entirely, which is measurable in one command:
+Four of the five fields it rewrites already hold those values coming out
+of `uv build --sdist`, measurable with `tarfile.getmembers()`: `uid` and
+`gid` are `0`, `uname` and `gname` are `""`, and the mode is `0o644` for
+a file and `0o755` for a directory. The fifth, `mtime`, is not: every
+member is `0`, and `uv_build` ignores `SOURCE_DATE_EPOCH` entirely --
 
     uv build -o a && SOURCE_DATE_EPOCH=1000000000 uv build -o b \
       && shasum -a 256 a/* b/*
 
-answers with one digest per artefact across the two directories, and
-`tarfile` reports a single distinct `mtime` of 0 in the `.tar.gz` against
-`(1980, 1, 1)` in the wheel's zip entries. Nothing here has to be done for
-the archive to be reproducible today.
+answers with one digest per artefact across the two directories. So
+rewriting `mtime` to `SOURCE_DATE_EPOCH` is where this step changes the
+published bytes: building this tree once and running this script against
+that build with `SOURCE_DATE_EPOCH` set gives a second, different sha256
+for the one archive, on any commit whose timestamp is not `0`. This step
+is not insurance layered over a backend that already does the same
+thing -- on `mtime` it does what `uv_build` does not, today.
 
-What this buys is that the property belongs to this repository rather than
-to the backend. A fixed `mtime` of 0 is uv's choice and uv is free to
-revisit it, while a release rebuilt from its tag has to give the bytes the
-attestation vouches for however many backends later that is. Rewriting the
-metadata to a value derived from the commit makes the answer this tree's,
-and turns a backend change from a broken rebuild into a no-op.
+What running it on the other four buys is that they stay this
+repository's choice regardless of what a future `uv_build` writes there,
+the same reason a release rebuilt from its tag has to give the
+attestation the bytes it vouches for however many backends later that
+is. RELEASING.md's "Rebuild a release from its tag" runs this script for
+that reason: skip it there and the rebuild's `mtime` disagrees with the
+published archive, whatever the other four fields do.
 
-What is *in* the archive is already deterministic; what is not is the
-metadata of the members. This rewrites that metadata and nothing else:
-every timestamp becomes `SOURCE_DATE_EPOCH`, ownership becomes root with
-no names, and the gzip header carries the same timestamp instead of the
-moment it was compressed. The order of the members and every byte of
-their content are the archive's own.
+What is *in* the archive is already deterministic; only the metadata of
+the members is rewritten here, and nothing else: `mtime` becomes
+`SOURCE_DATE_EPOCH`, ownership becomes root with no names, mode becomes
+`0o644` for a file and `0o755` for a directory -- nothing in the sdist
+needs the executable bit, no source file here opening with a shebang --
+and the gzip header carries the same timestamp instead of the moment it
+was compressed. The order of the members and every byte of their
+content are the archive's own.
 
 `PAX_FORMAT` with the extended headers cleared, rather than
 `USTAR_FORMAT`: an integral timestamp needs no PAX record, so the two
@@ -73,6 +81,12 @@ def normalize(archive: Path, epoch: int) -> None:
             member.mtime = epoch
             member.uid = member.gid = 0
             member.uname = member.gname = ""
+            # beside the ownership, and for the same reason: the value
+            # the archive came with is the backend's to choose, and this
+            # is where it becomes this repository's. `0o755`/`0o644` are
+            # digest-preserving against uv_build, which already writes
+            # exactly those two
+            member.mode = 0o755 if member.isdir() else 0o644
             # the records this exists to remove: tarfile writes one per
             # field it cannot express in the ustar header, and the
             # sub-second mtime above was such a field. Replaced rather than

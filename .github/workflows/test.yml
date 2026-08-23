@@ -544,16 +544,18 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: ${{ !inputs.disable-dist-cache }}
-      # what the sbom and the sdist normalizer below read. It no longer
-      # makes the wheel reproducible, and nothing has to: uv_build ignores
-      # the variable and writes a fixed timestamp into every member of
-      # both archives -- (1980, 1, 1) in the zip, 0 in the tar -- so one
-      # commit gives one digest whether the variable is exported or not.
-      # Measured by building this tree twice, once with SOURCE_DATE_EPOCH
-      # unset and once with it set to an arbitrary second: the two sdists
-      # and the two wheels are byte for byte the same file. What still
-      # needs a date is the sbom, whose timestamp and serial number derive
-      # from it. The commit date, not the tag's: `git log
+      # what the sdist normalizer and the sbom below read. `uv build`
+      # itself ignores it: it writes a fixed timestamp into every member
+      # of both archives -- (1980, 1, 1) in the zip, 0 in the tar --
+      # regardless of whether the variable is exported, so this step does
+      # not make either archive it is about to build reproducible, and
+      # nothing has to. Measured by building this tree twice, once with
+      # SOURCE_DATE_EPOCH unset and once with it set to an arbitrary
+      # second: the two sdists and the two wheels are byte for byte the
+      # same file. What reads the variable afterwards are the sdist
+      # normalizer, which stamps every member's mtime with it in place of
+      # uv_build's 0, and the sbom, whose timestamp and serial number
+      # derive from it. The commit date, not the tag's: `git log
       # -1` on a shallow clone reads the tip, which is the commit the tag
       # points at, and a lightweight tag has no date of its own to prefer.
       # RELEASING.md has the command that rebuilds a released tag and
@@ -582,17 +584,21 @@ jobs:
       # git's index rather than against a list anyone maintains
       - name: Build the distribution files
         run: uv build
-      # a belt over a backend that already writes fixed timestamps. What
-      # this step buys is that the archive's determinism is this
-      # repository's property and not the backend's: uv_build's mtime of 0
-      # is a choice it is free to revisit, and a release rebuilt from its
-      # tag two backends later still has to give the bytes the attestation
-      # vouches for. The script rewrites member metadata and no content,
-      # and its docstring has the measurement that says what it finds
-      # there today. --no-project, so this runs on the interpreter uv
+      # this changes the archive `uv build` just wrote: its mtime of 0
+      # becomes the commit date the step above exported, a different
+      # value on any commit, so the sha256sum below differs from what
+      # `uv build` alone produced -- this is not a check that the archive
+      # is already reproducible, it is what makes the published mtime
+      # this repository's choice rather than a backend default it is
+      # free to revisit. A release rebuilt from its tag gives the
+      # attestation the same bytes back only by running this step too;
+      # RELEASING.md's "Rebuild a release from its tag" does. The script
+      # rewrites member metadata and no content, and its docstring has
+      # the measurement that says which fields uv_build already writes
+      # the same way. --no-project, so this runs on the interpreter uv
       # already fetched and installs nothing into the tree it is about to
       # publish
-      - name: Make the sdist reproducible too
+      - name: Make the sdist's determinism this tree's own
         run: |
           uv run --no-project --python 3.14 \
             .github/scripts/normalize_sdist.py dist/

@@ -499,6 +499,23 @@ documented at release-notes length in the first place, and are still in
   hook, the same range `pyproject.toml` declares, is what makes the
   non-isolated attempt succeed (btclib-org/btclib-benchmarks#165 is where
   that project made the same change).
+- **`normalize_sdist.py` also rewrites `mode`, and names every field it
+  rewrites** (issue #1277). `member.mode` becomes `0o755` for a directory
+  and `0o644` for a file, matching `bitcoin-core-rpc`'s copy of the
+  script; those are also the values `uv_build` already writes today, so
+  the line joins `uid`, `gid`, `uname` and `gname` as fields this
+  repository fixes independently of the backend rather than ones it
+  merely reads off it. `mtime` does not join them: it is the one field
+  where `uv_build`'s own value, `0`, is not what this script writes,
+  `SOURCE_DATE_EPOCH` instead. `test.yml`'s step comment stopped
+  describing the step as *"a belt over a backend that already writes
+  fixed timestamps"* — a framing that has cost a deleted script and a
+  second wrong "no-op" comment already, per btclib-org/.github#118 —
+  since running it changes the sdist's sha256: building this tree once
+  and then normalizing that same build with `SOURCE_DATE_EPOCH` set to
+  the commit's date gives two different digests for the one archive
+  (issue #1278). `RELEASING.md`'s "Rebuild a release from its tag" is
+  why the step is not optional there.
 
 - **`codeql.yml` no longer carries an aggregate job.** `codeql-passed`
   produced `codeql: every job passed`, a context branch protection has
