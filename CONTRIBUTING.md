@@ -612,9 +612,15 @@ then installs one. This is the one build there is (issue #1166):
 same job, and its own `publish-testpypi` and `publish-pypi` jobs download
 the `dist` artifact this job uploads rather than building a second copy —
 so what the checks below judge is what an index ends up serving, byte for
-byte. The first two commands after the build are what make the wheel and
-the sdist reproducible — the first is why two checkouts of one commit
-produce the same wheel, the second why they produce the same sdist — and
+byte. The first two commands after the build do not make two checkouts of
+one commit agree: `uv_build` ignores `SOURCE_DATE_EPOCH` and writes the
+same fixed metadata into the wheel and the sdist either way, so those two
+archives are already byte for byte the same file across checkouts before
+either command runs. What the two buy instead is that the published bytes
+are this repository's own choice rather than the backend's — the first
+pins `mtime` to the commit date, and the second, `normalize_sdist.py`,
+rewrites the sdist's member metadata to it — so a rebuild of a released
+tag reproduces what was *published* rather than only reproducing itself.
 `sha256sum` after them is the digest a rebuild from the tag is compared
 against. The two after that read the *members* of the two archives,
 which the three checks further down do not: an allowlist of what may be

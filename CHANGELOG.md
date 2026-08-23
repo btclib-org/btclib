@@ -1557,6 +1557,19 @@ documented at release-notes length in the first place, and are still in
   `uv build --sdist -o dist && tar tzf dist/*.tar.gz | grep readthedocs`
   lists `.readthedocs.yaml`, confirming the dotted spelling is the one
   that ships, for the reason now written beside it.
+- **CONTRIBUTING.md credits `test.yml`'s two `dist`-job commands for what
+  they actually buy** (issue #1297). It read the "Pin the build timestamp
+  to the commit" step and `normalize_sdist.py`'s step as why two
+  checkouts of one commit produce the same wheel and the same sdist; they
+  are not, `uv_build` already writing the same fixed metadata into both
+  archives regardless of `SOURCE_DATE_EPOCH` — measured by building this
+  tree twice, once with the variable set and once without, and comparing
+  the four resulting digests, which agree in pairs. What the two commands
+  buy instead is that the published bytes are this repository's own
+  choice rather than the backend's, which is what lets a rebuild of a
+  released tag reproduce what was *published* rather than only itself —
+  the property `test.yml`'s own comment above the second step already
+  states correctly (issues #1277, #1278).
 
 - **CONTRIBUTING.md's documented mypy command and its workflow-schedule
   sentence match the tree** (issues #1281, #1271). The mypy invocation
