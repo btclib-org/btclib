@@ -488,6 +488,16 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`codeql.yml` no longer carries an aggregate job.** `codeql-passed`
+  produced `codeql: every job passed`, a context branch protection has
+  never named — `codeql.yml`'s `on:` block has no `pull_request` trigger,
+  and a required check has to report on the pull request's own run.
+  Section 10 of `btclib-org/.github`'s README.md now conditions an
+  aggregate on a workflow whose answer gates a pull request rather than
+  on a matrix (btclib-org/.github#90), and this workflow's does not;
+  `analyze`'s two matrix cells are the whole of the checks it
+  contributes to a commit.
+
 - **mypy's `enable_error_code` is the organization's list.** The same in
   every repository that runs mypy (btclib-org/.github#165):
   `explicit-override` and `unused-awaitable` enter, and

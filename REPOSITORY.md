@@ -84,12 +84,13 @@ for 1375 of 2100 seconds — so a pull request's wall clock was the wait
 for a slot and not the work. That is the measurement the gate and the
 weekly sweeps are arranged around.
 
-`codeql: every job passed` is not among the required checks, and that is
-the one place a check was traded for the wait it cost. `codeql.yml` now
-runs on `main` and on its schedule, the analysis landing on the merge
-commit rather than ahead of it, and it still produces that aggregate:
-the name is available, so requiring it again is a patch to the rule and
-nothing in the tree.
+`codeql.yml` carries no required check at all, and that is the one place
+a check was traded for the wait it cost. It runs on `main` and on its
+schedule rather than on a pull request, the analysis landing on the merge
+commit rather than ahead of it — and a required check has to report on
+the pull request's own run, which this trigger never produces. Section 10
+of `btclib-org/.github`'s README.md is where that rule, and the aggregate
+job it stops this workflow from needing, are written down.
 
 What still reads a branch before it merges is the workflow half of the same
 question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
@@ -160,20 +161,20 @@ CodeQL analyses from advanced configurations cannot be processed when the
 default setup is enabled
 ```
 
-So while the setting is on, the analysing jobs and the aggregate are red
-rather than absent — which is why the exchange has an order. These four
-steps are the order that never leaves `main` unmergeable, and 1 and 2 are a
-token rather than a pull request, so only a human can perform them:
+So while the setting is on, the analysing jobs are red rather than
+absent — which is why the exchange has an order. These four steps are
+the order that never leaves `main` unmergeable, and 1 and 2 are a token
+rather than a pull request, so only a human can perform them:
 
 1. patch the rule to drop the `CodeQL` context, every other one staying;
 1. disable default setup;
 1. re-run the pull request's checks: the upload that was refused is
-   accepted now, so `codeql: every job passed` goes green;
+   accepted now, so `Analyze actions` and `Analyze python` go green;
 1. merge.
 
-There is no fifth step adding `codeql: every job passed` to the rule, and
-the section above is why: that context is not required, so what the rule
-holds is what step 1 leaves it with.
+There is no fifth step adding a `codeql.yml` check to the rule: neither
+matrix cell is required, and this workflow carries no aggregate that
+could be either.
 
 Step 2 is what makes the setting let go of the analysis. It is not the
 command that enabled default setup and there is no need to keep that one:
