@@ -47,29 +47,27 @@ _ROOT = f"btclib-{_VERSION}"
 _DIST_INFO = f"btclib-{_VERSION}.dist-info"
 
 # the smallest pair that passes: the package, one data file, the metadata
-# setuptools writes, and the licences it copies
+# the backend writes, and the licences it copies
 _PAYLOAD = ("btclib/__init__.py", "btclib/py.typed", "btclib/_data/mainnet.json")
 _WHEEL_MEMBERS = (
     *_PAYLOAD,
     f"{_DIST_INFO}/METADATA",
     f"{_DIST_INFO}/RECORD",
     f"{_DIST_INFO}/WHEEL",
-    f"{_DIST_INFO}/top_level.txt",
     f"{_DIST_INFO}/licenses/LICENSE",
 )
 _SDIST_MEMBERS = (
     *_PAYLOAD,
     "PKG-INFO",
     "pyproject.toml",
+    "pyproject.toml.orig",
     "README.md",
     "uv.lock",
     ".python-version",
-    "btclib.egg-info/PKG-INFO",
-    "btclib.egg-info/SOURCES.txt",
     "docs/index.rst",
     "tests/btclib_test.py",
 )
-_SDIST_DIRECTORIES = ("btclib", "btclib/_data", "btclib.egg-info", "docs", "tests")
+_SDIST_DIRECTORIES = ("btclib", "btclib/_data", "docs", "tests")
 
 
 @pytest.fixture
@@ -222,11 +220,13 @@ def test_a_missing_wheel_member_is_named(
             (),
             "holds the metadata of another distribution",
         ),
+        # the project's own name buys nothing: no egg-info is written
+        # into the sdist any more, so any is a leftover
         (
-            ("btclib.egg-info/build.log",),
+            ("btclib.egg-info/PKG-INFO",),
             (),
             (),
-            "is under btclib.egg-info/ and is not metadata",
+            "holds the metadata of another distribution",
         ),
         (("tests/_data/wheel.whl",), (), (), "carries the forbidden suffix .whl"),
         ((), (), ("elsewhere/setup.py",), "is outside the archive's own"),
@@ -319,7 +319,7 @@ def test_a_payload_only_the_wheel_has_is_named(
 def test_a_directory_entry_in_the_wheel_is_not_a_member(
     script: ModuleType, tmp_path: Path
 ) -> None:
-    """A zip may carry an entry per directory; setuptools writes none."""
+    """A zip may carry an entry per directory; the files are the policy."""
     write_wheel(tmp_path, extra=("btclib/curves/",))
     write_sdist(tmp_path)
 

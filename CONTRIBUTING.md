@@ -1,7 +1,173 @@
-# How to contribute to btclib
+# Contributing
 
-<!-- These badges report no state: each names a choice this file explains,
-or a place to go. The README keeps the ones that can turn red. -->
+What this repository holds in common with the others of the organization
+— the toolchain, the lint gate, the tool tables behind it, the workflow
+set and the branch rules — is stated once in the
+[btclib-org repository standard](https://github.com/btclib-org/.github),
+each rule with the alternative it was decided against. It binds this
+repository, so a change departing from it is a divergence, and one filed
+as an issue in that repository rather than here: a difference between two
+repositories belongs to neither of them.
+
+**This file is the same in every repository of the organization up to
+its last section.** What is true of one tree only — the commands that
+build its environment, the gates it runs, which of its workflows decide
+a merge — is under that heading, and the comparison stops there.
+
+## The issue tracker
+
+Where an issue is filed, and what an alignment finding has to name, is
+[the standard's *What this repository is*][s-what]: an issue spanning
+repositories, or whose subject is the standard, goes to
+[btclib-org/.github](https://github.com/btclib-org/.github/issues), and
+one about this tree alone stays here.
+
+A finding noticed while doing something else is filed, not carried.
+`REVIEWING.md`'s *Every collateral finding becomes an issue* is the whole
+of what to do with one, and it applies to an author as much as to a
+reviewer: a pull request answering two questions cannot be accepted for
+either.
+
+## Documentation and comments
+
+[Section 9 of the standard][s9] is the prose style, and it governs the
+prose this tree ships — comments, docstrings and markdown. It is not
+restated here: a second wording is the one that goes stale, which is
+that section's own *One fact in one place*.
+
+A commit message is prose this tree ships too, though section 9 does not
+say so: squash is the only merge method and the landing commit carries
+the messages, so what is written in one is read on `main` long after the
+branch is gone.
+
+## Pull requests
+
+What `main` accepts, and what it refuses to everyone, is [section 11 of
+the standard][s11]. Run the gates locally before opening anything —
+the last section of this file says which they are — because CI runs
+exactly them, so a red run there is a local run that was not done.
+
+What a pull request's title and description have to say about the issues
+it closes, and why a manual link in the Development panel is a trap
+neither of them shows, is [the standard's *What a pull request says it
+is*][s-title]. Read it before opening one; it is the rule most often
+found broken after the fact.
+
+`REVIEWING.md` is the standard a review is written against, and is this
+file's other half. Read before opening a pull request, it is what the
+pull request will be answered against.
+
+`CHANGELOG.md` gets an entry for anything a reader would notice, and the
+release notes move only for something a user has to *act* on, in the
+repositories that publish.
+
+### One subject, opened as soon as it is written
+
+A pull request answers one question. Issues that share a subject are one
+pull request, closing each of them; issues that do not are one pull
+request each, however small either of them is.
+
+It is opened the moment it is written and verified — not held for the
+previous one to be reviewed or to land, and not batched with the next. A
+batch arrives as one reviewing job with several subjects, which is the
+shape that costs the most to read; a finished pull request held back is
+review that could have started and did not.
+
+Working this way stacks branches, which is fine and costs one rule: a
+child whose base was amended is moved with the old base named,
+
+```shell
+git rebase --onto <new-base> <old-base-sha> <child>
+```
+
+because a plain rebase replays the base's old commit inside the child,
+and the forge then shows the base's old text as additions with nothing
+red anywhere. Read the child's diff afterwards rather than trusting the
+rebase, and retarget each child onto `main` as its parent lands.
+
+### The review
+
+A review is given promptly and on local evidence. It does not wait for
+CI, does not report a check as a finding, and does not discuss a run at
+all: whether CI is green is the author's business, once, at landing time.
+
+The exchange is anchored to a sha rather than to a branch, a branch being
+free to move under a review:
+
+- the author hands off by naming the sha pushed and the evidence run
+  against it, then leaves that head alone;
+- the reviewer answers with findings — where, what is wrong, how they
+  know it, and whether each is blocking;
+- the author accepts what is reasonable, declines the rest with a reason
+  in the thread, and pushes the answer without waiting for CI;
+- the reviewer resolves the threads they opened, that being what says a
+  finding is closed, and re-reviews the delta rather than the branch.
+
+**What ends the loop is the ack of record**, and the author does not
+supply their own. A reading that says what it found and delivers no
+verdict is a review too and ends nothing; [the standard's *Review*][s-rev]
+has which is which, and `REVIEWING.md` has how each is written. A
+disagreement that survives a second exchange goes to the maintainer
+instead of into a third round.
+
+### Landing it
+
+CI is read once, and this is where. Rebase onto `main`'s tip, push that
+head so the checks run on the tree that will land, and only then wait for
+them: checks read before a rebase describe a tree nobody is landing. A
+rebase that moved nothing but the base leaves the ack standing; one that
+resolved a conflict does not, that resolution being a change no reviewer
+has seen.
+
+Then squash, [the only method the rule accepts][s11].
+
+**The maintainer's bypass is not automatic — it has to be invoked, and
+`gh pr merge` cannot invoke it**, refusing client-side before it asks
+GitHub anything:
+
+```text
+Pull request is not mergeable: the base branch policy prohibits the merge
+```
+
+The merge endpoint applies it server-side, and it is the same endpoint
+the merge button asks:
+
+```shell
+gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge \
+  -f merge_method=squash
+```
+
+**Verify what landed rather than trusting the answer**, the signature
+[the standard asks for][s-sigs] being a valid one rather than a
+particular signer's:
+
+```shell
+gh api repos/{owner}/{repo}/commits/main \
+  --jq '.commit.verification | {verified, reason}'
+```
+
+The forge deletes the head branch itself, per the setting section 11
+names. What is still yours is bringing every checkout sitting on `main`
+up to date,
+that being where the next session starts from and a stale one being where
+a branch gets built on a base that has moved. `REPOSITORY.md` carries the
+settings and why they are what they are.
+
+[s-what]: https://github.com/btclib-org/.github#what-this-repository-is
+[s11]: https://github.com/btclib-org/.github#11-github-settings
+[s9]: https://github.com/btclib-org/.github#9-prose-comments-and-docstrings
+[s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
+[s-rev]: https://github.com/btclib-org/.github#review
+[s-sigs]: https://github.com/btclib-org/.github#signatures
+
+## This repository in particular
+
+Everything above is the same file in every repository of the
+organization; everything below is this one's, and the comparison stops at
+this heading.
+
+<!-- These badges report no state: each names a choice the sections below
+explain, or a place to go. The README keeps the ones that can turn red. -->
 [![calendar versioning: yyyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![format: ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/)
@@ -12,42 +178,7 @@ or a place to go. The README keeps the ones that can turn red. -->
 [![pre-commit enabled](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 
-Thank you for investing your time in contributing to our project.
-We are glad you are reading this, because we need volunteer developers
-to help this project come to fruition.
-
-If you haven't already:
-
-- see the [README](./README.md) file to get an overview of the project
-- read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community
-  approachable and respectable
-- open an [issue](https://github.com/btclib-org/btclib/issues) to ask
-  about something, and a
-  [pull request](https://github.com/btclib-org/btclib/pulls) to propose
-  it: both are read, and both leave a record the next reader of this
-  file can find.
-- read the
-  [btclib-org repository standard](https://github.com/btclib-org/.github/blob/main/README.md),
-  where the toolchain, the lint gate, the workflow set and the branch
-  rules are stated once for this repository and its siblings, each with
-  the alternative it was decided against. It binds this repository, so a
-  change departing from it is a divergence — and one filed as an issue
-  in that repository rather than here, a difference between two
-  repositories belonging to neither of them.
-
-In this guide you will get an overview of the contribution workflow from
-opening an issue, creating a PR, reviewing, and merging the PR.
-
-## New contributor guide
-
-Here are some resources to help you get started with open source contributions:
-
-- [Finding ways to contribute to open source on GitHub](https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github)
-- [Set up Git](https://docs.github.com/en/get-started/quickstart/set-up-git)
-- [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow)
-- [Collaborating with pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests)
-
-## Getting started
+### The environment and the gates
 
 btclib is managed with [uv](https://docs.astral.sh/uv/), the only tool that
 must be installed on the development machine: see the
@@ -239,12 +370,6 @@ what a commit enforces, mark-down included
 one of the hooks, as are ruff, mypy, yamllint, actionlint, and the checks
 on packaging metadata and on `uv.lock`).
 
-Prose is held to 80 columns wherever it lives: markdown by MD013, Python
-comments and docstrings by ruff's `max-doc-length`. Code is not — the
-formatter reflows it to 88 — and neither is yaml, at 100, an action
-pinned to a commit SHA being past 80 before anything else is said;
-`.yamllint.yaml` has that arithmetic.
-
 One of those hooks needs maintenance, and only one. The test vectors under
 `tests/_data/`, `tests/ecc/_data/` and `tests/script/_data/` are private
 keys by the hundred, so they are recorded in `.secrets.baseline` as
@@ -274,7 +399,7 @@ baseline rather than an exclusion: what appears in it is what nobody has
 looked at yet, so regenerating without reading turns the review into a
 rubber stamp and the hook into decoration.
 
-### The editor
+#### The editor
 
 `.vscode/settings.json` and `.vscode/extensions.json` are tracked, and they
 hold no preference: the recommended extensions are the tools
@@ -293,19 +418,19 @@ read by every checkout of this repository.
 | --- | --- | --- |
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
-| `integration` | pull request, push, weekly | a node |
+| `integration-bitcoind` | pull request, push, weekly | a node |
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | push to main, and weekly | 2 languages |
-| `ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
-| `macos` | weekly, a release | 2 macOS images × 7 interpreters |
-| `windows` | weekly, a release | 2 Windows images × 7 interpreters |
-| `latest` | weekly | platforms sampled, deps upgraded |
-| `hwi-integration` | weekly, push to main | two device emulators |
+| `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
+| `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
+| `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `deps-latest` | weekly | platforms sampled, deps upgraded |
+| `integration-hwi` | weekly, push to main | two device emulators |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | upstream's vectors |
-| `published` | weekly, a release | what PyPI serves |
-| `python-arm-authority` | weekly, push to main | the arm-authority table |
+| `pypi-install` | weekly, a release | what PyPI serves |
+| `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
 That last cell is a pointer rather than a list on purpose: which
@@ -316,7 +441,7 @@ stale the next time one is added or dropped.
 grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
 ```
 
-The `test`, `lint`/`docs`, `integration` and `website` rows are what a
+The `test`, `lint`/`docs`, `integration-bitcoind` and `website` rows are what a
 merge waits for, and between them they report the required checks: `lint`
 and `docs` share a row and report one each. They run one image on one
 interpreter: `ubuntu-latest`, and the version `.python-version` names.
@@ -329,8 +454,8 @@ Why so little gates is one number: the ceiling GitHub Free puts on an
 organization's concurrent jobs, twenty shared across every repository in
 it. REPOSITORY.md measures what a wider gate cost against that ceiling,
 and the consequence is this table's: at that ceiling a pull request's
-wall clock is the wait for a slot rather than the suite. `macos.yml` and
-`windows.yml` each carry the measurement for their own cells, the
+wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
+`os-windows.yml` each carry the measurement for their own cells, the
 queueing and the runner seconds. `codeql` is off the gate for the same
 arithmetic, with `zizmor` in `lint` still reading these workflows on
 every pull request.
@@ -339,14 +464,14 @@ The trade, stated here rather than discovered later: the gate does not
 refuse a regression on `3.10`, on arm, on PyPy or on a platform. It sits
 on `main` until the sentinel for it runs, at most six days.
 
-**What a sentinel varies, it varies whole.** `ubuntu` runs the images and
+**What a sentinel varies, it varies whole.** `os-ubuntu` runs the images and
 the interpreters the gate leaves alone *and* the cell it spends. A matrix
 with the gate's cell cut out of it is one nobody can read the shape of,
 and whoever asked what ran would have to re-derive the hole from
 `test.yml`.
 
-`ubuntu`, `macos` and `windows` hold the dependencies at the lock and move
-the platform; `latest` moves both. Red in one of the three with `latest`
+`os-ubuntu`, `os-macos` and `os-windows` hold the dependencies at the lock and move
+the platform; `deps-latest` moves both. Red in one of the three with `deps-latest`
 green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for `codeql` and
@@ -372,7 +497,7 @@ uv run --locked --only-group lint \
 `Build the documentation` is a workflow of its own, `docs.yml`, and its
 command is the one below under "The documentation".
 
-One cell of the matrix `ubuntu.yml`, `macos.yml` and `windows.yml` each
+One cell of the matrix `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
 carry. The interpreter is chosen with `--python`, which accepts any of the
 ones those workflows list, `3.14t` and `pypy3.11` included, and downloads
 it if the machine has none:
@@ -382,16 +507,16 @@ uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
 ```
 
 That one rebuilds `.venv` with the test group alone, which is what breaks
-the pre-commit hook until the next `uv sync`: see the note under "Getting
-started" above, and `UV_PROJECT_ENVIRONMENT` for running it without
-touching `.venv`. The command is what CI runs, verbatim, and CI has no
-`.venv` to lose.
+the pre-commit hook until the next `uv sync`: see the note under "The
+environment and the gates" above, and `UV_PROJECT_ENVIRONMENT` for
+running it without touching `.venv`. The command is what CI runs,
+verbatim, and CI has no `.venv` to lose.
 
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
 whether that (os, architecture, interpreter) triple passes. The job below
-is where coverage is measured, which is the reason `ubuntu.yml` gives and
-the other two cite. `latest.yml` does not pass the flag: it runs no PyPy
+is where coverage is measured, which is the reason `os-ubuntu.yml` gives and
+the other two cite. `deps-latest.yml` does not pass the flag: it runs no PyPy
 cell and has no coverage job of its own, so the ratchet meeting an
 upgraded coverage.py is one of the things that workflow exists to find
 out.
@@ -575,7 +700,7 @@ commands above in the order a verifier runs them, with the
 `gh attestation verify` that gives the rebuild a verdict and the two
 bounds on what that verdict means.
 
-The `latest` workflow, which upgrades every dependency uv resolves before
+The `deps-latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade
 rewrites uv.lock, and here too `git checkout uv.lock` restores it; the
 commands after it are the ones already listed above, so only the first is
@@ -604,7 +729,7 @@ uv run --locked --no-default-groups --group test python -c \
 uv run --locked --no-default-groups --group test pytest
 ```
 
-The `published` workflow, weekly, on demand and as part of a release,
+The `pypi-install` workflow, weekly, on demand and as part of a release,
 has two jobs, entitled to different answers about what the index
 serves.
 
@@ -736,7 +861,7 @@ exits non-zero for one, which is the only thing the workflow is red about.
 Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
-The `integration` workflow, which gates and is the exception here: it runs
+The `integration-bitcoind` workflow, which gates and is the exception here: it runs
 on every pull request, on every push to `main` and before a release, and
 `Regtest against Bitcoin Core` is required on `main`. It runs weekly too,
 and that workflow's own header says what the weekly run asks that the
@@ -757,7 +882,7 @@ A step after it reads that report and fails the job if a regtest test
 skipped: pytest exits 0 for a module that skipped itself, so a job whose
 fixture stopped finding the node would stay green while asking Core
 nothing. The HWI tests skip there by design and are not counted; they are
-`hwi-integration.yml`'s, a workflow of its own rather than a second job
+`integration-hwi.yml`'s, a workflow of its own rather than a second job
 here.
 
 `HWI against a Trezor emulator` is the first of its two jobs, and it
@@ -785,7 +910,7 @@ unreachable `data.trezor.io` or an emulator that stopped starting
 headless is trezor's day rather than the branch's, and a workflow that
 never triggers on a pull request produces no check there, not even a
 skipped one — so it runs weekly, on a push to `main`, and on
-`gh workflow run hwi-integration.yml --ref <branch>`, which is how a
+`gh workflow run integration-hwi.yml --ref <branch>`, which is how a
 branch touching `btclib/hwi.py` is checked before it lands.
 
 `HWI against a Ledger emulator` is the second of the two, and it costs
@@ -947,42 +1072,7 @@ That is the one part of this project not driven by `uv`, and it is only a
 preview: what btclib.org serves is whatever the classic builder makes of
 `main`.
 
-### Issues
-
-#### Create a new issue
-
-Did you find a bug?
-*Do not open up a GitHub issue if the bug is a security vulnerability*,
-and instead refer to our [security policy](./SECURITY.md), which asks for
-a private advisory, or an email if you would rather not open one.
-
-For any other problem,
-[search](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests)
-first if an
-[issue](https://github.com/btclib-org/btclib/issues) (or a
-[fixing pull request](https://github.com/btclib-org/btclib/pulls),
-also known as a PR) already exists.
-If a related issue/PR does not exist, please open a new issue.
-
-**Every change starts with an issue.** Open one before a pull request,
-even a small one — `Closes #N` in the pull request's description is
-what closes it once a pull request carrying an approving review merges.
-
-#### Solve an issue
-
-Scan through our
-[existing issues](https://github.com/btclib-org/btclib/issues)
-to find one that interests you.
-As a general rule, we don’t assign issues to anyone.
-If you find an issue to work on, you are welcome to open a PR with a fix.
-
-### Make Changes
-
-Work locally on your fork of btclib,
-until you are satisfied. Ensure that pre-commit and pytest
-have no issue with your modified codebase.
-
-#### Breaking a caller is not an argument
+### Breaking a caller is not an argument
 
 **A refactoring that is reasonable gets made, however much it breaks.**
 Do not weigh "this renames something callers use" against it, and do not
@@ -1002,7 +1092,7 @@ The one thing this does not license is a break nobody can act on. An
 entry says the old spelling, the new one, and what a caller does about
 it; a rename with no note is the defect, not the rename.
 
-#### The public surface
+### The public surface
 
 **Every module and every package declares `__all__`**, at every depth of
 the tree. A name is public here because a list says so, not because it
@@ -1258,7 +1348,7 @@ check is unreachable by design rather than missing. `btclib/utils.py`'s
 docstring is where that rule is written down, `OutPoint` and `TxIn` being
 the classes it holds for.
 
-#### A `_var` suffix means the operand decides the work
+### A `_var` suffix means the operand decides the work
 
 A function whose duration follows the value it is given ends in `_var`,
 and the plain name beside it is the one a secret may be handed. It is
@@ -1372,143 +1462,56 @@ by a secret digit, and that is out of reach from bytecode. A name in the
 second tier closes one measured channel, and the honest form of the claim
 is that one — which channel, measured how, and what is left.
 
-#### Documentation and comments
+### Prose in this tree
 
-What "satisfied" means for the prose — docstrings, comments, the
-sphinx pages, a pull request reply — is written down here, because a
-hook can check that a docstring exists but not what it says.
+[Section 9 of the standard][s9] is the whole of the prose style, and
+*Documentation and comments* above says why it is not restated. What
+follows is what this tree adds to it, and it holds for docstrings,
+comments, the sphinx pages and a pull request reply alike.
 
-**Tone of voice: neutral, factual, dry.** The same register
-everywhere: no wit, no salesmanship, no emphasis where the fact is
-enough. Explanatory detail is wanted; decoration is not.
+**Length is a cost, and the reason is what buys it.** One sentence where
+one will carry it, and a paragraph only where a shorter one would leave
+the reader wrong. Three habits lengthen prose here without adding to it,
+and each is worth deleting on sight:
 
-**Length is a cost, and the reason is what buys it.** One
-sentence where one will carry it, and a paragraph only where a
-shorter one would leave the reader wrong. Three habits lengthen
-prose here without adding to it, and each is worth deleting on
-sight:
-
-- the same reason in a second wording — not emphasis, but a
-  second copy to keep true, and the one that drifts;
+- the same reason in a second wording — not emphasis, but a second copy
+  to keep true, and the one that drifts;
 - the sentence that only introduces the next one;
-- the tour of alternatives, where the rejected one and the thing
-  that rejects it are the whole of the negative result.
+- the tour of alternatives, where the rejected one and the thing that
+  rejects it are the whole of the negative result.
 
-Nothing checks prose the way the suite checks code, so every line
-of it is one a later change can falsify in silence. That is what
-its length is weighed against.
-
-**A docstring states the contract.** What the function takes, what it
-returns or raises, and the rule the behaviour comes from — not a
-restatement of the name. Most readers of a docstring here are new to
-btclib: write for them.
-
-**A comment carries the reasoning, including the negative result.**
-Say why the code is as it is and why *not* the obvious alternative —
-the second half is what stops the next reader from "fixing" a
-deliberate choice, and it is what makes a file reviewable rather than
-merely readable.
-
-**Cite the authority.** Where behaviour comes from a BIP, an RFC or a
-Bitcoin Core function, name it, rather than asserting the behaviour
-as if btclib had decided it. Where btclib deviates, say so and say
-why.
-
-**Measure, don't assert.** A number in prose comes from a command,
-and the command belongs beside it, so the next reader can re-measure
-instead of trusting a figure whose date they cannot see. Never state
-a count that nothing checks — an unchecked number drifts into a false
-claim — and never state how many of anything a file holds: a stated
-total is a line every open branch has to edit, and two branches
-moving it to the same wrong number merge without a conflict.
+**Most readers of a docstring here are new to btclib: write for them.**
 
 **A table of measured timings belongs in the CHANGELOG, not in a
-docstring.** The rule above wants the command beside the number, and a
-timing is the one figure that has none here: the benchmarks are their
-own repository, and no gate re-measures — a timing gate on a shared
-runner is a flake. What is left to do instead is put it where it is
-read as what it is. A docstring is read as a statement about the code
-as it stands, so a figure in one is a claim about now; a CHANGELOG
-entry is read as the history of a release, and calendar versioning
-puts the release day in the heading over it once the release is cut.
-So the docstring keeps the number that carries the *reason*, the one a
-reader needs to follow the decision — "half of what a signature
+docstring.** *Measure, don't assert* wants the command beside the
+number, and a timing is the one figure that has none here: the
+benchmarks are their own repository, and no gate re-measures — a timing
+gate on a shared runner is a flake. What is left to do instead is put it
+where it is read as what it is. A docstring is read as a statement about
+the code as it stands, so a figure in one is a claim about now; a
+CHANGELOG entry is read as the history of a release, and calendar
+versioning puts the release day in the heading over it once the release
+is cut. So the docstring keeps the number that carries the *reason*, the
+one a reader needs to follow the decision — "half of what a signature
 costs", "twice as fast, flat in n, no crossover" — and the matrix per
 size or per caller goes in the entry that took it. Two figures were
 found stale in one week by the branch standing on them, and neither
 would have been noticed otherwise (issue #940).
 
-**One fact in one place.** Two files stating the same thing become
-two files disagreeing about it; the second one points at the first.
+### Every change starts with an issue
 
-**No history in the prose.** Comments and docstrings say why the code
-is as it is, in the present tense; they do not tell the story of what
-it used to be. "This is here rather than X because X breaks Y" stays,
-whatever prompted it; "this used to be X, until Z" goes — unless the
-old spelling is something a caller can still encounter (a deprecated
-alias, a wire format), in which case it is not history but the
-present. History has two files of its own, `CHANGELOG.md` and
-`RELEASE_NOTES.md`, and it is complete there.
+Open one before the pull request, however small the change is. The
+standard's *What a pull request says it is* has what the title and the
+description then do with it.
 
-### Commit your update
+A security vulnerability is the exception and does not go in the tracker
+at all. [SECURITY.md](./SECURITY.md) is what to follow instead: it asks
+for a private advisory, or for an email if you would rather not open one.
 
-Commit the changes to your fork once you are happy with them. **Every
-commit needs a verified signature** — GPG, SSH or S/MIME, [any of the
-three GitHub
-verifies](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification)
-— because the branch rule requires one on every commit that reaches
-`main`, not only on the pull request as a whole: an unsigned commit is
-rejected before review even starts.
+### What a squash writes here
 
-### Pull Request
-
-When you're finished with the changes, create a pull request (PR).
-
-- Don't forget to
-  [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
-  if you are solving one.
-- Enable the checkbox to
-  [allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork)
-  so the branch can be updated for a merge.
-  Once you submit your PR, team members will review your proposal.
-  We may ask questions or request additional information.
-- We may ask for changes to be made before a PR can be merged, either using
-  [suggested changes](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/incorporating-feedback-in-your-pull-request)
-  or pull request comments.
-  You can apply suggested changes directly through the UI.
-  You can make any other changes in your fork, then commit them to your branch.
-- As you update your PR and apply changes, mark each conversation as
-  [resolved](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request#resolving-conversations).
-- If you run into any merge issues, checkout this
-  [git tutorial](https://github.com/skills/resolve-merge-conflicts)
-  to help you resolve merge conflicts and other issues.
-
-**A correction is a commit of its own, never an amend.** Once a branch is
-pushed and under review, `git commit --amend` and a force-push replace the
-commits the review is attached to: the reviewer loses the diff they read,
-"changes since your last review" has nothing to compare against, and every
-check starts again from a commit nobody has seen. Add the fix on top, with
-a message saying what it fixes, and reply to the comment with the sha.
-
-Nothing is lost in `main`'s history by doing so, because **a pull request
-lands as one commit**: a branch of several is squashed into one, so the
-review's commits are the record of the review and `main` keeps one commit
-per landed change. A merge commit would put the branch's steps into
-`main` and a rebase merge would replay them one by one — `main` is linear
-by branch rule, and one change is one commit there.
-
-**How that commit reaches `main` is the squash button**, pressed by
-auto-merge once the review and the checks are in. GitHub composes it and
-signs it with its web-flow key, which is a valid signature and therefore
-all the branch rule asks for. There is no other path: `main` takes a
-pull request and nothing else, a direct push being refused for everyone.
-REPOSITORY.md has the settings that make that true.
-
-Either way the decision belongs to the landing and not to the branch,
-which is why a correction added on top of a reviewed branch is still the
-right shape: by the time it is squashed the review has its record.
-
-What that commit says is the repository's to answer, not this file's:
+What the landing commit says is a repository setting and not a decision
+made once per pull request, so there is one place to read it from:
 
 ```shell
 gh api repos/btclib-org/btclib --jq \
@@ -1516,42 +1519,10 @@ gh api repos/btclib-org/btclib --jq \
 # {"t": "COMMIT_OR_PR_TITLE", "m": "COMMIT_MESSAGES"}
 ```
 
-so a branch of one commit lands under that commit's own subject, a branch
-of several under the pull request's title with its number, and the body
-is the branch's commit messages either way — never the pull request's
-body, which stays on the pull request. That is what the button writes,
-and a squash made locally follows the same convention by hand, the
-setting being the statement of what the message should say rather than
-only of what a press produces.
-
-**It is a setting and not a choice made once per pull request**, so
-there is no other button to read. REPOSITORY.md has it, what the other
-two would have cost, and the ruleset that names `squash` as the only
-merge method it accepts.
-
-The one force-push that stays right is the one that carries no new work: a
-`git rebase origin/main` on a branch whose base has moved, which is how a
-stale pull request is refreshed. Re-run the gates after it, never only
-before it, and say in the pull request that the head moved and why.
-
-**A pull request needs an approving review from somebody other than its
-author before it can merge** — GitHub does not allow a self-approval.
-[REVIEWING.md](./REVIEWING.md) is the standard that review is written
-against, and is this file's other half: what a review establishes before
-it gives an ack, how a finding states its severity, and why everything it
-notices that the pull request is not about becomes an issue rather than a
-comment. Read before opening a pull request, it is what the pull request
-will be answered against.
-
-**`main` enforces this on every commit that reaches it, not only
-on review**: a verified signature, linear history, no force push, no
-branch deletion. These are a GitHub ruleset with no bypass actor, not a
-rule trusted to hold on its own — a commit that is unsigned or that
-rewrites history is rejected before it is something to review.
-
-### Your PR is merged
-
-Congratulations :tada::tada: The btclib team thanks you :sparkles:.
-
-Once your PR is merged, your contributions will be publicly visible on the
-[contributors page](https://github.com/btclib-org/btclib/graphs/contributors).
+A branch of one commit therefore lands under that commit's own subject, a
+branch of several under the pull request's title with its number, and the
+body is the branch's commit messages either way — never the pull
+request's body, which stays on the pull request. A squash made by hand
+follows the same convention, the setting being the statement of what the
+message should say rather than only of what a press produces.
+REPOSITORY.md has what the other two merge methods would have cost.

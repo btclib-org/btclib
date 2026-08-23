@@ -55,10 +55,22 @@ rules:
     # allow-non-breakable-words stays at its default, true: a line that
     # is one long token has nowhere to break, which is the exemption
     # MD013 already makes for a bare URL
-  # the "---" every yaml file here opens with, which is yamllint's
-  # default and one line each. What it buys is that the files answer the
-  # question the same way instead of each beginning however its author
-  # left it, and that the default set carries one exemption fewer to
-  # justify. On line 1, above the header comment rather than below it, so
-  # there is no second place to look for it
-  document-start: enable
+  # the "---" every yaml file here opens with, one line each. What it buys
+  # is that the files answer the question the same way instead of each
+  # beginning however its author left it. On line 1, above the header
+  # comment rather than below it, so there is no second place to look for
+  # it.
+  #
+  # The level is what this entry is for: the default set already carries
+  # this rule, at warning, and the pre-commit hook runs plain `yamllint`
+  # with no --strict, where a warning exits 0. At the inherited level the
+  # rule therefore reports the convention and gates nothing -- which is
+  # what the entry said it bought and did not. Raising it to error costs
+  # nothing today:
+  #
+  #   git ls-files '*.yml' '*.yaml' \
+  #     | xargs -I{} sh -c 'head -1 {} | grep -q "^---" || echo {}'
+  #
+  # answers with nothing in every repository of the organization.
+  document-start:
+    level: error

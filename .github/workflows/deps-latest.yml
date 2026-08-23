@@ -1,5 +1,5 @@
 ---
-name: latest
+name: deps-latest
 
 # the dependency sentinel: everything uv resolves, upgraded to the newest
 # release that satisfies pyproject.toml, and then put through the suite,
@@ -52,7 +52,7 @@ on:
   schedule:
     # Wednesday, the day before Dependabot's, which is the whole point of
     # the placement: this reports on the upgrade before the pull request
-    # carrying it opens. published.yml follows an hour later, the pair
+    # carrying it opens. pypi-install.yml follows an hour later, the pair
     # asking what moved underneath -- the dependencies here, and what the
     # index serves there.
     # The time is section 10's grid in btclib-org/.github and not this
@@ -72,7 +72,7 @@ permissions:
 # workflow today, but that expression is the caller's name when something
 # does, and the convention is what keeps the groups distinct
 concurrency:
-  group: latest-${{ github.ref }}
+  group: deps-latest-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -123,7 +123,7 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade every dependency to its latest release
         # this matrix includes windows-latest, whose default shell is
-        # PowerShell rather than bash -- see windows.yml's suite-windows
+        # PowerShell rather than bash -- see os-windows.yml's suite-windows
         # job for the failure mode a POSIX-only step hits there unnoticed
         # (issue #1148). This step and the pytest step below happen not to
         # use any POSIX-only syntax today, which is exactly the hazard: a
@@ -161,7 +161,7 @@ jobs:
   # under the same org, released by the same maintainer, which makes
   # "did my own other release just break this one" a distinct and
   # likely enough question to ask separately from "did some
-  # third-party wheel". Moved here from published.yml (issue #397): it
+  # third-party wheel". Moved here from pypi-install.yml (issue #397): it
   # is a question about drift against a tree not yet published, which
   # belongs before publication rather than after
   suite-bindings-latest:
@@ -192,7 +192,7 @@ jobs:
       # knowing before running the same command in a working tree
       - name: Upgrade the bindings to their latest release
         # this matrix includes windows-latest; see suite-latest above and
-        # windows.yml's suite-windows job (issue #1148)
+        # os-windows.yml's suite-windows job (issue #1148)
         shell: bash
         run: uv lock --upgrade-package btclib_secp256k1
       # test.yml's no-bindings job, with the sense reversed, and here for
@@ -226,7 +226,7 @@ jobs:
       # installed and not refused, so it implies the other, and it is the
       # public reading of the seam every dispatch consults -- the name
       # the wheel smoke tests assert (issue #1117) and the one
-      # `no-bindings` and python-arm-authority.yml assert the negative
+      # `no-bindings` and py-arm-authority.yml assert the negative
       # of. Nothing here sets BTCLIB_NO_LIBSECP256K1, so refusal is not
       # reachable and False leaves only the import, which is what the
       # message says rather than the generic sentence those two carry
@@ -329,10 +329,13 @@ jobs:
           enable-cache: true
       - name: Upgrade every dependency to its latest release
         run: uv lock --upgrade
-      # setuptools and the build backend are resolved by uv build itself,
-      # not from uv.lock, so this step is at latest whether or not the one
-      # above ran: the build requirement in pyproject.toml is a lower
-      # bound, and uv builds in an isolated environment
+      # the build backend is uv's own, packaged inside the uv binary and
+      # resolved from neither uv.lock nor the index, so this step builds
+      # with whatever backend the installed uv carries whether or not the
+      # one above ran. pyproject.toml bounds it on both sides, which is
+      # what makes "what does the sdist hold" a question with one answer;
+      # a uv older than that floor falls back to resolving uv_build from
+      # the index instead
       - name: Build the distribution files
         run: uv build
       - name: Check the metadata and the long description

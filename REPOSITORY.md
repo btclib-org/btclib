@@ -44,22 +44,22 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | `test: every job passed` | `test.yml`, aggregate over its own jobs |
 | `Lint and type-check` | `lint.yml`, its only job |
 | `Build the documentation` | `docs.yml`, its only job |
-| `Regtest against Bitcoin Core` | `integration.yml`, its regtest job |
+| `Regtest against Bitcoin Core` | `integration-bitcoind.yml`, its regtest job |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
 would leave the rest outside the rule. Where a single job is what gates,
 that job *is* the context, which is why most of the checks above are job
 names.
-`integration.yml` holds only the regtest job: the HWI jobs — `HWI against a
-Trezor emulator` and `HWI against a Ledger emulator` — live in
-`hwi-integration.yml`, a workflow with no `pull_request` trigger at all, so
-a firmware release or a Ledger screen that changed wording produces no
-pull-request check to ignore, required or not — a job merely skipped on a
-pull request still lists there, a workflow that never triggers on one does
-not. What a job added back to `integration.yml` would still cost is a
-rename: a workflow whose *whole* answer becomes required needs an
-aggregate, and this table with it.
+`integration-bitcoind.yml` holds only the regtest job: the HWI jobs — `HWI
+against a Trezor emulator` and `HWI against a Ledger emulator` — live in
+`integration-hwi.yml`, a workflow with no `pull_request` trigger at all, so a
+firmware release or a Ledger screen that changed wording produces no
+pull-request check to ignore, required or not — a job merely skipped on a pull
+request still lists there, a workflow that never triggers on one does not. What
+a job added back to `integration-bitcoind.yml` would still cost is a rename: a
+workflow whose *whole* answer becomes required needs an aggregate, and this
+table with it.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
@@ -72,10 +72,10 @@ rule is waiting for.
 
 `Regtest against Bitcoin Core` is the newest of the four, and it is here
 because its cost was measured rather than assumed: 36 seconds of work for a
-disposable regtest node, which is less than the gate it runs beside. It
-answers the one claim the recorded vectors cannot make. `integration.yml`
-therefore carries no `paths` filter: a required check that never runs blocks
-a merge, where a skipped one satisfies it.
+disposable regtest node, which is less than the gate it runs beside. It answers
+the one claim the recorded vectors cannot make. `integration-bitcoind.yml`
+therefore carries no `paths` filter: a required check that never runs blocks a
+merge, where a skipped one satisfies it.
 
 GitHub Free gives an organization twenty concurrent jobs (as of
 2026-08-21). Measured over a working afternoon while a commit here asked

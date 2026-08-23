@@ -65,7 +65,6 @@ exclude:
   # packaging and tooling, likewise
   - pyproject.toml
   - uv.lock
-  - MANIFEST.in
   - COPYRIGHT
   # repository process rather than pages for a visitor: agent instructions,
   # the branch rules and settings, and the release procedure

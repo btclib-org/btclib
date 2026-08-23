@@ -3,10 +3,10 @@ name: test
 
 # the merge gate, and it is one cell of what a sweep runs: ubuntu-latest
 # on the interpreter .python-version pins, which is the `coverage` job
-# below. The platform matrices are ubuntu.yml, macos.yml and windows.yml,
-# weekly and before a release, and ubuntu.yml's header is where the trade
-# is argued -- what a review stops waiting for, and how long a regression
-# outside this cell can sit on main.
+# below. The platform matrices are os-ubuntu.yml, os-macos.yml and
+# os-windows.yml, weekly and before a release, and os-ubuntu.yml's
+# header is where the trade is argued -- what a review stops waiting
+# for, and how long a regression outside this cell can sit on main.
 # What stays here beside `coverage` is what is one cell anyway: the
 # no-bindings configuration, the union of the two, and the packaging
 # checks. lint.yml and docs.yml are the same shape in their own files
@@ -172,7 +172,8 @@ jobs:
   # - README.md is not prose for this purpose: pyproject.toml reads it as
   #   the package's long description, which the `dist` job's twine and
   #   pyroma checks actually render and rate. Nor is anything under
-  #   docs/, which the sdist carries (MANIFEST.in) and which
+  #   docs/, which the sdist carries ([tool.uv.build-backend])
+  #   and which
   #   tests/docs_test.py and tests/docs_examples_test.py read directly.
   #   Nor are CHANGELOG.md or RELEASE_NOTES.md: tests/release_notes_test.py
   #   parses and validates their format, in the very suite this job would
@@ -231,10 +232,11 @@ jobs:
 
   # the one cell a merge waits for, and the one place coverage is
   # measured: ubuntu-latest on the interpreter below, which is what the
-  # header calls the gate. ubuntu.yml, macos.yml and windows.yml each run
-  # this cell again inside their own matrix, on purpose -- a sweep that
-  # subtracted it would be a matrix with a hole in it, and whoever asked
-  # what ran would have to re-derive the hole from this file.
+  # header calls the gate. os-ubuntu.yml, os-macos.yml and os-windows.yml
+  # each run this cell again inside their own matrix, on purpose -- a
+  # sweep that subtracted it would be a matrix with a hole in it, and
+  # whoever asked what ran would have to re-derive the hole from this
+  # file.
   # Measured here and not on any of those cells: the code base has
   # no platform- or version-conditional branch (no sys.platform, no
   # sys.version_info) and no conditional skip, so every one of them walks
@@ -542,11 +544,16 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: ${{ !inputs.disable-dist-cache }}
-      # what makes the wheel this job publishes reproducible: without it
-      # setuptools stamps the zip entries with the mtimes of the checkout,
-      # so the same commit built twice gives two digests and the
-      # attestation release.yml's `attest` job signs would vouch for bytes
-      # nobody else can obtain. The commit date, not the tag's: `git log
+      # what the sbom and the sdist normalizer below read. It no longer
+      # makes the wheel reproducible, and nothing has to: uv_build ignores
+      # the variable and writes a fixed timestamp into every member of
+      # both archives -- (1980, 1, 1) in the zip, 0 in the tar -- so one
+      # commit gives one digest whether the variable is exported or not.
+      # Measured by building this tree twice, once with SOURCE_DATE_EPOCH
+      # unset and once with it set to an arbitrary second: the two sdists
+      # and the two wheels are byte for byte the same file. What still
+      # needs a date is the sbom, whose timestamp and serial number derive
+      # from it. The commit date, not the tag's: `git log
       # -1` on a shallow clone reads the tip, which is the commit the tag
       # points at, and a lightweight tag has no date of its own to prefer.
       # RELEASING.md has the command that rebuilds a released tag and
@@ -570,18 +577,19 @@ jobs:
       # both from the source tree, so what is checked below is what a user
       # installing from source would get, and what a rehearsal ships is
       # built from the tree the step above just re-locked. That the sdist
-      # is complete in the first place is check-manifest's job, a
-      # pre-commit hook, gated by the lint workflow
+      # is complete in the first place is check-sdist's job, a pre-commit
+      # hook, gated by the lint workflow: it compares the archive against
+      # git's index rather than against a list anyone maintains
       - name: Build the distribution files
         run: uv build
-      # SOURCE_DATE_EPOCH reaches every entry of the wheel and nothing at
-      # all in the sdist: setuptools honours it in the wheel writer it
-      # vendors and in no other place, so each member of the .tar.gz keeps
-      # a clock -- the checkout's for a file, the build's for the
-      # directory setuptools stages them in -- to sub-second precision, in
-      # a PAX record whose length changes with it. The script rewrites
-      # member metadata and no content, and its docstring has the
-      # measurement. --no-project, so this runs on the interpreter uv
+      # a belt over a backend that already writes fixed timestamps. What
+      # this step buys is that the archive's determinism is this
+      # repository's property and not the backend's: uv_build's mtime of 0
+      # is a choice it is free to revisit, and a release rebuilt from its
+      # tag two backends later still has to give the bytes the attestation
+      # vouches for. The script rewrites member metadata and no content,
+      # and its docstring has the measurement that says what it finds
+      # there today. --no-project, so this runs on the interpreter uv
       # already fetched and installs nothing into the tree it is about to
       # publish
       - name: Make the sdist reproducible too
@@ -683,7 +691,7 @@ jobs:
       # refuses as conflicting once the branch has moved past it. A floor
       # resolves to a release, and a release does not move.
       # Whether the newest bindings still work is asked on a schedule by
-      # latest.yml, and again below, release-only. Each assertion catches
+      # deps-latest.yml, and again below, release-only. Each assertion catches
       # what the others miss: the version is asserted and not merely
       # printed, since btclib.__version__ falls back to "unknown" with no
       # metadata installed (issue #150), so a wheel shipping none would
@@ -707,7 +715,7 @@ jobs:
       # exists for -- so both would pass unnoticed. Both are the tree's
       # own state and not the index's, which is what makes the assertion
       # fit for a required check: what it cannot say is whether the
-      # *newest* bindings serve, which is the step below and latest.yml's
+      # *newest* bindings serve, which is the step below and deps-latest.yml's
       # job.
       # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
       # installed and not refused, so it implies the other, and it is the
@@ -781,11 +789,11 @@ jobs:
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. A job's name is what such a
-  # rule matches, and a name that stops being produced -- a job renamed,
-  # a job moved out to a sentinel the way the platform matrix lives in
-  # ubuntu.yml, macos.yml and windows.yml -- becomes a required check
-  # that never reports, which blocks every merge until
-  # someone remembers where the rule lives. Naming the jobs below
+  # rule matches, and a name that stops being produced -- a job renamed, a
+  # job moved out to a sentinel the way the platform matrix lives in
+  # os-ubuntu.yml, os-macos.yml and os-windows.yml -- becomes a required
+  # check that never reports, which blocks every merge until someone
+  # remembers where the rule lives. Naming the jobs below
   # directly would mean every edit here has to be mirrored in a setting
   # no pull request can review.
   # This job depends on the others instead, so the rule names one thing
@@ -810,7 +818,7 @@ jobs:
     # of failing, only when the run as a whole was superseded. A skipped
     # job satisfies a required check -- this job's own draft/closed
     # condition below already relies on exactly that, and has since
-    # before this change; integration.yml, by contrast, deliberately
+    # before this change; integration-bitcoind.yml, by contrast, deliberately
     # carries no `paths` filter, for the same reason stated in
     # REPOSITORY.md and in that workflow's own comment: a required check
     # that never runs blocks a merge, where a skipped one satisfies it,

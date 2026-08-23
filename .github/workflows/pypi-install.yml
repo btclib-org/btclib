@@ -1,5 +1,5 @@
 ---
-name: published
+name: pypi-install
 
 # checks whether what is already on PyPI actually works, not merely
 # installs -- which no pull request asks, checking out the tree it is
@@ -27,7 +27,7 @@ name: published
 # Actions tab before it is read as green.
 #
 # What this is not: a sentinel for whether the newest btclib_secp256k1
-# breaks this tree. That question -- issue #397 -- belongs to latest.yml's
+# breaks this tree. That question -- issue #397 -- belongs to deps-latest.yml's
 # suite-bindings-latest job instead: it is about drift against a tree not
 # yet published, asked before publication rather than after, and asking
 # it here would be asking it one step too late to matter to what gets
@@ -51,8 +51,8 @@ name: published
 
 on:
   schedule:
-    # Wednesday, the hour after latest.yml, and the pair is why this is
-    # weekly: latest.yml upgrades every dependency and runs the suite,
+    # Wednesday, the hour after deps-latest.yml, and the pair is why this is
+    # weekly: deps-latest.yml upgrades every dependency and runs the suite,
     # this asks what the index actually serves, and read together they
     # separate a break this tree caused from one that arrived. What it
     # watches is external rot -- a new interpreter, an index serving a
@@ -93,7 +93,7 @@ permissions:
 # samples worth keeping, and neither supersedes the other. A concurrent
 # run queues instead
 concurrency:
-  group: published-${{ github.ref }}
+  group: pypi-install-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -124,8 +124,8 @@ jobs:
           # header), and a wheel built from an sdist that lost one of them
           # installs and imports cleanly, failing only at the BIP39 check
           # below. No wheel-only cell can see that kind of drift -- the
-          # risk is MANIFEST.in or [tool.setuptools] listing what ships,
-          # not a build failure -- and btclib was the only one of the
+          # risk is [tool.uv.build-backend] excluding what ships, not a
+          # build failure -- and btclib was the only one of the
           # three publishing repositories with no cell that exercised it
           # (issue #1153). A single extra cell rather than a second axis
           # over the base matrix: a `["", "--no-binary"]` axis would

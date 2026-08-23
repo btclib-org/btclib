@@ -30,10 +30,11 @@ on:
   # every commit, and `cosmic-ray baseline` below fails the run before any
   # mutant if the test command has gone stale
   schedule:
-    # Sunday, an hour before integration.yml and nothing else: a session
-    # measured in hours gets the emptiest day the grid has. It also asks
-    # something on a different axis from every other sentinel here -- the
-    # suite's own quality, not a dependency's or a platform's.
+    # Sunday, an hour before integration-bitcoind.yml and nothing else:
+    # a session measured in hours gets the emptiest day the grid has. It
+    # also asks something on a different axis from every other sentinel
+    # here -- the suite's own quality, not a dependency's or a
+    # platform's.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Cron runs from the default branch only, so this file gates nothing

@@ -326,14 +326,14 @@ bindings = [
     { name = "btclib-secp256k1" },
 ]
 check = [
-    { name = "check-manifest" },
+    { name = "check-sdist" },
     { name = "check-wheel-contents" },
     { name = "pyroma" },
     { name = "twine" },
 ]
 dev = [
     { name = "btclib-secp256k1" },
-    { name = "check-manifest" },
+    { name = "check-sdist" },
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
     { name = "coverage" },
@@ -400,14 +400,14 @@ provides-extras = ["secp256k1"]
 [package.metadata.requires-dev]
 bindings = [{ name = "btclib-secp256k1", specifier = ">=0.8.0.4" }]
 check = [
-    { name = "check-manifest" },
+    { name = "check-sdist" },
     { name = "check-wheel-contents" },
     { name = "pyroma" },
     { name = "twine" },
 ]
 dev = [
     { name = "btclib-secp256k1", specifier = ">=0.8.0.4" },
-    { name = "check-manifest" },
+    { name = "check-sdist" },
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
     { name = "coverage" },
@@ -847,17 +847,17 @@ wheels = [
 ]
 
 [[package]]
-name = "check-manifest"
-version = "0.51"
+name = "check-sdist"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "build" },
-    { name = "setuptools" },
+    { name = "pathspec" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/e3/8ce797dfdf12d447683490107c4dcd97bb2535d7a2b031bf3f3e4c441c3d/check_manifest-0.51.tar.gz", hash = "sha256:9801c7637675755a563f33e3c48ee59a59b37a7677297c05c910c16c5b9b6d67", size = 36302, upload-time = "2025-10-15T11:15:48.007Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/e8/f01fa0e4b6e046ed4a4147af3f7509875f871b39ced586baeed836cd81b9/check_sdist-1.6.0.tar.gz", hash = "sha256:20507b1374afe7de30fa63cfb56880275f38add9efbebff13f491a0555497b34", size = 25244, upload-time = "2026-08-05T20:13:51.32Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/c1/df01ef6ba1c8a2bfc201be45d0889b06f165008b240e8d1657aa665421a8/check_manifest-0.51-py3-none-any.whl", hash = "sha256:f5f35ed561012fc2115bb070e42a748ac2e034cf8904ab4dfaae893859085ca4", size = 20500, upload-time = "2025-10-15T11:15:46.058Z" },
+    { url = "https://files.pythonhosted.org/packages/59/dd/ea22633e399e4f9870deebebfa99c7efd23fc5ec5613c0165a85d1b2b72a/check_sdist-1.6.0-py3-none-any.whl", hash = "sha256:6e4c99b1abf5a15bd7f5f681c802f50c546835d9c510ecb5d3c0e47c20d8b702", size = 22484, upload-time = "2026-08-05T20:13:49.866Z" },
 ]
 
 [[package]]

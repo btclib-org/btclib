@@ -1,21 +1,22 @@
 ---
-name: hwi-integration
+name: integration-hwi
 
 # The other half of `tests/integration/`'s HWI question, split out of
-# integration.yml rather than kept beside `Regtest against Bitcoin Core`
-# as a second job of it: a pinned Trezor emulator stands in for one
-# device, a pinned Ledger under Speculos for another, and a red run of
-# either is more often a firmware release, an unreachable data.trezor.io
-# or an app whose screens changed wording than it is this branch's fault
-# -- exactly the shape of check that gets ignored when it sits next to a
-# review, and that a `pull_request`-triggered workflow still lists as
-# skipped even when a job-level `if` keeps it from running. This file has
-# no `pull_request` trigger at all, so neither job appears on a pull
-# request's checks, running or skipped: the schedule asks the question
-# weekly, the push to main asks it of the commit a merge created, and the
-# dispatch button is how a branch touching btclib/hwi.py gets the answer
-# before it lands -- `gh workflow run hwi-integration.yml --ref <branch>`
-# runs that branch's copy of this file.
+# integration-bitcoind.yml rather than kept beside `Regtest against
+# Bitcoin Core` as a second job of it: a pinned Trezor emulator stands
+# in for one device, a pinned Ledger under Speculos for another, and a
+# red run of either is more often a firmware release, an unreachable
+# data.trezor.io or an app whose screens changed wording than it is this
+# branch's fault -- exactly the shape of check that gets ignored when it
+# sits next to a review, and that a `pull_request`-triggered workflow
+# still lists as skipped even when a job-level `if` keeps it from
+# running. This file has no `pull_request` trigger at all, so neither
+# job appears on a pull request's checks, running or skipped: the
+# schedule asks the question weekly, the push to main asks it of the
+# commit a merge created, and the dispatch button is how a branch
+# touching btclib/hwi.py gets the answer before it lands -- `gh workflow
+# run integration-hwi.yml --ref <branch>` runs that branch's copy of
+# this file.
 #
 # Two vendors rather than one because HWI is two clients: the protobuf
 # one the Trezor speaks, and the app-2.x one behind a Ledger's wallet
@@ -28,7 +29,7 @@ name: hwi-integration
 
 on:
   schedule:
-    # Friday, the hour after ubuntu.yml: an emulator is a service to keep
+    # Friday, the hour after os-ubuntu.yml: an emulator is a service to keep
     # working, and a week is as often as anybody acts on the answer.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
@@ -51,9 +52,9 @@ permissions:
 # the node both jobs run, for the signing test each ends with: the
 # release under test, and the sha256 of its linux tarball as four
 # independent guix builders attested it in bitcoin-core/guix.sigs. Pinned
-# rather than resolved to "latest" for the reason integration.yml's own
-# copy gives; raising either is a commit, with the new sha read from the
-# same place
+# rather than resolved to "latest" for the reason
+# integration-bitcoind.yml's own copy gives; raising either is a commit,
+# with the new sha read from the same place
 env:
   BITCOIND_VERSION: "31.1"
   BITCOIND_SHA256: >-
@@ -63,7 +64,7 @@ env:
 # github.workflow, as everywhere else here: in a called workflow that
 # expression is the caller's name
 concurrency:
-  group: hwi-integration-${{ github.ref }}
+  group: integration-hwi-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -118,7 +119,7 @@ jobs:
         with:
           enable-cache: true
       # the signing test spends a regtest coin, so this job needs the
-      # node integration.yml's regtest job needs, from the same pin
+      # node integration-bitcoind.yml's regtest job needs, from the same pin
       - name: Install bitcoind
         id: bitcoind
         uses: ./.github/actions/install-bitcoind
@@ -240,7 +241,7 @@ jobs:
           PY
       # the module tests/README.md documents, with both switches set and
       # the node from the step above. Only that module: the regtest tests
-      # beside it are integration.yml's, and running them again here
+      # beside it are integration-bitcoind.yml's, and running them again here
       # would report a Core failure twice.
       #
       # -n0 because there is one device. pyproject.toml's addopts pass
@@ -257,7 +258,7 @@ jobs:
         run: |
           uv run --locked --no-default-groups --group test \
             pytest tests/integration/hwi_device_test.py -n0 --junitxml=hwi.xml
-      # the same guard integration.yml's regtest job carries, for the
+      # the same guard integration-bitcoind.yml's regtest job carries, for the
       # same reason: every one of these tests skips itself when a switch
       # is off or when enumerate answers something other than one usable
       # device, so a job whose emulator stopped being seen would pass

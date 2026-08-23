@@ -1,12 +1,15 @@
 [build-system]
-# 77 is the floor for the PEP 639 metadata below, and for both halves of
-# it at once: the SPDX string form of `project.license` and
-# `project.license-files` arrived in setuptools 77.0.0, which is the
-# version the deprecation warning for the old table form names. An
-# isolated build resolving anything older fails on the syntax rather than
-# ignoring it, which is what the bound is for
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+# glob patterns in the [tool.uv.build-backend] table below, beside the
+# rest of the configuration, in place of the separate include and
+# exclude language of a MANIFEST.in. The floor is where the sdist's own
+# pyproject.toml became a normalized copy of this file, with the
+# verbatim one kept beside it as pyproject.toml.orig: 0.11.31 puts the
+# same members in the wheel and neither of those two in the sdist, so a
+# lower floor would leave what the sdist holds with two answers. The
+# ceiling is the next minor, which is where uv's versioning policy puts
+# a breaking change, this backend releasing with uv and versioned by it
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "btclib"
@@ -176,7 +179,7 @@ lint = [{ include-group = "bindings" }, "mypy", "pre-commit", "ruff"]
 # version. Named `check`, not `build`, so `--only-group build` means the
 # same thing here as in btclib-secp256k1, which already has both names:
 # the tools that build a distribution, not the ones that inspect one
-check = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
 docs = [
     { include-group = "bindings" },
@@ -209,9 +212,77 @@ dev = [
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.11.31"
 
-[tool.setuptools.packages.find]
-include = ["btclib*"]
-namespaces = true
+[tool.uv.build-backend]
+# btclib/ sits at the root of the repository, where the backend looks
+# under src/ by default. `module-name` is not written beside this: it
+# defaults to `project.name` normalized, which is this name already, and
+# a second declaration is a second thing to keep in agreement
+module-root = ""
+# what the sdist carries beyond what the backend puts there by itself --
+# pyproject.toml, the module under `module-root`, and the files
+# `project.readme` and `project.license-files` name. Patterns are
+# anchored, so `*.md` is the root's own markdown and reaches neither the
+# module's nor the website's, and `/**` is what recurses.
+#
+# The lint gate has to be runnable from an unpacked sdist, which is what
+# puts .pre-commit-config.yaml (`*.yaml`) in, and .taplo.toml (`*.toml`)
+# and .secrets.baseline, which hooks read, with it.
+#
+# The Jekyll sources of btclib.org, which is served from this
+# repository's root, are named nowhere here: they are tracked and
+# deliberately absent from the sdist, and no pattern above adds them, so
+# no exclusion has to take them back out. Where that absence is declared
+# is [tool.check-sdist] git-only below, the configuration of the tool
+# that asks the question
+source-include = [
+    "*.jsonc",
+    "*.md",
+    "*.toml",
+    "*.yaml",
+    ".python-version",
+    ".secrets.baseline",
+    "uv.lock",
+    "docs/**",
+    "tests/**",
+]
+# exclusions win over the inclusions above, and are unanchored unless a
+# pattern starts with "/": a bare name matches at any depth, and
+# everything below a match goes with it.
+#
+# check-sdist reads this list for the uv backend, so a tracked file a
+# pattern here takes out is not reported as one the sdist is missing,
+# and does not have to be named again in [tool.check-sdist] below
+source-exclude = [
+    # tests whose subject the sdist does not carry: what
+    # .github/scripts holds is not shipped, so each of these loads a
+    # path that is not there -- a fixture error rather than a test.
+    # Anchored, because a name this specific matching at some other
+    # depth would be an accident rather than a decision
+    "/tests/check_python_arm_authority_test.py",
+    "/tests/check_vendored_vectors_test.py",
+    "/tests/generate_sbom_test.py",
+    "/tests/mutation_counts_test.py",
+    "/tests/verify_dist_contents_test.py",
+    # where `make html` writes, docs/Makefile's BUILDDIR being `build`
+    "/docs/build",
+    # a cache a linter or type checker writes beside the file it has
+    # just checked, and not something anyone puts there on purpose: the
+    # VS Code mypy extension writes one per directory it type-checks, so
+    # it can appear under btclib/ and tests/ alike, and a nested one was
+    # shipped whole (issue #985). __pycache__, *.pyc and *.pyo are the
+    # backend's own default excludes, and are not repeated here
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    # the same kind of leftover one directory over, where `tests/**`
+    # would ship it: the check-sdist hook plants one under tests/ while
+    # it runs, which is how these patterns are known to hold rather than
+    # believed to
+    "*.egg-info",
+    # tracked, one at the root and one under btclib/ where the module is
+    # copied wholesale, and of no use to anyone unpacking an sdist
+    ".gitignore",
+]
 
 [tool.check-wheel-contents]
 # the wheel's `btclib/` diffed against this checkout's, file for file and
@@ -222,9 +293,9 @@ namespaces = true
 # imports cleanly and is reported clean.
 #
 # It was left unconfigured here on purpose until now, and the reason was
-# redundancy rather than inapplicability: `check-manifest` below gates
-# this tree against the sdist and `verify_dist_contents.py` gates the
-# sdist against the wheel, so chained they imply tree == sdist == wheel.
+# redundancy rather than inapplicability: `check-sdist` below gates this
+# tree against the sdist and `verify_dist_contents.py` gates the sdist
+# against the wheel, so chained they imply tree == sdist == wheel.
 # The organization standard's section 12 no longer accepts that trade
 # (btclib-org/.github#51, issue #1200): some other check implying the
 # same diff does not stand in for the flag where the flag applies,
@@ -238,44 +309,34 @@ namespaces = true
 # object beside the package on purpose.
 package = ["btclib"]
 
-[tool.check-manifest]
-# the website, not the package. btclib.org is served from this repository's
-# root, so the Jekyll sources sit beside the library: they are tracked, they
-# have no business in an sdist, and a tracked file the sdist omits is
-# exactly what check-manifest reports. Naming them here says that in the
-# configuration of the tool that asks the question, not as MANIFEST.in
-# exclude rules, which read as packaging decisions while matching nothing
-# any include has added
-ignore = [
-    # the editor's workspace: tracked, so that a checkout is told what the
-    # gate enforces, and no more part of a distribution than the website
-    # below is
-    ".vscode/*",
-    # Claude Code's own workspace config, same argument as .vscode/* above.
-    # A tree rather than a flat directory -- the settings sit beside a
-    # commands/ directory -- so the pattern is the one _layouts/** below
-    # uses and not .vscode/*'s single level
-    ".claude/**",
+[tool.check-sdist]
+# tracked files the sdist is meant not to carry. What
+# [tool.uv.build-backend] source-exclude names is not repeated here:
+# check-sdist reads that list for the uv backend, so this holds only
+# what no include pattern adds in the first place -- the website, the
+# workspaces of an editor and of an agent, and the two files git and a
+# link checker read.
+#
+# btclib.org is served from this repository's root, so the Jekyll
+# sources sit beside the library: naming them here says they are
+# deliberately absent in the configuration of the tool that asks the
+# question, rather than as backend exclusions matching nothing any
+# include added. Patterns are gitignore's, so a directory covers what is
+# under it at any depth.
+#
+# check-sdist's own default ignore list already carries .github, which
+# is why the ignore list of the links workflow needs an entry here and
+# the workflow it configures does not
+git-only = [
+    ".claude/",
+    ".gitattributes",
+    ".lycheeignore",
+    ".vscode/",
     "CNAME",
     "Gemfile",
     "_config.yml",
-    "_layouts/**",
-    "assets/**",
-    # configuration of the links workflow, and check-manifest already
-    # ignores .github by default: an sdist that carries no workflow has no
-    # use for the ignore list of one. Unlike .pre-commit-config.yaml and
-    # .secrets.baseline, which it does carry, because the lint gate is
-    # runnable from an unpacked sdist
-    ".lycheeignore",
-    # the tests of what .github/scripts holds, whose subject is under
-    # .github and therefore not shipped either. The suite an sdist carries
-    # has to be runnable from it, and a test whose subject is absent is not
-    # a test but a fixture error; MANIFEST.in excludes them and says the same
-    "tests/check_python_arm_authority_test.py",
-    "tests/check_vendored_vectors_test.py",
-    "tests/generate_sbom_test.py",
-    "tests/mutation_counts_test.py",
-    "tests/verify_dist_contents_test.py",
+    "_layouts/",
+    "assets/",
 ]
 
 [tool.pytest.ini_options]
@@ -305,7 +366,7 @@ testpaths = ["tests"]
 # docs/test-parallelism.md, and it is the length of a cell rather than the
 # count of its tests. To re-derive:
 #
-#     for w in ubuntu macos windows; do
+#     for w in os-ubuntu os-macos os-windows; do
 #         gh workflow run $w.yml --ref <a branch with the flag removed>
 #         gh workflow run $w.yml --ref main
 #     done
@@ -802,7 +863,7 @@ select = [
 # the locale's: UTF-8 wherever this suite is usually read, cp1252 on
 # Windows, where a typographic quote in a docstring is a byte that maps
 # to nothing and the module holding it fails to load rather than fails a
-# test. windows.yml answers weekly and before a release, so nothing else
+# test. os-windows.yml answers weekly and before a release, so nothing else
 # asks in between.
 # Zero findings when it was selected, which makes it a ratchet and not a
 # cleanup. .pre-commit-config.yaml carries the other half, `text=True`

@@ -1,11 +1,12 @@
 ---
-# The three jobs of integration.yml and hwi-integration.yml all need a
-# node, and a checksum duplicated is a checksum that drifts: the one that
-# is raised is the one somebody was reading, and the other stays on the
-# release before it while its job keeps reporting green. A composite
-# action is the only thing GitHub Actions offers to say this once --
-# there are no yaml anchors across workflows -- so the download, the
-# verification and the unpacking live here and the version is an input.
+# The three jobs of integration-bitcoind.yml and integration-hwi.yml all
+# need a node, and a checksum duplicated is a checksum that drifts: the
+# one that is raised is the one somebody was reading, and the other
+# stays on the release before it while its job keeps reporting green. A
+# composite action is the only thing GitHub Actions offers to say this
+# once -- there are no yaml anchors across workflows -- so the download,
+# the verification and the unpacking live here and the version is an
+# input.
 #
 # Referenced by path (`uses: ./.github/actions/install-bitcoind`) and not
 # by commit SHA, which is the rule for every third-party action: this one

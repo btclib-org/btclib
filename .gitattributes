@@ -5,12 +5,13 @@
 # order base-then-ours, and it is built into git — nobody has to configure
 # anything for it to apply.
 #
-# It applies to rebases too, which is where it earns its keep here, and it
-# has a price worth knowing: these two files now never conflict at all, so
+# It applies to rebases too, which is where it earns its keep, and it has
+# a price worth knowing: these two files then never conflict at all, so
 # the same existing entry edited on two branches merges in silence rather
-# than being flagged. That is why neither file states how many entries it
-# has — a count is exactly such an edit, and union would have kept both
-# numbers. CLAUDE.md carries the rest of the reasoning.
+# than being flagged. That is why neither states how many entries it has —
+# a count is exactly such an edit, and union would have kept both numbers.
+# Section 9 of README.md in btclib-org/.github is where this rule is
+# recorded, this repository having no section of its own to record it in.
 CHANGELOG.md merge=union
 RELEASE_NOTES.md merge=union
 

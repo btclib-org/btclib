@@ -22,21 +22,21 @@ be wrong.
 **What may be in there.** The wheel gets a strict allowlist, it being what
 lands on `sys.path`: Python source under `btclib/`, `btclib/py.typed`,
 whatever sits in a `_data/` directory, and the `.dist-info` metadata
-setuptools writes. Anything else fails, which is what makes a `.pth` file,
+the backend writes. Anything else fails, which is what makes a `.pth` file,
 a stray top-level module and a bundled shared object all one rule rather
 than three.
 
-The sdist gets a structural check instead, and not an extension allowlist,
-because MANIFEST.in already is one: `recursive-include tests *.json` is
-the statement of what a vendored vector may be, and a second copy of it
-here would be one more edit per vector while catching nothing that file
-lets through. What this adds is what MANIFEST.in cannot say -- that every
-member is under the archive's own root directory, that every member is a
-regular file or a directory (a tar can carry a symlink, a hardlink or a
-device node, where a zip cannot), that no directory holds the metadata of
-some *other* distribution, and which files may sit at the root, where
-MANIFEST.in's `include *.md` and `include *.yaml` ship whatever lands
-beside them.
+The sdist gets a structural check instead, and not an extension allowlist.
+`[tool.uv.build-backend]` includes `tests/**` and `docs/**` whole, so no
+pattern there says what a vendored vector may be, and saying it here
+would be one more edit per extension while what decides is what git
+tracks -- which is the comparison check-sdist makes. What this adds is
+what neither of them can say -- that every member is under the archive's
+own root directory, that every member is a regular file or a directory (a
+tar can carry a symlink, a hardlink or a device node, where a zip
+cannot), that no directory holds the metadata of some *other*
+distribution, and which files may sit at the root, where `source-include`
+ships whatever lands beside `*.md` and `*.yaml`.
 
 **What may never be in there**, whichever archive: a short list of
 suffixes and names, checked against every member including the ones the
@@ -47,7 +47,7 @@ belt and braces for the wheel and the only rule of its kind for the sdist.
 wheel from it, so the two carry the same `btclib/` payload, and comparing
 them is a completeness check with nothing to keep in step: a data file the
 tree has and the wheel does not is issue #393, and this is its pre-publish
-half -- check-manifest gates the tree against the sdist, this gates the
+half -- check-sdist gates the tree against the sdist, this gates the
 sdist against the wheel, and #393's own smoke test gates what PyPI serves.
 `py.typed` is named on its own because PEP 561 makes its absence silent:
 the package installs, imports and type checks as `Any`.
@@ -102,29 +102,33 @@ FORBIDDEN_SUFFIXES = (
 # to be harmless
 FORBIDDEN_NAMES = ("sitecustomize.py", "usercustomize.py")
 
-# what setuptools writes into `.dist-info`, and no more. `entry_points.txt`
+# what the backend writes into `.dist-info`, and no more. `entry_points.txt`
 # is deliberately absent: pyproject.toml declares no `[project.scripts]`,
 # and an entry point is a code path a user runs without importing anything,
 # so one appearing here is a packaging change that has to be read
-WHEEL_METADATA_FILES = frozenset({"METADATA", "RECORD", "WHEEL", "top_level.txt"})
+WHEEL_METADATA_FILES = frozenset({"METADATA", "RECORD", "WHEEL"})
 
 # the members without which the wheel is broken in a way that installs
-# cleanly: `py.typed` for PEP 561, the metadata for `btclib.__version__`
-# (issue #150), and `__init__.py` because a wheel with no package at all
-# is the shape a misconfigured `packages.find` produces
+# cleanly: `py.typed` for PEP 561, and the metadata for
+# `btclib.__version__` (issue #150). `__init__.py` is named beside them
+# although a module-root pointing at nothing fails the build outright --
+# "Expected a Python module at: btclib/__init__.py" -- because what this
+# file reads is the archive and not the build that wrote it
 WHEEL_REQUIRED = frozenset({"btclib/__init__.py", "btclib/py.typed"})
 
 # the directories of the sdist, which is the development tree: the
-# package, its suite, the documentation sources, and the metadata
-# setuptools generates beside them
-SDIST_DIRECTORIES = frozenset({"btclib", "btclib.egg-info", "docs", "tests"})
+# package, its suite, and the documentation sources
+SDIST_DIRECTORIES = frozenset({"btclib", "docs", "tests"})
 
-# the files that may sit at the root of the sdist. MANIFEST.in ships these
-# by glob -- `include *.md`, `include *.yaml`, `include *.jsonc` -- so a
-# new file beside them is shipped without a packaging decision being made;
-# this is where that decision is recorded. A dotted name is here because
-# the lint gate has to be runnable from an unpacked sdist, which is
-# MANIFEST.in's own reason for carrying it
+# the files that may sit at the root of the sdist. `source-include` ships
+# most of them by glob, a pattern per suffix below, so a new file beside
+# them is shipped without a packaging decision being made; this is where
+# that decision is recorded. A dotted name is here because the lint gate
+# has to be runnable from an unpacked sdist, which is why
+# [tool.uv.build-backend] carries it. PKG-INFO and pyproject.toml.orig
+# are the backend's own work: the metadata PyPI reads off the archive,
+# and the verbatim copy of pyproject.toml it keeps beside the normalized
+# one it writes
 SDIST_ROOT_SUFFIXES = (".jsonc", ".md", ".toml", ".yaml")
 SDIST_ROOT_NAMES = frozenset(
     {
@@ -132,16 +136,11 @@ SDIST_ROOT_NAMES = frozenset(
         ".secrets.baseline",
         "COPYRIGHT",
         "LICENSE",
-        "MANIFEST.in",
         "PKG-INFO",
-        "setup.cfg",
+        "pyproject.toml.orig",
         "uv.lock",
     }
 )
-
-# generated metadata, and nothing else, under `btclib.egg-info/`
-SDIST_EGG_INFO_NAMES = frozenset({"PKG-INFO"})
-SDIST_EGG_INFO_SUFFIXES = (".txt",)
 
 # the sdist is broken without these in a way that is not obvious either:
 # PKG-INFO is the metadata PyPI reads off the archive, and pyproject.toml
@@ -189,8 +188,8 @@ def verify_wheel(wheel: Path) -> tuple[list[str], set[str]]:
     dist_info = f"{distribution}-{version}.dist-info"
 
     with zipfile.ZipFile(wheel) as archive:
-        # a zip may carry an entry per directory; setuptools writes none,
-        # and a wheel that starts to is not a policy change
+        # a zip may carry an entry per directory, and this backend writes
+        # one per directory: what the policy is about is the files
         members = [name for name in archive.namelist() if not name.endswith("/")]
 
     complaints = [
@@ -230,21 +229,18 @@ def sdist_root_reason(name: str, *, is_dir: bool) -> str | None:
     return "is a root file the sdist does not ship"
 
 
-def sdist_nested_reason(parts: list[str], *, is_dir: bool) -> str | None:
+def sdist_nested_reason(parts: list[str]) -> str | None:
     """Say why this member below the sdist's root is not allowed."""
     # the metadata of another distribution, vendored or left behind by a
-    # build in the tree the sdist was made from. `btclib.egg-info` is this
-    # project's own, and one of the root directories above
-    for part in parts[1:]:
+    # build in the tree the sdist was made from. The backend writes none
+    # of its own into the sdist, so one named after this project is a
+    # leftover exactly as any other name would be
+    for part in parts:
         if part.endswith((".dist-info", ".egg-info")):
             return f"holds the metadata of another distribution, {part}"
     if parts[0] not in SDIST_DIRECTORIES:
         return "is not under one of the directories the sdist ships"
-    if is_dir or parts[0] != "btclib.egg-info":
-        return None
-    if parts[-1] in SDIST_EGG_INFO_NAMES or parts[-1].endswith(SDIST_EGG_INFO_SUFFIXES):
-        return None
-    return "is under btclib.egg-info/ and is not metadata"
+    return None
 
 
 def sdist_member_reason(member: tarfile.TarInfo, root: str) -> str | None:
@@ -258,7 +254,7 @@ def sdist_member_reason(member: tarfile.TarInfo, root: str) -> str | None:
     parts = relative.split("/")
     if len(parts) == 1:
         return sdist_root_reason(relative, is_dir=member.isdir())
-    return sdist_nested_reason(parts, is_dir=member.isdir())
+    return sdist_nested_reason(parts)
 
 
 def verify_sdist(sdist: Path) -> tuple[list[str], set[str]]:

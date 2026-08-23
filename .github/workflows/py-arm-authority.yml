@@ -1,5 +1,5 @@
 ---
-name: python arm authority
+name: py arm authority
 
 # tests/python_arm_authority_test.py's `_AUTHORITY` says, per Python arm,
 # which third-party-vector-driven test module reaches it -- issue #993's
@@ -37,8 +37,8 @@ name: python arm authority
 # email. `_AUTHORITY` is different -- it is a tracked file a pull request
 # touching `btclib/curves/` or `btclib/ecc/` can and does edit, reviewed
 # the ordinary way, so a red scheduled run and the Actions tab it lands
-# on are enough, the same choice `links.yml` and `published.yml` already
-# make for a comparable reason.
+# on are enough, the same choice `links.yml` and `pypi-install.yml`
+# already make for a comparable reason.
 
 on:
   # a merge creates a commit no pull request measured, and this census is
@@ -83,7 +83,7 @@ on:
     # of the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
-      - .github/workflows/python-arm-authority.yml
+      - .github/workflows/py-arm-authority.yml
       - .github/scripts/check_python_arm_authority.py
       - tests/python_arm_authority_test.py
 
@@ -97,7 +97,7 @@ permissions:
 # merged ones included, so it never collides with that group the way
 # bare ref did
 concurrency:
-  group: python-arm-authority-${{ github.head_ref || github.ref }}
+  group: py-arm-authority-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -1,5 +1,5 @@
 ---
-name: integration
+name: integration-bitcoind
 
 # The suite's one part that needs a program this repository does not ship:
 # a bitcoind to talk to. `tests/integration/` skips itself without
@@ -23,7 +23,7 @@ name: integration
 # pull request.
 #
 # The HWI half of `tests/integration/` -- a pinned Trezor emulator and a
-# pinned Ledger under Speculos -- is `hwi-integration.yml`, a workflow of
+# pinned Ledger under Speculos -- is `integration-hwi.yml`, a workflow of
 # its own rather than a second job here: those can go red on a firmware
 # release, on data.trezor.io, or on an app whose screens changed wording,
 # none of which is a claim this branch's review has anything to do with.
@@ -39,11 +39,11 @@ name: integration
 # same node the same question about a tree nothing has touched. What it
 # asks that nothing else does is whether bitcoincore.org still serves the
 # tarball pinned below. A pruned release or a moved path is external rot
-# of exactly the kind published.yml is weekly for -- both fetch a pinned
-# third-party artifact and verify a hash -- and unscheduled it would
-# first appear during a quiet stretch as a red required check on the
-# branch of whoever opened the next pull request, about something that
-# branch did not do. Sweeping several Core majors would be a different
+# of exactly the kind pypi-install.yml is weekly for -- both fetch
+# a pinned third-party artifact and verify a hash -- and unscheduled it
+# would first appear during a quiet stretch as a red required check on
+# the branch of whoever opened the next pull request, about something
+# that branch did not do. Sweeping several Core majors would be a different
 # question again, and is what bitcoin-core-rpc has
 # (btclib-org/bitcoin-core-rpc#211)
 
@@ -112,7 +112,7 @@ permissions:
 # newest reports the day Core released rather than the day btclib
 # changed, and the version that answered is then unknowable from a green
 # run. Raising it is a commit, with the new sha read from the same place.
-# hwi-integration.yml pins the same two values for its own signing test
+# integration-hwi.yml pins the same two values for its own signing test
 env:
   BITCOIND_VERSION: "31.1"
   BITCOIND_SHA256: >-
@@ -127,7 +127,7 @@ env:
 # always groups by the PR's branch, closed and merged ones included, so
 # it never collides with a push's group the way bare ref did
 concurrency:
-  group: integration-${{ github.head_ref || github.ref }}
+  group: integration-bitcoind-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -161,7 +161,7 @@ jobs:
           # the wheels uv.lock pins do not change between runs, so the
           # cache is the difference between a download and a copy
           enable-cache: true
-      # the repository's own composite action, which hwi-integration.yml
+      # the repository's own composite action, which integration-hwi.yml
       # calls with the same two values: the reasoning for the download is
       # in the file
       - name: Install bitcoind

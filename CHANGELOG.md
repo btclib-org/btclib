@@ -12,9 +12,9 @@
 -->
 
 Every change of a release, in full: what changed, why, and what it cost.
-[RELEASE_NOTES.md](./RELEASE_NOTES.md) has the release notes, which say
-what a user has to act on; this file is the record behind them, and is
-where a claim in those notes can be checked.
+The release notes, which say what a user has to *act* on, are in
+[RELEASE_NOTES.md](./RELEASE_NOTES.md); this file is the record behind
+them.
 
 Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
@@ -23,6 +23,103 @@ documented at release-notes length in the first place, and are still in
 ## v2026.9 (work in progress, not released yet)
 
 ### Repository
+
+- **`.yamllint.yaml` is the organization's copy, and `document-start`
+  gates instead of reporting.** Section 14 of the standard in
+  `btclib-org/.github` names the file as the same one in every
+  repository, and the copy here predated its fix. The default set
+  carries that rule at warning; the hook declares no args, so it runs
+  plain `yamllint` with no `--strict`, and a warning exits 0 — measured,
+  on a yaml file opening without `---`: exit 0 under the copy here, exit
+  1 under the standard's. The entry said the rule bought a convention
+  the files answer the same way, and at the inherited level it bought
+  nothing.
+
+  Raising it costs this tree nothing:
+
+  ```shell
+  git ls-files '*.yml' '*.yaml' \
+    | xargs -I{} sh -c 'head -1 {} | grep -q "^---" || echo {}'
+  ```
+
+  answers with nothing here.
+
+- **`CLAUDE.md` holds what only a session needs.** The environment, the
+  commands and the gates are `CONTRIBUTING.md`'s last section, a human
+  having no reason to open an agent's file to learn how to run a gate;
+  the review rules are `REVIEWING.md`'s. What is left is what neither of
+  those can carry: the architecture, the primary checkout and the
+  worktree rule, the model, the conventions, and the facts that
+  otherwise cost a session.
+
+  `.gitattributes` stopped pointing here for the rest of the
+  `merge=union` reasoning and points at section 9 of the standard in
+  `btclib-org/.github`, which is where that rule is recorded and does
+  not move when this file is trimmed. The pointer crosses repositories
+  because `README.md` here has no numbered section to hold it.
+
+- **`REVIEWING.md` is the organization's file, and this tree's half is
+  under `## This repository in particular`.** A review that means one
+  thing here and another in a sibling is not a standard, so everything
+  above that heading is byte for byte the copy in `btclib-org/.github`,
+  which is the half `tests/verbatim_test.py` compares. Below it stays
+  what a review of this tree checks and a generic one does not: the two
+  arithmetic paths under `curves/` and `ecc/`, the vendored vectors
+  under `tests/**/_data/` and the pins `tests/_data/README.md` holds
+  them to, the exception to the count rule that a count of what upstream
+  published is, and `_config.yml` deciding whether a new file in the
+  root becomes a page on btclib.org.
+
+  What went the other way is the shared half's own. The count rule, the
+  rebase reading of `CHANGELOG.md` and the workflow conventions are
+  questions the organization asks of every tree, and are asked in
+  `## What every review here also checks` rather than twice.
+
+- **`LICENSE` and `.claude/commands/review.md` are the organization's
+  copies of themselves.** Section 14 of the standard in
+  `btclib-org/.github` names both as the same file in every repository,
+  and `tests/verbatim_test.py` there compares the copies it finds;
+  neither of these matched. `LICENSE` gains the `MIT License` title and
+  loses its year range, a range being a line nobody updates while
+  `COPYRIGHT` states the holder without one. `review.md` loses what it
+  said about this tree: the standard it names is the organization's, and
+  what a review of *this* tree checks is `REVIEWING.md`'s last section,
+  which is where the two arithmetic paths it named now are.
+
+  `tests/copyright_test.py` read that range back and asserted `LICENSE`
+  and `btclib.__copyright__` agreed on it. With one of the two gone,
+  `__copyright__` is the only place the years are written — the comment
+  beside it already said so, and now nothing contradicts it — so what is
+  asserted is the holder, across `LICENSE`, `__copyright__` and
+  `pyproject.toml`'s author. A range put back into `LICENSE` still
+  fails: the holder captured would carry it.
+- **A workflow's file name says what it asks, and groups with the
+  workflows asking the same kind of question**. The file name is what
+  reaches a workflow -- `gh workflow run <file>`, `gh run list
+  --workflow=<file>`, the badge URL a README embeds, and the
+  `uses: ./.github/workflows/<file>` a caller writes -- while several
+  here named a platform or a schedule instead of a subject. The platform
+  sweeps take an `os-` prefix: `os-ubuntu.yml`, `os-macos.yml`,
+  `os-windows.yml`. The workflows that drive a program outside this tree
+  take an `integration-` one: `integration-bitcoind.yml` for the regtest
+  node, `integration-hwi.yml` for the device emulators. `latest.yml` and
+  `published.yml` named neither what was latest nor what was published,
+  which their own headers do: they are `deps-latest.yml`, the dependency
+  sentinel, and `pypi-install.yml`, which asks whether what PyPI
+  serves installs. `python-arm-authority.yml` is `py-arm-authority.yml`.
+  Each renamed file's `name:` key repeats its stem, as it did before,
+  `py-arm-authority.yml` keeping the spaces its own wrote the hyphens
+  with.
+
+  The jobs keep their names, which is what makes a rename cheap. A
+  required check is matched by a job's name, held outside the repository
+  in the ruleset `REPOSITORY.md` reads back, and the file a job lives in
+  is no part of that context -- so this touches no branch rule, where
+  renaming a job would have to go through one.
+
+  The entries below, and `RELEASE_NOTES.md`, keep the name each file
+  carried when they were written, which is what a record of a release is
+  for; this entry is where the old spelling and the new one meet.
 
 - **`interpreters_test.py` cites the file this repository has**. Its
   docstring named `test_copyright.py` as the module that reads
@@ -297,6 +394,57 @@ documented at release-notes length in the first place, and are still in
   where the edit stopped.
 
 ### Packaging, linting and CI
+
+- **`uv_build` builds the distribution files, and `check-sdist` says
+  what they may carry**. `MANIFEST.in` is gone: what an sdist ships is
+  `[tool.uv.build-backend]`'s `source-include` and `source-exclude`,
+  glob patterns in the file the rest of the configuration was already
+  in.
+
+  Measured at the same content, which is what makes the swap a
+  packaging change and not a release one. Built before and after and
+  compared member for member, the wheel loses
+  `dist-info/top_level.txt`; the sdist loses `setup.cfg` and the
+  `btclib.egg-info/` members, none of them tracked and all of them
+  setuptools' own, and gains `pyproject.toml.orig`, the verbatim copy
+  `uv_build` keeps beside the normalized `pyproject.toml` it writes.
+  Every tracked member is the same file in both, and the two payloads
+  still agree with each other.
+
+  What died with the file is its syntax and not its reasoning. A cache
+  a linter writes beside the file it just checked (issue #985) is one
+  pattern per cache now rather than one per directory level: uv's
+  excludes are unanchored and take everything under a match, where
+  `recursive-exclude * .mypy_cache/*` reached exactly one level and
+  `global-exclude` reached the directory entry and shipped its
+  contents. The tests whose subject `.github/scripts` holds are still
+  excluded by name, and the licence C2SP/wycheproof asks an sdist to
+  redistribute beside its vectors still ships — under `tests/**`, which
+  takes the directory whole and needs no rule for the one file in it
+  with no extension.
+
+  `check-sdist` replaces `check-manifest` as the hook that diffs the
+  tree against the sdist. It builds with `uv build` rather than
+  `python -m build`, so nothing has to create an isolated build
+  environment, which is what pre-commit.ci cannot do; and it reads
+  `source-exclude` itself, so a tracked file the sdist deliberately
+  omits is named in one place instead of in a tool's configuration as
+  well. `[tool.check-sdist]`'s `git-only` names what no include pattern
+  adds in the first place: the website served from this repository's
+  root, and the workspaces of an editor and of an agent.
+
+  The floor `uv_build>=0.12.5` is where that normalized `pyproject.toml`
+  and the `.orig` beside it arrived. Built with 0.11.31, this tree
+  gives a wheel with the same members and an sdist with neither of
+  those two, so a lower floor would leave what the sdist holds with two
+  answers; the ceiling is the next minor, where uv's versioning policy
+  puts a breaking change.
+
+  `verify_dist_contents.py` and the policy page beside it read the new
+  archives: `top_level.txt` is not one of the wheel's metadata files,
+  `btclib.egg-info/` is not a directory the sdist ships — an egg-info
+  under any name is another distribution's leftover now — and
+  `pyproject.toml.orig` is a root file it does.
 
 - **One cell gates a merge, three weekly sweeps run the matrices whole,
   and every schedule sits on the organization's grid**
