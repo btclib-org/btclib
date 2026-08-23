@@ -47,14 +47,17 @@ directions:
   as a nit, if it is worth saying at all.
 - **Work the diff never set out to do is not a finding either.** It is
   an issue; the section below is the whole of what to do with it.
-- **Prose that does not land is a finding only where it decides
-  something.** Squash carries the branch's commit messages into the
-  landing commit, so those are tree prose and answer for themselves like
-  any other. A pull request's body does not land: it is read once, by
-  whoever presses the button. A false claim there is worth a round when
-  it is the account the landing rests on — what the change costs, what
-  it leaves owed — and is not worth one when correcting it changes
-  neither `main` nor a decision.
+- **Prose is reviewed where it stays.** What a review reads for truth
+  is the documentation a reader of the tree will meet — `README.md`,
+  `CONTRIBUTING.md`, a docstring, a comment beside the code — because it
+  is read again and again, by people who never saw the change. A commit
+  message and a pull request's body are read once, at the landing:
+  squash folds the first into history, where `git log` is consulted
+  rather than read, and the second does not land at all. A false claim
+  in either is a finding only where it decides something — the account
+  the landing rests on, what the change costs, what it leaves owed — and
+  is not worth a round when correcting it changes neither `main` nor a
+  decision.
 
   The reason to draw the line is that a body describes a tip that keeps
   moving: a measurement written into it is stale by the next commit, and
@@ -317,9 +320,19 @@ Each of these is a question the organization asks of every tree, and the
 document that answers it is named because that document, and not this
 one, is where the rule lives.
 
-- Does the diff **state a count** of anything — of files, of entries, of
-  findings, of seconds? Section 9 of the standard says why it must not,
-  and only some of those are caught by a test.
+- Does the diff **state a count or a measurement** that nothing
+  re-derives — files, entries, seconds, a size, a percentage, a figure
+  true on the day it was written? Section 9 of the standard says why it
+  must not: nothing keeps it true, and only some are caught by a test.
+  The finding asks for the figure to go, or for the command that
+  re-derives it to stand in its place; it does not ask for a corrected
+  figure.
+- Does a comment, a docstring or a document **tell the history of the
+  code** — what it used to be, what was tried, why it changed? Section
+  9's *No history in the prose*: a reader of the tree needs what the
+  code is and why it is so, in the present tense; what it was is
+  `git log`'s and the changelog's. The finding asks for the history to
+  go, not to be shortened.
 - If the branch was rebased: does `CHANGELOG.md` still say what the
   branch meant it to say, and the release notes with it where the
   repository has them? Section 9 marks them `merge=union`, so they never
