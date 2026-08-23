@@ -1,5 +1,5 @@
 ---
-name: published
+name: install-published
 
 # checks whether what is already on PyPI actually works, not merely
 # installs -- which no pull request asks, checking out the tree it is
@@ -27,7 +27,7 @@ name: published
 # Actions tab before it is read as green.
 #
 # What this is not: a sentinel for whether the newest btclib_secp256k1
-# breaks this tree. That question -- issue #397 -- belongs to latest.yml's
+# breaks this tree. That question -- issue #397 -- belongs to deps-latest.yml's
 # suite-bindings-latest job instead: it is about drift against a tree not
 # yet published, asked before publication rather than after, and asking
 # it here would be asking it one step too late to matter to what gets
@@ -51,8 +51,8 @@ name: published
 
 on:
   schedule:
-    # Wednesday, the hour after latest.yml, and the pair is why this is
-    # weekly: latest.yml upgrades every dependency and runs the suite,
+    # Wednesday, the hour after deps-latest.yml, and the pair is why this is
+    # weekly: deps-latest.yml upgrades every dependency and runs the suite,
     # this asks what the index actually serves, and read together they
     # separate a break this tree caused from one that arrived. What it
     # watches is external rot -- a new interpreter, an index serving a

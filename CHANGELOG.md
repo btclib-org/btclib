@@ -93,6 +93,33 @@ documented at release-notes length in the first place, and are still in
   asserted is the holder, across `LICENSE`, `__copyright__` and
   `pyproject.toml`'s author. A range put back into `LICENSE` still
   fails: the holder captured would carry it.
+- **A workflow's file name says what it asks, and groups with the
+  workflows asking the same kind of question**. The file name is what
+  reaches a workflow -- `gh workflow run <file>`, `gh run list
+  --workflow=<file>`, the badge URL a README embeds, and the
+  `uses: ./.github/workflows/<file>` a caller writes -- while several
+  here named a platform or a schedule instead of a subject. The platform
+  sweeps take an `os-` prefix: `os-ubuntu.yml`, `os-macos.yml`,
+  `os-windows.yml`. The workflows that drive a program outside this tree
+  take an `integration-` one: `integration-bitcoind.yml` for the regtest
+  node, `integration-hwi.yml` for the device emulators. `latest.yml` and
+  `published.yml` named neither what was latest nor what was published,
+  which their own headers do: they are `deps-latest.yml`, the dependency
+  sentinel, and `install-published.yml`, which asks whether what PyPI
+  serves installs. `python-arm-authority.yml` is `py-arm-authority.yml`.
+  Each renamed file's `name:` key repeats its stem, as it did before,
+  `py-arm-authority.yml` keeping the spaces its own wrote the hyphens
+  with.
+
+  The jobs keep their names, which is what makes a rename cheap. A
+  required check is matched by a job's name, held outside the repository
+  in the ruleset `REPOSITORY.md` reads back, and the file a job lives in
+  is no part of that context -- so this touches no branch rule, where
+  renaming a job would have to go through one.
+
+  The entries below, and `RELEASE_NOTES.md`, keep the name each file
+  carried when they were written, which is what a record of a release is
+  for; this entry is where the old spelling and the new one meet.
 
 - **`interpreters_test.py` cites the file this repository has**. Its
   docstring named `test_copyright.py` as the module that reads

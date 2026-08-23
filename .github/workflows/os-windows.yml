@@ -1,8 +1,8 @@
 ---
-name: windows
+name: os-windows
 
 # the Windows third of the platform sweep, and it is here for the reason
-# ubuntu.yml's header gives for all three, measured on this repository
+# os-ubuntu.yml's header gives for all three, measured on this repository
 # rather than assumed. REPOSITORY.md holds the concurrency ceiling and
 # what a wider gate cost against it; what is measured here is Windows's
 # share. The fourteen cells below are 2357 of the 3556 seconds of matrix
@@ -13,11 +13,11 @@ name: windows
 # makes a commit cost 25 runner-minutes rather than 66. What a run of
 # this workflow costs is the same query, asked of this workflow:
 #
-#     id=$(gh run list --workflow=windows.yml --limit 1 \
+#     id=$(gh run list --workflow=os-windows.yml --limit 1 \
 #         --json databaseId --jq '.[0].databaseId')
 #     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
 #
-# What these cells buy is what macos.yml's comment says of its own: there
+# What these cells buy is what os-macos.yml's comment says of its own: there
 # is no platform-conditional branch in this library -- no sys.platform and
 # no sys.version_info anywhere, which is the property the coverage job of
 # test.yml records from the other side -- so every cell walks the same
@@ -32,9 +32,9 @@ name: windows
 # uv has to download, and the wheel is selected for the interpreter rather
 # than for the host, so either one links.
 #
-# A workflow of its own rather than a row in macos.yml, which is the same
+# A workflow of its own rather than a row in os-macos.yml, which is the same
 # design that file argues for itself: one variable each, so a red cell
-# names a platform. On its own hour too, an hour after macos.yml: fourteen
+# names a platform. On its own hour too, an hour after os-macos.yml: fourteen
 # more jobs against twenty slots would rebuild in one morning the queue
 # this file exists to take out of a pull request.
 #
@@ -43,7 +43,7 @@ name: windows
 
 on:
   schedule:
-    # Saturday, the hour after macos.yml: see that file for why the two
+    # Saturday, the hour after os-macos.yml: see that file for why the two
     # platforms share a day and not an hour.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
@@ -86,7 +86,7 @@ jobs:
         os:
           - windows-latest
           - windows-11-arm
-        # the interpreter set ubuntu.yml names, unchanged: this workflow
+        # the interpreter set os-ubuntu.yml names, unchanged: this workflow
         # moves the platform and nothing else, so a difference against it
         # is attributable to the platform
         python:
@@ -112,7 +112,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --no-cov for the reason ubuntu.yml gives beside its own step:
+      # --no-cov for the reason os-ubuntu.yml gives beside its own step:
       # this matrix carries the same PyPy cells behind the same timeout,
       # and test.yml's coverage job is the one place the number is
       # measured and gated

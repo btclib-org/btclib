@@ -9,7 +9,7 @@ was started, and the two are seconds apart: Speculos has an app to load
 and a screen to draw before the first APDU is taken, and a test that
 asks in between reports no device rather than waiting. The trezor
 emulator answers a ping on its own socket, which is what
-`hwi-integration.yml` waits for there; Speculos has no such thing, so the
+`integration-hwi.yml` waits for there; Speculos has no such thing, so the
 question has to be the real one -- does `hwi enumerate` see a device
 that can be talked to.
 

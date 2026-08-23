@@ -3,10 +3,10 @@ name: test
 
 # the merge gate, and it is one cell of what a sweep runs: ubuntu-latest
 # on the interpreter .python-version pins, which is the `coverage` job
-# below. The platform matrices are ubuntu.yml, macos.yml and windows.yml,
-# weekly and before a release, and ubuntu.yml's header is where the trade
-# is argued -- what a review stops waiting for, and how long a regression
-# outside this cell can sit on main.
+# below. The platform matrices are os-ubuntu.yml, os-macos.yml and
+# os-windows.yml, weekly and before a release, and os-ubuntu.yml's
+# header is where the trade is argued -- what a review stops waiting
+# for, and how long a regression outside this cell can sit on main.
 # What stays here beside `coverage` is what is one cell anyway: the
 # no-bindings configuration, the union of the two, and the packaging
 # checks. lint.yml and docs.yml are the same shape in their own files
@@ -231,10 +231,11 @@ jobs:
 
   # the one cell a merge waits for, and the one place coverage is
   # measured: ubuntu-latest on the interpreter below, which is what the
-  # header calls the gate. ubuntu.yml, macos.yml and windows.yml each run
-  # this cell again inside their own matrix, on purpose -- a sweep that
-  # subtracted it would be a matrix with a hole in it, and whoever asked
-  # what ran would have to re-derive the hole from this file.
+  # header calls the gate. os-ubuntu.yml, os-macos.yml and os-windows.yml
+  # each run this cell again inside their own matrix, on purpose -- a
+  # sweep that subtracted it would be a matrix with a hole in it, and
+  # whoever asked what ran would have to re-derive the hole from this
+  # file.
   # Measured here and not on any of those cells: the code base has
   # no platform- or version-conditional branch (no sys.platform, no
   # sys.version_info) and no conditional skip, so every one of them walks
@@ -683,7 +684,7 @@ jobs:
       # refuses as conflicting once the branch has moved past it. A floor
       # resolves to a release, and a release does not move.
       # Whether the newest bindings still work is asked on a schedule by
-      # latest.yml, and again below, release-only. Each assertion catches
+      # deps-latest.yml, and again below, release-only. Each assertion catches
       # what the others miss: the version is asserted and not merely
       # printed, since btclib.__version__ falls back to "unknown" with no
       # metadata installed (issue #150), so a wheel shipping none would
@@ -707,7 +708,7 @@ jobs:
       # exists for -- so both would pass unnoticed. Both are the tree's
       # own state and not the index's, which is what makes the assertion
       # fit for a required check: what it cannot say is whether the
-      # *newest* bindings serve, which is the step below and latest.yml's
+      # *newest* bindings serve, which is the step below and deps-latest.yml's
       # job.
       # `is_libsecp256k1_serving` and not `INSTALLED`: serving is
       # installed and not refused, so it implies the other, and it is the
@@ -781,11 +782,11 @@ jobs:
   # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. A job's name is what such a
-  # rule matches, and a name that stops being produced -- a job renamed,
-  # a job moved out to a sentinel the way the platform matrix lives in
-  # ubuntu.yml, macos.yml and windows.yml -- becomes a required check
-  # that never reports, which blocks every merge until
-  # someone remembers where the rule lives. Naming the jobs below
+  # rule matches, and a name that stops being produced -- a job renamed, a
+  # job moved out to a sentinel the way the platform matrix lives in
+  # os-ubuntu.yml, os-macos.yml and os-windows.yml -- becomes a required
+  # check that never reports, which blocks every merge until someone
+  # remembers where the rule lives. Naming the jobs below
   # directly would mean every edit here has to be mirrored in a setting
   # no pull request can review.
   # This job depends on the others instead, so the rule names one thing
@@ -810,7 +811,7 @@ jobs:
     # of failing, only when the run as a whole was superseded. A skipped
     # job satisfies a required check -- this job's own draft/closed
     # condition below already relies on exactly that, and has since
-    # before this change; integration.yml, by contrast, deliberately
+    # before this change; integration-bitcoind.yml, by contrast, deliberately
     # carries no `paths` filter, for the same reason stated in
     # REPOSITORY.md and in that workflow's own comment: a required check
     # that never runs blocks a merge, where a skipped one satisfies it,

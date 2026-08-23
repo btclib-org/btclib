@@ -1,7 +1,7 @@
 ---
-name: macos
+name: os-macos
 
-# the macOS third of the platform sweep, and ubuntu.yml's header is the
+# the macOS third of the platform sweep, and os-ubuntu.yml's header is the
 # argument for all three: what one cell gates, what a sentinel then owes,
 # and what a matrix buys on a library whose bindings are compiled.
 #
@@ -12,7 +12,7 @@ name: macos
 # one of them 42.2 -- against 0.5 to 1.6 for ubuntu and windows. What a
 # run of this workflow costs is the same query, asked of this workflow:
 #
-#     id=$(gh run list --workflow=macos.yml --limit 1 \
+#     id=$(gh run list --workflow=os-macos.yml --limit 1 \
 #         --json databaseId --jq '.[0].databaseId')
 #     gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/jobs?per_page=100"
 #
@@ -23,10 +23,10 @@ name: macos
 # runs here is the standard library under it, and the bindings wheel for the
 # one architecture pair this repository does not otherwise install on.
 #
-# A workflow of its own rather than a row in latest.yml, and that is the
+# A workflow of its own rather than a row in deps-latest.yml, and that is the
 # whole design: this one holds the dependencies at the lock and moves the
-# platform, latest.yml moves the dependencies over the platforms it
-# samples. A red macOS cell in latest.yml with this workflow green is an
+# platform, deps-latest.yml moves the dependencies over the platforms it
+# samples. A red macOS cell in deps-latest.yml with this workflow green is an
 # upgrade; red in both is macOS. One variable each, and the pair reads as
 # a difference.
 #
@@ -35,7 +35,7 @@ name: macos
 
 on:
   schedule:
-    # Saturday, with windows.yml an hour later: the two platforms whose
+    # Saturday, with os-windows.yml an hour later: the two platforms whose
     # runners are the slowest to come, on the day the grid gives to
     # platforms. Red in both is the tree; red in one is that platform,
     # which is the whole of what running them apart buys.
@@ -81,7 +81,7 @@ jobs:
         os:
           - macos-26-intel
           - macos-latest
-        # the interpreter set ubuntu.yml names, unchanged: this workflow
+        # the interpreter set os-ubuntu.yml names, unchanged: this workflow
         # moves the platform and nothing else, so a difference against it
         # is attributable to the platform
         python:
@@ -107,7 +107,7 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --no-cov for the reason ubuntu.yml gives beside its own step:
+      # --no-cov for the reason os-ubuntu.yml gives beside its own step:
       # this matrix carries the same PyPy cells behind the same timeout,
       # and test.yml's coverage job is the one place the number is
       # measured and gated

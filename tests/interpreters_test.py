@@ -51,10 +51,10 @@ _PYTHONS = re.compile(
 )
 # the platform sweeps, named rather than counted: the pattern above reads
 # a block sequence, so one sweep rewritten as a flow sequence -- which is
-# how latest.yml writes its own, and why that file is skipped here -- would
-# drop out of the comparison below in silence, leaving the remaining two
-# to agree with each other and the test green
-_SWEEPS = ("macos.yml", "ubuntu.yml", "windows.yml")
+# how deps-latest.yml writes its own, and why that file is skipped here
+# -- would drop out of the comparison below in silence, leaving the
+# remaining two to agree with each other and the test green
+_SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 
 
 def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:

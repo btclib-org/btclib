@@ -29,7 +29,7 @@ HWI processes reaching for it at once, where the one that arrives
 mid-exchange waits out btclib's timeout.
 
 Two emulators are what CI brings, which is issues #529 and #738 and not
-a change of that rule. `hwi-integration.yml` runs a pinned Trezor Model T
+a change of that rule. `integration-hwi.yml` runs a pinned Trezor Model T
 seeded with the mnemonic HWI's own suite uses, and a Ledger under
 Speculos with the Bitcoin app built from a pinned tag -- twice, the coin
 being compiled into a Ledger app, so the mainnet build answers the two

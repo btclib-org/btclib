@@ -293,21 +293,21 @@ jobs:
 
   # and the three platform sweeps, which between them are every image
   # and every interpreter this package claims: the gate runs one cell of
-  # ubuntu.yml's matrix and each of these runs its own whole, weekly, so
+  # os-ubuntu.yml's matrix and each of these runs its own whole, weekly, so
   # a regression outside that cell could otherwise sit on main until the
   # morning after the tag. Cheap in work and the slowest calls here in
   # wall clock, which a release is the one place worth paying for
   ubuntu:
     name: Run the ubuntu workflow
-    uses: ./.github/workflows/ubuntu.yml
+    uses: ./.github/workflows/os-ubuntu.yml
 
   macos:
     name: Run the macos workflow
-    uses: ./.github/workflows/macos.yml
+    uses: ./.github/workflows/os-macos.yml
 
   windows:
     name: Run the windows workflow
-    uses: ./.github/workflows/windows.yml
+    uses: ./.github/workflows/os-windows.yml
 
   # and the one required check on main this workflow was not asking for.
   # `Regtest against Bitcoin Core` gates every merge, which is why it was
@@ -315,11 +315,11 @@ jobs:
   # from a branch, and a tag is pushed at a commit whose merge that check
   # answered for -- but the calls to test.yml, lint.yml and docs.yml are
   # every one of them a required check too, made again here for exactly
-  # that reason. integration.yml declared `workflow_call` for this from
-  # the day it became a gate; nothing had ever called it
+  # that reason. integration-bitcoind.yml declared `workflow_call` for
+  # this from the day it became a gate; nothing had ever called it
   integration:
     name: Run the integration workflow
-    uses: ./.github/workflows/integration.yml
+    uses: ./.github/workflows/integration-bitcoind.yml
 
   publish-testpypi:
     name: Publish to TestPyPI
@@ -379,7 +379,7 @@ jobs:
   published:
     name: Install the published version from PyPI
     needs: publish-pypi
-    uses: ./.github/workflows/published.yml
+    uses: ./.github/workflows/install-published.yml
     with:
       version: ${{ github.ref_name }}
 

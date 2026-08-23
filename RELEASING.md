@@ -13,15 +13,15 @@ rehearsal against TestPyPI. A rehearsal is never tagged.
 
 **A workflow GitHub has not registered cannot be dispatched, and it registers
 one only once its file has reached the default branch.** That makes
-`release.yml`, `latest.yml`, `published.yml`, `ubuntu.yml`, `macos.yml` and
-`windows.yml` — `schedule` and `workflow_dispatch` only, so nothing else ever
-triggers them — answer `gh: Not Found (HTTP 404)` until the release pull
-request is merged. It bites once, on the first release after any of them is
-written, and it inverts the order below: the TestPyPI rehearsal and the
-`latest` run that this file asks for *before* the merge can only happen after
-it, still before the tag. It also means such a workflow reaches `main` having
-never run, which is how `published.yml` shipped a `windows-11-arm` cell that
-failed at setup.
+`release.yml`, `deps-latest.yml`, `install-published.yml`, `os-ubuntu.yml`,
+`os-macos.yml` and `os-windows.yml` — `schedule` and `workflow_dispatch` only,
+so nothing else ever triggers them — answer `gh: Not Found (HTTP 404)` until
+the release pull request is merged. It bites once, on the first release after
+any of them is written, and it inverts the order below: the TestPyPI rehearsal
+and the `deps-latest` run that this file asks for *before* the merge can only
+happen after it, still before the tag. It also means such a workflow reaches
+`main` having never run, which is how `install-published.yml` shipped a
+`windows-11-arm` cell that failed at setup.
 
 ## Which version string is which
 
@@ -139,8 +139,8 @@ unconstrained — and publishes the very files those checks passed to
 
 ## Release to PyPI
 
-`latest` is worth dispatching before the tag rather than waiting for its
-weekly cron, because what it answers is cheaper to know before a version
+`deps-latest` is worth dispatching before the tag rather than waiting for
+its weekly cron, because what it answers is cheaper to know before a version
 is consumed than after. It gates nothing, so it will not stop you:
 reading it is the point. Its `suite-bindings-latest` job is the one worth
 reading closely: it asks about the newest btclib_secp256k1 release
@@ -184,7 +184,7 @@ own pull requests to catch up, is a decision worth stating rather than
 defaulting by omission — `uv lock --upgrade` is gated by nothing here,
 so silence at the tag reads as "nobody looked" and not as "looked and
 chose to leave it". State the choice in the release pull request, next
-to `latest`'s own result.
+to `deps-latest`'s own result.
 
 1. Make sure the newest release of **each btclib-org dependency** —
    btclib_secp256k1 and bitcoin-core-rpc — is the one this release
@@ -310,8 +310,8 @@ to `latest`'s own result.
    cycle has been filling one landed change at a time, and check that
    against `git log v<previous version>..main --oneline` regardless of
    how current it looks, rather than trust that every line landed when it
-   should have. Griffe's result and `latest`'s run belong here too, each
-   a line rather than a screenshot — both are steps nothing else
+   should have. Griffe's result and `deps-latest`'s run belong here too,
+   each a line rather than a screenshot — both are steps nothing else
    enforces, and a pull request that never mentions them reads exactly
    like one that skipped them.
 
@@ -473,7 +473,7 @@ to `latest`'s own result.
    covers it too.
 
    **Neither sibling repository carries one, on purpose.**
-   bitcoin-core-rpc declares `dependencies = []`, and `published.yml`
+   bitcoin-core-rpc declares `dependencies = []`, and `install-published.yml`
    already asserts that against the installed package on every run; a
    bill of materials there would be an empty `components` list restating
    a fact CI checks more directly. btclib-secp256k1's interesting
