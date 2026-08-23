@@ -1532,6 +1532,13 @@ documented at release-notes length in the first place, and are still in
   `reorder_keys` goes the same way, `btclib-org/.github` having no
   `pyproject.toml` at all.
 
+- **`vendored-vectors.yml`'s checkout and Python setup steps now carry a
+  `name:`** (issue #1273), matching every other workflow in this
+  repository: `actions/checkout` is named `Checkout code` throughout, and
+  this is the one job in the tree that sets up Python with
+  `actions/setup-python` rather than `astral-sh/setup-uv`, since the
+  script it runs has no project dependency to lock.
+
 ### Documentation and the website
 
 - **CONTRIBUTING.md's documented mypy command and its workflow-schedule
