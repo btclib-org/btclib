@@ -83,6 +83,20 @@ full year, short month, short day (YYYY-M-D)
   `OverflowError` and `TypeError`. `sign_key_idx` is still
   `Sequence[int]`: it indexes a ring.
 
+- **`pedersen.commit` refuses a blinding factor of 0 mod n** (issue
+  #1250). `commit(0, v)` and `commit(ec.n, v)` returned `v*H`, a
+  commitment with no blinding in it that anyone can recompute by
+  guessing `v`, and now raise `BTClibValueError: invalid (unblinded)
+  commitment: r is 0 mod n`. `assert_as_valid` raises the same error,
+  recomputing through `commit`; `verify` answers `False` instead of
+  raising, as it already does for every other invalid `(r, v)`.
+
+  Act on it if you construct a blinding factor that can land on 0 mod
+  n — the sum of two blinding factors chosen to cancel each other is
+  the case to watch; a blinding factor drawn at random and never
+  summed to that value is unaffected. `v` is not checked: `commit(r,
+  0)` is untouched.
+
 - **`ecc` no longer takes a WIF or an extended key as a private key**
   (issue #1188). The entry points that took a private key however it was
   spelled — every one in `dsa`, `ssa`, `musig2`, `dleq`, `ecies`,

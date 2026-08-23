@@ -166,6 +166,7 @@ _A_BOOL_ANSWERS_FALSE = (
 _ANSWERS_FALSE: dict[str, str] = {
     "btclib.b32.is_segwit_prefixed": _A_BOOL_ANSWERS_FALSE,
     "btclib.ecc.dleq.verify_proof": _A_BOOL_ANSWERS_FALSE,
+    "btclib.ecc.pedersen.verify": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_nulldata": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2ms": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2pk": _A_BOOL_ANSWERS_FALSE,

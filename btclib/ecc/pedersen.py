@@ -27,11 +27,11 @@ the discrete logarithm of H with respect to G must be unknown.
 from functools import lru_cache
 from hashlib import sha256
 
-from btclib.alias import HashF, Point
+from btclib.alias import HashF, Integer, Point
 from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
 from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.utils import assert_type, int_from_bits
+from btclib.utils import assert_type, int_from_bits, int_from_integer
 
 __all__ = [
     "assert_as_valid",
@@ -100,24 +100,34 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
             return x_H, y_H
 
 
-def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
+def commit(r: Integer, v: Integer, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """Commit to v under blinding factor r, returning rG+vH.
 
     H is `second_generator`, whose docstring has why nobody can open
-    this to a different (r, v).
+    this to a different (r, v). r=0 mod n is refused: it commits with no
+    blinding at all, Q is then v*H, a point anyone who guesses v can
+    recompute. The check is on r alone and not on its range, because the
+    sum of two blinding factors is a blinding factor too -- a Pedersen
+    commitment is additively homomorphic -- and is routinely >= ec.n
+    (issue #1250). It also subsumes the former separate check for r and
+    v both landing on INF: with r=0 mod n excluded, Q lands there only if
+    v is 0 mod n too, which is an ordinary commitment to a zero value and
+    not a blinding failure.
+
+    Checked here and nowhere else in the module: `assert_as_valid`
+    recomputes the commitment through this function, and `verify`
+    already turns the `BTClibValueError` this raises into `False`, the
+    same way it does for every other invalid (r, v).
     """
     H = second_generator(ec, hf)
-    Q = double_mult_var(v, H, r, ec.G, ec)
-    # r and v both zero mod n commit here; anything else would need
-    # the discrete log of H
-    if Q[1] == 0:
-        err_msg = "invalid (INF) key"
-        raise BTClibRuntimeError(err_msg)
-    return Q
+    if int_from_integer(r) % ec.n == 0:
+        err_msg = "invalid (unblinded) commitment: r is 0 mod n"
+        raise BTClibValueError(err_msg)
+    return double_mult_var(v, H, r, ec.G, ec)
 
 
 def assert_as_valid(
-    r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
+    r: Integer, v: Integer, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
     """Refuse a commitment that (r, v) does not open.
 
@@ -138,7 +148,7 @@ def assert_as_valid(
 
 
 def verify(
-    r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
+    r: Integer, v: Integer, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Open the commitment and return True if valid."""
     # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them

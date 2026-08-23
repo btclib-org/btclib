@@ -11,7 +11,7 @@ import pytest
 from btclib.curves import secp256k1
 from btclib.curves.curve import CURVES
 from btclib.ecc import pedersen
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
@@ -94,12 +94,44 @@ def test_commitment() -> None:
     with pytest.raises(TypeError):
         pedersen.commit(sha256, v1, ec, hf)  # type: ignore[arg-type]
 
+    # r and v take every spelling `Integer` does, octets included
+    r_hex = "00" * 31 + "03"
+    assert pedersen.commit(r_hex, v1, ec, hf) == pedersen.commit(3, v1, ec, hf)
 
-def test_commit_to_infinity() -> None:
-    """Refuse r and v both zero mod n: the commitment is INF.
 
-    Any other opening of INF would need the discrete log of H.
+def test_commit_unblinded() -> None:
+    """Refuse r = 0 mod n: the commitment then carries no blinding at all.
+
+    v is not checked on its own: commit(0, 0) is refused by this same
+    check, being the r = 0 mod n case of an unblinded commitment.
     """
-    err_msg = r"invalid \(INF\) key"
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
+    err_msg = r"invalid \(unblinded\) commitment"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pedersen.commit(0, 5, secp256k1, sha256)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pedersen.commit(secp256k1.n, 5, secp256k1, sha256)
+    with pytest.raises(BTClibValueError, match=err_msg):
         pedersen.commit(0, 0, secp256k1, sha256)
+
+    assert not pedersen.verify(0, 5, pedersen.commit(5, 5, secp256k1, sha256))
+
+
+def test_commit_blinding_factor_sum() -> None:
+    """A range check on r would break the additive homomorphism.
+
+    r_1 + r_2 lands past ec.n and is still a valid blinding factor for
+    the summed commitment; only a sum landing on 0 mod n -- the second
+    factor chosen to cancel the first -- is the unblinded case.
+    """
+    ec = secp256k1
+    r_1, r_2 = ec.n - 3, 10
+    C1, C2 = pedersen.commit(r_1, 4, ec), pedersen.commit(r_2, 5, ec)
+
+    assert not 1 <= r_1 + r_2 < ec.n
+    R = pedersen.commit(r_1 + r_2, 9, ec)
+    assert ec.add_var(C1, C2) == R
+    assert pedersen.verify(r_1 + r_2, 9, R, ec)
+
+    err_msg = r"invalid \(unblinded\) commitment"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pedersen.commit(r_1 + 3, 9, ec)  # r_1 + 3 == ec.n
