@@ -24,6 +24,48 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The py-arm authority census is `py_` in every path it lives at.**
+  `py-arm-authority.yml` ran `.github/scripts/check_python_arm_authority.py`
+  over `tests/python_arm_authority_test.py`, with
+  `tests/check_python_arm_authority_test.py` beside them: one feature
+  spelled `py` in the workflow that schedules it and `python` in
+  everything that workflow runs. The workflow disagreed with itself too,
+  its `name:` key reading `py arm authority` and its job
+  `Re-derive the Python-arm authority table`. The files are
+  `check_py_arm_authority.py`, `py_arm_authority_test.py` and
+  `check_py_arm_authority_test.py`, and what names them follows: the
+  script's import of the test module, the job's display name, the
+  `per-file-ignores` key and the sdist exclusion in `pyproject.toml`,
+  the citation in `tests/silent_payments_test.py`, and the census's own
+  `_py_arms()` and `test_every_py_arm_is_in_the_inventory`.
+
+  A rename of a file a `paths:` filter names is the part that fails
+  quietly: `py-arm-authority.yml`'s `pull_request` trigger lists the
+  script and the test module, and a pattern matching a path that no
+  longer exists stops firing without saying so. The filter moves with
+  them.
+
+  Renaming the job is free here only because that job is not a required
+  check -- the checks a merge waits for are held outside the repository,
+  and renaming one of those is what REPOSITORY.md records as the one
+  change that cannot be made in a pull request. Read the list back
+  rather than trust this sentence:
+
+  ```shell
+  gh api repos/btclib-org/btclib/branches/main/protection \
+    --jq '.required_status_checks.checks'
+  ```
+
+  What the library calls the arm is untouched, and that is a decision
+  rather than an omission: `btclib/curves/curve.py`, `SECURITY.md` and
+  `CONTRIBUTING.md` say Python arm, `tests/bip32/bip32_test.py` and its
+  siblings name tests `test_the_python_arm_...`, and `py-arm-authority`
+  is the name of the census, not a second name for the arm.
+
+  The entries below keep the spelling each file carried when they were
+  written, which is what a record of a release is for; this entry is
+  where the old spelling and the new one meet.
+
 - **`.yamllint.yaml` is the organization's copy, and `document-start`
   gates instead of reporting.** Section 14 of the standard in
   `btclib-org/.github` names the file as the same one in every

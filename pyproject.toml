@@ -258,7 +258,7 @@ source-exclude = [
     # path that is not there -- a fixture error rather than a test.
     # Anchored, because a name this specific matching at some other
     # depth would be an accident rather than a decision
-    "/tests/check_python_arm_authority_test.py",
+    "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
     "/tests/generate_sbom_test.py",
     "/tests/mutation_counts_test.py",
@@ -956,10 +956,10 @@ ignore = [
 # job that started an emulator: what it saw and how long it took, or the
 # ::error:: annotation naming what it saw instead
 ".github/scripts/wait_for_hwi_device.py" = ["T201"]
-# and the Python-arm authority re-derivation: which module it is
+# and the py-arm authority re-derivation: which module it is
 # measuring, one line per disagreement found, and the all-clear or count
 # at the end are what a weekly run's log says happened
-".github/scripts/check_python_arm_authority.py" = ["T201"]
+".github/scripts/check_py_arm_authority.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

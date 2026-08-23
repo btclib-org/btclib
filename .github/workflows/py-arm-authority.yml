@@ -1,7 +1,7 @@
 ---
 name: py arm authority
 
-# tests/python_arm_authority_test.py's `_AUTHORITY` says, per Python arm,
+# tests/py_arm_authority_test.py's `_AUTHORITY` says, per Python arm,
 # which third-party-vector-driven test module reaches it -- issue #993's
 # answer, landed by #1000. Its own tests check the table's shape
 # against the source and against itself, and none of them re-runs the
@@ -20,7 +20,7 @@ name: py arm authority
 # names as the reason it "depends on #1002, or at least on the same
 # plumbing".
 #
-# `.github/scripts/check_python_arm_authority.py` does the comparing: it
+# `.github/scripts/check_py_arm_authority.py` does the comparing: it
 # imports `_AUTHORITY` straight from the test module rather than parsing
 # a second copy of it, runs each `_THIRD_PARTY_VECTORS` module under
 # coverage on its own, and diffs what it measures against
@@ -84,8 +84,8 @@ on:
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/py-arm-authority.yml
-      - .github/scripts/check_python_arm_authority.py
-      - tests/python_arm_authority_test.py
+      - .github/scripts/check_py_arm_authority.py
+      - tests/py_arm_authority_test.py
 
 permissions:
   contents: read
@@ -102,7 +102,7 @@ concurrency:
 
 jobs:
   authority:
-    name: Re-derive the Python-arm authority table
+    name: Re-derive the py-arm authority table
     # a draft pull request is work in progress and spends no runner
     # here either: a draft is work its author is not asking anyone to
     # review yet, and its runs are what the required checks already
@@ -142,4 +142,4 @@ jobs:
       - name: Re-derive the authority table against a fresh measurement
         run: >
           uv run --locked --no-default-groups --group harness
-          python .github/scripts/check_python_arm_authority.py
+          python .github/scripts/check_py_arm_authority.py

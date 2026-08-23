@@ -220,7 +220,7 @@ def test_receiving_vectors(index: int, test: dict[str, Any]) -> None:
     # answer is what it has to match, on whichever arm this environment
     # runs -- delegated where the bindings serve, `scan_outputs` itself
     # otherwise, which is what makes this the vector this arm's own
-    # entry in `tests/python_arm_authority_test.py` cites
+    # entry in `tests/py_arm_authority_test.py` cites
     pub_keys_with_scripts = [
         (pub_key, v["prevout"]["scriptPubKey"]["hex"])
         for v in given["vin"]
