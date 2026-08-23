@@ -24,6 +24,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`LICENSE` and `.claude/commands/review.md` are the organization's
+  copies of themselves.** Section 14 of the standard in
+  `btclib-org/.github` names both as the same file in every repository,
+  and `tests/verbatim_test.py` there compares the copies it finds;
+  neither of these matched. `LICENSE` gains the `MIT License` title and
+  loses its year range, a range being a line nobody updates while
+  `COPYRIGHT` states the holder without one. `review.md` loses what it
+  said about this tree: the standard it names is the organization's, and
+  what a review of *this* tree checks is `REVIEWING.md`'s last section,
+  which is where the two arithmetic paths it named now are.
+
+  `tests/copyright_test.py` read that range back and asserted `LICENSE`
+  and `btclib.__copyright__` agreed on it. With one of the two gone,
+  `__copyright__` is the only place the years are written — the comment
+  beside it already said so, and now nothing contradicts it — so what is
+  asserted is the holder, across `LICENSE`, `__copyright__` and
+  `pyproject.toml`'s author. A range put back into `LICENSE` still
+  fails: the holder captured would carry it.
+
 - **`interpreters_test.py` cites the file this repository has**. Its
   docstring named `test_copyright.py` as the module that reads
   `pyproject.toml` by regex for the same `tomllib`-arrives-in-3.11
