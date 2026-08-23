@@ -40,9 +40,9 @@ theme: jekyll-theme-minimal
 #
 # Not excluded, deliberately: README.md is the homepage; assets/ and
 # _layouts/ are the site; CNAME is what Pages reads for the custom domain;
-# LICENSE, CODE_OF_CONDUCT.md, CONTRIBUTING.md, REVIEWING.md, SECURITY.md,
-# AUTHORS.md, RELEASE_NOTES.md and CHANGELOG.md are documents a visitor
-# may reasonably want. REVIEWING.md is published for the reason
+# LICENSE, CONTRIBUTING.md, REVIEWING.md, SECURITY.md, AUTHORS.md,
+# RELEASE_NOTES.md and CHANGELOG.md are documents a visitor may
+# reasonably want. REVIEWING.md is published for the reason
 # CONTRIBUTING.md is, being its other half: what a pull request is
 # answered against is something to read before opening one, not
 # repository process kept back with CLAUDE.md and REPOSITORY.md below.

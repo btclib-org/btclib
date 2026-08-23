@@ -22,9 +22,12 @@ version = "2026.9"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 # PEP 639: a SPDX expression and the files it refers to, replacing the
-# deprecated license table and the License :: classifier
+# deprecated license table and the License :: classifier. COPYRIGHT is
+# not among them (btclib-org/.github#135): it is the notice every source
+# file already opens with, CPY001 below being what keeps it there, and a
+# file of the repository rather than of the distribution
 license = "MIT"
-license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
+license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 # Required, where the bindings below are an extra, and that asymmetry was
@@ -314,8 +317,9 @@ package = ["btclib"]
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only
 # what no include pattern adds in the first place -- the website, the
-# workspaces of an editor and of an agent, and the two files git and a
-# link checker read.
+# workspaces of an editor and of an agent, the two files git and a
+# link checker read, and COPYRIGHT, which `project.license-files` above
+# does not name.
 #
 # btclib.org is served from this repository's root, so the Jekyll
 # sources sit beside the library: naming them here says they are
@@ -333,6 +337,7 @@ git-only = [
     ".lycheeignore",
     ".vscode/",
     "CNAME",
+    "COPYRIGHT",
     "Gemfile",
     "_config.yml",
     "_layouts/",

@@ -52,8 +52,7 @@ is what makes a `.pth` file, a stray top-level module and a bundled
 shared object one rule rather than three.
 
 Under `btclib-<version>.dist-info/` — `WHEEL_METADATA_FILES`, beside the
-`licenses/` directory the backend copies `LICENSE`, `COPYRIGHT` and
-`AUTHORS.md` into:
+`licenses/` directory the backend copies `LICENSE` and `AUTHORS.md` into:
 
 - `METADATA`, `RECORD`, `WHEEL` — what `uv_build` writes for a package
     configured as this one is
@@ -88,8 +87,10 @@ being made; this is where that decision is recorded:
 
 - `.md`, `.toml`, `.yaml`, `.jsonc` — what a reader of an unpacked sdist
     reads, and the configuration of the tools it names
-- `LICENSE`, `COPYRIGHT` — the licence and the copyright notice, which
-    `project.license-files` copies into the wheel as well
+- `LICENSE` — the licence, which `project.license-files` copies into
+    the wheel as well. `COPYRIGHT` is not beside it: the notice is in
+    every source file already, and the file is the repository's
+    (btclib-org/.github#135)
 - `PKG-INFO`, `pyproject.toml.orig` — written by the backend while it
     builds the archive: the metadata PyPI reads off it, and the verbatim
     copy of pyproject.toml it keeps beside the normalized one
