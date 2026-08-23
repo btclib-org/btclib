@@ -1,3 +1,9 @@
+<!-- markdownlint-disable MD022 MD032 -->
+<!-- This file is merge=union, so a rebase joins two sections and drops
+     the blank line between them without a conflict: the rule is off
+     here for the duration of btclib-org/.github#33, and goes back on
+     when that queue is empty. btclib-org/.github#138 is the record. -->
+
 # Changelog
 
 <!-- markdownlint-configure-file
@@ -24,6 +30,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`claude-review.yml` reads the verdict it reports, and the
+  code of conduct is the organization's.** The `review` job ends on a
+  step that reads the last verdict `claude[bot]` posted on the pull
+  request and fails unless it is `ACK` of the head under review: a run
+  that finished green having written no comment, or whose ack names a
+  tree the branch has moved past, was a green check saying nothing
+  (btclib-org/.github#146). The step is the one `btclib-org/.github`
+  runs, and its shell was run against this repository's API on a
+  landed pull request before it was committed.
+  `CODE_OF_CONDUCT.md` is deleted: there is one copy of it, in
+  `btclib-org/.github`, and GitHub shows that one for a public
+  repository of the organization that has none of its own — which is
+  why section 14 of the standard keeps it off the list of files every
+  repository carries (btclib-org/.github#123). `_config.yml`'s comment
+  and `test.yml`'s prose allowlist stop naming it.
 - **The py-arm authority census is `py_` in every path it lives at.**
   `py-arm-authority.yml` ran `.github/scripts/check_python_arm_authority.py`
   over `tests/python_arm_authority_test.py`, with
@@ -436,6 +457,18 @@ documented at release-notes length in the first place, and are still in
   where the edit stopped.
 
 ### Packaging, linting and CI
+
+- **`COPYRIGHT` is a file of the repository, not of the distribution.**
+  `project.license-files` names `LICENSE` and `AUTHORS.md`; the sdist
+  loses its root `COPYRIGHT` and the wheel its
+  `dist-info/licenses/COPYRIGHT`, and nothing else moves — built before
+  and after and compared member for member (btclib-org/.github#135).
+  The notice is the three lines every source file opens with, which
+  `CPY001` keeps there, so what the file carries reaches a user in the
+  source already. `verify_dist_contents.py`'s `SDIST_ROOT_NAMES` drops
+  the name too, so an sdist carrying it is refused rather than
+  allowed, and `[tool.check-sdist]`'s `git-only` gains it, the file
+  being tracked and deliberately absent.
 
 - **`uv_build` builds the distribution files, and `check-sdist` says
   what they may carry**. `MANIFEST.in` is gone: what an sdist ships is

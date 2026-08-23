@@ -134,7 +134,6 @@ SDIST_ROOT_NAMES = frozenset(
     {
         ".python-version",
         ".secrets.baseline",
-        "COPYRIGHT",
         "LICENSE",
         "PKG-INFO",
         "pyproject.toml.orig",

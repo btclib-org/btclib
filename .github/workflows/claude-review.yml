@@ -190,6 +190,89 @@ jobs:
                  "default branch, which the action refuses to run under."
             exit 1
           fi
+      # Green here means an ack of this tree, and nothing weaker. The
+      # guard above answers whether the action started, and a run that
+      # starts, finishes green and posts nothing at all walks through
+      # it: on btclib-org/.github#139 two runs of the same sha both concluded
+      # success, the first having written no comment and the second the
+      # review.
+      #
+      #   gh api "repos/btclib-org/.github/actions/runs?head_sha=<sha>" \
+      #     --jq '.workflow_runs[] | select(.name == "claude-review")
+      #           | {id, conclusion, run_started_at, updated_at}'
+      #
+      # So what is read here is what was posted rather than what the
+      # action produced: the verdict is the last line of a comment on
+      # the pull request, which is where section 11 of the organization's
+      # standard puts the ack of record, and only what claude[bot] wrote
+      # is one -- an author's own ack is not.
+      #
+      #   gh api repos/btclib-org/.github/issues/139/comments \
+      #     --jq '.[] | "\(.user.login) \(.body | split("\n") | last)"'
+      #
+      # The last verdict decides, rather than any verdict naming the
+      # head: a second reading of the same tree can refuse what an
+      # earlier one acked, and picking the ack wherever it sits would
+      # report that refusal as green.
+      #
+      # It is matched against the head sha and not against this run's
+      # own start time. An ack belongs to a tree, so a verdict naming
+      # this head describes the tree under review whichever run wrote
+      # it, while a push mints a sha no earlier verdict can name -- so
+      # the sha alone turns a stale ack red, with no clock to compare
+      # against and no re-run of an unchanged commit turned red for
+      # having nothing new to say. An abbreviation names the same commit
+      # as the forty characters do, so a prefix of it counts.
+      #
+      # Red, and gating nothing: this check is not required, and what
+      # the colour buys is a reader who sees a refusal in the checks
+      # instead of under the fold at the foot of a comment.
+      - name: Refuse to report anything but an ack of this head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # --paginate because the API pages at thirty comments and the
+          # newest sit on the last page; --jq answers once per page, so
+          # the last line of the output is the last verdict posted.
+          verdict=$(gh api "repos/$REPO/issues/$NUMBER/comments" --paginate \
+            --jq '[ .[]
+                    | select(.user.login == "claude[bot]")
+                    | .body
+                    | split("\n")
+                    | map(sub("\\s+$"; ""))
+                    | map(select(length > 0))
+                    | last // empty
+                    | select(test("^(ACK|CHANGES REQUESTED) [0-9a-f]{7,40}$"))
+                  ] | last // empty' | tail -1)
+          if [ -z "$verdict" ]; then
+            echo "::error::the review posted no verdict on this pull" \
+                 "request, so nothing says whether $HEAD_SHA was read at" \
+                 "all. A job that finishes green having written no" \
+                 "comment is what this reports."
+            exit 1
+          fi
+          sha=${verdict##* }
+          case "$verdict" in
+            "ACK "*) ;;
+            *)
+              echo "::error::the review requested changes on $sha."
+              exit 1
+              ;;
+          esac
+          case "$HEAD_SHA" in
+            "$sha"*)
+              echo "the review acked $sha"
+              ;;
+            *)
+              echo "::error::the last verdict acks $sha and the head is" \
+                   "$HEAD_SHA: an ack belongs to a tree, and this one" \
+                   "names a tree the branch has moved past."
+              exit 1
+              ;;
+          esac
 
   mention:
     name: Claude answers a mention
