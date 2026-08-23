@@ -24,6 +24,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`CLAUDE.md` holds what only a session needs.** The environment, the
+  commands and the gates are `CONTRIBUTING.md`'s last section, a human
+  having no reason to open an agent's file to learn how to run a gate;
+  the review rules are `REVIEWING.md`'s. What is left is what neither of
+  those can carry: the architecture, the primary checkout and the
+  worktree rule, the model, the conventions, and the facts that
+  otherwise cost a session.
+
+  `.gitattributes` stopped pointing here for the rest of the
+  `merge=union` reasoning and points at section 9 of the standard in
+  `btclib-org/.github`, which is where that rule is recorded and does
+  not move when this file is trimmed. The pointer crosses repositories
+  because `README.md` here has no numbered section to hold it.
+
 - **`REVIEWING.md` is the organization's file, and this tree's half is
   under `## This repository in particular`.** A review that means one
   thing here and another in a sibling is not a standard, so everything

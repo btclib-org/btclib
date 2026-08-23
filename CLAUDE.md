@@ -3,34 +3,16 @@
 This file provides guidance to Claude Code (claude.ai/code) when working
 with code in this repository.
 
-Repository configuration — branch protection, required checks, token
-permissions, publishing environments, secret scanning — is in
-`REPOSITORY.md`. Read that file before changing a workflow, a branch rule
-or a repository setting. Writing code does not need it.
-
-Reviewing a pull request — what a review establishes before it gives an
-ack, what a finding must contain, and why everything it notices that the
-diff is not about becomes an issue rather than a comment — is
-`REVIEWING.md`, and `/review` is that file as a command. Read it before
-reviewing a pull request, and before opening one: it is what the pull
-request will be answered against.
-
-## Commands
-
-uv is the only tool that must be installed; it fetches interpreters,
-linters and packaging tools itself. `uv sync` creates the environment.
-
-```shell
-uv run pytest                                   # the suite, gated at 100%
-uv run pytest tests/ecc/dsa_test.py             # one file, not gated
-uv run pytest -k test_low_cardinality           # one test, not gated
-uv run pre-commit run --all-files               # every gate, see below
-uv run pre-commit run mypy --files btclib/curves/curve.py   # one hook
-uv run --python 3.10 pytest                     # another interpreter
-```
-
-`CONTRIBUTING.md` has the command for each CI job, verbatim; keep it true
-if a workflow changes.
+How to work here — what the issue tracker takes, the prose style, and how
+a pull request is opened, corrected and landed — is `CONTRIBUTING.md`,
+the same file in every repository of the organization up to its last
+section; that section, *This repository in particular*, is this tree's
+and holds the environment, the commands and what gates a merge.
+Repository configuration is `REPOSITORY.md`: read it before changing a
+workflow, a branch rule or a setting; writing code does not need it.
+Reviewing is `REVIEWING.md`, and `/review` is that file as a command;
+read it before reviewing a pull request and before opening one, since it
+is what the pull request will be answered against.
 
 ## Architecture
 
@@ -118,7 +100,7 @@ yours.** `git update-ref`, or a push carrying another session's commits,
 leaves every working tree's files alone and moves the base under them, so
 their next commit — built on the older copy — reverts what just landed.
 Your own branch is what you push, and the pull request is what moves
-`main`: CONTRIBUTING.md's "Pull Request" section has how a branch under
+`main`: `CONTRIBUTING.md`'s *Pull requests* has how a branch under
 review is corrected and how it is merged.
 
 ## Model
@@ -134,66 +116,6 @@ Do not use Fable unless explicitly instructed.
 
 ## Non-obvious facts that will otherwise waste a session
 
-- **`main` is the only branch**, and nothing is pushed to it directly:
-  every change lands through a pull request, Dependabot's and
-  pre-commit.ci's included, neither of them naming a branch. Branch
-  protection, and why it is what it is, is `REPOSITORY.md`.
-- **The suite, the lint gate, the documentation build and the regtest
-  against Bitcoin Core are the required checks on a pull request**, named
-  by the rule `REPOSITORY.md` reads back from the endpoint. So code does
-  not reach a review without having passed them or passing them beside it
-  on the same sha, and a reviewer may rely on that rather than
-  establishing it again; `REVIEWING.md` has what the reliance takes.
-- **A branch's CI run can be `cancelled` rather than green.** `test.yml`'s
-  concurrency group is
-  `test-${{ github.event.pull_request.number || github.ref }}` (plus a
-  release-only suffix) with cancel-in-progress, so the next push kills
-  the run for the previous commit. The local gates below are the
-  evidence; `cancelled` is not `failure`, and waiting for a busy
-  afternoon to settle is waiting for nothing.
-- **A bare `uv run pytest` is the coverage gate too**: `--cov` is in
-  addopts, so the 100% ratchet fails locally instead of only in the
-  `coverage` job. A run that selects a subset — paths, `-k`, `-m` — is
-  reported and not gated, `tests/conftest.py`'s `coverage_fail_under`
-  being what drops the threshold; `--lf`, `--deselect` and an early `-x`
-  are not selections and will fail on the tree's coverage. So a green
-  full run is the evidence, and a red partial one is worth re-reading
-  before believing. Setting the threshold from a plugin means writing to
-  `config.known_args_namespace`: pytest-cov reads that copy and never
-  `config.option`, so the obvious spelling changes nothing and fails
-  silently.
-- **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
-  job runs exactly it. Never add a second list of the same tools to a
-  workflow. mypy is a *local* hook shelling out to uv on purpose: the
-  mirrors-mypy hook injects `--ignore-missing-imports`, which makes every
-  bindings import `Any` and strict mode then fails; and its isolated
-  environment would need the bindings declared a second time, beside
-  `uv.lock` and pinned by hand.
-- **`pre-commit` passing is not the lint gate passing: run sphinx too.**
-  `lint.yml`'s second job runs it with `-W`, so a docstring docutils
-  cannot parse fails the workflow while every hook passes — a name ending
-  in an underscore is a reference to a link target (``mult_``, and the
-  fix is those very backticks). Reproduce it before claiming the gate is
-  green:
-
-  ```shell
-  uv run --locked --no-default-groups --group docs \
-      sphinx-build -W --keep-going -b html docs/source docs/build/html
-  ```
-
-- **Prefix any `--python <version>` command with
-  `UV_PROJECT_ENVIRONMENT=.venv-3.10`.** Without it, `uv run --python
-  <version>` rebuilds `.venv`, and a group-restricted command then leaves
-  pre-commit out of it: reproducing a matrix cell (`uv run --locked
-  --no-default-groups --group test --python 3.10 pytest`) recreates the
-  environment with only the `test` group's packages where a plain `uv
-  sync` leaves the full dev set — and
-  pre-commit's git hook `exec`s `.venv/bin/python -mpre_commit` by
-  absolute path, which exists and lacks the module, so its "did you
-  forget to activate your virtualenv" fallback never fires and the next
-  `git commit` dies with `No module named pre_commit`. `uv sync` restores
-  it. Without `--python` the same command prunes nothing, so it is the
-  interpreter and not the groups that triggers it.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
@@ -211,16 +133,13 @@ Do not use Fable unless explicitly instructed.
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.
 - **The prose style — tone, comments, docstrings, no history — is
-  CONTRIBUTING.md's "Documentation and comments" section**, stated once
-  there because contributors read that file and not this one. It
-  governs the workflows and the pre-commit config too: the reasoning
-  with its negative results is what makes those files reviewable, so
-  match it rather than trimming it.
+  `CONTRIBUTING.md`'s *Documentation and comments***, stated once there
+  because contributors read that file and not this one. It governs the
+  workflows and the pre-commit config too: the reasoning with its
+  negative results is what makes those files reviewable, so match it
+  rather than trimming it.
 - **Markdown wraps at 80 columns**, tables included (MD013 is on), so
   long commands go in fenced blocks split with `\`.
-- pytest is strict: a warning is an error, an unregistered marker is an
-  error, an xfail that passes is a failure. Coverage has a `fail_under`
-  ratchet in `pyproject.toml`.
 - **CHANGELOG.md gets an entry for anything a user would notice**, in
   the group it belongs to; RELEASE_NOTES.md is the release notes on top
   of it and only moves for a change a user has to *act* on. The prose of
@@ -238,7 +157,7 @@ Do not use Fable unless explicitly instructed.
       btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
 
-  The why is in CONTRIBUTING.md's "Documentation and comments"; what
+  The why is in `CONTRIBUTING.md`'s *Documentation and comments*; what
   this file adds is that nothing states a count now and tests keep it
   that way — `tests/release_notes_test.py` for CHANGELOG.md and
   RELEASE_NOTES.md, `tests/vendored_data_test.py` for
@@ -262,22 +181,11 @@ Do not use Fable unless explicitly instructed.
   published — `tests/_data/README.md`'s "121 vectors, Core's entire
   file" — which pins a vendored file rather than measuring this tree,
   and which `tests/vendored_data_test.py` spares on purpose.
-- **CHANGELOG.md and RELEASE_NOTES.md are `merge=union`**, which is what
-  `.gitattributes` is for: the insertion point conflicts too — two
-  branches appending a bullet to the same group — and union keeps both
-  sides' added lines rather than stopping at a conflict with nothing to
-  decide, on rebases included. Its price is that these two files now
-  never conflict at all, so two branches editing *the same* entry merge
-  in silence, and a branch still carrying an edit to one of the old count
-  paragraphs puts the number back on rebase without a word. Drop those
-  edits while rebasing; the suite says whether you got them all.
-  `tests/_data/README.md` cannot take the driver — union is right for a
-  list of bullets and nonsense for the prose around them — so there the
-  count had to go rather than be merged.
 
 ## Verifying
 
-Check exit codes, not filtered output: `pre-commit run ... | grep -v
-Passed` hides a failure. Run the command as documented before claiming it
-works, and prefer measuring to asserting — every claim in this file was
-checked against the tree, and the tree changes.
+Run the command as documented before claiming it works, and read its
+exit code rather than its filtered output, for the reason
+`CONTRIBUTING.md`'s *This repository in particular* gives. Prefer
+measuring to asserting: every claim in this file was checked against the
+tree, and the tree changes.
