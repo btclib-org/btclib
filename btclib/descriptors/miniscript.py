@@ -69,6 +69,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import TypeVar
 
+from typing_extensions import override
+
 from btclib.alias import Octets, ScriptList
 from btclib.descriptors.key_expression import (
     KeyExpression,
@@ -1438,6 +1440,7 @@ class Miniscript:
             raise BTClibValueError(err_msg)
         return list(satisfaction.stack)
 
+    @override
     def __str__(self) -> str:
         """Return the expression as BIP379 writes it.
 

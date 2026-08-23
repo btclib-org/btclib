@@ -67,6 +67,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from io import BytesIO
 
+from typing_extensions import override
+
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -256,6 +258,7 @@ class Version(Payload):
             err_msg = f"invalid relay type: {type(self.relay).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the payload, the relay octet written only if there is one."""
         if check_validity:
@@ -387,6 +390,7 @@ class Verack(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `verack` is."""
         if check_validity:

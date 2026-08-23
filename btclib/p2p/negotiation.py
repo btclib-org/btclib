@@ -76,6 +76,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from typing_extensions import override
+
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload
@@ -127,6 +129,7 @@ class GetAddr(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `getaddr` is."""
         if check_validity:
@@ -170,6 +173,7 @@ class Mempool(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `mempool` is."""
         if check_validity:
@@ -216,6 +220,7 @@ class SendHeaders(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `sendheaders` is."""
         if check_validity:
@@ -269,6 +274,7 @@ class WtxidRelay(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `wtxidrelay` is."""
         if check_validity:
@@ -331,6 +337,7 @@ class FeeFilter(Payload):
         if not _MIN_INT64 <= self.feerate <= _MAX_INT64:
             raise BTClibValueError(f"invalid feerate: {self.feerate}")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the eight octets of the fee rate, little-endian."""
         if check_validity:

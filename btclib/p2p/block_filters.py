@@ -119,6 +119,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import TypeVar
 
+from typing_extensions import override
+
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block_filter import BasicBlockFilter, filter_header
@@ -273,6 +275,7 @@ class _FilterRangeRequest(Payload):
 
         _assert_valid_hash(self.stop_hash, "stop_hash length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type, the height, then the stop hash."""
         if check_validity:
@@ -417,6 +420,7 @@ class CFilter(Payload):
         _assert_valid_type(self.filter_type)
         _assert_valid_hash(self.block_hash, "block_hash length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type, the block hash, then the filter behind a length."""
         if check_validity:
@@ -548,6 +552,7 @@ class CFHeaders(Payload):
         for filter_hash in self.filter_hashes:
             _assert_valid_hash(filter_hash, "filter hash length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type, the two hashes, then the count and the vector."""
         if check_validity:
@@ -638,6 +643,7 @@ class GetCFCheckpt(Payload):
         _assert_valid_type(self.filter_type)
         _assert_valid_hash(self.stop_hash, "stop_hash length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type code, then the stop hash."""
         if check_validity:
@@ -739,6 +745,7 @@ class CFCheckpt(Payload):
         for header in self.filter_headers:
             _assert_valid_hash(header, "filter header length")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the type, the stop hash, then the count and the vector."""
         if check_validity:

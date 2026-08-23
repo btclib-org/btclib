@@ -34,6 +34,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypeVar
 
+from typing_extensions import override
+
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p.payload import Payload
@@ -90,6 +92,7 @@ class _NoncePayload(Payload):
         if not 0 <= self.nonce <= _MAX_NONCE:
             raise BTClibValueError(f"invalid nonce: {self.nonce}")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the eight octets of the nonce, little-endian."""
         if check_validity:

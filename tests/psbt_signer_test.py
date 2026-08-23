@@ -18,6 +18,7 @@ from base64 import b64encode
 from copy import deepcopy
 
 import pytest
+from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.bip32 import fingerprint
@@ -297,6 +298,7 @@ def test_an_xpub_that_is_not_the_account_is_refused() -> None:
     """
 
     class _WrongAccount(_Signer):
+        @override
         def xpub(self, der_path: DerPath) -> str:
             """Answer with the next account, whatever was asked."""
             return xpub_from_xprv(derive(self.xprv, "m/84h/0h/1h"))
@@ -475,6 +477,7 @@ class _Counting(_Signer):
         super().__init__()
         self.requests: list[Psbt] = []
 
+    @override
     def sign_psbt(self, psbt: Psbt) -> Psbt:
         """Record the request, then sign it as the double does."""
         self.requests.append(psbt)
@@ -492,6 +495,7 @@ class _Refusing(SignerDecorator):
         super().__init__(signer)
         self.limit = limit
 
+    @override
     def sign_psbt(self, psbt: Psbt) -> Psbt:
         """Sign, unless an output pays more than the limit allows."""
         for out in psbt.tx.vout:

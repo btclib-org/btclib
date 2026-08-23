@@ -19,6 +19,8 @@ import secrets
 from collections.abc import Sequence
 from math import ceil
 
+from typing_extensions import override
+
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_inv_batch_var, mod_inv_var, mod_sqrt_var
@@ -193,6 +195,7 @@ class CurveGroup:
         # none -- it has no generator -- and Curve fills this in
         self._fixed_points: frozenset[JacPoint] = frozenset()
 
+    @override
     def __str__(self) -> str:
         # the class name, not the literal "Curve": the two classes hold
         # different parameters, so a CurveGroup announcing itself as a
@@ -214,6 +217,7 @@ class CurveGroup:
 
         return result
 
+    @override
     def __repr__(self) -> str:
         result = f"{type(self).__name__}("
         result += f"'{hex_string(self.p)}'" if self.p > HEX_THRESHOLD else f"{self.p}"
@@ -234,6 +238,7 @@ class CurveGroup:
         """
         return self.p, self._a, self._b
 
+    @override
     def __eq__(self, other: object) -> bool:
         # a curve is its parameters: two objects built from the same ones
         # are the same curve, whatever the catalogue they came from. This
@@ -252,6 +257,7 @@ class CurveGroup:
             return NotImplemented
         return self._eq_key() == other._eq_key()
 
+    @override
     def __hash__(self) -> int:
         # __eq__ without __hash__ would set __hash__ to None, and curves
         # are lru_cache keys in _cached_multiples below; equal curves

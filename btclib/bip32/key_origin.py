@@ -10,6 +10,8 @@ from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from io import BytesIO
 
+from typing_extensions import override
+
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
     DerPath,
@@ -147,6 +149,7 @@ class BIP32KeyOrigin:
         data = data.strip()
         return cls(data[:8], data[9:], check_validity=check_validity)
 
+    @override
     def __hash__(self: BIP32KeyOrigin) -> int:
         return hash(self.serialize())
 

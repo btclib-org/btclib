@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import pytest
+from typing_extensions import override
 
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -372,13 +373,16 @@ def test_a_span_of_one_output_repeated_is_no_span() -> None:
         """A wallet paying to the same anyone-can-spend script everywhere."""
 
         @property
+        @override
         def is_watch_only(self) -> bool:
             return True
 
         @property
+        @override
         def branches(self) -> tuple[int, ...]:
             return (0,)
 
+        @override
         def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
             return ScriptPubKey(b"\x51")
 
@@ -404,9 +408,11 @@ def test_a_wallet_that_names_no_branches_is_not_a_wallet() -> None:
         """A wallet with an output at every position and no chains."""
 
         @property
+        @override
         def is_watch_only(self) -> bool:
             return True
 
+        @override
         def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
             return ScriptPubKey(b"\x51")
 
@@ -419,6 +425,7 @@ def test_a_wallet_that_names_no_branches_is_not_a_wallet() -> None:
         """The same wallet, on the receiving chain alone."""
 
         @property
+        @override
         def branches(self) -> tuple[int, ...]:
             return (0,)
 

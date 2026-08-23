@@ -13,6 +13,8 @@ from io import SEEK_CUR
 from math import ceil
 from typing import Any
 
+from typing_extensions import override
+
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.amount import _MAX_SATOSHI
@@ -243,6 +245,7 @@ class Tx:  # noqa: PLW1641
         if check_validity:
             self.assert_valid()
 
+    @override
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Tx):
             return NotImplemented

@@ -114,6 +114,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum
 
+from typing_extensions import override
+
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -449,6 +451,7 @@ class AddrV2(Payload):
                 raise BTClibTypeError(err_msg)
             address.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the count, then that many BIP155 entries."""
         if check_validity:
@@ -514,6 +517,7 @@ class SendAddrV2(Payload):
     def assert_valid(self) -> None:
         """Accept: a message with no fields has none to refuse."""
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the empty payload a `sendaddrv2` is."""
         if check_validity:

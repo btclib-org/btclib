@@ -37,6 +37,7 @@ import pathlib
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib.amount import _MAX_SATOSHI
 from btclib.curves import secp256k1
@@ -344,10 +345,12 @@ def test_a_nested_object_is_left_the_flag_it_was_given() -> None:
     """
 
     class RejectingWitness(Witness):
+        @override
         def assert_valid(self) -> None:
             raise BTClibValueError("invalid witness")
 
     class RejectingTxOut(TxOut):
+        @override
         def assert_valid(self) -> None:
             raise BTClibValueError("invalid output")
 

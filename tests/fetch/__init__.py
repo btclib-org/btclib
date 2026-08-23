@@ -22,6 +22,8 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.request import Request
 
+from typing_extensions import override
+
 from btclib.alias import Octets
 from btclib.fetch.fetcher import Fetcher
 from btclib.tx import Tx
@@ -96,15 +98,18 @@ class StubFetcher(Fetcher):
         self.tx = tx
         self.asked: list[str] = []
 
+    @override
     def get_tx(self, tx_id: Octets) -> Tx:
         """Record the tx_id asked for and answer the fixed transaction."""
         self.asked.append(bytes(tx_id).hex() if not isinstance(tx_id, str) else tx_id)
         return self.tx
 
+    @override
     def get_block_count(self) -> int:
         """Answer the tip height the recorded responses report."""
         return TIP_HEIGHT
 
+    @override
     def get_best_block_id(self) -> bytes:
         """Answer the tip block id the recorded responses report."""
         return bytes.fromhex(TIP_ID)

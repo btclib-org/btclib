@@ -139,6 +139,8 @@ import hashlib
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from typing_extensions import override
+
 from btclib import var_int
 from btclib.alias import BinaryData, Octets
 from btclib.block.block import Block
@@ -387,6 +389,7 @@ class SendCmpct(Payload):
         if not 0 <= self.version <= _MAX_VERSION:
             raise BTClibValueError(f"invalid version: {self.version}")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the announce octet, then the eight of the version."""
         if check_validity:
@@ -651,6 +654,7 @@ class CmpctBlock(Payload):
         _assert_valid_count(self.tx_count, "transaction")
         _assert_positions(self.prefilled_txns, self.tx_count)
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the header, the nonce, then the two vectors."""
         if check_validity:
@@ -762,6 +766,7 @@ class GetBlockTxn(Payload):
             _assert_valid_index(index, "index")
         _assert_increasing(self.indexes, "indexes")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the block hash, the count, then the differences."""
         if check_validity:
@@ -846,6 +851,7 @@ class BlockTxn(Payload):
         for tx in self.transactions:
             _assert_valid_transaction(tx, "transaction")
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the block hash, the count, then the transactions."""
         if check_validity:

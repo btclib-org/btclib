@@ -53,6 +53,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from typing_extensions import override
+
 from btclib.alias import BIP44ScriptType, Octets
 from btclib.bip32.bip32 import BIP32Key
 from btclib.bip32.der_path import DerPath
@@ -184,11 +186,13 @@ class DescriptorWallet(RangedWallet):
         )
 
     @property
+    @override
     def branches(self) -> tuple[int, ...]:
         """The chains, which are the branches the descriptors came under."""
         return tuple(self._descriptors)
 
     @property
+    @override
     def is_watch_only(self) -> bool:
         """Whether the wallet was handed no private key.
 
@@ -213,9 +217,11 @@ class DescriptorWallet(RangedWallet):
         self._assert_position(branch, 0)
         return self._descriptors[branch]
 
+    @override
     def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
         return self._descriptors[branch].script_pub_key(index, self.prv_keys)
 
+    @override
     def redeem_script(self, branch: int = 0, index: int = 0) -> bytes:
         """Return the script a ``sh()`` at this position embeds.
 
@@ -230,6 +236,7 @@ class DescriptorWallet(RangedWallet):
             return b""
         return descriptor.inner.redeem_script(index, self.prv_keys)
 
+    @override
     def witness_script(self, branch: int = 0, index: int = 0) -> bytes:
         """Return the script a ``wsh()`` at this position embeds.
 
@@ -245,6 +252,7 @@ class DescriptorWallet(RangedWallet):
             return b""
         return descriptor.inner.redeem_script(index, self.prv_keys)
 
+    @override
     def position_of(
         self, script_pub_key: Octets | ScriptPubKey, last_index: int = _LAST_INDEX
     ) -> tuple[int, int] | None:

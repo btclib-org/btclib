@@ -36,6 +36,10 @@ requires-python = ">=3.10"
 # the reasoning, beside the ceiling argument it already makes.
 dependencies = [
     "bitcoin-core-rpc>=2026.8.13",
+    # `typing.override` is 3.12's and the floor is 3.10, so the decorator
+    # explicit-override asks for comes from the backport; 4.4 is the
+    # release that adds it
+    "typing-extensions>=4.4",
 ]
 keywords = [
     # The GitHub repository topics, in the same order, and the order is by
@@ -706,36 +710,25 @@ fail_under = 100.0
 strict = true
 show_column_numbers = true
 show_error_codes = true
-# the optional error codes strict does not turn on, surveyed one by one
-# over btclib and tests. ignore-without-code makes every "type: ignore"
-# name the rule it silences, so a blanket one cannot creep in, and
-# deprecated reports a stdlib API on its way out, which on a 3.10 to 3.14
-# spread is the same early warning filterwarnings = ["error"] buys at
-# runtime.
-#
-# redundant-expr and possibly-undefined are the two more --enable-error-code
-# adds beyond what a first pass found clean, and warn_unreachable below is
-# the flag mypy exposes the third one through rather than through this
-# list. All three found something: a runtime isinstance guard on a value
-# whose static type promises more than an untrusted source -- unvalidated
-# json in network.py's from_dict, a caller ignoring an annotation in
-# bip21.py, an operator's own dispatch protocol in script.py's __add__ --
-# can guarantee. Each of those sites carries its own
-# `# type: ignore[...]` naming the code rather than a second global
-# exemption: the check is worth having everywhere else, and a blanket
-# ignore-list entry would have silenced it there too
+# the organization's list, the same in every repository that runs mypy
+# (section 6 of the standard, btclib-org/.github#165), and nothing else
+# in this key: a code that finds nothing today is a ratchet, catching the
+# next line written after it. Where a check and not the annotation has to
+# yield, the line carries a `# type: ignore[code]` with the reason,
+# rather than the code leaving this list
 enable_error_code = [
     "deprecated",
     "exhaustive-match",
+    "explicit-override",
     "ignore-without-code",
     "mutable-override",
-    "narrowed-type-not-subtype",
     "possibly-undefined",
     "redundant-expr",
     "redundant-self",
     "truthy-bool",
     "truthy-iterable",
     "unimported-reveal",
+    "unused-awaitable",
 ]
 warn_unreachable = true
 # the oldest interpreter this package supports, and also the oldest mypy

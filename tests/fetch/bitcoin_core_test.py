@@ -34,6 +34,7 @@ from bitcoin_core_rpc import (
     chain_from_network,
     network_from_chain,
 )
+from typing_extensions import override
 
 from btclib.exceptions import BTClibValueError, FetchError, HttpError, RpcError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
@@ -81,6 +82,7 @@ def echoed(body: bytes, request_id: str) -> bytes:
 class Echoing(Recorded):
     """A Recorded answering with the request's own id, as a node does."""
 
+    @override
     def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
         """Answer the next scripted reply, with this request's id in it."""
         status, body = super().__call__(request, timeout)

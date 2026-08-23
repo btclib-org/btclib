@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from typing_extensions import override
 
 from btclib import var_int
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
@@ -865,6 +866,7 @@ def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     class TxInIgnoringWitness(TxIn):  # noqa: PLW1641
         """A TxIn compared on everything but its witness."""
 
+        @override
         def __eq__(self, other: object) -> bool:
             if not isinstance(other, TxIn):
                 return NotImplemented

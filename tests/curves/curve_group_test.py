@@ -8,6 +8,7 @@ import random
 from functools import partial
 
 import pytest
+from typing_extensions import override
 
 from btclib.alias import INF, INFJ, JacPoint, Point
 from btclib.curves import Curve, CurveGroup, find_all_points, secp256k1
@@ -439,10 +440,12 @@ class _CountingGroup(CurveGroup):
         super().__init__(secp256k1.p, 0, 7)
         self.additions = 0
 
+    @override
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         self.additions += 1
         return super().add_jac(Q, R)
 
+    @override
     def add_jac_aff(self, Q: JacPoint, R: Point) -> JacPoint:
         # counted beside add_jac and not apart from it: what the test
         # below is about is how many additions a scalar costs, and the

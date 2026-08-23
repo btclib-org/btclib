@@ -128,6 +128,8 @@ from copy import deepcopy
 from dataclasses import replace
 from typing import Any
 
+from typing_extensions import override
+
 from btclib.alias import Command, EmbeddedScriptType, KeyOrder, ScriptList
 from btclib.bip32.bip32 import (
     BIP32Key,
@@ -404,6 +406,7 @@ class KeyGroup:
         self.threshold = threshold
         self.verify = verify
 
+    @override
     def __repr__(self) -> str:
         """Return the quorum, and no key: one of them may be an xprv."""
         verify = ", verify=True" if self.verify else ""
@@ -474,6 +477,7 @@ class ScriptWallet(RangedWallet):
             raise BTClibValueError(err_msg)
 
     @property
+    @override
     def branches(self) -> tuple[int, ...]:
         """The receiving and change chains, which is what BIP44 defines.
 
@@ -484,6 +488,7 @@ class ScriptWallet(RangedWallet):
         return (0, 1)
 
     @property
+    @override
     def is_watch_only(self) -> bool:
         """Whether no key of any group is a private one."""
         return not any(
@@ -551,9 +556,11 @@ class ScriptWallet(RangedWallet):
                 commands.append(command)
         return serialize(commands)
 
+    @override
     def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
         return self._output(self._script(branch, index), self.network)
 
+    @override
     def redeem_script(self, branch: int = 0, index: int = 0) -> bytes:
         """Return the script a p2sh output at this position commits to.
 
@@ -571,6 +578,7 @@ class ScriptWallet(RangedWallet):
             return script
         return ScriptPubKey.p2wsh(script, self.network).script
 
+    @override
     def witness_script(self, branch: int = 0, index: int = 0) -> bytes:
         """Return the script a p2wsh output at this position commits to.
 

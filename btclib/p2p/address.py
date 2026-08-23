@@ -56,6 +56,8 @@ from dataclasses import dataclass
 from enum import IntFlag
 from ipaddress import IPv4Address, IPv6Address, ip_address
 
+from typing_extensions import override
+
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -452,6 +454,7 @@ class Addr(Payload):
                 raise BTClibTypeError(err_msg)
             address.assert_valid()
 
+    @override
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the count, then that many timestamped addresses."""
         if check_validity:

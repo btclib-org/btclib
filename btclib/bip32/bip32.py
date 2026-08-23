@@ -29,6 +29,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 from btclib import base58
 from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import BinaryData, Octets, String
@@ -219,6 +221,7 @@ class BIP32KeyData:
         """Answer whether the key is private, by its 0x00 prefix."""
         return self.key[0] == 0
 
+    @override
     def __repr__(self) -> str:
         # never echo private key material: mask key and chain_code
         # (key[:1], not is_private, so that repr cannot raise on an
