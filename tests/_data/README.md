@@ -2006,6 +2006,25 @@ spesmilo/electrum's own, inline — the `SEED_TEST_CASES` seeds and the
 vendored as files here: each block is small enough to read, and a
 citation two lines above the values is one that gets checked.
 
+`SEED_VECTORS`' five passphrase-bearing rows each carry the
+`passphrase_hex` field upstream's own `SeedTestCase` publishes beside
+them where it publishes one — `spesmilo/electrum`'s
+`300b986782c754be462788a30e0355301683c0ed` (2024-06-10, the tip of
+`tests/test_mnemonic.py`) and, for the japanese row's
+`UNICODE_HORROR_HEX`, `b57327fb3e6d62941b833f8ce9b3b91c34c9ec76`
+(2026-07-01, the tip of `tests/test_wallet_vertical.py`) — and
+`test_seed_vectors` asserts `passphrase.encode("utf8") ==
+bytes.fromhex(passphrase_hex)` before either reaches the seed
+computation, the way upstream's own `test_mnemonic_to_seed` does.
+`english_with_passphrase` publishes no such field upstream, its
+passphrase being plain ASCII, so that row's stays `None`. The check
+found the spanish row's passphrase composed rather than decomposed — a
+precomposed ñ, í, ó, é and á where upstream's own literal holds the
+accent as a separate combining character — invisible to the seed
+assertion, since `_seed_from_mnemonic` normalizes either form to the
+same NFKD before hashing, and caught only by comparing raw bytes. The
+fix was to match upstream's bytes, not to drop the check.
+
 The pre-2.0 scheme is the same arrangement and four more of upstream's
 values, added for issue #208. The scheme has no specification — it
 predates the BIPs — so a vector btclib generated would be testing btclib

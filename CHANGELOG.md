@@ -2456,6 +2456,20 @@ documented at release-notes length in the first place, and are still in
   assertion that verifies it is the next line, so the run fails in the
   same breath the sentence goes wrong. Introduced by 2f887453 (#1179).
 
+- **`tests/mnemonic/electrum_test.py`'s passphrase-bearing `SEED_VECTORS`
+  carry electrum's own `passphrase_hex`, and `test_seed_vectors` asserts
+  `passphrase.encode("utf8") == bytes.fromhex(passphrase_hex)` before
+  either reaches the seed computation** (issue #1284), the way upstream's
+  own `test_mnemonic_to_seed` does. Every one of the five was ASCII or
+  already exercised by the seed match, but the check is on the
+  passphrase's exact bytes and not only on the seed they produce, and it
+  found one row failing: the spanish passphrase's ñ, í, ó, é and á were
+  precomposed, where upstream's own literal and `passphrase_hex` hold
+  each as a base letter plus a combining accent. `_seed_from_mnemonic`
+  normalizes either form to the same NFKD before hashing, which is why
+  the seed comparison alone never caught it. Fixed by matching upstream's
+  bytes.
+
 ## v2026.8.21
 
 ### Repository
