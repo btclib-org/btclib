@@ -12,7 +12,7 @@ body:
         [documentation](https://btclib.readthedocs.io/) and the
         [README](https://github.com/btclib-org/btclib/blob/main/README.md)
         come first, and for a real-time answer there is the Slack channel
-        linked from CONTRIBUTING.md.
+        behind the *Chat with the developers* link on the new-issue page.
 
   - type: textarea
     id: question

@@ -30,6 +30,13 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **The question form names the Slack link beside it rather than
+  `CONTRIBUTING.md`.** The sentence pointed at `CONTRIBUTING.md`, which
+  carries no such link: the channel is a contact link in
+  `.github/ISSUE_TEMPLATE/config.yml`, shown to the reader as *Chat with
+  the developers* on the page that offers the form
+  (btclib-org/.github#101).
+
 - **`CONTRIBUTING.md` says where the bare `ruff format` and
   `pre-commit run --all-files` disagree.** `ruff-pre-commit`'s
   `ruff-format` hook restricts itself to `types_or: [python, pyi,
