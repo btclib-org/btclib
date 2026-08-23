@@ -36,6 +36,15 @@ documented at release-notes length in the first place, and are still in
   jupyter]`, so `pre-commit` never reformats a `.md` file; the bare
   command has no such filter and reformats a fenced-code Python block it
   finds inside `CHANGELOG.md` or `RELEASE_NOTES.md` (issue #1293).
+- **A test asserts an even backtick count in every file
+  `[tool.typos.type.verbatim]` covers.** `typos-cli` pairs a file's
+  backticks two at a time over the whole buffer it reads, not per line
+  and not per code span (`Ignores::new` in `crates/typos-cli/src/file.rs`
+  at the pinned v1.49.0), so an odd count anywhere desyncs every pairing
+  after it; `.pre-commit-config.yaml`'s `local-link-prefix` lookbehind
+  carried exactly one such backtick, now written `\x60`, the escape
+  `\x20` beside it in the same entry already uses for its own space
+  (issue #1302).
 
 - **`REVIEWING.md`'s *The gates are the evidence* excepts no gate from
   the run a reviewer may rely on, the test suite included.** The

@@ -366,9 +366,16 @@ repos:
         # single unbreakable word and its 100-column rule exempts it. A
         # block scalar rather than a quoted one for the same reason a
         # folded scalar was rejected: folding joins lines with a space,
-        # which would land inside the regex
+        # which would land inside the regex.
+        # The lookbehind's backtick is "\x60" for the same reason its
+        # space is "\x20": a lone backtick here makes this file's own
+        # total an odd number, and [tool.typos.type.verbatim] in
+        # pyproject.toml pairs this file's backticks two at a time across
+        # the whole thing to protect the misspellings it quotes -- an odd
+        # total leaves one of those quotations unpaired with whatever
+        # backtick follows it (issue #1302)
         entry: |-
-          (?<![`!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
       # Section 4 of the organization standard is the rule: what such a
