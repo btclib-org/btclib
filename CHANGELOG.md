@@ -495,6 +495,29 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Two `pyproject.toml` comments named a reason for an entry that the
+  entry does not have.** `[tool.uv.build-backend]`'s `source-include`
+  comment justified part of the list by saying the lint gate has to be
+  runnable from an unpacked sdist. It does not run there, and no
+  include pattern makes it so: nothing in the list names anything
+  under `.github/`, so the backend never puts it in the archive it
+  builds, and `check-hooks-apply` fails on `check-dependabot`,
+  `actionlint` and `zizmor`, each reading only that directory --
+  `check-sdist`'s own `default-ignore.txt` carrying `.github` is why
+  that absence is accepted rather than reported, and controls nothing
+  about what the backend packs. The comment now says what the list
+  actually buys — a tool reading `.pre-commit-config.yaml`,
+  `.taplo.toml` or `.secrets.baseline` directly finds it in the sdist
+  too (issue #1276).
+
+  `[tool.typos.default.extend-words]`'s `CPY` entry credited an
+  occurrence in `pyproject.toml` itself, but typos skips the file
+  holding its own configuration, so nothing there asks for the entry.
+  The occurrence that does is `btclib/__init__.py`'s comment naming
+  `CPY001`: typos splits the code out of it and, run with
+  `--write-changes`, rewrites it into `COPY001`. The comment now names
+  that file (issue #1274).
+
 - **`pyroma` is no longer skipped on pre-commit.ci.** pyroma's own code
   (`pyroma/projectdata.py`) asks `build` for the project's metadata
   without isolation first, and only falls back to an isolated build —
@@ -506,6 +529,7 @@ documented at release-notes length in the first place, and are still in
   hook, the same range `pyproject.toml` declares, is what makes the
   non-isolated attempt succeed (btclib-org/btclib-benchmarks#165 is where
   that project made the same change).
+
 - **`normalize_sdist.py` also rewrites `mode`, and names every field it
   rewrites** (issue #1277). `member.mode` becomes `0o755` for a directory
   and `0o644` for a file, matching `bitcoin-core-rpc`'s copy of the

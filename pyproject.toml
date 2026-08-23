@@ -231,9 +231,19 @@ module-root = ""
 # anchored, so `*.md` is the root's own markdown and reaches neither the
 # module's nor the website's, and `/**` is what recurses.
 #
-# The lint gate has to be runnable from an unpacked sdist, which is what
-# puts .pre-commit-config.yaml (`*.yaml`) in, and .taplo.toml (`*.toml`)
-# and .secrets.baseline, which hooks read, with it.
+# Not that the lint gate is runnable from an unpacked sdist: it is not,
+# and no pattern here can make it so. .github is absent from the sdist
+# because nothing above names anything under it, not because
+# check-sdist's default-ignore.txt controls what the backend puts in
+# the archive -- that list only keeps a tracked-but-absent .github from
+# being reported as a mismatch, the role it plays for git-only below.
+# check-hooks-apply still fails on an unpacked sdist, on
+# check-dependabot, actionlint and zizmor, each reading only that
+# directory. What the list above buys instead is that a tool reading
+# one of these files directly finds it in the sdist too:
+# .pre-commit-config.yaml (`*.yaml`) is a hook's own file, and
+# .taplo.toml (`*.toml`) and .secrets.baseline are what a hook of it
+# reads.
 #
 # The Jekyll sources of btclib.org, which is served from this
 # repository's root, are named nowhere here: they are tracked and
@@ -600,8 +610,9 @@ ands = "ands"
 # signature every other implementation refuses, written by a spell
 # checker into a wire format
 ful = "ful"
-# ruff's own name for flake8-copyright, in the comment above
-# [tool.ruff.lint.flake8-copyright] explaining why it is selected
+# btclib/__init__.py names ruff's CPY001 (flake8-copyright) rule by
+# code; without this entry the hook splits it and rewrites the comment
+# into one naming COPY001, a rule that does not exist
 CPY = "CPY"
 
 [tool.typos.type.verbatim]
