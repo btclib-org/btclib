@@ -56,10 +56,12 @@ on:
   # Free gives an organization twenty concurrent jobs, a commit used to ask
   # for thirty-nine, and this workflow's three of them were held while a
   # pull request waited for a slot -- so the analysis now lands on the merge
-  # commit rather than before it, and the aggregate below is no longer a
-  # required check on main. REPOSITORY.md's "Required checks on main" is
-  # where that rule is written down, and dropping the context there is a
-  # token operation that had to come first.
+  # commit rather than before it, and nothing this workflow produces can be
+  # a required check on main: a required check has to report on the pull
+  # request's own run, and this trigger produces none. REPOSITORY.md's
+  # "Required checks on main" is where that rule is written down, and
+  # dropping the `CodeQL` context there is a token operation that had to
+  # come first.
   # What still reads a branch before it merges is lint.yml: zizmor is a
   # pre-commit hook and reads exactly these files for an injected
   # expression, which is the finding this workflow would otherwise be alone
@@ -122,8 +124,8 @@ jobs:
     # far above what either language needs; what it bounds is a hung job
     # holding a runner for six hours
     timeout-minutes: 20
-    # the elevation, on the job that needs it and nowhere else: the
-    # aggregate below declares nothing and inherits the workflow default.
+    # the elevation, on the job that needs it and nowhere else: no other
+    # job in this workflow declares permissions, so no other job elevates.
     # security-events: write is what uploading a SARIF to code scanning
     # takes, and the whole reason this job cannot run on the read-only
     # token. actions: read is redundant while this repository is public --
@@ -197,45 +199,11 @@ jobs:
           # rather than starting again
           category: "/language:${{ matrix.language }}"
 
-  # one answer to read per commit rather than one per language, which is
-  # what this job is for now that main's branch protection does not require
-  # it -- REPOSITORY.md's table is where that changed, and why. Kept rather
-  # than deleted because the name is then still produced: requiring this
-  # workflow again is a patch to the rule and nothing in the tree, which is
-  # the half of the exchange that cannot be made in a pull request.
-  # The matrix above produces one check per language, and a rule naming
-  # those directly would mean a setting to edit -- one no pull request can
-  # review -- every time the matrix moves. This job depends on the matrix
-  # instead, so adding a language is enough to be covered by it
-  codeql-passed:
-    # the name is what branch protection matches, and it carries the
-    # workflow on purpose: a context is keyed by name alone, so two
-    # workflows with a job named "every job passed" would produce one
-    # ambiguous check. The pattern, and the reasoning behind every line of
-    # it, is test.yml's own aggregate -- which is still required, so the two
-    # names must not converge
-    name: "codeql: every job passed"
-    needs: [analyze]
-    # not success(): a job whose dependencies failed is skipped, and a
-    # skipped check reports "skipped", which reads as satisfied wherever a
-    # check is read at all. The gate has to run to be able to fail
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      # the condition reads the whole needs context rather than testing
-      # each job by name, so a job added to needs above is covered
-      # without touching this. "skipped" is a failure here too: nothing
-      # in this workflow is conditional, so a skip means something
-      # upstream did not run.
-      # What a run of it costs, whenever the number is wanted again:
-      #   gh api repos/btclib-org/btclib/actions/runs/<id>/jobs \
-      #     --jq '.jobs[] | "\(.name) \(.started_at) \(.completed_at)"'
-      - name: Fail unless every job above succeeded
-        if: >-
-          contains(needs.*.result, 'failure') ||
-          contains(needs.*.result, 'cancelled') ||
-          contains(needs.*.result, 'skipped')
-        run: |
-          echo "::error::a job this gate depends on did not succeed"
-          exit 1
+  # no aggregate job, where test.yml has one. Section 10 of
+  # btclib-org/.github's README.md conditions one on a workflow whose
+  # answer gates a pull request: a branch rule can only name a context a
+  # pull request's own run produces, and the `on:` block above has no
+  # `pull_request` trigger, so no rule could ever require a name this
+  # workflow produces. `analyze`'s two matrix cells are therefore the
+  # whole of the checks list this workflow contributes to a commit, one
+  # per language rather than one aggregate over both
