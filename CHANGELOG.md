@@ -1534,6 +1534,16 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`.readthedocs.yaml` justifies its own name with the setting that
+  actually controls it** (issue #1275). The comment gave `MANIFEST.in`'s
+  `include *.yml` as the reason the dotted spelling ships, in a tree
+  that has no `MANIFEST.in` and is built by `uv_build`, whose
+  `[tool.uv.build-backend] source-include` names `*.yaml` and not
+  `*.yml` — the opposite pairing from the one the sentence stated.
+  `uv build --sdist -o dist && tar tzf dist/*.tar.gz | grep readthedocs`
+  lists `.readthedocs.yaml`, confirming the dotted spelling is the one
+  that ships, for the reason now written beside it.
+
 - **CONTRIBUTING.md's documented mypy command and its workflow-schedule
   sentence match the tree** (issues #1281, #1271). The mypy invocation
   named a root `scripts` directory; `git ls-files` finds none there, and
