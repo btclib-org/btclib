@@ -29,6 +29,22 @@ bytes here too, and the attestation over the release assets covers this
 file as well. Nothing is read from the clock, and nothing is random:
 `uuid4` would make a rebuild differ in the one field nobody could check.
 
+**`Requires-Dist` is not the only source.** It says what a distribution
+*declares*, and for a wheel that vendors a git submodule -- object code
+baked in at build time, never named in the wheel's own metadata -- that
+is not what the wheel *contains*. `.gitmodules` and the gitlink `git
+ls-tree` reads from the tree are, so a submodule pinned to a commit is
+read from there and reported as its own component: a `library` with a
+`pkg:github/<owner>/<repo>@<sha>` purl, a `vcs` externalReference naming
+the upstream repository, and `version` set to that sha. A commit is a
+narrower pin than any `==` this script otherwise grants a version to, so
+withholding one here would be the stricter rule protecting the weaker
+case; the sha rather than an upstream tag name, because the sha is what
+the gitlink actually stores and every commit has one, where resolving a
+tag would be a network call this script otherwise makes none of, for a
+result that may not exist. btclib vendors no submodule, so this is a
+no-op here and exists for a repository that does (issue #1280).
+
 Run it on a freshly built dist directory, after `uv build` and after the
 sdist normalizer, whose rewrite changes the digest this records:
 
@@ -43,11 +59,14 @@ and verifies it against the attestation.
 
 from __future__ import annotations
 
+import configparser
 import datetime
 import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import zipfile
 from email import message_from_bytes
@@ -90,6 +109,24 @@ REFERENCE_TYPES = {
     "issues": "issue-tracker",
     "repository": "vcs",
 }
+
+# the two forms `git submodule add` writes into `.gitmodules` for a GitHub
+# url, https and ssh, with or without the `.git` suffix -- anything else
+# is refused, for the same reason an unreadable `Requires-Dist` line is:
+# a submodule this cannot name is one the document would omit in silence
+GITHUB_SUBMODULE_URL = re.compile(
+    r"^(?:https://github\.com/|git@github\.com:)"
+    r"(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$"
+)
+
+# a gitlink, which is what a submodule is recorded as in the tree that
+# carries it, whether or not the submodule was ever checked out
+GITLINK = re.compile(r"^160000 commit (?P<sha>[0-9a-f]{40})\t")
+
+# resolved once: S607 is what a bare "git" in a subprocess list would be,
+# a partial executable path relying on PATH's own search order rather
+# than naming what actually runs
+_GIT = shutil.which("git") or "git"
 
 
 def canonical_name(name: str) -> str:
@@ -249,7 +286,74 @@ def distribution_reference(path: Path) -> dict[str, Any]:
     }
 
 
-def build_sbom(wheel: Path, sdist: Path, epoch: int) -> dict[str, Any]:
+def submodule_commit(repo_root: Path, path: str) -> str:
+    """Return the commit a gitlink in the tree pins a submodule path to.
+
+    Read with `git ls-tree` rather than from a checkout of the submodule,
+    which need not exist: a gitlink is recorded in the parent repository's
+    own tree regardless of whether `git submodule update` ever ran.
+    """
+    result = subprocess.run(  # noqa: S603
+        [_GIT, "ls-tree", "HEAD", "--", path],
+        cwd=repo_root,
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    )
+    match = GITLINK.match(result.stdout)
+    if match is None:
+        msg = f"{path} is declared in .gitmodules but is not a pinned submodule"
+        raise SystemExit(msg)
+    return match["sha"]
+
+
+def submodule_component(path: str, url: str, sha: str) -> dict[str, Any]:
+    """Return the component a vendored, commit-pinned submodule describes."""
+    match = GITHUB_SUBMODULE_URL.match(url)
+    if match is None:
+        msg = f"cannot read the submodule url {url!r}"
+        raise SystemExit(msg)
+    reference = f"pkg:github/{match['owner']}/{match['repo']}@{sha}"
+    return {
+        "type": "library",
+        "bom-ref": reference,
+        "name": match["repo"],
+        "purl": reference,
+        # the sha, not an upstream tag name: see the module docstring for
+        # why a network call to resolve one buys nothing a rebuild can
+        # check, where the sha is what the gitlink already states
+        "version": sha,
+        "scope": "required",
+        "externalReferences": [{"type": "vcs", "url": url}],
+        "properties": [{"name": "btclib:submodule-path", "value": path}],
+    }
+
+
+def submodule_components(repo_root: Path) -> list[dict[str, Any]]:
+    """Return one component per git submodule pinned to a commit.
+
+    `.gitmodules` names the path and the upstream url of every submodule
+    the repository declares; `submodule_commit` reads the commit each is
+    pinned to straight from the tree. A repository with no `.gitmodules`
+    -- btclib itself -- makes this a no-op.
+    """
+    gitmodules = repo_root / ".gitmodules"
+    if not gitmodules.is_file():
+        return []
+
+    config = configparser.ConfigParser()
+    config.read(gitmodules, encoding="utf-8")
+    return [
+        submodule_component(
+            config[section]["path"],
+            config[section]["url"],
+            submodule_commit(repo_root, config[section]["path"]),
+        )
+        for section in config.sections()
+    ]
+
+
+def build_sbom(wheel: Path, sdist: Path, epoch: int, repo_root: Path) -> dict[str, Any]:
     """Return the CycloneDX document describing the two files."""
     metadata = wheel_metadata(wheel)
     name = metadata["Name"]
@@ -301,7 +405,8 @@ def build_sbom(wheel: Path, sdist: Path, epoch: int) -> dict[str, Any]:
         declared = reading(requirement)
         by_name.setdefault(declared.name, []).append(declared)
     components = sorted(
-        (component(readings) for readings in by_name.values()),
+        [component(readings) for readings in by_name.values()]
+        + submodule_components(repo_root),
         key=lambda dependency: str(dependency["bom-ref"]),
     )
     serial = f"{reference}:{file_hash(wheel)}:{file_hash(sdist)}"
@@ -357,7 +462,11 @@ def main(argv: list[str]) -> int:
     dist_dir = Path(argv[1])
     wheel = one_of(dist_dir, "*.whl")
     sdist = one_of(dist_dir, "*.tar.gz")
-    sbom = build_sbom(wheel, sdist, int(epoch))
+    # this file's own location within the checked-out tree, so the
+    # submodule scan finds the repository root regardless of the caller's
+    # working directory
+    repo_root = Path(__file__).resolve().parents[2]
+    sbom = build_sbom(wheel, sdist, int(epoch), repo_root)
 
     # named after the wheel's own first two fields, {distribution} and
     # {version}, so the caller needs to know neither -- which in a
