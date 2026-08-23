@@ -498,6 +498,25 @@ documented at release-notes length in the first place, and are still in
   `analyze`'s two matrix cells are the whole of the checks it
   contributes to a commit.
 
+- **`generate_sbom.py` reads a component from a vendored git submodule's
+  pinned commit, not only from `Requires-Dist`** (issue #1280). A
+  submodule is content a wheel can bake in without declaring it as a
+  Python dependency -- `btclib-secp256k1`'s statically-linked
+  libsecp256k1 is exactly this, and was `RELEASING.md`'s own reason for
+  that sibling shipping no bill of materials. `.gitmodules` names the
+  path and the upstream url of each submodule a repository declares, and
+  `git ls-tree HEAD <path>` reads the commit its gitlink pins regardless
+  of whether the submodule was ever checked out; the component built
+  from the two is a `library` with a `pkg:github/<owner>/<repo>@<sha>`
+  purl and a `vcs` externalReference naming the upstream repository.
+  `version` is the sha rather than an upstream tag name: the sha is what
+  the gitlink states and every commit has one, where resolving a tag
+  would cost a network call this script otherwise makes none of, for a
+  result that may not exist. btclib carries no submodule, so the scan
+  is a no-op on this repository's own release; `RELEASING.md`'s
+  bill-of-materials step is corrected to say so, in place of the
+  limitation it named before.
+
 - **mypy's `enable_error_code` is the organization's list.** The same in
   every repository that runs mypy (btclib-org/.github#165):
   `explicit-override` and `unused-awaitable` enter, and

@@ -31,6 +31,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import runpy
+import shutil
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -40,6 +42,10 @@ from typing import Any
 import pytest
 
 _SCRIPT = Path(__file__).parents[1] / ".github" / "scripts" / "generate_sbom.py"
+
+# resolved once, for the reason generate_sbom.py's own `_GIT` is: a bare
+# "git" in a subprocess list is a partial executable path
+_GIT = shutil.which("git") or "git"
 
 # an instant in August 2026, as SOURCE_DATE_EPOCH carries one: seconds
 _EPOCH = 1786407122
@@ -84,10 +90,64 @@ def write_dist(
 
 
 def sbom(script: ModuleType, directory: Path, **kwargs: Any) -> dict[str, Any]:
-    """Return the document for a dist directory written on the spot."""
+    """Return the document for a dist directory written on the spot.
+
+    `directory` doubles as the repository root the submodule scan reads:
+    a fresh `tmp_path` carries no `.gitmodules` unless a test writes one
+    with `make_submodule_repo` first, which is the no-op every other test
+    here relies on without saying so.
+    """
     wheel, sdist = write_dist(directory, **kwargs)
-    document: dict[str, Any] = script.build_sbom(wheel, sdist, _EPOCH)
+    document: dict[str, Any] = script.build_sbom(wheel, sdist, _EPOCH, directory)
     return document
+
+
+def make_submodule_repo(
+    root: Path,
+    *,
+    url: str = "https://github.com/bitcoin-core/secp256k1.git",
+    sha: str = "6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d",
+    path: str = "secp256k1",
+    commit_gitlink: bool = True,
+) -> Path:
+    """Turn `root` into a git repository declaring one submodule.
+
+    `.gitmodules` and the gitlink are independent facts in git's own
+    model -- the file can be edited without the tree changing what it
+    pins -- so both are written by hand rather than through `git
+    submodule add`, which would need to reach the url it clones.
+    """
+    subprocess.run([_GIT, "init", "-q"], cwd=root, check=True)  # noqa: S603
+    (root / ".gitmodules").write_text(
+        f'[submodule "{path}"]\n\tpath = {path}\n\turl = {url}\n', encoding="utf-8"
+    )
+    subprocess.run(  # noqa: S603
+        [_GIT, "add", ".gitmodules"], cwd=root, check=True
+    )
+    if commit_gitlink:
+        subprocess.run(  # noqa: S603
+            [_GIT, "update-index", "--add", "--cacheinfo", f"160000,{sha},{path}"],
+            cwd=root,
+            check=True,
+        )
+    subprocess.run(  # noqa: S603
+        [
+            _GIT,
+            "-c",
+            "user.email=test@example.org",
+            "-c",
+            "user.name=test",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "-m",
+            "vendor a submodule",
+        ],
+        cwd=root,
+        check=True,
+    )
+    return root
 
 
 def test_the_document_describes_the_distribution(
@@ -269,6 +329,92 @@ def test_a_dependency_split_by_marker_is_one_component(
         {"name": "btclib:requires-dist", "value": requirement}
         for requirement in requirements
     ]
+
+
+def test_a_submodule_pinned_to_a_commit_is_a_component(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A vendored submodule is a component `Requires-Dist` never carries."""
+    make_submodule_repo(tmp_path)
+    document = sbom(script, tmp_path)
+
+    (component,) = document["components"]
+    sha = "6e2c8bc4ecdc6e71dbe7a368f360d8d453ce435d"
+    assert component["type"] == "library"
+    assert component["name"] == "secp256k1"
+    assert component["purl"] == f"pkg:github/bitcoin-core/secp256k1@{sha}"
+    assert component["bom-ref"] == component["purl"]
+    assert component["version"] == sha
+    assert component["scope"] == "required"
+    assert component["externalReferences"] == [
+        {"type": "vcs", "url": "https://github.com/bitcoin-core/secp256k1.git"}
+    ]
+    assert component["properties"] == [
+        {"name": "btclib:submodule-path", "value": "secp256k1"}
+    ]
+
+
+def test_a_submodule_ssh_url_is_read_too(script: ModuleType, tmp_path: Path) -> None:
+    """The form `git submodule add` writes for a private remote."""
+    make_submodule_repo(tmp_path, url="git@github.com:bitcoin-core/secp256k1.git")
+    document = sbom(script, tmp_path)
+
+    (component,) = document["components"]
+    assert component["name"] == "secp256k1"
+    assert component["purl"].startswith("pkg:github/bitcoin-core/secp256k1@")
+
+
+def test_a_submodule_url_that_is_not_github_stops_it(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """Refused rather than guessed at, an unreadable url's own rule."""
+    make_submodule_repo(tmp_path, url="https://gitlab.com/o/r.git")
+
+    with pytest.raises(SystemExit, match="cannot read the submodule url"):
+        sbom(script, tmp_path)
+
+
+def test_a_submodule_without_a_gitlink_stops_it(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A path `.gitmodules` names but the tree does not pin is not skipped."""
+    make_submodule_repo(tmp_path, commit_gitlink=False)
+
+    with pytest.raises(SystemExit, match="is not a pinned submodule"):
+        sbom(script, tmp_path)
+
+
+def test_submodule_components_is_a_no_op_for_this_repository(
+    script: ModuleType,
+) -> None:
+    """Btclib vendors no submodule, so a scan of its own tree finds none."""
+    assert script.submodule_components(_SCRIPT.parents[2]) == []
+
+
+def test_a_submodule_component_sorts_beside_requires_dist_components(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """One `components` list, sorted by `bom-ref` across both sources."""
+    make_submodule_repo(tmp_path)
+    document = sbom(script, tmp_path, requirements=("btclib_secp256k1>=0.8.0",))
+
+    refs = [c["bom-ref"] for c in document["components"]]
+    assert refs == sorted(refs)
+    names = {c["name"] for c in document["components"]}
+    assert names == {"secp256k1", "btclib-secp256k1"}
+
+
+def test_the_dependency_graph_names_a_submodule_component(
+    script: ModuleType, tmp_path: Path
+) -> None:
+    """A submodule component is a dependency the root depends on too."""
+    make_submodule_repo(tmp_path)
+    document = sbom(script, tmp_path)
+
+    (component,) = document["components"]
+    root, *leaves = document["dependencies"]
+    assert component["bom-ref"] in root["dependsOn"]
+    assert leaves == [{"ref": component["bom-ref"], "dependsOn": []}]
 
 
 def test_the_references_of_a_document_are_distinct(

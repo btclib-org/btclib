@@ -478,23 +478,25 @@ to `deps-latest`'s own result.
    bill of materials there would be an empty `components` list restating
    a fact CI checks more directly. btclib-secp256k1's interesting
    dependency is the vendored libsecp256k1 C library at the commit its
-   `secp256k1` submodule pins, which this generator cannot describe — it
-   reads `Requires-Dist`, and the submodule is not a Python dependency.
-   That holds for both wheel kinds it ships and not only the static one:
-   a static build links the library into the extension, a dynamic
-   (ABI-mode) build ships it as a shared object beside the extension
-   instead, and `Requires-Dist` says nothing about the pin either way.
-   Naming the linkage would invite the opposite conclusion, that the
-   dynamic build escapes the gap — where what is missing is the pinned
-   commit however the object code arrives.
-   A bill of materials built the way this one is
-   would name `cffi` and say nothing about the pin a verifier of that
-   package would most want described, which is worse than omitting the
-   document. Issue #1159 has the evaluation. What would change it is
-   btclib-org/.github#24, open because the premise is this repository's
-   own script: `generate_sbom.py` learning to describe a component
-   `Requires-Dist` cannot express would put the asymmetry above back in
-   question.
+   `secp256k1` submodule pins. That holds for both wheel kinds it ships
+   and not only the static one: a static build links the library into the
+   extension, a dynamic (ABI-mode) build ships it as a shared object
+   beside the extension instead, and `Requires-Dist` says nothing about
+   the pin either way. Naming the linkage would invite the opposite
+   conclusion, that the dynamic build escapes the gap — where what is
+   missing is the pinned commit however the object code arrives. A bill
+   of materials built from `Requires-Dist` alone would name `cffi` and
+   say nothing about the pin a verifier of that package would most want
+   described, which is worse than omitting the document — issue #1159
+   has that evaluation.
+
+   `generate_sbom.py` no longer has the limitation that evaluation rested
+   on: it reads a commit-pinned submodule from `.gitmodules` and the
+   tree's own gitlink, and reports it as a `pkg:github/<owner>/<repo>@<sha>`
+   component (issue #1280). The premise `btclib-org/.github#24` named as
+   what would reopen the question has therefore changed; whether
+   btclib-secp256k1 adopts this and what its own `RELEASING.md` then says
+   is that repository's decision, tracked at issue #1159.
 
 1. Read the release run's `published` job, which is this workflow called
    with the tag rather than a dispatch to remember: it has no checkout, so
