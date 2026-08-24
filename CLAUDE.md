@@ -84,10 +84,18 @@ the permitted side of *never work in it*, not an exception to it. Stop if
 the checkout is not on `main` or is not clean: that is no longer bringing
 it forward.
 
-**Every session works in a worktree**, its own, from the first edit:
+**Every session works in a worktree**, its own, from the first edit,
+named `wt-<tracker>-<issue>-<repo>-<role>` rather than after the issue
+alone: a worktree's administrative directory lives in the one shared
+`.git`, keyed on its path's basename, and one issue is routinely owed by
+several repositories of the organization, so a name that dropped the
+repository collided silently between them. `issue` is what prevents a
+collision between two different issues sharing a generic name; `role`
+covers a coder and its reviewer holding a worktree at once, which the
+ordinary sequence avoids by each removing its own.
 
 ```shell
-WT=<scratchpad>/wt<issue>
+WT=<scratchpad>/wt-<tracker>-<issue>-<repo>-<role>  # wt-github-255-btclib-coder
 git worktree add -b <branch> "$WT" origin/main
 cd "$WT" && uv sync --locked          # a second venv, about a minute
 # edit, gate and commit here, then

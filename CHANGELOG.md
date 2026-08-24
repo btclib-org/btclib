@@ -527,6 +527,15 @@ documented at release-notes length in the first place, and are still in
   paragraph now names `git show origin/main:<path>` as the read that
   does not go stale, and gives the fast-forward that brings a clean
   checkout forward without working in it (btclib-org/.github#255).
+- **`CLAUDE.md`'s worktree recipe named the worktree after the issue
+  alone, `wt<issue>`.** A worktree's administrative directory lives in
+  the one shared `.git`, keyed on its path's basename, and one issue is
+  routinely owed by several repositories of the organization, so a
+  session working this repository against such an issue computed the
+  same name a sibling repository's session was computing too, with no
+  error and a silent collision. The recipe now names the worktree
+  `wt-<tracker>-<issue>-<repo>-<role>`, most general part first
+  (btclib-org/.github#292).
 
 ### Packaging, linting and CI
 
