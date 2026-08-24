@@ -527,6 +527,21 @@ documented at release-notes length in the first place, and are still in
   paragraph now names `git show origin/main:<path>` as the read that
   does not go stale, and gives the fast-forward that brings a clean
   checkout forward without working in it (btclib-org/.github#255).
+- **`CLAUDE.md`'s worktree recipe named the worktree after the issue
+  alone, `wt<issue>`.** A worktree's administrative directory lives in
+  the `.git` of the repository `git worktree add` was run from, one per
+  repository, so two repositories cannot collide there; what the recipe
+  left uncovered was a same-repository collision, between two worktrees
+  of different work sharing a generic basename, and a *path* collision
+  across repositories, since the workers of one session share one
+  scratchpad directory and a session carrying one issue into several
+  repositories computed the same target path for each. The recipe now
+  names the worktree `wt-<tracker>-<issue>-<repo>-<role>`, most general
+  part first: `tracker` because an issue number is unique only within
+  one tracker, `issue` against the same-repository collision, `repo`
+  against the cross-repository path collision, and `role` against a
+  coder and its reviewer holding a worktree at once
+  (btclib-org/.github#292).
 
 - **`README.md` ends with the line naming who supports the work.** The
   organization standard states the line as tier 1's, for the reason
