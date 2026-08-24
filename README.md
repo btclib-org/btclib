@@ -345,3 +345,8 @@ PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 [CONTRIBUTING](./CONTRIBUTING.md) is for development,
 [REVIEWING](./REVIEWING.md) for what a pull request is answered against,
 [SECURITY](./SECURITY.md) for reporting a vulnerability.
+
+---
+
+The btclib organization and its projects are actively supported by
+[DGI](https://dgi.io) and [CheckSig](https://checksig.com).

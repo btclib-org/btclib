@@ -528,6 +528,12 @@ documented at release-notes length in the first place, and are still in
   does not go stale, and gives the fast-forward that brings a clean
   checkout forward without working in it (btclib-org/.github#255).
 
+- **`README.md` ends with the line naming who supports the work.** The
+  organization standard states the line as tier 1's, for the reason
+  `SECURITY.md` is: the archive leaves github.com, and a reader who has
+  it and not the repository meets the project with no organization
+  beside it (btclib-org/.github#98).
+
 ### Packaging, linting and CI
 
 - **`check-sdist` builds the archive with the backend `[build-system]`
