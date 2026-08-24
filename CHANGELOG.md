@@ -529,12 +529,18 @@ documented at release-notes length in the first place, and are still in
   checkout forward without working in it (btclib-org/.github#255).
 - **`CLAUDE.md`'s worktree recipe named the worktree after the issue
   alone, `wt<issue>`.** A worktree's administrative directory lives in
-  the one shared `.git`, keyed on its path's basename, and one issue is
-  routinely owed by several repositories of the organization, so a
-  session working this repository against such an issue computed the
-  same name a sibling repository's session was computing too, with no
-  error and a silent collision. The recipe now names the worktree
-  `wt-<tracker>-<issue>-<repo>-<role>`, most general part first
+  the `.git` of the repository `git worktree add` was run from, one per
+  repository, so two repositories cannot collide there; what the recipe
+  left uncovered was a same-repository collision, between two worktrees
+  of different work sharing a generic basename, and a *path* collision
+  across repositories, since the workers of one session share one
+  scratchpad directory and a session carrying one issue into several
+  repositories computed the same target path for each. The recipe now
+  names the worktree `wt-<tracker>-<issue>-<repo>-<role>`, most general
+  part first: `tracker` because an issue number is unique only within
+  one tracker, `issue` against the same-repository collision, `repo`
+  against the cross-repository path collision, and `role` against a
+  coder and its reviewer holding a worktree at once
   (btclib-org/.github#292).
 
 ### Packaging, linting and CI
