@@ -84,19 +84,19 @@ for 1375 of 2100 seconds — so a pull request's wall clock was the wait
 for a slot and not the work. That is the measurement the gate and the
 weekly sweeps are arranged around.
 
-`codeql.yml` carries no required check at all, and that is the one place
-a check was traded for the wait it cost. It runs on `main` and on its
-schedule rather than on a pull request, the analysis landing on the merge
-commit rather than ahead of it — and a required check has to report on
-the pull request's own run, which this trigger never produces. Section 10
-of `btclib-org/.github`'s README.md is where that rule, and the aggregate
-job it stops this workflow from needing, are written down.
+`codeql.yml` carries no required check at all. It runs on `main`, on its
+schedule and on every pull request now — the OpenSSF Scorecard's `SAST`
+check is why, and `codeql.yml`'s own `on:` block comment carries that
+story — but neither cell of its `analyze` job's matrix can be named in
+the branch rule on its own, the bullet above being why, and the workflow
+has no aggregate job that could be. The Code scanning section below
+states that in its own terms, at the point where default setup's own
+`CodeQL` context is dropped from the rule instead.
 
-What still reads a branch before it merges is the workflow half of the same
-question: `zizmor` is a pre-commit hook, so `lint.yml` audits these very
-files for an injected expression on every pull request, and that check is
-required. What a merge now defers is the rest of the analysis, for the time
-between that merge and the next run — which for `main` is the merge itself.
+What still reads a branch before it merges, `codeql.yml` itself included
+now, is the workflow half of the same question: `zizmor` is a pre-commit
+hook, so `lint.yml` audits these very files for an injected expression on
+every pull request, and that check is required.
 
 Renaming or dropping a required check is the one change that cannot be made
 in a pull request: the workflow in the branch stops producing the name while
