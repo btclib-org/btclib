@@ -1852,6 +1852,18 @@ documented at release-notes length in the first place, and are still in
   exempts `__init__` and a magic method, and the previous wording gave
   only the reason each is exempt without saying that (issue #1318).
 
+- **`release.yml` gains a `public-api` job that runs `griffe check`
+  between the previous `v*` tag and the one being cut, or the working
+  tree on a `workflow_dispatch` rehearsal.** A break it finds fails the
+  job — `RELEASE_NOTES.md`'s breaking-changes list is what a maintainer
+  seeing the failure is pointed at — and `publish-testpypi` and
+  `publish-pypi` both depend on it, so an unreleased break blocks
+  publication the same way a failing platform sweep already does. Where
+  no `v*` tag is reachable the step is skipped with a log line rather
+  than failing, there being nothing to compare against. Section 12 of
+  the organization standard leaves both choices to this tree
+  (issue #1347, btclib-org/.github#326).
+
 ### Documentation and the website
 
 - **`.readthedocs.yaml` justifies its own name with the setting that
