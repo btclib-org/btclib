@@ -763,7 +763,7 @@ def test_the_root_publishes_every_top_level_module() -> None:
 
     The list is written out rather than discovered -- a declaration is a
     list somebody edited -- and this is the other half of that: a module
-    added to `btclib/` and not published here would be a group the command
+    added to `src/btclib/` and not published here would be a group the command
     line cannot reach and a name `getattr(btclib, ...)` cannot answer,
     where a discovered list would have published it without anybody
     deciding to.

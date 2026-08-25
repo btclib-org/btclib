@@ -1,5 +1,5 @@
 # The shared codec helpers, mutated. Nearly every other profile in this
-# directory calls into `btclib/utils.py`: `decode_num`/`encode_num` are the
+# directory calls into `src/btclib/utils.py`: `decode_num`/`encode_num` are the
 # script-number codec the engine and `Tx.height` both read, `int_from_bits`
 # is the RFC 6979 bit-string-to-int helper `borromean`, `ssa` and the other
 # deterministic-nonce modules share, and `read_exactly`/`assert_no_trailing`
@@ -9,7 +9,7 @@
 # 100% statement coverage, and whether the suite would notice a wrong bound.
 
 [cosmic-ray]
-module-path = "btclib/utils.py"
+module-path = "src/btclib/utils.py"
 
 # tests/utils_test.py exercises decode_num/encode_num, read_exactly,
 # assert_no_trailing, hex_string and int_from_bits directly -- it

@@ -5,7 +5,7 @@
 """Tests for the parse contract every `parse` in btclib owes its caller.
 
 One file rather than a case per module, because the rule is one and
-`btclib/utils.py` states it: a field is as long as its encoding says, a
+`src/btclib/utils.py` states it: a field is as long as its encoding says, a
 complete octet string is one whole object, and a caller's stream is the
 caller's. What the tests hold every parser to is that none of the three
 depends on `check_validity`, which is an opinion about what the bytes
@@ -464,7 +464,7 @@ _EXCLUDED = {
         " to one. `parse` takes `Octets` for the same reason, a stream"
         " being unable to say whether the next octet is the flag or the"
         " next message, so the third property has no stream to be about"
-        " either. btclib/p2p/handshake.py states both, and"
+        " either. src/btclib/p2p/handshake.py states both, and"
         " tests/p2p/handshake_test.py drives what is true instead"
     ),
     "btclib.ecc.ecies.Envelope": (

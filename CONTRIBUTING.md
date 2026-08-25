@@ -253,7 +253,7 @@ like anything else: `uv.lock` pins a version and its wheels, every job
 passes `--locked`, and `uv sync` downloads rather than compiling
 libsecp256k1 in each environment. The floor is then the whole of the
 coordination with that sibling, and it carries weight the specifier
-alone does not show: `btclib/_libsecp256k1.py` imports the bindings'
+alone does not show: `src/btclib/_libsecp256k1.py` imports the bindings'
 surface in a single `try` whose `except ImportError` sets
 `INSTALLED = False`, so an install that resolves one release short of
 what this tree imports does not lose the entry point it is missing — it
@@ -371,7 +371,7 @@ These requirements are easily checked (and partially fixed) with:
 ```shell
 uv run ruff check --fix
 uv run ruff format
-uv run mypy btclib tests .github/scripts
+uv run mypy src/btclib tests .github/scripts
 uv run pytest
 ```
 
@@ -784,7 +784,7 @@ serves.
 `install-published` installs btclib itself from PyPI, nothing checked
 out, and asks whether it works rather than whether it installs:
 `import btclib` runs `__init__.py` alone, and the files under
-`btclib/*/_data/` — the wordlists among them — are opened by path at the
+`src/btclib/*/_data/` — the wordlists among them — are opened by path at the
 first call that needs one, not imported, so a wheel missing one would
 pass the import and fail only here. This install names no extra, so the
 bindings are not asked for and the job is not entitled to assert they
@@ -937,7 +937,7 @@ here.
 gates nothing: it downloads a pinned emulator binary from
 `data.trezor.io` beside the same node, checks its sha256, installs a
 pinned HWI in an interpreter of its own — HWI declares `^3.9,<3.13`, and
-`btclib/hwi.py` says why it is a program here rather than a dependency —
+`src/btclib/hwi.py` says why it is a program here rather than a dependency —
 loads the seed HWI's own suite uses over DebugLink, and runs:
 
 ```shell
@@ -959,7 +959,7 @@ headless is trezor's day rather than the branch's, and a workflow that
 never triggers on a pull request produces no check there, not even a
 skipped one — so it runs weekly, on a push to `main`, and on
 `gh workflow run integration-hwi.yml --ref <branch>`, which is how a
-branch touching `btclib/hwi.py` is checked before it lands.
+branch touching `src/btclib/hwi.py` is checked before it lands.
 
 `HWI against a Ledger emulator` is the second of the two, and it costs
 more because a Ledger does. There is no published app binary, so the job
@@ -1080,10 +1080,10 @@ Three consequences worth knowing before editing any of them:
   btclib.org and the PyPI project page.
 - **every other file in main's root is a URL under btclib.org** unless
   `_config.yml`'s `exclude:` says otherwise, the library itself included:
-  drop that list's `btclib/` and `pyproject.toml` entries and
-  `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` answer with
-  their own contents. A new top-level file is published by default; add it
-  to `exclude:` if it should not be.
+  drop that list's `src/` and `pyproject.toml` entries and
+  `btclib.org/pyproject.toml` and `btclib.org/src/btclib/alias.py` answer
+  with their own contents. A new top-level file is published by default;
+  add it to `exclude:` if it should not be.
 - **the build is the classic Pages builder** (`build_type: legacy`), so
   there are no build logs and no control over the Jekyll or theme version.
   A broken template fails silently: the layout served
@@ -1159,8 +1159,8 @@ name it imported belongs to the module that defines it, and
 
 `btclib.__all__` is the root of that tree: every top-level module and
 package, imported on demand by the module `__getattr__` in
-`btclib/__init__.py`. A module added to `btclib/` is added there too, and
-the suite says so — the list is written out rather than discovered,
+`src/btclib/__init__.py`. A module added to `src/btclib/` is added there
+too, and the suite says so — the list is written out rather than discovered,
 because a discovered one would publish a new module without anybody
 deciding to.
 
@@ -1392,7 +1392,7 @@ one difference the pair exists for.
 The exception is a boundary at which nothing can be invalid, and it is
 named rather than passed over: where a class's invariants are exactly the
 widths of its fields, the decoding enforces them by construction and the
-check is unreachable by design rather than missing. `btclib/utils.py`'s
+check is unreachable by design rather than missing. `src/btclib/utils.py`'s
 docstring is where that rule is written down, `OutPoint` and `TxIn` being
 the classes it holds for.
 

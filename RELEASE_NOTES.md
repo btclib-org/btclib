@@ -257,6 +257,18 @@ full year, short month, short day (YYYY-M-D)
   answer rather than an error, and one that had compensated by reversing
   the octets itself has to stop doing so. CHANGELOG.md has why.
 
+- **The importable package moved from the repository root to
+  `src/btclib/`** (issue #1322). `import btclib` resolves exactly as it
+  did for anything installed from PyPI or from a built wheel; what moved
+  is the checkout. A checkout is no longer importable straight from its
+  own root, and a path inside this repository that named the package
+  directly — `btclib/…` — now reads `src/btclib/…`.
+
+  Act on it if your tooling imports from a checkout of this repository
+  rather than from an installed distribution, or reads the package's
+  path directly rather than through `import btclib`. CHANGELOG.md has
+  every file the move touched.
+
 ### Worth knowing, though nothing raises
 
 - **A `bytearray` and a `memoryview` are octets, and now the signatures

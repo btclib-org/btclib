@@ -1,7 +1,7 @@
 # Vendored test vectors
 
 This file is about `tests/**/_data/`, plus the one shipped data file that
-nothing else pins: `btclib/mnemonic/_data/wordlist.txt`, SLIP-0039's word
+nothing else pins: `src/btclib/mnemonic/_data/wordlist.txt`, SLIP-0039's word
 list. It is here because a word list is the most load-bearing vendored
 file there is -- every share ever written with it decodes through it --
 and because, unlike `english.txt`, it has no byte-identical copy under
@@ -9,7 +9,7 @@ and because, unlike `english.txt`, it has no byte-identical copy under
 have no entry because each is already pinned somewhere else or not at
 all: `english.txt` through the test copy below,
 `electrum_old_english.txt` and `electrum_portuguese.txt` through the
-pins `btclib/mnemonic/electrum.py` carries beside the constants naming
+pins `src/btclib/mnemonic/electrum.py` carries beside the constants naming
 them, and `italian.txt` and the eleven other BIP39 lists nowhere, which
 is a gap rather than a statement about them.
 
@@ -231,7 +231,7 @@ each file is as load-bearing as the valid half.
 
 What the files are measured against is `bip-0327/reference.py`, pinned
 separately at `9297c12729670d09f9149ec6d8bad967d8161bfe` (2025-10-03,
-the tip of that path): `btclib/ecc/musig2.py` follows it function for
+the tip of that path): `src/btclib/ecc/musig2.py` follows it function for
 function, and copies four of its error message strings verbatim
 because the `error.message` field of a case is compared byte for byte.
 That file is not vendored — it is an implementation, not data, and
@@ -1505,7 +1505,7 @@ Portuguese sentence into the English word it is one letter away from.
 
 Pulled 2026-08-02.
 
-### `btclib/mnemonic/_data/wordlist.txt`
+### `src/btclib/mnemonic/_data/wordlist.txt`
 
 ```text
 repo    satoshilabs/slips
@@ -1579,7 +1579,7 @@ dispatch being switched off, and are run once rather than twice.
 The SHAKE files need one thing the others do not, and it is a type
 rather than a reader: `hashlib.shake_128` is not a `HashF`, an
 extendable-output function having no output length of its own, so
-`_PinnedXof` in that module pins one and `btclib/alias.py` says why the
+`_PinnedXof` in that module pins one and `src/btclib/alias.py` says why the
 library does not. The pinned length is `n_size` and any length above it
 is the same test, `challenge_` reading the leftmost `nlen` bits of a
 digest whose longer forms have these very bytes as their prefix --
@@ -2043,9 +2043,9 @@ spesmilo/electrum:
 
 The word-list they run over has no entry here, and being outside
 `tests/` is not the reason -- `wordlist.txt` is outside it and has one.
-`btclib/mnemonic/_data/electrum_old_english.txt` is pinned where it is
+`src/btclib/mnemonic/_data/electrum_old_english.txt` is pinned where it is
 used: it is shipped code, transcribed from the `_words` tuple of
-`electrum/old_mnemonic.py`, and `btclib/mnemonic/electrum.py` carries
+`electrum/old_mnemonic.py`, and `src/btclib/mnemonic/electrum.py` carries
 that pin beside the constant that names the file.
 
 Pulled 2018-06-11; the pre-2.0 values 2026-08-02.
@@ -2149,7 +2149,7 @@ summarized, and the tree answers whenever the number is wanted:
 
 ```shell
 git ls-files 'tests/_data/*' 'tests/*/_data/*' \
-    btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
+    src/btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
 ```
 
 Against a pinned upstream blob:

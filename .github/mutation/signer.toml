@@ -15,9 +15,9 @@
 # sharing one command would make every mutant here pay for a fake
 # `hwi.py` being started twenty times
 module-path = [
-    "btclib/psbt_signer.py",
-    "btclib/psbt_signer_contract.py",
-    "btclib/tx_or_psbt.py",
+    "src/btclib/psbt_signer.py",
+    "src/btclib/psbt_signer_contract.py",
+    "src/btclib/tx_or_psbt.py",
 ]
 
 # the three modules' own files plus tests/software_signer_test.py, which
@@ -39,8 +39,8 @@ excluded-modules = []
 # same measured reason: the only `|` in these three modules are in
 # annotations --
 #
-#   grep -n ' | ' btclib/psbt_signer.py btclib/psbt_signer_contract.py \
-#       btclib/tx_or_psbt.py
+#   grep -n ' | ' src/btclib/psbt_signer.py src/btclib/psbt_signer_contract.py \
+#       src/btclib/tx_or_psbt.py
 #
 # -- and the first session here, run unfiltered, executed 110 BitOr
 # mutants of which not one was killed

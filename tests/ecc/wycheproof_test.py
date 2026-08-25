@@ -54,7 +54,7 @@ path `SECURITY.md` publishes as not constant-time, under an adversary for
 the first time.
 
 The SHAKE files arrive through an adapter, `_PinnedXof` below, because an
-extendable-output function is not a `HashF` and `btclib/alias.py` states
+extendable-output function is not a `HashF` and `src/btclib/alias.py` states
 that it is not: a SHAKE's `digest()` takes the output length that a
 `HashObject`'s does not declare, and its `digest_size` reads 0. The
 adapter pins a length rather than the library growing one, and it is
@@ -262,7 +262,7 @@ class _PinnedXof:
     A test's adapter, deliberately not a library one. `HashF` admitting
     an XOF would admit it to `dsa.sign` as well, whose nonce is RFC6979
     -- HMAC, which over an XOF is not defined -- and would answer inside
-    a test module a question `btclib/alias.py` states the answer to.
+    a test module a question `src/btclib/alias.py` states the answer to.
     """
 
     def __init__(self, xof: _Xof, size: int) -> None:

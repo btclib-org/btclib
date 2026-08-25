@@ -14,7 +14,7 @@ name: integration-hwi
 # job appears on a pull request's checks, running or skipped: the
 # schedule asks the question weekly, the push to main asks it of the
 # commit a merge created, and the dispatch button is how a branch
-# touching btclib/hwi.py gets the answer before it lands -- `gh workflow
+# touching src/btclib/hwi.py gets the answer before it lands -- `gh workflow
 # run integration-hwi.yml --ref <branch>` runs that branch's copy of
 # this file.
 #
@@ -103,7 +103,7 @@ jobs:
         alcohol woman abuse must during monitor noble actual mixed trade
         anger aisle
       # HWI declares ^3.9,<3.13 and is run as a program rather than
-      # imported (btclib/hwi.py says why, and issue #469 why there is no
+      # imported (src/btclib/hwi.py says why, and issue #469 why there is no
       # extra), so it gets an interpreter of its own here: uv fetches
       # 3.12, and nothing about the environment the tests run in changes
       HWI_VERSION: "3.2.0"

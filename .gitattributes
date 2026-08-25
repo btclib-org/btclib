@@ -34,4 +34,4 @@ RELEASE_NOTES.md merge=union
 # whitespace errors", and `git diff --check` calls them an error of ours.
 # `-whitespace` turns both off, for the one path whose bytes are not ours to
 # choose.
-btclib/mnemonic/_data/electrum_portuguese.txt -whitespace
+src/btclib/mnemonic/_data/electrum_portuguese.txt -whitespace

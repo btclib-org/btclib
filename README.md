@@ -310,7 +310,7 @@ client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
 and `TxOut`, and checks the chain the node reports against the network
 those are labelled for.
 
-The dependency stops at `btclib/fetch/` and at `btclib/p2p/magic.py`,
+The dependency stops at `src/btclib/fetch/` and at `src/btclib/p2p/magic.py`,
 which is where the p2p message start is — that package's table, not a
 second copy of it. bitcoin-core-rpc declares its own `FetchError`,
 importing nothing of btclib's being what lets its file be vendored, and

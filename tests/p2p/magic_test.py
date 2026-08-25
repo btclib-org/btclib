@@ -41,7 +41,7 @@ def test_the_aliases_are_the_packages_own_objects() -> None:
 
     The identity is the point: a second copy of the table would be a
     second thing to keep in step with Core, which is the argument
-    `btclib/network.py` already made for not having one here.
+    `src/btclib/network.py` already made for not having one here.
     """
     assert magic_from_chain is bitcoin_core_rpc.magic_from_chain
     assert magic_from_signet_challenge is bitcoin_core_rpc.magic_from_signet_challenge
@@ -122,7 +122,7 @@ def test_the_default_signet_challenge_derives_the_tabulated_magic() -> None:
 
 
 def test_the_package_publishes_the_three_without_importing_them() -> None:
-    """PEP 562 here, as in `btclib/script/__init__.py`, and why.
+    """PEP 562 here, as in `src/btclib/script/__init__.py`, and why.
 
     Reaching `bitcoin_core_rpc` brings `urllib.request`, `ssl` and
     `socket` with it, and a codec has no use for any of them --

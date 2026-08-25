@@ -92,7 +92,7 @@ from btclib.tx.tx_out import TxOut
 # What a btclib parser is allowed to raise. Anything else -- an
 # IndexError off a short slice, an OverflowError off an unchecked size,
 # a KeyError, a UnicodeDecodeError -- leaves the contract that
-# btclib/exceptions.py documents, and reaches a caller who wrote
+# src/btclib/exceptions.py documents, and reaches a caller who wrote
 # `except BTClibValueError` to reject bad input and has no reason to
 # expect anything else
 CONTRACT = (BTClibValueError, BTClibTypeError, BTClibRuntimeError)

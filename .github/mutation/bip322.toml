@@ -7,7 +7,7 @@
 # the suite would notice a wrong boundary before somebody else finds one.
 
 [cosmic-ray]
-module-path = "btclib/bip322.py"
+module-path = "src/btclib/bip322.py"
 
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/bip322_test.py"
 

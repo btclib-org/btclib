@@ -13,12 +13,12 @@
 # judged by the same two test files. Named one by one for that reason,
 # where descriptors.toml and wallet.toml can name their directory
 module-path = [
-    "btclib/psbt/psbt.py",
-    "btclib/psbt/psbt_in.py",
-    "btclib/psbt/psbt_out.py",
-    "btclib/psbt/psbt_utils.py",
-    "btclib/psbt/psbt_size.py",
-    "btclib/psbt/__init__.py",
+    "src/btclib/psbt/psbt.py",
+    "src/btclib/psbt/psbt_in.py",
+    "src/btclib/psbt/psbt_out.py",
+    "src/btclib/psbt/psbt_utils.py",
+    "src/btclib/psbt/psbt_size.py",
+    "src/btclib/psbt/__init__.py",
 ]
 
 # tests/psbt, which covers these six to a single line -- measured with
@@ -51,9 +51,9 @@ excluded-modules = []
 # instead of the rule. 913 of the 3524 mutants are `|`, and all but two
 # lines' worth of them are annotations:
 #
-#   grep -n ' | ' btclib/psbt/psbt.py btclib/psbt/psbt_in.py \
-#       btclib/psbt/psbt_out.py btclib/psbt/psbt_utils.py \
-#       btclib/psbt/psbt_size.py btclib/psbt/__init__.py
+#   grep -n ' | ' src/btclib/psbt/psbt.py src/btclib/psbt/psbt_in.py \
+#       src/btclib/psbt/psbt_out.py src/btclib/psbt/psbt_utils.py \
+#       src/btclib/psbt/psbt_size.py src/btclib/psbt/__init__.py
 #
 # The two are `_tx_modifiable`'s `INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE`
 # and the mask that combines two flag bytes below it, and the unfiltered

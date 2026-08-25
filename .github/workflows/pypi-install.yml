@@ -9,8 +9,8 @@ name: pypi-install
 # index and not to a source tree.
 #
 # `import btclib` runs __init__.py alone, and the data files under
-# btclib/ -- `git ls-files | grep '^btclib/.*_data/'` is which, the BIP39
-# wordlists among them -- are opened by path at the first call that needs
+# btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which, the
+# BIP39 wordlists among them -- are opened by path at the first call that needs
 # one, not imported, so a wheel missing one of them installs cleanly,
 # imports cleanly, and only fails there. test.yml's dist job shares that
 # blind spot with its own smoke test; this workflow's second check is the
@@ -40,7 +40,7 @@ name: pypi-install
 # installs and works; it has not asked the index for the bindings and
 # cannot ask whether they serve. install-published-secp256k1 names the
 # extra a user who wants the bindings actually types, and is the one this
-# workflow lacked until issue #1143: `btclib/_libsecp256k1.py` answers a
+# workflow lacked until issue #1143: `src/btclib/_libsecp256k1.py` answers a
 # resolution it cannot import with `INSTALLED = False`, no error and no
 # warning, so a pair broken on the index degrades silently to the Python
 # arithmetic -- tens of times slower, not constant-time -- rather than

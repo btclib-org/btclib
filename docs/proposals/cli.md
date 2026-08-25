@@ -22,8 +22,8 @@ Three audiences, in the order they matter:
    cross-checks against Bitcoin Core's `bitcoin-cli` where both tools
    answer the same question.
 
-What it is not for is being a wallet. `btclib/keystore.py` already draws
-that line for the library — no utxo tracking, no balances, no persistence
+What it is not for is being a wallet. `src/btclib/keystore.py` already
+draws that line for the library — no utxo tracking, no balances, no persistence
 to disk, no encryption at rest — and the command line inherits it whole:
 a tool that cannot see the chain cannot spend, and one that writes no
 file cannot remember. Every command is a pure function of its arguments,
@@ -235,8 +235,8 @@ the statement of why, not the name.
 **Too much.** Each of these is used nowhere outside its own package:
 
 ```shell
-grep -rn "\bserialize_bytes\b" --include="*.py" btclib \
-    | grep -v "^btclib/psbt/"
+grep -rn "\bserialize_bytes\b" --include="*.py" src/btclib \
+    | grep -v "^src/btclib/psbt/"
 ```
 
 - nine `psbt_utils` names in `psbt.__all__` — `serialize_bytes`,
@@ -248,7 +248,7 @@ grep -rn "\bserialize_bytes\b" --include="*.py" btclib \
   `btclib psbt deserialize-int`;
 - twelve flattened helpers in `mnemonic.__all__`, the nine
   `bin_str_entropy_from_*` among them, none of them used outside
-  `btclib/mnemonic/`. The flattening is also why those names are so
+  `src/btclib/mnemonic/`. The flattening is also why those names are so
   long: it dropped the module that said "entropy", so every name has to
   say it again;
 - `ecc.bip340_nonce_`, a trailing-underscore expert variant sitting at
@@ -328,7 +328,7 @@ and it is not part of this proposal.
 
 ## Argument and option types
 
-`btclib/alias.py` is already the list of what the public API accepts, so
+`src/btclib/alias.py` is already the list of what the public API accepts, so
 it is also the list of parameter types the command line needs. One click
 `ParamType` per alias, and no ad-hoc conversion anywhere else:
 
@@ -427,7 +427,7 @@ measured, on click 8.4.2 and Python 3.10:
 - it ships `py.typed`, and a three-level nested-group sample with typed
   callbacks passes `mypy --strict` with no ignore;
 - `click.echo` is not `print`, so ruff's T20 stays enforced over the
-  whole tree and `btclib/mnemonic/entropy.py` keeps being the only file
+  whole tree and `src/btclib/mnemonic/entropy.py` keeps being the only file
   that writes to a stream of its own;
 - help output wraps at 80 columns whatever the terminal is — run with
   `COLUMNS=200`, no line exceeded 76 — which is the width MD013 and
@@ -459,7 +459,7 @@ already are.
 
 ## Packaging and layering
 
-**A separate repository, not `btclib/cli/`.** Issue #357 is the
+**A separate repository, not `src/btclib/cli/`.** Issue #357 is the
 decision, reversing what this section used to argue: the command line
 is its own project, depending on published btclib releases the way any
 other consumer does, rather than a subpackage of this one. What

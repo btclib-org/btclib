@@ -19,12 +19,12 @@ What the flag *does* when nobody passes it is the other half, and the same
 kind of rule: every default is True, so a caller who says nothing gets the
 check. Nothing held any of those defaults to it -- the mutation profile of
 issue #327 reported one survivor per default and per `if check_validity:`
-in `btclib/tx/` -- and the tests at the end of this module are what does,
+in `src/btclib/tx/` -- and the tests at the end of this module are what does,
 over the wire-format classes that profile measures.
 
 Which of the three boundaries a class can be asked about is not this
 file's to decide, and the exclusion sets below are not where that rule
-is written: it is in `btclib/utils.py`, beside the parse contract, and a
+is written: it is in `src/btclib/utils.py`, beside the parse contract, and a
 class missing from one of these lists is a class whose invariants its
 encoding already enforces rather than one nobody got round to.
 """
@@ -49,7 +49,7 @@ from btclib.tx import TxIn, TxOut
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 
-PACKAGE = pathlib.Path(__file__).parent.parent / "btclib"
+PACKAGE = pathlib.Path(__file__).parent.parent / "src" / "btclib"
 
 
 def _signatures() -> list[tuple[str, int, str, list[str], list[str]]]:
@@ -182,7 +182,7 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
 # asked about, 32 octets of tx_id and four of vout being an outpoint
 # whatever they hold, and a `TxIn` has no child that has one. The rule
 # that makes that a type in good order rather than a class missing a
-# check is written down in `btclib/utils.py`, beside the parse contract
+# check is written down in `src/btclib/utils.py`, beside the parse contract
 # it belongs to; here it is why neither class has a case of its own, and
 # why the transaction below has to reach for a bool to have one
 _BOOL_VOUT = OutPoint(b"\x01" * 32, True, check_validity=False)

@@ -29,7 +29,7 @@ test rather than after it.
 ## How it calls what it calls
 
 The library's input types are few and well bounded, most of them named in
-`btclib/alias.py` and the key and path ones beside their converters.
+`src/btclib/alias.py` and the key and path ones beside their converters.
 `_WRONG_TYPE` and `_WRONG_VALUE` give each of them values of the two
 kinds, and the walk finds every public module-level function whose
 *required* parameters are all of those types. Those it can call with no
@@ -99,7 +99,7 @@ import pytest
 
 from btclib.exceptions import BTClibException, BTClibTypeError
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # a value of no type the alias declares: the caller's own mistake, and a
 # call mypy refuses. The tuples are read round-robin so that a function
@@ -285,7 +285,7 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
     """A renamed type would narrow the walk without failing anything.
 
     Every name in the two vocabularies is still declared under
-    `btclib/`, and
+    `src/btclib/`, and
     every type `alias.py` declares and a public parameter is annotated
     with is either in the vocabulary or named below with the reason no
     wrong value can be built for it.

@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-_PACKAGE_DIR = _ROOT / "btclib"
+_PACKAGE_DIR = _ROOT / "src" / "btclib"
 _DOCS_DIR = _ROOT / "docs" / "source"
 
 # what a documented module looks like to sphinx: ".. automodule:: name",
@@ -181,7 +181,7 @@ def test_a_toctree_line_is_not_a_stanza() -> None:
 def test_is_public(parts: tuple[str, ...], public: bool) -> None:
     """Both answers, and the two shapes the tree itself has none of.
 
-    A private module it has, `btclib/_ripemd160.py`; a private package and
+    A private module it has, `src/btclib/_ripemd160.py`; a private package and
     a private module inside a package it does not.
     """
     assert _is_public(parts) is public

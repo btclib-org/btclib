@@ -76,7 +76,7 @@ and that no directory holds the metadata of some other distribution.
 
 The directories, `SDIST_DIRECTORIES`:
 
-- `btclib` — the package
+- `src` — the package, at `src/btclib`
 - `tests` — its suite
 - `docs` — the documentation sources
 
@@ -120,7 +120,7 @@ one installing the wheel, or the reverse.
 
 ## check-wheel-contents names the package tree
 
-`check-wheel-contents` runs with `package = ["btclib"]`, in the one job
+`check-wheel-contents` runs with `package = ["src/btclib"]`, in the one job
 `verify_dist_contents.py` runs in — `test.yml`'s `dist` job, on every pull
 request and, through `release.yml`'s `test` call, on the files a release
 publishes.
@@ -128,10 +128,10 @@ publishes.
 What that flag buys is the one question the tool does not ask without it.
 Unconfigured, it reads the wheel's own `RECORD` and says nothing about the
 tree the wheel was supposed to carry; with the package named it diffs the
-wheel's `btclib/` against this checkout's, file for file and in both
-directions — W101 for what the wheel is missing, W102 for what it has and
-the tree does not. Measured on a wheel with `btclib/py.typed` removed and
-`RECORD` edited to match, which installs and imports cleanly:
+wheel's `btclib/` against this checkout's `src/btclib/`, file for file and
+in both directions — W101 for what the wheel is missing, W102 for what it
+has and the tree does not. Measured on a wheel with `btclib/py.typed`
+removed and `RECORD` edited to match, which installs and imports cleanly:
 unconfigured, `OK`; configured, `W101: Wheel library is missing files in
 package tree: btclib/py.typed`.
 

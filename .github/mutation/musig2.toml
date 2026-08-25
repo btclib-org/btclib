@@ -12,8 +12,8 @@
 # scheme and `psbt/musig2.py` the BIP373 role, which is why psbt.toml
 # names its five other modules one by one and leaves this one here
 module-path = [
-    "btclib/ecc/musig2.py",
-    "btclib/psbt/musig2.py",
+    "src/btclib/ecc/musig2.py",
+    "src/btclib/psbt/musig2.py",
 ]
 
 # both modules' own files, complete over the two -- measured with `--cov`
@@ -35,7 +35,7 @@ excluded-modules = []
 # the exclusion wallet.toml explains: every `|` in the two modules is in an
 # annotation --
 #
-#   grep -n ' | ' btclib/ecc/musig2.py btclib/psbt/musig2.py
+#   grep -n ' | ' src/btclib/ecc/musig2.py src/btclib/psbt/musig2.py
 #
 # -- and the unfiltered session that decided it executed 10 BitOr mutants
 # and killed none of them. The arithmetic this scope does have is `^`,

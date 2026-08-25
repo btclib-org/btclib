@@ -582,6 +582,22 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The importable package moves from the repository root to
+  `src/btclib/`,** matching section 2 of the organization standard. A
+  package at the repository root sits on `sys.path` whenever anything
+  runs from there, so an import can resolve to the checkout rather than
+  to the installed distribution, which is what section 7's convention
+  tests are for; under `src/` the checkout root holds no importable
+  package, so a run against the checkout fails outright instead of
+  silently testing the wrong thing.
+  `[tool.uv.build-backend]` no longer sets `module-root = ""`, that key
+  having existed only to override the backend's own `src/` default, and
+  every other place naming the package's path — `pyproject.toml`'s own
+  tool tables, `.pre-commit-config.yaml`'s hook filters, `.gitattributes`,
+  `_config.yml`'s Pages exclude list, the mutation-testing profiles under
+  `.github/mutation/`, `docs/source/conf.py`, and the test suite's own
+  fixture paths — moves with it (issue #1322).
+
 - **`release.yml`'s calling jobs are named after the reusable workflows
   they call, not after what those workflows were called before a rename**
   (issue #1268). `ubuntu`, `macos` and `windows` become `os-ubuntu`,

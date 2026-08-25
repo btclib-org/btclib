@@ -17,9 +17,9 @@ build-backend = "uv_build"
 name = "btclib"
 # the one place the version is declared: btclib.__version__ reads it back
 # from the installed metadata, and docs/source/conf.py reads it from this
-# file. Not a literal in btclib/__init__.py for setuptools to import and
-# conf.py to repeat: two declarations are two things a release workflow
-# has to compare before trusting either
+# file. Not a literal in src/btclib/__init__.py for setuptools to import
+# and conf.py to repeat: two declarations are two things a release
+# workflow has to compare before trusting either
 version = "2026.9"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
@@ -213,11 +213,6 @@ dev = [
 required-version = ">=0.12.1"
 
 [tool.uv.build-backend]
-# btclib/ sits at the root of the repository, where the backend looks
-# under src/ by default. `module-name` is not written beside this: it
-# defaults to `project.name` normalized, which is this name already, and
-# a second declaration is a second thing to keep in agreement
-module-root = ""
 # what the sdist carries beyond what the backend puts there by itself --
 # pyproject.toml, the module under `module-root`, and the files
 # `project.readme` and `project.license-files` name. Patterns are
@@ -278,8 +273,8 @@ source-exclude = [
     # a cache a linter or type checker writes beside the file it has
     # just checked, and not something anyone puts there on purpose: the
     # VS Code mypy extension writes one per directory it type-checks, so
-    # it can appear under btclib/ and tests/ alike, and a nested one was
-    # shipped whole (issue #985). __pycache__, *.pyc and *.pyo are the
+    # it can appear under src/btclib/ and tests/ alike, and a nested one
+    # was shipped whole (issue #985). __pycache__, *.pyc and *.pyo are the
     # backend's own default excludes, and are not repeated here
     ".mypy_cache",
     ".pytest_cache",
@@ -289,14 +284,15 @@ source-exclude = [
     # it runs, which is how these patterns are known to hold rather than
     # believed to
     "*.egg-info",
-    # tracked, one at the root and one under btclib/ where the module is
-    # copied wholesale, and of no use to anyone unpacking an sdist
+    # tracked, one at the root and one under src/btclib/ where the module
+    # is copied wholesale, and of no use to anyone unpacking an sdist
     ".gitignore",
 ]
 
 [tool.check-wheel-contents]
-# the wheel's `btclib/` diffed against this checkout's, file for file and
-# in both directions (W101 missing, W102 extra). With no `package` given
+# the wheel's `btclib/` diffed against this checkout's `src/btclib/`,
+# file for file and in both directions (W101 missing, W102 extra). With
+# no `package` given
 # check-wheel-contents reads the wheel's own RECORD and asks nothing
 # about the tree the wheel was supposed to carry, so a `py.typed` or a
 # `_data/*.json` dropped by a packaging change builds, installs and
@@ -317,7 +313,7 @@ source-exclude = [
 # No `ignore`: nothing ships outside `btclib/`, so neither W003 nor W009
 # can fire, unlike btclib-secp256k1, whose dynamic wheel carries a shared
 # object beside the package on purpose.
-package = ["btclib"]
+package = ["src/btclib"]
 
 [tool.check-sdist]
 # tracked files the sdist is meant not to carry. What
@@ -570,9 +566,9 @@ repository_nwo = "repository_nwo"
 PAGES_REPO_NWO = "PAGES_REPO_NWO"
 # Bitcoin Core's own name for the serialization parameters of an address,
 # `Ser` for serialize where the dictionary reads a misspelt `Set`
-# (src/protocol.h). btclib/p2p/address.py cites it, the hook runs with
-# --write-changes, and a citation a spell checker rewrote names a symbol
-# that is not in the source it points at -- which is worse than no
+# (src/protocol.h). src/btclib/p2p/address.py cites it, the hook runs
+# with --write-changes, and a citation a spell checker rewrote names a
+# symbol that is not in the source it points at -- which is worse than no
 # citation, being one a reader would go and fail to find
 SerParams = "SerParams"
 # Core's writer for a 256-bit hash, `Ser` for serialize again
@@ -583,8 +579,8 @@ ser_uint256 = "ser_uint256"
 # Core's two halves of a serializer, `Ser` for serialize a third time and
 # `Unser` for the reverse (src/serialize.h, and src/blockencodings.h's
 # `DifferenceFormatter`, which is where BIP152's differential index
-# encoding is written and read). btclib/p2p/compact_blocks.py cites both
-# methods by name as the place each of its two overflow refusals is
+# encoding is written and read). src/btclib/p2p/compact_blocks.py cites
+# both methods by name as the place each of its two overflow refusals is
 # spelled in Core; the hook runs with --write-changes and turns them into
 # `Set` and one of four guesses, and a citation a spell checker rewrote
 # names a symbol that is not in the source it points at
@@ -599,11 +595,11 @@ nd = "nd"
 ands = "ands"
 # BIP322's prefix for the full variant of a signature, three characters
 # as the other two are. The hook runs with --write-changes, so without
-# this line it turns `ful` into `full` in btclib/bip322.py -- which is a
-# signature every other implementation refuses, written by a spell
+# this line it turns `ful` into `full` in src/btclib/bip322.py -- which
+# is a signature every other implementation refuses, written by a spell
 # checker into a wire format
 ful = "ful"
-# btclib/__init__.py names ruff's CPY001 (flake8-copyright) rule by
+# src/btclib/__init__.py names ruff's CPY001 (flake8-copyright) rule by
 # code; without this entry the hook splits it and rewrites the comment
 # into one naming COPY001, a rule that does not exist
 CPY = "CPY"
@@ -799,7 +795,7 @@ explicit-preview-rules = true
 #
 # What the same survey rejected, with the reason it was rejected rather
 # than the count it reached -- `uv run ruff check --select N --no-cache
-# btclib tests` re-derives any of these in a second, and a number here
+# src/btclib tests` re-derives any of these in a second, and a number here
 # rots with the next test file: N (uppercase math symbols are the
 # convention here, as the magic-value-comparison note below already
 # says), COM (COM812, which ruff's own documentation recommends against
@@ -939,14 +935,14 @@ ignore = [
 # with getattr and fails on the same drift this rule would catch, so
 # nothing here goes unchecked while the upstream rule does not know the
 # pattern
-"btclib/__init__.py" = ["F822"]
-"btclib/p2p/__init__.py" = ["F822"]
-"btclib/script/__init__.py" = ["F822"]
+"src/btclib/__init__.py" = ["F822"]
+"src/btclib/p2p/__init__.py" = ["F822"]
+"src/btclib/script/__init__.py" = ["F822"]
 # collecting entropy from dice is a conversation: the module prompts with
 # input() and prints how many rolls it needs and which ones count, so its
 # prints are the interface, not a debugging leftover -- unlike a print
 # anywhere else in the library, which is deleted rather than ignored
-"btclib/mnemonic/entropy.py" = ["T201"]
+"src/btclib/mnemonic/entropy.py" = ["T201"]
 # the mutation counter's one line of output is what the workflow step
 # exists to put in the log. T20 is selected for the library, which writes
 # to no stream of its own; a script whose caller is a workflow step is the
@@ -1039,7 +1035,7 @@ notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under t
 # what keeps the docstrings of the public surface complete, ruff having
 # no rule for a missing argument: the D family below asks that a
 # docstring exists, and this asks that it says what the call takes and
-# what it hands back. Run as a hook over btclib/ only; the comment on
+# what it hands back. Run as a hook over src/btclib/ only; the comment on
 # the hook has why that is the scope
 [tool.pydoclint]
 # napoleon renders it, which is what docs/source/conf.py enables, so the
@@ -1075,6 +1071,6 @@ allow-init-docstring = true
 # curve and network lookups -- so what a caller catches is not what this
 # body raises. Kept on, every docstring would document its own body
 # instead of its contract, which is the opposite of what these sections
-# are for; the hierarchy a caller does catch is btclib/exceptions.py's,
+# are for; the hierarchy a caller does catch is src/btclib/exceptions.py's,
 # written down once there
 skip-checking-raises = true

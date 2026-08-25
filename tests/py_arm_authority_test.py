@@ -104,7 +104,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 _TESTS = Path(__file__).parent
 
 # the vendored vectors each module below is built on, by the name they

@@ -31,12 +31,12 @@ PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "btclib"
-# from btclib/__init__.py, where the years are declared once, minus the
-# "Copyright (c) " that sphinx prepends itself. Read from the file rather
-# than imported, for the same reason as the version below
+# from src/btclib/__init__.py, where the years are declared once, minus
+# the "Copyright (c) " that sphinx prepends itself. Read from the file
+# rather than imported, for the same reason as the version below
 project_copyright = re.search(
     r'^__copyright__ = "Copyright \(c\) (.+)"$',
-    (ROOT / "btclib" / "__init__.py").read_text(encoding="utf-8"),
+    (ROOT / "src" / "btclib" / "__init__.py").read_text(encoding="utf-8"),
     re.MULTILINE,
 ).group(1)
 author = "The btclib developers"

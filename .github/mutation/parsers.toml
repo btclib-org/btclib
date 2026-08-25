@@ -15,13 +15,13 @@
 [cosmic-ray]
 # a list, which cosmic-ray reads as well as a single path: the scope is
 # four modules of one package and two files beside it, and one test
-# command judges all six. btclib/tx alone would leave var_int and
+# command judges all six. src/btclib/tx alone would leave var_int and
 # var_bytes -- the length prefix of every list and every script in a
 # transaction -- to a profile of their own, for 195 mutants
 module-path = [
-    "btclib/tx",
-    "btclib/var_int.py",
-    "btclib/var_bytes.py",
+    "src/btclib/tx",
+    "src/btclib/var_int.py",
+    "src/btclib/var_bytes.py",
 ]
 
 # tests/tx first, where most mutants die, and then the two files for the
@@ -102,7 +102,8 @@ excluded-modules = []
 # instead of there: a real `a | b` added to one of these modules would be
 # skipped in silence, so the claim behind it is a grep:
 #
-#   grep -n ' | ' btclib/tx/*.py btclib/var_int.py btclib/var_bytes.py
+#   grep -n ' | ' src/btclib/tx/*.py src/btclib/var_int.py \
+#       src/btclib/var_bytes.py
 #
 # Seven hits today, every one an annotation. Note also what a skipped
 # mutant does to the one number the workflow prints: `cr-rate` counts a

@@ -107,7 +107,7 @@ from btclib.to_prv_key import int_from_prv_key
 from btclib.to_pub_key import point_from_key, point_from_pub_key
 from tests.curves.curve_test import low_card_curves
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # a value of no type any `ec` declares, and both are calls mypy refuses
 _WRONG_TYPES: tuple[Any, ...] = (None, 1.5)
