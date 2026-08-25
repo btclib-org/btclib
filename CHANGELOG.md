@@ -582,6 +582,23 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
+  and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
+  reads a merged pull request's own commits and found CodeQL configured
+  but never run against one, the previous triggers landing the analysis
+  on the merge commit rather than on the branch being decided.
+  `pull_request` carries the same `types`, and the `analyze` job the
+  same draft- and closed-skip condition, as `test.yml` and `lint.yml`;
+  the concurrency group now keys on the pull request's own number for
+  the reason those two files' comments give (PR 1023's bug). `Analyze
+  actions` and `Analyze python` are still not required checks:
+  REPOSITORY.md's "Never name matrix contexts in the branch rule" holds
+  regardless, and this workflow has no aggregate job to bind one to.
+  `CONTRIBUTING.md`'s workflow table, its two `codeql`-specific
+  paragraphs and `REPOSITORY.md`'s own account of why `codeql.yml`
+  carries no required check move with it, each having stated the
+  trigger this bullet changes (issue #1347, btclib-org/.github#349).
+
 - **Every place naming the bindings' distribution — the `secp256k1`
   extra's requirement spec, the `bindings` dependency group, and the
   prose describing both — spells it `btclib-secp256k1`, the hyphen the

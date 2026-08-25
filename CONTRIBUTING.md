@@ -463,7 +463,7 @@ read by every checkout of this repository.
 | `integration-bitcoind` | pull request, push, weekly | a node |
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
-| `codeql` | push to main, and weekly | 2 languages |
+| `codeql` | pull request, push to main, and weekly | 2 languages |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |
 | `os-windows` | weekly, a release | Windows images and interpreters |
@@ -498,9 +498,14 @@ it. REPOSITORY.md measures what a wider gate cost against that ceiling,
 and the consequence is this table's: at that ceiling a pull request's
 wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
 `os-windows.yml` each carry the measurement for their own cells, the
-queueing and the runner seconds. `codeql` is off the gate for the same
-arithmetic, with `zizmor` in `lint` still reading these workflows on
-every pull request.
+queueing and the runner seconds. `codeql` spends against that same
+ceiling on every pull request too now, for the OpenSSF Scorecard's
+`SAST` check rather than for this table's arithmetic — REPOSITORY.md has
+that trade — but it still does not gate the merge, no matrix cell of its
+`analyze` job being nameable in the branch rule on its own and the
+workflow carrying no aggregate that could be. `zizmor` in `lint` reads
+these same workflow files for an injected expression on every pull
+request, which is a different question from what `codeql` asks.
 
 The trade, stated here rather than discovered later: the gate does not
 refuse a regression on `3.10`, on arm, on PyPy or on a platform. It sits
@@ -516,9 +521,9 @@ and whoever asked what ran would have to re-derive the hole from
 the platform; `deps-latest` moves both. Red in one of the three with `deps-latest`
 green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
-pull request is not open yet has no other way to ask, and for `codeql` and
-the three platform workflows it is the only way to ask about a branch at
-all. `claude-review` is the exception, and takes none: both its jobs read
+pull request is not open yet has no other way to ask, and for the three
+platform workflows it is the only way to ask about a branch at all.
+`claude-review` is the exception, and takes none: both its jobs read
 the pull request or the comment that triggered them, so a manual dispatch
 would start a run with nothing to read.
 
@@ -1044,11 +1049,10 @@ something already known to the world.
 The only check with no local equivalent is `codeql`: the analysis needs the
 CodeQL bundle and a database, which is a download rather than a `uv`
 command, so `.github/workflows/codeql.yml` is where it is configured and
-GitHub's runners are where it happens. It is also the one check no pull
-request runs — `workflow_dispatch` is how a branch asks — so its findings
-arrive under the Security tab after a merge rather than before it, and
-`REPOSITORY.md` has both why the workflow is in the tree and what that
-timing was traded for.
+GitHub's runners are where it happens. It runs on every pull request now,
+alongside `push` to `main` and its weekly schedule, so its findings reach
+a branch before a merge rather than only after one; `REPOSITORY.md` has
+why it is still not a required check.
 
 ### The website
 

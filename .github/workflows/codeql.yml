@@ -51,33 +51,37 @@ name: codeql
 # `CodeQL` before the setting goes off rather than after.
 
 on:
-  # main and the schedule below, and no pull_request trigger: this analysis
-  # is the one gate that was worth trading for the queue it held. GitHub
-  # Free gives an organization twenty concurrent jobs, a commit used to ask
-  # for thirty-nine, and this workflow's three of them were held while a
-  # pull request waited for a slot -- so the analysis now lands on the merge
-  # commit rather than before it, and nothing this workflow produces can be
-  # a required check on main: a required check has to report on the pull
-  # request's own run, and this trigger produces none. REPOSITORY.md's
-  # "Required checks on main" is where that rule is written down, and
-  # dropping the `CodeQL` context there is a token operation that had to
-  # come first.
-  # What still reads a branch before it merges is lint.yml: zizmor is a
-  # pre-commit hook and reads exactly these files for an injected
-  # expression, which is the finding this workflow would otherwise be alone
-  # in making. What is deferred by a merge is the rest -- the python
-  # queries, and whatever zizmor does not model -- and the window is the
-  # time between a merge and the next run of this workflow, which for main
-  # is that merge itself.
-  # No `paths` filter, on either trigger: a filter buys nothing now that
-  # nothing waits on the answer, and it would have to name every path a
-  # query reads
+  # push and schedule cover main and what a diff cannot; pull_request adds
+  # the analysis on the branch itself, ahead of the merge rather than
+  # landing after it, which is what the OpenSSF Scorecard's SAST check
+  # asks for: it reads a merged pull request's own commits, and this
+  # repository was scoring "SAST configuration detected: CodeQL" beside
+  # "0 commits out of 29 are checked with a SAST tool" while the trigger
+  # below produced no run against a branch at all.
+  # Adding pull_request is a trade made in the opposite direction from the
+  # one this file used to make against the concurrency ceiling
+  # REPOSITORY.md measures: two more matrix cells on every push to a
+  # branch, and a check its author now waits on.
+  # What still reads a branch before this workflow does is lint.yml:
+  # zizmor is a pre-commit hook and reads exactly these files for an
+  # injected expression, which is one of the findings this workflow makes;
+  # the python queries, and whatever zizmor does not model, are the rest.
+  # No `paths` filter, on any of the three triggers: a filter would have
+  # to name every path a query reads
   push:
-    # a merge creates a commit that no pull request analysed, and code
-    # scanning compares a branch's alerts against the default branch's, so
-    # without a run here there is no baseline for any other run to be read
-    # against
+    # a merge creates a commit that its own pull request did not analyse
+    # -- squashed to a sha the branch never had, or pushed to main
+    # directly -- and code scanning compares a branch's alerts against
+    # the default branch's, so without a run here there is no baseline
+    # for any other run to be read against
     branches: [main]
+  pull_request:
+    # ready_for_review and closed, the same two types test.yml and
+    # lint.yml carry and for the same reasons given there: a pull request
+    # marked ready gets the run the draft condition below withheld while
+    # it was a draft, and a closed one is taken only to supersede a run
+    # its own concurrency group is still holding
+    types: [opened, reopened, synchronize, ready_for_review, closed]
   schedule:
     # Weekly, as default setup was: what a scheduled analysis catches is
     # a query CodeQL added since the last commit, which arrives with the
@@ -87,9 +91,8 @@ on:
     # Cron runs from the default branch only, so this asks nothing until
     # it reaches main; elsewhere the dispatch below is the way in
     - cron: "4 4 * * 2"
-  # the escape hatch, and with no pull_request trigger above it is the only
-  # way to analyse a branch before it is merged: worth reaching for on one
-  # that touches a workflow, which is what the actions queries read
+  # the escape hatch: a run on demand for a branch whose pull request is
+  # not open yet
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
@@ -100,13 +103,19 @@ on:
 permissions:
   contents: read
 
-# cancel superseded runs on the same branch, which is main or whatever a
-# dispatch names.
+# cancel superseded runs on the same branch or pull request.
 # The group is named literally rather than with github.workflow, which in
 # a called workflow is the caller's name: nothing calls this one today,
-# and the expression would be a trap for whatever does
+# and the expression would be a trap for whatever does.
+# github.event.pull_request.number, not github.ref alone: for a closed,
+# merged pull request's run, github.ref resolves to the base branch's ref
+# rather than refs/pull/N/merge, which would collide with the push
+# trigger's own group -- PR 1023's bug, recorded in test.yml's and
+# lint.yml's own copy of this comment. A pull_request run of any kind,
+# closed included, now groups by the pull request's own number instead,
+# which a push never carries and so still groups by github.ref, unchanged
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -116,10 +125,15 @@ jobs:
     # reader into the log to find out which half broke -- and so the two
     # run in parallel, which is what default setup did too
     name: Analyze ${{ matrix.language }}
-    # no draft condition, where every job of test.yml carries one: this
-    # workflow no longer runs on a pull request at all, so there is no draft
-    # to skip and `github.event.pull_request.draft` is an expression that
-    # could only read empty here
+    # a draft pull request is work in progress: every push to one would
+    # spend this analysis on a tree its author is not asking anyone to
+    # review yet. A run on the merge result still happens the moment the
+    # pull request is marked ready, which is why ready_for_review is a
+    # trigger type above.
+    # A closed pull request spends no runner either, for the reason the
+    # trigger above gives: closed is taken only to supersede a run this
+    # ref's group is still holding
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     # far above what either language needs; what it bounds is a hung job
     # holding a runner for six hours
@@ -199,11 +213,14 @@ jobs:
           # rather than starting again
           category: "/language:${{ matrix.language }}"
 
-  # no aggregate job, where test.yml has one. Section 10 of
-  # btclib-org/.github's README.md conditions one on a workflow whose
-  # answer gates a pull request: a branch rule can only name a context a
-  # pull request's own run produces, and the `on:` block above has no
-  # `pull_request` trigger, so no rule could ever require a name this
-  # workflow produces. `analyze`'s two matrix cells are therefore the
-  # whole of the checks list this workflow contributes to a commit, one
-  # per language rather than one aggregate over both
+  # no aggregate job, where test.yml has one. REPOSITORY.md's "Required
+  # checks on main" states "Never name matrix contexts in the branch
+  # rule": a matrix cell's own name is not a context a branch rule can
+  # bind to safely, so neither `Analyze actions` nor `Analyze python` can
+  # be required on its own, the same reason test.yml needs
+  # `test: every job passed` while lint.yml and docs.yml, each a single
+  # job, need no aggregate of their own. This workflow has none, so
+  # `analyze`'s two matrix cells are the whole of the checks list it
+  # contributes to a commit and neither gates a merge; adding an
+  # aggregate, and naming it in the branch rule, is REPOSITORY.md's own
+  # section to decide
