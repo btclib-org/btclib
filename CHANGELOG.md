@@ -24,6 +24,18 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`fuzz.yml`'s `batch_fuzzing` gains a `schedule:` -- Monday, hour 03,
+  minute 04.** Monday and hour 03 are section 10 of the organization
+  standard's own workflow row for `fuzz`; minute 04 is this
+  repository's own row in section 10's repository table.
+  `workflow_dispatch` and the scheduled run share one concurrency
+  group, `mutation.yml`'s own design, so a manual run does not wait
+  behind the scheduled batch's own hour for the numbers it was asked
+  for. `CONTRIBUTING.md`'s *What runs when* table's `fuzz` row now
+  names both triggers, `pull request, weekly`, the same two-item shape
+  `os-ubuntu`'s and `pypi-install`'s own rows already use (closes
+  btclib-org/.github#372).
+
 - **`README.md`'s badge row follows the organization standard's section
   2: membership by property, never curation, in the fixed order with the
   sentinels in section 10's calendar order.** The row gained `wheel` and
