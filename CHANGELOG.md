@@ -639,6 +639,12 @@ documented at release-notes length in the first place, and are still in
   it approving one; the job stays what it was, not a required check
   (issue #1347, btclib-org/.github#340).
 
+- **`docs/README.rst`'s quoted `sphinx-build` command carries `-n`,
+  matching `.readthedocs.yaml`, `docs.yml` and `CONTRIBUTING.md`** (closes
+  #1366). The file says the command is "exactly as `.readthedocs.yaml`
+  does" and had drifted from it since `-n` was added to the other three
+  in #1359.
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
