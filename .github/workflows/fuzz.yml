@@ -1,0 +1,136 @@
+---
+name: fuzz
+
+# ClusterFuzzLite over the p2p wire-format envelope parser,
+# `btclib.p2p.message.Message.parse`: the earliest point at which bytes
+# a peer sent enter this codebase, ahead of any signature check and any
+# per-command dispatch. btclib-org/.github#342 is where that ranking --
+# an entry point reached from the network before verification, over one
+# reached only after -- and the choice of `atheris` under ClusterFuzzLite
+# rather than an OSS-Fuzz application, are argued; section 10 of the
+# organization standard is where `fuzz` is named as a sentinel every
+# tree parsing a stranger's own bytes owes. `fuzz/fuzz_p2p_message.py` is
+# the target this workflow builds and runs, and `.clusterfuzzlite/` is
+# ClusterFuzzLite's own configuration for building it -- `project.yaml`,
+# `Dockerfile` and `build.sh`, read by the two actions below rather than
+# by anything in this file.
+#
+# Two jobs, ClusterFuzzLite's own two fuzzing modes
+# (google/clusterfuzzlite's docs/running_clusterfuzzlite.md, "ClusterFuzz
+# Lite Modes"): `pr_fuzzing` runs the short "code-change" mode on a pull
+# request, which is what the OpenSSF Scorecard's `Fuzzing` check credits
+# on the branch itself rather than only after it lands; `batch_fuzzing`
+# runs the longer "batch" mode, which is what builds a corpus over time
+# and is meant for a schedule rather than for a pull request's own wait.
+#
+# `batch_fuzzing` carries no `schedule:` yet. Section 10's calendar is
+# one table for the whole organization, and asking for a row rather than
+# adding one unilaterally is btclib-org/.github#363's own precedent for
+# this exact situation, decided the same day this workflow was written;
+# the slot this file would want (Monday, 03) is proposed on
+# btclib-org/.github#372 and is not written here until the calendar
+# answers it. Not `push: branches: [main]` either, unlike `scorecard.yml`
+# under #363: `fuzz-seconds: 3600` below is an hour of fuzzing, and
+# ClusterFuzzLite's own docs call a push-triggered batch job "not
+# recommended" for exactly the reason that becomes -- one on every push
+# queues faster than an hour-long job drains. `workflow_dispatch` is what
+# runs it by hand until then, and it is required by this section
+# regardless of the above.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: neither job writes to the
+# repository or to code scanning -- `output-sarif: true` below only
+# writes the SARIF as a run artifact, uploading nothing on its own -- so
+# no job elevates past the workflow default
+permissions:
+  contents: read
+
+# named literally rather than through github.workflow, which in a called
+# workflow is the caller's name (section 10's "What every workflow
+# does"); a pull request run and a workflow_dispatch run of this same
+# workflow never collide, `github.event.pull_request.number` being unset
+# on the second, so the fallback to `github.ref` is what still gives the
+# manual run a group of its own
+concurrency:
+  group: fuzz-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr_fuzzing:
+    name: PR fuzzing
+    # a draft pull request is work in progress, and a closed one is taken
+    # only to supersede a run its own concurrency group is still holding
+    # -- the same guard codeql.yml and test.yml carry, for the same
+    # reason
+    if: >-
+      github.event_name == 'pull_request' &&
+      !github.event.pull_request.draft &&
+      github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    # the docker build plus 600 seconds of fuzzing, far above what either
+    # takes: what this bounds is a hung job holding a runner
+    timeout-minutes: 20
+    steps:
+      # every action pinned to a commit SHA. The tag is a comment above
+      # rather than the usual trailing one: `google/clusterfuzzlite/
+      # actions/build_fuzzers` and its sha already fill the 100-column
+      # budget .yamllint.yaml sets for a pin, and appending " # v1"
+      # would cross it -- the disable-line escape hatch that comment
+      # describes cannot carry the tag text too, its own regex admitting
+      # nothing else on the line.
+      # No `actions/checkout` step: the two actions below run as docker
+      # actions against the workspace GitHub Actions already checked out
+      # for a `pull_request` trigger, which is what
+      # google/clusterfuzzlite's own referenced example
+      # (oliverchang/curl's cflite_pr.yml) does too
+      - name: Build fuzzers
+        # v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        with:
+          language: python
+          sanitizer: address
+      - name: Run fuzzers
+        # v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 600
+          mode: code-change
+          sanitizer: address
+          output-sarif: true
+
+  batch_fuzzing:
+    name: Batch fuzzing
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # the docker build plus one hour of fuzzing (fuzz-seconds below), far
+    # above what either takes
+    timeout-minutes: 90
+    steps:
+      # the tag is a comment above rather than trailing, for the reason
+      # given in `pr_fuzzing`'s own copy of this comment
+      - name: Build fuzzers
+        # v1
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        with:
+          language: python
+          sanitizer: address
+      - name: Run fuzzers
+        # v1
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 3600
+          mode: batch
+          sanitizer: address
+          output-sarif: true
+
+  # no aggregate job: neither job above is a required check. A branch
+  # rule naming one would be naming a context a fuzzing finding is meant
+  # to open an issue against (section 10's "What fills the workflow is
+  # the tree's"), not to block a merge on -- the reviewer already reads
+  # what a crash means for the entry point it was found on, which a red
+  # check on an unrelated pull request cannot

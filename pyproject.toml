@@ -333,8 +333,14 @@ package = ["src/btclib"]
 # check-sdist's own default ignore list already carries .github, which
 # is why the ignore list of the links workflow needs an entry here and
 # the workflow it configures does not
+#
+# .clusterfuzzlite/ and fuzz/ join that reasoning rather than .github's
+# list: ClusterFuzzLite's own build configuration and the atheris
+# harnesses it builds are CI-only, read by fuzz.yml and by nothing a
+# package installed from the sdist runs
 git-only = [
     ".claude/",
+    ".clusterfuzzlite/",
     ".gitattributes",
     ".lycheeignore",
     ".vscode/",
@@ -344,6 +350,7 @@ git-only = [
     "_config.yml",
     "_layouts/",
     "assets/",
+    "fuzz/",
 ]
 
 [tool.pytest.ini_options]
@@ -1031,7 +1038,12 @@ ignore = [
 # as a configuration directory rather than a package; the same reason
 # excludes it above
 "docs/source/conf.py" = ["INP001"]
-"**/__init__.py" = ["F401"]        # re-exported imports
+# ClusterFuzzLite's build.sh hands this straight to PyInstaller, never
+# to an import -- the same reason .github/scripts/*.py is exempt above,
+# and the same answer: no __init__.py, so as not to misrepresent fuzz/
+# as a package
+"fuzz/*.py" = ["INP001"]
+"**/__init__.py" = ["F401"] # re-exported imports
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name

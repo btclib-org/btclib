@@ -1,0 +1,17 @@
+---
+# ClusterFuzzLite's own project metadata file: read by the
+# `google/clusterfuzzlite/actions/build_fuzzers` action and by
+# `infra/helper.py` in google/oss-fuzz, which this integration reuses
+# (docs/build_integration.md, "ClusterFuzzLite reuses the OSS-Fuzz
+# toolchain"). `language` is the one field that file says every project
+# must set.
+language: python
+
+# AddressSanitizer and UndefinedBehaviorSanitizer are the two Python
+# fuzzing supports (docs/build-integration/python_lang.md). This
+# integration fuzzes pure Python -- Message.parse touches no C extension
+# of its own -- so the default `address` .github/workflows/fuzz.yml
+# selects is the only sanitizer in play; naming the list here is what a
+# second one would extend.
+sanitizers:
+  - address

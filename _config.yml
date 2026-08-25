@@ -62,6 +62,10 @@ exclude:
   - src/
   - tests/
   - docs/
+  # the atheris harnesses and their seed corpus, likewise: `.clusterfuzzlite/`
+  # needs no entry here, Jekyll's own EntryFilter already skipping anything
+  # starting with `.`
+  - fuzz/
   # packaging and tooling, likewise
   - pyproject.toml
   - uv.lock
