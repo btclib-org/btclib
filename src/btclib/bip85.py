@@ -20,17 +20,18 @@ both as a key and as entropy would otherwise leak the one through the
 other.
 
 The module sits at the top level, beside `bip44` and `slip132`, and for
-the same reason: the applications below need `b58` for a WIF and
-`mnemonic.bip39` for a sentence, and both of those are above `bip32`,
-which `btclib/bip32/` may not import back. Nothing in the library
-imports this module.
+the same reason: the applications below need `b58` for a WIF, `b32` for
+a bech32-encoded key and `mnemonic.bip39` for a sentence, and all of
+those are above `bip32`, which `btclib/bip32/` may not import back.
+Nothing in the library imports this module.
 
 `entropy_from_der_path` is the derivation itself and answers for any
 path, the applications no function here formats included. Every
 application BIP85 defines is formatted beside it: 39' (a BIP39
-mnemonic), 2' (the Bitcoin Core hdseed WIF), 32' (an xprv), 128169'
-(raw bytes, which the BIP calls HEX), 707764' and 707785' (a base64 and
-a base85 password), 89101' (dice rolls) and 828365' (RSA).
+mnemonic), 2' (the Bitcoin Core hdseed WIF), 32' (an xprv), 128002' (a
+NIP-19 Nostr nsec), 128169' (raw bytes, which the BIP calls HEX), 707764'
+and 707785' (a base64 and a base85 password), 89101' (dice rolls) and
+828365' (RSA).
 
 The last two read BIP85-DRNG-SHAKE256 rather than the 64 bytes: a
 function whose appetite is not known in advance needs a stream, so the
@@ -50,7 +51,9 @@ from base64 import b64encode, b85encode
 from hashlib import shake_256
 
 from btclib.alias import Octets
+from btclib.b32 import power_of_2_base_conversion
 from btclib.b58 import wif_from_prv_key
+from btclib.bech32 import _BECH32_1_CONST, encode
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
@@ -67,6 +70,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import mnemonic_from_entropy
 from btclib.mnemonic.mnemonic import Mnemonic
 from btclib.network import network_from_name, network_from_xkeyversion
+from btclib.to_prv_key import int_from_prv_key
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -77,6 +81,7 @@ __all__ = [
     "drng_from_der_path",
     "entropy_from_der_path",
     "mnemonic_from_root_key",
+    "nsec_from_root_key",
     "rolls_from_root_key",
     "rsa_drng_from_root_key",
     "wif_from_root_key",
@@ -139,6 +144,14 @@ _MAX_B85_LEN = 80
 # at 2**31 - 1, and `str_from_index_int` refuses the rest
 _MIN_SIDES = 2
 _MIN_ROLLS = 1
+
+# Nostr's two path levels, identity and account_index, both start at 1':
+# 0' of either is reserved by the BIP for a future NIP's key-management
+# use rather than for a signing key
+_MIN_NOSTR_INDEX = 1
+
+# NIP-19's human-readable part for a bech32-encoded Nostr secret key
+_NSEC_HRP = "nsec"
 
 # BIP85-DRNG-SHAKE256's seed size, which the BIP fixes at the HMAC's own
 # output and requires to be exactly that
@@ -315,6 +328,43 @@ def xprv_from_root_key(root_key: BIP32Key, index: int = 0) -> str:
         key=b"\x00" + entropy[32:],
     )
     return derived.b58encode()
+
+
+def nsec_from_root_key(root_key: BIP32Key, identity: int, account_index: int) -> str:
+    """Return a NIP-19 nsec, BIP85's application 128002'.
+
+    The path is `m/83696968h/128002h/{identity}h/{account_index}h`: the
+    leading 256 bits of the entropy are the secp256k1 secret key, exactly
+    as in the HD-Seed WIF application above, and NIP-19 bech32-encodes
+    them with the `nsec` human-readable part -- plain bech32, not
+    bech32m, and with no witness-version digit in front of the key the
+    way a segwit address carries one.
+
+    `identity` is an independent, unlinkable Nostr key namespace and
+    `account_index` a distinct key within it. Both must be 1 or more:
+    the BIP reserves index 0' of either for a future NIP's key-management
+    use -- proof-of-linkage between an identity's keys, rotation,
+    revocation -- and defines no signing key there, so neither defaults.
+
+    A scalar of zero or beyond the curve order is refused rather than
+    encoded, the same hard failure `wif_from_root_key` documents and the
+    same curve-order footnote this section of the BIP cross-references
+    from the WIF one: at odds of about 2**-127 the answer is for the
+    caller to move to the next index.
+    """
+    if identity < _MIN_NOSTR_INDEX:
+        raise BTClibValueError(f"invalid nostr identity: {identity}")
+    if account_index < _MIN_NOSTR_INDEX:
+        raise BTClibValueError(f"invalid nostr account index: {account_index}")
+
+    xkey = _key_data_from_bip32_key(root_key)
+    der_path = f"m/{_PURPOSE}h/128002h/{identity}h/{account_index}h"
+    entropy = _entropy_from_der_path(xkey, der_path)
+    # the hard failure the docstring above documents, raised before the
+    # bech32 encoding rather than after it
+    int_from_prv_key(entropy[:32])
+    data = power_of_2_base_conversion(entropy[:32], 8, 5)
+    return encode(_NSEC_HRP, data, _BECH32_1_CONST).decode("ascii")
 
 
 def bytes_entropy_from_root_key(

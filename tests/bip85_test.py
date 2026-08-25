@@ -27,12 +27,14 @@ reach no further than the path it is seeded from.
 
 from __future__ import annotations
 
+import hmac
 from typing import Any
 
 import pytest
 
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.bip85 import (
+    _HMAC_KEY,
     _LANGUAGE_INDEXES,
     BIP85DRNG,
     base64_password_from_root_key,
@@ -41,11 +43,13 @@ from btclib.bip85 import (
     drng_from_der_path,
     entropy_from_der_path,
     mnemonic_from_root_key,
+    nsec_from_root_key,
     rolls_from_root_key,
     rsa_drng_from_root_key,
     wif_from_root_key,
     xprv_from_root_key,
 )
+from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import entropy_from_mnemonic
 from btclib.network import NETWORKS
@@ -317,6 +321,84 @@ def test_a_roll_is_a_face_of_the_die(sides: int) -> None:
     rolls = rolls_from_root_key(_ROOT, 32, sides)
     assert len(rolls) == 32
     assert all(0 <= roll < sides for roll in rolls)
+
+
+@pytest.mark.parametrize("vector", **_ids("nostr"))
+def test_nostr_application(vector: dict[str, Any]) -> None:
+    """Application 128002': the leading 256 bits, bech32-encoded as an nsec.
+
+    The BIP prints DERIVED ENTROPY for this application as the whole 64
+    bytes, unlike the HD-Seed WIF section it otherwise mirrors, so the
+    assertion is against the whole of it and not a 32-byte slice.
+    """
+    entropy = entropy_from_der_path(_ROOT, vector["path"])
+    assert entropy.hex() == vector["derived_entropy"]
+
+    nsec = nsec_from_root_key(_ROOT, vector["identity"], vector["account_index"])
+    assert nsec == vector["derived_nsec"]
+    assert nsec.startswith("nsec1")
+
+
+def test_nostr_identity_and_account_index_are_reserved_at_zero() -> None:
+    """0' of either level is the BIP's reserved key-management slot."""
+    with pytest.raises(BTClibValueError, match="invalid nostr identity: 0"):
+        nsec_from_root_key(_ROOT, 0, 1)
+    with pytest.raises(BTClibValueError, match="invalid nostr account index: 0"):
+        nsec_from_root_key(_ROOT, 1, 0)
+
+
+class _ForcedHmac:
+    """An hmac whose digest is chosen rather than computed."""
+
+    def __init__(self, digest: bytes) -> None:
+        self._digest = digest
+
+    def digest(self) -> bytes:
+        return self._digest
+
+
+def _force_bip85_entropy(monkeypatch: pytest.MonkeyPatch, leading_32: bytes) -> None:
+    """Make bip85's own entropy hmac -- and only that one -- see leading_32.
+
+    `_entropy_from_der_path` derives the path first, through bip32's own
+    hardened-derivation hmacs, and only computes its own hmac afterwards,
+    keyed with `_HMAC_KEY`: patching `hmac.new` indiscriminately, as
+    `bip32_test.py`'s own `_force_hmac` does for bip32 itself, would also
+    dictate those path-derivation hmacs and trip BIP32's own "not a valid
+    scalar" rejection before bip85's is ever reached. So only the call
+    keyed with `_HMAC_KEY` is answered with the chosen digest; every
+    other key reaches the real `hmac.new`, which is what lets the path
+    derivation above it complete undisturbed.
+
+    Zero and the curve order are each about 2**-127 odds, which is why
+    the branch refusing them as a Nostr secret key can only be tested
+    this way. The trailing 32 bytes play no part in `nsec_from_root_key`,
+    so they are left zero.
+    """
+    real_new = hmac.new
+    digest = leading_32 + bytes(32)
+
+    def _new(key: bytes, msg: bytes, digestmod: str) -> hmac.HMAC | _ForcedHmac:
+        if key == _HMAC_KEY:
+            return _ForcedHmac(digest)
+        return real_new(key, msg, digestmod)
+
+    monkeypatch.setattr(hmac, "new", _new)
+
+
+@pytest.mark.parametrize("leading", [0, ec.n])
+def test_a_nostr_key_outside_the_curve_order_is_refused(
+    leading: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The curve-order footnote WIF documents, which Nostr cross-references.
+
+    `wif_from_root_key` already refuses the same two scalars through
+    `wif_from_prv_key`; this is the same hard failure on the application
+    that bech32-encodes the key instead of formatting it as a WIF.
+    """
+    _force_bip85_entropy(monkeypatch, leading.to_bytes(32, byteorder="big"))
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        nsec_from_root_key(_ROOT, 1, 1)
 
 
 def test_the_rsa_drng_is_the_stream_of_its_path() -> None:
