@@ -545,6 +545,18 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`release.yml`'s calling jobs are named after the reusable workflows
+  they call, not after what those workflows were called before a rename**
+  (issue #1268). `ubuntu`, `macos` and `windows` become `os-ubuntu`,
+  `os-macos` and `os-windows`; `integration` becomes `integration-bitcoind`,
+  disambiguating it from `integration-hwi.yml`, which no job here calls;
+  `published` becomes `pypi-install`. The `needs:` lists gating
+  `publish-testpypi` and `publish-pypi` move with the renamed ids. None of
+  these job ids is a required check on `main` — `REPOSITORY.md`'s table names
+  only `test: every job passed`, `Lint and type-check`,
+  `Build the documentation` and `Regtest against Bitcoin Core` — so the
+  rename touches no branch ruleset.
+
 - **`CHANGELOG.md`'s own directive disabling MD022 and MD032 is gone**
   (closes #1319). It existed because this file is `merge=union`, so a
   rebase joins two branches' `###` blocks and drops the blank line
