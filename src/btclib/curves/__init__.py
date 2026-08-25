@@ -61,9 +61,9 @@ in this package is ecc.dh: 1.13x on secp256k1 and 1.03x on nistp256, the
 second being that measurement's own noise. Beside it, the blinded nonce
 inverse is 1.5 us of a 414 us signature, the projective blinding of
 curve_group._blinded_jac is 1%, and every verification is already _var.
-And btclib_secp256k1 is a required dependency, so the 1.13x is reached
-only by first switching the bindings off: a caller who does not is on
-the same program either way.
+The 1.13x was measured with the bindings switched off. btclib_secp256k1
+is the secp256k1 extra rather than a required dependency, so a caller who
+skips it is already in that state, with nothing to switch.
 
 They are implementations of one operation, kept side by side to be measured
 against each other, and a menu of them is not an API: a caller reading them
