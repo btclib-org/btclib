@@ -2,10 +2,10 @@
 # templates, the taproot tree and control block, the witness stack and the
 # signature-operation count. What the consensus profiles sit on -- the
 # engine executes what `script.parse` produced and `sig_hash` hashes what
-# `script_pub_key` built -- and until now the half of `src/btclib/script` no
-# profile mutated: sig_hash.toml takes one file of it and engine.toml the
-# subdirectory, leaving these seven. Issue #219's question on the layer
-# below the one it opened.
+# `script_pub_key` built -- and this profile is the half of
+# `src/btclib/script` neither one mutates: sig_hash.toml takes one file of
+# it and engine.toml the subdirectory, leaving these seven. Issue #219's
+# question on the layer below the one it opened.
 
 [cosmic-ray]
 # named one by one rather than as `src/btclib/script` with the other two

@@ -2052,9 +2052,10 @@ def test_a_taproot_script_path_is_finalizable_only_after_the_updater() -> None:
     """The gap issue 306 names: a psbt cannot invent a leaf script.
 
     The Finalizer builds the witness of a script path spend out of the
-    leaf script and the control block the input carries, and until now
-    nothing wrote them there from a descriptor. With them, the psbt
-    finalizes to the very bytes `satisfy` builds from the same signature.
+    leaf script and the control block the input carries, and a
+    descriptor writes them there only through the Updater. With them,
+    the psbt finalizes to the very bytes `satisfy` builds from the same
+    signature.
     """
     descriptor = parse(f"tr({XONLY_A},{{pk({XONLY_B}),pk({XONLY_C})}})")
     psbt = descriptor.update_psbt_input(psbt_spending(descriptor), 0)
