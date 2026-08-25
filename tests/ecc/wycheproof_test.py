@@ -74,6 +74,7 @@ so it runs once.
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
 from hashlib import sha3_256, sha3_512, sha256, sha512, shake_128, shake_256
 from io import BytesIO
@@ -101,6 +102,7 @@ _ECDSA_SHA512_P1363 = "ecdsa_secp256k1_sha512_p1363_test.json"
 _ECDSA_SHAKE128_P1363 = "ecdsa_secp256k1_shake128_p1363_test.json"
 _ECDSA_SHAKE256_P1363 = "ecdsa_secp256k1_shake256_p1363_test.json"
 _ECDH = "ecdh_secp256k1_test.json"
+_ECDH_WEBCRYPTO = "ecdh_secp256k1_webcrypto_test.json"
 
 # the DER tags the SubjectPublicKeyInfo below is made of
 _SEQUENCE = 0x30
@@ -197,6 +199,35 @@ def _point_from_spki(der: bytes) -> Point:
     if not key or key[0]:
         raise BTClibValueError("invalid unused bit count")
     return point_from_octets(key[1:], secp256k1)
+
+
+def _b64url(field: str) -> bytes:
+    """Decode one JWK field: base64url with the padding RFC 7517 omits.
+
+    `base64.urlsafe_b64decode` still asks for it, so it is put back here
+    rather than the call being told to tolerate its absence.
+    """
+    return base64.urlsafe_b64decode(field + "=" * (-len(field) % 4))
+
+
+def _point_from_jwk(jwk: dict[str, Any]) -> Point:
+    """Return the secp256k1 point a JWK EC public key carries.
+
+    Wycheproof's webcrypto file hands an ECDH public key JWK-encoded
+    (RFC 7517), where `_point_from_spki` above reads the same agreement's
+    X.509 form. `crv` is checked before `x` and `y` are decoded at all,
+    for the same reason `_point_from_spki` reads the curve OID before the
+    coordinates: `WrongCurve` cases carry a `crv` other than `P-256K`,
+    some of them at a coordinate width secp256k1 itself uses, so refusing
+    on the identifier is what makes the refusal about the curve the
+    attacker actually changed rather than a coincidence of size or of
+    the coordinates.
+    """
+    if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256K":
+        raise BTClibValueError("not a secp256k1 EC JWK")
+    x = _b64url(jwk["x"])
+    y = _b64url(jwk["y"])
+    return point_from_octets(b"\x04" + x + y, secp256k1)
 
 
 def _digest(hf: HashF, data: bytes) -> bytes:
@@ -554,6 +585,50 @@ def test_ecdh(
     prv_key = int(vector["private"], 16)
     try:
         pub_key = _point_from_spki(bytes.fromhex(vector["public"]))
+        shared_key = dh.diffie_hellman(prv_key, pub_key, _KEY_SIZE)
+    except (BTClibValueError, BTClibRuntimeError):
+        assert vector["result"] != "valid"
+        return
+
+    assert vector["result"] != "invalid"
+    shared = bytes.fromhex(vector["shared"])
+    assert mult(prv_key, pub_key, secp256k1)[0] == int.from_bytes(
+        shared, byteorder="big"
+    )
+    assert shared_key == kdf.ansi_x9_63_kdf(shared, _KEY_SIZE, sha256, None)
+
+
+@pytest.mark.parametrize(
+    "vector, bindings",
+    [
+        pytest.param(
+            test, bindings, id=_vector_id("ecdh-webcrypto", test, bindings=bindings)
+        )
+        for group in load("ecc", "_data", _ECDH_WEBCRYPTO)["testGroups"]
+        for test in group["tests"]
+        # sha256, for the reason given at test_ecdh's own parametrization
+        for bindings in _paths(sha256)
+    ],
+)
+def test_ecdh_webcrypto(
+    vector: dict[str, Any], bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Agree on a shared key from JWK-encoded keys, or refuse the public one.
+
+    The webcrypto file's cases are `test_ecdh`'s own file (`_ECDH`)
+    re-encoded rather than a second set of agreements --
+    `tests/_data/README.md` is where the two were measured to share their
+    valid cases' shared secrets. What differs is the encoding, so
+    `_point_from_jwk` stands in for `_point_from_spki` and the private
+    key comes from the JWK `d` field rather than from a hex string; the
+    assertions below are `test_ecdh`'s own.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    prv_key = int.from_bytes(_b64url(vector["private"]["d"]), byteorder="big")
+    try:
+        pub_key = _point_from_jwk(vector["public"])
         shared_key = dh.diffie_hellman(prv_key, pub_key, _KEY_SIZE)
     except (BTClibValueError, BTClibRuntimeError):
         assert vector["result"] != "valid"

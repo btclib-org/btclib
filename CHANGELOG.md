@@ -2855,6 +2855,17 @@ documented at release-notes length in the first place, and are still in
   schema, and `tests/ecc/wycheproof_test.py` reads neither field, so the
   463 cases it does read are unchanged.
 
+- **`tests/ecc/_data/ecdh_secp256k1_webcrypto_test.json`, Wycheproof's
+  JWK-encoded twin of the vendored `ecdh_secp256k1_test.json`, is now
+  vendored too, with `tests/ecc/wycheproof_test.py`'s `test_ecdh_webcrypto`
+  reading it** (closes #1332). Its public and private keys are JWK (RFC
+  7517) where the sibling file's are X.509, so `_point_from_jwk` reads
+  `crv`, `x` and `y` the way `_point_from_spki` reads the OID and the
+  point octets, and a private key comes from the JWK `d` field through
+  the same base64url decoder. `tests/_data/README.md`'s entry for the
+  file replaces the "not vendored" one that recorded it as a measured
+  re-encoding.
+
 ## v2026.8.21
 
 ### Repository

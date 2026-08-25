@@ -1805,6 +1805,22 @@ Verdict: **identical**. Key agreement, with the public key X.509-encoded
 rather than a bare point: the invalid-curve, twist and wrong-curve cases
 `btclib.ecc.dh` has no other vectors for.
 
+### `tests/ecc/_data/ecdh_secp256k1_webcrypto_test.json`
+
+```text
+repo    C2SP/wycheproof
+path    testvectors_v1/ecdh_secp256k1_webcrypto_test.json
+commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+blob    a675c5378e8d10aad7ae241ef5460f4aefa10d0b
+pulled  2026-08-25
+behind  0 revisions; last changed at e0df04e0, 2025-10-07
+```
+
+Verdict: **identical**. The same key agreement as `ecdh_secp256k1_test.json`
+above with the keys JWK-encoded (RFC 7517) rather than X.509: `WrongCurve`
+here attacks the JWK `crv` field where that file's attacks the DER OID,
+and its valid cases' shared secrets are exactly that file's own.
+
 ### `tests/ecc/_data/WYCHEPROOF_COPYING`
 
 ```text
@@ -1830,30 +1846,6 @@ which is false, the BIP and rustyrussell files beside it having their
 own terms and btclib's own `LICENSE` being at the root. The upstream
 name is in the entry above instead, where the pin already is. It is the
 name bitcoin-core/secp256k1 gives its copy for the same reason.
-
-### Not vendored: `ecdh_secp256k1_webcrypto_test.json`
-
-```text
-repo    C2SP/wycheproof
-path    testvectors_v1/ecdh_secp256k1_webcrypto_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
-pulled  never
-behind  0 revisions; that commit is the tip of the path
-```
-
-Verdict: **not vendored, measured to be a re-encoding**. It is the same
-agreement as `ecdh_secp256k1_test.json` above with the keys written as
-JWK -- `crv: "P-256K"`, base64url `x`, `y` and `d` -- rather than as
-X.509. Its valid cases yield 468 distinct shared secrets, and all 468
-are exactly that file's; its invalid cases are a strict subset of that
-file's classes, JWK having no ASN.1 for `InvalidAsn` or
-`InvalidEncoding` to attack.
-
-So what it would add is a base64url and JWK reader under `tests/`, and
-no arithmetic btclib does not already answer for. Recorded here rather
-than left silent because "we did not take it" and "we did not notice
-it" look the same in a directory listing, and a later refresh would
-otherwise have to measure this again.
 
 ## Chain data, not a repository
 
@@ -2215,8 +2207,6 @@ No upstream blob exists for the rest:
 - response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- deliberately not vendored, with an entry saying why it was measured
-  and left: Wycheproof's `ecdh_secp256k1_webcrypto_test.json`.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt` and
   `btclib_test_vectors.json` (btclib's own). The last is the only one
