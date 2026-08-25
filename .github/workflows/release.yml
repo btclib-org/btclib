@@ -297,16 +297,16 @@ jobs:
   # a regression outside that cell could otherwise sit on main until the
   # morning after the tag. Cheap in work and the slowest calls here in
   # wall clock, which a release is the one place worth paying for
-  ubuntu:
-    name: Run the ubuntu workflow
+  os-ubuntu:
+    name: Run the os-ubuntu workflow
     uses: ./.github/workflows/os-ubuntu.yml
 
-  macos:
-    name: Run the macos workflow
+  os-macos:
+    name: Run the os-macos workflow
     uses: ./.github/workflows/os-macos.yml
 
-  windows:
-    name: Run the windows workflow
+  os-windows:
+    name: Run the os-windows workflow
     uses: ./.github/workflows/os-windows.yml
 
   # and the one required check on main this workflow was not asking for.
@@ -317,13 +317,14 @@ jobs:
   # every one of them a required check too, made again here for exactly
   # that reason. integration-bitcoind.yml declared `workflow_call` for
   # this from the day it became a gate; nothing had ever called it
-  integration:
-    name: Run the integration workflow
+  integration-bitcoind:
+    name: Run the integration-bitcoind workflow
     uses: ./.github/workflows/integration-bitcoind.yml
 
   publish-testpypi:
     name: Publish to TestPyPI
-    needs: [test, lint, docs, ubuntu, macos, windows, integration]
+    needs:
+      [test, lint, docs, os-ubuntu, os-macos, os-windows, integration-bitcoind]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -347,7 +348,8 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
-    needs: [test, lint, docs, ubuntu, macos, windows, integration]
+    needs:
+      [test, lint, docs, os-ubuntu, os-macos, os-windows, integration-bitcoind]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -376,8 +378,8 @@ jobs:
   # before it -- a release announcing files that do not install is worse
   # than a release announced a minute later, but the announcement is not
   # what makes them installable
-  published:
-    name: Install the published version from PyPI
+  pypi-install:
+    name: Run the pypi-install workflow
     needs: publish-pypi
     uses: ./.github/workflows/pypi-install.yml
     with:
@@ -571,7 +573,7 @@ jobs:
   # that succeeded, for as long as that takes somebody to notice. Two
   # releases went out undocumented that way, which is issue #574.
   # The rendered URL and not the v3 API, which is the reverse of what
-  # `published` above does with PyPI's: read the docs throttles an
+  # `pypi-install` above does with PyPI's: read the docs throttles an
   # unauthenticated caller to five requests a minute and warns that
   # requests from a cloud provider are blocked outright without a token, so
   # asking the API from a runner would mean storing a credential for a
