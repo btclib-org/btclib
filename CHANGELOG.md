@@ -37,6 +37,20 @@ documented at release-notes length in the first place, and are still in
   them, this tree holding neither workflow (issue #1347,
   btclib-org/.github#338).
 
+- **`scorecard.yml` runs the OpenSSF Scorecard against this tree**,
+  section 10's sentinel keyed on a repository being public and not a
+  fork. `publish_results: true` feeds the score `api.scorecard.dev`
+  serves and files what it finds as code-scanning alerts;
+  `id-token: write` is the transparency-log entry the publish asks for,
+  `security-events: write` the alert upload. Its triggers are the
+  action's own rather than section 10's usual set — `push:` on `main`
+  only, no `pull_request`, no `workflow_dispatch` — and it carries no
+  `schedule:` yet, section 10's calendar naming no day or hour for it
+  until btclib-org/.github#363 is answered. `README.md`'s badge sits
+  last among the sentinel badges, after every workflow the calendar does
+  order, per btclib-org/.github#358 (issue #1347,
+  btclib-org/.github#339).
+
 - **`CONTRIBUTING.md`'s shared half is the organization's copy byte for
   byte.** Section 14 of the standard is what makes everything above
   `## This repository in particular` the same file in every repository;
