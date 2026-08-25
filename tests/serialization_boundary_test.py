@@ -423,9 +423,9 @@ def test_from_dict_names_the_field_it_has_not_got(case: _JsonCase) -> None:
     txid, a header's difficulty, the psbt's derived "tx" -- is one whose
     absence is no error at all, which is why the assertion is on what a
     failure may be rather than on which keys fail. What must never happen
-    is the `KeyError` that used to: `exceptions.py` lists it as one of
-    the native exceptions still reaching a caller, and this family was
-    where it did.
+    is the `KeyError` that used to: `exceptions.py`'s guarantee is that
+    no public function lets a native exception reach a caller, and this
+    family was where a `KeyError` once did.
 
     The count is asserted too, or a `from_dict` that stopped reading its
     mapping would pass this by never failing.
