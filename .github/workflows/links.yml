@@ -146,8 +146,7 @@ jobs:
           # unreachable for one minute is the failure mode this workflow was
           # built not to gate on, and 45 seconds is the cheapest way to stop
           # reporting it. If a URL times out run after run it belongs in
-          # .lycheeignore with that measurement, as the iacr.org entries do,
-          # and not here
+          # .lycheeignore with that measurement, and not here
           args: >-
             --no-progress
             --max-retries 3
