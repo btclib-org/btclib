@@ -246,7 +246,7 @@ class BIP32KeyData:
 
     @property
     def is_root(self) -> bool:
-        """Answer whether this is a master key: no depth, index, parent."""
+        """Answer whether this is a master key, no depth, index, parent."""
         return (
             self.depth == 0
             and self.index == 0

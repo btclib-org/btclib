@@ -55,6 +55,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.coverage",
     "sphinx.ext.githubpages",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
 ]
@@ -65,6 +66,58 @@ extensions = [
 # into a failed build -- the open questions belong in the issue tracker
 
 source_suffix = [".rst", ".md"]
+
+# -n on the build (CONTRIBUTING.md's documented command, and docs.yml)
+# turns an unresolved cross-reference into a warning for -W to fail on.
+# Without an inventory to resolve against, a name from outside this tree
+# -- collections.abc.Sequence, pathlib.Path, os.getcwd -- reports as this
+# tree's own broken link; sphinx's own domain answers for the builtins
+# (int, bytes, str), so no mapping is needed for those. typing_extensions
+# carries no public inventory, but the only name this tree imports from
+# it is the `override` decorator, which never appears in a signature or
+# a docstring type field, so it draws no reference for -n to raise on
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
+
+# What the mapping above does not answer for is two shapes, neither an
+# inventory can fix, and each entry below carries its own reason rather
+# than a nitpick_ignore_regex that would give the check up entirely:
+#
+# - a subscripted generic written inline in a signature -- Callable's
+#   argument list, a bare tuple[int, ...], a union built out of either --
+#   where sphinx's own type-to-xref splitter (measured against sphinx
+#   9.1.0) stops at the first nested bracket and reports the truncated
+#   fragment as the unresolved class, rather than resolving the pieces on
+#   either side of it. No mapping answers a target that is not a name to
+#   begin with
+# - a name this tree documents nowhere. alias.py's Octets and
+#   TaprootScriptTree, bip32.py's BIP32Key, der_path.py's DerPath and
+#   descriptors.py's DescriptorTree are bare module-level assignments
+#   with no docstring of their own, so `:members:` renders no page for a
+#   signature naming them to link to; the p2p payload classes below are
+#   private, and automodule does not document a name beginning with an
+#   underscore at all
+nitpick_ignore = [
+    ("py:class", "collections.abc.Callable[[]"),
+    ("py:class", "tuple[int"),
+    ("py:class", "collections.abc.Mapping[bytes"),
+    (
+        "py:class",
+        (
+            "bytes | str | bytearray | memoryview | "
+            "~btclib.bip32.bip32.BIP32KeyData | tuple[int"
+        ),
+    ),
+    ("py:class", "int | bytes | str | bytearray | memoryview | tuple[int"),
+    ("py:class", "Octets"),
+    ("py:class", "DerPath"),
+    ("py:class", "BIP32Key"),
+    ("py:class", "TaprootScriptTree"),
+    ("py:class", "DescriptorTree"),
+    ("py:class", "btclib.p2p.inventory._InventoryPayload"),
+    ("py:class", "btclib.p2p.inventory._LocatorPayload"),
+    ("py:class", "btclib.p2p.keepalive._NoncePayload"),
+    ("py:class", "btclib.p2p.block_filters._FilterRangeRequest"),
+]
 
 # no suppress_warnings, and myst.xref_missing least of all: the transform
 # at the bottom of this file resolves every link the included root files
@@ -87,7 +140,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 
 # no html_static_path: this project overrides no stylesheet and ships no
 # image, so the "_static" the sphinx template declares was a directory that

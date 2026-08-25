@@ -1012,11 +1012,17 @@ page — and what catches invalid reStructuredText in a docstring, which no
 hook can: markdownlint does not read `.rst`, and ruff's pydocstyle rules
 check the form of a docstring rather than whether its body parses. A name
 ending in an underscore is the trap to know about, rst reading it as a link
-reference, so write it in double backticks:
+reference, so write it in double backticks. `-n` is what turns an
+unresolved cross-reference — a renamed class in a `:class:` role, a moved
+function — into a warning for `-W` to fail the build on, rather than a
+link that resolves to nothing on a green build; `conf.py`'s
+`intersphinx_mapping` is what it resolves the standard library against,
+and its `nitpick_ignore` carries the entries that reason cannot reach,
+each with the reason beside it:
 
 ```shell
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
 ```
 
 That job has a second step, which reads the pages the first one wrote and

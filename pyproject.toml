@@ -192,9 +192,9 @@ check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
 mutation = ["cosmic-ray"]
 docs = [
     { include-group = "bindings" },
+    "furo",
     "myst-parser",
     "sphinx",
-    "sphinx_rtd_theme",
 ]
 dev = [
     { include-group = "test" },

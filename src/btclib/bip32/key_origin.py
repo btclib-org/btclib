@@ -52,7 +52,7 @@ class BIP32KeyOrigin:
 
     @property
     def description(self) -> str:
-        """Return the descriptor spelling: fingerprint/path, h for hardened."""
+        """Return the descriptor spelling, fingerprint/path, h for hardened."""
         return str_from_der_path(self.der_path, self.master_fingerprint)
 
     def __init__(
