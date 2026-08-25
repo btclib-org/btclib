@@ -153,6 +153,17 @@ Do not use Fable unless explicitly instructed.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
   need the package installed).
+- **`[tool.coverage.run] source` names the imported package, not a
+  path.** coverage.py's `InOrOut.__init__` (`coverage/inorout.py`) tests
+  each entry with `os.path.isdir`: `"btclib"` fails that test and is
+  matched against import names instead, which is why the `src/` layout
+  move left the line unchanged.
+- **`SECURITY.md`'s file:line citations are unchecked by any gate and
+  drift silently.** An unrelated edit to a cited file shifts the line
+  with nothing red; verify with `awk 'NR==N' <file>` against the
+  claimed content, not against which function the line lands in — a
+  citation landing inside the right function has still been off by
+  several lines.
 
 ## Conventions to match
 

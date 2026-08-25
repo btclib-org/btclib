@@ -580,6 +580,18 @@ documented at release-notes length in the first place, and are still in
   and `links.yml`'s own comment no longer points at the removed
   `iacr.org` entries as an example (issue #1308).
 
+- **`CLAUDE.md`'s *Non-obvious facts* section gains two bullets.** One
+  names why `[tool.coverage.run] source = ["btclib", "tests"]` stayed
+  `"btclib"` through the `src/` layout move: coverage.py's `InOrOut`
+  tests each `source` entry with `os.path.isdir` and matches what fails
+  that test against import names rather than paths, so `"btclib"` was
+  never a path to begin with (issue #1345). The other names that
+  `SECURITY.md`'s `file:line` citations are unchecked by any gate and
+  drift silently, since an unrelated edit to a cited file shifts the
+  line with nothing red; `awk 'NR==N' <file>` against the claimed
+  content is what settles one, a citation landing inside the right
+  function being too weak a check on its own (issue #1346).
+
 ### Packaging, linting and CI
 
 - **Every place naming the bindings' distribution — the `secp256k1`
