@@ -166,8 +166,11 @@ jobs:
             Inline comments only for a finding a line is the subject of:
             `mcp__github_inline_comment__create_inline_comment` (with
             `confirmed: true`). Post nothing else as a GitHub comment and
-            never review text as a message: the verdict is a pull request
-            review, opened once every inline comment is posted --
+            never review text as a message, save where the review is a
+            reading and reaches no verdict: there the summary stays a
+            plain comment, `gh pr comment <n> --body "<summary>"`, exactly
+            as before. Where it does decide, the verdict is a pull
+            request review, opened once every inline comment is posted --
             `gh pr review <n> --approve --body "<summary>"` where the
             summary ends with `ACK <sha>`, or `gh pr review <n>
             --request-changes --body "<summary>"` where it ends with

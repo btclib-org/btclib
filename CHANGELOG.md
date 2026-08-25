@@ -673,6 +673,17 @@ documented at release-notes length in the first place, and are still in
   refuse" rather than "used to be". The docstring now names `is_coinbase`
   and `Tx.assert_valid` as what reads the pair instead, matching
   `assert_valid`'s own docstring two lines below it.
+- **`claude-review.yml`'s prompt gives a review that reaches no verdict
+  a way to post its summary.** The paragraph instructing the two
+  decided-verdict forms also said "post nothing else as a GitHub
+  comment", leaving `REVIEWING.md`'s own legitimate third outcome — a
+  reading that declines to decide, "not an unfinished review" in its
+  own words — nowhere to post at all; #1356 dropped the fallback its
+  predecessor carried. The prompt now names the exception explicitly:
+  where the review is a reading and reaches no verdict, the summary
+  stays a plain comment, `gh pr comment`, exactly as before — the
+  wording `btclib-secp256k1`'s own port of the same fix kept explicit
+  (closes #1372).
 
 ### Packaging, linting and CI
 
