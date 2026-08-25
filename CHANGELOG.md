@@ -644,6 +644,13 @@ documented at release-notes length in the first place, and are still in
   #1366). The file says the command is "exactly as `.readthedocs.yaml`
   does" and had drifted from it since `-n` was added to the other three
   in #1359.
+- **`scorecard.yml`'s opening comment no longer states how many checks
+  OpenSSF Scorecard runs.** The full check-definition list and the
+  narrower set `publish_results: true` feeds disagree on the total, so
+  no single re-derivable number answered both; the comment now
+  describes the audit itself — external, run by a third party — rather
+  than a count that ages the moment upstream adds, retires or
+  reclassifies a check (closes #1368).
 
 ### Packaging, linting and CI
 
