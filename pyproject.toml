@@ -1,13 +1,15 @@
 [build-system]
 # glob patterns in the [tool.uv.build-backend] table below, beside the
-# rest of the configuration, in place of the separate include and
-# exclude language of a MANIFEST.in. The floor is where the sdist's own
-# pyproject.toml became a normalized copy of this file, with the
-# verbatim one kept beside it as pyproject.toml.orig: 0.11.31 puts the
-# same members in the wheel and neither of those two in the sdist, so a
-# lower floor would leave what the sdist holds with two answers. The
-# ceiling is the next minor, which is where uv's versioning policy puts
-# a breaking change, this backend releasing with uv and versioned by it
+# rest of the configuration, in place of the separate include and exclude
+# language of a MANIFEST.in. The sdist's own pyproject.toml becomes a
+# normalized copy of this file at 0.12.0, with the verbatim source kept
+# beside it as pyproject.toml.orig; below it, pyproject.toml is that
+# verbatim file itself, with no .orig. This floor sits above the boundary
+# on purpose, at the rev .pre-commit-config.yaml's uv-pre-commit hook
+# pins, so the backend building the sdist matches the uv whose lock
+# format that hook's uv-lock writes. The ceiling is the next minor, which
+# is where uv's versioning policy puts a breaking change, this backend
+# releasing with uv and versioned by it
 requires = ["uv_build>=0.12.5,<0.13"]
 build-backend = "uv_build"
 
@@ -203,21 +205,12 @@ dev = [
 ]
 
 [tool.uv]
-# the oldest uv Dependabot's own uv-ecosystem updater bundles: it runs
-# `uv lock` with exactly that version regardless of this key, so any
-# higher floor fails every update it attempts before it starts. That
-# version already understands the lock format the uv-lock hook of
-# .pre-commit-config.yaml writes -- the hook pins a newer rev that
-# pre-commit.ci moves on its own schedule, and regenerates the committed
-# file, so this floor only has to stay low enough for Dependabot rather
-# than match the hook. Declared here the floor still holds for every uv
-# command, not the hook alone, so an uv older than this refuses rather
-# than rewriting the lock in a format a newer one cannot read -- uv is
-# pre-1.0 and has changed that format before. It also reaches CI without
-# a second pin: setup-uv, given no version input, reads this key, and a
-# bare minimum specifier makes it install the latest uv, so the runners
-# are never behind the floor and there is nothing here to go stale
-required-version = ">=0.11.31"
+# The highest floor Dependabot's own uv-ecosystem updater still allows,
+# so its `uv lock` keeps running rather than silently refusing every
+# update. Section 1 of the organization standard states that argument
+# once; section 15 carries the command that re-derives the ceiling
+# (btclib-org/.github#312)
+required-version = ">=0.12.1"
 
 [tool.uv.build-backend]
 # btclib/ sits at the root of the repository, where the backend looks
@@ -894,7 +887,11 @@ ignore = [
     # carry one -- D100/D104 and the D101/D102/D103 left out of this
     # list enforce exactly that (issue #290). The two still ignored are
     # the ones pep257 does not ask for: __init__ is documented by its
-    # class, and a magic method by the data model it implements
+    # class, and a magic method by the data model it implements. Neither
+    # is off because of `convention = "pep257"` below -- that convention
+    # leaves both rules enabled, so it is these two entries doing the
+    # exempting, and dropping either would gate a docstring on every
+    # __init__ or magic method (btclib-org/.github#178)
     "undocumented-magic-method",
     "undocumented-public-init",
     # code length is enforced by the formatter, which reflows to its 88

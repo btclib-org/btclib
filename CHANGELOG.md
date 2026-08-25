@@ -1731,6 +1731,37 @@ documented at release-notes length in the first place, and are still in
   `actions/setup-python` rather than `astral-sh/setup-uv`, since the
   script it runs has no project dependency to lock.
 
+- **`[build-system]`'s floor comment names the version where the sdist's
+  own `pyproject.toml` actually becomes normalized.** Measured by
+  calling `uv_build`'s `build_sdist` hook directly for each version --
+  `uv build` falls back silently to the running uv's own bundled
+  backend when `requires` names a version it does not satisfy, so it
+  cannot be used to probe the boundary -- the sdist gains the
+  normalized `pyproject.toml` and the verbatim `pyproject.toml.orig`
+  beside it at `uv_build==0.12.0`, not at `0.12.5`: `0.11.33`, the last
+  `0.11`, still ships the verbatim file with no `.orig`. `requires`
+  stays at `>=0.12.5` regardless -- `.pre-commit-config.yaml`'s
+  `uv-pre-commit` hook pins that exact rev, so the backend building the
+  sdist matches the uv whose lock format its `uv-lock` hook writes --
+  and the comment now says so, instead of naming `0.12.5` as the
+  boundary itself (issue #1267).
+
+- **`[tool.uv] required-version` rises from `>=0.11.31` to `>=0.12.1`,
+  the highest floor Dependabot's own uv-ecosystem updater allows.** The
+  updater bundles `0.12.1` and runs `uv lock` with exactly that version,
+  so a floor above it would silently stop every lock update it
+  attempts; a floor below it is safe and buys nothing past where it
+  sits. The comment beside it now points at section 1 and section 15 of
+  the organization standard instead of restating the Dependabot argument
+  in full (issue #1320).
+
+- **The `ignore` comment for `undocumented-magic-method` and
+  `undocumented-public-init` now says why `convention = "pep257"` does
+  not turn either off by itself.** The convention leaves both rules
+  enabled (btclib-org/.github#178): the two `ignore` entries are what
+  exempts `__init__` and a magic method, and the previous wording gave
+  only the reason each is exempt without saying that (issue #1318).
+
 ### Documentation and the website
 
 - **`.readthedocs.yaml` justifies its own name with the setting that
