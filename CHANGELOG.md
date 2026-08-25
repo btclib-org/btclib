@@ -2790,6 +2790,16 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,
+  matching the spelling `tests/py_arm_authority_test.py` and its census
+  already carry** (closes #1270). Every test under `tests/bip32/`,
+  `tests/ecc/` and `tests/script/` whose name cited `python_arm` is
+  renamed, and `src/btclib/bip32/bip32.py` and `src/btclib/ecc/dsa.py`
+  cite the new names in the docstrings and comment that name them
+  verbatim. `src/btclib/curves/curve.py`, `SECURITY.md` and
+  `CONTRIBUTING.md` keep saying "Python arm": that is prose, not an
+  identifier, and stays outside this rename.
+
 - **`test_the_flag_still_switches_the_check_off`'s docstring stops
   counting the registry** (issue #1212). It said "the nine in
   `NETWORKS`", where `NETWORKS` holds five — a number nothing in the

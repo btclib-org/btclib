@@ -298,7 +298,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
 
 
 @needs_bindings
-def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Both tweaks this module gates must be Python throughout.
 
     A mixed arm is the one shape that is never right: with libsecp256k1 in

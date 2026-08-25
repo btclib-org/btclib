@@ -820,7 +820,7 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
 
 
 @needs_bindings
-def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """The Python arm must be Python throughout, or it has no reason to be.
 
     A mixed arm is the one shape that is never right: with libsecp256k1
@@ -871,7 +871,7 @@ def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @needs_bindings
-def test_the_python_arm_answers_what_the_primitive_answers(
+def test_the_py_arm_answers_what_the_primitive_answers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Each arm of the two sums, against the call the other one makes.

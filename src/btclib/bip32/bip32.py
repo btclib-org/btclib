@@ -756,7 +756,7 @@ class _PythonPubKeyTweakChain:
     `mult` and the lift inside `point_from_octets` gate on
     `_libsecp256k1_serves(secp256k1, None)`, which is the call that chose
     this implementation, and cannot answer it differently -- and
-    `test_the_python_arm_reaches_no_bindings` checks that rather than
+    `test_the_py_arm_reaches_no_bindings` checks that rather than
     trusting it, a dispatch made finer-grained one day being what would
     end it silently.
     """

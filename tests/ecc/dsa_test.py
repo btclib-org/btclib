@@ -2031,7 +2031,7 @@ def test_a_fault_is_not_reported_as_a_wrong_key() -> None:
 
 
 @needs_bindings
-def test_the_delegated_grind_is_the_sequence_the_python_arm_walks() -> None:
+def test_the_delegated_grind_is_the_sequence_the_py_arm_walks() -> None:
     """The defence the delegation rests on, and the reason it is here.
 
     `sign_` no longer grinds on the delegated arm: libsecp256k1's own

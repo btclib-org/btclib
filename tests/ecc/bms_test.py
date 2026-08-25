@@ -1070,7 +1070,7 @@ def test_the_python_path_answers_the_same(
 
 
 @needs_bindings
-def test_the_python_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     """The recovery gated on availability alone must be Python throughout.
 
     A mixed arm is the one shape that is never right: with libsecp256k1 in

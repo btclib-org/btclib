@@ -1573,7 +1573,7 @@ def test_a_signer_answers_what_the_free_function_answers(
         assert signer.sign_(reduce_to_hlen(msg, hf), aux, verify=False) == expected
 
 
-def test_the_python_arm_refuses_a_signature_that_does_not_verify() -> None:
+def test_the_py_arm_refuses_a_signature_that_does_not_verify() -> None:
     """The check is wired to the raise, not merely written near it.
 
     No input reaches it -- a fresh signature verifies under the key that
