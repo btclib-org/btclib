@@ -81,10 +81,12 @@ _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 def _assert_pub_key_type(pub_key: PubKey) -> None:
     """Refuse a type no spelling of a public key has.
 
-    Asked at the top of a converter, and not inferred from whichever
-    spelling failed last, which is what these two used to do: every
-    refusal was a BTClibValueError, so "this key is not on the curve"
-    and "this is not a key at all" arrived as one class.
+    Asked at the top of a converter, not inferred from whichever
+    spelling failed last: a value of no key type at all is a
+    BTClibTypeError here, kept apart from the BTClibValueError a
+    spelling raises once its type is right and its content is not, so
+    "this key is not on the curve" and "this is not a key at all"
+    answer as two different classes rather than one.
 
     The difference is what a boolean verification reads, and issue #814
     is where it is stated: `dsa.verify` answers False about a value of a
