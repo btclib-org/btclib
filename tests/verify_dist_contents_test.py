@@ -47,7 +47,9 @@ _ROOT = f"btclib-{_VERSION}"
 _DIST_INFO = f"btclib-{_VERSION}.dist-info"
 
 # the smallest pair that passes: the package, one data file, the metadata
-# the backend writes, and the licences it copies
+# the backend writes, and the licences it copies. Normalized names -- the
+# wheel installs the package flattened to btclib/, and _sdist_path below
+# is what places the same names under the sdist's own src/btclib/
 _PAYLOAD = ("btclib/__init__.py", "btclib/py.typed", "btclib/_data/mainnet.json")
 _WHEEL_MEMBERS = (
     *_PAYLOAD,
@@ -67,7 +69,12 @@ _SDIST_MEMBERS = (
     "docs/index.rst",
     "tests/btclib_test.py",
 )
-_SDIST_DIRECTORIES = ("btclib", "btclib/_data", "docs", "tests")
+_SDIST_DIRECTORIES = ("src", "src/btclib", "src/btclib/_data", "docs", "tests")
+
+
+def _sdist_path(name: str) -> str:
+    """Map a normalized payload name to its place in the sdist, under src/."""
+    return f"src/{name}" if name.startswith("btclib/") else name
 
 
 @pytest.fixture
@@ -118,8 +125,8 @@ def write_sdist(
             info.type = tarfile.DIRTYPE
             archive.addfile(info)
         names = (
-            *(f"{_ROOT}/{m}" for m in _SDIST_MEMBERS if m not in omit),
-            *(f"{_ROOT}/{m}" for m in extra),
+            *(f"{_ROOT}/{_sdist_path(m)}" for m in _SDIST_MEMBERS if m not in omit),
+            *(f"{_ROOT}/{_sdist_path(m)}" for m in extra),
             *raw,
         )
         for name in names:
@@ -261,7 +268,7 @@ def test_a_planted_sdist_member_is_named(
         ("examples", "is a directory the sdist does not ship"),
         # the one case the forbidden suffixes do not reach: an empty
         # bytecode directory is a directory member and no `.pyc`
-        ("btclib/__pycache__", "is under __pycache__"),
+        ("src/btclib/__pycache__", "is under __pycache__"),
     ],
 )
 def test_a_directory_member_is_judged_too(

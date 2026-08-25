@@ -12,7 +12,7 @@
 # therefore ran sig_hash.py and enumerated this one, which is the
 # "one module first" the issue asks for; this file is what a
 # workflow_dispatch, or a night, is aimed at
-module-path = "btclib/script/engine"
+module-path = "src/btclib/script/engine"
 
 # tests/script_engine alone, where sig_hash.toml names tests/script first,
 # and not because the engine is out of that directory's reach: three of the

@@ -9,10 +9,10 @@
 
 [cosmic-ray]
 module-path = [
-    "btclib/fetch/transport.py",
-    "btclib/fetch/esplora.py",
-    "btclib/fetch/bitcoin_core.py",
-    "btclib/fetch/fetcher.py",
+    "src/btclib/fetch/transport.py",
+    "src/btclib/fetch/esplora.py",
+    "src/btclib/fetch/bitcoin_core.py",
+    "src/btclib/fetch/fetcher.py",
 ]
 
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/fetch"
@@ -25,8 +25,8 @@ excluded-modules = []
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
-#   grep -n ' | ' btclib/fetch/transport.py btclib/fetch/esplora.py \
-#       btclib/fetch/bitcoin_core.py btclib/fetch/fetcher.py
+#   grep -n ' | ' src/btclib/fetch/transport.py src/btclib/fetch/esplora.py \
+#       src/btclib/fetch/bitcoin_core.py src/btclib/fetch/fetcher.py
 #
 # Every hit is an annotation. Confirmed by running the filter itself
 # rather than by the grep alone: `cosmic-ray init` over this file still

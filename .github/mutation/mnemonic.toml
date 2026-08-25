@@ -8,8 +8,8 @@
 
 [cosmic-ray]
 module-path = [
-    "btclib/mnemonic/bip39.py",
-    "btclib/mnemonic/entropy.py",
+    "src/btclib/mnemonic/bip39.py",
+    "src/btclib/mnemonic/entropy.py",
 ]
 
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
@@ -23,7 +23,7 @@ excluded-modules = []
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
-#   grep -n ' | ' btclib/mnemonic/bip39.py btclib/mnemonic/entropy.py
+#   grep -n ' | ' src/btclib/mnemonic/bip39.py src/btclib/mnemonic/entropy.py
 #
 # Every hit outside the docstring's own entropy/checksum table is an
 # annotation -- the `|`/`^` the sample below found equivalent to `+` is

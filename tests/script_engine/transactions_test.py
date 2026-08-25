@@ -90,7 +90,7 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
     # BTClibValueError alone, as in `test_script` and for the same
     # reason: everything the engine refuses is one, ScriptError
     # included, so a bare IndexError or KeyError is the library breaking
-    # the contract btclib/exceptions.py documents and not a refusal. A
+    # the contract src/btclib/exceptions.py documents and not a refusal. A
     # tuple naming them as well would count a crash as the refusal it is
     # asking for: two `spendpath/truncshortcontrol` vectors once left
     # through `witness.stack[-1][0]` on an empty element

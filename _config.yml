@@ -29,8 +29,8 @@ theme: jekyll-theme-minimal
 # There is no index.md, so Jekyll renders README.md as the homepage: a
 # README edit is a website deploy. Everything else in main's root is
 # published too unless this list stops it, the package itself included:
-# drop the btclib/ and pyproject.toml entries below and /pyproject.toml
-# and /btclib/alias.py answer with their own contents.
+# drop the src/ and pyproject.toml entries below and /pyproject.toml
+# and /src/btclib/alias.py answer with their own contents.
 #
 # The first block repeats Jekyll's own default exclude, because this key
 # replaces that default rather than adding to it: without those entries
@@ -59,7 +59,7 @@ exclude:
   - vendor/gems/
   - vendor/ruby/
   # the library and its tests: on the website by accident
-  - btclib/
+  - src/
   - tests/
   - docs/
   # packaging and tooling, likewise

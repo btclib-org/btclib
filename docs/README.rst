@@ -41,16 +41,16 @@ Adding or removing a module
 ---------------------------
 
 Edit the ``rst`` file by hand. Do **not** run ``sphinx-apidoc -f -o
-docs/source btclib/``: ``-f`` regenerates every page from the template,
+docs/source src/btclib/``: ``-f`` regenerates every page from the template,
 discarding the hand-tuned ``index.rst`` and ``modules.rst`` and the
 ``myst`` links to README, RELEASE_NOTES, CONTRIBUTING and SECURITY. Point
 it at a scratch directory if you want the boilerplate for a new module,
 then copy the stanza across.
 
 Forgetting the edit is what ``tests/docs_test.py`` is for: it compares the
-modules under ``btclib/`` against the directives in ``docs/source/`` and
-fails naming whichever is missing. This note is the convenience; the test
-is the guarantee.
+modules under ``src/btclib/`` against the directives in ``docs/source/``
+and fails naming whichever is missing. This note is the convenience; the
+test is the guarantee.
 
 Dependencies
 ------------

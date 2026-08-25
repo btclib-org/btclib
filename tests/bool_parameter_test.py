@@ -179,7 +179,7 @@ def _is_signed(psbt: Psbt) -> bool:
     return True
 
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # `check_validity` is the one name the walk subtracts, and this is the
 # reason it may: it is a convention over many signatures rather than a
@@ -1149,7 +1149,7 @@ def test_a_truth_is_read_for_its_truth(case: _Case) -> None:
 def test_every_bool_parameter_is_classified() -> None:
     """No third table: a flag is a kind or a truth, and the walk says so.
 
-    A parameter added anywhere under `btclib/` fails here until somebody
+    A parameter added anywhere under `src/btclib/` fails here until somebody
     decides which of the two it is -- which is the decision this file
     exists to keep from being made by default.
     """

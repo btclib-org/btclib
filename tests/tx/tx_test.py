@@ -478,7 +478,7 @@ def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:
     Two inputs make `is_coinbase` false whatever they are, so the null
     outpoint among them spends an output that does not exist and creates
     the coinbase's money outside a coinbase. Core's CheckTransaction has
-    the rule; here it was the only statement of `btclib/tx` that the
+    the rule; here it was the only statement of `src/btclib/tx` that the
     directory's own tests never reached -- a script_engine vector did,
     which is a verdict on the engine and no test of this one.
     """

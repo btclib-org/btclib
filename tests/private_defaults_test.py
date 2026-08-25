@@ -47,7 +47,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # the shapes the walk has to be reaching for the gate to mean anything: a
 # module-level function, a method of a private class, and a name-mangled

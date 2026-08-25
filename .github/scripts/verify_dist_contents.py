@@ -116,9 +116,9 @@ WHEEL_METADATA_FILES = frozenset({"METADATA", "RECORD", "WHEEL"})
 # file reads is the archive and not the build that wrote it
 WHEEL_REQUIRED = frozenset({"btclib/__init__.py", "btclib/py.typed"})
 
-# the directories of the sdist, which is the development tree: the
-# package, its suite, and the documentation sources
-SDIST_DIRECTORIES = frozenset({"btclib", "docs", "tests"})
+# the directories of the sdist, which is the development tree: `src`
+# holding the package, its suite, and the documentation sources
+SDIST_DIRECTORIES = frozenset({"src", "docs", "tests"})
 
 # the files that may sit at the root of the sdist. `source-include` ships
 # most of them by glob, a pattern per suffix below, so a new file beside
@@ -277,7 +277,11 @@ def verify_sdist(sdist: Path) -> tuple[list[str], set[str]]:
     complaints += [
         f"{sdist.name}: {name} is missing" for name in sorted(SDIST_REQUIRED - files)
     ]
-    payload = {name for name in files if name.startswith("btclib/")}
+    # stripped of the leading src/ so this payload is directly comparable
+    # to the wheel's: the sdist keeps the package under src/btclib/, the
+    # wheel installs it flattened to btclib/, and the two are one payload
+    # under two different roots
+    payload = {name[len("src/") :] for name in files if name.startswith("src/btclib/")}
     return complaints, payload
 
 

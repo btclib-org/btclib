@@ -424,7 +424,7 @@ jobs:
   # test anywhere reaches, not which configuration reaches which.
   # This is why no `# pragma: no cover` in the tree became removable the
   # day this job was added, despite what #995 and #1002 both hoped:
-  # `btclib/_libsecp256k1.py`'s `except ImportError:` and
+  # `src/btclib/_libsecp256k1.py`'s `except ImportError:` and
   # `tests/conftest.py`'s `_skip_what_needs_the_bindings` are reached by
   # this job's own run and would make the union 100% without their
   # pragma, and are unreachable in the `coverage` job's single run by

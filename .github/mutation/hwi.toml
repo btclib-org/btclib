@@ -8,7 +8,7 @@
 # device being the thing nobody can step through.
 
 [cosmic-ray]
-module-path = "btclib/hwi.py"
+module-path = "src/btclib/hwi.py"
 
 # its own file, which covers the module completely, and its own profile
 # because of what that costs: every case starts a fake `hwi` executable,
@@ -34,7 +34,7 @@ timeout = 300
 excluded-modules = []
 
 # the exclusion wallet.toml explains, measured the same way here: `grep -n
-# ' | ' btclib/hwi.py` is annotations only, and the unfiltered session
+# ' | ' src/btclib/hwi.py` is annotations only, and the unfiltered session
 # executed 39 BitOr mutants without killing one. Worth the line in a scope
 # this expensive -- at 9 s a mutant on a loaded machine, an unkillable
 # survivor is 9 s spent on a verdict nobody can act on

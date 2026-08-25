@@ -123,13 +123,13 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     this keeps: "No module loads `urllib.request` on its way to anything
     else".
 
-    So `btclib/p2p/__init__.py` answers the three names through PEP 562,
-    as `btclib/script/__init__.py` answers `sig_hash` and `engine`, and
+    So `src/btclib/p2p/__init__.py` answers the three names through PEP 562,
+    as `src/btclib/script/__init__.py` answers `sig_hash` and `engine`, and
     what is pinned here is both halves: importing the package costs
     nothing, and asking for a message start is what pays.
 
     The two names asserted are the two the test above asserts, and
-    `socket` is deliberately not a third. `btclib/__init__.py` reads the
+    `socket` is deliberately not a third. `src/btclib/__init__.py` reads the
     version with `importlib.metadata`, which imports `email.utils` on
     every interpreter before 3.13, and that module imports `socket` for
     `make_msgid` -- so `socket` is in `sys.modules` after importing
@@ -194,7 +194,7 @@ def test_script_publishes_sig_hash_and_the_engine_without_importing_them(
     Both reach the transaction stack -- `sig_hash` imports `btclib.tx`,
     whose `tx_in` and `tx_out` import `btclib.script` back, and
     `btclib.script.engine.script` asks this very package for `sig_hash` --
-    so an import of either from `btclib/script/__init__.py` would run on a
+    so an import of either from `src/btclib/script/__init__.py` would run on a
     half-initialized package, which is issue #147 again. The `__getattr__`
     there is what publishes them instead, and this is the measurement:
     importing the package leaves both out of sys.modules, and asking for

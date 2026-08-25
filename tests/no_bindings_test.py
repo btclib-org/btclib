@@ -147,7 +147,7 @@ def test_btclib_answers_with_the_bindings_out_of_reach() -> None:
     costing more to start than any of them costs to run.
 
     The child imports all eleven guarded modules and not only the ones it
-    then calls: `btclib/__init__.py` imports nothing eagerly, so `import
+    then calls: `src/btclib/__init__.py` imports nothing eagerly, so `import
     btclib` is the metadata lookup and no module at all, and a guard
     nothing imports is a guard nothing checks. `ecc.dh`, `ecc.ellswift`
     and `script.engine.tapscript` are the three the calls below would not

@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-_LIBRARY = Path(__file__).parents[1] / "btclib"
+_LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
 
 # what each prefix promises the return type is. `verify` is matched
 # anywhere in the name and not only at the front: `batch_verify_`,

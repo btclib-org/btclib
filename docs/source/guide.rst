@@ -911,7 +911,7 @@ Where to go next
   every module. The docstrings carry the reasoning, not just the
   signatures
 - the test suite is the second half of the documentation. ``tests/``
-  mirrors ``btclib/`` and reproduces the published vectors of the BIPs,
+  mirrors ``src/btclib/`` and reproduces the published vectors of the BIPs,
   of RFC 6979 and of Bitcoin Core, so if you want to know exactly what
   btclib promises about something, the test for it is where it is
   written down

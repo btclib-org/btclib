@@ -7,7 +7,7 @@
 # signing boundary.
 
 [cosmic-ray]
-module-path = "btclib/ecc/bms.py"
+module-path = "src/btclib/ecc/bms.py"
 
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/ecc/bms_test.py"
 
@@ -19,7 +19,7 @@ excluded-modules = []
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
-#   grep -n ' | ' btclib/ecc/bms.py
+#   grep -n ' | ' src/btclib/ecc/bms.py
 #
 # Every hit outside the docstring's own recovery-flag table is an
 # annotation -- none of the arithmetic the session below found

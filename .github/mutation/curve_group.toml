@@ -17,8 +17,8 @@
 
 [cosmic-ray]
 module-path = [
-    "btclib/curves/curve_group.py",
-    "btclib/curves/curve_group_2.py",
+    "src/btclib/curves/curve_group.py",
+    "src/btclib/curves/curve_group_2.py",
 ]
 
 # each file's own dedicated test, and only those: curve_test.py's own

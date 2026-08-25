@@ -9,14 +9,14 @@
 # [tool.check-sdist] and another in _config.yml's exclude list to say
 # what its location says here.
 #
-# Two files and not one, though `module-path = "btclib/script"` with the
+# Two files and not one, though `module-path = "src/btclib/script"` with the
 # six non-consensus modules excluded was measured to enumerate exactly the
 # same 3495 mutants: the test command is per-configuration, and the two
 # halves of the scope cost 1.1 s and 7.2 s of cpu per mutant. Sharing one
 # command would make every sighash mutant pay the engine's price.
 
 [cosmic-ray]
-module-path = "btclib/script/sig_hash.py"
+module-path = "src/btclib/script/sig_hash.py"
 
 # 727 mutants, enumerated in under a second by `cosmic-ray init`.
 #

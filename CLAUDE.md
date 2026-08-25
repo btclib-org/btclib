@@ -19,7 +19,7 @@ is what the pull request will be answered against.
 Pure-Python bitcoin cryptography, with secp256k1 arithmetic delegated to
 the `btclib_secp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
-`btclib/curves/` or `btclib/ecc/`:
+`src/btclib/curves/` or `src/btclib/ecc/`:
 
 - `curves.curve.mult`, `double_mult_var` and `multi_mult_var` call the bindings
   for secp256k1 and any point of it, a zero scalar and the point at
@@ -185,7 +185,7 @@ Do not use Fable unless explicitly instructed.
   ```shell
   grep -c '^- ' CHANGELOG.md   # the number, whenever it is wanted
   git ls-files 'tests/_data/*' 'tests/*/_data/*' \
-      btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
+      src/btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
 
   The why is section 9 of the organization standard, which
@@ -202,8 +202,8 @@ Do not use Fable unless explicitly instructed.
   command that re-derives the number beside it:
 
   ```shell
-  uv run ruff check --select N --no-cache btclib tests
-  uv run mypy --enable-error-code=redundant-expr btclib tests
+  uv run ruff check --select N --no-cache src/btclib tests
+  uv run mypy --enable-error-code=redundant-expr src/btclib tests
   uv run pytest --durations=0 --durations-min=0
   ```
 

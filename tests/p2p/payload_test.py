@@ -175,7 +175,7 @@ def test_the_round_trip_through_an_envelope(payload: Payload) -> None:
 
     # `Any`, because `Payload` declares no `parse`: a subclass has one
     # for its own return type and the base has nothing to call it from,
-    # which is `btclib/p2p/payload.py`'s asymmetry read off the types
+    # which is `src/btclib/p2p/payload.py`'s asymmetry read off the types
     cls: Any = type(payload)
     assert message.command == cls.command
     assert cls.parse(message.payload) == payload

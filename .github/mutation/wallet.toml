@@ -11,10 +11,10 @@
 # the package, `__init__.py` included, for the reason descriptors.toml
 # gives: it is re-exports, and naming the directory is what keeps a fifth
 # module from being left out in silence
-module-path = "btclib/wallet"
+module-path = "src/btclib/wallet"
 
 # tests/wallet alone, and it is enough for a reason worth stating: the
-# four modules measure 100% under it -- `--cov=btclib/wallet` over this
+# four modules measure 100% under it -- `--cov=src/btclib/wallet` over this
 # command reports no missing line -- and the whole command costs half a
 # second, which is what makes this the cheapest profile in the directory
 # to run to completion. The descriptor a `DescriptorWallet` delegates to
@@ -35,7 +35,7 @@ excluded-modules = []
 # them by operator, and what belongs here is the measurement behind the
 # claim. The grep, a line number rotting on the next insertion above it:
 #
-#   grep -n ' | ' btclib/wallet/*.py
+#   grep -n ' | ' src/btclib/wallet/*.py
 #
 # Every hit is an annotation today, and the first session over this scope
 # -- run before this filter, which is how the decision was made rather

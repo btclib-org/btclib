@@ -2,27 +2,27 @@
 # templates, the taproot tree and control block, the witness stack and the
 # signature-operation count. What the consensus profiles sit on -- the
 # engine executes what `script.parse` produced and `sig_hash` hashes what
-# `script_pub_key` built -- and until now the half of `btclib/script` no
+# `script_pub_key` built -- and until now the half of `src/btclib/script` no
 # profile mutated: sig_hash.toml takes one file of it and engine.toml the
 # subdirectory, leaving these seven. Issue #219's question on the layer
 # below the one it opened.
 
 [cosmic-ray]
-# named one by one rather than as `btclib/script` with the other two
+# named one by one rather than as `src/btclib/script` with the other two
 # scopes excluded, which is what sig_hash.toml explains: the test command
 # is per-configuration, and an engine mutant costs 7.2 s where these cost
 # under two. `limits.py` is here for its arithmetic -- the tapscript
 # script-size bound is derived from the stack and element limits rather
 # than copied
 module-path = [
-    "btclib/script/script.py",
-    "btclib/script/script_pub_key.py",
-    "btclib/script/taproot.py",
-    "btclib/script/witness.py",
-    "btclib/script/sig_ops.py",
-    "btclib/script/op_codes_tapscript.py",
-    "btclib/script/limits.py",
-    "btclib/script/__init__.py",
+    "src/btclib/script/script.py",
+    "src/btclib/script/script_pub_key.py",
+    "src/btclib/script/taproot.py",
+    "src/btclib/script/witness.py",
+    "src/btclib/script/sig_ops.py",
+    "src/btclib/script/op_codes_tapscript.py",
+    "src/btclib/script/limits.py",
+    "src/btclib/script/__init__.py",
 ]
 
 # tests/script first, where nearly every mutant dies, and four files after
@@ -30,7 +30,7 @@ module-path = [
 # with `--cov=btclib.script` over this command, which reports every module
 # here complete but for the seven lines named below:
 #
-# - tests/all_test.py is `btclib/script/__init__.py`'s only caller: the
+# - tests/all_test.py is `src/btclib/script/__init__.py`'s only caller: the
 #   PEP 562 `__getattr__` and `__dir__` that import `engine` and
 #   `sig_hash` on demand are reached by nothing that imports them by name
 # - tests/tx/tx_out_test.py is what asks a `ScriptPubKey` for its
@@ -64,10 +64,11 @@ excluded-modules = []
 # Expected to be the other way here -- the templates do arithmetic on a
 # witness version and on flags -- and measured to be annotations only:
 #
-#   grep -n ' | ' btclib/script/script.py btclib/script/script_pub_key.py \
-#       btclib/script/taproot.py btclib/script/witness.py \
-#       btclib/script/sig_ops.py btclib/script/op_codes_tapscript.py \
-#       btclib/script/limits.py btclib/script/__init__.py
+#   grep -n ' | ' src/btclib/script/script.py \
+#       src/btclib/script/script_pub_key.py src/btclib/script/taproot.py \
+#       src/btclib/script/witness.py src/btclib/script/sig_ops.py \
+#       src/btclib/script/op_codes_tapscript.py src/btclib/script/limits.py \
+#       src/btclib/script/__init__.py
 #
 # Every hit is an annotation, the arithmetic being `&`, `<<` and `+` and
 # untouched by this, and the unfiltered session that settled it executed

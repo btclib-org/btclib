@@ -187,7 +187,7 @@ def test_a_pre_built_script_pub_key_is_validated_as_octets_are() -> None:
     `Tx.assert_valid` walks every `TxIn` and `TxOut`, `Block.assert_valid`
     the header and every transaction, `PsbtIn.assert_valid` both utxo
     fields, and `PsbtOut.assert_valid` each of its own. `OutPoint` and
-    `TxIn` are the exceptions `btclib/utils.py` documents: their fields are
+    `TxIn` are the exceptions `src/btclib/utils.py` documents: their fields are
     the widths the parse enforces, so the check is unreachable by design.
     """
     bad = ScriptPubKey(b"\x51", "notanetwork", check_validity=False)

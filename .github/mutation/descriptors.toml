@@ -12,10 +12,10 @@
 # it contributes a handful of mutants rather than a scope of its own, and
 # naming the directory is what keeps a fourth module added tomorrow from
 # being left out in silence
-module-path = "btclib/descriptors"
+module-path = "src/btclib/descriptors"
 
 # tests/descriptors alone, which is what covers all three modules to 100%
-# -- measured, `--cov=btclib/descriptors` over this command reports every
+# -- measured, `--cov=src/btclib/descriptors` over this command reports every
 # file complete -- in under four seconds. custody_wallet_test.py is in that
 # directory and is the wallet-shaped judgement of a descriptor, so the
 # scope does not need tests/wallet to reach what a wallet asks a descriptor
@@ -48,7 +48,7 @@ excluded-modules = []
 # exactly the question this profile exists to ask. The claim is a grep,
 # a line number here rotting on the next insertion above it:
 #
-#   grep -c ' | ' btclib/descriptors/*.py
+#   grep -c ' | ' src/btclib/descriptors/*.py
 #
 # The annotation half survives instead, and is the class fetch.toml
 # documents at length: unevaluated, unkillable, and not a hole. What the

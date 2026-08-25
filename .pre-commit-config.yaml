@@ -74,7 +74,7 @@ repos:
         # being byte for byte upstream's is a property that can be
         # checked, and a stripped space voids it for nothing. The loader
         # reads the words and treats the header as the comment it is
-        exclude: ^btclib/mnemonic/_data/electrum_portuguese\.txt$
+        exclude: ^src/btclib/mnemonic/_data/electrum_portuguese\.txt$
       - id: end-of-file-fixer
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
@@ -574,7 +574,7 @@ repos:
   # while the prose above it still describes the old one. The
   # configuration is in pyproject.toml, beside the ruff one.
   #
-  # Scoped to btclib/, which is the published surface: a caller reading
+  # Scoped to src/btclib/, which is the published surface: a caller reading
   # help() or an IDE tooltip has that docstring and nothing else. A test
   # function documents what it claims rather than its fixtures -- which
   # is why the D rules are not in per-file-ignores for tests/ and this is
@@ -586,7 +586,7 @@ repos:
       - id: pydoclint
         name: pydoclint (arguments and return values)
         args: [--config=pyproject.toml]
-        files: ^btclib/.*\.py$
+        files: ^src/btclib/.*\.py$
   # the other half of pyproject.toml's unspecified-encoding, which reads
   # `open` and the pathlib and tempfile spellings and stops there. A child
   # process decoded through `text=True` takes the locale's encoding by
@@ -633,7 +633,7 @@ repos:
         name: mypy (strict, in the project environment)
         entry: >
           uv run --locked --no-default-groups --group lint --group test
-          mypy btclib tests .github/scripts
+          mypy src/btclib tests .github/scripts
         language: system
         types: [python]
         pass_filenames: false

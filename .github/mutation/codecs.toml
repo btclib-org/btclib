@@ -9,10 +9,10 @@
 
 [cosmic-ray]
 module-path = [
-    "btclib/base58.py",
-    "btclib/bech32.py",
-    "btclib/b58.py",
-    "btclib/b32.py",
+    "src/btclib/base58.py",
+    "src/btclib/bech32.py",
+    "src/btclib/b58.py",
+    "src/btclib/b32.py",
 ]
 
 # each module's own test file, in the order the pair builds on the codec:
