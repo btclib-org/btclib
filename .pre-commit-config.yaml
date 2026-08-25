@@ -237,7 +237,7 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        name: codespell (prose and comments)
+        name: codespell (prose and comments, in place fixes)
         # the "clear" dictionary alone, where codespell's default is
         # "clear,rare": measured over this tree, the other four builtins add
         # 13 findings and one of them is a typo. "rare" reports "lets" (as
@@ -247,8 +247,15 @@ repos:
         # "code" and "names" add nothing this code base contains. A hook
         # whose findings are mostly wrong gets an ignore list long enough to
         # hide a real typo, so the one it did find, "fro" for "from", was
-        # corrected by hand instead
-        args: [--builtin, clear]
+        # corrected by hand instead.
+        #
+        # --write-changes puts this hook with the others that correct
+        # rather than report, which is what section 4 asks of a hook that
+        # can. A spell checker's repairs are guesses where a formatter's
+        # are deterministic, so the flag went on against a measurement
+        # rather than on principle: run with --builtin clear over the
+        # whole tree it rewrites nothing here
+        args: [--builtin, clear, --write-changes]
   # the second spell checker, and not a replacement for the one above:
   # codespell matches whole words and keeps the hyphen inside the token, so
   # `y-simmetry` and `hex-strin` were invisible to it with every builtin

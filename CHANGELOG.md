@@ -1,9 +1,3 @@
-<!-- markdownlint-disable MD022 MD032 -->
-<!-- This file is merge=union, so a rebase joins two sections and drops
-     the blank line between them without a conflict: the rule is off
-     here for the duration of btclib-org/.github#33, and goes back on
-     when that queue is empty. btclib-org/.github#138 is the record. -->
-
 # Changelog
 
 <!-- markdownlint-configure-file
@@ -550,6 +544,25 @@ documented at release-notes length in the first place, and are still in
   beside it (btclib-org/.github#98).
 
 ### Packaging, linting and CI
+
+- **`CHANGELOG.md`'s own directive disabling MD022 and MD032 is gone**
+  (closes #1319). It existed because this file is `merge=union`, so a
+  rebase joins two branches' `###` blocks and drops the blank line
+  between them with no conflict, and the two rules reported that gap
+  without a mechanism to close it. `markdownlint-cli2` now runs with
+  `--fix`, so the same drop is repaired on the hook's next run instead
+  of failing a gate with nothing behind it — measured by reproducing
+  the drop and letting the hook restore the line. Both rules apply to
+  this file again.
+
+- **`codespell` now corrects in place, with `--write-changes`,** joining
+  `markdownlint-cli2`'s `--fix` and `typos`'s inherited
+  `--write-changes --force-exclude`: every hook here with a fix mode
+  fixes. The flag went on against a measurement rather than on
+  principle, a spell checker's repairs being guesses where a
+  formatter's are not: run with `--builtin clear` over the whole tree
+  it rewrites nothing, checked against a positive control that both
+  catches and fixes a real misspelling.
 
 - **`check-sdist` builds the archive with the backend `[build-system]`
   declares.** The hook's manifest entry drives `uv build`, and given
