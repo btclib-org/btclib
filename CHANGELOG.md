@@ -1826,6 +1826,12 @@ documented at release-notes length in the first place, and are still in
   for reading the schedule from one place rather than a copy per
   repository, with no number for the standard's table to outgrow again.
 
+- **`curves/__init__.py`'s module docstring stops calling
+  `btclib_secp256k1` a required dependency** (closes #1340). It is the
+  `secp256k1` extra, and the paragraph's 1.13x figure now says it was
+  measured with the bindings switched off, and that a caller who skips the
+  extra is already in that state, with nothing to switch.
+
 - **The Esplora module names the second deployment its own argument
   rests on** (issue #1130). Its docstring says the backend is an api and
   not a product, and gave "several operators run it" as the evidence --
