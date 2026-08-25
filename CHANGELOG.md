@@ -3187,6 +3187,18 @@ documented at release-notes length in the first place, and are still in
   Updater writes from a descriptor, and `script.toml` is the profile
   covering the half of `src/btclib/script` neither `sig_hash.toml` nor
   `engine.toml` mutates.
+
+- **`tests/all_test.py`'s comment above `REEXPORTED` and
+  `test_no_module_exports_a_name_it_imported`'s docstring stop stating
+  how many entries the dict holds or how many modules alias each
+  canonical package** (closes #1384), against section 9's no-counts
+  rule. Both are rewritten around the three decisions instead:
+  `bitcoin-core-rpc`, `btclib.consensus` and `psbt_utils`. The stated
+  "these four ... three decisions" and "the first two modules below"
+  had already gone false without a test noticing: `btclib.p2p.magic`
+  joined `btclib.fetch.bitcoin_core` and `btclib.fetch.transport`
+  aliasing `bitcoin-core-rpc` with #1092, leaving three modules where
+  the prose still said two.
 - **`tests/script_engine/python_path_test.py`'s `# pragma: no cover` on
   `test_verify_answers_false_for_what_cannot_be_parsed`'s `bindings`-arm
   skip states today's reason instead of naming closed issue #990**
