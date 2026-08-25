@@ -10,7 +10,7 @@ of btclib. What this module adds is the integration -- the answers turned
 into btclib transactions, and the chain the node serves compared with the
 network those transactions are labelled for.
 
-The five names it re-exports are the package's own, unchanged, so that
+The names it re-exports are the package's own, unchanged, so that
 `from btclib.fetch.bitcoin_core import BitcoinCoreRpcClient` keeps
 resolving. Their behaviour is the package's too, exceptions included: a
 `client.call` reached that way raises `bitcoin_core_rpc.RpcError`, not
