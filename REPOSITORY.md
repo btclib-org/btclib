@@ -465,9 +465,10 @@ it — redundant while this repository is public, and written down so that
 the file does not quietly stop working the day it is not. Every
 workflow's aggregate job needs none of that and declares none of it: one
 elevation per job is the shape to keep — the job that writes releases holds
-no OIDC token, and the job that signs writes no release — and
-`vendored-vectors.yml` is the one place that departs from it, declaring
-`issues: write` at the workflow level where its only job would do.
+no OIDC token, and the job that signs writes no release.
+`vendored-vectors.yml`'s `vectors` job has one such declaration of its
+own: `issues: write`, for the `gh issue create`/`edit`/`close` calls its
+script makes on the tracking issue it maintains.
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 

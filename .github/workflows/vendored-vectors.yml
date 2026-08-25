@@ -53,7 +53,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 # head_ref falls back to ref rather than being used bare: it is set only
 # for pull_request events, to the PR's head branch, so a scheduled or
@@ -78,6 +77,13 @@ jobs:
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # the elevation, on the job that needs it and nowhere else: no other
+    # job in this workflow declares permissions, so no other job elevates.
+    # issues: write is what the script's gh issue create/edit/close calls
+    # below take, on the tracking issue this run opens or updates
+    permissions:
+      contents: read
+      issues: write # gh issue create/edit/close, in the step below
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
