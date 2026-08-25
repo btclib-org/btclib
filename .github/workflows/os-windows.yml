@@ -88,7 +88,8 @@ jobs:
           - windows-11-arm
         # the interpreter set os-ubuntu.yml names, unchanged: this workflow
         # moves the platform and nothing else, so a difference against it
-        # is attributable to the platform
+        # is attributable to the platform. tests/interpreters_test.py holds
+        # the three sweeps to one another
         python:
           - "3.10"
           - "3.11"
