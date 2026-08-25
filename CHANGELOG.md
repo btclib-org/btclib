@@ -3082,6 +3082,16 @@ documented at release-notes length in the first place, and are still in
   file replaces the "not vendored" one that recorded it as a measured
   re-encoding.
 
+- **`test_a_taproot_script_path_is_finalizable_only_after_the_updater`'s
+  docstring and `.github/mutation/script.toml`'s header comment state
+  their reasoning in the present tense** (closes #1365). Both carried
+  "until now", dating the sentence to the commit that wrote it, against
+  section 9 of the organization standard, same as #1360. The reasoning
+  itself is unchanged: the Finalizer's witness comes from what the
+  Updater writes from a descriptor, and `script.toml` is the profile
+  covering the half of `src/btclib/script` neither `sig_hash.toml` nor
+  `engine.toml` mutates.
+
 ## v2026.8.21
 
 ### Repository
