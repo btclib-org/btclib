@@ -159,14 +159,14 @@ def test_rfc6979_secp256k1_grinding_leaves_only_the_low_r_one() -> None:
 def test_rfc6979_nonce_example() -> None:
     """Reproduce the worked example of RFC6979's section A.1."""
 
-    class _helper(Curve):
+    class _Helper(Curve):
         def __init__(self, n: int) -> None:
             self.n = n
             self.nlen = n.bit_length()
             self.n_size = (self.nlen + 7) // 8
 
     # source: https://www.rfc-editor.org/rfc/rfc6979.html section A.1
-    fake_ec = _helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)
+    fake_ec = _Helper(0x4000000000000000000020108A2E0CC0D99F8A5EF)
     x = 0x09A4D6792295A7F730FC3F2B49CBC0F62E862272F
     msg = b"sample"
     msg_hash = hashlib.sha256(msg).digest()

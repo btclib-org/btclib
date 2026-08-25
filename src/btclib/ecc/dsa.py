@@ -41,6 +41,8 @@ from io import BytesIO
 from types import TracebackType
 from typing import Any, TypeVar, overload
 
+from typing_extensions import Self
+
 from btclib import var_bytes
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib._libsecp256k1 import ffi as libsecp256k1_ffi
@@ -1358,7 +1360,7 @@ class Signer:
             self._q = 0
         self._wiped = False
 
-    def __enter__(self) -> Signer:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

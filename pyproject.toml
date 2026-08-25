@@ -781,87 +781,29 @@ exclude = [
 # it already was, plus what that key spells out one rule at a time
 preview = true
 explicit-preview-rules = true
-# A, BLE, C90, FA, FIX, FLY, RSE, SLOT, T10, T20 and TID are here by
-# measurement: every unselected rule set was run over btclib and tests,
-# and these are the ones that either find nothing today
-# -- a ratchet, costing no cleanup -- or find something worth removing.
-# PTH is the same case with a wider cleanup: every os.path and bare open()
-# call in the library and its tests, replaced by pathlib. Two of the
-# library sites are the module-level `datadir` of btclib.curves.curve and
-# btclib.network, each a path a caller can read directly, so its type
-# changes from str to Path there too -- a breaking change, recorded in
-# RELEASE_NOTES.md, and not one this rule set finds on its own: ruff has no
-# opinion on what a module chooses to expose.
-#
-# What the same survey rejected, with the reason it was rejected rather
-# than the count it reached -- `uv run ruff check --select N --no-cache
-# src/btclib tests` re-derives any of these in a second, and a number here
-# rots with the next test file: N (uppercase math symbols are the
-# convention here, as the magic-value-comparison note below already
-# says), COM (COM812, which ruff's own documentation recommends against
-# alongside the formatter), EM, FBT, EXE (all EXE001, i.e. the
-# shebang-not-executable finding that .pre-commit-config.yaml records
-# the same decision about), TC, ARG, ANN (all ANN401, the explicit Any
-# of the vector loaders), SLF (all SLF001, tests reaching into private
-# members on purpose), PERF (all PERF203, try/except in a retry loop).
-# ERA is selected despite what it found on that survey: about half was
-# genuine dead code and the other half prose that ERA read as code, and the
-# half did not need a single noqa -- a reworded comment reads as prose to
-# it, and a diagram belongs in the docstring, which it does not inspect.
-# The zero-finding sets not taken are the ones for constructs this code
-# base does not contain -- DTZ without datetime, G and LOG without
-# logging, ASYNC, NPY -- because a rule that can never fire reads as an
-# enforced invariant while enforcing nothing. TD is the other zero-finding
-# set left out on purpose rather than for want of a construct: it and FIX
-# both watch TODO-style comments, TD disciplining their format and FIX
-# refusing them outright, and a codebase that finishes what it starts
-# wants the second
-select = [
-    "A",   # flake8-builtins: a name that shadows a builtin
-    "B",   # flake8-bugbear
-    "BLE", # flake8-blind-except
-    "C4",  # flake8-comprehensions
-    "C90", # mccabe, at ruff's default with noqa'd exceptions: see below
-    # flake8-copyright, replacing the copyright-notice pre-commit hook:
-    # ed6e8014 found that hook checking only staged files unless given
-    # --enforce-all, so "pre-commit run --all-files" -- what the lint
-    # workflow actually runs -- silently checked nothing until that flag
-    # was added by hand. A rule living inside ruff's own file-selection
-    # logic has no separate flag to forget, checking whatever files it is
-    # given the same way whoever is asking
-    "CPY",
-    "D",    # pydocstyle
-    "E",    # pycodestyle errors
-    "ERA",  # eradicate: code that was commented out instead of deleted
-    "F",    # pyflakes
-    "FA",   # flake8-future-annotations
-    "FIX",  # flake8-fixme: a TODO left behind is a thing not finished
-    "FLY",  # flynt: string concatenation ruff can turn into an f-string
-    "FURB", # refurb
-    "I",    # isort
-    "ISC",  # flake8-implicit-str-concat
-    "PGH",  # pygrep-hooks
-    "PIE",  # flake8-pie
-    "PL",   # pylint
-    "PT",   # flake8-pytest-style
-    "PTH",  # flake8-use-pathlib
-    "RET",  # flake8-return
-    "RSE",  # flake8-raise
-    "RUF",  # ruff-specific rules
-    "S",    # flake8-bandit
-    "SIM",  # flake8-simplify
-    "SLOT", # flake8-slots: a tuple/NamedTuple subclass without __slots__
-    "T10",  # flake8-debugger: a breakpoint() left in
-    "T20",  # flake8-print: a library writes to no stream of its own
-    "TID",  # flake8-tidy-imports: absolute, so the layering is readable
-    "TRY",  # tryceratops
-    "UP",   # pyupgrade
-    "W",    # pycodestyle warnings
-]
+# Every rule family ruff ships, present ones and a release's future ones
+# alike, rather than a hand-picked list: a list is a thing that rots,
+# since nothing forces a second edit here the day ruff ships a family
+# nobody has looked at yet. `ALL` takes a new family in on the pull
+# request that bumps ruff's own pinned rev instead, which is the day
+# somebody is already looking at what changed. Section 5 of the
+# organization standard states the rule; `ignore` below is where every
+# declined rule's reason lives -- a rule the formatter conflicts with,
+# cited from ruff's own docs/formatter.md and not argued here since that
+# list is the vendor's; a rule this tree declines on its own merits,
+# argued beside it; or a finding that is real and is not in `ignore` at
+# all, fixed at its site or answered with a `# noqa` that RUF100 retires
+# the day it stops being needed.
+# ERA stays selected despite what a per-family survey once found: about
+# half was genuine dead code and the other half prose ERA read as code,
+# and the half did not need a single noqa -- a reworded comment reads as
+# prose to it, and a diagram belongs in the docstring, which it does not
+# inspect
+select = ["ALL"]
 # a rule and not a family, so it is here rather than in `select` above,
-# which holds families and reaches no preview rule through any of them --
-# pylint's unspecified-encoding is PLW1514 and preview is where ruff
-# keeps it.
+# which under `ALL` still reaches no preview rule: `ALL` selects every
+# stable rule ruff ships, and pylint's unspecified-encoding is PLW1514,
+# which preview is where ruff keeps it.
 # It asks that `open`, `Path.open`, `read_text`, `write_text` and the
 # tempfile factories name an encoding, because a call that omits it takes
 # the locale's: UTF-8 wherever this suite is usually read, cp1252 on
@@ -873,12 +815,39 @@ select = [
 # cleanup. .pre-commit-config.yaml carries the other half, `text=True`
 # being the same locale-dependent decode one layer out
 extend-select = ["unspecified-encoding"]
-# named rather than coded, here and in per-file-ignores below: `select`
-# above has no choice, a family having no name of its own, but an entry
-# that suppresses a single rule can say which -- so the reason sits in
-# the comment and the rule sits in the entry, with no code left to look
-# up between them
+# named rather than coded, here and in per-file-ignores below: an entry
+# that suppresses a single rule can say which, so the reason sits in the
+# comment and the rule sits in the entry, with no code left to look up
+# between them. Where the entry declines a whole family for a construct
+# this codebase does not contain, the family has no name of its own to
+# give it, and the bare prefix is the only spelling that says "every
+# member" rather than an arbitrary list of the members measured today
 ignore = [
+    # ruff's own docs/formatter.md, under "Conflicting lint rules",
+    # fetched at the ruff revision this file and .pre-commit-config.yaml
+    # both pin (v0.16.3): each of these is undone by the formatter's own
+    # rewriting, so selecting it is a lint failure the next `ruff format`
+    # produces again. The list is the vendor's, and does not change with
+    # this tree. `incorrect-blank-line-before-class` (D203) needs no
+    # entry here: the pep257 convention below already disables it in
+    # favour of D211, the other half of the pair ruff calls incompatible,
+    # without printing the warning ruff reserves for a pair nothing has
+    # settled. `multi-line-implicit-string-concatenation` (ISC002) needs
+    # none either: the vendor's own conditional is "if used without
+    # ISC001", and ISC001 stays selected here
+    "tab-indentation",
+    "indentation-with-invalid-multiple",
+    "indentation-with-invalid-multiple-comment",
+    "over-indented",
+    "docstring-tab-indentation",
+    "triple-single-quotes",
+    "bad-quotes-inline-string",
+    "bad-quotes-multiline-string",
+    "bad-quotes-docstring",
+    "avoidable-escaped-quote",
+    "unnecessary-escaped-quote",
+    "missing-trailing-comma",
+    "prohibited-trailing-comma",
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this
     # list enforce exactly that (issue #290). The two still ignored are
@@ -922,10 +891,148 @@ ignore = [
     # one expected -- and a shared exception class could not say that
     # without every raise site passing it back in anyway
     "raise-vanilla-args",
+    # flake8-errmsg asks the same message to be built in a named variable
+    # before a raise names it; the entry above already gives the reason
+    # this tree keeps the opposite. `dot-format-in-exception` finds
+    # nothing today -- this codebase has no `.format()` call left for it
+    # to catch -- but the same argument declines it as it would the
+    # other two, rather than leaving a hole a `.format()` call could
+    # reopen unnoticed
+    "raw-string-in-exception",
+    "f-string-in-exception",
+    "dot-format-in-exception",
+    # flake8-boolean-trap: a caller reading `foo(x, True)` cannot tell
+    # what the positional argument means without opening `foo`'s
+    # signature. This codebase's public surface disagrees at scale --
+    # `check_validity`, `compressed`, `pad` and their like are ordinary
+    # positional/default parameters throughout the library, the same
+    # shape the standard library's own `open(..., closefd=True)` takes,
+    # rather than forcing every caller to a keyword or every flag to an
+    # enum
+    "boolean-type-hint-positional-argument",
+    "boolean-default-value-positional-argument",
+    "boolean-positional-value-in-call",
+    # flake8-unused-arguments: a dispatch table's members share one
+    # signature so a caller does not need to know which one it is
+    # calling -- descriptors.py's `_parse_*` functions all take
+    # `(args, context, network, prv_keys)` and most ignore `context`,
+    # and p2p's per-message `parse` classmethods override one shared
+    # signature the same way. The rule cannot tell a deliberately
+    # uniform interface from a parameter nobody reads; the two member
+    # codes this tree has not hit today read the same call sites through
+    # a classmethod or a staticmethod instead of a plain function or
+    # method
+    "unused-function-argument",
+    "unused-method-argument",
+    "unused-class-method-argument",
+    "unused-static-method-argument",
+    "unused-lambda-argument",
+    # flake8-type-checking asks that an import used only in an
+    # annotation move behind `if TYPE_CHECKING:`, and a `cast()`
+    # argument be quoted, so that neither costs anything at runtime.
+    # Measured against this tree's own documentation build: moving
+    # `Octets`/`String` out of a module's runtime namespace this way
+    # turns `sphinx.ext.autodoc`'s resolution of the deferred annotation
+    # into a fallback on the annotation's own text, and `-n` fails the
+    # build on the unresolved cross-reference -- the same failure mode
+    # `core_import.py`'s own comment already documents for `Descriptor`.
+    # Most of this package's modules defer their annotations with
+    # `from __future__ import annotations`, so the import stays live for
+    # the same reason in each of them
+    "typing-only-first-party-import",
+    "typing-only-third-party-import",
+    "typing-only-standard-library-import",
+    "runtime-cast-value",
+    # pep8-naming: an identifier here spells what it names rather than
+    # what PEP 8 asks of an ordinary Python identifier -- a cryptographic
+    # value in the notation its own literature or spec uses (the points
+    # `R`, `S`, `P`, `Q`, `K`, `G`, a windowed NAF `wNAF`, an ephemeral
+    # key `dU`), a Bitcoin protocol field verbatim as the wire format
+    # spells it (`nVersion`, `nLockTime`, `scriptSig`, `nSequence`,
+    # `nValue`, `scriptPubKey`), or an import given the alias that states
+    # what it means in the importing module rather than the shape the
+    # exporting module chose (btclib_secp256k1's `ENABLED`/`INSTALLED`
+    # renamed to the private `_bindings_enabled`/`_bindings_installed`,
+    # a curve point `Q` renamed to `pub_key_point` in a test). The member
+    # codes for a class's or an exception's own casing are not here:
+    # those still catch a name this reasoning does not cover
+    "invalid-function-name",
+    "invalid-argument-name",
+    "non-lowercase-variable-in-function",
+    "constant-imported-as-non-constant",
+    "mixed-case-variable-in-global-scope",
+    # Perflint's try-except-in-loop alone, matching this tree's own retry
+    # loops -- rfc6979's grinding, a nonce collision's re-derivation --
+    # where the exception it wraps is the loop's own control flow, not a
+    # mistake a second pass would remove. The other five member codes
+    # find nothing today and stay selected: each reads a different
+    # pattern, one this reasoning does not cover
+    "try-except-in-loop",
+    # flake8-annotations' any-type alone, matching the vector loaders'
+    # own reason for it: a test vector file is parsed into whatever JSON
+    # gives back, and the loader's return type is the caller's contract
+    # to narrow, not the loader's to fake with a cast it cannot check
+    "any-type",
+    # flake8-self: a caller outside the library reaching into a private
+    # attribute is what this rule is for, and it cannot tell that caller
+    # from a test verifying an implementation detail on purpose, or from
+    # a sibling module inside this package's own layered architecture
+    # (CLAUDE.md's Architecture section) reaching into another module's
+    # private state the way curve_group.py reads a Curve's own
+    # `_fixed_points` cache
+    "private-member-access",
+    # zero-finding for a construct this codebase does not contain, so
+    # selecting it reads as an enforced invariant while enforcing
+    # nothing: DTZ without a naive datetime, G and LOG without logging,
+    # ASYNC without async code, NPY without NumPy, EXE without a shebang
+    # anywhere left to check against an executable bit (the same
+    # decision .pre-commit-config.yaml already states for
+    # check-shebang-scripts-are-executable), AIR without Airflow, DJ
+    # without Django, FAST without FastAPI, ICN without an import this
+    # tree gives a non-conventional alias, INT without gettext, PD
+    # without pandas, and YTT without a `sys.version` comparison -- this
+    # file's own `python_version` comment above already states there is
+    # no `sys.version_info` branch anywhere in btclib or tests
+    "DTZ",
+    "G",
+    "LOG",
+    "ASYNC",
+    "NPY",
+    "EXE",
+    "AIR",
+    "DJ",
+    "FAST",
+    "ICN",
+    "INT",
+    "PD",
+    "YTT",
+    # flake8-todos disciplines the format of a marker FIX above already
+    # refuses outright -- the seven member codes below are the whole
+    # family, and each is a question about a TODO/FIXME/XXX/HACK comment
+    # that a tree FIX holds clean cannot contain. The first also steers a
+    # refused FIXME toward TODO, which FIX002 refuses just as hard, and
+    # TD is not even a superset of FIX: HACK draws no TD diagnostic at
+    # all
+    "invalid-todo-tag",
+    "missing-todo-author",
+    "missing-todo-link",
+    "missing-todo-colon",
+    "missing-todo-description",
+    "invalid-todo-capitalization",
+    "missing-space-after-todo-colon",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"**/__init__.py" = ["F401"] # re-exported imports
+# flake8-no-pep420: each of these is a standalone entry point a workflow
+# step invokes with "python .github/scripts/<name>.py", never an import
+# -- the directory holds no __init__.py because it is not a package, and
+# adding one to satisfy this rule would make it look like one
+".github/scripts/*.py" = ["INP001"]
+# sphinx imports this one by its own convention, reading docs/source/
+# as a configuration directory rather than a package; the same reason
+# excludes it above
+"docs/source/conf.py" = ["INP001"]
+"**/__init__.py" = ["F401"]        # re-exported imports
 # preview mode's undefined-export does not special-case a module-level
 # __getattr__ (astral-sh/ruff#18504, open): these modules publish this
 # way, as each docstring says, and F822 sees no import to bind the name
