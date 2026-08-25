@@ -3120,6 +3120,18 @@ documented at release-notes length in the first place, and are still in
   Updater writes from a descriptor, and `script.toml` is the profile
   covering the half of `src/btclib/script` neither `sig_hash.toml` nor
   `engine.toml` mutates.
+- **`tests/script_engine/python_path_test.py`'s `# pragma: no cover` on
+  `test_verify_answers_false_for_what_cannot_be_parsed`'s `bindings`-arm
+  skip states today's reason instead of naming closed issue #990**
+  (closes #1350). The branch stays unreachable by every job `test.yml`
+  runs, but not for the stale one: with the bindings installed
+  `curve._libsecp256k1_available` is `True` and the branch is never
+  taken, and without them the module's own `pytestmark = needs_bindings`
+  skips the whole test before its body runs, so `no-bindings` never
+  reaches it either — confirmed by combining a bindings run's coverage
+  data with a no-bindings run's the way `coverage-union` does and
+  reporting the combination at `--fail-under=100` with the pragma
+  removed, which still fails on this line.
 
 ## v2026.8.21
 
