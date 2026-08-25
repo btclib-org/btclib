@@ -43,7 +43,10 @@ class OutPoint:
     What is refused is a field no four bytes or thirty-two hold, and
     nothing about the pair: an all-zero tx_id with a real vout, and a
     real tx_id with the sentinel vout, are both outpoints Bitcoin Core
-    accepts and this class used to refuse (issue 513).
+    accepts, checking the pair here being stricter than consensus.
+    `is_coinbase` reads the pair instead, and it is what
+    `Tx.assert_valid` uses to refuse a coinbase input in a transaction
+    that is not one.
     """
 
     tx_id: bytes
