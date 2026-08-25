@@ -43,7 +43,7 @@ import pytest
 
 from btclib.bip32 import fingerprint
 from btclib.bip32.bip32 import derive, xpub_from_xprv
-from btclib.descriptors import Descriptor, at_index, parse
+from btclib.descriptors import Descriptor, add_checksum, at_index, parse
 from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.hwi import (
     _HWI_CHAIN,
@@ -109,6 +109,8 @@ elif command == "displayaddress":
     from btclib.descriptors import parse
     descriptor = parse(args[args.index("--desc") + 1])
     print(json.dumps({{"address": signer.display_address(descriptor)}}))
+elif command == "registerdescriptor":
+    print(json.dumps({{"registration": "deadbeef"}}))
 else:
     print(json.dumps({{"error": "unknown command " + command, "code": -13}}))
 """
@@ -131,6 +133,7 @@ HWI_COMMANDS = {
     "signtx": ("psbt",),
     "signmessage": ("message", "path"),
     "displayaddress": (),
+    "registerdescriptor": ("name", "descriptor"),
 }
 
 # the global flags, which HWI's parser takes before the command, and the
@@ -145,6 +148,7 @@ HWI_ANSWER_KEYS = {
     "signtx": ("psbt", "signed"),
     "signmessage": ("signature",),
     "displayaddress": ("address",),
+    "registerdescriptor": ("registration",),
 }
 
 # the chains `--chain` takes, which is what decides the version bytes of
@@ -172,6 +176,7 @@ HWI_ERROR_CODES = {
     -16: "NEED_TO_BE_ROOT",
     -17: "HELP_TEXT",
     -18: "DEVICE_NOT_INITIALIZED",
+    -19: "INVALID_POLICY",
 }
 
 
@@ -402,6 +407,46 @@ def test_an_address_is_asked_for_at_the_index_it_is_wanted(tmp_path: Path) -> No
     )
     with pytest.raises(BTClibValueError, match="the signer displayed"):
         display_address(lying, receive, 5)
+
+
+def test_a_descriptor_is_registered_and_the_receipt_is_opaque(tmp_path: Path) -> None:
+    """`registerdescriptor` is the one command with nothing to check the answer.
+
+    What comes back is HWI's own receipt of an exchange this module has
+    no opinion about -- an HMAC on a Ledger, nothing at all on a device
+    that needs none -- so `register_descriptor` reads it the way
+    `getxpub` reads an xpub: one field, taken as answered.
+    """
+    hwi = stand_in(tmp_path, {"registerdescriptor": {"registration": "cafe"}})
+    device = signer(hwi)
+    ranged = export_account(device, "m/84h/0h/0h")[0]
+
+    assert device.register_descriptor("my wallet", ranged) == "cafe"
+    # sent whole, ranged rather than at one index: registration is of the
+    # policy, and displayaddress --index is what later asks for one
+    # address of it
+    argv = last_argv(hwi)
+    assert argv[argv.index("registerdescriptor") + 1 :] == [
+        "my wallet",
+        add_checksum(str(ranged)),
+    ]
+
+    wrong = signer(stand_in(tmp_path, {"registerdescriptor": {"not-a": "key"}}))
+    with pytest.raises(SignerError, match="did not answer a registration"):
+        wrong.register_descriptor("my wallet", ranged)
+
+    # the device refused the policy itself, HWI's own INVALID_POLICY
+    invalid = signer(
+        stand_in(
+            tmp_path,
+            {"registerdescriptor": {"error": "Invalid policy", "code": -19}},
+        )
+    )
+    with pytest.raises(
+        SignerError, match=r"Invalid policy \(signer error code -19\)"
+    ) as e:
+        invalid.register_descriptor("my wallet", ranged)
+    assert e.value.code == -19
 
 
 def test_a_message_signature_is_verified_against_the_address(hwi: list[str]) -> None:
@@ -640,7 +685,7 @@ def test_whether_the_command_line_is_there_is_asked_before_it_is_run(
 
 
 def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
-    """Every command sent is one of the five, spelled as HWI takes it.
+    """Every command sent is one of the six, spelled as HWI takes it.
 
     The argv is read back from what crossed the process boundary, so what
     is compared with the table is what a device would have received: the
@@ -660,6 +705,8 @@ def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
     ran["signmessage"] = last_argv(hwi)
     device.display_address(receive, 0)
     ran["displayaddress"] = last_argv(hwi)
+    device.register_descriptor("wallet", receive)
+    ran["registerdescriptor"] = last_argv(hwi)
 
     for command, argv in ran.items():
         assert command in HWI_COMMANDS
@@ -746,7 +793,7 @@ def test_signtx_answers_a_psbt_and_whether_it_signed(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("code", sorted(HWI_ERROR_CODES))
 def test_every_error_code_arrives_with_its_number(tmp_path: Path, code: int) -> None:
-    """All eighteen, because the number is what a caller acts on.
+    """All nineteen, because the number is what a caller acts on.
 
     -14 is somebody pressing the button that says no and is not worth a
     retry, -3 is a cable and is worth one, -9 says this model will never

@@ -9,8 +9,10 @@ https://github.com/bitcoin-core/HWI
 HWI speaks to Trezor, Ledger, KeepKey, Digital Bitbox, Coldcard, BitBox02
 and Jade over HID, USB, serial and emulator transports, and publishes a
 JSON command line so that other software need not. This module is that
-other software: it runs `hwi` as a subprocess and turns five of its
-commands into the contract `btclib.psbt_signer` defines.
+other software: it runs `hwi` as a subprocess. Five of its commands
+answer the contract `btclib.psbt_signer` defines; a sixth,
+`registerdescriptor`, is wrapped beside them with no protocol of its own
+to answer -- registering a policy is not a question `psbt_signer` asks.
 
 **Nothing is imported from hwilib, and nothing has to be installed for
 btclib to work.** HWI declares `hidapi`, `libusb1`, `cbor2`, `pyserial`,
@@ -61,29 +63,29 @@ when a caller deciding what to offer at all has to have the answer: a
 refusal is the right answer to a question that was asked, and the wrong
 way to find out there was nothing to ask.
 
-## Wallet policies, and the multisig this cannot register
+## Wallet policies, and the address this still cannot verify
 
 A Ledger will not display or sign a multisig it has not been shown
 first. BIP388 wallet policies are how it is shown, and registration is a
 one-time exchange ending in an HMAC the host keeps and replays on every
-later call. `hwilib`'s ledger driver does that; `hwilib/_cli.py` does
-not expose it, so this module cannot -- issue #381 delegates policy
-registration to HWI on purpose, and the command line is where the
-delegation stops. A caller with a Ledger multisig registers it out of
-band, with HWI's Python API or Ledger's own tooling, and then this
-module signs for it: the psbt path needs no policy, only the
-registration does.
+later call. `hwilib/_cli.py` exposes `registerdescriptor` for that
+exchange, and `HwiSigner.register_descriptor` wraps it the way `getxpub`
+and `signmessage` are wrapped: one request, one opaque answer, nothing
+here to check it against.
 
-Whether btclib could grow it rather than route around it is one fact,
-and it is not about the transport. A policy is a descriptor *template* --
-`wsh(sortedmulti(2,@0/**,@1/**))` -- with the keys lifted out into a
-vector beside it, which is a rewriting of what `descriptors` already
-builds: the fragments a template may hold are BIP388's fixed set plus
-miniscript inside `wsh()` in Ledger's app, and both halves of that are
-read here now (issue #187). So the locking script with an `OP_IF` branch
-and a `CHECKSEQUENCEVERIFY` in it that asked the question is expressible,
-and what stands between a caller and a registered policy is the template
-rewriting rather than the language or the transport.
+`displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
+`--multipath-index` -- is not wrapped. `psbt_signer.display_address`
+exists to compare a device's screen with the address a `Descriptor`
+computes, and a BIP388 policy's address is not one this library
+computes: `descriptors` reads the fragments a policy template may hold
+(issue #187) without building the template or deriving its address.
+Wiring those flags through with nothing to compare the device's answer
+against is the one thing `display_address`'s own docstring warns
+against -- "a caller that shows the user its own answer instead has
+checked nothing" -- so it stays out until that comparison exists. A
+caller with a registered policy still reads the address off the
+device's own screen; that is what the screen is for, whether or not
+this module checks it too.
 
 Staying aligned with a project this does not import is two things, and
 neither is a copy of it. `tests/hwi_test.py` writes out the surface used
@@ -453,7 +455,8 @@ class HwiSigner:
     is checked by the functions of that module -- `request_signatures`,
     `display_address`, `sign_message` -- and not here: this is the
     transport, and a transport that also decided what to trust would be
-    two things.
+    two things. `register_descriptor` is a sixth command with no protocol
+    of its own; the module docstring's "Wallet policies" says why.
 
     The fingerprint is what a device is named by. Passing one selects it;
     passing none enumerates and refuses unless exactly one device is
@@ -638,6 +641,33 @@ class HwiSigner:
         """
         text = add_checksum(str(at_index(descriptor, index)))
         return self._answer(["displayaddress", "--desc", text], "address")
+
+    def register_descriptor(self, name: str, descriptor: Descriptor) -> str:
+        """Register a wallet policy with the device: HWI's `registerdescriptor`.
+
+        A Ledger will not display or sign a multisig it has not been shown
+        first (module docstring, "Wallet policies"); this is that showing.
+        What comes back is opaque -- an HMAC on Ledger, nothing at all on a
+        device that needs none -- and is the caller's to persist and pass
+        back as `--registration` on a later `displayaddress`, which this
+        module does not wrap: there is nothing here to compare it against.
+        `psbt_signer.display_address` checks a device's screen against the
+        address a `Descriptor` computes, and a BIP388 policy's address is
+        not one this library computes: `descriptors` reads the fragments
+        a policy template may hold (issue #187) without building the
+        template or deriving its address, which registration does not
+        change.
+
+        The descriptor goes out ranged, whole rather than at one index:
+        registration is of the policy, and `displayaddress --index` is
+        what later asks for one address of it.
+
+        Checksummed, which is what HWI's parser requires of anything it is
+        given, `--desc` included.
+        """
+        assert_type(name, str, "name")
+        text = add_checksum(str(descriptor))
+        return self._answer(["registerdescriptor", name, text], "registration")
 
     @property
     def capabilities(self) -> SignerCapabilities:
