@@ -655,6 +655,35 @@ documented at release-notes length in the first place, and are still in
   `btclib.p2p` do the same in place of a bound `TypeVar`, and
   `psbt_view.py`'s offset walk is a `list.extend` rather than a loop
   appending one element at a time (issue #1347, btclib-org/.github#334).
+- **`fuzz.yml` fuzzes `btclib.p2p.message.Message.parse` with `atheris`,
+  under ClusterFuzzLite.** That parser is the earliest point at which
+  bytes a peer sent enter this codebase, ahead of any signature check
+  and any per-command dispatch, which is why it is the first target
+  rather than a deserializer only reached once a handshake is already
+  accepted (btclib-org/.github#342). `fuzz/fuzz_p2p_message.py` feeds
+  raw bytes straight into `parse`, catching only `BTClibException` --
+  the parser's own refusal of malformed input -- so anything else it
+  raises is a finding rather than an expected outcome.
+  `.clusterfuzzlite/` holds the `Dockerfile`, `build.sh` and
+  `project.yaml` ClusterFuzzLite's Python integration expects, and two
+  seed inputs, the Bitcoin Wiki's `version` and `verack` vectors
+  `tests/p2p/message_test.py` already carries, are checked in beside the
+  harness. `build.sh` passes `--collect-data=btclib` to the PyInstaller
+  build `compile_python_fuzzer` drives: `btclib.curves.curve` and
+  `btclib.network` each read a JSON file under their own package's
+  `_data/` at import time, and a frozen onefile executable bundles no
+  such file PyInstaller's own analysis cannot trace a reference to --
+  found by a real run failing on exactly that, `FileNotFoundError` on
+  `curves/_data/ec_Brainpool.json`. `pr_fuzzing` runs the short
+  code-change mode on a pull request; `batch_fuzzing` runs the longer
+  batch mode on `workflow_dispatch` only, section 10's calendar having
+  no `fuzz` row yet to give it a `schedule:` (btclib-org/.github#372).
+  `_config.yml`'s `exclude:` gains `fuzz/`, joining `src/`, `tests/` and
+  `docs/`: btclib.org is served from this repository's root, so without
+  it the harness and the raw corpus would have gone live as ordinary
+  pages the day this landed. Every other deserializer this codebase
+  owns is not covered by this branch
+  (issue #1347, btclib-org/.github#342, btclib-org/btclib#1361).
 
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
