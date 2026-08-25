@@ -131,4 +131,4 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
     extra, group = _bindings_requirements()
     assert extra == group, f"the extra asks {extra}, the group asks {group}"
     assert len(extra) == 1, f"the extra names more than the bindings: {extra}"
-    assert extra[0].startswith("btclib_secp256k1"), extra[0]
+    assert extra[0].startswith("btclib-secp256k1"), extra[0]

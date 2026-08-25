@@ -86,7 +86,7 @@ on:
       check-newest-bindings:
         description: >
           Whether the `dist` job's smoke test also asks about the newest
-          published btclib_secp256k1, unconstrained by uv.lock. Only
+          published btclib-secp256k1, unconstrained by uv.lock. Only
           release.yml sets this: the question is not one a required
           check can afford (a released binding would redden every open
           pull request), so a direct trigger of this workflow leaves it
@@ -342,7 +342,7 @@ jobs:
 
   # the configuration issue #966 exists for, and the one thing that keeps
   # its guard from being a claim nobody checks: btclib installed without
-  # btclib_secp256k1, answering on its own Python arithmetic. The suite
+  # btclib-secp256k1, answering on its own Python arithmetic. The suite
   # reaches those arms locally by clearing the seam, which is not the same
   # configuration -- an unguarded import would fail before a seam could be
   # cleared, and every arm gated on availability alone is chosen here by
@@ -670,7 +670,7 @@ jobs:
         run: uv run --locked --only-group check pyroma --min 10 dist/*.tar.gz
       # what none of the three above does: install the wheel, and install
       # it alone, from an empty directory. The wheel is the only thing
-      # asked for, so what pulls btclib_secp256k1 in is the
+      # asked for, so what pulls btclib-secp256k1 in is the
       # `Requires-Dist` the wheel itself carries, resolved from the index
       # -- which is the question, metadata being what the three checks
       # above only read.
@@ -689,7 +689,7 @@ jobs:
       # the wheel's metadata doing the work while pinning the outcome to
       # what uv.lock resolved -- and pinning it is what keeps a required
       # check deterministic, since with the floor alone uv takes the
-      # newest release and a btclib_secp256k1 published this morning
+      # newest release and a btclib-secp256k1 published this morning
       # would redden every open pull request, none of which caused it.
       # Every package, then, including the two siblings: what made them
       # an exception was the direct reference, the lock exporting the
@@ -713,7 +713,7 @@ jobs:
       # bind a version and request no package, so the only thing that
       # installs the bindings at all is the wheel's own `Requires-Dist`
       # for the extra: a wheel that stopped declaring it resolves
-      # nothing, and a btclib_secp256k1 the lock pins that this tree
+      # nothing, and a btclib-secp256k1 the lock pins that this tree
       # cannot import lands in `_libsecp256k1`'s `except ImportError`.
       # Either way `is_libsecp256k1_serving` is False while the Python
       # arithmetic answers the version and the signature correctly --
@@ -765,7 +765,7 @@ jobs:
       # `inputs.check-newest-bindings`, which only release.yml sets, so
       # no pull request and no ordinary push to main waits on it -- it can
       # afford the question a required check cannot, whether the newest
-      # published btclib_secp256k1 satisfies the wheel about to be
+      # published btclib-secp256k1 satisfies the wheel about to be
       # published, which is what a user installing it resolves. A release
       # stopping on that answer is the outcome wanted.
       # `github.event_name != 'pull_request'` was the alternative

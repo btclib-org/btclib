@@ -62,7 +62,7 @@ Installing
    python -m pip install --upgrade "btclib[secp256k1]"
 
 btclib requires python 3.10 or later. The ``secp256k1`` extra pulls in
-``btclib_secp256k1``, and it is the recommended install: it needs one of
+``btclib-secp256k1``, and it is the recommended install: it needs one of
 that package's wheels or a C toolchain to build it. Plain ``pip install
 btclib`` works and installs no C at all — btclib then answers on its own
 Python arithmetic, tens of times more slowly and not in constant time,

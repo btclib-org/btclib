@@ -142,7 +142,7 @@ secp256k1 = [
     # silently, tens of times slower and not in constant time. A floor
     # naming 0.8.0.3 while this tree imports `musig` describes exactly
     # that install, which is issue #1116
-    "btclib_secp256k1>=0.8.0.4",
+    "btclib-secp256k1>=0.8.0.4",
 ]
 
 [project.urls]
@@ -166,7 +166,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib_secp256k1>=0.8.0.4"]
+bindings = ["btclib-secp256k1>=0.8.0.4"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml

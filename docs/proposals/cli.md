@@ -485,7 +485,7 @@ carries it, and what the split costs.
   refactored for improved clarity, without care for backward
   compatibility" is exactly why the new repository needs an explicit
   compatibility contract — a supported btclib version range, declared
-  and tested, the way `btclib_secp256k1` is pinned from this side
+  and tested, the way `btclib-secp256k1` is pinned from this side
   (issue #325) — where the in-tree design had a rename break the
   command in the same commit and needed no such contract at all.
 
@@ -748,7 +748,7 @@ this one's conventions rather than sharing its configuration:
 The CLI's own documentation -- its README, its own sphinx or mkdocs
 pages if it has any -- lives in the new repository, not here.
 btclib's side of this is what a dependent project's is: at most a
-mention where README.md already lists `btclib_secp256k1`, once the
+mention where README.md already lists `btclib-secp256k1`, once the
 new repository exists to link to. Nothing in this repository's own
 CHANGELOG.md or RELEASE_NOTES.md is owed an entry for a project the CLI's
 repository, not this one, releases and versions.

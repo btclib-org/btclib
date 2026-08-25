@@ -9,7 +9,7 @@ body:
       value: >
         Not every bug reachable from btclib is a btclib bug: the elliptic
         curve operations are delegated to
-        [btclib_secp256k1](https://github.com/btclib-org/btclib-secp256k1/issues),
+        [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/issues),
         the Python bindings, and through them to
         [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1/issues).
         A traceback ending in either belongs there. If in doubt, report it
@@ -49,7 +49,7 @@ body:
   - type: input
     id: bindings-version
     attributes:
-      label: btclib_secp256k1 version
+      label: btclib-secp256k1 version
       description: >
         `python -c "import btclib_secp256k1 as m; print(m.__version__)"`.
         Anything signing or verifying goes through it, so which one is

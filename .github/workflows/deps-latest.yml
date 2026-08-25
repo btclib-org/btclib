@@ -12,7 +12,7 @@ name: deps-latest
 # uv.lock moves on a weekly dependabot pull request. A break upstream
 # therefore surfaces a week or more later, inside a pull request that has
 # to be reviewed anyway, and its cause is one entry in a diff of many.
-# btclib_secp256k1 is the entry that matters most here: a release of
+# btclib-secp256k1 is the entry that matters most here: a release of
 # the bindings is a release in another repository, which nothing in this
 # one has to change for the pair to stop working. suite-bindings-latest
 # below asks about that one entry alone, precisely, rather than folding
@@ -113,7 +113,7 @@ jobs:
           # something did is the week this job has work to do anyway
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --upgrade re-resolves every entry, btclib_secp256k1 included:
+      # --upgrade re-resolves every entry, btclib-secp256k1 included:
       # this is what carries the bindings to their newest release, which
       # nothing else off a pull request does.
       # It prints one "Update <pkg> vA -> vB" line per package it moves,
@@ -155,7 +155,7 @@ jobs:
 
   # narrower than suite-latest above, and for a different reason: that
   # job upgrades every dependency, so a red run there buries a release
-  # of btclib_secp256k1 behind a dozen other candidates. This
+  # of btclib-secp256k1 behind a dozen other candidates. This
   # upgrades only that one, so a red run here names it without a
   # bisect -- worth a job of its own because it is a sibling project
   # under the same org, released by the same maintainer, which makes
@@ -186,7 +186,7 @@ jobs:
           python-version: ${{ matrix.python }}
       # upgrades one entry rather than every one of them, which is the
       # whole difference from suite-latest above: it prints "Update
-      # btclib_secp256k1 vA -> vB" when a release moved it and
+      # btclib-secp256k1 vA -> vB" when a release moved it and
       # nothing when it did not, so the log names the suspect without a
       # diff of uv.lock. Harmless on an ephemeral checkout; worth
       # knowing before running the same command in a working tree
@@ -194,7 +194,7 @@ jobs:
         # this matrix includes windows-latest; see suite-latest above and
         # os-windows.yml's suite-windows job (issue #1148)
         shell: bash
-        run: uv lock --upgrade-package btclib_secp256k1
+        run: uv lock --upgrade-package btclib-secp256k1
       # test.yml's no-bindings job, with the sense reversed, and here for
       # the mirror image of its reason: asked before the suite, and asked
       # of the interpreter rather than of the resolver, because the step

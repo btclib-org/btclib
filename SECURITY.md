@@ -20,7 +20,7 @@ equally welcome.
 
 Signing, verification and generator multiplication on secp256k1 are
 delegated to
-[btclib_secp256k1](https://github.com/btclib-org/btclib-secp256k1/security/advisories/new),
+[btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/security/advisories/new),
 the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
 itself, which has its own security policy and its own address. A flaw in

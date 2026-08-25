@@ -582,6 +582,18 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Every place naming the bindings' distribution — the `secp256k1`
+  extra's requirement spec, the `bindings` dependency group, and the
+  prose describing both — spells it `btclib-secp256k1`, the hyphen the
+  sibling project's own name carries.** PEP 503 normalises both forms to
+  the same distribution, so `pip` and `uv` resolved the underscore
+  spelling correctly throughout; section 14 of the organization standard
+  is what makes the divergence a defect, one spelling being the rule
+  regardless of what a resolver tolerates. The `btclib_secp256k1` Python
+  module import, and the wheel and sdist filenames PEP 427 forces to the
+  same underscore, are untouched, those two naming the module and the
+  file rather than the distribution (issue btclib-org/.github#335).
+
 - **The importable package moves from the repository root to
   `src/btclib/`,** matching section 2 of the organization standard. A
   package at the repository root sits on `sys.path` whenever anything

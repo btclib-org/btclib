@@ -26,7 +26,7 @@ name: pypi-install
 # sentinel exists to cover, so a silence from it is worth a look at the
 # Actions tab before it is read as green.
 #
-# What this is not: a sentinel for whether the newest btclib_secp256k1
+# What this is not: a sentinel for whether the newest btclib-secp256k1
 # breaks this tree. That question -- issue #397 -- belongs to deps-latest.yml's
 # suite-bindings-latest job instead: it is about drift against a tree not
 # yet published, asked before publication rather than after, and asking
@@ -134,7 +134,7 @@ jobs:
           # interpreter, being the same sdist everywhere. Pure Python, so
           # nothing here compiles -- measured by hand against the
           # published 2026.8.21, this is a packaging step and nothing
-          # more, unlike btclib_secp256k1's own sdist cell, which compiles
+          # more, unlike btclib-secp256k1's own sdist cell, which compiles
           # a C library. Python 3.13 rather than a version already in the
           # base matrix, so this adds a job rather than a property to an
           # existing one
@@ -215,11 +215,11 @@ jobs:
       # while testing the wrong thing -- the failure mode issue #1153
       # named, and now the one thing a wheel cell here cannot become by
       # accident. Only btclib is constrained either way, never its
-      # dependencies: this install names no extra, so btclib_secp256k1 is
+      # dependencies: this install names no extra, so btclib-secp256k1 is
       # one of them and is left to resolve however pip normally would,
       # and neither flag here names it. install-published-secp256k1,
       # below, is the job that names the extra and is entitled to
-      # constrain btclib_secp256k1 too, with its own --only-binary --
+      # constrain btclib-secp256k1 too, with its own --only-binary --
       # the same flag applied a second time rather than a reason to
       # change this one. An
       # environment variable and a shell conditional rather than a ${{ }}
@@ -310,7 +310,7 @@ jobs:
         # stays install-published's own instead of shrinking to one, the
         # thing issue #1143 asks to be argued rather than assumed.
         # 3.14 and not install-published's 3.10 floor: the same JSON API
-        # answer says btclib_secp256k1 ships no win_arm64 wheel below
+        # answer says btclib-secp256k1 ships no win_arm64 wheel below
         # cp311, which is what makes install-published fetch an emulated
         # win_amd64 interpreter for its 3.10 cell on windows-11-arm (see
         # that job's own comment). 3.14 has a native win_arm64 wheel, so
@@ -345,7 +345,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       # --only-binary on both packages: btclib for the reason
-      # install-published's own comment gives, and btclib_secp256k1 for
+      # install-published's own comment gives, and btclib-secp256k1 for
       # the same one applied to the package this job adds. Without it, a
       # wheel the bindings have not published for this cell demotes the
       # install to a source build -- a C toolchain question a hosted
@@ -356,7 +356,7 @@ jobs:
         run: |
           uv venv --python ${{ matrix.python }}
           uv pip install --verbose \
-            --only-binary btclib --only-binary btclib_secp256k1 \
+            --only-binary btclib --only-binary btclib-secp256k1 \
             "btclib[secp256k1]"
       # is_libsecp256k1_serving is the assertion install-published's own
       # comment says it is not entitled to, that job's install naming no
