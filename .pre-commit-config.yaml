@@ -535,9 +535,10 @@ repos:
   # restored into the job that builds what gets published, an expression
   # interpolated into a shell script, a trigger that runs a fork's code
   # with write access. The default persona is the gate; --persona=auditor
-  # adds advice (12 notes today, none of them a defect: 8 in release.yml
-  # and 4 in test.yml, all of them unnamed jobs) and is worth
-  # running by hand rather than on every commit
+  # adds advisory notes beyond what the gate flags, worth running by hand
+  # rather than on every commit:
+  #
+  #   uvx zizmor@1.29.0 --persona=auditor --no-progress .github/workflows/
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: v1.29.0
     hooks:

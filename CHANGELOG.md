@@ -2010,6 +2010,13 @@ documented at release-notes length in the first place, and are still in
   applies, the two checks sitting in different workflows (issue #1200,
   btclib-org/.github#51) (closes #1360).
 
+- **`.pre-commit-config.yaml`'s zizmor hook comment drops the stale count
+  of `--persona=auditor` findings.** It stated "12 notes today, 8 in
+  `release.yml` and 4 in `test.yml`, all of them unnamed jobs"; the
+  auditor persona's own findings move with the workflows, so the comment
+  now gives the command to re-run instead of a number that was already
+  wrong when written (closes #1253).
+
 ### Documentation and the website
 
 - **The documentation site is themed with `furo`** (issue #1347,
