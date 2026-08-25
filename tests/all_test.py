@@ -72,8 +72,8 @@ UNEXPORTED = {
 # of the transport under it, and btclib depends on it rather than carrying a
 # copy; the first two modules below are where those objects were before it was
 # a package of its own, and they alias them rather than declaring a second of
-# anything. A transport has one bounded-read policy, and an import path that
-# used to work still does.
+# anything. A transport has one bounded-read policy, and an import path
+# published here stays valid.
 #
 # `btclib.consensus` is the second: a transaction's counts and a witness
 # stack's are arithmetic on the block weight, and neither `btclib.tx` nor
@@ -597,11 +597,11 @@ def test_every_exported_name_exists() -> None:
 
     Every module and package of the library, found rather than listed: one
     added to btclib is one this checks, where a list here would be one more
-    thing to keep true -- and it is what caught `btclib.script` being
-    outside the four names this used to hold. The whole tree is walked,
-    which imports every module of the library; tests/imports_test.py does
-    that deliberately and one module at a time, for the cycle a bulk import
-    hides, and this one asks a question that needs them all loaded.
+    thing to keep true, and a module missing `__all__` is what this catches
+    that a fixed list cannot. The whole tree is walked, which imports every
+    module of the library; tests/imports_test.py does that deliberately
+    and one module at a time, for the cycle a bulk import hides, and this
+    one asks a question that needs them all loaded.
 
     An empty list is a legitimate answer, and the assertion says when: a
     module with nothing public of its own -- a package `__init__` that only

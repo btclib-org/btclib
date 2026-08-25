@@ -192,9 +192,10 @@ def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
         return stream
 
     # the refusal of what is neither a stream nor octets is
-    # bytes_from_octets's to give: what is neither used to go through
-    # untouched and be returned as it came, so `parse` answered a None
-    # with a None and the caller failed on `.read`
+    # bytes_from_octets's to give: without it, what is neither would go
+    # through untouched and be returned as it came, so `parse` would
+    # answer a None with a None and the caller would fail on `.read`
+    # rather than here
     return BytesIO(bytes_from_octets(stream))
 
 

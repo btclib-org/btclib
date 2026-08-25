@@ -181,10 +181,10 @@ def test_what_is_no_decimal_number_is_refused_as_btclib_refuses_things(
 def test_a_nan_does_not_leave_through_the_range_check() -> None:
     """The NaNs are why `is_finite` is there and a `try` is not enough.
 
-    `Decimal("nan")` is valid syntax and constructs without a word: what
-    used to raise `InvalidOperation` was the *comparison* in the range
-    check, so catching the constructor alone would have left every
-    spelling of a NaN leaking an ArithmeticError out of a validator.
+    `Decimal("nan")` is valid syntax and constructs without a word: the
+    *comparison* in the range check is what raises `InvalidOperation`,
+    so catching the constructor alone would leave every spelling of a
+    NaN leaking an ArithmeticError out of a validator.
     """
     for nan in (float("nan"), "nan", "sNaN", Decimal("NaN")):
         with pytest.raises(BTClibValueError, match="invalid BTC amount"):
