@@ -2026,6 +2026,17 @@ documented at release-notes length in the first place, and are still in
   `check_vendored_vectors.py` makes on the tracking issue it maintains
   (closes #1389).
 
+- **`vendored-vectors.yml`'s `--dry-run` flag moves into an `env:` var,
+  `DRY_RUN`, instead of an interpolated `${{ }}` expression pasted
+  straight into the `run:` script**, matching `mutation.yml`'s own
+  pattern for the same audit. The step builds a shell array from it
+  rather than expanding the variable bare, `release.yml`'s own shape
+  for an optional flag, so `shellcheck`'s SC2086 (unquoted expansion)
+  has nothing to flag either. `--persona=auditor` flagged the
+  interpolation as a template-injection risk; the value is this file's
+  own `github.event_name` check, but the habit of routing it through
+  the environment is what the audit is asking for (closes #1392).
+
 ### Documentation and the website
 
 - **The documentation site is themed with `furo`** (issue #1347,
