@@ -867,7 +867,7 @@ def test_partial_sig_verify_refuses_a_foreign_pub_key() -> None:
         musig2.partial_sig_verify_(psig, pub_nonce, pk_2, session_ctx)
 
 
-def test_partial_sig_verify_takes_the_python_arm_for_an_adaptor_session() -> None:
+def test_partial_sig_verify_takes_the_py_arm_for_an_adaptor_session() -> None:
     """A session with an adaptor is not delegated even where bindings serve.
 
     The bindings have no adaptor extension at all (this module's own

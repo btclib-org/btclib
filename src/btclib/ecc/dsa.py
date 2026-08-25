@@ -563,7 +563,7 @@ def _grind_low_r(attempt: Callable[[int], Sig], grind: bool, ec: Curve) -> Sig:
     btclib walks where that arm cannot be taken -- a nonce of the
     caller's, a commitment, a curve of its own, or no bindings at all.
     The two are held to the same signature by
-    `test_the_delegated_grind_is_the_sequence_the_python_arm_walks`, and
+    `test_the_delegated_grind_is_the_sequence_the_py_arm_walks`, and
     that test is why the sequence may be written twice at all.
 
     No attempt cap. Core has none, and one would answer an event of
@@ -708,7 +708,7 @@ def _libsecp256k1_sign_(
     # argument: the argument is that Core's counter stopped being written
     # twice on the one arm that has a library implementing it.
     # The two are held to the same signature by
-    # `test_the_delegated_grind_is_the_sequence_the_python_arm_walks`,
+    # `test_the_delegated_grind_is_the_sequence_the_py_arm_walks`,
     # which is the defence this delegation rests on: identical on 500 of
     # 500 keys and messages -- 998 draws taken and 14 in the worst case,
     # reported in btclib-org/btclib#1005 where that run is -- so a change
