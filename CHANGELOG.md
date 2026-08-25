@@ -1921,6 +1921,22 @@ documented at release-notes length in the first place, and are still in
   what the siblings answer is btclib-org/.github#26's subject, and each
   of their copies of this file now says so where it is read.
 
+- **`SECURITY.md`'s `file.py:LINE` citations name the line they
+  describe.** Five of the file's six citations pointed away from the
+  code the surrounding prose describes: `src/btclib/ecc/musig2.py:812`
+  pointed at a comment line above `sign`'s own `s = ...` line, which is
+  at `:813`; `src/btclib/bip32/bip32.py:624` pointed at a `CKDpriv`
+  docstring paragraph rather than `bip32.derive`'s buffer read, at
+  `:666`; `src/btclib/ecc/commit_nonce.py:145` pointed at a comment
+  rather than `commit_nonce_`'s own read, at `:155`;
+  `src/btclib/script/taproot.py:429` pointed at a blank line before
+  `output_prvkey` rather than `_tweaked_prvkey`'s own read, at `:461`;
+  and `src/btclib/ecc/ellswift.py:346` pointed at a blank docstring line
+  rather than `xdh`'s own return through the bindings, at `:362`. The
+  sixth, `src/btclib/ecc/dsa.py:1346`, named the line opening the
+  assignment its own paragraph describes rather than the quoted
+  expression inside it, at `:1347` (closes #1329).
+
 ### The public API and the module layout
 
 - **`HwiSigner.register_descriptor` wraps HWI's `registerdescriptor`**
