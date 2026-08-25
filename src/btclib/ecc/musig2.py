@@ -750,14 +750,14 @@ def session_values(session_ctx: SessionContext) -> SessionValues:
 
 
 def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
-    # issue #1069: this used to be three O(n) traversals of pub_keys per
-    # call -- the membership test, `_hash_pub_keys`'s join-and-hash and
-    # `_second_pub_key`'s scan -- and ran 2n times per session, once per
-    # signer from `sign` and once per signer from `partial_sig_verify_`.
-    # `session_values` now derives `L`, `second` and `pub_keys_set` once
-    # per session instead, the same fixed-input shape issue #1045 solved
-    # for the curve arithmetic above; what is left here is an O(1)
-    # frozenset membership test and one hash of constant size.
+    # issue #1069: `session_values` derives `L`, `second` and
+    # `pub_keys_set` once per session -- the same fixed-input shape
+    # issue #1045 exploits for the curve arithmetic above -- so this is
+    # an O(1) frozenset membership test and one hash of constant size,
+    # not the three O(n) traversals of pub_keys (the membership test,
+    # `_hash_pub_keys`'s join-and-hash and `_second_pub_key`'s scan) that
+    # would otherwise run 2n times per session, once per signer from
+    # `sign` and once per signer from `partial_sig_verify_`.
     #
     # The membership test stays a check of its own rather than folding
     # into the frozenset lookup below it: `_SIGNER_PK_ERR` is one of

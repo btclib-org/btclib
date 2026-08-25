@@ -533,14 +533,14 @@ def _x_octets(x: int, ec: Curve) -> bytes | None:
     element, `xonly` taking no x-coordinate at or above ec.p and
     x.to_bytes raising OverflowError rather than answering for one.
 
-    An x-only key and nothing built around it. What crosses used to be
-    0x02 || x, a compressed public key assembled here so that the
-    question could be put through the public-key API, there being no
-    x-only call to put it through; `xonly.pubkey_verify` and
-    `xonly.to_pubkey` are those calls, and the concatenation is theirs
-    now -- libsecp256k1 converting a point to an x-only key and offering
-    nothing the other way, so the lift is a rule and belongs where the
-    other x-only rules are.
+    An x-only key and nothing built around it: `xonly.pubkey_verify` and
+    `xonly.to_pubkey` are the x-only calls this feeds, and neither wants
+    a compressed public key (0x02 || x) built around x. That
+    concatenation belongs to `_multi_mult_x_only_var` instead, which
+    needs a point for `pubkey_tweak_mul_sum`'s public-key API and has no
+    x-only multiplication to reach for -- libsecp256k1 converts a point
+    to an x-only key and offers nothing the other way, so the lift is
+    that caller's rule, not this one's.
     """
     if not _libsecp256k1_serves(ec, None) or not 0 <= x < ec.p:
         return None

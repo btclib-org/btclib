@@ -80,8 +80,8 @@ class OutPoint:
     def assert_valid(self) -> None:
         """Refuse a tx_id not of 32 bytes and a vout no 4 bytes hold.
 
-        The two fields and not the pair, which is where this used to be
-        stricter than consensus. Core's `COutPoint::IsNull` is the
+        The two fields and not the pair, since checking the pair here
+        would be stricter than consensus. Core's `COutPoint::IsNull` is the
         *conjunction* -- `hash.IsNull() && n == NULL_INDEX` -- and
         `CheckTransaction` refuses a null outpoint in a non-coinbase and
         nothing else, so `000...000:0` is a transaction Core parses and

@@ -1024,9 +1024,9 @@ def derive_(
     """
     derived = _derive(_key_data_from_bip32_key(xkey), der_path, forced_version)
     # the output check the wrapper is entitled to, and the only validation
-    # of the derived key. `b58encode` used to be where it happened, its
-    # `serialize` being the half of it that validates: this is that half,
-    # 0.64 us of the 6.73 the encoding costs
+    # of the derived key: `derive` calls `b58encode(check_validity=False)`,
+    # skipping the check `serialize` would otherwise run, so this is where
+    # it happens -- 0.64 us of the 6.73 the encoding costs
     derived.assert_valid()
     return derived
 

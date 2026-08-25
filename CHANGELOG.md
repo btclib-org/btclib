@@ -659,6 +659,13 @@ documented at release-notes length in the first place, and are still in
   `engine.toml`'s subdirectory, and leaves the rest of the package to
   this profile without a number (closes #1370).
 
+- **Comments in `bip32.py`, `curve.py`, `curve_group.py`, `musig2.py`,
+  `psbt_utils.py`, `out_point.py` and `utils.py` state their reasoning
+  in the present tense** (closes #1369). Each carried "used to be",
+  dating the sentence to the commit that wrote it, against section 9 of
+  the organization standard, same as #1360 and #1365. The reasoning
+  itself is unchanged in every case.
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching

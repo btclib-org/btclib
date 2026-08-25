@@ -350,10 +350,11 @@ def fields_from_json_object(dict_: Any, what: str) -> Mapping[str, Any]:
     The first line of every `from_dict`, and it answers the two questions
     that boundary owes its caller before a field is read:
 
-    - a `Mapping[str, Any]` is what the signature declares, and what is
-      not one used to be walked anyway: `dict_["version"]` on a None is a
-      TypeError about subscripting, on a str a TypeError about string
-      indices, and neither says btclib refused anything
+    - a `Mapping[str, Any]` is what the signature declares, and the check
+      refuses what is not one before it is walked: without it,
+      `dict_["version"]` on a None is a TypeError about subscripting, on
+      a str a TypeError about string indices, and neither says btclib
+      refused anything
     - a mapping that is one and has not got the field is a value no valid
       input carries, so it is a `BTClibValueError` naming the field --
       `from_dict` is fed whatever a schema mistake produced, and a bare
