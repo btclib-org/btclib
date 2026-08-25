@@ -2707,6 +2707,14 @@ documented at release-notes length in the first place, and are still in
   construction. `_tweaked_prvkey` and `tweak_add_check`, the two other
   calls in this module, are the first and the last of those.
 
+- **`BTClibException`'s docstring cited issue #776 as the open tracker
+  for public functions still letting a native `KeyError`, `IndexError`
+  or `OverflowError` through; it closed 2026-08-14.** No open issue
+  tracks that gap, and `tests/input_validation_test.py`'s own docstring
+  states that no function of the library reaches one any more, so the
+  class's docstring now states the guarantee plainly instead of citing a
+  closed issue (issue #1314).
+
 ### Tests
 
 - **`test_the_flag_still_switches_the_check_off`'s docstring stops

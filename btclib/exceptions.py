@@ -23,20 +23,15 @@ which one answers a question the base cannot carry -- whether the value
 was wrong, the type was, or neither was and a check failed anyway. A
 caller with something to do about that difference names the specific
 class; `except BTClibException` is for the caller who only needs to know
-it came from here.
+it came from here, and it catches every failure of btclib's: no public
+function lets a native `KeyError`, `IndexError` or `OverflowError`
+escape uncaught.
 
-That every failure of btclib's *is* one is not yet true: issue #776
-carries the public functions still letting a native `KeyError`,
-`IndexError` or `OverflowError` through, and until that is closed this
-class catches most of what the library raises rather than all of it.
-
-So a caller is usually better off catching the regular ValueError,
-TypeError or RuntimeError, and does not lose anything by doing so.
-
-The exceptions to that are the few classes below carrying a field: what
-a peer got wrong, the node's rpc error code, an HTTP status. Those are
-values a caller acts on, and reading them back out of a message is what
-the field spares them.
+The exception is the few classes below carrying a field: what a peer got
+wrong, the node's rpc error code, an HTTP status. Those are values a
+caller acts on, and reading them back out of a message is what the field
+spares them, so a caller after one of them still names the specific
+class rather than the base.
 
 Each of those hands every constructor argument to
 `BaseException.__init__` and composes its message in `__str__`, which is
