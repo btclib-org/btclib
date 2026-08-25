@@ -1975,6 +1975,22 @@ documented at release-notes length in the first place, and are still in
   `pyproject.toml`'s `UNKNWON_DEVICE_TYPE` comment states, so the table
   in `tests/hwi_test.py` is ahead of that pin by this one code until a
   full re-check reconciles both.
+- **`btclib.bip85` derives a Nostr key**, `nsec_from_root_key`, BIP85's
+  application 128002' (issue #1330). The path is
+  `m/83696968h/128002h/{identity}h/{account_index}h`; the leading 256
+  bits of the entropy are the secp256k1 secret key, exactly as in the
+  hdseed WIF application, and NIP-19 bech32-encodes them with the `nsec`
+  human-readable part -- plain bech32, not bech32m, and with no
+  witness-version digit the way a segwit address carries one. `identity`
+  and `account_index` must each be 1 or more: the BIP reserves 0' of
+  either for a future NIP's key-management use and defines no signing
+  key there. A scalar of zero or beyond the curve order is refused
+  before it is encoded, through `to_prv_key.int_from_prv_key`, the same
+  hard failure `wif_from_root_key` already raises for the same
+  curve-order footnote the BIP's Nostr section cross-references from
+  its HD-Seed WIF one. The three vectors BIP85 published for this
+  application are now in `tests/_data/bip85_test_vectors.json`, pinned
+  in `tests/_data/README.md`.
 
 - **The messages by which a peer says what it wants sent to it**:
   `btclib.p2p.negotiation` carries `getaddr`, `mempool`, `sendheaders`,

@@ -828,8 +828,8 @@ which the BIP names as their source.
 ```text
 repo    bitcoin/bips
 path    bip-0085.mediawiki
-commit  97781eae4d368024b65d11b4b4301e3885d3bc05  2026-02-13
-pulled  2026-08-13
+commit  6209768676bf85d7ef5ffb4055543d6286d79b96  2026-08-03
+pulled  2026-08-25
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -838,8 +838,9 @@ verbatim in the pinned text, and every vector the BIP publishes is in
 our copy: the master root key, the two entropy cases of the
 specification's own section with the derived key of each, the 80-byte
 BIP85-DRNG read, the three BIP39 mnemonics, the hdseed WIF, the xprv,
-the 64 hex bytes, the base64 and base85 passwords, and the ten dice
-rolls. `tests/bip85_test.py` runs all of them.
+the 64 hex bytes, the base64 and base85 passwords, the ten dice rolls,
+and the three Nostr nsecs of application 128002'. `tests/bip85_test.py`
+runs all of them.
 
 RSA (828365') is the one application with no vector here, because the
 BIP publishes none for it: it defines the path and says the key
