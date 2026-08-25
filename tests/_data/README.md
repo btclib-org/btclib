@@ -1209,7 +1209,7 @@ with btclib's own messages, and the `musig()` cases of BIP390, which are
 transcribed from the BIP itself above rather than from here. Matched
 against the pinned file on 2026-08-06.
 
-Not matched since: the commit above adds four cases -- a `musig()`
+Not matched since: the commit above adds five cases -- a `musig()`
 duplicate-key check fix and a PSBT origin-path doubling fix, neither a
 refactor -- which
 [ISS 1334](https://github.com/btclib-org/btclib/issues/1334) tracks,
