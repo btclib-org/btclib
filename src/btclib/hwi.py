@@ -653,8 +653,10 @@ class HwiSigner:
         module does not wrap: there is nothing here to compare it against.
         `psbt_signer.display_address` checks a device's screen against the
         address a `Descriptor` computes, and a BIP388 policy's address is
-        not one this library computes -- issue #187 is the fragment
-        parsing that would let it, registration is not that.
+        not one this library computes: `descriptors` reads the fragments
+        a policy template may hold (issue #187) without building the
+        template or deriving its address, which registration does not
+        change.
 
         The descriptor goes out ranged, whole rather than at one index:
         registration is of the policy, and `displayaddress --index` is

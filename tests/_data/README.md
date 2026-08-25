@@ -1291,10 +1291,6 @@ that says no, -3 is a cable, -9 is a model that will never do it — so an
 adapter that dropped them would leave a caller matching on the text of a
 message.
 
-The last change to the values was in 2019, and the file has not been
-touched since a docstring pass in 2021: of everything btclib depends on
-here, this is the stillest.
-
 ## bitcoin-core/qa-assets
 
 ### `tests/script/_data/script_assets_test.json`
