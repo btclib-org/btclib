@@ -1731,6 +1731,32 @@ documented at release-notes length in the first place, and are still in
   `actions/setup-python` rather than `astral-sh/setup-uv`, since the
   script it runs has no project dependency to lock.
 
+- **`[build-system]`'s floor comment named the wrong version for the
+  behavior it argues for.** The sdist's `pyproject.toml` becomes a
+  normalized copy of this file, with the verbatim source kept beside it
+  as `pyproject.toml.orig`, starting at `uv_build==0.12.5`: built with
+  `0.11.31`, the sdist's `pyproject.toml` is the verbatim file itself
+  and carries no `.orig` -- measured by pinning each version in a
+  minimal package and listing what its sdist holds. `requires` already
+  carried `0.12.5`; only the comment beside it still argued for
+  `0.11.31` (issue #1267).
+
+- **`[tool.uv] required-version` rises from `>=0.11.31` to `>=0.12.1`,
+  the highest floor Dependabot's own uv-ecosystem updater allows.** The
+  updater bundles `0.12.1` and runs `uv lock` with exactly that version,
+  so a floor above it would silently stop every lock update it
+  attempts; a floor below it is safe and buys nothing past where it
+  sits. The comment beside it now points at section 1 and section 15 of
+  the organization standard instead of restating the Dependabot argument
+  in full (issue #1320).
+
+- **The `ignore` comment for `undocumented-magic-method` and
+  `undocumented-public-init` now says why `convention = "pep257"` does
+  not turn either off by itself.** The convention leaves both rules
+  enabled (btclib-org/.github#178): the two `ignore` entries are what
+  exempts `__init__` and a magic method, and the previous wording gave
+  only the reason each is exempt without saying that (issue #1318).
+
 ### Documentation and the website
 
 - **`.readthedocs.yaml` justifies its own name with the setting that
