@@ -20,7 +20,7 @@
   // fixing, which is a separate question from what the editor should say
   // while typing; the survey is
   //
-  //   uvx pyright --pythonpath .venv/bin/python btclib tests
+  //   uvx pyright --pythonpath .venv/bin/python src/btclib tests
   //
   // Completion, hover and go-to-definition are unaffected by this setting
   "python.analysis.typeCheckingMode": "off",
@@ -34,7 +34,7 @@
   // editable
   "mypy-type-checker.importStrategy": "fromEnvironment",
   // reportingScope stays at its default: the extension checks the file in
-  // the editor, the hook checks btclib, tests and .github/scripts
+  // the editor, the hook checks src/btclib, tests and .github/scripts
 
   // the two ruff hooks, `ruff-check --fix` and `ruff-format`, on save.
   // "always" rather than "explicit" because an auto-save on focus change is

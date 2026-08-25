@@ -371,7 +371,7 @@ These requirements are easily checked (and partially fixed) with:
 ```shell
 uv run ruff check --fix
 uv run ruff format
-uv run mypy btclib tests .github/scripts
+uv run mypy src/btclib tests .github/scripts
 uv run pytest
 ```
 
