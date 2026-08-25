@@ -2017,6 +2017,15 @@ documented at release-notes length in the first place, and are still in
   now gives the command to re-run instead of a number that was already
   wrong when written (closes #1253).
 
+- **`vendored-vectors.yml`'s `issues: write` moves from the workflow
+  level into the `vectors` job's own `permissions:` block**, matching
+  `codeql.yml`'s shape: one elevation on the job that needs it, with
+  `contents: read` as the workflow default. `--persona=auditor` flagged
+  the workflow-level grant as overly broad; the permission itself is
+  genuinely needed, for the `gh issue create`/`edit`/`close` calls
+  `check_vendored_vectors.py` makes on the tracking issue it maintains
+  (closes #1389).
+
 ### Documentation and the website
 
 - **The documentation site is themed with `furo`** (issue #1347,
