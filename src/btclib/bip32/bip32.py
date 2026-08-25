@@ -180,8 +180,8 @@ def _assert_valid_key(version: bytes, key: bytes) -> None:
         # describes, and the square root it exists not to pay was paid
         # once per extended key, so by every level of every derivation
         # path (issue 615). A predicate has no exception to chain, so
-        # the message below is the whole of the error where it used to
-        # be raised from curve_group's "invalid x-coordinate"
+        # the message below states the error on its own, independent
+        # of curve_group's own "invalid x-coordinate" wording
         x = int.from_bytes(key[1:], byteorder="big", signed=False)
         if not _is_x_coordinate_var(x, secp256k1):
             raise BTClibValueError(f"invalid public key: 0x{key.hex()}")

@@ -106,13 +106,13 @@ __all__ = [
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
-    # R (the nonce point, or e0 closing the rings) before m: zkp's
-    # secp256k1_borromean_hash writes e || m || ring || pos, and this
-    # used to write m || R -- the two swapped, a byte-for-byte different
-    # preimage over identical inputs (issue #1070). Aligning it is a
-    # hard break with no migration: every signature this module ever
-    # produced was made with the old order and stops verifying under
-    # this one
+    # R (the nonce point, or e0 closing the rings) before m, matching
+    # zkp's secp256k1_borromean_hash order of e || m || ring || pos:
+    # swapping the two produces a byte-for-byte different preimage over
+    # identical inputs (issue #1070), so this exact order is a hard
+    # break with no migration -- every signature this module produces
+    # is bound to it, and one made under the swapped order does not
+    # verify
     temp = b"".join(
         [R, m, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
     )
@@ -414,9 +414,9 @@ def sign(
     # drawn uniformly in [0, ec.n), the same distribution the real
     # s-value has once step 2 reduces it: randbits(256) is uniform over
     # [0, 2**256), not over the scalars, and the two ranges diverge by
-    # more than a 2**-127 fraction on a low-cardinality curve -- one
-    # forged this way and the real one reduced would then disagree in
-    # the same distinguishing way the unreduced real value used to
+    # more than a 2**-127 fraction on a low-cardinality curve -- forging
+    # with randbits(256) instead would leave the same distinguishing
+    # gap that step 2's `% ec.n` closes for the real value
     s = [
         [secrets.randbelow(ec.n) for _ in range(len(pubk_ring))]
         for pubk_ring in pubk_rings

@@ -1021,7 +1021,9 @@ def _double_mult_python(
     `fixed` is the points whose tables are memoized, passed down rather
     than read off `ec` at the bottom: a verification under a
     `PreparedPoint` names the key there, and every other caller names
-    `ec._fixed_points`, which is what the bottom used to read for itself.
+    `ec._fixed_points`, so passing it down is what lets a `PreparedPoint`'s
+    own superset reach the bottom instead of a direct read of
+    `ec._fixed_points` losing it.
     """
     if ec == secp256k1:
         return _double_mult_endomorphism_secp256k1_var(
@@ -1082,9 +1084,9 @@ def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
 
     Infinity is the identity and libsecp256k1 has no public key for it,
     so a term at infinity is dropped rather than handed over, and a sum
-    at infinity comes back as the None `pubkey_sum` answers with -- which
-    is the whole of what used to keep these callers on the Python
-    arithmetic, an intermediate sum at infinity being a BIP352 vector.
+    at infinity comes back as the None `pubkey_sum` answers with --
+    both handled below rather than left to the C call, an intermediate
+    sum at infinity being a real BIP352 vector.
     """
     for Q in points:
         ec.require_on_curve(Q)

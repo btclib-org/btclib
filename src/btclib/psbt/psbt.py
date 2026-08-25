@@ -1427,11 +1427,11 @@ class Psbt:
         """Build a Psbt from its base64 text, stripping whitespace.
 
         The coercion before the strip, as `bms.Sig.b64decode` does it and
-        for the reason issue #814 gives: what is neither text nor bytes
-        used to reach `base64.b64decode` untouched, and left as its
-        "argument should be a bytes-like object or ASCII string" -- a
-        complaint about a builtin rather than about the psbt that was
-        passed.
+        for the reason issue #814 gives: without it, what is neither text
+        nor bytes reaches `base64.b64decode` untouched, and is left
+        facing its own "argument should be a bytes-like object or ASCII
+        string" -- a complaint about a builtin rather than about the psbt
+        that was passed.
         """
         psbt_str = str_from_string(psbt_str, "base64 psbt").strip()
 

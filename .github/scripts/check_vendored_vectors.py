@@ -140,11 +140,12 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
 
     None where upstream has no commit touching it at all, which means the
     path has been renamed or deleted: the sharpest drift there is, a pin
-    naming a file that is not there any more. This used to unpack one
-    commit out of an empty list and raise `ValueError` instead, so the
-    run went red and `report` was never reached -- no issue opened, on
-    the one kind of drift nobody would otherwise notice, which is what
-    this workflow exists for.
+    naming a file that is not there any more. Answering None rather than
+    unpacking one commit out of an empty list is what lets `report` see
+    it as drift with no tip to name, instead of the run going red on a
+    bare `ValueError` and no issue ever opening -- the one kind of drift
+    nobody would otherwise notice, which is what this workflow exists
+    for.
     """
     result = subprocess.run(  # noqa: S603
         [
@@ -274,8 +275,8 @@ def main() -> int:
     dry_run = len(args) != len(sys.argv) - 1
     if len(args) != 1:
         # a human running this by hand is the only way here, the workflow
-        # passing the path every time: an IndexError naming a list is
-        # what they used to get
+        # passing the path every time: without this check, `args[0]`
+        # below would answer with an IndexError naming a list instead
         print(
             f"usage: {Path(sys.argv[0]).name} <README path> [--dry-run]",
             file=sys.stderr,

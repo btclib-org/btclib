@@ -495,12 +495,12 @@ def sign_(
         aux = commit_entropy_(aux + bytes_from_octets(commit_hash), _S2C_DATA_TAG, hf)
 
     # the curve and the hash function decide this, and the size of the
-    # message does not. `libsecp256k1_ssa.sign` is the 32-byte entry point
-    # the length used to gate on -- "the message hash must be 32 bytes",
-    # measured on 0.7.1rc1 -- but `sign_custom` beside it takes BIP340's
-    # message of any size, so every length now reaches the constant-time C
-    # instead of the Python arithmetic SECURITY.md publishes as not being
-    # constant time.
+    # message does not. `libsecp256k1_ssa.sign` accepts only a 32-byte
+    # message -- "the message hash must be 32 bytes", measured on
+    # 0.7.1rc1 -- but `sign_custom` beside it takes BIP340's message of
+    # any size, so every length reaches the constant-time C instead of
+    # the Python arithmetic SECURITY.md publishes as not being constant
+    # time.
     #
     # One call rather than a branch on the length: for a 32-byte message
     # the two answer the same signature octet for octet, and the

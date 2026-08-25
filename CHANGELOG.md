@@ -681,6 +681,19 @@ documented at release-notes length in the first place, and are still in
   error class, `OutPoint`'s own history re-narrated a second time — which
   is why #1369's `"used to be"` sweep missed all four. The reasoning
   itself is unchanged in every case.
+- **Comments and docstrings in `check_vendored_vectors.py`, `bip32.py`,
+  `curve.py`, `borromean.py`, `ssa.py`, `psbt.py`, `utils.py`,
+  `key_wallet.py`, `all_test.py`, `amount_test.py` and
+  `serialization_boundary_test.py` state their reasoning in the present
+  tense** (closes #1382). #1369 and #1379 both filtered `used to` by a
+  fixed list of verbs, which is why `used to read`, `used to write` and
+  `used to price` — none of them on either list — survived both rounds;
+  a broad `used to \w+` sweep, read rather than filtered by verb, is
+  what this one runs instead. `borromean.py`'s comment and one test
+  docstring each complete a sentence the construction had left
+  grammatically incomplete. A test describing the defect a regression
+  test exists to catch is a different construction and is left alone,
+  the distinction #1369 already drew.
 - **`claude-review.yml`'s prompt gives a review that reaches no verdict
   a way to post its summary.** The paragraph instructing the two
   decided-verdict forms also said "post nothing else as a GitHub

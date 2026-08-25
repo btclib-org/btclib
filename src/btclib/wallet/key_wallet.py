@@ -336,8 +336,8 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
 
         # `derive_` rather than bip32's private `_derive`: the public
         # spelling, and the one that answers the key -- where `derive`
-        # answered its Base58Check text for this line to decode straight
-        # back, which was the b58 round trip this comment used to price
+        # answers its Base58Check text, which this line would decode
+        # straight back, paying a b58 round trip for nothing
         return derive_(xkey, indexes[xkey.depth :])
 
     @property
@@ -369,12 +369,12 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         `bip32.derive_from_account_` is what imposes them -- branch 0 or 1,
         index at most 65535 -- and the message on a violation is its own.
 
-        The key and not its xprv/xpub text, which is what this used to
-        answer: all three callers hand it to something that decodes it --
-        an address builder, `ScriptPubKey.p2wpkh`, `b58.wif_from_prv_key`
-        -- and a `BIP32KeyData` is in the `Key` and `PrvKey` unions those
-        take. So the text was built and read back inside one line, three
-        times over (issue 886)
+        The key and not its xprv/xpub text: all three callers hand it to
+        something that decodes it -- an address builder,
+        `ScriptPubKey.p2wpkh`, `b58.wif_from_prv_key` -- and a
+        `BIP32KeyData` is in the `Key` and `PrvKey` unions those take.
+        Answering text instead would make each of them build it and read
+        it back inside one line (issue 886)
         """
         return derive_from_account_(self._xkey, branch, index)
 
