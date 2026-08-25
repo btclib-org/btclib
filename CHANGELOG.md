@@ -1731,15 +1731,20 @@ documented at release-notes length in the first place, and are still in
   `actions/setup-python` rather than `astral-sh/setup-uv`, since the
   script it runs has no project dependency to lock.
 
-- **`[build-system]`'s floor comment named the wrong version for the
-  behavior it argues for.** The sdist's `pyproject.toml` becomes a
-  normalized copy of this file, with the verbatim source kept beside it
-  as `pyproject.toml.orig`, starting at `uv_build==0.12.5`: built with
-  `0.11.31`, the sdist's `pyproject.toml` is the verbatim file itself
-  and carries no `.orig` -- measured by pinning each version in a
-  minimal package and listing what its sdist holds. `requires` already
-  carried `0.12.5`; only the comment beside it still argued for
-  `0.11.31` (issue #1267).
+- **`[build-system]`'s floor comment names the version where the sdist's
+  own `pyproject.toml` actually becomes normalized.** Measured by
+  calling `uv_build`'s `build_sdist` hook directly for each version --
+  `uv build` falls back silently to the running uv's own bundled
+  backend when `requires` names a version it does not satisfy, so it
+  cannot be used to probe the boundary -- the sdist gains the
+  normalized `pyproject.toml` and the verbatim `pyproject.toml.orig`
+  beside it at `uv_build==0.12.0`, not at `0.12.5`: `0.11.33`, the last
+  `0.11`, still ships the verbatim file with no `.orig`. `requires`
+  stays at `>=0.12.5` regardless -- `.pre-commit-config.yaml`'s
+  `uv-pre-commit` hook pins that exact rev, so the backend building the
+  sdist matches the uv whose lock format its `uv-lock` hook writes --
+  and the comment now says so, instead of naming `0.12.5` as the
+  boundary itself (issue #1267).
 
 - **`[tool.uv] required-version` rises from `>=0.11.31` to `>=0.12.1`,
   the highest floor Dependabot's own uv-ecosystem updater allows.** The

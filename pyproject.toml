@@ -1,14 +1,15 @@
 [build-system]
 # glob patterns in the [tool.uv.build-backend] table below, beside the
-# rest of the configuration, in place of the separate include and
-# exclude language of a MANIFEST.in. The floor is where the sdist's own
-# pyproject.toml became a normalized copy of this file, with the
-# verbatim one kept beside it as pyproject.toml.orig: below 0.12.5 the
-# sdist's pyproject.toml is the verbatim file itself, with no .orig, so
-# a lower floor would leave what the sdist holds with two different
-# shapes. The ceiling is the next minor, which is where uv's versioning
-# policy puts a breaking change, this backend releasing with uv and
-# versioned by it
+# rest of the configuration, in place of the separate include and exclude
+# language of a MANIFEST.in. The sdist's own pyproject.toml becomes a
+# normalized copy of this file at 0.12.0, with the verbatim source kept
+# beside it as pyproject.toml.orig; below it, pyproject.toml is that
+# verbatim file itself, with no .orig. This floor sits above the boundary
+# on purpose, at the rev .pre-commit-config.yaml's uv-pre-commit hook
+# pins, so the backend building the sdist matches the uv whose lock
+# format that hook's uv-lock writes. The ceiling is the next minor, which
+# is where uv's versioning policy puts a breaking change, this backend
+# releasing with uv and versioned by it
 requires = ["uv_build>=0.12.5,<0.13"]
 build-backend = "uv_build"
 
