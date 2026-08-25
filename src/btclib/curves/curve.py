@@ -1142,14 +1142,13 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     infinity -- which libsecp256k1 has no public key for and `add_var`
     returns.
 
-    A zero tweak is not in that list and was: libsecp256k1 takes a tweak
-    "valid according to secp256k1_ec_seckey_verify *or 32 zero bytes*",
-    which its own header says of `secp256k1_ec_pubkey_tweak_add`, and
-    answers P. Sending it to the Python pair instead is what the
-    condition on `t` used to do, and it cost 131.40 us against 5.01: the
-    tweak is zero, so `mult` has the scalar libsecp256k1 declines and
-    takes the fixed-base ladder for an answer that is the point already
-    in hand.
+    A zero tweak is not in that list: libsecp256k1 takes a tweak "valid
+    according to secp256k1_ec_seckey_verify *or 32 zero bytes*", which
+    its own header says of `secp256k1_ec_pubkey_tweak_add`, and answers
+    P directly, at 5.01 us against the 131.40 that routing it to the
+    Python pair instead would cost -- there `mult` has the scalar
+    libsecp256k1 declines and takes the fixed-base ladder for an answer
+    that is the point already in hand.
     """
     ec.require_on_curve(P)
     t %= ec.n

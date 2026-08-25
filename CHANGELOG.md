@@ -673,6 +673,14 @@ documented at release-notes length in the first place, and are still in
   refuse" rather than "used to be". The docstring now names `is_coinbase`
   and `Tx.assert_valid` as what reads the pair instead, matching
   `assert_valid`'s own docstring two lines below it.
+
+- **Comments in `curve.py`, `entropy.py`, `to_pub_key.py` and `utils.py`
+  state their reasoning in the present tense** (closes #1379). Each
+  carried "used to X" rather than "used to be" — a former routing
+  decision, a former accidental type acceptance, a former inference-based
+  error class, `OutPoint`'s own history re-narrated a second time — which
+  is why #1369's `"used to be"` sweep missed all four. The reasoning
+  itself is unchanged in every case.
 - **`claude-review.yml`'s prompt gives a review that reaches no verdict
   a way to post its summary.** The paragraph instructing the two
   decided-verdict forms also said "post nothing else as a GitHub

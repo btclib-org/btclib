@@ -35,10 +35,9 @@ are exactly the widths of its fields, nothing can. The decoding enforces
 them by construction, so at that boundary the flag is unreachable by
 design rather than unchecked, and the class is one in good order rather
 than one missing a check. `OutPoint` is such a class: 32 octets of
-tx_id and four of vout, every value of which is a valid outpoint since
-Bitcoin Core was found to accept the shapes it used to refuse. A class
-whose only invalidable child is one -- `TxIn`, whose own fields are of
-the same kind -- inherits the property.
+tx_id and four of vout, and every value of that shape is an outpoint
+Bitcoin Core accepts. A class whose only invalidable child is one --
+`TxIn`, whose own fields are of the same kind -- inherits the property.
 
 The two are not the same question asked twice, which is why an object
 can be asked one and not the other: an invalidity of *type* rather than
