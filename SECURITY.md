@@ -116,7 +116,7 @@ used to teach and to prototype as much as to build:
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    (`src/btclib/ecc/musig2.py:812`), spreads 1.016x over uniform scalars
+    (`src/btclib/ecc/musig2.py:813`), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
@@ -144,9 +144,9 @@ used to teach and to prototype as much as to build:
     `ssa.nonce_bip340`. btclib passes none of them, and that is a
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `bip32.derive`
-    (`src/btclib/bip32/bip32.py:624`), `commit_nonce.commit_nonce_`
+    (`src/btclib/bip32/bip32.py:666`), `commit_nonce.commit_nonce_`
     (`src/btclib/ecc/commit_nonce.py:145`) and `taproot._tweaked_prvkey`
-    (`src/btclib/script/taproot.py:429`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:442`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless —
     `bip32.derive` keeps `prv_key_int` for the life of the key

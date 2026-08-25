@@ -1921,6 +1921,17 @@ documented at release-notes length in the first place, and are still in
   what the siblings answer is btclib-org/.github#26's subject, and each
   of their copies of this file now says so where it is read.
 
+- **`SECURITY.md`'s three drifted `file.py:LINE` citations name the
+  line they describe again.** `src/btclib/ecc/musig2.py:812` pointed at
+  a comment line above `sign`'s own `s = ...` line, which is at `:813`;
+  `src/btclib/bip32/bip32.py:624` pointed at a `CKDpriv` docstring
+  paragraph rather than `bip32.derive`'s buffer read, at `:666`; and
+  `src/btclib/script/taproot.py:429` pointed at a blank line before
+  `output_prvkey` rather than `_tweaked_prvkey`'s own definition, at
+  `:442`. A full read of the file's other three citations —
+  `commit_nonce.py:145`, `ellswift.py:346`, `dsa.py:1346` — found each
+  still landing inside the function named beside it (closes #1329).
+
 ### The public API and the module layout
 
 - **`HwiSigner.register_descriptor` wraps HWI's `registerdescriptor`**
