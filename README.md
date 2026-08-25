@@ -1,21 +1,37 @@
 # A Python library for 'bitcoin cryptography'
 
 <!-- The badges are what the reader decides with: the first line says what
-this is and whether it can be used, the second whether it works. A badge
-that reports no state -- "we use ruff", "we use uv" -- reports a choice
-instead, and those are in CONTRIBUTING.md, beside the prose that says how
-the choice is enforced. One badge per line keeps a change to one line and
-every line inside MD013; the site renders the line break as a space, its
-kramdown having hard_wrap off. -->
+this is and whether it can be used, the second whether it works, the third
+where the code is and where to ask about it. A badge that reports no state
+-- "we use ruff", "we use uv" -- reports a choice instead, and those are in
+CONTRIBUTING.md, beside the prose that says how the choice is enforced. One
+badge per line keeps a change to one line and every line inside MD013,
+whose 80 columns bind only where a space follows them. -->
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
 [![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
 [![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/main/LICENSE)
 [![supported Python versions](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/)
+[![wheel](https://img.shields.io/pypi/wheel/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![implementation](https://img.shields.io/pypi/implementation/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![GitHub release](https://img.shields.io/github/v/release/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/releases)
 
 [![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
+[![docs workflow status](https://github.com/btclib-org/btclib/actions/workflows/docs.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/docs.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
+[![links workflow status](https://github.com/btclib-org/btclib/actions/workflows/links.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/links.yml)
+[![vendored-vectors workflow status](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml)
+[![codeql workflow status](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml)
+[![py-arm-authority workflow status](https://github.com/btclib-org/btclib/actions/workflows/py-arm-authority.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/py-arm-authority.yml)
+[![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml)
+[![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml)
+[![os-ubuntu workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml)
+[![integration-hwi workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml)
+[![os-macos workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml)
+[![os-windows workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml)
+[![mutation workflow status](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml)
+[![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml)
 [![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
 [![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)

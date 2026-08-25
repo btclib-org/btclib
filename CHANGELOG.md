@@ -24,6 +24,19 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`README.md`'s badge row follows the organization standard's section
+  2: membership by property, never curation, in the fixed order with the
+  sentinels in section 10's calendar order.** The row gained `wheel` and
+  `implementation`, both read off the index, `github/v/release`, read
+  off the forge and paired beside the PyPI version badge so the two can
+  be compared, a `docs` workflow badge, and one badge per calendar
+  workflow this tree runs — `links`, `vendored-vectors`, `codeql`,
+  `py-arm-authority`, `deps-latest`, `pypi-install`, `os-ubuntu`,
+  `integration-hwi`, `os-macos`, `os-windows`, `mutation` and
+  `integration-bitcoind`; `alignment` and `bootstrap-dns` are not among
+  them, this tree holding neither workflow (issue #1347,
+  btclib-org/.github#338).
+
 - **`CONTRIBUTING.md`'s shared half is the organization's copy byte for
   byte.** Section 14 of the standard is what makes everything above
   `## This repository in particular` the same file in every repository;
