@@ -223,7 +223,7 @@ uv sync
 
 **The declared dependencies are `bitcoin-core-rpc>=2026.8.13`,
 `typing-extensions>=4.4` and, as the `secp256k1` extra,
-`btclib_secp256k1>=0.8.0.4`, with no upper bound**, and the absence of a
+`btclib-secp256k1>=0.8.0.4`, with no upper bound**, and the absence of a
 ceiling is a decision. `typing-extensions` backports `typing.override`,
 which 3.12 has and the 3.10 floor does not, and its floor is the release
 that adds it. The other two are btclib-org projects developed by the same
@@ -263,7 +263,7 @@ new is therefore the same commit that raises the floor in both of its
 places, with the reason written beside it.
 
 Calling an entry point merged upstream but not yet released is what a
-`[tool.uv.sources]` entry pointing `btclib_secp256k1` at its `main`
+`[tool.uv.sources]` entry pointing `btclib-secp256k1` at its `main`
 branch is for, and it is a state to leave rather than to keep.
 `[tool.uv]` is not distribution metadata, so `dependencies` still
 publishes a plain floor and PyPI still accepts a release — where a
@@ -664,7 +664,7 @@ a dependency executes its code, and a compromised one must not reach a
 `dist/` that still has to be handed on, so what the publish jobs will
 download is frozen before the twine, check-wheel-contents and pyroma
 steps below install anything at all. The two smoke tests ask for the
-wheel and nothing else, so what pulls btclib_secp256k1 in is the
+wheel and nothing else, so what pulls btclib-secp256k1 in is the
 `Requires-Dist` the wheel carries for the `secp256k1` extra — which they
 name on both sides, a wheel installed without it declaring nothing to
 resolve. The first pins the lock as constraints, which bind a version
@@ -769,7 +769,7 @@ coverage — which reads as a dependency this tree has not caught up with
 rather than as the answer the job was asked for:
 
 ```shell
-uv lock --upgrade-package btclib_secp256k1
+uv lock --upgrade-package btclib-secp256k1
 uv run --locked --no-default-groups --group test python -c \
     "from btclib.curves import is_libsecp256k1_serving; \
      assert is_libsecp256k1_serving(), \
@@ -809,7 +809,7 @@ python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
 ```
 
 `install-published-secp256k1` installs `btclib[secp256k1]` instead,
-wheels only for both `btclib` and `btclib_secp256k1`, so a wheel the
+wheels only for both `btclib` and `btclib-secp256k1`, so a wheel the
 index does not have for a platform fails the job rather than falling
 back to a source build that answers a different question. Naming the
 extra is what entitles it to the assertion the other job cannot make: a
@@ -819,7 +819,7 @@ so this one asks `is_libsecp256k1_serving()` first, and the signature
 after it is meaningful because of that:
 
 ```shell
-python -m pip install --only-binary btclib --only-binary btclib_secp256k1 \
+python -m pip install --only-binary btclib --only-binary btclib-secp256k1 \
     "btclib[secp256k1]"
 python -c "import btclib; \
     from btclib.curves import is_libsecp256k1_serving; \

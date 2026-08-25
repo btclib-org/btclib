@@ -11,7 +11,7 @@ body:
         and prototyping as much as at production use: what belongs here is
         what a specification describes. Wrapping something libsecp256k1
         offers belongs in
-        [btclib_secp256k1](https://github.com/btclib-org/btclib-secp256k1/issues)
+        [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/issues)
         instead.
 
   - type: textarea

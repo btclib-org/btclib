@@ -41,7 +41,7 @@ including the few vectors that are btclib's own, having no upstream.
 
 The library is not limited to secp256k1, and for that curve it always
 calls
-[btclib_secp256k1](https://github.com/btclib-org/btclib-secp256k1),
+[btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1),
 FFI bindings to Bitcoin Core's optimized C library
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1). They are the
 recommended install and what `pip install "btclib[secp256k1]"` asks for,
