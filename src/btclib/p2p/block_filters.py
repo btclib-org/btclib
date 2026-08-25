@@ -117,9 +117,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import TypeVar
 
-from typing_extensions import override
+from typing_extensions import Self, override
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -219,11 +218,6 @@ def _assert_valid_type(filter_type: BlockFilterType | int) -> None:
         raise BTClibValueError(f"invalid filter_type: {filter_type}")
 
 
-# so that `GetCFilters.parse` answers a `GetCFilters` and not the private
-# base: the body is one and the two return types are not
-_Request = TypeVar("_Request", bound="_FilterRangeRequest")
-
-
 @dataclass(frozen=True)
 class _FilterRangeRequest(Payload):
     """A filter type, a start height and a stop hash, the command open.
@@ -287,9 +281,7 @@ class _FilterRangeRequest(Payload):
         return out
 
     @classmethod
-    def parse(
-        cls: type[_Request], data: BinaryData, *, check_validity: bool = True
-    ) -> _Request:
+    def parse(cls, data: BinaryData, *, check_validity: bool = True) -> Self:
         """Return the range the payload asks for."""
         stream = bytesio_from_binarydata(data)
 

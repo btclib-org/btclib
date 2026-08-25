@@ -304,8 +304,9 @@ class PsbtView:
         # one walk, reading no map: after it the stream is on the octet
         # after the psbt, which is where `parse` leaves it too
         offsets = [stream.tell()]
-        for _ in range(self.input_count + self.output_count):
-            offsets.append(_skip_map(stream))
+        offsets.extend(
+            _skip_map(stream) for _ in range(self.input_count + self.output_count)
+        )
         self._offsets = offsets
 
         if isinstance(data, (bytes, str, bytearray, memoryview)):

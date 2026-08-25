@@ -80,7 +80,7 @@ __all__ = [
 ]
 
 
-class BTClibException(Exception):
+class BTClibException(Exception):  # noqa: N818 -- a kind, like Exception itself, not a leaf raised
     """Anything btclib raised, whatever kind of failure it is.
 
     The one name to catch for a caller who handles the standard library's

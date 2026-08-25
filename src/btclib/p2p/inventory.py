@@ -102,7 +102,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import TypeVar
 
-from typing_extensions import override
+from typing_extensions import Self, override
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets
@@ -347,11 +347,6 @@ class Inventory:
         return cls(type_code, hash_, check_validity=check_validity)
 
 
-# so that `Inv.parse` answers an `Inv` and not the private base: the body
-# is one and the three return types are not
-_Vector = TypeVar("_Vector", bound="_InventoryPayload")
-
-
 @dataclass(frozen=True)
 class _InventoryPayload(Payload):
     """A count and that many `Inventory`, with the command left open.
@@ -401,9 +396,7 @@ class _InventoryPayload(Payload):
         return out
 
     @classmethod
-    def parse(
-        cls: type[_Vector], data: BinaryData, *, check_validity: bool = True
-    ) -> _Vector:
+    def parse(cls, data: BinaryData, *, check_validity: bool = True) -> Self:
         """Return the entries the payload carries, the count bounded first."""
         stream = bytesio_from_binarydata(data)
 
@@ -469,10 +462,6 @@ class NotFound(_InventoryPayload):
     """
 
     command = "notfound"
-
-
-# so that `GetBlocks.parse` answers a `GetBlocks`, as above
-_Locator = TypeVar("_Locator", bound="_LocatorPayload")
 
 
 @dataclass(frozen=True)
@@ -549,9 +538,7 @@ class _LocatorPayload(Payload):
         return out
 
     @classmethod
-    def parse(
-        cls: type[_Locator], data: BinaryData, *, check_validity: bool = True
-    ) -> _Locator:
+    def parse(cls, data: BinaryData, *, check_validity: bool = True) -> Self:
         """Return the locator the payload carries, the count bounded first."""
         stream = bytesio_from_binarydata(data)
 

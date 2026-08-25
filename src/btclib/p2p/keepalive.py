@@ -32,9 +32,8 @@ what to do with octets that do not decode, and this package holds none.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeVar
 
-from typing_extensions import override
+from typing_extensions import Self, override
 
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -53,10 +52,6 @@ __all__ = [
 
 _NONCE_SIZE = 8
 _MAX_NONCE = (1 << (8 * _NONCE_SIZE)) - 1
-
-# so that `Ping.parse` answers a `Ping` and not the private base: the
-# body is one and the two return types are not
-_Nonce = TypeVar("_Nonce", bound="_NoncePayload")
 
 
 @dataclass(frozen=True)
@@ -101,9 +96,7 @@ class _NoncePayload(Payload):
         return self.nonce.to_bytes(_NONCE_SIZE, byteorder="little", signed=False)
 
     @classmethod
-    def parse(
-        cls: type[_Nonce], data: BinaryData, *, check_validity: bool = True
-    ) -> _Nonce:
+    def parse(cls, data: BinaryData, *, check_validity: bool = True) -> Self:
         """Return the nonce the eight octets carry."""
         stream = bytesio_from_binarydata(data)
 

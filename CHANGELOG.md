@@ -641,6 +641,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
+  section 5 of the organization standard, in place of the hand-picked
+  family list this key held before. `ignore` now carries every declined
+  rule's own reason: the rules ruff's own `docs/formatter.md` names under
+  *Conflicting lint rules*, cited rather than argued since that list is
+  the vendor's; the rules this tree already declined, each carrying the
+  argument the old list's comment gave in prose; and the rules a full run
+  under `ALL` surfaced for the first time, each triaged into a fix at its
+  site, a `# noqa` `RUF100` retires the day it stops being needed, or an
+  `ignore` entry argued on its own merits. `Signer.__enter__` returns
+  `Self` rather than the class by name, four `parse` classmethods across
+  `btclib.p2p` do the same in place of a bound `TypeVar`, and
+  `psbt_view.py`'s offset walk is a `list.extend` rather than a loop
+  appending one element at a time (issue #1347, btclib-org/.github#334).
+
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
   reads a merged pull request's own commits and found CodeQL configured

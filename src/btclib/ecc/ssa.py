@@ -59,6 +59,8 @@ from hashlib import sha256
 from types import TracebackType
 from typing import overload
 
+from typing_extensions import Self
+
 from btclib._libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.curves import (
@@ -748,7 +750,7 @@ class Signer:
             self._q = 0
         self._wiped = False
 
-    def __enter__(self) -> Signer:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(

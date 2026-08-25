@@ -37,7 +37,7 @@ _MAINNET = bytes.fromhex("f9beb4d9")
     "nonce",
     [0, 1, 0x0123456789ABCDEF, 2**64 - 1],
 )
-def test_the_nonce_round_trips(cls: type[Ping] | type[Pong], nonce: int) -> None:
+def test_the_nonce_round_trips(cls: type[Ping | Pong], nonce: int) -> None:
     """Eight octets, little-endian, and back.
 
     Zero among them, which is the value an implementation reading its own
