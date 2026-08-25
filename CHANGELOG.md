@@ -1893,6 +1893,17 @@ documented at release-notes length in the first place, and are still in
   the organization standard leaves both choices to this tree
   (issue #1347, btclib-org/.github#326).
 
+- **`[tool.check-wheel-contents]`'s comment states its reasoning in the
+  present tense.** "It was left unconfigured here on purpose until now"
+  and "no longer accepts that trade" dated the comment to the commit
+  that wrote them, against section 9 of the organization standard,
+  which reserves that account for `git log` and this file. The
+  reasoning itself is unchanged: `check-sdist` and
+  `verify_dist_contents.py` chained imply tree == sdist == wheel, and
+  that implication does not stand in for the flag where the flag
+  applies, the two checks sitting in different workflows (issue #1200,
+  btclib-org/.github#51) (closes #1360).
+
 ### Documentation and the website
 
 - **The documentation site is themed with `furo`** (issue #1347,
