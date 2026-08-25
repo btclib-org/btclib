@@ -24,6 +24,32 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`CONTRIBUTING.md`'s shared half is the organization's copy byte for
+  byte.** Section 14 of the standard is what makes everything above
+  `## This repository in particular` the same file in every repository;
+  this copy was behind by a new subsection, `### The landing queue`
+  under *Pull requests*, and a rewritten paragraph in *Documentation and
+  comments* on what a commit message becomes once it lands
+  (issue #1317, btclib-org/.github#281).
+
+- **`CONTRIBUTING.md`'s tail no longer restates the prose style's three
+  habits to delete on sight.** Section 9 of the standard, now carried by
+  the sync above, already states all three under its own headings — *One
+  fact in one place*, the sentence that only introduces the next one
+  under *Tone*, and the tour of alternatives under the bullet on what a
+  comment carries — so the paragraph under *Prose in this tree* restated
+  what the shared half now says (issue #1300).
+
+- **The *What runs when* table's three platform sweeps say what varies,
+  not how many.** `os-ubuntu`, `os-macos` and `os-windows` each named an
+  image and interpreter count the other two rows in the same table do
+  not; the cells now read `ubuntu images and interpreters` and the like,
+  matching the style of *a node* and *platforms sampled, deps upgraded*
+  beside them. `tests/interpreters_test.py` already holds the three
+  workflow files' own interpreter lists to one another, so `os-macos.yml`
+  and `os-windows.yml` now say so next to the comment that used to
+  assert it unchecked (issue #1269).
+
 - **`.gitattributes`'s shared half is the organization's copy byte for
   byte.** Section 14 of the standard in `btclib-org/.github` makes the
   file the same in every repository up to `## This repository in

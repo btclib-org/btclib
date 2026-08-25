@@ -36,9 +36,9 @@ restated here: a second wording is the one that goes stale, which is
 that section's own *One fact in one place*.
 
 A commit message is prose this tree ships too, though section 9 does not
-say so: squash is the only merge method and the landing commit carries
-the messages, so what is written in one is read on `main` long after the
-branch is gone.
+say so: [the only merge method the rule accepts][s11] puts it on `main`
+as the landing commit's body, so what is written in one is read there
+long after the branch is gone.
 
 ## Pull requests
 
@@ -84,6 +84,36 @@ because a plain rebase replays the base's old commit inside the child,
 and the forge then shows the base's old text as additions with nothing
 red anywhere. Read the child's diff afterwards rather than trusting the
 rebase, and retarget each child onto `main` as its parent lands.
+
+### The landing queue
+
+Where more than one pull request is open against this repository, only
+one is carried to `main` at a time: rebased onto the tip, reviewed on
+that head, and landed, while every other one waits, untouched, for its
+turn. This governs which of several *already open* pull requests reaches
+`main` next; *One subject, opened as soon as it is written* above governs
+the moment before that, when a finished one is opened — the two do not
+conflict, since a pull request is still opened without delay and still
+waits its turn once several are open.
+
+The reason is CI throughput, not the ack a waiting pull request keeps —
+`REVIEWING.md`'s *The verdict* states what an ack belongs to, and
+*Landing it* below states which rebase voids one. Every rebase queues
+this repository's whole check matrix against the organization's ceiling
+on concurrent jobs, so rebasing every waiting pull request after each
+landing spends that capacity on runs the next landing invalidates
+anyway, and delays the one pull request that is actually next: work
+spent on a pull request that is not next is work that delays the one
+that is.
+
+Order is cheapest and least contended first, most invasive last, so that
+a large change does not sit at the head blocking everything behind it.
+
+The maintainer may declare a bounded exception — several pull requests in
+flight against one repository, for a named piece of work — trading the
+cost above for throughput; it is recorded as a comment in
+[btclib-org/.github](https://github.com/btclib-org/.github/issues), by
+*The issue tracker* above, and holds only for the work it names.
 
 ### The review
 
@@ -434,9 +464,9 @@ read by every checkout of this repository.
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | push to main, and weekly | 2 languages |
-| `os-ubuntu` | weekly, a release | 2 ubuntu images × 7 interpreters |
-| `os-macos` | weekly, a release | 2 macOS images × 7 interpreters |
-| `os-windows` | weekly, a release | 2 Windows images × 7 interpreters |
+| `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
+| `os-macos` | weekly, a release | macOS images and interpreters |
+| `os-windows` | weekly, a release | Windows images and interpreters |
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `integration-hwi` | weekly, push to main | two device emulators |
 | `links`, `mutation` | weekly | — |
@@ -1486,17 +1516,6 @@ is that one — which channel, measured how, and what is left.
 *Documentation and comments* above says why it is not restated. What
 follows is what this tree adds to it, and it holds for docstrings,
 comments, the sphinx pages and a pull request reply alike.
-
-**Length is a cost, and the reason is what buys it.** One sentence where
-one will carry it, and a paragraph only where a shorter one would leave
-the reader wrong. Three habits lengthen prose here without adding to it,
-and each is worth deleting on sight:
-
-- the same reason in a second wording — not emphasis, but a second copy
-  to keep true, and the one that drifts;
-- the sentence that only introduces the next one;
-- the tour of alternatives, where the rejected one and the thing that
-  rejects it are the whole of the negative result.
 
 **Most readers of a docstring here are new to btclib: write for them.**
 
