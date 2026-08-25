@@ -18,14 +18,12 @@ job: neither #129 defect was "this function is lax" -- one was
 hybrid key -- and both only became visible as a whole engine accepting a
 whole transaction it must refuse.
 
-It is not the same thing as a CI job installing without the bindings, and
-does not replace one: every bindings import is a plain import, so `import
-btclib` fails without them and there is nothing for such a job to run
-until the optional-bindings install arrives. Issue #966 is that work,
-issue #989 the step it waits on, and issue #991 the job. What this module
-does that no job will is run the two implementations over the same
-vectors in the same session, which is what makes a disagreement visible
-as a disagreement rather than as two red suites nobody compares.
+It is not the same thing as `test.yml`'s `no-bindings` job, and does not
+replace it: that job runs the whole suite once, with `btclib_secp256k1`
+absent and one implementation available to it. What this module does
+that no job will is run the two implementations over the same vectors in
+the same session, which is what makes a disagreement visible as a
+disagreement rather than as two red suites nobody compares.
 """
 
 from typing import Any
@@ -149,8 +147,12 @@ def test_verify_answers_false_for_what_cannot_be_parsed(
         # both answer False here, so nothing would go red and half the
         # parametrization would check the same thing twice. Skipped rather
         # than asserted, this file having to pass wherever it is run --
-        # and unreachable while the bindings are a required dependency,
-        # which is what the pragma is for and what issue #990 changes
+        # and unreachable in every job that runs it: with the bindings
+        # installed, `_libsecp256k1_available` is True and the branch is
+        # never taken; without them, this module's own `pytestmark =
+        # needs_bindings` above skips the whole function before its body
+        # runs, so `no-bindings` never reaches it either, and neither does
+        # `coverage-union`'s combination of the two runs' data
         pytest.skip("the bindings are not serving in this configuration")
     if not delegated:
         monkeypatch.setattr(curve, "_libsecp256k1_available", False)
