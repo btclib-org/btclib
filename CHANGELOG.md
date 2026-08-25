@@ -97,6 +97,15 @@ documented at release-notes length in the first place, and are still in
   `\x20` beside it in the same entry already uses for its own space
   (issue #1302).
 
+- **`REVIEWING.md`'s *The verdict* names the ack of record as an
+  approving review, not a forge approval GitHub refuses outright.** The
+  organization's copy, shared half byte for byte (section 14): the
+  refusal is GitHub's rule against a pull request's author approving
+  their own branch, which explained why an author's own verdict is a
+  comment here but never why the workflow's was; section 11 now has
+  `claude-review.yml` post its verdict as an approving review, and that
+  review is the ack of record (btclib-org/.github#353).
+
 - **`REVIEWING.md`'s *The gates are the evidence* excepts no gate from
   the run a reviewer may rely on, the test suite included.** The
   organization's copy, shared half byte for byte (section 14): a run is
