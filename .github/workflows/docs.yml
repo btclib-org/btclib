@@ -104,11 +104,15 @@ jobs:
       # defect issue 151 was opened for, read the docs having installed
       # sphinx alone and rendered 70 empty module headings.
       # -W makes a failed import a failed build, and --keep-going reports
-      # every problem in one run instead of one per push
+      # every problem in one run instead of one per push. -n turns an
+      # unresolved cross-reference into a warning for -W to fail on --
+      # without it a renamed class or a moved function in a :class: role
+      # builds green and links nowhere. conf.py's intersphinx_mapping and
+      # nitpick_ignore are what -n is checked against
       - name: Build the docs
         run: >
           uv run --locked --no-default-groups --group docs
-          sphinx-build -W --keep-going -b html docs/source docs/build/html
+          sphinx-build -n -W --keep-going -b html docs/source docs/build/html
       # the one defect the build above cannot report on itself: a link
       # myst cannot resolve is rendered as an anchor on the page it is
       # already on -- an id nothing has -- so -W passes over a dead link

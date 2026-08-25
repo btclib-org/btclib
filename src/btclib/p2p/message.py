@@ -165,12 +165,13 @@ class Message:
 
     @property
     def checksum(self) -> bytes:
-        """Return the four octets the header carries: hash256(payload)[:4].
+        """Return the four octets the header carries.
 
-        Bitcoin Core's `V1Transport::GetMessageHash`. It is what the
-        payload says it is, so it is derived here and never stored;
-        `parse` is the one place the two can disagree, and it refuses the
-        octets rather than building the disagreement.
+        The first four octets of hash256(payload), Bitcoin Core's
+        `V1Transport::GetMessageHash`. It is what the payload says it
+        is, so it is derived here and never stored; `parse` is the one
+        place the two can disagree, and it refuses the octets rather
+        than building the disagreement.
         """
         return hash256(self.payload)[:_CHECKSUM_SIZE]
 

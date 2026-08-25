@@ -61,10 +61,12 @@ build:
   # resolving something else.
   # -W turns a failed import into a failed build, which is the point
   # of the whole file; --keep-going comes first so one broken module
-  # reports every other problem in the same run instead of one per push
+  # reports every other problem in the same run instead of one per push.
+  # -n is docs.yml's own flag, kept in step here so the site this file
+  # publishes is built by the same command that gates a merge
   commands:
     - pip install uv
     - uv sync --locked --no-default-groups --group docs
     - >-
       uv run --locked --no-default-groups --group docs
-      sphinx-build -W --keep-going -b html docs/source $READTHEDOCS_OUTPUT/html
+      sphinx-build -n -W --keep-going -b html docs/source $READTHEDOCS_OUTPUT/html

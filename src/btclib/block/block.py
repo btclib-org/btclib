@@ -165,7 +165,7 @@ class Block:
 
     @property
     def vsize(self) -> int:
-        """Return the virtual size: the weight over four, rounded up."""
+        """Return the virtual size, the weight over four rounded up."""
         return ceil(self.weight / 4)
 
     @property

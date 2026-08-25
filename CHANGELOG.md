@@ -1866,6 +1866,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **The documentation site is themed with `furo`** (issue #1347,
+  btclib-org/.github#329). The `docs` dependency group and `conf.py`'s
+  `html_theme` both name it, in place of `sphinx_rtd_theme`: the
+  organization standard's section 2 gives `pip`, `black`, `urllib3` and
+  `attrs` as what the rest of this ecosystem reads as ordinary, against
+  the theme it replaces being where a Read the Docs project starts by
+  default and no more than that.
+
+- **The documentation build runs `-n` alongside `-W`** (issue #1347,
+  btclib-org/.github#324), in `docs.yml`, `.readthedocs.yaml` and the
+  command CONTRIBUTING.md documents, so an unresolved cross-reference is
+  a warning for `-W` to fail the build on rather than a link that
+  resolves to nothing on a build that stays green. `conf.py` gained
+  `sphinx.ext.intersphinx`, with a mapping for python ahead of the flag
+  so it resolves this tree's use of the standard library rather than
+  measuring it as broken, and a `nitpick_ignore` list for what stays
+  genuinely unresolvable: a subscripted generic sphinx's own
+  type-to-xref splitter cannot fully parse, measured against sphinx
+  9.1.0, and names this tree documents nowhere — `alias.py`'s bare type
+  aliases and the `p2p` module's private payload classes — each entry
+  carrying its own reason rather than a regex that would give up the
+  check. Property and attribute docstrings whose opening line read
+  `<phrase>: <text>` are reworded, one word in each: napoleon reads that
+  colon as the member's own type declaration, which is what turned every
+  one of them into its own unresolved reference once `-n` was on to
+  report it.
+
 - **`.readthedocs.yaml` justifies its own name with the setting that
   actually controls it** (issue #1275). The comment gave `MANIFEST.in`'s
   `include *.yml` as the reason the dotted spelling ships, in a tree

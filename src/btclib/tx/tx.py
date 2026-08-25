@@ -188,7 +188,7 @@ class Tx:  # noqa: PLW1641
 
     @property
     def weight(self) -> int:
-        """Return the BIP141 weight: 3x the stripped size plus the size."""
+        """Return the BIP141 weight, 3x the stripped size plus the size."""
         return 3 * self._serialized_size(include_witness=False) + self._serialized_size(
             include_witness=True
         )
@@ -224,7 +224,7 @@ class Tx:  # noqa: PLW1641
 
     @property
     def is_coinbase(self) -> bool:
-        """Answer whether this is a coinbase: one input, spending nothing."""
+        """Answer whether this is a coinbase, one input spending nothing."""
         return len(self.vin) == 1 and self.vin[0].is_coinbase
 
     def __init__(
