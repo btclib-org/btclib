@@ -652,6 +652,13 @@ documented at release-notes length in the first place, and are still in
   than a count that ages the moment upstream adds, retires or
   reclassifies a check (closes #1368).
 
+- **`.github/mutation/script.toml`'s header comment stops counting the
+  files this profile mutates.** "leaving these seven" was a count of
+  `module-path`'s own entries that nothing checked; the comment now
+  names only what is excluded, `sig_hash.toml`'s one file and
+  `engine.toml`'s subdirectory, and leaves the rest of the package to
+  this profile without a number (closes #1370).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
