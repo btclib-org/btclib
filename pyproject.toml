@@ -298,17 +298,16 @@ source-exclude = [
 # `_data/*.json` dropped by a packaging change builds, installs and
 # imports cleanly and is reported clean.
 #
-# It was left unconfigured here on purpose until now, and the reason was
-# redundancy rather than inapplicability: `check-sdist` below gates this
-# tree against the sdist and `verify_dist_contents.py` gates the sdist
-# against the wheel, so chained they imply tree == sdist == wheel.
-# The organization standard's section 12 no longer accepts that trade
-# (btclib-org/.github#51, issue #1200): some other check implying the
-# same diff does not stand in for the flag where the flag applies,
-# because the implication is the same assertion bought with code to
-# maintain, and the two hops here sit in different workflows -- a
-# pre-commit hook under the lint gate, and `test.yml`'s `dist` job -- so
-# the chain holds only while both run.
+# `package` is set because the redundancy does not substitute for the
+# flag: `check-sdist` below gates this tree against the sdist and
+# `verify_dist_contents.py` gates the sdist against the wheel, so
+# chained they imply tree == sdist == wheel. The organization
+# standard's section 12 (btclib-org/.github#51, issue #1200) treats
+# that implication as the same assertion bought with code to
+# maintain, not as a substitute for the flag itself: the two hops
+# here sit in different workflows -- a pre-commit hook under the
+# lint gate, and `test.yml`'s `dist` job -- so the chain holds only
+# while both run.
 #
 # No `ignore`: nothing ships outside `btclib/`, so neither W003 nor W009
 # can fire, unlike btclib-secp256k1, whose dynamic wheel carries a shared
