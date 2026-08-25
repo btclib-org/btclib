@@ -102,11 +102,23 @@ jobs:
       # token could not write the issue anyway, and a same-repository
       # pull request testing a change to this script or the README
       # should not close or edit whatever tracking issue is open at the
-      # time as a side effect of that test
+      # time as a side effect of that test.
+      # The flag reaches the shell through the environment rather than
+      # through a `${{ }}` inside the script, which would be text pasted
+      # into it: the value is this file's own, and the habit is what
+      # zizmor's template-injection rule is asking for (mutation.yml's
+      # own comment, around its "Check the baselines" step, is the same
+      # pattern). The array built from it, rather than an unquoted
+      # expansion, is release.yml's own shape for an optional flag
+      # (its "Check the public API against the previous release" step).
       - name: Re-check every pin already at upstream's tip
-        run: >-
-          python .github/scripts/check_vendored_vectors.py
-          tests/_data/README.md
-          ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
+        run: |
+          args=()
+          if [ -n "$DRY_RUN" ]; then
+            args=(--dry-run)
+          fi
+          python .github/scripts/check_vendored_vectors.py \
+            tests/_data/README.md "${args[@]}"
