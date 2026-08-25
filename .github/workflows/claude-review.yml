@@ -6,12 +6,21 @@ name: claude-review
 # to say: the prompt below names that file rather than restating it, so a
 # change to the standard reaches this workflow without editing it.
 #
-# Not a required check, and it must not become one. What it produces is a
-# comment, which is an opinion for the author to weigh -- REPOSITORY.md's
-# rule is that `main`'s required contexts are named outside the repository,
-# and a review that gates a merge would make a model's judgement a branch
-# rule. The required checks stay what they are, and which ones those
-# are is REPOSITORY.md's to record and the endpoint's to answer.
+# Not a required check, and it must not become one -- REPOSITORY.md's
+# rule is that `main`'s required contexts are named outside the
+# repository, and a review that gates a merge would make a model's
+# judgement a branch rule. The required checks stay what they are, and
+# which ones those are is REPOSITORY.md's to record and the endpoint's
+# to answer.
+#
+# The verdict below is posted as a pull request review rather than a
+# comment. GitHub refuses only a *self*-approval, and this workflow does
+# not run as the pull request's author, so that refusal never reaches
+# it -- section 11 of the organization's standard has the reasoning.
+# Staying a review that gates nothing is the decision that survives: the
+# alternative is a second human approving every pull request, which
+# would mean nothing lands while nobody is available, for a review this
+# workflow already performs in substance.
 #
 # It is one more job on every pull request, which is not free: GitHub Free
 # gives this organization twenty concurrent jobs and REPOSITORY.md measures
@@ -66,7 +75,7 @@ jobs:
           && github.event.pull_request.head.repo.full_name
              == github.repository }}
     runs-on: ubuntu-latest
-    # a diff read and a comment posted; a job past this is hung on the API
+    # a diff read and a review posted; a job past this is hung on the API
     timeout-minutes: 15
     # per job rather than per workflow, so that a push cancelling a
     # superseded review does not also cancel somebody's @claude question
@@ -151,18 +160,24 @@ jobs:
             this job and that those runs are what stands.
 
             Do not file issues from here: a collateral finding goes in the
-            summary comment, under a line saying it is not a finding
-            against this pull request, and a person decides whether it
-            becomes one.
+            summary, under a line saying it is not a finding against this
+            pull request, and a person decides whether it becomes one.
 
-            Post GitHub comments only, never review text as a message.
-            `gh pr comment` for the summary,
+            Inline comments only for a finding a line is the subject of:
             `mcp__github_inline_comment__create_inline_comment` (with
-            `confirmed: true`) for a finding a line is the subject of.
-          # folded rather than literal, and `gh pr` rather than the three
+            `confirmed: true`). Post nothing else as a GitHub comment and
+            never review text as a message: the verdict is a pull request
+            review, opened once every inline comment is posted --
+            `gh pr review <n> --approve --body "<summary>"` where the
+            summary ends with `ACK <sha>`, or `gh pr review <n>
+            --request-changes --body "<summary>"` where it ends with
+            `CHANGES REQUESTED <sha>` -- REVIEWING.md's own two lines,
+            inside the review body because a landing still parses that
+            trailing line out of it.
+          # folded rather than literal, and `gh pr` rather than the four
           # subcommands spelled out: the flag has to reach the CLI as one
-          # line, and the line that spells out comment, diff and view is
-          # past the 100 columns yamllint holds this file to
+          # line, and the line that spells out review, comment, diff and
+          # view is past the 100 columns yamllint holds this file to
           claude_args: >-
             --allowedTools
             "mcp__github_inline_comment__create_inline_comment,Bash(gh pr:*),Read,Grep,Glob"
@@ -194,20 +209,21 @@ jobs:
       # guard above answers whether the action started, and a run that
       # starts, finishes green and posts nothing at all walks through
       # it: on btclib-org/.github#139 two runs of the same sha both concluded
-      # success, the first having written no comment and the second the
-      # review.
+      # success, the first having posted nothing and the second the
+      # verdict.
       #
       #   gh api "repos/btclib-org/.github/actions/runs?head_sha=<sha>" \
       #     --jq '.workflow_runs[] | select(.name == "claude-review")
       #           | {id, conclusion, run_started_at, updated_at}'
       #
       # So what is read here is what was posted rather than what the
-      # action produced: the verdict is the last line of a comment on
-      # the pull request, which is where section 11 of the organization's
-      # standard puts the ack of record, and only what claude[bot] wrote
-      # is one -- an author's own ack is not.
+      # action produced: the verdict is the last line of a pull request
+      # review, which is where section 11 of the organization's standard
+      # puts the ack of record, and only what claude[bot] posted is one
+      # -- an author's own ack is not, and cannot be this shape at all,
+      # GitHub refusing a self-approval.
       #
-      #   gh api repos/btclib-org/.github/issues/139/comments \
+      #   gh api repos/btclib-org/.github/pulls/139/reviews \
       #     --jq '.[] | "\(.user.login) \(.body | split("\n") | last)"'
       #
       # The last verdict decides, rather than any verdict naming the
@@ -224,9 +240,14 @@ jobs:
       # having nothing new to say. An abbreviation names the same commit
       # as the forty characters do, so a prefix of it counts.
       #
+      # Read from the review's own body rather than from its `state`:
+      # `APPROVED` and `CHANGES_REQUESTED` say what GitHub recorded, not
+      # which sha it was recorded against, and the sha is what an ack
+      # belongs to.
+      #
       # Red, and gating nothing: this check is not required, and what
       # the colour buys is a reader who sees a refusal in the checks
-      # instead of under the fold at the foot of a comment.
+      # instead of under the fold at the foot of a review.
       - name: Refuse to report anything but an ack of this head
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -234,10 +255,10 @@ jobs:
           NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          # --paginate because the API pages at thirty comments and the
+          # --paginate because the API pages at thirty reviews and the
           # newest sit on the last page; --jq answers once per page, so
           # the last line of the output is the last verdict posted.
-          verdict=$(gh api "repos/$REPO/issues/$NUMBER/comments" --paginate \
+          verdict=$(gh api "repos/$REPO/pulls/$NUMBER/reviews" --paginate \
             --jq '[ .[]
                     | select(.user.login == "claude[bot]")
                     | .body
@@ -250,8 +271,8 @@ jobs:
           if [ -z "$verdict" ]; then
             echo "::error::the review posted no verdict on this pull" \
                  "request, so nothing says whether $HEAD_SHA was read at" \
-                 "all. A job that finishes green having written no" \
-                 "comment is what this reports."
+                 "all. A job that finishes green having posted no review" \
+                 "is what this reports."
             exit 1
           fi
           sha=${verdict##* }

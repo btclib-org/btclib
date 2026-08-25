@@ -614,6 +614,17 @@ documented at release-notes length in the first place, and are still in
   content is what settles one, a citation landing inside the right
   function being too weak a check on its own (issue #1346).
 
+- **`claude-review.yml` posts its verdict as a pull request review, not
+  a comment.** `gh pr review <n> --approve --body "<summary>"` carries
+  `ACK <sha>` and `--request-changes` carries `CHANGES REQUESTED <sha>`,
+  both inside the review body; the guard step that refuses a green run
+  posting no verdict now reads `repos/$REPO/pulls/$NUMBER/reviews`
+  rather than `issues/$NUMBER/comments`, matched against the head sha
+  the same way. GitHub refuses only a *self*-approval, and this
+  workflow does not run as the pull request's author, so nothing stops
+  it approving one; the job stays what it was, not a required check
+  (issue #1347, btclib-org/.github#340).
+
 ### Packaging, linting and CI
 
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
