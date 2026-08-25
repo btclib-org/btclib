@@ -2820,6 +2820,31 @@ documented at release-notes length in the first place, and are still in
   the seed comparison alone never caught it. Fixed by matching upstream's
   bytes.
 
+- **`tests/psbt/_data/bip375_test_vectors.json` carries upstream's new
+  valid case, "input eligibility: bare OP_2 script is not a segwit v2
+  witness program", and the file now ends on a newline of its own, so
+  `tests/_data/README.md` no longer notes the trailing-newline exception
+  for it** (issue #1312). The case carries its own `checks:
+  ["input_eligibility"]`, isolating one of BIP375's four checks the way
+  an existing invalid case already does; `tests/psbt/silent_payments_test.py`'s
+  valid-vector test now honors that field for a valid case too, running
+  only the checks a case names instead of the whole protocol when it
+  names any.
+
+- **`src/test/miniscript_tests.cpp`'s and `src/test/descriptor_tests.cpp`'s
+  pins in `tests/_data/README.md` move to their paths' current tips**
+  (issue #1312), each verified content-unchanged for the vectors this
+  tree transcribes: the miniscript diff is entirely a `BOOST_CHECK` split
+  into `BOOST_REQUIRE`/`BOOST_CHECK` inside the same function, and the
+  descriptor one adds cases past what this tree transcribes rather than
+  changing any of them (issue #1334 tracks whether btclib's own musig
+  derivation needs the fix those new cases exercise).
+  `ecdsa_secp256k1_sha256_bitcoin_test.json`'s pin moves too: upstream
+  replaced its top-level `generatorVersion` field
+  with a `source` object per test group and gave the file its own
+  schema, and `tests/ecc/wycheproof_test.py` reads neither field, so the
+  463 cases it does read are unchanged.
+
 ## v2026.8.21
 
 ### Repository

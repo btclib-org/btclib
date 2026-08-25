@@ -131,7 +131,10 @@ two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
 beside them, the two BIP374 csv files, BIP352's
 `send_and_receive_test_vectors.json` and BIP375's
 `bip375_test_vectors.json` on 2026-08-13, and Core's `siphash.json` on
-2026-08-20.
+2026-08-20. BIP375's `bip375_test_vectors.json`, Core's
+`miniscript_fixed_tests.json` pin and `descriptor_tests.cpp` pin, and
+Wycheproof's `ecdsa_secp256k1_sha256_bitcoin_test.json` were pulled again
+on 2026-08-25, each at the tip of its path that day.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -689,21 +692,22 @@ one is.
 ```text
 repo    bitcoin/bips
 path    bip-0375/bip375_test_vectors.json
-commit  b217897a628e3d5db369497d2697f76e5bab7f4d  2026-04-09
-blob    3f16f51b23dfa36940737bfb80a8465421237ec0
-pulled  2026-08-13
+commit  e726d13ade44e2184635935c84a83d4082da3a63  2026-08-13
+blob    38511f65b4f100c4f56ac12371ebe4d8888f1e0d
+pulled  2026-08-25
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical but for a trailing newline** -- upstream's file ends
-on its closing brace, `end-of-file-fixer` adds the newline as it is
-staged, so our blob is `54929764` rather than the one above. The same
-exception `script_assets_test.json` and `vectors.json` document.
+Verdict: **identical** -- upstream's file ends on a newline after its
+closing brace, so `end-of-file-fixer` leaves it untouched as it is staged
+and our blob matches the one above. `script_assets_test.json` and
+`vectors.json` are the files that still document the "identical but for a
+trailing newline" exception.
 
 The only psbt vector file here that has an upstream file at all -- the
 other five are transcribed from mediawiki prose -- so the `bip375_` prefix
 is upstream's own name and this repository's naming rule at once, which is
-the one place the two coincide. 41 psbts, 22 invalid and 19 valid, the
+the one place the two coincide. 42 psbts, 22 invalid and 20 valid, the
 valid ones split between "can finalize" and "in progress".
 
 Each case carries a `supplementary` object of private keys, public keys
@@ -720,15 +724,18 @@ ahead of the rest -- while a psbt map has no normative order at all,
 BIP174 requiring only that a key not repeat. So the comparison is one
 level up: the maps read out of upstream's bytes and the maps read out of
 btclib's hold the same set of pairs, and btclib's own bytes are stable
-under a second parse. Measured on all 36 psbts that parse.
+under a second parse. Measured on all 37 psbts that parse.
 
-All 22 invalid psbts are refused and all 19 valid ones pass, and it takes
+All 22 invalid psbts are refused and all 20 valid ones pass, and it takes
 two test modules to say so: `tests/psbt/bip375_test.py` holds the codec to
 the file -- the field shapes, which is five of the six "PSBT Structure"
 cases -- and `tests/psbt/silent_payments_test.py` holds the two roles to
-it, which is the other seventeen. Each case's category is read off its own
-description, so a psbt refused by the wrong check fails there rather than
-counting as a pass.
+it, which is the other seventeen. Each invalid case's category is read off
+its own description, so a psbt refused by the wrong check fails there
+rather than counting as a pass; a valid case can carry a `checks` field of
+its own instead, naming the one check it isolates itself to -- one case
+does, "input eligibility: bare OP_2 script is not a segwit v2 witness
+program".
 
 **The file and the BIP disagree about one rule, and the file wins here.**
 BIP375 says the codes of one scan key are sorted lexicographically to
@@ -1137,9 +1144,9 @@ a tool at hand, not a refresh.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/miniscript_tests.cpp
-commit  128456b62d5e38abea031f97f823d5b28aef9357  2026-08-08
-blob    6dac2aa907f853099dcf210ccb360792b89e9fca
-pulled  2026-08-08
+commit  e8691056c0140f8fa850fc6837dde915ebeb22cc  2026-08-03
+blob    d593fc3bf813ac27dce422d596ae9bf4b8b9e777
+pulled  2026-08-25
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1150,6 +1157,12 @@ miniscript, the script it compiles to under P2WSH and under tapscript, the
 and execution-stack numbers where the call gives them. The regex that
 produced it is not committed -- a one-off pass over C++ source is not a
 tool -- and what re-derives the file is reading those calls again.
+
+The pin between here and the commit this file was previously pinned to
+(`128456b62d5e`) touches none of those calls: every changed line is
+`BOOST_CHECK(a && b && c)` split into one `BOOST_REQUIRE`/`BOOST_CHECK` per
+condition, inside the "Misc unit tests" block below `fixed_tests`'s own
+vectors, not inside a `Test(...)` call. The vendored JSON is unchanged.
 
 Not vendored as the file itself because there is no data file upstream:
 the vectors are arguments to a C++ function. The blob above is that source
@@ -1173,8 +1186,8 @@ measure.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/descriptor_tests.cpp
-commit  8ecbe270f0dee68b7eec6cea1714f453c5e215ad  2026-07-29
-pulled  2026-08-02, rawtr() added 2026-08-06
+commit  994c17d6c0a1453a1d7cc44ee2bbc49afa2d1155  2026-08-24
+pulled  2026-08-25, rawtr() added 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1195,6 +1208,12 @@ also holds `CheckUnparsable` cases, which this module has as `UNPARSABLE`
 with btclib's own messages, and the `musig()` cases of BIP390, which are
 transcribed from the BIP itself above rather than from here. Matched
 against the pinned file on 2026-08-06.
+
+Not matched since: the commit above adds four cases -- a `musig()`
+duplicate-key check fix and a PSBT origin-path doubling fix, neither a
+refactor -- which
+[ISS 1334](https://github.com/btclib-org/btclib/issues/1334) tracks,
+including whether btclib's own musig derivation shares either defect.
 
 ## bitcoin-core/HWI
 
@@ -1585,20 +1604,23 @@ is the same test, `challenge_` reading the leftmost `nlen` bits of a
 digest whose longer forms have these very bytes as their prefix --
 measured, all four files verify identically at 32 and at 64.
 
-`ecdsa_secp256k1_sha256_bitcoin_test.json` is the one file of the four
-with no schema in upstream's `schemas/`, its own README listing it among
-those still missing one, and it is frozen at `generatorVersion 0.9rc5`.
-Vendored as it is regardless, which is what bitcoin-core/secp256k1 and
-secp256k1lab both do with it.
+`ecdsa_secp256k1_sha256_bitcoin_test.json` names its own schema now,
+`ecdsa_bitcoin_verify_schema.json`, which upstream added beside it;
+upstream's own README still lists the file as missing one, unrenewed in
+the same commit. No longer frozen at `generatorVersion 0.9rc5` either:
+that top-level field is gone, replaced by a `source: {name, version}`
+object per test group, `version` carrying the same string. Vendored
+regardless of the schema's presence or absence, which is what
+bitcoin-core/secp256k1 and secp256k1lab both do with it.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_bitcoin_test.json`
 
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha256_bitcoin_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
-blob    f737aabce273eb9485f21b84d32aa01d3e8b0246
-pulled  2026-08-13
+commit  234d9689d0cbb77a21fd603d6055ab47498bff69  2026-08-17
+blob    88097c48ba49f358179ac3aa6c6a64562d0f4e65
+pulled  2026-08-25
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1608,6 +1630,11 @@ twin of a valid signature is `invalid`. btclib's parser is the strict one
 and its verifier no longer applies that rule, so two of these verdicts
 are exempted rather than asserted — `wycheproof_test.py` reads which two
 out of the file below.
+
+The pin between here and the file's previous commit (`5722833ca004`)
+replaces the top-level `generatorVersion` with a `source` object per test
+group and adds the file's own `schema` field; every test group and every
+case is otherwise the same 463 cases, `numberOfTests` included.
 
 ### `tests/ecc/_data/ecdsa_secp256k1_sha256_test.json`
 
@@ -2161,10 +2188,10 @@ Against a pinned upstream blob:
   `base58_encode_decode.json`, `siphash.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
   `bip39_test_vectors.json`, the eight BIP327 vector files,
-  `send_and_receive_test_vectors.json`, and the Wycheproof vector files.
+  `send_and_receive_test_vectors.json`, `bip375_test_vectors.json`, and
+  the Wycheproof vector files.
 - identical but for a trailing newline:
-  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`,
-  `bip375_test_vectors.json`.
+  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`, the two
   BIP324 vector files and the two BIP374 vector files -- every csv
   vendored from bitcoin/bips, so far.

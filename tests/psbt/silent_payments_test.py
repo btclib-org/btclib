@@ -8,12 +8,15 @@ The vectors are BIP375's own `bip375_test_vectors.json`, already vendored
 under `tests/psbt/_data/` for `bip375_test.py`, which holds the codec to
 them; this module holds the two roles to the same file, and where that one
 had to say that seventeen of the invalid psbts are accepted, here **all 22
-are refused and all 19 valid ones pass**.
+are refused and all 20 valid ones pass**.
 
 The `checks` field of a case names which of BIP375's four checks it is
-about, so each is asserted against the check that should refuse it rather
-than against "something raised": a psbt refused for the wrong reason is a
-psbt this module got right by accident.
+about, so each invalid case is asserted against the check that should
+refuse it rather than against "something raised": a psbt refused for the
+wrong reason is a psbt this module got right by accident. A valid case
+naming `checks` is isolating one of them instead -- the rest of the psbt
+is not necessarily complete for the others -- so only the named check
+runs.
 
 **The k ordering is measured here, not assumed**, because BIP375's prose
 and its own vectors disagree and the disagreement is load-bearing. The
@@ -68,6 +71,17 @@ def _category(description: str) -> str:
     raise AssertionError(msg)
 
 
+# the same field `checks` names, for a vector that restricts itself to one
+# of BIP375's four checks rather than asking for the whole protocol; the
+# vocabulary is upstream's own test runner's, `CHECK_FUNCTIONS` in
+# `bip-0375/test_runner.py`
+_ONLY_CHECK = {
+    "ecdh_coverage": role.assert_shares_as_valid,
+    "input_eligibility": role.assert_eligibility_as_valid,
+    "output_scripts": role.assert_output_scripts_as_valid,
+}
+
+
 @pytest.mark.parametrize("vector", _VALID, ids=_VALID_IDS)
 def test_every_valid_psbt_passes_every_check(vector: dict[str, Any]) -> None:
     """The whole file's valid half, both roles applied.
@@ -75,8 +89,17 @@ def test_every_valid_psbt_passes_every_check(vector: dict[str, Any]) -> None:
     Including the "in progress" ones, which is the half that says the
     checks know what a psbt under construction looks like: an output whose
     script is not derived yet is not an output whose script is wrong.
+
+    A vector naming its own `checks` is isolating one of them, so only that
+    one runs: the rest of the psbt is not necessarily complete for the
+    others.
     """
     psbt = Psbt.b64decode(vector["psbt"])
+    checks = vector.get("checks")
+    if checks is not None:
+        for name in checks:
+            _ONLY_CHECK[name](psbt)
+        return
     role.assert_as_valid(psbt)
     # and each check on its own, so that a pass is not one check masking
     # another's opinion
