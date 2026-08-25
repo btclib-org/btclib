@@ -1,11 +1,11 @@
 ---
 name: scorecard
 
-# OpenSSF Scorecard: eighteen checks against this repository's
-# supply-chain posture, computed by a third party rather than by
-# anything this organization asked itself. btclib-org/.github#339 is
-# where this sentinel and its permissions are decided; this file adopts
-# it, and does not restate the reasoning.
+# OpenSSF Scorecard: a third-party, external audit of this repository's
+# supply-chain posture, run independently rather than by anything this
+# organization asked itself. btclib-org/.github#339 is where this
+# sentinel and its permissions are decided; this file adopts it, and
+# does not restate the reasoning.
 #
 # This repository is public and is not a fork, which is the property
 # section 10 of the standard keys the sentinel on:
