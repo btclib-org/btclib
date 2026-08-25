@@ -1,0 +1,107 @@
+---
+name: scorecard
+
+# OpenSSF Scorecard: eighteen checks against this repository's
+# supply-chain posture, computed by a third party rather than by
+# anything this organization asked itself. btclib-org/.github#339 is
+# where this sentinel and its permissions are decided; this file adopts
+# it, and does not restate the reasoning.
+#
+# This repository is public and is not a fork, which is the property
+# section 10 of the standard keys the sentinel on:
+#
+#   gh api repos/btclib-org/btclib --jq '.fork, .private'
+#
+# answers `false` and `false`.
+
+on:
+  push:
+    # only the default branch is analysed -- ossf/scorecard-action's own
+    # README names this and schedule as the supported triggers and calls
+    # workflow_dispatch experimental, so unlike every other workflow here
+    # this one carries no dispatch and no pull_request: its triggers are
+    # the action's, not section 10's general rule
+    branches: [main]
+  # No schedule: yet. Section 10's calendar is two tables read by
+  # btclib-org/.github's own tests/grid_test.py, and neither names
+  # "scorecard" today -- not because the sentinel is structurally exempt
+  # (that sentence in section 10 is about which *trigger types* it
+  # supports, push and schedule rather than pull_request and
+  # workflow_dispatch, and says nothing about the day/hour grid), but
+  # because btclib-org/portanode was the first tree in the organization
+  # to adopt the workflow and no repository had a row before it.
+  # btclib-org/.github#201 is the landed precedent for exactly this gap,
+  # on bootstrap-dns.yml: a sentinel ships with no schedule trigger
+  # until an issue proposes a day and an hour and section 10's table
+  # gains the row, at which point a schedule: block is added here to
+  # match it. Until then a cron naming "scorecard" would be a row
+  # grid_test.py's test_every_cron_is_the_instant_the_calendar_names
+  # cannot find, which fails not this repository's own gate but
+  # btclib-org/.github's weekly alignment sentinel, against every tree
+  # it clones. The push trigger above already runs the analysis on every
+  # push to main, which is what feeds the badge and the published score
+  # in the meantime. btclib-org/.github#363 proposes the row -- Saturday,
+  # hour 03, open rather than decided as of this file.
+
+# least privilege for the GITHUB_TOKEN at the workflow level, with one
+# elevation on the job below: the analysis reads the tree, requests a
+# transparency-log entry for its own result and files that result as
+# code-scanning alerts, and pushes nothing back to the tree.
+permissions:
+  contents: read
+
+concurrency:
+  # named literally, never through github.workflow. A run with no pull
+  # request -- every run of this workflow, since it carries none -- has
+  # no number and groups by github.ref, which is refs/heads/main for the
+  # one trigger this workflow has, so two pushes in quick succession
+  # supersede each other -- wanted, since they ask the same question of
+  # the same tree
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # the transparency-log entry publish_results below asks for
+      id-token: write
+      # SARIF results filed as code-scanning alerts
+      security-events: write
+      # elevation-per-job: this job writes neither a release nor
+      # anything else to the tree, so contents stays at its workflow
+      # default of read
+      actions: read
+      contents: read
+    # a run past this is hung rather than analysing
+    timeout-minutes: 15
+    steps:
+      # every action pinned to a commit SHA with the tag in the comment:
+      # a tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # the analysis reads the tree and nothing pushes it back
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # feeds the score api.scorecard.dev/projects/... serves, which
+          # is what README.md's badge and the scorecard.dev viewer read
+          publish_results: true
+
+      - name: Upload the SARIF as a workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload the SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        with:
+          sarif_file: results.sarif
