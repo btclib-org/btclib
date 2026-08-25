@@ -4,8 +4,8 @@
 # engine executes what `script.parse` produced and `sig_hash` hashes what
 # `script_pub_key` built -- and this profile is the half of
 # `src/btclib/script` neither one mutates: sig_hash.toml takes one file of
-# it and engine.toml the subdirectory, leaving these seven. Issue #219's
-# question on the layer below the one it opened.
+# it and engine.toml the subdirectory, leaving the rest of the package to
+# this one. Issue #219's question on the layer below the one it opened.
 
 [cosmic-ray]
 # named one by one rather than as `src/btclib/script` with the other two
