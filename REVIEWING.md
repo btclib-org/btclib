@@ -374,11 +374,11 @@ CHANGES REQUESTED <sha>
 ACK <sha>
 ```
 
-Nothing else is an ack — not "looks good", and not a forge approval,
-which section 11 of the standard records GitHub as refusing to the author
-of the pull request. That refusal is why the record of a review here is a
-comment at all. It names the sha because an ack belongs to a tree and
-not to a branch.
+Nothing else is an ack — not "looks good", and not a forge approval by
+the author of the pull request, which section 11 of the standard records
+GitHub as refusing. The ack of record is an approving review and section
+11 says whose; a verdict from anybody else is this comment, and either
+names the sha because an ack belongs to a tree and not to a branch.
 
 **A review that does not decide ends without one, and is not an
 unfinished review.** Somebody who reads a diff and says what they found
