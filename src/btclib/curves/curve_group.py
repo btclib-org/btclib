@@ -1666,10 +1666,10 @@ def _multi_mult_w_NAF_var(
         tables[i] = aff[at : at + len(jac)]
         at += len(jac)
 
-    # one doubling per position and the additions that position has, where
-    # every wNAF used to be asked for a digit at every position: see
-    # `_additions_by_position`, which is also where a digit becomes the
-    # point it names
+    # one doubling per position and the additions that position has:
+    # `_additions_by_position` groups them this way rather than asking
+    # every wNAF for a digit at every position, and is also where a
+    # digit becomes the point it names
     R = INFJ
     for additions in reversed(_additions_by_position(nafs, tables, ec)):
         R = ec.double_jac(R)

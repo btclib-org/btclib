@@ -840,11 +840,11 @@ def deserialize_tx(
     # two values and two behaviours, and the flag is read as a truth
     # below: `not include_witness` is false for True alone, so True is
     # the one that accepts either encoding and False is the one that
-    # demands the round trip. None used to be declared here as well,
-    # documented as "either encoding" and doing what False does, since
-    # `not None` is `not False` -- a third spelling of the second
-    # behaviour, unreachable from any caller in this tree and a trap for
-    # the first one to read the comment (issue 1190)
+    # demands the round trip. The type is `bool`, not `bool | None`,
+    # because `not None` is `not False`: a `None` would be a third
+    # spelling of the second behaviour, documented as "either encoding"
+    # while doing what False does -- a trap for whoever trusts the
+    # comment over the type (issue 1190)
     assert_type(include_witness, bool, "include_witness")
     assert_type(unsigned_template, bool, "unsigned_template")
     if len(k) != 1:
