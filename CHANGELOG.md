@@ -543,6 +543,17 @@ documented at release-notes length in the first place, and are still in
   it and not the repository meets the project with no organization
   beside it (btclib-org/.github#98).
 
+- **`.lycheeignore`'s two entries excluded URLs the `links` workflow
+  never reads.** Its lychee invocation scans only `"*.md"
+  "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"`; the `bbt-training`
+  URL lives only in `.github/ISSUE_TEMPLATE/config.yml`, a `.yml`, and
+  the `iacr` URLs live only in `.py` source and test files, left out of
+  prose-link-checking by that workflow's own comment. Both patterns
+  matched nothing, so `.lycheeignore` now holds neither; the Slack
+  invite's reasoning moved to a comment beside its URL in `config.yml`,
+  and `links.yml`'s own comment no longer points at the removed
+  `iacr.org` entries as an example (issue #1308).
+
 ### Packaging, linting and CI
 
 - **`CHANGELOG.md`'s own directive disabling MD022 and MD032 is gone**

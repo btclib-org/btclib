@@ -18,5 +18,8 @@ contact_links:
     url: https://github.com/btclib-org/btclib-secp256k1/issues
     about: Signing, verification and curve arithmetic are delegated there.
   - name: Chat with the developers
+    # a Slack workspace invite, which answers only to a signed-in member: a
+    # checker sees the sign-in redirect and cannot tell a live invite from
+    # a dead one, which is why nothing here checks it automatically
     url: https://bbt-training.slack.com/archives/C01CCJ85AES
     about: The Slack channel, for what is faster asked than written up.

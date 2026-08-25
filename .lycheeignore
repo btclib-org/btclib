@@ -2,27 +2,3 @@
 # be checked rather than the reason it is inconvenient. Anything merely
 # slow or occasionally throttled belongs in that workflow's --max-retries
 # and --accept, not here.
-#
-# Both entries are the same host behind Cloudflare, and it took two failed
-# runs to describe it correctly, so here is what was actually measured
-# rather than what seemed likely.
-#
-# From a GitHub runner, every iacr.org URL answers 403, whatever the path.
-# From a developer machine, the landing pages answer 200 and only the .pdf
-# paths answer 403, with Cloudflare's "Just a moment..." challenge that no
-# HTTP client passes. The first observation is the one that matters here:
-# what is being judged is the caller's address, so no rewriting of these
-# URLs can make the workflow able to check them.
-#
-# The citations were still moved to eprint.iacr.org/<year>/<id> rather than
-# the .pdf, because that form is canonical and is the one that resolves for
-# a reader. It just does not resolve for this runner, which is why the
-# exclusion stays.
-
-https://iacr\.org/.*
-https://eprint\.iacr\.org/.*
-
-# a Slack workspace invite, which answers only to a signed-in member: a
-# checker sees the sign-in redirect and cannot tell a live invite from a
-# dead one
-https://bbt-training\.slack\.com/.*
