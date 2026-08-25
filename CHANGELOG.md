@@ -666,6 +666,14 @@ documented at release-notes length in the first place, and are still in
   the organization standard, same as #1360 and #1365. The reasoning
   itself is unchanged in every case.
 
+- **`OutPoint`'s class docstring states in the present tense why
+  checking the pair is not what `assert_valid` does** (closes #1376).
+  It carried "used to refuse (issue 513)", the same construction #1369
+  fixed elsewhere in this file, missed there because it reads "used to
+  refuse" rather than "used to be". The docstring now names `is_coinbase`
+  and `Tx.assert_valid` as what reads the pair instead, matching
+  `assert_valid`'s own docstring two lines below it.
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
