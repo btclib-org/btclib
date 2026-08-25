@@ -1923,6 +1923,31 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`HwiSigner.register_descriptor` wraps HWI's `registerdescriptor`**
+  (closes #1331). It sends a checksummed, ranged descriptor and a name,
+  and returns the registration HWI answers with -- an HMAC on a Ledger,
+  nothing at all on a device that needs none -- for a caller to persist
+  and pass back as `--registration` on a later `displayaddress`.
+  Policy-mode `displayaddress` -- `--registration`, `--index`,
+  `--multipath-index`/`--change` -- stays unwrapped: what
+  `psbt_signer`'s own `display_address` does is compare a device's
+  screen with the address a `Descriptor` computes, and a BIP388 policy's
+  address is not one this library computes yet, so wiring those flags
+  through would leave nothing to check the device's answer against.
+  `tests/_data/README.md`'s `hwilib/_cli.py` pin moves to the commit
+  that added both.
+
+- **`HWI_ERROR_CODES` carries `INVALID_POLICY` (-19)**, HWI's own code
+  for a descriptor `registerdescriptor` refuses (closes #1335). It
+  reaches a caller the way every other code does, as a `SignerError`
+  carrying the number, with nothing added to `hwi.py` for it: `_run`
+  reads `{"error": …, "code": …}` uniformly, and `register_descriptor`
+  is where a caller meets this one in practice. `tests/_data/README.md`'s
+  `hwilib/errors.py` pin stays where it is, on the rule
+  `pyproject.toml`'s `UNKNWON_DEVICE_TYPE` comment states, so the table
+  in `tests/hwi_test.py` is ahead of that pin by this one code until a
+  full re-check reconciles both.
+
 - **The messages by which a peer says what it wants sent to it**:
   `btclib.p2p.negotiation` carries `getaddr`, `mempool`, `sendheaders`,
   `wtxidrelay` and `feefilter` (issue #1119). `getaddr` wants addresses,

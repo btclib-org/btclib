@@ -1235,28 +1235,38 @@ transcription it is checked against.
 ```text
 repo    bitcoin-core/HWI
 path    hwilib/_cli.py
-commit  27c1b4272a137af1dfd6f4fd12db2cc9143e0b16  2024-03-30
-pulled  2026-08-07
+commit  d8b0d995e6ac23d39372b893266f2b59adc7354b  2026-08-21
+pulled  2026-08-25
 behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**, and a subset by design. `tests/hwi_test.py`
-holds the five commands `btclib.hwi` runs — `enumerate`, `getxpub`,
-`signtx`, `signmessage`, `displayaddress` — with the positional arguments
-of each, the three global flags it passes (`--chain`, `--fingerprint`,
-`--emulators`), the `--desc` of `displayaddress`, the four chains
-`--chain` takes, and the keys read out of each answer. The other eleven
-commands are the device lifecycle — setup, wipe, restore, backup, the PIN
-and passphrase flows — which issue #381 keeps out of the signing surface
-deliberately, and `getdescriptors`, `getkeypool` and `getmasterxpub`,
-which btclib computes for itself: `descriptors.account_descriptors` and
+holds the six commands `btclib.hwi` runs — `enumerate`, `getxpub`,
+`signtx`, `signmessage`, `displayaddress`, `registerdescriptor` — with
+the positional arguments of each, the three global flags it passes
+(`--chain`, `--fingerprint`, `--emulators`), the `--desc` of
+`displayaddress`, the four chains `--chain` takes, and the keys read out
+of each answer. The other eleven commands are the device lifecycle —
+setup, wipe, restore, backup, the PIN and passphrase flows — which
+issue #381 keeps out of the signing surface deliberately, and
+`getdescriptors`, `getkeypool` and `getmasterxpub`, which btclib
+computes for itself: `descriptors.account_descriptors` and
 `btclib.core_import` are those three, on btclib's own types.
 
-The parser has moved twice since 2021 and both times additively:
-`--emulators` in 2024 (the pin), `--chain` and `--expert` on enumerate in
-2022. `signtx` gained a second answer key, `signed`, in 2021 — which is
-how this pin earned itself: btclib read only `psbt` until the surface was
-written down, and now checks the two against each other.
+Not transcribed on purpose: `displayaddress`'s BIP388 policy arguments,
+`--registration`, `--index` and `--multipath-index`/`--change`, added in
+this pin alongside `registerdescriptor` itself. `btclib.hwi`'s module
+docstring, "Wallet policies, and the address this still cannot verify",
+is why — there is nothing yet in this library to check the address a
+policy-mode `displayaddress` would answer against.
+
+The parser has moved four times since 2021 and every time additively:
+`--emulators` in 2024, `--chain` and `--expert` on enumerate in 2022,
+`registerdescriptor` in 2026-08, and the BIP388 policy arguments on
+`displayaddress` in 2026-08 (the pin). `signtx` gained a second answer
+key, `signed`, in 2021 — which is how this pin earned itself: btclib
+read only `psbt` until the surface was written down, and now checks the
+two against each other.
 
 ### Not vendored as a file: HWI's error codes
 
@@ -1268,13 +1278,18 @@ pulled  2026-08-07
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, complete: all eighteen numbers with the names
-HWI gives them, in `tests/hwi_test.py`, and one test per number that a
-`{"error": …, "code": …}` answer arrives as an `exceptions.SignerError`
-carrying it. The numbers are what a caller acts on — -14 is somebody
-pressing the button that says no, -3 is a cable, -9 is a model that will
-never do it — so an adapter that dropped them would leave a caller
-matching on the text of a message.
+Verdict: **transcribed**, and ahead of this pin by one: `INVALID_POLICY`
+(-19), which upstream added after the commit above, is in
+`tests/hwi_test.py`'s table too — issue #1335 added it without moving
+the pin, on the rule `pyproject.toml`'s `UNKNWON_DEVICE_TYPE` comment
+states, so the two move apart on purpose until a full re-check reconciles
+both at once. Nineteen numbers with the names HWI gives them, in
+`tests/hwi_test.py`, and one test per number that a `{"error": …, "code":
+…}` answer arrives as an `exceptions.SignerError` carrying it. The
+numbers are what a caller acts on — -14 is somebody pressing the button
+that says no, -3 is a cable, -9 is a model that will never do it — so an
+adapter that dropped them would leave a caller matching on the text of a
+message.
 
 The last change to the values was in 2019, and the file has not been
 touched since a docstring pass in 2021: of everything btclib depends on
