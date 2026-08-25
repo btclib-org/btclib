@@ -705,6 +705,16 @@ documented at release-notes length in the first place, and are still in
   stays a plain comment, `gh pr comment`, exactly as before — the
   wording `btclib-secp256k1`'s own port of the same fix kept explicit
   (closes #1372).
+- **`src/btclib/fetch/bitcoin_core.py`'s module docstring drops "The five"
+  from what it re-exports, and `src/btclib/block/limits.py`'s drops
+  "Three" from what it excludes** (closes #1386), against section 9's
+  no-counts rule, the same shape #1384 fixed in `tests/all_test.py`'s
+  `REEXPORTED` comment. Neither count was checked by any test:
+  `tests/all_test.py`'s `REEXPORTED["btclib.fetch.bitcoin_core"]` would
+  not fail on a sixth re-exported name joining the module, and nothing
+  checks the excluded-constants list at all. The other three modules in
+  `REEXPORTED` — `btclib.fetch.transport`, `btclib.p2p.magic` and
+  `btclib.psbt.psbt` — carry no such count in their own docstrings.
 
 ### Packaging, linting and CI
 

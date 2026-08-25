@@ -23,7 +23,7 @@ to hold them, and neither `btclib.tx` nor `btclib.script` can import this
 package. `btclib.consensus` says why; a caller reading a block's rules
 still names this module, which is where the rest of Core's header is.
 
-Three of `consensus.h`'s constants are deliberately absent.
+Some of `consensus.h`'s constants are deliberately absent.
 `MAX_BLOCK_SERIALIZED_SIZE` is marked in Core's own comment as a buffer
 bound and not a network rule, the weight being what consensus caps.
 `COINBASE_MATURITY` is a rule about spending an output, so it needs the
