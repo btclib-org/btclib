@@ -951,6 +951,34 @@ documented at release-notes length in the first place, and are still in
   `./`, which defeats its `fnmatch` match and which pre-commit never
   supplies, `git ls-files` emitting no path that carries one
   (closes #1418, closes #1438).
+- **ClusterFuzzLite reaches the deserializers behind a transaction, a
+  script and a signature, which is the second list
+  btclib-org/btclib#1361 left open: `Tx.parse`, `Block.parse`,
+  `Psbt.parse`, `Witness.parse`, `var_int.parse`, `var_bytes.parse`, the
+  script and tapscript decoders, `descriptors.parse`, the BIE1 envelope
+  `ecies.Envelope.parse` reads, and the base64 forms of a psbt, of a
+  BIP322 signature and of that envelope -- each with a
+  `fuzz/fuzz_<name>.py` harness and a seed corpus of that object's own
+  valid serializations.** These are reached once a
+  transaction or a signature is already in hand rather than straight off
+  a peer connection, which is btclib-org/.github#342's second rank, and
+  they still parse octets nobody signed first.
+  `fuzz/fuzz_script.py` catches nothing, and that is
+  `btclib.script.script.parse`'s own contract rather than an omission:
+  it decodes whatever the octets are, answering the one thing Bitcoin
+  Core's `GetScriptOp` refuses with the terminal `ERROR_COMMAND` rather
+  than with an exception, so it has no refusal for a
+  `contextlib.suppress(BTClibException)` to cover and every exception it
+  raises is the finding. Every other harness catches `BTClibException`
+  and nothing wider, as the landed harnesses do.
+  `.clusterfuzzlite/build.sh` needed no change, globbing
+  `fuzz/fuzz_*.py` and zipping each target's own `fuzz/corpus/<name>/`
+  directory already. `.pre-commit-config.yaml` did: a seed is one exact
+  serialization, and `end-of-file-fixer` appending a newline to a
+  descriptor seed makes it a descriptor `descriptors.parse` refuses for
+  the character it ends in, so every `pre-commit-hooks` entry there that
+  rewrites an octet of a text file now leaves `fuzz/corpus/` alone
+  (closes #1402).
 
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
