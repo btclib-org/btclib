@@ -1057,6 +1057,12 @@ def _assert_valid_branch(
     if not mxkey.is_hardened:
         raise BTClibValueError("unhardened account/master key")
 
+    # prepared is not unchecked: `branch` is a bare int rather than an
+    # Integer, so `is_integer`'s policy has to be asked of it directly
+    # instead of arriving through `int_from_integer` (issue #1403,
+    # CONTRIBUTING.md's "This repository in particular")
+    if not is_integer(branch):
+        raise BTClibTypeError(f"non-integer branch: {branch}")
     if branch >= _HARDENED_OFFSET:
         raise BTClibValueError("invalid private derivation at branch level")
     if branch > max_index:
@@ -1067,6 +1073,9 @@ def _assert_valid_branch(
 
 
 def _assert_valid_address_index(address_index: int, max_index: int) -> None:
+    # same reasoning as `_assert_valid_branch`'s own `is_integer` check
+    if not is_integer(address_index):
+        raise BTClibTypeError(f"non-integer address index: {address_index}")
     if address_index >= _HARDENED_OFFSET:
         raise BTClibValueError("invalid private derivation at address index level")
     if address_index > max_index:

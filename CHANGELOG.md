@@ -746,6 +746,7 @@ documented at release-notes length in the first place, and are still in
   `claude-review` as the table's exception to the `workflow_dispatch`
   sentence below it: `ossf/scorecard-action`'s own triggers are push
   and schedule, not section 10's general rule (closes #1391).
+
 - **`scorecard.yml` gains a `schedule:` trigger, `cron: '4 3 * * 6'`.**
   Saturday, hour 03, is section 10's calendar row for `scorecard`,
   decided by btclib-org/.github#363 and landed via
@@ -929,6 +930,18 @@ documented at release-notes length in the first place, and are still in
   of failing a gate with nothing behind it — measured by reproducing
   the drop and letting the hook restore the line. Both rules apply to
   this file again.
+
+- **A blank line the union driver ate between two ordinary bullets is
+  restored by hand, MD022 and MD032 not reaching a tight-list boundary
+  the way they reach a heading one** (closes #1398). Two `merge=union`
+  branches each appending under the same `### Repository` group left
+  one bullet flush against the next, with no blank line between them:
+  valid CommonMark for a tight list, so neither rule — MD022 for
+  headings, MD032 for a list against its surrounding paragraphs — has
+  anything to say about it, and `markdownlint-cli2 --fix` leaves it
+  exactly as the union join produced it. The gap the directive removed
+  in the entry above is a different one, at a `###` boundary the fixer
+  does reach.
 
 - **`codespell` now corrects in place, with `--write-changes`,** joining
   `markdownlint-cli2`'s `--fix` and `typos`'s inherited
@@ -3292,6 +3305,27 @@ documented at release-notes length in the first place, and are still in
   layer as a whole: prepared is not unchecked, and a bare `int` still
   refuses a `bool` the way `int_from_integer` does for every coerced
   one. `tests/integer_policy_test.py`'s census carries both functions.
+
+- **`derive_from_account_`'s `branch` and `address_index` refuse a bool
+  by `is_integer`, not by accident** (closes #1403). Neither
+  `_assert_valid_branch` nor `_assert_valid_address_index` called
+  `is_integer`: both compared their argument with `<`, `>=` and
+  `in {0, 1}`, none of which a bool fails, so
+  `derive_from_account_(xpub, True, 0)` was refused only because
+  `_derive_from_account` formats the value into a path string and
+  re-parses it with `int()` inside `_index_and_hardening_from_str` --
+  a round trip that happens to reject anything that is not a plain
+  decimal integer, and answers `BTClibValueError` rather than the
+  `BTClibTypeError` every other integer field of the trailing-underscore
+  layer raises.
+
+  Both helpers now call `is_integer` before their own value checks,
+  raising `BTClibTypeError` -- `"non-integer branch: True"` and
+  `"non-integer address index: True"` -- ahead of the string round trip
+  rather than depending on it. `derive_from_account_range_` shares both
+  helpers and needs nothing beyond them, one call per address index
+  before any of them is walked. `tests/integer_policy_test.py`'s census
+  gains `derive_from_account_`'s own `branch` and `address_index`.
 
 ### Tests
 

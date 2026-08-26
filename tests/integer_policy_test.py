@@ -28,7 +28,12 @@ from btclib.amount import valid_sats_amount
 from btclib.b32 import p2wpkh
 from btclib.b58 import p2pkh, wif_from_prv_key
 from btclib.bip32 import BIP32KeyData
-from btclib.bip32.bip32 import rootxprv_from_seed, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    derive,
+    derive_from_account_,
+    rootxprv_from_seed,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import (
     bytes_from_der_path,
     indexes_from_der_path,
@@ -87,6 +92,9 @@ _NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
 _SCRIPT_TREE: TaprootScriptTree = [(0xC0, ["OP_1"])]
 _PREVOUTS = [TxOut(1, b"")]
 _XPUB = xpub_from_xprv(rootxprv_from_seed("00" * 32))
+# account depth, hardened: what derive_from_account_'s own is_hardened
+# check wants
+_ACCOUNT_XPRV = derive(rootxprv_from_seed("00" * 32), "m/44h/0h/0h")
 
 
 def _tx(version: Any = 1, lock_time: Any = 0) -> Tx:
@@ -242,6 +250,20 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
         "dsa recovery key_id",
         lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
     ),
+    # `_assert_valid_branch` and `_assert_valid_address_index` compared
+    # with `<`, `>=` and `in {0, 1}` alone, none of which a bool fails,
+    # so the refusal used to come from the string round trip
+    # `_derive_from_account` builds and re-parses -- an incidental
+    # `BTClibValueError` rather than this layer's own `is_integer`
+    # (issue #1403)
+    (
+        "bip32 account branch",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, v, 0),
+    ),
+    (
+        "bip32 account address index",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
+    ),
     # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
     # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
     # `bytes_from_point` included, and it read a bool coordinate as an
@@ -322,6 +344,19 @@ _WORDINGS = [
         "dsa recovery key_id",
         lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
         "non-integer key_id: True",
+    ),
+    # `_assert_valid_branch`/`_assert_valid_address_index`'s own
+    # `is_integer` check (issue #1403), ahead of the incidental refusal
+    # the string round trip used to answer for the same mistake
+    (
+        "bip32 account branch",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, v, 0),
+        "non-integer branch: True",
+    ),
+    (
+        "bip32 account address index",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
+        "non-integer address index: True",
     ),
     # separate from the three families above: `is_on_curve`'s own
     # refusal of a bool coordinate (issue #1249), one sentence per
@@ -404,6 +439,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
     assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)
     assert recover_pub_key_(1, _DSA_MSG_HASH, _DSA_SIG) == secp256k1.G
+    assert derive_from_account_(_ACCOUNT_XPRV, 1, 1).depth == 5
     assert secp256k1.is_on_curve(secp256k1.G) is True
     assert point_from_pub_key(secp256k1.G) == secp256k1.G
     assert PreparedPoint(secp256k1.G).point == secp256k1.G
