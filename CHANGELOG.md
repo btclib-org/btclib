@@ -24,6 +24,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`README.md`'s badge row ends with the OpenSSF Best Practices badge.**
+  Section 2 of the organization standard keys it on the property
+  *registered at bestpractices.dev* and fixes its place last in the row,
+  after Read the Docs. What it renders is the questionnaire's live state,
+  which is the line between it and the REUSE badge that same section
+  refuses: a state that moves when an answer stops being true, rather
+  than a registration with a service (issue btclib-org/.github#350).
+
+- **The concurrency ceiling's figure lives in `REPOSITORY.md`'s
+  *Plan-gated settings* alone**, beside
+  `gh api orgs/btclib-org --jq .plan.name` and GitHub's own table of what
+  each plan gives, section 10 of the organization standard giving the
+  number one home per tree. *Required checks on main* now states the
+  ceiling unnumbered and points there, as does `os-windows.yml`'s header,
+  which stated the figure outright. A date beside a number says when it
+  was true and not that it still is, where the command answers for the
+  day it is run (issue btclib-org/.github#412).
+
 - **`CLAUDE.md`'s *Non-obvious facts* section gains three bullets,**
   learned running this campaign: `btclib-org/.github`'s weekly calendar
   is two tables and either can move mid-campaign, so a row's day/hour or
@@ -844,6 +862,31 @@ documented at release-notes length in the first place, and are still in
   declaration is that the bullet stays untested (closes #1431).
 
 ### Packaging, linting and CI
+
+- **`pypi-install.yml`'s index-wait step runs on every trigger**, doing
+  nothing where no release is calling, in place of the
+  `if: inputs.version != ''` that made a tag the only thing which ever ran
+  it. A step a release is the first to run is a step whose defect ships
+  with that release, which this step's has done in more than one
+  publishing repository; unguarded, every weekly run parses it on every
+  cell of the matrix. The empty case is a condition around the wait loop
+  rather than an early `exit 0`, bash parsing a script as it runs: an
+  exit at the top would leave the loop below unparsed, and that parse is
+  what the shape buys. Both jobs of the workflow carry the step, and the
+  comment explaining the shape is written to be taken verbatim by the two
+  sibling publishing repositories (issue btclib-org/.github#49).
+
+- **`.github/scripts/check_vendored_vectors.py` says what it parses and
+  where it departs from `btclib-secp256k1`'s copy of the same name.**
+  Section 14 of the organization standard keeps these copies per
+  repository by subject and outside the compared list, asking each for
+  that sentence instead: this one reads `tests/_data/README.md` and
+  reports a pin with no `commit` as a skipped heading, where the sibling
+  reads its own `tests/README.md` and passes such an entry over in
+  silence, its pin file having none. The rest is common to both, so a fix
+  to the parsing, to the `gh` call or to a field's spelling is owed to
+  the other copy. Its scope paragraph also says *every week*, which is
+  what `vendored-vectors.yml` schedules (issue btclib-org/.github#446).
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
   section 5 of the organization standard, in place of the hand-picked

@@ -11,10 +11,18 @@ procedure and reports drift, rather than fixing it: refreshing a vector
 file is a decision this script does not get to make, so what it opens
 is an issue, never a commit.
 
+btclib-secp256k1 carries a copy under this same name, and the two are
+not interchangeable: that one parses its own tests/README.md, and it
+passes over an entry with no `commit` in silence where this one reports
+the heading as skipped. The two checks differ there because the pin
+files do -- that README has no such entry, this one does. The rest is
+common to both, so a fix to the parsing, to the `gh` call or to a
+field's spelling is owed to the other copy in the same campaign.
+
 Scope is narrower than the README: only entries whose `behind` already
 reads 0 -- the ones a human last confirmed were exactly at upstream's
 tip. An entry documented as behind is a decision already made, and
-re-reporting the same gap every month would just be noise; if a *new*
+re-reporting the same gap every week would just be noise; if a *new*
 commit moves it further, `behind`'s own count in the README goes stale
 in a way this script cannot see either, which is the reason it never
 tries to judge relevance, only tip-vs-pinned identity.

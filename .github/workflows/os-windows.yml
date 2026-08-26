@@ -34,9 +34,10 @@ name: os-windows
 #
 # A workflow of its own rather than a row in os-macos.yml, which is the same
 # design that file argues for itself: one variable each, so a red cell
-# names a platform. On its own hour too, an hour after os-macos.yml: fourteen
-# more jobs against twenty slots would rebuild in one morning the queue
-# this file exists to take out of a pull request.
+# names a platform. On its own hour too, an hour after os-macos.yml: this
+# matrix landing on top of that one, against the ceiling REPOSITORY.md's
+# Plan-gated settings carries, would rebuild in one morning the queue this
+# file exists to take out of a pull request.
 #
 # It gates no commit and no merge -- a Windows regression sits on main for
 # at most a week -- but release.yml calls it, so one cannot be published

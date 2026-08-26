@@ -148,38 +148,52 @@ jobs:
       # none of this. The wait step went in without the line (issue #1141)
       # and took every Windows cell of v2026.8.21's release run with it --
       # "Missing opening '(' after keyword 'for'" -- having never run
-      # before that tag, the release path being the only one that reaches
-      # it. A step whose script happens to be a couple of plain commands
-      # survives PowerShell unchanged, which is what makes an omission
-      # invisible on review; declaring it on every step is what makes the
-      # absence of one visible instead. Both siblings' copies of this file
-      # already do
+      # before that tag, a release being then the only trigger that
+      # reached it. A step whose script happens to be a couple of plain
+      # commands survives PowerShell unchanged, which is what makes an
+      # omission invisible on review; declaring it on every step is what
+      # makes the absence of one visible instead. Both siblings' copies of
+      # this file already do
       #
       # the index does not serve a new file the instant the upload returns,
       # and this workflow installs whatever the resolver picks: a run that
       # starts too early tests the *previous* version and reports a pass for
-      # it, which is worse than reporting nothing. So the release path waits
-      # for the version its tag names, and fails if it never arrives rather
-      # than measuring the wrong thing. Only there: the input is empty on
-      # every other trigger
+      # it, which is worse than reporting nothing. So a run with a release
+      # behind it waits for the version its tag names, and fails if it never
+      # arrives rather than measuring the wrong thing.
+      #
+      # The step itself runs on every trigger and does nothing on most of
+      # them, the input being empty wherever no release is calling. An
+      # `if:` here would make a tag the only thing that ever runs it, and
+      # a step a release is the first to run is a step whose defect ships
+      # with that release -- which has already happened to this script, in
+      # more than one of these repositories. Unguarded, every weekly run
+      # parses it on every cell of the matrix. The empty case is a
+      # condition around the loop rather than an early `exit 0` for that
+      # same reason: bash parses a script as it runs, so an exit at the
+      # top leaves what follows unparsed, where an `if` is parsed whole
+      # before its condition is tested
       - name: Wait for the index to serve the released version
-        if: inputs.version != ''
         shell: bash
         env:
           TAG: ${{ inputs.version }}
         run: |
           version="${TAG#v}"
-          for attempt in $(seq 20); do
-            if curl -sf --max-time 10 -o /dev/null \
-                "https://pypi.org/pypi/btclib/${version}/json"; then
-              echo "the index serves ${version}"
-              exit 0
-            fi
-            echo "attempt ${attempt}: ${version} is not served yet"
-            sleep 15
-          done
-          echo "::error::${version} never appeared on the index"
-          exit 1
+          if [ -z "$version" ]; then
+            echo "no release behind this run: nothing to wait for"
+          else
+            for attempt in $(seq 20); do
+              if curl -sf --max-time 10 -o /dev/null \
+                  "https://pypi.org/pypi/btclib/${version}/json"; then
+                echo "the index serves ${version}"
+                exit 0
+              fi
+              echo "attempt ${attempt}: ${version} is not served yet"
+              sleep 15
+            done
+            echo "::error::${version} never appeared on the index"
+            exit 1
+          fi
       # uv rather than actions/setup-python, which is what every other
       # workflow here already uses and what this one has to use for a
       # reason of its own: setup-python installs from the runner tool
@@ -319,27 +333,32 @@ jobs:
         python: ["3.14"]
     timeout-minutes: 20
     steps:
-      # the same wait, for the same reason install-published's copy
-      # states: a run started by release.yml's call must not measure the
-      # version the tag is replacing
+      # the same wait, unguarded the same way and for the reasons
+      # install-published's copy states: a run started by release.yml's
+      # call must not measure the version the tag is replacing, and a
+      # step only a release ever runs is a step only a release finds
+      # broken
       - name: Wait for the index to serve the released version
-        if: inputs.version != ''
         shell: bash
         env:
           TAG: ${{ inputs.version }}
         run: |
           version="${TAG#v}"
-          for attempt in $(seq 20); do
-            if curl -sf --max-time 10 -o /dev/null \
-                "https://pypi.org/pypi/btclib/${version}/json"; then
-              echo "the index serves ${version}"
-              exit 0
-            fi
-            echo "attempt ${attempt}: ${version} is not served yet"
-            sleep 15
-          done
-          echo "::error::${version} never appeared on the index"
-          exit 1
+          if [ -z "$version" ]; then
+            echo "no release behind this run: nothing to wait for"
+          else
+            for attempt in $(seq 20); do
+              if curl -sf --max-time 10 -o /dev/null \
+                  "https://pypi.org/pypi/btclib/${version}/json"; then
+                echo "the index serves ${version}"
+                exit 0
+              fi
+              echo "attempt ${attempt}: ${version} is not served yet"
+              sleep 15
+            done
+            echo "::error::${version} never appeared on the index"
+            exit 1
+          fi
       - name: Setup uv with Python ${{ matrix.python }}
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
