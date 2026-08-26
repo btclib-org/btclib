@@ -3387,6 +3387,33 @@ documented at release-notes length in the first place, and are still in
   `_assert_valid_address_index` is unreachable.
   `tests/integer_policy_test.py`'s census gains the case.
 
+- **A hybrid-prefix internal key is refused on both arms, not only on
+  the Python one** (closes #1227). `script.taproot`'s
+  `_output_pubkey_and_internal_key` builds its `PubKeyData` with
+  `check_validity=False`, skipping the length-and-prefix check the type
+  otherwise runs, so a hybrid internal key -- 0x06 or 0x07, both
+  coordinates and a parity byte -- reached whichever arm answered next:
+  `xonly.tweak_add` on the bindings arm, whose `ec_pubkey_parse` takes
+  one, and `PubKeyData.point`'s lift on the Python arm, whose
+  `point_from_octets` defaults `hybrid=False`. Which internal keys
+  `output_pubkey` and `input_script_sig` took was therefore
+  `pip install`'s decision rather than btclib's.
+
+  `key.py` gains `_HYBRID_PREFIXES`, beside `_COMPRESSED_PREFIXES` and
+  `_UNCOMPRESSED_PREFIX`, and `_output_pubkey_and_internal_key` checks
+  it before building `PubKeyData`, above the arm split: a hybrid
+  internal key now raises `"invalid internal public key: hybrid SEC
+  prefix 0x06"` (or `0x07`) on both arms rather than reaching either's
+  own parse. The check is not a second opinion on what the bindings
+  decide -- libsecp256k1 accepts a hybrid key, so refusing it is
+  btclib's own policy above the boundary and not a re-check of the C,
+  for the reason `key.py`'s paragraph already gives: nothing in bitcoin
+  produces one.
+  `tests/script/taproot_test.py` gains a test asserting the one refusal
+  on both arms, the shape
+  `test_the_tweak_names_no_half_of_a_sec_it_cannot_blame` already uses
+  for the sec octets an arm's own parse refuses.
+
 ### Tests
 
 - **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,

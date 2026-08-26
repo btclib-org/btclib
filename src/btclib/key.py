@@ -86,9 +86,15 @@ __all__ = [
 # `hybrid` argument asks for it, the script engine being the caller that
 # has to accept what was mined, and it defaults to `hybrid=False` because
 # nothing in bitcoin produces one. This type takes that default, so a
-# hybrid key is refused here rather than carried as a canonical form
+# hybrid key is refused here rather than carried as a canonical form.
+# `script.taproot`'s internal key reads `_HYBRID_PREFIXES` directly for
+# the same refusal, ahead of the bindings/Python split: `check_validity`
+# is off for that key, so this module's own proof never runs for it, and
+# a hybrid prefix is the one spelling libsecp256k1 parses that btclib's
+# stated policy does not (issue #1227)
 _COMPRESSED_PREFIXES = (0x02, 0x03)
 _UNCOMPRESSED_PREFIX = 0x04
+_HYBRID_PREFIXES = (0x06, 0x07)
 
 
 def _normalized(network: Any) -> Any:
