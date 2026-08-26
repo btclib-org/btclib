@@ -40,6 +40,14 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.psbt.psbt import Psbt
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file
+ENTRY_POINTS = (
+    "btclib.psbt.psbt:Psbt.parse",
+    "btclib.psbt.psbt:Psbt.b64decode",
+)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as psbt octets, then as the base64 armor of some.

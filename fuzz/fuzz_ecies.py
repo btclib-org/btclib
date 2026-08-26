@@ -44,6 +44,14 @@ import atheris
 from btclib.ecc.ecies import Envelope
 from btclib.exceptions import BTClibException
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file
+ENTRY_POINTS = (
+    "btclib.ecc.ecies:Envelope.parse",
+    "btclib.ecc.ecies:Envelope.b64decode",
+)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as envelope octets, then as the base64 armor of some.

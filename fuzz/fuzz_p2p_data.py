@@ -34,6 +34,14 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.p2p.data import BlockPayload, TxPayload
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file
+ENTRY_POINTS = (
+    "btclib.p2p.data:TxPayload.parse",
+    "btclib.p2p.data:BlockPayload.parse",
+)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as a `tx` payload, then as a `block` payload.

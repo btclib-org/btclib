@@ -992,6 +992,31 @@ documented at release-notes length in the first place, and are still in
   rewrites an octet of a text file now leaves `fuzz/corpus/` alone
   (closes #1402).
 
+- **`tests/fuzz_corpus_test.py` gates that a `fuzz/corpus/` seed is still
+  a valid serialization of what its harness parses,** which nothing
+  checked before: `testpaths` never reaches `fuzz/`, and a parser whose
+  accepted input narrows left every seed of that entry point silently
+  rejected, with a coverage number in a ClusterFuzzLite run nobody reads
+  that way the only symptom. Every `fuzz/fuzz_<name>.py` now declares a
+  module-level `ENTRY_POINTS` tuple of `"module:Qual.name"` string
+  literals, read with `ast.literal_eval` and resolved against the
+  installed btclib rather than imported -- every harness imports
+  `atheris` at module level, which is CI-only and undeclared in
+  `[dependency-groups]`, so the test must never execute one. An `ast`
+  walk of `fuzz_target`'s own body, never a regex, cross-checks each
+  tuple against the `.parse`/`.b64decode` calls the harness actually
+  makes; where the callee is a loop variable over a tuple of classes
+  rather than a name a call site resolves, the cross-check reads the for
+  loop's own tuple in its place instead of taking the declared tuple on
+  faith. A seed passes where at least one declared entry point accepts
+  it without raising `BTClibException`, and where the accepting object
+  serializes -- `.serialize()`, or `.b64encode()` behind a `.b64decode()`
+  entry point -- the reserialization has to reproduce the seed byte for
+  byte. `[tool.uv.build-backend]`'s `source-exclude` gains
+  `/tests/fuzz_corpus_test.py`, beside the sdist's other tests whose
+  subject it does not carry: `fuzz/` is `[tool.check-sdist]`'s own
+  `git-only` (closes #1441).
+
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
   reads a merged pull request's own commits and found CodeQL configured

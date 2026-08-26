@@ -43,6 +43,11 @@ import atheris
 from btclib.bip322 import Sig
 from btclib.exceptions import BTClibException
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file
+ENTRY_POINTS = ("btclib.bip322:Sig.b64decode",)
+
 
 def fuzz_target(data: bytes) -> None:
     """Read `data` as the base64 text of a BIP322 signature.
