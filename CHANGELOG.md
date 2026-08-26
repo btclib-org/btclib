@@ -811,6 +811,18 @@ documented at release-notes length in the first place, and are still in
   writes there too, so `docs/_build/` matched neither (issue
   btclib-org/.github#411).
 
+- **`README.md`'s badge row no longer carries the link to the
+  repository.** Section 2 of the organization standard refuses it: the
+  badge renders `btclib-org/btclib` because its own URL spells that
+  string, and the row is an audit, so an item that measures nothing does
+  not belong in it. What that gives up is the reader who meets this file
+  as the long description an index renders or as the `README.md` an
+  unpacked sdist carries, where the repository is not one click away;
+  `pyproject.toml`'s `[project.urls]` `repository` reaches that reader
+  instead, served under `project_urls` by the index and written into the
+  sdist's own `PKG-INFO` as a `Project-URL` line
+  (closes btclib-org/.github#381).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
