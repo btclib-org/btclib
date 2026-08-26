@@ -418,11 +418,17 @@ def list_from_json_array(value: Any, what: str) -> list[Any]:
     iterable" from underneath the library, and the two iterables that are
     not arrays are worse than that -- a `str` is a list of its characters
     and a `Mapping` a list of its keys, so each element is refused for
-    what it is not rather than the whole for what it is.
+    what it is not rather than the whole for what it is. `is_octets` is
+    the four `Octets` spellings named once rather than listed here, so a
+    spelling `Octets` gains later is refused the same way (issue #1420);
+    `Mapping` is refused beside it for a reason of its own and stays a
+    named check.
     """
-    if isinstance(
-        value, (str, bytes, bytearray, memoryview, Mapping)
-    ) or not isinstance(value, Iterable):
+    if (
+        is_octets(value)
+        or isinstance(value, Mapping)
+        or not isinstance(value, Iterable)
+    ):
         err_msg = f"invalid {what} type: {type(value).__name__}"
         raise BTClibTypeError(err_msg)
     return list(value)

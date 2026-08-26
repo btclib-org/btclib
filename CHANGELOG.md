@@ -3393,6 +3393,17 @@ documented at release-notes length in the first place, and are still in
   function taking either shape written from here on is walked the same
   way without anybody remembering to add it by hand.
 
+- **`p2p.address.Addr`, `p2p.addrv2.AddrV2`, `script.script.serialize`
+  and `utils.list_from_json_array` refuse a bare `Octets` the same way,
+  through `utils.is_octets` rather than each naming the four spellings
+  by hand** (closes #1420). Each guard was correct at every spelling
+  `Octets` held when it was written -- unlike `issue #1261`'s two, none
+  of the four had gone stale yet -- but the tuple is the same staleness
+  the other guards already moved off of, `p2p.inventory._sequence_of`
+  among them. `list_from_json_array` keeps `Mapping` refused beside
+  `is_octets`'s answer, a `Mapping` being wrong for a reason of its own
+  and not part of what `is_octets` asks.
+
 - **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
   the trailing-underscore layer's own gap in issue #1206's policy**
   (closes #1248). Both take a bare `int` rather than an `Integer`, so

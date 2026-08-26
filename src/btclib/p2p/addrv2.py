@@ -127,6 +127,7 @@ from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
+    is_octets,
     read_exactly,
 )
 
@@ -427,10 +428,10 @@ class AddrV2(Payload):
         # a str and a bytes are Sequences, and each of their elements is
         # what a `NetworkAddressV2` is not: asked whole here, so that a
         # caller who passed one gets a complaint about the argument
-        # rather than about its first character
-        if isinstance(addresses, (str, bytes, bytearray, memoryview)) or not isinstance(
-            addresses, Sequence
-        ):
+        # rather than about its first character. `is_octets` is the four
+        # spellings named once, so a spelling `Octets` gains later is
+        # refused here too (issue #1420)
+        if is_octets(addresses) or not isinstance(addresses, Sequence):
             err_msg = f"invalid addresses type: {type(addresses).__name__}"
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
