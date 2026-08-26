@@ -4,8 +4,8 @@
 
 """The convention-test declaration in tests/README.md is true.
 
-Section 7 of the organization standard lists eight conventions a suite
-can turn into a red test, and closes with the clause that makes the list
+Section 7 of the organization standard lists conventions a suite can
+turn into a red test, and closes with the clause that makes the list
 usable: a repository needs the ones its own prose states rather than all
 of them. That clause is right, and its price is that an *absent*
 convention test is indistinguishable from a convention this repository
@@ -38,11 +38,12 @@ import pytest
 _TESTS = Path(__file__).parent
 _README = _TESTS / "README.md"
 
-# section 7's eight, in its order and its words: the lead of each bullet,
-# which is what the first column of the table repeats. This tuple is the
-# standard's rather than this repository's, so a bullet added there is a
-# failure here until both this and the table have caught up -- which is
-# the point of naming them rather than accepting whatever the table says.
+# section 7's conventions, in its order and its words: the lead of each
+# bullet, which is what the first column of the table repeats. This
+# tuple is the standard's rather than this repository's, so a bullet
+# added there is a failure here until both this and the table have
+# caught up -- which is the point of naming them rather than accepting
+# whatever the table says.
 _CONVENTIONS = (
     "the public surface",
     "the copyright header",
@@ -52,6 +53,7 @@ _CONVENTIONS = (
     "the build system",
     "the calling convention",
     "input validation",
+    "the suite opens no socket",
 )
 
 _HEADING = "## Convention tests"
@@ -144,13 +146,13 @@ def test_every_module_named_holds_a_test(convention: str, module: str) -> None:
 
 
 def test_the_two_halves_account_for_every_convention() -> None:
-    """The table and the "Not tested here" line partition section 7's eight.
+    """The table and the "Not tested here" line partition section 7's set.
 
     This is the assertion the declaration exists for. Either half alone
     is satisfiable by saying less: a table naming three conventions is
-    true about those three and silent about the other five, and silence
-    is exactly what section 7's escape clause makes unreadable. Together
-    they have to name each of the eight once.
+    true about those three and silent about the rest, and silence is
+    exactly what section 7's escape clause makes unreadable. Together
+    they have to name each convention once.
     """
     match = _NOT_TESTED.search(_SECTION)
     assert match, (
@@ -177,5 +179,6 @@ def test_the_two_halves_account_for_every_convention() -> None:
     ]
     assert not unaccounted, (
         f"{', '.join(unaccounted)} is neither declared tested nor listed as"
-        " not tested; section 7's eight are what the two halves must cover"
+        " not tested; section 7's conventions are what the two halves"
+        " must cover"
     )

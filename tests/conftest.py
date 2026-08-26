@@ -107,10 +107,9 @@ def coverage_fail_under(
     What that costs is this function. `fail_under` applies to every
     report coverage writes, a partial one included, so `pytest
     tests/bip32/bip32_test.py` would end in `Required test coverage of
-    100.0% not reached. Total coverage: 6.33%` -- true of that run and
-    saying nothing about the tree. Running one file and one test are
-    documented commands, and a gate that fails them is a gate read as
-    noise.
+    100.0% not reached` -- true of that run and saying nothing about the
+    tree. Running one file and one test are documented commands, and a
+    gate that fails them is a gate read as noise.
 
     So a run that asked for a subset is gated at zero rather than having
     coverage switched off: the report still prints, which is what makes

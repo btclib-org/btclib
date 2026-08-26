@@ -260,21 +260,22 @@ What to know before reading one:
 
 ## Convention tests
 
-Section 7 of the [organization standard][std] lists eight conventions a
-suite can turn into a red test, and says a repository needs the ones its
-own prose states rather than all of them. That escape clause is right and
-it costs something: an absent convention test reads exactly like a
+Section 7 of the [organization standard][std] lists conventions a suite
+can turn into a red test, and says a repository needs the ones its own
+prose states rather than all of them. That escape clause is right and it
+costs something: an absent convention test reads exactly like a
 convention this repository does not have, and a `grep` over `tests/`
 cannot tell the two apart — the suites of the organization name the same
 idea three different ways, and one of them folds several checks into the
 file that is about its single module.
 
-So which of the eight this repository tests is **declared here**, and
-`conventions_test.py` asserts the declaration is true: every convention
-named below is one of section 7's, every module named exists and holds at
-least one test, and the two halves together account for all eight. One
-row per module, so a convention answered by more than one file is named
-once per file rather than in a row too wide for eighty columns.
+So which of section 7's conventions this repository tests is **declared
+here**, and `conventions_test.py` asserts the declaration is true: every
+convention named below is one of section 7's, every module named exists
+and holds at least one test, and the two halves together account for
+every one of them. One row per module, so a convention answered by more
+than one file is named once per file rather than in a row too wide for
+eighty columns.
 
 | convention | tested in |
 | --- | --- |
@@ -289,7 +290,7 @@ once per file rather than in a row too wide for eighty columns.
 | the calling convention | `private_defaults_test.py` |
 | input validation | `input_validation_test.py` |
 
-Not tested here: none.
+Not tested here: the suite opens no socket.
 
 The calling convention takes three modules because it is three rules —
 a keyword-only parameter stays keyword-only, a private signature carries

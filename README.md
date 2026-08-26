@@ -24,6 +24,7 @@ own -- is to the trigger rule rather than to the calendar. -->
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
 [![docs workflow status](https://github.com/btclib-org/btclib/actions/workflows/docs.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/docs.yml)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
+[![fuzz workflow status](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/fuzz.yml)
 [![links workflow status](https://github.com/btclib-org/btclib/actions/workflows/links.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/links.yml)
 [![vendored-vectors workflow status](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/vendored-vectors.yml)
 [![codeql workflow status](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml)
