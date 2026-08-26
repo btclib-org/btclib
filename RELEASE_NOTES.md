@@ -281,6 +281,20 @@ full year, short month, short day (YYYY-M-D)
   `x_K`, or as `recover_pub_key_`'s `key_id`; both now raise
   `BTClibTypeError`. CHANGELOG.md has the three wordings.
 
+- **`branch` and `address_index` now raise `BTClibTypeError` for a bool
+  or any other non-integer, where they raised `BTClibValueError`**
+  (issue #1403) -- `derive_from_account_` and `derive_from_account_range_`,
+  and `derive_from_account`/`derive_from_account_range` through them.
+  Both parameters were already refused, incidentally, by the string
+  round trip `_derive_from_account` and `derive_from_account_range_`
+  build a der path with; `is_integer` now refuses them directly, before
+  that round trip runs.
+
+  Act on it if your code catches `BTClibValueError`, rather than the
+  common base `BTClibException`, around a call passing one of these
+  four functions a `branch` or `address_index` that is not a plain
+  `int`.
+
 ### Worth knowing, though nothing raises
 
 - **A `bytearray` and a `memoryview` are octets, and now the signatures
