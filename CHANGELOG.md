@@ -3421,6 +3421,18 @@ documented at release-notes length in the first place, and are still in
   before any of them is walked. `tests/integer_policy_test.py`'s census
   gains `derive_from_account_`'s own `branch` and `address_index`.
 
+- **`base58.encode` takes a `memoryview`, as every other `Octets`
+  spelling** (issue #1255). `bytes_from_octets` hands a memoryview back
+  unchanged, and `encode` concatenated it with the checksum on its own
+  left side -- `memoryview + bytes` is not an operation, where `bytes +
+  memoryview` is, the same asymmetry issue #1220 names elsewhere in the
+  library -- so `encode(memoryview(b"..."))` raised a bare `TypeError`
+  rather than returning the same answer a `bytes` or `bytearray` payload
+  gets. The payload is copied to `bytes` at that one concatenation,
+  after it has already been hashed, rather than up front: nothing here
+  is returned to the caller, so the copy costs one allocation and keeps
+  nothing out of sync with anything the caller still holds.
+
 - **`max_index` refuses a bool too, closing the same two helpers'
   remaining gap** (closes #1413). Unlike `branch` and `address_index`
   above, a bool `max_index` was not refused at all: it is a bound the

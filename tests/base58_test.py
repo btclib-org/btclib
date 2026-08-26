@@ -132,6 +132,20 @@ def test_wif() -> None:
     assert key == compressed_key
 
 
+def test_encode_octets_spellings() -> None:
+    """`encode` takes every `Octets` spelling, memoryview included.
+
+    A memoryview has no `__add__`, and `bytes_from_octets` hands one
+    back unchanged: `encode` copies it to `bytes` right at the
+    concatenation `_b58encode`'s payload needs, which is the one place
+    a memoryview payload would otherwise fail (issue #1255).
+    """
+    payload = b"hello world"
+    known_answer = b"3vQB7B6MrGQZaxCuFg4oh"
+    for spelling in (payload, bytearray(payload), memoryview(payload)):
+        assert encode(spelling) == known_answer
+
+
 def test_integers() -> None:
     """Verify the integer codec over each digit and the full alphabet."""
     digits = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
