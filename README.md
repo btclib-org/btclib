@@ -1,12 +1,12 @@
 # A Python library for 'bitcoin cryptography'
 
 <!-- The badges are what the reader decides with: the first line says what
-this is and whether it can be used, the second whether it works, the third
-where the code is and where to ask about it. A badge that reports no state
--- "we use ruff", "we use uv" -- reports a choice instead, and those are in
-CONTRIBUTING.md, beside the prose that says how the choice is enforced. One
-badge per line keeps a change to one line and every line inside MD013,
-whose 80 columns bind only where a space follows them.
+this is and whether it can be used, and the second whether it works. A
+badge that reports no state -- "we use ruff", "we use uv" -- reports a
+choice instead, and those are in CONTRIBUTING.md, beside the prose that
+says how the choice is enforced. One badge per line keeps a change to one
+line and every line inside MD013, whose 80 columns bind only where a space
+follows them.
 Scorecard is placed last among the sentinel badges rather than in the
 calendar order the rest follow: section 10 names it the one sentinel whose
 triggers are the action's own rather than the standard's, and it has no
@@ -40,8 +40,6 @@ the stated rule rather than this tree's own reading of a silent one. -->
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
 [![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
-
-[![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 
 ---
 
