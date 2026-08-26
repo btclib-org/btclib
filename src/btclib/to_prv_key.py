@@ -42,8 +42,8 @@ __all__ = [
 PrvKey = int | Octets | BIP32KeyData
 
 # the union at run time, with the buffers bytes_from_octets accepts beside
-# bytes. `to_pub_key._PUB_KEY_TYPES` is the same list plus a Point and
-# minus nothing: a public key can be a point, a private key cannot
+# bytes. `to_pub_key._PUB_KEY_TYPES` is the counterpart, and is where the
+# int this list holds and that one does not is explained
 _PRV_KEY_TYPES = (int, bytes, bytearray, memoryview, str, BIP32KeyData)
 
 

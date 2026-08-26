@@ -2076,6 +2076,19 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
+- **`to_prv_key.py`'s comment above `_PRV_KEY_TYPES` points at
+  `to_pub_key._PUB_KEY_TYPES` instead of describing it** (closes #1262).
+  It called that tuple "the same list plus a Point and minus nothing",
+  where the run-time tuples read back as `_PUB_KEY_TYPES` being
+  `_PRV_KEY_TYPES` minus `int`, plus `tuple` and `PreparedPoint`. The
+  clause that was true — a public key can be a point and a private key
+  cannot — explained the addition and denied the omission, which is the
+  half worth a reader's attention: an `int` is the scalar, so it is a
+  private key and never a public one. `to_pub_key.py` already says that
+  beside the tuple it is about, so the comment here names the
+  counterpart rather than restating it, and cannot go stale again as
+  either tuple gains a spelling.
+
 - **The documentation site is themed with `furo`** (issue #1347,
   btclib-org/.github#329). The `docs` dependency group and `conf.py`'s
   `html_theme` both name it, in place of `sphinx_rtd_theme`: the
