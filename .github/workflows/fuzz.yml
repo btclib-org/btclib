@@ -23,23 +23,24 @@ name: fuzz
 # runs the longer "batch" mode, which is what builds a corpus over time
 # and is meant for a schedule rather than for a pull request's own wait.
 #
-# `batch_fuzzing` carries no `schedule:` yet. Section 10's calendar is
-# one table for the whole organization, and asking for a row rather than
-# adding one unilaterally is btclib-org/.github#363's own precedent for
-# this exact situation, decided the same day this workflow was written;
-# the slot this file would want (Monday, 03) is proposed on
-# btclib-org/.github#372 and is not written here until the calendar
-# answers it. Not `push: branches: [main]` either, unlike `scorecard.yml`
-# under #363: `fuzz-seconds: 3600` below is an hour of fuzzing, and
-# ClusterFuzzLite's own docs call a push-triggered batch job "not
-# recommended" for exactly the reason that becomes -- one on every push
-# queues faster than an hour-long job drains. `workflow_dispatch` is what
-# runs it by hand until then, and it is required by this section
-# regardless of the above.
+# `batch_fuzzing` runs on the schedule below, which section 10 of the
+# organization standard, in btclib-org/.github, names for `fuzz`. Not
+# `push: branches: [main]` either, unlike `scorecard.yml`: `fuzz-seconds:
+# 3600` below is an hour of fuzzing, and ClusterFuzzLite's own docs call
+# a push-triggered batch job "not recommended" for exactly the reason
+# that becomes -- one on every push queues faster than an hour-long job
+# drains. `workflow_dispatch` is required by this section regardless of
+# the above, and is what runs a batch by hand between scheduled runs.
 on:
+  schedule:
+    # Day and hour are section 10's own workflow table; minute is this
+    # repository's own row in section 10's repository table.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    - cron: "4 3 * * 1"
+  workflow_dispatch:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review, closed]
-  workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: neither job writes to the
 # repository or to code scanning -- `output-sarif: true` below only
@@ -50,10 +51,13 @@ permissions:
 
 # named literally rather than through github.workflow, which in a called
 # workflow is the caller's name (section 10's "What every workflow
-# does"); a pull request run and a workflow_dispatch run of this same
-# workflow never collide, `github.event.pull_request.number` being unset
-# on the second, so the fallback to `github.ref` is what still gives the
-# manual run a group of its own
+# does"); a pull request run never collides with either of the other
+# two, `github.event.pull_request.number` being unset on both, so the
+# fallback to `github.ref` groups a schedule run and a workflow_dispatch
+# run together instead -- wanted, not merely tolerated:
+# cancel-in-progress below means a manual run does not wait behind the
+# scheduled batch's own hour for the numbers it was asked for, the same
+# design and the same reason `mutation.yml` already carries
 concurrency:
   group: fuzz-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -104,7 +108,7 @@ jobs:
 
   batch_fuzzing:
     name: Batch fuzzing
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     # the docker build plus one hour of fuzzing (fuzz-seconds below), far
     # above what either takes

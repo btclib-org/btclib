@@ -464,7 +464,7 @@ read by every checkout of this repository.
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
-| `fuzz` | pull request | — |
+| `fuzz` | pull request, weekly | — |
 | `scorecard` | weekly, push to main | — |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |
