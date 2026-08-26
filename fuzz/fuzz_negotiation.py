@@ -26,6 +26,20 @@ import atheris
 from btclib.exceptions import BTClibException
 from btclib.p2p.negotiation import FeeFilter, GetAddr, Mempool, SendHeaders, WtxidRelay
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file. Its own
+# cross-check derives this same list from the for loop's own tuple
+# below instead of resolving a callee name, cls being a loop variable
+# rather than one
+ENTRY_POINTS = (
+    "btclib.p2p.negotiation:GetAddr.parse",
+    "btclib.p2p.negotiation:Mempool.parse",
+    "btclib.p2p.negotiation:SendHeaders.parse",
+    "btclib.p2p.negotiation:WtxidRelay.parse",
+    "btclib.p2p.negotiation:FeeFilter.parse",
+)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` under each of the module's five commands in turn.

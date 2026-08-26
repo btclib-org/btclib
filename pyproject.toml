@@ -268,6 +268,11 @@ source-exclude = [
     "/tests/generate_sbom_test.py",
     "/tests/mutation_counts_test.py",
     "/tests/verify_dist_contents_test.py",
+    # the same reasoning, for fuzz/ rather than .github/scripts: git-only
+    # below is why it is not in the sdist, and this test reads
+    # fuzz/fuzz_*.py and fuzz/corpus/ off the tree, both absent from an
+    # unpacked sdist
+    "/tests/fuzz_corpus_test.py",
     # where `make html` writes, docs/Makefile's BUILDDIR being `build`
     "/docs/build",
     # a cache a linter or type checker writes beside the file it has
@@ -411,9 +416,9 @@ testpaths = ["tests"]
 # seeds were measured green before it went in
 addopts = "-ra --cov --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
 # --cov is here so that the ratchet below is what a bare `uv run pytest`
-# measures: it cost nothing to move (the suite is the same 37 seconds
-# either way on 3.14, coverage.py using sys.monitoring there), and a gate
-# only the coverage job runs is one a change meets after it is pushed.
+# measures: it cost nothing to move (coverage.py uses sys.monitoring on
+# 3.14, so running under --cov costs nothing measurable there), and a
+# gate only the coverage job runs is one a change meets after it is pushed.
 # What it does cost is that `fail_under` applies to a partial report too,
 # so a run of one file would fail on the tree's coverage rather than on
 # its own: tests/conftest.py's `coverage_fail_under` is where that is

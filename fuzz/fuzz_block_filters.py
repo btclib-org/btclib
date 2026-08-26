@@ -32,6 +32,21 @@ from btclib.p2p.block_filters import (
     GetCFilters,
 )
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file. Its own
+# cross-check derives this same list from the for loop's own tuple
+# below instead of resolving a callee name, cls being a loop variable
+# rather than one
+ENTRY_POINTS = (
+    "btclib.p2p.block_filters:GetCFilters.parse",
+    "btclib.p2p.block_filters:GetCFHeaders.parse",
+    "btclib.p2p.block_filters:CFilter.parse",
+    "btclib.p2p.block_filters:CFHeaders.parse",
+    "btclib.p2p.block_filters:GetCFCheckpt.parse",
+    "btclib.p2p.block_filters:CFCheckpt.parse",
+)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` under each of the module's six commands in turn.

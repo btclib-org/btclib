@@ -36,6 +36,11 @@ import atheris
 from btclib import var_bytes
 from btclib.exceptions import BTClibException
 
+# tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
+# importing the module -- atheris below is CI-only and undeclared in
+# pyproject.toml, so the test must not execute this file
+ENTRY_POINTS = ("btclib.var_bytes:parse",)
+
 
 def fuzz_target(data: bytes) -> None:
     """Parse `data` as length-prefixed octets.
