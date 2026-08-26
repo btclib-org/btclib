@@ -32,12 +32,12 @@ filter is the BIP141 witness commitment.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from btclib.block import BasicBlockFilter, Block, BlockContext
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import load, vector_id
 
 _HEADER_ROW = 1  # "Block Height,Block Hash,Block,[Prev Output Scripts ..."
@@ -301,6 +301,10 @@ def test_blockfilters_match(
     assert not block_filter.match(_ABSENT_SCRIPT)
     assert not block_filter.match_any([_ABSENT_SCRIPT, _ABSENT_SCRIPT[::-1]])
     assert not block_filter.match_any([])
+
+    if included:
+        with pytest.raises(BTClibTypeError, match="invalid elements type"):
+            block_filter.match_any(cast("Any", included[0]))
 
 
 def test_a_coinbase_input_has_no_previous_output_script() -> None:

@@ -89,7 +89,7 @@ from btclib.script.witness import Witness
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.tx.out_point import OutPoint
-from btclib.utils import bytes_from_octets, is_integer, str_from_string
+from btclib.utils import bytes_from_octets, is_integer, is_octets, str_from_string
 
 __all__ = [
     "K_MAX",
@@ -790,6 +790,13 @@ def scan_outputs(
     say -- still has to advance k, or every later output of the same
     sender is missed.
     """
+    # every Octets is itself a Sequence, so passing one instead of a list
+    # of outputs would zip through its bytes and check each as its own
+    # output (issue #1405)
+    if is_octets(outputs_to_check) or not isinstance(outputs_to_check, Sequence):
+        raise BTClibTypeError(
+            f"invalid outputs_to_check type: {type(outputs_to_check).__name__}"
+        )
     secret = shared_secret(b_scan, tweak)
     # every k tweaks the one spend key, and `_tweak_add_var` would cross
     # the boundary with it at each of them: the chain crosses with it once
@@ -932,6 +939,14 @@ def scan_transaction_outputs(
     unconverted; the Python arm, `scan_outputs`, reads the same bytes
     through `int_from_prv_key`.
     """
+    # `scan_outputs`'s own guard, checked again here rather than relying
+    # on the delegation below: the bindings arm never reaches that
+    # function, so `outputs_to_check` is this function's own to refuse
+    # (issue #1405)
+    if is_octets(outputs_to_check) or not isinstance(outputs_to_check, Sequence):
+        raise BTClibTypeError(
+            f"invalid outputs_to_check type: {type(outputs_to_check).__name__}"
+        )
     A_sum = pub_key_sum([pub_key for pub_key, _script_pub_key in pub_keys])
     h = input_hash(outpoints, A_sum)
 

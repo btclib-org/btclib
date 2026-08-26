@@ -465,6 +465,14 @@ class BasicBlockFilter:
         filter cannot hold -- an empty script, or the script of an
         OP_RETURN output, neither of which is ever put in one.
         """
+        # every Octets is itself iterable, so passing one script instead
+        # of an iterable of them would zip through its bytes and query
+        # each as its own element (issue #1405)
+        if is_octets(elements):
+            err_msg = "invalid elements type: "
+            err_msg += type(elements).__name__
+            raise BTClibTypeError(err_msg)
+
         k0, k1 = _key_from_block_hash(bytes(self.block_hash))
         upper_bound = self.element_count * BASIC_FILTER_M
         targets = sorted(

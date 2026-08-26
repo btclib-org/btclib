@@ -94,6 +94,7 @@ from btclib.utils import (
     int_from_bits,
     int_from_integer,
     is_integer,
+    is_octets,
 )
 
 __all__ = [
@@ -1155,8 +1156,14 @@ def _assert_batch_sequences(
 
     A `str` is a Sequence and stays one: run time cannot tell
     Sequence[Octets] from Sequence[str], so the elements are what answer
-    for their own values.
+    for their own values -- that is about telling one Sequence[Octets]
+    from another, though, and no Sequence at all is `msgs`'s own mistake
+    to refuse: every Octets is itself a Sequence, so one message passed
+    where the batch was meant would zip through its bytes and challenge
+    each as its own message (issue #1405).
     """
+    if is_octets(msgs):
+        raise BTClibTypeError(f"invalid msgs type: {type(msgs).__name__}")
     for value, what in ((msgs, "msgs"), (Qs, "Qs"), (sigs, "sigs")):
         assert_type(value, Sequence, what)
 

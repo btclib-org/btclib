@@ -35,7 +35,7 @@ from btclib.exceptions import (
 )
 from btclib.hashes import hash256, merkle_root_from_branch
 from btclib.tx import Tx
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [
     "assert_as_valid",
@@ -99,7 +99,12 @@ def assert_as_valid(
     """
     # the branch before it is walked: what is not a sequence went to the
     # comprehension below untouched, so a None left it as "not iterable"
-    # -- a complaint about iteration and not about a branch (issue #814)
+    # -- a complaint about iteration and not about a branch (issue #814).
+    # An Octets is itself a Sequence, so assert_type alone lets one
+    # through -- zipped through its bytes and treated as one sibling per
+    # byte -- and is_octets is what refuses that shape (issue #1405)
+    if is_octets(branch):
+        raise BTClibTypeError(f"invalid branch type: {type(branch).__name__}")
     assert_type(branch, Sequence, "branch")
 
     root = bytes_from_octets(merkle_root, 32)

@@ -12,11 +12,13 @@ from dataclasses import dataclass
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
+from btclib.exceptions import BTClibTypeError
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
     fields_from_json_object,
+    is_octets,
     list_from_json_array,
 )
 
@@ -49,6 +51,11 @@ class Witness:
     def __init__(
         self, stack: Sequence[Octets] | None = None, *, check_validity: bool = True
     ) -> None:
+        # every Octets is itself a Sequence, so passing one instead of a
+        # list of stack elements would zip through its bytes and treat
+        # each as its own element (issue #1405)
+        if is_octets(stack):
+            raise BTClibTypeError(f"invalid stack type: {type(stack).__name__}")
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
         object.__setattr__(
             self,

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from hashlib import sha256 as hf
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -647,6 +647,29 @@ def test_batch_validation() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_batch_as_valid_(ms, Qs, sigs)
     assert not ssa.batch_verify_(ms, Qs, sigs)
+
+
+def test_one_message_is_not_a_batch_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller passing the one message it has, rather than a batch holding
+    it, would otherwise zip through its bytes and challenge each as its
+    own message (issue #1405). Only `msgs` is `Sequence[Octets]`; `Qs`
+    and `sigs` are refused the way `_assert_batch_sequences`'s own
+    `Sequence` check already refused a `None` (issue #814), untouched
+    here.
+    """
+    aux = b"\x00" * 32
+    m = b"\x00" * 16
+    q, Q = ssa.gen_keys(1)
+    sig = ssa.sign(m, q, aux)
+
+    for batch_call in (ssa.assert_batch_as_valid, ssa.assert_batch_as_valid_):
+        with pytest.raises(BTClibTypeError, match="invalid msgs type"):
+            batch_call(cast("Any", m), [Q], [sig])
+    for verify_call in (ssa.batch_verify, ssa.batch_verify_):
+        with pytest.raises(BTClibTypeError, match="invalid msgs type"):
+            verify_call(cast("Any", m), [Q], [sig])
 
 
 def test_a_batch_of_one_takes_the_single_signature_shortcut(

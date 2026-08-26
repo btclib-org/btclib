@@ -128,11 +128,12 @@ from btclib.curves.sec_point import (
 from btclib.ecc import ssa
 from btclib.exceptions import (
     BTClibRuntimeError,
+    BTClibTypeError,
     BTClibValueError,
     InvalidContributionError,
 )
 from btclib.hashes import tagged_hash
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [
     "KeyAggContext",
@@ -239,6 +240,19 @@ def _bytes_xor(a: bytes, b: bytes) -> bytes:
     return bytes(x ^ y for x, y in zip(a, b, strict=True))
 
 
+def _assert_octets_sequence(value: object, what: str) -> None:
+    """Refuse anything but a Sequence of Octets, naming which.
+
+    Every Octets is itself a Sequence, so passing one where the list of
+    pubkeys, tweaks, nonces or partial signatures was meant would zip
+    through its bytes and treat each as its own element (issue #1405);
+    `not isinstance(value, Sequence)` is what refuses everything else the
+    comprehensions below would otherwise raise a bare TypeError on.
+    """
+    if is_octets(value) or not isinstance(value, Sequence):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+
+
 def _pub_keys(pub_keys: Sequence[Octets]) -> tuple[bytes, ...]:
     return tuple(bytes_from_octets(pk, _PK_SIZE) for pk in pub_keys)
 
@@ -290,6 +304,7 @@ def key_sort(pub_keys: Sequence[Octets]) -> list[bytes]:
     reorders its argument makes the key of whoever kept a reference to
     that list change under them.
     """
+    _assert_octets_sequence(pub_keys, "pub_keys")
     return sorted(_pub_keys(pub_keys))
 
 
@@ -347,6 +362,7 @@ def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
     another order and the group is another group. `key_sort` is the
     usual way to agree on one.
     """
+    _assert_octets_sequence(pub_keys, "pub_keys")
     pks = _pub_keys(pub_keys)
     L = _hash_pub_keys(pks)
     second = _second_pub_key(pks)
@@ -418,6 +434,9 @@ def key_agg_and_tweak(
     is_xonly: Sequence[bool],
 ) -> KeyAggContext:
     """Aggregate the keys, then apply the tweaks in order."""
+    # pub_keys is key_agg's own to guard, below; tweaks is only this
+    # function's, `_tweaks` having no other caller that already checked it
+    _assert_octets_sequence(tweaks, "tweaks")
     tweaks_ = _tweaks(tweaks)
     is_xonly = _flags(is_xonly)
     _require_same_length(tweaks_, is_xonly)
@@ -548,6 +567,7 @@ def nonce_agg(pub_nonces: Sequence[Octets]) -> bytes:
     signer, by publishing the negation of what the others published,
     stop the session at will.
     """
+    _assert_octets_sequence(pub_nonces, "pub_nonces")
     nonces = [bytes_from_octets(nonce, _NONCE_SIZE) for nonce in pub_nonces]
     agg_nonce = b""
     for j in (0, 1):
@@ -626,6 +646,11 @@ class SessionContext:
         msg: Octets,
         adaptor: Octets | None = None,
     ) -> None:
+        # this constructor is a direct entry point of its own, not only
+        # reached through key_agg_and_tweak, so pub_keys and tweaks are
+        # both its own to guard
+        _assert_octets_sequence(pub_keys, "pub_keys")
+        _assert_octets_sequence(tweaks, "tweaks")
         object.__setattr__(self, "agg_nonce", bytes_from_octets(agg_nonce, _NONCE_SIZE))
         object.__setattr__(self, "pub_keys", _pub_keys(pub_keys))
         object.__setattr__(self, "tweaks", _tweaks(tweaks))
@@ -1065,8 +1090,11 @@ def _agg_s(psigs: Sequence[Octets], session_ctx: SessionContext) -> tuple[int, i
     caller below knows or needs to know whether the session carries an
     adaptor: `session_values` already folded T into R before either is
     called, so the sum is the same sum either way, and it is only the
-    two callers that decide what the sum is allowed to mean.
+    two callers that decide what the sum is allowed to mean. Both are
+    public and neither else validates `psigs`, so this is where it is
+    checked, once, for both.
     """
+    _assert_octets_sequence(psigs, "psigs")
     values = session_values(session_ctx)
     s = 0
     for i, psig in enumerate(psigs):

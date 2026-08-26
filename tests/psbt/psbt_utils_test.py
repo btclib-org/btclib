@@ -11,6 +11,8 @@ import pytest
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt.psbt_utils import (
+    decode_musig2_participant_pub_keys,
+    decode_taproot_bip32,
     deserialize_map,
     deserialize_tx,
     parse_taproot_bip32,
@@ -57,6 +59,42 @@ def test_parse_taproot_bip32_hostile_count() -> None:
     # one leaf hash announced, one byte short of it
     with pytest.raises(BTClibValueError, match="invalid number of leaf hashes: "):
         parse_taproot_bip32(b"\x01" + b"\x00" * 31 + b"\xde\xad\xbe\xef")
+
+
+def test_one_leaf_hash_is_not_a_list_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller filing the one leaf hash it has under a key, rather than a
+    list holding it, would otherwise have `decode_taproot_bip32` zip
+    through its bytes and treat each as its own hash (issue #1405).
+    """
+    key_origin = BIP32KeyOrigin(b"\xde\xad\xbe\xef", "m/86h/1h/0h/0/0")
+    leaf_hash = bytes(range(32))
+    pub_key = b"\x02" * 32
+
+    assert decode_taproot_bip32({pub_key: ([leaf_hash], key_origin)}) == {
+        pub_key: ([leaf_hash], key_origin)
+    }
+    with pytest.raises(BTClibTypeError, match="invalid taproot bip32 leaf hashes"):
+        decode_taproot_bip32({pub_key: (leaf_hash, key_origin)})  # type: ignore[dict-item]
+
+
+def test_one_participant_pub_key_is_not_a_list_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller filing the one participant it has under an aggregate key,
+    rather than a list holding it, would otherwise have
+    `decode_musig2_participant_pub_keys` zip through its bytes and treat
+    each as its own participant (issue #1405).
+    """
+    aggregate = b"\x03" * 33
+    participant = b"\x02" * 33
+
+    assert decode_musig2_participant_pub_keys({aggregate: [participant]}) == {
+        aggregate: [participant]
+    }
+    with pytest.raises(BTClibTypeError, match="invalid musig2 participant pub keys"):
+        decode_musig2_participant_pub_keys({aggregate: participant})  # type: ignore[dict-item]
 
 
 def test_deserialize_map_short_read() -> None:
