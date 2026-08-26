@@ -467,7 +467,28 @@ filterwarnings = ["error"]
 # by extension rather than by directory, so that tests/_data/README.md --
 # which records where each of those files came from -- is still spell
 # checked, being prose about the data and not the data
-skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock"
+
+# fuzz/corpus/'s own seed files, added under btclib-org/btclib#1438: the
+# same content sniff for a NUL byte [tool.typos.files] argues below
+# decides what codespell treats as binary too -- is_text_file reads the
+# first 1024 bytes and looks for one -- so the same seeds read as text
+# here, and codespell runs with --write-changes as well
+# (.pre-commit-config.yaml). "fuzz/corpus/*", a single star, measured to
+# exclude the whole subtree exactly as the "fuzz/corpus/**" below does
+# for typos -- neither tool's dialect forces the difference, and this
+# one is spelled in the single-star idiom the entries above already
+# use. [tool.typos.files]'s own remark below is about a leading "*/",
+# which stops typos at one directory the way it does not stop
+# codespell, not about a trailing one, which stops neither: measured
+# both ways, "*/_data/*.json" alone misses a control two directories
+# deep for typos and "fuzz/corpus/*" here still excludes the whole
+# subtree. Root-anchored on purpose, matching the entry below, rather than
+# "*fuzz/corpus/*", which would also reach a hypothetical
+# vendor/fuzz/corpus/: codespell matches with fnmatch against the path
+# it receives, so the cost of the anchor is a leading "./" defeating
+# this entry. Untested in the hook itself: pre-commit hands codespell
+# the bare paths git ls-files emits, none of them carrying one
+skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock,fuzz/corpus/*"
 # identifiers, not misspellings: "wit" is a transaction's witness and
 # "nd" is the Neutered Derivation the bip32 docstrings spell out. Both
 # are real words to codespell's dictionary, so neither can be fixed by
@@ -533,6 +554,20 @@ extend-exclude = [
     "**/_generated_files/*",
     ".secrets.baseline",
     "uv.lock",
+    # fuzz/corpus/'s own seed files are wire-format bytes, not prose or
+    # vendored data the entries above cover. typos's binary detection is
+    # a sniff for a NUL byte, not a length threshold: several of these
+    # seeds are empty payloads, and the keepalive nonce is an
+    # eight-byte field with none in it either, so nothing marks either
+    # kind as binary and typos reads them as text.
+    # .pre-commit-config.yaml's typos hook runs with --write-changes, so
+    # a byte sequence its dictionary offers to "correct" would silently
+    # invalidate the round-trip property a seed was checked in to
+    # prove, in a rewrite of a .bin file no reviewer reads a diff for.
+    # --force-exclude is what makes this entry reach that hook at all:
+    # pre-commit names files explicitly on its command line, and typos
+    # otherwise overrides an exclude for a path named that way
+    "fuzz/corpus/**",
 ]
 
 [tool.typos.default]
