@@ -18,7 +18,7 @@ from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashDigestF, HashF, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import bytes_from_octets, is_integer
+from btclib.utils import bytes_from_octets, is_integer, is_octets
 
 __all__ = [
     "hash160",
@@ -385,6 +385,12 @@ def merkle_root_from_branch(
     means knowing what a transaction looks like -- a layer this module
     sits below, and must not import.
     """
+    # every Octets is itself a Sequence, so passing one instead of a list
+    # of siblings would zip through its bytes and hash each as its own
+    # sibling (issue #1405)
+    if is_octets(branch):
+        raise BTClibTypeError(f"invalid branch type: {type(branch).__name__}")
+
     # the type before the sign, `"0" < 0` being a bare TypeError about
     # the operands: an index is a position and a bool is not one, `True`
     # naming the second leaf of every tree it is passed to

@@ -28,6 +28,7 @@ from btclib.utils import (
     bytesio_from_binarydata,
     fields_from_json_object,
     is_integer,
+    is_octets,
     list_from_json_array,
     read_exactly,
 )
@@ -451,6 +452,15 @@ def decode_taproot_bip32(
     """Parse correctly the tap_bip32_derivation init arguments."""
     if dict_ is None:
         return {}
+    # each value's first element is itself a Sequence[Octets], the leaf
+    # hashes of one key, and every Octets is itself a Sequence: passing
+    # one where the list of hashes was meant would zip through its bytes
+    # and treat each as its own leaf hash (issue #1405)
+    for leaf_hashes, _origin in dict_.values():
+        if is_octets(leaf_hashes):
+            err_msg = "invalid taproot bip32 leaf hashes type: "
+            err_msg += type(leaf_hashes).__name__
+            raise BTClibTypeError(err_msg)
     taproot_bip32 = {
         bytes_from_octets(k): ([bytes_from_octets(x) for x in v[0]], v[1])
         for k, v in dict_.items()
@@ -536,6 +546,15 @@ def decode_musig2_participant_pub_keys(
     """Parse correctly the musig2_participant_pub_keys init argument."""
     if dict_ is None:
         return {}
+    # each value is itself a Sequence[Octets], the participants of one
+    # aggregate key, and every Octets is itself a Sequence: passing one
+    # where the list of participants was meant would zip through its
+    # bytes and treat each as its own participant (issue #1405)
+    for participants_ in dict_.values():
+        if is_octets(participants_):
+            err_msg = "invalid musig2 participant pub keys type: "
+            err_msg += type(participants_).__name__
+            raise BTClibTypeError(err_msg)
     participants = {
         bytes_from_octets(k): [bytes_from_octets(x) for x in v]
         for k, v in dict_.items()

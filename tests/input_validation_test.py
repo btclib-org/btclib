@@ -112,12 +112,18 @@ _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
     "BinaryData": (None, 1.5),
     "DerPath": (None, 1.5),
     "Integer": (None, 1.5),
+    # an Octets, beside None and 1.5: every Octets is itself iterable, so
+    # a signature reading Sequence[Octets] or Iterable[Octets] accepts
+    # one as far as mypy goes, and a function that does not refuse it by
+    # name zips through its bytes instead (issue #1405)
+    "Iterable[Octets]": (None, 1.5, b"\xaa\xbb\xcc\xdd"),
     "Key": (None, 1.5),
     "Octets": (None, 1.5, tuple(range(4))),
     "Point": (None, 1.5, "not a point"),
     "PrvKey": (None, 1.5),
     "PubKey": (None, 1.5),
     "ScriptList": (None, 1.5, "not a list"),
+    "Sequence[Octets]": (None, 1.5, b"\xaa\xbb\xcc\xdd"),
     "String": (None, 1.5, 1),
 }
 
@@ -139,10 +145,12 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
     # a tuple of the wrong arity, and a pair of ints that is no point:
     # run time cannot tell tuple[int] from tuple[int, int], so the arity
     # is a value here and not a type
+    "Iterable[Octets]": (["not hex at all"],),
     "Point": ((1,), (1, 2)),
     "PrvKey": ("not a key",),
     "PubKey": ("not a key",),
     "ScriptList": (["OP_NOT_AN_OP_CODE"],),
+    "Sequence[Octets]": (["not hex at all"],),
     "String": ("not an address",),
 }
 
@@ -316,8 +324,17 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
                 if a.annotation is not None
             }
 
+    # `Sequence[Octets]` and `Iterable[Octets]` are not declarations of
+    # their own -- `Octets` is -- so a renamed `Octets` is still caught
+    # by unwrapping one level before checking
+    def _is_declared(alias: str) -> bool:
+        for wrapper in ("Sequence[", "Iterable["):
+            if alias.startswith(wrapper) and alias.endswith("]"):
+                return alias[len(wrapper) : -1] in declared
+        return alias in declared
+
     assert set(_WRONG_TYPE) == set(_WRONG_VALUE)
-    assert set(_WRONG_TYPE) <= declared
+    assert all(_is_declared(alias) for alias in _WRONG_TYPE)
 
     without_a_wrong_value = {
         # three Literals: a value outside them is what mypy refuses, and a

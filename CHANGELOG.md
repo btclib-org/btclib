@@ -3346,6 +3346,41 @@ documented at release-notes length in the first place, and are still in
   spelling, and a spelling `Octets` gains later is refused the same way
   at both instead of by whichever accident is available.
 
+- **Every public function taking a `Sequence[Octets]` or `Iterable[Octets]`
+  refuses a bare `Octets` in its place, naming the shape rather than
+  leaving the mistake to surface as a complaint about an `int`** (closes
+  #1405). `block.merkle_proof.assert_as_valid` and
+  `hashes.merkle_root_from_branch` on a branch, `block.proof_of_work.chain_work`
+  on a bits sequence, `block.block_filter.BasicBlockFilter.match_any` on
+  its elements, `ecc.musig2.key_sort`, `key_agg`, `key_agg_and_tweak`,
+  `nonce_agg`, `partial_sig_agg`, `partial_sig_agg_adaptor` and
+  `SessionContext` on their pubkeys, tweaks, nonces or partial
+  signatures, `ecc.ssa`'s four batch-verification entry points on their
+  messages, `psbt.psbt_utils.decode_musig2_participant_pub_keys` and
+  `decode_taproot_bip32` on a mapping's values, `script.witness.Witness`
+  on its stack, and `silent_payments.scan_outputs` and
+  `scan_transaction_outputs` on the outputs to check. The guard sits at
+  the public entry point rather than at a private twin only that entry
+  point calls -- `ecc.musig2._pub_keys` and `_tweaks`, `ecc.ssa`'s
+  `assert_batch_as_valid_`, still take the caller's word once the public
+  function in front of them has checked it, which is what
+  `CONTRIBUTING.md`'s validation rule already asks for and what keeps
+  the coverage floor from asking for a branch no valid call can reach.
+  `p2p.inventory._sequence_of` moves from its own hand-listed spellings
+  to `utils.is_octets`, `p2p.block_filters` inheriting the fix through
+  it rather than needing one of its own.
+
+  `tests/input_validation_test.py`'s walk did not drive any of these:
+  its vocabulary answered every `Sequence[Octets]`/`Iterable[Octets]`
+  parameter with no alias at all, which is a function the walk skips
+  outright rather than one it exercises weakly, and is why the gap
+  survived a gate built to catch exactly this class of defect. The
+  vocabulary now names the two shapes beside `Octets` itself, so
+  `chain_work`, `key_agg`, `key_sort`, `nonce_agg`, `scan_outputs` and
+  `descriptors.satisfaction_sizer` are walked automatically, and a
+  function taking either shape written from here on is walked the same
+  way without anybody remembering to add it by hand.
+
 - **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
   the trailing-underscore layer's own gap in issue #1206's policy**
   (closes #1248). Both take a bare `int` rather than an `Integer`, so

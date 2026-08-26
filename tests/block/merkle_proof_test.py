@@ -14,11 +14,12 @@ the block carries the transactions and the root that commits to them.
 """
 
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
 from btclib.block import Block, merkle_proof
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, merkle_root_from_branch
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -241,3 +242,25 @@ def test_a_malformed_branch_is_refused() -> None:
 
     # and the right branch for the wrong root
     assert not merkle_proof.verify(txids[index], branch, index, bytes(32))
+
+
+def test_one_sibling_is_not_a_branch_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller passing the one sibling it has, rather than a branch holding
+    it, would otherwise have `assert_type`'s own `Sequence` check let it
+    through -- an `Octets` is one -- and be zipped through its bytes,
+    each treated as its own sibling (issue #1405).
+    """
+    block = _load("block_200000.bin")
+    txids = [tx.id for tx in block.transactions]
+    hashes = [txid[::-1] for txid in txids]
+    root = block.header.merkle_root
+    index = 3
+    branch = [sibling[::-1] for sibling in _branch(hashes, index)]
+    sibling = branch[0]
+
+    with pytest.raises(BTClibTypeError, match="invalid branch type"):
+        merkle_proof.assert_as_valid(txids[index], cast("Any", sibling), index, root)
+    with pytest.raises(BTClibTypeError, match="invalid branch type"):
+        merkle_root_from_branch(sibling, cast("Any", sibling), index, hash256)

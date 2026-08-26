@@ -115,6 +115,7 @@ from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
+    is_octets,
     read_exactly,
 )
 
@@ -239,14 +240,15 @@ def _assert_valid_hash(hash_: bytes, what: str) -> None:
 def _sequence_of(values: Sequence[_Element], what: str) -> tuple[_Element, ...]:
     """Return the tuple of a sequence that is not text or octets.
 
-    A str and a bytes are Sequences whose elements are a character and an
-    integer, which is what none of the fields below holds: asked whole
-    here, so that a caller who passed one is told about the argument
-    rather than about its first character.
+    An Octets -- str, bytes, bytearray or memoryview -- is a Sequence
+    whose elements are a character or an integer, which is what none of
+    the fields below holds: asked whole here, so that a caller who passed
+    one is told about the argument rather than about its first element.
+    `is_octets` is the four spellings named once, so a spelling `Octets`
+    gains later is refused here too (issue #1405, as issue #1261 for
+    `utils.is_octets` itself).
     """
-    if isinstance(values, (str, bytes, bytearray, memoryview)) or not isinstance(
-        values, Sequence
-    ):
+    if is_octets(values) or not isinstance(values, Sequence):
         raise BTClibTypeError(f"invalid {what} type: {type(values).__name__}")
     return tuple(values)
 

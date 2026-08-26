@@ -10,7 +10,7 @@ import pytest
 
 from btclib import var_int
 from btclib.consensus import MAX_WITNESS_STACK_ITEMS
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness
 from tests.conftest import JsonGolden
 
@@ -37,6 +37,18 @@ def test_witness() -> None:
     witness.assert_valid()
     assert witness == Witness.parse(witness.serialize())
     assert witness == Witness.from_dict(witness.to_dict())
+
+
+def test_one_element_is_not_a_stack_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller passing the one element it has, rather than a stack holding
+    it, would otherwise zip through its bytes and treat each as its own
+    element (issue #1405).
+    """
+    element = b"\x01\x02"
+    with pytest.raises(BTClibTypeError, match="invalid stack type"):
+        Witness(element)  # type: ignore[arg-type]
 
 
 def test_frozen() -> None:

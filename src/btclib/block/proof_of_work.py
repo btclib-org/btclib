@@ -32,7 +32,7 @@ from datetime import datetime
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.utils import assert_type, bytes_from_octets, is_integer
+from btclib.utils import assert_type, bytes_from_octets, is_integer, is_octets
 
 __all__ = [
     "DIFFICULTY_ADJUSTMENT_INTERVAL",
@@ -328,6 +328,13 @@ def chain_work(bits_sequence: Sequence[Octets]) -> int:
     with the most work behind it, and only the second is expensive to
     replace. Bitcoin Core accumulates the same sum as `nChainWork`.
     """
+    # every Octets is a Sequence too: passing one instead of a list of
+    # them would zip through its bytes and sum the work of each as if it
+    # were its own `bits` (issue #1405)
+    if is_octets(bits_sequence) or not isinstance(bits_sequence, Sequence):
+        raise BTClibTypeError(
+            f"invalid bits sequence type: {type(bits_sequence).__name__}"
+        )
     return sum(block_work(bits) for bits in bits_sequence)
 
 

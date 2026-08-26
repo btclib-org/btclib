@@ -24,7 +24,7 @@ that says the output is *spendable* rather than merely predicted.
 from __future__ import annotations
 
 from hashlib import sha256
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -775,6 +775,33 @@ def test_scan_transaction_outputs_wraps_a_delegated_refusal(
     with pytest.raises(BTClibValueError, match="silent payment scan failed"):
         silent_payments.scan_transaction_outputs(
             _B_SCAN_PRV, mult(_B_SPEND_PRV), outpoints, pub_keys, [_NOT_AN_X]
+        )
+
+
+def test_one_output_is_not_a_list_of_them() -> None:
+    """Octets are a Sequence too, and iterating one yields its octets.
+
+    A caller passing the one output it has, rather than a list holding
+    it, would otherwise zip through its bytes and check each as its own
+    output (issue #1405). The bindings arm never reaches `scan_outputs`,
+    so `scan_transaction_outputs` guards its own `outputs_to_check`
+    rather than inheriting the check through delegation.
+    """
+    script_pub_key = "0014" + hash160(bytes_from_point(mult(_B_SCAN_PRV))).hex()
+    pub_keys = [(mult(_B_SCAN_PRV), script_pub_key)]
+    outpoints = [OutPoint("00" * 31 + "01", 0)]
+
+    with pytest.raises(BTClibTypeError, match="invalid outputs_to_check type"):
+        silent_payments.scan_transaction_outputs(
+            _B_SCAN_PRV,
+            mult(_B_SPEND_PRV),
+            outpoints,
+            pub_keys,
+            cast("Any", _NOT_AN_X),
+        )
+    with pytest.raises(BTClibTypeError, match="invalid outputs_to_check type"):
+        silent_payments.scan_transaction_outputs(
+            _B_SCAN_PRV, mult(_B_SPEND_PRV), outpoints, pub_keys, cast("Any", None)
         )
 
 
