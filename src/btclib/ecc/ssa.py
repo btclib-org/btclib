@@ -93,6 +93,7 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
     int_from_integer,
+    is_integer,
 )
 
 __all__ = [
@@ -358,6 +359,15 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     hf happens here.
     """
     _assert_valid_ec(ec)
+
+    # prepared is not unchecked: the trailing underscore skips the
+    # reduction of msg, not `is_integer`'s policy on x_K and x_Q, which
+    # `int_from_integer` would refuse a bool for on the coerced spelling
+    # (issue #1248, CONTRIBUTING.md's "This repository in particular")
+    if not is_integer(x_Q):
+        raise BTClibTypeError(f"non-integer x-coordinate: {x_Q}")
+    if not is_integer(x_K):
+        raise BTClibTypeError(f"non-integer nonce x-coordinate: {x_K}")
 
     # the message, of any size ("Messages of Arbitrary Size" in BIP340):
     # the tagged hash below absorbs any length unambiguously, x_K and x_Q

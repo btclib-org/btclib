@@ -14,6 +14,7 @@ instead of failing beside the input that caused it.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from datetime import datetime, timezone
 from enum import IntEnum
@@ -47,7 +48,9 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.ecc.bms import sign as bms_sign
+from btclib.ecc.dsa import recover_pub_key_
 from btclib.ecc.dsa import sign as dsa_sign
+from btclib.ecc.ssa import challenge_ as ssa_challenge_
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.ecc.ssa import sign as ssa_sign
 from btclib.ecc.ssa import verify as ssa_verify
@@ -75,6 +78,9 @@ _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
 # the key is 1, so the x-only public key it verifies under is `secp256k1.G[0]`
 _SSA_SIG = ssa_sign(b"msg", 1)
+# the key is 1 as well, and key_id 1 is the candidate that recovers it
+_DSA_MSG_HASH = hashlib.sha256(b"msg").digest()
+_DSA_SIG = dsa_sign(b"msg", 1)
 _NOW = datetime(2026, 8, 4, tzinfo=timezone.utc)
 # a one-leaf tree and the prevout of the one input `_tx` builds: what the
 # two index parameters below have to be handed something valid to index
@@ -220,6 +226,22 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # answers -- `BTClibTypeError` is a `TypeError` and the except there
     # takes `ValueError`, which is issue #814's rule
     ("BIP340 verification key", lambda v: ssa_verify(b"msg", v, _SSA_SIG)),
+    # the trailing-underscore layer, which took no bare `int` parameter
+    # through `int_from_integer` or a key converter's type gate and so sat
+    # outside the census until issue #1248: prepared is not unchecked, and
+    # `is_integer` is asked of what these two are handed already prepared
+    (
+        "BIP340 challenge x-coordinate",
+        lambda v: ssa_challenge_(b"msg", v, 1, secp256k1, hashlib.sha256),
+    ),
+    (
+        "BIP340 challenge nonce x-coordinate",
+        lambda v: ssa_challenge_(b"msg", 1, v, secp256k1, hashlib.sha256),
+    ),
+    (
+        "dsa recovery key_id",
+        lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
+    ),
     # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
     # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
     # `bytes_from_point` included, and it read a bool coordinate as an
@@ -283,6 +305,24 @@ _WORDINGS = [
     ("base58 address key", p2pkh, "not a private or public key"),
     ("bech32 address key", p2wpkh, "not a private or public key"),
     ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
+    # separate from the three families above too: the trailing-underscore
+    # layer's own type gate on a bare `int` (issue #1248), one sentence per
+    # parameter and neither routed through `int_from_integer`
+    (
+        "BIP340 challenge x-coordinate",
+        lambda v: ssa_challenge_(b"msg", v, 1, secp256k1, hashlib.sha256),
+        "non-integer x-coordinate: True",
+    ),
+    (
+        "BIP340 challenge nonce x-coordinate",
+        lambda v: ssa_challenge_(b"msg", 1, v, secp256k1, hashlib.sha256),
+        "non-integer nonce x-coordinate: True",
+    ),
+    (
+        "dsa recovery key_id",
+        lambda v: recover_pub_key_(v, _DSA_MSG_HASH, _DSA_SIG),
+        "non-integer key_id: True",
+    ),
     # separate from the three families above: `is_on_curve`'s own
     # refusal of a bool coordinate (issue #1249), one sentence per
     # coordinate and shared by every funnel behind it
@@ -362,6 +402,8 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert bms_sign(b"msg", 1).dsa_sig.r
     assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
+    assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)
+    assert recover_pub_key_(1, _DSA_MSG_HASH, _DSA_SIG) == secp256k1.G
     assert secp256k1.is_on_curve(secp256k1.G) is True
     assert point_from_pub_key(secp256k1.G) == secp256k1.G
     assert PreparedPoint(secp256k1.G).point == secp256k1.G
