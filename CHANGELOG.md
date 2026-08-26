@@ -3350,6 +3350,25 @@ documented at release-notes length in the first place, and are still in
   before any of them is walked. `tests/integer_policy_test.py`'s census
   gains `derive_from_account_`'s own `branch` and `address_index`.
 
+- **`max_index` refuses a bool too, closing the same two helpers'
+  remaining gap** (closes #1413). Unlike `branch` and `address_index`
+  above, a bool `max_index` was not refused at all: it is a bound the
+  two value checks compare against rather than a value they carry, so
+  `derive_from_account_(xpub, 0, 0, max_index=True)` silently answered
+  the depth-5 key -- `0 <= True` holding arithmetically -- narrowing the
+  accepted range to `{0, 1}` instead of raising anything, a caller who
+  meant no such narrowing getting a wrong answer rather than an error.
+  `var_int.parse`'s own `max_size` already asks `is_integer` of a bound
+  the same way, for the same reason: a json boolean is what turns a
+  schema mistake into a narrowed range rather than a caught one.
+
+  `_assert_valid_branch` now calls `is_integer` on `max_index`, raising
+  `BTClibTypeError("non-integer max_index: True")` before either value
+  check runs -- once, there, rather than in both helpers: it runs first
+  at both call sites, on the same `max_index`, so a second check in
+  `_assert_valid_address_index` is unreachable.
+  `tests/integer_policy_test.py`'s census gains the case.
+
 ### Tests
 
 - **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,

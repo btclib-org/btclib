@@ -1063,6 +1063,14 @@ def _assert_valid_branch(
     # CONTRIBUTING.md's "This repository in particular")
     if not is_integer(branch):
         raise BTClibTypeError(f"non-integer branch: {branch}")
+    # the bound both `branch` and, at every call site below,
+    # `_assert_valid_address_index`'s own `address_index` compare
+    # against -- no less a bare int than either: `max_index=True` is a
+    # bound of one, silently narrowing what is accepted rather than
+    # raising (issue #1413). Checked once, here, since this function
+    # runs first at every call site and on the same `max_index`
+    if not is_integer(max_index):
+        raise BTClibTypeError(f"non-integer max_index: {max_index}")
     if branch >= _HARDENED_OFFSET:
         raise BTClibValueError("invalid private derivation at branch level")
     if branch > max_index:
@@ -1073,7 +1081,11 @@ def _assert_valid_branch(
 
 
 def _assert_valid_address_index(address_index: int, max_index: int) -> None:
-    # same reasoning as `_assert_valid_branch`'s own `is_integer` check
+    # same reasoning as `_assert_valid_branch`'s own `is_integer` check.
+    # `max_index` is not re-checked here: both call sites below run
+    # `_assert_valid_branch` first, on the same `max_index`, which is
+    # where that check lives (issue #1413) -- a second one here could
+    # never be reached and the coverage floor is what catches that
     if not is_integer(address_index):
         raise BTClibTypeError(f"non-integer address index: {address_index}")
     if address_index >= _HARDENED_OFFSET:
