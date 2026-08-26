@@ -464,6 +464,8 @@ read by every checkout of this repository.
 | `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
+| `fuzz` | pull request | — |
+| `scorecard` | push to main | — |
 | `os-ubuntu` | weekly, a release | ubuntu images and interpreters |
 | `os-macos` | weekly, a release | macOS images and interpreters |
 | `os-windows` | weekly, a release | Windows images and interpreters |
@@ -523,9 +525,12 @@ green is that platform; red in both is the upgrade. Every workflow in the
 table also takes `workflow_dispatch`, the gates included: a branch whose
 pull request is not open yet has no other way to ask, and for the three
 platform workflows it is the only way to ask about a branch at all.
-`claude-review` is the exception, and takes none: both its jobs read
-the pull request or the comment that triggered them, so a manual dispatch
-would start a run with nothing to read.
+`claude-review` and `scorecard` are the exceptions, and take none: both
+of `claude-review`'s jobs read the pull request or the comment that
+triggered them, so a manual dispatch would start a run with nothing to
+read; `scorecard`'s triggers are `ossf/scorecard-action`'s own, whose
+README names push and schedule as supported and calls `workflow_dispatch`
+experimental.
 
 ### Reproducing what CI runs
 
