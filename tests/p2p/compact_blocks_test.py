@@ -202,6 +202,22 @@ def test_the_short_id_is_taken_over_the_hash_the_wire_carries() -> None:
         compact_block.short_id(wtxid[:31])
 
 
+def test_a_memoryview_wtxid_gives_the_same_short_id_as_bytes() -> None:
+    """Reversing the buffer bytes_from_octets hands back must not strand it.
+
+    A memoryview is returned unchanged, and `[::-1]` over one is a
+    strided, non-contiguous view: `siphash`'s own call to
+    `bytes_from_octets` used to refuse it, so a wtxid spelled as a
+    memoryview raised where every other `Octets` spelling answers
+    (issue #1429).
+    """
+    block = _block_481824()
+    compact_block = _compact(block)
+    wtxid = block.transactions[_SEGWIT_INDEXES[0]].hash
+
+    assert compact_block.short_id(memoryview(wtxid)) == compact_block.short_id(wtxid)
+
+
 def test_a_mainnet_block_survives_the_compact_round_trip() -> None:
     """Encode a real block, reconstruct it from a full pool, compare bytes.
 

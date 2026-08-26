@@ -400,6 +400,11 @@ def test_a_wrong_type_is_a_type_error() -> None:
         Addr("10.0.0.1")  # type: ignore[arg-type]
     with pytest.raises(BTClibTypeError, match="invalid addresses type"):
         Addr(b"\x00" * 30)  # type: ignore[arg-type]
+    # every Octets spelling, not only str and bytes (issue #1434)
+    with pytest.raises(BTClibTypeError, match="invalid addresses type"):
+        Addr(bytearray(b"\x00" * 30))  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid addresses type"):
+        Addr(memoryview(b"\x00" * 30))
     with pytest.raises(BTClibTypeError, match="invalid address type"):
         Addr([NetworkAddress()])  # type: ignore[list-item]
 

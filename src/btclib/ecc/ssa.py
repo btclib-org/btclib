@@ -285,7 +285,7 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
             return x_Q[0]
         raise BTClibValueError(f"not a valid public key: {x_Q}")
 
-    if isinstance(x_Q, (str, bytes, bytearray, memoryview)):
+    if is_octets(x_Q):
         # every spelling `Octets` names, which is what
         # `bytes_from_octets` takes and returns as it came. Accepted at
         # all three sizes here, where the dispatch this

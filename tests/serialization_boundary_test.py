@@ -354,12 +354,17 @@ _MODULE_READER_IDS = tuple(label for label, _, _ in _MODULE_READERS)
 _MODULE_WRITERS = (
     ("var_int.serialize", var_int.serialize, 1, (None, 1.5, "1", b"\x01")),
     ("var_bytes.serialize", var_bytes.serialize, b"\x01", (None, 1.5, [1, 2])),
-    ("script.serialize", script.serialize, ["OP_DUP"], (None, 1.5, "OP_DUP", b"\x76")),
+    (
+        "script.serialize",
+        script.serialize,
+        ["OP_DUP"],
+        (None, 1.5, "OP_DUP", b"\x76", bytearray(b"\x76"), memoryview(b"\x76")),
+    ),
     (
         "taproot.serialize",
         taproot.serialize,
         ["OP_DUP"],
-        (None, 1.5, "OP_DUP", b"\x76"),
+        (None, 1.5, "OP_DUP", b"\x76", bytearray(b"\x76"), memoryview(b"\x76")),
     ),
 )
 

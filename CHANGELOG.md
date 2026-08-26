@@ -3479,6 +3479,34 @@ documented at release-notes length in the first place, and are still in
   `is_octets`'s answer, a `Mapping` being wrong for a reason of its own
   and not part of what `is_octets` asks.
 
+- **`fetch.fetcher.tx_from_raw`, `psbt.psbt_view.PsbtView` twice and
+  `ecc.ssa`'s x-only dispatch move to `utils.is_octets`, the pattern the
+  last four entries moved every other guard off of** (closes #1433). An
+  AST census keyed on the hand-listed tuple's own element order -- `str,
+  bytes, bytearray, memoryview`, the shape `issue #1261` and
+  `issue #1420` were both found with -- cannot see a tuple written in
+  another order, which is what let these four survive both sweeps; the
+  `ssa` one reads the shape positively (dispatching into it) rather than
+  refusing it, the same tuple asking the opposite question. `is_octets`
+  now returns `TypeIs[Octets]` rather than `bool` — the
+  `typing-extensions` floor rises to 4.10, the release that adds
+  `TypeIs`, with the reason beside it in `pyproject.toml` — so a caller
+  that dispatches on it keeps the narrowing an `isinstance` tuple gave
+  mypy:
+  `psbt_view`'s `data: BinaryIO | Octets` narrows to `BinaryIO` on the
+  untaken branch, and `fetch.fetcher`'s `raw: Octets` narrows to nothing
+  on it, which is what the disclosed `# type: ignore[unreachable]` beside
+  its own message already said before this change and says again now for
+  the same reason. `p2p.address.Addr` and `p2p.addrv2.AddrV2` already
+  called `is_octets` on a declared `Sequence[...]` parameter; the same
+  narrowing now applies there too, disclosed the same way.
+  `bip32.bip32.BIP32KeyData.b58decode` keeps its own hand-listed tuple:
+  its parameter is a `String`, the same union as `Octets` under a
+  different name for a different reason, and `is_octets` would ask the
+  wrong question of it -- `to_prv_key` and `to_pub_key`'s key-type tuples
+  are a different question again, naming types beside the four this issue
+  is about.
+
 - **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
   the trailing-underscore layer's own gap in issue #1206's policy**
   (closes #1248). Both take a bare `int` rather than an `Integer`, so
@@ -3605,6 +3633,39 @@ documented at release-notes length in the first place, and are still in
   `hashlib`'s digest constructors and `update` accept any buffer, and
   `magic_message`'s own concatenation puts its buffer on the right of a
   `bytes` value, where `bytes + memoryview` works.
+
+- **`block.merkle_proof.verify` and `p2p.compact_blocks`'s short-id
+  derivation take a `memoryview` txid, sibling or wtxid, as every other
+  `Octets` spelling** (closes #1429). `bytes_from_octets` hands a
+  memoryview back unchanged, and both then reversed it with `[::-1]`: a
+  strided, non-contiguous view, which the `bytes_from_octets` call
+  downstream of the reversal refused. `merkle_proof.assert_as_valid`
+  raised on it, and `verify` catches that as a proof that does not
+  verify, so a valid proof spelled with memoryviews answered False
+  rather than True, with nothing raised to notice; `CmpctBlock.short_id`
+  had no such boundary in front of it and raised outright. Both copy the
+  buffer to `bytes` at the point of reversal, entirely at the call site:
+  neither the txid, the sibling nor the wtxid is returned to whoever
+  passed it in.
+
+- **`bytes_from_octets` refuses a `memoryview` whose format is not
+  unsigned bytes, closing the gap the contiguity check alone left**
+  (closes #1430). A `memoryview` cast to a signed `"b"`, or built over an
+  array of a wider format such as `"I"`, is C-contiguous and was
+  returned unchanged; `hashes.magic_message`'s
+  `var_int.serialize(len(msg))` and `hashes.siphash`'s `for byte in
+  data` then read it in elements rather than in octets, `len()` counting
+  elements and each iterated value being whatever the format decodes to
+  rather than an unsigned byte in `0..255` -- silently disagreeing with
+  the same octets spelled as `bytes`. `_assert_contiguous` is renamed
+  `_assert_byte_shaped` and asks `mv.format == "B"` beside the
+  contiguity it already asked, the property `bytes`, `bytearray` and
+  every unformatted `memoryview` share; `itemsize == 1` was considered
+  and rejected, a signed `"b"` view and a `"c"`-cast one (bytes objects,
+  not ints) both being itemsize one and still not what the consumers
+  above assume. `bytes_from_octets`'s own output-size check now measures
+  `nbytes` rather than `len()`, the two no longer able to silently
+  disagree once every buffer reaching that check is format `"B"`.
 
 ### Tests
 
@@ -3764,6 +3825,20 @@ documented at release-notes length in the first place, and are still in
   calls need no coverage sweep, so it runs in the ordinary suite rather
   than beside `py-arm-authority.yml`'s weekly re-derivation, which pays
   for one.
+
+- **The guards refusing a bare `Octets` where a sequence of something
+  else was meant are now driven with a `bytearray` and a `memoryview`
+  too, beside the `str` and `bytes` each already had** (closes #1434).
+  `tests/input_validation_test.py`'s `_WRONG_TYPE` table drives
+  `Iterable[Octets]` and `Sequence[Octets]` with all four spellings
+  instead of one, and the hand-written guard tests in
+  `tests/p2p/address_test.py`, `tests/p2p/addrv2_test.py` and
+  `tests/serialization_boundary_test.py` gain the two missing spellings
+  beside the ones they already drove. A guard naming three of the four
+  passed every one of these before this change, the coverage floor
+  answering nothing about it: the branch each guard's refusal sits in
+  was already reached by the spellings the walk did drive, a case
+  exercised being a different thing from a branch reached.
 
 ### Curves, signatures and keys
 

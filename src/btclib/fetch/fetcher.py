@@ -35,7 +35,7 @@ from btclib.exceptions import (
 from btclib.network import NETWORKS, network_from_name
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_octets
 
 __all__ = [
     "Fetcher",
@@ -230,7 +230,7 @@ def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
     all show up here, as the wrong id rather than as a wrong amount
     somewhere later.
     """
-    if not isinstance(raw, (bytes, str, bytearray, memoryview)):
+    if not is_octets(raw):
         # `Tx.parse` reads a stream and lets anything that is not Octets
         # through untouched, so a json number where the hex belongs
         # surfaces as AttributeError on `.read` -- a traceback into the

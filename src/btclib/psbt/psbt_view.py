@@ -117,7 +117,7 @@ from btclib.psbt.psbt_utils import (
 from btclib.script.sig_hash import PrecomputedTxData
 from btclib.tx import Tx, TxOut
 from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
-from btclib.utils import assert_no_trailing, bytes_from_octets, read_exactly
+from btclib.utils import assert_no_trailing, bytes_from_octets, is_octets, read_exactly
 
 __all__ = [
     "PsbtView",
@@ -223,9 +223,7 @@ class PsbtView:
         # memoryview, which `Octets` admits and which it refuses with
         # `BufferError: underlying buffer is not C-contiguous`
         stream: BinaryIO = (
-            BytesIO(bytes(bytes_from_octets(data)))
-            if isinstance(data, (bytes, str, bytearray, memoryview))
-            else data
+            BytesIO(bytes(bytes_from_octets(data))) if is_octets(data) else data
         )
         if not stream.seekable():
             err_msg = "a psbt view needs a seekable stream: it reads a map "
@@ -309,7 +307,7 @@ class PsbtView:
         )
         self._offsets = offsets
 
-        if isinstance(data, (bytes, str, bytearray, memoryview)):
+        if is_octets(data):
             # octets are one whole psbt and a stream is the caller's:
             # btclib/utils.py states the rule both halves read. The cast is
             # this branch's own premise -- octets are what the stream above
