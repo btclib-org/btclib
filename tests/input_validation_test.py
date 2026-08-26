@@ -115,15 +115,29 @@ _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
     # an Octets, beside None and 1.5: every Octets is itself iterable, so
     # a signature reading Sequence[Octets] or Iterable[Octets] accepts
     # one as far as mypy goes, and a function that does not refuse it by
-    # name zips through its bytes instead (issue #1405)
-    "Iterable[Octets]": (None, 1.5, b"\xaa\xbb\xcc\xdd"),
+    # name zips through its bytes instead (issue #1405). All four Octets
+    # spellings, a guard naming three of the four otherwise passing this
+    # walk (issue #1434)
+    "Iterable[Octets]": (
+        None,
+        1.5,
+        b"\xaa\xbb\xcc\xdd",
+        bytearray(b"\xaa\xbb\xcc\xdd"),
+        memoryview(b"\xaa\xbb\xcc\xdd"),
+    ),
     "Key": (None, 1.5),
     "Octets": (None, 1.5, tuple(range(4))),
     "Point": (None, 1.5, "not a point"),
     "PrvKey": (None, 1.5),
     "PubKey": (None, 1.5),
     "ScriptList": (None, 1.5, "not a list"),
-    "Sequence[Octets]": (None, 1.5, b"\xaa\xbb\xcc\xdd"),
+    "Sequence[Octets]": (
+        None,
+        1.5,
+        b"\xaa\xbb\xcc\xdd",
+        bytearray(b"\xaa\xbb\xcc\xdd"),
+        memoryview(b"\xaa\xbb\xcc\xdd"),
+    ),
     "String": (None, 1.5, 1),
 }
 

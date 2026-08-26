@@ -38,10 +38,11 @@ requires-python = ">=3.10"
 # the reasoning, beside the ceiling argument it already makes.
 dependencies = [
     "bitcoin-core-rpc>=2026.8.13",
-    # `typing.override` is 3.12's and the floor is 3.10, so the decorator
-    # explicit-override asks for comes from the backport; 4.4 is the
-    # release that adds it
-    "typing-extensions>=4.4",
+    # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
+    # floor is 3.10, so both come from the backport; 4.4 is the release
+    # that adds `override`, 4.10 the one that adds `TypeIs`, and the
+    # later of the two is the floor
+    "typing-extensions>=4.10",
 ]
 keywords = [
     # The GitHub repository topics, in the same order, and the order is by

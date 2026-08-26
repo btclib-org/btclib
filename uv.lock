@@ -420,7 +420,7 @@ test = [
 requires-dist = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.8.13" },
     { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.4" },
-    { name = "typing-extensions", specifier = ">=4.4" },
+    { name = "typing-extensions", specifier = ">=4.10" },
 ]
 provides-extras = ["secp256k1"]
 

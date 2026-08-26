@@ -3448,8 +3448,11 @@ documented at release-notes length in the first place, and are still in
   another order, which is what let these four survive both sweeps; the
   `ssa` one reads the shape positively (dispatching into it) rather than
   refusing it, the same tuple asking the opposite question. `is_octets`
-  now returns `TypeIs[Octets]` rather than `bool`, so a caller that
-  dispatches on it keeps the narrowing an `isinstance` tuple gave mypy:
+  now returns `TypeIs[Octets]` rather than `bool` — the
+  `typing-extensions` floor rises to 4.10, the release that adds
+  `TypeIs`, with the reason beside it in `pyproject.toml` — so a caller
+  that dispatches on it keeps the narrowing an `isinstance` tuple gave
+  mypy:
   `psbt_view`'s `data: BinaryIO | Octets` narrows to `BinaryIO` on the
   untaken branch, and `fetch.fetcher`'s `raw: Octets` narrows to nothing
   on it, which is what the disclosed `# type: ignore[unreachable]` beside
@@ -3774,6 +3777,20 @@ documented at release-notes length in the first place, and are still in
   calls need no coverage sweep, so it runs in the ordinary suite rather
   than beside `py-arm-authority.yml`'s weekly re-derivation, which pays
   for one.
+
+- **The guards refusing a bare `Octets` where a sequence of something
+  else was meant are now driven with a `bytearray` and a `memoryview`
+  too, beside the `str` and `bytes` each already had** (closes #1434).
+  `tests/input_validation_test.py`'s `_WRONG_TYPE` table drives
+  `Iterable[Octets]` and `Sequence[Octets]` with all four spellings
+  instead of one, and the hand-written guard tests in
+  `tests/p2p/address_test.py`, `tests/p2p/addrv2_test.py` and
+  `tests/serialization_boundary_test.py` gain the two missing spellings
+  beside the ones they already drove. A guard naming three of the four
+  passed every one of these before this change, the coverage floor
+  answering nothing about it: the branch each guard's refusal sits in
+  was already reached by the spellings the walk did drive, a case
+  exercised being a different thing from a branch reached.
 
 ### Curves, signatures and keys
 

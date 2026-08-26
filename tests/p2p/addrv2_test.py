@@ -643,6 +643,13 @@ def test_an_addrv2_refuses_what_is_not_a_sequence_of_entries() -> None:
         AddrV2("not a sequence")  # type: ignore[arg-type]
     with pytest.raises(BTClibTypeError, match="invalid addresses type"):
         AddrV2(1)  # type: ignore[arg-type]
+    # every Octets spelling, not str alone (issue #1434)
+    with pytest.raises(BTClibTypeError, match="invalid addresses type"):
+        AddrV2(b"not a sequence")  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid addresses type"):
+        AddrV2(bytearray(b"not a sequence"))  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid addresses type"):
+        AddrV2(memoryview(b"not a sequence"))
     with pytest.raises(BTClibTypeError, match="invalid address type"):
         AddrV2([1])  # type: ignore[list-item]
 
