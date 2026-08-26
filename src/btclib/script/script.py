@@ -40,6 +40,7 @@ from btclib.utils import (
     bytesio_from_binarydata,
     encode_num,
     fields_from_json_object,
+    is_octets,
 )
 
 __all__ = [
@@ -471,9 +472,9 @@ def serialize(script: Sequence[Command]) -> bytes:
     is not a sequence at all was "not iterable" from underneath the
     library.
     """
-    if isinstance(script, (str, bytes, bytearray, memoryview)) or not isinstance(
-        script, Sequence
-    ):
+    # `is_octets` is the four spellings named once, so a spelling
+    # `Octets` gains later is refused here too (issue #1420)
+    if is_octets(script) or not isinstance(script, Sequence):
         err_msg = f"invalid script commands type: {type(script).__name__}"
         raise BTClibTypeError(err_msg)
 
