@@ -225,14 +225,23 @@ def test_one_script_is_not_a_list_of_scripts() -> None:
     A caller passing the single script it resolved, rather than a list
     holding it, would otherwise have its length counted as a number of
     inputs -- and for a block with that many, a filter built from
-    single characters. A hex string is the half mypy cannot refuse: `str`
-    is a `Sequence[str]` and `str` is `Octets`, so the annotation admits
-    it and only the guard does not.
+    single octets. A hex string is the half mypy cannot refuse: `str` is
+    a `Sequence[str]` and `str` is `Octets`, so the annotation admits it
+    and only the guard does not. All four `Octets` spellings are driven,
+    `bytearray` and `memoryview` included (issue #1261): with block 170's
+    single non-coinbase input, the two used to walk past the guard and be
+    counted as 67 scripts, one per octet, catching them only because the
+    block does not have that many inputs.
     """
     block = _block_170()
     script = block.transactions[0].vout[0].script_pub_key.script
 
-    for wrong in (cast("Any", script), script.hex()):
+    for wrong in (
+        cast("Any", script),
+        script.hex(),
+        cast("Any", bytearray(script)),
+        cast("Any", memoryview(script)),
+    ):
         with pytest.raises(
             BTClibTypeError, match="invalid previous output scripts type"
         ):
