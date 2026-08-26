@@ -433,9 +433,15 @@ class Addr(Payload):
         # that a caller who passed one gets a complaint about the
         # argument rather than about its first character. `is_octets` is
         # the four spellings named once, so a spelling `Octets` gains
-        # later is refused here too (issue #1420)
-        if is_octets(addresses) or not isinstance(addresses, Sequence):
-            err_msg = f"invalid addresses type: {type(addresses).__name__}"
+        # later is refused here too (issue #1420). The declared parameter
+        # is already a Sequence[TimestampedNetworkAddress], which mypy
+        # reads as never overlapping Octets now that is_octets narrows --
+        # true only of a caller obeying the annotation, which the check
+        # exists for the one that does not (issue #1433)
+        if is_octets(addresses) or not isinstance(  # type: ignore[redundant-expr]
+            addresses, Sequence
+        ):
+            err_msg = f"invalid addresses type: {type(addresses).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
         object.__setattr__(self, "addresses", tuple(addresses))
 

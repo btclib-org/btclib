@@ -125,6 +125,24 @@ def _promised_by(name: str) -> str | None:
     return None
 
 
+def _return_type(returns: ast.expr) -> str:
+    """Return what a function's annotation promises its caller, TypeIs as bool.
+
+    `TypeIs[Octets]` narrows a caller's type checker and answers exactly
+    `True` or `False` at runtime (PEP 742), the same as the `bool` it
+    replaced on `utils.is_octets` -- so a name promising `bool` is kept
+    to that promise by one, and this is the one place the annotation is
+    read for both censuses below. The caller's own `node.returns is not
+    None` already established what this takes, `ast.expr` rather than
+    `ast.FunctionDef` so mypy narrows it there instead of losing the
+    check across the call.
+    """
+    unparsed = ast.unparse(returns)
+    if unparsed.startswith("TypeIs["):
+        return "bool"
+    return unparsed
+
+
 def _named() -> dict[str, str]:
     """Return every public function whose name promises a return type.
 
@@ -148,7 +166,7 @@ def _named() -> dict[str, str]:
             # strict over it, so an unannotated one is a state the tree
             # does not reach
             assert node.returns is not None
-            found[f"{module}.{node.name}"] = ast.unparse(node.returns)
+            found[f"{module}.{node.name}"] = _return_type(node.returns)
     return found
 
 
@@ -287,7 +305,7 @@ def _public_bools() -> list[str]:
         for node in ast.walk(tree):
             if not isinstance(node, ast.FunctionDef) or node.name.startswith("_"):
                 continue
-            if node.returns is not None and ast.unparse(node.returns) == "bool":
+            if node.returns is not None and _return_type(node.returns) == "bool":
                 found.append(f"{module}.{node.name}")
     return sorted(found)
 

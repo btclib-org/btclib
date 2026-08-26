@@ -3439,6 +3439,31 @@ documented at release-notes length in the first place, and are still in
   `is_octets`'s answer, a `Mapping` being wrong for a reason of its own
   and not part of what `is_octets` asks.
 
+- **`fetch.fetcher.tx_from_raw`, `psbt.psbt_view.PsbtView` twice and
+  `ecc.ssa`'s x-only dispatch move to `utils.is_octets`, the pattern the
+  last four entries moved every other guard off of** (closes #1433). An
+  AST census keyed on the hand-listed tuple's own element order -- `str,
+  bytes, bytearray, memoryview`, the shape `issue #1261` and
+  `issue #1420` were both found with -- cannot see a tuple written in
+  another order, which is what let these four survive both sweeps; the
+  `ssa` one reads the shape positively (dispatching into it) rather than
+  refusing it, the same tuple asking the opposite question. `is_octets`
+  now returns `TypeIs[Octets]` rather than `bool`, so a caller that
+  dispatches on it keeps the narrowing an `isinstance` tuple gave mypy:
+  `psbt_view`'s `data: BinaryIO | Octets` narrows to `BinaryIO` on the
+  untaken branch, and `fetch.fetcher`'s `raw: Octets` narrows to nothing
+  on it, which is what the disclosed `# type: ignore[unreachable]` beside
+  its own message already said before this change and says again now for
+  the same reason. `p2p.address.Addr` and `p2p.addrv2.AddrV2` already
+  called `is_octets` on a declared `Sequence[...]` parameter; the same
+  narrowing now applies there too, disclosed the same way.
+  `bip32.bip32.BIP32KeyData.b58decode` keeps its own hand-listed tuple:
+  its parameter is a `String`, the same union as `Octets` under a
+  different name for a different reason, and `is_octets` would ask the
+  wrong question of it -- `to_prv_key` and `to_pub_key`'s key-type tuples
+  are a different question again, naming types beside the four this issue
+  is about.
+
 - **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
   the trailing-underscore layer's own gap in issue #1206's policy**
   (closes #1248). Both take a bare `int` rather than an `Integer`, so

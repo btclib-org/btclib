@@ -55,6 +55,8 @@ from collections.abc import Iterable, Mapping
 from io import BytesIO
 from typing import Any, BinaryIO
 
+from typing_extensions import TypeIs
+
 from btclib.alias import BinaryData, Integer, Octets, String
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
@@ -323,7 +325,7 @@ def is_integer(value: Any) -> bool:
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-def is_octets(value: Any) -> bool:
+def is_octets(value: Any) -> TypeIs[Octets]:
     """Return whether the value is one Octets, rather than a sequence of them.
 
     An `Octets` -- `str`, `bytes`, `bytearray` or `memoryview` -- is
@@ -333,6 +335,14 @@ def is_octets(value: Any) -> bool:
     question instead, once, so a spelling `Octets` gains later is refused
     at every caller of this rather than at whichever remembered to list
     it (issue #1261).
+
+    `TypeIs` rather than `bool`: a caller dispatching on this narrows on
+    both branches, `str | bytes | bytearray | memoryview` where it is
+    true and whatever is left of the wider type where it is false, which
+    is what lets a site written as a hand-listed `isinstance` tuple --
+    invisible to a census keyed on that tuple's own element order -- call
+    this instead without losing the narrowing mypy strict mode otherwise
+    needs the tuple for (issue #1433).
     """
     return isinstance(value, Octets)
 
