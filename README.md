@@ -43,7 +43,7 @@ own -- is to the trigger rule rather than to the calendar. -->
 
 ---
 
-[btclib](https://btclib.org) is a Python3
+[btclib](https://btclib.org) is a Python
 [type annotated](https://docs.python.org/3/library/typing.html) library
 for teaching, learning and using bitcoin, focused on elliptic curve
 cryptography and bitcoin's blockchain. It started as a teaching tool for
