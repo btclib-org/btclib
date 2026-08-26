@@ -831,6 +831,18 @@ documented at release-notes length in the first place, and are still in
   `ossf/scorecard-action`'s own rather than the standard's, and not its
   place in the calendar (closes #1424).
 
+- **`README.md`'s badge row carries a badge for `fuzz.yml` too, in the
+  sentinel badges' calendar order.** Section 10 gives `fuzz` a Monday 03
+  row, the earliest slot in the week, so its badge sits first among the
+  sentinels, ahead of `links` (closes #1432).
+
+- **`tests/README.md` and `conventions_test.py`'s `_CONVENTIONS` account
+  for section 7's "the suite opens no socket" bullet, declaring it not
+  tested here.** `imports_test.py`'s import-hygiene walk answers whether
+  `socket` reaches `sys.modules` on import, which is a different question
+  from a walk over the call sites that construct one, so the honest
+  declaration is that the bullet stays untested (closes #1431).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
@@ -3540,6 +3552,14 @@ documented at release-notes length in the first place, and are still in
   `bytes` value, where `bytes + memoryview` works.
 
 ### Tests
+
+- **`tests/conftest.py`'s `coverage_fail_under` docstring stops quoting
+  the percentage one file's run happened to report** (closes #1436). The
+  `6.33%` in its example failure message was true of that run and of
+  nothing else: a number nothing re-derives, and one every test added
+  anywhere in the tree moves. The sentence makes its point without it,
+  and now matches `bitcoin-core-rpc`'s port of the same docstring word
+  for word.
 
 - **`uv run pytest tests` is gated at the 100% ratchet, the path it names
   being the whole suite rather than a selection out of it** (issue
