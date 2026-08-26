@@ -495,8 +495,8 @@ calendar in one place is one thing to keep true, where a copy of it in
 every repository would be one more.
 
 Why so little gates is one number: the ceiling GitHub Free puts on an
-organization's concurrent jobs, twenty shared across every repository in
-it. REPOSITORY.md measures what a wider gate cost against that ceiling,
+organization's concurrent jobs, shared across every repository in it.
+REPOSITORY.md measures what a wider gate cost against that ceiling,
 and the consequence is this table's: at that ceiling a pull request's
 wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
 `os-windows.yml` each carry the measurement for their own cells, the

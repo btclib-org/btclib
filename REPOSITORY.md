@@ -232,11 +232,11 @@ gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
   -F state=not-configured
 ```
 
-What decided it is the concurrency ceiling and not the queries. GitHub
-Free gives an organization twenty concurrent jobs (as of 2026-08-21), a
-pull request here asks for twenty-one on purpose, and `Analyze (python)`
-and `Analyze (ruby)` were two more on every pull request and every push
-to `main` — `Code Quality: PR #N` in the run list, 80 seconds and 32.
+What decided it is the concurrency ceiling measured above, not the
+queries: a pull request here asks for twenty-one jobs on purpose, and
+`Analyze (python)` and `Analyze (ruby)` were two more on every pull
+request and every push to `main` — `Code Quality: PR #N` in the run
+list, 80 seconds and 32.
 
 What they produced in exchange cannot be read from here at all. There is
 no `code-quality/alerts` and no `code-quality/analyses`, both 404, and a
