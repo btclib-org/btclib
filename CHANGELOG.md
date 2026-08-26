@@ -724,6 +724,12 @@ documented at release-notes length in the first place, and are still in
   `claude-review` as the table's exception to the `workflow_dispatch`
   sentence below it: `ossf/scorecard-action`'s own triggers are push
   and schedule, not section 10's general rule (closes #1391).
+- **`scorecard.yml` gains a `schedule:` trigger, `cron: '4 3 * * 6'`.**
+  Saturday, hour 03, is section 10's calendar row for `scorecard`,
+  decided by btclib-org/.github#363 and landed via
+  btclib-org/.github#382; minute 04 is this repository's own row in the
+  same table. `CONTRIBUTING.md`'s *What runs when* table's `scorecard`
+  row now reads `weekly, push to main` (issue #1347).
 
 ### Packaging, linting and CI
 
