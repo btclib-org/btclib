@@ -31,13 +31,18 @@ pip3 install .
 # whole of `btclib`'s own tree rather than naming `curves/_data` alone,
 # so `mnemonic/_data` -- outside this harness's own import chain today
 # -- is bundled too, ahead of the next harness that reaches it.
+#
+# The same loop also zips each target's own seed corpus, one
+# fuzz/corpus/<name>/ directory per fuzzer (google/fuzzing's glossary,
+# "Seed Corpus": inputs "checked into source alongside fuzz targets"),
+# under the name libFuzzer picks up next to a target's own binary with
+# no configuration -- so a new fuzz_*.py with a corpus directory beside
+# it is picked up here without a second list of names to keep in step
+# with the first.
 for fuzzer in $(find "$SRC/btclib/fuzz" -maxdepth 1 -name 'fuzz_*.py'); do
   compile_python_fuzzer "$fuzzer" --collect-data=btclib
+  name=$(basename "$fuzzer" .py)
+  if [ -d "fuzz/corpus/$name" ]; then
+    zip -j "$OUT/${name}_seed_corpus.zip" "fuzz/corpus/$name"/*.bin
+  fi
 done
-
-# The seed corpus this repository checked in beside the target
-# (google/fuzzing's glossary, "Seed Corpus": inputs "checked into source
-# alongside fuzz targets"), zipped under the name libFuzzer picks up next
-# to a target's own binary with no configuration.
-zip -j "$OUT/fuzz_p2p_message_seed_corpus.zip" \
-  fuzz/corpus/fuzz_p2p_message/*.bin

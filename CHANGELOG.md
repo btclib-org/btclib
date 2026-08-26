@@ -837,6 +837,31 @@ documented at release-notes length in the first place, and are still in
   pages the day this landed. Every other deserializer this codebase
   owns is not covered by this branch
   (issue #1347, btclib-org/.github#342, btclib-org/btclib#1361).
+- **ClusterFuzzLite gains seven more harnesses, one per `btclib.p2p`
+  payload module reached behind `Message.parse`'s envelope and ahead of
+  any signature check: `handshake`, `addrv2`, `inventory`,
+  `compact_blocks`, `block_filters`, `keepalive` and `negotiation`
+  (btclib-org/.github#342's own "at least the entry points reached from
+  the network", plural).** Each module holds several `Payload`
+  subclasses rather than one, so each `fuzz/fuzz_<module>.py` runs every
+  concrete class's `parse` against the same bytes rather than picking a
+  single command, `BTClibException` caught the same way
+  `fuzz_p2p_message.py` already catches it. `.clusterfuzzlite/build.sh`'s
+  discovery loop already globbed `fuzz/fuzz_*.py`, so the seven harnesses
+  needed no entry added there; what the loop gained is zipping each
+  target's own `fuzz/corpus/<name>/` directory, discovered the same way,
+  rather than the one hard-coded name it zipped before. The seed corpora
+  are the object's own valid serializations: Bitcoin Core's
+  `stream_addrv2_hex` (`src/test/netbase_tests.cpp` at `dbbb780`) for
+  `addrv2`, the vendored mainnet headers under `tests/block/_data` for
+  `inventory` and `compact_blocks`'s `cmpctblock`, and a default
+  construction of every other class, several of which carry no fields at
+  all. `Tx.parse`,
+  `Block.parse`, `Psbt.parse` and the rest of the deserializers only
+  reached once a transaction or a signature is already being handled are
+  the btclib-org/btclib#1361 issue's own second list, and are tracked
+  apart in btclib-org/btclib#1402 rather than closed here (closes
+  #1361).
 
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
