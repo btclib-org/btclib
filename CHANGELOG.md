@@ -768,6 +768,29 @@ documented at release-notes length in the first place, and are still in
   `claude-review.yml`'s copy is untouched here: that file needs a pull
   request of its own, `claude-review.yml:170-181` being why (issue
   #1256).
+- **`claude-review.yml` converges to the copy `btclib-org/btclib-secp256k1`
+  now carries, taken whole rather than reapplied piecemeal.** The
+  `mention` job's credential-refusal step names the job it guards instead
+  of restating the `review` job's own measurement (closes
+  btclib-org/.github#402, closes btclib-org/.github#410); the
+  `claude_args` comment names the three `gh pr` subcommands the file
+  uses, `diff`, `review` and `view` (closes btclib-org/.github#398);
+  every citation of the organization standard names section 11 or its
+  *Review* subsection rather than the standard's own `README.md` (closes
+  btclib-org/.github#400); the verdict is posted with `gh pr review
+  --comment` rather than `gh pr comment` (closes btclib-org/.github#340);
+  a failing review step prints the SDK's own `api_error_status` and stop
+  reason from its execution file rather than leaving the guard to report
+  only that the step failed (closes btclib-org/.github#385); and the
+  header's concurrency-cost paragraph points at `REPOSITORY.md` for the
+  ceiling rather than stating it as a bare count (closes #1256, closes
+  btclib-org/.github#405).
+
+- **The two jobs now run behind `vars.CLAUDE_REVIEW_ENABLED`, an
+  organization variable that is unset**, so both report `skipped` where
+  every `pull_request` run on this repository has been showing
+  `failure`. btclib-org/.github#364 is open: the review step's
+  `is_error:true` failure has no explanation this change supplies.
 
 ### Packaging, linting and CI
 
