@@ -715,6 +715,15 @@ documented at release-notes length in the first place, and are still in
   checks the excluded-constants list at all. The other three modules in
   `REEXPORTED` — `btclib.fetch.transport`, `btclib.p2p.magic` and
   `btclib.psbt.psbt` — carry no such count in their own docstrings.
+- **`CONTRIBUTING.md`'s *What runs when* table carries a row each for
+  `fuzz` and `scorecard`.** Both cells read `—` for what they vary,
+  matching `links` and `mutation`; the *when* is each workflow's own
+  current trigger — pull request for `fuzz`, push to main for
+  `scorecard` — rather than a schedule day, neither workflow's own file
+  carrying a `schedule:` block yet. `scorecard` also joins
+  `claude-review` as the table's exception to the `workflow_dispatch`
+  sentence below it: `ossf/scorecard-action`'s own triggers are push
+  and schedule, not section 10's general rule (closes #1391).
 
 ### Packaging, linting and CI
 
