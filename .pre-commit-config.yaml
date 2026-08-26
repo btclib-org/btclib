@@ -74,14 +74,47 @@ repos:
         # being byte for byte upstream's is a property that can be
         # checked, and a stripped space voids it for nothing. The loader
         # reads the words and treats the header as the comment it is
-        exclude: ^src/btclib/mnemonic/_data/electrum_portuguese\.txt$
+        #
+        # `fuzz/corpus/` is the second exclusion and a different reason: a
+        # fuzzing seed is one exact serialization of the object its
+        # harness parses, so an octet added to it or taken off it makes it
+        # a different input.
+        #
+        # Which seeds are exposed is decided by the octets and not by the
+        # format. `identify` calls a file binary when it holds an octet
+        # outside libmagic's own text set -- everything below 0x20 but
+        # 0x07-0x0d and 0x1b, and 0x7f -- and a seed it calls binary is
+        # never offered to a hook selecting on `types: [text]`. A
+        # descriptor and a base64 armor hold no such octet and are
+        # offered; so are a one-octet var_int and two raw script
+        # serializations whose every octet happens to fall in that set,
+        # which is the case that shows the rule is about the octets.
+        #
+        # Each hook carrying this exclusion has a live way to rewrite such
+        # a seed, the octets it acts on being inside that same text set:
+        # `end-of-file-fixer` appends 0x0a, and the newline it appended to
+        # a descriptor seed is a character `descriptors.parse` refuses the
+        # whole descriptor for; `trailing-whitespace` cuts a 0x20 before a
+        # 0x0a; `mixed-line-ending` rewrites 0x0d 0x0a; and
+        # `fix-byte-order-marker` strips 0xef 0xbb 0xbf. Every
+        # `pre-commit-hooks` entry here that rewrites an octet of a text
+        # file carries the exclusion for that one reason. `codespell` and
+        # `typos` below rewrite text in place as well and carry none:
+        # each takes its exclusions from `pyproject.toml`, where the
+        # corpus is named for both
+        exclude: ^(src/btclib/mnemonic/_data/electrum_portuguese\.txt$|fuzz/corpus/)
       - id: end-of-file-fixer
+        # the corpus, for the reason given on trailing-whitespace above:
+        # this is the hook that rewrote a seed
+        exclude: ^fuzz/corpus/
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
         # most frequent ending: a file entirely in CRLF is consistent by
         # that measure, so it stays, and the LF lines added to it are
         # converted the wrong way. This repository is LF throughout
         args: [--fix=lf]
+        # the corpus, for the reason given on trailing-whitespace above
+        exclude: ^fuzz/corpus/
       - id: check-case-conflict
       # no check-executables-have-shebangs, by check-hooks-apply's own
       # verdict: it selects on types [executable], nothing tracked here
@@ -100,6 +133,8 @@ repos:
       # it buys is that an editor on another platform cannot quietly add
       # three bytes in front of a Python file
       - id: fix-byte-order-marker
+        # the corpus, for the reason given on trailing-whitespace above
+        exclude: ^fuzz/corpus/
       # this one *adds* "# -*- coding: utf-8 -*-" to every Python file.
       # UTF-8 has been the default source encoding since Python 3 and the
       # floor here is 3.10, so every line it would add is dead on arrival

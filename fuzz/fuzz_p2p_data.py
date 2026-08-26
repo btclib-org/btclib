@@ -19,9 +19,9 @@ The module has two `Payload` subclasses -- `TxPayload` and
 `BlockPayload` -- so this harness runs both `parse` methods against the
 same bytes. Each wraps `btclib.tx.Tx.parse`/`btclib.block.Block.parse`
 with no octet of its own in front, `src/btclib/p2p/data.py`'s own
-docstring is where that is argued; `Tx.parse` and `Block.parse` are not
-fuzzed on their own here, being out of this issue's scope and tracked in
-btclib-org/btclib#1402 instead.
+docstring is where that is argued; `Tx.parse` and `Block.parse` are
+`fuzz/fuzz_tx.py`'s and `fuzz/fuzz_block.py`'s, reached by every caller
+holding a transaction or a block with no peer connection behind it.
 """
 
 from __future__ import annotations
