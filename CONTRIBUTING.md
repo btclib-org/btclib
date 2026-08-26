@@ -1404,6 +1404,14 @@ two functions instead of two spellings, and a caller who reduced the
 message first quietly gets a different rule. The prepared argument is the
 one difference the pair exists for.
 
+Prepared is not unchecked, and a bare `int` the trailing underscore takes
+instead of an `Integer` still refuses a `bool`: `utils.is_integer` is the
+policy `int_from_integer` carries for every coerced parameter, and the
+underscore spelling asks it of what it is handed already prepared rather
+than skipping it -- `ssa.challenge_`'s `x_Q` and `x_K`, and
+`dsa.recover_pub_key_`'s `key_id`, both pinned in
+`tests/integer_policy_test.py`'s census (issue #1248).
+
 The exception is a boundary at which nothing can be invalid, and it is
 named rather than passed over: where a class's invariants are exactly the
 widths of its fields, the decoding enforces them by construction and the

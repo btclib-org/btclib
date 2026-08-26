@@ -269,6 +269,18 @@ full year, short month, short day (YYYY-M-D)
   path directly rather than through `import btclib`. CHANGELOG.md has
   every file the move touched.
 
+- **`ssa.challenge_` and `dsa.recover_pub_key_` no longer accept a
+  bool** (issue #1248), the same rule issue #1206 gave the rest of the
+  library reaching two entry points it did not: both take a bare `int`
+  rather than an `Integer`, so `ssa.challenge_(msg, True, x_K, ec, hf)`
+  read the bool as the x-coordinate `x_Q` and
+  `dsa.recover_pub_key_(True, msg_hash, sig)` as the recovery id, each
+  as if it had been passed `1`.
+
+  Act on it if you pass `True` or `False` as `challenge_`'s `x_Q` or
+  `x_K`, or as `recover_pub_key_`'s `key_id`; both now raise
+  `BTClibTypeError`. CHANGELOG.md has the three wordings.
+
 ### Worth knowing, though nothing raises
 
 - **A `bytearray` and a `memoryview` are octets, and now the signatures

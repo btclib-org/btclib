@@ -77,6 +77,7 @@ from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,
+    is_integer,
 )
 
 __all__ = [
@@ -2221,6 +2222,12 @@ def recover_pub_key_(
     - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
 
     """
+    # prepared is not unchecked, `is_integer`'s policy reaching this bare
+    # int the way `int_from_integer` reaches every coerced one
+    # (issue #1248, CONTRIBUTING.md's "This repository in particular")
+    if not is_integer(key_id):
+        raise BTClibTypeError(f"non-integer key_id: {key_id}")
+
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:

@@ -3203,6 +3203,25 @@ documented at release-notes length in the first place, and are still in
   class's docstring now states the guarantee plainly instead of citing a
   closed issue (issue #1314).
 
+- **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
+  the trailing-underscore layer's own gap in issue #1206's policy**
+  (closes #1248). Both take a bare `int` rather than an `Integer`, so
+  neither `int_from_integer` nor a key converter's type gate ever saw
+  them: `ssa.challenge_(b"msg", True, x_K, secp256k1, sha256)` read the
+  bool as the x-coordinate `x_Q` and `dsa.recover_pub_key_(True,
+  msg_hash, sig)` read it as the recovery id `1`, each silently equal to
+  its call with the number one.
+
+  The check is `is_integer`, run before either function does anything
+  with the value, raising `BTClibTypeError` — `"non-integer
+  x-coordinate: True"` for `challenge_`'s `x_Q`, `"non-integer nonce
+  x-coordinate: True"` for its `x_K`, and `"non-integer key_id: True"`
+  for `recover_pub_key_`. `CONTRIBUTING.md`'s *This repository in
+  particular* now states the rule once, for the trailing-underscore
+  layer as a whole: prepared is not unchecked, and a bare `int` still
+  refuses a `bool` the way `int_from_integer` does for every coerced
+  one. `tests/integer_policy_test.py`'s census carries both functions.
+
 ### Tests
 
 - **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,
