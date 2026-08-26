@@ -863,6 +863,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Every dependency is at the newest version this tree resolves to**,
+  `uv.lock` re-resolved with `uv lock --upgrade` and
+  `.pre-commit-config.yaml` walked by `pre-commit autoupdate`. The
+  strangers moved and nothing here had to catch up; ruff is the one whose
+  bump is written twice, `uv.lock` and the `ruff-pre-commit` rev being
+  the same tool asked for by two installers, and `pre-commit autoupdate`
+  answered the second on its own. `uv-pre-commit` at 0.12.6 carries
+  `[build-system]`'s `uv_build` floor and the `check-sdist` hook's
+  `additional_dependencies` with it: that floor is written to sit at the
+  rev this file pins, so that the backend packing the sdist is the uv
+  whose lock format the `uv-lock` hook writes.
+
+  `pyroma` is the one rev held back. `autoupdate` offered 5.1b1 again --
+  the move that hook's own comment records, 5.1 still having no released
+  tag -- and the `pinned-rev` hook is what refuses a prerelease, so the
+  offer arrives as a red run rather than as a two-line diff nobody
+  reads.
+
+  Neither btclib-org floor moves. `btclib-secp256k1>=0.8.0.4` already
+  names that project's newest release, and `bitcoin-core-rpc` stays at
+  `>=2026.8.13`: v2026.8.20 is a cycle of repository tooling, the
+  library unchanged since the floor, so raising it would refuse an
+  install that answers.
+
+- **`github/codeql-action` is one pinned sha again, v4.37.9.**
+  `codeql.yml`'s `init` and `analyze` were at v4.37.7 and
+  `scorecard.yml`'s `upload-sarif` at v4.37.8, which is two versions of
+  one action in one tree and a difference nothing chose: the pins move a
+  job at a time, and only reading them together says so.
+
 - **`pypi-install.yml`'s index-wait step runs on every trigger**, doing
   nothing where no release is calling, in place of the
   `if: inputs.version != ''` that made a tag the only thing which ever ran

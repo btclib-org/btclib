@@ -10,7 +10,7 @@
 # format that hook's uv-lock writes. The ceiling is the next minor, which
 # is where uv's versioning policy puts a breaking change, this backend
 # releasing with uv and versioned by it
-requires = ["uv_build>=0.12.5,<0.13"]
+requires = ["uv_build>=0.12.6,<0.13"]
 build-backend = "uv_build"
 
 [project]
