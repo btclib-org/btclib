@@ -310,6 +310,21 @@ full year, short month, short day (YYYY-M-D)
   UnicodeDecodeError` around `bms.sign` stops catching it.
   CHANGELOG.md lists them.
 
+- **A BIP32 derivation path held as a `bytearray` or a `memoryview` is
+  read as packed 4-byte indexes, the same as `bytes`** (closes #1258).
+  `indexes_from_der_path` narrowed the packed-octets arm to `bytes`
+  alone, so either buffer fell through to the iterable branch and was
+  read one index per byte instead, deriving a different key from the
+  same octets with nothing raised or warned.
+
+  Act on it if you pass a derivation path as a `bytearray` or a
+  `memoryview` anywhere `DerPath` is accepted — `bip32.derive`,
+  `bip44`, `bip85`'s derivation functions, `psbt_signer` and `hwi`
+  among them: a path that previously derived through the byte-per-index
+  reading now derives through the packed one, a different key for the
+  same octets. A path held as `bytes`, or as a string or a plain
+  sequence of `int`, is unaffected.
+
 ## v2026.8.21
 
 ### Breaking changes

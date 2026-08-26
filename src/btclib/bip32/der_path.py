@@ -8,7 +8,7 @@ A BIP32 derivation path can be represented as:
 
 - "m/44h/0'/1H/0/10" or "44h/0'/1H/0/10" string
 - sequence of integer indexes (even a single int)
-- bytes (multiples of 4-bytes index)
+- bytes, bytearray or memoryview (multiples of 4-bytes index)
 
 Three hardening symbols are read and two are written, which is not an
 oversight: BIP32 spells its own test vectors "m/0H/1/2H", while BIP380
@@ -175,7 +175,11 @@ def _indexes_from_der_path_str(der_path: str, skip_m: bool) -> list[int]:
     return _pairs_from_der_path_str(der_path, skip_m, bip380_enforced=False)[0]
 
 
-DerPath = str | Sequence[int] | int | bytes
+# the buffer arm is `bytes | bytearray | memoryview`, the same union
+# `alias.Octets` spells for every other packed-octets consumer -- not
+# `Octets` itself, which also admits `str`, a spelling this alias already
+# gives a different meaning (the path string, not packed octets)
+DerPath = str | Sequence[int] | int | bytes | bytearray | memoryview
 
 
 def _pairs_from_der_path(
@@ -221,13 +225,19 @@ def hardenings_from_der_path(
     return _pairs_from_der_path(der_path, bip380_enforced=bip380_enforced)[1]
 
 
-def _indexes_from_der_path(der_path: Sequence[int] | int | bytes) -> list[int]:
+def _indexes_from_der_path(
+    der_path: Sequence[int] | int | bytes | bytearray | memoryview,
+) -> list[int]:
     """Return the indexes of every DerPath spelling that is not a string."""
     if isinstance(der_path, int):
         _assert_valid_index(der_path)
         return [der_path]
 
-    if isinstance(der_path, bytes):
+    # a buffer means packed octets everywhere else this tree reads Octets,
+    # so a bytearray or a memoryview -- a caller's slice out of a larger
+    # field, say -- is read the same way bytes is, not as one index per
+    # byte: `Sequence[int]` below is for a genuine sequence of indexes
+    if isinstance(der_path, (bytes, bytearray, memoryview)):
         if len(der_path) % 4 != 0:
             err_msg = f"index are not a multiple of 4-bytes: {len(der_path)}"
             raise BTClibValueError(err_msg)

@@ -3357,6 +3357,20 @@ documented at release-notes length in the first place, and are still in
   reporting the combination at `--fail-under=100` with the pragma
   removed, which still fails on this line.
 
+### Curves, signatures and keys
+
+- **`indexes_from_der_path` reads a `bytearray` or a `memoryview` as
+  packed 4-byte indexes, the same as `bytes`** (closes #1258). The
+  narrowing test was `isinstance(der_path, bytes)`, which a `bytearray`
+  and a `memoryview` both fail while also satisfying `Sequence[int]`, so
+  either fell through to the iterable branch and was read one index per
+  byte: `indexes_from_der_path(bytearray(raw))` and
+  `indexes_from_der_path(raw)` disagreed on the same octets, deriving a
+  different key, with nothing raised or warned either way. `DerPath`'s
+  buffer arm is now `bytes | bytearray | memoryview`, `alias.Octets`'s
+  own buffer union, and `_indexes_from_der_path` narrows on it before
+  the iterable branch.
+
 ## v2026.8.21
 
 ### Repository

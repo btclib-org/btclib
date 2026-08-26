@@ -230,6 +230,22 @@ def test_an_iterable_of_indexes_is_checked_element_by_element() -> None:
         hardenings_from_der_path("0H/1", bip380_enforced=True)
 
 
+def test_a_bytearray_or_memoryview_reads_as_packed_octets() -> None:
+    """A buffer means packed octets, whatever buffer type it is.
+
+    `isinstance(der_path, bytes)` alone leaves a `bytearray` and a
+    `memoryview` unmatched, so each fell through to the iterable branch
+    and was read one index per byte instead of one index per 4 bytes --
+    issue #1258.
+    """
+    raw = (2**31).to_bytes(4, "little") + (1).to_bytes(4, "little")
+    packed = [2**31, 1]
+
+    assert indexes_from_der_path(raw) == packed
+    assert indexes_from_der_path(bytearray(raw)) == packed
+    assert indexes_from_der_path(memoryview(raw)) == packed
+
+
 def test_an_index_outside_the_32_bits_a_step_holds_is_refused() -> None:
     """The bound the text spelling enforces, on the spellings that are not.
 
