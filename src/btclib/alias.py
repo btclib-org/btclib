@@ -55,8 +55,6 @@ __all__ = [
     "ValidSigHashType",
 ]
 
-# Octets are a sequence of eight-bit bytes or a hex-string (not text string)
-#
 # hex-strings are strings that can be converted to bytes using bytes.fromhex,
 # e.g.:
 # "deadbeef"
@@ -81,6 +79,8 @@ __all__ = [
 # caller who wrote a buffer down a `type: ignore` -- and cost more than
 # that, mypy not being able to see the buffer paths, so a place that
 # breaks on one was found a caller at a time (issue #1238)
+#: Bytes, or the hex-string that decodes to them, wherever raw bytes are
+#: asked for.
 Octets = bytes | str | bytearray | memoryview
 
 # bytes or text string (not hex-string)
@@ -471,9 +471,8 @@ INFJ = 7, 0, 0
 Command = int | str | bytes | bytearray | memoryview
 ScriptList = list[Command]
 
-# A BIP341 taproot script tree: a leaf is a one-element list holding a
-# (leaf_version, script) pair, a branch a two-element list of subtrees;
-# the nesting is what makes the alias recursive.
+# A BIP341 taproot script tree, recursive: a branch nests two more of
+# the same alias.
 #
 # list, and not the Sequence mypy's variance note suggests when a caller's
 # list[tuple[int, list[str]]] does not fit: str is itself a Sequence[str],
@@ -485,6 +484,8 @@ ScriptList = list[Command]
 # It is paid wherever a tree is built into a variable instead of passed as
 # a literal, by annotating that variable with this alias
 TaprootLeaf = tuple[int, ScriptList]
+#: A leaf, a one-element list holding a `TaprootLeaf`, or a branch, a
+#: two-element list of subtrees.
 TaprootScriptTree = list[Union[TaprootLeaf, "TaprootScriptTree"]]
 
 # what tree_helper returns beside the merkle root: every leaf of the tree

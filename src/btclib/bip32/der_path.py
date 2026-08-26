@@ -4,11 +4,7 @@
 
 """BIP32 derivation path and key origin.
 
-A BIP32 derivation path can be represented as:
-
-- "m/44h/0'/1H/0/10" or "44h/0'/1H/0/10" string
-- sequence of integer indexes (even a single int)
-- bytes, bytearray or memoryview (multiples of 4-bytes index)
+`DerPath` names the representations a derivation path is accepted in.
 
 Three hardening symbols are read and two are written, which is not an
 oversight: BIP32 spells its own test vectors "m/0H/1/2H", while BIP380
@@ -179,6 +175,9 @@ def _indexes_from_der_path_str(der_path: str, skip_m: bool) -> list[int]:
 # `alias.Octets` spells for every other packed-octets consumer -- not
 # `Octets` itself, which also admits `str`, a spelling this alias already
 # gives a different meaning (the path string, not packed octets)
+#: An "m/44h/0'/1H/0/10" string, a sequence of int indexes (a single int
+#: included), or bytes, bytearray or memoryview, each a multiple of a
+#: 4-byte index.
 DerPath = str | Sequence[int] | int | bytes | bytearray | memoryview
 
 

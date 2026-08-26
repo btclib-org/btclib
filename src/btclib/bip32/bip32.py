@@ -454,6 +454,7 @@ def rootxprv_from_seed(
     return rootxprv_from_seed_(seed, version).b58encode()
 
 
+#: A `BIP32KeyData`, or the base58 text -- xprv or xpub -- it encodes.
 BIP32Key = BIP32KeyData | String
 
 

@@ -477,12 +477,13 @@ def _tree_expression(tree: DescriptorTree) -> str:
     return _expression("pk", str(tree))
 
 
-# a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
-# KEY expression a `pk()` leaf is, the `MultiA` of BIP387's two
-# functions; a branch is a tuple, which is what tells a branch from a
-# leaf. The leaves hold KEY expressions and not scripts because a ranged
-# descriptor has no script until an index is given
+# A tr() script tree. A leaf is the KEY expression a `pk()` leaf is, the
+# `MultiA` of BIP387's two functions; a branch is a tuple, which is what
+# tells a branch from a leaf. The leaves hold KEY expressions and not
+# scripts because a ranged descriptor has no script until an index is
+# given
 DescriptorLeaf = KeyExpression | MultiA | Miniscript
+#: A `DescriptorLeaf`, or a branch, a tuple of two subtrees.
 DescriptorTree = DescriptorLeaf | tuple["DescriptorTree", "DescriptorTree"]
 
 
