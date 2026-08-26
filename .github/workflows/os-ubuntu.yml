@@ -10,11 +10,12 @@ name: os-ubuntu
 # What the gate gives up is the point of the arrangement rather than a
 # cost it hides. The gate does not refuse a regression on 3.10, on arm or
 # on PyPy: one sits on main until this runs, at most six days. What that
-# buys is every pull request. GitHub Free gives an organization twenty
-# concurrent jobs, shared across every repository in it, and a gate wider
-# than one cell spends a review's wall clock waiting for a slot rather
-# than running the suite; REPOSITORY.md has that measurement,
-# os-windows.yml the runner seconds and os-macos.yml the queueing.
+# buys is every pull request. A gate wider than one cell spends a
+# review's wall clock waiting for a slot against the ceiling GitHub Free
+# puts on an organization's concurrent jobs, shared across every
+# repository in it, rather than running the suite; REPOSITORY.md has
+# that measurement, os-windows.yml the runner seconds and os-macos.yml
+# the queueing.
 #
 # What a matrix buys here is not the pure Python, which is the same
 # everywhere: every (os, architecture, interpreter) triple selects a

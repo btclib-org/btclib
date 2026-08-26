@@ -753,6 +753,22 @@ documented at release-notes length in the first place, and are still in
   same table. `CONTRIBUTING.md`'s *What runs when* table's `scorecard`
   row now reads `weekly, push to main` (issue #1347).
 
+- **The concurrent-job ceiling GitHub Free gives the organization is
+  stated once, in `REPOSITORY.md`'s dated measurement, and the other
+  sites that used to restate it now point there instead.**
+  `REPOSITORY.md`'s own second copy, in the Code quality section, keeps
+  the local reasoning about that section's own job count and drops the
+  restated number and date; `os-ubuntu.yml`'s header keeps its argument
+  for a single-cell gate and drops the number, and `CONTRIBUTING.md`'s
+  own "why so little gates" paragraph drops the number it carried right
+  beside its own pointer to `REPOSITORY.md`, matching the shape
+  `os-windows.yml`'s header already uses.
+  `codeql.yml`'s own restatement is gone already, replaced by a pointer
+  to `REPOSITORY.md` when #1355 rewrote its triggers.
+  `claude-review.yml`'s copy is untouched here: that file needs a pull
+  request of its own, `claude-review.yml:170-181` being why (issue
+  #1256).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching
