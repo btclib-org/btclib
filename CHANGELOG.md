@@ -24,6 +24,29 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`codeql.yml` carries an aggregate job, `codeql: every job passed`.**
+  Section 10 of the organization standard asks one of a workflow whose
+  answer gates a pull request, and says in bold that a matrix is not
+  what asks for one: a branch rule can name only a context a pull
+  request produces, so a workflow triggered by `push` and `schedule`
+  alone is one no rule can require however many cells it runs. That is
+  the ground `0014a896` (#1292) dropped this very job on, when those
+  were the triggers (issue #1290); `f1061a23` added `pull_request`, and
+  the premise the removal rested on went with it. What a rule would name
+  is this one name and not either cell of `analyze`'s matrix: naming
+  both is the shape that breaks in silence the day a language is added,
+  the new cell falling outside the rule with nothing red. Its step is
+  the shell loop `test.yml`'s own aggregate uses rather than an
+  `if:`-gated `contains(needs.*.result, ...)` expression, issue #1001
+  being why. `skipped` is a failure here where `test.yml` allows it:
+  nothing in this workflow is conditional on another job's output.
+  Section 10 has the trigger and the aggregate arriving in one pull
+  request with the rule following; here the trigger landed first and the
+  rule is left where it is -- requiring the check is a settings change,
+  and `REPOSITORY.md`'s *Required checks on main* and its *Code
+  scanning* now say the option exists and that the rule does not take it
+  (issue btclib-org/.github#459).
+
 - **`README.md`'s badge row ends with the OpenSSF Best Practices badge.**
   Section 2 of the organization standard keys it on the property
   *registered at bestpractices.dev* and fixes its place last in the row,
@@ -892,6 +915,22 @@ documented at release-notes length in the first place, and are still in
   `scorecard.yml`'s `upload-sarif` at v4.37.8, which is two versions of
   one action in one tree and a difference nothing chose: the pins move a
   job at a time, and only reading them together says so.
+- **`check_vendored_vectors.py` reports a `###` heading with no fenced
+  block of its own** (closes #1447), which its module docstring already
+  promised: every heading the README carries but the script did not
+  check is listed, so nothing silently reads as checked and clean.
+  `_entries_at_tip` walks fenced blocks, so a heading owning none never
+  entered the loop and appeared nowhere in the report. A group heading
+  superseded by finer ones has that shape and is harmless; a pin whose
+  block an edit has broken -- a fence indented into the prose, a `text`
+  marker cut to a bare one -- has it too, and is a watched pin that has
+  silently stopped being one. Both are listed, under `(no pin of its
+  own)`, and telling them apart is what reading the report is for. What
+  the script checks is unchanged. `btclib-secp256k1`'s copy of this
+  name walks blocks the same way and is filed there as
+  `btclib-org/btclib-secp256k1#415`, which the header sentence this file
+  carries is the reason to expect: a fix to the parsing is owed to the
+  other copy.
 
 - **`pypi-install.yml`'s index-wait step runs on every trigger**, doing
   nothing where no release is calling, in place of the
@@ -2601,6 +2640,45 @@ documented at release-notes length in the first place, and are still in
   comment does not carry.
 
 ### The public API and the module layout
+
+- **`utils.bytes_from_octets` returns `bytes`, and not the buffer it was
+  handed** (closes #1255). A `bytearray` or a `memoryview` came back as
+  it came under an annotation that says `bytes`, so a caller writing
+  into its own buffer afterwards reached through into whatever had kept
+  the return value: a `BIP32KeyData` built from a bytearray chain code
+  serializes to a different xprv once the caller flips a bit in it.
+  `tests/bip32/bip32_test.py` pins that, and
+  `tests/utils_test.py` the coercion under it. The copy is made where
+  every `Octets` parameter of the library already passes, and it falls
+  on the two mutable spellings alone: `bytes` is matched first and
+  returned as it is, being immutable and already what the annotation
+  promises. The `# type: ignore[return-value]` disclosures go with it.
+
+  Faster rather than slower on that first arm, which is what nearly
+  every call passes, `_assert_byte_shaped` no longer running for a
+  buffer that cannot be malformed:
+
+  ```shell
+  uv run python -m timeit -s 'from btclib.utils import bytes_from_octets' \
+      'bytes_from_octets(b"\x11" * 32)'
+  ```
+
+  A `bytearray` or a `memoryview` pays one copy of itself, which is what
+  the annotation costs and what the aliasing was.
+
+  Justifications elsewhere rested on the old behaviour and go with it.
+  `key.PubKeyData` wrapped the coercion in a second `bytes()` and
+  `base58.encode` copied at its concatenation, both now redundant;
+  `script.script_pub_key._script_from`'s docstring said
+  `bytes_from_octets` passes a non-`str` through, where it refuses what
+  is neither a string nor a buffer. `assert_valid` still does not
+  rewrite the field it reads -- what changed is the constructor, which
+  is where that test's own docstring says coercion belongs, so the
+  bytearray it plants is planted past `__init__` rather than through it.
+
+  A size-checking call is `_assert_size` now, a function of its own: the
+  size question shares nothing with the coercion but the value it
+  measures, and the coercion is read far more often.
 
 - **`HwiSigner.register_descriptor` wraps HWI's `registerdescriptor`**
   (closes #1331). It sends a checksummed, ranged descriptor and a name,

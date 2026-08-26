@@ -263,9 +263,8 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     `bytes_from_octets` returned anything that was not a `str`
     unchanged, so `len` of a tuple of 33 ints was 33 and
     `taproot.assert_valid_control_block` accepted it as a control block
-    size. Every buffer is still taken, and returned as it came: a read
-    must not rewrite the field it reads, which is what `bytes()` here
-    would do to a bytearray a caller built.
+    size. Every buffer `Octets` names is still taken; what a buffer
+    comes back as is the test below this one.
     """
     assert bytes_from_octets(b"\x00\x01") == b"\x00\x01"
     assert bytes_from_octets("0001") == b"\x00\x01"
@@ -273,9 +272,6 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     # field was built from rather than only what a caller writes
     assert bytes_from_octets(bytearray(b"\x00\x01")) == b"\x00\x01"
     assert bytes_from_octets(memoryview(b"\x00\x01")) == b"\x00\x01"
-    # unchanged, and not merely equal
-    buffer: object = bytes_from_octets(bytearray(b"\x00"))
-    assert isinstance(buffer, bytearray)
 
     for not_octets in (tuple(range(33)), [1, 2], None, 1.5):
         with pytest.raises(BTClibTypeError, match="invalid octets type: "):
@@ -298,14 +294,42 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
         int_from_integer("0xzz")
 
 
+def test_a_buffer_is_copied_rather_than_handed_back() -> None:
+    """The annotation says `bytes`, so `bytes` is what a caller gets.
+
+    A `bytearray` or a `memoryview` returned as it came is the caller's
+    own object under a signature promising an immutable one, so writing
+    into it afterwards reaches through into whatever kept the return
+    value (issue #1255). A `bytes` is already what is promised and is
+    returned as it is, `bytes()` of one being that same object.
+    """
+    mutable = bytearray(b"\x00\x01")
+    copied = bytes_from_octets(mutable)
+    assert copied == b"\x00\x01"
+    mutable[0] = 0xFF
+    assert copied == b"\x00\x01"
+    assert bytes(mutable) == b"\xff\x01"
+
+    assert type(bytes_from_octets(bytearray(b"\x00\x01"))) is bytes
+    assert type(bytes_from_octets(memoryview(b"\x00\x01"))) is bytes
+
+    # the arm that also checks a size answers the same way as the one
+    # that does not, both of them returning the coerced value
+    immutable = b"\x00\x01"
+    assert bytes_from_octets(immutable) is immutable
+    assert bytes_from_octets(immutable, 2) is immutable
+    assert type(bytes_from_octets(bytearray(b"\x00\x01"), 2)) is bytes
+
+
 def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
     """A strided slice is `Octets` to the annotation, `BufferError` underneath.
 
-    `mv[::2]` is not C-contiguous, and `bytes_from_octets` used to hand it
-    back untouched, so the failure reached whichever consumer used the
-    buffer next -- `hash160` with a bare `BufferError`, a public entry
-    point rather than this module. The refusal is raised here instead,
-    once, at the coercion every `Octets` parameter passes (issue #1260).
+    `mv[::2]` is not C-contiguous, and `bytes()` of one gathers the
+    strides into a run the caller laid out nowhere. The refusal is
+    raised at the coercion every `Octets` parameter passes, once, rather
+    than left to whichever consumer read the buffer next -- `hash160`
+    with a bare `BufferError` used to be the first of them, a public
+    entry point rather than this module (issue #1260).
     """
     raw = bytes(range(64))
     strided = memoryview(raw)[::2]
@@ -316,7 +340,7 @@ def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
     with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
         hash160(strided)
 
-    # a contiguous slice is untouched, same as any other buffer
+    # a contiguous slice is coerced, same as any other buffer
     contiguous = memoryview(raw)[:32]
     assert bytes_from_octets(contiguous) == raw[:32]
     assert hash160(contiguous) == hash160(raw[:32])
@@ -344,7 +368,7 @@ def test_a_memoryview_of_the_wrong_format_is_refused_at_the_coercion() -> None:
         hash160(wide)
 
     # a plain memoryview, and one cast back to unsigned bytes, are format
-    # "B" and untouched, same as any other buffer
+    # "B" and coerced, same as any other buffer
     plain = memoryview(raw)
     assert plain.format == "B"
     assert bytes_from_octets(plain) == raw

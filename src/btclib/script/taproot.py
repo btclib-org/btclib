@@ -545,18 +545,7 @@ def check_output_pubkey(q: Octets, script: Octets, control: Octets) -> bool:
     """
     q = bytes_from_octets(q)
     script = bytes_from_octets(script)
-    # `bytes(...)` because the merkle fold below orders two slices of this
-    # against a `bytes` digest, and a memoryview does not order against
-    # `bytes` where a bytearray does -- the asymmetry is Python's, and it
-    # reaches here because `bytes_from_octets` returns every buffer as it
-    # came, deliberately: `utils` states why, an `assert_valid` being a
-    # read that must not rewrite the field it reads. Nothing is stored
-    # here, `control` being a local, so the copy costs one allocation of
-    # at most 33 + 32 * MAX_TREE_DEPTH octets and buys every line under it
-    # not having to know which spelling arrived. `q` and `script` need no
-    # such copy -- one is read as an integer and the other is hashed --
-    # and are left as they came (issue 1220)
-    control = bytes(bytes_from_octets(control))
+    control = bytes_from_octets(control)
     if len(control) > 33 + 32 * MAX_TREE_DEPTH:
         raise BTClibValueError("control block too long")
     m = (len(control) - 33) // 32

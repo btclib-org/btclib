@@ -143,19 +143,12 @@ class PubKeyData:
         *,
         check_validity: bool = True,
     ) -> None:
-        # `bytes()` around it: `bytes_from_octets` returns a bytearray or
-        # a memoryview as it came, deliberately, and `utils` says why --
-        # `assert_valid` is a read and must not rewrite the field it
-        # reads. Here the field is built rather than read, and it is
-        # declared `bytes`: without the coercion a key made from a
-        # bytearray is unhashable, where the docstring above promises that
-        # equality and hashing read the declared fields, and one made from
-        # a memoryview carries octets no concatenation accepts --
-        # `script.taproot` joins a merkle root to the x it reads off
-        # `sec` before hashing the pair under a tag.
-        # `bytes(b)` on bytes is `b` itself, so the spelling every caller
-        # of this library uses copies nothing
-        object.__setattr__(self, "sec", bytes(bytes_from_octets(sec)))
+        # `bytes` and not the buffer a caller passed: the docstring above
+        # promises that equality and hashing read the declared fields, and
+        # a bytearray is unhashable, where `script.taproot` joins a merkle
+        # root to the x it reads off `sec` and a memoryview concatenates
+        # with nothing. `bytes_from_octets` is what makes the field one
+        object.__setattr__(self, "sec", bytes_from_octets(sec))
         object.__setattr__(self, "network", _normalized(network))
 
         if check_validity:

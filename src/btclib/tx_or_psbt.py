@@ -81,9 +81,8 @@ def _octets_from_any(data: String) -> bytes:
         return _octets_from_text(data)
 
     # the refusal of what is neither text nor bytes is bytes_from_octets's
-    # to give, `split` below being str's and `decode` bytes'; a buffer
-    # that is not `bytes` is made one, for the same reason
-    raw = bytes(bytes_from_octets(data))
+    # to give, `split` below being str's and `decode` bytes'
+    raw = bytes_from_octets(data)
     try:
         text = raw.decode("ascii")
     except UnicodeDecodeError:

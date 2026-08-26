@@ -213,14 +213,77 @@ jobs:
           # rather than starting again
           category: "/language:${{ matrix.language }}"
 
-  # no aggregate job, where test.yml has one. REPOSITORY.md's "Required
-  # checks on main" states "Never name matrix contexts in the branch
-  # rule": a matrix cell's own name is not a context a branch rule can
-  # bind to safely, so neither `Analyze actions` nor `Analyze python` can
-  # be required on its own, the same reason test.yml needs
-  # `test: every job passed` while lint.yml and docs.yml, each a single
-  # job, need no aggregate of their own. This workflow has none, so
-  # `analyze`'s two matrix cells are the whole of the checks list it
-  # contributes to a commit and neither gates a merge; adding an
-  # aggregate, and naming it in the branch rule, is REPOSITORY.md's own
-  # section to decide
+  # one context a branch rule can name, for a workflow whose answer
+  # reaches a pull request. Section 10 of the organization standard
+  # conditions an aggregate on that and says in as many words that a
+  # matrix is not what asks for one: a branch rule can name only a
+  # context a pull request produces, so a workflow triggered by `push`
+  # and `schedule` alone is one no rule can require however many cells it
+  # runs, and an aggregate there is a name nothing can hold. The
+  # `pull_request` trigger in the `on:` block above is what makes this
+  # workflow the other kind.
+  #
+  # A third name and not the two cells: REPOSITORY.md's "Required checks
+  # on main" states "Never name matrix contexts in the branch rule", and
+  # `analyze` fans out to `Analyze actions` and `Analyze python`, so a
+  # rule naming both breaks in silence the day CodeQL gains a language
+  # worth adding -- the new cell falls outside it with nothing red. This
+  # job depends on the matrix, so one name covers whatever the matrix
+  # grows into, which is the same reason test.yml carries
+  # `test: every job passed` where lint.yml and docs.yml, one job each,
+  # need no aggregate at all.
+  #
+  # Existing and being required are two different things: this job makes
+  # the second possible and does not perform it, main's rule being a
+  # setting no pull request can change. What the rule actually asks for
+  # is REPOSITORY.md's "Required checks on main", which reads the
+  # endpoint rather than this file
+  codeql-passed:
+    # the name and not the id is what branch protection matches, and it
+    # carries the workflow because a context is keyed by name alone: two
+    # workflows with a job named "every job passed" would produce one
+    # ambiguous check, and test.yml's aggregate is required today, so the
+    # two names must not converge
+    name: "codeql: every job passed"
+    needs: [analyze]
+    # !cancelled(), not always(): a run superseded by the concurrency
+    # group above means "a newer run is authoritative", not "this tree is
+    # unproven", and the job skips rather than failing. Not success()
+    # either, which would skip the job when a dependency failed -- and a
+    # skipped check reads as satisfied wherever a check is read at all,
+    # so the gate has to run to be able to fail.
+    # The draft and closed halves are the condition `analyze` carries, so
+    # a draft skips uniformly instead of reporting a failure for work the
+    # workflow declined to do
+    if: >-
+      ${{ !cancelled() && !github.event.pull_request.draft
+      && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # unconditional, and deciding in the shell rather than in an
+      # `if:`-gated `contains(needs.*.result, ...)` expression, for the
+      # reason test.yml's own aggregate gives at length: issue #1001 saw
+      # matrix cells die in "Set up job" with the run's conclusion
+      # `failure` while `needs.<job>.result` was not `'failure'`, so the
+      # gated step skipped and left the job green by construction. A step
+      # that always runs always puts what `needs` held into the log.
+      # Reading `needs.*` rather than naming `analyze` is what makes a job
+      # added above covered without touching this loop.
+      # `success` alone, where test.yml also allows `skipped`: nothing in
+      # this workflow is conditional on another job's output -- there is
+      # no `changes` job here -- and `analyze`'s own draft and closed
+      # condition is this job's too, so a skip means something did not run
+      - name: Fail unless every job above succeeded
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "results: $results"
+          for result in $results; do
+            case "$result" in
+              success) ;;
+              *)
+                echo "::error::a job this gate depends on reported $result"
+                exit 1
+                ;;
+            esac
+          done

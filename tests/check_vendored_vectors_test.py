@@ -205,6 +205,27 @@ def test_the_heading_is_the_nearest_one_before_the_block(checker: ModuleType) ->
     assert [e.heading for e in entries] == ["`f.json`"]
 
 
+def test_a_heading_with_no_fenced_block_is_skipped(checker: ModuleType) -> None:
+    """The shape the block-by-block walk cannot see, and reports anyway.
+
+    `_entries_at_tip` iterates fenced blocks, so a heading with none
+    never enters the loop and would be neither checked nor listed --
+    which is what a pin whose block is lost to an edit looks like, and
+    what the script's module docstring promises cannot happen
+    (issue #1447).
+    """
+    text = "### `lost.json`\n\nprose, and no fenced block\n\n" + entry(
+        "`f.json`",
+        repo="btclib-org/btclib",
+        path="tests/f.json",
+        commit="deadbeef  2026-01-01",
+        behind="0 revisions",
+    )
+    entries, skipped = checker._entries_at_tip(text)
+    assert [e.heading for e in entries] == ["`f.json`"]
+    assert skipped == ["`lost.json` (no pin of its own)"]
+
+
 def test_a_block_with_no_heading_before_it_has_an_empty_one(
     checker: ModuleType,
 ) -> None:

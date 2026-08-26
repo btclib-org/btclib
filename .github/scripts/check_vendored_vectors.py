@@ -77,6 +77,11 @@ _HEADING = re.compile(r"^### (.+)$", re.MULTILINE)
 # line of a field
 _FIELD = re.compile(r"^(repo|path|commit|blob|pulled|behind)\s+(.*)$", re.MULTILINE)
 
+# a pin's own fenced block. Named beside the two above because the walk
+# below reads the README twice: once for the blocks, and once for the
+# headings that own none
+_BLOCK = re.compile(r"```text\n(.*?)\n```", re.DOTALL)
+
 
 @dataclass(frozen=True)
 class Entry:
@@ -110,19 +115,31 @@ class Drift:
 def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
     """Return the checkable entries, and the headings this skips.
 
-    A heading is skippable for any of three reasons: no repo/path/commit
-    triple at all, a path carrying a `<name>` placeholder, or a `behind`
-    already other than 0 -- a gap a human already decided not to close.
+    A heading is skippable for any of four reasons: no fenced block of
+    its own, no repo/path/commit triple at all, a path carrying a
+    `<name>` placeholder, or a `behind` already other than 0 -- a gap a
+    human already decided not to close.
+
+    The first is the one the loop below cannot see: it walks blocks, and
+    a heading with no block never enters it. A group heading superseded
+    by finer ones has that shape and is harmless; a heading whose block
+    is lost to an edit -- a fence indented into the prose, a `text`
+    marker cut to a bare one -- has it too, and is a pin that has
+    stopped being watched with nothing else to say so. The two are told
+    apart by reading the report, which is why both are in it
+    (issue #1447).
     """
     entries: list[Entry] = []
     skipped: list[str] = []
     heading = ""
+    pinned: set[str] = set()
     pos = 0
-    for match in re.finditer(r"```text\n(.*?)\n```", readme, re.DOTALL):
+    for match in _BLOCK.finditer(readme):
         headings_before = _HEADING.findall(readme[pos : match.start()])
         if headings_before:
             heading = headings_before[-1]
         pos = match.end()
+        pinned.add(heading)
 
         fields = dict(_FIELD.findall(match.group(1)))
         repo, path, commit = (
@@ -140,6 +157,12 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
             skipped.append(f"{heading} (already documented as behind)")
             continue
         entries.append(Entry(heading, repo, path.strip(), commit.split()[0]))
+
+    skipped.extend(
+        f"{unpinned} (no pin of its own)"
+        for unpinned in _HEADING.findall(readme)
+        if unpinned not in pinned
+    )
     return entries, skipped
 
 

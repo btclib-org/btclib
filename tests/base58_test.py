@@ -135,10 +135,10 @@ def test_wif() -> None:
 def test_encode_octets_spellings() -> None:
     """`encode` takes every `Octets` spelling, memoryview included.
 
-    A memoryview has no `__add__`, and `bytes_from_octets` hands one
-    back unchanged: `encode` copies it to `bytes` right at the
-    concatenation `_b58encode`'s payload needs, which is the one place
-    a memoryview payload would otherwise fail (issue #1255).
+    A memoryview has no `__add__`, and `_b58encode`'s payload is a
+    concatenation: what makes every spelling reach it is
+    `bytes_from_octets` returning `bytes` rather than the buffer it was
+    given (issue #1255).
     """
     payload = b"hello world"
     known_answer = b"3vQB7B6MrGQZaxCuFg4oh"

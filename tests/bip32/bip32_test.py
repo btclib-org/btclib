@@ -1084,13 +1084,18 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
     # a bytearray is bytes-like, so it serializes and compares equal: what
     # it is not is bytes, and assert_valid must not silently make it so.
     #
+    # Planted with object.__setattr__ and not through replace_unchecked,
+    # which builds through __init__, where bytes_from_octets coerces --
+    # the constructor being exactly where this test says coercion
+    # belongs, so going through it would leave nothing to observe.
+    #
     # Every read of the field goes through an object-typed local before
     # being asserted on: "isinstance(bytes, bytearray)" narrows to Never,
     # the two having disjoint bases, and mypy then takes the rest of the
     # function for unreachable and checks none of it -- warn_unreachable
     # being off, in silence. Measured: with the assertion written directly
     # on the attribute, a reveal_type below it prints nothing at all
-    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
+    object.__setattr__(xkey_data, "chain_code", bytearray(xkey_data.chain_code))
     chain_code: object = xkey_data.chain_code
     assert isinstance(chain_code, bytearray)
 
@@ -1102,7 +1107,7 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
 def test_assert_valid_does_not_rewrite_on_a_read() -> None:
     """Keep b58encode and serialize from coercing fields in place."""
     xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
+    object.__setattr__(xkey_data, "chain_code", bytearray(xkey_data.chain_code))
 
     xkey_data.b58encode()
     after_b58encode: object = xkey_data.chain_code
@@ -1111,6 +1116,30 @@ def test_assert_valid_does_not_rewrite_on_a_read() -> None:
     xkey_data.serialize()
     after_serialize: object = xkey_data.chain_code
     assert isinstance(after_serialize, bytearray)
+
+
+def test_a_key_built_from_a_bytearray_does_not_move_when_it_is_written_to() -> None:
+    """The constructor's coercion is a copy, so the field is the key's own.
+
+    `bytes_from_octets` hands back `bytes` rather than the buffer it was
+    given, so a caller that goes on to write into the bytearray it
+    passed does not rewrite the chain code, and the xprv this key
+    serializes to stays what it was (issue #1255).
+    """
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    chain_code = bytearray(xkey_data.chain_code)
+    built = BIP32KeyData(
+        version=xkey_data.version,
+        depth=xkey_data.depth,
+        parent_fingerprint=xkey_data.parent_fingerprint,
+        index=xkey_data.index,
+        chain_code=chain_code,
+        key=xkey_data.key,
+    )
+    assert built.b58encode() == XKEY
+
+    chain_code[0] ^= 0xFF
+    assert built.b58encode() == XKEY
 
 
 def test_assert_valid_reports_a_float_field_instead_of_coercing_it() -> None:

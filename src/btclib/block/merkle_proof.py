@@ -108,17 +108,9 @@ def assert_as_valid(
     assert_type(branch, Sequence, "branch")
 
     root = bytes_from_octets(merkle_root, 32)
-    # bytes(...) rather than the buffer bytes_from_octets hands back: a
-    # memoryview is returned as itself, and reversing one with [::-1]
-    # yields a strided, non-contiguous view that the next
-    # bytes_from_octets call inside merkle_root_from_branch refuses --
-    # a valid proof spelled with memoryviews would then read as False
-    # rather than True (issue #1429). Neither txid nor sibling is
-    # returned to the caller, so the copy costs one allocation each and
-    # loses nothing out of sync
     computed = merkle_root_from_branch(
-        bytes(bytes_from_octets(txid, 32))[::-1],
-        [bytes(bytes_from_octets(sibling, 32))[::-1] for sibling in branch],
+        bytes_from_octets(txid, 32)[::-1],
+        [bytes_from_octets(sibling, 32)[::-1] for sibling in branch],
         index,
         _HF,
         _assert_inner_node_is_not_a_tx,

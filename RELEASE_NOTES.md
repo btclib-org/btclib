@@ -365,6 +365,22 @@ full year, short month, short day (YYYY-M-D)
   same octets. A path held as `bytes`, or as a string or a plain
   sequence of `int`, is unaffected.
 
+- **`bytes_from_octets` hands back `bytes`, so a buffer you pass is
+  copied rather than kept** (closes #1255). Every `Octets` parameter of
+  the library runs through it, so a `bytearray` or a `memoryview` you
+  passed used to end up *inside* whatever you built: writing into your
+  own buffer afterwards changed the object, and a `BIP32KeyData` built
+  from a bytearray chain code serialized to a different xprv once a bit
+  of it moved. Nothing raises, and nothing that worked stops working.
+
+  Act on it if you passed a buffer and then relied on the sharing:
+  either that the object would follow your later writes, or that the
+  field would still be a `bytearray` — `type(key_data.chain_code)` is
+  `bytes` now whatever it was built from. Pass a `bytes` and nothing
+  changes at all; that spelling is copied nowhere and is matched first.
+  CHANGELOG.md has what the copy costs, and the command that
+  re-measures it.
+
 ## v2026.8.21
 
 ### Breaking changes

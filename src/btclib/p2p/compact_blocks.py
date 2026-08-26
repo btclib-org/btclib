@@ -270,12 +270,7 @@ def _short_id(key: tuple[int, int], wtxid: Octets) -> int:
     after a caller changed the header it was taken from.
     """
     k0, k1 = key
-    # bytes(...) rather than the buffer bytes_from_octets hands back: a
-    # memoryview is returned as itself, and reversing one with [::-1]
-    # yields a strided, non-contiguous view that siphash's own call to
-    # bytes_from_octets refuses -- a wtxid spelled as a memoryview would
-    # then raise where every other Octets spelling answers (issue #1429)
-    digest = siphash(k0, k1, bytes(bytes_from_octets(wtxid, _HASH_SIZE))[::-1])
+    digest = siphash(k0, k1, bytes_from_octets(wtxid, _HASH_SIZE)[::-1])
     return digest & _MAX_SHORT_ID
 
 

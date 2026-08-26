@@ -833,16 +833,14 @@ def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
     script and go through: no descriptor derives one, and the caller who
     wrote them meant them.
 
-    `bytes_from_octets` alone cannot do this: it returns anything that is
-    not a `str` untouched, so the `ScriptPubKey` that a wallet and a
-    descriptor both answer with would travel through to a comparison
-    against `bytes` that is False at every index, and the caller would
-    read the None it falls off the end with as "not this wallet's".
+    `bytes_from_octets` alone cannot do this: it refuses the
+    `ScriptPubKey` that a wallet and a descriptor both answer with, and
+    it reads a string as hex or not at all, where a caller holding an
+    output as a string as readily holds an address.
     """
     if isinstance(script_pub_key, ScriptPubKey):
         return script_pub_key.script
     if isinstance(script_pub_key, (bytes, bytearray, memoryview)):
-        # copied, where `bytes_from_octets` deliberately does not copy:
         # this function exists to produce the thing a caller compares and
         # keys a dict by, and a bytearray is unhashable
         return bytes(script_pub_key)

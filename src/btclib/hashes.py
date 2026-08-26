@@ -89,14 +89,7 @@ def ripemd160(octets: Octets) -> bytes:
     octets = bytes_from_octets(octets)
     if _RIPEMD160_IN_HASHLIB:
         return hashlib.new("ripemd160", octets).digest()
-    # bytes(octets) rather than octets: pure_python_ripemd160 concatenates
-    # its argument on the argument's own left side, which a memoryview has
-    # no __add__ for; hashlib.new above needs no such copy, every digest
-    # constructor taking any buffer directly. octets does not survive
-    # past this call, so the copy costs nothing borrowed from the caller,
-    # and _ripemd160.py itself stays the vendored file it documents
-    # itself as being
-    return pure_python_ripemd160(bytes(octets))
+    return pure_python_ripemd160(octets)
 
 
 def sha1(octets: Octets) -> bytes:
@@ -406,19 +399,10 @@ def merkle_root_from_branch(
     if index < 0:
         raise BTClibValueError(f"negative leaf index: {index}")
 
-    # bytes(...) rather than the buffer bytes_from_octets hands back: root
-    # and sibling are this function's own local values, folded into pair
-    # and rehashed rather than read back to whoever passed leaf or branch
-    # in, so the no-copy rule bytes_from_octets keeps for its own caller's
-    # buffer does not reach here. A memoryview reaching `sibling + root`
-    # or `root + sibling` below fails on whichever side it is the left
-    # operand of, a memoryview having no __add__, and a memoryview leaf
-    # would otherwise be this function's own return value, unbroken by an
-    # empty branch, despite the -> bytes above
-    root = bytes(bytes_from_octets(leaf, 32))
+    root = bytes_from_octets(leaf, 32)
     for sibling_ in branch:
         # a branch item that is not a hash cannot be a sibling
-        sibling = bytes(bytes_from_octets(sibling_, 32))
+        sibling = bytes_from_octets(sibling_, 32)
         if index % 2:
             # the running hash is a right child, and a left sibling equal
             # to it is the CVE-2012-2459 duplication: a shorter list has

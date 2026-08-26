@@ -88,11 +88,14 @@ the measurement the gate and the weekly sweeps are arranged around.
 `codeql.yml` carries no required check at all. It runs on `main`, on its
 schedule and on every pull request now — the OpenSSF Scorecard's `SAST`
 check is why, and `codeql.yml`'s own `on:` block comment carries that
-story — but neither cell of its `analyze` job's matrix can be named in
-the branch rule on its own, the bullet above being why, and the workflow
-has no aggregate job that could be. The Code scanning section below
-states that in its own terms, at the point where default setup's own
-`CodeQL` context is dropped from the rule instead.
+story — and neither cell of its `analyze` job's matrix may be named in
+the branch rule on its own, the bullet above being why. What a rule
+would name is `codeql: every job passed`, the workflow's own aggregate,
+and requiring it is a decision this file records rather than one the
+workflow takes: the option exists, and the rule does not exercise it.
+The Code scanning section below states that in its own terms, at the
+point where default setup's own `CodeQL` context is dropped from the
+rule instead.
 
 What still reads a branch before it merges, `codeql.yml` itself included
 now, is the workflow half of the same question: `zizmor` is a pre-commit
@@ -174,8 +177,9 @@ rather than a pull request, so only a human can perform them:
 1. merge.
 
 There is no fifth step adding a `codeql.yml` check to the rule: neither
-matrix cell is required, and this workflow carries no aggregate that
-could be either.
+matrix cell may be required, and the workflow's `codeql: every job
+passed` is left out of the rule on purpose, a check that gates being a
+separate decision from one that reports.
 
 Step 2 is what makes the setting let go of the analysis. It is not the
 command that enabled default setup and there is no need to keep that one:

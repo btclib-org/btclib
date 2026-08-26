@@ -207,14 +207,14 @@ def test_an_honest_block_has_no_inner_node_that_parses_as_a_transaction() -> Non
 
 
 def test_a_memoryview_txid_and_branch_verify_as_any_other_octets() -> None:
-    """Reversing the buffer bytes_from_octets hands back must not strand it.
+    """A shape error reaches the caller as False, so it reads as a lie.
 
-    A memoryview is returned unchanged, and `[::-1]` over one is a
-    strided, non-contiguous view: the second `bytes_from_octets` call
-    inside `merkle_root_from_branch` used to refuse it, which `verify`
-    reports as a proof that does not verify rather than as the shape
-    error it is -- a valid proof spelled with memoryviews answered False
-    (issue #1429).
+    `assert_as_valid` reverses the txid and every sibling with `[::-1]`
+    before folding them, and `[::-1]` over a memoryview is a strided,
+    non-contiguous view -- which the `bytes_from_octets` calls inside
+    `merkle_root_from_branch` refuse with a `ValueError`, the one class
+    `verify` turns into False. A valid proof spelled with memoryviews
+    would read as a proof that does not verify (issue #1429).
     """
     block = _load("block_200000.bin")
     txids = [tx.id for tx in block.transactions]

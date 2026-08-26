@@ -287,7 +287,7 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
 
     if is_octets(x_Q):
         # every spelling `Octets` names, which is what
-        # `bytes_from_octets` takes and returns as it came. Accepted at
+        # `bytes_from_octets` takes. Accepted at
         # all three sizes here, where the dispatch this
         # replaces took them at the SEC two and refused them at the
         # x-only one, its fallback having asked for `(str, bytes)`
