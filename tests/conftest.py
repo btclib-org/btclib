@@ -44,12 +44,60 @@ settings.register_profile("thorough", deadline=None, max_examples=2_000)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "btclib"))
 
 
+def asks_for_everything(
+    file_or_dir: list[str] | None, testpaths: list[str], rootpath: Path
+) -> bool:
+    """Whether the paths named on the command line take the suite in.
+
+    No path at all narrows nothing and is the whole run. A path above one
+    of them -- `pytest .`, or the rootdir spelled out -- collects it too,
+    so what decides is containment and not equality. `tests` alone would
+    match either way; `./tests` and `tests/` are the same directory under
+    another name and need the paths resolved before they compare equal;
+    and a path above `testpaths` is never equal to it, so only
+    containment reads all four as the whole run they collect.
+
+    `file_or_dir` is `None` rather than `[]` on the `--help` path, the
+    parse having been abandoned rather than left unfinished: `--help` is
+    bound to pytest's `HelpAction`, which raises `PrintHelp` to skip the
+    rest of argument parsing, so the positional still carries argparse's
+    default when `pytest_configure` fires. That is no path either, and
+    folding it is what keeps `--help` from ending in a traceback whose
+    last frame is this file.
+
+    The two sides are relative to different directories: a path on the
+    command line to where pytest was run from, a `testpaths` entry to the
+    rootdir, which is what `testpaths` means. Both are then resolved, and
+    the second needs it as much as the first -- pytest builds `rootpath`
+    with `os.path.abspath`, which leaves a symlink in the path alone,
+    while `Path.resolve` follows one, so a tree reached through `/tmp` on
+    macOS would compare `/tmp/...` against `/private/tmp/...` and find no
+    containment anywhere.
+    """
+    given = [Path(path).resolve() for path in file_or_dir or []]
+    if not given:
+        return True
+    wanted = [(rootpath / path).resolve() for path in testpaths]
+    if not wanted:
+        # `all` over nothing is true, which would make every path named
+        # here the whole suite. With `testpaths` unset there is nothing
+        # to measure containment against, so this errs toward dropping
+        # the floor rather than gating a run it cannot call whole
+        return False
+    return all(
+        any(target == path or path in target.parents for path in given)
+        for target in wanted
+    )
+
+
 def coverage_fail_under(
     asked: float | None,
     configured: float | None,
-    file_or_dir: list[str],
+    file_or_dir: list[str] | None,
     keyword: str,
     markexpr: str,
+    testpaths: list[str],
+    rootpath: Path,
 ) -> float | None:
     """Return the coverage threshold this run's selection has to meet.
 
@@ -81,17 +129,29 @@ def coverage_fail_under(
     untouched whichever kind of run it is -- the caller naming the
     threshold is the one thing this must not overrule.
 
-    A subset is what pytest was *asked* for: paths, `-k` or `-m`. Not
-    every way a run can be short -- `--lf`, `--deselect` and an `-x` that
-    stops early are not read -- so those still meet the full threshold
-    and report a shortfall the tree does not have. They are the flags of
-    an iteration whose next run is the whole suite, and reading intent
-    off all of them would make this a second definition of what a real
-    run is.
+    A subset is what pytest was *asked* for: a path that leaves part of
+    the suite behind, `-k` or `-m`. Not every way a run can be short --
+    `--lf`, `--deselect` and an `-x` that stops early are not read -- so
+    those still meet the full threshold and report a shortfall the tree
+    does not have. They are the flags of an iteration whose next run is
+    the whole suite, and reading intent off all of them would make this a
+    second definition of what a real run is.
+
+    Section 8 of the organization standard has since taken the other
+    side -- it counts `--deselect`, `--ignore`, `--ignore-glob` and
+    `--lf` as selections too, and records the paragraph above as the
+    reading it rejects. This tree agreeing with the wider set is
+    btclib-org/.github#424, and is not what the containment rule here
+    was about.
+
+    Which paths leave nothing behind is `asks_for_everything` above, and
+    it is the reason `testpaths` and the rootdir are arguments here.
     """
     if asked is not None:
         return asked
-    if file_or_dir or keyword or markexpr:
+    if keyword or markexpr:
+        return 0
+    if not asks_for_everything(file_or_dir, testpaths, rootpath):
         return 0
     return configured
 
@@ -113,6 +173,8 @@ def pytest_configure(config: pytest.Config) -> None:
         config.option.file_or_dir,
         config.option.keyword,
         config.option.markexpr,
+        config.getini("testpaths"),
+        config.rootpath,
     )
 
 

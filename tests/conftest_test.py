@@ -27,6 +27,11 @@ from tests.conftest import REGENERATE, check_golden, coverage_fail_under
 
 MODULE = "something_test.py"
 _ROOT = Path(__file__).parents[1]
+# what pyproject.toml's `testpaths` holds, passed in rather than read:
+# the cases below are about what a command line means against a given
+# `testpaths`, and reading the real one would make them a test of the
+# configuration as well
+_TESTPATHS = ["tests"]
 
 
 @pytest.fixture(autouse=True)
@@ -123,8 +128,45 @@ def test_a_whole_run_is_gated_at_what_pyproject_configured() -> None:
     worth pinning: pyproject.toml is where 100 is decided, and a copy of
     it in this file would be a second place to change it.
     """
-    assert coverage_fail_under(None, 100.0, [], "", "") == 100.0
-    assert coverage_fail_under(None, 42.0, [], "", "") == 42.0
+    assert coverage_fail_under(None, 100.0, [], "", "", _TESTPATHS, _ROOT) == 100.0
+    assert coverage_fail_under(None, 42.0, [], "", "", _TESTPATHS, _ROOT) == 42.0
+
+
+@pytest.mark.parametrize(
+    "file_or_dir",
+    [["tests"], ["./tests"], ["tests/"], ["."], [str(_ROOT)], None],
+    ids=[
+        "the suite",
+        "./ before it",
+        "trailing slash",
+        "the cwd",
+        "absolute",
+        "--help",
+    ],
+)
+def test_a_path_that_collects_the_suite_is_a_whole_run(
+    file_or_dir: list[str] | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A path at or above `testpaths` is gated like the bare command.
+
+    `pytest tests` is what somebody types who means the whole suite and
+    says so, and every path here collects exactly what a bare run
+    collects. Equality against `testpaths` would take in `tests` alone:
+    `./tests` and `tests/` are that same directory spelled otherwise, and
+    `.` and the rootdir are above it, which is why containment and not
+    equality is what decides.
+
+    `None` is the `--help` path, where the parse is abandoned before the
+    positional is filled in; it reaches this function like any other run,
+    and answering it wrongly would be a traceback rather than a threshold.
+
+    The relative spellings are read against the working directory, which
+    is what pytest does with them, so the run has to be standing in the
+    rootdir for them to mean the suite.
+    """
+    monkeypatch.chdir(_ROOT)
+    gate = coverage_fail_under(None, 100.0, file_or_dir, "", "", _TESTPATHS, _ROOT)
+    assert gate == 100.0
 
 
 @pytest.mark.parametrize(
@@ -135,18 +177,38 @@ def test_a_whole_run_is_gated_at_what_pyproject_configured() -> None:
         ([], "derive", ""),
         ([], "", "integration"),
         (["tests/bip32"], "derive", "integration"),
+        (["tests"], "derive", ""),
     ],
-    ids=["one file", "one directory", "-k", "-m", "all three"],
+    ids=["one file", "one directory", "-k", "-m", "all three", "the suite, -k"],
 )
 def test_a_selected_subset_is_gated_at_nothing(
-    file_or_dir: list[str], keyword: str, markexpr: str
+    file_or_dir: list[str], keyword: str, markexpr: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Any of the three selections drops the threshold to zero.
 
     Zero and not None: None is what pytest-cov reads the configured
     threshold into, so it would restore the very gate this removes.
+
+    The last case is the whole suite named beside a `-k`: the path takes
+    everything in and the expression then selects out of it, so what
+    decides is the selection and not the path.
     """
-    assert coverage_fail_under(None, 100.0, file_or_dir, keyword, markexpr) == 0
+    monkeypatch.chdir(_ROOT)
+    gate = coverage_fail_under(
+        None, 100.0, file_or_dir, keyword, markexpr, _TESTPATHS, _ROOT
+    )
+    assert gate == 0
+
+
+def test_without_testpaths_a_named_path_is_a_subset() -> None:
+    """With nothing naming the suite, no path can be all of it.
+
+    A bare run then collects the rootdir, so a path on the command line
+    asks for less whatever it is. `all` over an empty `testpaths` would
+    answer the opposite -- every run a whole one, and the floor never
+    relaxed for the one-file run it exists for.
+    """
+    assert coverage_fail_under(None, 100.0, ["tests"], "", "", [], _ROOT) == 0
 
 
 def test_cov_is_not_the_last_token_of_addopts() -> None:
@@ -180,8 +242,9 @@ def test_cov_is_not_the_last_token_of_addopts() -> None:
 
 def test_an_explicit_threshold_survives_either_kind_of_run() -> None:
     """`--cov-fail-under` is the caller's, and outranks both branches."""
-    assert coverage_fail_under(90.0, 100.0, ["tests/bip32"], "", "") == 90.0
-    assert coverage_fail_under(90.0, 100.0, [], "", "") == 90.0
+    subset = ["tests/bip32"]
+    assert coverage_fail_under(90.0, 100.0, subset, "", "", _TESTPATHS, _ROOT) == 90.0
+    assert coverage_fail_under(90.0, 100.0, [], "", "", _TESTPATHS, _ROOT) == 90.0
     # zero is a threshold somebody asked for, not a missing answer: it
     # has to survive the `is not None` test rather than be falsy
-    assert coverage_fail_under(0, 100.0, [], "", "") == 0
+    assert coverage_fail_under(0, 100.0, [], "", "", _TESTPATHS, _ROOT) == 0

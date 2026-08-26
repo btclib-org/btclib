@@ -3541,6 +3541,27 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **`uv run pytest tests` is gated at the 100% ratchet, the path it names
+  being the whole suite rather than a selection out of it** (issue
+  btclib-org/.github#430). `tests/conftest.py`'s `coverage_fail_under`
+  relaxes the floor for a run that asked for a subset, and any path at
+  all counted as one: with `testpaths = ["tests"]`, the command that
+  spells out what a bare `uv run pytest` collects reported its coverage
+  without gating on it, so the gate was off for the spelling that reads
+  as more careful than the bare one rather than less. What decides now is
+  containment — `asks_for_everything`, ported from `btclib-node`'s own
+  conftest, asks whether the paths given cover every `testpaths` entry,
+  so `tests`, `./tests`, `.` and the rootdir are whole runs while
+  `tests/bip32` is still a subset. `-k` and `-m` are untouched, so this
+  hook reads a selection off three things where section 8 of the
+  organization standard now counts seven, `--deselect`, `--ignore`,
+  `--ignore-glob` and `--lf` beside them: agreeing with the wider set is
+  btclib-org/.github#424 and not this change. No CI job answers
+  differently: the `coverage` job of `test.yml`, where the ratchet is
+  enforced, runs pytest with no path at all, and the runs that do name
+  one name a file or a directory under `tests`, which is a subset on
+  either side of this change.
+
 - **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,
   matching the spelling `tests/py_arm_authority_test.py` and its census
   already carry** (closes #1270). Every test under `tests/bip32/`,
