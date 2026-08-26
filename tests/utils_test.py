@@ -10,6 +10,7 @@ from io import BytesIO
 import pytest
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.hashes import hash160
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -19,6 +20,7 @@ from btclib.utils import (
     int_from_bits,
     int_from_integer,
     int_from_json_number,
+    is_octets,
     read_exactly,
 )
 
@@ -293,3 +295,40 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
             int_from_integer(not_hex)
     with pytest.raises(BTClibValueError, match="invalid hex integer: "):
         int_from_integer("0xzz")
+
+
+def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
+    """A strided slice is `Octets` to the annotation, `BufferError` underneath.
+
+    `mv[::2]` is not C-contiguous, and `bytes_from_octets` used to hand it
+    back untouched, so the failure reached whichever consumer used the
+    buffer next -- `hash160` with a bare `BufferError`, a public entry
+    point rather than this module. The refusal is raised here instead,
+    once, at the coercion every `Octets` parameter passes (issue #1260).
+    """
+    raw = bytes(range(64))
+    strided = memoryview(raw)[::2]
+    assert not strided.c_contiguous
+
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        bytes_from_octets(strided)
+    with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
+        hash160(strided)
+
+    # a contiguous slice is untouched, same as any other buffer
+    contiguous = memoryview(raw)[:32]
+    assert bytes_from_octets(contiguous) == raw[:32]
+    assert hash160(contiguous) == hash160(raw[:32])
+
+
+def test_is_octets_answers_one_octets_not_a_sequence_of_them() -> None:
+    """The question `bytes_from_octets` embeds, and two other callers ask.
+
+    Every `Octets` spelling is itself iterable, which is what makes a
+    single one hard to tell from a sequence of them by shape alone; a
+    `list` or a `tuple` of `Octets` is not one itself.
+    """
+    for one in (b"\x00\x01", "0001", bytearray(b"\x00\x01"), memoryview(b"\x00\x01")):
+        assert is_octets(one)
+    for many in ([b"\x00"], (b"\x00", b"\x01"), []):
+        assert not is_octets(many)

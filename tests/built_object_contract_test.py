@@ -297,13 +297,21 @@ def test_an_origin_that_is_no_origin_is_refused_as_a_type() -> None:
 def test_the_keys_a_satisfaction_sizer_is_built_from() -> None:
     """The factory's own argument, which the table cannot reach.
 
-    `Iterable[Octets]` accepts a `str` and a `bytes`, each of them being an
-    `Octets` and an iterable of one, so a single key handed where the list
-    was meant is as many keys as it has characters -- and each of those
-    would be refused as octets, which reports the wrong mistake.
+    `Iterable[Octets]` accepts every `Octets` spelling, each of them being
+    an iterable of one, so a single key handed where the list was meant
+    is as many keys as it has octets -- and each of those would be
+    refused as octets, which reports the wrong mistake. All four
+    spellings are driven, `bytearray` and `memoryview` included (issue
+    #1261).
     """
     assert satisfaction_sizer(_SIGNER_KEYS)(_PSBT_IN, _TX_IN) == [0, 72, 72, 71]
-    for wrong in (*_WRONG_TYPES, _SIGNER_KEYS[0], _SIGNER_KEYS[0].hex()):
+    single_key_spellings = (
+        _SIGNER_KEYS[0],
+        _SIGNER_KEYS[0].hex(),
+        bytearray(_SIGNER_KEYS[0]),
+        memoryview(_SIGNER_KEYS[0]),
+    )
+    for wrong in (*_WRONG_TYPES, *single_key_spellings):
         with pytest.raises(BTClibTypeError, match="invalid keys type"):
             satisfaction_sizer(wrong)  # type: ignore[arg-type]
 

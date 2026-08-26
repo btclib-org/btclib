@@ -30,7 +30,12 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256, siphash
 from btclib.tx import OutPoint, TxOut
 from btclib.tx.limits import MAX_TX_OUT_COUNT
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, is_integer
+from btclib.utils import (
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    is_integer,
+    is_octets,
+)
 
 __all__ = [
     "BASIC_FILTER_M",
@@ -403,10 +408,10 @@ class BasicBlockFilter:
         `prevout_scripts_from_utxos` builds the list from a mapping for
         a caller that holds one.
         """
-        # a str is a Sequence, and Octets is a str: passing one script
-        # instead of a list of them would zip through its characters and
-        # count them as inputs, so the shape is refused by name
-        if isinstance(prevout_scripts, str | bytes):
+        # every Octets is a Sequence too: passing one script instead of a
+        # list of them would zip through its bytes and count them as
+        # inputs, so the shape is refused by name
+        if is_octets(prevout_scripts):
             err_msg = "invalid previous output scripts type: "
             err_msg += type(prevout_scripts).__name__
             raise BTClibTypeError(err_msg)

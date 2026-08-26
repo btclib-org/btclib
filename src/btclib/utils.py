@@ -72,12 +72,25 @@ __all__ = [
     "int_from_integer",
     "int_from_json_number",
     "is_integer",
+    "is_octets",
     "list_from_json_array",
     "read_exactly",
     "str_from_string",
 ]
 
 NoneOneOrMoreInt = int | Iterable[int] | None
+
+
+def _assert_contiguous(octets: bytes | bytearray | memoryview) -> None:
+    """Refuse a non-contiguous memoryview, the one buffer that can be one.
+
+    `bytes` and `bytearray` are always C-contiguous; a `memoryview` need
+    not be -- a strided slice such as `mv[::2]` is not, and is returned
+    by `bytes_from_octets` untouched unless refused here.
+    """
+    if isinstance(octets, memoryview) and not octets.c_contiguous:
+        err_msg = "invalid octets: non-contiguous memoryview"
+        raise BTClibValueError(err_msg)
 
 
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
@@ -87,6 +100,14 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     also ensures required output size: one size, or any iterable of them,
     and a bool is neither -- `out_size=True` would accept a single octet
     and say it had checked a size.
+
+    A non-contiguous `memoryview` -- what a strided slice such as
+    `mv[::2]` gives -- is refused here rather than handed back: every
+    other consumer of the buffer this returns needs a C-contiguous one,
+    `hash160` failing with a bare `BufferError` being one of them, so the
+    refusal is raised through the exception contract at the one place
+    every `Octets` parameter passes rather than left to whichever
+    consumer trips over it first.
     """
     if isinstance(octets, str):  # hex string
         # `bytes.fromhex` raises a bare ValueError -- the same class the
@@ -101,7 +122,9 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
             octets = bytes.fromhex(octets)
         except ValueError as e:
             raise BTClibValueError(f"invalid hex string: {e}") from e
-    elif not isinstance(octets, (bytes, bytearray, memoryview)):
+    elif isinstance(octets, (bytes, bytearray, memoryview)):
+        _assert_contiguous(octets)
+    else:
         # what is neither went through untouched and reached whatever the
         # caller went on to do with it: `len` of a tuple of 33 ints is 33,
         # so `taproot.assert_valid_control_block` accepted one as a
@@ -271,6 +294,20 @@ def is_integer(value: Any) -> bool:
     subclass excluded, and by name.
     """
     return isinstance(value, int) and not isinstance(value, bool)
+
+
+def is_octets(value: Any) -> bool:
+    """Return whether the value is one Octets, rather than a sequence of them.
+
+    An `Octets` -- `str`, `bytes`, `bytearray` or `memoryview` -- is
+    itself iterable, so a function that takes a sequence of them and
+    guards against being handed one instead cannot ask `isinstance(value,
+    Sequence)`: every `Octets` answers that too. The guard asks this
+    question instead, once, so a spelling `Octets` gains later is refused
+    at every caller of this rather than at whichever remembered to list
+    it (issue #1261).
+    """
+    return isinstance(value, Octets)
 
 
 def int_from_json_number(value: Any, what: str) -> int:

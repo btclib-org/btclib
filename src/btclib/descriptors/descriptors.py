@@ -207,7 +207,7 @@ from btclib.script.taproot import (
 )
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TxIn
-from btclib.utils import assert_type, bytes_from_octets
+from btclib.utils import assert_type, bytes_from_octets, is_octets
 
 __all__ = [
     "AddrDescriptor",
@@ -2595,11 +2595,10 @@ def satisfaction_sizer(keys: Iterable[Octets]) -> SolutionSizer:
     then falls back exactly as it would for any other sizer answering
     "not mine".
     """
-    # a str and a bytes are each an `Octets` and each an iterable of one,
-    # so `Iterable[Octets]` accepts either as far as the annotation goes:
-    # one key handed where the list was meant is as many keys as it has
-    # characters, and each of them invalid
-    if isinstance(keys, (str, bytes, bytearray)):
+    # an Octets is itself iterable, so `Iterable[Octets]` accepts one as
+    # far as the annotation goes: one key handed where the list was meant
+    # is as many keys as it has octets, and each of them invalid
+    if is_octets(keys):
         raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")
     if not isinstance(keys, Iterable):
         raise BTClibTypeError(f"invalid keys type: {type(keys).__name__}")

@@ -3202,6 +3202,29 @@ documented at release-notes length in the first place, and are still in
   states that no function of the library reaches one any more, so the
   class's docstring now states the guarantee plainly instead of citing a
   closed issue (issue #1314).
+- **`bytes_from_octets` refuses a non-contiguous `memoryview`, with a
+  `BTClibValueError` naming it, rather than handing it back** (closes
+  #1260). A strided slice such as `mv[::2]` is `Octets` to the
+  annotation and was returned untouched, so the failure reached whichever
+  consumer used the buffer next instead of the library's own exception
+  contract -- `hash160` with a bare `BufferError` being one of them. The
+  refusal is raised once, at the coercion every `Octets` parameter
+  passes; a contiguous `memoryview` is unaffected.
+- **`BasicBlockFilter.from_block` and `descriptors.satisfaction_sizer`
+  refuse every `Octets` spelling where a sequence of them was meant, with
+  the message that names the shape rather than one from underneath**
+  (closes #1261). Each guard named only the spellings `Octets` held when
+  it was written: `from_block`'s missed `bytearray` and `memoryview`, and
+  `satisfaction_sizer`'s missed `memoryview`. Neither buffer built a
+  filter or a sizer from the wrong data -- a single script or key of
+  either shape still failed, either on the count check or on
+  `bytes_from_octets` refusing the `int` each single-byte iteration
+  produces -- but by accident, and with a complaint naming an `int` or a
+  count rather than the actual mistake. `utils.is_octets` asks the
+  underlying question once -- is this one `Octets` rather than a sequence
+  of them -- so both callers raise the on-point message for every
+  spelling, and a spelling `Octets` gains later is refused the same way
+  at both instead of by whichever accident is available.
 
 - **`ssa.challenge_` and `dsa.recover_pub_key_` refuse a bool, closing
   the trailing-underscore layer's own gap in issue #1206's policy**
