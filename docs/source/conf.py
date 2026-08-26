@@ -89,13 +89,10 @@ intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 #   fragment as the unresolved class, rather than resolving the pieces on
 #   either side of it. No mapping answers a target that is not a name to
 #   begin with
-# - a name this tree documents nowhere. alias.py's Octets and
-#   TaprootScriptTree, bip32.py's BIP32Key, der_path.py's DerPath and
-#   descriptors.py's DescriptorTree are bare module-level assignments
-#   with no docstring of their own, so `:members:` renders no page for a
-#   signature naming them to link to; the p2p payload classes below are
-#   private, and automodule does not document a name beginning with an
-#   underscore at all
+# - a private name: the p2p payload classes below begin with an
+#   underscore, and automodule does not document a name spelled that way
+#   at all, so `:members:` renders no page for a signature naming one to
+#   link to
 nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
@@ -108,11 +105,6 @@ nitpick_ignore = [
         ),
     ),
     ("py:class", "int | bytes | str | bytearray | memoryview | tuple[int"),
-    ("py:class", "Octets"),
-    ("py:class", "DerPath"),
-    ("py:class", "BIP32Key"),
-    ("py:class", "TaprootScriptTree"),
-    ("py:class", "DescriptorTree"),
     ("py:class", "btclib.p2p.inventory._InventoryPayload"),
     ("py:class", "btclib.p2p.inventory._LocatorPayload"),
     ("py:class", "btclib.p2p.keepalive._NoncePayload"),

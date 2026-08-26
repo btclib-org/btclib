@@ -2379,6 +2379,24 @@ documented at release-notes length in the first place, and are still in
   assignment its own paragraph describes rather than the quoted
   expression inside it, at `:1347` (closes #1329).
 
+- **`Octets`, `TaprootScriptTree`, `BIP32Key`, `DerPath` and
+  `DescriptorTree` each gain a `#:` attribute-doc comment** (closes
+  #1357). `nitpick_ignore` no longer carries any of them, `:members:`
+  now rendering a page for each that a signature naming it can link to.
+  A `#:` comment before the assignment, not a docstring after it: autodoc
+  reads that spelling too, but it is a STRING token at column 0, and
+  `check-docstring-first` reads a second one of those as a second module
+  docstring and fails on it. `der_path.py`'s module docstring points at
+  `DerPath` for the representations it accepts, rather than listing
+  them itself, since that is now the name stating the fact; `alias.py`'s
+  own module docstring keeps its paragraph on `Octets`, which is about
+  the distinction from `String` rather than a definition of `Octets`
+  itself, so it needed no change. The pre-existing `#` comment above
+  `Octets`, `TaprootScriptTree` and `DescriptorTree` opened with the
+  same definition the new comment now states; each loses that opening
+  sentence and keeps the reasoning that followed it, which the new
+  comment does not carry.
+
 ### The public API and the module layout
 
 - **`HwiSigner.register_descriptor` wraps HWI's `registerdescriptor`**
