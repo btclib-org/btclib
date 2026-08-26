@@ -24,6 +24,36 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`fuzz.yml` ran on every pull request and gated nothing** (issue
+  btclib-org/.github#460): the `pull_request` trigger and the
+  `pr_fuzzing` job that hung on it are gone, and `fuzz` is what section
+  10 of the organization standard calls it, a sentinel — `schedule` and
+  `workflow_dispatch`, nothing else. That job put ten minutes of fuzzing
+  on every push to an open pull request, and
+  `gh run list --workflow fuzz.yml --json event,conclusion` says what
+  became of those runs. No merge was waiting on the answer: `main`'s
+  `required_status_checks` names `Lint and type-check`, `Build the
+  documentation`, `test: every job passed` and `Regtest against Bitcoin
+  Core`, and `fuzz` produces none of those contexts, so what the job
+  charged was the reader's wait. That rule lives in the classic
+  branch-protection object rather than in a ruleset, which is why
+  `gh api repos/btclib-org/btclib/branches/main/protection` answers for
+  it and a rulesets-only read answers nothing. The pull request that cut
+  v2026.8.26 merged three minutes into its `PR fuzzing` job and
+  cancelled it, run `33008079111`, which is the case section 10 quotes.
+  `CONTRIBUTING.md`'s *What runs when* row moves with the triggers.
+
+- **A crash this sentinel finds becomes an ordinary test, not a seed**:
+  the regression names the input and what `parse` is expected to do with
+  it now, which is usually to refuse it in `BTClibException`.
+  `fuzz/corpus/` answers the opposite question —
+  `tests/fuzz_corpus_test.py` asserts that every seed there is still a
+  valid serialization of what it parses, so a crash input added to it is
+  refused by the very hardening that fixed the crash, and the only way
+  back to green would be to delete the regression. What that gate is for
+  is keeping this fuzzer's own starting point honest as the parsers move
+  under it.
+
 - **`README.md`'s badge row ends with the OpenSSF Best Practices badge.**
   Section 2 of the organization standard keys it on the property
   *registered at bestpractices.dev* and fixes its place last in the row,
