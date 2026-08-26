@@ -146,7 +146,7 @@ used to teach and to prototype as much as to build:
     straight into a Python `int`: `bip32.derive`
     (`src/btclib/bip32/bip32.py:666`), `commit_nonce.commit_nonce_`
     (`src/btclib/ecc/commit_nonce.py:155`) and `taproot._tweaked_prvkey`
-    (`src/btclib/script/taproot.py:461`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:474`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless —
     `bip32.derive` keeps `prv_key_int` for the life of the key

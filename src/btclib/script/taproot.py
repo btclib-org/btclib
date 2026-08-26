@@ -31,7 +31,7 @@ from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
 from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.key import PubKeyData
+from btclib.key import _HYBRID_PREFIXES, PubKeyData
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (
     OP_CODE_NAMES,
@@ -275,16 +275,29 @@ def _output_pubkey_and_internal_key(
         # are what both arms want, and `PubKeyData` proves them in `point`
         # or not at all. It accepts the 33-byte and the 65-byte form, and
         # `[1:33]` is the x-coordinate of either.
+        sec = _sec_from_key(internal_pubkey)
+        # A hybrid prefix is refused here, above the arm split, rather
+        # than left to whichever arm's own parse runs: it is a third
+        # spelling of a compressed or uncompressed key and not a
+        # malformed one, so libsecp256k1 admits it where the Python
+        # arm's `hybrid=False` default does not, and which internal keys
+        # this function takes would otherwise be `pip install`'s
+        # decision rather than btclib's (issue #1227). key.py's
+        # paragraph on `_HYBRID_PREFIXES` is why the answer is refusal.
+        if sec[0] in _HYBRID_PREFIXES:
+            raise BTClibValueError(
+                f"invalid internal public key: hybrid SEC prefix {sec[0]:#04x}"
+            )
         #
         # check_validity=False, and not because what arrives is known
         # good: `assert_valid` reads a length and a prefix, and
-        # `_sec_from_key` answers any prefix at those two lengths -- the
-        # hybrid 06 and 07 among them -- so some of what reaches here it
-        # would refuse. It is skipped because it is half a proof bought
+        # `_sec_from_key` answers any prefix at those two lengths the
+        # check above does not -- so some of what reaches here it would
+        # still refuse. It is skipped because it is half a proof bought
         # early: whatever these octets are handed to parses them, which is
         # `_sec_from_key`'s own reason for not proving them, and it names
         # what is wrong with the key where a prefix check names the prefix
-        key_data = PubKeyData(_sec_from_key(internal_pubkey), check_validity=False)
+        key_data = PubKeyData(sec, check_validity=False)
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
         # BIP341's unspendable point is published as an x-only key and

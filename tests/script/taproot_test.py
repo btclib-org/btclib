@@ -507,6 +507,41 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
                 output_pubkey(sec)
 
 
+@needs_bindings
+@pytest.mark.parametrize("prefix", [0x06, 0x07], ids=["0x06", "0x07"])
+def test_a_hybrid_internal_key_is_refused_on_both_arms(
+    prefix: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A hybrid internal key is refused, not a spelling one arm alone parses.
+
+    Marked, as the test above is, for the same reason: with no bindings
+    installed there is no delegated arm to compare the second assertion
+    of each pair against.
+
+    libsecp256k1's `ec_pubkey_parse` takes 0x06 and 0x07 as it takes
+    0x04, and `sec_point.point_from_octets`'s own lift defaults
+    `hybrid=False` -- unrefused, that asymmetry is issue #1227: which
+    internal keys `output_pubkey` and `input_script_sig` take would be
+    `pip install`'s decision rather than btclib's. The refusal in
+    `_output_pubkey_and_internal_key` runs above the arm split, so this
+    is one message on both arms rather than a silent accept on one and
+    `point_from_octets`'s own "not a point: prefix 0x0…" on the other.
+
+    Both prefixes, because `hybrid=True` reads them asymmetrically once
+    a caller does ask for them -- 0x06 names an even y and 0x07 an odd
+    one -- and this refusal is meant to run before that reading, on
+    either one.
+    """
+    Q = mult(7)
+    sec = bytes([prefix]) + Q[0].to_bytes(32, "big") + Q[1].to_bytes(32, "big")
+    with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
+        output_pubkey(sec)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
+        with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
+            output_pubkey(sec)
+
+
 @pytest.mark.parametrize("spelling", [bytes, bytearray, memoryview])
 def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
     spelling: Callable[[bytes], Octets], monkeypatch: pytest.MonkeyPatch

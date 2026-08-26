@@ -308,6 +308,19 @@ full year, short month, short day (YYYY-M-D)
   `derive_from_account_range`; all four now raise `BTClibTypeError`
   rather than silently narrowing what they accept.
 
+- **`script.taproot`'s internal key refuses a hybrid SEC prefix, on
+  both arms** (closes #1227). `output_pubkey` and `input_script_sig`
+  took a `0x06`/`0x07`-prefixed internal key with `btclib_secp256k1`
+  installed and refused the same octets without it, so which keys they
+  accepted was decided by `pip install` rather than by btclib. Both now
+  raise `BTClibValueError: invalid internal public key: hybrid SEC
+  prefix 0x06` (or `0x07`) regardless of which arm answers.
+
+  Act on it if an internal key you pass to either is ever
+  hybrid-prefixed — nothing in bitcoin produces one, so a signer's own
+  key material is unaffected; a hand-built or fuzzed test vector is
+  where this shows. CHANGELOG.md has where the check runs and why.
+
 ### Worth knowing, though nothing raises
 
 - **A `bytearray` and a `memoryview` are octets, and now the signatures
