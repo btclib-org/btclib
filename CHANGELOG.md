@@ -3591,6 +3591,24 @@ documented at release-notes length in the first place, and are still in
   reporting the combination at `--fail-under=100` with the pragma
   removed, which still fails on this line.
 
+- **`tests/no_bindings_test.py` gains a second child, comparing what
+  each arm refuses rather than only what both compute** (closes #1419).
+  `tests/py_arm_authority_test.py` counts which third-party vectors
+  reach each arm and never compares them, and the file's existing
+  child compares only what both arms answer successfully, so neither
+  would have caught issue #1227's hybrid taproot internal key --
+  accepted on one arm and refused on the other, decided by whether the
+  bindings are installed. `test_the_two_arms_refuse_the_same_inputs`
+  runs `_REFUSALS`, a table of inputs the tree already knows once
+  diverged this way, through a dedicated child, and holds the two arms
+  to one exception class always and to one message where a shared
+  precondition raises before either arm has answered -- `dsa.py`'s own
+  rule, that the discrimination is the bindings' but the hierarchy is
+  btclib's, is what decides which. A subprocess launch and a handful of
+  calls need no coverage sweep, so it runs in the ordinary suite rather
+  than beside `py-arm-authority.yml`'s weekly re-derivation, which pays
+  for one.
+
 ### Curves, signatures and keys
 
 - **`indexes_from_der_path` reads a `bytearray` or a `memoryview` as
