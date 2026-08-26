@@ -597,7 +597,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.3
+    rev: v0.16.4
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -675,7 +675,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.5
+    rev: 0.12.6
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
@@ -717,7 +717,7 @@ repos:
     hooks:
       - id: check-sdist
         args: [--inject-junk, --installer=pip]
-        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.6,<0.13"]
   - repo: https://github.com/regebro/pyroma
     # the newest *stable* tag: 5.1b1 and 5.1b2 sit above it, and
     # `pre-commit autoupdate` offers a prerelease as readily as a release,
@@ -745,4 +745,4 @@ repos:
         # dependencies elsewhere in this file: what this has to match is
         # a range rather than a release, and the isolated build it
         # replaces would have resolved the same range itself
-        additional_dependencies: ["uv_build>=0.12.5,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.6,<0.13"]

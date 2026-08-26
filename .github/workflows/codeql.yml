@@ -174,7 +174,7 @@ jobs:
           # see the checkout of the coverage job in test.yml
           persist-credentials: false
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: ${{ matrix.language }}
           # both languages are interpreted, so no build step sits between
@@ -203,7 +203,7 @@ jobs:
           # pin it -- `queries: security-extended` is the widening, and
           # it is a decision separate from moving the file into the tree
       - name: Analyze
-        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           # code scanning keys an analysis by category, so without one
           # per language the second upload of a commit replaces the first
