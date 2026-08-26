@@ -793,6 +793,24 @@ documented at release-notes length in the first place, and are still in
   `failure`. btclib-org/.github#364 is open: the review step's
   `is_error:true` failure has no explanation this change supplies.
 
+- **`.pre-commit-config.yaml`'s `typos` entry is `repo: local`, pinned
+  through `additional_dependencies` rather than through `rev:`.**
+  `pre-commit autoupdate` walks every `repo:` entry except `local` and
+  `meta`, so a `local` hook is the one shape it cannot reach with the
+  moving `v1` alias crate-ci/typos re-tags onto each release's commit;
+  `language`, `entry`, `args` and `types` restate upstream's own hook
+  definition, and `stages: [pre-commit, pre-merge-commit, pre-push,
+  manual]` is what a `repo: local` hook does not inherit from a
+  manifest and needs stated to stay out of `commit-msg` (issue
+  btclib-org/.github#399).
+
+- **`.gitignore` no longer carries `docs/_build/`.** `build/`, a few
+  lines above it, already ignores `docs/build/html`: `docs/Makefile` and
+  `docs/make.bat` both set `BUILDDIR = build`, and the documented
+  `sphinx-build -n -W --keep-going -b html docs/source docs/build/html`
+  writes there too, so `docs/_build/` matched neither (issue
+  btclib-org/.github#411).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching

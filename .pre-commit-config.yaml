@@ -263,26 +263,26 @@ repos:
   # camelCase. Between them they found six typos in shipped surfaces, the
   # README's `bitcon` included. pyproject.toml ([tool.typos]) has the whole
   # of the reasoning and the configuration, as for codespell
-  - repo: https://github.com/crate-ci/typos
-    # a release tag, not the `v1` beside it: that one is a major-version
-    # alias upstream moves onto each release, so `pre-commit autoupdate`
-    # picks it as the newest tag and the pin stops being one -- the hook
-    # would then follow every future 1.x, which is the whole of what a rev
-    # is here to prevent. A dictionary that grows under a fixing hook is
-    # not a detail: this one rewrites what it reads
-    rev: v1.49.0
+  # crate-ci/typos re-tags a moving `v1` alias onto the same commit
+  # as each release, and `git describe --tags` breaks the tie between
+  # two tags on one commit by creation date, which names the alias.
+  # `autoupdate` proposes that alias on every run and `pinned-rev` above
+  # refuses it on every run, so the pin stays stuck rather than moving.
+  # `autoupdate` walks every `repo:` entry except `local` and `meta`, so
+  # a local hook is the one shape it cannot reach; `additional_dependencies`
+  # below carries the version pin in its place, and `language`, `entry`,
+  # `args` and `types` are upstream's own typos hook definition, copied
+  # in rather than fetched
+  - repo: local
     hooks:
       - id: typos
-        name: typos (identifiers and hyphenated words, in place fixes)
-        # what the hook declares, restated rather than inherited: both
-        # flags are choices this repository has to keep making. Dropping
-        # --write-changes would make it a report where every other fixing
-        # hook here corrects; dropping --force-exclude would make
-        # [tool.typos.files] silent, because pre-commit passes filenames
-        # and typos honours its own exclude list only under that flag --
-        # measured, without it the normative BIP39 italian wordlist takes
-        # 18 corrections into English
+        name: typos
+        language: python
+        additional_dependencies: [typos==1.49.0]
+        entry: typos
         args: [--write-changes, --force-exclude]
+        types: [text]
+        stages: [pre-commit, pre-merge-commit, pre-push, manual]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
