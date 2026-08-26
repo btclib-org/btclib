@@ -19,6 +19,7 @@ from btclib.hashes import (
     merkle_root,
     merkle_root_and_mutated,
     merkle_root_and_mutated_from_hashes,
+    merkle_root_from_branch,
     ripemd160,
 )
 from tests.to_key_test import (
@@ -47,6 +48,12 @@ def test_ripemd160_wherever_hashlib_has_none(monkeypatch: pytest.MonkeyPatch) ->
     assert ripemd160(octets) == expected
     # and through the caller that every address goes through
     assert hash160(octets) == ripemd160(sha256(octets).digest())
+
+    # pure_python_ripemd160 concatenates its argument on the argument's
+    # own left side, which a memoryview has no __add__ for; a bytearray
+    # already works, bytearray + bytes being an operation
+    assert ripemd160(memoryview(octets)) == expected
+    assert ripemd160(bytearray(octets)) == expected
 
 
 def test_hashlib_ripemd160_probe(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -151,6 +158,37 @@ def test_merkle_root_from_hashes() -> None:
         b"\x00" * 32,
         False,
     )
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3])
+def test_merkle_root_from_branch_octets_spellings(index: int) -> None:
+    """Every `Octets` spelling of leaf and branch reaches the same root.
+
+    `root` and `sibling` land on either side of `+` depending on which
+    bit of `index` is set at each step, and a memoryview has no
+    `__add__` on either side of it. Which side a branch element lands
+    on is not known until `index` has been halved down to it, so the
+    implementation copies every element to `bytes` unconditionally
+    rather than only the ones a memoryview would otherwise fail on.
+    """
+    leaf = bytes([0x11]) * 32
+    siblings = [bytes([0x22]) * 32, bytes([0x33]) * 32]
+    expected = merkle_root_from_branch(leaf, siblings, index, hash256)
+
+    for spell in (bytes, lambda b: b.hex(), bytearray, memoryview):
+        root = merkle_root_from_branch(
+            spell(leaf), [spell(s) for s in siblings], index, hash256
+        )
+        assert root == expected
+        assert isinstance(root, bytes)
+
+
+def test_merkle_root_from_branch_empty_branch_is_bytes() -> None:
+    """An empty branch answers the leaf, in this function's own bytes."""
+    leaf = bytes([0x11]) * 32
+    root = merkle_root_from_branch(memoryview(leaf), [], 0, hash256)
+    assert root == leaf
+    assert isinstance(root, bytes)
 
 
 def test_merkle_root_empty() -> None:

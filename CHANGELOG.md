@@ -3491,6 +3491,35 @@ documented at release-notes length in the first place, and are still in
   `test_the_tweak_names_no_half_of_a_sec_it_cannot_blame` already uses
   for the sec octets an arm's own parse refuses.
 
+- **`hashes.ripemd160`'s pure-Python fallback and `merkle_root_from_branch`
+  take a `memoryview`, as every other `Octets` spelling** (issue #1255).
+  Both concatenate a buffer `bytes_from_octets` hands back unchanged, on
+  the buffer's own left side: `_ripemd160.ripemd160` pads its argument
+  before hashing, and `merkle_root_from_branch` folds a running `root`
+  and each level's `sibling` into the pair that level hashes, one of the
+  two landing on the left depending on the corresponding bit of `index`.
+  A memoryview has no `__add__` on either side of `+`, so
+  `ripemd160(memoryview(...))` on an interpreter whose hashlib has no
+  RIPEMD-160 raised a bare `TypeError` unconditionally, and
+  `merkle_root_from_branch(memoryview(...), ...)` raised the same error
+  at whichever positions put a memoryview `sibling` or the memoryview
+  `leaf` on that left side. An empty `branch` also returned `leaf`
+  untouched, so a memoryview leaf came back as one despite the
+  function's own `-> bytes`.
+
+  Both copy the buffer to `bytes` at the point of concatenation, entirely
+  inside `hashes.py`: `_ripemd160.py` stays the vendored file its own
+  docstring says it is, and `hashes.ripemd160` converts before the call
+  rather than the vendored function after it. Neither `root` nor
+  `sibling` is returned to whoever passed `leaf` or `branch` in -- each
+  is folded into a new value and rehashed -- so the no-copy rule
+  `bytes_from_octets` keeps for a caller's own buffer does not reach
+  either site. `sha1`, `sha256`, `hash160`, `hash256`, `reduce_to_hlen`,
+  `siphash` and `magic_message` already take every spelling:
+  `hashlib`'s digest constructors and `update` accept any buffer, and
+  `magic_message`'s own concatenation puts its buffer on the right of a
+  `bytes` value, where `bytes + memoryview` works.
+
 ### Tests
 
 - **The tests exercising the pure-Python arm are named `test_the_py_arm_...`,
