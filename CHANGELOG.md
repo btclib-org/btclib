@@ -823,6 +823,14 @@ documented at release-notes length in the first place, and are still in
   sdist's own `PKG-INFO` as a `Project-URL` line
   (closes btclib-org/.github#381).
 
+- **`README.md`'s OpenSSF Scorecard badge is in the sentinel badges'
+  calendar order with the rest.** Section 2 of the organization standard
+  takes that order from section 10's day/hour table, and the table gives
+  `scorecard` a row like every other sentinel. The exception section 10
+  states for this sentinel reaches its triggers, which are
+  `ossf/scorecard-action`'s own rather than the standard's, and not its
+  place in the calendar (closes #1424).
+
 ### Packaging, linting and CI
 
 - **`pyproject.toml`'s ruff configuration selects `["ALL"]`,** matching

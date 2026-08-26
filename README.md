@@ -7,12 +7,10 @@ choice instead, and those are in CONTRIBUTING.md, beside the prose that
 says how the choice is enforced. One badge per line keeps a change to one
 line and every line inside MD013, whose 80 columns bind only where a space
 follows them.
-Scorecard is placed last among the sentinel badges rather than in the
-calendar order the rest follow: section 10 names it the one sentinel whose
-triggers are the action's own rather than the standard's, and it has no
-row in section 10's day/hour table yet -- btclib-org/.github#363 proposes
-one, and btclib-org/.github#358 is where this placement is asked to become
-the stated rule rather than this tree's own reading of a silent one. -->
+The OpenSSF Scorecard badge sits in the sentinels' calendar order like
+every other: section 10 gives scorecard a day/hour row, and the
+exception that section states for it -- its triggers are the action's
+own -- is to the trigger rule rather than to the calendar. -->
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
 [![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
 [![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
@@ -34,11 +32,11 @@ the stated rule rather than this tree's own reading of a silent one. -->
 [![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml)
 [![os-ubuntu workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-ubuntu.yml)
 [![integration-hwi workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
 [![os-macos workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-macos.yml)
 [![os-windows workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml)
 [![mutation workflow status](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
 [![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
 ---
