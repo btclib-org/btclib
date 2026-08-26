@@ -4,13 +4,14 @@
 
 """Tests for the `btclib.utils` module."""
 
+import array
 import random
 from io import BytesIO
 
 import pytest
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, magic_message, siphash
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -319,6 +320,60 @@ def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
     contiguous = memoryview(raw)[:32]
     assert bytes_from_octets(contiguous) == raw[:32]
     assert hash160(contiguous) == hash160(raw[:32])
+
+
+def test_a_memoryview_of_the_wrong_format_is_refused_at_the_coercion() -> None:
+    """A memoryview cast to a non-byte format reads as elements, not octets.
+
+    `array.array("I", [1, 2])` is 8 octets read as two 4-byte unsigned
+    ints; a memoryview over it is C-contiguous, so the contiguity check
+    alone let it through, and `len()` of it answers 2 where a consumer
+    reading octets means 8 (issue #1430). Refused here, once, at the
+    same coercion every `Octets` parameter passes.
+    """
+    raw = bytes(range(8))
+    wide = memoryview(array.array("I", [1, 2]))
+    assert wide.c_contiguous
+    assert wide.format != "B"
+    assert len(wide) == 2
+    assert wide.nbytes == 8
+
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        bytes_from_octets(wide)
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        hash160(wide)
+
+    # a plain memoryview, and one cast back to unsigned bytes, are format
+    # "B" and untouched, same as any other buffer
+    plain = memoryview(raw)
+    assert plain.format == "B"
+    assert bytes_from_octets(plain) == raw
+    cast_back = wide.cast("B")
+    assert cast_back.format == "B"
+    assert bytes_from_octets(cast_back) == wide.tobytes()
+
+
+def test_magic_message_and_siphash_answer_the_same_for_every_octets_spelling() -> None:
+    """The two functions issue #1430 named read a buffer element by element.
+
+    `magic_message`'s `var_int.serialize(len(msg))` and `siphash`'s
+    `for byte in data` both used to read a wide-format memoryview's
+    elements where every other `Octets` spelling reads octets, so the
+    two disagreed with `bytes(mv)` silently. `bytes_from_octets` now
+    refuses the buffer before either reads it.
+    """
+    payload = bytes(range(8))
+    wide = memoryview(array.array("I", [1, 2]))
+
+    assert magic_message(payload) == magic_message(bytearray(payload))
+    assert magic_message(payload) == magic_message(memoryview(payload))
+    assert siphash(1, 2, payload) == siphash(1, 2, bytearray(payload))
+    assert siphash(1, 2, payload) == siphash(1, 2, memoryview(payload))
+
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        magic_message(wide)
+    with pytest.raises(BTClibValueError, match="invalid octets: memoryview format"):
+        siphash(1, 2, wide)
 
 
 def test_is_octets_answers_one_octets_not_a_sequence_of_them() -> None:

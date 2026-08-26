@@ -206,6 +206,34 @@ def test_an_honest_block_has_no_inner_node_that_parses_as_a_transaction() -> Non
         merkle_proof.assert_as_valid(block.transactions[index].id, branch, index, root)
 
 
+def test_a_memoryview_txid_and_branch_verify_as_any_other_octets() -> None:
+    """Reversing the buffer bytes_from_octets hands back must not strand it.
+
+    A memoryview is returned unchanged, and `[::-1]` over one is a
+    strided, non-contiguous view: the second `bytes_from_octets` call
+    inside `merkle_root_from_branch` used to refuse it, which `verify`
+    reports as a proof that does not verify rather than as the shape
+    error it is -- a valid proof spelled with memoryviews answered False
+    (issue #1429).
+    """
+    block = _load("block_200000.bin")
+    txids = [tx.id for tx in block.transactions]
+    hashes = [txid[::-1] for txid in txids]
+    root = block.header.merkle_root
+    index = 3
+    branch = [sibling[::-1] for sibling in _branch(hashes, index)]
+
+    txid_mv = memoryview(txids[index])
+    branch_mv = [memoryview(sibling) for sibling in branch]
+    root_mv = memoryview(root)
+
+    merkle_proof.assert_as_valid(txid_mv, branch_mv, index, root_mv)
+    assert merkle_proof.verify(txid_mv, branch_mv, index, root_mv)
+    assert merkle_proof.verify(txid_mv, branch_mv, index, root_mv) == (
+        merkle_proof.verify(txids[index], branch, index, root)
+    )
+
+
 def test_a_malformed_branch_is_refused() -> None:
     """Refuse a branch malformed in sibling size, index or length."""
     block = _load("block_200000.bin")

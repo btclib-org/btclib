@@ -81,15 +81,34 @@ __all__ = [
 NoneOneOrMoreInt = int | Iterable[int] | None
 
 
-def _assert_contiguous(octets: bytes | bytearray | memoryview) -> None:
-    """Refuse a non-contiguous memoryview, the one buffer that can be one.
+def _assert_byte_shaped(octets: bytes | bytearray | memoryview) -> None:
+    """Refuse a memoryview whose layout or format is not plain bytes.
 
-    `bytes` and `bytearray` are always C-contiguous; a `memoryview` need
-    not be -- a strided slice such as `mv[::2]` is not, and is returned
-    by `bytes_from_octets` untouched unless refused here.
+    `bytes` and `bytearray` are always C-contiguous and always format
+    "B" (unsigned bytes); a `memoryview` need not be either. A strided
+    slice such as `mv[::2]` is not C-contiguous, and is returned by
+    `bytes_from_octets` untouched unless refused here.
+
+    Contiguity is not the only property every other consumer of the
+    buffer this returns assumes: a `memoryview` cast to a signed `"b"`,
+    or built over an array of a wider format such as `"I"`, is
+    C-contiguous and still not read the way `hashes.magic_message`'s
+    `for byte in data` or `hashes.siphash`'s `len(msg)` read it --
+    `len()` counts elements rather than octets, and iterating one
+    yields whatever the format decodes to rather than an unsigned byte
+    in `0..255` (issue #1430). Format `"B"` is the one every buffer
+    this function accepts shares, `bytes`, `bytearray` and an
+    unformatted `memoryview` included, so it is the property asked for
+    rather than `itemsize == 1`, which a signed `"b"` view or a `"c"`
+    one (bytes objects, not ints) would still pass.
     """
-    if isinstance(octets, memoryview) and not octets.c_contiguous:
+    if not isinstance(octets, memoryview):
+        return
+    if not octets.c_contiguous:
         err_msg = "invalid octets: non-contiguous memoryview"
+        raise BTClibValueError(err_msg)
+    if octets.format != "B":
+        err_msg = f"invalid octets: memoryview format {octets.format!r} instead of 'B'"
         raise BTClibValueError(err_msg)
 
 
@@ -107,7 +126,10 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     `hash160` failing with a bare `BufferError` being one of them, so the
     refusal is raised through the exception contract at the one place
     every `Octets` parameter passes rather than left to whichever
-    consumer trips over it first.
+    consumer trips over it first. A `memoryview` whose format is not
+    unsigned bytes is refused the same way: `len()` of one counts
+    elements rather than octets, and a consumer that reads it byte by
+    byte reads whatever its format decodes to instead (issue #1430).
     """
     if isinstance(octets, str):  # hex string
         # `bytes.fromhex` raises a bare ValueError -- the same class the
@@ -123,7 +145,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
         except ValueError as e:
             raise BTClibValueError(f"invalid hex string: {e}") from e
     elif isinstance(octets, (bytes, bytearray, memoryview)):
-        _assert_contiguous(octets)
+        _assert_byte_shaped(octets)
     else:
         # what is neither went through untouched and reached whatever the
         # caller went on to do with it: `len` of a tuple of 33 ints is 33,
@@ -160,10 +182,15 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
             err_msg = f"invalid output size type: {type(size).__name__}"
             raise BTClibTypeError(err_msg)
 
-    if len(octets) in sizes:
+    # nbytes rather than len(): the two already agree for bytes,
+    # bytearray and the format-"B" memoryview _assert_byte_shaped just
+    # let through, so this measures the octets rather than repeating a
+    # coincidence that check happens to make true
+    size = memoryview(octets).nbytes
+    if size in sizes:
         return octets  # type: ignore[return-value]
 
-    err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
+    err_msg = f"invalid size: {size} bytes instead of {out_size}"
     raise BTClibValueError(err_msg)
 
 

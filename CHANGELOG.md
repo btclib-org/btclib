@@ -3566,6 +3566,39 @@ documented at release-notes length in the first place, and are still in
   `magic_message`'s own concatenation puts its buffer on the right of a
   `bytes` value, where `bytes + memoryview` works.
 
+- **`block.merkle_proof.verify` and `p2p.compact_blocks`'s short-id
+  derivation take a `memoryview` txid, sibling or wtxid, as every other
+  `Octets` spelling** (closes #1429). `bytes_from_octets` hands a
+  memoryview back unchanged, and both then reversed it with `[::-1]`: a
+  strided, non-contiguous view, which the `bytes_from_octets` call
+  downstream of the reversal refused. `merkle_proof.assert_as_valid`
+  raised on it, and `verify` catches that as a proof that does not
+  verify, so a valid proof spelled with memoryviews answered False
+  rather than True, with nothing raised to notice; `CmpctBlock.short_id`
+  had no such boundary in front of it and raised outright. Both copy the
+  buffer to `bytes` at the point of reversal, entirely at the call site:
+  neither the txid, the sibling nor the wtxid is returned to whoever
+  passed it in.
+
+- **`bytes_from_octets` refuses a `memoryview` whose format is not
+  unsigned bytes, closing the gap the contiguity check alone left**
+  (closes #1430). A `memoryview` cast to a signed `"b"`, or built over an
+  array of a wider format such as `"I"`, is C-contiguous and was
+  returned unchanged; `hashes.magic_message`'s
+  `var_int.serialize(len(msg))` and `hashes.siphash`'s `for byte in
+  data` then read it in elements rather than in octets, `len()` counting
+  elements and each iterated value being whatever the format decodes to
+  rather than an unsigned byte in `0..255` -- silently disagreeing with
+  the same octets spelled as `bytes`. `_assert_contiguous` is renamed
+  `_assert_byte_shaped` and asks `mv.format == "B"` beside the
+  contiguity it already asked, the property `bytes`, `bytearray` and
+  every unformatted `memoryview` share; `itemsize == 1` was considered
+  and rejected, a signed `"b"` view and a `"c"`-cast one (bytes objects,
+  not ints) both being itemsize one and still not what the consumers
+  above assume. `bytes_from_octets`'s own output-size check now measures
+  `nbytes` rather than `len()`, the two no longer able to silently
+  disagree once every buffer reaching that check is format `"B"`.
+
 ### Tests
 
 - **`uv run pytest tests` is gated at the 100% ratchet, the path it names
