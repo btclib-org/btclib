@@ -264,6 +264,16 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
         "bip32 account address index",
         lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
     ),
+    # `max_index` reaches the same two helpers as a bound rather than a
+    # derivation value, and was not refused at all: `branch > max_index`
+    # and `address_index > max_index` both hold for `max_index=True`
+    # against a branch/address_index of `0`, so the call answered the
+    # depth-5 key silently narrowed to a range of `{0, 1}` rather than
+    # raising anything (issue #1413)
+    (
+        "bip32 account max_index",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, 0, max_index=v),
+    ),
     # `CurveGroup.is_on_curve` is the one funnel behind a `Point` tuple,
     # `point_from_pub_key`, `_x_from_bip340pub_key`, `PreparedPoint` and
     # `bytes_from_point` included, and it read a bool coordinate as an
@@ -358,6 +368,13 @@ _WORDINGS = [
         lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, v),
         "non-integer address index: True",
     ),
+    # `max_index`'s own `is_integer` check, the bound rather than the
+    # value (issue #1413)
+    (
+        "bip32 account max_index",
+        lambda v: derive_from_account_(_ACCOUNT_XPRV, 0, 0, max_index=v),
+        "non-integer max_index: True",
+    ),
     # separate from the three families above: `is_on_curve`'s own
     # refusal of a bool coordinate (issue #1249), one sentence per
     # coordinate and shared by every funnel behind it
@@ -440,6 +457,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)
     assert recover_pub_key_(1, _DSA_MSG_HASH, _DSA_SIG) == secp256k1.G
     assert derive_from_account_(_ACCOUNT_XPRV, 1, 1).depth == 5
+    assert derive_from_account_(_ACCOUNT_XPRV, 1, 1, max_index=1).depth == 5
     assert secp256k1.is_on_curve(secp256k1.G) is True
     assert point_from_pub_key(secp256k1.G) == secp256k1.G
     assert PreparedPoint(secp256k1.G).point == secp256k1.G

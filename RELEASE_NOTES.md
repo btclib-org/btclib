@@ -295,6 +295,19 @@ full year, short month, short day (YYYY-M-D)
   four functions a `branch` or `address_index` that is not a plain
   `int`.
 
+- **The same four functions' `max_index` now raises `BTClibTypeError`
+  for a bool, where it silently narrowed the accepted range instead of
+  raising anything at all** (closes #1413). `max_index=True` made
+  `derive_from_account_(xpub, 0, 0, max_index=True)` answer the depth-5
+  key rather than fail, `0 <= True` holding arithmetically; a caller
+  relying on `0xFFFF`'s default and passing a bool by mistake got a
+  narrowed range rather than a caught one.
+
+  Act on it if you pass a bool as `max_index` to `derive_from_account_`,
+  `derive_from_account_range_`, `derive_from_account` or
+  `derive_from_account_range`; all four now raise `BTClibTypeError`
+  rather than silently narrowing what they accept.
+
 ### Worth knowing, though nothing raises
 
 - **A `bytearray` and a `memoryview` are octets, and now the signatures
