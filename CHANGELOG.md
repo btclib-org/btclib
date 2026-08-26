@@ -925,6 +925,33 @@ documented at release-notes length in the first place, and are still in
   payload for `fuzz_address.py`, and the vendored segwit transaction and
   the smallest vendored block for `fuzz_p2p_data.py` (closes #1410).
 
+- **`pyproject.toml`'s `[tool.typos.files]` `extend-exclude` gains
+  `fuzz/corpus/**`, and `[tool.codespell]`'s `skip` gains
+  `fuzz/corpus/*`.** Both hooks detect a binary file the same way, a
+  sniff for a NUL byte rather than a length threshold: several of the
+  checked-in seed files under `fuzz/corpus/` are empty payloads, and
+  the keepalive nonce is an eight-byte field with none in it either,
+  so nothing marks either kind as binary and both hooks read them as
+  text. Each runs with `--write-changes` (`.pre-commit-config.yaml`),
+  so a byte sequence either dictionary offers to "correct" would
+  silently invalidate the round-trip property a seed was checked in
+  to prove, in a rewrite of a `.bin` file no reviewer reads a diff
+  for. `--force-exclude`, already in the typos hook's `args`, is what
+  keeps its own entry reachable: pre-commit names files explicitly on
+  its command line, and typos otherwise overrides an exclude for a
+  path named that way. Neither tool's dialect forces the two globs to
+  differ -- each excludes the whole subtree spelled either way, and
+  each entry keeps its own list's existing single-star or
+  double-star idiom rather than the narrower "one directory deep for
+  typos" difference `[tool.typos.files]`'s own comment argues for the
+  vendored-data entries, which is about a leading `*/` and not a
+  trailing one. `fuzz/corpus/*` is root-anchored on purpose, matching
+  `fuzz/corpus/**` rather than reaching a hypothetical
+  `vendor/fuzz/corpus/` too; the cost for codespell is a leading
+  `./`, which defeats its `fnmatch` match and which pre-commit never
+  supplies, `git ls-files` emitting no path that carries one
+  (closes #1418, closes #1438).
+
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
   reads a merged pull request's own commits and found CodeQL configured
