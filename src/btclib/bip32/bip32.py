@@ -1041,7 +1041,7 @@ def derive(
     - string like "m/44h/0'/1H/0/10"
     - iterable integer indexes
     - one single integer index
-    - bytes in multiples of the 4-bytes index
+    - bytes, bytearray or memoryview in multiples of the 4-bytes index
 
     DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
