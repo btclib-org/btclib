@@ -4,24 +4,25 @@ name: fuzz
 # ClusterFuzzLite over btclib.p2p: the wire-format envelope parser,
 # `btclib.p2p.message.Message.parse`, and the payload deserializers it
 # hands off to once a caller has read `message.command` -- `handshake`,
-# `addrv2`, `inventory`, `compact_blocks`, `block_filters`, `keepalive`
-# and `negotiation` -- every one of them reached from the network ahead
-# of any signature check. btclib-org/.github#342 is where that ranking
-# -- an entry point reached from the network before verification, over
-# one reached only after -- and the choice of `atheris` under
-# ClusterFuzzLite rather than an OSS-Fuzz application, are argued;
-# section 10 of the organization standard is where `fuzz` is named as a
-# sentinel every tree parsing a stranger's own bytes owes. Every
-# `fuzz/fuzz_*.py` is a target this workflow builds and runs, and
+# `addrv2`, `inventory`, `compact_blocks`, `block_filters`, `keepalive`,
+# `negotiation`, `address` and `data` -- every one of them reached from
+# the network ahead of any signature check. btclib-org/.github#342 is
+# where that ranking -- an entry point reached from the network before
+# verification, over one reached only after -- and the choice of
+# `atheris` under ClusterFuzzLite rather than an OSS-Fuzz application,
+# are argued; section 10 of the organization standard is where `fuzz` is
+# named as a sentinel every tree parsing a stranger's own bytes owes.
+# Every `fuzz/fuzz_*.py` is a target this workflow builds and runs, and
 # `.clusterfuzzlite/` is ClusterFuzzLite's own configuration for
 # building them -- `project.yaml`, `Dockerfile` and `build.sh`, read by
 # the two actions below rather than by anything in this file, `build.sh`
 # discovering each target by its own glob rather than by a list this
 # file would have to keep in step with `fuzz/`'s own contents.
-# btclib-org/btclib#1361 is where the payload deserializers were added,
-# and btclib-org/btclib#1402 is what is left of them: the deserializers
-# reached only once a transaction or a signature is already being
-# handled -- `Tx.parse`, `Block.parse`, `Psbt.parse` and the rest.
+# btclib-org/btclib#1361 and btclib-org/btclib#1410 are where the
+# payload deserializers were added, and btclib-org/btclib#1402 is what
+# is left of them: the deserializers reached only once a transaction or
+# a signature is already being handled -- `Tx.parse`, `Block.parse`,
+# `Psbt.parse` and the rest.
 #
 # Two jobs, ClusterFuzzLite's own two fuzzing modes
 # (google/clusterfuzzlite's docs/running_clusterfuzzlite.md, "ClusterFuzz

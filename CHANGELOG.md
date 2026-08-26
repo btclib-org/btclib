@@ -864,6 +864,29 @@ documented at release-notes length in the first place, and are still in
   apart in btclib-org/btclib#1402 rather than closed here (closes
   #1361).
 
+- **ClusterFuzzLite gains two more harnesses, `fuzz_address.py` and
+  `fuzz_p2p_data.py`, for the two `btclib.p2p` payload modules
+  btclib-org/btclib#1361's own enumeration missed: `address`'s `Addr`
+  (the pre-BIP155 `addr` message) and `data`'s `TxPayload`/`BlockPayload`
+  (the `tx` and `block` messages), all three network-facing ahead of any
+  signature check the same way the modules btclib-org/btclib#1361 already
+  fuzzes are.** `data` is prefixed `p2p_` in the filename for the reason
+  `fuzz_p2p_message.py` already is not `fuzz_message.py`: the bare module
+  name reads as the fuzzer's own input rather than as what it fuzzes.
+  `address` needs no such prefix, unambiguous the way `addrv2` and
+  `handshake` already are. `TxPayload.parse` and `BlockPayload.parse`
+  wrap `Tx.parse`/`Block.parse` with no octet of their own in front, so
+  they belong beside btclib-org/btclib#1361's own modules rather than
+  with btclib-org/btclib#1402's second list, which still tracks
+  `Tx.parse` and `Block.parse` themselves.
+  `.clusterfuzzlite/build.sh`'s discovery loop needed no change,
+  globbing `fuzz/fuzz_*.py` and zipping each target's own
+  `fuzz/corpus/<name>/` directory already. The seed corpora are the
+  vendored vectors `tests/p2p/address_test.py` and
+  `tests/p2p/data_test.py` already carry: the Bitcoin Wiki's `addr`
+  payload for `fuzz_address.py`, and the vendored segwit transaction and
+  the smallest vendored block for `fuzz_p2p_data.py` (closes #1410).
+
 - **`codeql.yml` runs on `pull_request` too, alongside `push` on `main`
   and the weekly `schedule`.** The OpenSSF Scorecard's `SAST` check
   reads a merged pull request's own commits and found CodeQL configured
