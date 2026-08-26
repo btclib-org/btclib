@@ -39,6 +39,7 @@ own -- is to the trigger rule rather than to the calendar. -->
 [![mutation workflow status](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/mutation.yml)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml)
 [![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14253/badge)](https://www.bestpractices.dev/projects/14253)
 
 ---
 
