@@ -164,6 +164,25 @@ Do not use Fable unless explicitly instructed.
   claimed content, not against which function the line lands in — a
   citation landing inside the right function has still been off by
   several lines.
+- **`btclib-org/.github`'s weekly calendar is two tables, and either can
+  move mid-campaign.** Section 10 splits day/hour (per workflow) from
+  minute (per repository, `btclib` is `04`); the issue proposing one
+  workflow's row can close and land days into a campaign that started
+  before it did. Re-fetch the table
+  (`gh api repos/btclib-org/.github/contents/README.md -H 'Accept:
+  application/vnd.github.raw'`) rather than trusting a value read
+  earlier in the same session.
+- **`git merge-tree --write-tree` answers a `merge=union` file's
+  mergeability better than GitHub's own `mergeStateStatus`.** The
+  server-side check does not apply the driver `CHANGELOG.md` carries, so
+  it can report `DIRTY`/`CONFLICTING` on a branch a local rebase
+  resolves without one conflicting line. Run `merge-tree` first to tell
+  a real conflict from this one before spending a rebase on it.
+- **`git grep -E` silently drops `\b` word-boundary anchors.** A pattern
+  like `\bused to \w+\b` compiles and runs without error under `-E` and
+  answers zero on a file that has real matches; `--perl-regexp` is what
+  actually honors `\b`. Prove a sweep's zero against a known positive
+  before trusting it.
 
 ## Conventions to match
 

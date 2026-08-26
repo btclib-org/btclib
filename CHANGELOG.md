@@ -24,6 +24,16 @@ documented at release-notes length in the first place, and are still in
 
 ### Repository
 
+- **`CLAUDE.md`'s *Non-obvious facts* section gains three bullets,**
+  learned running this campaign: `btclib-org/.github`'s weekly calendar
+  is two tables and either can move mid-campaign, so a row's day/hour or
+  a repository's minute is re-fetched rather than trusted from earlier
+  in the same session; `git merge-tree --write-tree` answers a
+  `merge=union` file's mergeability where GitHub's own
+  `mergeStateStatus` can report `DIRTY` for no real conflict; and
+  `git grep -E` silently drops `\b`, answering a false zero a sweep
+  needs `--perl-regexp` to avoid.
+
 - **`fuzz.yml`'s `batch_fuzzing` gains a `schedule:` -- Monday, hour 03,
   minute 04.** Monday and hour 03 are section 10 of the organization
   standard's own workflow row for `fuzz`; minute 04 is this
