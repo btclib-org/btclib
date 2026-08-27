@@ -254,6 +254,29 @@ to `deps-latest`'s own result.
    moving tree, so the tag is the only target it has and a cycle's worth
    of output is the only shape its answer takes.
 
+   **`release.yml` runs this too, as its `public-api` job, and a red one
+   there is the expected shape of a cycle with breaking changes in it.**
+   The job exists so the answer arrives while RELEASE_NOTES.md is being
+   written; it is not a gate, and its own comment says so. Which means a
+   release run is *overall red* on a cycle like that while every job that
+   matters is green — read the job list and not the run's own badge, the
+   same way `deps-latest` above is read per job. Nothing downstream waits
+   on it: `publish-testpypi`, `publish-pypi` and `pypi-install` each open
+   their `if:` with `always()` and name the dependencies they do require,
+   so a red `public-api` costs the release nothing.
+
+   That wiring is younger than the job and was wrong twice. On
+   v2026.8.26's rehearsal `publish-testpypi` listed `public-api` in
+   `needs:` with no `always()`, so a red `public-api` meant the job never
+   started and the `testpypi` environment review never fired at all
+   (issue #1461); on the v2026.8.27 tag itself `pypi-install` was skipped
+   the same way, one hop further down, `publish-pypi`'s own fix not
+   reaching it (issue #1470). Both are fixed. What the pair is worth
+   remembering for is the failure mode rather than the two sites: a job
+   that is skipped and not failed leaves the run *green where it is
+   absent*, so the thing to check after a release is that every job you
+   expected actually ran, not merely that nothing you can see is red.
+
 1. Retitle the "work in progress" section of **both** RELEASE_NOTES.md
    and CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
    release notes from RELEASE_NOTES.md's section alone, so that one has
@@ -416,6 +439,23 @@ to `deps-latest`'s own result.
    merged pull requests instead — the fallback `version-check` exists to
    make unreachable, not a second way to write release notes — and they
    are worth replacing by hand if it ever fires.
+
+1. Check that every job you expected actually *ran*. A failed job is
+   loud and a skipped one is silent, so the run can look finished with a
+   sentinel missing from it — which is how v2026.8.27 published with
+   `pypi-install` never having run (issue #1470, the paragraph under the
+   griffe step above). `conclusion` tells the two apart, and a skipped
+   job's `started_at` and `completed_at` are the same second with no
+   steps in it:
+
+   ```shell
+   gh api "repos/btclib-org/btclib/actions/runs/<run id>/jobs?per_page=100" \
+     --jq '.jobs[] | [.conclusion, .name] | @tsv'
+   ```
+
+   `publish-testpypi` is `skipped` on a tag and `publish-pypi` on a
+   rehearsal — each is the other's trigger — and `public-api` is red on
+   any cycle with breaking changes. Everything else should be `success`.
 
 1. Read the `documented` job rather than the site: read the docs activates
    and builds a new release tag from the automation rule REPOSITORY.md
