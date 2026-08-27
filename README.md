@@ -1,8 +1,8 @@
 # A Python library for 'bitcoin cryptography'
 
 <!-- The badges are what the reader decides with: the first block says what
-this is and whether it can be used, and the last one whether it works. In
-the middle, the OpenSSF Scorecard badges. 
+this is and whether it can be used, and the second whether it works. At the
+end, the OpenSSF Scorecard badges. 
 
 One badge per line keeps a change to one line and every line inside MD013,
 whose 80 columns bind only where a space follows them.
@@ -12,16 +12,12 @@ choice instead, and those are in CONTRIBUTING.md, beside the prose that
 says how the choice is enforced.
 -->
 [![GitHub release](https://img.shields.io/github/v/release/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/releases)
-[![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/main/LICENSE)  
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
 [![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
-[![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 [![supported Python versions](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/)
 [![implementation](https://img.shields.io/pypi/implementation/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14253/badge)](https://www.bestpractices.dev/projects/14253)
+[![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/main/LICENSE)
 
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/main.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/main)
 [![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
@@ -32,6 +28,7 @@ says how the choice is enforced.
 [![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
 [![links workflow status](https://github.com/btclib-org/btclib/actions/workflows/links.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/links.yml)
 [![docs workflow status](https://github.com/btclib-org/btclib/actions/workflows/docs.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/docs.yml)
+[![documentation build](https://app.readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 [![codeql workflow status](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/codeql.yml)
 [![deps-latest workflow status](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/deps-latest.yml)
 [![pypi-install workflow status](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/pypi-install.yml)
@@ -40,6 +37,9 @@ says how the choice is enforced.
 [![os-windows workflow status](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/os-windows.yml)
 [![integration-hwi workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-hwi.yml)
 [![integration-bitcoind workflow status](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/integration-bitcoind.yml)
+
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/btclib-org/btclib/badge)](https://scorecard.dev/viewer/?uri=github.com/btclib-org/btclib)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14253/badge)](https://www.bestpractices.dev/projects/14253)
 
 ---
 
