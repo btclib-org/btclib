@@ -19,15 +19,14 @@ name: vendored vectors
 
 on:
   schedule:
-    # Monday, the hour after links.yml: that one asks whether a page this
-    # tree points at still resolves, this one whether a file it pinned is
-    # still the file, and the two are the same question over different
-    # distances.
+    # Test data: links.yml asks whether a page this tree points at still
+    # resolves, this one whether a file it pinned is still the file --
+    # one question over two distances.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "4 5 * * 1"
+    - cron: "4 3 * * 1"
   workflow_dispatch:
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the

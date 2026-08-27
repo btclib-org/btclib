@@ -90,7 +90,7 @@ on:
     # file's to restate.
     # Cron runs from the default branch only, so this asks nothing until
     # it reaches main; elsewhere the dispatch below is the way in
-    - cron: "4 4 * * 2"
+    - cron: "4 4 * * 0"
   # the escape hatch: a run on demand for a branch whose pull request is
   # not open yet
   workflow_dispatch:

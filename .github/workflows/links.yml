@@ -18,14 +18,14 @@ name: links
 
 on:
   schedule:
-    # Monday, with vendored-vectors.yml an hour later: both ask whether
-    # what this tree points at is still where it says, one over the
-    # internet and one over a pinned blob.
+    # Project health: this asks whether what the tree points at over the
+    # internet still resolves, where vendored-vectors.yml asks the same of
+    # a pinned blob -- one question over two distances.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "4 4 * * 1"
+    - cron: "4 4 * * 6"
   # the escape hatch, and the way to check a branch before merging a
   # documentation change that adds links
   workflow_dispatch:

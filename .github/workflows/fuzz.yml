@@ -58,15 +58,15 @@ name: fuzz
 # that becomes -- one on every push queues faster than an hour-long job
 # drains. `workflow_dispatch` is required by this section regardless of
 # the above, and is what runs the batch by hand -- before a release
-# rather than waiting for Monday, which is what section 10 names it
-# for.
+# rather than waiting for the scheduled run, which is what section 10
+# names it for.
 on:
   schedule:
     # Day and hour are section 10's own workflow table; minute is this
     # repository's own row in section 10's repository table.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
-    - cron: "4 3 * * 1"
+    - cron: "4 4 * * 2"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: the job below writes neither to
