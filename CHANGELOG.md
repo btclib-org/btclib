@@ -41,6 +41,19 @@ documented at release-notes length in the first place, and are still in
   the same shape `attest` and `github-release` already carried and the
   same reason (issue #1470).
 
+- **RELEASING.md says what a red `public-api` means and asks that every
+  job be checked for having *run*.** The griffe step described the
+  command a maintainer types and never said `release.yml` runs the same
+  comparison as a job, so a release run that is overall red while every
+  job that matters is green had nothing explaining it; that paragraph
+  now says so, names the `always()` wiring that keeps it costing the
+  release nothing, and records both sites where that wiring was wrong
+  (issues #1461 and #1470). A step after the publish asks the question
+  those two failures turn on: a failed job is loud and a skipped one is
+  silent, so a run can look finished with a sentinel missing from it,
+  and the `gh api .../jobs` line beside it says which conclusions are
+  expected on a tag and which on a rehearsal.
+
 ## v2026.8.27
 
 ### Repository
