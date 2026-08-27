@@ -528,6 +528,14 @@ jobs:
   pypi-install:
     name: Run the pypi-install workflow
     needs: publish-pypi
+    # publish-pypi's own always() opts it back in past public-api's
+    # designed failure, but does not carry this job with it: a bare
+    # needs: here still reads back through publish-pypi's own needs:,
+    # public-api two hops away skipping this job even though its one
+    # listed dependency succeeded. Measured on the v2026.8.26 tag: this
+    # sentinel never ran on v2026.8.27, and #1461's fix to publish-pypi
+    # itself was not enough (issue #1470)
+    if: always() && needs.publish-pypi.result == 'success'
     uses: ./.github/workflows/pypi-install.yml
     with:
       version: ${{ github.ref_name }}

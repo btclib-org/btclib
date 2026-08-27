@@ -22,6 +22,25 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Packaging, linting and CI
+
+- **`release.yml`'s `pypi-install` stops being silently skipped by
+  `public-api`'s designed failure, one hop past `publish-pypi`'s own
+  fix.** `publish-pypi`'s `always()` (issue #1461) opts it back in past
+  `public-api`, but does not carry `pypi-install` with it: a bare
+  `needs: publish-pypi` still reads back through `publish-pypi`'s own
+  `needs:`, `public-api` two hops away skipping this job even though
+  its one listed dependency succeeded. Measured on the v2026.8.27 tag:
+  `Publish to PyPI` completed `success`, and `Run the pypi-install
+  workflow`'s check run started and completed the same second, zero
+  steps run. RELEASING.md calls the workflow this job calls "the
+  sentinel on what the index serves"; it did not run for that release,
+  and both checks it would have made were done by hand instead and
+  passed, so the release itself is sound. `if: always() &&
+  needs.publish-pypi.result == 'success'` now sits beside its `needs:`,
+  the same shape `attest` and `github-release` already carried and the
+  same reason (issue #1470).
+
 ## v2026.8.27
 
 ### Repository
