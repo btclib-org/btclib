@@ -863,6 +863,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`release.yml`'s `publish-testpypi` and `publish-pypi` stop gating on
+  `public-api`'s result.** That job's own comment calls it deliberately
+  not a merge gate -- before 1.0 the surface breaks often, and it exists
+  to answer while RELEASE_NOTES.md is already being written, not to
+  block anything -- but both publish jobs still listed it in `needs:`
+  with no `always()`, so its own designed failure on a real
+  breaking-changes cycle silently kept either from ever starting. Never
+  exercised before this cycle: the job landed after v2026.8.21, so the
+  v2026.8.26 rehearsal was the first to run it against one. `needs:`
+  keeps `public-api` for ordering, its own comment wanting the answer
+  ahead of the platform sweeps' wall clock; each `if:` now opens with
+  `always()` and reads every other dependency's `.result` explicitly,
+  the shape `github-release` already used two jobs down (issue #1461).
+
 - **Every dependency is at the newest version this tree resolves to**,
   `uv.lock` re-resolved with `uv lock --upgrade` and
   `.pre-commit-config.yaml` walked by `pre-commit autoupdate`. The
