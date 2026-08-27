@@ -30,18 +30,17 @@ on:
   # every commit, and `cosmic-ray baseline` below fails the run before any
   # mutant if the test command has gone stale
   schedule:
-    # Sunday, an hour before integration-bitcoind.yml and nothing else:
-    # a session measured in hours gets the emptiest day the grid has. It
-    # also asks something on a different axis from every other sentinel
-    # here -- the suite's own quality, not a dependency's or a
-    # platform's.
+    # Test depth, the other of that family being fuzz.yml: a session
+    # measured in hours, asking something on a different axis from every
+    # other sentinel here -- the suite's own quality, not a dependency's
+    # or a platform's.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Cron runs from the default branch only, so this file gates nothing
     # until it reaches the default branch -- elsewhere it is reachable
     # through the
     # dispatch button below and nowhere else
-    - cron: "4 4 * * 0"
+    - cron: "4 5 * * 1"
   # the escape hatch, and the way to spend a whole afternoon on the engine
   # session that the weekly budget only samples
   workflow_dispatch:
@@ -469,7 +468,7 @@ jobs:
           done <<< "$SESSIONS"
       # always(), because the reports are the whole product: a session cut
       # short, or one whose exec died, still holds every verdict reached
-      # before that, and those are what somebody reads on Monday
+      # before that, and those are what somebody reads afterwards
       - name: Write the reports
         if: always() && env.SELECTED == 'true'
         env:

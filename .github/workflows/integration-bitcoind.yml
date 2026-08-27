@@ -49,14 +49,14 @@ name: integration-bitcoind
 
 on:
   schedule:
-    # Sunday, the hour after mutation.yml: what this run watches is the
-    # download rather than the tree, so it wants the emptiest day rather
-    # than a particular one, and Sunday holds one other job.
+    # An integration sentinel, the other being integration-hwi.yml: what
+    # this run watches is the download rather than the tree, so it wants
+    # no particular day.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "4 5 * * 0"
+    - cron: "4 5 * * 2"
   # the same trigger set as the other gates: main so that the commit a
   # merge creates is asked the question too -- and so that a cache is
   # written where every pull request can read it -- the pull request so

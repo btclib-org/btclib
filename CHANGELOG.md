@@ -24,6 +24,35 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The sentinel schedule and the badge row follow section 10's calendar,
+  reordered by family**, which is the port btclib-org/.github#480 owes
+  each tree. Eleven of this repository's fourteen `cron:` lines move to
+  the day and hour that calendar now gives their workflow, at this
+  repository's own minute; `deps-latest`, `pypi-install` and `os-ubuntu`
+  keep their exact slots, and no `dependabot.yml` is touched --
+  `deps-latest` stays where it is precisely so that it still reports the
+  day before Dependabot opens its pull requests. `README.md`'s badges are
+  the same decision seen from the other side, the badge order *being* the
+  calendar order over the sentinel subset: three groups now, with the
+  gates ahead of the sentinels in the order a commit meets them, Read the
+  Docs beside `docs` rather than after the sentinels, and the `wheel`
+  badge restored -- it is not a duplicate of `pypi/v`, being read off the
+  files a release uploaded rather than off anything the project declares.
+
+- **A workflow's schedule comment states which family it belongs to and
+  stops restating its day and hour.** Every one of them already carried
+  the line *the time is section 10's grid in btclib-org/.github and not
+  this file's to restate*, and every one restated it anyway on the line
+  above -- so the reorder above turned eleven true comments false in one
+  commit, adjacency claims included, `os-ubuntu.yml`'s among them though
+  its own `cron:` did not move. What each says now is the reason that
+  outlives a calendar: which family it sits in and what it asks that the
+  others do not. Two copies stay, having earned themselves --
+  `deps-latest.yml`'s Wednesday is the Dependabot relationship the
+  schedule exists to keep, and `pypi-install.yml` names the hour it
+  follows, both still true and both load-bearing
+  (btclib-org/.github#485).
+
 - **Which releases the dependency floors name is `pyproject.toml`'s and
   nowhere else's.** `CONTRIBUTING.md` stated all three verbatim and had
   already gone stale on one: it said `typing-extensions>=4.4`, the

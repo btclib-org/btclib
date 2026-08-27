@@ -57,13 +57,13 @@ on:
   push:
     branches: [main]
   schedule:
-    # Tuesday, the hour after codeql.yml: both are censuses of the tree
-    # rather than questions about a dependency, and neither gates.
+    # A census of the tree rather than a question about a dependency, and
+    # it gates nothing; codeql.yml is the other sentinel of that shape.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "4 5 * * 2"
+    - cron: "4 4 * * 4"
   workflow_dispatch:
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the

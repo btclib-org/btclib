@@ -29,13 +29,14 @@ name: integration-hwi
 
 on:
   schedule:
-    # Friday, the hour after os-ubuntu.yml: an emulator is a service to keep
-    # working, and a week is as often as anybody acts on the answer.
+    # An integration sentinel, the other being integration-bitcoind.yml:
+    # an emulator is a service to keep working, and a week is as often as
+    # anybody acts on the answer.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "4 5 * * 5"
+    - cron: "4 3 * * 3"
   push:
     branches: [main]
   workflow_call:

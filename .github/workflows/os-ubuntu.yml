@@ -35,10 +35,9 @@ name: os-ubuntu
 
 on:
   schedule:
-    # Friday, with integration-hwi.yml an hour later: a platform sentinel
-    # is two images times every interpreter, and three of them in one
-    # morning is the queue this arrangement exists to avoid, so the three
-    # take separate mornings. What shares this one is two emulator jobs.
+    # A platform sentinel is two images times every interpreter, and three
+    # of them in one morning is the queue this arrangement exists to
+    # avoid, so the three take separate slots.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
