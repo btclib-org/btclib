@@ -20,7 +20,7 @@ name = "btclib"
 # file. Not a literal in src/btclib/__init__.py for setuptools to import
 # and conf.py to repeat: two declarations are two things a release
 # workflow has to compare before trusting either
-version = "2026.8.27"
+version = "2026.9"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 # PEP 639: a SPDX expression and the files it refers to, replacing the
