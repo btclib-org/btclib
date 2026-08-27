@@ -22,6 +22,22 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **`CLAUDE.md` names two more traps a release found.** Asking what an
+  index serves has to be asked from outside every checkout of this
+  project, and `--isolated --no-project` is not what makes it so: one
+  command answered `2026.9` from the primary checkout and `2026.8.27`,
+  which is what PyPI served, from a directory belonging to nothing,
+  while that checkout's own `pyproject.toml` declared `2026.8.26` — so
+  it is not reading the tree either, and a cached build of some earlier
+  state of it is enough to shadow the index with a version plausible
+  enough to be written into a release verification. And *Verifying*
+  gains the asymmetry the whole of this release turned on: a failed
+  thing is loud and an absent thing is silent, so "nothing is red" is
+  the wrong question and "did every step I expected actually run" is the
+  right one.
+
 ### Packaging, linting and CI
 
 - **The sentinel schedule and the badge row follow section 10's calendar,
