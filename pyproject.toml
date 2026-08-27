@@ -35,8 +35,16 @@ requires-python = ">=3.10"
 # Required, where the bindings below are an extra, and that asymmetry was
 # weighed rather than inherited: a `fetch` extra was considered and
 # refused (issue #1126). CONTRIBUTING.md's dependency paragraph carries
-# the reasoning, beside the ceiling argument it already makes.
+# the reasoning, beside the ceiling argument it already makes; the
+# releases themselves are named here and nowhere else, a floor moving
+# whenever this tree starts calling something newer and a second copy of
+# the number being the one that goes stale.
 dependencies = [
+    # 2026.8.13 for `magic_from_signet_challenge`, which `p2p.magic`
+    # re-exports and `fetch.bitcoin_core` calls: measured against the two
+    # releases, the name is absent from 2026.8.12 and present here. The
+    # rest of what this tree calls -- `BitcoinCoreRpcClient`, `RpcError`,
+    # `chain_from_network`, `magic_from_chain` -- predates that floor
     "bitcoin-core-rpc>=2026.8.13",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.10, so both come from the backport; 4.4 is the release

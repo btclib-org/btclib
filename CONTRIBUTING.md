@@ -220,14 +220,18 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-**The declared dependencies are `bitcoin-core-rpc>=2026.8.13`,
-`typing-extensions>=4.4` and, as the `secp256k1` extra,
-`btclib-secp256k1>=0.8.0.4`, with no upper bound**, and the absence of a
-ceiling is a decision. `typing-extensions` backports `typing.override`,
-which 3.12 has and the 3.10 floor does not, and its floor is the release
-that adds it. The other two are btclib-org projects developed by the same
-people, and the bindings' whole purpose is to be the bindings this library
-calls, so a breaking change there is coordinated with the release here —
+**Two dependencies are required and one, the bindings, is the `secp256k1`
+extra; every one of them is a floor with no upper bound**, and the absence
+of a ceiling is a decision. Which releases those floors name is
+`pyproject.toml`, next to the reason each one is where it is: a floor
+moves whenever this tree starts calling something newer, so a copy of the
+number here would be a second place to remember and the first to go
+stale. `typing-extensions` is the backport of what the 3.10 floor does
+not have, and its floor is the release adding the latest name this tree
+imports from it. The other two are btclib-org projects developed by the
+same people, and the bindings' whole purpose is to be the bindings this
+library calls, so a breaking change there is coordinated with the release
+here —
 which is what a version ceiling substitutes for when it cannot be. A
 `<0.9` ceiling would cost a btclib
 release for every bindings minor, the ones that break nothing included, and

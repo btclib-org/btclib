@@ -24,6 +24,23 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **Which releases the dependency floors name is `pyproject.toml`'s and
+  nowhere else's.** `CONTRIBUTING.md` stated all three verbatim and had
+  already gone stale on one: it said `typing-extensions>=4.4`, the
+  release adding `override`, where the floor moved to `>=4.10` for
+  `TypeIs` when `utils.is_octets` started narrowing with it. Nothing
+  compared the two, and nothing now has to -- that paragraph keeps the
+  reasoning that does not age (two required and one an extra, no upper
+  bound, and why a ceiling on a sibling would cost a release per minor)
+  and points at `pyproject.toml` for the numbers. A floor moves whenever
+  this tree starts calling something newer, so a second copy of it is
+  the one that goes stale rather than a second guarantee.
+
+  `bitcoin-core-rpc`'s floor gains the reason it never carried, now that
+  it is the only place the number lives: 2026.8.13 for
+  `magic_from_signet_challenge`, absent from 2026.8.12 and present there,
+  measured against both releases rather than read off a changelog.
+
 - **`release.yml`'s `pypi-install` stops being silently skipped by
   `public-api`'s designed failure, one hop past `publish-pypi`'s own
   fix.** `publish-pypi`'s `always()` (issue #1461) opts it back in past
