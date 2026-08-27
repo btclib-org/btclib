@@ -422,6 +422,17 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
+    # public-api stays a need for ordering -- reading a broken surface
+    # before spending the platform sweeps' wall clock is the point,
+    # public-api's own comment says so -- but not for its result: that
+    # job's own comment calls it deliberately not a merge gate, and
+    # `needs` without `always()` gates on every listed job regardless,
+    # a skipped job counting as failed the same as this run's own
+    # comment on the line below already says of publish-pypi. Measured
+    # on run 33008687408: public-api exited 1 on the widening every
+    # Octets-taking alias got this cycle, and publish-testpypi never
+    # started, so the testpypi environment review never fired
+    # (issue #1461)
     needs:
       [
         public-api,
@@ -433,7 +444,15 @@ jobs:
         os-windows,
         integration-bitcoind,
       ]
-    if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
+    if: >-
+      always() && github.event_name == 'workflow_dispatch' &&
+      github.repository == 'btclib-org/btclib' &&
+      needs.test.result == 'success' && needs.lint.result == 'success' &&
+      needs.docs.result == 'success' &&
+      needs.os-ubuntu.result == 'success' &&
+      needs.os-macos.result == 'success' &&
+      needs.os-windows.result == 'success' &&
+      needs.integration-bitcoind.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -456,6 +475,9 @@ jobs:
 
   publish-pypi:
     name: Publish to PyPI
+    # See publish-testpypi's own comment: public-api stays a need for
+    # ordering, not for its result, the same issue applying to a tag
+    # push as to a rehearsal
     needs:
       [
         public-api,
@@ -467,7 +489,15 @@ jobs:
         os-windows,
         integration-bitcoind,
       ]
-    if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
+    if: >-
+      always() && github.event_name == 'push' &&
+      github.repository == 'btclib-org/btclib' &&
+      needs.test.result == 'success' && needs.lint.result == 'success' &&
+      needs.docs.result == 'success' &&
+      needs.os-ubuntu.result == 'success' &&
+      needs.os-macos.result == 'success' &&
+      needs.os-windows.result == 'success' &&
+      needs.integration-bitcoind.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # deployment gate: configure required reviewers on the "pypi"
@@ -498,6 +528,14 @@ jobs:
   pypi-install:
     name: Run the pypi-install workflow
     needs: publish-pypi
+    # publish-pypi's own always() opts it back in past public-api's
+    # designed failure, but does not carry this job with it: a bare
+    # needs: here still reads back through publish-pypi's own needs:,
+    # public-api two hops away skipping this job even though its one
+    # listed dependency succeeded. Measured on the v2026.8.26 tag: this
+    # sentinel never ran on v2026.8.27, and #1461's fix to publish-pypi
+    # itself was not enough (issue #1470)
+    if: always() && needs.publish-pypi.result == 'success'
     uses: ./.github/workflows/pypi-install.yml
     with:
       version: ${{ github.ref_name }}

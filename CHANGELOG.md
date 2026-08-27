@@ -22,6 +22,27 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Packaging, linting and CI
+
+- **`release.yml`'s `pypi-install` stops being silently skipped by
+  `public-api`'s designed failure, one hop past `publish-pypi`'s own
+  fix.** `publish-pypi`'s `always()` (issue #1461) opts it back in past
+  `public-api`, but does not carry `pypi-install` with it: a bare
+  `needs: publish-pypi` still reads back through `publish-pypi`'s own
+  `needs:`, `public-api` two hops away skipping this job even though
+  its one listed dependency succeeded. Measured on the v2026.8.27 tag:
+  `Publish to PyPI` completed `success`, and `Run the pypi-install
+  workflow`'s check run started and completed the same second, zero
+  steps run. RELEASING.md calls the workflow this job calls "the
+  sentinel on what the index serves"; it did not run for that release,
+  and both checks it would have made were done by hand instead and
+  passed, so the release itself is sound. `if: always() &&
+  needs.publish-pypi.result == 'success'` now sits beside its `needs:`,
+  the same shape `attest` and `github-release` already carried and the
+  same reason (issue #1470).
+
+## v2026.8.27
+
 ### Repository
 
 - **`fuzz.yml` ran on every pull request and gated nothing** (issue
@@ -892,6 +913,20 @@ documented at release-notes length in the first place, and are still in
   declaration is that the bullet stays untested (closes #1431).
 
 ### Packaging, linting and CI
+
+- **`release.yml`'s `publish-testpypi` and `publish-pypi` stop gating on
+  `public-api`'s result.** That job's own comment calls it deliberately
+  not a merge gate -- before 1.0 the surface breaks often, and it exists
+  to answer while RELEASE_NOTES.md is already being written, not to
+  block anything -- but both publish jobs still listed it in `needs:`
+  with no `always()`, so its own designed failure on a real
+  breaking-changes cycle silently kept either from ever starting. Never
+  exercised before this cycle: the job landed after v2026.8.21, so the
+  v2026.8.26 rehearsal was the first to run it against one. `needs:`
+  keeps `public-api` for ordering, its own comment wanting the answer
+  ahead of the platform sweeps' wall clock; each `if:` now opens with
+  `always()` and reads every other dependency's `.result` explicitly,
+  the shape `github-release` already used two jobs down (issue #1461).
 
 - **Every dependency is at the newest version this tree resolves to**,
   `uv.lock` re-resolved with `uv lock --upgrade` and

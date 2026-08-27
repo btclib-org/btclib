@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.8.27
+
 ### Breaking changes
 
 - **A bool is no longer accepted as an integer** (issue #1206), which
