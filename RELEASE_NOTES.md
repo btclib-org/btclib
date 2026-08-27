@@ -19,7 +19,7 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.8.26
+## v2026.8.27
 
 ### Breaking changes
 

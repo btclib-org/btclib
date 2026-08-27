@@ -20,7 +20,7 @@ Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
 [RELEASE_NOTES.md](./RELEASE_NOTES.md) rather than duplicated here.
 
-## v2026.8.26
+## v2026.8.27
 
 ### Repository
 
