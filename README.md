@@ -2,7 +2,7 @@
 
 <!-- The badges are what the reader decides with: the first block says what
 this is and whether it can be used, and the second whether it works. At the
-end, the OpenSSF Scorecard badges. 
+end, the OpenSSF Scorecard badges.
 
 One badge per line keeps a change to one line and every line inside MD013,
 whose 80 columns bind only where a space follows them.
