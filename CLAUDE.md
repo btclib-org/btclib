@@ -183,6 +183,19 @@ Do not use Fable unless explicitly instructed.
   answers zero on a file that has real matches; `--perl-regexp` is what
   actually honors `\b`. Prove a sweep's zero against a known positive
   before trusting it.
+- **Asking what an index serves has to be asked from outside every
+  checkout of this project**, and `--isolated --no-project` is not what
+  makes it so. Measured on release day, one command
+  (`uv run --isolated --no-project --with btclib python -c "import
+  btclib; print(btclib.__version__)"`) three ways: `2026.9` run from the
+  primary checkout, `2026.8.27` — what PyPI actually served — run from a
+  directory belonging to nothing, and the checkout it answered from
+  declaring `2026.8.26` in its own `pyproject.toml`. So it is not
+  reading the tree either, and "the tree is current" is not the guard: a
+  cached build of some earlier state of it is enough to shadow the
+  index, and the version it hands back is plausible enough to be written
+  into a release verification. `cd` to the scratchpad first, and print
+  `btclib.__file__` beside the version when the answer decides anything.
 
 ## Conventions to match
 
@@ -251,6 +264,18 @@ exit code rather than its filtered output: `pre-commit run ... | grep -v
 Passed` hides a failure, and a `grep` that finds nothing exits 1, which
 is not the gate's answer to anything. `REVIEWING.md`'s *The gates are the
 evidence* is where that rule is written for a reader who is not this
-one. Prefer
+one.
+
+**A failed thing is loud and an absent thing is silent**, so "nothing is
+red" is not the question — "did every step I expected actually run" is.
+A CI job skipped rather than failed leaves the run green where it is
+missing: v2026.8.27 published with its post-publish sentinel never
+having run, and nothing anywhere said so, because `needs:` without
+`always()` gates on the whole transitive chain and not on the jobs it
+lists (issues #1461 and #1470; `RELEASING.md` carries the check).
+The same asymmetry is what makes a zero from a sweep worth distrusting,
+above, and an empty `grep` worth reading twice.
+
+Prefer
 measuring to asserting: every claim in this file was checked against the
 tree, and the tree changes.
