@@ -728,11 +728,23 @@ jobs:
   # that succeeded, for as long as that takes somebody to notice. Two
   # releases went out undocumented that way, which is issue #574.
   # The rendered URL and not the v3 API, which is the reverse of what
-  # `pypi-install` above does with PyPI's: read the docs throttles an
-  # unauthenticated caller to five requests a minute and warns that
-  # requests from a cloud provider are blocked outright without a token, so
-  # asking the API from a runner would mean storing a credential for a
-  # check that gates nothing. /en/<tag>/ is CDN-served, answers 404 for a
+  # `pypi-install` above does with PyPI's. Read the docs documents
+  # network-level blocks on automated scripts calling it from a cloud
+  # provider or CI -- which a GitHub-hosted runner is -- and says a token
+  # bypasses them, so asking the API from here would mean storing a
+  # credential for a check that gates nothing, and that credential is what
+  # carries the choice. Sourced, not observed: nothing in this tree has
+  # called the API from a runner.
+  #   https://docs.readthedocs.com/platform/stable/api/v3.html
+  # The same page limits an unauthenticated caller to 5 requests a minute.
+  # That figure is read the docs' and is cited here rather than
+  # re-derived: bursts run against both the project and the versions
+  # endpoint landed their first 429 at a different call each time --
+  # sometimes within a handful, sometimes not inside a fifteen-call burst
+  # at all -- the window being shared across paths and callers. So nothing
+  # here measures where the limit bites, and no count of it is stated
+  # (issue #1460).
+  # /en/<tag>/ is CDN-served, answers 404 for a
   # version that is inactive or has no successful build, and is the URL a
   # reader follows anyway.
   # Release-only, a rehearsal never being tagged; after version-check, so a
@@ -758,18 +770,16 @@ jobs:
   # last attempt no longer sleeps either, which used to buy nothing.
   #
   # What the loop cannot do is tell "still building" from "will never
-  # build": RTD's own webhook accepts a push that matches no version with
-  # a 200 and `{"build_triggered": false, "versions": []}` -- a green
-  # delivery with nothing behind it -- and /en/<tag>/ answers 404 in both
+  # build": a push that matches no version is accepted and triggers
+  # nothing -- a green delivery with nothing behind it, whatever carries
+  # it -- and /en/<tag>/ answers 404 in both
   # that case and the ordinary "build not finished yet" one, so the
   # rendered URL alone cannot separate them. The v3 API can (a build's
   # `state.code` and `success`, queried straight, matched this tag's
   # `v2026.8.21` build seconds after it finished) but the comment above
-  # already rules the API out for this job, for a reason that still
-  # holds and that testing here confirmed rather than assumed: RTD
-  # throttles an unauthenticated caller to 5 requests a minute and blocks
-  # a cloud-provider caller -- which a GitHub-hosted runner is -- outright
-  # without a token. Querying it from this loop would mean storing an RTD
+  # already rules the API out for this job, and states the reason once
+  # rather than twice: what rules it out is the credential a runner would
+  # have to carry. Querying it from this loop would mean storing an RTD
   # credential in a job that gates nothing, to buy a distinction the job
   # already gestures at by naming the builds page. Scraping the builds
   # *page* instead of the API was considered and dropped too: same
