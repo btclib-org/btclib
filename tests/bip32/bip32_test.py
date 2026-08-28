@@ -1090,7 +1090,12 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
     # function for unreachable and checks none of it -- warn_unreachable
     # being off, in silence. Measured: with the assertion written directly
     # on the attribute, a reveal_type below it prints nothing at all
-    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
+    #
+    # object.__setattr__ and not replace_unchecked: that one builds the
+    # instance through __init__, where bytes_from_octets copies the
+    # buffer, so what it installs is bytes and there is nothing left for
+    # a rewrite to be visible in
+    object.__setattr__(xkey_data, "chain_code", bytearray(xkey_data.chain_code))
     chain_code: object = xkey_data.chain_code
     assert isinstance(chain_code, bytearray)
 
@@ -1102,7 +1107,7 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
 def test_assert_valid_does_not_rewrite_on_a_read() -> None:
     """Keep b58encode and serialize from coercing fields in place."""
     xkey_data = BIP32KeyData.b58decode(XKEY)
-    xkey_data = replace_unchecked(xkey_data, chain_code=bytearray(xkey_data.chain_code))
+    object.__setattr__(xkey_data, "chain_code", bytearray(xkey_data.chain_code))
 
     xkey_data.b58encode()
     after_b58encode: object = xkey_data.chain_code
@@ -1111,6 +1116,29 @@ def test_assert_valid_does_not_rewrite_on_a_read() -> None:
     xkey_data.serialize()
     after_serialize: object = xkey_data.chain_code
     assert isinstance(after_serialize, bytearray)
+
+
+def test_a_bytearray_chain_code_is_copied_into_the_key_data() -> None:
+    """The caller keeps its buffer, and the key keeps its octets.
+
+    `bytes_from_octets` copies what `__init__` is given, so a caller
+    writing to the bytearray it built a key from does not rewrite the
+    key: without the copy the field aliased that buffer, and the xprv
+    this serializes to changed under a caller who never touched the key
+    (issue #1255).
+    """
+    chain_code = bytearray(b"\x11" * 32)
+    xkey_data = BIP32KeyData(
+        version="0488ade4",
+        depth=0,
+        parent_fingerprint="00000000",
+        index=0,
+        chain_code=chain_code,
+        key="00" + "22" * 32,
+    )
+    xprv = xkey_data.b58encode()
+    chain_code[0] = 0xFF
+    assert xkey_data.b58encode() == xprv
 
 
 def test_assert_valid_reports_a_float_field_instead_of_coercing_it() -> None:

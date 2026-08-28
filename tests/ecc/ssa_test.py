@@ -337,8 +337,8 @@ def test_an_extended_key_is_no_longer_a_bip340_key() -> None:
 def test_a_buffer_is_octets_at_every_size_this_takes() -> None:
     """A bytearray and a memoryview, at all three sizes (issue #1188).
 
-    They are what `bytes_from_octets` accepts beside `Octets` and returns
-    as they came, and what `to_pub_key` names at run time beside the
+    They are what `bytes_from_octets` accepts beside `Octets` and copies
+    into `bytes`, and what `to_pub_key` names at run time beside the
     static union -- the asymmetry `alias` states and this module
     inherits.
 

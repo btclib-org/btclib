@@ -21,6 +21,26 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Worth knowing, though nothing raises
+
+- **`bytes_from_octets` returns `bytes`, and not the buffer it was
+  handed** (closes #1255). A `bytearray` or a `memoryview` came back as
+  itself, so what a caller got was the object it had passed in and the
+  `-> bytes` on the signature was not what the function did.
+
+  Act on it if you pass a `bytearray` or a `memoryview` to
+  `btclib.utils.bytes_from_octets` and then use what comes back as a
+  mutable buffer: writing through it raises `TypeError: 'bytes' object
+  does not support item assignment`, and `isinstance(result, bytearray)`
+  is now False. A `bytes` argument and a hex `str` are unaffected, and
+  anything that reads the result as octets reads it unchanged.
+
+  The other direction is what the change is for and asks nothing of
+  you. A `BIP32KeyData` built from a bytearray chain code kept that
+  bytearray as its field, so the xprv the key serialized to moved when
+  the caller wrote a byte into a buffer that was its own to write to;
+  what a field built through this coercion holds is now a copy.
+
 ## v2026.8.27
 
 ### Breaking changes

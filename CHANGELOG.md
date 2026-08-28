@@ -167,6 +167,33 @@ documented at release-notes length in the first place, and are still in
   showing the two fields as one link being cheaper than the field
   tools read for that purpose specifically.
 
+### The public API and the module layout
+
+- **`bytes_from_octets` answers with the `bytes` it is annotated to
+  return** (closes #1255). A `bytearray` or a `memoryview` went back to
+  the caller as its own object, so a `BIP32KeyData` built from a
+  bytearray chain code aliased that bytearray, and the xprv the key
+  serializes to changed when the caller wrote a byte into a buffer that
+  was its own to write to. `bytes(octets)` on the way out is the fix,
+  and the arm every `Octets` parameter of the library runs through
+  allocates nothing for it: `bytes(b)` is `b` itself where `b` is
+  already `bytes`, which is what a hex string decodes to and what nearly
+  every call passes.
+
+  The two `type: ignore[return-value]` that disclosed the gap go with
+  it, and so does the `bytes(...)` each call site needing real `bytes`
+  had put around the result: a concatenation, a reversal that has to
+  stay contiguous, an ordering against a `bytes` digest, a field
+  declared `bytes` that has to hash, a `decode`, and the `BytesIO` a
+  `PsbtView` parses out of. One coercion that answers `bytes` is what
+  each of them was asking for, and the reasons written beside them go
+  with them.
+
+  `assert_valid` is still a read that does not rewrite the field it
+  reads. The copy is `__init__`'s, where a key is built rather than
+  inspected, and `assert_valid`'s own type check runs on a local it
+  never assigns back.
+
 ## v2026.8.27
 
 ### Repository

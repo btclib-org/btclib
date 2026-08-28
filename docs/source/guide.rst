@@ -130,7 +130,8 @@ The four aliases:
     ``btclib.utils.bytes_from_octets`` to normalize one yourself. The
     mutable buffers are here because every consumer takes one: a
     ``memoryview`` sliced out of a larger field is octets like any
-    other, and is not copied on its way in.
+    other. That coercion copies it, so writing to a buffer after
+    passing it does not reach what btclib built from it.
 
 ``String = bytes | str | bytearray | memoryview``
     The same types, read the other way round: here a ``str`` is *text*,

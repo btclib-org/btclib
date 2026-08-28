@@ -218,13 +218,7 @@ class PsbtView:
     sp_dleq_proofs: dict[bytes, bytes]
 
     def __init__(self, data: BinaryIO | Octets) -> None:
-        # `bytes` where `BytesIO` would take the buffer itself: it copies
-        # either way — what it does not do is flatten a non-contiguous
-        # memoryview, which `Octets` admits and which it refuses with
-        # `BufferError: underlying buffer is not C-contiguous`
-        stream: BinaryIO = (
-            BytesIO(bytes(bytes_from_octets(data))) if is_octets(data) else data
-        )
+        stream: BinaryIO = BytesIO(bytes_from_octets(data)) if is_octets(data) else data
         if not stream.seekable():
             err_msg = "a psbt view needs a seekable stream: it reads a map "
             err_msg += "when it is asked for it, not in the order they arrive"

@@ -135,12 +135,10 @@ def encode(v: Octets, in_size: int | None = None) -> bytes:
     """Encode a bytes-like object using Base58Check."""
     v = bytes_from_octets(v, in_size)
     h256 = hash256(v)
-    # bytes(v) rather than v: a memoryview has no __add__, so `v + h256[:4]`
-    # raises TypeError once v is the buffer bytes_from_octets hands back
-    # unchanged. The copy is safe here, unlike in bytes_from_octets itself:
-    # v does not survive past this line, so there is nothing of the
-    # caller's for a copy to lose sync with
-    return _b58encode(bytes(v) + h256[:4])
+    # the concatenation a memoryview has no operator for: what makes it
+    # one is `bytes_from_octets` above, where every buffer becomes the
+    # `bytes` the payload is built from
+    return _b58encode(v + h256[:4])
 
 
 def _b58decode_to_int(v: bytes) -> int:

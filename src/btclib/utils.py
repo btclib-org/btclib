@@ -87,22 +87,21 @@ def _assert_byte_shaped(octets: bytes | bytearray | memoryview) -> None:
     """Refuse a memoryview whose layout or format is not plain bytes.
 
     `bytes` and `bytearray` are always C-contiguous and always format
-    "B" (unsigned bytes); a `memoryview` need not be either. A strided
-    slice such as `mv[::2]` is not C-contiguous, and is returned by
-    `bytes_from_octets` untouched unless refused here.
+    "B" (unsigned bytes); a `memoryview` need not be either, and the
+    copy `bytes_from_octets` makes takes both without a word. A strided
+    slice such as `mv[::2]` is not C-contiguous, and `bytes()` of one
+    gathers its strides into a run that no buffer holds.
 
-    Contiguity is not the only property every other consumer of the
-    buffer this returns assumes: a `memoryview` cast to a signed `"b"`,
-    or built over an array of a wider format such as `"I"`, is
-    C-contiguous and still not read the way `hashes.magic_message`'s
-    `for byte in data` or `hashes.siphash`'s `len(msg)` read it --
-    `len()` counts elements rather than octets, and iterating one
-    yields whatever the format decodes to rather than an unsigned byte
-    in `0..255` (issue #1430). Format `"B"` is the one every buffer
-    this function accepts shares, `bytes`, `bytearray` and an
-    unformatted `memoryview` included, so it is the property asked for
-    rather than `itemsize == 1`, which a signed `"b"` view or a `"c"`
-    one (bytes objects, not ints) would still pass.
+    Contiguity is not the only property the octets a caller counts rest
+    on: a `memoryview` cast to a signed `"b"`, or built over an array of
+    a wider format such as `"I"`, is C-contiguous and still not the
+    octets it looks like -- `len()` counts elements where `bytes()`
+    yields `itemsize` of them each, so the caller's count of its own
+    octets and the library's disagree (issue #1430). Format `"B"` is the
+    one every buffer this function accepts shares, `bytes`, `bytearray`
+    and an unformatted `memoryview` included, so it is the property
+    asked for rather than `itemsize == 1`, which a signed `"b"` view or
+    a `"c"` one (bytes objects, not ints) would still pass.
     """
     if not isinstance(octets, memoryview):
         return
@@ -117,21 +116,24 @@ def _assert_byte_shaped(octets: bytes | bytearray | memoryview) -> None:
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
-    If the input is not a string, then it goes untouched. Optionally, it
-    also ensures required output size: one size, or any iterable of them,
-    and a bool is neither -- `out_size=True` would accept a single octet
-    and say it had checked a size.
+    A `bytearray` or a `memoryview` is copied, which is what makes the
+    `bytes` this promises true: handed back as it came, either is still
+    the caller's own object, so a write to it afterwards reaches into
+    whatever kept the return value -- the chain code of a
+    `BIP32KeyData`, and the xprv that key serializes to. The copy is
+    also what reads as octets everywhere the result goes: a `memoryview`
+    has no `+` to concatenate with, and a `bytearray` keys no dict.
+
+    Optionally, it also ensures required output size: one size, or any
+    iterable of them, and a bool is neither -- `out_size=True` would
+    accept a single octet and say it had checked a size.
 
     A non-contiguous `memoryview` -- what a strided slice such as
-    `mv[::2]` gives -- is refused here rather than handed back: every
-    other consumer of the buffer this returns needs a C-contiguous one,
-    `hash160` failing with a bare `BufferError` being one of them, so the
-    refusal is raised through the exception contract at the one place
-    every `Octets` parameter passes rather than left to whichever
-    consumer trips over it first. A `memoryview` whose format is not
-    unsigned bytes is refused the same way: `len()` of one counts
-    elements rather than octets, and a consumer that reads it byte by
-    byte reads whatever its format decodes to instead (issue #1430).
+    `mv[::2]` gives -- is refused rather than copied, and so is one whose
+    format is not unsigned bytes: `_assert_byte_shaped` says why neither
+    is the octets it looks like. The refusal is raised through the
+    exception contract at the one place every `Octets` parameter passes,
+    rather than left to whichever consumer trips over it first.
     """
     if isinstance(octets, str):  # hex string
         # `bytes.fromhex` raises a bare ValueError -- the same class the
@@ -148,24 +150,21 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
             raise BTClibValueError(f"invalid hex string: {e}") from e
     elif isinstance(octets, (bytes, bytearray, memoryview)):
         _assert_byte_shaped(octets)
+        # the copy that makes the annotation true (issue #1255).
+        # `bytes(b)` is `b` itself where `b` is already `bytes`, which is
+        # what nearly every call passes, so the arm every `Octets`
+        # parameter of the library runs through allocates nothing
+        octets = bytes(octets)
     else:
         # what is neither went through untouched and reached whatever the
         # caller went on to do with it: `len` of a tuple of 33 ints is 33,
         # so `taproot.assert_valid_control_block` accepted one as a
-        # control block size.
-        # Every buffer and not `bytes` alone, and returned as it came:
-        # `assert_valid` is a read and must not rewrite the field it
-        # reads, which is what `bytes()` here would do to a bytearray a
-        # caller built (`tests/bip32/bip32_test.py` pins it)
+        # control block size
         err_msg = f"invalid octets type: {type(octets).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
     if out_size is None:
-        # the annotation says `bytes` and this hands back the buffer it
-        # was given, which the widened `Octets` is what makes visible:
-        # disclosed rather than silenced, because making the signature
-        # true is a change across the tree and its own (issue #1255)
-        return octets  # type: ignore[return-value]
+        return octets
 
     # one size or an iterable of them, and nothing else: `tuple()` on
     # whatever is left would refuse a float with a bare TypeError about
@@ -184,13 +183,9 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
             err_msg = f"invalid output size type: {type(size).__name__}"
             raise BTClibTypeError(err_msg)
 
-    # nbytes rather than len(): the two already agree for bytes,
-    # bytearray and the format-"B" memoryview _assert_byte_shaped just
-    # let through, so this measures the octets rather than repeating a
-    # coincidence that check happens to make true
-    size = memoryview(octets).nbytes
+    size = len(octets)
     if size in sizes:
-        return octets  # type: ignore[return-value]
+        return octets
 
     err_msg = f"invalid size: {size} bytes instead of {out_size}"
     raise BTClibValueError(err_msg)

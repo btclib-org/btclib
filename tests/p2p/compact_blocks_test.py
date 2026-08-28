@@ -203,13 +203,13 @@ def test_the_short_id_is_taken_over_the_hash_the_wire_carries() -> None:
 
 
 def test_a_memoryview_wtxid_gives_the_same_short_id_as_bytes() -> None:
-    """Reversing the buffer bytes_from_octets hands back must not strand it.
+    """A memoryview reversed must reach siphash as the octets it spells.
 
-    A memoryview is returned unchanged, and `[::-1]` over one is a
-    strided, non-contiguous view: `siphash`'s own call to
-    `bytes_from_octets` used to refuse it, so a wtxid spelled as a
-    memoryview raised where every other `Octets` spelling answers
-    (issue #1429).
+    `[::-1]` over a memoryview is a strided, non-contiguous view, which
+    `siphash`'s own call to `bytes_from_octets` refuses, so a wtxid
+    spelled as a memoryview raised where every other `Octets` spelling
+    answers (issue #1429). What is reversed here is the `bytes` the
+    coercion answers with.
     """
     block = _block_481824()
     compact_block = _compact(block)
