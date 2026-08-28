@@ -208,6 +208,40 @@ documented at release-notes length in the first place, and are still in
   branch, and `REPOSITORY.md`'s required-checks table names only
   `Regtest against Bitcoin Core` (closes #1463).
 
+- **`REPOSITORY.md` records how the Read the Docs project is connected
+  today.** It recorded one webhook, with a secret and a
+  `last_response.code` of 200, and instructed the next maintainer to
+  replace an integration this repository does not have: `gh api
+  repos/btclib-org/btclib/hooks` answers `0`. What connects the project
+  is the organization-wide `read-the-docs-community` GitHub App. The
+  control is the same call against a repository this token has no admin
+  on, which refuses out loud and exits non-zero rather than answering an
+  empty list: that is what makes the zero a repository with no hook and
+  not a permission ceiling reading like one. Two present-tense sentences
+  that still named a webhook -- one here, one in `release.yml` -- name
+  the delivery instead (closes #1482).
+- **`release.yml` states read the docs' throttle once, and sources it.**
+  Two comments gave the same fact in two strengths, one as a warning
+  about a block and one as an observed one that "testing here confirmed
+  rather than assumed". Both figures are read the docs' own, and the
+  comment now cites the page that carries them rather than presenting
+  either as a finding of this tree's: five requests a minute
+  unauthenticated, and network-level blocks on automated scripts calling
+  from a cloud provider or CI, which a token bypasses. That second clause
+  is what the choice rests on -- a runner would have to carry an RTD
+  credential for a check that gates nothing -- and it is sourced rather
+  than observed, nothing here having called the API from a runner. The
+  per-minute figure is cited and not re-derived, which is the part the
+  issue got wrong and this entry records rather than repeats: bursts
+  against both the project and the versions endpoint landed their first
+  429 at a different call each time -- sometimes within a handful,
+  sometimes not inside a fifteen-call burst at all -- so a run reaching
+  fifteen clean does not refute five a minute; it measures a window shared
+  across paths and callers. The issue was
+  filed on one such run. What survives it is the defect that needed no
+  burst: the file stated the same fact twice, in two strengths, one of
+  them claiming testing here had confirmed it (closes #1460).
+
 ### The public API and the module layout
 
 - **`bytes_from_octets` answers with the `bytes` it is annotated to

@@ -571,9 +571,11 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
 - **`latest` follows the default branch, which is `main`.** That setting is
   Read the Docs' own and not GitHub's, so renaming the branch here leaves
   it pointing at one that no longer exists — and a push to a branch no
-  version follows is *accepted*, answered with `{"build_triggered": false,
-  "versions": []}`, which is a green delivery and a site frozen at its last
-  build (issue #574).
+  version follows is *accepted* and builds nothing, which is a green
+  delivery and a site frozen at its last build (issue #574). The
+  `{"build_triggered": false, "versions": []}` body that used to be
+  quoted here is the webhook era's; what carries a delivery now is the
+  App below, and no call in this file reads what it answers.
 - **`stable` is the highest semantic-version tag**, chosen by Read the Docs
   and moved by it on each release, pre-releases excluded. It takes no
   setting and no rule, and it is what `/en/stable/` serves.
@@ -610,20 +612,30 @@ could have been — included, so `/en/v<version>/` starts at the first tag
 pushed after the rule and there is nothing behind it. `/en/stable/` is the
 last release either way, which is what makes the backfill skippable.
 
-**The webhook has to carry a secret.** A delivery from one that does not is
-refused with 400 and the reason in the body, which GitHub records in the
-hook's delivery log and reports nowhere else:
+**What connects the project is the `read-the-docs-community` GitHub App**,
+installed on the organization for every repository, so this repository
+carries no webhook of its own and none to give a secret to:
 
 ```shell
-gh api repos/btclib-org/btclib/hooks \
-  --jq '.[] | [.config.url, (.config.secret != null), .last_response.code]'
-# ["https://app.readthedocs.org/api/v2/webhook/btclib/331149/",true,200]
+gh api orgs/btclib-org/installations \
+  --jq '.installations[] | select(.app_slug == "read-the-docs-community")
+        | [.app_slug, .repository_selection]'
+# ["read-the-docs-community","all"]
+gh api repos/btclib-org/btclib/hooks --jq 'length'
+# 0
+gh api repos/octocat/Hello-World/hooks --jq 'length'
+# gh: Not Found (HTTP 404)
+# gh: This API operation needs the "admin:repo_hook" scope.
 ```
 
-A hook added here by hand has no secret and cannot be given one that Read
-the Docs knows. The one that works was issued by the project's integration
-page, and that is also how it is replaced: delete the integration there
-and add it again, rather than editing the hook on this side.
+The third command is the control, and it is what makes the second an
+answer about this repository rather than about the token: a call this
+token may not make refuses out loud and exits non-zero rather than
+answering an empty list, so the `0` above is a repository with no hook
+and not a permission ceiling that reads like one. Every repository of the
+organization answers `0`; the last per-repository webhook left anywhere
+was bitcoin-core-rpc's, dead since the App arrived and deleted on
+2026-08-28 (bitcoin-core-rpc#291).
 
 ## Plan-gated settings
 
