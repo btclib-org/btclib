@@ -197,6 +197,17 @@ documented at release-notes length in the first place, and are still in
   bindings back and reports the whole suite passing as a no-bindings run
   (closes #1453, closes #1450).
 
+- **`integration-hwi.yml` no longer declares `workflow_call`.** Nothing
+  called it — `release.yml` reuses eight workflows and this is not one
+  of them, unlike `integration-bitcoind.yml`, whose own `workflow_call`
+  carries the comment naming `release.yml` as the caller. This file's
+  own header already narrates every way it runs — the weekly schedule,
+  the push to `main`, the dispatch button for a branch touching
+  `src/btclib/hwi.py` — and none of them was ever the release: an
+  emulator is a service to keep working rather than a claim about the
+  branch, and `REPOSITORY.md`'s required-checks table names only
+  `Regtest against Bitcoin Core` (closes #1463).
+
 ### The public API and the module layout
 
 - **`bytes_from_octets` answers with the `bytes` it is annotated to

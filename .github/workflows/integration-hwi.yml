@@ -39,7 +39,6 @@ on:
     - cron: "4 3 * * 3"
   push:
     branches: [main]
-  workflow_call:
   # the escape hatch, and how a branch is checked against a device before
   # it lands
   workflow_dispatch:
