@@ -167,6 +167,12 @@ documented at release-notes length in the first place, and are still in
   showing the two fields as one link being cheaper than the field
   tools read for that purpose specifically.
 
+- **`README.md`'s downloads badge links to `pepy.tech/projects/btclib`,
+  plural.** The singular form answers `308` and redirects to the plural,
+  which section 2 of the organization standard now fixes as the link
+  target for the same reason it already gives for the Read the Docs
+  host: a redirect is something its owner can retire (closes #1478).
+
 ### The public API and the module layout
 
 - **`bytes_from_octets` answers with the `bytes` it is annotated to
