@@ -139,6 +139,25 @@ documented at release-notes length in the first place, and are still in
   reports each of those reasons, the reason being what a reader acts on
   (closes #1451).
 
+- **`test: every job passed` fails on a `needs` result that is empty**,
+  which is the one shape its allowlist could not see. An empty result
+  contributed no word to `for` under the space the join used as its
+  separator, so the loop decided the gate on the results beside it, and
+  on a join empty throughout it compared nothing and exited 0 -- a
+  required check reporting on a run it never read. The separator is a
+  comma, which makes an empty result an empty field rather than
+  nothing, and a `case` over the string wrapped in commas decides
+  before the loop: an empty first field, an empty last one, an empty
+  one between two others and an empty join are a single pattern to it,
+  where the loop cannot see a trailing empty field even under a comma.
+  The comment above the step says what neither reading catches -- a
+  `needs` entry whose `result` key is missing rather than empty is
+  dropped by the `needs.*.result` filter before the join runs -- and
+  why the run's own job listing, which section 10 of the organization
+  standard has an aggregate read instead of `needs`, is not open to
+  this workflow while `release.yml` calls it and that listing is the
+  caller's run (btclib-org/.github#474) (closes #1454).
+
 ## v2026.8.27
 
 ### Repository
