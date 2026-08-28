@@ -244,6 +244,13 @@ documented at release-notes length in the first place, and are still in
   carried instead was a number nothing re-measures, and it is gone
   rather than kept current.
 
+- **`docs/source/conf.py`'s `extensions` list drops its commented-out
+  `m2r2`** (closes #1479). `m2r2` is in neither the dependency groups nor
+  the lock, so uncommenting it would fail the docs build's own import --
+  `uv sync` reads `pyproject.toml` and the lock, never `conf.py`, and
+  would not notice. `myst_parser`, the line below it, is what already
+  reads the markdown `m2r2` would have converted.
+
 ## v2026.8.27
 
 ### Repository
