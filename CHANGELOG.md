@@ -173,6 +173,30 @@ documented at release-notes length in the first place, and are still in
   target for the same reason it already gives for the Read the Docs
   host: a redirect is something its owner can retire (closes #1478).
 
+- **`CONTRIBUTING.md`'s last section named a check that does not gate a
+  merge and omitted the step that makes a reproduction of another one
+  work.** *What runs when* named `website` among the rows a merge waits
+  for; branch protection's required contexts are `Lint and type-check`,
+  `Build the documentation`, `test: every job passed` and `Regtest
+  against Bitcoin Core` — the `lint`, `docs`, `test` and
+  `integration-bitcoind` rows — and none of them is `website.yml`'s
+  `Build the website`, which the workflow's own header already calls
+  not required, carrying a `paths` filter a required check cannot have.
+  The sentence now names the rows that produce those contexts and says
+  why `website` is not among them.
+
+  *Reproducing what CI runs*'s `no-bindings` reproduction ran its assert
+  step against whatever `.venv` an earlier command in the file left
+  behind, `uv run` syncing additively rather than pruning: after the
+  plain `uv sync` two paragraphs above it, `INSTALLED` still reads
+  `True` and `assert not INSTALLED` fails before pytest ever runs. The
+  reproduction now opens with the `uv sync --exact --no-default-groups
+  --group harness` that prunes the bindings back out and closes with the
+  `uv sync` that restores the environment afterwards, and says what
+  `--group test` in place of `harness` does instead — installs the
+  bindings back and reports the whole suite passing as a no-bindings run
+  (closes #1453, closes #1450).
+
 ### The public API and the module layout
 
 - **`bytes_from_octets` answers with the `bytes` it is annotated to

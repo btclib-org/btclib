@@ -488,10 +488,15 @@ stale the next time one is added or dropped.
 grep -n 'uses: \./\.github/workflows/' .github/workflows/release.yml
 ```
 
-The `test`, `lint`/`docs`, `integration-bitcoind` and `website` rows are what a
+The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
 merge waits for, and between them they report the required checks: `lint`
 and `docs` share a row and report one each. They run one image on one
 interpreter: `ubuntu-latest`, and the version `.python-version` names.
+`website` is not among them: it carries a `paths` filter, and a required
+check that a filtered trigger can skip would block a merge the filter
+was meant to let through, which is the workflow's own reason for staying
+optional.
+
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar in one place is one thing to keep true, where a copy of it in
@@ -602,10 +607,15 @@ then uploads the data file this command wrote as an artifact, for
 `coverage-union` to read; that step has no command of its own to
 reproduce, being a plain `actions/upload-artifact`.
 
-The `no-bindings` job, which runs the suite against a btclib that has no
-`btclib_secp256k1` to delegate to:
+The `no-bindings` job runs the suite against a btclib that has no
+`btclib_secp256k1` to delegate to. CI starts it from an empty
+environment; locally `uv run` syncs additively, so a `.venv` any other
+command in this section left behind — `uv sync` above included — still
+holds the bindings, and the assert below fires on it. `--exact` is what
+prunes them back to the one group this job runs with:
 
 ```shell
+uv sync --exact --no-default-groups --group harness
 uv run --locked --no-default-groups --group harness \
     python -c "from btclib._libsecp256k1 import INSTALLED; \
       assert not INSTALLED, 'btclib_secp256k1 is installed'; \
@@ -614,11 +624,19 @@ uv run --locked --no-default-groups --group harness \
 COVERAGE_FILE=coverage-data-no-bindings \
     uv run --locked --no-default-groups --group harness \
     pytest --cov --cov-fail-under=0
+uv sync
 ```
+
+The closing `uv sync` restores the environment `--exact` just pruned to
+`harness` alone, the same restoration the note above makes for any
+group-restricted command in this section.
 
 `harness` and not `test`: `test` is `harness` plus `bindings`, and uv's
 `--no-group` suppresses a group that was selected rather than one another
 group includes, so the split in pyproject.toml is what this job is.
+`--group test` in place of `harness` installs the bindings back and runs
+the whole suite with them present, reporting it as a passing no-bindings
+run with nothing to say it was not one.
 `--cov --cov-fail-under=0`, not `--no-cov` (issue #1002): the delegated
 arms are still unreachable in this configuration by construction, so a
 report of this run *alone* would still fail the 100% gate for the one
