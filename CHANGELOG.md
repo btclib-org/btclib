@@ -235,6 +235,15 @@ documented at release-notes length in the first place, and are still in
   inspected, and `assert_valid`'s own type check runs on a local it
   never assigns back.
 
+### Documentation and the website
+
+- **`_b58decode`'s comment stops recording a wall clock** (closes
+  #1449). `bytes(b) is b` for an exact `bytes` object is the fact that
+  makes the coercion free, and it is what `utils.bytes_from_octets`
+  already names for the same reason; the nanosecond figure the comment
+  carried instead was a number nothing re-measures, and it is gone
+  rather than kept current.
+
 ## v2026.8.27
 
 ### Repository
