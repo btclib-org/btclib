@@ -860,13 +860,43 @@ jobs:
       # pull request means every one of them reports `skipped` on
       # purpose. `changes` itself is not conditional, and a job that
       # fails outright still reports `failure`, never `skipped` -- an
-      # allowlist rather than a denylist of the two, since an
-      # unanticipated result (empty string included, issue #1001's own
-      # failure mode) is exactly what this step exists to catch
+      # allowlist rather than a denylist of the two, so a result this
+      # file does not anticipate fails the gate instead of passing it
+      # for not being named.
+      #
+      # The allowlist decides one field at a time, and word splitting
+      # does not hand it every field: a trailing empty one is dropped
+      # and an empty join gives no iteration at all, so the loop by
+      # itself decides the gate on the results beside the empty one, or
+      # on nothing (issue #1454). The `case` before it is what refuses
+      # those, and the comma separator is what lets it: `join` writes
+      # one separator between every pair of elements whatever they
+      # convert to -- `Join.cs` in actions/runner -- so an empty result
+      # is an empty field, and the commas wrapped around `$results` make
+      # an empty first field, an empty last one, an empty one between
+      # two others and an empty join a single pattern.
+      #
+      # What no reading of this string reaches is a `needs` entry whose
+      # `result` key is missing rather than empty: `needs.*.result` is a
+      # filtered array and collects only the keys it finds, so such an
+      # entry is gone before the join runs (`Index.cs`, same
+      # repository). Section 10 of the organization standard has an
+      # aggregate read its own run's job listing from the API rather
+      # than `needs` at all. This workflow is one `release.yml` calls,
+      # where that listing is the caller's run and holds the publishing
+      # jobs waiting on this very job, so that shape does not fit here
+      # until btclib-org/.github#474 answers a reused gate
       - name: Fail unless every job above succeeded or was legitimately skipped
         run: |
-          results='${{ join(needs.*.result, ' ') }}'
+          results='${{ join(needs.*.result, ',') }}'
           echo "results: $results"
+          case ",$results," in
+            *,,*)
+              echo "::error::a job this gate depends on reported no result"
+              exit 1
+              ;;
+          esac
+          IFS=,
           for result in $results; do
             case "$result" in
               success | skipped) ;;
