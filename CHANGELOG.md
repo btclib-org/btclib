@@ -158,6 +158,15 @@ documented at release-notes length in the first place, and are still in
   this workflow while `release.yml` calls it and that listing is the
   caller's run (btclib-org/.github#474) (closes #1454).
 
+- **`[project.urls] homepage` names this tree's own documentation site**
+  (issue btclib-org/.github#533). A releasing tree provides
+  documentation, and its home is that documentation rather than a
+  sibling's project page: the field read `https://btclib.org`, which
+  `documentation` already pointed past, and now carries the identical
+  `https://btclib.readthedocs.io/`. `documentation` stays, an index
+  showing the two fields as one link being cheaper than the field
+  tools read for that purpose specifically.
+
 ## v2026.8.27
 
 ### Repository

@@ -155,7 +155,7 @@ secp256k1 = [
 ]
 
 [project.urls]
-homepage = "https://btclib.org"
+homepage = "https://btclib.readthedocs.io/"
 documentation = "https://btclib.readthedocs.io/"
 download = "https://github.com/btclib-org/btclib/releases"
 changelog = "https://github.com/btclib-org/btclib/blob/main/RELEASE_NOTES.md"

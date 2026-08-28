@@ -589,6 +589,18 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
   carries between releases. `stable` is the alternative, and what the
   choice decides is which of the two a reader arriving with no version in
   mind is given.
+- **The repository's `.homepage` names this same site**, read back from
+  the endpoint rather than from `pyproject.toml`'s own copy of it:
+
+  ```shell
+  gh api repos/btclib-org/btclib --jq '.homepage'
+  # https://btclib.readthedocs.io/
+  ```
+
+  `[project.urls] homepage` in `pyproject.toml` carries the identical
+  string (issue btclib-org/.github#533): a releasing tree's home is its
+  own documentation, not `btclib.org`, which the *Pages* section above
+  still serves and which the two fields no longer name.
 
 Tags older than the rule are mostly not activatable rather than merely not
 activated: a build needs `.readthedocs.yaml`, which reaches back to
