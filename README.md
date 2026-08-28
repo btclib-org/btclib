@@ -23,7 +23,7 @@ says how the choice is enforced.
 [![GitHub release](https://img.shields.io/github/v/release/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/releases)
 [![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/main/LICENSE)
-[![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
+[![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/projects/btclib)
 [![supported Python versions](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/)
 [![implementation](https://img.shields.io/pypi/implementation/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![wheel](https://img.shields.io/pypi/wheel/btclib.svg)](https://pypi.python.org/pypi/btclib/)
