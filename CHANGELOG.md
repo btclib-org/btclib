@@ -116,6 +116,29 @@ documented at release-notes length in the first place, and are still in
   and the `gh api .../jobs` line beside it says which conclusions are
   expected on a tag and which on a rehearsal.
 
+- **`check_vendored_vectors.py` names a heading owning no fenced block.**
+  `_entries_at_tip` walks the fenced blocks of `tests/_data/README.md`,
+  so a heading owning none entered neither the checked list nor the
+  skipped one and the report passed over it in silence, against the
+  module docstring's own promise that every heading the README carries
+  but the script did not check is listed. A pass over the headings after
+  that walk names each of them `(no fenced block)`, which is what a
+  group heading the pins below it supersede and a pin whose block an
+  edit broke both look like from there — telling those two apart is a
+  reader's to do, and being told of either at all is the point.
+  `tests/check_vendored_vectors_test.py` asks that promise of the pin
+  file the weekly run parses rather than of a fixture alone, a fixture
+  answering only for the shapes it was written to carry (closes #1447).
+
+- **A heading owning several fenced blocks is reported once per reason
+  rather than once per block.** `tests/fetch/_data/*` owns a block
+  listing the files and two more carrying the chain data that verifies
+  them, all skipped for the same reason, and the repeated line carries
+  nothing to tell them apart. Identical lines are collapsed, and a
+  heading whose blocks were passed over for different reasons still
+  reports each of those reasons, the reason being what a reader acts on
+  (closes #1451).
+
 ## v2026.8.27
 
 ### Repository

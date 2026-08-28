@@ -205,6 +205,142 @@ def test_the_heading_is_the_nearest_one_before_the_block(checker: ModuleType) ->
     assert [e.heading for e in entries] == ["`f.json`"]
 
 
+_PIN_README = Path(__file__).parent / "_data" / "README.md"
+
+# the two shapes `tests/_data/README.md` carries that no fenced block
+# describes: a group heading whose files are pinned one by one below it,
+# and a file this project composed itself, whose section is prose and a
+# pulled date. Written out here rather than assembled by `entry()`,
+# which gives every heading a block by construction and so cannot pose
+# the question
+_UNPINNED = """\
+## bitcoin/bips
+
+### BIP327 (MuSig2): one file under `tests/ecc/_data/`
+
+Eight files, pinned one by one below: the group heading is where the
+prose common to them goes.
+
+### `tests/ecc/_data/key_agg_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/key_agg_vectors.json
+commit  deadbeef  2026-01-01
+blob    cafe1234
+pulled  2026-01-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+## Not vendored from anywhere
+
+### `tests/_data/ours.json`
+
+btclib's own, composed rather than copied: there is no upstream URL to
+give, because there is no upstream.
+
+Pulled 2020-01-01.
+"""
+
+
+def test_a_heading_with_no_fenced_block_of_its_own_is_named_as_skipped(
+    checker: ModuleType,
+) -> None:
+    """The shape the block-by-block walk cannot see, and reports anyway.
+
+    `_entries_at_tip` iterates fenced blocks, so a heading owning none
+    never enters the loop: without a second pass it is neither checked
+    nor listed, which is what a pin whose block an edit broke looks
+    like, and what the module docstring promises cannot happen
+    (issue #1447).
+    """
+    entries, skipped = checker._entries_at_tip(_UNPINNED)
+
+    assert [e.heading for e in entries] == ["`tests/ecc/_data/key_agg_vectors.json`"]
+    assert skipped == [
+        "BIP327 (MuSig2): one file under `tests/ecc/_data/` (no fenced block)",
+        "`tests/_data/ours.json` (no fenced block)",
+    ]
+
+
+def test_a_heading_owning_several_blocks_is_skipped_once(checker: ModuleType) -> None:
+    """One line per reason, not one per block (issue #1451).
+
+    `tests/fetch/_data/*` has this shape: a block listing the files, and
+    two more carrying the chain data that verifies them. All three are
+    skipped for the same reason, and the line naming the heading says
+    nothing that tells them apart.
+    """
+    text = (
+        "### `tests/fetch/_data/*` — seven response bodies\n\n"
+        "```text\ngetblockcount.json  48 bytes\npulled  2026-08-02\n```\n\n"
+        "What they carry is chain data, and it verifies itself.\n\n"
+        "```text\ntxid  f4184fc596403b9d638783cf57adfe4c75c605f6"
+        "356fbc91338530e9831e9e16\n```\n\n"
+        "which is `tests/block/_data/block_481824_complete.bin`.\n\n"
+        "```text\n0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893\n```"
+    )
+
+    entries, skipped = checker._entries_at_tip(text)
+
+    assert entries == []
+    assert skipped == [
+        "`tests/fetch/_data/*` — seven response bodies (no commit to check against)"
+    ]
+
+
+def test_one_heading_keeps_one_line_per_reason(checker: ModuleType) -> None:
+    """Two blocks skipped for different reasons are two lines, not one.
+
+    What is collapsed is the identical line, so a heading whose blocks
+    were passed over for two reasons still reports both: the reason is
+    what a reader acts on, and dropping one would trade the repetition
+    of issue #1451 for a silence.
+    """
+    text = (
+        "### group\n\n"
+        "```text\npulled  2020-01-01\n```\n\n"
+        "```text\nrepo  r\npath  vectors/<name>.json\ncommit  deadbeef\n"
+        "behind  0 revisions\n```"
+    )
+
+    _entries, skipped = checker._entries_at_tip(text)
+
+    assert skipped == [
+        "group (no commit to check against)",
+        "group (one pin serves several files)",
+    ]
+
+
+def test_every_heading_of_the_pin_file_is_checked_or_named_once(
+    checker: ModuleType,
+) -> None:
+    """The promise, over the README the weekly run actually parses.
+
+    A fixture answers for the shapes it was written to carry, and this
+    parser's failure mode is a shape nobody thought to write down: what
+    it does not match, it drops. `tests/_data/README.md` is what the
+    workflow passes, so it is what settles whether a heading can go
+    missing from the report -- and the first assertion is what says the
+    parse still sees the file at all, a parser that matched nothing
+    passing every other line here.
+    """
+    readme = _PIN_README.read_text(encoding="utf-8")
+
+    entries, skipped = checker._entries_at_tip(readme)
+
+    assert entries
+    assert sorted(skipped) == sorted(set(skipped))
+    checked = {e.heading for e in entries}
+    unreported = [
+        heading
+        for heading in checker._HEADING.findall(readme)
+        if heading not in checked
+        and not any(line.startswith(f"{heading} (") for line in skipped)
+    ]
+    assert unreported == []
+
+
 def test_a_block_with_no_heading_before_it_has_an_empty_one(
     checker: ModuleType,
 ) -> None:

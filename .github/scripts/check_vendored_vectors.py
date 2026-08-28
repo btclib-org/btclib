@@ -11,13 +11,12 @@ procedure and reports drift, rather than fixing it: refreshing a vector
 file is a decision this script does not get to make, so what it opens
 is an issue, never a commit.
 
-btclib-secp256k1 carries a copy under this same name, and the two are
-not interchangeable: that one parses its own tests/README.md, and it
-passes over an entry with no `commit` in silence where this one reports
-the heading as skipped. The two checks differ there because the pin
-files do -- that README has no such entry, this one does. The rest is
-common to both, so a fix to the parsing, to the `gh` call or to a
-field's spelling is owed to the other copy in the same campaign.
+btclib-secp256k1 carries a copy under this same name, over its own
+tests/README.md, whose entries are each pinned to a commit under a
+heading owning one fenced block. A fix to the parsing, to the `gh` call
+or to a field's spelling is owed to the other copy in the same
+campaign; the collapsing of identical skip lines below is not, a
+heading owning several blocks being a shape that README does not carry.
 
 Scope is narrower than the README: only entries whose `behind` already
 reads 0 -- the ones a human last confirmed were exactly at upstream's
@@ -31,20 +30,21 @@ A path upstream has renamed or deleted is reported rather than raising:
 it has no commit to name as a tip, and a pin standing on a file that is
 not there any more is the one drift nobody would otherwise notice.
 
-Two shapes in the README this script does not attempt: an entry with no
-`commit` at all (chain data self-identified by hash, files this project
-composed itself, a section heading with no pin of its own), and a path
-carrying a `<name>` placeholder -- one pin standing in for several real
-paths under a directory, which the "commits touching a path" call above
-cannot be asked about in one request. No current entry uses that shape:
-BIP327's eight files and BIP324's two were themselves written that way
-once, each pin citing one commit as the tip of every path it stood in
-for. Splitting them into one pin per real path is what brought them
-into this script's scope, and also corrected BIP327's, whose shared
-commit was the tip of only one of the eight. Every heading the README
-carries but this script did not check is listed in its own report, so
-nothing silently reads as "checked and clean" that was not checked at
-all.
+Three shapes in the README this script does not attempt: an entry with
+no `commit` at all (chain data self-identified by hash, files this
+project composed itself), a path carrying a `<name>` placeholder -- one
+pin standing in for several real paths under a directory, which the
+"commits touching a path" call above cannot be asked about in one
+request -- and a heading with no fenced block under it at all, which is
+either a group heading the pins below it supersede or a pin whose block
+an edit broke. No current entry uses the placeholder shape: BIP327's
+eight files and BIP324's two were themselves written that way once,
+each pin citing one commit as the tip of every path it stood in for.
+Splitting them into one pin per real path is what brought them into
+this script's scope, and also corrected BIP327's, whose shared commit
+was the tip of only one of the eight. Every heading the README carries
+but this script did not check is listed in its own report, so nothing
+silently reads as "checked and clean" that was not checked at all.
 
     python .github/scripts/check_vendored_vectors.py tests/_data/README.md
 """
@@ -110,12 +110,26 @@ class Drift:
 def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
     """Return the checkable entries, and the headings this skips.
 
-    A heading is skippable for any of three reasons: no repo/path/commit
-    triple at all, a path carrying a `<name>` placeholder, or a `behind`
-    already other than 0 -- a gap a human already decided not to close.
+    A heading is skippable for any of four reasons: no fenced block of
+    its own, no repo/path/commit triple, a path carrying a `<name>`
+    placeholder, or a `behind` already other than 0 -- a gap a human
+    already decided not to close.
+
+    The first is the one the loop below cannot see, walking blocks as it
+    does: a heading owning none never enters it. A group heading a finer
+    one supersedes has that shape, and so does a pin whose block an edit
+    broke -- a fence indented into the prose, a `text` marker cut to a
+    bare one. Telling those two apart is not this script's to do; naming
+    the heading is.
+
+    One heading contributes one line per reason rather than one per
+    block: blocks skipped for the same reason under one heading repeat a
+    line carrying nothing to tell them apart, so a reader gets the same
+    sentence several times where one line carries all of it.
     """
     entries: list[Entry] = []
     skipped: list[str] = []
+    owned: set[str] = set()
     heading = ""
     pos = 0
     for match in re.finditer(r"```text\n(.*?)\n```", readme, re.DOTALL):
@@ -123,6 +137,7 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
         if headings_before:
             heading = headings_before[-1]
         pos = match.end()
+        owned.add(heading)
 
         fields = dict(_FIELD.findall(match.group(1)))
         repo, path, commit = (
@@ -140,7 +155,14 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
             skipped.append(f"{heading} (already documented as behind)")
             continue
         entries.append(Entry(heading, repo, path.strip(), commit.split()[0]))
-    return entries, skipped
+    skipped.extend(
+        f"{unowned} (no fenced block)"
+        for unowned in _HEADING.findall(readme)
+        if unowned not in owned
+    )
+    # dict.fromkeys keeps the first of each identical line, in the
+    # order the walk and the pass after it appended them
+    return entries, list(dict.fromkeys(skipped))
 
 
 def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
