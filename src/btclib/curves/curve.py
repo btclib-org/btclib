@@ -350,17 +350,17 @@ def _assert_valid_ec(ec: Curve) -> None:
     is what makes it `utils.assert_type`'s, which is the one spelling of
     the refusal for the whole library.
 
-    34 ns through that call, 16 of them the empty function of the same
-    arity timed beside it as the floor, and it is asked where each public
-    function first reads the parameter: two guards in the 17.8 us of a
-    signature, two in the 21.3 of a verification, two in the 39.6 of a
-    five-level BIP32 derivation, one in the 8.3 of a multiplication. A
-    wall clock is a number that drifts, so `timeit` over the guard and
-    over `dsa.sign` is what says whether these still hold -- and a harness
-    drifts too, a closure around the guard having measured 42 where the
-    plain call measures 34, so the two go in one process or neither is
-    comparable. What they are here for is the decision to ask once per
-    parameter rather than once per function.
+    `assert_type` costs about what an empty function of the same arity
+    costs, negligible next to any public function that reaches it -- a
+    signature, a verification, a multi-level BIP32 derivation, a
+    multiplication -- so asking it where each public function first
+    reads the parameter, once per parameter rather than once per
+    function, adds nothing worth avoiding. A wall clock is a number
+    that drifts, so `timeit` over the guard, over an empty function of
+    the same arity, and over `dsa.sign` is what says whether that still
+    holds -- and a harness drifts too, a closure around the guard
+    measuring higher than the plain call does, so the guard and what it
+    is measured against go in one process or neither is comparable.
     """
     assert_type(ec, Curve, "ec")
 

@@ -285,6 +285,15 @@ documented at release-notes length in the first place, and are still in
   would not notice. `myst_parser`, the line below it, is what already
   reads the markdown `m2r2` would have converted.
 
+- **`_assert_valid_ec`'s docstring stops recording wall clocks** (closes
+  #1489). The guard costs about what an empty function of the same
+  arity costs, negligible next to any public function that reaches it,
+  and that is the reason the docstring keeps for asking it once per
+  parameter rather than once per function; the wall-clock figures it
+  also carried were numbers nothing re-measures, and they are gone
+  rather than kept current. The `timeit` commands that re-derive the
+  decision stay beside it.
+
 ## v2026.8.27
 
 ### Repository
