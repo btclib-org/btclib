@@ -133,9 +133,9 @@ def test_one_internal_key_however_it_is_spelled(
     wants the octets alone and the Python one the point.
 
     The buffers are here because the key reaches the tweak as octets to be
-    concatenated, and a memoryview is not one: `bytes_from_octets` returns
-    every buffer as it came, so what makes them octets is `PubKeyData`
-    coercing its own field, and nothing else on this path would.
+    concatenated, and a memoryview is not one: `PubKeyData` coerces its
+    own field through `bytes_from_octets`, which is where every spelling
+    becomes the `bytes` the tweak concatenates.
     """
     prv_key = 0xC0FFEE
     point = mult(prv_key)
@@ -549,14 +549,13 @@ def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
     """Every spelling `bytes_from_octets` takes reaches the same answer.
 
     A memoryview used to raise a bare `TypeError` from the merkle fold,
-    on both arms: `bytes_from_octets` returns every buffer as it came,
-    so a slice of the control block stayed a memoryview and would not
-    order against the `bytes` digest it is compared with. A bytearray
-    was unaffected, ordering against `bytes` where a memoryview does
-    not, which is Python's asymmetry rather than this library's --
-    and it is why the census in `bool_parameter_test.py` could not see
-    this: the wrong spelling is accepted at the door and refused
-    halfway (issue 1220).
+    on both arms: a slice of the control block was a memoryview, and one
+    does not order against the `bytes` digest it is compared with. A
+    bytearray was unaffected, ordering against `bytes` where a
+    memoryview does not, which is Python's asymmetry rather than this
+    library's -- and it is why the census in `bool_parameter_test.py`
+    could not see this: the wrong spelling is accepted at the door and
+    refused halfway (issue 1220).
     """
     tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     q, _ = output_pubkey(0xC0FFEE, tree)
@@ -676,12 +675,10 @@ def test_the_two_output_keys_are_one_tweak() -> None:
         output_pubkey(internal_pubkey, script_tree)
     )
 
-    # a memoryview x, which `bytes_from_octets` passes through as it came:
-    # what makes it octets here is the `02` this function prefixes, `bytes`
-    # on the left of a concatenation taking any buffer on the right where
-    # `memoryview + bytes` is not an operation at all. The internal key of
-    # `output_pubkey` becomes bytes one layer lower, in `PubKeyData`, so
-    # this entry point needs its own assertion rather than that one's
+    # a memoryview x, coerced by this function's own `bytes_from_octets`
+    # before the `02` it prefixes: the internal key of `output_pubkey`
+    # becomes bytes one layer lower, in `PubKeyData`, so this entry point
+    # needs its own assertion rather than that one's
     assert output_pubkey_from_merkle_root(memoryview(x_only), merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
     )

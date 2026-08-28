@@ -263,9 +263,7 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     `bytes_from_octets` returned anything that was not a `str`
     unchanged, so `len` of a tuple of 33 ints was 33 and
     `taproot.assert_valid_control_block` accepted it as a control block
-    size. Every buffer is still taken, and returned as it came: a read
-    must not rewrite the field it reads, which is what `bytes()` here
-    would do to a bytearray a caller built.
+    size. Every buffer is still taken.
     """
     assert bytes_from_octets(b"\x00\x01") == b"\x00\x01"
     assert bytes_from_octets("0001") == b"\x00\x01"
@@ -273,9 +271,6 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
     # field was built from rather than only what a caller writes
     assert bytes_from_octets(bytearray(b"\x00\x01")) == b"\x00\x01"
     assert bytes_from_octets(memoryview(b"\x00\x01")) == b"\x00\x01"
-    # unchanged, and not merely equal
-    buffer: object = bytes_from_octets(bytearray(b"\x00"))
-    assert isinstance(buffer, bytearray)
 
     for not_octets in (tuple(range(33)), [1, 2], None, 1.5):
         with pytest.raises(BTClibTypeError, match="invalid octets type: "):
@@ -298,6 +293,28 @@ def test_octets_are_bytes_or_the_hex_string_of_bytes_and_nothing_else() -> None:
         int_from_integer("0xzz")
 
 
+def test_a_buffer_becomes_the_bytes_the_signature_promises() -> None:
+    """`-> bytes`, and not the caller's own buffer handed back.
+
+    A `bytearray` or a `memoryview` returned as it came stays the
+    caller's, so a write to it afterwards rewrites whatever the library
+    built from it -- a `BIP32KeyData` chain code and the xprv that key
+    serializes to, which `tests/bip32/bip32_test.py` pins. Nor is either
+    the `bytes` the annotation promises: a bytearray keys no dict and a
+    memoryview concatenates with nothing (issue #1255).
+    """
+    for spelling in (b"\x00\x01", bytearray(b"\x00\x01"), memoryview(b"\x00\x01")):
+        assert type(bytes_from_octets(spelling)) is bytes
+        assert bytes_from_octets(spelling) == b"\x00\x01"
+
+    # the size check is on the way out and copies nothing of its own, so
+    # it is asked here too rather than assumed to share the arm above
+    buffer = bytearray(b"\x00\x01")
+    copied = bytes_from_octets(buffer, 2)
+    buffer[0] = 0xFF
+    assert copied == b"\x00\x01"
+
+
 def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
     """A strided slice is `Octets` to the annotation, `BufferError` underneath.
 
@@ -316,7 +333,7 @@ def test_a_non_contiguous_memoryview_is_refused_at_the_coercion() -> None:
     with pytest.raises(BTClibValueError, match="invalid octets: non-contiguous"):
         hash160(strided)
 
-    # a contiguous slice is untouched, same as any other buffer
+    # a contiguous slice is taken, same as any other buffer
     contiguous = memoryview(raw)[:32]
     assert bytes_from_octets(contiguous) == raw[:32]
     assert hash160(contiguous) == hash160(raw[:32])
@@ -344,7 +361,7 @@ def test_a_memoryview_of_the_wrong_format_is_refused_at_the_coercion() -> None:
         hash160(wide)
 
     # a plain memoryview, and one cast back to unsigned bytes, are format
-    # "B" and untouched, same as any other buffer
+    # "B" and taken, same as any other buffer
     plain = memoryview(raw)
     assert plain.format == "B"
     assert bytes_from_octets(plain) == raw

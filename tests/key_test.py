@@ -47,10 +47,10 @@ def test_pub_key_data() -> None:
 def test_the_sec_field_is_bytes_however_the_octets_were_spelled(sec: Octets) -> None:
     """A buffer is octets here, because the field is declared `bytes`.
 
-    `bytes_from_octets` returns a bytearray and a memoryview as they
-    came, deliberately: it is what `assert_valid` reads with, and a read
-    must not rewrite what it reads. A constructor builds instead, and two
-    of this module's promises rest on its field being what it says.
+    `bytes_from_octets` copies a bytearray and a memoryview into
+    `bytes`, so the field holds what its annotation promises however the
+    octets were spelled, and two of this module's promises rest on its
+    field being what it says.
 
     Equality and hashing read the declared fields, which a bytearray
     would take away: it is unhashable, so a key spelled that way could
