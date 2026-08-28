@@ -160,7 +160,8 @@ def _b58decode(v: bytes | bytearray | memoryview) -> bytes:
     # bytes for the buffers that are a String and are not bytes: a
     # memoryview has neither translate nor lstrip, and a bytearray
     # answers both in its own type. Free on the path that matters:
-    # bytes(b) is b for a bytes object, 29 ns
+    # `bytes(b)` is `b` itself where `b` is already `bytes`, the same
+    # identity `bytes_from_octets` uses for the same reason.
     v = bytes(v)
     # every alphabet byte deleted, so what is left is what is not one:
     # the same question as `any(x not in _ALPHABET for x in v)` asked in
