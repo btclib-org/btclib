@@ -49,7 +49,6 @@ release = PYPROJECT["project"]["version"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    # "m2r2",
     "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
