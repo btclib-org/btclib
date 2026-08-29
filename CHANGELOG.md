@@ -104,6 +104,20 @@ documented at release-notes length in the first place, and are still in
   renamed the file to `pypi-install.yml`.** Both now name what the
   Actions tab lists. The sentence was already open in this diff, which
   is why it is repaired here rather than filed.
+- **Every workflow-status badge in `README.md` now carries
+  `?branch=main`** (closes #1467). Unqualified, a badge answers with the
+  workflow's most recent run on any branch: `fuzz.yml`'s reported
+  "failing" from a pull request's run on a branch GitHub had already
+  deleted, no run of that workflow ever having happened on `main`.
+  Qualifying every badge the same way was the wider question the issue
+  raised, and every workflow behind one of these badges triggers on
+  either a push to `main` or a `schedule`, which runs against the
+  default branch, so `?branch=main` is the right read for the whole row
+  rather than for `fuzz.yml` alone. The issue also asked whether to seed
+  a first `main` run with `workflow_dispatch` for the sentinels that
+  have none yet; that was declined, so several of these badges now read
+  "no status" until their own scheduled run happens on `main` — an
+  honest silence rather than a borrowed result, and not an oversight.
 
 ## v2026.8.29
 
