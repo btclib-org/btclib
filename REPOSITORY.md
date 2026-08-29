@@ -6,8 +6,26 @@ than carrying it, so that a session fixing a bug in `ecc/` does not hold
 it in context.
 
 The branch rules and the repository settings live *outside* the
-repository, so this file is the whole of them: nothing here can be
-recovered by reading the tree.
+repository, and this file is where those answers are written down. What
+is recorded is the settings
+[the standard](https://github.com/btclib-org/.github/blob/main/README.md)
+asks about — the ones
+[section 16's checklist](https://github.com/btclib-org/.github/blob/main/README.md#16-checklists)
+sets on a new repository, and the ones a section of the standard states
+a rule for — together with whatever a call quoted for one of those answers
+alongside it. That is this file's scope, and *What this file passes
+over*, at the foot, says what falls outside it.
+
+*Code quality* is recorded past that edge: no section of the standard
+states a rule about that setting, and it is here because turning off the
+code scanning default setup — which section 11 does ask for — leaves the
+quality analysis running, so stopping it is a decision of this
+repository's.
+
+Where an answer has a copy in the tree, the section recording it says so:
+`CNAME` carries the Pages custom domain, and `pyproject.toml` carries the
+topics as `keywords` and the documentation site as `[project.urls]
+homepage`.
 
 ## Required checks on main
 
@@ -805,3 +823,104 @@ diff <(gh api repos/btclib-org/btclib --jq '.topics[]' | sort) \
      <(awk '/^keywords = \[/,/Past the twenty topics/' pyproject.toml \
        | grep -oE '"[a-z0-9-]+"' | tr -d '"' | sort)
 ```
+
+## What this file passes over
+
+The scope at the top is a perimeter, and this is its other edge: what an
+endpoint answers for and no section above reaches. What follows says of
+each which it is — outside that scope, or a question the standard has
+not answered.
+
+**What no call sets.** `gh api repos/btclib-org/btclib` answers with the
+repository document, most of which is URLs, counts and state GitHub
+derives from the tree; the switches among them this file records are the
+ones a section above reads back with a call of its own, and the
+paragraphs below are about switches it does not. `gh api
+repos/btclib-org/btclib/pages` has the same shape: `custom_404` follows a
+`404.html` in the root, and `status` and `https_certificate` report the
+last build and the certificate issued for the domain.
+
+**A field the standard states no rule about, and no call above answers
+alongside one it does.** `allow_forking`, `allow_update_branch`,
+`has_discussions`, `has_downloads`, `is_template` and
+`web_commit_signoff_required` are in the repository document, in no
+`--jq` object above, and in no rule of the standard:
+
+```shell
+std=$(gh api repos/btclib-org/.github/contents/README.md --jq .content \
+  | base64 -d)
+for f in allow_forking allow_update_branch has_discussions has_downloads \
+         is_template web_commit_signoff_required; do
+  printf '%s %s\n' "$f" "$(printf '%s' "$std" | grep -c "$f")"  # 0 each
+done
+printf '%s' "$std" | grep -c delete_branch_on_merge  # not 0, which is
+                                                     # what makes those
+                                                     # zeros absences
+```
+
+Recording a field on no rule grows this file with GitHub's API rather
+than with the standard.
+
+**The wiki and the projects board are where that reasoning stops.**
+`has_wiki` and `has_projects` are in the same document and in no rule of
+the standard either, and what a `REPOSITORY.md` owes a reader about them
+is the open question of issue btclib-org/.github#550. Nothing here
+answers it.
+
+**The tracker is a premise rather than a setting.** `has_issues` is on,
+and the standard's own maintenance runs on the issue tracker —
+`CONTRIBUTING.md`'s *The issue tracker* is what a session reads before
+filing — so no section states it as a setting to read back. It is here as
+a premise of the process rather than as a field on no rule.
+
+**A credential this repository does not hold.** `claude-review.yml`
+spends `secrets.CLAUDE_CODE_OAUTH_TOKEN`, and section 11 of the standard
+holds that token at the organization, in both stores, rather than in each
+repository:
+
+```shell
+gh api repos/btclib-org/btclib/actions/secrets --jq '.total_count'     # 0
+gh api repos/btclib-org/btclib/dependabot/secrets --jq '.total_count'  # 0
+gh api orgs/btclib-org/actions/secrets \
+  --jq '.secrets[] | "\(.name) \(.visibility)"'
+# CLAUDE_CODE_OAUTH_TOKEN all
+gh api orgs/btclib-org/dependabot/secrets \
+  --jq '.secrets[] | "\(.name) \(.visibility)"'
+# CLAUDE_CODE_OAUTH_TOKEN all
+```
+
+The organization's stores answering with a name are what make the two
+zeros absences rather than an endpoint that answers empty for everyone,
+and an empty store here is where the standard's decision shows rather
+than a facility nobody reached for. The `CI` environment's own secrets
+and variables are a different endpoint again, `environments/CI/secrets`,
+which *Publishing* above reads back.
+
+**A facility nobody reached for.** The repository's Actions variables,
+self-hosted runners, deploy keys, autolinks and custom property values
+each answer empty here, and an empty answer records no decision.
+Webhooks are not among them: *Read the Docs* above reads those back,
+with the control that makes the `0` an absence rather than a permission
+ceiling. Whichever of the rest is reached for one day arrives with the
+section that uses it.
+
+**A service's own settings, past the ones the standard states a rule
+for.** [Section 11's *Pages and Read the
+Docs*](https://github.com/btclib-org/.github/blob/main/README.md#pages-and-read-the-docs)
+asks for the source, the build type and the CNAME, and for what `latest`
+and `stable` follow; those are above. The Read the Docs project answers
+for more than the `default_branch` and `default_version` read back there,
+`privacy_level`, `single_version` and `versioning_scheme` among them, and
+its redirects and its environment variables are not in that document at
+all: `curl -s -o /dev/null -w '%{http_code}'` against
+`https://app.readthedocs.org/api/v3/projects/btclib/redirects/` and
+against `.../environmentvariables/` answers `401`, where the project call
+above answers unauthenticated. PyPI's side of the trusted publisher is
+not here either — the owner, repository, workflow and environment the
+index matches an OIDC token against are set on the index, and
+[RELEASING.md](./RELEASING.md)'s *One-time setup* is where they are
+written down.
+
+What the scope costs is a silent flip. A change to any of the above
+shows up here in nothing, and finding one means reading each document
+against this file rather than running a command.
