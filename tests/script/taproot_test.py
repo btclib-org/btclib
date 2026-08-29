@@ -206,10 +206,10 @@ def test_the_python_output_key_lifts_the_internal_x_once(
 
     Two things want the internal key's point: proving the octets are one,
     and adding tG to it. Taken separately those are two modular square
-    roots of the same x -- issue 896, which is 74 of the 311 us an output
-    key cost on this arm. `PubKeyData` is what makes them one: `point` is
-    a `cached_property`, so the lift is the proof and the proof is the
-    lift (issue #1188).
+    roots of the same x -- issue 896, which was roughly a quarter of what
+    an output key cost on this arm. `PubKeyData` is what makes them one:
+    `point` is a `cached_property`, so the lift is the proof and the
+    proof is the lift (issue #1188).
 
     Counting `mod_sqrt_var` rather than forbidding it, which is what
     `test_the_python_prvkey_tweak_lifts_nothing` does below: here the

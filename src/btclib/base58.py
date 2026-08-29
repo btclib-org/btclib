@@ -80,13 +80,11 @@ _CHUNK_BASE = __BASE**_CHUNK
 # key: 78 bytes of payload plus 4 of checksum, which base58 writes in at
 # most 112 characters (an address takes 35, a WIF 52). The cap is what
 # keeps the quadratic accumulation of _b58decode_to_int away from
-# attacker-supplied text: measured 2.2 ms at 10k characters, 32 ms at
-# 40k and 510 ms at 160k, four times the cost per doubling of the input,
-# and the checksum that would reject it is verified only once the
-# decoding has been paid for. A sixth of what those three cost before
-# the chunking below -- 12.8 ms, 197 ms and 3193 ms -- which is a
-# smaller coefficient and the same curve, so the cap answers the same
-# argument it always did.
+# attacker-supplied text: doubling the input's length quadruples the
+# decode cost, and the checksum that would reject it is verified only
+# once the decoding has been paid for. Chunking below cuts that cost to
+# a sixth, a smaller coefficient on the same curve, so the cap answers
+# the same argument it always did.
 # The encoder is deliberately left uncapped, being quadratic too: what
 # it is handed is data the caller already holds, not a string that
 # arrived from the network.

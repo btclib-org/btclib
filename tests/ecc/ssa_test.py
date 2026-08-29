@@ -221,10 +221,10 @@ def test_refusing_an_r_takes_no_square_root(
     Refusing used to cost more than verifying: `_y_even_var` falls back to
     `ec.y_even_var` for an x the bindings reject, that being where the
     message naming the value came from, so a bad r paid the whole Python
-    square root -- 78.7 us against the 22.4 of verifying a good
-    signature (issue 622). Half of the field elements are no
-    x-coordinate and cost nothing to produce, so that was the expensive
-    answer for the cheap input.
+    square root, several times what verifying a good signature costs
+    (issue 622). Half of the field elements are no x-coordinate and cost
+    nothing to produce, so that was the expensive answer for the cheap
+    input.
 
     mod_sqrt_var is patched to raise rather than timed: what the change has
     to be is a refusal that reaches no square root, on this machine and
@@ -556,8 +556,8 @@ def test_verify_with_a_message_that_is_not_32_bytes_on_both_arithmetics(
     `no_bindings`, because the two must not disagree about a signature
     and only one of them is now reached by default. The Python one is
     reached in earnest by another curve or another hash function; its
-    multiplication is still the bindings' on secp256k1, 183 us against
-    the 1.17 ms of the arithmetic under it.
+    multiplication is still the bindings' on secp256k1, several times
+    cheaper than the arithmetic under it.
     """
     msg = b"a message that is not 32 bytes"
     assert len(msg) != 32

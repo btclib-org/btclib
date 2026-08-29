@@ -262,8 +262,9 @@ def test_der_low_s_agrees_with_libsecp256k1() -> None:
 
     `lower_s` is one comparison against n // 2 here, and libsecp256k1 has
     the same two answers as `is_low_s` and `normalize`. Nothing delegates
-    to them -- 0.037 us against 0.840, a comparison against a parse and a
-    call -- so this is where the two are held together instead.
+    to them -- an order of magnitude under `is_low_s`, a comparison
+    against a parse and a call -- so this is where the two are held
+    together instead.
     """
     for s in (1, ec.n // 2, ec.n // 2 + 1, ec.n - 1):
         sig = Sig(2**255 - 4, s)

@@ -231,8 +231,8 @@ used to teach and to prototype as much as to build:
     the library where a secret is inverted at all: `mod_inv`
     draws a random factor, so that the extended Euclid's iteration count
     follows the factor rather than the nonce. Unblinded it followed the
-    nonce's bit-length — 8.8 us for a 256-bit scalar against 4.3 for a
-    128-bit one on secp256k1's order — which is the correlation the
+    nonce's bit-length — roughly twice the cost for a 256-bit scalar as
+    for a 128-bit one on secp256k1's order — which is the correlation the
     Minerva attack turns into the private key.
     `bms.sign` is delegated outright, `recovery.sign` signing and naming
     the recovery flag in one call: message signing is defined for

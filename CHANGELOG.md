@@ -88,6 +88,24 @@ documented at release-notes length in the first place, and are still in
   whose unit is spelled out — which escape all three patterns, that
   command's included — are issue #1508.
 
+- **The wall-clock figures #1494's own pattern does not reach now carry
+  the relation too** (closes #1505) (closes #1506) (closes #1508).
+  `grep -rnE '[0-9]+ (ns|us)\b' src/btclib` is silent on a millisecond, a
+  second, a copy of a `src/btclib` figure restated in `tests/` or
+  `SECURITY.md`, and a figure whose unit is written as a word — three
+  more shapes the same rule reaches. `git grep -nP` (not `-E`, whose
+  `\b` this git drops without an error) answers nothing for all three
+  patterns now, over `src/btclib`, `tests` and `SECURITY.md`.
+
+  `base58.py`'s `MAX_LENGTH` comment loses every one of its numbers: the
+  same paragraph already states the quadratic's shape and the chunking's
+  benefit in words, so the figures were the redundant half rather than
+  the reason. `ecc/ssa.py:532` argued for dropping a figure of
+  libsecp256k1's own and then kept it anyway; the contradiction is gone
+  along with the number. `ecc/ssa.py:837` keeps the two percentages that
+  already carry its argument and drops the two absolute figures beside
+  them.
+
 ### Packaging, linting and CI
 
 - **`pypi-install.yml` waits for the index through a script with a

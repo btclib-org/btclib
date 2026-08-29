@@ -118,7 +118,7 @@ def _assert_mov_resistant(p: int, n: int) -> None:
     extension field where it is easy, and nothing downstream would notice.
 
     Its 99 modular exponentiations are the second cost of building a
-    curve, once nG is gated: 5.2 ms of the 9.7 ms the catalogue would
+    curve, once nG is gated: more than half of what the catalogue would
     spend at import time, which is why the catalogue passes
     weakness_check=False and test_catalogued_curves runs it instead.
 
@@ -243,7 +243,7 @@ class Curve(CurveGroup):
         # n*G is by far the most expensive check here -- a Python
         # double-and-add over nlen bits -- and it dominates the cost of
         # building a curve: at import time the 27 catalogued curves would
-        # spend ~118 ms of ~168 ms on it, against ~2 ms for the
+        # spend most of it on n*G alone, and next to none of it on the
         # primality of n. The catalogue therefore passes
         # order_check=False, as it does weakness_check=False below: its
         # parameters are constants, and test_catalogued_curves rebuilds
@@ -375,8 +375,9 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
     apart. Both expensive checks are off: these parameters are the
     standardized constants of SEC 2, FIPS 186-4 and RFC 5639, and
     re-deriving from them at every interpreter start that n is the order
-    of G, and that the curve is not MOV-weak, would cost 118 ms and 5 ms
-    of a ~168 ms module import. What is verified once, by
+    of G, and that the curve is not MOV-weak, would cost most of a
+    module import, order_check the large majority of that and
+    weakness_check a small remainder. What is verified once, by
     test_catalogued_curves rebuilding each curve from the same json data
     with both checks on, does not have to be verified again on the way to
     every signature.
@@ -842,12 +843,13 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
     # -- a zero scalar, or infinity -- and, with the dispatch
     # above switched off, every multiplication of the curve: that is the
     # reference implementation the test suite holds the bindings against,
-    # and the GLV endomorphism is its fastest form, 0.59 ms against the
-    # 0.82 of _mult, the decomposition being secp256k1's own lambda and
-    # beta. Both are regular: the number of point additions either makes
-    # is the same for every scalar, which is what a private key or a nonce
-    # arriving here needs and what issue 254 is about -- the endomorphism
-    # over interleaved wNAFs would be 0.51 ms and 51 to 64 additions.
+    # and the GLV endomorphism is its fastest form, a little over a
+    # quarter cheaper than _mult's plain double-and-add, the decomposition
+    # being secp256k1's own lambda and beta. Both are regular: the number
+    # of point additions either makes is the same for every scalar, which
+    # is what a private key or a nonce arriving here needs and what issue
+    # 254 is about -- the endomorphism over interleaved wNAFs would cost
+    # a little less again, with 51 to 64 additions.
     # Not spelled as _libsecp256k1_serves, though it is the same
     # test today: what decides here is whether the curve has that
     # endomorphism, so switching the bindings off must leave this arm --
