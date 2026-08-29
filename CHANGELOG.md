@@ -75,6 +75,36 @@ documented at release-notes length in the first place, and are still in
   whose unit is spelled out — which escape all three patterns, that
   command's included — are issue #1508.
 
+### Packaging, linting and CI
+
+- **`pypi-install.yml` waits for the index through a script with a
+  test.** (issue btclib-org/.github#509) The wait is
+  `.github/scripts/wait_for_pypi_release.py`, run by a `wait-for-index`
+  job that both matrix jobs need, and it counts against a deadline rather
+  than against attempts — one number to compare with the job's own
+  `timeout-minutes`, where attempts times an interval is a product to
+  multiply out first. What decides the wait is unreachable from every
+  trigger this workflow has, the thing waited on being somebody else's
+  upload, so `tests/wait_for_pypi_release_test.py` substitutes the
+  transport and the clock and is what drives the retry, the deadline and
+  the `::error::` the run would otherwise meet for the first time during
+  a release. Which of those a test actually pins was settled by mutating
+  the script rather than by reading it: what that found unpinned was the
+  status comparison, the clamp that keeps a request outlasting the
+  deadline from handing `time.sleep` a negative number, and
+  `DEFAULT_TIMEOUT` itself, no other case's outcome turning on the
+  shipped deadline. The wait job is also the only one here that checks
+  anything out, and what lands is `.github/scripts` and the repository
+  root that cone mode always adds with it — no `src/btclib`, so no
+  source tree of this project sits on the runner of a job that installs,
+  and the root's `pyproject.toml` is inert besides, `--no-project`
+  ignoring it.
+- **`RELEASING.md` sent a releaser to a `published` job and a
+  `published` workflow, and neither has existed since `6acfd4f0`
+  renamed the file to `pypi-install.yml`.** Both now name what the
+  Actions tab lists. The sentence was already open in this diff, which
+  is why it is repaired here rather than filed.
+
 ## v2026.8.29
 
 ### Repository

@@ -3,10 +3,14 @@ name: pypi-install
 
 # checks whether what is already on PyPI actually works, not merely
 # installs -- which no pull request asks, checking out the tree it is
-# testing being the whole point of one. No checkout here either, on
-# purpose: nothing from this repository takes part, which is what
-# guarantees the checks below resolve to what was installed from the
-# index and not to a source tree.
+# testing being the whole point of one. No checkout in the jobs that
+# install, on purpose: nothing from this repository takes part in them,
+# which is what guarantees the checks below resolve to what was installed
+# from the index and not to a source tree. wait-for-index is the one job
+# that checks anything out and it installs nothing: its sparse checkout
+# reaches .github/scripts, and the repository root that cone mode always
+# adds with it, so there is no src/btclib on the runner that answers it
+# either.
 #
 # `import btclib` runs __init__.py alone, and the data files under
 # btclib/ -- `git ls-files | grep '^src/btclib/.*_data/'` is which, the
@@ -97,11 +101,65 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # one question about the index, asked once, ahead of every cell that
+  # would otherwise ask it. What the wait decides when it runs out is a
+  # verdict no trigger can produce -- what is waited on is somebody
+  # else's upload, so neither a release nor a rehearsal can arrange for
+  # it to be late -- so it is a script with a test rather than a loop in
+  # a run: block, which is what section 10 of btclib-org/.github's
+  # README.md asks of a wait (btclib-org/.github#509). The budget is the
+  # script's own default deadline; timeout-minutes here is well above it,
+  # and bounds the job rather than the wait.
+  #
+  # It runs on every trigger and waits on almost none of them: the input
+  # is empty wherever no release is calling, and an empty tag is nothing
+  # to wait for. An `if:` here would make a tag the only thing that ever
+  # runs it, and a job a release is the first to run is a job whose
+  # defect ships with that release -- which has already happened to this
+  # wait, in more than one of these repositories
+  wait-for-index:
+    name: Wait for the index to serve the released version
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # sparse, and this is the whole reason the checkout is admissible
+      # in a workflow whose point is that nothing of this repository is
+      # on the runner: what lands is .github/scripts plus the repository
+      # root, cone mode being the default and root files always being in
+      # the cone, so there is no src/btclib for an import to resolve to.
+      # The root's pyproject.toml is inert here for a second reason,
+      # --no-project ignoring it. This job imports nothing of the project
+      # in any case, and the jobs that do check out nothing at all
+      - name: Check out the wait script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      # --no-project, so it runs on the interpreter uv fetches and
+      # installs nothing: the script takes the standard library alone,
+      # which is what lets it run before anything of this project exists
+      # on the runner
+      - name: Wait for the index to serve the released version
+        shell: bash
+        env:
+          TAG: ${{ inputs.version }}
+        run: |
+          uv run --no-project --python 3.14 \
+            .github/scripts/wait_for_pypi_release.py btclib "$TAG"
+
   install-published:
     name: >-
       ${{ matrix.no-binary && 'Build' || 'Install' }}
       ${{ matrix.python }} from PyPI on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # nothing here installs until the index serves what a release just
+    # published: a cell that starts too early resolves to the version the
+    # tag is replacing and reports a pass for it, which is worse than
+    # reporting nothing. On every other trigger the wait job returns at
+    # once, having had no version to wait for
+    needs: wait-for-index
     strategy:
       fail-fast: false
       matrix:
@@ -145,7 +203,7 @@ jobs:
     steps:
       # every run step below declares `shell: bash`, and the matrix is why:
       # the default shell on a Windows runner is PowerShell, which parses
-      # none of this. The wait step went in without the line (issue #1141)
+      # none of this. A run step went in without the line (issue #1141)
       # and took every Windows cell of v2026.8.21's release run with it --
       # "Missing opening '(' after keyword 'for'" -- having never run
       # before that tag, a release being then the only trigger that
@@ -154,46 +212,6 @@ jobs:
       # omission invisible on review; declaring it on every step is what
       # makes the absence of one visible instead. Both siblings' copies of
       # this file already do
-      #
-      # the index does not serve a new file the instant the upload returns,
-      # and this workflow installs whatever the resolver picks: a run that
-      # starts too early tests the *previous* version and reports a pass for
-      # it, which is worse than reporting nothing. So a run with a release
-      # behind it waits for the version its tag names, and fails if it never
-      # arrives rather than measuring the wrong thing.
-      #
-      # The step itself runs on every trigger and does nothing on most of
-      # them, the input being empty wherever no release is calling. An
-      # `if:` here would make a tag the only thing that ever runs it, and
-      # a step a release is the first to run is a step whose defect ships
-      # with that release -- which has already happened to this script, in
-      # more than one of these repositories. Unguarded, every weekly run
-      # parses it on every cell of the matrix. The empty case is a
-      # condition around the loop rather than an early `exit 0` for that
-      # same reason: bash parses a script as it runs, so an exit at the
-      # top leaves what follows unparsed, where an `if` is parsed whole
-      # before its condition is tested
-      - name: Wait for the index to serve the released version
-        shell: bash
-        env:
-          TAG: ${{ inputs.version }}
-        run: |
-          version="${TAG#v}"
-          if [ -z "$version" ]; then
-            echo "no release behind this run: nothing to wait for"
-          else
-            for attempt in $(seq 20); do
-              if curl -sf --max-time 10 -o /dev/null \
-                  "https://pypi.org/pypi/btclib/${version}/json"; then
-                echo "the index serves ${version}"
-                exit 0
-              fi
-              echo "attempt ${attempt}: ${version} is not served yet"
-              sleep 15
-            done
-            echo "::error::${version} never appeared on the index"
-            exit 1
-          fi
       # uv rather than actions/setup-python, which is what every other
       # workflow here already uses and what this one has to use for a
       # reason of its own: setup-python installs from the runner tool
@@ -297,6 +315,12 @@ jobs:
       Install ${{ matrix.python }}[secp256k1] from PyPI on
       ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # nothing here installs until the index serves what a release just
+    # published: a cell that starts too early resolves to the version the
+    # tag is replacing and reports a pass for it, which is worse than
+    # reporting nothing. On every other trigger the wait job returns at
+    # once, having had no version to wait for
+    needs: wait-for-index
     strategy:
       fail-fast: false
       matrix:
@@ -333,32 +357,6 @@ jobs:
         python: ["3.14"]
     timeout-minutes: 20
     steps:
-      # the same wait, unguarded the same way and for the reasons
-      # install-published's copy states: a run started by release.yml's
-      # call must not measure the version the tag is replacing, and a
-      # step only a release ever runs is a step only a release finds
-      # broken
-      - name: Wait for the index to serve the released version
-        shell: bash
-        env:
-          TAG: ${{ inputs.version }}
-        run: |
-          version="${TAG#v}"
-          if [ -z "$version" ]; then
-            echo "no release behind this run: nothing to wait for"
-          else
-            for attempt in $(seq 20); do
-              if curl -sf --max-time 10 -o /dev/null \
-                  "https://pypi.org/pypi/btclib/${version}/json"; then
-                echo "the index serves ${version}"
-                exit 0
-              fi
-              echo "attempt ${attempt}: ${version} is not served yet"
-              sleep 15
-            done
-            echo "::error::${version} never appeared on the index"
-            exit 1
-          fi
       - name: Setup uv with Python ${{ matrix.python }}
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
