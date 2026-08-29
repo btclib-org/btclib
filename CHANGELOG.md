@@ -49,6 +49,19 @@ documented at release-notes length in the first place, and are still in
   reads `uv version --short` at tag time, so a bump moved earlier would
   offer it the next cycle's number instead of the one being released.
   The window this closes is the changelog's, not the version's.
+- **`REPOSITORY.md` reads `default_branch`, the environments behind
+  *Publishing*, and `allow_auto_merge` back from GitHub, instead of
+  asserting them in prose with no command beside them** (closes #1496,
+  closes #1513). A renamed default branch, a changed environment set or
+  auto-merge turned off would each have left the file's claim standing
+  with nothing red to say otherwise. The *Publishing* readback also
+  covers `pypi`'s `branch_policy` and names a fourth environment, `CI`,
+  which holds no secret, no variable and no protection rule and which no
+  workflow reads — recorded here as a leftover, deleting it or keeping
+  it for a reason being the maintainer's decision (issue #1516). The
+  `allow_auto_merge` readback is btclib's share of issue
+  btclib-org/.github#566, which the same gap in `portanode` and
+  `bitcoin-core-rpc` keeps open.
 
 ### Documentation and the website
 

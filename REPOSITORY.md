@@ -270,11 +270,18 @@ waiting for slots is what would change it.
 
 ## Branch protection
 
-`main` is the only branch, and everything reaches it through a pull
-request: the four checks above with `strict`, one approving review,
-`dismiss_stale_reviews`, **required signatures**, linear history, no force
-pushes, no deletions, `required_conversation_resolution`, and
-`enforce_admins` *off* — an administrator can bypass all of it.
+`main` is the repository's default branch and its only one:
+
+```shell
+gh api repos/btclib-org/btclib --jq '.default_branch'
+# main
+```
+
+Everything reaches it through a pull request: the four checks above with
+`strict`, one approving review, `dismiss_stale_reviews`, **required
+signatures**, linear history, no force pushes, no deletions,
+`required_conversation_resolution`, and `enforce_admins` *off* — an
+administrator can bypass all of it.
 
 That last one is what carries the review. CONTRIBUTING.md states why a
 review cannot be satisfied by its author; the consequence here is that on
@@ -382,10 +389,16 @@ a particular signer.
 
 ```shell
 gh api repos/btclib-org/btclib \
-  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
+  --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
+         allow_auto_merge}'
 ```
 
-answers `true` for the first and `false` for the other two.
+answers `true` for the first and the last, `false` for the middle two.
+`allow_auto_merge` is what makes "auto-merge presses it" above a setting
+this file reads back rather than a fact about a workflow: turned off,
+every landing here would wait for somebody to press *Squash and merge* by
+hand at the moment the last check goes green, and nothing would turn red
+to say so.
 
 **There is no second path**, the section above having the bypass mode
 that closes it and the ruleset entry that names `squash` as the only
@@ -521,6 +534,50 @@ gh api -X PUT repos/btclib-org/btclib/actions/permissions/workflow \
 environments both require a review, and `pypi` is restricted to `v*`
 tags. `RELEASING.md` records the reasoning, including why self-review
 stays allowed.
+
+```shell
+gh api repos/btclib-org/btclib/environments \
+  --jq '.environments[] | {name, protection_rules: [.protection_rules[]?.type]}'
+# {"name":"CI","protection_rules":[]}
+# {"name":"github-pages","protection_rules":["branch_policy"]}
+# {"name":"pypi","protection_rules":["required_reviewers","branch_policy"]}
+# {"name":"testpypi","protection_rules":["required_reviewers"]}
+```
+
+`pypi`'s `branch_policy` is the `v*` tag restriction stated above:
+
+```shell
+gh api repos/btclib-org/btclib/environments/pypi/deployment-branch-policies \
+  --jq '.branch_policies[] | {name, type}'
+# {"name":"v*","type":"tag"}
+```
+
+`testpypi` carries `required_reviewers` with no `branch_policy` beside
+it — the same call against `testpypi` 404s, where it answers for `pypi`
+— so a publish to TestPyPI accepts any branch or tag once approved;
+`release.yml`'s own `workflow_dispatch` trigger is what narrows it
+further. `github-pages` restricts to `main`, the branch Pages already
+serves.
+
+**`CI` is a fourth environment the call above lists, and nothing in this
+repository uses it:**
+
+```shell
+gh api repos/btclib-org/btclib/environments/CI/secrets --jq '.total_count'
+# 0
+gh api repos/btclib-org/btclib/environments/CI/variables --jq '.total_count'
+# 0
+git grep -n 'environment:$' -- .github/workflows/
+# .github/workflows/release.yml:458
+# .github/workflows/release.yml:505
+```
+
+Both matches name `testpypi` and `pypi`, on `publish-testpypi` and
+`publish-pypi` respectively — no workflow declares `environment: CI`. It
+holds no secret and no variable either, so nothing depends on it. That
+makes `CI` a leftover rather than a recorded setting, and whether it is
+deleted or kept for a reason is the maintainer's decision to make
+(issue #1516); this paragraph is the record of what it is until then.
 
 ## Pages, which is btclib.org
 
