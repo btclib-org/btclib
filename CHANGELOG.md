@@ -98,6 +98,91 @@ documented at release-notes length in the first place, and are still in
   rather than as a field on no rule. What the scope costs is that a
   change to any of them shows up here in nothing.
 
+- **A pull request no longer waits for macOS.** One run of the full matrix is
+  45 jobs, 93 minutes of compute and 399 minutes of queueing, and the two
+  macOS images account for most of the second number: 29.4 and 23.2 minutes
+  of mean wait for a runner, one of them 42.2, against 0.5 to 1.6 for ubuntu
+  and windows. So `test.yml` keeps all seven interpreters and drops to four
+  platforms, and the new `macos.yml` runs the two macOS images against the
+  same lock weekly, on demand, and from a release -- which is what keeps a
+  macOS regression from being published while nobody waits for one. It is
+  scheduled the same morning as `latest.yml`, half an hour before, so the two
+  read as a difference: red in both is the platform, red in `latest` alone is
+  the upgrade (shipped in v2026.8.21)
+- **The documentation build is a workflow of its own**, `docs.yml`, where it
+  was the second job of `lint.yml`: a failed sphinx build and a failed hook
+  are different verdicts, and a workflow each is what gives them a badge each
+  and a line each in the checks list. The job keeps its name, `Build the
+  documentation`, so the required check did not have to move -- a context is
+  matched by name and not by the workflow that reported it (shipped in
+  v2026.8.21)
+- **`integration.yml` gates a merge**, where it gated only a release: 36
+  seconds of work for a disposable regtest node, less than the matrix it runs
+  beside, and it answers the one claim the recorded vectors cannot make. Its
+  `paths` filter goes with the promotion, a required check that never runs
+  blocking a merge where a skipped one satisfies it (shipped in v2026.8.21)
+- **Every CI job has a name, and the names say what the job answers**, the
+  same vocabulary bitcoin-core-rpc uses: `suite`, `coverage`, `dist` and the
+  aggregate `test: every job passed` where the ids carried a `-py` suffix
+  that distinguished nothing, `suite-latest` and `install-published` where a
+  suffix does name a variant, and a sentence on each of the eleven jobs of
+  `release.yml`, which showed their ids in the checks list (shipped in
+  v2026.8.21)
+- **`published.yml` is called by `release.yml`** with the tag's version, and
+  waits for the index to serve it before installing -- so it can no longer
+  pass by testing the release before this one, which the dispatch
+  RELEASING.md asked for by hand could do. Its schedule goes from weekly to
+  monthly, the release path now answering the question the weekly stood in
+  for. Not a `workflow_run` trigger, which zizmor rates dangerous: that runs
+  the default branch's copy on a push nobody reviewed (shipped in
+  v2026.8.21)
+- **`release.yml` has a concurrency group**, the last workflow without one
+  and the only one whose runs have side effects, and it calls the docs and
+  macOS workflows beside the ones it already called (shipped in
+  v2026.8.21)
+- **A pre-commit rev that is not a released version fails the gate.** A local
+  pygrep hook rejects a rev naming only a major version, which follows every
+  future release of it, and a prerelease, which is not a release: the two
+  moves `autoupdate` offered in bitcoin-core-rpc, one of which was merged
+  before anyone read the diff. pre-commit warns about the first and exits
+  zero, which is the difference the hook makes (shipped in v2026.8.21)
+- The dead `github.base_ref == 'master'` exception is gone from every job
+  that carried it, along with the prose describing a two-branch release flow:
+  `master` is not a branch here any more, so the clause could never be true
+  and `push` was aimed at a ref that does not exist -- which meant nothing
+  ran on the trunk, and no cache was written where a pull request could read
+  it (shipped in v2026.8.21)
+- **`fuzz.yml` ran on every pull request and gated nothing** (issue
+  btclib-org/.github#460): the `pull_request` trigger and the
+  `pr_fuzzing` job that hung on it are gone, and `fuzz` is what section
+  10 of the organization standard calls it, a sentinel — `schedule` and
+  `workflow_dispatch`, nothing else. That job put ten minutes of fuzzing
+  on every push to an open pull request, and
+  `gh run list --workflow fuzz.yml --json event,conclusion` says what
+  became of those runs. No merge was waiting on the answer: `main`'s
+  `required_status_checks` names `Lint and type-check`, `Build the
+  documentation`, `test: every job passed` and `Regtest against Bitcoin
+  Core`, and `fuzz` produces none of those contexts, so what the job
+  charged was the reader's wait. That rule lives in the classic
+  branch-protection object rather than in a ruleset, which is why
+  `gh api repos/btclib-org/btclib/branches/main/protection` answers for
+  it and a rulesets-only read answers nothing. The pull request that cut
+  v2026.8.26 merged three minutes into its `PR fuzzing` job and
+  cancelled it, run `33008079111`, which is the case section 10 quotes.
+  `CONTRIBUTING.md`'s *What runs when* row moves with the triggers (shipped
+  in v2026.8.29).
+
+- **A crash this sentinel finds becomes an ordinary test, not a seed**:
+  the regression names the input and what `parse` is expected to do with
+  it now, which is usually to refuse it in `BTClibException`.
+  `fuzz/corpus/` answers the opposite question —
+  `tests/fuzz_corpus_test.py` asserts that every seed there is still a
+  valid serialization of what it parses, so a crash input added to it is
+  refused by the very hardening that fixed the crash, and the only way
+  back to green would be to delete the regression. What that gate is for
+  is keeping this fuzzer's own starting point honest as the parsers move
+  under it (shipped in v2026.8.29).
+
 ### Documentation and the website
 
 - **A docstring in `src/btclib` carries the relation and not the
@@ -161,6 +246,29 @@ documented at release-notes length in the first place, and are still in
   literal, and cannot drift from it the way the dropped one could --
   `tests/copyright_test.py` now loads `conf.py` by path and checks the
   read.
+- **Prose no longer states counts nothing checks, and two that had
+  already drifted are fixed** (issue #1144). CONTRIBUTING.md's own
+  "measure, don't assert" rule was not honored in 36 places across
+  CLAUDE.md, RELEASING.md, REPOSITORY.md, CONTRIBUTING.md, README.md
+  and SECURITY.md — a count of something that can grow or shrink,
+  asserted as present-tense fact with nothing guarding it from
+  drifting silently false. Most had the number dropped where the named
+  things already carried the count, or a live command pointed at
+  instead (`gh api ... --jq '.required_status_checks.checks'`,
+  `cosmic-ray baseline`); GitHub's own platform limits (twenty
+  concurrent jobs on the Free plan) kept their number, with a dated
+  qualifier, since that is their policy and not this repository's
+  history.
+
+  Two were already wrong, not just unguarded. README.md said Electrum's
+  mnemonic standard reads "the five wordlists Electrum reads" where
+  `electrum.py`'s own `ELECTRUM_WORDLISTS` reuses `BIP39_LANGUAGE_FILES`
+  entire — twelve languages, only Portuguese overridden. RELEASING.md
+  said "the two `publish-*` jobs are the only holders of `id-token:
+  write`" in `release.yml`, where `attest` holds it too, for its
+  Sigstore OIDC exchange; the review gate the sentence was arguing for
+  still holds, `attest` only running via `needs:` after a publish job
+  succeeds, but the sentence itself was false (shipped in v2026.8.27).
 
 ### Packaging, linting and CI
 
@@ -247,6 +355,26 @@ documented at release-notes length in the first place, and are still in
   CONTRIBUTING.md: that paragraph goes, a setting being checkable where
   a warning has to be read and remembered. Wanting the warning back
   instead costs reverting this entry's two files.
+
+- **Every genuinely misplaced bullet is out of `_KNOWN_DRIFT`, moved to the
+  open cycle and tagged with the release that actually shipped it** (closes
+  #1524). Moving each to the release `git merge-base --is-ancestor` names as
+  the earliest containing its own commit does not work: that tag's own section
+  for the same heading was checked directly and never carried the bullet
+  either. Each commit wrote its bullet under whichever heading, searched for
+  downward from the top of the file, was the first still carrying a subsection
+  of the matching name -- never under a fresh subsection the still-open cycle
+  would have opened for it, because none was -- so any already-tagged
+  destination gains text its own sealed tag never had, the same failure this
+  module exists to catch. The one heading with no tag to violate is the
+  currently open one, which is where every relocatable bullet moved, each back
+  into the subsection it already belonged to and each carrying its own trailing
+  "(shipped in vX.Y.Z)" naming that release, so a reader can still tell it
+  apart from what this cycle actually added; once this cycle is tagged, every
+  one of them is part of that release's own history from the start. `v2026.8.7`
+  keeps its exemption, now to `13941fd1`'s and `0744d3f4`'s own text alone:
+  both rewrote a bullet already in that section in place rather than adding
+  one, so there is nothing left in it to relocate.
 
 ### The public API and the module layout
 
@@ -589,36 +717,6 @@ documented at release-notes length in the first place, and are still in
 ## v2026.8.27
 
 ### Repository
-
-- **`fuzz.yml` ran on every pull request and gated nothing** (issue
-  btclib-org/.github#460): the `pull_request` trigger and the
-  `pr_fuzzing` job that hung on it are gone, and `fuzz` is what section
-  10 of the organization standard calls it, a sentinel — `schedule` and
-  `workflow_dispatch`, nothing else. That job put ten minutes of fuzzing
-  on every push to an open pull request, and
-  `gh run list --workflow fuzz.yml --json event,conclusion` says what
-  became of those runs. No merge was waiting on the answer: `main`'s
-  `required_status_checks` names `Lint and type-check`, `Build the
-  documentation`, `test: every job passed` and `Regtest against Bitcoin
-  Core`, and `fuzz` produces none of those contexts, so what the job
-  charged was the reader's wait. That rule lives in the classic
-  branch-protection object rather than in a ruleset, which is why
-  `gh api repos/btclib-org/btclib/branches/main/protection` answers for
-  it and a rulesets-only read answers nothing. The pull request that cut
-  v2026.8.26 merged three minutes into its `PR fuzzing` job and
-  cancelled it, run `33008079111`, which is the case section 10 quotes.
-  `CONTRIBUTING.md`'s *What runs when* row moves with the triggers.
-
-- **A crash this sentinel finds becomes an ordinary test, not a seed**:
-  the regression names the input and what `parse` is expected to do with
-  it now, which is usually to refuse it in `BTClibException`.
-  `fuzz/corpus/` answers the opposite question —
-  `tests/fuzz_corpus_test.py` asserts that every seed there is still a
-  valid serialization of what it parses, so a crash input added to it is
-  refused by the very hardening that fixed the crash, and the only way
-  back to green would be to delete the regression. What that gate is for
-  is keeping this fuzzer's own starting point honest as the parsers move
-  under it.
 
 - **`README.md`'s badge row ends with the OpenSSF Best Practices badge.**
   Section 2 of the organization standard keys it on the property
@@ -11599,30 +11697,6 @@ documented at release-notes length in the first place, and are still in
 
 ### Documentation and the website
 
-- **Prose no longer states counts nothing checks, and two that had
-  already drifted are fixed** (issue #1144). CONTRIBUTING.md's own
-  "measure, don't assert" rule was not honored in 36 places across
-  CLAUDE.md, RELEASING.md, REPOSITORY.md, CONTRIBUTING.md, README.md
-  and SECURITY.md — a count of something that can grow or shrink,
-  asserted as present-tense fact with nothing guarding it from
-  drifting silently false. Most had the number dropped where the named
-  things already carried the count, or a live command pointed at
-  instead (`gh api ... --jq '.required_status_checks.checks'`,
-  `cosmic-ray baseline`); GitHub's own platform limits (twenty
-  concurrent jobs on the Free plan) kept their number, with a dated
-  qualifier, since that is their policy and not this repository's
-  history.
-
-  Two were already wrong, not just unguarded. README.md said Electrum's
-  mnemonic standard reads "the five wordlists Electrum reads" where
-  `electrum.py`'s own `ELECTRUM_WORDLISTS` reuses `BIP39_LANGUAGE_FILES`
-  entire — twelve languages, only Portuguese overridden. RELEASING.md
-  said "the two `publish-*` jobs are the only holders of `id-token:
-  write`" in `release.yml`, where `attest` holds it too, for its
-  Sigstore OIDC exchange; the review gate the sentence was arguing for
-  still holds, `attest` only running via `needs:` after a publish job
-  succeeds, but the sentence itself was false.
-
 - **`_libsecp256k1`'s docstring names the two states the module
   publishes** (issue #1137). It said the question "are the bindings
   installed" is answered by `AVAILABLE`, and there is no `AVAILABLE` in
@@ -14295,57 +14369,6 @@ by issue #1011. Neither file counts its entries: `grep -c '^- '` does
 that, whereas a stated number is a line every open branch has to edit.
 
 ### Repository
-
-- **A pull request no longer waits for macOS.** One run of the full matrix is
-  45 jobs, 93 minutes of compute and 399 minutes of queueing, and the two
-  macOS images account for most of the second number: 29.4 and 23.2 minutes
-  of mean wait for a runner, one of them 42.2, against 0.5 to 1.6 for ubuntu
-  and windows. So `test.yml` keeps all seven interpreters and drops to four
-  platforms, and the new `macos.yml` runs the two macOS images against the
-  same lock weekly, on demand, and from a release -- which is what keeps a
-  macOS regression from being published while nobody waits for one. It is
-  scheduled the same morning as `latest.yml`, half an hour before, so the two
-  read as a difference: red in both is the platform, red in `latest` alone is
-  the upgrade
-- **The documentation build is a workflow of its own**, `docs.yml`, where it
-  was the second job of `lint.yml`: a failed sphinx build and a failed hook
-  are different verdicts, and a workflow each is what gives them a badge each
-  and a line each in the checks list. The job keeps its name, `Build the
-  documentation`, so the required check did not have to move -- a context is
-  matched by name and not by the workflow that reported it
-- **`integration.yml` gates a merge**, where it gated only a release: 36
-  seconds of work for a disposable regtest node, less than the matrix it runs
-  beside, and it answers the one claim the recorded vectors cannot make. Its
-  `paths` filter goes with the promotion, a required check that never runs
-  blocking a merge where a skipped one satisfies it
-- **Every CI job has a name, and the names say what the job answers**, the
-  same vocabulary bitcoin-core-rpc uses: `suite`, `coverage`, `dist` and the
-  aggregate `test: every job passed` where the ids carried a `-py` suffix
-  that distinguished nothing, `suite-latest` and `install-published` where a
-  suffix does name a variant, and a sentence on each of the eleven jobs of
-  `release.yml`, which showed their ids in the checks list
-- **`published.yml` is called by `release.yml`** with the tag's version, and
-  waits for the index to serve it before installing -- so it can no longer
-  pass by testing the release before this one, which the dispatch
-  RELEASING.md asked for by hand could do. Its schedule goes from weekly to
-  monthly, the release path now answering the question the weekly stood in
-  for. Not a `workflow_run` trigger, which zizmor rates dangerous: that runs
-  the default branch's copy on a push nobody reviewed
-- **`release.yml` has a concurrency group**, the last workflow without one
-  and the only one whose runs have side effects, and it calls the docs and
-  macOS workflows beside the ones it already called
-- **A pre-commit rev that is not a released version fails the gate.** A local
-  pygrep hook rejects a rev naming only a major version, which follows every
-  future release of it, and a prerelease, which is not a release: the two
-  moves `autoupdate` offered in bitcoin-core-rpc, one of which was merged
-  before anyone read the diff. pre-commit warns about the first and exits
-  zero, which is the difference the hook makes
-- The dead `github.base_ref == 'master'` exception is gone from every job
-  that carried it, along with the prose describing a two-branch release flow:
-  `master` is not a branch here any more, so the clause could never be true
-  and `push` was aimed at a ref that does not exist -- which meant nothing
-  ran on the trunk, and no cache was written where a pull request could read
-  it
 
 - **`uv.lock` is at every dependency's newest release**, which closed the
   seven advisories the default branch was carrying: six on GitPython,

@@ -49,33 +49,74 @@ and both are read as a name rather than as a verdict:**
   the file under this name is skipped rather than treated as a match or
   a mismatch it was never able to compute.
 
-**One exception, closed rather than open-ended.** Running this exact
-comparison against `origin/main` before this module existed found
-CHANGELOG.md's `v2026.8.7`, `v2026.8.21` and `v2026.8.27` already
-disagreeing with their own tag, so the defect above is real here and not
-only argued.
-
-`v2026.8.21` and `v2026.8.27` gained lines and lost none, which is the
-rebase's *misplacement* outcome rather than the *stacked-duplicate* one
-`.gitattributes`' own reasoning names, and finding which release those
-bullets belong to is issue #1524.
-
-`v2026.8.7` is not that, or not only: it lost lines as well, and the
+**One exception, and its own repair narrowed it rather than closing
+it.** Running this comparison against `origin/main` before this module
+existed found CHANGELOG.md's `v2026.8.7`, `v2026.8.21` and `v2026.8.27`
+already disagreeing with their own tag (issue #1512). `v2026.8.21` and
+`v2026.8.27` had gained lines and lost none, misplaced bullets from
+`afc1ca36` and `cbedc3b7` respectively, landed after that release's own
+tag was already cut. `v2026.8.7` had both gained and lost lines: the
 union driver only ever keeps both sides' *added* lines, so it cannot
-rewrite or delete what a tag already holds. Two landed commits did,
+rewrite or delete what a tag already holds, and two landed commits did,
 deliberately and in review -- `13941fd1` de-linked `[HISTORY.md](...)`
 inside that section, the file having been renamed and the link now
-404ing, and `0744d3f4` rewrote a bullet's quoted misspellings. Both are
-post-release edits to a released section, and neither is the mechanism
-this module exists for; only the bullets `237c86d4` added under that
-section's own heading are. Anyone repairing #1524 has to separate the
-two before moving anything.
+404ing, and `0744d3f4` rewrote a bullet's quoted misspellings in place.
+The bullets `237c86d4` added under that section's own heading, with no
+deletions, shared `afc1ca36`'s and `cbedc3b7`'s *misplacement* shape
+instead.
 
-`_KNOWN_DRIFT` below names the sections so the gate does not open red on
-a defect this branch did not write, and marks them `xfail(strict=True)`:
-a hand fix that makes one match its tag again turns that case into an
-*unexpected* pass, which is a failure too, so the exemption cannot
-quietly outlive the drift it names.
+None of the three landed under a subsection the open cycle would have
+opened for it. Each was written under whichever heading, searching down
+from the top of the file, was the first still carrying a subsection of
+the matching name -- not "there was nowhere to put it", but that no
+fresh subsection was opened under the still-open cycle for it.
+`git show <commit>:CHANGELOG.md | grep -nE '^## |^### '` is what shows
+this at each of the three: `237c86d4` wrote under `### Repository`,
+which neither the open cycle nor `v2026.8.9`, immediately below it,
+carried that day -- `v2026.8.7`, the next heading down, being the
+first that did; `afc1ca36` wrote under `### Documentation and the
+website`, which the open cycle's own subsections did not include that
+day, `v2026.8.21` immediately below it being the first that did; and
+`cbedc3b7` wrote under `### Repository`, again absent from the open
+cycle's own subsections that day, `v2026.8.27` immediately below it
+being the first that did. Issue #1458 points the right way without
+being the whole story: it is the subsection, not only the cycle
+heading, that a release now has to open for the next one.
+
+issue #1524 is that repair, and its own measurement corrected the
+obvious plan for the misplaced bullets: "move each to the release that
+actually shipped it" reads as though some already-tagged release's own
+snapshot shows it correctly filed, and none does. `git
+merge-base --is-ancestor <commit> <tag>` says `237c86d4` first reaches
+`v2026.8.21`, `afc1ca36` first reaches `v2026.8.27`, `cbedc3b7` first
+reaches `v2026.8.29` -- but every one of those tags' *own* section for
+that heading was checked directly and lacks the bullet too, because each
+commit wrote it under an already-released heading as measured above,
+and nothing has touched it since: the mistake was never a rebase
+disturbing a settled tag, it is what that one commit itself wrote, and
+every tag cut afterwards simply inherited it unchanged. So no already-
+tagged heading can receive a bullet without gaining text its own sealed
+tag never had, which is the identical failure this module exists to
+catch, moved rather than fixed. The one heading with no tag to violate
+is the currently open one, `## v2026.9 (work in progress, not released
+yet)`, in the subsection each bullet already belonged to -- and once
+that cycle is itself tagged, the bullet is part of its tag from day one,
+unlike every prior placement. Each relocated bullet carries its own
+trailing "(shipped in v<version>)", the tag `merge-base --is-ancestor`
+found, so a reader can still tell it apart from what this cycle actually
+added.
+
+`v2026.8.7` keeps its exemption, now to `13941fd1` and `0744d3f4` alone:
+`237c86d4`'s bullets, the section's only relocatable content, are gone
+from it, and the two deliberate, already-reviewed edits that remain
+rewrote their own text in place rather than adding a bullet, so there is
+nothing left to relocate -- matching the tag again would mean undoing
+two already-reviewed corrections instead.
+
+`_KNOWN_DRIFT` below names the one remaining section and marks it
+`xfail(strict=True)`: a further hand fix that makes it match its tag
+again turns that case into an *unexpected* pass, which is a failure too,
+so the exemption cannot quietly outlive the drift it names.
 """
 
 from __future__ import annotations
@@ -97,11 +138,15 @@ _HEADING = re.compile(r"^## (\S+)(.*)$", re.MULTILINE)
 # "git" in a subprocess list is a partial executable path
 _GIT = shutil.which("git") or "git"
 
+# what emptied v2026.8.7 of relocatable content is issue #1524 moving
+# out 237c86d4's own bullets, not the separate move of v2026.8.21's
+# and v2026.8.27's. What remains, 13941fd1's and 0744d3f4's own
+# deliberate edits, rewrote text already in that section rather than
+# adding a bullet, so there is nothing to relocate -- matching the tag
+# again would mean undoing two already-reviewed corrections
 _KNOWN_DRIFT = frozenset(
     {
         ("CHANGELOG.md", "v2026.8.7"),
-        ("CHANGELOG.md", "v2026.8.21"),
-        ("CHANGELOG.md", "v2026.8.27"),
     }
 )
 
@@ -151,12 +196,13 @@ def _cases() -> list[Any]:
         if (path, version) in _KNOWN_DRIFT:
             marks = pytest.mark.xfail(
                 reason=(
-                    f"known pre-existing drift: {path}'s {version!r} section"
-                    " already disagreed with its own tag before this module"
-                    " existed (issue #1524); a fix moving the misplaced"
-                    " bullet to its true release should turn this case into"
-                    " an unexpected pass, which is what removes it from"
-                    " _KNOWN_DRIFT"
+                    f"deliberate, reviewed post-release edit: {path}'s"
+                    f" {version!r} section carries 13941fd1's and"
+                    " 0744d3f4's own text, rewritten in place rather than"
+                    " added as a bullet, so there is nothing to relocate"
+                    " (issue #1524); a further fix making this match its"
+                    " tag again should turn this case into an unexpected"
+                    " pass, which is what removes it from _KNOWN_DRIFT"
                 ),
                 strict=True,
             )
