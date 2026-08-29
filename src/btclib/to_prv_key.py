@@ -131,9 +131,10 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
 
     # libsecp256k1's keys.prvkey_verify is the C answer to this check,
     # here and at the two other sites in this module, and it is not called
-    # for want of anything to gain: 0.11 us against the 0.024 of the
-    # comparison, on a value that is already a Python int, and no
-    # constant-time argument to pay it with, since whether a key is in
+    # for want of anything to gain: the foreign call costs more than the
+    # comparison it would replace, on a value that is already a Python
+    # int, and no constant-time argument to pay it with, since whether a
+    # key is in
     # range is precisely what the caller is being told. The comparison
     # also serves every curve, where the binding is secp256k1 alone.
     if not 0 < q < ec.n:

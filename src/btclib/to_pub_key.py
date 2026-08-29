@@ -325,9 +325,10 @@ def _sec_from_pub_key(pub_key: PubKey) -> bytes:
     the caller that turns the `ValueError` into btclib's own.
 
     A `Point` comes back uncompressed, which is the cheap form to parse --
-    0.26 us against the 2.34 of a compressed key, both coordinates being
-    there to read -- where `pub_keyinfo_from_pub_key` answers the
-    compressed one, `compressed=None` meaning "whatever the key says" and
+    both coordinates are there to read, where a compressed key pays the
+    field square root that lifts x -- while `pub_keyinfo_from_pub_key`
+    answers the compressed one, `compressed=None` meaning "whatever the
+    key says" and
     a point saying nothing. No network and no compressed filter either,
     which is what the callers ask for: a verification takes the key as the
     key says it is, and the curve it is asked about is the signature's.

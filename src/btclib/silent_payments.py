@@ -738,9 +738,9 @@ def _labelled(
 
     This is the inner loop of a scan -- once per output that did not
     match directly, and again at every k -- so the additions are
-    `_sum_var`'s rather than the Python arithmetic under it: a hundred
-    outputs 2202.4 us against 3166.5. The negation of P_k is the same
-    point for both parities and is taken once.
+    `_sum_var`'s rather than the Python arithmetic under it, the latter
+    being the dearer of the two over a hundred outputs. The negation of
+    P_k is the same point for both parities and is taken once.
     """
     try:
         candidate = point_from_bip340pub_key(output, secp256k1)
@@ -818,9 +818,10 @@ def scan_outputs(
                 break
             # a wallet that published no labelled address has nothing for
             # the subtraction below to find, and `_labelled` is a lift
-            # and two additions per output before it can say so: a
-            # hundred outputs 45.8 us against 3167.2. BIP352 asks for the
-            # change label m = 0 whatever else was used, so the map is
+            # and two additions per output before it can say so, which
+            # over a hundred outputs is most of what the scan spends.
+            # BIP352 asks for the change label m = 0 whatever else was
+            # used, so the map is
             # normally not empty -- what this spares is the caller who
             # passed none, and the answer is `_labelled`'s own for an
             # empty map, which is None every time

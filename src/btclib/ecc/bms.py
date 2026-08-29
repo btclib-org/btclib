@@ -392,9 +392,10 @@ def assert_as_valid(msg: Octets, addr: String, sig: Sig | String) -> None:
     # signature is valid only if the provided address is matched, and an
     # address is a hash of the sec octets: no point is built here, the
     # bindings answering the octets themselves -- which is the mod_inv_var of
-    # an affine conversion not paid either. `verify` is 25 us against 739,
-    # the mean over 40 random keys, of which some 16 are the recovery
-    # itself and 2.4 the r-congruence check of the Sig validation above
+    # an affine conversion not paid either. Delegated, `verify` costs a
+    # small fraction of what the Python path does, the mean over 40
+    # random keys, of which the recovery itself is most and the
+    # r-congruence check of the Sig validation above a little
     if _libsecp256k1_serves(secp256k1, None):
         pub_key = _libsecp256k1_recover_sec_(
             key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, compressed, lower_s=False

@@ -92,11 +92,10 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     # it. A list of digests joined and then sliced holds the keying data
     # three times over -- the digests, the join's copy, the slice's --
     # where this holds it twice: deriving 64 MiB peaks at 2.00x the
-    # output against 5.79x. It costs about 0.03 us a block, so a fifth of
-    # a microsecond at the one or two blocks `diffie_hellman` asks for,
-    # which is around one percent of the 15.2 us multiplication it
-    # arrives through -- and a tenth of the derivation at sizes far
-    # beyond that
+    # output against 5.79x. What the writing costs at the one or two
+    # blocks `diffie_hellman` asks for is around one percent of the
+    # multiplication it arrives through -- and a tenth of the derivation
+    # at sizes far beyond that
     #
     # the `memoryview` is what makes each write exact: a bytearray slice
     # assignment of the wrong length resizes the buffer and shifts every

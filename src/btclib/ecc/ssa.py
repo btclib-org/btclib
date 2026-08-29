@@ -169,12 +169,12 @@ class Sig:
         # The question is existence: BIP340 fixes the y even, and
         # verification recomputes the point from the scalars rather than
         # lifting this r, so _is_x_coordinate_var and not the _y_even_var that
-        # was here (issue 622). The delegated lift was already 2.9 us
-        # against 75 on the accepting path, and 0.65 of that is not the
-        # reason: _y_even_var falls back to ec.y_even_var for an x the bindings
+        # was here (issue 622). The delegated lift was already cheap on
+        # the accepting path, and what it saves there is not the reason:
+        # _y_even_var falls back to ec.y_even_var for an x the bindings
         # refuse -- that being where the message naming the value comes
-        # from -- so refusing cost the whole Python square root, 78.7 us
-        # against the 22.4 of verifying a good signature. The expensive
+        # from -- so refusing cost the whole Python square root, several
+        # times what verifying a good signature costs. The expensive
         # answer was the one an attacker picks, half of the field
         # elements being no x-coordinate and costing nothing to produce.
         #
@@ -328,8 +328,8 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     # the lift is what validates the x, and the same one for every
     # spelling: an x-only key is an x and the even y that goes with it.
     # _y_even_var is ec.y_even_var answered by libsecp256k1 for secp256k1,
-    # 2.9 us against the 75 of a modular square root, and the Python one
-    # for every other curve
+    # a fraction of the modular square root it replaces, and the Python
+    # one for every other curve
     x = _x_from_bip340pub_key(x_Q, ec)
     return x, _y_even_var(x, ec)
 
@@ -515,9 +515,9 @@ def sign_(
     #
     # One call rather than a branch on the length: for a 32-byte message
     # the two answer the same signature octet for octet, and the
-    # extraparams struct sign_custom fills costs 15.66 us against 15.43
-    # (best of nine, 3000 calls each) -- not a second code path's worth of
-    # a signature that is 15.
+    # extraparams struct sign_custom fills costs a shade more (best of
+    # nine, 3000 calls each) -- not a second code path's worth of a
+    # signature.
     #
     # A commitment stays with the Python path: it tweaks the nonce, and
     # the nonce is the bindings' own to derive
@@ -696,10 +696,10 @@ class Signer:
     so a second signature under the same key builds it again -- and that
     keypair is a multiplication of the generator, about half of what a
     BIP340 signature costs. This holds one across calls instead, which is
-    worth some 14 us a signature of a signature that is 22. The
-    measurement per batch size is in the CHANGELOG entry that introduced
-    this class, an entry being read as the history of a release where
-    this is read as a statement about the code as it stands.
+    worth better than half a signature each time. The measurement per
+    batch size is in the CHANGELOG entry that introduced this class, an
+    entry being read as the history of a release where this is read as a
+    statement about the code as it stands.
 
     The same signatures come out, `sign` here being `sign_` over the
     keypair the signer holds, with the same default aux -- 32 octets
@@ -869,9 +869,10 @@ def _assert_as_valid_(
     # reaches here is the verification the bindings' own declined, which
     # is another curve or another hash function -- the size of the message
     # was the third of those and is not any more -- and on secp256k1 the
-    # multiplication is still theirs, 28 us against 1.02 ms. This whole
-    # verification is then 38 us against 1.17 ms, the two lifts around it
-    # -- the r of the signature and the x-only key -- being theirs as well
+    # multiplication is still theirs, some thirty-five times under the
+    # Python arithmetic. The whole verification follows it, the two lifts
+    # around it -- the r of the signature and the x-only key -- being
+    # theirs as well
     KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec, fixed)
 
     # The following check is prescribed by BIP340 but it is useless:
@@ -996,8 +997,7 @@ def assert_as_valid_(
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one. What
         # it would run again is the lift of r, which is not free even
-        # delegated: 0.14 us against 3.1, of a verification that is 21 in
-        # total
+        # delegated and costs many times more where it is not
         sig_bytes = sig.serialize(check_validity=False)
         try:
             verified = libsecp256k1_ssa.verify(msg, x_bytes, sig_bytes)
@@ -1020,10 +1020,10 @@ def assert_as_valid_(
     # with it: `_x_from_bip340pub_key` reads the key and proves nothing
     y_Q = _y_even_var(x_Q, sig.ec)
     # the key's own memoized tables where the caller prepared it, as in
-    # `dsa.assert_as_valid_`: 531.2 us against 664.5 under one key. The
-    # negation is in that set too, which is what makes it answer here --
-    # a prepared point of odd y is this same key, and the lift above is
-    # the one of the two BIP340 names
+    # `dsa.assert_as_valid_`, which is a fifth off a verification under
+    # one key. The negation is in that set too, which is what makes it
+    # answer here -- a prepared point of odd y is this same key, and the
+    # lift above is the one of the two BIP340 names
     fixed = Q.fixed if isinstance(Q, PreparedPoint) else sig.ec._fixed_points
     # Let c = int(hf(bytes(r) || bytes(Q) || msg)) mod n.
     c = challenge_(msg, x_Q, sig.r, sig.ec, hf)
@@ -1123,9 +1123,10 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     # libsecp256k1 recovers no x-only key -- its recovery module is ECDSA
     # ("recover(msg, signature, recid)") and its xonly module has no
     # recovery in it -- so the delegated double_mult_var is the whole of what
-    # there is to gain here, and it is all of the cost: 3540 us against
-    # 109 for this function. Which is also why this stays private, with no
-    # public spelling above it: BIP340 has no recovery flag to carry the
+    # there is to gain here, and it is all of the cost, the Python
+    # arithmetic costing some thirty times more. Which is also why
+    # this stays private, with no public spelling above it: BIP340 has
+    # no recovery flag to carry the
     # candidate, x-only keys leaving nothing for one to disambiguate
     QJ = _jac_double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec, ec._fixed_points)
     # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even, and
@@ -1182,8 +1183,8 @@ def assert_batch_as_valid_(
     signature must share one curve.
 
     **It is not the fast way to verify n signatures of secp256k1.**
-    Measured against n delegated `verify_` calls, the batch is about 37 us
-    a signature and a `verify_` about 18, both flat in n, so there is no
+    Measured against n delegated `verify_` calls, the batch costs about
+    twice a `verify_` a signature, both flat in n, so there is no
     crossover at any batch size. libsecp256k1 has no batch verification to
     delegate to, checked at 687155df upstream and at the tip of
     secp256k1-zkp, whose half-aggregation is a different construction; so

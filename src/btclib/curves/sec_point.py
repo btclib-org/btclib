@@ -147,9 +147,10 @@ def point_from_octets(
 
     The compressed prefixes are the only branch libsecp256k1 serves, and
     the whole cost of the function is there: lifting x to a point is a
-    modular square root, 75 us of the 76 in Python against 2.9 of the 3.2
-    delegated, while the 65-byte forms carry the y and take 1.2 either
-    way (issue 284).
+    modular square root, nearly all of that cost on either arm, and
+    delegated it costs a small fraction of what the Python one does,
+    while the 65-byte forms carry the y and cost the same either way
+    (issue 284).
 
     hybrid admits the 0x06 and 0x07 prefixes of that same section, which
     carry both coordinates like 0x04 does and repeat the parity of y in
@@ -242,10 +243,10 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     to_pub_key.pub_keyinfo_from_pub_key wants of it.
 
     For a compressed key on secp256k1 that proof is `keys.pubkey_verify`,
-    which is ec_pubkey_parse and a verdict: 2.4 us against the 4.4 of a
-    round trip that lifts x, re-proves the point it lifted on the curve
-    and serializes it again -- and against the 2.7 of `keys.reserialize`,
-    which answers the octets this already has. The parse is also the very
+    which is ec_pubkey_parse and a verdict, cheaper than a round trip
+    that lifts x, re-proves the point it lifted on the curve and
+    serializes it again, and cheaper than `keys.reserialize`, which
+    answers the octets this already has. The parse is also the very
     call libsecp256k1 will make on these bytes if they are on their way to
     its dsa.verify -- which is why a caller that is about to make it does
     not come through here at all, but through

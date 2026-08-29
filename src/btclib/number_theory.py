@@ -128,9 +128,9 @@ def mod_inv(a: int, m: int) -> int:
     that is secret. The extended Euclid under that one takes the
     iterations its input asks for, and for an operand drawn uniformly
     below m what its duration carries is the operand's bit-length: on
-    secp256k1's order, 8.8 us for a 256-bit scalar against 4.3 for a
-    128-bit one, falling at every step between them. That
-    correlation is what the Minerva attack collects -- an ECDSA nonce is
+    secp256k1's order a 256-bit scalar takes about twice what a 128-bit
+    one does, falling at every step between them. That correlation is
+    what the Minerva attack collects -- an ECDSA nonce is
     such a scalar, and a few thousand signing times sorted by it are a
     lattice away from the private key.
 
@@ -194,16 +194,15 @@ def mod_inv_batch(a: Sequence[int], m: int) -> list[int]:
 
     So it costs `n` draws from `secrets` and 2n multiplications on top of
     the trick, and the draws are the whole of it: measured on secp256k1's
-    `p` over 16 random elements, best of nine alternating rounds, 43.7 us
-    against the 20.9 of `mod_inv_batch_var` -- 2.1x, and 22.8 us of
-    difference for 16 draws of 1.6.
+    `p` over 16 random elements, best of nine alternating rounds, 2.1x
+    `mod_inv_batch_var`, and the difference is what those draws cost.
 
     It is still the trick, which is the point of it being a batch at all:
-    16 separate `mod_inv` calls are 155.9 us over the same elements, so
-    blinding the batch is 3.6x cheaper than blinding one at a time, where
-    the unblinded batch is 6.3x cheaper than the unblinded singles' 131.3.
-    The saving shrinks as the draws grow with n and the one Euclid does
-    not; the trick still wins at every size worth batching.
+    over the same 16 elements, blinding the batch is 3.6x cheaper than
+    blinding one at a time, where the unblinded batch is 6.3x cheaper
+    than the unblinded singles. The saving shrinks as the draws grow
+    with n and the one Euclid does not; the trick still wins at every
+    size worth batching.
 
     Not constant-time, for the reasons `mod_inv` gives at length. The
     empty sequence is not an error here either.
@@ -290,8 +289,8 @@ def legendre_symbol_var(a: int, p: int) -> int:
 
     By the reciprocity recursion rather than by Euler's criterion, which
     is `pow(a, (p - 1) // 2, p)` -- an exponentiation the size of the
-    square root the caller is asking about, where this is a gcd: 13.3 us
-    against 74.7 on secp256k1's p, over 3000 calls, best of seven. The
+    square root the caller is asking about, where this is a gcd, several
+    times cheaper on secp256k1's p over 3000 calls, best of seven. The
     factors of two come out all at once, `a & -a` being the lowest set
     bit, which is libsecp256k1's `secp256k1_ctz64_var`; asking a gcd
     rather than an exponent is what its `secp256k1_fe_is_square_var`

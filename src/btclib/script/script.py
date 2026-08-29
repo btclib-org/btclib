@@ -709,13 +709,13 @@ class Script:
     def asm(self) -> ScriptList:
         """The parsed script, parsed once.
 
-        A plain property would parse self.script again on every read:
-        57.9 us for a 16.5 kB script, for a value that cannot change.
-        Cached, a second read is 0.02 us.
+        A plain property would parse self.script again on every read,
+        for a value that cannot change; cached, a second read is an
+        attribute lookup.
 
         Nothing warms the cache: construction does not parse, and
         __init__ filling the cache in would be the wrong trade --
-        measured on that 16.5 kB script, an instance holding the parse
+        measured on a 16.5 kB script, an instance holding the parse
         costs 55.4 kB against 0.2 kB without it, 277 times the script's
         own bytes, and nothing inside the library reads .asm.
         """

@@ -438,8 +438,8 @@ def rootxprv_from_seed_(
     caller deriving a child public key from a seed had btclib build
     Base58Check text and read it back at every hop, three encodings and
     three decodings of a spelling that never left the module: seed to
-    `m/0h/1` and neutered is 69.41 us over distinct seeds against 32.42 for
-    the same three calls over `BIP32KeyData`, and 57.14 against 32.59 where
+    `m/0h/1` and neutered costs about twice what the same three calls
+    over `BIP32KeyData` do over distinct seeds, and not much less where
     one seed repeats and `_cached_base58_decode` answers (issue 886). The
     text is what `rootxprv_from_seed` is for, and nothing here stops
     answering it.
@@ -517,7 +517,7 @@ def xpub_from_xprv_(xprv: BIP32Key) -> BIP32KeyData:
     # what `serialize` inside it does: `_xpub_from_xprv` builds with
     # `check_validity=False`, so this is the one validation of the key
     # answered here -- and it is the whole of what the encoding was
-    # validating, 0.64 us of its 6.73
+    # validating, a tenth of what that encoding costs
     xkey.assert_valid()
     return xkey
 
@@ -648,8 +648,9 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     # and leaves an unzeroized copy of each intermediate behind. The key
     # goes in as the 32 bytes it is stored as rather than as
     # xkey.prv_key_int, so that no arithmetic on the secret happens
-    # here; it costs 0.55 us against 0.03, on a derivation whose hmac
-    # and public key are some 15 us of their own.
+    # here; the foreign call costs more than the Python sum does, and
+    # both are lost in the hmac and public key of the derivation around
+    # them.
     #
     # The dispatch is not on the curve, BIP32 being defined for secp256k1
     # alone: it is on whether the bindings are there to serve it, which is
@@ -712,8 +713,8 @@ class _PythonPubKeyTweakChain:
     step to the next rather than parsed again out of the octets the step
     before it has just written -- which is what the bindings' class holds
     it for, and is worth more here: `point_from_octets` on a compressed
-    key is a modular square root, 84.7 us where their own parse is 2.9,
-    so a path of any length pays one instead of one per level.
+    key is a modular square root, far dearer than their own parse, so a
+    path of any length pays one instead of one per level.
 
     `curves.curve` has the same arithmetic twice over -- `_tweak_add_var`
     ends in `ec.add_var(P, mult(t, ec.G, ec))`, and `_TweakChain` is a
@@ -881,13 +882,13 @@ def __pub_key_derivation(
     offset, chain_code = _pub_key_offset(xkey.chain_code, xkey.key, index)
 
     # the parent point plus the generator times the offset: one step is
-    # 11.6 us where secp256k1_ec_pubkey_tweak_add computes it and 175.2
-    # where `add_var(P, mult(t))` does, which is what a caller without
-    # the bindings pays here -- the dispatch being off altogether on that
-    # arm, so the multiplication is Python as well. xkey holds the key
-    # serialized throughout on the delegated one: no point of btclib's
-    # own is ever built, ffi.new's raw C struct staying inside the
-    # bindings.
+    # an order of magnitude cheaper where secp256k1_ec_pubkey_tweak_add
+    # computes it than where `add_var(P, mult(t))` does, which is what a
+    # caller without the bindings pays here -- the dispatch being off
+    # altogether on that arm, so the multiplication is Python as well.
+    # xkey holds the key serialized throughout on the delegated one: no
+    # point of btclib's own is ever built, ffi.new's raw C struct staying
+    # inside the bindings.
     # Compressed on the way out, which is the spelling an extended key
     # holds: asking for the uncompressed form to read a y out of it costs
     # a second serialize and the parity arithmetic that follows, for a
@@ -1027,7 +1028,7 @@ def derive_(
     # the output check the wrapper is entitled to, and the only validation
     # of the derived key: `derive` calls `b58encode(check_validity=False)`,
     # skipping the check `serialize` would otherwise run, so this is where
-    # it happens -- 0.64 us of the 6.73 the encoding costs
+    # it happens, at a tenth of what the encoding costs
     derived.assert_valid()
     return derived
 
@@ -1150,21 +1151,20 @@ def derive_from_account_range_(
     Asked one at a time, each of those walks `m/branch/index` from the
     account key, so the branch level -- which every sibling shares -- is
     derived again for every one of them, hmac and tweak and all. Here it
-    is derived once and each index is one level on top of it: 20.17 us an
-    address against 37.08, measured over a thousand.
+    is derived once and each index is one level on top of it, at a
+    little over half the cost per address, measured over a thousand.
 
     Which is the larger half of what issue 918 asked about, and not the
     half it named. The parse of the account key is one per *path* and not
     one per level -- `_PubKeyTweakChain` holds the point across the levels
     of a walk, so the branch key is never parsed from octets -- so what a
-    range saves there is 2.34 us of an address that is 37, six percent
-    and not worth an entry point. The level is worth one.
+    range saves there is six percent of an address, which is not worth
+    an entry point. The level is worth one.
 
     A sequence rather than a first and a count, so that a scan resuming
     at a gap, or a descriptor's own list, is the argument itself. One
-    address is a loss -- 42.1 us against 37.2, the branch walked and
-    nothing to amortize it over -- and two already pay, 62.3 against
-    73.8, so a caller with exactly one still wants
+    address is a loss -- the branch walked and nothing to amortize it
+    over -- and two already pay, so a caller with exactly one still wants
     `derive_from_account_`.
 
     Every index is refused by the rules `derive_from_account_` refuses
