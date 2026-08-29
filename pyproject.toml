@@ -841,6 +841,29 @@ exclude = [
 [tool.ruff]
 # target-version is inferred from project.requires-python
 
+[tool.ruff.format]
+# ruff format reads the fenced ```python blocks a .md file carries and
+# reformats them like any other source, which for these two append-only
+# files meant rewriting a historical snippet's own spacing every time
+# the bare command walked the whole tree with no path argument -- a
+# comment's leading spaces tightened and a blank line inserted after an
+# import, in blocks nothing here asks to be current (issue #1517). The
+# `ruff-format` pre-commit hook never reached either file --
+# ruff-pre-commit's own types_or is [python, pyi, jupyter] -- so the
+# bare command now agrees with the hook instead of outrunning it.
+#
+# The formatter's own `exclude` and not [tool.ruff]'s `extend-exclude`,
+# which resolves to the file discovery `check` and `format` share: the
+# divergence being repaired is the formatter's alone, and `ruff check`
+# never read these fences to begin with -- it resolves a .md file out by
+# type before an exclude is consulted at all. Withdrawing the two from
+# the shared discovery would cost nothing today and would silently widen
+# the day a subcommand does read markdown.
+#
+# Named one by one, so a .md file that gains a python fence later is not
+# covered until it is added here.
+exclude = ["CHANGELOG.md", "RELEASE_NOTES.md"]
+
 [tool.ruff.lint]
 # preview and explicit-preview-rules only make sense as a pair. Naming a
 # rule in `ignore` below, instead of coding it, is itself a preview

@@ -198,6 +198,20 @@ documented at release-notes length in the first place, and are still in
   `tests/build_system_test.py`'s own detector, from #1509, is widened to
   recognize a test that reaches outside the sdist through `git` and not
   only through a `.github` or `fuzz` path segment.
+- **`[tool.ruff.format] exclude` now names `CHANGELOG.md` and
+  `RELEASE_NOTES.md`** (closes #1517). The bare `ruff format` in
+  CONTRIBUTING.md's gate block has no path argument, so it discovers a
+  `.md` file's fenced Python blocks the same as any other source --
+  `ruff check` does not, only the formatter does -- and for these two
+  append-only files that meant reformatting a historical snippet's own
+  spacing on every run, where the `ruff-format` pre-commit hook never
+  reached either file, `ruff-pre-commit`'s own `types_or` being
+  `[python, pyi, jupyter]`. Excluding both makes the bare command agree
+  with the hook instead of outrunning it. This supersedes issue #1293's
+  answer to the same divergence, which was to document it in
+  CONTRIBUTING.md: that paragraph goes, a setting being checkable where
+  a warning has to be read and remembered. Wanting the warning back
+  instead costs reverting this entry's two files.
 
 ### The public API and the module layout
 

@@ -384,16 +384,6 @@ or, in one go, with [pre-commit](https://pre-commit.com/):
 uv run pre-commit run --all-files
 ```
 
-**The two are not the same for `ruff format`.** The bare command above
-has no path argument, so it walks the whole tree and reformats a
-fenced-code Python block it finds inside a `.md` file, `CHANGELOG.md`
-and `RELEASE_NOTES.md` included; the `ruff-format` hook in
-`.pre-commit-config.yaml` restricts itself to `ruff-pre-commit`'s own
-`types_or: [python, pyi, jupyter]`, so `pre-commit run --all-files`
-never hands it a `.md` file and leaves those fences untouched. `git
-status` after running the bare command shows the difference; the gate
-CI runs is the pre-commit one.
-
 The suite writes nothing: it runs against a read-only checkout, and from an
 installed sdist. The one exception is deliberate and has to be asked for.
 Several modules compare a dataclass's `to_dict()` against a json file
