@@ -21,6 +21,21 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`btclib.__author__`, `btclib.__author_email__` and `btclib.__license__`
+  no longer exist** (closes #1507). Each duplicated a fact
+  `pyproject.toml` already states.
+
+  Act on it if you read any of the three: `btclib.__author__` and
+  `btclib.__author_email__`'s replacement is
+  `importlib.metadata.metadata("btclib")["Author-email"]`, which carries
+  both as one `"name <email>"` string; `btclib.__license__`'s is
+  `importlib.metadata.metadata("btclib")["License-Expression"]`, which
+  answers `"MIT"` rather than `btclib.__license__`'s former
+  `"MIT License"`. `btclib.__version__` and `btclib.__copyright__` are
+  unaffected.
+
 ## v2026.8.29
 
 ### Worth knowing, though nothing raises

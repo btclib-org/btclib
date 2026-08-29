@@ -62,8 +62,6 @@ except PackageNotFoundError:
     # this package supports 3.10, and the file is not in the wheel anyway.
     # Importing has to keep working, so the version says it does not know
     __version__ = "unknown"
-__author__ = "The btclib developers"
-__author_email__ = "devs@btclib.org"
 # the one place the years are written. The notice at the head of every
 # source file carries none, by design: it comes from the COPYRIGHT file,
 # which ruff's CPY001 (flake8-copyright) enforces, so it never needs
@@ -71,7 +69,14 @@ __author_email__ = "devs@btclib.org"
 # docs/source/conf.py reads this line rather than importing it, read the
 # docs not installing this package into the environment it builds in
 __copyright__ = "Copyright (c) 2017-2026 The btclib developers"
-__license__ = "MIT License"
+# no __author__, __author_email__ or __license__: pyproject.toml's
+# `authors` table and `license` field already state each of the three,
+# and nothing in this tree ever read the copy kept here (issue #1507).
+# A caller after any of them reads the installed distribution's own
+# metadata, which is the standard way and does not drift from
+# pyproject.toml the way a second hand-typed literal can:
+# `importlib.metadata.metadata("btclib")["Author-email"]` and
+# `["License-Expression"]`.
 
 __all__ = [
     "alias",
