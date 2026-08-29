@@ -15,6 +15,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError, FetchError, HttpError
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
+from btclib.fetch.transport import SessionTransport
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
@@ -49,6 +50,17 @@ def test_the_reference_deployment_is_a_value_to_pass_not_a_default() -> None:
         assert url.startswith("https://")
         assert url.endswith("/api")
         assert (network == "mainnet") != (network in url)
+
+
+def test_a_session_transport_can_drive_the_fetcher() -> None:
+    """`transport=` takes `SessionTransport` exactly as it takes `Recorded`.
+
+    Construction opens no connection -- `SessionTransport`'s own docstring
+    says so -- so this is the wiring and not a round trip: the object
+    passed in is the one the fetcher keeps and would call.
+    """
+    session = SessionTransport()
+    assert EsploraFetcher(BASE, transport=session).transport is session
 
 
 def test_an_unknown_network_is_refused() -> None:

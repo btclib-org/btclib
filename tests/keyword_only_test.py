@@ -184,6 +184,15 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     ],
     "btclib.fetch:BitcoinCoreRpcClient.assert_chain": ["signet_challenge"],
     "btclib.fetch:BitcoinCoreRpcClient.call": ["request_timeout", "max_body_size"],
+    "btclib.fetch:BitcoinCoreRpcClient.call_batch": [
+        "request_timeout",
+        "max_body_size",
+    ],
+    "btclib.fetch:BitcoinCoreRpcClient.call_raw": [
+        "jsonrpc",
+        "request_timeout",
+        "max_body_size",
+    ],
     "btclib.fetch:BitcoinCoreRpcClient.from_chain": [
         "user",
         "password",
@@ -194,6 +203,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "signet_challenge",
     ],
     "btclib.fetch:EsploraFetcher.__init__": ["network", "timeout", "transport"],
+    "btclib.fetch:SessionTransport.__init__": ["max_body_size", "connection_factory"],
     "btclib.fetch:urlopen_transport": ["max_body_size"],
     "btclib.hwi:HwiSigner.__init__": [
         "executable",

@@ -117,6 +117,7 @@ REEXPORTED = {
             "DEFAULT_TIMEOUT",
             "MAX_ERROR_BODY_SIZE",
             "HttpTransport",
+            "SessionTransport",
             "http_request",
             "urlopen_transport",
         ],
