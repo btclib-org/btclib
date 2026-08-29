@@ -550,11 +550,12 @@ to `deps-latest`'s own result.
    btclib-secp256k1 adopts this and what its own `RELEASING.md` then says
    is that repository's decision, tracked at issue #1159.
 
-1. Read the release run's `published` job, which is this workflow called
-   with the tag rather than a dispatch to remember: it has no checkout, so
-   it resolves to what PyPI actually serves rather than to a source tree,
-   and it waits for the version the tag names before installing anything,
-   so it cannot pass by testing the release before it. It checks a BIP39
+1. Read the release run's `pypi-install` job, which is this workflow called
+   with the tag rather than a dispatch to remember: the jobs that install
+   have no checkout, so they resolve to what PyPI actually serves rather
+   than to a source tree, and none of them starts until `wait-for-index`
+   has seen the index serve the version the tag names, so the run cannot
+   pass by testing the release before it. It checks a BIP39
    vector against the `_data/` files a wheel missing one would still
    install and import cleanly, and a BIP340 vector besides — both fixed
    forever, so neither needs an edit after a release the way a
@@ -562,7 +563,7 @@ to `deps-latest`'s own result.
    own, and a failure means the outside world moved, not this repository —
    a new interpreter release, PyPI serving a file that does not match its
    own hash — which is why it is a workflow of its own rather than a job
-   of this one. Actions → published → Run workflow is for asking between
+   of this one. Actions → pypi-install → Run workflow is for asking between
    those runs, with no particular version in mind.
 
 1. Open the next cycle's version: set a generic next version without
