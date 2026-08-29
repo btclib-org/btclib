@@ -156,21 +156,46 @@ def _source_exclude() -> list[str]:
 
 
 def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
-    """Whether a module builds a path through a `.github` or a `fuzz` segment.
+    """Whether a module reads `.github`, `fuzz`, or `.git` off the tree.
 
-    The convention this looks for is `Path(__file__).parents[1] /
+    Two shapes. The first is the convention `Path(__file__).parents[1] /
     ".github" / "scripts" / "<name>.py"` and `Path(__file__).parent.parent
-    / "fuzz"` -- a `/` join with one side the literal directory name --
-    walked rather than matched on the formatted text, so a reflow of the
-    expression across lines is still seen.
+    / "fuzz"` follow -- a `/` join with one side the literal directory
+    name -- walked rather than matched on the formatted text, so a reflow
+    of the expression across lines is still seen.
+
+    The second is `tests/changelog_immutability_test.py`'s own: it reads
+    a release's own tag with `subprocess.run([_GIT, ...])` rather than a
+    `Path` join, `.git` not being a directory any test builds a path
+    through. `_GIT` -- `shutil.which("git") or "git"`, resolved once, the
+    convention `generate_sbom.py` and its own test already use -- is a
+    bare name and not the string "git" itself, ruff's own
+    start-process-with-partial-path check being what a literal there
+    would trip; matching that name is what the shape actually looks like
+    now, a call whose first argument is a list or tuple literal opening
+    with a bare name called `_GIT`, regardless of which attribute is
+    called (`run`, `check_output`, ...) or what object the call is made
+    through (issue #1512).
     """
-    return any(
-        isinstance(node, ast.BinOp)
-        and isinstance(node.op, ast.Div)
-        and isinstance(node.right, ast.Constant)
-        and node.right.value in (".github", "fuzz")
-        for node in ast.walk(tree)
-    )
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.BinOp)
+            and isinstance(node.op, ast.Div)
+            and isinstance(node.right, ast.Constant)
+            and node.right.value in (".github", "fuzz")
+        ):
+            return True
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.args
+            and isinstance(node.args[0], (ast.List, ast.Tuple))
+            and node.args[0].elts
+            and isinstance(node.args[0].elts[0], ast.Name)
+            and node.args[0].elts[0].id == "_GIT"
+        ):
+            return True
+    return False
 
 
 def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
