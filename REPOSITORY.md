@@ -637,13 +637,55 @@ organization answers `0`; the last per-repository webhook left anywhere
 was bitcoin-core-rpc's, dead since the App arrived and deleted on
 2026-08-28 (bitcoin-core-rpc#291).
 
+## Security settings
+
+All of these are repository settings and none of them is in the tree, so
+this list is the whole of them:
+
+```shell
+gh api repos/btclib-org/btclib --jq '.security_and_analysis'
+# the alerts themselves are not in that object: the endpoint that
+# answers for them has no body, and says so with its status -- 204 for
+# enabled, 404 for not
+gh api -i repos/btclib-org/btclib/vulnerability-alerts | head -1
+gh api repos/btclib-org/btclib/private-vulnerability-reporting
+```
+
+| Setting | State |
+| --- | --- |
+| Dependabot alerts | enabled |
+| Dependabot security updates | enabled |
+| Secret scanning | enabled |
+| Secret scanning push protection | enabled |
+| Secret scanning non-provider patterns | disabled |
+| Secret scanning validity checks | disabled |
+| Private vulnerability reporting | enabled |
+
+The two that read `disabled` are not settings this repository declined:
+[Plan-gated settings](#plan-gated-settings) below is where that belongs,
+and reading their state as something to go and fix is the mistake that
+section exists to prevent.
+
+Code scanning default setup (CodeQL) is answered above, in [Code
+scanning](#code-scanning), which is where the reason it is off belongs
+rather than repeated here.
+
+Private vulnerability reporting is what `SECURITY.md` sends a reporter
+to, and the link in `.github/ISSUE_TEMPLATE/config.yml`'s "Security
+vulnerability" form is the same door:
+[GitHub's own documentation](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/configuring-private-vulnerability-reporting-for-a-repository)
+is what says that form appears only where the setting above reads
+`enabled`, so the setting and the two files go together. Whether the
+form 404s where it is off was not checked here, and doing so means
+turning it off.
+
 ## Plan-gated settings
 
 Some settings cannot be enabled and fail silently: secret scanning's
 non-provider patterns and validity checks need paid Secret Protection,
-and the API answers a PATCH with 200 while leaving them disabled. Do not
-read that 200 as success. The `detect-secrets` hook is the compensating
-control.
+which is why they read `disabled` in the table above, and the API answers
+a PATCH with 200 while leaving them so. Do not read that 200 as success.
+The `detect-secrets` hook is the compensating control.
 
 The other plan-gated number is not a setting at all, and it is the one
 this repository's workflows are arranged around: how many jobs may run
@@ -678,3 +720,31 @@ contention with every other repository of the organization, which spends
 against this same ceiling. Whether that is worth paying for is a
 question for whoever would pay, and it is recorded here so that it is
 asked with the second column in view.
+
+## Topics
+
+```shell
+gh api repos/btclib-org/btclib --jq '.topics'
+```
+
+```json
+["base58","bech32","bip32","bip340","bip39","bitcoin","cryptography",
+ "ecdsa","electrum","elliptic-curves","hardware-wallet",
+ "message-signing","musig2","output-descriptors","psbt","schnorr",
+ "secp256k1","segwit","slip39","taproot"]
+```
+
+Twenty, GitHub's own ceiling on the field. `pyproject.toml`'s `keywords`
+carries the same twenty plus five more past that ceiling — `rfc-6979`,
+`mnemonic`, `merkle-proof`, `bip44`, `bitcoin-script` — which are
+keywords for PyPI and not topics, a comment beside the list saying so.
+Nothing in the tree holds the two lists together, so this is the command
+that does: it prints the difference and exits nonzero on one, GitHub
+returning its own alphabetical order rather than the relevance order
+`pyproject.toml` declares:
+
+```shell
+diff <(gh api repos/btclib-org/btclib --jq '.topics[]' | sort) \
+     <(awk '/^keywords = \[/,/Past the twenty topics/' pyproject.toml \
+       | grep -oE '"[a-z0-9-]+"' | tr -d '"' | sort)
+```

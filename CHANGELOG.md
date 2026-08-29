@@ -38,6 +38,18 @@ documented at release-notes length in the first place, and are still in
   the wrong question and "did every step I expected actually run" is the
   right one.
 
+- **`REPOSITORY.md` reads back the settings it never had a section
+  for.** (issue btclib-org/.github#468) It claimed to be the whole of
+  what is set outside the tree, and held no readback of the topics, of
+  private vulnerability reporting or of the rest of
+  `security_and_analysis` — a *Security settings* table and a *Topics*
+  section now carry them, each command run against this repository
+  rather than assumed from a sibling's copy. The table has a row for
+  every key the command answers with, the two that read `disabled`
+  included, and says where the reason they are off is written down: a
+  table shorter than its own command is the defect that issue names, not
+  a tidier one.
+
 ### Packaging, linting and CI
 
 - **The sentinel schedule and the badge row follow section 10's calendar,
