@@ -62,6 +62,41 @@ documented at release-notes length in the first place, and are still in
   `allow_auto_merge` readback is btclib's share of issue
   btclib-org/.github#566, which the same gap in `portanode` and
   `bitcoin-core-rpc` keeps open.
+- **`REPOSITORY.md` no longer claims to be the whole of what is set
+  outside the tree.** (issue btclib-org/.github#551) Section 11 of the
+  standard bounds a `REPOSITORY.md` at the settings the standard asks
+  about — the ones section 16's checklist sets on a new repository, and
+  the ones a section of it states a rule for — and rejects the blanket
+  claim, which no command checks. The opening states that perimeter and
+  names *Code quality* as sitting past it, the standard stating no rule
+  about that setting and the code scanning default setup it does ask for
+  being what leaves the quality analysis running. It also names the
+  answers that do have a copy in the tree — `CNAME` carries the Pages
+  custom domain, and `pyproject.toml` the topics as `keywords` and the
+  documentation site as `[project.urls] homepage` — where it used to say
+  nothing here can be recovered by reading the tree at all. Dropping
+  that clause answers for this repository the question issue
+  btclib-org/.github#571 holds open for the standard and for the copies
+  in the other trees: *Pages*, *Topics* and *Read the Docs* each state an
+  identity between a setting and a tracked file, so the file that would
+  carry the clause is what refutes it.
+- **A *What this file passes over* section says where that scope ends.**
+  (issue btclib-org/.github#551) The repository document's fields no
+  section quotes, the facilities that answer empty, and `allow_forking`,
+  `allow_update_branch`, `has_discussions`, `has_downloads`,
+  `is_template` and `web_commit_signoff_required`, which the standard
+  states no rule about — with the grep that says so and the control that
+  keeps its zeros absences. Read the Docs' other project settings and
+  PyPI's side of the trusted publisher are there too, those being the
+  services' own rather than this repository's. The empty Actions and
+  Dependabot secret stores get a paragraph of their own rather than a
+  place among the facilities: section 11 holds the review credential at
+  the organization, so the zero is where that decision shows (issue
+  btclib-org/.github#572). `has_wiki` and `has_projects` are left to
+  issue btclib-org/.github#550 rather than recorded as outside the
+  scope, and `has_issues` is passed over as a premise of the process
+  rather than as a field on no rule. What the scope costs is that a
+  change to any of them shows up here in nothing.
 
 ### Documentation and the website
 
