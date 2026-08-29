@@ -117,6 +117,23 @@ documented at release-notes length in the first place, and are still in
   renamed the file to `pypi-install.yml`.** Both now name what the
   Actions tab lists. The sentence was already open in this diff, which
   is why it is repaired here rather than filed.
+- **`.github/scripts/wait_for_hwi_device.py` has a test** (closes #1477),
+  `tests/wait_for_hwi_device_test.py`, substituting `enumerate_devices`
+  and `time` the way `tests/wait_for_pypi_release_test.py` does for its
+  own deadline. The path it drives is the one `integration-hwi.yml`'s
+  weekly run exercises only when an emulator genuinely fails to come up:
+  a `SignerError` from HWI, an enumerate answering a device that is not
+  usable, and the `::error::` line naming what was last seen once the
+  deadline passes.
+- **`[tool.uv.build-backend] source-exclude` now excludes
+  `/tests/normalize_sdist_test.py` and the new
+  `/tests/wait_for_hwi_device_test.py`** (closes #1509), both loading a
+  path under `.github/scripts` that an unpacked sdist does not carry, the
+  same shape the array already excludes other tests for.
+  `tests/build_system_test.py` gained a test that walks every
+  `tests/*.py` for that shape and asserts it is in the list, so a future
+  test built the same way is caught rather than only named after the
+  fact.
 
 ### The public API and the module layout
 

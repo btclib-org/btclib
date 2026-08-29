@@ -272,12 +272,16 @@ source-exclude = [
     # .github/scripts holds is not shipped, so each of these loads a
     # path that is not there -- a fixture error rather than a test.
     # Anchored, because a name this specific matching at some other
-    # depth would be an accident rather than a decision
+    # depth would be an accident rather than a decision.
+    # tests/build_system_test.py checks that every test reaching
+    # .github/scripts or fuzz/ this way is named here
     "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
     "/tests/generate_sbom_test.py",
     "/tests/mutation_counts_test.py",
+    "/tests/normalize_sdist_test.py",
     "/tests/verify_dist_contents_test.py",
+    "/tests/wait_for_hwi_device_test.py",
     "/tests/wait_for_pypi_release_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
     # below is why it is not in the sdist, and this test reads
