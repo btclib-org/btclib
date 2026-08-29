@@ -105,6 +105,15 @@ documented at release-notes length in the first place, and are still in
   along with the number. `ecc/ssa.py:837` keeps the two percentages that
   already carry its argument and drops the two absolute figures beside
   them.
+- **`docs/proposals/cli.md` links the `bitcoin-core-rpc` sibling by its
+  current slug** (closes #1500), rather than `btclib-bitcoin-core-rpc`,
+  which resolves only through GitHub's redirect and disagreed with the
+  same line's own link text.
+- **RELEASING.md's griffe command carries the search paths
+  `release.yml`'s `public-api` job passes** (closes #1502): run by hand,
+  `uv run --with griffe griffe check btclib -a <tag> -s . -s src` finds
+  `btclib` under the `src/` layout, where the command the file documented
+  exited on `ModuleNotFoundError` before comparing anything.
 
 ### Packaging, linting and CI
 

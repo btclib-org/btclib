@@ -221,7 +221,7 @@ to `deps-latest`'s own result.
    automates on a commit:
 
    ```shell
-   uv run --with griffe griffe check btclib -a <previous release tag>
+   uv run --with griffe griffe check btclib -a <previous release tag> -s . -s src
    ```
 
    `tests/release_notes_test.py` keeps both release-note files count-free:

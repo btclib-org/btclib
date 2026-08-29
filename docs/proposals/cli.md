@@ -653,7 +653,7 @@ needed a recorded exclusion, by name, because no predicate separated it from
 `alias` and `exceptions` mechanically.
 
 It is now the
-[bitcoin-core-rpc](https://github.com/btclib-org/btclib-bitcoin-core-rpc)
+[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc)
 package, which btclib depends on and does not publish, so the walker never
 reaches it and there is nothing to exclude. **The exclusion table is empty
 today**, and the traversal contract above is the whole of the rule: the
