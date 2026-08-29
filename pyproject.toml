@@ -841,6 +841,24 @@ exclude = [
 [tool.ruff]
 # target-version is inferred from project.requires-python
 
+# this key is what makes the formatter's own `exclude` below hold for a path
+# named explicitly on the command line, e.g. `ruff format CHANGELOG.md`, and
+# not only for the bare, path-less command CONTRIBUTING.md documents --
+# `[tool.typos.files]`'s own `extend-exclude` comment states the same
+# `--force-exclude` semantics for that hook. Without it, the named form
+# rewrites a comment's spacing inside a tag-sealed `## v2026.8.27` section,
+# which `tests/changelog_immutability_test.py` then reads as drift (issue
+# #1530). Measured on the pinned ruff 0.16.4: `ruff format --diff --no-cache
+# CHANGELOG.md` exits 1 without this key and 0 with it, a control with nothing
+# excluded also exiting 1 so the difference is the exclusion and not a file
+# needing no reformatting. The key lives here rather than under
+# `[tool.ruff.format]` because ruff reads it for every subcommand;
+# `[tool.ruff]` carries no `exclude` or `extend-exclude` of its own, so the
+# only patterns it enforces against an explicit path are the formatter's own
+# file names below and ruff's built-in defaults (`.git`, `__pypackages__`,
+# and the rest), checked with `ruff check --show-settings`.
+force-exclude = true
+
 [tool.ruff.format]
 # ruff format reads the fenced ```python blocks a .md file carries and
 # reformats them like any other source, which for these two append-only

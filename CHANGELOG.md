@@ -272,6 +272,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **`ruff format` honors `[tool.ruff.format]`'s `exclude` for a path named
+  explicitly on its own command line, not only for the bare command
+  CONTRIBUTING.md documents** (closes #1530). Without `[tool.ruff]
+  force-exclude = true`, `ruff format CHANGELOG.md` rewrites a comment's
+  spacing inside a tag-sealed `## v2026.8.27` section, which
+  `tests/changelog_immutability_test.py` then reads as drift. The key reaches
+  every subcommand and adds nothing else to what an explicit path can miss:
+  `[tool.ruff]` itself names no `exclude` or `extend-exclude`, so `ruff check`
+  resolves the same files before and after.
 - **`pypi-install.yml` waits for the index through a script with a
   test.** (issue btclib-org/.github#509) The wait is
   `.github/scripts/wait_for_pypi_release.py`, run by a `wait-for-index`
