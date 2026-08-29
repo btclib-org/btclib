@@ -252,8 +252,8 @@ def _output_pubkey_and_internal_key(
     first answers the pair and drops the third, the second needs the
     internal key beside the parity. Read twice, that key was lifted twice
     on the Python path -- the same square root of the same x, which is the
-    redundancy issue 896 is about, one function further out -- and 3.74 us
-    of ec_pubkey_parse twice with the bindings.
+    redundancy issue 896 is about, one function further out -- and two
+    ec_pubkey_parse calls with the bindings.
 
     Sharing it is also what keeps the two answering for the same spellings
     of an internal key: a form accepted for the output key and refused for
@@ -336,20 +336,20 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
 
     One `PubKeyData` for both arms, each reading off it the field it
     uses (issue #1188). `sec` is what `xonly.tweak_add` prefers whole,
-    `04 || x || y` carrying the y it would otherwise lift -- 4.11 us
-    against 5.92 -- and `02 || x`, `03 || x` and `04 || x || y` all name
-    the same x-only key to it. `point` is the square root, taken once
+    `04 || x || y` carrying the y it would otherwise lift, and `02 || x`,
+    `03 || x` and `04 || x || y` all name the same x-only key to it.
+    `point` is the square root, taken once
     however many readers ask, which is issue 896.
     """
     t = _tap_tweak(pub_key.sec[1:33], h)
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
-    # included, and it answers the pair this function returns. 12.0 us
-    # against 109.3 for the three lines below, over 2000 tweaks: the
-    # Python path lifts the x-only key to a point with secp256k1.y_even_var,
-    # i.e. a modular square root, which is 74 us of that on its own --
-    # while libsecp256k1 needs no such lift, having the y coordinate as
-    # it goes.
+    # included, and it answers the pair this function returns, at a
+    # fraction of what the three lines below cost over 2000 tweaks: the
+    # Python path lifts the x-only key to a point with
+    # secp256k1.y_even_var, i.e. a modular square root, which is most of
+    # that on its own -- while libsecp256k1 needs no such lift, having
+    # the y coordinate as it goes.
     #
     # The predicate is a constant now that the curve is, and the guards
     # in this module keep it rather than saying so: it is the seam the
@@ -464,9 +464,10 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     # time, which the Python `%` on a secret scalar is not. The x-only
     # public key the tweak commits to comes from the bindings too, and
     # the parity byte dropped from it is the one they will decide again
-    # for themselves: 32.0 us against 82.3 over 2000 tweaks, the
-    # difference being the point this path never materializes and
-    # the square root it never takes to check that point's parity
+    # for themselves, at well under half the Python path's cost over
+    # 2000 tweaks, the difference being the point this path never
+    # materializes and the square root it never takes to check that
+    # point's parity
     if _libsecp256k1_serves(secp256k1, None):
         pub_key = bytes_from_prv_key_int(internal_prvkey, secp256k1)[1:]
         t = _tap_tweak(pub_key, h)
@@ -475,9 +476,9 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
 
     P = mult(internal_prvkey)
     # the parity of a y already in hand: secp256k1.y_even_var(P[0]) lifted
-    # the x back to the point P is -- 74.6 us of modular square root
-    # against 0.03 -- to compare its y with the one beside it (issue
-    # 619). Not a delegation but a deletion, which is what this path
+    # the x back to the point P is -- a modular square root for nothing
+    # -- to compare its y with the one beside it (issue 619). Not a
+    # delegation but a deletion, which is what this path
     # needed: it runs where the bindings do not, so there was nothing
     # here to dispatch to. The two spellings differ on the infinity
     # btclib writes as y == 0, and mult of a key int_from_prv_key has

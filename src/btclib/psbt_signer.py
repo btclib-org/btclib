@@ -828,15 +828,15 @@ class SoftwareSigner:
 
         `ssa.Signer` and not `ssa.sign_`, for one leaf as for many: what
         it saves is the `Sig` that `sign_` builds and `serialize` takes
-        apart again, 90.5 us a leaf against 97.3, and a psbt wants the
-        octets. The keypair it holds is built and wiped inside the call.
+        apart again, and a psbt wants the octets. The keypair it holds
+        is built and wiped inside the call.
 
         Holding one *across* calls was measured and is not done. Those
         leaves are the one place this library signs BIP340 more than once
-        under one key, and a keypair kept between them is 82.1 us a leaf
-        against 90.5 -- but only from the second leaf of a key onward,
-        and a key in a single leaf is the ordinary shape. The saving is
-        the smaller half of what `Signer` buys and the only half that
+        under one key, and a keypair kept between them is cheaper per
+        leaf -- but only from the second leaf of a key onward, and a key
+        in a single leaf is the ordinary shape. The saving is the smaller
+        half of what `Signer` buys and the only half that
         makes a secret outlive the call that needed it, which is not a
         trade to make for a case that may not arise.
         """

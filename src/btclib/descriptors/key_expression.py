@@ -197,9 +197,10 @@ class KeyExpression:
         xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
         # `derive_` and not `derive`: the Base58Check text would be decoded
         # straight back by `pub_keyinfo_from_key` on this same line, a
-        # `BIP32KeyData` being in the `PubKey` union already -- 53.56 us
-        # against 36.69 per key at an index (issue 886). The union `derive_`
-        # takes is `derive`'s, so the xkey a descriptor holds as a string
+        # `BIP32KeyData` being in the `PubKey` union already, the text
+        # spelling being the dearer of the two per key at an index (issue
+        # 886). The union `derive_` takes is `derive`'s, so the xkey a
+        # descriptor holds as a string
         # still goes in as it is
         return pub_keyinfo_from_key(derive_(xkey, der_path), network)[0]
 

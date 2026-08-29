@@ -217,11 +217,11 @@ class Sig:
       the bindings answer for secp256k1 alone. A delegation is a second
       path gated like the others, for a computation with no arithmetic
       in it;
-    - there is nothing to win. Serializing is 0.697 us here against
-      `to_der`'s 1.057; parsing is 1.253 against `to_compact`'s 0.971,
-      and what `to_compact` answers is r || s, which this side would
-      still have to split and build a `Sig` from. `lower_s` is one
-      comparison against n // 2, 0.037 us against `is_low_s`'s 0.840;
+    - there is nothing to win. Serializing here is cheaper than
+      `to_der`; parsing is dearer than `to_compact`, and what
+      `to_compact` answers is r || s, which this side would still have
+      to split and build a `Sig` from. `lower_s` is one comparison
+      against n // 2, an order of magnitude under `is_low_s`;
     - the exception messages are a public contract. `Sig.parse` names
       which rule the encoding broke, one message each; libsecp256k1
       returns a single 0, and the bindings' `parse_der` says "invalid
@@ -282,8 +282,8 @@ class Sig:
         # candidate, and trying them is btclib's arithmetic either way.
         # What is delegated is the question asked of each -- whether some
         # point of the curve has that x -- which for secp256k1 is
-        # ec_pubkey_parse of the compressed key 0x02 || x, 2.4 us against
-        # the 75 of a modular square root whose y is of no use here
+        # ec_pubkey_parse of the compressed key 0x02 || x, a fraction of
+        # the modular square root whose y is of no use here
         r = self.r
         congruence_not_found = True
         while congruence_not_found and r < self.ec.p:
@@ -397,9 +397,9 @@ def _compact(sig: Sig) -> bytes:
     """Return r || s, the 64 octets libsecp256k1 takes a signature in.
 
     A signature is two scalars, and this is them: `Sig.serialize` writes
-    the DER the wire carries, which the bindings would take apart again --
-    0.71 us to write and 1.25 to read back, against 0.08 and 0.32 here
-    (issue 922). Nothing is validated, the caller having a `Sig` whose
+    the DER the wire carries, which the bindings would take apart again,
+    dearer than this form both to write and to read back (issue 922).
+    Nothing is validated, the caller having a `Sig` whose
     `assert_valid` has run or whose values libsecp256k1 has just computed.
     """
     n_size = sig.ec.n_size
@@ -437,7 +437,8 @@ def gen_keys(
 
     # mult, not the _mult under it: the scalar is the private key and the
     # point is the generator, which is the one multiplication libsecp256k1
-    # is dispatched to -- constant time there, and 8.1 us against 862.
+    # is dispatched to -- constant time there, and two orders of
+    # magnitude under the Python arithmetic.
     # ssa.gen_keys computes this very point the same way
     return q, mult(q, ec=ec)
 
@@ -511,9 +512,9 @@ def _sign_recoverable_(
     #
     # It is the more expensive of the two paths to leave it on. With the
     # dispatch off that congruence is `_is_x_coordinate_var`'s Legendre
-    # symbol in Python, 13.30 us of the 177.8 a signature costs, and
-    # `_grind_low_r` pays it once per attempt -- 110 us of a 1440 us
-    # grinding signature over eight of them
+    # symbol in Python, some seven percent of what a signature costs,
+    # and `_grind_low_r` pays it once per attempt -- the same fraction
+    # of a grinding signature over eight of them
     return Sig(r, s, ec, check_validity=False), key_id
 
 
@@ -736,8 +737,8 @@ def _libsecp256k1_sign_(
     #
     # The compact form, r || s, and not the DER `sign` answers by
     # default: a signature is two scalars, and the DER would be written
-    # by libsecp256k1 and taken apart again here -- 1.25 us to read
-    # against the 0.32 of `_sig_from_compact` (issue 922).
+    # by libsecp256k1 and taken apart again here, several times what
+    # `_sig_from_compact` costs to read (issue 922).
     #
     # A key the caller supplied crosses as they hold it, compressed or
     # not, rather than being brought to the cheaper encoding first: what
@@ -1166,9 +1167,10 @@ def sign_recoverable_(
         # reads the recovery id, and the id is a value this call is made
         # for and that nothing downstream re-derives -- a faulted r or s
         # fails the first verification anybody makes, a wrong id does not.
-        # 22.4 us (btclib-secp256k1#224), once per signature, this path
-        # not grinding. Written out, it survives the day the wrapper's
-        # default is asked again in btclib-secp256k1#224
+        # A verification's worth (btclib-secp256k1#224), once per
+        # signature, this path not grinding. Written out, it survives
+        # the day the wrapper's default is asked again in
+        # btclib-secp256k1#224
         sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q, verify=True)
         # `_sig_from_compact` for `sign_`'s reason, stated there: these
         # are the values secp256k1_ecdsa_sign_recoverable has just
@@ -1498,9 +1500,9 @@ def _assert_as_valid_(
     # arithmetic under it: what reaches here is the verification the
     # bindings' own ecdsa_verify declined -- another hash function, a
     # commitment to check, a caller-imposed nonce, a curve of its own --
-    # and on secp256k1 the multiplication is theirs all the same, 28 us
-    # against 1.02 ms, which is this whole verification 61 us against
-    # 1.10 ms of it
+    # and on secp256k1 the multiplication is theirs all the same, some
+    # thirty-five times under the Python arithmetic, which is the whole
+    # of the gap between the two verifications
     KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec, fixed)  # 5
 
     # Fail if infinite(K).
@@ -1522,8 +1524,8 @@ def _assert_as_valid_(
     # field elements that reduce to r -- one candidate where n is above
     # p/2 and more where the cofactor makes room. It measures 1.00x here:
     # the bindings hand back a point whose Z is 1, so the inversion this
-    # path pays is of one, and where the multiplication is Python's it is
-    # 8.8 us of a verification that is 1148
+    # path pays is of one, and where the multiplication is Python's it
+    # is under a percent of the verification
     x_K = (KJ[0] * mod_inv_var(KJ[2] * KJ[2], ec.p)) % ec.p
     # Fail if r ≠ x_K %n.
     if r != x_K % ec.n:  # 6, 7, 8
@@ -1619,17 +1621,17 @@ def assert_as_valid_(
         # the octets unproven, because the verification below proves them:
         # validating a public key is parsing it, for a compressed one a
         # field square root, and doing it here as well lifts the same x
-        # twice -- 2.35 us of a 22.78 us verification (issue 887). So a
+        # twice -- a tenth of a verification for nothing (issue 887). So a
         # key that is no point leaves through the ValueError caught below
         sec = _sec_from_pub_key(key)
         # the compact form, which is the signature: `Sig.serialize` would
         # write the DER the wire carries for a call whose first act is to
-        # take it apart again, 0.71 us against 0.08 (issue 922). It also
-        # validated, and assert_valid has just run above -- on the Sig
-        # handed in, or inside the Sig.parse that made one -- so what that
+        # take it apart again, an order of magnitude over what the
+        # compact form costs (issue 922). It also validated, and
+        # assert_valid has just run above -- on the Sig handed in, or
+        # inside the Sig.parse that made one -- so what that
         # would run again is the congruence check of r, not free even
-        # delegated: 0.54 us against 3.1, of a verification that is 22 in
-        # total
+        # delegated and many times more where it is not
         sig_bytes = _compact(sig)
         # normalize=True, because libsecp256k1 rejects what is not in the
         # lower-s form and which form a signature is in was the signer's
@@ -1661,8 +1663,8 @@ def assert_as_valid_(
     Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
     # the key's own memoized tables where the caller prepared it, the
-    # curve's alone where it did not: 471.0 us against 609.1 under one
-    # key, and `curves.PreparedPoint` is where the trade is written
+    # curve's alone where it did not, a fifth off a verification under
+    # one key, and `curves.PreparedPoint` is where the trade is written
     fixed = key.fixed if isinstance(key, PreparedPoint) else sig.ec._fixed_points
     # second part delegated to helper function
     _assert_as_valid_(c, QJ, sig.r, sig.s, sig.ec, fixed, lower_s=False)
@@ -1954,9 +1956,10 @@ def recover_pub_keys_(
 
     # the enumeration is btclib's loop and not a function libsecp256k1
     # has, but each candidate in it is a recid the bindings answer for, so
-    # what runs here is a `recover` call per candidate: 42 us against 1381
-    # (issue 286). A recid is two bits, i.e. every candidate a curve of
-    # cofactor 1 has, and _libsecp256k1_serves admits no other curve --
+    # what runs here is a `recover` call per candidate, some thirty times
+    # under the Python enumeration (issue 286). A recid is two
+    # bits, i.e. every candidate a curve of cofactor 1 has, and
+    # _libsecp256k1_serves admits no other curve --
     # secp256k1's cofactor is 1, so the range below is the
     # `range(2 * (ec.cofactor + 1))` of the Python enumeration above, in
     # the same order, key_id by key_id
@@ -2086,9 +2089,9 @@ def _recover_pub_key_(
     # delegated as the lift above is: this is the Python path of recovery
     # -- the named candidate goes to secp256k1_ecdsa_recover instead, and
     # the enumeration has no counterpart to go to at all -- but the
-    # arithmetic under it is libsecp256k1's for secp256k1 all the same:
-    # 708 us against 49 for the whole of this function, and 1347 against
-    # 107 for the enumeration that runs it once per candidate.
+    # arithmetic under it is libsecp256k1's for secp256k1 all the same,
+    # an order of magnitude off the whole of this function and off the
+    # enumeration that runs it once per candidate.
     # The mean over 40 random keys, and a recovery needs the population
     # stated where a signature does not: what the enumeration costs
     # depends on how many of its candidates lift, which is a property of
@@ -2147,8 +2150,8 @@ def _libsecp256k1_recover_sec_(
     # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
     #
     # secp256k1_ecdsa_recover is step 1.6 of SEC 1 v.2 section 4.1.6 for
-    # the one named candidate: 16 us here against the 708 of the Python
-    # path, which is `recover_pub_key` 22 us against 694 once the Sig
+    # the one named candidate, some forty times under the Python
+    # path, and much the same gap in `recover_pub_key` once the Sig
     # validation both of them pay is counted in, the mean over 40 random
     # keys. It answers sec octets rather than a point, which is what an
     # address wants, so bms hashes these very bytes and never builds a

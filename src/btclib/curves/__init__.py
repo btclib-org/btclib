@@ -53,17 +53,18 @@ what its absence does not promise: nothing here is constant-time.
 (issue #849). On the generator the regular form is also the faster one,
 by a factor of four: _mult_fixed_base makes no doubling at all, where a
 wNAF makes one per bit however wide its table is and however thoroughly
-it is cached -- 571 us against 130 over the memoized odd multiples of G,
-at w=8, w=10 and w=12 alike. So the arm every key derivation, every BIP32
+it is cached, the factor holding over the memoized odd multiples of G at
+w=8, w=10 and w=12 alike. So the arm every key derivation, every BIP32
 child and every signing nonce runs has no variable-time alternative to
 offer. What is left is a variable-base mult with a secret scalar, which
 in this package is ecc.dh: 1.13x on secp256k1 and 1.03x on nistp256, the
 second being that measurement's own noise. Beside it, the blinded nonce
-inverse is 1.5 us of a 414 us signature, the projective blinding of
-curve_group._blinded_jac is 1%, and every verification is already _var.
-The 1.13x was measured with the bindings switched off. btclib_secp256k1
-is the secp256k1 extra rather than a required dependency, so a caller who
-skips it is already in that state, with nothing to switch.
+inverse is a fraction of a percent of a signature, the projective
+blinding of curve_group._blinded_jac is 1%, and every verification is
+already _var. The 1.13x was measured with the bindings switched off.
+btclib_secp256k1 is the secp256k1 extra rather than a required
+dependency, so a caller who skips it is already in that state, with
+nothing to switch.
 
 They are implementations of one operation, kept side by side to be measured
 against each other, and a menu of them is not an API: a caller reading them

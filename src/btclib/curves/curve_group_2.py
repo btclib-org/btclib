@@ -55,22 +55,23 @@ follow-ups; what is here is the rest:
       per-point table of odd multiples
 
 Measured against libsecp256k1 and not taken. Each of these is an algorithm
-that library carries and this one does not, with the number that decided
-it, so that what the next reader has is the result and not the
+that library carries and this one does not, with the result that decided
+it, so that what the next reader has is the verdict and not the
 measurement to make again. Best of five on secp256k1's p, Python 3.14.6,
 macOS arm64:
 
     - the field inverse by an addition chain, Peter Dettman's and Brian
       Smith's, and libsecp256k1's own safegcd beside them:
-      `pow(a, -1, p)` is 8.3 us, being CPython's extended Euclid in C,
-      where 255 modular squarings in bytecode -- fewer than any chain
-      needs -- are 61 us. `pow(a, p - 2, p)` is 74.7 us, which is why
-      `mod_inv_var` does not spell Fermat either:
+      `pow(a, -1, p)` is CPython's extended Euclid in C, where 255
+      modular squarings in bytecode -- fewer than any chain needs --
+      cost several times what it does. `pow(a, p - 2, p)` costs about
+      what those squarings do, which is why `mod_inv_var` does not
+      spell Fermat either:
 
         - https://briansmith.org/ecc-inversion-addition-chains-01
-    - fast reduction for a pseudo-Mersenne p: `x % p` is 0.162 us and the
-      Solinas form for `2^256 - 2^32 - 977`, two products by a 33-bit
-      constant and a conditional subtraction, is 0.193. CPython's
+    - fast reduction for a pseudo-Mersenne p: the Solinas form for
+      `2^256 - 2^32 - 977`, two products by a 33-bit constant and a
+      conditional subtraction, costs more than `x % p` does. CPython's
       division is C, and 512 bits by 256 is small
     - limbs with delayed reduction, libsecp256k1's 5 by 52 bits and its
       magnitude tracking: the Python analogue is letting intermediates
@@ -78,32 +79,32 @@ macOS arm64:
       wrong way -- an integer costs what its size costs
     - a separate squaring routine: CPython's long_mul already takes the
       squaring path when both operands are the same object, `a*a % p`
-      being 0.226 us against the 0.247 of `a*b % p`
+      costing measurably less than `a*b % p`
     - the masked table lookup of `secp256k1_ecmult_table_get_ge`, which
       reads every entry of a table under a cmov: a list index is a list
       index
     - the lambda split's division by a multiply and a shift,
       `secp256k1_scalar_mul_shift_var`: `_multiplier_decomposer` rounds
       with `(_B2 * m + n // 2) // n`, 384 bits by 256, where libsecp256k1
-      multiplies by a precomputed reciprocal instead. 0.24 us against
-      0.15, once per multiplication of some 700
+      multiplies by a precomputed reciprocal instead. The rounding is
+      the dearer of the two and is paid once per multiplication, which
+      is three orders of magnitude above either
     - the table built with no inversion at all,
       `secp256k1_ecmult_odd_multiples_table` with
       `secp256k1_ge_table_set_globalz`: the odd multiples are formed on an
       isomorphic curve where the doubled point is affine, the z-ratios are
       kept as they go, and the entries reach one common Z by products
       alone. What it would remove is the single inversion a call now
-      spends, 7.4 us of a 700 us `_mult` and of the 3667 us a 16-point
+      spends, which is 1% of a `_mult` and 0.2% of what a 16-point
       `_multi_mult_var` takes; the rest of that conversion is the three
-      products an entry costs -- 21.9 us of the first, 253 of the second
-      -- and the isomorphic construction pays those in its own coin. An
-      accumulator that has to live in that frame and be rescaled out of it
-      at the end, for a ceiling of 1% and of 0.2%
+      products an entry costs, and the isomorphic construction pays
+      those in its own coin. An accumulator that has to live in that
+      frame and be rescaled out of it at the end, for those two ceilings
     - the square root by an addition chain is the one of these that
       measures positive and is still not here: `pow(a, (p + 1) // 4, p)`
-      is 73.6 us against the 63.6 of libsecp256k1's chain, which is 1.16x
-      for some twenty lines holding for secp256k1's p alone, on a
-      function a point decompression away from these loops
+      is 1.16x libsecp256k1's chain, for some twenty lines holding for
+      secp256k1's p alone, on a function a point decompression away from
+      these loops
 
 """
 
@@ -304,10 +305,9 @@ def _double_mult_w_NAF_var(
     0.81, 64 bits 0.72, 128 bits 0.68, 256 bits 0.67. The crossover is
     around 16 bits, so every curve with a real order is on the winning
     side and the toy curves of the test suite -- n = 11, n = 31 -- are
-    the ones paying, about 3 us a call. Taken as it is rather than
-    guarded by a size test: the guard would buy back a fraction of a
-    second of the suite and put a branch in the middle of signature
-    verification.
+    the ones paying. Taken as it is rather than guarded by a size test:
+    the guard would buy back a fraction of a second of the suite and put
+    a branch in the middle of signature verification.
 
     `fixed` is the points whose tables are memoized rather than built
     here, `_multi_mult_w_NAF_var` says what that buys, and it is the

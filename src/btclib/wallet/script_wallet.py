@@ -515,9 +515,10 @@ class ScriptWallet(RangedWallet):
         The object spelling of that walk, `derive_from_account_`: the
         Base58Check text `derive_from_account` answers would be decoded
         straight back by `pub_keyinfo_from_key` on this same line, a
-        `BIP32KeyData` being in the `PubKey` union already. 57.31 us against
-        34.23 per derived key, a fresh index each call so that no decode
-        cache answers (issue 886)
+        `BIP32KeyData` being in the `PubKey` union already, and decoding
+        the text straight back is the dearer of the two per derived key,
+        a fresh index each call so that no decode cache answers (issue
+        886)
         """
         return pub_keyinfo_from_key(
             derive_from_account_(key, branch, index), self.network

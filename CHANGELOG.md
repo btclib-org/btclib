@@ -50,6 +50,31 @@ documented at release-notes length in the first place, and are still in
   offer it the next cycle's number instead of the one being released.
   The window this closes is the changelog's, not the version's.
 
+### Documentation and the website
+
+- **A docstring in `src/btclib` carries the relation and not the
+  microseconds** (closes #1494). CLAUDE.md's *Conventions to match*
+  counts a wall clock among the numbers nothing gates, and
+  CONTRIBUTING.md's *Prose in this tree* divides one in two: the
+  relation a reader needs to follow the decision — half of what a
+  signature costs, an order of magnitude under the Python arithmetic —
+  stays where the decision is written, and the matrix per size or per
+  caller goes in the entry that took it. Each figure of the package now
+  reads as the relation it stood for, and
+  `grep -rnE '[0-9]+ (ns|us)\b' src/btclib` answers nothing. That is the
+  spelling to run it with: `git grep -nE` and the same pattern answer
+  nothing whatever the tree holds, this git's `-E` not applying `\b` as
+  `grep -E` does, and `git grep -nP` is the other one that measures it.
+
+  The arguments are unchanged: which of two paths wins, by how much, and
+  why. What is gone is the figure that made each of them a claim about a
+  machine, which is the class #1449 and #1489 name.
+
+  The same figures written in milliseconds are issue #1505, the copies
+  of them in `tests/` and `SECURITY.md` are issue #1506, and the ones
+  whose unit is spelled out — which escape all three patterns, that
+  command's included — are issue #1508.
+
 ## v2026.8.29
 
 ### Repository

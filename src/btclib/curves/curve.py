@@ -552,10 +552,10 @@ def _is_x_coordinate_var(x: int, ec: Curve) -> bool:
 
     Existence and nothing else, which is what a caller with no use for
     the y has to ask, and it is a question the Legendre symbol answers
-    without ever forming a root: 14 us on secp256k1 against the 75 of
-    ec.y, and `xonly.pubkey_verify` answers the same of the x alone in
-    2.4, being secp256k1_xonly_pubkey_parse and a verdict -- the same
-    answer three ways, all three refusing the same x. It is
+    without ever forming a root, several times cheaper on secp256k1 than
+    ec.y is, and `xonly.pubkey_verify` answers the same of the x alone
+    cheaper still, being secp256k1_xonly_pubkey_parse and a verdict --
+    the same answer three ways, all three refusing the same x. It is
     libsecp256k1's own shape, `secp256k1_ge_x_on_curve_var` being
     `secp256k1_fe_is_square_var` of x^3 + ax + b and nothing else.
 
@@ -583,9 +583,9 @@ def _y_even_var(x: int, ec: Curve) -> int:
 
     ec.y_even_var, delegated for secp256k1: the even y is the one an
     x-only key names, so `xonly.to_pubkey` asked for the uncompressed
-    form hands back the y that was lifted -- 3.6 us against 73. That is
-    1.2 more than _is_x_coordinate_var above, which is why both exist:
-    finding the root is what the verdict does not do.
+    form hands back the y that was lifted, a fraction of the Python
+    root. It costs more than _is_x_coordinate_var above, which is why
+    both exist: finding the root is what the verdict does not do.
 
     An x the bindings refuse falls through to ec.y_even_var instead of
     raising here, so that the message stays in the one place that has the
@@ -615,13 +615,13 @@ def _sec_from_point(Q: Point) -> bytes:
 
     Uncompressed, 0x04 || x || y, which is what makes the round trip
     worth taking, in both directions. It is the form ec_pubkey_parse
-    reads without lifting an x coordinate back to a point, 2.1 us of the
-    13 a whole multiplication costs; and, asked of ec_pubkey_serialize on
-    the way out, the form that does not drop a y this side would have to
-    lift again -- 3.2 us of point_from_octets against 1.2, a lift
-    delegated to the bindings against two int.from_bytes, the lesson
-    bip32.py records for public derivation. The 32 octets more cost
-    0.09 us to write here.
+    reads without lifting an x coordinate back to a point, a sixth of
+    what a whole multiplication costs; and, asked of ec_pubkey_serialize
+    on the way out, the form that does not drop a y this side would have
+    to lift again -- point_from_octets on the compressed form costs
+    better than twice what it does on this one, a lift delegated to the
+    bindings against two int.from_bytes, the lesson bip32.py records for
+    public derivation. The 32 octets more are all but free to write here.
     """
     p_size = secp256k1.p_size
     return b"\x04" + Q[0].to_bytes(p_size, "big") + Q[1].to_bytes(p_size, "big")
@@ -701,9 +701,9 @@ def _multi_mult_x_only_var(
     `_libsecp256k1_multi_mult_` and not the public `multi_mult_var`, that
     one taking points -- which is the form the lift would have to build
     and the multiplication would then write straight back out. The
-    thirty-two terms of sixteen signatures: 301.9 us against 387.5 with
-    both terms lifted by the caller, of the 553.9 that batch costs end to
-    end.
+    thirty-two terms of sixteen signatures cost a fifth less than they do
+    with both terms lifted by the caller, on a batch that is not quite
+    twice the multiplication end to end.
 
     Every scalar is required to be in 1..n-1 and every x to be an
     x-coordinate. The caller is what holds to that -- ssa's rand is drawn
@@ -800,7 +800,7 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
     ladder the generator runs, whose tables are memoized per point,
     instead of to the GLV endomorphism, which builds nothing and keeps
     nothing. On the bindings path it changes nothing at all: libsecp256k1
-    is 22.8 us against the ladder's warm 142.3, so a prepared point is
+    is several times faster than the ladder warm, so a prepared point is
     still faster delegated, and the tables are only reached where the
     bindings decline.
     """
@@ -883,8 +883,8 @@ class PreparedPoint:
     Two tables answer to it, one per operation:
 
     - `mult` takes the fixed-base ladder of the generator instead of the
-      GLV endomorphism: 142.3 us a call against 551.0, once 9.50 ms has
-      built the per-position tables -- 43 positions of 64 points on
+      GLV endomorphism, near four times cheaper a call once the
+      per-position tables are built -- 43 positions of 64 points on
       secp256k1, some 366 KiB. Break-even is 23 multiplications of the
       one point -- `dh.diffie_hellman` against a counterparty, a taproot
       internal key tweaked repeatedly, `pedersen` against a fixed second
@@ -893,17 +893,17 @@ class PreparedPoint:
       take a public key -- memoizes the wNAF tables of the key's two
       endomorphism halves at `_FIXED_POINT_W` instead of rebuilding them
       at `_DOUBLE_MULT_W` per signature: 2 tables built per verification
-      become 0, and the verification 609.1 us against 471.0 for ECDSA,
-      664.5 against 531.2 for BIP340. Break-even is 22 signatures under
-      the one key, the first verification costing 3599 us where a bare
-      key's costs 630.
+      become 0, and the verification a fifth cheaper for ECDSA and for
+      BIP340 alike. Break-even is 22 signatures under the one key, the
+      first verification costing several times what a bare key's does.
 
     Both are the Python arithmetic. On secp256k1 with the bindings
-    available neither is reached -- libsecp256k1 verifies in 22.8 us and
-    holds its own tables in its own context -- so what this is for is the
-    Python path: another curve, another hash function, or a deployment
-    without the compiled bindings. Handing one in on the delegated path
-    is not an error and costs nothing; it simply buys nothing.
+    available neither is reached -- libsecp256k1 verifies in a fraction
+    of either and holds its own tables in its own context -- so what this
+    is for is the Python path: another curve, another hash function, or
+    a deployment without the compiled bindings. Handing one in on the
+    delegated path is not an error and costs nothing; it simply buys
+    nothing.
 
     Preparing is a caller's word and never inferred, and the memory is
     why: the tables are per distinct point, so a library that memoized
@@ -914,9 +914,9 @@ class PreparedPoint:
     maxsize the tables live under.
 
     Nothing is built by the constructor. It parses and validates the
-    point, which is the other half of what a verifier repeats -- 75.2 us
-    of decompression per signature, on the Python path where a
-    compressed key is a field square root -- and leaves the tables to the
+    point, which is the other half of what a verifier repeats -- a
+    decompression per signature, on the Python path where a compressed
+    key is a field square root -- and leaves the tables to the
     first multiplication that wants them, because which of the two
     families above is wanted is a question only that call answers.
 
@@ -1008,15 +1008,16 @@ def _double_mult_python(
     own fastest path.
 
     Which makes this the second curve comparison of the call, the guard
-    above having asked `_libsecp256k1_serves` the first: 0.394 us on a
-    curve that is not secp256k1, the frame and `Curve.__eq__`'s two
-    _eq_key tuples together, where the identical object short-circuits on
-    identity. That is 8% of a low-cardinality double multiplication and
-    two tenths of a second of the suite, spent for the same reason
-    _double_mult_w_NAF_var spends about 3 us a call there: what the saving
-    would buy is a fraction of a second, and what it would cost is a
-    second copy of the dispatch, one per caller, free to drift. `mult`
-    makes the same two comparisons for the same reason.
+    above having asked `_libsecp256k1_serves` the first, on a curve that
+    is not secp256k1: the frame and `Curve.__eq__`'s two _eq_key tuples
+    together, where the identical object short-circuits on identity. That
+    is 8% of a low-cardinality double multiplication and two tenths of a
+    second of the suite, spent for the same reason
+    _double_mult_w_NAF_var spends a constant of its own a call there:
+    what the saving would buy is a fraction of a second, and what it
+    would cost is a second copy of the dispatch, one per caller, free to
+    drift.
+    `mult` makes the same two comparisons for the same reason.
 
     `fixed` is the points whose tables are memoized, passed down rather
     than read off `ec` at the bottom: a verification under a
@@ -1066,10 +1067,11 @@ def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
     reason to hand it over was not obvious: a delegated addition is two
     serializations and a parse around one C addition, where the Python is
     an extended Euclid. Measured, the Euclid is what dominates: one
-    addition 4.41 us delegated against 11.03, and the gap widens with
-    every term -- an addition of the Python chain costs 11 us where a
-    term added to a delegated sum costs 0.46. The crossing is cheap
-    because it is the uncompressed serialization `_sec_from_point`
+    addition delegated costs less than half what it does in Python, and
+    the gap widens with every term -- an addition of the Python chain
+    costs the same at every term, where a term added to a delegated sum
+    costs a small fraction of one. The crossing is cheap because it is
+    the uncompressed serialization `_sec_from_point`
     writes, which ec_pubkey_parse reads without lifting an x; a
     compressed one would be a field square root a term.
 
@@ -1102,9 +1104,9 @@ def _sum_var(points: Sequence[Point], ec: Curve) -> Point:
         # tests the same y and says why in its own comment
         secs = [_sec_from_point(Q) for Q in points if Q[1]]
         # and a run with no addition left in it is answered without
-        # crossing: one term is that term, and none is infinity. 7.11 us
-        # against 10.31 for BIP352's one-input sum, which is a crossing
-        # to be told what was handed over
+        # crossing: one term is that term, and none is infinity, which
+        # spares BIP352's one-input sum a crossing made to be told what
+        # was handed over
         if len(secs) < 2:
             return _point_from_sec(secs[0]) if secs else INF
         total = libsecp256k1_pubkey_sum(secs, False)
@@ -1126,8 +1128,8 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     `add_var(P, mult(t, ec.G, ec))` it is a delegated multiplication, the
     product read back into a Point, P written out again for the addition,
     and that addition made here; `secp256k1_ec_pubkey_tweak_add` is the
-    shape itself, one call on the serialized point -- 10.89 us against
-    19.62 on secp256k1.
+    shape itself, one call on the serialized point, near half the cost on
+    secp256k1.
 
     Not `double_mult_var(1, P, t, ec.G, ec)`, which is the same sum and
     delegates too: that one multiplies P by one, and a scalar
@@ -1147,9 +1149,9 @@ def _tweak_add_var(P: Point, t: int, ec: Curve) -> Point:
     A zero tweak is not in that list: libsecp256k1 takes a tweak "valid
     according to secp256k1_ec_seckey_verify *or 32 zero bytes*", which
     its own header says of `secp256k1_ec_pubkey_tweak_add`, and answers
-    P directly, at 5.01 us against the 131.40 that routing it to the
-    Python pair instead would cost -- there `mult` has the scalar
-    libsecp256k1 declines and takes the fixed-base ladder for an answer
+    P directly, at a fraction of what routing it to the Python pair
+    instead would cost -- there `mult` has the scalar libsecp256k1
+    declines and takes the fixed-base ladder for an answer
     that is the point already in hand.
     """
     ec.require_on_curve(P)
@@ -1185,9 +1187,10 @@ class _TweakChain:
     object that holds the parsed point across such a chain. So this
     needs no fan-out entry point of its own, and the bindings have none:
     the fan-out is a chain read the other way round. Sixteen tweaks of
-    one point 112.7 us against 133.8, the difference being the fifteen
-    parses that do not happen; what that is worth at the one caller, per
-    number of outputs found, is in the CHANGELOG entry that took it.
+    one point cost less than sixteen separate ones, the difference being
+    the fifteen parses that do not happen; what that is worth at the one
+    caller, per number of outputs found, is in the CHANGELOG entry that
+    took it.
 
     Nothing is required of the order the tweaks arrive in. The
     difference is taken modulo n, so the same tweak may be asked for
@@ -1259,8 +1262,8 @@ def _jac_double_mult(
     verifications the bindings' own decline -- a hash function that is not
     sha256, a BIP340 message that is not 32 bytes (issue 169), a
     caller-imposed nonce, another curve -- and which paid a Python
-    double_mult_var underneath whatever the reason. 1.02 ms against 28 us on
-    secp256k1.
+    double_mult_var underneath whatever the reason, some thirty-five
+    times the delegated one on secp256k1.
 
     Jacobian in and Jacobian out, rather than those two rewritten in
     affine coordinates, because it is not only their arithmetic that is
@@ -1274,9 +1277,9 @@ def _jac_double_mult(
     The two conversions in are one modular inversion each on the z == 1
     that a parsed key and a lifted r arrive as, and a shortcut for that
     case -- the affine point being the same pair of coordinates, no
-    inversion at all -- saves both of them, 3% of the 28 us the call
-    costs. Not worth a branch, and neither is the caller's own
-    mod_inv_var(1) on the way back out, the same inversion again on the
+    inversion at all -- saves both of them, 3% of what the call costs.
+    Not worth a branch, and neither is the caller's own mod_inv_var(1)
+    on the way back out, the same inversion again on the
     cheapest operand it has.
     """
     if not _libsecp256k1_serves(ec, None):

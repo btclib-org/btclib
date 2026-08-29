@@ -401,9 +401,10 @@ class CurveGroup:
         # on average and only 23 of them not at all, and the count *is*
         # the secret: exactly the number of zero base-16 digits of the
         # scalar, or for _mult_jac_var the number of its low zero bits. An
-        # early return there put that on the clock, 0.03 us against the
-        # 3.7 us of a generic addition, and _mult measured 0.93 ms with no
-        # zero digit against 0.55 ms with 63.
+        # early return there puts that on the clock: skipping the
+        # addition costs a fraction of making it, so a scalar with no
+        # zero digit takes measurably longer through _mult than one with
+        # 63 of them.
         #
         # So no branch on infinity, and no arithmetic on it either: a
         # Python integer costs what its size costs, and the zero
@@ -415,9 +416,9 @@ class CurveGroup:
         # adds the infinity of a zero digit pair a quarter of the time --
         # the additions an early return answers for free, at the price of
         # putting their count on the clock. Dropping the early return
-        # without the stand-ins is not enough: P + INFJ still costs
-        # 1.8 us against 5.4, and _mult_jac_var is still 25% faster on a
-        # scalar with 128 low zero bits
+        # without the stand-ins is not enough: P + INFJ still costs a
+        # third of a generic addition, and _mult_jac_var is still 25%
+        # faster on a scalar with 128 low zero bits
         QS = (Q, self._stand_in_q)[Q[2] == 0]
         RS = (R, self._stand_in_r)[R[2] == 0]
 
@@ -1139,16 +1140,16 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
 
     w=6 by measurement, over 30 random 256-bit scalars on secp256k1, best
     of seven alternating rounds. The window buys time and is paid in
-    memory, and the time does not turn: 193 us at w=4, 157 at w=5, 127 at
-    w=6, 110 at w=7, 96 at w=8, against tables of 136, 221, 366, 629 and
-    1088 KiB. Where to stop is therefore where the memory stops being
-    worth it, and past w=6 a doubled table buys under 15% each time.
+    memory, and the time does not turn: it falls at every step from w=4
+    to w=8, against tables of 136, 221, 366, 629 and 1088 KiB. Where to
+    stop is therefore where the memory stops being worth it, and past
+    w=6 a doubled table buys under 15% each time.
 
     Against what `curve.mult` ran before, at w=6: 2.77x, 3.42x and 4.13x
-    at w=4, 5 and 6 over the GLV endomorphism's 537 us on secp256k1, and
-    5.98x over the regular window's 785 us on secp256r1, which has no
-    endomorphism to be measured against and gains the more for it. The
-    two curves hold tables of the same size.
+    at w=4, 5 and 6 over the GLV endomorphism on secp256k1, and 5.98x
+    over the regular window on secp256r1, which has no endomorphism to
+    be measured against and gains the more for it. The two curves hold
+    tables of the same size.
 
     It is libsecp256k1's `secp256k1_ecmult_gen`, which sums one
     precomputed entry per digit position and doubles nothing, and it
@@ -1159,11 +1160,11 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     The reason is the point repeating and not the point being the
     generator, so `curve.PreparedPoint` reaches here as well, for a
     caller who has said its own point will come back. Break-even is 23
-    multiplications of that point: 9.50 ms and 366 KiB to build against
-    142.3 us a call warm, where the GLV endomorphism `curves.mult`
-    otherwise runs costs 551.0 with nothing to build. Which is why
+    multiplications of that point: a table of 366 KiB and a build to pay
+    for, against a warm call cheaper than what the GLV endomorphism
+    `curves.mult` otherwise runs costs, which builds nothing. Which is why
     nothing infers it -- the same measurement, read the other way, is
-    9.5 ms and 366 KiB of pure loss for a point multiplied once.
+    that build and 366 KiB of pure loss for a point multiplied once.
 
     The accumulator is rescaled where `curves.mult` rescales the point on
     its other arm: the table here is memoized and canonical, so it is the
@@ -1786,8 +1787,8 @@ def _multi_mult_var(
     len(), because a zero scalar is dropped downstream and the batch that
     reaches either implementation is the nonzero one: 56 scalars of which
     2 are nonzero is a batch of two, and sending it to Bos-Coster on its
-    length costs 1.81 ms against the wNAF's 1.02. The pass that counts
-    them is 0.8 us at that size, under a thousandth of either.
+    length costs nearly twice what the wNAF does. The pass that counts
+    them is under a thousandth of either at that size.
 
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic

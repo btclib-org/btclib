@@ -70,9 +70,9 @@ def _hashlib_has_ripemd160() -> bool:
     the interpreter included, as an import side effect, which under FIPS
     is not even permitted.
 
-    The fallback below costs about 130x an OpenSSL digest (60 us against
-    0.45 us here, on 32 bytes), and is paid only where the alternative is
-    that `import btclib.hashes` raises.
+    The fallback below costs about 130x an OpenSSL digest on 32 bytes,
+    and is paid only where the alternative is that `import btclib.hashes`
+    raises.
     """
     try:
         hashlib.new("ripemd160")
@@ -232,7 +232,7 @@ def _assert_valid_hf(hf: HashF) -> None:
     `callable` and not a trial call: a digest object is not callable, so
     the check is a slot lookup rather than the hash it would otherwise
     have to build, which matters where it sits in front of a verification
-    the bindings answer in 22 us.
+    the bindings answer fast enough for that hash to show.
 
     So it is not exhaustive, and does not need to be: a callable of the
     wrong shape -- `hashes.hash256`, which takes the message rather than
@@ -446,13 +446,11 @@ def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
     under every other.
     """
     # libsecp256k1 computes exactly this in hashes.tagged_sha256, and the
-    # binding is not called because it is slower at every size: 0.53 us
-    # against 0.44 on an empty message, 0.63 against 0.44 on 64 bytes,
-    # 2.27 against 0.70 on 1 kB, and 111 against 20 on 64 kB. hashlib's
-    # SHA256 is OpenSSL's, hardware-accelerated, where libsecp256k1
-    # compiles its own portable C. This path also has to stay for
-    # hf != sha256, so delegating would buy neither speed nor one
-    # implementation less.
+    # binding is not called because it is slower at every size, and by
+    # more the larger the message: hashlib's SHA256 is OpenSSL's,
+    # hardware-accelerated, where libsecp256k1 compiles its own portable
+    # C. This path also has to stay for hf != sha256, so delegating would
+    # buy neither speed nor one implementation less.
     h1 = hf()
     h1.update(tag)
     tag_hash = h1.digest()
