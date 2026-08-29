@@ -26,6 +26,18 @@ reason `release.yml` gives for reaching for it only from a `python -` a
 workflow can pin to a newer interpreter, which a module in this package
 cannot. Once 3.10 is dropped, `_pyproject_author` can read the file the
 way `release.yml` already does.
+
+Issue #1507: `btclib.__author__`, `__author_email__` and `__license__`
+each duplicated `pyproject.toml`'s `authors` table or `license` field
+with nothing reading either copy, `__license__`'s own copy
+("MIT License") not even a valid spelling of the SPDX expression
+("MIT") it was a copy of. Unlike the holder above, each of the three has
+exactly one other place stating the same fact, so there is nothing here
+for a package-level literal to add: a caller after any of them reads the
+installed distribution's own metadata instead, which cannot drift from
+`pyproject.toml` the way a second literal can. So the three are gone
+rather than added to the triangle, and the test below is what keeps
+them from being silently redeclared.
 """
 
 import re
@@ -82,3 +94,20 @@ def test_license_holder_matches_the_declared_author() -> None:
         f"{author!r}. A wheel built from one and read from the other "
         "would disagree about who holds the copyright"
     )
+
+
+def test_no_duplicate_author_or_license_dunders() -> None:
+    """`__author__`, `__author_email__` and `__license__` stay gone.
+
+    Each duplicated a fact `pyproject.toml` already states -- its
+    `authors` table or its `license` field -- and nothing read the copy
+    kept here (issue #1507). Re-adding one reopens exactly the drift this
+    file exists to catch for the copyright holder, this time with no test
+    watching it.
+    """
+    for dunder in ("__author__", "__author_email__", "__license__"):
+        assert not hasattr(btclib, dunder), (
+            f"btclib.{dunder} exists again; pyproject.toml already states "
+            "the fact it would duplicate, and nothing in the tree reads it "
+            "(issue #1507)"
+        )

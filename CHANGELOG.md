@@ -118,6 +118,22 @@ documented at release-notes length in the first place, and are still in
   Actions tab lists. The sentence was already open in this diff, which
   is why it is repaired here rather than filed.
 
+### The public API and the module layout
+
+- **`btclib.__author__`, `__author_email__` and `__license__` are gone**
+  (closes #1507). Each duplicated a fact `pyproject.toml` already
+  states — its `authors` table's `name` and `email`, and its `license`
+  SPDX expression — and nothing in the tree read the copy kept here;
+  `__license__`'s own copy, `"MIT License"`, was not even a valid SPDX
+  expression, `pyproject.toml`'s `"MIT"` being the identifier and
+  `"MIT License"` the full name PEP 639 reserves for a different field.
+  `__version__` and `__copyright__` stay: other files in this tree
+  already read the first, and the second carries a year range with no
+  second copy anywhere to read instead.
+  `tests/copyright_test.py` now asserts the three stay absent, the same
+  file `LICENSE`/`__copyright__`'s own drift (issue #389) already
+  earned a test.
+
 ## v2026.8.29
 
 ### Repository
