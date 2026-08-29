@@ -115,6 +115,18 @@ documented at release-notes length in the first place, and are still in
   `btclib` under the `src/` layout, where the command the file documented
   exited on `ModuleNotFoundError` before comparing anything.
 
+- **`docs/source/conf.py`'s Sphinx `author` reads `pyproject.toml`'s
+  `authors` table instead of repeating it** (closes #1519). It was a
+  fourth hand-typed copy of the holder `tests/copyright_test.py`'s
+  triangle already checks LICENSE and the wheel's declared author
+  against, outside that triangle and outside `src/btclib/__init__.py`'s
+  own three, dropped by issue #1507. `conf.py` already parses
+  `pyproject.toml` into `PYPROJECT` for `release` and the github `BLOB`
+  url, so `author` is a second read of that dict rather than a second
+  literal, and cannot drift from it the way the dropped one could --
+  `tests/copyright_test.py` now loads `conf.py` by path and checks the
+  read.
+
 ### Packaging, linting and CI
 
 - **`pypi-install.yml` waits for the index through a script with a

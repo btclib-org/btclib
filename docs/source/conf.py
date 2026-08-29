@@ -23,7 +23,7 @@ from sphinx.transforms.post_transforms import SphinxPostTransform
 # the repository root, two levels up from this file, and the one place
 # below that is allowed to name it
 ROOT = Path(__file__).parents[2].resolve()
-# read once and read twice from: the version below and the github url the
+# read once, for the author and version below and the github url the
 # transform at the bottom builds its links on
 PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
@@ -39,7 +39,10 @@ project_copyright = re.search(
     (ROOT / "src" / "btclib" / "__init__.py").read_text(encoding="utf-8"),
     re.MULTILINE,
 ).group(1)
-author = "The btclib developers"
+# pyproject.toml's `authors` table, the one place the holder is
+# declared: PYPROJECT is already parsed above, so this is a second
+# read of it rather than a second literal (issue #1519)
+author = PYPROJECT["project"]["authors"][0]["name"]
 # read from pyproject.toml, the one place the version is declared, and not
 # from importlib.metadata: that would need btclib installed in the
 # environment building the documentation, which read the docs does not do

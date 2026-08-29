@@ -38,10 +38,25 @@ installed distribution's own metadata instead, which cannot drift from
 `pyproject.toml` the way a second literal can. So the three are gone
 rather than added to the triangle, and the test below is what keeps
 them from being silently redeclared.
+
+Issue #1519: `docs/source/conf.py` declared its own Sphinx `author`
+as a fourth literal naming the same holder, sitting beside
+`project_copyright` two lines above it, which already reads
+`__copyright__` back rather than repeating its years. `author` now
+reads `pyproject.toml`'s `authors` table the same way, through the
+`PYPROJECT` dict that file already parses for its own `release` and
+`BLOB` -- a derivation rather than a fourth vertex to compare, since
+unlike LICENSE and pyproject.toml above, `conf.py`'s copy has
+nowhere it needs to diverge from the source it names. The test below
+loads `conf.py` by path, the way it is not a package to import, and
+checks the read rather than a value that can no longer drift on its
+own.
 """
 
+import importlib.util
 import re
 from pathlib import Path
+from types import ModuleType
 
 import btclib
 
@@ -71,6 +86,17 @@ def _pyproject_author() -> str:
     match = re.search(_AUTHOR_RE, text)
     assert match, "pyproject.toml has no 'authors = [{ name = ... }]' line"
     return match.group(1)
+
+
+def _conf_module() -> ModuleType:
+    """Load docs/source/conf.py by path: no package, so no import."""
+    path = _ROOT / "docs" / "source" / "conf.py"
+    spec = importlib.util.spec_from_file_location("conf", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_license_and_copyright_name_the_same_holder() -> None:
@@ -111,3 +137,15 @@ def test_no_duplicate_author_or_license_dunders() -> None:
             "the fact it would duplicate, and nothing in the tree reads it "
             "(issue #1507)"
         )
+
+
+def test_conf_py_author_reads_pyproject_rather_than_repeating_it() -> None:
+    """Sphinx's `author` is `pyproject.toml`'s, read back, not retyped."""
+    conf_author = _conf_module().author
+    pyproject_author = _pyproject_author()
+    assert conf_author == pyproject_author, (
+        f"docs/source/conf.py's author is {conf_author!r}, pyproject.toml's "
+        f"is {pyproject_author!r}. conf.py reads pyproject.toml's `authors` "
+        "table for this value (issue #1519); if the two differ here the "
+        "read itself, not a stale literal, is what to look at"
+    )
