@@ -1559,7 +1559,7 @@ def test_verify_with_another_hash_function_on_both_arithmetics(
     `libsecp256k1_dsa.verify` is not asked -- a commitment to check, a
     caller-imposed nonce and another curve are the others -- and what
     answers instead is `_assert_as_valid_`, whose multiplication is the
-    bindings' all the same: 128 us against the 1.10 ms of the Python
+    bindings' all the same, some eight times cheaper than the Python
     arithmetic, which is the whole of this verification either way.
 
     The two must not disagree, about a valid signature or an invalid one,
@@ -1942,10 +1942,10 @@ def test_a_key_that_is_no_point_is_refused_before_anything_is_signed(
     this package's own `not a public key`, which is what
     `assert_as_valid_` and `point_from_pub_key` say. Unifying it by
     proving the key here instead would be a field square root the
-    bindings then repeat, some 2.2 of the 5.8 microseconds handing a key
-    in saves. Pinning the message is what makes the translation safe: a
-    wording that moves upstream fails here rather than quietly ceasing
-    to match.
+    bindings then repeat, giving back over a third of what handing a
+    key in currently saves. Pinning the message is what makes the
+    translation safe: a wording that moves upstream fails here rather
+    than quietly ceasing to match.
     """
     if not bindings:
         no_bindings(monkeypatch)

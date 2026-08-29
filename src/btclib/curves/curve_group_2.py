@@ -286,12 +286,13 @@ def _double_mult_w_NAF_var(
     public key recovery all reach it through `curve`'s
     _double_mult_python, which sends secp256k1 to
     _double_mult_endomorphism_secp256k1_var instead -- four half-length
-    coefficients where this takes two full-length ones, and 0.81 ms where
-    this is 1.02. Measured over random 256-bit coefficients, best of
-    seven: 1.03 ms against the 1.53 ms of curve_group's _double_mult_var,
+    coefficients where this takes two full-length ones, and costs a fifth
+    less doing it. Measured over random 256-bit coefficients, best of
+    seven, this costs a third less than curve_group's _double_mult_var,
     which stays as the reference the tests compare this against. w=5
-    measures 0.99 ms and w=3 1.10, so the w=4 `curve.py` passes is within
-    4% of the best window and its table is half the size of w=5's.
+    costs a little less again and w=3 a little more, so the w=4
+    `curve.py` passes is within 4% of the best window and its table is
+    half the size of w=5's.
 
     The gap over _double_mult_var is the wider since add_jac stopped
     shortcutting infinity: fewer additions is worth the more when an
@@ -355,7 +356,7 @@ def _double_mult_regular_window(
     scalar_len -- 143 additions and 254 doublings on secp256k1, over 200
     random pairs -- where _double_mult_w_NAF_var's is the recoded weight of the
     two coefficients and is 101 to 116 additions over the same pairs, and
-    0.996 ms against 1.11.
+    this function costs about a tenth less overall.
 
     Which is _mult_regular_window's trade, twice: a table of 2^(w-1) points
     per coefficient, and their opposites, to make one addition per window
@@ -518,8 +519,8 @@ def _mult_endomorphism_secp256k1(
     below is algorithm 3.77 as it is written, and what it costs to be
     regular is measured there.
 
-    w=4 by measurement: the regular windows give 0.589 ms at w=4 and
-    0.610 at w=5, over 30 random 256-bit scalars, best of five.
+    w=4 by measurement: the regular windows cost a little less at w=4
+    than at w=5, over 30 random 256-bit scalars, best of five.
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -535,20 +536,20 @@ def _mult_endomorphism_secp256k1_var(
 
     The same decomposition as `_mult_endomorphism_secp256k1`, over
     `_double_mult_w_NAF_var` rather than the regular windows, and the
-    faster of the two: 0.509 ms against 0.589, over 30 random 256-bit
-    scalars, best of five, at w=4. What the 16% buys is 51 to 64 additions
-    and 124 to 131 doublings over 200 random scalars, where the regular
-    windows make 79 and 126 for every one of them -- a quarter more work
-    for the worst scalar than for the best, and which it is is a property
-    of the scalar.
+    faster of the two, by 16%, over 30 random 256-bit scalars, best of
+    five, at w=4. What that 16% buys is 51 to 64 additions and 124 to 131
+    doublings over 200 random scalars, where the regular windows make 79
+    and 126 for every one of them -- a quarter more work for the worst
+    scalar than for the best, and which it is is a property of the
+    scalar.
 
     So nothing signs with this one, and it is here to be measured against
     the other. A verification's coefficients are public and go to
     `_double_mult_endomorphism_secp256k1_var` below, which splits two of
     them rather than one and interleaves the four halves.
 
-    w=4 by measurement here too: 0.527 ms at w=3 and 0.510 at w=5, which
-    is w=4's own noise.
+    w=4 by measurement here too: w=3 and w=5 measure close enough to
+    call it w=4's own noise.
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -577,11 +578,11 @@ def _double_mult_endomorphism_secp256k1_var(
     multiplications the images cost.
 
     That trade is the whole of the gain, and it is the same one
-    `_mult_endomorphism_secp256k1` makes for a single coefficient: 0.81 ms
-    against `_double_mult_w_NAF_var`'s 1.02, measured over 30 random pairs of
-    256-bit coefficients, best of three, alternating the two so that
-    neither is always warm. Both answer the same point on every pair the
-    tests compare, boundary coefficients and infinities included.
+    `_mult_endomorphism_secp256k1` makes for a single coefficient: about a
+    fifth less than `_double_mult_w_NAF_var`'s, measured over 30 random
+    pairs of 256-bit coefficients, best of three, alternating the two so
+    that neither is always warm. Both answer the same point on every pair
+    the tests compare, boundary coefficients and infinities included.
 
     The interleaved wNAF rather than the regular windows: the coefficients
     of a double multiplication are public, being a verification's, which is
@@ -590,8 +591,8 @@ def _double_mult_endomorphism_secp256k1_var(
     `_mult_endomorphism_secp256k1`. A scalar that is a secret goes
     through `mult`.
 
-    w=4 by measurement over the same pairs: 0.88 ms at w=3, 0.81 at w=4,
-    0.82 at w=5, 0.91 at w=6 -- so w=4 and w=5 measure the same and the
+    w=4 by measurement over the same pairs: cost is highest at the
+    extremes, w=3 and w=6, and w=4 and w=5 measure the same, so the
     smaller table decides, as it does for `_double_mult_w_NAF_var`.
 
     `fixed` is `_double_mult_w_NAF_var`'s, and this is the function that

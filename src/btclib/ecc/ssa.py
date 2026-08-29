@@ -529,7 +529,7 @@ def sign_(
         # perform the check and there is nothing for this arm to add,
         # BIP340's step being a bare verification under a point the
         # keypair already holds. What it costs is measured where it is
-        # performed -- 12.7 microseconds against ECDSA's 19.5,
+        # performed -- cheaper than ECDSA's own analogous step,
         # btclib-secp256k1#224 -- and is not re-measured here, a figure
         # of theirs kept in this file being one that ages when they
         # change and says nothing when it does
@@ -834,9 +834,9 @@ class Signer:
         #
         # the caller's `verify`, and this is where the check is the
         # largest share of what it is added to: the keypair was built
-        # when this signer was, so the signature is 8.18 microseconds
-        # where a fresh one is 15.87, and the same check on it is 61% of
-        # the call against 44% there (btclib-secp256k1#224). It is the
+        # when this signer was, so signing here is markedly cheaper than
+        # a fresh signature, and the same check on it is 61% of the call
+        # against 44% there (btclib-secp256k1#224). It is the
         # one of btclib's signing calls a caller would most plausibly
         # want to decline, which is why the keyword reaching here is the
         # point of exposing it at all

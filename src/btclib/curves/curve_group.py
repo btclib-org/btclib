@@ -1115,8 +1115,8 @@ def _cached_fixed_base_multiples(
     `curve.PreparedPoint` that the point will come back. What it costs
     to keep is
     2^w points a position -- on secp256k1 at the w=6 `curve.py` passes,
-    43 positions of 64 points, some 366 KiB and 9.3 ms to build, which is
-    the trade `_mult_fixed_base` measures.
+    43 positions of 64 points, some 366 KiB and a build to pay for, which
+    is the trade `_mult_fixed_base` measures.
     """
     tables: list[list[Point]] = []
     K = Q
@@ -1348,16 +1348,17 @@ def _mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoin
     doublings for the fixed window, and 71 and 253 for this one on every
     one of them.
 
-    Uniformity for free, in other words -- 0.815 ms against 0.812 over 30
-    random 256-bit scalars, best of five -- which is what makes this the
-    `_mult` the package reaches for rather than an option beside it. The
-    fixed window stays as what it is didactically, the plain one, and the
-    wNAF multiplications stay the fast irregular ones for coefficients
-    that are public: `_double_mult_w_NAF_var` is what verification runs.
+    Uniformity for free, in other words -- indistinguishable in cost from
+    the fixed window over 30 random 256-bit scalars, best of five -- which
+    is what makes this the `_mult` the package reaches for rather than an
+    option beside it. The fixed window stays as what it is didactically,
+    the plain one, and the wNAF multiplications stay the fast irregular
+    ones for coefficients that are public: `_double_mult_w_NAF_var` is
+    what verification runs.
 
-    w=4 by measurement, as for the fixed window: 0.803 ms at w=5 and 0.831
-    at w=6, the window paying for a table twice the size of the NAF's at
-    the same width.
+    w=4 by measurement, as for the fixed window: w=5 and w=6 land within
+    a couple of percent either side of it, which buys nothing against a
+    table twice the size of the NAF's at the same width.
 
     Two things follow for the group law underneath. The accumulator starts
     at a table entry instead of at infinity and no digit names infinity, so
@@ -1699,9 +1700,10 @@ def _multi_mult_bos_coster_var(
     Bos-Coster is usually written with the q == 1 case of that identity,
     n1*P1 + n2*P2 = (n1-n2)*P1 + n2*(P1+P2), which is Euclid by repeated
     subtraction: n1/n2 steps to do what one divmod does (issue 175) --
-    multi_mult_var([10**6, 1], [G, H]) would take 10.6 s, and both
-    multi_mult_var([n-1, 1], [G, H]) and multi_mult_var([-1, 1], [G, H]) would
-    never finish, on scalars a caller has every right to pass. The whole
+    multi_mult_var([10**6, 1], [G, H]) would take on the order of a
+    million steps of Euclid, and both multi_mult_var([n-1, 1], [G, H])
+    and multi_mult_var([-1, 1], [G, H]) would never finish, on scalars a
+    caller has every right to pass. The whole
     of Euclid is what makes this a live path rather than a reading
     exercise: _multi_mult_var calls it above its threshold.
 
