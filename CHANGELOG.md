@@ -22,6 +22,34 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Repository
+
+- **The release pull request now opens the next cycle's changelog
+  sections itself, instead of leaving them to a later one** (closes
+  #1458). Between the two, `main` carried a `CHANGELOG.md` whose topmost
+  section was a released version, and any branch in flight filed its
+  entries under a release they were not in. The failure was silent:
+  the release commit touches only the heading, so a rebase reports no
+  conflict, and `CHANGELOG.md` being append-only the entry cannot be
+  moved afterwards — worse in `RELEASE_NOTES.md`, whose section the
+  `github-release` step lifts, so an entry landing there before the tag
+  publishes a change the tag does not contain. What this closes is the
+  window, not the whole class: a branch cut *before* the release commit
+  and rebased across it still files under the released heading, the
+  union driver keeping an added line at the anchor it was written at,
+  and that half is issue #1512.
+- **`version-check` does not object to the new section above the
+  retitled one**, which is what makes closing the window free rather
+  than a trade: its awk matches `## v<version>` exactly and never
+  reaches a heading preceding the tag's, and the two forms cannot
+  collide, a tag being refused without a day where the placeholder is
+  prescribed without one.
+- **The `pyproject.toml` version stays where it was**, after the
+  publish, and *Open the next cycle* is now that alone: `version-check`
+  reads `uv version --short` at tag time, so a bump moved earlier would
+  offer it the next cycle's number instead of the one being released.
+  The window this closes is the changelog's, not the version's.
+
 ## v2026.8.29
 
 ### Repository

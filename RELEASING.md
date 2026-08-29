@@ -289,6 +289,18 @@ to `deps-latest`'s own result.
    progress, not released yet" as the release notes. A rehearsal is
    exempt, being what runs before this step.
 
+   In the same pull request, start the next cycle's "work in progress"
+   section in both files, above the one just retitled. What that closes
+   is the window between this pull request landing and *Open the next
+   cycle* below: without it `main` carries a CHANGELOG.md whose topmost
+   section is a released version, and any branch in flight files its
+   entries under a release they are not in — silently, the release
+   commit touching only the heading, so a rebase reports no conflict
+   (issue #1458). `version-check` is unbothered by the section above:
+   its awk matches `## v<version>` exactly and never reaches a heading
+   that precedes the tag's, and the tag always carries a day where the
+   placeholder never does, so the two forms cannot collide.
+
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
    the above onto `main` through the usual pull request. The local gates
@@ -329,8 +341,8 @@ to `deps-latest`'s own result.
    stay, but what the diff cannot say has to be written, and what a
    reader should not have to discover at the button belongs there too.
 
-   Write it from RELEASE_NOTES.md's "work in progress" section, which the
-   cycle has been filling one landed change at a time, and check that
+   Write it from the section the retitle above renamed, which the cycle
+   has been filling one landed change at a time, and check that
    against `git log v<previous version>..main --oneline` regardless of
    how current it looks, rather than trust that every line landed when it
    should have. Griffe's result and `deps-latest`'s run belong here too,
@@ -553,10 +565,15 @@ to `deps-latest`'s own result.
    of this one. Actions → published → Run workflow is for asking between
    those runs, with no particular version in mind.
 
-1. Open the next cycle: set a generic next version without the day
-   (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
-   "work in progress" section in RELEASE_NOTES.md and CHANGELOG.md,
-   through a pull request like any other.
+1. Open the next cycle's version: set a generic next version without
+   the day (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, through
+   a pull request like any other. The two "work in progress" sections
+   this step used to create are already there, the retitle step above
+   having made them in the release's own pull request. What stays here
+   is the version, which cannot move earlier with them: `version-check`
+   reads `uv version --short` at tag time, and a pyproject.toml already
+   bumped would offer it the next cycle's number instead of the one
+   being released.
 
    Those two sections are where the next release's notes accumulate, one
    landed change at a time, and the merge step above is what reads them
