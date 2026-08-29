@@ -39,6 +39,7 @@ key, and a second build requirement is what has to be seen.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -132,3 +133,60 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
     assert extra == group, f"the extra asks {extra}, the group asks {group}"
     assert len(extra) == 1, f"the extra names more than the bindings: {extra}"
     assert extra[0].startswith("btclib-secp256k1"), extra[0]
+
+
+# `[tool.uv.build-backend] source-exclude` carries its own reasoning in
+# pyproject.toml for why a test loading `.github/scripts` or `fuzz/` off
+# disk belongs in it: each such test is unrunnable from an unpacked
+# sdist, neither directory being shipped. What no comment there can show
+# is that the list still names every test with that shape -- ISS 1509
+# found one it did not, and nothing failed
+_SOURCE_EXCLUDE = re.compile(
+    r"^source-exclude\s*=\s*\[(.*?)^\]", re.MULTILINE | re.DOTALL
+)
+_TESTS = Path(__file__).parent
+
+
+def _source_exclude() -> list[str]:
+    """Return `[tool.uv.build-backend] source-exclude`'s own entries."""
+    text = _PYPROJECT.read_text(encoding="utf-8")
+    match = _SOURCE_EXCLUDE.search(text)
+    assert match, "no source-exclude array in pyproject.toml"
+    return _QUOTED.findall(match.group(1))
+
+
+def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
+    """Whether a module builds a path through a `.github` or a `fuzz` segment.
+
+    The convention this looks for is `Path(__file__).parents[1] /
+    ".github" / "scripts" / "<name>.py"` and `Path(__file__).parent.parent
+    / "fuzz"` -- a `/` join with one side the literal directory name --
+    walked rather than matched on the formatted text, so a reflow of the
+    expression across lines is still seen.
+    """
+    return any(
+        isinstance(node, ast.BinOp)
+        and isinstance(node.op, ast.Div)
+        and isinstance(node.right, ast.Constant)
+        and node.right.value in (".github", "fuzz")
+        for node in ast.walk(tree)
+    )
+
+
+def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
+    """A `tests/*.py` built on `.github/scripts` or `fuzz/` is in the list.
+
+    Not the other direction: `source-exclude` also names entries no test
+    file could match -- `docs/build`, the linter caches -- so only this
+    direction closes what ISS 1509 found open.
+    """
+    excluded = set(_source_exclude())
+    missing = [
+        f"/tests/{path.name}"
+        for path in sorted(_TESTS.glob("*.py"))
+        if _reaches_outside_the_sdist(
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        )
+        and f"/tests/{path.name}" not in excluded
+    ]
+    assert not missing, f"reaches outside the sdist, not in source-exclude: {missing}"
