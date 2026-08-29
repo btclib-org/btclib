@@ -161,6 +161,31 @@ documented at release-notes length in the first place, and are still in
   `tests/*.py` for that shape and asserts it is in the list, so a future
   test built the same way is caught rather than only named after the
   fact.
+- **A released `## v<version>` section of CHANGELOG.md or
+  RELEASE_NOTES.md is now gated against ever moving again** (closes
+  #1512). `tests/changelog_immutability_test.py` compares every such
+  heading against `git show <version>:<path>`, that release's own tag,
+  byte for byte. Run against this branch's own base before the module
+  existed, the comparison found the defect already real rather than
+  only theorized: CHANGELOG.md's `v2026.8.21` and `v2026.8.27` carry
+  bullets their own tags do not and lose nothing, which is the rebase's
+  *misplacement* outcome rather than `.gitattributes`'
+  *stacked-duplicate* one, while `v2026.8.7` also *lost* lines the
+  driver could not have removed -- two landed commits edited that
+  released section on purpose, which is a different thing to repair.
+  The sections are named once, marked
+  `xfail(strict=True)` rather than excluded, so a hand fix moving a
+  misplaced bullet to its true release turns that case into a failure
+  instead of a silently outliving exemption; repairing them is issue
+  #1524. Because the check reads a tag and not only the working tree,
+  `test.yml`'s `coverage` and `no-bindings` jobs -- the ones under
+  `test-passed` that run pytest -- now fetch tags on checkout, and the
+  module skips where none resolve rather than turning the default
+  shallow, tagless clone into a red pull request for a checkout
+  setting.
+  `tests/build_system_test.py`'s own detector, from #1509, is widened to
+  recognize a test that reaches outside the sdist through `git` and not
+  only through a `.github` or `fuzz` path segment.
 
 ### The public API and the module layout
 

@@ -290,6 +290,18 @@ jobs:
           # because a pull request editing that file is refused a review
           # by it -- btclib-org/.github#91
           persist-credentials: false
+          # tests/changelog_immutability_test.py reads a release's own
+          # tag with `git show <tag>:...`; the default shallow, tagless
+          # clone resolves no `v*` tag at all, which the test tells apart
+          # from a real mismatch and skips rather than failing on. This
+          # is the job that skip would otherwise hide behind: `coverage`
+          # and `no-bindings` are what `test-passed` actually waits on,
+          # so fetching tags here is what keeps the check real on every
+          # pull request rather than decorative on all of them (issue
+          # #1512). Depth stays at the default: fetching tags fetches the
+          # tree each one points at regardless, measured against this
+          # repository's own remote with `git fetch --depth=1 --tags`
+          fetch-tags: true
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -381,6 +393,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # the `coverage` job's own comment gives the reason: this job
+          # runs the same suite, `tests/changelog_immutability_test.py`
+          # included, and `test-passed` waits on both
+          fetch-tags: true
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:

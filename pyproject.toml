@@ -288,6 +288,16 @@ source-exclude = [
     # fuzz/fuzz_*.py and fuzz/corpus/ off the tree, both absent from an
     # unpacked sdist
     "/tests/fuzz_corpus_test.py",
+    # a third shape of the same reasoning: this one reaches outside the
+    # sdist through `.git` rather than through a tracked directory, and
+    # what it reads (`git show <tag>:...`, a release's own tag) has no
+    # existence at all once a build has stripped the repository down to
+    # its tracked files. There is no directory to name here the way
+    # ".github" or "fuzz" name one -- the exclusion is the module
+    # itself -- so tests/build_system_test.py's own detector is widened
+    # to recognize a `subprocess` call to `git` too, rather than staying
+    # blind to this shape (issue #1512)
+    "/tests/changelog_immutability_test.py",
     # where `make html` writes, docs/Makefile's BUILDDIR being `build`
     "/docs/build",
     # a cache a linter or type checker writes beside the file it has
