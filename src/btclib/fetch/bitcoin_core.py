@@ -4,9 +4,9 @@
 
 """The btclib fetcher backed by a `BitcoinCoreRpcClient`.
 
-The client itself is the `bitcoin-core-rpc` package: one file with nothing
-but the standard library behind it, installable or vendorable, and no part
-of btclib. What this module adds is the integration -- the answers turned
+The client itself is the `bitcoin-core-rpc` package: zero dependencies of
+its own, nothing but the standard library behind it, and no part of
+btclib. What this module adds is the integration -- the answers turned
 into btclib transactions, and the chain the node serves compared with the
 network those transactions are labelled for.
 

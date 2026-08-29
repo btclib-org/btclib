@@ -52,10 +52,10 @@ def client_errors() -> Iterator[None]:
     """Re-raise what the rpc client raises as btclib's own exception.
 
     `bitcoin_core_rpc` declares a `FetchError`, an `HttpError` and an
-    `RpcError` of its own -- it imports nothing of btclib's, that being
-    what lets its one file be vendored -- so those three are not the
-    classes `btclib.exceptions` declares, and an `except FetchError`
-    written against btclib does not catch them. This is the one place the
+    `RpcError` of its own -- it declares zero dependencies and imports
+    nothing of btclib's -- so those three are not the classes
+    `btclib.exceptions` declares, and an `except FetchError` written
+    against btclib does not catch them. This is the one place the
     two meet, and every call that crosses into the package goes through
     it: `EsploraFetcher.text` and `BitcoinCoreFetcher._call` are the two
     lines that do.

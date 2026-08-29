@@ -334,24 +334,26 @@ back.
 
 The rpc client `fetch` speaks through is not in that stack: it is
 [bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a
-package of its own that btclib depends on — one file, standard library
-only, installable or copyable, and usable by anyone who wants a node
+package of its own that btclib depends on — zero dependencies of its
+own, standard library only, and usable by anyone who wants a node
 client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
 and `TxOut`, and checks the chain the node reports against the network
 those are labelled for.
 
 The dependency stops at `src/btclib/fetch/` and at `src/btclib/p2p/magic.py`,
 which is where the p2p message start is — that package's table, not a
-second copy of it. bitcoin-core-rpc declares its own `FetchError`,
-importing nothing of btclib's being what lets its file be vendored, and
+second copy of it. bitcoin-core-rpc declares its own `FetchError`, and
+declares zero dependencies of its own, importing nothing of btclib's;
 `btclib.fetch.fetcher.client_errors` re-raises it as `btclib.exceptions`'
 own, with the `status` and the `code` carried across: an `except
 FetchError` written against btclib catches what a fetcher raises. No
 module loads `urllib.request` on its way to anything else: importing it
-is what reaching that package costs, so `btclib.p2p` publishes the
-message start without importing it and a caller who parses messages pays
-nothing for a client it never uses. Constructing a client opens no
-socket; the first call does.
+is what reaching the client or its transport costs, and `src/btclib/fetch/`
+is the only place that does. `btclib.p2p`'s message start reaches this
+same package's chain vocabulary instead, which depends on nothing beyond
+the standard library, so a caller who parses messages pays nothing for a
+client it never uses. Constructing a client opens no socket; the first
+call does.
 
 ---
 

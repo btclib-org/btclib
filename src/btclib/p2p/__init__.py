@@ -28,17 +28,18 @@ mapping a command to a type -- reading a message back into a typed
 payload is `Version.parse(message.payload)` under the caller's own
 `if`, which is the shape `net_processing.cpp` has too.
 
-**The message start is published without being imported**, which is the
-asymmetry to know about here. `magic_from_chain`, `magic_from_network`
-and `magic_from_signet_challenge` are `btclib.p2p.magic`'s, and that
-module reaches the `bitcoin-core-rpc` package -- which imports
-`urllib.request`, and `ssl` and `socket` under it, none of which a codec
-has any use for. README.md states the property that would cost: "No
-module loads `urllib.request` on its way to anything else." So
-`__getattr__` below publishes the three the way
-`btclib/script/__init__.py` publishes `sig_hash` and `engine`, and
-`import btclib.p2p` stays what a parser needs and nothing else. Asking
-for a message start is what pays for one.
+**The message start is published without being imported.**
+`magic_from_chain`, `magic_from_network` and `magic_from_signet_challenge`
+are `btclib.p2p.magic`'s, and that module reaches the `bitcoin-core-rpc`
+package's `chains` vocabulary, which depends on nothing beyond the
+standard library -- `urllib.request`, and `ssl` and `socket` under it,
+live in that package's `client` and `transport` instead, which a
+message-start lookup never reaches. README.md states the property this
+keeps: "No module loads `urllib.request` on its way to anything else."
+`__getattr__` below still answers the three lazily, the same pattern
+`btclib/script/__init__.py` uses for `sig_hash` and `engine`: `import
+btclib.p2p` stays what a parser needs and nothing else, whether or not
+the module behind a lazy name would itself have been free.
 
 `btclib.p2p.limits` is not published at all, as `btclib.block.limits` is
 not published from `btclib.block`: a caller reading a protocol constant

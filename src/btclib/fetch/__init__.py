@@ -21,8 +21,8 @@ while opening no socket.
 
 **The exceptions a `Fetcher` raises are btclib's**, and that costs one
 translation. The package declares a `FetchError`, an `HttpError` and an
-`RpcError` of its own -- it imports nothing of btclib's, which is what
-lets its one file be vendored -- so those are not the classes
+`RpcError` of its own -- it declares zero dependencies and imports
+nothing of btclib's -- so those are not the classes
 `btclib.exceptions` declares, and `fetcher.client_errors` re-raises them
 as the ones a caller catches, `status` and `code` carried across. What
 that buys back is the import cost: `btclib.exceptions` no longer reaches
@@ -41,9 +41,10 @@ what raises if there is nothing to connect to.
 **What is exported, and what is not.** The two fetchers, the interface
 they implement, the rpc client a Bitcoin Core one is reached through, and
 the transport seam: the timeout, the protocol a substitute has to satisfy
-and the one implementation of it that opens a socket. That last group is
-here because the seam is the supported way to test calling code without a
-node, which is not a detail of the two implementations.
+and the two implementations of it that open a socket -- one connection
+per call, and one kept open across calls. That last group is here
+because the seam is the supported way to test calling code without a
+node, which is not a detail of the two fetcher implementations.
 
 `bitcoin_core.cookie_auth` is deliberately not here:
 `BitcoinCoreRpcClient` takes a `cookie_path` and reads that file at every
@@ -67,7 +68,12 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
-from btclib.fetch.transport import DEFAULT_TIMEOUT, HttpTransport, urlopen_transport
+from btclib.fetch.transport import (
+    DEFAULT_TIMEOUT,
+    HttpTransport,
+    SessionTransport,
+    urlopen_transport,
+)
 
 __all__ = [
     "BLOCKSTREAM_INFO",
@@ -77,5 +83,6 @@ __all__ = [
     "EsploraFetcher",
     "Fetcher",
     "HttpTransport",
+    "SessionTransport",
     "urlopen_transport",
 ]

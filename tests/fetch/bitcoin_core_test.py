@@ -31,6 +31,7 @@ import pytest
 from bitcoin_core_rpc import (
     DEFAULT_SIGNET_CHALLENGE,
     BitcoinCoreRpcClient,
+    SessionTransport,
     chain_from_network,
     network_from_chain,
 )
@@ -168,6 +169,24 @@ def test_get_tx_asks_for_the_id_it_was_given() -> None:
     body = sent(endpoint)
     assert body["method"] == "getrawtransaction"
     assert body["params"] == [TX_ID]
+
+
+def test_a_session_transport_can_drive_the_fetcher() -> None:
+    """`BitcoinCoreFetcher` takes a client, so its transport is the client's.
+
+    Nothing here is the fetcher's to wire: `SessionTransport`'s
+    constructor opens no connection, so building one and handing it to
+    the client this fetcher is built over is the whole of driving one
+    fetcher through it -- no round trip, and no code of this class's own
+    to reach.
+    """
+    session = SessionTransport()
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD, transport=session
+    )
+    assert (
+        BitcoinCoreFetcher(endpoint, verify_network=False).client.transport is session
+    )
 
 
 def test_get_tx_labels_the_outputs_for_the_fetchers_network() -> None:

@@ -281,6 +281,42 @@ documented at release-notes length in the first place, and are still in
   inspected, and `assert_valid`'s own type check runs on a local it
   never assigns back.
 
+- **The docstrings crediting `bitcoin-core-rpc`'s separate exceptions and
+  transport to its being vendorable as one file now credit the reason
+  that survives the split** (closes #1497). v2026.8.29 splits the
+  package into an `errors`, `chains`, `transport` and `client` module
+  behind its facade, so there is no longer one file to vendor; each
+  keeps the reason that decided it regardless -- the package declares
+  zero dependencies and imports nothing of btclib's. `pyproject.toml`'s
+  floor moves with the prose: `bitcoin-core-rpc>=2026.8.29` is the first
+  release the rewritten docstrings are true of, and the first the
+  `chains` module exists in. `uv.lock` is re-locked to it.
+
+- **`btclib.fetch` and `btclib.fetch.transport` publish `SessionTransport`,
+  the sibling's second `HttpTransport`** (closes #1498). It keeps one
+  connection per `(scheme, host, port)` open across calls instead of one
+  per call, which is worth choosing over many calls against one node --
+  a walker fetching many transactions, a client polling one -- and it
+  has a `close()` and works as a context manager; `urlopen_transport`
+  stays the default. `BitcoinCoreFetcher` and `EsploraFetcher` already
+  take it, through the client's own `transport=` and their own
+  `transport=` respectively, so the change is the export and the tests
+  proving it -- `tests/all_test.py`'s aliasing checks and
+  `tests/keyword_only_test.py`'s table, both of which now name it.
+
+- **`btclib.p2p`'s lazy import of `bitcoin_core_rpc` keeps a reason that
+  is still true, not the one that stopped being** (closes #1484).
+  Reaching `magic_from_chain` and its neighbours used to cost
+  `urllib.request`, `ssl` and `socket`, because the sibling was one
+  file; now they live in `chains.py` alone, which costs nothing beyond
+  the standard library, so the `__getattr__` below buys what this
+  package's other lazy submodules buy -- `import btclib.p2p` free of a
+  name nobody asked for -- and nothing about `urllib.request` any more.
+  README.md, this package's own docstring and `tests/imports_test.py`'s
+  `test_the_codec_does_not_pay_for_the_rpc_package` are corrected to it,
+  the test now proving `bitcoin_core_rpc` reaches `sys.modules` on the
+  second half and `urllib.request` never does.
+
 ### Documentation and the website
 
 - **`_b58decode`'s comment stops recording a wall clock** (closes

@@ -117,10 +117,10 @@ class FetchError(BTClibRuntimeError):
     than the host that has to be fixed.
 
     Declared here rather than taken from `bitcoin_core_rpc`, which raises
-    a class of the same name: that package imports nothing of btclib's --
-    which is what lets its one file be vendored -- so its `FetchError`
-    derives from a `BTClibRuntimeError` of its own, and an `except
-    BTClibRuntimeError` written against this module would not catch it.
+    a class of the same name: that package declares zero dependencies and
+    imports nothing of btclib's, so its `FetchError` derives from a
+    `BTClibRuntimeError` of its own, and an `except BTClibRuntimeError`
+    written against this module would not catch it.
     `btclib.fetch.fetcher.client_errors` is the one place the two meet.
     """
 
