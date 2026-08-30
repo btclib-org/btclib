@@ -556,7 +556,6 @@ stays allowed.
 ```shell
 gh api repos/btclib-org/btclib/environments \
   --jq '.environments[] | {name, protection_rules: [.protection_rules[]?.type]}'
-# {"name":"CI","protection_rules":[]}
 # {"name":"github-pages","protection_rules":["branch_policy"]}
 # {"name":"pypi","protection_rules":["required_reviewers","branch_policy"]}
 # {"name":"testpypi","protection_rules":["required_reviewers"]}
@@ -576,26 +575,6 @@ it — the same call against `testpypi` 404s, where it answers for `pypi`
 `release.yml`'s own `workflow_dispatch` trigger is what narrows it
 further. `github-pages` restricts to `main`, the branch Pages already
 serves.
-
-**`CI` is a fourth environment the call above lists, and nothing in this
-repository uses it:**
-
-```shell
-gh api repos/btclib-org/btclib/environments/CI/secrets --jq '.total_count'
-# 0
-gh api repos/btclib-org/btclib/environments/CI/variables --jq '.total_count'
-# 0
-git grep -n 'environment:$' -- .github/workflows/
-# .github/workflows/release.yml:458
-# .github/workflows/release.yml:505
-```
-
-Both matches name `testpypi` and `pypi`, on `publish-testpypi` and
-`publish-pypi` respectively — no workflow declares `environment: CI`. It
-holds no secret and no variable either, so nothing depends on it. That
-makes `CI` a leftover rather than a recorded setting, and whether it is
-deleted or kept for a reason is the maintainer's decision to make
-(issue #1516); this paragraph is the record of what it is until then.
 
 ## Pages, which is btclib.org
 
@@ -892,9 +871,7 @@ gh api orgs/btclib-org/dependabot/secrets \
 The organization's stores answering with a name are what make the two
 zeros absences rather than an endpoint that answers empty for everyone,
 and an empty store here is where the standard's decision shows rather
-than a facility nobody reached for. The `CI` environment's own secrets
-and variables are a different endpoint again, `environments/CI/secrets`,
-which *Publishing* above reads back.
+than a facility nobody reached for.
 
 **A facility nobody reached for.** The repository's Actions variables,
 self-hosted runners, deploy keys, autolinks and custom property values

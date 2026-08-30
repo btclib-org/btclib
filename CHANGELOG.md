@@ -194,6 +194,12 @@ documented at release-notes length in the first place, and are still in
   the divergence does not reach `[tool.mypy]`'s `exclude` at all, for an
   unrelated reason, and the command that answers from the tool rather
   than from the file, in the two key groups it splits the answer across.
+- **`REPOSITORY.md`'s environments readback matches the repository's
+  settings** (closes #1516). The `CI` environment is deleted — it held
+  no protection rule, no secret, no variable and no workflow's
+  `environment:` key — and the sample output under *Publishing waits
+  for an approval* now shows only `github-pages`, `pypi` and `testpypi`,
+  which is what `gh api repos/btclib-org/btclib/environments` answers.
 
 ### Documentation and the website
 
