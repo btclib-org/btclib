@@ -200,6 +200,15 @@ documented at release-notes length in the first place, and are still in
   `environment:` key — and the sample output under *Publishing waits
   for an approval* now shows only `github-pages`, `pypi` and `testpypi`,
   which is what `gh api repos/btclib-org/btclib/environments` answers.
+- **`REPOSITORY.md`'s Publishing section stops reading back
+  `github-pages`** (closes #1533). Section 11 of the organization
+  standard places it outside this file — it is GitHub's own
+  environment, created by enabling Pages rather than by the repository
+  — so the sample readback under *Publishing waits for an approval*
+  now selects `pypi` and `testpypi` only, and the sentence recording
+  `github-pages`'s branch restriction is gone; the branch Pages serves
+  is what *Pages, which is btclib.org*'s own `source.branch` already
+  answers.
 
 ### Documentation and the website
 
