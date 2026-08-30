@@ -555,8 +555,8 @@ stays allowed.
 
 ```shell
 gh api repos/btclib-org/btclib/environments \
-  --jq '.environments[] | {name, protection_rules: [.protection_rules[]?.type]}'
-# {"name":"github-pages","protection_rules":["branch_policy"]}
+  --jq '.environments[] | select(.name == "pypi" or .name == "testpypi") |
+        {name, protection_rules: [.protection_rules[]?.type]}'
 # {"name":"pypi","protection_rules":["required_reviewers","branch_policy"]}
 # {"name":"testpypi","protection_rules":["required_reviewers"]}
 ```
@@ -573,8 +573,7 @@ gh api repos/btclib-org/btclib/environments/pypi/deployment-branch-policies \
 it — the same call against `testpypi` 404s, where it answers for `pypi`
 — so a publish to TestPyPI accepts any branch or tag once approved;
 `release.yml`'s own `workflow_dispatch` trigger is what narrows it
-further. `github-pages` restricts to `main`, the branch Pages already
-serves.
+further.
 
 ## Pages, which is btclib.org
 
