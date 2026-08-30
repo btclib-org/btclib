@@ -245,17 +245,35 @@ owns. The endpoint that reports it is the one that sets it:
 
 ```shell
 gh api repos/btclib-org/btclib/code-quality/setup
-# {"state":"not-configured","languages":["python","ruby"], ...}
+# {"state":"not-configured","languages":["python"], ...}
 
 gh api -X PATCH repos/btclib-org/btclib/code-quality/setup \
   -F state=not-configured
 ```
 
 What decided it is the concurrency ceiling measured above, not the
-queries: a pull request here asks for twenty-one jobs on purpose, and
-`Analyze (python)` and `Analyze (ruby)` were two more on every pull
-request and every push to `main` — `Code Quality: PR #N` in the run
-list, 80 seconds and 32.
+queries: the check set a pull request here already asks for is large on
+purpose, and `Analyze (python)` and `Analyze (ruby)` were two more on
+every pull request and every push to `main` — `Code Quality: PR #N` in
+the run list, 80 seconds and 32.
+
+How large is read off a pull request rather than written down here,
+because it is not one number.
+
+```shell
+head=$(gh pr view <an open pull request> --json headRefOid --jq .headRefOid)
+gh api "repos/btclib-org/btclib/commits/$head/check-runs" --jq '.total_count'
+# 14 and 15, the two open when this was written
+```
+
+**An open one.** Every workflow here that triggers on a pull request
+takes `closed` in its `types:`, `claude-review.yml` excepted, so that a
+landing cancels the run its own group is still holding. A merged head
+therefore carries a second set of runs on top of the first, skipped
+entire, for all but that one. PR 1546's merged head answers 23 to the
+call above, of which one run succeeded and the other 22 were cancelled or
+skipped. A figure taken there measures what the forge recorded, not what
+a pull request asks a runner for.
 
 What they produced in exchange cannot be read from here at all. There is
 no `code-quality/alerts` and no `code-quality/analyses`, both 404, and a
@@ -278,7 +296,11 @@ most of the reason nobody read them.
 `Analyze (ruby)` is the plainest half of it: there is no Ruby in this
 library. A `Gemfile` sat beside the package for as long as this
 repository served a Jekyll site from `main`'s root, and autodetection
-read a Ruby project from it. `codeql.yml`'s `matrix.language` names
+read a Ruby project from it — which the endpoint above now says in
+its own voice, `ruby` having left that list when the `Gemfile` did. The
+control is the tree that took the site: the same call against
+`btclib-org/btclib-org.github.io`, which holds a `Gemfile` and no
+Python, answers `["ruby"]`. `codeql.yml`'s `matrix.language` names
 `actions` and `python` and nothing else — an absence rather than an
 exclusion, there being no Ruby for either configuration to analyse —
 and that workflow's own header carries the measurement.
