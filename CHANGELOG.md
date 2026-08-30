@@ -481,6 +481,19 @@ documented at release-notes length in the first place, and are still in
   gives one fact one place, and section 11 makes this file the home for
   a setting.
 
+### `links.yml` asks lychee for the fragment too
+
+- **`.github/workflows/links.yml` passes `--include-fragments`** (issue
+  btclib-org/.github#583). A link into a heading is then checked as an
+  anchor and not only as a page, so a heading renamed in the tree a link
+  here points into is red in this run rather than nowhere. The check
+  reads a page already fetched for the link beside it and adds no
+  request; run over the tree with the workflow's flags and the token, it
+  reports no broken anchor. `REPOSITORY.md`'s links into the standard
+  carry `blob/main/README.md` and are checked; the root-shape ones
+  `CONTRIBUTING.md` carries are overridden by the token, which
+  btclib-org/.github#630 weighs.
+
 ## v2026.8.29
 
 ### Repository

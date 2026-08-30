@@ -146,13 +146,27 @@ jobs:
           # unreachable for one minute is the failure mode this workflow was
           # built not to gate on, and 45 seconds is the cheapest way to stop
           # reporting it. If a URL times out run after run it belongs in
-          # .lycheeignore with that measurement, and not here
+          # .lycheeignore with that measurement, and not here.
+          # --include-fragments, so a link into a heading is checked as
+          # an anchor and not only as a page: the forge serves the page
+          # and drops a fragment it cannot resolve, so a heading renamed
+          # in the tree a link here points into is red here and nowhere
+          # else. The check reads a page already fetched for the link
+          # above, so it adds no request. REPOSITORY.md's links into the
+          # standard carry blob/main/README.md and are checked; the
+          # root-shape github.com/<owner>/<repo>#heading links
+          # CONTRIBUTING.md carries are not, a missing fragment there
+          # being overridden by the token below -- lychee falls back to
+          # the repositories API on the failed link and takes the
+          # repository's existence as the answer.
+          # btclib-org/.github#630 is where that is weighed
           args: >-
             --no-progress
             --max-retries 3
             --retry-wait-time 10
             --timeout 45
             --accept 100..=103,200..=299,429
+            --include-fragments
             "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
           # fail the job, rather than only summarizing: a green run that
           # found dead links is the state this workflow exists to end
