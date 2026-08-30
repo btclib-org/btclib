@@ -9,13 +9,15 @@
   // and after the offending block
   // <!-- markdownlint-enable MD013 -->
 
-  // This file is the same in btclib, btclib-secp256k1 and
-  // bitcoin-core-rpc, deliberately: prose moves between the three, and a
-  // paragraph that lints in one has to lint in the others. No rule is
-  // disabled here -- what follows only names a style where markdownlint's
-  // default is "consistent", which asks each file to agree with itself and
-  // therefore lets two files disagree. That is what let an indented block
-  // pass in one repository and fail in another.
+  // This file is the same in every repository of the organization,
+  // deliberately: prose moves between the trees, and a paragraph that
+  // lints in one has to lint in the others. Section 14 of the
+  // organization standard, btclib-org/.github's README.md, is what says
+  // so, and tests/verbatim_test.py there is what compares the copies. No
+  // rule is disabled here -- what follows only names a style where
+  // markdownlint's default is "consistent", which asks each file to agree
+  // with itself and therefore lets two files disagree. That is what let
+  // an indented block pass in one repository and fail in another.
   //
   // A rule that only one file needs is not here: bitcoin-core-rpc's
   // CHANGELOG.md repeats "### Added" under every release, which is what

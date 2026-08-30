@@ -53,6 +53,24 @@ neither of them shows, is [the standard's *What a pull request says it
 is*][s-title]. Read it before opening one; it is the rule most often
 found broken after the fact.
 
+**Before it is opened, the branch's own commit subjects and bodies are
+read against that same rule.** The description does not exist yet to
+disagree with them, and [the standard][s-title] has the command that
+scans the branch's own commit text for a verb in front of a reference.
+
+**The two spellings are named here as well as there, against [section 9's
+*One fact in one place*][s9]**, the paragraph above naming the section
+and not the forms, which are the half a citation is got wrong in:
+`(closes #N)` cites an issue the change closes, wherever the citation
+sits — the title, the commit subject where [*Merge method*][s11] makes
+that the thing that lands, and a `CHANGELOG.md` entry — and `(issue #N)`
+cites, in those same places, an issue the change advances and does *not*
+close. One token holds one meaning whichever file it sits in, so the
+pair is chosen by what is true of the change rather than by which file
+is being written, and a tree's own landed subjects are not what to copy
+it from: nothing already landed is rewritten, so what a repository wrote
+before the rule stays where it is.
+
 `REVIEWING.md` is the standard a review is written against, and is this
 file's other half. Read before opening a pull request, it is what the
 pull request will be answered against.
@@ -104,7 +122,8 @@ on concurrent jobs, so rebasing every waiting pull request after each
 landing spends that capacity on runs the next landing invalidates
 anyway, and delays the one pull request that is actually next: work
 spent on a pull request that is not next is work that delays the one
-that is.
+that is. The ceiling's figure is `REPOSITORY.md`'s, under *Plan-gated
+settings*, beside the command that re-derives it.
 
 Order is cheapest and least contended first, most invasive last, so that
 a large change does not sit at the head blocking everything behind it.
@@ -164,8 +183,18 @@ the merge button asks:
 
 ```shell
 gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge \
-  -f merge_method=squash
+  -f merge_method=squash -f sha=<the head the checks ran on>
 ```
+
+**The `sha` is not optional.** Reading the ack and merging are two
+calls, and the head is free to move between them — the push that would
+move it comes out of the same round the verdict does. Unpinned, the
+command takes whatever sits at the head when it runs; pinned, [the
+endpoint answers `409` where the head has moved][gh-merge], and a round
+lost that way is cheaper than a tree nobody has read reaching `main`.
+*The review* above anchors the exchange to a sha and [section 11][s11]
+has an ack name one: the pin is that rule reaching the call that
+performs the landing.
 
 **Verify what landed rather than trusting the answer**, the signature
 [the standard asks for][s-sigs] being a valid one rather than a
@@ -175,6 +204,11 @@ particular signer's:
 gh api repos/{owner}/{repo}/commits/main \
   --jq '.commit.verification | {verified, reason}'
 ```
+
+**What it closed is read again here too, from the landed sha rather
+than from the pull request**: [the standard's *What a pull request says
+it is*][s-title] has the second read, and why the first alone does not
+reach a squash subject composed after it runs.
 
 The forge deletes the head branch itself, per the setting section 11
 names. What is still yours is bringing every checkout sitting on `main`
@@ -189,6 +223,7 @@ settings and why they are what they are.
 [s-title]: https://github.com/btclib-org/.github#what-a-pull-request-says-it-is
 [s-rev]: https://github.com/btclib-org/.github#review
 [s-sigs]: https://github.com/btclib-org/.github#signatures
+[gh-merge]: https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 
 ## This repository in particular
 
