@@ -261,10 +261,10 @@ repos:
         # CONTRIBUTING.md has the command
         args: [--baseline, .secrets.baseline]
   # a typo in a comment is cosmetic; the same typo in the README is the
-  # shop window, that file being both the btclib.org homepage and the PyPI
-  # long description, and in an exception message it is an interface --
-  # `invalid type marker lenght` was pinned verbatim by a test, so nothing
-  # could correct it without noticing the test too.
+  # shop window, that file being the PyPI long description, and in an
+  # exception message it is an interface -- `invalid type marker lenght`
+  # was pinned verbatim by a test, so nothing could correct it without
+  # noticing the test too.
   # Configured in pyproject.toml ([tool.codespell]) rather than in args
   # here: the skip list needs a paragraph of justification, and a hook
   # invocation is the wrong place for one

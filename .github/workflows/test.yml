@@ -26,21 +26,18 @@ on:
     # every pull request starts cold. Tag pushes are covered by the release
     # workflow
     branches: [main]
-    # GitHub Pages serves btclib.org from main's root, so a
-    # website-only commit lands here and would otherwise run the whole
-    # gate.
-    # None of these files is imported by the library or read by a test --
-    # README.md is the homepage, not a doctest source; CONTRIBUTING.md is
-    # checked by markdownlint, which is the lint workflow's business.
+    # a prose-only commit would otherwise run the whole gate. `*` does not
+    # match a slash, so this is the root's own markdown: mostly prose no
+    # test reads, markdownlint being the lint workflow's business.
+    # CHANGELOG.md and RELEASE_NOTES.md are the exception and are read by
+    # changelog_immutability_test.py and release_notes_test.py off disk,
+    # so a push touching only those skips the two tests whose whole
+    # subject they are -- the pull_request trigger below carries no such
+    # filter, which is where they are answered.
     # Only on push: the same list on pull_request would be wrong, because
     # the aggregate below is a required check on main, and a required check
     # that produces no run at all blocks the merge instead of passing it
     paths-ignore:
-      - _config.yml
-      - _layouts/**
-      - assets/**
-      - CNAME
-      - Gemfile
       - "*.md"
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the

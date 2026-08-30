@@ -226,8 +226,8 @@ required-version = ">=0.12.1"
 # what the sdist carries beyond what the backend puts there by itself --
 # pyproject.toml, the module under `module-root`, and the files
 # `project.readme` and `project.license-files` name. Patterns are
-# anchored, so `*.md` is the root's own markdown and reaches neither the
-# module's nor the website's, and `/**` is what recurses.
+# anchored, so `*.md` is the root's own markdown and does not reach the
+# module's, and `/**` is what recurses.
 #
 # Not that the lint gate is runnable from an unpacked sdist: it is not,
 # and no pattern here can make it so. .github is absent from the sdist
@@ -242,13 +242,6 @@ required-version = ">=0.12.1"
 # .pre-commit-config.yaml (`*.yaml`) is a hook's own file, and
 # .taplo.toml (`*.toml`) and .secrets.baseline are what a hook of it
 # reads.
-#
-# The Jekyll sources of btclib.org, which is served from this
-# repository's root, are named nowhere here: they are tracked and
-# deliberately absent from the sdist, and no pattern above adds them, so
-# no exclusion has to take them back out. Where that absence is declared
-# is [tool.check-sdist] git-only below, the configuration of the tool
-# that asks the question
 source-include = [
     "*.jsonc",
     "*.md",
@@ -348,17 +341,11 @@ package = ["src/btclib"]
 # tracked files the sdist is meant not to carry. What
 # [tool.uv.build-backend] source-exclude names is not repeated here:
 # check-sdist reads that list for the uv backend, so this holds only
-# what no include pattern adds in the first place -- the website, the
-# workspaces of an editor and of an agent, the two files git and a
-# link checker read, and COPYRIGHT, which `project.license-files` above
-# does not name.
-#
-# btclib.org is served from this repository's root, so the Jekyll
-# sources sit beside the library: naming them here says they are
-# deliberately absent in the configuration of the tool that asks the
-# question, rather than as backend exclusions matching nothing any
-# include added. Patterns are gitignore's, so a directory covers what is
-# under it at any depth.
+# what no include pattern adds in the first place -- the workspaces of
+# an editor and of an agent, the two files git and a link checker read,
+# and COPYRIGHT, which `project.license-files` above does not name.
+# Patterns are gitignore's, so a directory covers what is under it at
+# any depth.
 #
 # check-sdist's own default ignore list already carries .github, which
 # is why the ignore list of the links workflow needs an entry here and
@@ -374,12 +361,7 @@ git-only = [
     ".gitattributes",
     ".lycheeignore",
     ".vscode/",
-    "CNAME",
     "COPYRIGHT",
-    "Gemfile",
-    "_config.yml",
-    "_layouts/",
-    "assets/",
     "fuzz/",
 ]
 
@@ -560,8 +542,8 @@ ignore-regex = '`[^`]*`'
 # run. That is the blindness the #161 entry in CHANGELOG.md records and
 # worked around by splitting identifiers by hand; typos splits
 # hyphens, snake_case and camelCase itself. Its dictionary also has
-# entries codespell's lacks, `bitcon` -- in README.md, which is both the
-# btclib.org homepage and the PyPI long description -- and `threshould`.
+# entries codespell's lacks, `bitcon` -- in README.md, which is the PyPI
+# long description -- and `threshould`.
 # One thing typos does not read is this file: measured, pyproject.toml is
 # skipped even under --isolated, its own configuration not being something
 # a spell checker can sensibly check. Everything below is therefore
@@ -628,13 +610,6 @@ OP_SUCCESSx = "OP_SUCCESSx"
 # then be one this repository never mentions. Fixed upstream or not, the
 # pinned revision in tests/_data/README.md is what this has to match
 UNKNWON_DEVICE_TYPE = "UNKNWON_DEVICE_TYPE"
-# GitHub Pages' name-with-owner variable, read by the Jekyll layout, and
-# the environment variable website.yml passes the same value in. The hook
-# runs with --write-changes, so without these two lines it rewrites `NWO`
-# as `NOW` and the build loses the repository whose metadata it was
-# resolving
-repository_nwo = "repository_nwo"
-PAGES_REPO_NWO = "PAGES_REPO_NWO"
 # Bitcoin Core's own name for the serialization parameters of an address,
 # `Ser` for serialize where the dictionary reads a misspelt `Set`
 # (src/protocol.h). src/btclib/p2p/address.py cites it, the hook runs

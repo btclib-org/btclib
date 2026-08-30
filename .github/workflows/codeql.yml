@@ -21,13 +21,14 @@ name: codeql
 #   #  "query_suite":"default","threat_model":"remote",
 #   #  "schedule":"weekly","runner_type":"standard"}
 #
-# Ruby was not in that list and is not in the matrix below, which is
-# worth a word because default-setup runs here did carry an
-# `Analyze (ruby)` job: GitHub Pages serves btclib.org from main's root,
-# so a Gemfile sits beside the library and autodetection saw it. It
-# analysed nothing, and the evidence is the results rather than the
-# absence of the job -- 263 ruby analyses ran here, the last on
-# 2026-07-30, and every one of them found zero:
+# Ruby is in neither that list nor the matrix below, and there is no
+# Ruby in this tree for either to analyse. It is worth a word all the
+# same, because default-setup runs here did carry an `Analyze (ruby)`
+# job: autodetection had a Gemfile to see, this repository having served
+# a Jekyll site from its root until btclib-org/.github#530 moved that to
+# the organization site. The job analysed nothing, and the evidence is
+# the results rather than the absence of the job -- 263 ruby analyses
+# ran here, the last on 2026-07-30, and every one of them found zero:
 #
 #   gh api --paginate \
 #     "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \

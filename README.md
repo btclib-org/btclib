@@ -52,7 +52,7 @@ says how the choice is enforced.
 
 ---
 
-[btclib](https://btclib.org) is a Python
+[btclib](https://btclib.readthedocs.io/) is a Python
 [type annotated](https://docs.python.org/3/library/typing.html) library
 for teaching, learning and using bitcoin, focused on elliptic curve
 cryptography and bitcoin's blockchain. It started as a teaching tool for

@@ -36,6 +36,19 @@ full year, short month, short day (YYYY-M-D)
   `"MIT License"`. `btclib.__version__` and `btclib.__copyright__` are
   unaffected.
 
+### Worth knowing, though nothing raises
+
+- **`btclib.org` is no longer this project's site, and this repository
+  serves none** (issue btclib-org/.github#530). The domain is the
+  btclib-org organization's page now, and it says what the organization
+  is rather than documenting the library.
+
+  Act on it if you have `btclib.org` bookmarked or linked: the
+  documentation is <https://btclib.readthedocs.io/>, which
+  `[project.urls] homepage` names and which the package index shows as
+  this project's home. Nothing in the library changes, and no import,
+  symbol or behaviour moves with it.
+
 ## v2026.8.29
 
 ### Worth knowing, though nothing raises

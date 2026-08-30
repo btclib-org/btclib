@@ -5,8 +5,7 @@
 # Here rather than at the repository root, unlike .lycheeignore: cosmic-ray
 # takes the path of its configuration as an argument, so nothing forces a
 # name or a place, and .github/ is the one directory check-sdist already
-# ignores and Jekyll never serves -- a root file would need an entry in
-# [tool.check-sdist] and another in _config.yml's exclude list to say
+# ignores -- a root file would need an entry in [tool.check-sdist] to say
 # what its location says here.
 #
 # Two files and not one, though `module-path = "src/btclib/script"` with the

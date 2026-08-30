@@ -276,9 +276,12 @@ evaluate — and nothing outside a browser can say what they said, which is
 most of the reason nobody read them.
 
 `Analyze (ruby)` is the plainest half of it: there is no Ruby in this
-library. Pages serves btclib.org from `main`'s root, so a `Gemfile` sits
-beside the package and autodetection reads a Ruby project; `codeql.yml`
-excludes Ruby from its own matrix for that same reason.
+library. A `Gemfile` sat beside the package for as long as this
+repository served a Jekyll site from `main`'s root, and autodetection
+read a Ruby project from it. `codeql.yml`'s `matrix.language` names
+`actions` and `python` and nothing else — an absence rather than an
+exclusion, there being no Ruby for either configuration to analyse —
+and that workflow's own header carries the measurement.
 
 `state=configured` is the way back, and the argument for it is that these
 queries are a class of finding nothing else here makes: ruff, mypy and the
@@ -579,43 +582,41 @@ it — the same call against `testpypi` 404s, where it answers for `pypi`
 `release.yml`'s own `workflow_dispatch` trigger is what narrows it
 further.
 
-## Pages
+## Pages, which this repository does not use
 
-**The website is this repository's own root**, served by GitHub Pages,
-and the three things that decide it are settings rather than files:
+**There is no site here, and the endpoint that would describe one
+answers with its absence.** It has no body worth reading, so what is
+asked for is the status alone, the way `vulnerability-alerts` is asked
+below:
 
 ```shell
-gh api repos/btclib-org/btclib/pages \
-  --jq '{cname, build_type, source, https_enforced}'
-# {"cname": null, "build_type": "legacy",
-#  "source": {"branch": "main", "path": "/"}, "https_enforced": true}
+gh api -i repos/btclib-org/btclib/pages 2>/dev/null | head -1
+# HTTP/2.0 404 Not Found
 ```
 
-`source` is what makes `README.md` the homepage and every other file in
-the root a URL under the site — CONTRIBUTING.md's "The website" section
-is what that costs and `_config.yml`'s `exclude:` is what limits it.
-Moving the source to `/docs` or to another branch would republish the site
-as whatever that path holds, silently and immediately.
+`--jq` is the wrong tool for it and quietly so: on an error response `gh`
+bypasses the filter and prints the whole body, which carries no trailing
+newline, so a `2>&1 | tail -1` returns that body with the error line
+glued to its end rather than the error line on its own.
 
-`build_type: legacy` is the classic Jekyll builder, and it is the reason
-`website.yml` exists. GitHub runs it on its own side, keeps no log a
-maintainer can read, and reports a failure nowhere: a layout it cannot
-render is served broken until somebody fetches the page. The workflow
-builds the same site with the same gem, where a failure is a red check.
-`build_type: workflow` would replace that builder with an Actions workflow
-and make the failure visible by itself; it is a change of its own, and
-what it costs is a deploy that no longer happens by pushing to `main`.
+This repository served `btclib.org` from `main`'s root with the classic
+Jekyll builder, and btclib-org/.github#530 is the decision that moved
+the organization's domain above any one tree: it is
+`btclib-org/btclib-org.github.io` that serves it now, from a homepage
+derived from the organization's own `profile/README.md`. What that
+leaves here is nothing to configure — no `_config.yml` deciding which
+root files become URLs, no `Gemfile` pinning a builder, no `website.yml`
+asking whether the site still renders, and no `CNAME`.
 
-**`cname` is `null`: this repository holds no custom domain.**
-`btclib.org` was its project site's, and btclib-org/.github#530 is the
-decision that gives the organization's domain a role above any one tree,
-together with the sequence that moves it. A domain belongs to one
-repository at a time, so releasing it here is what lets another claim
-it, and Pages reads the claim from a `CNAME` in the built site — which
-is why the release is the deletion of that file rather than a settings
-call. Whichever tree holds it answers for it in its own
-`REPOSITORY.md`, this one having no call that reads another
-repository's setting for it.
+**What a reader is sent to instead is the documentation**, which is the
+*Read the Docs* section below and is what `[project.urls] homepage`
+names. The two were never the same thing, and only one of them was ever
+built from the library.
+
+Turning Pages back on is a settings change and not a pull request, and
+it would republish `main`'s root as whatever Jekyll makes of a tree that
+now has no site sources — `README.md` as a themeless homepage, and every
+root file beside it a URL, `exclude:` being the list that is gone.
 
 ## Read the Docs, which is btclib.readthedocs.io
 
@@ -664,9 +665,8 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
 
   `[project.urls] homepage` in `pyproject.toml` carries the identical
   string (issue btclib-org/.github#533): a releasing tree's home is its
-  own documentation, which is what the two fields name and what
-  `btclib.org` never was, the *Pages* section above recording that this
-  repository holds no domain at all.
+  own documentation, and this is the only site this repository has, the
+  *Pages* section above recording that it serves none.
 
 Tags older than the rule are mostly not activatable rather than merely not
 activated: a build needs `.readthedocs.yaml`, which reaches back to
@@ -904,7 +904,9 @@ section that uses it.
 for.** [Section 11's *Pages and Read the
 Docs*](https://github.com/btclib-org/.github/blob/main/README.md#pages-and-read-the-docs)
 asks for the source, the build type and the CNAME, and for what `latest`
-and `stable` follow; those are above. The Read the Docs project answers
+and `stable` follow; the first three are answered above by the endpoint's
+404, there being no site here, and the last two are above too. The Read
+the Docs project answers
 for more than the `default_branch` and `default_version` read back there,
 `privacy_level`, `single_version` and `versioning_scheme` among them, and
 its redirects and its environment variables are not in that document at
