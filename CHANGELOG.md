@@ -466,6 +466,23 @@ documented at release-notes length in the first place, and are still in
   both rewrote a bullet already in that section in place rather than adding
   one, so there is nothing left in it to relocate.
 
+- **`release.yml`'s comments on `needs: public-api` name the ordering the
+  graph produces** (closes #1536). The entry does not put the surface check
+  ahead of the platform sweeps: `public-api` carries no `needs:` of its own
+  and starts when the run does, beside them. What it orders is the publish,
+  `publish-testpypi` and `publish-pypi` each listing it, so a release reaches
+  an index only after the surface has been read.
+
+- **Every workflow-status badge in `README.md` carries `?branch=main`**
+  (closes #1467) (issue btclib-org/.github#579). Section 2 of the
+  organization standard is where that is decided and why. The issue was
+  filed on the `fuzz` badge alone and this is the whole row, a half
+  qualified one leaving a reader no way to tell which badges answer for
+  `main`. Every one of them answers with a state under the qualifier
+  rather than `no status`, so none needed a `workflow_dispatch` run on
+  `main` to seed the first one, which section 2 asks of a tree that lands
+  the badge.
+
 ### The public API and the module layout
 
 - **`btclib.__author__`, `__author_email__` and `__license__` are gone**
