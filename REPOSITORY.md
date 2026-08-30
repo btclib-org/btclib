@@ -24,9 +24,8 @@ quality analysis running, so stopping it is a decision of this
 repository's.
 
 Where an answer has a copy in the tree, the section recording it says so:
-`CNAME` carries the Pages custom domain, and `pyproject.toml` carries the
-topics as `keywords` and the documentation site as `[project.urls]
-homepage`.
+`pyproject.toml` carries the topics as `keywords` and the documentation
+site as `[project.urls] homepage`.
 
 ## Required checks on main
 
@@ -580,20 +579,20 @@ it — the same call against `testpypi` 404s, where it answers for `pypi`
 `release.yml`'s own `workflow_dispatch` trigger is what narrows it
 further.
 
-## Pages, which is btclib.org
+## Pages
 
-**The website is this repository's own root**, served by GitHub Pages, and
-the three things that decide it are settings rather than files:
+**The website is this repository's own root**, served by GitHub Pages,
+and the three things that decide it are settings rather than files:
 
 ```shell
 gh api repos/btclib-org/btclib/pages \
   --jq '{cname, build_type, source, https_enforced}'
-# {"cname": "btclib.org", "build_type": "legacy",
+# {"cname": null, "build_type": "legacy",
 #  "source": {"branch": "main", "path": "/"}, "https_enforced": true}
 ```
 
 `source` is what makes `README.md` the homepage and every other file in
-the root a URL under btclib.org — CONTRIBUTING.md's "The website" section
+the root a URL under the site — CONTRIBUTING.md's "The website" section
 is what that costs and `_config.yml`'s `exclude:` is what limits it.
 Moving the source to `/docs` or to another branch would republish the site
 as whatever that path holds, silently and immediately.
@@ -607,10 +606,16 @@ builds the same site with the same gem, where a failure is a red check.
 and make the failure visible by itself; it is a change of its own, and
 what it costs is a deploy that no longer happens by pushing to `main`.
 
-`cname` is the custom domain, and `CNAME` in the root is the same value: A
-records for `btclib.org` and the `https_enforced` certificate hang off it.
-The file is what Pages reads on each build, so deleting it from the tree
-un-sets the setting on the next push.
+**`cname` is `null`: this repository holds no custom domain.**
+`btclib.org` was its project site's, and btclib-org/.github#530 is the
+decision that gives the organization's domain a role above any one tree,
+together with the sequence that moves it. A domain belongs to one
+repository at a time, so releasing it here is what lets another claim
+it, and Pages reads the claim from a `CNAME` in the built site — which
+is why the release is the deletion of that file rather than a settings
+call. Whichever tree holds it answers for it in its own
+`REPOSITORY.md`, this one having no call that reads another
+repository's setting for it.
 
 ## Read the Docs, which is btclib.readthedocs.io
 
@@ -659,8 +664,9 @@ curl -s https://app.readthedocs.org/api/v3/projects/btclib/ \
 
   `[project.urls] homepage` in `pyproject.toml` carries the identical
   string (issue btclib-org/.github#533): a releasing tree's home is its
-  own documentation, not `btclib.org`, which the *Pages* section above
-  still serves and which the two fields no longer name.
+  own documentation, which is what the two fields name and what
+  `btclib.org` never was, the *Pages* section above recording that this
+  repository holds no domain at all.
 
 Tags older than the rule are mostly not activatable rather than merely not
 activated: a build needs `.readthedocs.yaml`, which reaches back to

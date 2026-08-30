@@ -296,6 +296,15 @@ documented at release-notes length in the first place, and are still in
   Sigstore OIDC exchange; the review gate the sentence was arguing for
   still holds, `attest` only running via `needs:` after a publish job
   succeeds, but the sentence itself was false (shipped in v2026.8.27).
+- **`btclib.org` is released: this repository holds no custom domain**
+  (issue btclib-org/.github#530). The domain was this repository's
+  project site, and the decision on that issue gives the organization's
+  domain a role above any one tree. A domain belongs to one repository
+  at a time, so the release is what lets another claim it; Pages reads
+  the claim from a `CNAME` in the built site, which is why releasing it
+  is the deletion of that file rather than a settings call.
+  `REPOSITORY.md`'s *Pages* is where the endpoint is read back. The site
+  itself stays for now, and the same issue's step 5 is what removes it.
 
 ### Packaging, linting and CI
 
