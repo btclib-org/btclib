@@ -64,20 +64,3 @@ updates:
         patterns: ["*"]
     cooldown:
       default-days: 7
-
-  # the Gemfile, which is btclib.org rather than the library: one gem,
-  # github-pages, pinned to the version GitHub's own Pages builder runs.
-  # Nothing installs it to serve the site -- that build happens on
-  # GitHub's side -- so what a bump means here is that the builder itself
-  # moved, and website.yml is what then answers whether the site still
-  # renders under it. Ungrouped, a single gem having nothing to group
-  # with, and the cooldown left at the default above: this one tracks a
-  # release GitHub has already deployed, so the week is a formality rather
-  # than a quarantine
-  - package-ecosystem: bundler
-    directory: /
-    schedule:
-      interval: weekly
-      day: thursday
-    cooldown:
-      default-days: 7

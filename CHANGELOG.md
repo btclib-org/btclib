@@ -305,6 +305,28 @@ documented at release-notes length in the first place, and are still in
   is the deletion of that file rather than a settings call.
   `REPOSITORY.md`'s *Pages* is where the endpoint is read back. The site
   itself stays for now, and the same issue's step 5 is what removes it.
+- **This repository publishes no website, and the Jekyll sources that
+  served one are gone** (issue btclib-org/.github#530): `_config.yml`,
+  the `Gemfile`, `_layouts/`, `assets/` and `website.yml`, with
+  dependabot's `bundler` ecosystem, which existed to move the pinned
+  `github-pages` release. Pages is disabled on the repository, so the
+  endpoint `REPOSITORY.md` reads back answers 404. What a reader is sent
+  to is `btclib.readthedocs.io`, which `[project.urls] homepage` already
+  named, and `README.md`'s own opening link now names it too rather than
+  a domain this repository no longer holds.
+
+  The reach is wider than those files, every one of them having had a
+  reason written beside it: `CONTRIBUTING.md` loses *The website* and
+  the `website` row of *What runs when*; `REVIEWING.md` asks what a new
+  root file does to the distribution rather than to a page;
+  `RELEASING.md` verifies the documentation alone; `test.yml`'s
+  `paths-ignore` keeps the root markdown and drops the site sources,
+  saying which two of those files a test does read;
+  `[tool.check-sdist]`'s `git-only` and `[tool.typos]`'s identifier
+  allowlist lose the entries that existed for a Jekyll build; and
+  `codeql.yml`'s `matrix.language` is unchanged, Ruby being absent from
+  it rather than excluded, with the measurement of what default setup's
+  own `Analyze (ruby)` job ever found kept where it is.
 
 ### Packaging, linting and CI
 

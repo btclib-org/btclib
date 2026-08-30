@@ -312,11 +312,10 @@ to `deps-latest`'s own result.
 
    Then verify the
    [read the docs](https://app.readthedocs.org/projects/btclib/builds/)
-   build, and that [the website](https://btclib.org) and the
-   [documentation](https://btclib.readthedocs.io/en/latest/) render
-   correctly. Read the *builds* page and not only the rendered one: a
-   site that answers 200 may be serving the last build that succeeded,
-   which for three years was v2023.7.12's — the webhook had been
+   build, and that the [documentation](https://btclib.readthedocs.io/en/latest/)
+   renders correctly. Read the *builds* page and not only the rendered
+   one: a site that answers 200 may be serving the last build that
+   succeeded, which for three years was v2023.7.12's — the webhook had been
    refusing every delivery with a 400 and nobody was told (issue #484).
    This is the half no check covers: `latest` is the tip of `main`, so
    nothing names a version to ask about. The tag's own build is asked

@@ -489,7 +489,6 @@ read by every checkout of this repository.
 | `test` | pull request, push | — |
 | `lint`, `docs` | pull request, push | — |
 | `integration-bitcoind` | pull request, push, weekly | a node |
-| `website` | pull request, push, on website files | — |
 | `claude-review` | pull request, and `@claude` in a comment | — |
 | `codeql` | pull request, push to main, and weekly | 2 languages |
 | `fuzz` | weekly, and by hand before a release | — |
@@ -517,10 +516,6 @@ The `test`, `lint`/`docs` and `integration-bitcoind` rows are what a
 merge waits for, and between them they report the required checks: `lint`
 and `docs` share a row and report one each. They run one image on one
 interpreter: `ubuntu-latest`, and the version `.python-version` names.
-`website` is not among them: it carries a `paths` filter, and a required
-check that a filtered trigger can skip would block a merge the filter
-was meant to let through, which is the workflow's own reason for staying
-optional.
 
 Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
@@ -1084,7 +1079,7 @@ grep -rn 'href="#\./' docs/build/html --include='*.html'
 ```
 
 A link between the root markdown files — `./SECURITY.md` in README.md, the
-spelling GitHub, btclib.org and PyPI need and the one lychee checks — is
+spelling GitHub and PyPI need and the one lychee checks — is
 one sphinx cannot resolve on its own, and what MyST emits for a target it
 cannot resolve is an anchor on the page it is already on rather than a
 warning. `docs/source/conf.py` resolves those links and suppresses no
@@ -1110,76 +1105,6 @@ GitHub's runners are where it happens. It runs on every pull request now,
 alongside `push` to `main` and its weekly schedule, so its findings reach
 a branch before a merge rather than only after one; `REPOSITORY.md` has
 why it is still not a required check.
-
-### The website
-
-**btclib.org is this repository.** GitHub Pages serves it from `main`'s
-root, so a set of files at the top level are website sources rather than
-Jekyll leftovers, which is the opposite of the natural first assumption:
-
-```shell
-gh api repos/btclib-org/btclib/pages
-# {"cname": null, "build_type": "legacy",
-#  "source": {"branch": "main", "path": "/"}}
-```
-
-What that makes live:
-
-| file | role |
-| --- | --- |
-| `README.md` | **the homepage**: there is no `index.md` |
-| `_config.yml` | the site title, description, logo, theme and exclude list |
-| `_layouts/default.html` | the page template, header and footer |
-| `assets/` | the logo, the stylesheet and `scale.fix.js` |
-| `CNAME` | the custom domain; Pages reads it from the built site |
-| `Gemfile` | the `github-pages` gem, pinned to what Pages runs |
-
-Three consequences worth knowing before editing any of them:
-
-- **every README edit is a website deploy.** The README is also the PyPI
-  long description, so a typo in it is visible in three places: GitHub,
-  btclib.org and the PyPI project page.
-- **every other file in main's root is a URL under btclib.org** unless
-  `_config.yml`'s `exclude:` says otherwise, the library itself included:
-  drop that list's `src/` and `pyproject.toml` entries and
-  `btclib.org/pyproject.toml` and `btclib.org/src/btclib/alias.py` answer
-  with their own contents. A new top-level file is published by default;
-  add it to `exclude:` if it should not be.
-- **the build is the classic Pages builder** (`build_type: legacy`), so
-  there are no build logs and no control over the Jekyll or theme version.
-  A broken template fails silently: the layout served
-  `<script src="/%20/assets/js/scale.fix.js">` for as long as it took
-  someone to fetch the page and read the HTML. `website.yml` is the answer
-  to that: it builds the same site with the same gem on every pull request
-  touching a file above, and fails on a build error, on `%20` in a built
-  URL, and on a missing homepage. It is not a required check — it carries a
-  `paths` filter, and a required check that produces no run blocks a merge.
-
-Because Pages serves from `main`, a website-only commit there also
-triggers the whole gate; `test.yml`'s `push` trigger carries a
-`paths-ignore` for these files so that it does not. The `pull_request`
-trigger deliberately does not: those checks are required on `main`, and a
-required check that produces no run blocks the merge.
-
-To preview locally, with Ruby and Bundler installed — `bundle exec jekyll
-build` is what `website.yml` runs, and `serve` is the same build with a
-server in front of it:
-
-```shell
-bundle install
-bundle exec jekyll serve
-```
-
-The `github-pages` gem is pinned to the version GitHub's builder runs, and
-<https://pages.github.com/versions.json> is what says which that is: it
-carries the Ruby, the Jekyll and the theme too, and the gem pins its own
-dependency set exactly, so there is no `Gemfile.lock` here to keep in
-step. Dependabot's bundler ecosystem moves that pin, which turns a Pages
-upgrade into a pull request the build above runs against.
-
-That is the one part of this project not driven by `uv`, and it is only a
-preview: what btclib.org serves is whatever the classic builder makes of
-`main`.
 
 ### Breaking a caller is not an argument
 

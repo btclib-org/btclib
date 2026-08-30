@@ -125,9 +125,6 @@ ENV/
 .DS_Store
 btclib.prof
 
-_site/
-.sass-cache/
-Gemfile.lock
 ~*.docx
 
 .pytest_cache/
