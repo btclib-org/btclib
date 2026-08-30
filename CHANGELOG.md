@@ -446,6 +446,19 @@ documented at release-notes length in the first place, and are still in
   *Plan-gated settings* for the ceiling's figure (issue
   btclib-org/.github#412).
 
+### Tests
+
+- **`tests/interpreters_test.py` gates the `Free Threading` classifier
+  on the merge gate running a free-threaded build** (closes #1539, issue
+  btclib-org/.github#577). Section 3 of the organization standard
+  declares the classifier where the gate exercises that build and names
+  the enforcement: the biconditional that gates the PyPy classifier,
+  with the gate's own interpreters as its second side. That side is
+  `test.yml` and not the platform sweeps, whose `3.14t` cell runs beside
+  a landing and blocks nothing — a sweep passing is the ground the
+  standard declines. Neither side holds in this tree, so the test lands
+  green, and it goes red on whichever side moves alone.
+
 ## v2026.8.29
 
 ### Repository
