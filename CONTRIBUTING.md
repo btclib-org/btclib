@@ -1119,7 +1119,7 @@ Jekyll leftovers, which is the opposite of the natural first assumption:
 
 ```shell
 gh api repos/btclib-org/btclib/pages
-# {"cname": "btclib.org", "build_type": "legacy",
+# {"cname": null, "build_type": "legacy",
 #  "source": {"branch": "main", "path": "/"}}
 ```
 
