@@ -459,6 +459,28 @@ documented at release-notes length in the first place, and are still in
   standard declines. Neither side holds in this tree, so the test lands
   green, and it goes red on whichever side moves alone.
 
+### `REPOSITORY.md`'s perimeter is section 11's
+
+- **The scope statement carries section 11's three limbs in the
+  standard's own words** (issue btclib-org/.github#582), the third --
+  the settings a behaviour the standard describes rests on -- being what
+  admits `.visibility` and `has_issues` below.
+- **`.visibility` and `has_issues` are read back, under *Features***
+  (issue btclib-org/.github#584, issue btclib-org/.github#550): section
+  10's `scorecard` sentinel reads a public repository and nothing else,
+  and `CONTRIBUTING.md`'s tracker rule rests on the issues switch, which
+  the foot no longer carries as a premise outside the perimeter.
+- **`has_wiki` and `has_projects` are outside the perimeter** (issue
+  btclib-org/.github#550), by section 11's sentence rather than as a
+  question the foot held open.
+- **`squash_merge_commit_title` and `squash_merge_commit_message` are in
+  the merge-settings object** (issue btclib-org/.github#568), read back
+  here beside the flags. `CONTRIBUTING.md`'s *What a squash writes here*
+  keeps what a squash writes and why and points here for the value,
+  dropping the second call and the second answer it carried: section 9
+  gives one fact one place, and section 11 makes this file the home for
+  a setting.
+
 ## v2026.8.29
 
 ### Repository

@@ -1617,13 +1617,9 @@ for a private advisory, or for an email if you would rather not open one.
 ### What a squash writes here
 
 What the landing commit says is a repository setting and not a decision
-made once per pull request, so there is one place to read it from:
-
-```shell
-gh api repos/btclib-org/btclib --jq \
-  '{t: .squash_merge_commit_title, m: .squash_merge_commit_message}'
-# {"t": "COMMIT_OR_PR_TITLE", "m": "COMMIT_MESSAGES"}
-```
+made once per pull request, so there is one place to read it from, and
+it is REPOSITORY.md's *Merge methods*: the two `squash_merge_commit_*`
+settings are recorded there, beside the call that answers them.
 
 A branch of one commit therefore lands under that commit's own subject, a
 branch of several under the pull request's title with its number, and the
