@@ -209,6 +209,29 @@ documented at release-notes length in the first place, and are still in
   `github-pages`'s branch restriction is gone; the branch Pages serves
   is what *Pages, which is btclib.org*'s own `source.branch` already
   answers.
+- **`REPOSITORY.md`'s *Code quality* readback names `python` alone**
+  (issue btclib-org/.github#530). Autodetection listed `ruby` for as long
+  as a `Gemfile` sat at the root, and removing the website took the
+  `Gemfile` with it, so `code-quality/setup` now answers
+  `{"state":"not-configured","languages":["python"], ...}`. The control is the
+  tree that took the site: the same call against
+  `btclib-org/btclib-org.github.io`, which holds a `Gemfile` and no
+  Python, answers `["ruby"]`. The section's argument is unchanged —
+  `state=configured` is still the way back, and what an `Analyze (ruby)`
+  job ever found is still what an argument against taking it rests on;
+  the `Gemfile` autodetection saw is what is gone, not the finding.
+- **The same section reads its job count off a pull request instead of
+  stating one** (closes #1549). Section 9 of the organization standard
+  refuses a figure in prose that nothing re-derives, and this one was
+  load-bearing rather than decorative — the argument is that two CodeQL
+  jobs mattered *against a ceiling*, so the sentence keeps the argument
+  and the figure becomes a call. It was never one number in any case:
+  `check-runs` answers 14 and 15 on the two pull requests open when this
+  was written. The call is on an *open* head, and the section says why:
+  every workflow that triggers on a pull request takes `closed` in its
+  `types:` bar `claude-review.yml`, so a merged head carries a second,
+  wholly skipped set of runs on top of the first — 23 on PR 1546's, one
+  of which succeeded.
 
 ### Documentation and the website
 
