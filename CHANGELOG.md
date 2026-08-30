@@ -182,6 +182,18 @@ documented at release-notes length in the first place, and are still in
   back to green would be to delete the regression. What that gate is for
   is keeping this fuzzer's own starting point honest as the parsers move
   under it (shipped in v2026.8.29).
+- **`CLAUDE.md`'s *Non-obvious facts* names the divergence between a
+  config-level `exclude` and a path named on the command line.** The
+  bare command a gate runs and the natural gesture of formatting the
+  file just touched answer differently, and nothing says which was
+  asked; enforcing the exclude against an explicit path is a switch of
+  its own, which `typos` carries in its hook args and `[tool.ruff]` in
+  `force-exclude`. The bullet names what it costs where the switch is
+  absent — a fenced python block rewritten inside a tag-sealed section,
+  and `tests/changelog_immutability_test.py` red on the result — why
+  the divergence does not reach `[tool.mypy]`'s `exclude` at all, for an
+  unrelated reason, and the command that answers from the tool rather
+  than from the file, in the two key groups it splits the answer across.
 
 ### Documentation and the website
 
