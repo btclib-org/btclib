@@ -525,6 +525,41 @@ documented at release-notes length in the first place, and are still in
   `CONTRIBUTING.md` carries are overridden by the token, which
   btclib-org/.github#630 weighs.
 
+### `release.yml`'s documentation wait is a script with a test
+
+- **The `documented` job runs
+  `.github/scripts/wait_for_readthedocs_build.py`** (issue
+  btclib-org/.github#573). A tag push is the only trigger that reaches
+  the wait, so a shell loop kept in the workflow is first executed on the
+  day a release depends on it. The script is what
+  `tests/wait_for_readthedocs_build_test.py` substitutes a transport and
+  a clock into, and that test is what drives the retry, the deadline and
+  the `::error::` naming the builds page. The job checks out
+  `.github/scripts`, plus the repository root that cone mode always
+  lands, and runs the script under `--no-project`, which is the shape
+  `pypi-install.yml`'s wait job already has.
+- **The request carries a `User-Agent`.** The Cloudflare zone in front
+  of read the docs bans the interpreter's own default
+  (`Python-urllib/3.14`) outright, so a request sent without one is a
+  403 on every attempt against a tag that is in fact served, and the
+  wait would burn its whole deadline and annotate an error on every
+  release. `curl`, which the loop this replaces called, is not banned,
+  so the loop never needed one.
+- **The budget is a deadline rather than a count of attempts**, so there
+  is one number to compare with the job's own `timeout-minutes`, where
+  attempts times an interval is a product to multiply out first -- the
+  arithmetic of issue #1165. The loop this replaces was already inside
+  that timeout, so the deadline is chosen against the job's figure
+  rather than to repair it, and it leaves the annotation a margin the
+  wait cannot spend into. Every request is bounded by what is left of
+  the deadline as well as by its own timeout, so a connection that hangs
+  spends part of the wait rather than the whole of it.
+- **This takes no empty tag as nothing to wait for**, which is where it
+  parts from the release wait beside it: that one runs on every
+  schedule and dispatch and takes an empty version as nothing to do,
+  while `documented` is guarded by the event and a branch ref would
+  spend the whole deadline on a URL that answers 404 by construction.
+
 ## v2026.8.29
 
 ### Repository
