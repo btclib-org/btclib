@@ -158,6 +158,24 @@ Do not use Fable unless explicitly instructed.
   each entry with `os.path.isdir`: `"btclib"` fails that test and is
   matched against import names instead, which is why the `src/` layout
   move left the line unchanged.
+- **A config-level `exclude` does not reach a path named on the command
+  line**, so the bare command a gate runs and the natural gesture —
+  formatting the file just touched — answer differently, with nothing
+  saying which one you asked. Enforcing an exclude against an explicit
+  path is its own switch, and the tools here that need it say so:
+  `typos` passes `--force-exclude` in its hook args, and
+  `[tool.ruff] force-exclude` covers `[tool.ruff.format]`'s `exclude`.
+  Lacking it, `ruff format CHANGELOG.md` rewrites a fenced python block
+  inside a tag-sealed section, which
+  `tests/changelog_immutability_test.py` then fails on. The divergence
+  does not reach `[tool.mypy]`'s `exclude`, for an unrelated reason —
+  its hook sets `pass_filenames: false` and names directories, so the
+  exclude applies by recursion. Ask the tool and not the file, and read
+  two key groups rather than one: `ruff check --show-settings` prints
+  the switch as `file_resolver.force_exclude` and the file names it
+  enforces as `formatter.exclude`, so `file_resolver.exclude`, which
+  holds ruff's built-in defaults, answers no for a file the formatter
+  does skip.
 - **`SECURITY.md`'s file:line citations are unchecked by any gate and
   drift silently.** An unrelated edit to a cited file shifts the line
   with nothing red; verify with `awk 'NR==N' <file>` against the
