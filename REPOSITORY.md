@@ -11,10 +11,11 @@ is recorded is the settings
 [the standard](https://github.com/btclib-org/.github/blob/main/README.md)
 asks about — the ones
 [section 16's checklist](https://github.com/btclib-org/.github/blob/main/README.md#16-checklists)
-sets on a new repository, and the ones a section of the standard states
-a rule for — together with whatever a call quoted for one of those answers
-alongside it. That is this file's scope, and *What this file passes
-over*, at the foot, says what falls outside it.
+sets on a new repository, the ones a section of the standard states a
+rule for, and the ones a behaviour it describes rests on — together with
+whatever a call quoted for one of those answers alongside it. That is
+this file's scope, and *What this file passes over*, at the foot, says
+what falls outside it.
 
 *Code quality* is recorded past that edge: no section of the standard
 states a rule about that setting, and it is here because turning off the
@@ -408,10 +409,14 @@ a particular signer.
 ```shell
 gh api repos/btclib-org/btclib \
   --jq '{allow_squash_merge, allow_merge_commit, allow_rebase_merge,
-         allow_auto_merge}'
+         allow_auto_merge, squash_merge_commit_title,
+         squash_merge_commit_message}'
+# {"allow_auto_merge":true,"allow_merge_commit":false,
+#  "allow_rebase_merge":false,"allow_squash_merge":true,
+#  "squash_merge_commit_message":"COMMIT_MESSAGES",
+#  "squash_merge_commit_title":"COMMIT_OR_PR_TITLE"}
 ```
 
-answers `true` for the first and the last, `false` for the middle two.
 `allow_auto_merge` is what makes "auto-merge presses it" above a setting
 this file reads back rather than a fact about a workflow: turned off,
 every landing here would wait for somebody to press *Squash and merge* by
@@ -447,9 +452,9 @@ on, with nothing asking again. One method is one entry: there is no wrong
 one to preselect, and nothing to read before pressing.
 
 What the commit a squash writes then says is
-`squash_merge_commit_title` and `squash_merge_commit_message`, which
-CONTRIBUTING.md reads back and explains, both being where a contributor
-meets them.
+`squash_merge_commit_title` and `squash_merge_commit_message`, the last
+two fields above; CONTRIBUTING.md explains the pair where a contributor
+meets it.
 
 ## Head branches after a merge
 
@@ -774,6 +779,22 @@ against this same ceiling. Whether that is worth paying for is a
 question for whoever would pay, and it is recorded here so that it is
 asked with the second column in view.
 
+## Features
+
+```shell
+gh api repos/btclib-org/btclib --jq '{visibility, has_issues}'
+# {"has_issues":true,"visibility":"public"}
+```
+
+Section 10's `scorecard` sentinel rests on the first answer: public is
+what it reads at all, so a flip to private leaves `scorecard.yml` and
+`README.md`'s badge standing while the run stops producing a score, and
+`.visibility` above is what puts that flip one command from being seen.
+
+`has_issues` is what `CONTRIBUTING.md`'s *The issue tracker* rests on —
+an issue about this tree alone stays here — and so does the
+`.github/ISSUE_TEMPLATE/` section 16's checklist gives every repository.
+
 ## Topics
 
 ```shell
@@ -805,9 +826,8 @@ diff <(gh api repos/btclib-org/btclib --jq '.topics[]' | sort) \
 ## What this file passes over
 
 The scope at the top is a perimeter, and this is its other edge: what an
-endpoint answers for and no section above reaches. What follows says of
-each which it is — outside that scope, or a question the standard has
-not answered.
+endpoint answers for and no section above reaches, each with the reason
+it stays outside.
 
 **What no call sets.** `gh api repos/btclib-org/btclib` answers with the
 repository document, most of which is URLs, counts and state GitHub
@@ -839,17 +859,11 @@ printf '%s' "$std" | grep -c delete_branch_on_merge  # not 0, which is
 Recording a field on no rule grows this file with GitHub's API rather
 than with the standard.
 
-**The wiki and the projects board are where that reasoning stops.**
-`has_wiki` and `has_projects` are in the same document and in no rule of
-the standard either, and what a `REPOSITORY.md` owes a reader about them
-is the open question of issue btclib-org/.github#550. Nothing here
-answers it.
-
-**The tracker is a premise rather than a setting.** `has_issues` is on,
-and the standard's own maintenance runs on the issue tracker —
-`CONTRIBUTING.md`'s *The issue tracker* is what a session reads before
-filing — so no section states it as a setting to read back. It is here as
-a premise of the process rather than as a field on no rule.
+**The wiki and the projects board are outside the perimeter by section
+11's own sentence**, which states no rule about either, so this file
+neither reads `has_wiki` and `has_projects` back nor explains an answer
+to them; that sentence is what the loop above would count, which is why
+the pair is not in its list.
 
 **A credential this repository does not hold.** `claude-review.yml`
 spends `secrets.CLAUDE_CODE_OAUTH_TOKEN`, and section 11 of the standard
