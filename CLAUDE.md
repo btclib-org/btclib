@@ -232,14 +232,21 @@ Do not use Fable unless explicitly instructed.
   It governs the workflows and the pre-commit config too: the reasoning with its
   negative results is what makes those files reviewable, so match it
   rather than trimming it.
-- **CHANGELOG.md gets an entry for anything a user would notice**, in
-  the group it belongs to; RELEASE_NOTES.md is the release notes on top
-  of it and only moves for a change a user has to *act* on. The prose of
-  the two is one fact each, deliberately: the breaking-changes list lives
-  in RELEASE_NOTES.md and the detail behind it in CHANGELOG.md, so
-  neither restates the other. A source-breaking change costs one edit
-  more: a bullet in RELEASE_NOTES.md's breaking-changes list, with the
-  "before" spelling checked against the `v2023.7.12` tag.
+- **CHANGELOG.md gets an entry for anything a user would notice**;
+  RELEASE_NOTES.md is the release notes on top of it and only moves for
+  a change a user has to *act* on. The prose of the two is one fact each,
+  deliberately: the breaking-changes list lives in RELEASE_NOTES.md and
+  the detail behind it in CHANGELOG.md, so neither restates the other. A
+  source-breaking change costs one edit more: a bullet in
+  RELEASE_NOTES.md's breaking-changes list, with the "before" spelling
+  checked against the `v2023.7.12` tag.
+- **A `###` in the open section names one entry, never a theme several
+  entries share** (issue btclib-org/.github#586): section 9 of the
+  organization standard rejects grouping by theme. Where the open
+  section already carries a heading that groups several entries under
+  one theme, that heading is landed text and stays as it is; a new entry
+  never joins it — it takes its own `###` heading at the end of the
+  section instead, naming only that entry.
 - **Never state how many of anything a file holds** — measure it when a
   release wants it, and do not estimate:
 
