@@ -575,7 +575,7 @@ repos:
   #
   #   uvx zizmor@1.29.0 --persona=auditor --no-progress .github/workflows/
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.29.0
+    rev: v1.30.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -597,7 +597,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.4
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -675,7 +675,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.6
+    rev: 0.12.7
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
@@ -724,7 +724,7 @@ repos:
     # having no notion of one -- it did so here and in pull request #315
     # before it. What a beta of the packaging checker would gate is the
     # release workflow, on a judgement its own author has not settled yet
-    rev: "5.0.1"
+    rev: "5.1b1"
     hooks:
       - id: pyroma
         # the backend, in pyroma's own environment. pyroma's command line
