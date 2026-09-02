@@ -575,6 +575,15 @@ repos:
   #
   #   uvx zizmor@1.29.0 --persona=auditor --no-progress .github/workflows/
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    # not 1.30.0 yet: its new self-repository audit flags every reusable-
+    # workflow and composite-action reference below that still reads
+    # `uses: ./...`, and its own auto-fix rewrites them to `uses: $/...`.
+    # That syntax is real GitHub, live since July 2026, but actionlint
+    # 1.7.12 (pinned further down) does not parse it and fails every one
+    # of those references as a malformed action reference instead. The
+    # bump waits on whichever lands first: an actionlint release that
+    # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
+    # workspace-relative references the thing to flag instead.
     rev: v1.29.0
     hooks:
       - id: zizmor
@@ -597,7 +606,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.4
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -675,7 +684,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.6
+    rev: 0.12.7
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
