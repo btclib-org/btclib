@@ -5,9 +5,11 @@ name: integration-bitcoind
 # a bitcoind to talk to. `tests/integration/` skips itself without
 # BTCLIB_INTEGRATION, so every other workflow reports those tests skipped
 # and nothing ever asks a real node whether btclib's psbt is one it will
-# relay. This is where that question is asked: a disposable regtest
-# bitcoind, the account export, the funding, the spend and the broadcast,
-# against Core itself.
+# relay, or whether Core still speaks the p2p octets this library emits
+# and parses. This is where both questions are asked: a disposable
+# regtest bitcoind, the account export, the funding, the spend and the
+# broadcast on one side, and a `Version` this library serialized dialled
+# straight at the node's p2p port on the other, against Core itself.
 #
 # `Regtest against Bitcoin Core` is a required check on main: what it
 # asks is whether Core accepts what this branch built, and the node is a
@@ -99,14 +101,15 @@ on:
     # check on main, and a required check that never runs blocks a merge
     # where a skipped one satisfies it -- a filter and a required check
     # cannot both be had. Every pull request pays it, documentation-only
-    # ones included, which is what 36 seconds of work buys
+    # ones included, and the job below is short enough that paying it is
+    # the cheaper side of the trade
 
 # least privilege for the GITHUB_TOKEN: nothing here writes, and the
 # tarball is fetched from bitcoincore.org, which does not know this token
 permissions:
   contents: read
 
-# the release under test, and the sha256 of its linux tarball as four
+# the release under test, and the sha256 of its linux tarball as the
 # independent guix builders attested it in bitcoin-core/guix.sigs. Pinned
 # rather than resolved to "latest": a run that installs whatever is
 # newest reports the day Core released rather than the day btclib
@@ -142,10 +145,12 @@ jobs:
     # holding
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
-    # the whole flow is seconds -- two tests, a node that answers its
-    # first rpc call in well under a second, and a chain of a few blocks
-    # -- so this bounds the download and the failure cases rather than
-    # the work
+    # the whole flow is seconds: the chain is mined locally on regtest
+    # and the node answers its first rpc call in well under a second, so
+    # this bounds the download and the failure cases rather than the
+    # work. Nothing here states how many tests the directory holds,
+    # which drifts as tests are added; `pytest tests/integration
+    # --collect-only -q` is that count whenever it is wanted
     timeout-minutes: 20
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -185,8 +190,8 @@ jobs:
       # whose fixture stopped finding the node would stay green while
       # asking Core nothing -- the failure mode of an unattended run that
       # looks like good news. The hwi tests skip here by design and are
-      # not counted; the regtest ones have a node, so a skip among them
-      # means a prerequisite this job thought it had provided
+      # not counted; the regtest and p2p ones have a node, so a skip
+      # among them means a prerequisite this job thought it had provided
       - name: Fail if the node tests did not run
         run: |
           uv run --locked --no-default-groups --group test python - <<'PY'
@@ -195,15 +200,15 @@ jobs:
 
           cases = ET.parse("integration.xml").getroot().iter("testcase")
           ran = [one for one in cases
-                 if "regtest" in one.get("classname", "")]
+                 if "hwi" not in one.get("classname", "")]
           skipped = [one for one in ran if one.find("skipped") is not None]
           for one in skipped:
               reason = one.find("skipped").get("message", "")
               print(f"::error::{one.get('name')} skipped: {reason}")
           if not ran or skipped:
-              print(f"::error::{len(ran)} regtest tests, {len(skipped)} skipped")
+              print(f"::error::{len(ran)} node tests, {len(skipped)} skipped")
               sys.exit(1)
-          print(f"{len(ran)} regtest tests ran against the node")
+          print(f"{len(ran)} node tests ran against the node")
           PY
       # always(), because a failure is what somebody opens this job for
       # and the report is what says whether the node refused the

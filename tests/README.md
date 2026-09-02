@@ -77,9 +77,12 @@ BTCLIB_INTEGRATION=1 uv run pytest tests/integration
 
 That runs the regtest flow — btclib exports an account, Core imports it,
 Core pays it, btclib builds and signs the spend, and the node accepts the
-transaction or the test fails. The node is this session's own: a data
-directory under pytest's `tmp_path` and an ephemeral port, so nothing
-reaches a node you are running. Name another binary with
+transaction or the test fails — and the p2p handshake: a `Version` this
+library serialized, sent over a socket straight at the node's p2p port,
+and read back against whatever Core answers with, up to and including
+`verack`. The node is this session's own: a data directory under
+pytest's `tmp_path` and ephemeral rpc and p2p ports, so nothing reaches a
+node you are running. Name another binary with
 `BTCLIB_BITCOIND=/path/to/bitcoind`.
 
 The HWI tests need a device as well, and a second switch for the one that
