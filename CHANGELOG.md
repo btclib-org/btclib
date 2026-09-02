@@ -709,6 +709,22 @@ documented at release-notes length in the first place, and are still in
   that reasoned about the default now point at that section instead of
   naming the value inline.
 
+### `tests/copyright_test.py` checks `conf.py`'s `author` without executing it
+
+- **The test added for issue #1519 stopped loading `docs/source/conf.py`
+  by path and executing it, and reads its `author = ...` line's source
+  text instead** (closes #1538). Executing the module runs its
+  unconditional top-of-file imports too -- `tomllib`, stdlib only from
+  3.11, and `docutils`/`sphinx`, installed only by the `docs` dependency
+  group -- which neither `test.yml`'s coverage jobs (`test`/`harness`,
+  no `docs`) nor `os-macos.yml`'s 3.10 cells carry, so the test failed
+  on every push and every scheduled macOS run; a contributor's own
+  `uv sync` installs every group including `docs`, so the failure never
+  reproduced locally as documented. The check itself is unchanged: that
+  `author` derives from `PYPROJECT`'s `authors` table rather than
+  repeating it as a literal, the same idiom `_pyproject_author` already
+  uses on `pyproject.toml` for the same reason.
+
 ## v2026.8.29
 
 ### Repository

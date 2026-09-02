@@ -47,16 +47,26 @@ reads `pyproject.toml`'s `authors` table the same way, through the
 `PYPROJECT` dict that file already parses for its own `release` and
 `BLOB` -- a derivation rather than a fourth vertex to compare, since
 unlike LICENSE and pyproject.toml above, `conf.py`'s copy has
-nowhere it needs to diverge from the source it names. The test below
-loads `conf.py` by path, the way it is not a package to import, and
-checks the read rather than a value that can no longer drift on its
-own.
+nowhere it needs to diverge from the source it names.
+
+Issue #1538: the test below used to load `conf.py` by path and execute
+it, the way it is not a package to import, and check the resulting
+`author` attribute. Executing the module also runs its unconditional
+top-of-file imports -- `tomllib`, stdlib only from 3.11, and
+`docutils`/`sphinx`, installed only by the `docs` dependency group --
+which neither the coverage jobs' `test`/`harness` groups nor
+os-macos's 3.10 cells carry, so the test failed everywhere but a
+contributor's own `uv sync`, which installs every group including
+`docs` and so never reproduces this locally. `_conf_author_expr`
+below reads the `author = ...` line's source text instead, the same
+idiom `_pyproject_author` above already uses on `pyproject.toml` and
+for the same reason: it checks that `author` derives from `PYPROJECT`
+rather than repeating it, without importing anything `conf.py`
+imports.
 """
 
-import importlib.util
 import re
 from pathlib import Path
-from types import ModuleType
 
 import btclib
 
@@ -64,6 +74,8 @@ _ROOT = Path(__file__).parents[1]
 _LICENSE_RE = r"Copyright \([Cc]\) (.+)"
 _COPYRIGHT_RE = r"Copyright \([Cc]\) \d{4}-\d{4} (.+)"
 _AUTHOR_RE = r'authors\s*=\s*\[\{\s*name\s*=\s*"([^"]+)"'
+_CONF_AUTHOR_RE = r"(?m)^author = (.+)$"
+_CONF_AUTHOR_EXPECTED = 'PYPROJECT["project"]["authors"][0]["name"]'
 
 
 def _license_holder() -> str:
@@ -88,15 +100,17 @@ def _pyproject_author() -> str:
     return match.group(1)
 
 
-def _conf_module() -> ModuleType:
-    """Load docs/source/conf.py by path: no package, so no import."""
-    path = _ROOT / "docs" / "source" / "conf.py"
-    spec = importlib.util.spec_from_file_location("conf", path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def _conf_author_expr() -> str:
+    """Return docs/source/conf.py's `author = ...` line, right-hand side.
+
+    Read as source text rather than executed: see issue #1538 in the
+    module docstring above for why executing conf.py is not an option
+    here.
+    """
+    text = (_ROOT / "docs" / "source" / "conf.py").read_text(encoding="utf-8")
+    match = re.search(_CONF_AUTHOR_RE, text)
+    assert match, "docs/source/conf.py has no top-level 'author = ...' line"
+    return match.group(1)
 
 
 def test_license_and_copyright_name_the_same_holder() -> None:
@@ -141,11 +155,10 @@ def test_no_duplicate_author_or_license_dunders() -> None:
 
 def test_conf_py_author_reads_pyproject_rather_than_repeating_it() -> None:
     """Sphinx's `author` is `pyproject.toml`'s, read back, not retyped."""
-    conf_author = _conf_module().author
-    pyproject_author = _pyproject_author()
-    assert conf_author == pyproject_author, (
-        f"docs/source/conf.py's author is {conf_author!r}, pyproject.toml's "
-        f"is {pyproject_author!r}. conf.py reads pyproject.toml's `authors` "
-        "table for this value (issue #1519); if the two differ here the "
-        "read itself, not a stale literal, is what to look at"
+    conf_author_expr = _conf_author_expr()
+    assert conf_author_expr == _CONF_AUTHOR_EXPECTED, (
+        f"docs/source/conf.py's author line reads {conf_author_expr!r}, not "
+        f"{_CONF_AUTHOR_EXPECTED!r}. conf.py should read pyproject.toml's "
+        "`authors` table for this value (issue #1519) rather than a "
+        "literal"
     )
