@@ -908,13 +908,39 @@ zeros absences rather than an endpoint that answers empty for everyone,
 and an empty store here is where the standard's decision shows rather
 than a facility nobody reached for.
 
-**A facility nobody reached for.** The repository's Actions variables,
-self-hosted runners, deploy keys, autolinks and custom property values
-each answer empty here, and an empty answer records no decision.
-Webhooks are not among them: *Read the Docs* above reads those back,
-with the control that makes the `0` an absence rather than a permission
-ceiling. Whichever of the rest is reached for one day arrives with the
-section that uses it.
+**A switch this repository does not set.** `claude-review.yml` guards
+its jobs with `vars.CLAUDE_REVIEW_ENABLED`, and neither variable store
+holds it:
+
+```shell
+gh api repos/btclib-org/btclib/actions/variables --jq '.total_count'
+# 0
+gh api orgs/btclib-org/actions/variables --jq '.variables[].name'
+# (nothing)
+gh api orgs/btclib-org/actions/variables --jq '.total_count'
+# 0
+```
+
+The organization's secret stores above answering with a name are what
+make these zeros absences rather than an endpoint that answers empty for
+everyone. The variable store prints nothing at all when it answers, so
+its own `total_count` of `0` is what shows the call reached it: one that
+does not reach it prints an error and exits non-zero. Section 11 reads
+that empty name list as `vars.CLAUDE_REVIEW_ENABLED`'s off state, an
+undefined `vars.X` being the empty string. Both stores are read because
+a variable set here would take precedence over one of the same name set
+on the organization, so the organization's answer alone would not show
+the switch off for this tree.
+
+**A facility nobody reached for.** The repository's self-hosted
+runners, deploy keys, autolinks and custom property values each answer
+empty here, and an empty answer records no decision. Webhooks are not
+among them: *Read the Docs* above reads those back, with the control
+that makes the `0` an absence rather than a permission ceiling. The
+repository's Actions variables are not among them either: *A switch this
+repository does not set* above reads that store, its zero being half of
+what records the review switch's off state. Whichever of the rest is
+reached for one day arrives with the section that uses it.
 
 **A service's own settings, past the ones the standard states a rule
 for.** [Section 11's *Pages and Read the
