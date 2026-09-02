@@ -1087,6 +1087,12 @@ warning. `docs/source/conf.py` resolves those links and suppresses no
 grep asks the same question of the HTML, where no suppression can hide the
 answer.
 
+A link into a heading of another root file carries a fragment spelled the
+way GitHub derives it from the heading text, as in
+[the gates are the evidence](./REVIEWING.md#the-gates-are-the-evidence),
+and `docs/source/conf.py`'s `myst_heading_anchors` is what makes that
+spelling resolve here too.
+
 Both steps ask whether a page renders and whether its links resolve, and
 nothing more. Whether the worked examples on it are still true is a
 different question, asked by `tests/docs_examples_test.py`: any page under
