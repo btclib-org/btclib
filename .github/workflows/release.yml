@@ -242,9 +242,10 @@ jobs:
   # btclib-org/btclib#651 has not settled yet. Here the answer arrives
   # while RELEASE_NOTES.md is already being written, so a break with no
   # entry is refused at the moment somebody is already writing entries.
-  # Ahead of the build/test matrix below: a broken surface is worth
-  # knowing before the platform sweeps and the smoke tests spend the
-  # wall clock they take
+  # No `needs:` of its own, so it starts when the run does, beside the
+  # platform sweeps rather than ahead of them. What the graph orders
+  # after it is the upload: publish-testpypi and publish-pypi list it,
+  # so the surface has been read before anything reaches an index
   public-api:
     name: Check the public API against the last release
     runs-on: ubuntu-latest
@@ -422,17 +423,16 @@ jobs:
 
   publish-testpypi:
     name: Publish to TestPyPI
-    # public-api stays a need for ordering -- reading a broken surface
-    # before spending the platform sweeps' wall clock is the point,
-    # public-api's own comment says so -- but not for its result: that
-    # job's own comment calls it deliberately not a merge gate, and
-    # `needs` without `always()` gates on every listed job regardless,
-    # a skipped job counting as failed the same as this run's own
-    # comment on the line below already says of publish-pypi. Measured
-    # on run 33008687408: public-api exited 1 on the widening every
-    # Octets-taking alias got this cycle, and publish-testpypi never
-    # started, so the testpypi environment review never fired
-    # (issue #1461)
+    # public-api stays a need for ordering -- what it orders is this
+    # job, which does not start until the surface has been read -- but
+    # not for its result: that job's own comment calls it deliberately
+    # not a merge gate, and `needs` without `always()` gates on every
+    # listed job regardless, a skipped job counting as failed the same
+    # as this run's own comment on the line below already says of
+    # publish-pypi. Measured on run 33008687408: public-api exited 1 on
+    # the widening every Octets-taking alias got this cycle, and
+    # publish-testpypi never started, so the testpypi environment
+    # review never fired (issue #1461)
     needs:
       [
         public-api,
