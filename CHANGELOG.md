@@ -660,6 +660,20 @@ documented at release-notes length in the first place, and are still in
   prose between the two fences saying why the first closes early, so a
   reader reaches it only by pasting it on purpose.
 
+### `REPOSITORY.md` reads both variable stores back for the review switch
+
+- **The file records `vars.CLAUDE_REVIEW_ENABLED`, the switch
+  `claude-review.yml` guards its jobs with** (issue
+  btclib-org/.github#682). Both variable stores are read back: the
+  repository's because a variable set here would take precedence over
+  one of the same name set on the organization, and the organization's
+  for the empty name list section 11 reads as the switch's off state --
+  with a `total_count` beside it, a store that prints nothing at all
+  when it answers needing one to show the call reached it. The
+  repository's Actions variables leave the list of facilities whose
+  empty answer records no decision, that zero now being half of what
+  records this one.
+
 ## v2026.8.29
 
 ### Repository
