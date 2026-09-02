@@ -575,7 +575,16 @@ repos:
   #
   #   uvx zizmor@1.29.0 --persona=auditor --no-progress .github/workflows/
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.30.0
+    # not 1.30.0 yet: its new self-repository audit flags every reusable-
+    # workflow and composite-action reference below that still reads
+    # `uses: ./...`, and its own auto-fix rewrites them to `uses: $/...`.
+    # That syntax is real GitHub, live since July 2026, but actionlint
+    # 1.7.12 (pinned further down) does not parse it and fails every one
+    # of those references as a malformed action reference instead. The
+    # bump waits on whichever lands first: an actionlint release that
+    # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
+    # workspace-relative references the thing to flag instead.
+    rev: v1.29.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -724,7 +733,7 @@ repos:
     # having no notion of one -- it did so here and in pull request #315
     # before it. What a beta of the packaging checker would gate is the
     # release workflow, on a judgement its own author has not settled yet
-    rev: "5.1b1"
+    rev: "5.0.1"
     hooks:
       - id: pyroma
         # the backend, in pyroma's own environment. pyroma's command line
