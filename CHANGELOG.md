@@ -687,6 +687,27 @@ documented at release-notes length in the first place, and are still in
   three jobs that do pin `python-version:` inline are what make the
   token read work -- but the universal claim was false of `dist`, and
   the comment now names it as the exception.
+### RELEASING.md names `documented`'s own skip on a rehearsal
+
+- **The *Check that every job you expected actually ran* step now
+  counts `documented` among what a rehearsal skips by design**
+  (closes #1543). Its `if: github.event_name == 'push'` skips it on
+  every `workflow_dispatch` run for a reason of its own, unrelated to
+  `publish-testpypi`'s and `publish-pypi`'s mutual-trigger exemption, so
+  the step's own instruction sent a releaser who found it skipped there
+  to treat a by-design skip as a defect. The sentence enumerating
+  expected skips now names it, matching `btclib-secp256k1`'s
+  `RELEASING.md`.
+
+### RELEASING.md points at REPOSITORY.md for the squash setting
+
+- **`RELEASING.md` no longer restates or re-queries
+  `squash_merge_commit_message`'s value** (closes #1545).
+  `REPOSITORY.md`'s *Merge methods* is the one place that setting is
+  recorded, the way `CONTRIBUTING.md`'s *What a squash writes here*
+  already reads it from there; the two release-procedure paragraphs
+  that reasoned about the default now point at that section instead of
+  naming the value inline.
 
 ## v2026.8.29
 
