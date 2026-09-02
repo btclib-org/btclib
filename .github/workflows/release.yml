@@ -238,10 +238,16 @@ jobs:
   # as a merge gate -- btclib-org/.github#326's own decision -- because
   # before 1.0 the surface breaks deliberately and often, and a gate
   # reporting every such break on every pull request has nothing to say
-  # about which ones are allowed; that needs the deprecation policy
-  # btclib-org/btclib#651 has not settled yet. Here the answer arrives
-  # while RELEASE_NOTES.md is already being written, so a break with no
-  # entry is refused at the moment somebody is already writing entries.
+  # about which ones are allowed. CONTRIBUTING.md's deprecation policy
+  # settles that much -- there is no window, and a break is announced by
+  # its RELEASE_NOTES.md breaking-changes entry and by nothing earlier,
+  # so that entry is what any such gate would read. What it does not
+  # settle is the comparison: the walk is against the last release, so a
+  # per-pull-request run reports every break already entered earlier in
+  # the same cycle, once more on each pull request that follows. Here
+  # the answer arrives while RELEASE_NOTES.md is already being written,
+  # so a break with no entry is refused at the moment somebody is
+  # already writing entries.
   # No `needs:` of its own, so it starts when the run does, beside the
   # platform sweeps rather than ahead of them. What the graph orders
   # after it is the upload: publish-testpypi and publish-pypi list it,

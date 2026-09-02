@@ -789,6 +789,19 @@ documented at release-notes length in the first place, and are still in
   `suppress_warnings` staying empty being a configuration this grep
   does not depend on.
 
+### `CONTRIBUTING.md` states the API deprecation policy
+
+- **`CONTRIBUTING.md`'s *Breaking a caller is not an argument* now says
+  that there is no deprecation window** (closes #651): a source-breaking
+  change is announced by its `RELEASE_NOTES.md` breaking-changes entry
+  and by nothing earlier, and a warning-then-removal mechanism -- a
+  deprecated alias, a `DeprecationWarning`, a `deprecated()` helper -- is
+  deliberately not provided. A security fix is exempt from all of it,
+  `SECURITY.md` is where a reader is sent for what that covers, and what
+  the promise covers where it applies at all is *The public surface*,
+  already stated a section below. `README.md`'s opening paragraph links
+  the section beside its own sentence on why btclib stays marked beta.
+
 ## v2026.8.29
 
 ### Repository

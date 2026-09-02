@@ -64,7 +64,9 @@ cryptography and bitcoin's blockchain. It started as a teaching tool for
 Ferdinando Ametrano's
 *[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)*
 course, it is used in production today (still marked as beta
-because it is often refactored for improved clarity).
+because it is often refactored for improved clarity — [CONTRIBUTING.md's
+*Breaking a caller is not an argument*](./CONTRIBUTING.md) says what
+that promises a caller and what it does not).
 
 The test suite covers virtually the whole code base, a floor the build
 enforces, and it answers to vectors their authors publish: the BIPs' and
