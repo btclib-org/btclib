@@ -596,6 +596,19 @@ documented at release-notes length in the first place, and are still in
   nowhere else to go. It names the section, as the comments beside it
   carrying an organization-wide decision already do.
 
+### A convention name wrapped in its middle is read as it is written
+
+- **`tests/conventions_test.py` collapses the whitespace of the *Not
+  tested here* list and then of each name in it** (issue
+  btclib-org/.github#651). `strip()` takes whitespace off a name's ends
+  and leaves what an eighty-column wrap puts in its middle, so a name the
+  break splits matched none of section 7's and was reported as a
+  convention the declaration invented -- a red test on a declaration that
+  reads correctly in the file. `tests/README.md`'s line here does not
+  wrap at all, so nothing was red; what goes is the dependence on where
+  the column falls, which nothing enforces. `btclib-benchmarks` reads its
+  own line this way, its wrap falling inside a name.
+
 ## v2026.8.29
 
 ### Repository
