@@ -68,6 +68,20 @@ extensions = [
 
 source_suffix = [".rst", ".md"]
 
+# anchors for h1 to h4, which is what makes a link into a heading of
+# another root markdown file resolve here: README.md links into
+# CONTRIBUTING.md's "Breaking a caller is not an argument" that way.
+# Left unset this defaults to 0, myst generates no anchor at all, and
+# the fragment becomes an xref to a target no page has -- -W fails on a
+# link the forge renders correctly, which is what makes the failure
+# silent to whoever wrote it (issue #1587). The fragment that resolves
+# is the one GitHub derives from the heading text, so the spelling
+# written for where these files are read is the spelling this build
+# accepts; the id it reaches is the one docutils gives the section, and
+# need not be spelled the same. Four levels, because that is how deep
+# the root markdown files head their sections
+myst_heading_anchors = 4
+
 # -n on the build (CONTRIBUTING.md's documented command, and docs.yml)
 # turns an unresolved cross-reference into a warning for -W to fail on.
 # Without an inventory to resolve against, a name from outside this tree

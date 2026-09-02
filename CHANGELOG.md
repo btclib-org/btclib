@@ -802,6 +802,22 @@ documented at release-notes length in the first place, and are still in
   already stated a section below. `README.md`'s opening paragraph links
   the section beside its own sentence on why btclib stays marked beta.
 
+### A link into another root file's heading resolves in the built docs
+
+- **`docs/source/conf.py` sets `myst_heading_anchors` to four levels,
+  the depth the root markdown files head their sections to** (closes
+  #1587). Left unset it defaults to 0, myst gives no heading an id, and
+  a link into a heading of another root file becomes an xref to a target
+  no page has: `-W` fails on a link the forge renders correctly, which
+  is what makes the failure silent to whoever wrote it. The fragment
+  that resolves is the one GitHub derives from the heading text, so one
+  spelling answers on the forge and in the build; the id it reaches is
+  the one docutils gives the section, and need not be spelled the same.
+  `README.md`'s link to *Breaking a caller is not an argument* reaches
+  the section its text names rather than the whole file, and
+  `CONTRIBUTING.md` says beside the documentation gate how such a
+  fragment is spelled; that gate is what checks both.
+
 ## v2026.8.29
 
 ### Repository
