@@ -783,29 +783,23 @@ gh api orgs/btclib-org --jq .plan.name        # free
 ```
 
 [GitHub's own table](https://docs.github.com/en/actions/reference/limits)
-is the authority, and two of its columns matter here — the standard
-runner rows, larger runners being a thing nothing here asks for (read on
-2026-08-26, GitHub free to move the numbers without notice):
+is the authority, and two of its numbers matter here — the standard
+runner limit and the macOS-specific one, larger runners being a thing
+nothing here asks for. On the free plan they are twenty concurrent jobs,
+of which five may be macOS runners.
 
-| plan | concurrent jobs | of which macOS |
-| --- | --- | --- |
-| Free | 20 | 5 |
-| Pro | 40 | 5 |
-| Team | 60 | 5 |
-| Enterprise | 500 | 50 |
-
-**Read the second column before spending anything on the first.** The
+**Read the second number before spending anything on the first.** The
 first is what *Required checks on main* above measures a wider gate
-against, and Team would triple it; the second is the ceiling behind the
-macOS queueing `os-macos.yml`'s header records, and Team does not move it
-at all. So taking the platform cells out of the merge gate is not a
-workaround for a plan — below Enterprise no plan changes that
-arithmetic, and Enterprise is not what is being asked about. What a paid
-plan would buy is the rest: the Linux and Windows crowding, and the
-contention with every other repository of the organization, which spends
-against this same ceiling. Whether that is worth paying for is a
-question for whoever would pay, and it is recorded here so that it is
-asked with the second column in view.
+against, and a paid plan raises it well before it moves the second. The
+five is the ceiling behind the macOS queueing `os-macos.yml`'s header
+records, so taking the platform cells out of the merge gate is not a
+workaround for a plan — below Enterprise no plan changes that arithmetic,
+and Enterprise is not what is being asked about. What a paid plan would
+buy is the rest: the Linux and Windows crowding, and the contention with
+every other repository of the organization, which spends against this same
+ceiling. Whether that is worth paying for is a question for whoever would
+pay, and it is recorded here so that it is asked with the second number in
+view.
 
 ## Features
 

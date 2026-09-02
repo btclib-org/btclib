@@ -635,6 +635,19 @@ documented at release-notes length in the first place, and are still in
   two branches writing an entry at one anchor rather than a bullet
   appended to one of a few changelog groups.
 
+### `REPOSITORY.md` states the plan ceiling in prose, not in a dated table
+
+- **`REPOSITORY.md`'s *Plan-gated settings* states the concurrent-job
+  ceiling and the macOS one beneath it in prose, instead of reproducing
+  GitHub's table with a date beside it** (closes btclib-org/.github#639).
+  Section 10 of the organization standard rejects the dated number: the
+  date says when it was true and nothing says it still is, where
+  `gh api orgs/<org> --jq .plan.name` beside the linked table answers for
+  the day it is read. The sentence that argued from the macOS figure is
+  kept and sourced to that table; the figures for plans this
+  organization is not on go with the table, no command here re-deriving
+  them.
+
 ## v2026.8.29
 
 ### Repository
