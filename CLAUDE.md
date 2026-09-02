@@ -222,6 +222,25 @@ Do not use Fable unless explicitly instructed.
   index, and the version it hands back is plausible enough to be written
   into a release verification. `cd` to the scratchpad first, and print
   `btclib.__file__` beside the version when the answer decides anything.
+- **A test that executes `docs/source/conf.py` by path only reproduces
+  on CI, never locally.** `tomllib` (stdlib from 3.11) and
+  `docutils`/`sphinx.*` (the `docs` group alone) are both imported
+  unconditionally at the top of the file, before anything else runs.
+  `tests/copyright_test.py` once loaded `conf.py` with
+  `importlib.util` and executed it to check that its Sphinx `author`
+  derives from `pyproject.toml` rather than repeating it; the coverage
+  jobs (3.14, no `docs` group) failed on the `docutils` import and
+  `os-macos`'s 3.10 cells failed on `tomllib` itself, and both stayed
+  invisible under a contributor's own `uv sync`, which installs every
+  group including `docs` (issue #1538). `[tool.coverage.run] source =
+  ["btclib", "tests"]` rules out the obvious guard: a
+  `pytest.importorskip` around such a test turns the gap into a
+  100%-floor failure in the very environment that also lacks the
+  import, a skipped test's body counting as uncovered lines of
+  `tests/`. What worked instead was reading the line as source text
+  with a regex — the idiom `_pyproject_author()` in the same file
+  already uses on `pyproject.toml`, for the identical reason — rather
+  than executing the module.
 
 ## Conventions to match
 
