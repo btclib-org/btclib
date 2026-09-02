@@ -59,6 +59,7 @@ from btclib.p2p import (
     SendAddrV2,
     SendCmpct,
     SendHeaders,
+    SendTxRcncl,
     TxPayload,
     Verack,
     Version,
@@ -110,6 +111,7 @@ _PAYLOADS: tuple[Payload, ...] = (
     Mempool(),
     SendHeaders(),
     WtxidRelay(),
+    SendTxRcncl(1, 2),
     FeeFilter(1000),
 )
 

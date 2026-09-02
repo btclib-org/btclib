@@ -818,6 +818,33 @@ documented at release-notes length in the first place, and are still in
   `CONTRIBUTING.md` says beside the documentation gate how such a
   fragment is spelled; that gate is what checks both.
 
+### `btclib.p2p.negotiation` carries BIP330's `sendtxrcncl`
+
+- **`SendTxRcncl`, the third of the three groups issue #1119's census
+  split Core's missing `MESSAGEMAP` entries into** (closes #1121): a
+  `uint32` version and a `uint64` salt, both little-endian, which is the
+  whole of BIP330's negotiation for Erlay transaction reconciliation.
+  The second group is still open, issue #1120: BIP37's `filterload`,
+  `filteradd`, `filterclear` and `merkleblock`, which after this are
+  what Core v31.1's `MESSAGEMAP` holds and this package does not. Core's
+  `master` adds one more, BIP434's `feature`, shipping in v32.0 and
+  filed here as issue #1591. BIP330's own field table and Bitcoin Core's
+  `test/functional/test_framework/messages.py` `msg_sendtxrcncl` agree
+  on the layout, and on the one version value either sends today
+  -- `node/txreconciliation.h`'s `TXRECONCILIATION_VERSION` is 1,
+  matching BIP330's "Sender must set this to 1 currently". Neither field
+  is bounded below its wire width: a version under 1 is a protocol
+  violation BIP330 states and Core enforces after the parse, against the
+  pair of versions two peers offer each other, which is a connection's
+  state and not a fact this codec can see on its own.
+  Erlay's sketches, the Minisketch library and the reconciliation round
+  that follows a successful negotiation are not carried and are not
+  going to be: `btclib.p2p.negotiation`'s module docstring states the
+  stopping point, and issue #1066's rule is why -- a pure-Python sketch
+  on a relay path would be the same hand-rolled construction that issue
+  settled against a cipher, offered instead of Minisketch at Python
+  speed to every caller rather than to `tf2`'s test primitives.
+
 ## v2026.8.29
 
 ### Repository
