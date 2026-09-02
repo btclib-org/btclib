@@ -648,6 +648,18 @@ documented at release-notes length in the first place, and are still in
   organization is not on go with the table, no command here re-deriving
   them.
 
+### `CLAUDE.md`'s worktree block puts the removal line in a fence of its own
+
+- **`git worktree remove --force "$WT"` no longer sits under a line
+  that ends in a placeholder** (issue btclib-org/.github#676): the
+  assignment above it fails on its own redirection, and a shell that
+  discards that failure as a parse error reads the next line as a fresh
+  command, so a paste made before the placeholders were filled reached
+  the removal against whatever `$WT` a previous run of the same block
+  had left set. The removal now stands in a fence of its own, with
+  prose between the two fences saying why the first closes early, so a
+  reader reaches it only by pasting it on purpose.
+
 ## v2026.8.29
 
 ### Repository
