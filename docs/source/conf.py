@@ -9,7 +9,6 @@ documentation: https://www.sphinx-
 doc.org/en/master/usage/configuration.html
 """
 
-import posixpath
 import re
 from pathlib import Path
 from typing import Any
@@ -169,6 +168,14 @@ html_theme = "furo"
 # and a path that exists nowhere is left to myst -- which reports it, and
 # -W then fails, now that suppress_warnings no longer hides the subtype.
 #
+# It also reads a link written this way *outside* a shim, resolved
+# against the document that wrote it rather than against ROOT. A page
+# under docs/source is itself read unrendered on the forge, so a link
+# composed relative to its own file -- climbing out of docs/source the
+# way a checkout resolves it -- works there verbatim, and this is what
+# lets the same link resolve here too, through the shim page that
+# carries the heading once the {include} has run (issue #1562).
+#
 # Not the {include} directive's :relative-docs: option, which is what it
 # looks like the job of. It rewrites destinations that begin with the
 # prefix it is given, so "docs/source/" leaves "./SECURITY.md" untouched;
@@ -215,31 +222,75 @@ BLOB = f"{PYPROJECT['project']['urls']['repository']}/blob/master/"
 
 
 class RootFileLinks(SphinxPostTransform):
-    """Resolve the repository-relative links of the included root files."""
+    """Resolve the repository-relative links naming a file of this tree."""
 
     # ahead of myst's own resolver, which runs at 9 and is what turns an
     # unresolved target into that anchor
     default_priority = 5
+
+    def _broken_doc_target(self, node: pending_xref) -> tuple[Path, str | None] | None:
+        """Recover the file behind a "doc" xref `path2doc` resolved wrong.
+
+        myst already thinks this resolves; a real docname is a working
+        cross-reference and none of this file's business. Anything else is
+        `Project.path2doc` stripping a matching suffix off *any* file that
+        exists on disk, docs or not (sphinx/project.py), so a link climbing
+        out of srcdir into a real file reads as resolved when it is not.
+        Recover the file it actually named: reftarget is that path with its
+        suffix gone, and only one of the two the tree parses still fits.
+        """
+        if node["reftarget"] in self.env.all_docs:
+            return None
+        candidates = (Path(f"{node['reftarget']}{suffix}") for suffix in source_suffix)
+        found = next((c for c in candidates if c.is_file()), None)
+        return None if found is None else (found, node.get("reftargetid"))
+
+    def _unbound_target(
+        self, node: pending_xref, refdoc: str
+    ) -> tuple[Path, str | None]:
+        """Resolve a link myst left with no domain at all.
+
+        A shim's own included content is written relative to the root
+        file it renders, which sits at ROOT itself; any other document is
+        written relative to wherever it actually sits in the source tree
+        -- doc2path is what answers that without assuming every docname
+        sits flat under docs/source.
+        """
+        raw, _, anchor = node["reftarget"].partition("#")
+        origin = (
+            ROOT
+            if refdoc in INCLUDED.values()
+            else Path(self.env.doc2path(refdoc)).parent
+        )
+        return origin / raw, anchor or None
 
     def run(self, **kwargs: Any) -> None:
         """Rewrite every myst xref naming a file of this repository."""
         # the list is taken before the tree is edited: replace_self on a
         # node the generator is standing on reparents its children under it
         for node in list(self.document.findall(pending_xref)):
-            # refdomain "doc" is a link myst has already resolved to a
-            # page; None is one it has given up on, and only the shims
-            # hold links written relative to the repository root, so
-            # anywhere else a path that does not resolve is a defect to
-            # report rather than one to rewrite
-            if node.get("reftype") != "myst" or node.get("refdomain") is not None:
+            if node.get("reftype") != "myst":
                 continue
-            if node.get("refdoc", self.env.docname) not in INCLUDED.values():
+            refdomain = node.get("refdomain")
+            if refdomain == "doc":
+                resolved = self._broken_doc_target(node)
+            elif refdomain is None:
+                refdoc = node.get("refdoc", self.env.docname)
+                resolved = self._unbound_target(node, refdoc)
+            else:
+                resolved = None
+            if resolved is None:
                 continue
-            target, _, anchor = node["reftarget"].partition("#")
-            # "./tests/README.md" -> "tests/README.md"; a path climbing out
-            # of the repository is nothing this can answer
-            target = posixpath.normpath(target)
-            if target.startswith(".."):
+            found, anchor = resolved
+            try:
+                # "./tests/README.md" from a shim resolves to
+                # "tests/README.md"; a link written "../../README.md"
+                # outside a shim resolves to "README.md" the same way,
+                # against the real filesystem, so a path climbing above
+                # ROOT raises rather than reading as one of its own
+                target = str(found.resolve().relative_to(ROOT))
+            except ValueError:
+                # outside the repository: nothing this can answer
                 continue
             if target in INCLUDED:
                 # handed back to myst as the link it would have been

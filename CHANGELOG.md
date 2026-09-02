@@ -673,6 +673,7 @@ documented at release-notes length in the first place, and are still in
   repository's Actions variables leave the list of facilities whose
   empty answer records no decision, that zero now being half of what
   records this one.
+
 ### `tests/interpreters_test.py`'s PyPy and `dist` comments match the tree
 
 - **The comment above `_CPYTHON` quoted the PyPy matrix cell as
@@ -687,6 +688,7 @@ documented at release-notes length in the first place, and are still in
   three jobs that do pin `python-version:` inline are what make the
   token read work -- but the universal claim was false of `dist`, and
   the comment now names it as the exception.
+
 ### RELEASING.md names `documented`'s own skip on a rehearsal
 
 - **The *Check that every job you expected actually ran* step now
@@ -746,6 +748,30 @@ documented at release-notes length in the first place, and are still in
   `WYCHEPROOF_COPYING` keep their pin**: each path's own most recent
   commit predates the pinned commit, so the pin already carries their
   current content and there is nothing to move it to.
+
+### `RootFileLinks` resolves a `../` link against the document that wrote it
+
+- **A markdown link that climbs out of `docs/source` with `../`, written
+  inside or outside a `*_link.md` shim, now resolves through
+  `RootFileLinks` against the document that wrote it rather than being
+  left to myst-parser's own doc-domain resolution** (closes #1562).
+  Measured: before this, such a link to a file that exists but sits
+  outside `srcdir` made `sphinx-build -n -W` fail with an "Unknown
+  source document" warning on a real, working link -- `path2doc` strips
+  the suffix off any file that exists on disk and hands back the result
+  as a docname regardless of whether it is one, and neither the old
+  transform nor `docs.yml`'s greps could tell that false failure from a
+  real one. `local-link-prefix` now accepts a `../`-prefixed link
+  destination alongside a `./`-prefixed one: a broken `../` link already
+  failed `-W` on its own, through myst's ordinary "cross-reference
+  target not found" warning, so refusing the shape bought nothing there.
+- **`docs.yml`'s own unresolved-link grep, the artifact-level check for
+  issue 195, now matches `href="#../<destination>"` as well as
+  `href="#./<destination>"`.** Its comment claimed every breaking
+  destination rendered the single-dot form, true only while
+  `local-link-prefix` refused `../`; a broken `../` link would otherwise
+  render the double-dot form and slip past the grep if `-W`'s own
+  defense were ever weakened.
 
 ## v2026.8.29
 
