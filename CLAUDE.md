@@ -109,7 +109,15 @@ git worktree add -b <branch> "$WT" origin/main
 cd "$WT" && uv sync --locked          # a second venv, about a minute
 # edit, gate and commit here, then
 git push origin HEAD:refs/heads/<branch>
-git worktree remove --force "$WT"     # removing it is part of finishing
+```
+
+Removing the worktree is part of finishing, and it stands in a block of
+its own: the block above ends in a placeholder, and a shell that
+discards that line as a parse error reads the next as a fresh command —
+which, in one block, is this line against whatever `$WT` already held.
+
+```shell
+git worktree remove --force "$WT"
 ```
 
 The venv is the whole of the cost, and it buys the thing that matters: a
