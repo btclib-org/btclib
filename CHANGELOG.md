@@ -773,6 +773,22 @@ documented at release-notes length in the first place, and are still in
   render the double-dot form and slip past the grep if `-W`'s own
   defense were ever weakened.
 
+### `docs.yml`'s unresolved-link comment states what `-W` catches
+
+- **The comment above `docs.yml`'s *Check the built pages for
+  unresolved links* step said `-W` "passes over a dead link", making
+  this grep the only defense against issue 195** (closes #1574).
+  Measured, with the toolchain `uv.lock` pins (myst-parser 5.1.0,
+  sphinx 9.1.0): `sphinx-build -n -W` already fails on its own on
+  every unresolved myst link, a deliberately broken `./`-prefixed one
+  included -- `myst_refs.py`'s `MystReferenceResolver` logs a warning
+  unconditionally, independent of `-n`, before falling back to the
+  anchor-only node the built page then carries. The comment now says
+  so, and states what the grep still answers for: a regression the
+  build's own warning would stop catching, `conf.py`'s
+  `suppress_warnings` staying empty being a configuration this grep
+  does not depend on.
+
 ## v2026.8.29
 
 ### Repository

@@ -113,15 +113,19 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -n -W --keep-going -b html docs/source docs/build/html
-      # the one defect the build above cannot report on itself: a link
-      # myst cannot resolve is rendered as an anchor on the page it is
-      # already on -- an id nothing has -- so -W passes over a dead link
-      # (issue 195). conf.py resolves every link the included root files
-      # carry and no longer suppresses myst.xref_missing, which makes the
-      # build fail on the one myst still cannot place; this step is the
-      # same claim made about the artifact rather than about the
-      # configuration, and it is what would catch a suppression added
-      # back.
+      # a second defense against issue 195, not the only one: measured,
+      # sphinx-build -n -W already fails on its own on every link myst
+      # cannot resolve, in the currently pinned toolchain (myst-parser
+      # 5.1.0, sphinx 9.1.0) -- myst_refs.py's MystReferenceResolver logs a
+      # warning unconditionally, independent of -n, before falling back to
+      # the anchor-only node the html then carries (issue #1574). What this
+      # step still answers for is a regression the build's own warning would
+      # stop catching without it: conf.py's suppress_warnings staying empty
+      # is a configuration this grep does not depend on, and a myst-parser
+      # upgrade could in principle stop warning unconditionally the way
+      # 5.1.0 does. Either way the artifact would then carry exactly the
+      # anchor to an id nothing has that conf.py's own comment describes,
+      # and this grep is what would still catch it.
       #
       # One grep, widened to two spellings rather than one. myst's
       # fallback renders the destination verbatim, so what this can
