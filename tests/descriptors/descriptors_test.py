@@ -66,6 +66,9 @@ from btclib.descriptors import (
     normalized,
     parse,
     strip_checksum,
+    wallet_policy,
+    wallet_policy_address,
+    wallet_policy_descriptor,
 )
 from btclib.descriptors.descriptors import __descsum_expand
 from btclib.descriptors.miniscript import _ARITY, Miniscript
@@ -627,6 +630,409 @@ def test_invalid_multipath() -> None:
     # and parse() does not read one, rather than reading it wrong
     with pytest.raises(BTClibValueError, match="multipath_descriptors"):
         parse(f"pk({xpub}/<0;1>)")
+
+
+# BIP388's own Test Vectors section (bitcoin/bips, bip-0388.mediawiki,
+# commit cfff9719405fa35113cab637958809824873750f): every valid policy,
+# its template, its key-information vector as descriptor text -- read the
+# way `wallet_policy` hands one back, by parsing a lone `pk()` of it -- and
+# the multipath descriptor the two compile to. That descriptor is what
+# each vector is checked against, branch by branch, rather than restated
+# as an address of its own: `multipath_descriptors` and `parse` already
+# answer for what one branch is.
+BIP388_VECTORS = (
+    pytest.param(
+        "pkh(@0/**)",
+        (
+            "[6738736c/44'/0'/0']xpub6Br37sWxruYfT8ASpCjVHKGwgdnYFEn98DwiN76i2oyY6fgH1LAPmmDcF46xjxJr22gw4jmVjTE2E3URMnRPEPYyo1zoPSUba563ESMXCeb",
+        ),
+        "pkh([6738736c/44'/0'/0']xpub6Br37sWxruYfT8ASpCjVHKGwgdnYFEn98DwiN76i2oyY6fgH1LAPmmDcF46xjxJr22gw4jmVjTE2E3URMnRPEPYyo1zoPSUba563ESMXCeb/<0;1>/*)",
+        id="bip44-first-account",
+    ),
+    pytest.param(
+        "sh(wpkh(@0/**))",
+        (
+            "[6738736c/49'/0'/1']xpub6Bex1CHWGXNNwGVKHLqNC7kcV348FxkCxpZXyCWp1k27kin8sRPayjZUKDjyQeZzGUdyeAj2emoW5zStFFUAHRgd5w8iVVbLgZ7PmjAKAm9",
+        ),
+        "sh(wpkh([6738736c/49'/0'/1']xpub6Bex1CHWGXNNwGVKHLqNC7kcV348FxkCxpZXyCWp1k27kin8sRPayjZUKDjyQeZzGUdyeAj2emoW5zStFFUAHRgd5w8iVVbLgZ7PmjAKAm9/<0;1>/*))",
+        id="bip49-second-account",
+    ),
+    pytest.param(
+        "wpkh(@0/**)",
+        (
+            "[6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt",
+        ),
+        "wpkh([6738736c/84'/0'/2']xpub6CRQzb8u9dmMcq5XAwwRn9gcoYCjndJkhKgD11WKzbVGd932UmrExWFxCAvRnDN3ez6ZujLmMvmLBaSWdfWVn75L83Qxu1qSX4fJNrJg2Gt/<0;1>/*)",
+        id="bip84-third-account",
+    ),
+    pytest.param(
+        "tr(@0/**)",
+        (
+            "[6738736c/86'/0'/0']xpub6CryUDWPS28eR2cDyojB8G354izmx294BdjeSvH469Ty3o2E6Tq5VjBJCn8rWBgesvTJnyXNAJ3QpLFGuNwqFXNt3gn612raffLWfdHNkYL",
+        ),
+        "tr([6738736c/86'/0'/0']xpub6CryUDWPS28eR2cDyojB8G354izmx294BdjeSvH469Ty3o2E6Tq5VjBJCn8rWBgesvTJnyXNAJ3QpLFGuNwqFXNt3gn612raffLWfdHNkYL/<0;1>/*)",
+        id="bip86-first-account",
+    ),
+    pytest.param(
+        "wsh(sortedmulti(2,@0/**,@1/**))",
+        (
+            "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw",
+            "[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7",
+        ),
+        "wsh(sortedmulti(2,[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw/<0;1>/*,[b2b1f0cf/48'/0'/0'/2']xpub6EWhjpPa6FqrcaPBuGBZRJVjzGJ1ZsMygRF26RwN932Vfkn1gyCiTbECVitBjRCkexEvetLdiqzTcYimmzYxyR1BZ79KNevgt61PDcukmC7/<0;1>/*))",
+        id="bip48-p2wsh-multisig",
+    ),
+    pytest.param(
+        "wsh(thresh(3,pk(@0/**),s:pk(@1/**),s:pk(@2/**),sln:older(12960)))",
+        (
+            "[6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa",
+            "[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js",
+            "[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2",
+        ),
+        "wsh(thresh(3,pk([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa/<0;1>/*),s:pk([b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js/<0;1>/*),s:pk([a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2/<0;1>/*),sln:older(12960)))",
+        id="miniscript-3-of-3-degrading",
+    ),
+    pytest.param(
+        "wsh(or_d(pk(@0/**),and_v(v:multi(2,@1/**,@2/**,@3/**),older(65535))))",
+        (
+            "[6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa",
+            "[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js",
+            "[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2",
+            "[bb641298/44'/0'/0'/100']xpub6Dz8PHFmXkYkykQ83ySkruky567XtJb9N69uXScJZqweYiQn6FyieajdiyjCvWzRZ2GoLHMRE1cwDfuJZ6461YvNRGVBJNnLA35cZrQKSRJ",
+        ),
+        "wsh(or_d(pk([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa/<0;1>/*),and_v(v:multi(2,[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js/<0;1>/*,[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2/<0;1>/*,[bb641298/44'/0'/0'/100']xpub6Dz8PHFmXkYkykQ83ySkruky567XtJb9N69uXScJZqweYiQn6FyieajdiyjCvWzRZ2GoLHMRE1cwDfuJZ6461YvNRGVBJNnLA35cZrQKSRJ/<0;1>/*),older(65535))))",
+        id="miniscript-singlesig-inheritance",
+    ),
+    pytest.param(
+        "tr(@0/**,{sortedmulti_a(1,@0/<2;3>/*,@1/**),or_b(pk(@2/**),s:pk(@3/**))})",
+        (
+            "[6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa",
+            "xpub6Fc2TRaCWNgfT49nRGG2G78d1dPnjhW66gEXi7oYZML7qEFN8e21b2DLDipTZZnfV6V7ivrMkvh4VbnHY2ChHTS9qM3XVLJiAgcfagYQk6K",
+            "xpub6GxHB9kRdFfTqYka8tgtX9Gh3Td3A9XS8uakUGVcJ9NGZ1uLrGZrRVr67DjpMNCHprZmVmceFTY4X4wWfksy8nVwPiNvzJ5pjLxzPtpnfEM",
+            "xpub6GjFUVVYewLj5no5uoNKCWuyWhQ1rKGvV8DgXBG9Uc6DvAKxt2dhrj1EZFrTNB5qxAoBkVW3wF8uCS3q1ri9fueAa6y7heFTcf27Q4gyeh6",
+        ),
+        "tr([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa/<0;1>/*,{sortedmulti_a(1,[6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa/<2;3>/*,xpub6Fc2TRaCWNgfT49nRGG2G78d1dPnjhW66gEXi7oYZML7qEFN8e21b2DLDipTZZnfV6V7ivrMkvh4VbnHY2ChHTS9qM3XVLJiAgcfagYQk6K/<0;1>/*),or_b(pk(xpub6GxHB9kRdFfTqYka8tgtX9Gh3Td3A9XS8uakUGVcJ9NGZ1uLrGZrRVr67DjpMNCHprZmVmceFTY4X4wWfksy8nVwPiNvzJ5pjLxzPtpnfEM/<0;1>/*),s:pk(xpub6GjFUVVYewLj5no5uoNKCWuyWhQ1rKGvV8DgXBG9Uc6DvAKxt2dhrj1EZFrTNB5qxAoBkVW3wF8uCS3q1ri9fueAa6y7heFTcf27Q4gyeh6/<0;1>/*))})",
+        id="taproot-sortedmulti-a-and-miniscript-leaf",
+    ),
+    pytest.param(
+        "tr(musig(@0,@1,@2)/**,{and_v(v:pk(musig(@0,@1)/**),older(12960)),{and_v(v:pk(musig(@0,@2)/**),older(12960)),and_v(v:pk(musig(@1,@2)/**),older(12960))}})",
+        (
+            "[6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa",
+            "[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js",
+            "[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2",
+        ),
+        "tr(musig([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa,[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js,[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2)/<0;1>/*,{and_v(v:pk(musig([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa,[b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js)/<0;1>/*),older(12960)),{and_v(v:pk(musig([6738736c/48'/0'/0'/100']xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa,[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2)/<0;1>/*),older(12960)),and_v(v:pk(musig([b2b1f0cf/44'/0'/0'/100']xpub6EYajCJHe2CK53RLVXrN14uWoEttZgrRSaRztujsXg7yRhGtHmLBt9ot9Pd5ugfwWEu6eWyJYKSshyvZFKDXiNbBcoK42KRZbxwjRQpm5Js,[a666a867/44'/0'/0'/100']xpub6Dgsze3ujLi1EiHoCtHFMS9VLS1UheVqxrHGfP7sBJ2DBfChEUHV4MDwmxAXR2ayeytpwm3zJEU3H3pjCR6q6U5sP2p2qzAD71x9z5QShK2)/<0;1>/*),older(12960))}})",
+        id="taproot-musig2-with-recovery-paths",
+    ),
+)
+
+
+@pytest.mark.parametrize("template, keys, descriptor", BIP388_VECTORS)
+def test_bip388_vectors(template: str, keys: tuple[str, ...], descriptor: str) -> None:
+    """Reproduce every valid policy of BIP388's Test Vectors section.
+
+    Each key-information string is a lone KEY expression, read the way
+    `wallet_policy` hands one back: `pk()` is the trivial wrapper that
+    parses one without a SCRIPT function of its own. Both multipath
+    branches are checked, index 9 standing for "any index": what matters
+    is that the descriptor and the address agree with the branch the BIP
+    itself publishes, not a property special to one index.
+    """
+    key_info = tuple(parse(f"pk({key})").key_expressions[0] for key in keys)
+    for multipath_index, branch in enumerate(multipath_descriptors(descriptor)):
+        expected = parse(branch)
+        resolved = wallet_policy_descriptor(template, key_info, multipath_index)
+        assert str(resolved) == str(expected)
+        assert resolved.script_pub_key(9) == expected.script_pub_key(9)
+        address = wallet_policy_address(template, key_info, 9, multipath_index)
+        assert address == expected.address(9)
+
+
+def test_bip388_invalid_templates() -> None:
+    """Refuse the templates BIP388's Invalid policies section lists.
+
+    Four of the nine: a placeholder with no path following it, one with
+    an explicit path in front of the wildcard, a multipath cardinality
+    above two, and derivation on a ``musig()`` participant. The other
+    five are not checked here -- `tests/_data/README.md` says which and
+    why -- except for the one refused anyway, by `parse`'s own
+    "multipath_descriptors first" rather than by anything this checks.
+    """
+    key = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    key_info = (parse(f"pk({key})").key_expressions[0],)
+    with pytest.raises(BTClibValueError, match="not a BIP388 wallet-policy template"):
+        wallet_policy_descriptor("pkh(@0)", key_info)
+    with pytest.raises(BTClibValueError, match="not a BIP388 wallet-policy template"):
+        wallet_policy_descriptor("pkh(@0/0/**)", key_info)
+    with pytest.raises(BTClibValueError, match="not a BIP388 wallet-policy template"):
+        wallet_policy_descriptor("pkh(@0/<0;1;2>/*)", key_info)
+    with pytest.raises(BTClibValueError, match="musig[(][)] placeholder"):
+        wallet_policy_descriptor("tr(musig(@0/**,@1/**))", (key_info[0], key_info[0]))
+    # a non-KP key present: parse()'s own multipath refusal catches it,
+    # the raw `<0;1>` text reaching it unconsumed rather than substituted
+    non_kp = f"sh(multi(1,@0/**,{key}/<0;1>/*))"
+    with pytest.raises(BTClibValueError, match="multipath_descriptors"):
+        wallet_policy_descriptor(non_kp, key_info)
+
+
+@pytest.mark.parametrize("template, keys, descriptor", BIP388_VECTORS)
+def test_wallet_policy_reconstructs_bip388s_own_vectors(
+    template: str, keys: tuple[str, ...], descriptor: str
+) -> None:
+    """Reconstruct every valid policy of BIP388's vectors, from a descriptor.
+
+    BIP388's vectors read as an input to `wallet_policy` and not only as
+    an output of `wallet_policy_descriptor`.
+
+    `multipath_descriptors` splits the vector's own descriptor into the
+    receive and change branches BIP389's `<0;1>` (or, for the
+    sortedmulti_a() vector, `<2;3>`) always describes, and `wallet_policy`
+    given both reassembles the very template and key-information vector
+    the BIP publishes beside it -- byte for byte, key for key.
+    """
+    branch0, branch1 = multipath_descriptors(descriptor)
+    recv, chg = parse(branch0), parse(branch1)
+    built_template, built_key_info = wallet_policy(recv, chg)
+    assert built_template == template
+    expected_key_info = tuple(parse(f"pk({key})").key_expressions[0] for key in keys)
+    assert built_key_info == expected_key_info
+
+
+def test_wallet_policy_of_an_account_level_descriptor_agrees_with_it() -> None:
+    """A policy built from a `Descriptor` derives what the descriptor does.
+
+    Which is the property that makes a wallet policy worth having: an
+    account-level descriptor -- no chain step of its own, `wallet_policy`
+    refusing the more common two-chain shape (`test_wallet_policy_refuses`
+    says why) -- and the policy built from it must describe the very same
+    scripts, at every index, whichever multipath branch is asked for.
+    """
+    xpub = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    other = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+    descriptor = parse(f"wsh(sortedmulti(2,[6738736c/48h/0h/0h]{xpub}/*,{other}/*))")
+    template, key_info = wallet_policy(descriptor)
+    assert template == "wsh(sortedmulti(2,@0/*,@1/*))"
+    for index in (0, 1, 9):
+        for multipath_index in (0, 1):
+            resolved = wallet_policy_descriptor(template, key_info, multipath_index)
+            assert resolved.script_pub_key(index) == descriptor.script_pub_key(index)
+            address = wallet_policy_address(template, key_info, index, multipath_index)
+            assert address == descriptor.address(index)
+
+
+def test_wallet_policy_of_a_musig_descriptor_agrees_with_it() -> None:
+    """A ``musig()`` aggregate numbers its participants and none for itself.
+
+    The same agreement as the plain-key case above, over the one shape a
+    plain key does not reach: the wildcard sits on the aggregate, and
+    `@0`, `@1` are the participants rather than the group.
+    """
+    xpub = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    other = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+    descriptor = parse(f"tr(musig({xpub},{other})/*)")
+    template, key_info = wallet_policy(descriptor)
+    assert template == "tr(musig(@0,@1)/*)"
+    for index, multipath_index in ((0, 0), (0, 1), (5, 0)):
+        resolved = wallet_policy_descriptor(template, key_info, multipath_index)
+        assert resolved.script_pub_key(index) == descriptor.script_pub_key(index)
+        address = wallet_policy_address(template, key_info, index, multipath_index)
+        assert address == descriptor.address(index)
+
+
+def test_wallet_policy_of_a_receive_change_pair_agrees_with_both() -> None:
+    """`account_descriptors`' own pair produces BIP388's own `/**` shorthand.
+
+    That pair -- a BIP44 account's receive and change descriptors,
+    `.../0/*` and `.../1/*` -- is the shape most callers actually hold,
+    and the one shape `wallet_policy(descriptor)` alone refuses
+    (`test_wallet_policy_refuses_what_cannot_become_one` measures that).
+    Given both, the policy answers the very scripts the two descriptors
+    it was built from answer, at every index and on both branches.
+    """
+    xpub = "xpub6C7Mz3RXdDAhrx7ECcAg29du1qTQeFHwk1WEUz3JHCNUhZQNeGAdkUb19AZZheLWLqWL71ZEL5G93Uxpj7BXE5TxU3P9mnEaj8itk5V5n7Z"
+    recv, chg = account_descriptors(xpub, "84h/0h/0h", master_fingerprint="6738736c")
+    template, key_info = wallet_policy(recv, chg)
+    assert template == "wpkh(@0/**)"
+    for index in (0, 1, 9):
+        for multipath_index, expected in ((0, recv), (1, chg)):
+            resolved = wallet_policy_descriptor(template, key_info, multipath_index)
+            assert resolved.script_pub_key(index) == expected.script_pub_key(index)
+            address = wallet_policy_address(template, key_info, index, multipath_index)
+            assert address == expected.address(index)
+
+
+def test_wallet_policy_pair_refuses_what_cannot_pair() -> None:
+    """Refuse a receive/change pair that is not one, and say why."""
+    xpub = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    other = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+    third = "xpub6FC1fXFP1GXQpyRFfSE1vzzySqs3Vg63bzimYLeqtNUYbzA87kMNTcuy9ubr7MmavGRjW2FRYHP4WGKjwutbf1ghgkUW9H7e3ceaPLRcVwa"
+    # a different function entirely: `_skeleton` catches it before any key
+    # is even looked at
+    with pytest.raises(BTClibValueError, match="do not share the same structure"):
+        wallet_policy(parse(f"wpkh({xpub}/0/*)"), parse(f"pkh({xpub}/1/*)"))
+    # the same chain digit on both sides: no pair to pick between at all
+    with pytest.raises(BTClibValueError, match="use the same chain step"):
+        wallet_policy(parse(f"wpkh({xpub}/0/*)"), parse(f"wpkh({xpub}/0/*)"))
+    # the same shape, a different key: not a receive and a change of one
+    # account, whatever `_skeleton` cannot see about it
+    with pytest.raises(BTClibValueError, match="disagree on a key"):
+        wallet_policy(parse(f"wpkh({xpub}/0/*)"), parse(f"wpkh({other}/1/*)"))
+    # a musig() participant that differs between the two sides
+    with pytest.raises(
+        BTClibValueError, match="disagree on a musig[(][)] participant:"
+    ):
+        wallet_policy(
+            parse(f"tr(musig({xpub},{other})/0/*)"),
+            parse(f"tr(musig({xpub},{third})/1/*)"),
+        )
+    # derivation before aggregation, on the paired side of the same check
+    # `test_wallet_policy_refuses_what_cannot_become_one` makes alone
+    with pytest.raises(BTClibValueError, match="derivation before aggregation"):
+        wallet_policy(
+            parse(f"tr(musig({xpub}/0/*,{other}/0/*))"),
+            parse(f"tr(musig({xpub}/1/*,{other}/1/*))"),
+        )
+    # the same key at the same pair, twice: BIP388's own invalid shape,
+    # `sh(multi(1,@0/**,@0/**))`, over one chain pair rather than the
+    # single suffix the unpaired path is limited to -- the identical
+    # pair is the one case that always shares both digits with itself
+    with pytest.raises(
+        BTClibValueError, match="chain digits are not disjoint from an earlier use"
+    ):
+        wallet_policy(
+            parse(f"multi(1,{xpub}/0/*,{xpub}/0/*)"),
+            parse(f"multi(1,{xpub}/1/*,{xpub}/1/*)"),
+        )
+    # the same key at two pairs that share one digit rather than the
+    # whole pair: BIP388's own invalid-list entry 6,
+    # `sh(multi(1,@0/<0;1>/*,@0/<1;2>/*))`, sharing digit 1
+    with pytest.raises(
+        BTClibValueError, match="chain digits are not disjoint from an earlier use"
+    ):
+        wallet_policy(
+            parse(f"sh(multi(1,{xpub}/0/*,{xpub}/1/*))"),
+            parse(f"sh(multi(1,{xpub}/1/*,{xpub}/2/*))"),
+        )
+    # the same participant twice inside one musig() group, on the paired
+    # side of the check `test_wallet_policy_refuses_what_cannot_become_one`
+    # makes alone
+    with pytest.raises(BTClibValueError, match="musig\\(\\) repeats a participant"):
+        wallet_policy(
+            parse(f"tr(musig({xpub},{xpub})/0/*)"),
+            parse(f"tr(musig({xpub},{xpub})/1/*)"),
+        )
+    # a receive side that is not one explicit chain step before the
+    # wildcard -- the same origin and extended key stay no defense once
+    # the two sides no longer agree on the shape of the step in front
+    with pytest.raises(BTClibValueError, match="not a receive/change chain step"):
+        wallet_policy(parse(f"wpkh({xpub}/0/0/*)"), parse(f"wpkh({xpub}/1/*)"))
+    # a hardened step on either side: BIP388's `/<M;N>/*` grammar spells
+    # `NUM` as "representing unhardened derivations"
+    with pytest.raises(BTClibValueError, match="not a receive/change chain step"):
+        wallet_policy(parse(f"wpkh({xpub}/0/*)"), parse(f"wpkh({xpub}/1h/*)"))
+    with pytest.raises(BTClibValueError, match="not a receive/change chain step"):
+        wallet_policy(parse(f"wpkh({xpub}/0h/*)"), parse(f"wpkh({xpub}/1h/*)"))
+    # the same musig() group at the same pair, twice: the paired form of
+    # the plain-key case above, over the participant set rather than one
+    # key
+    with pytest.raises(
+        BTClibValueError, match="chain digits are not disjoint from an earlier use"
+    ):
+        wallet_policy(
+            parse(f"tr(musig({xpub},{other})/0/*,pk(musig({xpub},{other})/0/*))"),
+            parse(f"tr(musig({xpub},{other})/1/*,pk(musig({xpub},{other})/1/*))"),
+        )
+    # the same musig() group at two pairs sharing one digit, the musig
+    # form of the sharing-one-digit case above
+    with pytest.raises(
+        BTClibValueError, match="chain digits are not disjoint from an earlier use"
+    ):
+        wallet_policy(
+            parse(f"tr(musig({xpub},{other})/0/*,pk(musig({xpub},{other})/1/*))"),
+            parse(f"tr(musig({xpub},{other})/1/*,pk(musig({xpub},{other})/2/*))"),
+        )
+    # the control: the same key at two genuinely disjoint pairs, still
+    # allowed -- the sortedmulti_a() vector's own shape
+    template, _ = wallet_policy(
+        parse(f"wsh(multi(1,{xpub}/0/*,{xpub}/2/*))"),
+        parse(f"wsh(multi(1,{xpub}/1/*,{xpub}/3/*))"),
+    )
+    assert template == "wsh(multi(1,@0/**,@0/<2;3>/*))"
+
+
+def test_wallet_policy_refuses_what_cannot_become_one() -> None:
+    """Refuse a `Descriptor` no wallet-policy template can hold, and say why."""
+    xpub = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    # the standard receive-or-change account descriptor: an explicit
+    # chain step in front of the wildcard, which is `pkh(@0/0/**)`'s own
+    # invalid shape and not the `/**` a `Descriptor` cannot spell anyway
+    with pytest.raises(BTClibValueError, match="explicit derivation step"):
+        wallet_policy(parse(f"wpkh({xpub}/0/*)"))
+    # a fixed public key: never ranged, so it fails the wildcard check the
+    # same way a hardened or absent one does, `_parse_key` giving a fixed
+    # key no `wildcard` to be zero
+    with pytest.raises(BTClibValueError, match="not an unhardened wildcard"):
+        wallet_policy(parse(f"wpkh({KEY})"))
+    # a hardened wildcard: the one step an account xpub cannot compute
+    with pytest.raises(BTClibValueError, match="not an unhardened wildcard"):
+        wallet_policy(parse(f"wpkh({xpub}/*h)"))
+    # not ranged at all
+    with pytest.raises(BTClibValueError, match="not an unhardened wildcard"):
+        wallet_policy(parse(f"wpkh({xpub})"))
+    # the same key twice: with no change descriptor the only suffix
+    # this writes is the single `/*`, so any repeat is BIP388's own
+    # invalid shape, `sh(multi(1,@0/**,@0/**))`, over that one suffix
+    with pytest.raises(BTClibValueError, match="used more than once"):
+        wallet_policy(parse(f"multi(1,{xpub}/*,{xpub}/*)"))
+    # derivation before aggregation: BIP390 allows it, BIP388 does not
+    with pytest.raises(BTClibValueError, match="derivation before aggregation"):
+        wallet_policy(parse(f"tr(musig({xpub}/*,{MUSIG_XPUB_B}/*))"))
+    # the same musig() group twice: the aggregate's own trailing wildcard
+    # is the same collision as a plain key's, over the participant set
+    # rather than over one key
+    with pytest.raises(BTClibValueError, match="musig\\(\\) placeholder"):
+        wallet_policy(
+            parse(
+                f"tr(musig({xpub},{MUSIG_XPUB_B})/*,pk(musig({xpub},{MUSIG_XPUB_B})/*))"
+            )
+        )
+    # the same participant twice inside one musig() group: BIP388's
+    # *Additional rules* forbid it whether or not the whole group repeats
+    with pytest.raises(BTClibValueError, match="musig\\(\\) repeats a participant"):
+        wallet_policy(parse(f"tr(musig({xpub},{xpub})/*)"))
+    # a function BIP388's SCRIPT grammar does not list
+    with pytest.raises(BTClibValueError, match="not a BIP388 SCRIPT expression"):
+        wallet_policy(parse(f"combo({xpub}/*)"))
+    with pytest.raises(BTClibValueError, match="not a BIP388 SCRIPT expression"):
+        wallet_policy(parse(f"pk({xpub}/*)"))
+
+
+def test_wallet_policy_descriptor_validates_its_own_input() -> None:
+    """Refuse a multipath index BIP388 has no branch for, and a torn-up pair."""
+    key = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+    key_info = (parse(f"pk({key})").key_expressions[0],)
+    with pytest.raises(BTClibValueError, match="invalid multipath index"):
+        wallet_policy_descriptor("wpkh(@0/**)", key_info, multipath_index=2)
+    with pytest.raises(BTClibValueError, match="key placeholder out of range"):
+        wallet_policy_descriptor("wpkh(@1/**)", key_info)
+    # a key-information entry that still carries its own path: not what
+    # `wallet_policy` ever hands back, but a caller building one by hand
+    # can still get this wrong
+    ranged = parse(f"pk({key}/*)").key_expressions[0]
+    with pytest.raises(BTClibValueError, match="not a bare key-information entry"):
+        wallet_policy_descriptor("wpkh(@0/**)", (ranged,))
+    # a leading zero: BIP388's `KI` grammar spells the index as a decimal
+    # integer with none, so `@00` is not a placeholder at all and is left
+    # unconsumed, the same refusal a template with no placeholder gets
+    with pytest.raises(BTClibValueError, match="not a BIP388 wallet-policy template"):
+        wallet_policy_descriptor("wpkh(@00/**)", key_info)
+    # one placeholder resolved and one left over: `count` alone would let
+    # this through, `text` still holding an unconsumed `@` is what refuses
+    # it -- `test_bip388_invalid_templates`'s `pkh(@0)` exercises
+    # `count == 0` without ever making `text` hold one
+    pair = (key_info[0], key_info[0])
+    with pytest.raises(BTClibValueError, match="not a BIP388 wallet-policy template"):
+        wallet_policy_descriptor("sh(multi(1,@0/**,@1))", pair)
 
 
 # Bitcoin Core's own, from the multipath example of doc/descriptors.md

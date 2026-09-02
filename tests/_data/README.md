@@ -904,6 +904,42 @@ holding multipath participants is refused because `parse` takes no `<a;b>`
 step at all, `multipath_descriptors` being what expands them textually as
 BIP389 defines.
 
+### Not vendored as a file: BIP388's wallet-policy vectors
+
+```text
+repo    bitcoin/bips
+path    bip-0388.mediawiki
+commit  cfff9719405fa35113cab637958809824873750f  2026-04-15
+pulled  2026-09-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete and cited inline in
+`tests/descriptors/descriptors_test.py`'s `BIP388_VECTORS`: every valid
+policy of the Test Vectors section, its template, its key-information
+vector and the multipath descriptor the two compile to, checked branch by
+branch against `wallet_policy_descriptor` and `wallet_policy_address`
+rather than restated as an address of its own -- `multipath_descriptors`
+and `parse` already answer for what a branch of that descriptor is. The
+same vectors are read the other way too, in
+`test_wallet_policy_reconstructs_bip388s_own_vectors`: `wallet_policy`,
+given the receive and change `Descriptor` `multipath_descriptors` splits
+that same descriptor into, rebuilds the vector's own template and
+key-information vector, byte for byte. Four
+of the Invalid policies section's nine are checked too, in
+`test_bip388_invalid_templates`: the no-path, explicit-path,
+cardinality-above-two and derivation-before-aggregation ones, each a
+property of the template text alone. The other five are not:
+out-of-order and skipped placeholders are a canonicalization
+`wallet_policy_descriptor` does not need to enforce to compute one
+address correctly; repeated keys and non-disjoint multipath steps for the
+same placeholder need the two occurrences compared against each other,
+which nothing here does across an `re.subn` callback; and a non-KP key
+present in a template position is refused anyway, but by `parse`'s own
+"use multipath_descriptors first" -- a coincidence of the raw `<0;1>`
+text reaching it unconsumed, not a check this module makes. That one is
+in the module too, as what it is.
+
 ### Not vendored as a file: BIP328's synthetic xpub vectors
 
 ```text
@@ -1258,11 +1294,14 @@ computes for itself: `descriptors.account_descriptors` and
 Not transcribed on purpose: the BIP388 policy arguments, `--index` and
 `--multipath-index`/`--change` on `displayaddress`, `--registration` on
 both `displayaddress` and, since this pin, `signtx`. `btclib.hwi`'s
-module docstring, "Wallet policies, and the address this still cannot
-verify", is why — there is nothing yet in this library to check the
-address a policy-mode `displayaddress` would answer against, and
-`signtx`'s answer keys (`psbt`, `signed`) are unaffected by a
-registration being passed alongside the transaction.
+module docstring, "Wallet policies, and the address `displayaddress`
+still cannot show", is why — `descriptors.wallet_policy_address`
+(issue #1348) computes the address a policy-mode `displayaddress`
+would answer against, but no method here takes `--registration`,
+`--index` or `--multipath-index` and passes them to that command, so
+the surface `tests/hwi_test.py` transcribes still has nothing to send
+them on. `signtx`'s answer keys (`psbt`, `signed`) are unaffected by
+a registration being passed alongside the transaction.
 
 The parser has only ever grown, and only additively, since 2021:
 `--emulators` in 2024, `--chain` and `--expert` on enumerate in 2022,
