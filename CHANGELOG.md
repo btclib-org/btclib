@@ -673,6 +673,20 @@ documented at release-notes length in the first place, and are still in
   repository's Actions variables leave the list of facilities whose
   empty answer records no decision, that zero now being half of what
   records this one.
+### `tests/interpreters_test.py`'s PyPy and `dist` comments match the tree
+
+- **The comment above `_CPYTHON` quoted the PyPy matrix cell as
+  `"pypy-3.11"`; none of the three sweeps write it with a hyphen**
+  (closes #1541). `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml`
+  all spell it `pypy3.11` (`os-ubuntu.yml` also carries `pypy3.10`), and
+  the comment now quotes that form.
+- **The comment above `_GATE` said every merge-gate job "writes the
+  interpreter it runs into itself"; `dist`'s build and its
+  wheel-smoke-test step take theirs from `.python-version` instead**
+  (closes #1544). `_gate_interpreters()`'s own read is unaffected -- the
+  three jobs that do pin `python-version:` inline are what make the
+  token read work -- but the universal claim was false of `dist`, and
+  the comment now names it as the exception.
 
 ## v2026.8.29
 

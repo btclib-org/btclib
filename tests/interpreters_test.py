@@ -68,7 +68,11 @@ _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 # are read as tokens off the file rather than out of a matrix block. A
 # free-threaded build there is a "3.14t" of the same shape. Comments go
 # first, so that a sentence about a sweep's free-threaded cell does not
-# read as the gate running one
+# read as the gate running one. The `dist` job is the exception: its
+# `astral-sh/setup-uv` step passes no `python-version:`, and its bare
+# `uv build` and "Smoke-test the wheel" step's `uv venv` take their
+# interpreter from `.python-version` instead of naming it in the job, so
+# a change to that file would move `dist`'s interpreter unseen here
 _GATE = _ROOT / ".github/workflows/test.yml"
 _COMMENT = re.compile(r"(?:^|\s)#.*$", re.MULTILINE)
 _INTERPRETER = re.compile(r"\b3\.\d+t?\b")
@@ -113,7 +117,7 @@ _CLASSIFIED = _versions(_CLASSIFIER, _PYPROJECT)
 _MATRIX = _matrix()
 # the free-threaded build and PyPy are the same interpreter version as
 # far as a classifier is concerned: "3.14t" is CPython 3.14, and
-# "pypy-3.11" is what the PyPy classifier covers rather than a version
+# "pypy3.11" is what the PyPy classifier covers rather than a version
 # of its own
 _CPYTHON = tuple(sorted({v.rstrip("t") for v in _MATRIX if not v.startswith("pypy")}))
 
