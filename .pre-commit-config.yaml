@@ -337,12 +337,14 @@ repos:
   #
   # The rule is the prefix and not the extension, and issue #1175's
   # table is what decides that: "DOES_NOT_EXIST.txt",
-  # "sub/DOES_NOT_EXIST.md", "DOES_NOT_EXIST" and "../DOES_NOT_EXIST.md"
-  # each reach myst's fallback, and each is missed by the union of both
-  # greps a repository ran. An ".md"-scoped rule would leave all four
-  # writable; a prefix refuses all four where they are written, which
+  # "sub/DOES_NOT_EXIST.md" and "DOES_NOT_EXIST" each reach myst's
+  # fallback, and each is missed by the union of both greps a
+  # repository ran. An ".md"-scoped rule would leave all three
+  # writable; a prefix refuses all three where they are written, which
   # answers that issue by prevention rather than by the extra patterns
-  # its Options section contemplates.
+  # its Options section contemplates. The table's fourth row,
+  # "../DOES_NOT_EXIST.md", is answered separately below rather than by
+  # this rule.
   #
   # Measured here as well, by building this repository's documentation
   # with an unresolvable link written each way: "./page.md",
@@ -353,15 +355,18 @@ repos:
   # without also matching the autodoc anchors these pages carry --
   # href="#btclib.ecc.dsa.sign" and href="#module-btclib.b32".
   #
-  # "../" is the row worth naming on its own, because it is the one
-  # shape with nothing downstream behind it. conf.py's transform
-  # declines a target that normalizes above the repository root --
-  # nothing above the root is a document this build can answer for --
-  # so "../page.md" reaches myst's fallback by design rather than by a
-  # gap in the transform, and renders href="#../page.md", which the grep
-  # in docs.yml does not match and should not be widened to. Refusing it
-  # here is the only place that shape can be caught at all, which is why
-  # it is refused rather than allowed as an ordinary relative path.
+  # "../" is accepted, unlike the three rows above: conf.py's
+  # RootFileLinks transform resolves a target written this way against
+  # the document that wrote it, through `doc2path`, rather than
+  # declining anything that normalizes above the repository root
+  # (issue #1562). A working "../" link now resolves for real; a broken
+  # one is left unresolved for myst's own resolver, which -W reports
+  # directly, rather than reaching the silent href="#../page.md"
+  # fallback that the old transform's decline used to hand it.
+  # Measured: `sphinx-build -n -W` alone, with neither lychee nor the
+  # grep in docs.yml running, already fails on an intentionally broken
+  # "../" link, so refusing the shape here no longer buys anything the
+  # build does not already catch on its own.
   #
   # The first branch steps over a nested image, and it has to: a badge is
   # "[![alt](src)](href)", and link text written "[^]]*" stops at the "]"
@@ -401,7 +406,7 @@ repos:
   - repo: local
     hooks:
       - id: local-link-prefix
-        name: a local markdown link destination begins with ./
+        name: a local markdown link destination begins with ./ or ../
         language: pygrep
         # one line, and no literal space in it -- "\x20" is the space the
         # reference branch allows -- so yamllint reads the value as a
@@ -417,7 +422,7 @@ repos:
         # total leaves one of those quotations unpaired with whatever
         # backtick follows it (issue #1302)
         entry: |-
-          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\./|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
+          (?<![\x60!\[])(?:!?\[(?:[^]]|\]\([^)]*\))*\]\(|^\x20{0,3}\[[^]]+\]:\s*)(?!\.\.?/|#|[A-Za-z][A-Za-z0-9+.-]*:)[^)\s]
         types: [markdown]
       # a line that ends inside a word, at that word's own hyphen.
       # Section 4 of the organization standard is the rule: what such a

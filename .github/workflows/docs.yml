@@ -123,14 +123,15 @@ jobs:
       # configuration, and it is what would catch a suppression added
       # back.
       #
-      # One grep, because there is one spelling to look for. myst's
+      # One grep, widened to two spellings rather than one. myst's
       # fallback renders the destination verbatim, so what this can
       # match is decided upstream of here, in how the link was written
       # -- and the local-link-prefix hook in .pre-commit-config.yaml
-      # refuses a local destination that does not begin "./", in the
-      # commit that writes it. Every destination the included root files
-      # carry therefore renders href="#./<destination>" when it breaks,
-      # anchor, extension and nested path alike (issue
+      # refuses a local destination that does not begin "./" or "../",
+      # in the commit that writes it (issue #1562). Every destination
+      # the included root files carry therefore renders
+      # href="#./<destination>" or href="#../<destination>" when it
+      # breaks, anchor, extension and nested path alike (issue
       # btclib-org/.github#20; the hook's own comment has the
       # measurement behind that).
       #
@@ -161,7 +162,7 @@ jobs:
       # on the built html
       - name: Check the built pages for unresolved links
         run: |
-          if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
+          if grep -rnE 'href="#\.\.?/' docs/build/html --include='*.html'; then
             echo "::error::the links above resolve to no page (unresolved relative path)"
             exit 1
           fi
