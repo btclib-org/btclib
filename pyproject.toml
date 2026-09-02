@@ -939,12 +939,21 @@ ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this
     # list enforce exactly that (issue #290). The two still ignored are
-    # the ones pep257 does not ask for: __init__ is documented by its
-    # class, and a magic method by the data model it implements. Neither
-    # is off because of `convention = "pep257"` below -- that convention
-    # leaves both rules enabled, so it is these two entries doing the
-    # exempting, and dropping either would gate a docstring on every
-    # __init__ or magic method (btclib-org/.github#178)
+    # the ones pep257 does not ask for. A magic method is documented by
+    # the data model it implements. `undocumented-public-init` is
+    # declined for a different reason: it checks that a docstring exists,
+    # never that it says anything, and the cheapest line satisfying it
+    # restates what the constructor's own annotations and strict mypy
+    # already carry. PEP 257 puts the constructor's documentation in
+    # `__init__`'s own docstring, so declining the rule declines that
+    # presence check and never the documentation -- an argument's
+    # meaning, a raised exception, an invariant the constructor
+    # establishes still has nowhere else to go. Section 5 of
+    # btclib-org/.github gives the reason. Neither is off because of
+    # `convention = "pep257"` below -- that convention leaves both rules
+    # enabled, so it is these two entries doing the exempting, and
+    # dropping either would gate a docstring on every __init__ or magic
+    # method (btclib-org/.github#178)
     "undocumented-magic-method",
     "undocumented-public-init",
     # code length is enforced by the formatter, which reflows to its 88
