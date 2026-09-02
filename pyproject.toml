@@ -605,11 +605,10 @@ extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
 [tool.typos.default.extend-identifiers]
 # BIP342 spells it so, and the x is the placeholder for the opcode number
 OP_SUCCESSx = "OP_SUCCESSx"
-# HWI's own spelling of error code -4, refuse included: tests/hwi_test.py
-# transcribes its error table, and a transcription that corrects its
-# source is not one -- the name a caller reads in HWI's own output would
-# then be one this repository never mentions. Fixed upstream or not, the
-# pinned revision in tests/_data/README.md is what this has to match
+# HWI's own former spelling of error code -4, refuse included: upstream
+# renamed it to UNKNOWN_DEVICE_TYPE and kept this as a compat alias,
+# tests/hwi_test.py's transcription follows the rename, and CHANGELOG.md
+# still narrates the misspelling that was pinned before it
 UNKNWON_DEVICE_TYPE = "UNKNWON_DEVICE_TYPE"
 # Bitcoin Core's own name for the serialization parameters of an address,
 # `Ser` for serialize where the dictionary reads a misspelt `Set`

@@ -943,16 +943,17 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  c4068cf37b6674417c77ce1f295b51dd49a57e81  2026-07-08
-blob    b88c641547289b75f3dd760e73ba858f81ad5d85
-pulled  2023-07-08, refreshed 2026-07-30
+commit  4a12773f269742d2c655beb1b3f5ffe98e9beadb  2026-08-21
+blob    2eb02c40ca8173f7c0ff044a7b8a3438e9724914
+pulled  2023-07-08, refreshed 2026-09-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**. 1288 entries, 1233 vectors once the comment lines
-are dropped.
+Verdict: **identical**. 1292 entries, 1237 vectors once the comment lines
+are dropped: four cases added since the previous pin, one of them a
+DERSIG rejection of a non-compound signature type.
 
-Five of the 1233 are TAPSCRIPT cases whose witness and output script are
+Five of the 1237 are TAPSCRIPT cases whose witness and output script are
 placeholders — `#SCRIPT#`, `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that
 Core's `script_tests.cpp` generates at run time. `taproot_placeholders`
 in `tests/script_engine/script_test.py` generates them here, from the
@@ -1236,8 +1237,8 @@ transcription it is checked against.
 ```text
 repo    bitcoin-core/HWI
 path    hwilib/_cli.py
-commit  d8b0d995e6ac23d39372b893266f2b59adc7354b  2026-08-21
-pulled  2026-08-25
+commit  6f44e48980bf610a57195f43a74027f4dc20e385  2026-08-24
+pulled  2026-09-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1254,43 +1255,46 @@ issue #381 keeps out of the signing surface deliberately, and
 computes for itself: `descriptors.account_descriptors` and
 `btclib.core_import` are those three, on btclib's own types.
 
-Not transcribed on purpose: `displayaddress`'s BIP388 policy arguments,
-`--registration`, `--index` and `--multipath-index`/`--change`, added in
-this pin alongside `registerdescriptor` itself. `btclib.hwi`'s module
-docstring, "Wallet policies, and the address this still cannot verify",
-is why — there is nothing yet in this library to check the address a
-policy-mode `displayaddress` would answer against.
+Not transcribed on purpose: the BIP388 policy arguments, `--index` and
+`--multipath-index`/`--change` on `displayaddress`, `--registration` on
+both `displayaddress` and, since this pin, `signtx`. `btclib.hwi`'s
+module docstring, "Wallet policies, and the address this still cannot
+verify", is why — there is nothing yet in this library to check the
+address a policy-mode `displayaddress` would answer against, and
+`signtx`'s answer keys (`psbt`, `signed`) are unaffected by a
+registration being passed alongside the transaction.
 
-The parser has moved four times since 2021 and every time additively:
+The parser has only ever grown, and only additively, since 2021:
 `--emulators` in 2024, `--chain` and `--expert` on enumerate in 2022,
-`registerdescriptor` in 2026-08, and the BIP388 policy arguments on
-`displayaddress` in 2026-08 (the pin). `signtx` gained a second answer
-key, `signed`, in 2021 — which is how this pin earned itself: btclib
-read only `psbt` until the surface was written down, and now checks the
-two against each other.
+`registerdescriptor` and the BIP388 policy arguments on `displayaddress`
+in 2026-08, and `--registration` on `signtx` in this pin. `signtx`
+gained a second answer key, `signed`, in 2021 — which is how this pin
+earned itself: btclib read only `psbt` until the surface was written
+down, and now checks the two against each other.
 
 ### Not vendored as a file: HWI's error codes
 
 ```text
 repo    bitcoin-core/HWI
 path    hwilib/errors.py
-commit  b209f369778aae0b441cb096e4afb7a2ea3717b4  2021-02-24
-pulled  2026-08-07
+commit  bbbc8a65db960bcd08be63362657dfcac72359dd  2026-08-20
+pulled  2026-09-02
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, and ahead of this pin by one: `INVALID_POLICY`
-(-19), which upstream added after the commit above, is in
-`tests/hwi_test.py`'s table too — issue #1335 added it without moving
-the pin, on the rule `pyproject.toml`'s `UNKNWON_DEVICE_TYPE` comment
-states, so the two move apart on purpose until a full re-check reconciles
-both at once. Nineteen numbers with the names HWI gives them, in
-`tests/hwi_test.py`, and one test per number that a `{"error": …, "code":
-…}` answer arrives as an `exceptions.SignerError` carrying it. The
-numbers are what a caller acts on — -14 is somebody pressing the button
-that says no, -3 is a cable, -9 is a model that will never do it — so an
-adapter that dropped them would leave a caller matching on the text of a
-message.
+Verdict: **transcribed**. The pin now carries the same commit
+`INVALID_POLICY` (-19) had already been checked in from ahead of, and the
+`UNKNWON_DEVICE_TYPE` misspelling this commit fixes upstream — keeping
+the old name as a compat alias with the same code, -4 — is why
+`tests/hwi_test.py`'s table now reads `UNKNOWN_DEVICE_TYPE`;
+`pyproject.toml`'s typos exception for the old spelling stays, for
+`CHANGELOG.md`'s own narration of it. Nineteen numbers with the names
+HWI gives them, in `tests/hwi_test.py`, and one test per number that a
+`{"error": …, "code": …}` answer arrives as an `exceptions.SignerError`
+carrying it. The numbers are what a caller acts on — -14 is somebody
+pressing the button that says no, -3 is a cable, -9 is a model that will
+never do it — so an adapter that dropped them would leave a caller
+matching on the text of a message.
 
 ## bitcoin-core/qa-assets
 
