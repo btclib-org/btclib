@@ -327,18 +327,14 @@ to `deps-latest`'s own result.
    Give it its title and its body. The title is the version; the body
    says what the release is — what moved, what did not, and which of the
    two a user would notice. The squash takes its message from the
-   branch's commits and not from that body:
-
-   ```shell
-   gh api repos/btclib-org/btclib --jq .squash_merge_commit_message
-   # COMMIT_MESSAGES
-   ```
-
-   so the pull request is where the body stays, and where a reader
-   arriving from the release commit ends up. A template left unfilled, or
-   a bot's summary of the diff, is not a substitute — the summary can
-   stay, but what the diff cannot say has to be written, and what a
-   reader should not have to discover at the button belongs there too.
+   branch's commits and not from that body — `squash_merge_commit_message`
+   is REPOSITORY.md's *Merge methods* to read, not this file's to
+   restate — so the pull request is where the body stays, and where a
+   reader arriving from the release commit ends up. A template left
+   unfilled, or a bot's summary of the diff, is not a substitute — the
+   summary can stay, but what the diff cannot say has to be written, and
+   what a reader should not have to discover at the button belongs there
+   too.
 
    Write it from the section the retitle above renamed, which the cycle
    has been filling one landed change at a time, and check that
@@ -371,19 +367,20 @@ to `deps-latest`'s own result.
    way. Name the release commit's title and body explicitly when using
    it — `gh pr merge <n> --squash --admin --subject "<title>"
    --body-file <path>` — rather than leave them to
-   `squash_merge_commit_message`'s repository default, `COMMIT_MESSAGES`
-   here: this branch carries more than one commit every time (the
-   paragraph below this one), and that default composes the commit under
-   the tag from all of them rather than from what step 3 wrote.
+   `squash_merge_commit_message`'s repository default, recorded in
+   REPOSITORY.md's *Merge methods*: this branch carries more than one
+   commit every time (the paragraph below this one), and that default
+   composes the commit under the tag from all of them rather than from
+   what step 3 wrote.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
    merge_method=squash` is the fallback for when `--admin` is
    unavailable, and needs `commit_title` and `commit_message` passed the
    same way for the same reason. It is what landed btclib-secp256k1's
    0.8.0.4 clean — but only because that branch carried a single commit,
-   so `COMMIT_MESSAGES`'s concatenation and that commit's own message
-   were the same string; a multi-commit release branch without the two
-   parameters would not be so lucky.
+   so the repository default's concatenation of every commit and that
+   commit's own message were the same string; a multi-commit release
+   branch without the two parameters would not be so lucky.
 
    This branch carries more than one commit every time, a version bump
    and two retitles never being one, so the commit that lands is one
@@ -465,8 +462,10 @@ to `deps-latest`'s own result.
    ```
 
    `publish-testpypi` is `skipped` on a tag and `publish-pypi` on a
-   rehearsal — each is the other's trigger — and `public-api` is red on
-   any cycle with breaking changes. Everything else should be `success`.
+   rehearsal — each is the other's trigger — `public-api` is red on any
+   cycle with breaking changes, and `documented` skipped on its own
+   account, its guard being the push. Everything else should be
+   `success`.
 
 1. Read the `documented` job rather than the site: read the docs activates
    and builds a new release tag from the automation rule REPOSITORY.md
