@@ -1,16 +1,22 @@
-# The changelog and the release notes are append-only lists, and every
-# branch appends to the same few groups: two branches each adding a bullet
-# conflict on the insertion point, which is a conflict with nothing to
-# decide. `union` resolves it by keeping both sides' added lines, in the
-# order base-then-ours, and it is built into git — nobody has to configure
-# anything for it to apply.
+# The changelog and the release notes are append-only lists, and the
+# standard gives an entry one place to go, so two branches each writing
+# one arrive at the same anchor: a conflict on the insertion point, with
+# nothing to decide. `union` resolves it by keeping both sides' added
+# lines, ours first and then theirs, the base's own lines staying where
+# they are, and it is built into git — nobody has to configure anything
+# for it to apply.
 #
-# It applies to rebases too, which is where it earns its keep, and it has
-# a price worth knowing: on a checkout these two files never conflict at
-# all, so the same existing entry edited on two branches merges in
-# silence rather than being flagged. That is why neither states how many
-# entries it has — a count is exactly such an edit, and union would have
-# kept both numbers.
+# Which side is `ours` is decided by the operation and not by whose work
+# it is: merging, `ours` is the branch checked out and `theirs` the
+# branch being merged into it; rebasing, `ours` is the upstream and
+# `theirs` each commit being replayed onto it.
+#
+# The rebase is where the driver earns its keep, and it has a price
+# worth knowing: on a checkout these two files never conflict at all, so
+# the same existing entry edited on two branches merges in silence
+# rather than being flagged. That is why neither states how many entries
+# it has — a count is exactly such an edit, and union would have kept
+# both numbers.
 #
 # The driver is a checkout's, and the forge does not apply it: a pull
 # request whose changelog or release notes overlap its base is reported
