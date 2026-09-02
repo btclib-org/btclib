@@ -17,9 +17,9 @@ and the whole flow is one command:
     BTCLIB_INTEGRATION=1 uv run pytest tests/integration
 
 The node is this session's own: a regtest data directory under pytest's
-tmp_path, an ephemeral port, and a cookie file for the credentials. It
-never touches a node the maintainer is running, which is the reason none
-of the defaults -- port 18443, ~/.bitcoin -- is used.
+tmp_path, ephemeral rpc and p2p ports, and a cookie file for the
+credentials. It never touches a node the maintainer is running, which is
+the reason none of the defaults -- port 18443, ~/.bitcoin -- is used.
 """
 
 from __future__ import annotations
@@ -72,8 +72,21 @@ def bitcoind_path() -> str:
 
 
 @pytest.fixture(scope="session")
+def p2p_port() -> int:
+    """Return the port `node` below binds its p2p listener to.
+
+    A fixture of its own rather than a value read off `node` after the
+    fact: a p2p test needs the number before the node exists, to build
+    the `addr_recv` its own `Version` names, and a session-scoped
+    fixture is what lets both `node` and a p2p test request the same
+    port without either constructing it.
+    """
+    return _free_port()
+
+
+@pytest.fixture(scope="session")
 def node(
-    bitcoind_path: str, tmp_path_factory: pytest.TempPathFactory
+    bitcoind_path: str, p2p_port: int, tmp_path_factory: pytest.TempPathFactory
 ) -> Iterator[BitcoinCoreRpcClient]:
     """Yield an rpc client of a regtest node started for this session.
 
@@ -81,6 +94,19 @@ def node(
     from, and Core refuses to fund a transaction without one; the wallet
     calls here fund nothing, but a caller reading this as a recipe would
     meet that on the first `walletcreatefundedpsbt`.
+
+    `-bind` names the one address this node listens for p2p on, and does
+    so regardless of `-listen`'s own default -- Core's own reference for
+    the option is "bind to given address and always listen on it" -- so
+    a fixed, ephemeral, loopback-only port is what a p2p test dials.
+
+    `-natpmp`, `-discover` and `-listenonion` are then switched off by
+    hand, because the interaction that switched all three off for us was
+    `-listen=0`, which naming `-bind` means no longer passing. Each
+    defaults to on and each reaches past this machine -- a port mapping
+    asked of the gateway, a public address looked up, a Tor control port
+    dialled -- which is not what a throwaway regtest node wants of a
+    developer's own network.
     """
     datadir = tmp_path_factory.mktemp("regtest")
     port = _free_port()
@@ -91,7 +117,10 @@ def node(
             f"-datadir={datadir}",
             f"-rpcport={port}",
             "-rpcbind=127.0.0.1",
-            "-listen=0",
+            f"-bind=127.0.0.1:{p2p_port}",
+            "-natpmp=0",
+            "-discover=0",
+            "-listenonion=0",
             "-fallbackfee=0.0002",
             # so that `getrawtransaction` answers for a confirmed
             # transaction of any wallet: what a psbt needs is the previous

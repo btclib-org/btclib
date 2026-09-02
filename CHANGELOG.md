@@ -845,6 +845,29 @@ documented at release-notes length in the first place, and are still in
   settled against a cipher, offered instead of Minisketch at Python
   speed to every caller rather than to `tf2`'s test primitives.
 
+### `tests/integration/p2p_test.py` puts `btclib.p2p` in front of a real Core
+
+- **A `Version` this library serializes is sent over a socket straight at
+  a regtest node's p2p port, and read back against whatever Core answers
+  with, up to and including `verack`** (closes #1412). `regtest_test.py`
+  reaches the same node only through `bitcoin_core_rpc`, and
+  `tests/p2p/`'s vectors are a capture frozen the day it was taken, so
+  neither says whether Core still accepts what this library emits or
+  still sends what a fixture once caught. Core's own `version` parses
+  back into this library's `Version`, with the service bits and the
+  user agent this library's own types say they are; every message Core
+  sends before `verack` -- `wtxidrelay` and `sendaddrv2` among them --
+  parses as `Message.parse`'s envelope, an unrecognized command
+  included; and `magic_from_network("regtest")` is the four octets Core
+  actually frames with.
+- **`conftest.py`'s node binds a p2p listener**, on a second ephemeral
+  loopback port `-bind` opens regardless of `-listen`'s own default, so
+  a test can dial it directly rather than only through
+  `bitcoin_core_rpc`.
+- **`integration-bitcoind.yml`'s sentinel step now watches every
+  non-hwi test in the job**, so a p2p test that skips itself fails the
+  required check the same way a regtest one already does.
+
 ## v2026.8.29
 
 ### Repository
