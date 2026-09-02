@@ -206,9 +206,9 @@ documented at release-notes length in the first place, and are still in
   environment, created by enabling Pages rather than by the repository
   — so the sample readback under *Publishing waits for an approval*
   now selects `pypi` and `testpypi` only, and the sentence recording
-  `github-pages`'s branch restriction is gone; the branch Pages serves
-  is what *Pages, which is btclib.org*'s own `source.branch` already
-  answers.
+  `github-pages`'s branch restriction is gone; there is no such branch
+  left to restrict, which is what *Pages, which this repository does
+  not use*'s own 404 already answers.
 - **`REPOSITORY.md`'s *Code quality* readback names `python` alone**
   (issue btclib-org/.github#530). Autodetection listed `ruby` for as long
   as a `Gemfile` sat at the root, and removing the website took the
