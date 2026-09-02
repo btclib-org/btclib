@@ -583,6 +583,19 @@ documented at release-notes length in the first place, and are still in
   while `documented` is guarded by the event and a branch ref would
   spend the whole deadline on a URL that answers 404 by construction.
 
+### The `undocumented-public-init` comment gave the class as the place
+
+- **`pyproject.toml`'s `ignore` comment said `__init__` is documented by
+  its class** (closes btclib-org/.github#588), where section 5 of the
+  organization standard puts the constructor's documentation in
+  `__init__`'s own docstring, after PEP 257. The comment now gives that
+  section's reason for the entry: the rule checks that a docstring
+  exists and never that it says anything, so declining it declines the
+  presence check and never the documentation -- an argument's meaning, a
+  raised exception, an invariant the constructor establishes still has
+  nowhere else to go. It names the section, as the comments beside it
+  carrying an organization-wide decision already do.
+
 ## v2026.8.29
 
 ### Repository
