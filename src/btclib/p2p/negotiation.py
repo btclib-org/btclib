@@ -6,12 +6,14 @@
 
 `getaddr` wants addresses, `mempool` wants what is in the mempool,
 `sendheaders` wants a new block announced as a header rather than as an
-inventory, `wtxidrelay` wants transactions announced by wtxid, and
-`feefilter` wants nothing below a fee rate. That is the one idea they
-share, and the module is named for the larger half of it: three of them
-negotiate how the rest of the connection is written, and two are
-one-off requests. Issue #1119 is titled for both -- "the p2p negotiation
-and request messages" -- and a filename cannot be.
+inventory, `wtxidrelay` wants transactions announced by wtxid,
+`sendtxrcncl` says this peer would reconcile its transaction set rather
+than have every one announced, and `feefilter` wants nothing below a fee
+rate. That is the one idea they share, and the module is named for the
+larger half of it: four of them negotiate how the rest of the connection
+is written, and two are one-off requests. Issue #1119 is titled for both
+-- "the p2p negotiation and request messages" -- and a filename cannot
+be.
 
 **Why they are together, and it is not that they answer to nothing.**
 Every other request in this package sits beside the message that
@@ -20,21 +22,21 @@ answers it: `getdata` beside `inv`, `getcfilters` beside `cfilter`,
 that rule. A `getaddr` is answered by an `addr` *or* by an `addrv2`,
 which are two modules, so sitting beside its answer means picking one of
 them; a `mempool` is answered by an `inv`, and `inventory` is the module
-about inventories rather than about what a peer holds. The three that
+about inventories rather than about what a peer holds. The four that
 negotiate have the opposite problem: they turn nothing on that this
 package encodes, so there is no codec for them to sit beside at all.
 
-`sendaddrv2` and `sendcmpct` are not here for the reason the three
+`sendaddrv2` and `sendcmpct` are not here for the reason the four
 negotiators are: each is about a message this package *does* encode --
 an `addrv2` and a `cmpctblock` -- so each lives beside the codec it
 turns on, which is where a reader of that codec looks.
 
-**All but `feefilter` carry no octets at all**, which makes them the
-shape `Verack` and `SendAddrV2` already are, down to the one thing an
-empty payload has to get right: `parse` refuses trailing octets rather
-than ignoring them, a message this class could not have written not
-being one it may answer. They repeat those lines rather than share a
-base, for the reason `addrv2.SendAddrV2` states:
+**All but `feefilter` and `sendtxrcncl` carry no octets at all**, which
+makes them the shape `Verack` and `SendAddrV2` already are, down to the
+one thing an empty payload has to get right: `parse` refuses trailing
+octets rather than ignoring them, a message this class could not have
+written not being one it may answer. They repeat those lines rather
+than share a base, for the reason `addrv2.SendAddrV2` states:
 `keepalive._NoncePayload` is a base because two commands have one
 *body*, and the absence of a body is not a body to share. The
 alternative -- one class with `command` as a field -- is refused across
@@ -58,18 +60,55 @@ this codec parses them too: the money range is policy about a value, and
 this package holds no policy. What it does refuse is a value no eight
 octets hold, which is the field boundary rather than a judgement.
 
+**`sendtxrcncl` is BIP330's Erlay negotiation and none of Erlay's
+reconciliation.** The message itself is two unsigned fields, a `uint32`
+protocol version and a `uint64` salt; BIP330's own table and Core's
+`test/functional/test_framework/messages.py` `msg_sendtxrcncl` agree on
+that layout field for field. `node/txreconciliation.h` declares
+`TXRECONCILIATION_VERSION` 1, matching BIP330's "Sender must set this
+to 1 currently" -- so both sources name the same one value a peer
+sends today, and this codec fixes neither: a version below 1 is a
+protocol violation BIP330 states and Core enforces in
+`TxReconciliationTracker::RegisterPeer`, after the parse and against
+the *pair* of versions the two peers offered, which is a connection's
+state and not a fact the four octets of `version` carry alone; a salt
+is entropy, and every value its width holds is one a peer may have
+picked.
+
+Erlay itself -- the sketches, the Minisketch library, the
+request-and-response round that follows a successful negotiation -- is
+not modelled here and is not going to be. BIP330's own list of the new
+messages the protocol adds is `sendtxrcncl` and four more --
+`reqrecon`, `sketch`, `reqsketchext`, `reconcildiff` -- and this module
+carries the first and none of the rest; carrying it and stopping is the
+shape every other module in this package already has, codecs and no
+behaviour, stated once so that the absence of the other four reads as
+the boundary it is rather than as an unfinished job. Issue #1066 is
+what decides it and how: "what btclib can build out of the Python
+standard library is in scope, what would need a hand-rolled
+[construction] is not" -- `hashlib` and `hmac` back HKDF, and nothing in
+the standard library backs a PinSketch over `GF(2**32)`. Minisketch is
+C++ behind a C API for the reason `btclib_secp256k1` wraps a C library,
+and a pure-Python sketch would be the only implementation on a relay
+path rather than a documented slow arm behind a fast default, which is
+the asymmetry issue #1066 states for a cipher and which holds here too.
+
 **What is not modelled** is placement, and the rules are not the same
 for all of them. `wtxidrelay` must arrive before the `verack` and Core
 disconnects a peer that sends one after it; `sendheaders` has no such
 rule and Core honours one whenever it arrives; `getaddr` is answered
 once per connection and only to an inbound peer; `mempool` is served
-only where Core advertises `NODE_BLOOM` or the peer is permitted; and
-Core sends a `feefilter` from protocol version 70013, unless it is
-running with transactions ignored, the peer has the force-relay
-permission, or the connection is block-relay-only. Every one of those is
-a rule about *when* or *to whom*, which needs a connection to hold, and
-this package has none -- the same line `SendAddrV2` draws for BIP155's
-placement rule.
+only where Core advertises `NODE_BLOOM` or the peer is permitted; Core
+sends a `feefilter` from protocol version 70013, unless it is running
+with transactions ignored, the peer has the force-relay permission, or
+the connection is block-relay-only; and `sendtxrcncl`, like
+`wtxidrelay`, belongs between `version` and `verack` -- BIP330 says a
+peer that sends one after `verack` should be disconnected, and Core's
+`net_processing.cpp` does exactly that, along with disconnecting a peer
+that offers reconciliation while either side's `version` declined
+transaction relay. Every one of those is a rule about *when* or *to
+whom*, which needs a connection to hold, and this package has none --
+the same line `SendAddrV2` draws for BIP155's placement rule.
 """
 
 from __future__ import annotations
@@ -93,6 +132,7 @@ __all__ = [
     "GetAddr",
     "Mempool",
     "SendHeaders",
+    "SendTxRcncl",
     "WtxidRelay",
 ]
 
@@ -104,6 +144,15 @@ _FEERATE_SIZE = 8
 # docstring for why a negative fee rate is parsed rather than refused
 _MIN_INT64 = -(1 << (8 * _FEERATE_SIZE - 1))
 _MAX_INT64 = (1 << (8 * _FEERATE_SIZE - 1)) - 1
+
+# BIP330's sendtxrcncl fields, both unsigned: `uint32 version` and
+# `uint64 salt`, in that order -- see the module docstring for why
+# neither bound below refuses a value BIP330 and Core parse
+_RECON_VERSION_SIZE = 4
+_SALT_SIZE = 8
+
+_MAX_RECON_VERSION = (1 << (8 * _RECON_VERSION_SIZE)) - 1
+_MAX_SALT = (1 << (8 * _SALT_SIZE)) - 1
 
 
 @dataclass(frozen=True)
@@ -360,3 +409,89 @@ class FeeFilter(Payload):
         assert_no_trailing(data, stream, "feefilter payload")
 
         return cls(feerate, check_validity=check_validity)
+
+
+@dataclass(frozen=True)
+class SendTxRcncl(Payload):
+    """The `sendtxrcncl` message: this peer would reconcile, not announce.
+
+    BIP330, and Bitcoin Core's `msg_sendtxrcncl`: a `uint32` protocol
+    version and a `uint64` salt, this peer's half of the entropy the two
+    sides combine -- `TaggedHash("Tx Relay Salting", salt1, salt2)`, the
+    lower salt first -- to key the short transaction IDs a reconciliation
+    round exchanges. The module docstring has the whole of what this
+    message is the negotiation for and is not the codec of.
+
+    `version` is 1 for every peer running the protocol BIP330 and
+    `node/txreconciliation.h` describe today, and this class does not
+    enforce that: a version below 1 is what Core's
+    `TxReconciliationTracker::RegisterPeer` calls a protocol violation,
+    after comparing the two peers' versions against each other, which
+    this codec never sees. `salt` is entropy, and every value its width
+    holds is one a peer may have chosen.
+
+    Frozen and hashable, both fields being immutable.
+    """
+
+    command = "sendtxrcncl"
+
+    version: int
+    salt: int
+
+    def __init__(
+        self, version: int = 0, salt: int = 0, *, check_validity: bool = True
+    ) -> None:
+        object.__setattr__(self, "version", version)
+        object.__setattr__(self, "salt", salt)
+
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        """Refuse a field no unsigned wire value of its own width holds."""
+        # a bool is an int and would read as the field one or zero, which
+        # the range check cannot tell from a value that is one or zero
+        if not is_integer(self.version):
+            err_msg = f"invalid version type: {type(self.version).__name__}"
+            raise BTClibTypeError(err_msg)
+        if not 0 <= self.version <= _MAX_RECON_VERSION:
+            raise BTClibValueError(f"invalid version: {self.version}")
+
+        if not is_integer(self.salt):
+            err_msg = f"invalid salt type: {type(self.salt).__name__}"
+            raise BTClibTypeError(err_msg)
+        if not 0 <= self.salt <= _MAX_SALT:
+            raise BTClibValueError(f"invalid salt: {self.salt}")
+
+    @override
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the version and the salt, both little-endian."""
+        if check_validity:
+            self.assert_valid()
+
+        out = self.version.to_bytes(
+            _RECON_VERSION_SIZE, byteorder="little", signed=False
+        )
+        out += self.salt.to_bytes(_SALT_SIZE, byteorder="little", signed=False)
+        return out
+
+    @classmethod
+    def parse(
+        cls: type[SendTxRcncl], data: BinaryData, *, check_validity: bool = True
+    ) -> SendTxRcncl:
+        """Return the version and the salt the twelve octets carry."""
+        stream = bytesio_from_binarydata(data)
+
+        version = int.from_bytes(
+            read_exactly(stream, _RECON_VERSION_SIZE, "sendtxrcncl version"),
+            byteorder="little",
+            signed=False,
+        )
+        salt = int.from_bytes(
+            read_exactly(stream, _SALT_SIZE, "sendtxrcncl salt"),
+            byteorder="little",
+            signed=False,
+        )
+        assert_no_trailing(data, stream, "sendtxrcncl payload")
+
+        return cls(version, salt, check_validity=check_validity)

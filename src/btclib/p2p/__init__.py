@@ -94,6 +94,7 @@ from btclib.p2p.negotiation import (
     GetAddr,
     Mempool,
     SendHeaders,
+    SendTxRcncl,
     WtxidRelay,
 )
 from btclib.p2p.payload import Payload
@@ -136,6 +137,7 @@ __all__ = [
     "SendAddrV2",
     "SendCmpct",
     "SendHeaders",
+    "SendTxRcncl",
     "ServiceFlags",
     "TimestampedNetworkAddress",
     "TxPayload",

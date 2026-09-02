@@ -74,6 +74,7 @@ from btclib.p2p.negotiation import (
     GetAddr,
     Mempool,
     SendHeaders,
+    SendTxRcncl,
     WtxidRelay,
 )
 from btclib.psbt import psbt_utils
@@ -134,6 +135,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "Mempool.parse": Mempool.parse,
     "SendHeaders.parse": SendHeaders.parse,
     "WtxidRelay.parse": WtxidRelay.parse,
+    "SendTxRcncl.parse": SendTxRcncl.parse,
     "FeeFilter.parse": FeeFilter.parse,
     "Version.parse": Version.parse,
     "Verack.parse": Verack.parse,

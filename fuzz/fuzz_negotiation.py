@@ -4,15 +4,15 @@
 
 """An atheris harness fuzzing `btclib.p2p.negotiation`'s payload parsers.
 
-`getaddr`, `mempool`, `sendheaders`, `wtxidrelay` and `feefilter` are
-reached behind `Message.parse`'s envelope and ahead of any signature
-check, `sendheaders` and `wtxidrelay` being part of the handshake itself.
-`fuzz/fuzz_handshake.py`'s own docstring is where the absence of a
-dispatch table is argued; the same reasoning puts each of the module's
-`parse` classmethods here, reached directly on `message.payload` once a
-caller has read `message.command`.
+`getaddr`, `mempool`, `sendheaders`, `wtxidrelay`, `sendtxrcncl` and
+`feefilter` are reached behind `Message.parse`'s envelope and ahead of
+any signature check, `sendheaders`, `wtxidrelay` and `sendtxrcncl`
+being part of the handshake itself. `fuzz/fuzz_handshake.py`'s own
+docstring is where the absence of a dispatch table is argued; the same
+reasoning puts each of the module's `parse` classmethods here, reached
+directly on `message.payload` once a caller has read `message.command`.
 
-The module has five `Payload` subclasses, so this harness runs all five
+The module has six `Payload` subclasses, so this harness runs all six
 `parse` methods against the same bytes rather than picking one.
 """
 
@@ -24,7 +24,14 @@ import sys
 import atheris
 
 from btclib.exceptions import BTClibException
-from btclib.p2p.negotiation import FeeFilter, GetAddr, Mempool, SendHeaders, WtxidRelay
+from btclib.p2p.negotiation import (
+    FeeFilter,
+    GetAddr,
+    Mempool,
+    SendHeaders,
+    SendTxRcncl,
+    WtxidRelay,
+)
 
 # tests/fuzz_corpus_test.py reads this by ast.literal_eval, never by
 # importing the module -- atheris below is CI-only and undeclared in
@@ -37,19 +44,20 @@ ENTRY_POINTS = (
     "btclib.p2p.negotiation:Mempool.parse",
     "btclib.p2p.negotiation:SendHeaders.parse",
     "btclib.p2p.negotiation:WtxidRelay.parse",
+    "btclib.p2p.negotiation:SendTxRcncl.parse",
     "btclib.p2p.negotiation:FeeFilter.parse",
 )
 
 
 def fuzz_target(data: bytes) -> None:
-    """Parse `data` under each of the module's five commands in turn.
+    """Parse `data` under each of the module's six commands in turn.
 
     `BTClibException` is swallowed as each `parse`'s own refusal of
     malformed input; any other exception propagates, which is how
     atheris tells a defect in `parse` from the domain of input it
     already rejects.
     """
-    for cls in (GetAddr, Mempool, SendHeaders, WtxidRelay, FeeFilter):
+    for cls in (GetAddr, Mempool, SendHeaders, WtxidRelay, SendTxRcncl, FeeFilter):
         with contextlib.suppress(BTClibException):
             cls.parse(data)
 
