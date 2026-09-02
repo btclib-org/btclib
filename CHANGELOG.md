@@ -725,6 +725,28 @@ documented at release-notes length in the first place, and are still in
   repeating it as a literal, the same idiom `_pyproject_author` already
   uses on `pyproject.toml` for the same reason.
 
+### `tests/_data/README.md`'s no-code pins catch up to upstream, again
+
+- **`tests/script_engine/_data/script_tests.json` moves to
+  `src/test/data/script_tests.json`'s current tip** (issue #1557): four
+  cases added since the previous pin, one of them a DERSIG rejection of
+  a non-compound signature type, all read by the same schema
+  `tests/script_engine/script_test.py` already parses.
+- **HWI's JSON CLI pin (`hwilib/_cli.py`) and its error-code pin
+  (`hwilib/errors.py`) both move to their paths' current tips** (issue
+  #1557). The CLI gained `--registration` on `signtx` for BIP388 policy
+  signing, alongside the `--registration` `displayaddress` already had
+  untranscribed, and its answer keys are unchanged; the error module
+  renames `UNKNWON_DEVICE_TYPE` to `UNKNOWN_DEVICE_TYPE`, keeping the
+  old name as a compat alias for the same code, so
+  `tests/hwi_test.py`'s table now reads the corrected spelling and
+  `pyproject.toml`'s typos exception for the old one stays for
+  `CHANGELOG.md`'s own past use of it.
+- **The twelve `C2SP/wycheproof` files under `tests/ecc/_data/` and
+  `WYCHEPROOF_COPYING` keep their pin**: each path's own most recent
+  commit predates the pinned commit, so the pin already carries their
+  current content and there is nothing to move it to.
+
 ## v2026.8.29
 
 ### Repository
