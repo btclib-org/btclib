@@ -583,6 +583,41 @@ documented at release-notes length in the first place, and are still in
   while `documented` is guarded by the event and a branch ref would
   spend the whole deadline on a URL that answers 404 by construction.
 
+### The `undocumented-public-init` comment gave the class as the place
+
+- **`pyproject.toml`'s `ignore` comment said `__init__` is documented by
+  its class** (closes btclib-org/.github#588), where section 5 of the
+  organization standard puts the constructor's documentation in
+  `__init__`'s own docstring, after PEP 257. The comment now gives that
+  section's reason for the entry: the rule checks that a docstring
+  exists and never that it says anything, so declining it declines the
+  presence check and never the documentation -- an argument's meaning, a
+  raised exception, an invariant the constructor establishes still has
+  nowhere else to go. It names the section, as the comments beside it
+  carrying an organization-wide decision already do.
+
+### A convention name wrapped in its middle is read as it is written
+
+- **`tests/conventions_test.py` collapses the whitespace of the *Not
+  tested here* list and then of each name in it** (issue
+  btclib-org/.github#651). `strip()` takes whitespace off a name's ends
+  and leaves what an eighty-column wrap puts in its middle, so a name the
+  break splits matched none of section 7's and was reported as a
+  convention the declaration invented -- a red test on a declaration that
+  reads correctly in the file. `tests/README.md`'s line here does not
+  wrap at all, so nothing was red; what goes is the dependence on where
+  the column falls, which nothing enforces. `btclib-benchmarks` reads its
+  own line this way, its wrap falling inside a name.
+
+### The `.gitattributes` comment names the driver's sides and one anchor
+
+- **The comment above the two `merge=union` lines is `btclib-org/.github`'s
+  wording** (issue btclib-org/.github#646): `union` keeps `ours` first
+  and then `theirs`, each of merging and rebasing is named for which
+  side it calls `ours`, and the comment reads the driver as resolving
+  two branches writing an entry at one anchor rather than a bullet
+  appended to one of a few changelog groups.
+
 ## v2026.8.29
 
 ### Repository

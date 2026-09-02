@@ -159,8 +159,15 @@ def test_the_two_halves_account_for_every_convention() -> None:
         f'{_README.name} has no "Not tested here: ...." line;'
         " the declaration is half of one"
     )
-    listed = match[1].strip()
-    absent = () if listed == "none" else tuple(s.strip() for s in listed.split(";"))
+    listed = " ".join(match[1].split())
+    # whitespace collapsed inside each name and not only around it: the
+    # list wraps at eighty columns wherever the column falls, which for a
+    # long one is in the middle of a name rather than at a semicolon
+    absent = (
+        ()
+        if listed == "none"
+        else tuple(" ".join(s.split()) for s in listed.split(";"))
+    )
     tested = {convention for convention, _ in _ROWS}
 
     overlap = tested.intersection(absent)
