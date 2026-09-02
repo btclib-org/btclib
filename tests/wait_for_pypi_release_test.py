@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from email.message import Message
 from http import HTTPStatus
 from pathlib import Path
@@ -290,10 +290,33 @@ def test_a_2xx_that_is_not_ok_is_not_the_index_serving_it(
     assert not script.served(_URL, 10.0)
 
 
+def test_a_404_is_not_the_index_serving_the_version(
+    script: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 404 while the upload is still landing is one more reason to wait.
+
+    `closing` is what keeps the failure from ending the run somewhere
+    else: `HTTPError` is a response as well as an exception, and inherits
+    `tempfile._TemporaryFileWrapper` through `urllib.response.addbase`,
+    so one collected without being closed raises `ResourceWarning` --
+    which this suite turns into an error, against whichever test happens
+    to be running when the collector reaches it.
+    """
+    failure = HTTPError(_URL, HTTPStatus.NOT_FOUND, "Not Found", Message(), None)
+
+    def urlopen(*_args: object, **_kwargs: object) -> AbstractContextManager[_Answer]:
+        """Fail the way the index fails while the upload is still landing."""
+        raise failure
+
+    monkeypatch.setattr(script, "urlopen", urlopen)
+
+    with closing(failure):
+        assert not script.served(_URL, 10.0)
+
+
 @pytest.mark.parametrize(
     "failure",
     [
-        HTTPError(_URL, HTTPStatus.NOT_FOUND, "Not Found", Message(), None),
         TimeoutError("timed out"),
         ConnectionResetError("reset by peer"),
     ],
