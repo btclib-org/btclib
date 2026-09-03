@@ -127,13 +127,21 @@ unconstrained — and publishes the very files those checks passed to
    its own version instead of colliding with the one it repeats.
 
 1. Check the upload on <https://test.pypi.org/project/btclib/>, and
-   optionally install it (its dependencies come from the real PyPI):
+   optionally install it (its dependencies come from the real PyPI). The
+   rehearsal version stands in a fence of its own, `--with` having to
+   precede the command uv runs; the fence below reads it as `${dev:?}`,
+   the shell's must-be-set form, so a paste of that fence alone fails
+   naming the variable rather than resolving a spec with a hole in it:
+
+   ```shell
+   dev=<version>.dev<run*100+attempt>
+   ```
 
    ```shell
    uv run --isolated --no-project \
      --index https://test.pypi.org/simple/ \
      --index-strategy unsafe-best-match \
-     --with btclib==<version>.dev<run*100+attempt> \
+     --with "btclib==${dev:?}" \
      python -c "import btclib; print(btclib.__version__)"
    ```
 
@@ -221,7 +229,7 @@ to `deps-latest`'s own result.
    automates on a commit:
 
    ```shell
-   uv run --with griffe griffe check btclib -a <previous release tag> -s . -s src
+   uv run --with griffe griffe check btclib -s . -s src -a <previous release tag>
    ```
 
    `tests/release_notes_test.py` keeps both release-note files count-free:
@@ -507,8 +515,8 @@ to `deps-latest`'s own result.
 
    ```shell
    uv run --isolated --no-project --with pypi-attestations \
-     pypi-attestations verify pypi <file> \
-     --repository https://github.com/btclib-org/btclib
+     pypi-attestations verify pypi \
+     --repository https://github.com/btclib-org/btclib <file>
    ```
 
 1. Read the bill of materials attached to the release,
@@ -692,7 +700,7 @@ above needs no `uv sync` to produce the published bytes.
   the publish job alone against what is already built:
 
   ```shell
-  gh run rerun <run id> --failed
+  gh run rerun --failed <run id>
   ```
 
   a fresh approval of the `pypi` environment is still required, the

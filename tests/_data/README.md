@@ -144,9 +144,18 @@ out: an absent vector hides the defect it would have shown, and
 
 ## Re-checking a pin
 
+The commit stands in a fence of its own, sitting inside the API path
+rather than at the end of the command; the fence below reads it as
+`${commit:?}`, the shell's must-be-set form, so a paste of that fence
+alone fails naming the variable.
+
+```shell
+commit=<the pin the entry gives>
+```
+
 ```shell
 git hash-object tests/script_engine/_data/script_tests.json
-gh api repos/bitcoin/bitcoin/git/trees/<commit>:src/test/data \
+gh api "repos/bitcoin/bitcoin/git/trees/${commit:?}:src/test/data" \
     --jq '.tree[] | select(.path == "script_tests.json") | .sha'
 ```
 
@@ -2059,10 +2068,18 @@ bytes stopped being a script.
 
 This is the one file here that does not verify itself. A `scriptPubKey`
 is a *part* of a transaction, so no txid can be recomputed from it; the
-txid says where it came from, and re-deriving it is what checks the copy:
+txid says where it came from, and re-deriving it is what checks the copy.
+The txid stands in a fence of its own, the verbosity argument having to
+follow it; the fence below reads it as `${txid:?}`, the shell's
+must-be-set form, so a paste of that fence alone fails naming the
+variable.
 
 ```shell
-bitcoin-cli getrawtransaction <txid> 2 \
+txid=<the txid the entry gives>
+```
+
+```shell
+bitcoin-cli getrawtransaction "${txid:?}" 2 \
     | jq -r '.vout[<n>].scriptPubKey.hex'
 ```
 

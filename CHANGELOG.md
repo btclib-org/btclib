@@ -1345,6 +1345,67 @@ documented at release-notes length in the first place, and are still in
   state how many of anything a file holds*: a count nothing here
   re-derives ages the same way a wrong one does.
 
+### A pasted documentation block writes nothing in the reader's directory
+
+- **`RELEASING.md`'s attestation check names the file it verifies at the
+  end of the command** (closes #1605). `--repository` is a flag and
+  precedes the positional the tool's own usage puts last, so `<file>`
+  ends the line and the `>` closing it has nothing to take as a target;
+  with a word after it, a paste made in a directory holding a file named
+  `file` wrote one named `--repository`.
+- **The griffe check, the `gh run rerun` of a failed publish and
+  `REPOSITORY.md`'s check-run count put their flags ahead of their
+  placeholder for the same reason** (issue #1613). Each wrote a file
+  named for the word that followed it: `-s`, `--failed`, `--json`.
+- **The TestPyPI smoke test names the rehearsal version in a fence of
+  its own** (issue #1613), `--with` having to precede the command uv
+  runs, so the position section 9 of the organization standard asks for
+  is one this command's shape refuses. The fence below reads the value
+  as `${dev:?}`, which is what makes a paste of that fence alone fail
+  naming the variable rather than resolving a spec with a hole in it.
+- **`SECURITY.md`'s `gh attestation verify` takes the release asset as a
+  placeholder standing whole at the end of the command.** Written
+  `btclib-<version>-py3-none-any.whl`, the `>` took the rest of the
+  filename as its target and the paste wrote `-py3-none-any.whl`; one
+  attestation covers every asset of the release, which the file already
+  says, so naming a file pattern there bought nothing the placeholder
+  does not.
+- **`tests/_data/README.md`'s re-checking commands hold their
+  placeholder in a fence of its own**, an API path and a verbosity
+  argument each refusing to let it end the command.
+  `bitcoin-cli getrawtransaction <txid> 2` wrote a file named `2`; the
+  `gh api` line's target is a path under a directory a fresh run does
+  not have, so it failed where the other wrote.
+- **`CLAUDE.md`'s worktree block holds no line that writes** (closes
+  #1606). `uv sync --locked` sat under a line that is a parse error, and
+  a parse error guards only the line it sits on: `bash` and `sh` submit
+  a paste a line at a time, and the `&&` ahead of the sync is no guard,
+  an unset `WT` making `cd "$WT"` a `cd ""`. That empty path is what
+  `zsh` 5.9 and the `bash` 3.2 macOS ships as `/bin/bash` and `/bin/sh`
+  answer 0 to; `bash` 5 refuses it and stops the chain there, so the
+  reach is the reader's shell rather than every reader's. The sync
+  running in the reader's own directory — which for a reader of that
+  file is the primary checkout the same page forbids working in — is
+  `uv sync`'s documented behaviour and was never observed: the probe
+  that would have written was declined. `uv run` syncs before every
+  gate, so the line is gone rather than moved.
+- **Measured by pasting every fenced line of every markdown file in the
+  tree, unfilled, into `zsh`, `bash` and `sh`** with `git`, `uv`, `gh`
+  and `bitcoin-cli` replaced by stubs on an otherwise empty `PATH`, in a
+  fresh directory seeded with a file named for each placeholder's first
+  word, and reading back what the directory gained. A line holding
+  `echo hi > outfile` writes in every cell, which is the positive
+  control. Every line this entry names is in the log taken before the
+  change and in none of the logs taken after it. `RELEASING.md`'s three
+  rebuild lines still write on a partial paste, and are left to
+  btclib-org/.github#745, which rewrites that block around the same
+  must-be-set form.
+- **The whole passage dragged as one paste — prose, both fences and what
+  stands between them — is the channel a fence split does not cover, and
+  it was measured on the same harness.** The smoke test wrote `.dev` and
+  `python` there and the txid command wrote `2`; neither writes after the
+  change, `${name:?}` failing before the command it feeds is reached.
+
 ## v2026.8.29
 
 ### Repository

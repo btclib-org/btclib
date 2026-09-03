@@ -261,7 +261,7 @@ How large is read off a pull request rather than written down here,
 because it is not one number.
 
 ```shell
-head=$(gh pr view <an open pull request> --json headRefOid --jq .headRefOid)
+head=$(gh pr view --json headRefOid --jq .headRefOid <an open pull request>)
 gh api "repos/btclib-org/btclib/commits/$head/check-runs" --jq '.total_count'
 # 14 and 15, the two open when this was written
 ```
