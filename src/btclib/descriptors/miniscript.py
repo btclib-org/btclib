@@ -92,7 +92,12 @@ from btclib.script.script import (
     push_int,
     serialize,
 )
-from btclib.tx.limits import LOCKTIME_THRESHOLD, SEQUENCE_LOCKTIME_TYPE_FLAG
+from btclib.tx.limits import (
+    LOCKTIME_THRESHOLD,
+    SEQUENCE_LOCKTIME_DISABLE_FLAG,
+    SEQUENCE_LOCKTIME_MASK,
+    SEQUENCE_LOCKTIME_TYPE_FLAG,
+)
 from btclib.utils import assert_type, bytes_from_octets, decode_num, encode_num
 from btclib.var_int import serialize as var_int_serialize
 
@@ -2837,13 +2842,13 @@ class SpendContext:
         512-second intervals -- and a relative lock time at least the
         fragment's.
         """
-        if self.version < 2 or self.sequence & (1 << 31):
+        if self.version < 2 or self.sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
             return False
         if value & SEQUENCE_LOCKTIME_TYPE_FLAG != (
             self.sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
         ):
             return False
-        return value & 0x0000FFFF <= self.sequence & 0x0000FFFF
+        return value & SEQUENCE_LOCKTIME_MASK <= self.sequence & SEQUENCE_LOCKTIME_MASK
 
 
 @dataclass(frozen=True)
