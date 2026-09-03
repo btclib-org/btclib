@@ -373,8 +373,8 @@ to `deps-latest`'s own result.
    landing from `BLOCKED` and `REVIEW_REQUIRED` with a verified
    signature, one of them (#1113) `BEHIND` as well and cleared the same
    way. Name the release commit's title and body explicitly when using
-   it — `gh pr merge <n> --squash --admin --subject "<title>"
-   --body-file <path>` — rather than leave them to
+   it — `gh pr merge <n> --squash --admin --body-file <path>
+   --subject <title>` — rather than leave them to
    `squash_merge_commit_message`'s repository default, recorded in
    REPOSITORY.md's *Merge methods*: this branch carries more than one
    commit every time (the paragraph below this one), and that default

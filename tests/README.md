@@ -156,11 +156,13 @@ What costs is `tests/script_engine/python_path_test.py`, which re-runs the
 same vector sets through the Python implementations of the two functions
 the engine takes from the bindings (issue #129). It holds most of the
 suite's slowest cases, the `tapscript-bigmulti` ones, and enough of a run
-to make the case for a marker a measurement rather than a shrug:
+to make the case for a marker a measurement rather than a shrug. The
+second run, serial with `-n0`, is the baseline a plain `uv run pytest`'s
+parallel workers are worth against:
 
 ```shell
 uv run pytest --ignore=tests/script_engine/python_path_test.py
-uv run pytest -n0                       # what the cores are worth
+uv run pytest -n0
 ```
 
 What it would cost is why none is registered: a plain `uv run pytest` is
@@ -184,10 +186,11 @@ That lopsidedness is also why `addopts` passes `--dist worksteal` instead
 of xdist's default `load`. `load` hands the queue out in chunks, so a
 worker that draws several `bigmulti` cases is still going when the others
 have nothing left; worksteal lets an idle worker take back what is queued
-behind a busy one. Worksteal wins that comparison, best of three runs each:
+behind a busy one. Worksteal wins that comparison against the default
+`load`, best of three runs each:
 
 ```shell
-uv run pytest -p no:randomly --dist load   # the default, to compare with
+uv run pytest -p no:randomly --dist load
 ```
 
 `-p no:randomly` is part of the comparison, not decoration: pytest-randomly
@@ -220,10 +223,13 @@ the number describes the machine rather than pytest.
 
 ## Profiling
 
+The second command's interactive browser takes `sort time`, `stats 30`
+and `callers add_jac` once it opens:
+
 ```shell
 uv run python -m cProfile -o btclib.prof -m pytest \
     -n0 --no-cov -p no:randomly
-uv run python -m pstats btclib.prof   # sort time, stats 30, callers add_jac
+uv run python -m pstats btclib.prof
 ```
 
 Every flag after `-m pytest` undoes something `addopts` asked for, and

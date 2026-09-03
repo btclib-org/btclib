@@ -791,7 +791,8 @@ at once. It is an attribute of the organization, shared by every
 repository in it, and the plan is what sets it.
 
 ```shell
-gh api orgs/btclib-org --jq .plan.name        # free
+gh api orgs/btclib-org --jq .plan.name
+# free
 ```
 
 [GitHub's own table](https://docs.github.com/en/actions/reference/limits)
@@ -883,11 +884,11 @@ std=$(gh api repos/btclib-org/.github/contents/README.md --jq .content \
   | base64 -d)
 for f in allow_forking allow_update_branch has_discussions has_downloads \
          is_template web_commit_signoff_required; do
-  printf '%s %s\n' "$f" "$(printf '%s' "$std" | grep -c "$f")"  # 0 each
+  printf '%s %s\n' "$f" "$(printf '%s' "$std" | grep -c "$f")"
 done
-printf '%s' "$std" | grep -c delete_branch_on_merge  # not 0, which is
-                                                     # what makes those
-                                                     # zeros absences
+# 0 each
+printf '%s' "$std" | grep -c delete_branch_on_merge
+# not 0, which is what makes those zeros absences
 ```
 
 Recording a field on no rule grows this file with GitHub's API rather
@@ -905,8 +906,10 @@ holds that token at the organization, in both stores, rather than in each
 repository:
 
 ```shell
-gh api repos/btclib-org/btclib/actions/secrets --jq '.total_count'     # 0
-gh api repos/btclib-org/btclib/dependabot/secrets --jq '.total_count'  # 0
+gh api repos/btclib-org/btclib/actions/secrets --jq '.total_count'
+# 0
+gh api repos/btclib-org/btclib/dependabot/secrets --jq '.total_count'
+# 0
 gh api orgs/btclib-org/actions/secrets \
   --jq '.secrets[] | "\(.name) \(.visibility)"'
 # CLAUDE_CODE_OAUTH_TOKEN all
