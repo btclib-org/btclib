@@ -262,7 +262,19 @@ because it is not one number.
 
 ```shell
 head=$(gh pr view --json headRefOid --jq .headRefOid <an open pull request>)
-gh api "repos/btclib-org/btclib/commits/$head/check-runs" --jq '.total_count'
+```
+
+The placeholder's line stands in a fence of its own, which is section 9
+of the organization standard's rule: a parse error guards only the line
+it sits on, so an interactive shell discards the unfilled line and reads
+what stands below it as a fresh command. The fence below reads the head
+as `${head:?}`, the shell's must-be-set form, so a paste of it alone
+fails naming the variable rather than asking the API for the check runs
+of a commit with no sha.
+
+```shell
+gh api "repos/btclib-org/btclib/commits/${head:?}/check-runs" \
+  --jq '.total_count'
 # 14 and 15, the two open when this was written
 ```
 
