@@ -103,8 +103,8 @@ jobs:
       # so btclib and its bindings have to be installed -- which is the
       # defect issue 151 was opened for, read the docs having installed
       # sphinx alone and rendered 70 empty module headings.
-      # -W makes a failed import a failed build, and --keep-going reports
-      # every problem in one run instead of one per push. -n turns an
+      # -W makes a failed import a failed build, and reports every
+      # problem in one run instead of one per push. -n turns an
       # unresolved cross-reference into a warning for -W to fail on --
       # without it a renamed class or a moved function in a :class: role
       # builds green and links nowhere. conf.py's intersphinx_mapping and
@@ -112,7 +112,7 @@ jobs:
       - name: Build the docs
         run: >
           uv run --locked --no-default-groups --group docs
-          sphinx-build -n -W --keep-going -b html docs/source docs/build/html
+          sphinx-build -n -W -b html docs/source docs/build/html
       # a second defense against issue 195, not the only one: measured,
       # sphinx-build -n -W already fails on its own on every link myst
       # cannot resolve, in the currently pinned toolchain (myst-parser

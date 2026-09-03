@@ -1068,7 +1068,7 @@ each with the reason beside it:
 
 ```shell
 uv run --locked --no-default-groups --group docs \
-    sphinx-build -n -W --keep-going -b html docs/source docs/build/html
+    sphinx-build -n -W -b html docs/source docs/build/html
 ```
 
 That job has a second step, which reads the pages the first one wrote and
