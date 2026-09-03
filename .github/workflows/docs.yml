@@ -97,8 +97,10 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
-      # the same command .readthedocs.yaml runs and CONTRIBUTING.md
-      # documents, so what CI checks is what gets published.
+      # the same command .readthedocs.yaml runs, CONTRIBUTING.md
+      # documents and docs/README.rst quotes, so what CI checks is what
+      # gets published; tests/docs_commands_test.py is what compares the
+      # spellings.
       # Not --only-group docs: autodoc imports every module of the package,
       # so btclib and its bindings have to be installed -- which is the
       # defect issue 151 was opened for, read the docs having installed

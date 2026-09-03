@@ -1075,7 +1075,7 @@ That job has a second step, which reads the pages the first one wrote and
 must find nothing — the job fails if this grep exits 0:
 
 ```shell
-grep -rn 'href="#\./' docs/build/html --include='*.html'
+grep -rnE 'href="#\.\.?/' docs/build/html --include='*.html'
 ```
 
 A link between the root markdown files — `./SECURITY.md` in README.md, the
@@ -1086,6 +1086,11 @@ warning. `docs/source/conf.py` resolves those links and suppresses no
 `myst.xref_missing`, so `-W` fails on the next one that has no target; the
 grep asks the same question of the HTML, where no suppression can hide the
 answer.
+
+The pattern matches `#../` as well as `#./` because a link to another file
+here begins one of those two ways and no other: `.pre-commit-config.yaml`'s
+`local-link-prefix` hook refuses the rest in the commit that writes the
+link, so those are the two spellings a broken one can render.
 
 A link into a heading of another root file carries a fragment spelled the
 way GitHub derives it from the heading text, as in
