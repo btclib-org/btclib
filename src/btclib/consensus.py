@@ -82,7 +82,7 @@ reader looking for one knows it was decided rather than missed:
 A row validates nothing it is built with, alone among this library's
 dataclasses: validating means raising a `BTClibTypeError`, which means
 importing `btclib.exceptions`, which is the import this module does not
-take. Nothing parses a row -- the five below are constants of this
+take. Nothing parses a row -- the rows below are constants of this
 module -- and the boundary that does read json is `Network.from_dict`,
 which asks `Network.assert_valid` whether its `consensus` field is one
 of these.
@@ -174,7 +174,7 @@ class ConsensusParams:
     of Core's fields are deliberately not here, and where each value was
     transcribed from.
 
-    Frozen and hashable, as `Network` is: a row is a value, the five in
+    Frozen and hashable, as `Network` is: a row is a value, the rows in
     `CONSENSUS_PARAMS` are read by every caller at once, and a `Network`
     carrying one must stay usable as a dict key.
     """

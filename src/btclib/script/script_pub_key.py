@@ -576,7 +576,7 @@ class ScriptPubKey(Script):
         if not isinstance(other, ScriptPubKey):
             return NotImplemented
 
-        # the network *type*, not the name. Four test networks share one
+        # the network *type*, not the name. The test networks share one
         # set of address prefixes, so from_address answers "testnet" for
         # a signet address too -- and comparing names made a signet
         # ScriptPubKey unequal to the very address it renders, identical

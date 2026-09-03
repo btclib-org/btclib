@@ -63,11 +63,10 @@ def test_curve_from_xkeyversion() -> None:
         all_versions = xpubversions_from_network(net_str)
         all_versions += xprvversions_from_network(net_str)
         for version in all_versions:
-            # four of the five networks carry testnet's version bytes, so
-            # the singular lookup answers with testnet, the oldest of
-            # them: the contract issue #207 documents, and the right
-            # network to re-encode with, all four agreeing on every
-            # version prefix
+            # every test network carries testnet's version bytes, so the
+            # singular lookup answers with testnet, the oldest of them:
+            # the contract issue #207 documents, and the right network
+            # to re-encode with, since they agree on every version prefix
             expected = "mainnet" if net_str == "mainnet" else "testnet"
             assert expected == network_from_xkeyversion(version)
             assert net.curve == curve_from_xkeyversion(version)
@@ -81,9 +80,9 @@ def test_the_xpub_version_paired_with_an_xprv_one() -> None:
     The pairing is by position within a network -- bip32_prv with
     bip32_pub, and so on for the four SLIP132 pairs -- which is what
     `xprvversions_from_network` and `xpubversions_from_network` spell out,
-    one network at a time. Four networks share testnet's versions, so a
-    shared xprv version answers with the shared xpub version, the same
-    bytes for all four.
+    one network at a time. The test networks share testnet's versions, so
+    a shared xprv version answers with the shared xpub version, the same
+    bytes for every one of them.
     """
     for name in NETWORKS:
         prv_versions = xprvversions_from_network(name)
@@ -245,9 +244,9 @@ _PREFIX_FIELDS: tuple[NetworkField, ...] = (
 def test_no_prefix_crosses_the_main_test_boundary() -> None:
     """The invariant the network type rests on, checked rather than assumed.
 
-    A network *name* cannot be recovered from a prefix -- four networks
-    share one set of them -- but "main or test" always can, and only
-    because no test network prefix equals a mainnet prefix. Every field
+    A network *name* cannot be recovered from a prefix -- the test
+    networks share one set of them -- but "main or test" always can, and
+    only because no test network prefix equals a mainnet prefix. Every field
     against every field, not field against same field: the type would be
     just as wrong if testnet's p2sh were mainnet's p2pkh, since a caller
     asks the lookups one field at a time and a collision anywhere makes
@@ -261,8 +260,8 @@ def test_no_prefix_crosses_the_main_test_boundary() -> None:
         for field in _PREFIX_FIELDS:
             assert getattr(net, field) not in mainnet_prefixes, (name, field)
 
-    # so mainnet is the only network of its type, and the four test
-    # networks are the rest: the shape the type is a name for
+    # so mainnet is the only network of its type, and the test networks
+    # are the rest: the shape the type is a name for
     types = [net.network_type for net in NETWORKS.values()]
     assert types.count("main") == 1
     assert types.count("test") == len(NETWORKS) - 1
@@ -399,7 +398,7 @@ def test_a_network_name_no_network_has_is_refused() -> None:
     KeyError is a LookupError, so a caller filtering bad input with an
     `except BTClibValueError` -- which is what this library's own
     docstrings tell it to write -- did not catch it (issue #744). The
-    message names the five, a typo being the case it exists for.
+    message names every network, a typo being the case it exists for.
     """
     for name in NETWORKS:
         assert network_from_name(name) is NETWORKS[name]

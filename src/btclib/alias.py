@@ -126,10 +126,10 @@ Integer = Octets | int
 #
 # This is the distinction the version bytes were designed to draw --
 # Satoshi's 0x6f, BIP32's tpub, SLIP132, and SLIP44 giving every test
-# chain one coin type -- and it is the one they can still draw now that
-# five networks are known: no prefix of any test network equals any
-# prefix of mainnet, on any field, so "main or test" always has an
-# answer where "which chain" does not. testnet, regtest, signet and
+# chain one coin type -- and every network in the catalogue can still be
+# placed by it: no prefix of any test network equals any prefix of
+# mainnet, on any field, so "main or test" always has an answer where
+# "which chain" does not. testnet, regtest, signet and
 # testnet4 share one set of prefixes on purpose, Core copying testnet's
 # into the newer two, so a prefix cannot tell them apart. See issue #207
 # and btclib.network's three network_type_from_* functions.
@@ -227,12 +227,12 @@ NetworkField = Literal[
 # Still not a parameter type, and issue #216 is where that is decided: the
 # `network: str` parameters accept a name with spaces around it and in any
 # case -- `network.network_from_name` is what they run it through -- so the
-# set they take is wider than these five spellings, and narrowing the
+# set they take is wider than the spellings named here, and narrowing the
 # annotation without dropping that tolerance would reject calls that work.
 # One converter and not a `strip().lower()` per call site, which is what
 # left b32 and the mnemonic modules indexing NETWORKS raw and refusing the
 # tolerance this paragraph promised (issue #744).
-# It names the five for a caller who wants mypy to hold them to it;
+# It names the spellings for a caller who wants mypy to hold them to it;
 # network.py annotates with it the tuple of names it loads, which is what
 # keeps this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]

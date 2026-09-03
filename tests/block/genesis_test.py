@@ -59,14 +59,15 @@ def test_genesis_block_has_one_coinbase_and_no_witness() -> None:
     assert not block.transactions[0].is_segwit
 
 
-def test_genesis_block_testnet4_differs_from_the_other_four() -> None:
+def test_genesis_block_testnet4_differs_from_the_others() -> None:
     """testnet4's coinbase is not the mainnet one under a later timestamp.
 
     The issue that opened this module said every network shared the
-    mainnet coinbase; true of four of the five, and corrected here rather
-    than repeated -- bitcoin/bitcoin@9be056a8a7's kernel/chainparams.cpp
-    gives testnet4 its own message and an output script that pays to
-    thirty-three zero bytes rather than to Satoshi's pubkey.
+    mainnet coinbase; true of every network but testnet4, and corrected
+    here rather than repeated -- bitcoin/bitcoin@9be056a8a7's
+    kernel/chainparams.cpp gives testnet4 its own message and an output
+    script that pays to thirty-three zero bytes rather than to Satoshi's
+    pubkey.
     """
     mainnet_coinbase = genesis_block("mainnet").transactions[0]
     testnet4_coinbase = genesis_block("testnet4").transactions[0]
