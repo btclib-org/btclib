@@ -21,35 +21,6 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
-### Breaking changes
-
-- **A Lightning invoice setting an even feature bit BOLT9 does not
-  assign is refused** (closes #1637). `bolt11.Bolt11Invoice.from_invoice`
-  and `assert_valid` accepted one, where BOLT9's rule is that a reader
-  meeting a feature bit it does not know fails on the even half of a
-  pair and ignores the odd half.
-
-  Act on it if you decode invoices carrying such a bit: the refusal is
-  `BTClibValueError: unknown even feature bits: ...`, naming them.
-  `btclib.bolt9.FEATURE_NAMES` is the table that answers it, the even
-  bit of each pair BOLT9 assigns and the name the BOLT gives it, and
-  `btclib.bolt9.unknown_even_bits` is the same lookup over any feature
-  vector. An unknown *odd* bit is carried as it was.
-
-- **`btclib.fetch` and `btclib.wallet` refuse a `network` that is not a
-  string with `BTClibTypeError`** (closes #1641). `Fetcher.__init__` and
-  `Wallet.__init__` — the bases every backend and every wallet calls up
-  into — put the name through `btclib.network._validated_network_name`,
-  which raises `BTClibTypeError`, a `TypeError`, where each raised
-  `BTClibValueError: unknown network: None`.
-
-  Act on it if you catch `BTClibValueError` around building a fetcher or
-  a wallet to handle a name you have not checked is a `str`: catch
-  `BTClibException`, which is the base of both, or check the type
-  yourself. A `str` no network answers to is still a `BTClibValueError`,
-  and the names accepted are wider than before — `" Testnet "` resolves
-  here as it does everywhere else in the library.
-
 ## v2026.9.3
 
 ### Breaking changes
@@ -158,6 +129,33 @@ full year, short month, short day (YYYY-M-D)
   answers to is still a `BTClibValueError`, and the names accepted are
   wider than before — `" TestNet4 "` resolves here as it does everywhere
   else in the library.
+
+- **A Lightning invoice setting an even feature bit BOLT9 does not
+  assign is refused** (closes #1637). `bolt11.Bolt11Invoice.from_invoice`
+  and `assert_valid` accepted one, where BOLT9's rule is that a reader
+  meeting a feature bit it does not know fails on the even half of a
+  pair and ignores the odd half.
+
+  Act on it if you decode invoices carrying such a bit: the refusal is
+  `BTClibValueError: unknown even feature bits: ...`, naming them.
+  `btclib.bolt9.FEATURE_NAMES` is the table that answers it, the even
+  bit of each pair BOLT9 assigns and the name the BOLT gives it, and
+  `btclib.bolt9.unknown_even_bits` is the same lookup over any feature
+  vector. An unknown *odd* bit is carried as it was.
+
+- **`btclib.fetch` and `btclib.wallet` refuse a `network` that is not a
+  string with `BTClibTypeError`** (closes #1641). `Fetcher.__init__` and
+  `Wallet.__init__` — the bases every backend and every wallet calls up
+  into — put the name through `btclib.network._validated_network_name`,
+  which raises `BTClibTypeError`, a `TypeError`, where each raised
+  `BTClibValueError: unknown network: None`.
+
+  Act on it if you catch `BTClibValueError` around building a fetcher or
+  a wallet to handle a name you have not checked is a `str`: catch
+  `BTClibException`, which is the base of both, or check the type
+  yourself. A `str` no network answers to is still a `BTClibValueError`,
+  and the names accepted are wider than before — `" Testnet "` resolves
+  here as it does everywhere else in the library.
 
 ### Worth knowing, though nothing raises
 

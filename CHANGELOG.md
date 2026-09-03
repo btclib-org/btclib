@@ -22,120 +22,6 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
-### The prose around `network.py` names what a sentence is about
-
-- **`alias`, `bip44`, `consensus`, `block.genesis`, `p2p.magic` and
-  `script.script_pub_key` name the networks their comments and
-  docstrings are about, in place of a total of them** (closes #1647).
-  `tests/network_test.py`'s `test_numbers_of_networks` is where the size
-  of the catalogue is asserted; a sixth network turns that assertion red
-  and leaves each of those sentences reading exactly as it read before,
-  which is what makes them worth removing rather than correcting.
-- **The suite that tests those modules states no total either** (closes
-  #1648). `test_no_prefix_crosses_the_main_test_boundary` is the
-  contrast that decides which counts go: its comment stated a number the
-  assertion two lines under it writes as `len(NETWORKS) - 1`.
-  `test_genesis_block_testnet4_differs_from_the_others` is renamed for
-  the same reason, a test's name being prose that a report prints and
-  `-k` selects on.
-- **`network.py`'s module docstring says how the lookups are keyed and
-  leaves the list of what the module exports to `__all__`** (closes
-  #1650). Nothing re-derives a sentence from that list, so the two part
-  company at the next export with nothing red. The comment over `__all__`
-  is where the decision is recorded, beside the list it is about, and it
-  says which names the built page carries: `automodule::` under
-  `:members:` renders the classes and functions and not the three
-  module-level constants, which is why the docstring still names those
-  three itself.
-- **A count of a fixed structure stays where the sentence keeps it
-  distinguishable from the catalogue**, which is what each of the three
-  issues asks of a count that remains: `alias.py`'s address encodings a
-  purpose level can name, listed there by purpose number; `bip44.py`'s
-  encoders, which the table under the comment holds; `network_test.py`'s
-  SLIP132 pairs, a field group of the `Network` dataclass, and its
-  candidates on the base58 fields, which the assertions under it name. A
-  network added to the catalogue moves none of them.
-
-### The walk over btclib's module names has one home in `tests/`
-
-- **`tests/__init__.py` offers `module_names`, and every test asking a
-  question of every btclib module takes the list from it** (closes
-  #1649). What the walk covers -- a second package root, a different
-  prefix, a module it has to skip -- is settled at one place, and a copy
-  that disagreed would be red nowhere: a site asserts against whatever
-  its own walk found, so two of them covering different sets are both
-  green.
-- **`all_test.py`'s `library_modules` is that list filtered to the
-  public names and imported**, rather than a traversal of its own: it
-  walks the same package root under the same prefix, so it is one of the
-  sites a change to the walk has to reach, and what is its own is the
-  filter and the import. Measured equivalent to what it replaces -- the
-  same module objects in the same order, `btclib._libsecp256k1` and
-  `btclib._ripemd160` being all the filter drops.
-- **A helper and not a shared constant**, so that the walk runs when a
-  site asks for it: `pkgutil.walk_packages` imports each package it
-  descends into, where importing the `tests` package on its own leaves
-  `btclib` alone in `sys.modules`.
-- **The alternative of writing down that each site owns its own
-  traversal is declined**: nothing goes red when two of them disagree,
-  so the sentence would have recorded that state rather than answered
-  it.
-- **`public_classes_with`'s docstring gives the shared reason without
-  counting the files that call it**, a count being what every new caller
-  would have to correct; `module_names` points at that reason rather
-  than restating it.
-
-### `btclib.bolt9`, and an even feature bit that fails an invoice
-
-- **`Bolt11Invoice.assert_valid` refuses a `9` field setting an even bit
-  BOLT9 does not assign** (closes #1637), naming the bits in the
-  message. BOLT9 hands out feature bits in pairs, the odd half of a pair
-  optional and the even half compulsory, so a reader meeting a bit it
-  does not know fails on the even one and ignores the odd one -- "it's
-  ok to be odd". Answering that is a lookup in BOLT9's assignment table,
-  which BOLT11 does not define: at `496b36c5` the BOLT's own invalid
-  example "adding invalid unknown feature 100" decoded and validated.
-- **`btclib.bolt9` is where that table lives**: `FEATURE_NAMES` gives
-  the even bit of each pair BOLT9 assigns and the name the BOLT gives
-  it, transcribed at the upstream commit named beside it, and
-  `unknown_even_bits` is the lookup. A module of its own rather than a
-  constant inside `bolt11.py` or a mapping every caller supplies, the
-  table being another BOLT's and read the same way by the `init` message
-  and by the gossip announcements, which carry a feature vector too.
-- **A bit is known when BOLT9 assigns it, whichever fields its Context
-  column names.** That column says where a feature may appear, `9` being
-  a BOLT11 invoice, and taking it as the criterion refuses invoices the
-  BOLT itself calls valid: its "supports features 8, 14 and 99" example
-  sets even bits 8 and 14, whose Context column is empty.
-- **Naming a bit is not implementing its feature**, so what
-  `assert_valid` refuses is the half nothing could support; a wallet
-  acting on an invoice checks the assigned even bits against what it has
-  implemented itself, out of the same table.
-- **BOLT11's "Same, but adding invalid unknown feature 100" joins
-  `tests/_data/bolt11_test_vectors.json`**, so both of that document's
-  example sections are transcribed whole; the file's entry in
-  `tests/_data/README.md` says so, and says what refuses this one.
-
-### `Fetcher` and `Wallet` take a network name as the rest of the library does
-
-- **`Fetcher.__init__` and `Wallet.__init__` put their `network: str`
-  through `network._validated_network_name`** (closes #1641). The two
-  abstract bases every backend and every wallet calls up into accept the
-  spellings issue #216 decided to keep — `" Testnet "` resolves to
-  `testnet` — where each checked membership of `NETWORKS` itself and
-  refused them. Reaching that helper across modules is what
-  `descriptors.parse` and `p2p.magic.magic_from_network` already do.
-- **`Fetcher.network` and `Wallet.network` hold the name
-  `network_from_name` answers to**, which is what a subclass reads to
-  label a transaction or to derive an address.
-- **A `network` of a type no conversion accepts is a `BTClibTypeError`**,
-  which is a `TypeError` and not a `ValueError`;
-  [RELEASE_NOTES.md](./RELEASE_NOTES.md) has what a caller catching
-  `BTClibValueError` around either constructor does about it. An
-  unhashable one was hashed as a dict key by the membership test and
-  left as a builtin `TypeError`, which `btclib.exceptions` does not
-  declare.
-
 ## v2026.9.3
 
 ### Repository
@@ -2031,6 +1917,138 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   look hardest. `test.yml`'s `coverage` and `no-bindings` jobs already
   fetch tags for this reason; this checkout cited that job and had
   taken everything from it except the option.
+
+### The prose around `network.py` names what a sentence is about
+
+- **`alias`, `bip44`, `consensus`, `block.genesis`, `p2p.magic` and
+  `script.script_pub_key` name the networks their comments and
+  docstrings are about, in place of a total of them** (closes #1647).
+  `tests/network_test.py`'s `test_numbers_of_networks` is where the size
+  of the catalogue is asserted; a sixth network turns that assertion red
+  and leaves each of those sentences reading exactly as it read before,
+  which is what makes them worth removing rather than correcting.
+- **The suite that tests those modules states no total either** (closes
+  #1648). `test_no_prefix_crosses_the_main_test_boundary` is the
+  contrast that decides which counts go: its comment stated a number the
+  assertion two lines under it writes as `len(NETWORKS) - 1`.
+  `test_genesis_block_testnet4_differs_from_the_others` is renamed for
+  the same reason, a test's name being prose that a report prints and
+  `-k` selects on.
+- **`network.py`'s module docstring says how the lookups are keyed and
+  leaves the list of what the module exports to `__all__`** (closes
+  #1650). Nothing re-derives a sentence from that list, so the two part
+  company at the next export with nothing red. The comment over `__all__`
+  is where the decision is recorded, beside the list it is about, and it
+  says which names the built page carries: `automodule::` under
+  `:members:` renders the classes and functions and not the three
+  module-level constants, which is why the docstring still names those
+  three itself.
+- **A count of a fixed structure stays where the sentence keeps it
+  distinguishable from the catalogue**, which is what each of the three
+  issues asks of a count that remains: `alias.py`'s address encodings a
+  purpose level can name, listed there by purpose number; `bip44.py`'s
+  encoders, which the table under the comment holds; `network_test.py`'s
+  SLIP132 pairs, a field group of the `Network` dataclass, and its
+  candidates on the base58 fields, which the assertions under it name. A
+  network added to the catalogue moves none of them.
+
+### The walk over btclib's module names has one home in `tests/`
+
+- **`tests/__init__.py` offers `module_names`, and every test asking a
+  question of every btclib module takes the list from it** (closes
+  #1649). What the walk covers -- a second package root, a different
+  prefix, a module it has to skip -- is settled at one place, and a copy
+  that disagreed would be red nowhere: a site asserts against whatever
+  its own walk found, so two of them covering different sets are both
+  green.
+- **`all_test.py`'s `library_modules` is that list filtered to the
+  public names and imported**, rather than a traversal of its own: it
+  walks the same package root under the same prefix, so it is one of the
+  sites a change to the walk has to reach, and what is its own is the
+  filter and the import. Measured equivalent to what it replaces -- the
+  same module objects in the same order, `btclib._libsecp256k1` and
+  `btclib._ripemd160` being all the filter drops.
+- **A helper and not a shared constant**, so that the walk runs when a
+  site asks for it: `pkgutil.walk_packages` imports each package it
+  descends into, where importing the `tests` package on its own leaves
+  `btclib` alone in `sys.modules`.
+- **The alternative of writing down that each site owns its own
+  traversal is declined**: nothing goes red when two of them disagree,
+  so the sentence would have recorded that state rather than answered
+  it.
+- **`public_classes_with`'s docstring gives the shared reason without
+  counting the files that call it**, a count being what every new caller
+  would have to correct; `module_names` points at that reason rather
+  than restating it.
+
+### `btclib.bolt9`, and an even feature bit that fails an invoice
+
+- **`Bolt11Invoice.assert_valid` refuses a `9` field setting an even bit
+  BOLT9 does not assign** (closes #1637), naming the bits in the
+  message. BOLT9 hands out feature bits in pairs, the odd half of a pair
+  optional and the even half compulsory, so a reader meeting a bit it
+  does not know fails on the even one and ignores the odd one -- "it's
+  ok to be odd". Answering that is a lookup in BOLT9's assignment table,
+  which BOLT11 does not define: at `496b36c5` the BOLT's own invalid
+  example "adding invalid unknown feature 100" decoded and validated.
+- **`btclib.bolt9` is where that table lives**: `FEATURE_NAMES` gives
+  the even bit of each pair BOLT9 assigns and the name the BOLT gives
+  it, transcribed at the upstream commit named beside it, and
+  `unknown_even_bits` is the lookup. A module of its own rather than a
+  constant inside `bolt11.py` or a mapping every caller supplies, the
+  table being another BOLT's and read the same way by the `init` message
+  and by the gossip announcements, which carry a feature vector too.
+- **A bit is known when BOLT9 assigns it, whichever fields its Context
+  column names.** That column says where a feature may appear, `9` being
+  a BOLT11 invoice, and taking it as the criterion refuses invoices the
+  BOLT itself calls valid: its "supports features 8, 14 and 99" example
+  sets even bits 8 and 14, whose Context column is empty.
+- **Naming a bit is not implementing its feature**, so what
+  `assert_valid` refuses is the half nothing could support; a wallet
+  acting on an invoice checks the assigned even bits against what it has
+  implemented itself, out of the same table.
+- **BOLT11's "Same, but adding invalid unknown feature 100" joins
+  `tests/_data/bolt11_test_vectors.json`**, so both of that document's
+  example sections are transcribed whole; the file's entry in
+  `tests/_data/README.md` says so, and says what refuses this one.
+
+### `Fetcher` and `Wallet` take a network name as the rest of the library does
+
+- **`Fetcher.__init__` and `Wallet.__init__` put their `network: str`
+  through `network._validated_network_name`** (closes #1641). The two
+  abstract bases every backend and every wallet calls up into accept the
+  spellings issue #216 decided to keep — `" Testnet "` resolves to
+  `testnet` — where each checked membership of `NETWORKS` itself and
+  refused them. Reaching that helper across modules is what
+  `descriptors.parse` and `p2p.magic.magic_from_network` already do.
+- **`Fetcher.network` and `Wallet.network` hold the name
+  `network_from_name` answers to**, which is what a subclass reads to
+  label a transaction or to derive an address.
+- **A `network` of a type no conversion accepts is a `BTClibTypeError`**,
+  which is a `TypeError` and not a `ValueError`;
+  [RELEASE_NOTES.md](./RELEASE_NOTES.md) has what a caller catching
+  `BTClibValueError` around either constructor does about it. An
+  unhashable one was hashed as a dict key by the membership test and
+  left as a builtin `TypeError`, which `btclib.exceptions` does not
+  declare.
+
+### The `os-*` workflows fetch tags, so a tag build reads its own history
+
+- **`os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` pass
+  `fetch-tags: true`** (closes #1665).
+  `tests/changelog_immutability_test.py` compares every released section
+  with its own tag and skips module-wide when no `v*` tag resolves,
+  which is the shallow clone it is written to tolerate. On a tag build
+  that guard never fires: `actions/checkout` resolves the ref it builds,
+  so exactly one tag exists and every *other* release heading reports a
+  tag gone missing instead. One tag is worse than none, and the run
+  where it costs most is the only run that has one.
+
+- **The reason is written at each checkout rather than pointed at.** All
+  four of these checkouts carried `see the checkout of the coverage job
+  in test.yml` and none had copied the option that job exists to
+  demonstrate. A pointer transports the citation and not the content,
+  and it failed identically in four places.
 
 ## v2026.8.29
 
