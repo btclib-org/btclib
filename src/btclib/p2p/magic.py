@@ -13,13 +13,14 @@ not a field any table can hold."
 
 So the question this module answers is not which of two designs to
 choose. Giving `Network` a `magic` field would contradict a docstring
-that states its own reason, and the reason is the fifth network:
+that states its own reason, and the reason is signet:
 `NETWORKS` is an encoding table fixed at import, every field of which is
 the same for every deployment of the network it describes, while a custom
 signet's message start is the first four octets of the sha256d of its
 block challenge and differs between two deployments that report the same
-chain. A field would be right for four networks and a lie for the fifth,
-which is an annotation accepting the mistake rather than refusing it.
+chain. A field would be right for every other network and a lie for
+signet, which is an annotation accepting the mistake rather than
+refusing it.
 `btclib.fetch.transport` re-exports the same package's HTTP transport on
 the same reasoning: a second copy is a second thing to keep true.
 

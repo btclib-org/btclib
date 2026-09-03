@@ -95,10 +95,10 @@ def test_address_script(address: str, script_pub_key: str, network: str) -> None
 
 @pytest.mark.parametrize("address, script_pub_key, network", ADDRESS_VECTORS)
 def test_address_network(address: str, script_pub_key: str, network: str) -> None:
-    """Which chain the address itself can name, which is fewer than four.
+    """Which chain the address itself can name, which is not all of them.
 
-    Four test networks share one pair of base58 version bytes and three
-    of them share the hrp `tb`, so the reverse lookup answers with the
+    The test networks share one pair of base58 version bytes, and all but
+    regtest share the hrp `tb`, so the reverse lookup answers with the
     first network holding the value: "testnet" for a testnet4, signet or
     base58 regtest string alike (issue #207). `bcrt` is the one test
     prefix that is nobody else's. Core has the same ambiguity and
@@ -169,9 +169,9 @@ def test_wif_without_a_network(
 
     0x80 is mainnet's and 0xef is testnet's, regtest's, signet's and
     testnet4's alike, so a WIF read without a network argument answers
-    "testnet" for all four -- the oldest network holding the prefix,
-    issue #207 again. Naming the chain is what the argument above is
-    for, and passing it is not a workaround: `_wif_network` checks the
+    "testnet" for every one of them -- the oldest network holding the
+    prefix, issue #207 again. Naming the chain is what the argument above
+    is for, and passing it is not a workaround: `_wif_network` checks the
     prefix against that network rather than comparing lookup names, so
     every one of the sixteen rows is accepted on the chain Core names.
     Nothing else moves -- the key and the compression flag are the

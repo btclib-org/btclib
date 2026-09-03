@@ -22,6 +22,40 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### The prose around `network.py` names what a sentence is about
+
+- **`alias`, `bip44`, `consensus`, `block.genesis`, `p2p.magic` and
+  `script.script_pub_key` name the networks their comments and
+  docstrings are about, in place of a total of them** (closes #1647).
+  `tests/network_test.py`'s `test_numbers_of_networks` is where the size
+  of the catalogue is asserted; a sixth network turns that assertion red
+  and leaves each of those sentences reading exactly as it read before,
+  which is what makes them worth removing rather than correcting.
+- **The suite that tests those modules states no total either** (closes
+  #1648). `test_no_prefix_crosses_the_main_test_boundary` is the
+  contrast that decides which counts go: its comment stated a number the
+  assertion two lines under it writes as `len(NETWORKS) - 1`.
+  `test_genesis_block_testnet4_differs_from_the_others` is renamed for
+  the same reason, a test's name being prose that a report prints and
+  `-k` selects on.
+- **`network.py`'s module docstring says how the lookups are keyed and
+  leaves the list of what the module exports to `__all__`** (closes
+  #1650). Nothing re-derives a sentence from that list, so the two part
+  company at the next export with nothing red. The comment over `__all__`
+  is where the decision is recorded, beside the list it is about, and it
+  says which names the built page carries: `automodule::` under
+  `:members:` renders the classes and functions and not the three
+  module-level constants, which is why the docstring still names those
+  three itself.
+- **A count of a fixed structure stays where the sentence keeps it
+  distinguishable from the catalogue**, which is what each of the three
+  issues asks of a count that remains: `alias.py`'s address encodings a
+  purpose level can name, listed there by purpose number; `bip44.py`'s
+  encoders, which the table under the comment holds; `network_test.py`'s
+  SLIP132 pairs, a field group of the `Network` dataclass, and its
+  candidates on the base58 fields, which the assertions under it name. A
+  network added to the catalogue moves none of them.
+
 ## v2026.9.3
 
 ### Repository

@@ -89,7 +89,7 @@ with _PURPOSES_FILE.open(encoding="ascii") as _purposes:
 # BIP44's registered coin types, and the only two it registers: 0 is
 # Bitcoin and 1 is "Bitcoin Testnet", which SLIP44 widens to the test
 # chain of every coin. That is why what they are checked against is the
-# network *type* of the extended key and not its name: btclib's four test
+# network *type* of the extended key and not its name: btclib's test
 # networks share one set of version bytes, so an xkey cannot say which of
 # them it is, and coin type 1 does not distinguish them either
 _NETWORK_TYPE_FROM_COIN_TYPE: dict[int, NetworkType] = {0: "main", 1: "test"}

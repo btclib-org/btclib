@@ -4,9 +4,11 @@
 
 """The Network dataclass, NETWORKS, and the lookups over them.
 
-What this module exports is the dataclass, the catalogue, the three
-questions asked of a key-value pair and the three asked of an extended-key
-version, plus the two version sets a caller matches against.
+Each lookup is keyed by a network name, by a (field, value) pair off the
+dataclass, or by an extended-key version, and answers with the part of
+that network the caller asked for. `XPRV_VERSIONS_ALL` and
+`XPUB_VERSIONS_ALL` are what a version is tested against where no network
+is in hand.
 
 **A Network is an encoding table, and NETWORKS is fixed at import.** The
 fields are the prefixes and version bytes a network spells its keys and
@@ -56,6 +58,14 @@ from btclib.curves.curve import CURVES, _assert_valid_ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, fields_from_json_object
 
+# `docs/source/btclib.rst` passes `:members:` to `automodule::`, which
+# renders the classes and functions below and not the three module-level
+# constants: `automodule` documents data only under `:undoc-members:`,
+# which that file does not pass, so `NETWORKS` and the two version sets
+# get no entry and the docstring names those three itself. The docstring
+# says how the lookups are keyed rather than accounting for the names
+# here, since nothing re-derives a sentence from this list and the two
+# part company at the next export with nothing red (issue #1650).
 __all__ = [
     "NETWORKS",
     "XPRV_VERSIONS_ALL",

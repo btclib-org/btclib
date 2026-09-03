@@ -69,9 +69,9 @@ _STANDARD_PUBKEY = (
 )
 _STANDARD_SCRIPT_PUB_KEY = serialize([_STANDARD_PUBKEY, "OP_CHECKSIG"])
 
-# testnet4's own text and output script, neither shared with the other
-# four: pays to thirty-three zero bytes rather than to Satoshi's pubkey,
-# a script nothing can spend.
+# testnet4's own text and output script, shared with no other network:
+# pays to thirty-three zero bytes rather than to Satoshi's pubkey, a
+# script nothing can spend.
 _TESTNET4_MESSAGE = (
     b"03/May/2024 000000000000000000001ebd58c244970b3aa9d783bb001011fbe8ea8e98e00e"
 )
@@ -98,8 +98,8 @@ class _GenesisParams:
 # time, bits and nonce transcribed from Bitcoin Core's own
 # kernel/chainparams.cpp, at bitcoin/bitcoin@9be056a8a7, one
 # CreateGenesisBlock call per network; message and script_pub_key from
-# the same file, standard for four of the five and testnet4's own for
-# the fifth
+# the same file, the standard pair everywhere but testnet4 and
+# testnet4's own there
 _GENESIS_PARAMS: dict[str, _GenesisParams] = {
     "mainnet": _GenesisParams(
         1231006505, "1d00ffff", 2083236893, _STANDARD_MESSAGE, _STANDARD_SCRIPT_PUB_KEY
@@ -136,7 +136,7 @@ def genesis_block(network: str = "mainnet") -> Block:
     The block is checked against the network's own easiest target before
     it is returned (`Block.assert_valid`, at that network's
     `pow_limit_bits`), and reproduces the hash `Network.genesis_block`
-    already carries for the same network -- verified for all five in
+    already carries for the same network -- verified for every network in
     `tests/block/genesis_test.py`.
     """
     net = network_from_name(network)
