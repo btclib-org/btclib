@@ -191,7 +191,7 @@ def test_a_pre_built_script_pub_key_is_validated_as_octets_are() -> None:
     the widths the parse enforces, so the check is unreachable by design.
     """
     bad = ScriptPubKey(b"\x51", "notanetwork", check_validity=False)
-    err_msg = "unknown network: notanetwork"
+    err_msg = "unknown network: 'notanetwork'"
 
     with pytest.raises(BTClibValueError, match=err_msg):
         TxOut(1000, bad)

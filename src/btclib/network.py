@@ -554,6 +554,24 @@ def network_type_from_key_value(
     return NETWORKS[networks[0]].network_type if networks else None
 
 
+def _normalized_network_name(network: Any) -> Any:
+    """Return a network name in the one spelling its variants share.
+
+    A normalization and not a check, which is why it refuses nothing and
+    why its parameter is `Any`: a class whose `check_validity=False`
+    means the validity checks do not run still has to build the invalid
+    object a caller means to exercise, and a coercion that raised would
+    take that away. Whether the name is a network at all -- and whether
+    it is a string -- is `_validated_network_name`'s question.
+
+    Two spellings of one network reach the constructors of the frozen
+    classes that keep a `network` field, `key.PubKeyData` and
+    `script.ScriptPubKey` among them, and without the coercion they build
+    objects that are not equal and do not hash alike.
+    """
+    return network.strip().lower() if isinstance(network, str) else network
+
+
 def _validated_network_name(network: str) -> str:
     """Return the name of a network, normalized, or refuse it.
 
@@ -563,7 +581,7 @@ def _validated_network_name(network: str) -> str:
     """
     if not isinstance(network, str):
         raise BTClibTypeError(f"not a network name: {network!r}")
-    name = network.strip().lower()
+    name: str = _normalized_network_name(network)
     if name not in NETWORKS:
         err_msg = f"unknown network: '{network}'"
         err_msg += f"; it must be one of {sorted(NETWORKS)}"

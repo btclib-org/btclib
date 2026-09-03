@@ -64,14 +64,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any
 
 from typing_extensions import override
 
 from btclib.alias import Octets, Point
 from btclib.curves import Curve, bytes_from_prv_key_int, point_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.network import network_from_name
+from btclib.network import _normalized_network_name, network_from_name
 from btclib.utils import assert_type, bytes_from_octets, is_integer
 
 __all__ = [
@@ -95,32 +94,6 @@ __all__ = [
 _COMPRESSED_PREFIXES = (0x02, 0x03)
 _UNCOMPRESSED_PREFIX = 0x04
 _HYBRID_PREFIXES = (0x06, 0x07)
-
-
-def _normalized(network: Any) -> Any:
-    """Return a network name in the one spelling two of them share.
-
-    `network_from_name` accepts " MainNet " for "mainnet" -- the
-    tolerance issue #216 decided to keep, and `network`'s
-    `_validated_network_name` is where that rule is stated. Without the
-    same coercion here the two spellings build objects that are not equal
-    and do not hash alike, and the claim above that equality reads the
-    declared fields would be true of the fields and false of the key.
-
-    A normalization and not a check, which is why it refuses nothing:
-    `check_validity=False` means the validity checks do not run, so that
-    a test can build the invalid object it means to exercise, and a
-    coercion that raised would take that away. Whether the name is a
-    network at all -- and whether it is a string -- stays
-    `assert_valid`'s question.
-
-    `sec` is asymmetric here, and only the refusal is inherited:
-    `bytes_from_octets` refuses a wrong type whatever `check_validity`
-    says, and it belongs to `utils` rather than to this module. The
-    coercion beside it is this module's own, and the constructor says
-    what it is for.
-    """
-    return network.strip().lower() if isinstance(network, str) else network
 
 
 @dataclass(frozen=True, init=False)
@@ -151,7 +124,15 @@ class PubKeyData:
         # a merkle root to the x it reads off `sec` before hashing the
         # pair under a tag
         object.__setattr__(self, "sec", bytes_from_octets(sec))
-        object.__setattr__(self, "network", _normalized(network))
+        # the two fields are asymmetric in what they inherit from their
+        # converter: `bytes_from_octets` refuses a wrong type whatever
+        # `check_validity` says, where `_normalized_network_name` refuses
+        # nothing and leaves the refusal to `assert_valid`. Without the
+        # coercion, " MainNet " and "mainnet" build keys that are not
+        # equal and do not hash alike, and the docstring above -- equality
+        # reads the declared fields -- would be true of the fields and
+        # false of the key
+        object.__setattr__(self, "network", _normalized_network_name(network))
 
         if check_validity:
             self.assert_valid()
@@ -194,7 +175,8 @@ class PubKeyData:
         where the curve is asked. That `sec` is bytes at all is not asked
         here, `bytes_from_octets` having refused anything else in the
         constructor whatever `check_validity` said; `network` is asked,
-        `_normalized` being a coercion that refuses nothing.
+        `_normalized_network_name` being a coercion that refuses
+        nothing.
         """
         assert_type(self.network, str, "network")
         # refuses a name no network has, which is what this is called for
@@ -242,7 +224,7 @@ class PrvKeyData:
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "q", q)
-        object.__setattr__(self, "network", _normalized(network))
+        object.__setattr__(self, "network", _normalized_network_name(network))
         object.__setattr__(self, "compressed", compressed)
 
         if check_validity:

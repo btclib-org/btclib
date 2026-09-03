@@ -3455,7 +3455,7 @@ def test_an_invalid_output_is_refused_and_not_answered_about() -> None:
     assert descriptor.index_of(descriptor.script_pub_key()) == 0
 
     bad = ScriptPubKey(b"\x51", "notanetwork", check_validity=False)
-    err_msg = "unknown network: notanetwork"
+    err_msg = "unknown network: 'notanetwork'"
     with pytest.raises(BTClibValueError, match=err_msg):
         bad.assert_valid()
     with pytest.raises(BTClibValueError, match=err_msg):

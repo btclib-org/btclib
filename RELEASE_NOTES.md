@@ -50,6 +50,22 @@ full year, short month, short day (YYYY-M-D)
   and the names accepted are wider than before — `" Testnet "` resolves
   here as it does everywhere else in the library.
 
+- **`btclib.script.ScriptPubKey` refuses a `network` that is not a string
+  with `BTClibTypeError`** (closes #1662). `assert_valid` — which
+  `__init__` runs unless `check_validity=False`, and which `TxOut`,
+  `sig_hash` and the descriptor and wallet lookups run again on a script
+  handed to them — puts the name through
+  `btclib.network._validated_network_name`, which raises
+  `BTClibTypeError`, a `TypeError`, where it raised
+  `BTClibValueError: unknown network: None`.
+
+  Act on it if you catch `BTClibValueError` around building or validating
+  a `ScriptPubKey` to handle a name you have not checked is a `str`:
+  catch `BTClibException`, which is the base of both, or check the type
+  yourself. A `str` no network answers to is still a `BTClibValueError`,
+  and the names accepted are wider than before — `" MainNet "` resolves
+  here as it does everywhere else in the library.
+
 ## v2026.9.3
 
 ### Breaking changes
