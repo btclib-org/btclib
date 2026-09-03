@@ -61,6 +61,33 @@ full year, short month, short day (YYYY-M-D)
   `btclib.p2p.limits.PROTOCOL_VERSION`, `70016`. `Version.parse` is
   unaffected, reading whatever a peer sent rather than this default.
 
+- **`psbt_signer_contract.optional_protocols` answers for a third
+  protocol, and answers it in the middle** (closes #1588). It reported
+  `AddressDisplay` and `MessageSigner`; it now reports
+  `AddressDisplay`, `WalletPolicyAddressDisplay` and `MessageSigner`, in
+  that order.
+
+  Act on it if you call it. Before:
+
+  ```python
+  displays_address, signs_message = optional_protocols(signer)
+  ```
+
+  Now:
+
+  ```python
+  displays_address, displays_policy_address, signs_message = (
+      optional_protocols(signer)
+  )
+  ```
+
+  Unpacking the old shape raises `ValueError: too many values to unpack
+  (expected 2, got 3)`, which is the loud case. The quiet one is an
+  index: the new element is inserted rather than appended, so
+  `optional_protocols(signer)[1]` used to answer whether the signer
+  signs messages and now answers whether it displays a wallet-policy
+  address. Read the last element for the message signer, or unpack.
+
 ### Worth knowing, though nothing raises
 
 - **`btclib.org` is no longer this project's site, and this repository

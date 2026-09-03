@@ -57,6 +57,7 @@ from btclib.psbt_signer import (
     AddressDisplay,
     MessageSigner,
     PsbtSigner,
+    WalletPolicyAddressDisplay,
     request_signatures,
 )
 from btclib.script.script_pub_key import ScriptPubKey
@@ -235,13 +236,18 @@ def assert_psbt_signer(
     signer.close()
 
 
-def optional_protocols(signer: object) -> tuple[bool, bool]:
+def optional_protocols(signer: object) -> tuple[bool, bool, bool]:
     """Return which optional protocols the signer offers, as a caller asks.
 
-    `isinstance` against the two runtime-checkable protocols, which is
-    the whole of it: what `display_address` and `sign_message` answer is
-    checked by the functions of `psbt_signer` that call them, against the
-    descriptor and the address the caller says the answer must match, and
-    a conformance pass has neither.
+    `isinstance` against the three runtime-checkable protocols, which is
+    the whole of it: what `display_address`, `display_policy_address` and
+    `sign_message` answer is checked by the functions of `psbt_signer`
+    that call them, against the descriptor, the policy or the address the
+    caller says the answer must match, and a conformance pass has none of
+    that material.
     """
-    return isinstance(signer, AddressDisplay), isinstance(signer, MessageSigner)
+    return (
+        isinstance(signer, AddressDisplay),
+        isinstance(signer, WalletPolicyAddressDisplay),
+        isinstance(signer, MessageSigner),
+    )

@@ -50,7 +50,7 @@ permissions:
   contents: read
 
 # the node both jobs run, for the signing test each ends with: the
-# release under test, and the sha256 of its linux tarball as four
+# release under test, and the sha256 of its linux tarball as the
 # independent guix builders attested it in bitcoin-core/guix.sigs. Pinned
 # rather than resolved to "latest" for the reason
 # integration-bitcoind.yml's own copy gives; raising either is a commit,

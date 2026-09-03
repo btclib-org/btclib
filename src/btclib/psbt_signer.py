@@ -29,6 +29,11 @@ to remember:
 - `display_address` compares the address a device shows with the one the
   descriptor describes, which is the whole point of asking a device to
   show one;
+- `display_policy_address` is the same check for a device-registered
+  BIP388 wallet policy: `descriptors.wallet_policy_address` computes the
+  address the policy describes at an index and a multipath index, and
+  what is compared is what `display_address` compares for a plain
+  descriptor;
 - `sign_message` verifies the signature against the address the caller
   says it must open to.
 
@@ -64,7 +69,12 @@ from btclib.bip32.bip32 import (
 )
 from btclib.bip32.der_path import DerPath, indexes_from_der_path, str_from_der_path
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.descriptors import Descriptor, account_descriptors
+from btclib.descriptors import (
+    Descriptor,
+    KeyExpression,
+    account_descriptors,
+    wallet_policy_address,
+)
 from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibValueError, SignerError
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
@@ -84,8 +94,10 @@ __all__ = [
     "SignerDecorator",
     "SignerDevice",
     "SoftwareSigner",
+    "WalletPolicyAddressDisplay",
     "assert_public",
     "display_address",
+    "display_policy_address",
     "export_account",
     "merge_devices",
     "request_signatures",
@@ -202,6 +214,32 @@ class AddressDisplay(Protocol):
 
 
 @runtime_checkable
+class WalletPolicyAddressDisplay(Protocol):
+    """A signer that can show the address of a policy it has registered.
+
+    Optional and separate from `AddressDisplay` for the same reason that
+    one is separate from `PsbtSigner`: a signer with no screen for a
+    registered BIP388 policy is still a signer. What a policy needs that a
+    plain `Descriptor` does not is a third parameter neither
+    `AddressDisplay`'s signature nor its caller has room for -- the
+    multipath index BIP389's `<M;N>` needs beside the ordinary one -- so
+    this is a second protocol rather than a widened first one.
+
+    `registration` is what a signer answered when the policy was
+    registered; registering it is not part of this contract, the same way
+    showing an address is not part of `PsbtSigner` -- `HwiSigner
+    .register_descriptor` is where that happens, and the module docstring
+    of `btclib.hwi`, "Wallet policies", says why it has none of its own.
+    """
+
+    def display_policy_address(
+        self, registration: str, index: int = 0, multipath_index: int = 0
+    ) -> str:
+        """Return the address the signer shows for the policy at an index."""
+        ...
+
+
+@runtime_checkable
 class MessageSigner(Protocol):
     """A signer that can sign a message with a key it holds.
 
@@ -244,10 +282,10 @@ class SignerDevice(Protocol):
         ...
 
 
-# the operations of the two optional protocols above, which is what a
+# the operations of the three optional protocols above, which is what a
 # wrapper has to carry over from the signer it wraps -- one name each,
 # and the protocol is that name being there
-_OPTIONAL_OPERATIONS = ("display_address", "sign_message")
+_OPTIONAL_OPERATIONS = ("display_address", "display_policy_address", "sign_message")
 
 
 class SignerDecorator:
@@ -274,12 +312,13 @@ class SignerDecorator:
     and one that forgets `close` leaves a subprocess running after the
     caller closed what it was holding.
 
-    **Wrapping does not hide what the signer offers.** `AddressDisplay`
-    and `MessageSigner` are optional protocols a caller asks about with
-    `isinstance`, so a wrapper that never carries them turns a device
-    that can show an address into one that cannot, and a wrapper that
-    always declares them turns a signer that cannot into one that fails
-    when asked. Each operation is therefore bound on the *instance*, and
+    **Wrapping does not hide what the signer offers.** `AddressDisplay`,
+    `WalletPolicyAddressDisplay` and `MessageSigner` are optional
+    protocols a caller asks about with `isinstance`, so a wrapper that
+    never carries them turns a device that can show an address into one
+    that cannot, and a wrapper that always declares them turns a signer
+    that cannot into one that fails when asked. Each operation is
+    therefore bound on the *instance*, and
     only where the wrapped signer has it, so `isinstance` answers what
     the signer offers -- and a subclass that writes one of its own keeps
     it, an attribute written by a class being what says the subclass
@@ -479,6 +518,50 @@ def display_address(
     shown = signer.display_address(descriptor, index)
     if shown != expected:
         err_msg = f"the signer displayed {shown}, where the descriptor describes"
+        err_msg += f" {expected}"
+        raise BTClibValueError(err_msg)
+    return shown
+
+
+def display_policy_address(
+    signer: WalletPolicyAddressDisplay,
+    registration: str,
+    template: str,
+    key_info: tuple[KeyExpression, ...],
+    index: int = 0,
+    multipath_index: int = 0,
+    network: str = "mainnet",
+) -> str:
+    """Return the address the signer shows for a registered policy, checked.
+
+    The same check `display_address` runs for a plain `Descriptor`, over
+    a BIP388 wallet policy instead: `template` and `key_info` are the
+    pair `descriptors.wallet_policy` returns, and
+    `descriptors.wallet_policy_address` is what computes the address they
+    describe at `index` and `multipath_index` -- the second index
+    BIP389's `<M;N>` needs beside the ordinary one.
+
+    `key_info` is a `tuple` and not the `Sequence`
+    `descriptors.wallet_policy_address` itself takes: a `list` built by
+    some other route needs `tuple(...)` first. That is narrower than the
+    computation asks for, and is not a design choice -- a `Sequence`
+    argument here reads ambiguously in the documentation build, this
+    class being importable both as `btclib.descriptors.KeyExpression`
+    and as `btclib.descriptors.key_expression.KeyExpression`, and a bare
+    parameter resolves that where a subscripted one does not. `tuple`
+    sidesteps it and costs nothing for the caller `wallet_policy` itself
+    feeds, which is the ordinary one.
+
+    `registration` is not checked here: it is `register_descriptor`'s own
+    opaque answer, sent back unexamined the way `HwiSigner
+    .register_descriptor`'s docstring says a caller must.
+    """
+    expected = wallet_policy_address(
+        template, key_info, index, multipath_index, network
+    )
+    shown = signer.display_policy_address(registration, index, multipath_index)
+    if shown != expected:
+        err_msg = f"the signer displayed {shown}, where the policy describes"
         err_msg += f" {expected}"
         raise BTClibValueError(err_msg)
     return shown
