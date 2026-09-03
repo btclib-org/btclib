@@ -15,7 +15,7 @@ from btclib.alias import BIP44ScriptType
 from btclib.bip32 import bip32
 from btclib.curves import curve, sec_point
 from btclib.ecc import bms
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.wallet import AddressInfo, BIP32KeyWallet, KeyWallet
 from tests import needs_bindings, replace_unchecked
 
@@ -230,10 +230,20 @@ def test_an_unknown_script_type_is_refused() -> None:
         KeyWallet().add(_PUB_KEY, "p2wsh")  # type: ignore[arg-type]
 
 
-def test_an_unknown_network_is_refused() -> None:
-    """Refuse a network name btclib does not register."""
-    with pytest.raises(BTClibValueError, match="unknown network: regtest2"):
+def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
+    """`Wallet` normalizes the name it is given, and refuses the rest.
+
+    `__init__` puts the name through `network._validated_network_name`,
+    so the spellings issue #216 decided to keep reach a wallet, and
+    `Wallet.network` is the name `network_from_name` answers to.
+    """
+    assert KeyWallet(network=" RegTest ").network == "regtest"
+    with pytest.raises(BTClibValueError, match="unknown network: 'regtest2'"):
         KeyWallet(network="regtest2")
+    # a name that is not a string is the type rule, which RELEASE_NOTES.md
+    # tells a caller to act on
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        KeyWallet(network=[])  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("purpose", [44, 49, 84])

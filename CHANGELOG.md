@@ -116,6 +116,26 @@ documented at release-notes length in the first place, and are still in
   example sections are transcribed whole; the file's entry in
   `tests/_data/README.md` says so, and says what refuses this one.
 
+### `Fetcher` and `Wallet` take a network name as the rest of the library does
+
+- **`Fetcher.__init__` and `Wallet.__init__` put their `network: str`
+  through `network._validated_network_name`** (closes #1641). The two
+  abstract bases every backend and every wallet calls up into accept the
+  spellings issue #216 decided to keep — `" Testnet "` resolves to
+  `testnet` — where each checked membership of `NETWORKS` itself and
+  refused them. Reaching that helper across modules is what
+  `descriptors.parse` and `p2p.magic.magic_from_network` already do.
+- **`Fetcher.network` and `Wallet.network` hold the name
+  `network_from_name` answers to**, which is what a subclass reads to
+  label a transaction or to derive an address.
+- **A `network` of a type no conversion accepts is a `BTClibTypeError`**,
+  which is a `TypeError` and not a `ValueError`;
+  [RELEASE_NOTES.md](./RELEASE_NOTES.md) has what a caller catching
+  `BTClibValueError` around either constructor does about it. An
+  unhashable one was hashed as a dict key by the membership test and
+  left as a builtin `TypeError`, which `btclib.exceptions` does not
+  declare.
+
 ## v2026.9.3
 
 ### Repository

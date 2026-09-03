@@ -36,6 +36,20 @@ full year, short month, short day (YYYY-M-D)
   `btclib.bolt9.unknown_even_bits` is the same lookup over any feature
   vector. An unknown *odd* bit is carried as it was.
 
+- **`btclib.fetch` and `btclib.wallet` refuse a `network` that is not a
+  string with `BTClibTypeError`** (closes #1641). `Fetcher.__init__` and
+  `Wallet.__init__` — the bases every backend and every wallet calls up
+  into — put the name through `btclib.network._validated_network_name`,
+  which raises `BTClibTypeError`, a `TypeError`, where each raised
+  `BTClibValueError: unknown network: None`.
+
+  Act on it if you catch `BTClibValueError` around building a fetcher or
+  a wallet to handle a name you have not checked is a `str`: catch
+  `BTClibException`, which is the base of both, or check the type
+  yourself. A `str` no network answers to is still a `BTClibValueError`,
+  and the names accepted are wider than before — `" Testnet "` resolves
+  here as it does everywhere else in the library.
+
 ## v2026.9.3
 
 ### Breaking changes
