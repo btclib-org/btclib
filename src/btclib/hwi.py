@@ -73,11 +73,21 @@ exchange, and `HwiSigner.register_descriptor` wraps it the way `getxpub`
 and `signmessage` are wrapped: one request, one opaque answer, nothing
 here to check it against.
 
+No HWI release through 3.2.0 carries that subcommand -- it is on
+`master` -- and `.github/workflows/integration-hwi.yml` installs 3.2.0,
+so the weekly `integration-hwi` job runs a command line
+`register_descriptor` cannot reach. Raising that workflow's
+`HWI_VERSION` to the first release whose `hwilib/_cli.py` adds
+`registerdescriptor` is what ends the wait, and what makes this paragraph
+removable.
+
 `displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
-`--multipath-index` -- is not wrapped. `psbt_signer.display_address`
-exists to compare a device's screen with the address a `Descriptor`
-computes, and `descriptors.wallet_policy_address` is now that address for
-a policy too: `descriptors.wallet_policy` builds the `@N` template and
+`--multipath-index` -- is not wrapped, and is on `master` rather than in
+a release for the same reason `registerdescriptor` is.
+`psbt_signer.display_address` exists to compare a device's screen with
+the address a `Descriptor` computes, and
+`descriptors.wallet_policy_address` is now that address for a policy
+too: `descriptors.wallet_policy` builds the `@N` template and
 key-information vector BIP388's own `/**` describes, from a receive and
 a change `Descriptor` of one account -- `account_descriptors`' own pair
 -- or the narrower `/*` form from one `Descriptor` alone, and
@@ -665,6 +675,10 @@ class HwiSigner:
 
         Checksummed, which is what HWI's parser requires of anything it is
         given, `--desc` included.
+
+        No HWI release through 3.2.0 has `registerdescriptor` at all, so
+        this needs a build of `master`; the module docstring's *Wallet
+        policies* says what ends that.
         """
         assert_type(name, str, "name")
         text = add_checksum(str(descriptor))
