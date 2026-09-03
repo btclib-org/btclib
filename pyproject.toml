@@ -640,6 +640,12 @@ Unser = "Unser"
 # spell checker rewrote naming a symbol that is not in the source it
 # points at
 ser_exp = "ser_exp"
+# BOLT9's own name for the feature at bits 8/9, `optin` for opt-in
+# (09-features.md). src/btclib/bolt9.py transcribes that table and the hook
+# runs with --write-changes, so without this line the name becomes
+# `var_onion_option`, which names no feature of the BOLT and reads as a
+# transcription error to anybody checking the table against its source
+var_onion_optin = "var_onion_optin"
 
 [tool.typos.default.extend-words]
 # "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell

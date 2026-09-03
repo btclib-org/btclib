@@ -100,6 +100,13 @@ btclib.bolt11 module
    :members:
    :show-inheritance:
 
+btclib.bolt9 module
+-------------------
+
+.. automodule:: btclib.bolt9
+   :members:
+   :show-inheritance:
+
 btclib.coin_selection module
 ----------------------------
 

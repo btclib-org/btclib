@@ -2064,6 +2064,10 @@ address, a routing hop, the feature bits -- is checked against that same
 example's own "Breakdown" in the document, not derived from btclib's own
 decoder. `tests/bolt11_test.py` reads both halves.
 
+Both sections are transcribed whole, the invalid case adding "unknown
+feature 100" included: what refuses that one is `btclib.bolt9`'s
+assignment table, which `Bolt11Invoice.assert_valid` reads.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no

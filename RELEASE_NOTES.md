@@ -21,6 +21,21 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Breaking changes
+
+- **A Lightning invoice setting an even feature bit BOLT9 does not
+  assign is refused** (closes #1637). `bolt11.Bolt11Invoice.from_invoice`
+  and `assert_valid` accepted one, where BOLT9's rule is that a reader
+  meeting a feature bit it does not know fails on the even half of a
+  pair and ignores the odd half.
+
+  Act on it if you decode invoices carrying such a bit: the refusal is
+  `BTClibValueError: unknown even feature bits: ...`, naming them.
+  `btclib.bolt9.FEATURE_NAMES` is the table that answers it, the even
+  bit of each pair BOLT9 assigns and the name the BOLT gives it, and
+  `btclib.bolt9.unknown_even_bits` is the same lookup over any feature
+  vector. An unknown *odd* bit is carried as it was.
+
 ## v2026.9.3
 
 ### Breaking changes
