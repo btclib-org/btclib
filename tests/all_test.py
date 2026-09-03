@@ -262,7 +262,15 @@ CHILD_MODULES = {
     },
     "btclib.tx": {
         "groups": [],
-        "unpublished": ["limits", "out_point", "tx", "tx_in", "tx_out"],
+        "unpublished": [
+            "coin",
+            "limits",
+            "out_point",
+            "tx",
+            "tx_context",
+            "tx_in",
+            "tx_out",
+        ],
     },
     "btclib.wallet": {
         "groups": [],

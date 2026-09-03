@@ -160,6 +160,7 @@ from btclib.to_pub_key import (
     pub_keyinfo_from_prv_key,
     pub_keyinfo_from_pub_key,
 )
+from btclib.tx.coin import Coin
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx import join as tx_join
@@ -545,6 +546,16 @@ _KINDS = (
         "include_witness",
         BlockPayload,
         {"block": _BLOCK},
+    ),
+    # a stored fact rather than a switch: `is_coinbase` is not read to
+    # decide how `Coin.__init__` behaves, it is the value `assert_
+    # coinbase_maturity` later branches on for the coin it is handed, so
+    # a misread "no" would carry a wrong fact into a rule miles from here
+    _Case(
+        "btclib.tx.coin.Coin.__init__",
+        "is_coinbase",
+        Coin,
+        {"tx_out": TxOut(1_000, b"\x51"), "height": 100},
     ),
     _Case(
         "btclib.b32.power_of_2_base_conversion",

@@ -27,7 +27,9 @@ Some of `consensus.h`'s constants are deliberately absent.
 `MAX_BLOCK_SERIALIZED_SIZE` is marked in Core's own comment as a buffer
 bound and not a network rule, the weight being what consensus caps.
 `COINBASE_MATURITY` is a rule about spending an output, so it needs the
-chain the output was created on.
+chain the output was created on: `btclib.tx.coin.Coin` carries that
+height, and the constant is `btclib.tx.limits`'s, beside
+`btclib.tx.tx_context.assert_coinbase_maturity`, which reads it.
 
 `MAX_TIMEWARP` is here and not among those: it is BIP94's bound on the
 first block of a new retarget period, checked against that block's own
