@@ -902,6 +902,53 @@ documented at release-notes length in the first place, and are still in
   `--multipath-index`, and `psbt_signer.display_address` has no
   multipath index to pass one through with.
 
+### `btclib.consensus` answers for the consensus rules of each network
+
+- **`CONSENSUS_PARAMS` carries a row per network `btclib.network` names,
+  and `NETWORKS[name].consensus` is that row** (closes #1578). A frozen
+  `ConsensusParams` holds the activation heights Bitcoin Core keeps as
+  buried deployments (BIP34, BIP66, BIP65, CSV and segwit), the subsidy
+  halving interval, the easiest target the network allows, Core's
+  `fPowAllowMinDifficultyBlocks`, `enforce_BIP94` and
+  `fPowNoRetargeting`, the minimum chain work, and the blocks the
+  chain's own history exempts from BIP30 and from the default script
+  flags. Each of those three is data here and nothing more: the header
+  arithmetic that reads them per network is issue #1579's, and BIP94's
+  timewarp rule is not enforced anywhere yet.
+  `ConsensusParams.script_flags_at` is Core's `GetBlockScriptFlags`, and
+  answers the `ScriptFlag` bitmask `btclib.script.engine.verify_input`
+  takes. Every value is transcribed
+  from `src/kernel/chainparams.cpp` at Bitcoin Core v31.1,
+  `bitcoin/bitcoin@9be056a8a7`, with the line it was read at beside it;
+  a released tag rather than a `master` tip, so that a line citation
+  names a blob that cannot move, and because `master` no longer keeps
+  taproot's deployment in that file at all. `tests/consensus_test.py`
+  holds each field to that transcription, and derives `pow_limit_bits`
+  from Core's own `powLimit` rather than restating it.
+- **P2SH, segwit v0 and taproot bind from the genesis block of every
+  chain**, and a height gates only DERSIG, CHECKLOCKTIMEVERIFY,
+  CHECKSEQUENCEVERIFY and NULLDUMMY. Core names the blocks that predate
+  a rule and would fail it one by one, by hash, rather than switching
+  the rule on at a height, so `script_flags_at` takes an optional block
+  hash and the table has no taproot activation height to be wrong about.
+- **`btclib.consensus` imports no module of this library**, which is
+  what lets `btclib.block`, `btclib.tx`, `btclib.script` and
+  `btclib.network` all read it. `script_flags_at` imports the script
+  engine when it is called rather than when the module is: the enum it
+  answers with sits inside the cycle that would otherwise close,
+  `btclib.script.engine` importing `btclib.script.witness`, which
+  imports this module. `tests/imports_test.py` measures both halves.
+- **`btclib.block.proof_of_work`'s `MAINNET_POW_LIMIT_BITS` and
+  `REGTEST_POW_LIMIT_BITS`, and `btclib.block.block_context`'s
+  `BIP34_HEIGHT`, read their numbers from the table** rather than
+  stating them a second time. Each keeps its name and its value. The
+  comment beside the first pair no longer says every network's limit is
+  exactly representable in the compact form: signet's is, and mainnet's
+  and regtest's round down. What the encoding preserves is the
+  comparison, the next target the compact form can express above the
+  rounded value being already above Core's own limit, so a header's
+  `bits` fall on the same side of either.
+
 ## v2026.8.29
 
 ### Repository

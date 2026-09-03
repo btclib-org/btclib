@@ -113,6 +113,29 @@ def test_exceptions_imports_nothing_of_btclibs_and_no_client(
     assert "'urllib.request'" not in loaded
 
 
+def test_consensus_imports_nothing_of_btclibs(unimported_btclib: None) -> None:
+    """btclib.consensus declares its constants and reaches nothing.
+
+    The per-network table lives there rather than beside `Network`
+    because of this: `btclib.block`, `btclib.tx` and `btclib.script` all
+    read something of it, `btclib.network` reads it to give each network
+    its `consensus` row, and an import in the other direction would be
+    the cycle of issue #147 -- `btclib.script.engine` imports
+    `btclib.script.witness`, which imports this module.
+
+    The second half is what makes `ConsensusParams.script_flags_at`
+    possible at all. It answers a `ScriptFlag`, whose enum is inside that
+    cycle, so it imports the engine when it is called rather than when
+    this module is: importing costs nothing, and asking for the flags is
+    what brings the engine in.
+    """
+    consensus = importlib.import_module("btclib.consensus")
+    assert set(btclib_modules()) == {"btclib", "btclib.consensus"}
+
+    consensus.CONSENSUS_PARAMS["mainnet"].script_flags_at(0)
+    assert "btclib.script.engine.flags" in btclib_modules()
+
+
 def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     """`btclib.p2p` publishes the message start without importing it.
 

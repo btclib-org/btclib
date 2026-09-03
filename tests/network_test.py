@@ -10,6 +10,7 @@ from typing import Any, get_args
 import pytest
 
 from btclib.alias import NetworkField, NetworkName
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import (
@@ -52,6 +53,7 @@ def test_bad_network() -> None:
             slip132_p2wsh_pub="02aa7ed3",
             slip132_p2wsh_p2sh_prv="0295b005",
             slip132_p2wsh_p2sh_pub="0295b43f",
+            consensus=CONSENSUS_PARAMS["mainnet"],
         )
 
 
@@ -159,12 +161,13 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
         json_golden(f"{network_name}.json", net.to_dict())
 
 
-def test_the_test_networks_differ_from_testnet_in_the_genesis_block() -> None:
-    """Signet and testnet4 reuse everything of testnet but the chain.
+def test_the_test_networks_differ_from_testnet_in_the_chain_not_the_spelling() -> None:
+    """Signet and testnet4 reuse every spelling of testnet, and no rule.
 
     The wif, p2pkh, p2sh, hrp and bip32 version bytes are testnet's,
     which is the whole reason the reverse lookups have an ambiguity to
-    answer for; what a network of its own buys them is a genesis block --
+    answer for; what a network of its own buys them is a chain, which is
+    a genesis block and the consensus row that chain is validated by --
     and, outside this table, a p2p magic, which identifies a *node* and
     lives in `bitcoin_core_rpc` with the rest of what Core reports.
     """
@@ -175,7 +178,7 @@ def test_the_test_networks_differ_from_testnet_in_the_genesis_block() -> None:
             for key, value in NETWORKS[name].to_dict().items()
             if testnet[key] != value
         }
-        expected = {"genesis_block"}
+        expected = {"genesis_block", "consensus"}
         if name == "regtest":
             expected.add("hrp")  # bcrt, where signet and testnet4 are tb
         assert differing == expected, name

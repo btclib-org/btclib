@@ -36,6 +36,21 @@ full year, short month, short day (YYYY-M-D)
   `"MIT License"`. `btclib.__version__` and `btclib.__copyright__` are
   unaffected.
 
+- **`Network` takes a `consensus` row, and its dict carries a
+  `consensus` key** (closes #1578). `btclib.network.Network` gained a
+  field naming the consensus parameters of the chain it spells keys for,
+  `to_dict` writes the row's name, and `from_dict` reads it back.
+
+  Act on it if you build a `Network` yourself or load one from a dict
+  you stored. The constructor takes it as a required keyword argument —
+  `Network(..., consensus=CONSENSUS_PARAMS["mainnet"])`, from
+  `btclib.consensus` — and a dict without the key raises
+  `BTClibValueError: missing network field: consensus`, a dict naming a
+  row that does not exist `BTClibValueError: unknown consensus
+  parameters`. Add `"consensus": "mainnet"` to a stored dict, spelled
+  with the name of the network it is. Reading `NETWORKS`, and everything
+  that resolves a network by name or by prefix, is unaffected.
+
 ### Worth knowing, though nothing raises
 
 - **`btclib.org` is no longer this project's site, and this repository

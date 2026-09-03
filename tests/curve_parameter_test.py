@@ -80,6 +80,7 @@ import pytest
 
 from btclib.b58 import wif_from_prv_key
 from btclib.bip32.bip32 import BIP32KeyData, rootxprv_from_seed, xpub_from_xprv
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
     Curve,
@@ -144,9 +145,16 @@ _GROUP_G = (1, 9)
 
 # every field of mainnet but its curve, in the hex spelling to_dict writes
 # and the constructor takes
-_NETWORK_ARGS = {
-    key: value for key, value in NETWORKS["mainnet"].to_dict().items() if key != "curve"
+# `to_dict` writes the curve and the consensus row as the names they are
+# catalogued under, so each is put back here as the object the
+# constructor takes rather than as the name -- the curve by the case
+# below, which is what this file varies, and the row by hand
+_NETWORK_ARGS: dict[str, Any] = {
+    key: value
+    for key, value in NETWORKS["mainnet"].to_dict().items()
+    if key not in {"curve", "consensus"}
 }
+_NETWORK_ARGS["consensus"] = CONSENSUS_PARAMS["mainnet"]
 
 
 @dataclass(frozen=True)
@@ -378,9 +386,9 @@ _CASES = (
     ),
     # the one curve parameter that is a field rather than an argument to
     # compute with, and the one not called `ec`. `to_dict`'s keys are the
-    # constructor's parameter names, the curve excepted -- it goes out as a
-    # name and comes back as the catalogued curve -- so the valid call is
-    # mainnet rebuilt from its own dict
+    # constructor's parameter names, so the valid call is mainnet rebuilt
+    # from its own dict, with the two names `_NETWORK_ARGS` resolves back
+    # into objects
     _Case(
         "btclib.network.Network.__init__",
         Network,

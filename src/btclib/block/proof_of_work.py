@@ -31,6 +31,7 @@ from collections.abc import Sequence
 from datetime import datetime
 
 from btclib.alias import Octets
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, is_integer, is_octets
 
@@ -69,19 +70,28 @@ POW_TARGET_SPACING = 10 * 60
 DIFFICULTY_ADJUSTMENT_INTERVAL = POW_TARGET_TIMESPAN // POW_TARGET_SPACING
 
 # the easiest target a network allows, as bits rather than as the 32
-# bytes Core's params.powLimit holds: every network's limit is exactly
-# representable in the compact form -- it is where the compact form came
-# from -- so nothing is lost, and a caller reads the same four bytes a
-# header carries. Mainnet's is the genesis block target, which is why the
-# genesis difficulty is 1, and testnet3 and testnet4 share it
-MAINNET_POW_LIMIT_BITS = b"\x1d\x00\xff\xff"
+# bytes Core's params.powLimit holds, so that a caller reads the same
+# four bytes a header carries. The compact form rounds down -- mainnet's
+# limit and regtest's are both wider than three significand bytes, and
+# only signet's survives the encoding unchanged -- and the rounding
+# reaches no comparison anybody makes: the next target the compact form
+# can express above the rounded value is already above Core's own limit,
+# so a header's bits fall on the same side of either. Mainnet's is the
+# genesis block target, which is why the genesis difficulty is 1, and
+# testnet3 and testnet4 share it.
+#
+# The numbers are `btclib.consensus`'s, where every network has a row and
+# where each is transcribed from Core with the line it was read at. These
+# two names are the defaults of the signatures below, and they stay names
+# because that is what a default is written as
+MAINNET_POW_LIMIT_BITS = CONSENSUS_PARAMS["mainnet"].pow_limit_bits
 # regtest's, the one loose enough to mine against in a test. Not
 # something to hand to next_bits as a starting target: regtest sets
 # fPowNoRetargeting, so Core never retargets from it, and 2^255 is a
 # target the retarget's own multiplication overflows -- see the note
 # there. As the pow_limit_bits of a network that does retarget it is
 # fine, being compared and never multiplied
-REGTEST_POW_LIMIT_BITS = b"\x20\x7f\xff\xff"
+REGTEST_POW_LIMIT_BITS = CONSENSUS_PARAMS["regtest"].pow_limit_bits
 
 
 def _value_from_bits(bits: bytes) -> int:

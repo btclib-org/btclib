@@ -202,6 +202,7 @@ ScriptType = Literal[
 NetworkField = Literal[
     "curve",
     "network_type",
+    "consensus",
     "genesis_block",
     "wif",
     "p2pkh",
