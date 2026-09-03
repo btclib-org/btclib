@@ -41,8 +41,8 @@ caller has to decode with its own error handling.
 **`code` is `RejectCode` where a member names it and the plain `int`
 where none does**, the same reading `btclib.p2p.addrv2._bip155_network_from_int`
 and `btclib.p2p.inventory._inventory_type_from_int` give a byte-sized code:
-BIP61 states the eight named codes below and reserves the rest of each
-range -- 0x01-0x0f, 0x10-0x1f, 0x40-0x4f -- to "Protocol syntax errors",
+BIP61 names the codes below and reserves the rest of each range --
+0x01-0x0f, 0x10-0x1f, 0x40-0x4f -- to "Protocol syntax errors",
 "Protocol semantic errors" and "Server policy rule" without naming every
 member of any of them, so a code no member here has is not malformed, and
 refusing it would refuse a message BIP61 itself allows.

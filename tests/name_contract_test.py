@@ -103,12 +103,21 @@ _THE_STANDARD_NAMES_THE_OPERATION = (
     " property of the filter but of the element it is asked about"
 )
 
+_CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY = (
+    "`is_addrv1` would name the encoding rather than the question asked of"
+    " it -- whether an `addr` message, which has no field for the network"
+    " id, has room for this peer at all. `can_` is issue #1581's own name"
+    " for it and btclib-node's before that, and it is what `network_address`"
+    " asks first before refusing on the same question"
+)
+
 _ENGLISH_PREDICATE: dict[str, str] = {
     "btclib.block.block_filter.match": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.block.block_filter.match_any": _THE_STANDARD_NAMES_THE_OPERATION,
     "btclib.descriptors.miniscript.has_duplicate_keys": (_ITS_STANDARD_SPELLING),
     "btclib.descriptors.miniscript.mixes_timelocks": (_ITS_STANDARD_SPELLING),
     "btclib.descriptors.miniscript.reads_back": _A_PREDICATE_WITH_A_SUBJECT,
+    "btclib.p2p.addrv2.can_addrv1": _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY,
     "btclib.psbt.psbt.has_sig_hash_single": _ITS_STANDARD_SPELLING,
     "btclib.psbt.psbt.inputs_modifiable": _ITS_STANDARD_SPELLING,
     "btclib.psbt.psbt.outputs_modifiable": _ITS_STANDARD_SPELLING,

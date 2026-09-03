@@ -59,7 +59,7 @@ def test_the_hash_is_reversed_on_the_wire_the_way_an_inventory_is() -> None:
 
 
 def test_every_named_code_round_trips() -> None:
-    """The eight codes BIP61's own tables name."""
+    """The codes BIP61's own tables name."""
     for code in RejectCode:
         reject = Reject("tx", code, "reason", _TXID)
         parsed = Reject.parse(reject.serialize())
@@ -71,7 +71,7 @@ def test_a_code_no_member_names_round_trips_as_a_plain_int() -> None:
     """BIP61 reserves ranges without naming every member, keeping this one.
 
     0x02 is inside "Protocol syntax errors" (0x01-0x0f) and is not one of
-    the eight named codes: an implementation may use it, and refusing it
+    the codes BIP61 names: an implementation may use it, and refusing it
     would refuse a message BIP61 allows.
     """
     reject = Reject("version", 0x02, "reserved but unnamed")

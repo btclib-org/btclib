@@ -159,7 +159,7 @@ def test_the_relay_flag_makes_the_encoding_one_to_one() -> None:
     assert on.serialize() == _VERSION_PAYLOAD + b"\x01"
 
 
-def test_a_version_with_no_explicit_field_announces_this_libraries_own() -> None:
+def test_a_version_with_no_explicit_field_announces_btclibs_own() -> None:
     """`Version()`'s `version` defaults to `limits.PROTOCOL_VERSION`, not zero.
 
     A caller building one to send is building this library's own

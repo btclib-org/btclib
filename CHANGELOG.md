@@ -1134,6 +1134,7 @@ documented at release-notes length in the first place, and are still in
   raising `HWI_VERSION` to the first release whose `hwilib/_cli.py` adds
   `registerdescriptor` -- so the caveat says when it stops being true and
   not only that it is.
+
 ### `btclib.p2p.addrv2` converts to and from `btclib.p2p.address`'s two classes
 
 - **`network_address`, `addr_entry` and `peer_from_addr_entry` translate a
