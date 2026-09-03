@@ -21,7 +21,7 @@ Build from the project root, exactly as ``.readthedocs.yaml`` does:
 .. sourcecode:: bash
 
     $ uv run --locked --no-default-groups --group docs \
-          sphinx-build -n -W --keep-going -b html docs/source docs/build/html
+          sphinx-build -n -W -b html docs/source docs/build/html
 
 Open ``docs/build/html/index.html`` in a browser to see the result. The
 ``Makefile`` and ``make.bat`` here drive the same build, from within this

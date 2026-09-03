@@ -1040,6 +1040,19 @@ documented at release-notes length in the first place, and are still in
   is nothing for the `>` to open, so the line writes nothing whatever
   the directory holds.
 
+### The documentation build is not passed `--keep-going`
+
+- **`.github/workflows/docs.yml`, `.readthedocs.yaml`, `CONTRIBUTING.md`
+  and `docs/README.rst` each spell the build as
+  `sphinx-build -n -W -b html`** (issue btclib-org/.github#347). Section 2
+  of the organization standard is where the rule and its rejected
+  alternative are written: `-W` alone reports every warning a build raises
+  and fails at the end of it, so the flag decides nothing.
+- **The comment beside the command in the workflow and in
+  `.readthedocs.yaml` puts that reporting on `-W`**, which is the flag
+  that does it; dropping the token alone would have left a sentence
+  crediting nothing.
+
 ## v2026.8.29
 
 ### Repository
