@@ -36,6 +36,7 @@ from btclib.p2p import (
     CFHeaders,
     CFilter,
     CmpctBlock,
+    Feature,
     FeeFilter,
     GetAddr,
     GetBlocks,
@@ -113,6 +114,7 @@ _PAYLOADS: tuple[Payload, ...] = (
     WtxidRelay(),
     SendTxRcncl(1, 2),
     FeeFilter(1000),
+    Feature(b"BIP434", b"\x01"),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)

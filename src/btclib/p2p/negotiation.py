@@ -8,12 +8,13 @@
 `sendheaders` wants a new block announced as a header rather than as an
 inventory, `wtxidrelay` wants transactions announced by wtxid,
 `sendtxrcncl` says this peer would reconcile its transaction set rather
-than have every one announced, and `feefilter` wants nothing below a fee
-rate. That is the one idea they share, and the module is named for the
-larger half of it: four of them negotiate how the rest of the connection
-is written, and two are one-off requests. Issue #1119 is titled for both
--- "the p2p negotiation and request messages" -- and a filename cannot
-be.
+than have every one announced, `feefilter` wants nothing below a fee
+rate, and `feature` names a feature whose messages may then be sent to
+it. That is the one idea they share, and the module is named for the
+larger half of it: `getaddr` and `mempool` are one-off requests, and the
+rest negotiate how the connection is written from there on. Issue #1119
+is titled for both -- "the p2p negotiation and request messages" -- and
+a filename cannot be.
 
 **Why they are together, and it is not that they answer to nothing.**
 Every other request in this package sits beside the message that
@@ -22,27 +23,44 @@ answers it: `getdata` beside `inv`, `getcfilters` beside `cfilter`,
 that rule. A `getaddr` is answered by an `addr` *or* by an `addrv2`,
 which are two modules, so sitting beside its answer means picking one of
 them; a `mempool` is answered by an `inv`, and `inventory` is the module
-about inventories rather than about what a peer holds. The four that
+about inventories rather than about what a peer holds. Those that
 negotiate have the opposite problem: they turn nothing on that this
 package encodes, so there is no codec for them to sit beside at all.
 
-`sendaddrv2` and `sendcmpct` are not here for the reason the four
+`sendaddrv2` and `sendcmpct` are not here for the reason the
 negotiators are: each is about a message this package *does* encode --
 an `addrv2` and a `cmpctblock` -- so each lives beside the codec it
 turns on, which is where a reader of that codec looks.
 
-**All but `feefilter` and `sendtxrcncl` carry no octets at all**, which
-makes them the shape `Verack` and `SendAddrV2` already are, down to the
-one thing an empty payload has to get right: `parse` refuses trailing
-octets rather than ignoring them, a message this class could not have
-written not being one it may answer. They repeat those lines rather
-than share a base, for the reason `addrv2.SendAddrV2` states:
+**`getaddr`, `mempool`, `sendheaders` and `wtxidrelay` carry no octets
+at all**, which makes them the shape `Verack` and `SendAddrV2` already
+are, down to the one thing an empty payload has to get right: `parse`
+refuses trailing octets rather than ignoring them, a message this class
+could not have written not being one it may answer. They repeat those
+lines rather than share a base, for the reason `addrv2.SendAddrV2`
+states:
 `keepalive._NoncePayload` is a base because two commands have one
 *body*, and the absence of a body is not a body to share. The
 alternative -- one class with `command` as a field -- is refused across
 this package and argued in `payload.py`: the command is the message's
 identity, and a field would let a caller build a `getaddr` that
 serializes under "mempool".
+
+**`feature` is the general case of the negotiators beside it.** BIP434
+generalises what `sendaddrv2` and `wtxidrelay` each do with a command of
+their own: one message carries a `featureid` naming the feature and a
+`featuredata` holding whatever that feature's own specification puts
+there, so that the next feature needs neither a command minted for it
+nor a protocol version number agreed on -- "there is no longer a
+question whether version 'n+1' belongs to Alice's new feature, or Bob's
+new feature".
+
+What a `featureid` names is therefore not this package's to know, and
+there is no table of them here. BIP434 has a node "ignore feature
+messages specifying a featureid they do not support, so long as the
+payload conforms to the requirements above", which makes the identifier
+something a caller matches on and this codec merely carries -- the same
+`if` `payload.py` leaves it for a command.
 
 **`feefilter` is a signed `int64_t`**, and signed is not an accident of
 the type Core happened to declare. BIP133 defines the message as one
@@ -106,9 +124,12 @@ the connection is block-relay-only; and `sendtxrcncl`, like
 peer that sends one after `verack` should be disconnected, and Core's
 `net_processing.cpp` does exactly that, along with disconnecting a peer
 that offers reconciliation while either side's `version` declined
-transaction relay. Every one of those is a rule about *when* or *to
-whom*, which needs a connection to hold, and this package has none --
-the same line `SendAddrV2` draws for BIP155's placement rule.
+transaction relay; and BIP434 forbids a `feature` after the `verack` and
+to a peer advertising a protocol version below 70017, requiring one that
+arrives between the `version` and the `verack` be accepted. Every one of
+those is a rule about *when* or *to whom*, which needs a connection to
+hold, and this package has none -- the same line `SendAddrV2` draws for
+BIP155's placement rule.
 """
 
 from __future__ import annotations
@@ -117,17 +138,25 @@ from dataclasses import dataclass
 
 from typing_extensions import override
 
-from btclib.alias import BinaryData
+from btclib import var_bytes
+from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.p2p.limits import (
+    MAX_FEATUREDATA_LENGTH,
+    MAX_FEATUREID_LENGTH,
+    MIN_FEATUREID_LENGTH,
+)
 from btclib.p2p.payload import Payload
 from btclib.utils import (
     assert_no_trailing,
+    bytes_from_octets,
     bytesio_from_binarydata,
     is_integer,
     read_exactly,
 )
 
 __all__ = [
+    "Feature",
     "FeeFilter",
     "GetAddr",
     "Mempool",
@@ -495,3 +524,89 @@ class SendTxRcncl(Payload):
         assert_no_trailing(data, stream, "sendtxrcncl payload")
 
         return cls(version, salt, check_validity=check_validity)
+
+
+@dataclass(frozen=True)
+class Feature(Payload):
+    """The `feature` message: a feature this peer supports, and its data.
+
+    BIP434, and Bitcoin Core's `msg_feature`: a `featureid` and a
+    `featuredata`, each a length and that many octets. The identifier is
+    what the feature is negotiated under -- the BIP number for one
+    published as a BIP, "some other unique identifier" such as a URL or
+    a digest for one that is not -- and the data is whatever that
+    feature's own specification puts there, empty where it wants none.
+
+    `feature_id` has no default, as `Message`'s command and
+    `CmpctBlock`'s header have none: an identifier is the whole of what
+    this message says, so an object without one could not be valid.
+
+    `feature_id` is octets and not text, as `Version.user_agent` is.
+    BIP434 asks for printable ASCII with a SHOULD rather than a MUST,
+    and Core's `p2p_bip434_feature.py` asserts a node accepts an
+    identifier that is not -- `test_non_ascii_feature_id_accepted` -- so
+    decoding here would refuse a message Core answers. A caller that
+    wants to show one decodes it, with the error handling it wants.
+
+    Both lengths are refused rather than parsed, which is the opposite
+    of what `FeeFilter` does with the money range: BIP434 writes them as
+    a MUST on the encoding and Core answers a payload outside them with
+    a disconnect, where `MoneyRange` is asked about a value already
+    read. `btclib.p2p.limits` holds the numbers and the citation.
+
+    Frozen and hashable, both fields being immutable.
+    """
+
+    command = "feature"
+
+    feature_id: bytes
+    feature_data: bytes
+
+    def __init__(
+        self,
+        feature_id: Octets,
+        feature_data: Octets = b"",
+        *,
+        check_validity: bool = True,
+    ) -> None:
+        object.__setattr__(self, "feature_id", bytes_from_octets(feature_id))
+        object.__setattr__(self, "feature_data", bytes_from_octets(feature_data))
+
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        """Refuse an identifier or a payload BIP434's lengths exclude."""
+        if not MIN_FEATUREID_LENGTH <= len(self.feature_id) <= MAX_FEATUREID_LENGTH:
+            err_msg = f"invalid feature id length: {len(self.feature_id)}"
+            err_msg += f" instead of {MIN_FEATUREID_LENGTH}"
+            err_msg += f" to {MAX_FEATUREID_LENGTH} bytes"
+            raise BTClibValueError(err_msg)
+
+        if len(self.feature_data) > MAX_FEATUREDATA_LENGTH:
+            err_msg = f"invalid feature data length: {len(self.feature_data)}"
+            err_msg += f" instead of at most {MAX_FEATUREDATA_LENGTH} bytes"
+            raise BTClibValueError(err_msg)
+
+    @override
+    def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the identifier and the data, each behind its length."""
+        if check_validity:
+            self.assert_valid()
+
+        return var_bytes.serialize(self.feature_id) + var_bytes.serialize(
+            self.feature_data
+        )
+
+    @classmethod
+    def parse(
+        cls: type[Feature], data: BinaryData, *, check_validity: bool = True
+    ) -> Feature:
+        """Return the identifier and the data the two fields carry."""
+        stream = bytesio_from_binarydata(data)
+
+        feature_id = var_bytes.parse(stream)
+        feature_data = var_bytes.parse(stream)
+        assert_no_trailing(data, stream, "feature payload")
+
+        return cls(feature_id, feature_data, check_validity=check_validity)
