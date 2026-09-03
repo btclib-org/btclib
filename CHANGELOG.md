@@ -47,6 +47,43 @@ documented at release-notes length in the first place, and are still in
   behind `--body-file <path>`, which keeps the bare placeholder at the
   end of the command** (issue btclib-org/.github#775).
 
+### `BitcoinCoreRestFetcher`, a third `Fetcher` over Core's unauthenticated `-rest`
+
+- **`btclib.fetch.bitcoin_core_rest` adds `BitcoinCoreRestFetcher`, over
+  `bitcoin_core_rpc`'s `BitcoinCoreRestClient`** (closes #1128). `-rest`
+  is off by default and authenticates nobody who reaches it, so this is
+  what a caller handed such an endpoint and no credentials speaks to a
+  real node with -- until now only `BitcoinCoreFetcher`, which needs a
+  cookie or a user and password, and `EsploraFetcher`, a block explorer,
+  existed. The client takes `get_bin(path)` and `get_json(path)`, no
+  method per resource, so this is a third class rather than
+  `EsploraFetcher` with a second `base_url`: this fetcher's constructor
+  takes a client where `EsploraFetcher`'s takes a url, and one class
+  cannot take both without one argument being dead in every call.
+  `get_block_header` is two requests,
+  `/blockhashbyheight/<HEIGHT>.bin` then `/headers/<HASH>.bin?count=1`
+  -- the query parameter, not the `/headers/<COUNT>/<HASH>` form
+  `doc/REST-interface.md` marks deprecated since Core 24.0 -- and the
+  first answer's raw bytes are reversed before the second url is built:
+  `.bin` answers Core's internal byte order, the reverse of the display
+  order every hash a `-rest` url takes. `get_tx_out` is not overridden,
+  `/getutxos` reading the UTXO set and answering a spent output and one
+  that never existed identically, the same reason `BitcoinCoreRestClient`
+  itself refuses a `get_utxos` method. `verify_network` is here as it is
+  on `BitcoinCoreFetcher`, on by default and asked before the first
+  fetch, with `signet_challenge` beside it: Core's `rest_chaininfo`
+  writes out what `getblockchaininfo` answers and adds nothing, so
+  `/chaininfo.json` carries both members the JSON-RPC check reads, and
+  the two comparisons are the same two.
+
+- **`pyproject.toml`'s `bitcoin-core-rpc` floor moves to 2026.9.3**, the
+  release `BitcoinCoreRestClient` first ships in.
+  `btclib.fetch.__init__` imports that name at module level rather than
+  behind a guard, so a resolution at the previous floor fails on the
+  import itself, before any caller reaches the REST fetcher. This tree's
+  own gates cannot see it: `uv.lock` already pinned 2026.9.3, so the
+  suite exercises the locked release and never the declared floor.
+
 ## v2026.9.3
 
 ### Repository

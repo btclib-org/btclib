@@ -665,9 +665,10 @@ recurs: a published module carrying no commands is a thing this tree can
 grow again, and the answer of record is one line naming it beside the
 reason, never a predicate over what a module exports.
 
-The two `Fetcher` implementations are two option sets, not two command
-trees: `--rpc-url` with a cookie file for `bitcoind`, `--esplora-url`
-defaulting to `BLOCKSTREAM_INFO`. No configuration file. That is the same
+The `Fetcher` implementations are option sets, not command trees:
+`--rpc-url` with a cookie file for `bitcoind`, `--rest-url` for a node
+started with `-rest`, `--esplora-url` defaulting to `BLOCKSTREAM_INFO`.
+No configuration file. That is the same
 decision `keystore` took for persistence and for the same reason — a
 config file is a format and a search path that outlive the release that
 chose them — and click's environment variables cover the case a file

@@ -232,6 +232,20 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "verify_chain",
         "signet_challenge",
     ],
+    "btclib.fetch:BitcoinCoreRestClient.__init__": ["timeout", "transport"],
+    "btclib.fetch:BitcoinCoreRestClient.from_chain": ["timeout", "transport"],
+    "btclib.fetch:BitcoinCoreRestClient.get_bin": [
+        "request_timeout",
+        "max_body_size",
+    ],
+    "btclib.fetch:BitcoinCoreRestClient.get_json": [
+        "request_timeout",
+        "max_body_size",
+    ],
+    "btclib.fetch:BitcoinCoreRestFetcher.__init__": [
+        "verify_network",
+        "signet_challenge",
+    ],
     "btclib.fetch:EsploraFetcher.__init__": ["network", "timeout", "transport"],
     "btclib.fetch:SessionTransport.__init__": ["max_body_size", "connection_factory"],
     "btclib.fetch:urlopen_transport": ["max_body_size"],

@@ -1,5 +1,7 @@
-# The fetch boundary, mutated: the transport, the two backends built on it,
-# and the fetcher module both call into. Issue #327 proposed this scope
+# The fetch boundary, mutated: the transport, the JSON-RPC and Esplora
+# backends, and the fetcher module they call into -- `module-path` below
+# is the whole of the scope, and the REST backend is outside it. Issue
+# #327 proposed this scope
 # directly -- a response-size limit weakened, a status check turned into
 # an acceptance, a tx-id verification skipped -- as the same class of gap
 # #219 found in the consensus code, on a boundary that is network input
@@ -55,8 +57,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - 4 in `fetcher.py` are equivalent by inspection: `==` against `is` on
 #   the very object `NETWORKS` holds, and three `check_validity=False`
 #   turned `True`, which validates data already valid.
-# - 3 are the keyword-only `*` marker turned `/`, in this package's two
-#   fetchers. Nothing in the library asserts a keyword-only parameter is
+# - 3 are the keyword-only `*` marker turned `/`, in `bitcoin_core.py`
+#   and `esplora.py`. Nothing in the library asserts a keyword-only one is
 #   one -- 89 public callables take 132 of them -- so these three survive
 #   for a reason that is neither this profile's nor a test to write here.
 #   Issue #980 is where that is decided.

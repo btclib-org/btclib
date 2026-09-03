@@ -40,13 +40,15 @@ requires-python = ">=3.10"
 # whenever this tree starts calling something newer and a second copy of
 # the number being the one that goes stale.
 dependencies = [
-    # 2026.8.29 is the split of the package into errors, chains,
-    # transport and client modules behind its facade, and the first
-    # release the `chains` module exists in. The rest of what this tree
-    # calls -- `BitcoinCoreRpcClient`, `RpcError`, `chain_from_network`,
-    # `magic_from_chain`, `magic_from_signet_challenge` -- predates that
-    # floor
-    "bitcoin-core-rpc>=2026.8.29",
+    # 2026.9.3 is the release `BitcoinCoreRestClient` first ships in, and
+    # `btclib.fetch` imports it at module level rather than behind a
+    # guard, so anything resolving older fails on the import itself. The
+    # rest of what this tree calls -- `BitcoinCoreRpcClient`, `RpcError`,
+    # `chain_from_network`, `magic_from_chain`,
+    # `magic_from_signet_challenge` -- is in 2026.8.29, the split of the
+    # package into errors, chains, transport and client modules behind
+    # its facade and the first release the `chains` module exists in
+    "bitcoin-core-rpc>=2026.9.3",
     # `typing.override` is 3.12's, `typing.TypeIs` is 3.13's, and the
     # floor is 3.10, so both come from the backport; 4.4 is the release
     # that adds `override`, 4.10 the one that adds `TypeIs`, and the

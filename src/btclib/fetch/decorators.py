@@ -62,9 +62,8 @@ class CachingFetcher(Fetcher):
     it. The consequence is that a wrapped backend which overrides
     `get_tx_out` with an answer of its own has that override bypassed --
     this class's `get_tx_out` is the ABC's, inherited, and never reaches
-    the wrapped fetcher's. Neither `BitcoinCoreFetcher` nor
-    `EsploraFetcher` overrides it, so this only matters for a third-party
-    backend.
+    the wrapped fetcher's. No backend here overrides it, so this only
+    matters for a third-party backend.
 
     **What is cached, and for how long, differs per method:**
 

@@ -36,8 +36,8 @@ What belongs here is everything btclib does around them:
 - the script engine, and the taproot construction it validates against
 - the pure Python implementations, which are what runs whenever the
     conditions below are not met
-- the JSON-RPC client of `btclib.fetch`: how it authenticates, and what
-    it does with a reply
+- the node clients of `btclib.fetch`: how each authenticates or, over
+    `-rest`, does not, and what each does with a reply
 - the distributions published to PyPI and their provenance
 
 Report it wherever you found it, though: routing a report is the
@@ -345,9 +345,17 @@ used to teach and to prototype as much as to build:
     `hmac.compare_digest`, so what btclib does with the envelope does not
     depend on the secret byte by byte; a caller wanting the same of the
     decryption should bring a cipher that gives it
-- **a `btclib.fetch` backend is trusted, and the two are trusted
-    differently.** `BitcoinCoreFetcher` talks to a node that validated the
-    chain it reports; `EsploraFetcher` talks to a host that says it did.
+- **a `btclib.fetch` backend is trusted, and they are not trusted
+    alike.** `BitcoinCoreFetcher` and `BitcoinCoreRestFetcher` talk to a
+    node that validated the chain it reports, and both ask it by default
+    which chain that is, and which signet: `rest_chaininfo` writes out
+    what `getblockchaininfo` answers and adds nothing, so `/chaininfo.json`
+    carries the members the JSON-RPC check reads and `verify_network` and
+    `signet_challenge` hold either backend to the fetcher's label through
+    the same two comparisons. What `-rest` adds is that it authenticates
+    nobody who reaches it, so the endpoint is trusted on whoever handed it
+    over. `EsploraFetcher` talks to a host that says it validated, and
+    asks it nothing about which chain.
     Only one answer of the four is checked at all — the transaction, whose
     id is recomputed from the bytes that came back — so a height, a tip
     hash and the amount of an output all rest on the backend's word. An
