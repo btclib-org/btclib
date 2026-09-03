@@ -117,6 +117,19 @@ jobs:
         with:
           # see the checkout of the coverage job in test.yml
           persist-credentials: false
+          # tests/changelog_immutability_test.py compares every released
+          # section with its own tag, and skips module-wide when no v*
+          # tag resolves -- the shallow clone it is written to tolerate.
+          # On a tag build that guard never fires: checkout resolves the
+          # ref it builds, so exactly one tag exists and every *other*
+          # release heading reports a tag gone missing instead. One tag
+          # is worse than none, and this is the run where it costs most:
+          # 25 failures on v2026.9.3's first attempt (issue #1665).
+          # test.yml's coverage job carries this option with its reason
+          # (issue #1512); the reason is written out here rather than
+          # pointed at, four workflows having cited that job and none
+          # having copied the option.
+          fetch-tags: true
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
