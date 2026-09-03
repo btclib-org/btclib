@@ -37,7 +37,13 @@ from bitcoin_core_rpc import (
 )
 from typing_extensions import override
 
-from btclib.exceptions import BTClibValueError, FetchError, HttpError, RpcError
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    FetchError,
+    HttpError,
+    RpcError,
+)
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.network import NETWORKS
@@ -515,6 +521,64 @@ def test_a_raw_transaction_that_is_not_one(result: object) -> None:
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "x"}).encode()
     with pytest.raises(FetchError, match=f"transaction {TX_ID}:"):
         fetcher((200, body)).get_tx(TX_ID)
+
+
+def test_get_block_header_asks_getblockhash_then_getblockheader() -> None:
+    """Two calls, in order: the height maps to a hash before a header answers.
+
+    `getblockheader`'s second parameter is `false`, so the reply is the
+    serialization and not a rendering of it -- the same shape
+    `getrawtransaction`'s no-verbosity reply answers `get_tx` with.
+    """
+    endpoint = client(
+        (200, recorded_body("getblockhash.json")),
+        (200, recorded_body("getblockheader.json")),
+    )
+    header = BitcoinCoreFetcher(endpoint, verify_network=False).get_block_header(
+        TIP_HEIGHT
+    )
+    assert header.hash.hex() == TIP_ID
+    assert asked(endpoint) == ["getblockhash", "getblockheader"]
+
+    requests = recording(endpoint).requests
+    hash_request_data = requests[0].data
+    header_request_data = requests[1].data
+    assert isinstance(hash_request_data, bytes)
+    assert isinstance(header_request_data, bytes)
+    assert json.loads(hash_request_data)["params"] == [TIP_HEIGHT]
+    assert json.loads(header_request_data)["params"] == [TIP_ID, False]
+
+
+@pytest.mark.parametrize("height", [-1, -481824])
+def test_get_block_header_refuses_a_negative_height(height: int) -> None:
+    """Refused before any request, both calls mapping a height to a block."""
+    endpoint = client()
+    with pytest.raises(BTClibValueError, match="invalid height"):
+        BitcoinCoreFetcher(endpoint, verify_network=False).get_block_header(height)
+    assert asked(endpoint) == []
+
+
+@pytest.mark.parametrize("height", ["481824", 481824.5, None])
+def test_get_block_header_refuses_a_non_integer_height(height: object) -> None:
+    """Refused before any request, the same as a negative one."""
+    endpoint = client()
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        BitcoinCoreFetcher(endpoint, verify_network=False).get_block_header(
+            height  # type: ignore[arg-type]
+        )
+    assert asked(endpoint) == []
+
+
+def test_get_block_header_verifies_the_chain_once_like_the_other_three() -> None:
+    """The fourth fetch goes through `_verify_once`, as the first three do."""
+    endpoint = client(
+        blockchaininfo(chain="main"),
+        (200, recorded_body("getblockhash.json")),
+        (200, recorded_body("getblockheader.json")),
+    )
+    core = BitcoinCoreFetcher(endpoint)
+    assert core.get_block_header(TIP_HEIGHT).hash.hex() == TIP_ID
+    assert asked(endpoint) == ["getblockchaininfo", "getblockhash", "getblockheader"]
 
 
 def test_a_small_reply_carries_a_small_limit() -> None:

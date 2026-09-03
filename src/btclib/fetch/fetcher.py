@@ -4,16 +4,16 @@
 
 """The interface a chain backend answers, whichever backend it is.
 
-Three questions btclib cannot answer from bytes it was handed: what
-transaction has this id, what output does this outpoint name, and where
-is the chain tip. `Fetcher` is those questions and nothing else, so that
-calling code takes a `Fetcher` and never learns whether a full node or an
-explorer is behind it.
+Four questions btclib cannot answer from bytes it was handed: what
+transaction has this id, what output does this outpoint name, where is
+the chain tip, and what header does a given height carry. `Fetcher` is
+those questions and nothing else, so that calling code takes a `Fetcher`
+and never learns whether a full node or an explorer is behind it.
 
-What comes back is btclib types -- `Tx`, `TxOut` -- and not the dicts the
-backends send. A wrapper handing over `response["vout"][0]["value"]`
-leaves the caller to know which backend it is talking to, in the one
-place the whole point was not to.
+What comes back is btclib types -- `Tx`, `TxOut`, `BlockHeader` -- and
+not the dicts the backends send. A wrapper handing over
+`response["vout"][0]["value"]` leaves the caller to know which backend it
+is talking to, in the one place the whole point was not to.
 """
 
 from __future__ import annotations
@@ -25,8 +25,10 @@ from contextlib import contextmanager
 import bitcoin_core_rpc as rpc
 
 from btclib.alias import Octets
+from btclib.block.block_header import BlockHeader
 from btclib.exceptions import (
     BTClibRuntimeError,
+    BTClibTypeError,
     BTClibValueError,
     FetchError,
     HttpError,
@@ -35,10 +37,12 @@ from btclib.exceptions import (
 from btclib.network import NETWORKS, network_from_name
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
-from btclib.utils import bytes_from_octets, is_octets
+from btclib.utils import bytes_from_octets, is_integer, is_octets
 
 __all__ = [
     "Fetcher",
+    "block_header_from_raw",
+    "block_header_height",
     "client_errors",
     "fetch_errors",
     "tx_for_network",
@@ -149,14 +153,14 @@ def tx_for_network(tx: Tx, network: str) -> Tx:
 class Fetcher(ABC):
     """What a backend must answer, and what btclib does with the answers.
 
-    Three abstract methods, one per question, each with a return type of
+    Four abstract methods, one per question, each with a return type of
     its own. That is the shape on purpose rather than one `get(kind, id)`
     returning whatever: a backend able to *prove* what it says -- the
     Electrum protocol serves a merkle branch, which a client checks
-    against a header it already holds (issues #188 and #204) -- returns
-    evidence beside the data, and evidence is a different type. Adding a
-    method for it is additive; widening the return type of `get_tx` would
-    be a break for everyone already calling it.
+    against a header it already holds (issues #188, #204 and #1132) --
+    returns evidence beside the data, and evidence is a different type.
+    Adding a method for it is additive; widening the return type of
+    `get_tx` would be a break for everyone already calling it.
 
     `get_tx_out` is concrete, and is the one operation every backend can
     derive from another: an output is a field of the transaction that
@@ -181,6 +185,34 @@ class Fetcher(ABC):
     @abstractmethod
     def get_best_block_id(self) -> bytes:
         """Return the id of the block at the chain tip."""
+
+    @abstractmethod
+    def get_block_header(self, height: int) -> BlockHeader:
+        """Return the header of the block at this height.
+
+        Height, and not hash: Bitcoin Core and Esplora both answer for a
+        hash and map a height to one with a second call --
+        `getblockhash`, `/block-height/<height>` -- but the Electrum
+        protocol's `blockchain.block.header` takes a height and publishes
+        no call that takes a hash at all. A hash-only signature would be
+        one this interface's third backend could never answer, which is
+        the `NotImplementedError`-in-an-ABC outcome the three questions
+        above already avoid.
+
+        Checked on arrival: `assert_valid` and `assert_valid_pow`, so a
+        well-formed header answers for eighty bytes that took a real hash
+        to produce. `assert_valid_time` is not one of the two -- it
+        compares against the local clock, and a header that is genuinely
+        on the chain should not start failing this because the machine
+        running it has drifted.
+
+        That is the whole of what the check establishes. Not that the
+        header is on the chain the caller means, not that it is truly at
+        the height asked for, and not that it is the tip: a backend
+        serving a real header from the wrong chain, or from the wrong
+        height, passes it just the same. Only a chain of headers answers
+        that, which is issue #1127's territory and not this method's.
+        """
 
     def get_tx_out(self, out_point: OutPoint) -> TxOut:
         """Return the output an outpoint names, spent or not.
@@ -243,3 +275,40 @@ def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
     if tx.id.hex() != tx_id:
         raise FetchError(f"transaction {tx_id}: the answer is {tx.id.hex()}")
     return tx
+
+
+def block_header_height(height: int) -> int:
+    """Return the height, refusing what no chain has a block at.
+
+    Both backends map a height to a block before they can answer
+    `get_block_header` at all -- `getblockhash`,
+    `/block-height/<height>` -- so both need the same guard in front of
+    that first request, rather than each discovering its own backend's
+    answer to a negative or fractional height: RPC code -8 for Core, a
+    404 or a 400 for an Esplora deployment, neither naming the height as
+    what is wrong with the request.
+    """
+    if not is_integer(height):
+        raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
+    if height < 0:
+        raise BTClibValueError(f"invalid height: {height}")
+    return height
+
+
+def block_header_from_raw(raw: Octets, height: int) -> BlockHeader:
+    """Return the header a serialization holds, checked on arrival.
+
+    Both backends answer with the raw serialization rather than a
+    rendering of it, the way `get_tx` does -- but a header names no
+    height and no chain of its own, so there is nothing here to recompute
+    it against the way `tx_from_raw` recomputes a txid. What is checked
+    instead is `Fetcher.get_block_header`'s two: `BlockHeader.assert_valid`,
+    for eighty well-formed bytes, and `assert_valid_pow`, for a hash that
+    took real work to find. Its docstring is where what neither check
+    establishes is written down.
+    """
+    with fetch_errors(f"block header {height}"):
+        header = BlockHeader.parse(raw, check_validity=False)
+        header.assert_valid()
+        header.assert_valid_pow()
+    return header

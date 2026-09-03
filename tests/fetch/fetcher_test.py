@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+from btclib.block.block_header import BlockHeader
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibTypeError,
@@ -16,6 +17,8 @@ from btclib.exceptions import (
 )
 from btclib.fetch.fetcher import (
     Fetcher,
+    block_header_from_raw,
+    block_header_height,
     fetch_errors,
     tx_for_network,
     tx_from_raw,
@@ -23,7 +26,14 @@ from btclib.fetch.fetcher import (
 )
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
-from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, StubFetcher, recorded_body
+from tests.fetch import (
+    TIP_HEADER_RAW,
+    TIP_HEIGHT,
+    TIP_ID,
+    TX_ID,
+    StubFetcher,
+    recorded_body,
+)
 
 RAW = recorded_body("esplora_tx_hex.txt").decode().strip()
 # the coinbase of the same block, which is a different transaction with
@@ -192,26 +202,82 @@ def test_tx_from_raw_reports_what_is_not_a_transaction(raw: str) -> None:
         tx_from_raw(raw, TX_ID, "mainnet")
 
 
+@pytest.mark.parametrize("height", [0, 1, TIP_HEIGHT])
+def test_block_header_height_accepts_a_non_negative_int(height: int) -> None:
+    """A height that is already a non-negative int passes through unchanged."""
+    assert block_header_height(height) == height
+
+
+def test_block_header_height_refuses_a_negative_height() -> None:
+    """Refuse a negative height, both backends mapping it to a block first."""
+    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+        block_header_height(-1)
+
+
+@pytest.mark.parametrize("height", ["481824", 481824.0, None, True, False])
+def test_block_header_height_refuses_a_non_integer_height(height: object) -> None:
+    """Refuse anything that is not an int, a bool included."""
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        block_header_height(height)  # type: ignore[arg-type]
+
+
+def test_block_header_from_raw_returns_a_checked_header() -> None:
+    """Parse the serialization and pass it through assert_valid_pow."""
+    header = block_header_from_raw(TIP_HEADER_RAW, TIP_HEIGHT)
+    assert header.hash.hex() == TIP_ID
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "not hex",
+        # a header truncated in transit
+        TIP_HEADER_RAW[:100],
+        "",
+    ],
+)
+def test_block_header_from_raw_reports_what_is_not_a_header(raw: str) -> None:
+    """Wrap an unparsable body in a FetchError naming the height."""
+    with pytest.raises(FetchError, match=f"block header {TIP_HEIGHT}:"):
+        block_header_from_raw(raw, TIP_HEIGHT)
+
+
+def test_block_header_from_raw_refuses_a_header_with_no_proof_of_work() -> None:
+    """A well-formed header answering no real proof of work is refused too.
+
+    Zeroing the nonce leaves every other field, and so every other check,
+    untouched -- what fails is `assert_valid_pow` alone, which is the one
+    this exists to enforce.
+    """
+    forged = TIP_HEADER_RAW[:-8] + "00000000"
+    with pytest.raises(FetchError, match=f"block header {TIP_HEIGHT}: invalid proof"):
+        block_header_from_raw(forged, TIP_HEIGHT)
+
+
 def test_the_interface_is_abstract() -> None:
     """No answers here: a Fetcher is one of the backends, or nothing."""
     with pytest.raises(TypeError, match="abstract"):
         Fetcher()  # type: ignore[abstract]
 
 
-@pytest.mark.parametrize("missing", ["get_tx", "get_block_count", "get_best_block_id"])
-def test_leaving_any_one_of_the_three_abstract_refuses_construction(
+@pytest.mark.parametrize(
+    "missing",
+    ["get_tx", "get_block_count", "get_best_block_id", "get_block_header"],
+)
+def test_leaving_any_one_of_the_four_abstract_refuses_construction(
     missing: str,
 ) -> None:
-    """Each of the three is `abstractmethod` on its own, not by inheriting one.
+    """Each of the four is `abstractmethod` on its own, not by inheriting one.
 
     `test_the_interface_is_abstract` covers `Fetcher` itself; a subclass
-    that overrides two of the three and forgets the last one is what a
+    that overrides three of the four and forgets the last one is what a
     decorator removed from only one of them would let through.
     """
     methods = {
         "get_tx": lambda self, tx_id: Tx.parse(RAW),
         "get_block_count": lambda self: TIP_HEIGHT,
         "get_best_block_id": lambda self: bytes.fromhex(TIP_ID),
+        "get_block_header": lambda self, height: BlockHeader.parse(TIP_HEADER_RAW),
     }
     del methods[missing]
     incomplete = type("Incomplete", (Fetcher,), methods)
@@ -231,8 +297,8 @@ def test_the_network_is_the_one_it_was_given(network: str) -> None:
     assert StubFetcher(Tx.parse(RAW), network).network == network
 
 
-def test_the_stub_answers_all_three_questions() -> None:
-    """A Fetcher is the three or it is not one, so the stub must be one.
+def test_the_stub_answers_all_four_questions() -> None:
+    """A Fetcher is the four or it is not one, so the stub must be one.
 
     A subclass leaving one abstract could not be instantiated at all, and
     the tests below would then be testing nothing -- which is what this
@@ -242,6 +308,7 @@ def test_the_stub_answers_all_three_questions() -> None:
     assert fetcher.get_tx(TX_ID).id.hex() == TX_ID
     assert fetcher.get_block_count() == TIP_HEIGHT
     assert fetcher.get_best_block_id().hex() == TIP_ID
+    assert fetcher.get_block_header(TIP_HEIGHT).hash.hex() == TIP_ID
 
 
 def test_get_tx_out_derives_the_output_from_the_transaction() -> None:

@@ -1488,6 +1488,41 @@ documented at release-notes length in the first place, and are still in
   parser and of its chains are gone with it, the names beside them being
   what a reader checks and a number being what the next pin falsifies.
 
+### `Fetcher` answers a fourth question: a block header, taken by height
+
+- **`Fetcher.get_block_header(height)` is a fourth abstract method, and
+  `BitcoinCoreFetcher` and `EsploraFetcher` both answer it** (closes
+  #1132). Every candidate backend answers for a header, but not all of
+  them for the same coordinate: Core and Esplora both take a hash and
+  map a height to one with a second call (`getblockhash`,
+  `/block-height/<height>`), while the Electrum protocol's
+  `blockchain.block.header` takes a height and publishes no call that
+  takes a hash at all — checked against `electrum-protocol`'s own
+  `docs/protocol-methods.rst` and its `docs/protocol-removed.rst`, which
+  carries the one hash-free predecessor the method replaced,
+  `blockchain.block.get_header`. A hash-only signature would be one an
+  Electrum backend could never implement, the very
+  `NotImplementedError`-in-an-ABC outcome the interface's other three
+  methods already avoid, so height is the coordinate this one takes.
+  `get_tx`'s and `get_block_count`'s answers already establish that
+  `Fetcher` knows both coordinates, so mapping the other one costs
+  either backend a second round trip and nothing else.
+
+  The header is checked on arrival: `BlockHeader.assert_valid` and
+  `assert_valid_pow`, so a well-formed answer with a fabricated proof of
+  work costs a real hash to forge rather than being free to invent.
+  `assert_valid_time` is not one of the two, since it compares against
+  the local clock and would fail a genuinely mined header on a machine
+  whose clock has drifted. Neither check says the header is on the chain
+  the caller means, is truly at the height asked for, or is the tip — a
+  backend serving a real header from the wrong chain or the wrong height
+  passes both. Only a chain of headers answers that, which is issue
+  #1127's territory. No by-hash method and no whole-block method were
+  added beside it: the first is a question nothing in the tree asks yet,
+  and the second is one the Electrum protocol cannot answer at all,
+  which would reintroduce the same `NotImplementedError` this design
+  avoids.
+
 ## v2026.8.29
 
 ### Repository
