@@ -114,6 +114,20 @@ full year, short month, short day (YYYY-M-D)
   consistent invoice: `Bip21.parse` now raises where it used to store
   the string unexamined, `others` having no validation to fail.
 
+- **`btclib.hwi` refuses a `network` that is not a string with
+  `BTClibTypeError`** (closes #1631). `HwiSigner(network=...)` and
+  `enumerate_devices(network=...)` put the name through
+  `btclib.network._validated_network_name`, which raises
+  `BTClibTypeError` — a `TypeError` — where `HwiSigner` raised
+  `BTClibValueError: unknown network: None`.
+
+  Act on it if you catch `BTClibValueError` around either call to handle
+  a name you have not checked is a `str`: catch `BTClibException`, which
+  is the base of both, or check the type yourself. A `str` no network
+  answers to is still a `BTClibValueError`, and the names accepted are
+  wider than before — `" TestNet4 "` resolves here as it does everywhere
+  else in the library.
+
 ### Worth knowing, though nothing raises
 
 - **`btclib.org` is no longer this project's site, and this repository

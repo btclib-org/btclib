@@ -44,7 +44,12 @@ import pytest
 from btclib.bip32 import fingerprint
 from btclib.bip32.bip32 import derive, xpub_from_xprv
 from btclib.descriptors import Descriptor, add_checksum, at_index, parse
-from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    SignerError,
+    SignerNotFoundError,
+)
 from btclib.hwi import (
     _HWI_CHAIN,
     DEFAULT_EXECUTABLE,
@@ -319,8 +324,8 @@ def test_the_network_is_the_chain_hwi_is_told(tmp_path: Path) -> None:
 
     Every network btclib has is a chain HWI is told, which is what a
     sixth network would have to be given here: the mapping stands between
-    `NETWORKS` and a command line, and a network missing from it reaches
-    a caller as a refusal after the signer was built.
+    `NETWORKS` and a command line, and the comparison below is where one
+    missing from it is red, rather than at a caller's first command.
     """
     for network, chain in (
         ("mainnet", "main"),
@@ -336,12 +341,49 @@ def test_the_network_is_the_chain_hwi_is_told(tmp_path: Path) -> None:
 
     assert set(_HWI_CHAIN) == set(NETWORKS)
 
-    with pytest.raises(BTClibValueError, match="unknown network"):
+
+def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one(
+    tmp_path: Path,
+) -> None:
+    """Both normalize the name they are given, and refuse alike.
+
+    The two entry points that accept a `network: str` put it through
+    `network._validated_network_name`, so the spellings issue #216
+    decided to keep reach the chain HWI is told, and the name a signer
+    stores is the one `network_from_name` would answer to.
+    """
+    hwi = stand_in(tmp_path, {})
+    device = HwiSigner(FINGERPRINT, executable=hwi, network=" TestNet4 ")
+    assert device.network == "testnet4"
+    device.xpub("m/0")
+    argv = last_argv(hwi)
+    assert argv[argv.index("--chain") + 1] == "test"
+
+    hwi = stand_in(tmp_path, {"enumerate": []})
+    enumerate_devices(executable=hwi, network=" TestNet4 ")
+    argv = last_argv(hwi)
+    assert argv[argv.index("--chain") + 1] == "test"
+
+    # one bad name, one message, whichever entry point took it
+    match = re.escape("unknown network: 'nosuchnet'")
+    with pytest.raises(BTClibValueError, match=match):
         HwiSigner(FINGERPRINT, executable=stand_in(tmp_path, {}), network="nosuchnet")
-    # `enumerate_devices` names no device and checks no name against
-    # `NETWORKS`, so it is where the chain lookup can be asked for one
-    with pytest.raises(BTClibValueError, match="no HWI chain for network nosuchnet"):
+    with pytest.raises(BTClibValueError, match=match):
         enumerate_devices(executable=stand_in(tmp_path, {}), network="nosuchnet")
+
+    # a name that is not a string is the type rule, which RELEASE_NOTES.md
+    # tells a caller to act on
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        HwiSigner(
+            FINGERPRINT,
+            executable=stand_in(tmp_path, {}),
+            network=None,  # type: ignore[arg-type]
+        )
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        enumerate_devices(
+            executable=stand_in(tmp_path, {}),
+            network=None,  # type: ignore[arg-type]
+        )
 
 
 def account_psbt(device: HwiSigner) -> tuple[Psbt, Descriptor]:

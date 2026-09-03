@@ -1651,6 +1651,43 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   functions, so a test -- or a caller after a reproducible selection --
   seeds it.
 
+### `btclib.hwi` takes a network name the way the rest of the library takes one
+
+- **`HwiSigner` and `enumerate_devices` put their `network: str` through
+  `network._validated_network_name`** (closes #1631). The two entry
+  points that accept a name accept the spellings issue #216 decided to
+  keep — `" TestNet4 "` resolves — and refuse an unknown one in the same
+  message: `HwiSigner` checked membership of `NETWORKS` itself, and
+  `enumerate_devices` checked nothing, so its refusal came from the
+  private chain lookup, which framed an unknown name as a missing HWI
+  chain. A signer stores the normalized name, so
+  `HwiSigner(network=" Testnet ").network` is what `network_from_name`
+  answers to. Reaching that helper across modules is what
+  `descriptors.parse` and `p2p.magic.magic_from_network` already do.
+- **A `network` of a type no conversion accepts is a `BTClibTypeError`**,
+  which is a `TypeError` and not a `ValueError`;
+  [RELEASE_NOTES.md](./RELEASE_NOTES.md) has what a caller catching
+  `BTClibValueError` around either call does about it.
+- **`_chain_args` is the translation alone**, its own refusal gone with
+  the validation moved ahead of it: what it is given is a key of
+  `NETWORKS` and therefore of `_HWI_CHAIN`, and `tests/hwi_test.py`'s
+  comparison of the two is where a sixth btclib network with no chain is
+  red — rather than at a caller's first command, which is where the
+  removed branch put it.
+
+### `network.py` says what the test-network data files differ in
+
+- **The comment above `_network_names` said `signet.json` and
+  `testnet4.json` differ from `testnet.json` in the genesis block "and
+  in nothing else"** (closes #1632). They differ in `consensus` as well:
+  `Network.from_dict` reads that field off the file, and it names the
+  row `btclib.consensus` answers with, whose `enforce_bip94` is true on
+  testnet4 and false on testnet — so the clause denied a difference that
+  a consensus rule turns on. What the paragraph is for is that those
+  files share every version prefix, which is why the reverse lookups
+  below it answer `testnet` for every test network, and that is what it
+  says.
+
 ## v2026.8.29
 
 ### Repository
