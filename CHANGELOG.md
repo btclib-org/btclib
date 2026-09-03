@@ -1025,6 +1025,21 @@ documented at release-notes length in the first place, and are still in
   new check runs. A context stays a value either way — nothing here
   gives it a callable of its own.
 
+### `CLAUDE.md`'s `git worktree add` line ends in its placeholder
+
+- **`-b <branch>` sits after the path and the commit-ish** (issue
+  btclib-org/.github#687), which is the placeholder-last shape section 9
+  of the organization standard prescribes. A paste made before the
+  placeholders are filled in reaches the shell with `<branch>` as a pair
+  of redirections, and where a word follows them the `>` takes `"$WT"`
+  as its target; in a reader's directory holding a file named `branch`
+  the `<` succeeds and the line runs, and where the block's own last
+  line has already removed the worktree no directory stands at that path
+  for the `>` to fail on, so it writes a regular file there and the next
+  `git worktree add` refuses the path. With the placeholder last there
+  is nothing for the `>` to open, so the line writes nothing whatever
+  the directory holds.
+
 ## v2026.8.29
 
 ### Repository
