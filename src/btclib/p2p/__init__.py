@@ -55,7 +55,17 @@ from btclib.p2p.address import (
     ServiceFlags,
     TimestampedNetworkAddress,
 )
-from btclib.p2p.addrv2 import AddrV2, BIP155Network, NetworkAddressV2, SendAddrV2
+from btclib.p2p.addrv2 import (
+    AddrV2,
+    BIP155Network,
+    NetworkAddressV2,
+    SendAddrV2,
+    addr_entry,
+    can_addrv1,
+    is_embedded_ipv6,
+    network_address,
+    peer_from_addr_entry,
+)
 from btclib.p2p.block_filters import (
     BlockFilterType,
     CFCheckpt,
@@ -99,6 +109,7 @@ from btclib.p2p.negotiation import (
     WtxidRelay,
 )
 from btclib.p2p.payload import Payload
+from btclib.p2p.reject import Reject, RejectCode
 
 __all__ = [
     "CMPCTBLOCKS_VERSION",
@@ -136,6 +147,8 @@ __all__ = [
     "Ping",
     "Pong",
     "PrefilledTransaction",
+    "Reject",
+    "RejectCode",
     "SendAddrV2",
     "SendCmpct",
     "SendHeaders",
@@ -146,9 +159,14 @@ __all__ = [
     "Verack",
     "Version",
     "WtxidRelay",
+    "addr_entry",
+    "can_addrv1",
+    "is_embedded_ipv6",
     "magic_from_chain",
     "magic_from_network",
     "magic_from_signet_challenge",
+    "network_address",
+    "peer_from_addr_entry",
     "reconstruct",
 ]
 

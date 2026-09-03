@@ -1135,6 +1135,47 @@ documented at release-notes length in the first place, and are still in
   `registerdescriptor` -- so the caveat says when it stops being true and
   not only that it is.
 
+### `btclib.p2p.addrv2` converts to and from `btclib.p2p.address`'s two classes
+
+- **`network_address`, `addr_entry` and `peer_from_addr_entry` translate a
+  BIP155 `NetworkAddressV2` to and from an `addr` message's
+  `NetworkAddress` and `TimestampedNetworkAddress`, and `can_addrv1` is
+  the question a caller asks first** (closes #1581). A peer that has not
+  sent `sendaddrv2` is still owed `addr`, and the translation between the
+  two encodings is now `btclib.p2p`'s rather than every caller's own.
+- **`is_embedded_ipv6` is BIP155's two ignore rules -- the IPv4 mapping
+  and OnionCat's range, once used to carry a TORv2 address -- as a public
+  predicate.** `btclib.p2p.addrv2` parses an address in either range
+  rather than refusing it, on the module's own reasoning that both are
+  receive policy and not a question about the octets; the predicate is
+  what a caller applies that policy with, without learning the two
+  prefixes for itself.
+
+### `btclib.p2p.limits` publishes `PROTOCOL_VERSION`, `Version`'s new default
+
+- **`PROTOCOL_VERSION` is Core's own `70016`, published from
+  `btclib.p2p.limits` beside the other constants that module states are
+  Core's and not this library's** (closes #1582). `btclib.p2p.handshake`
+  cited the number in prose; it now names the constant.
+- **`Version()` built with no explicit `version` now serializes
+  `PROTOCOL_VERSION` rather than `0`.** RELEASE_NOTES.md has what to act
+  on.
+
+### `btclib.p2p.reject` is a codec for BIP61's `reject`
+
+- **`Reject` and `RejectCode` parse BIP61's `reject` message, which Core
+  no longer sends or parses but another implementation still may**
+  (closes #1583). `bitcoin/bitcoin#15437` removed both directions of it
+  from Core, first released in v0.20.0; this package's own line for a
+  message in that position -- issue #1120's, what a peer sends is parsed
+  because parsing is not endorsing -- is why btclib now holds a parser
+  for it while constructing none to send.
+- **`code` is `RejectCode` where a member names it and the plain `int`
+  where BIP61 reserves it without naming it**, the same reading
+  `btclib.p2p.addrv2`'s network id and `btclib.p2p.inventory`'s inventory
+  type already give a byte-sized code that names some values and reserves
+  the rest.
+
 ### `btclib.p2p.negotiation` carries BIP434's `feature`
 
 - **`feature` is the negotiation message BIP434 defines for every

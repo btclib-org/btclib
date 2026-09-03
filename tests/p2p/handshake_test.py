@@ -45,7 +45,7 @@ from btclib.p2p import (
     Verack,
     Version,
 )
-from btclib.p2p.limits import MAX_SUBVERSION_LENGTH
+from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
 
 # The Bitcoin Wiki's Protocol documentation, "version" section: a message
 # a Satoshi:0.7.2 node sent on mainnet, split at the field boundaries the
@@ -157,6 +157,22 @@ def test_the_relay_flag_makes_the_encoding_one_to_one() -> None:
     assert absent.serialize() == _VERSION_PAYLOAD
     assert off.serialize() == _VERSION_PAYLOAD + b"\x00"
     assert on.serialize() == _VERSION_PAYLOAD + b"\x01"
+
+
+def test_a_version_with_no_explicit_field_announces_btclibs_own() -> None:
+    """`Version()`'s `version` defaults to `limits.PROTOCOL_VERSION`, not zero.
+
+    A caller building one to send is building this library's own
+    handshake, so what it announces with no argument is Core's own
+    number rather than the field's former zero. `parse` is unaffected: a
+    peer's own `version` is read off the octets, never off this default.
+    """
+    assert Version().version == PROTOCOL_VERSION
+    assert Version(check_validity=False).version == PROTOCOL_VERSION
+
+    version = Version(relay=True)
+    assert version.version == PROTOCOL_VERSION
+    assert Version.parse(version.serialize()).version == PROTOCOL_VERSION
 
 
 def test_the_relay_flag_is_one_octet_of_two_values() -> None:

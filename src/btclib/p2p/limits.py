@@ -52,6 +52,7 @@ __all__ = [
     "MAX_PROTOCOL_MESSAGE_LENGTH",
     "MAX_SUBVERSION_LENGTH",
     "MIN_FEATUREID_LENGTH",
+    "PROTOCOL_VERSION",
 ]
 
 # Maximum length of incoming protocol messages, spelled as Core spells it:
@@ -70,6 +71,17 @@ MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000
 # reads `strSubVer` through. Its own name and not a reuse of the one
 # above for the same reason that one is not `MAX_BLOCK_WEIGHT`.
 MAX_SUBVERSION_LENGTH = 256
+
+# The protocol version this library's own `version` messages announce,
+# Core's own name and own value: `static const int PROTOCOL_VERSION =
+# 70016` of src/node/protocol_version.h, WTXID_RELAY_VERSION's number and
+# the one BIP37's threshold in `btclib.p2p.handshake` is read against.
+# Not consumed by `parse`, which reads whatever a peer sent rather than
+# what this library would have sent, and not a bound: unlike every other
+# name in this module, a `version` carrying a different number is not
+# refused for it, being a fact a peer states about itself rather than a
+# limit on what it may send.
+PROTOCOL_VERSION = 70016
 
 # The most addresses one `addr` message may carry, Core's
 # src/net_processing.cpp, where it bounds both what is sent and what is

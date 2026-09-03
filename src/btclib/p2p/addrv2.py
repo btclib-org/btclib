@@ -66,6 +66,8 @@ OnionCat's `fd87:d87e:eb43::/48`. Both are receive policy, about whether
 an address is worth keeping rather than whether the octets decode, and
 Core carries them out by parsing the entry and marking the result
 invalid. A parser that refused them would refuse a message Core accepts.
+`is_embedded_ipv6` is the second rule as a public predicate, so a caller
+applying it does not have to learn the two prefixes for itself.
 
 **`TORV2` and `YGGDRASIL` are in the table, where Core acts on
 neither.** BIP155 reserves both, and says "Further network ID numbers
@@ -106,6 +108,20 @@ be wrong about the next one. `IPv4Address(entry.address)` and its v6
 twin are a caller's one line wherever the octets are an IP address at
 all; a `.onion` name is SHA3-256 and a checksum over them, and a
 `.b32.i2p` name is base32 of them, neither of which is a codec's work.
+
+**`network_address`, `addr_entry` and `peer_from_addr_entry` are the
+translation to and from `btclib.p2p.address`'s two classes, and
+`can_addrv1` is the question a caller asks first.** btclib-node holds a
+peer as a `NetworkAddressV2` -- BIP155's record being the only encoding
+wide enough for every network a peer can be on -- and still speaks `addr`
+to a peer that has not sent `sendaddrv2`, so it wrote the translation.
+Each is a function of the two types this package already owns and of the
+BIP that relates them, which is why it belongs here rather than beside a
+socket: `network_address` refuses a network `addr` cannot carry, on
+`can_addrv1`'s own question, and `addr_entry` and `peer_from_addr_entry`
+are what stand on either side of that refusal, adding and reading the
+timestamp `TimestampedNetworkAddress` carries and `NetworkAddressV2`
+already has.
 """
 
 from __future__ import annotations
@@ -113,13 +129,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum
+from ipaddress import IPv4Address, IPv6Address
 
 from typing_extensions import override
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.p2p.address import ServiceFlags, _service_flags_from_int
+from btclib.p2p.address import (
+    NetworkAddress,
+    ServiceFlags,
+    TimestampedNetworkAddress,
+    _service_flags_from_int,
+)
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 from btclib.p2p.payload import Payload
 from btclib.utils import (
@@ -136,6 +158,11 @@ __all__ = [
     "BIP155Network",
     "NetworkAddressV2",
     "SendAddrV2",
+    "addr_entry",
+    "can_addrv1",
+    "is_embedded_ipv6",
+    "network_address",
+    "peer_from_addr_entry",
 ]
 
 # the fixed-width fields of a BIP155 entry: the services and the address
@@ -390,6 +417,93 @@ class NetworkAddressV2:
             port,
             check_validity=check_validity,
         )
+
+
+# the two ids whose address field is an IP address, which is the whole of
+# what an addr version 1 entry can carry
+_IP_NETWORKS = (BIP155Network.IPV4, BIP155Network.IPV6)
+
+# BIP155: a client SHOULD ignore an IPV6 entry whose sixteen octets fall
+# in a range reserved for embedding another network's address into an
+# IPv6 one -- the IPv4 mapping, `::ffff:0:0/96`, and OnionCat's
+# `fd87:d87e:eb43::/48`, once used to carry a TORv2 address the same way.
+# `IPv6Address.ipv4_mapped` is `ipaddress`'s own name for the first, and
+# the second has no name of its own to borrow.
+_ONIONCAT_PREFIX = b"\xfd\x87\xd8\x7e\xeb\x43"
+
+
+def can_addrv1(address: NetworkAddressV2) -> bool:
+    """Answer whether an `addr` message has room for this peer.
+
+    Both IP networks and neither of the others: the question is about the
+    network being an IP one at all, not about whether the address is
+    otherwise worth dialling, which is a node's own policy and not this
+    package's.
+    """
+    return address.network_id in _IP_NETWORKS
+
+
+def network_address(address: NetworkAddressV2) -> NetworkAddress:
+    """Return the untimestamped form of a BIP155 record `can_addrv1` allows.
+
+    What a `version` message's two addresses are, and what an `addr`
+    entry is built on. `can_addrv1` is the question a caller asks first;
+    the refusal here is what makes the answer binding rather than
+    advisory, because the length would not catch it on its own: BIP155
+    gives cjdns and yggdrasil the sixteen octets an IPv6 address has, so
+    `IPv6Address` would take either for an IP address and hand back a
+    peer that is not the one that was gossiped.
+    """
+    if not can_addrv1(address):
+        err_msg = f"not an ip address: network id {int(address.network_id)}"
+        raise BTClibValueError(err_msg)
+    ip = (
+        IPv4Address(address.address)
+        if address.network_id == BIP155Network.IPV4
+        else IPv6Address(address.address)
+    )
+    return NetworkAddress(address.services, ip, address.port)
+
+
+def addr_entry(address: NetworkAddressV2) -> TimestampedNetworkAddress:
+    """Return the `addr` entry a BIP155 record `can_addrv1` allows."""
+    return TimestampedNetworkAddress(address.timestamp, network_address(address))
+
+
+def peer_from_addr_entry(entry: TimestampedNetworkAddress) -> NetworkAddressV2:
+    """Return the BIP155 record an `addr` entry describes.
+
+    An `addr` entry holds every address in sixteen octets, a v4 one
+    mapped into them, where BIP155 gives the two networks different ids
+    and different lengths: `ip.ipv4_mapped` is what tells them apart, and
+    it is why this is not a field rename.
+    """
+    ip = entry.address.ip
+    mapped = ip.ipv4_mapped
+    network_id = BIP155Network.IPV4 if mapped else BIP155Network.IPV6
+    return NetworkAddressV2(
+        entry.timestamp,
+        entry.address.services,
+        network_id,
+        mapped.packed if mapped else ip.packed,
+        entry.address.port,
+    )
+
+
+def is_embedded_ipv6(address: NetworkAddressV2) -> bool:
+    """Answer whether an `IPV6` record's octets are really another network's.
+
+    BIP155's two ignore rules together: a v4-mapped address, and one
+    inside OnionCat's range, once used to carry a TORv2 address the same
+    way. Both are receive policy, about whether an address is worth
+    keeping rather than whether the octets decode -- the module docstring
+    is why `assert_valid` does not apply this -- so it is a caller
+    deciding what to keep that does.
+    """
+    return address.network_id == BIP155Network.IPV6 and (
+        IPv6Address(address.address).ipv4_mapped is not None
+        or address.address.startswith(_ONIONCAT_PREFIX)
+    )
 
 
 @dataclass(frozen=True)

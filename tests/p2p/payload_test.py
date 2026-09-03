@@ -57,6 +57,8 @@ from btclib.p2p import (
     Ping,
     Pong,
     PrefilledTransaction,
+    Reject,
+    RejectCode,
     SendAddrV2,
     SendCmpct,
     SendHeaders,
@@ -115,6 +117,7 @@ _PAYLOADS: tuple[Payload, ...] = (
     SendTxRcncl(1, 2),
     FeeFilter(1000),
     Feature(b"BIP434", b"\x01"),
+    Reject("tx", RejectCode.insufficientfee, "min relay fee not met", bytes(32)),
 )
 
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)

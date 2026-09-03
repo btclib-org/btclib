@@ -107,6 +107,13 @@ btclib.p2p.payload module
    :members:
    :show-inheritance:
 
+btclib.p2p.reject module
+------------------------
+
+.. automodule:: btclib.p2p.reject
+   :members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

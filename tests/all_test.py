@@ -233,6 +233,7 @@ CHILD_MODULES = {
             "message",
             "negotiation",
             "payload",
+            "reject",
         ],
     },
     "btclib.psbt": {

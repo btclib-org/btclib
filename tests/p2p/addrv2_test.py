@@ -70,6 +70,11 @@ from btclib.p2p import (
     SendAddrV2,
     ServiceFlags,
     TimestampedNetworkAddress,
+    addr_entry,
+    can_addrv1,
+    is_embedded_ipv6,
+    network_address,
+    peer_from_addr_entry,
 )
 from btclib.p2p.limits import MAX_ADDR_TO_SEND, MAX_ADDRV2_SIZE
 
@@ -741,3 +746,123 @@ def test_the_payloads_travel_under_the_commands_bip155_names() -> None:
 
     assert AddrV2.command == "addrv2"
     assert AddrV2.parse(_ADDRV2.to_message(_MAINNET).payload) == _ADDRV2
+
+
+# BIP155's own examples of the two ignore rules: an IPv6-mapped IPv4
+# host, and an address under OnionCat's `fd87:d87e:eb43::/48`, once how a
+# TORv2 address was carried inside a fake IPv6 one
+_A_V4_MAPPED_ADDRESS = IPv6Address("::ffff:1.2.3.4").packed
+_AN_ONIONCAT_ADDRESS = IPv6Address("fd87:d87e:eb43::1").packed
+
+
+def _v4(
+    services: int = 0, address: bytes = b"\x01\x02\x03\x04", port: int = 8333
+) -> NetworkAddressV2:
+    return NetworkAddressV2(7, services, BIP155Network.IPV4, address, port)
+
+
+def _v6(
+    services: int = 0, address: bytes = b"\x00" * 16, port: int = 8333
+) -> NetworkAddressV2:
+    return NetworkAddressV2(7, services, BIP155Network.IPV6, address, port)
+
+
+def _onion() -> NetworkAddressV2:
+    return NetworkAddressV2(7, 0, BIP155Network.TORV3, b"\x11" * 32, 8333)
+
+
+def _cjdns() -> NetworkAddressV2:
+    return NetworkAddressV2(7, 0, BIP155Network.CJDNS, b"\x22" * 16, 8333)
+
+
+def test_only_an_ip_address_fits_in_an_addr_version_1() -> None:
+    """`can_addrv1` accepts both IP networks and refuses onion and cjdns.
+
+    IPv6 is accepted too, which is the half that says the filter is about
+    the network being an IP one at all rather than about whether the
+    address is otherwise dialable -- a node's own question, not this
+    package's.
+    """
+    assert can_addrv1(_v4())
+    assert can_addrv1(_v6())
+    assert not can_addrv1(_onion())
+    assert not can_addrv1(_cjdns())
+
+
+def test_an_address_of_no_ip_network_has_no_addr_version_1_form() -> None:
+    """`network_address` refuses a non-IP address rather than misread octets.
+
+    The refusal is the network id's and not the length's: cjdns is
+    sixteen octets, so `IPv6Address` would take it for an IP address and
+    hand back a peer that is not the one that was gossiped.
+    """
+    for address in (_onion(), _cjdns()):
+        with pytest.raises(BTClibValueError, match="not an ip address"):
+            network_address(address)
+        with pytest.raises(BTClibValueError, match="not an ip address"):
+            addr_entry(address)
+
+
+@pytest.mark.parametrize(
+    "network_id, octets, ip",
+    [
+        (BIP155Network.IPV4, b"\x01\x02\x03\x04", IPv4Address("1.2.3.4")),
+        (
+            BIP155Network.IPV6,
+            IPv6Address("2001:db8::1").packed,
+            IPv6Address("2001:db8::1"),
+        ),
+    ],
+)
+def test_network_address_is_the_untimestamped_form(
+    network_id: BIP155Network, octets: bytes, ip: IPv4Address | IPv6Address
+) -> None:
+    """`network_address` reads the services and port, dropping the timestamp."""
+    address = NetworkAddressV2(123, 9, network_id, octets, 8333)
+    result = network_address(address)
+    assert result == NetworkAddress(9, ip, 8333)
+
+
+def test_addr_entry_carries_the_timestamp_network_address_drops() -> None:
+    """`addr_entry` is `network_address` plus the timestamp `addr` carries."""
+    address = _v4(services=9)
+    entry = addr_entry(address)
+    assert entry.timestamp == address.timestamp
+    assert entry.address == network_address(address)
+
+
+def test_a_v4_and_a_v6_peer_survive_the_round_trip_through_an_addr_entry() -> None:
+    """`peer_from_addr_entry(addr_entry(...))` is the identity on both networks.
+
+    The mapping is where it could not be: an `addr` entry holds every
+    address in sixteen octets, a v4 one mapped into them, so what comes
+    back has to be the v4 record again and not the sixteen-octet form
+    IPv6 uses natively.
+    """
+    for address in (
+        _v4(services=9, address=b"\x01\x02\x03\x04"),
+        _v6(services=9, address=IPv6Address("2001:db8::1").packed),
+    ):
+        assert peer_from_addr_entry(addr_entry(address)) == address
+
+
+def test_is_embedded_ipv6_is_false_for_every_other_network() -> None:
+    """The predicate is about `IPV6` records: IPv4 and onion do not trip it."""
+    assert not is_embedded_ipv6(_v4())
+    assert not is_embedded_ipv6(_onion())
+    assert not is_embedded_ipv6(_cjdns())
+
+
+def test_is_embedded_ipv6_names_the_v4_mapped_range() -> None:
+    """`::ffff:0:0/96`, BIP155's first ignore rule."""
+    assert is_embedded_ipv6(_v6(address=_A_V4_MAPPED_ADDRESS))
+
+
+def test_is_embedded_ipv6_names_the_onioncat_range() -> None:
+    """`fd87:d87e:eb43::/48`, once how a TORv2 address was carried in IPv6."""
+    assert is_embedded_ipv6(_v6(address=_AN_ONIONCAT_ADDRESS))
+
+
+def test_is_embedded_ipv6_is_false_for_an_ordinary_ipv6_address() -> None:
+    """Outside both reserved ranges, an `IPV6` record is an ordinary peer."""
+    assert not is_embedded_ipv6(_v6(address=IPv6Address("2001:db8::1").packed))

@@ -124,6 +124,7 @@ from btclib.p2p import (
     Ping,
     Pong,
     PrefilledTransaction,
+    Reject,
     SendAddrV2,
     SendCmpct,
     SendHeaders,
@@ -282,6 +283,7 @@ _OCTETS_DECODERS = (
     ("BlockTxn.parse", BlockTxn, "parse"),
     ("TxPayload.parse", TxPayload, "parse"),
     ("BlockPayload.parse", BlockPayload, "parse"),
+    ("Reject.parse", Reject, "parse"),
 )
 
 _OCTETS_IDS = tuple(label for label, _, _ in _OCTETS_DECODERS)

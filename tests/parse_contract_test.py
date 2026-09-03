@@ -477,6 +477,22 @@ _EXCLUDED = {
         " truncation of it is a shorter message: the size rule it can be"
         " held to is the minimum one it checks"
     ),
+    "btclib.p2p.reject.Reject": (
+        "BIP61's optional trailing hash is fixed-width and carries no length"
+        " of its own, so the no-hash payload for one message, code and"
+        " reason is a byte-for-byte prefix of the with-hash payload"
+        " carrying the same three: a prefix of an encoding *is* an object"
+        " here, by construction, `handshake.Version`'s own relay flag being"
+        " the other field this shape reaches. What that property protects"
+        " is kept all the same -- the two buffers are two objects, each"
+        " serializing back to the buffer it came from, where the property"
+        " exists to refuse two buffers decoding to one. `parse` takes"
+        " `Octets` for the same reason, a stream being unable to say"
+        " whether the next thirty-two octets are the hash or the next"
+        " message, so the third property has no stream to be about either."
+        " src/btclib/p2p/reject.py states both, and"
+        " tests/p2p/reject_test.py drives what is true instead"
+    ),
 }
 
 
