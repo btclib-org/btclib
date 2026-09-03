@@ -13,21 +13,22 @@ same thing, and the difference is this module's one hard decision.
 the protocol version.** Core's test framework reads the relay flag `if
 self.nVersion >= 70001`, which is BIP37's rule as BIP37 states it. Core
 itself reads it `if (!vRecv.empty())`, and the same for the user agent
-and the start height above it. The two disagree about a peer that
-announces 70016 and stops after the start height, and Core is the one
-that decides whether such a peer is accepted: it is.
+and the start height above it. The two disagree about a peer announcing
+Core's own protocol version -- `limits.PROTOCOL_VERSION`, the number this
+module's own default builds -- and stopping after the start height, and
+Core is the one that decides whether such a peer is accepted: it is.
 
 So the flag's presence is a *field* here -- `relay` is `None` where the
 octets ended before it -- and the protocol version is not consulted. The
 alternative that reads the version number makes the encoding a function
 of another field, so that a `Version(version=60002, relay=True)` is an
-object with no serialization and a real 70016 peer that omitted the flag
-is a message with no object; the alternative that ignores what is left
-over breaks this library's rule that octets are one whole object, and
-would read two distinct payloads back as the one `Version`. A field
-keeps both: every octet is accounted for, whatever follows the flag is
-refused, and the two payloads are two objects each serializing back to
-the buffer it came from.
+object with no serialization and a peer at `PROTOCOL_VERSION` that
+omitted the flag is a message with no object; the alternative that
+ignores what is left over breaks this library's rule that octets are one
+whole object, and would read two distinct payloads back as the one
+`Version`. A field keeps both: every octet is accounted for, whatever
+follows the flag is refused, and the two payloads are two objects each
+serializing back to the buffer it came from.
 
 **What it costs, and this is the one place it is worth saying.** Two
 things, both of them consequences of a last field that may not be there.
@@ -77,7 +78,7 @@ from btclib.p2p.address import (
     ServiceFlags,
     _service_flags_from_int,
 )
-from btclib.p2p.limits import MAX_SUBVERSION_LENGTH
+from btclib.p2p.limits import MAX_SUBVERSION_LENGTH, PROTOCOL_VERSION
 from btclib.p2p.payload import Payload
 from btclib.utils import (
     assert_no_trailing,
@@ -159,6 +160,13 @@ class Version(Payload):
 
     `addr_recv` and `addr_from` carry no timestamp, which is
     `btclib.p2p.address`'s reason for two classes.
+
+    `version` defaults to `limits.PROTOCOL_VERSION`, Core's own number
+    and the one a `Version` built with no argument for it announces --
+    not because this library speaks for a peer's protocol version, which
+    `parse` never does, but because a caller building one to send is
+    building this library's own handshake, and `PROTOCOL_VERSION` is what
+    that is.
     """
 
     command = "version"
@@ -175,7 +183,7 @@ class Version(Payload):
 
     def __init__(
         self,
-        version: int = 0,
+        version: int = PROTOCOL_VERSION,
         services: int = ServiceFlags.NODE_NONE,
         timestamp: int = 0,
         addr_recv: NetworkAddress | None = None,

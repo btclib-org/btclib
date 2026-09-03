@@ -51,6 +51,16 @@ full year, short month, short day (YYYY-M-D)
   with the name of the network it is. Reading `NETWORKS`, and everything
   that resolves a network by name or by prefix, is unaffected.
 
+- **`btclib.p2p.handshake.Version`'s `version` field defaults to Core's
+  own protocol version, not zero** (closes #1582). Built with no
+  explicit `version`, it used to serialize `0`.
+
+  Act on it if you build a `Version` with no explicit `version` and read
+  back `0`, or compare its serialization against a fixed buffer that
+  assumed one: `Version().version` is now
+  `btclib.p2p.limits.PROTOCOL_VERSION`, `70016`. `Version.parse` is
+  unaffected, reading whatever a peer sent rather than this default.
+
 ### Worth knowing, though nothing raises
 
 - **`btclib.org` is no longer this project's site, and this repository
