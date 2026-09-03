@@ -104,6 +104,7 @@ __all__ = [
     "kdf",
     "key",
     "mnemonic",
+    "muhash",
     "network",
     "number_theory",
     "p2p",

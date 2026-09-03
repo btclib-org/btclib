@@ -134,7 +134,9 @@ beside them, the two BIP374 csv files, BIP352's
 2026-08-20. BIP375's `bip375_test_vectors.json`, Core's
 `miniscript_fixed_tests.json` pin and `descriptor_tests.cpp` pin, and
 Wycheproof's `ecdsa_secp256k1_sha256_bitcoin_test.json` were pulled again
-on 2026-08-25, each at the tip of its path that day.
+on 2026-08-25, each at the tip of its path that day, and Core's
+`chacha20_vectors.json` and `muhash_vectors.json`, both transcribed from
+`crypto_tests.cpp`, were pulled on 2026-09-03, at the tip of that path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1110,6 +1112,61 @@ is Core's unpadded, jumbo-block SipHash-1-3 variant
 those whose blocks are each 8 or 32 bytes, the two Core evaluates that
 variant on — and unread here: btclib has no hash-table use for it and
 implements no jumbo-block hasher.
+
+### `tests/_data/chacha20_vectors.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/crypto_tests.cpp
+commit  9be056a8a72b624dae9623b2f7bded92c2a21c91  2026-07-06
+blob    b348793bfb6397ebde806961b6783b1540a33804
+pulled  2026-09-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically. One json object per
+`TestChaCha20(...)` call inside `BOOST_AUTO_TEST_CASE(chacha20_testvector)`
+(21, RFC 7539/8439's own Appendix A.1/A.2/A.4 vectors among them, cited in
+that test case's own comments), its five arguments read off as `message`,
+`key`, `nonce_first`/`nonce_second` (`ChaCha20::Nonce96`), `seek` (the
+block counter `Seek` starts from) and `keystream_or_ciphertext` --
+ciphertext where `message` is non-empty, raw keystream where it is empty,
+matching `TestChaCha20`'s own two modes. The regex that produced it is
+not committed -- a one-off pass over C++ source is not a tool -- and what
+re-derives the file is reading those calls again.
+
+Not vendored as the file itself because there is no data file upstream:
+the vectors are arguments to a C++ function call, so the blob above is
+that source file, and the weekly re-check reports a case added to it.
+
+### `tests/_data/muhash_vectors.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/crypto_tests.cpp
+commit  9be056a8a72b624dae9623b2f7bded92c2a21c91  2026-07-06
+blob    b348793bfb6397ebde806961b6783b1540a33804
+pulled  2026-09-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically, off the same source file above.
+`muhash_tests`' own three numeric checks: the
+`FromInt(0)*FromInt(1)/FromInt(2)` cancellation (`insert`/`remove`,
+`digest_uint256_hex`, a `uint256{"..."}` literal -- reversed relative to
+the raw digest it is compared against, `uint256.h`'s own "Hex
+representation" comment is where that convention is stated), the
+serialization vector (`ser_exp`) and the overflow vector (`ss_max`'s
+`DataStream` input, and `out4`'s digest read through `HexStr` directly
+rather than `GetHex()` -- **not** reversed, the one place in this file the
+two conventions differ, confirmed against `crypto_tests.cpp`'s own two
+different assertion macros rather than assumed uniform). `FromInt(i)` is
+expanded here to the full 32-byte element (`i` then 31 zero bytes) each
+vector inserts or removes, rather than left as the bare integer
+`crypto_tests.cpp` passes to its own local helper, since this file has no
+such helper to call.
+
+Both files are read by `tests/muhash_test.py`.
 
 ### `tests/block/_data/blockfilters.json`
 
