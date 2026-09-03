@@ -1872,6 +1872,20 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   cell; and each second fence, filled in, runs what the block it
   replaces ran.
 
+### `changelog_immutability_test.py` skips the release being cut
+
+- **A released section whose own tag does not resolve is a skip where
+  it is its file's newest heading, and a failure everywhere else**
+  (closes #1654). A release pull request retitles the work-in-progress
+  section to the version it cuts, and that version's tag is pushed from
+  the commit which lands the pull request, so between the two the
+  newest heading names a tag that cannot exist yet. The test read that
+  as a tag gone missing and failed, which made every release pull
+  request red on the file it was written to guard. Position separates
+  the two: every heading but the newest already carries its tag, so a
+  tag missing lower down is still the defect the branch exists for, and
+  the window this skips closes at the tag itself.
+
 ## v2026.8.29
 
 ### Repository
