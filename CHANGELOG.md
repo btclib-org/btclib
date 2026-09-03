@@ -1053,6 +1053,43 @@ documented at release-notes length in the first place, and are still in
   that does it; dropping the token alone would have left a sentence
   crediting nothing.
 
+### `RELEASING.md`'s rebuild block chains from its placeholder line
+
+- **Pasted before `<version>` was filled in, the block reached `uv build`
+  in the reader's own working directory rather than in the rebuild
+  worktree** (closes btclib-org/.github#657). Its first line ends in
+  `v<version>`, which an interactive shell answers with a parse error and
+  discards, reading `cd /tmp/btclib-rebuild` as a fresh command; that
+  `cd` then failed, the worktree never having been created, and
+  `uv build`, `normalize_sdist.py` and `generate_sbom.py` ran where the
+  reader stood — which for a reader following this file is the checkout
+  the prose right above the block tells them to keep out of.
+- **The `cd` sits inside the chain, so no line below it runs unless the
+  `cd` succeeded.** Whatever the reader's directory holds, the build runs
+  in `/tmp/btclib-rebuild` or it does not run. The chain reaching the
+  block's own first line is what stops it when a `git worktree add` fails
+  with `<version>` filled in.
+- **The rejected alternative makes the `cd` fatal on its own** — `||
+  exit`, or a `set -e` above the block — **and it refuses the paste by
+  ending the shell the reader pasted into, where the chain leaves the
+  session standing.** Neither the standard nor the emptied block
+  separates the two: section 9 names `&&` chaining no more than it names
+  those, its own remedy for this shape being the writing line in a fence
+  of its own, and both fatal forms empty the block as completely as the
+  chain does. What separates them is a command written under the block,
+  which reaches its stub after the chained block and after neither fatal
+  form; the same command alone reaches it under every feed, and the same
+  block with the `cd` made non-fatal instead restores it, so what stops
+  it is the `exit` rather than the failing `cd`.
+- **What reports the block harmless is a `<file>` harness, not a script
+  harness in general.** Given the block as a file argument, `zsh`, `bash`
+  and `sh` each abort at the parse error on its first line. `zsh` reading
+  it from stdin — a redirect or a pipe — discards that error and carries
+  on as an interactive shell does, which is the case section 9 of the
+  organization standard names; on the base block that feed ran what the
+  interactive one ran, and in a directory holding a file named `version`
+  it also wrote `-py3-none-any.whl`, `.tar.gz` and `.cdx.json` there.
+
 ## v2026.8.29
 
 ### Repository
