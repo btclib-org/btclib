@@ -114,6 +114,7 @@ __all__ = [
     "MAX_WITNESS_STACK_ITEMS",
     "WITNESS_SCALE_FACTOR",
     "ConsensusParams",
+    "subsidy",
 ]
 
 # Maximum allowed weight for a block, see BIP141 (network rule)
@@ -139,6 +140,35 @@ MAX_WITNESS_STACK_ITEMS = MAX_BLOCK_WEIGHT
 _ALWAYS_ON_FLAGS: tuple[str, ...] = ("P2SH", "WITNESS", "TAPROOT")
 
 
+def subsidy(height: int, halving_interval: int = 210_000) -> int:
+    """Return the block reward at `height`: Bitcoin Core's GetBlockSubsidy.
+
+    Fifty bitcoin, right-shifted once per `halving_interval` blocks and
+    forced to zero once that shift is undefined for a native int
+    (`src/validation.cpp`, at bitcoin/bitcoin@9be056a8a7). `height` is
+    what a block's coinbase pays for building it; `halving_interval`
+    defaults to mainnet's own, and a caller building for another network
+    passes `CONSENSUS_PARAMS[name].subsidy_halving_interval`, regtest's
+    150 among them, rather than this function asserting a chain's
+    schedule for it.
+    """
+    from btclib.exceptions import BTClibTypeError, BTClibValueError  # noqa: PLC0415
+    from btclib.utils import is_integer  # noqa: PLC0415
+
+    for name, value in (("height", height), ("halving_interval", halving_interval)):
+        if not is_integer(value):
+            raise BTClibTypeError(f"invalid {name} type: {type(value).__name__}")
+    if height < 0:
+        raise BTClibValueError(f"invalid height: {height}")
+    if halving_interval < 1:
+        raise BTClibValueError(f"invalid halving_interval: {halving_interval}")
+
+    halvings = height // halving_interval
+    if halvings >= 64:
+        return 0
+    return (50 * 100_000_000) >> halvings
+
+
 @dataclass(frozen=True)
 class ConsensusParams:
     """The consensus parameters of one network: heights, limits, exceptions.
@@ -160,9 +190,9 @@ class ConsensusParams:
     name: str
 
     # Core's nSubsidyHalvingInterval: the number of blocks the coinbase
-    # reward stays at one level before halving again. Issue #1118's
-    # subsidy function is what reads it; no arithmetic on it is here,
-    # so that the halving is stated in one place rather than two
+    # reward stays at one level before halving again. `subsidy` above is
+    # what reads it; no arithmetic on it is here, so that the halving is
+    # stated in one place rather than two
     subsidy_halving_interval: int
 
     # Core's five buried deployments, i.e. `Consensus::Params`'s

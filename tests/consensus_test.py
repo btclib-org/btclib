@@ -33,8 +33,8 @@ from typing import Any
 import pytest
 
 from btclib.block.proof_of_work import bits_from_target
-from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
-from btclib.exceptions import BTClibTypeError
+from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams, subsidy
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 
@@ -381,3 +381,77 @@ def test_a_row_can_be_built_for_a_chain_this_library_does_not_ship() -> None:
     )
     assert custom.script_flags_at(1) == CONSENSUS_PARAMS["signet"].script_flags_at(1)
     assert custom != CONSENSUS_PARAMS["signet"]
+
+
+@pytest.mark.parametrize("halving_interval", [210_000, 150, 1000])
+def test_subsidy_halves_exactly_sixty_four_times(halving_interval: int) -> None:
+    """Every halving is exactly half the last, for 64 of them, then zero.
+
+    Bitcoin Core's own `block_subsidy_test`
+    (`src/test/validation_tests.cpp`, at bitcoin/bitcoin@9be056a8a7):
+    mainnet's interval, regtest's, and one that is neither, `nSubsidy`
+    read back after each right shift rather than recomputed from the
+    height.
+    """
+    previous = 100 * 100_000_000  # twice the initial subsidy, for height 0
+    for halvings in range(64):
+        height = halvings * halving_interval
+        reward = subsidy(height, halving_interval)
+        assert reward <= 50 * 100_000_000
+        assert reward == previous // 2
+        previous = reward
+    assert subsidy(64 * halving_interval, halving_interval) == 0
+
+
+def test_subsidy_sums_to_the_twenty_one_million_cap() -> None:
+    """The total payout of mainnet's own schedule, Core's own constant.
+
+    `subsidy_limit_test` (`src/test/validation_tests.cpp`, at
+    bitcoin/bitcoin@9be056a8a7): the sum over every thousand-block step
+    to height 14,000,000, each step's reward standing for the thousand
+    blocks it covers -- short of the 21,000,000 BTC cap by the
+    remainder every halving floors away.
+    """
+    total = 0
+    for height in range(0, 14_000_000, 1000):
+        reward = subsidy(height)
+        assert reward <= 50 * 100_000_000
+        total += reward * 1000
+    assert total == 2_099_999_997_690_000
+
+
+def test_subsidy_at_a_network_s_own_interval() -> None:
+    """The default is mainnet's; a caller names another row's own."""
+    assert subsidy(0) == 50 * 100_000_000
+    assert subsidy(209_999) == 50 * 100_000_000
+    assert subsidy(210_000) == 25 * 100_000_000
+
+    regtest_interval = CONSENSUS_PARAMS["regtest"].subsidy_halving_interval
+    assert subsidy(149, regtest_interval) == 50 * 100_000_000
+    assert subsidy(150, regtest_interval) == 25 * 100_000_000
+
+
+@pytest.mark.parametrize("height", ["1", 1.0, True, None])
+def test_subsidy_refuses_a_height_that_is_not_an_integer(height: Any) -> None:
+    """A bool is not a height either, `is_integer`'s own rule."""
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        subsidy(height)
+
+
+@pytest.mark.parametrize("halving_interval", ["210000", 210_000.0, True, None])
+def test_subsidy_refuses_a_halving_interval_that_is_not_an_integer(
+    halving_interval: Any,
+) -> None:
+    """The interval is validated the same way the height is."""
+    with pytest.raises(BTClibTypeError, match="invalid halving_interval type"):
+        subsidy(1, halving_interval)
+
+
+def test_subsidy_refuses_a_negative_height_or_a_non_positive_interval() -> None:
+    """A negative height, and an interval that would divide by zero."""
+    with pytest.raises(BTClibValueError, match="invalid height: -1"):
+        subsidy(-1)
+    with pytest.raises(BTClibValueError, match="invalid halving_interval: 0"):
+        subsidy(1, 0)
+    with pytest.raises(BTClibValueError, match="invalid halving_interval: -1"):
+        subsidy(1, -1)

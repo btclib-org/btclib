@@ -30,10 +30,11 @@ from btclib.hashes import (
 )
 from btclib.script.script import op_int
 from btclib.script.script import serialize as serialize_script
-from btclib.tx import Tx
+from btclib.tx import Tx, TxOut
 from btclib.utils import (
     assert_no_trailing,
     assert_type,
+    bytes_from_octets,
     bytesio_from_binarydata,
     decode_num,
     fields_from_json_object,
@@ -44,7 +45,9 @@ from btclib.utils import (
 __all__ = [
     "Block",
     "bip34_commitment",
+    "coinbase_witness_commitment",
     "merkle_root_and_mutated_from_transactions",
+    "witness_commitment_output",
 ]
 
 _HF = hash256
@@ -104,6 +107,55 @@ def bip34_commitment(height: int) -> bytes:
     # for 1 to 16, OP_1NEGATE for -1 -- and op_int names all three
     command: Command = op_int(height) if -1 <= height <= 16 else height
     return serialize_script([command])
+
+
+def coinbase_witness_commitment(transactions: Sequence[Tx], nonce: Octets) -> bytes:
+    """Return the coinbase's BIP141 commitment over every witness.
+
+    Bitcoin Core's `GenerateCoinbaseCommitment` (`src/validation.cpp`, at
+    bitcoin/bitcoin@9be056a8a7): hash256 of the witness merkle root,
+    concatenated with `nonce` -- the other half of the preimage, which a
+    real block carries in the coinbase's own witness stack rather than
+    here.
+
+    The witness tree is built the way
+    `merkle_root_and_mutated_from_transactions` builds the txid one,
+    over wtxids instead of txids, with one difference:
+    `transactions[0]`'s own leaf is BIP141's all-zero placeholder rather
+    than its wtxid, which is unknowable here -- it would have to commit
+    to the very output this function's own result ends up inside. The
+    mutation flag `merkle_root_and_mutated_from_hashes` also returns is
+    not read: the witness tree has the shape of the txid one, and two
+    equal wtxids mean two equal transactions, hence two equal txids
+    that `assert_valid_merkle_root` already rejects.
+
+    One implementation, shared between `assert_valid_witness_commitment`
+    and `witness_commitment_output` below, for the same reason
+    `merkle_root_and_mutated_from_transactions` is shared between a
+    header being validated and one being mined: the validator and the
+    builder must not disagree about what a set of transactions hashes to.
+    """
+    nonce_ = bytes_from_octets(nonce)
+    hashes = [b"\x00" * 32] + [
+        _HF(tx.serialize(include_witness=True, check_validity=False))
+        for tx in transactions[1:]
+    ]
+    witness_root = merkle_root_and_mutated_from_hashes(hashes, _HF)[0]
+    return _HF(witness_root + nonce_)
+
+
+def witness_commitment_output(transactions: Sequence[Tx], nonce: Octets) -> TxOut:
+    """Return the zero-valued coinbase output committing to every witness.
+
+    Nothing spends this output -- it exists for `Block.witness_commitment`
+    to read back, the way a real miner's coinbase carries one. BIP141's
+    own `aa21a9ed` header goes in front of `coinbase_witness_commitment`'s
+    32 bytes, inside an OP_RETURN push, which is `_COMMITMENT_PREFIX`'s
+    own shape: this is the one place that constant is written to rather
+    than compared against.
+    """
+    commitment = coinbase_witness_commitment(transactions, nonce)
+    return TxOut(0, _COMMITMENT_PREFIX + commitment)
 
 
 @dataclass
@@ -424,18 +476,12 @@ class Block:
             err_msg += " instead of: [32]"
             raise BTClibValueError(err_msg)
 
-        # The coinbase leaf is all zeros, its own wtxid being unknowable
-        # here: it would have to commit to the very value it contains.
-        hashes = [b"\x00" * 32] + [
-            _HF(tx.serialize(include_witness=True, check_validity=False))
-            for tx in self.transactions[1:]
-        ]
-        # The mutation flag of the witness tree is redundant, as Core
-        # notes: the tree has the shape of the txid one, and two equal
-        # wtxids mean two equal transactions, hence two equal txids that
-        # assert_valid_merkle_root has already rejected.
-        witness_root = merkle_root_and_mutated_from_hashes(hashes, _HF)[0]
-        witness_commitment_ = _HF(witness_root + witness_stack[0])
+        # coinbase_witness_commitment is the implementation, shared with
+        # witness_commitment_output so that a block's builder and its
+        # validator cannot disagree over what its transactions hash to
+        witness_commitment_ = coinbase_witness_commitment(
+            self.transactions, witness_stack[0]
+        )
         if witness_commitment_ != commitment:
             err_msg = f"invalid witness commitment: {commitment.hex()}"
             err_msg += f" instead of: {witness_commitment_.hex()}"
@@ -500,33 +546,22 @@ class Block:
         if context.is_bip34_active:
             self.assert_valid_coinbase_height(context.height)
 
-    def assert_valid(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:
-        """Refuse what Core's CheckBlock refuses, in Core's order.
+    def assert_valid_structure(self) -> None:
+        """Refuse what Core's CheckBlock refuses, proof-of-work excepted.
 
-        The header and its proof-of-work, the size bounds, exactly one
-        coinbase and it first, every transaction on its own, the sigop
-        bound, the merkle root, the witness commitment, the weight.
-        Height and clock rules are assert_valid_contextual's.
-
-        `pow_limit_bits` is forwarded to assert_valid_pow, whose docstring
-        says why the network's easiest target is the caller's to state and
-        why mainnet's is the default. It is a parameter here and not of
-        __init__, parse or serialize: those three call this to answer
-        whether the bytes are a block, and a block of another network is
-        built with check_validity=False and then asked, which is the same
-        two steps a caller already takes to build a header being mined.
+        The size bounds, exactly one coinbase and it first, every
+        transaction on its own, the sigop bound, the merkle root, the
+        witness commitment, the weight -- everything `assert_valid` asks
+        except `BlockHeader.assert_valid` and `assert_valid_pow`, which
+        it calls immediately before this and which a pre-mining candidate
+        cannot pass. `block.build.build_block` is the other caller: a
+        header `mining.candidate_block_header` has already validated
+        structurally, over a block that has no proof-of-work yet and
+        cannot be asked for one, and everything below still has to hold
+        of it -- the two coinbases, the over-weight block and the
+        over-the-sigop-bound block this refuses are exactly what a
+        builder must not hand back silently.
         """
-        self.header.assert_valid()
-        # the header alone does not assert this: a header being mined is
-        # structurally valid and has no proof-of-work yet, so requiring one
-        # left no way to build a candidate. A Block is not a candidate --
-        # it carries the transactions the work commits to -- and Bitcoin
-        # Core draws the line in the same place, CheckBlock calling
-        # CheckProofOfWork with fCheckPOW defaulted to true.
-        # It is also what makes the vendored block_*.bin files verify
-        # themselves: Block.parse recomputes the hash from the bytes
-        self.header.assert_valid_pow(pow_limit_bits)
-
         # Core's bad-blk-length is three questions in one condition -- an
         # empty transaction list, too many transactions, too many bytes --
         # and the first of them is answered by _assert_coinbase below: a
@@ -565,6 +600,39 @@ class Block:
         self.assert_valid_witness_commitment()
         # after the commitment, and the docstring says why
         self.assert_valid_weight()
+
+    def assert_valid(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:
+        """Refuse what Core's CheckBlock refuses, in Core's order.
+
+        The header and its proof-of-work, the size bounds, exactly one
+        coinbase and it first, every transaction on its own, the sigop
+        bound, the merkle root, the witness commitment, the weight.
+        Height and clock rules are assert_valid_contextual's.
+
+        `pow_limit_bits` is forwarded to assert_valid_pow, whose docstring
+        says why the network's easiest target is the caller's to state and
+        why mainnet's is the default. It is a parameter here and not of
+        __init__, parse or serialize: those three call this to answer
+        whether the bytes are a block, and a block of another network is
+        built with check_validity=False and then asked, which is the same
+        two steps a caller already takes to build a header being mined.
+        """
+        self.header.assert_valid()
+        # the header alone does not assert this: a header being mined is
+        # structurally valid and has no proof-of-work yet, so requiring one
+        # left no way to build a candidate. A Block is not a candidate --
+        # it carries the transactions the work commits to -- and Bitcoin
+        # Core draws the line in the same place, CheckBlock calling
+        # CheckProofOfWork with fCheckPOW defaulted to true.
+        # It is also what makes the vendored block_*.bin files verify
+        # themselves: Block.parse recomputes the hash from the bytes
+        self.header.assert_valid_pow(pow_limit_bits)
+
+        # assert_valid_structure is every other rule CheckBlock asks, in
+        # its own order -- one implementation, so assert_valid and a
+        # builder that cannot yet ask for proof-of-work cannot disagree
+        # about what else a block owes
+        self.assert_valid_structure()
 
     def serialize(
         self, include_witness: bool = True, *, check_validity: bool = True
