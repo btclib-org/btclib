@@ -93,6 +93,13 @@ btclib.bip85 module
    :members:
    :show-inheritance:
 
+btclib.bolt11 module
+--------------------
+
+.. automodule:: btclib.bolt11
+   :members:
+   :show-inheritance:
+
 btclib.consensus module
 -----------------------
 

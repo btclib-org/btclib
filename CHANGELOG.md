@@ -1598,6 +1598,39 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   network, and an empty one. `CachingFetcher` has no such check and needs
   none: wrapping a single fetcher, it has nothing to compare against.
 
+### A BOLT11 codec, and BIP21's `lightning=` typed against it
+
+- **`btclib.bolt11` reads and writes Lightning invoices** (closes
+  #1585): a `Bolt11Invoice` decoded from `bech32.decode(invoice, m=1)`
+  called explicitly, since the generic `decode` picks bech32 against
+  bech32m off the first data word as if it were a witness version and an
+  invoice's first words are timestamp bits, not one. Every tagged field
+  BOLT11 defines is typed -- payment hash and secret, description or its
+  hash, payee, expiry, minimum final CLTV, fallback address, routing
+  hints, feature bits, metadata -- and an unrecognised tag, or a known
+  one with the wrong length for a duplicate occurrence, is kept in the
+  invoice's own `tagged_fields` rather than refused, the way `bip21.Bip21`
+  already keeps a parameter it does not recognise. `Bolt11Invoice.sign`
+  builds and signs a new invoice; `to_invoice` writes either kind back
+  out, byte for byte where the invoice was parsed rather than composed
+  here, since the BOLT does not fix a field order across different tags
+  for `to_invoice` to reconstruct on its own.
+- **A stated payee is verified, never merely trusted over a recovered
+  one, and public-key recovery normalizes s to its low form before
+  asking `ecc.dsa.recover_pub_key_`.** BOLT11's own "public-key recovery
+  with high-S signature" example is its "please make a donation" example
+  with s replaced by `n - s` and the recovery id left unchanged --
+  malleating s alone rather than a second signature -- and libsecp256k1's
+  recoverable-signature module never emits a high-s recovery id to begin
+  with, so recovering the low-s form of whatever s the wire carries is
+  what resolves both of the BOLT's examples to the same key.
+- **`bip21.Bip21` gains a typed `lightning` attribute**, an invoice
+  rather than the untyped string `others` used to hold it: `lightning=`
+  is no longer one of "the parameters BIP21 says to ignore". Parsed on
+  read, it is cross-checked against the address it rides beside wherever
+  the two state the same fact -- the network, and the amount where both
+  give one -- the same pairing Electrum's `bip21.py` makes.
+
 ## v2026.8.29
 
 ### Repository
