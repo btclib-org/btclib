@@ -165,6 +165,7 @@ CHILD_MODULES = {
             "block_context",
             "block_filter",
             "block_header",
+            "genesis",
             "header_context",
             "limits",
         ],

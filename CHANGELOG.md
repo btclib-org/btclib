@@ -1237,6 +1237,30 @@ documented at release-notes length in the first place, and are still in
   reads it", true of neither module before this, and now true of both --
   the op code's own bare literal included.
 
+### `btclib.block.genesis` builds the genesis block of a network
+
+- **`genesis_block(network="mainnet")` returns the `Block` that
+  `Network.genesis_block` names only the hash of** (closes #1602). It is
+  flattened onto `btclib.block`, not a field of `Network`: `block.block`
+  already reaches `btclib.network` through `btclib.tx`'s
+  `TxOut.script_pub_key`, so a `Network` field holding a `Block` would
+  close issue #147's cycle from the other side. `tests/imports_test.py`'s
+  `test_network_stays_below_block` is the guard that keeps it open.
+- **The coinbase is the shape `build_coinbase` cannot build**: genesis
+  predates BIP34, so its script_sig is the literal timestamp message
+  `bitcoin/bitcoin`'s `CreateGenesisBlock` hardcodes rather than a height
+  commitment, and `build_block`'s header assembly — the reproduction
+  issue #1118's own pull request already verified against mainnet — is
+  what this leans on for the rest. Mainnet, testnet, regtest and signet
+  share one message and one pubkey; testnet4 does not, carrying its own
+  text and an output script paying to thirty-three zero bytes rather
+  than to Satoshi's — both transcribed from `bitcoin/bitcoin@9be056a8a7`'s
+  `kernel/chainparams.cpp`, one `CreateGenesisBlock` call per network.
+- Checked against the network's own `pow_limit_bits` before it is
+  returned, mainnet's default failing every regtest and signet genesis,
+  and against the hash `NETWORKS` already ships for each of the five —
+  `tests/block/genesis_test.py`'s own "done when".
+
 ## v2026.8.29
 
 ### Repository
