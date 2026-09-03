@@ -1719,6 +1719,31 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   entry whose `behind` reads other than 0. The pin above is checked by
   that run, so the two sentences could not both stand.
 
+### `network.py`'s prose names the networks a sentence is about
+
+- **The comments and docstrings that stated a total of networks, json
+  files or accepted name spellings now say which networks they mean**
+  (closes #1639). `tests/network_test.py`'s `test_numbers_of_networks`
+  is where the size of the catalogue is asserted; a sixth network turns
+  that assertion red and leaves every one of those sentences reading
+  exactly as it read before, which is what makes them worth removing
+  rather than correcting.
+- **A number the sentence enumerates beside itself stays.** The comment
+  over the xkey pairing counts the kinds of xkey and names them as
+  BIP32's and SLIP132's, and the comment over `networks_from_key_value`
+  counts the questions and lists each one under it. Both move when this
+  module's own shape does, where a network is data it loads.
+- **`networks_from_key_value` and `network_from_name` are rendered by
+  the documentation build**, `docs/source/btclib.rst` passing
+  `:members:`, so their docstrings put the total in front of a reader
+  who never opens the source. `_validated_network_name` carried the same
+  kind of sentence and is not rendered, being private.
+- **`network_from_xkeyversion`'s docstring keeps the names and drops the
+  tally of them**: "a testnet, regtest, signet or testnet4 version,
+  which share those bytes" says what a count of the same list said, and
+  the reason to derive with `testnet` — that they agree on every version
+  prefix, not only on the one looked up — is said once.
+
 ## v2026.8.29
 
 ### Repository
