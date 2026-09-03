@@ -72,7 +72,7 @@ def test_a_session_transport_can_drive_the_fetcher() -> None:
 
 def test_an_unknown_network_is_refused() -> None:
     """Refuse a network name that is none of the three known ones."""
-    with pytest.raises(BTClibValueError, match="unknown network: liquid"):
+    with pytest.raises(BTClibValueError, match="unknown network: 'liquid'"):
         EsploraFetcher(BASE, network="liquid")
 
 

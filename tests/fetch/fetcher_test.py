@@ -285,15 +285,25 @@ def test_leaving_any_one_of_the_four_abstract_refuses_construction(
         incomplete("mainnet")
 
 
-def test_an_unknown_network_is_refused_at_construction() -> None:
-    """Refuse a misspelled network before any request is made."""
-    with pytest.raises(BTClibValueError, match="unknown network: mainnnet"):
+def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
+    """`Fetcher` normalizes the name it is given, and refuses before fetching.
+
+    `__init__` puts the name through `network._validated_network_name`,
+    so the spellings issue #216 decided to keep reach a backend, and
+    `Fetcher.network` is the name `network_from_name` answers to.
+    """
+    assert StubFetcher(Tx.parse(RAW), " TestNet4 ").network == "testnet4"
+    with pytest.raises(BTClibValueError, match="unknown network: 'mainnnet'"):
         StubFetcher(Tx.parse(RAW), "mainnnet")
+    # a name that is not a string is the type rule, which RELEASE_NOTES.md
+    # tells a caller to act on
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        StubFetcher(Tx.parse(RAW), [])  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize("network", ["mainnet", "testnet", "testnet4", "regtest"])
 def test_the_network_is_the_one_it_was_given(network: str) -> None:
-    """Expose the constructor's network unchanged, for all four."""
+    """Expose the name the constructor resolved, for all four."""
     assert StubFetcher(Tx.parse(RAW), network).network == network
 
 

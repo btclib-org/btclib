@@ -64,7 +64,7 @@ from dataclasses import dataclass
 from btclib import b32
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
-from btclib.network import NETWORKS
+from btclib.network import _validated_network_name
 from btclib.script.script_pub_key import ScriptPubKey, _validated_script_from
 from btclib.utils import str_from_string
 
@@ -142,9 +142,15 @@ class Wallet(ABC):
     script_type: str
 
     def __init__(self, network: str = "mainnet") -> None:
-        if network not in NETWORKS:
-            raise BTClibValueError(f"unknown network: {network}")
-        self.network = network
+        """Bind the wallet to a network, by the name btclib resolves.
+
+        `_validated_network_name` is the converter `descriptors.parse`
+        and `p2p.magic.magic_from_network` reach for across modules, so
+        the `strip().lower()` tolerance issue #216 decided to keep
+        reaches a wallet too. `self.network` is a key of `NETWORKS`,
+        which is what a subclass reads to derive an address.
+        """
+        self.network = _validated_network_name(network)
         # insertion ordered, which is the order the addresses were handed
         # out in: `addresses` is that order and nothing else records it
         self._handed_out: dict[str, AddressInfo] = {}
