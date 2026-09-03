@@ -1435,6 +1435,25 @@ documented at release-notes length in the first place, and are still in
   command, and the test that compares them**, so the agreement it
   states is checked rather than asserted.
 
+### `op_checksequenceverify` reads its three bit-layout constants from `btclib.tx.limits`
+
+- **`script/engine/script_op_codes.py`'s `op_checksequenceverify` no
+  longer carries `1 << 31`, `1 << 22` and `0x0000FFFF` as bare
+  literals** (closes #1617): it now reads `SEQUENCE_LOCKTIME_DISABLE_FLAG`,
+  `SEQUENCE_LOCKTIME_TYPE_FLAG` and `SEQUENCE_LOCKTIME_MASK` from
+  `btclib.tx.limits`, the same module its sibling `op_checklocktimeverify`
+  already imports `LOCKTIME_THRESHOLD` from (#1608).
+
+### `_Timelock._older` reads the same two constants from `btclib.tx.limits`
+
+- **`descriptors/miniscript.py`'s `_Timelock._older` no longer carries
+  `1 << 31` and `0x0000FFFF` as bare literals** (closes #1626): it reads
+  `SEQUENCE_LOCKTIME_DISABLE_FLAG` and `SEQUENCE_LOCKTIME_MASK` beside
+  the `SEQUENCE_LOCKTIME_TYPE_FLAG` the same function already read from
+  `btclib.tx.limits`. BIP112's rule is one rule, and this is the
+  interpreter's own reading of it: the two places that apply it now name
+  the layout the same way.
+
 ## v2026.8.29
 
 ### Repository

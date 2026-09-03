@@ -31,7 +31,12 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
-from btclib.tx.limits import LOCKTIME_THRESHOLD
+from btclib.tx.limits import (
+    LOCKTIME_THRESHOLD,
+    SEQUENCE_LOCKTIME_DISABLE_FLAG,
+    SEQUENCE_LOCKTIME_MASK,
+    SEQUENCE_LOCKTIME_TYPE_FLAG,
+)
 from btclib.tx.tx import Tx
 from btclib.utils import assert_type, decode_num, encode_num
 
@@ -823,18 +828,24 @@ def op_checksequenceverify(
     sequence = _to_num(stack[-1], flags, _MAX_LOCK_TIME_NUM_SIZE)
     if sequence < 0:
         raise BTClibValueError(f"negative sequence: {sequence}")
-    if not sequence & (1 << 31):
+    if not sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
         if tx.version < 2:
             raise BTClibValueError(f"transaction version {tx.version} < 2")
-        if tx.vin[i].sequence & (1 << 31):
+        if tx.vin[i].sequence & SEQUENCE_LOCKTIME_DISABLE_FLAG:
             raise BTClibValueError(f"relative lock time disabled for input {i}")
-        if sequence & (1 << 22) != tx.vin[i].sequence & (1 << 22):
+        if (
+            sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
+            != tx.vin[i].sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
+        ):
             raise BTClibValueError(
                 f"relative lock time unit mismatch: {hex(sequence)} against "
                 f"the sequence {hex(tx.vin[i].sequence)} of input {i}"
             )
-        if sequence & 0x0000FFFF > tx.vin[i].sequence & 0x0000FFFF:
+        if (
+            sequence & SEQUENCE_LOCKTIME_MASK
+            > tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK
+        ):
             raise BTClibValueError(
-                f"relative lock time {sequence & 0x0000FFFF} > "
-                f"{tx.vin[i].sequence & 0x0000FFFF}"
+                f"relative lock time {sequence & SEQUENCE_LOCKTIME_MASK} > "
+                f"{tx.vin[i].sequence & SEQUENCE_LOCKTIME_MASK}"
             )
