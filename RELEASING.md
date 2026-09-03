@@ -601,20 +601,39 @@ A worktree and not `git checkout`, for the reason CLAUDE.md gives: the
 primary checkout is the maintainer's, and a rebuild wants a tree of its
 own regardless.
 
+The block chains so that a paste made before `<version>` is filled in
+reaches no command outside the rebuild tree: an interactive shell answers
+the placeholder line with a parse error and reads the `cd` below it as a
+fresh command, and a failing `cd` inside the chain takes every line under
+it with it. What the chain buys is not that it forms across the first
+line, which the shell discards together with its trailing `&&`; it is
+that the `cd` is inside it.
+
+Section 9 of the organization standard names a different remedy for this
+shape — the writing line in a fence of its own — and calls the
+trailing-`&&` guard the weaker of the two, resting "on the reader's
+directory rather than on the line". So which of the two is here is not
+settled by that section, and it is not settled by the block emptying
+either: the rejected alternative makes the `cd` fatal on its own — `||
+exit`, or a `set -e` above the block — and empties it just as
+completely. What separates them is that both of those refuse the paste by
+ending the shell the reader pasted into, where the chain leaves the
+session standing.
+
 ```shell
-git worktree add --detach /tmp/btclib-rebuild v<version>
-cd /tmp/btclib-rebuild
-export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)
-uv build
+git worktree add --detach /tmp/btclib-rebuild v<version> &&
+cd /tmp/btclib-rebuild &&
+export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
+uv build &&
 uv run --no-project --python 3.14 \
-  .github/scripts/normalize_sdist.py dist/
+  .github/scripts/normalize_sdist.py dist/ &&
 uv run --no-project --python 3.14 \
-  .github/scripts/generate_sbom.py dist/ sbom/
-repo=btclib-org/btclib
+  .github/scripts/generate_sbom.py dist/ sbom/ &&
+repo=btclib-org/btclib &&
 gh attestation verify dist/btclib-<version>-py3-none-any.whl \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
 gh attestation verify dist/btclib-<version>.tar.gz \
-  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+  --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
 gh attestation verify sbom/btclib-<version>.cdx.json \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 ```
