@@ -1523,6 +1523,56 @@ documented at release-notes length in the first place, and are still in
   which would reintroduce the same `NotImplementedError` this design
   avoids.
 
+### Every dependency is at the newest version this tree resolves to
+
+`uv.lock` re-resolved with `uv lock --upgrade`, and
+`.pre-commit-config.yaml` walked by `pre-commit autoupdate`. Only
+strangers moved and nothing here had to catch up.
+
+`pytest-randomly` is the one major, 4.1.0 to 5.0.0, and it is the entry
+worth reading twice: it is what shuffles every run, so a break in it
+does not look like a break in it. The suite is green under the new
+resolution, and one green run is one seed -- weaker evidence for this
+package than for any other, since it is the one that decided the order
+every other result was measured in.
+
+`bitcoin-core-rpc` moves in the lock, 2026.8.29 to 2026.9.3, and its
+floor in `[project.dependencies]` does not. That release carries
+`RPCErrorCode` and `BitcoinCoreRestClient`, and this tree calls
+neither yet: a floor names the oldest release the code here works
+against, so raising it to a version nothing needs would refuse an
+install that answers. Issue #1128's REST fetcher is what will raise it,
+in the commit that first calls that client.
+
+Two revs are held back, and `pre-commit autoupdate` offered both again:
+it walks every `repo:` entry and has no notion of a pin held on purpose,
+the reason for one living in a comment it does not read. `pyroma` stays
+at 5.0.1, 5.1b1 being a prerelease the `pinned-rev` hook refuses.
+`zizmor` stays at v1.29.0, and that one arrives as a red run rather than
+as a rejected line: its new `self-repository` audit flags every
+`uses: ./...` reference in this tree and its auto-fix rewrites them to
+`uses: $/...`, which actionlint 1.7.12 does not parse. The comment above
+the rev says the bump waits on an actionlint release that understands
+that syntax, and actionlint-py is still at v1.7.12.24.
+
+`uv-pre-commit` reaches 0.12.9 and `[build-system]`'s `uv_build` range
+stays as it is. That range is not a pin at the hook's rev: it is what
+the build has to satisfy, and the lock format the `uv-lock` hook writes
+is unchanged, so the backend admitted before is still admitted.
+
+### `anthropics/claude-code-action` is pinned at what `v1` names now
+
+`claude-review.yml` pinned a sha from ten days before `v1`'s own, in
+both of its jobs. A pin behind a moving tag is not wrong the way two
+versions of one action in one tree would be, but it is a difference
+nothing chose: the sha moves when somebody edits the workflow, so it
+drifts by however long nobody has.
+
+The tag is annotated, which is the part worth writing down. `gh api
+.../git/ref/tags/v1` answers the **tag object's** sha, not the commit's,
+and pinning that is a reference no runner can check out. `git/tags/<sha>`
+dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
+
 ## v2026.8.29
 
 ### Repository
