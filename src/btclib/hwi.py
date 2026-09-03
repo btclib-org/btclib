@@ -63,7 +63,7 @@ when a caller deciding what to offer at all has to have the answer: a
 refusal is the right answer to a question that was asked, and the wrong
 way to find out there was nothing to ask.
 
-## Wallet policies, and the address this still cannot verify
+## Wallet policies, and the address `displayaddress` still cannot show
 
 A Ledger will not display or sign a multisig it has not been shown
 first. BIP388 wallet policies are how it is shown, and registration is a
@@ -76,16 +76,20 @@ here to check it against.
 `displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
 `--multipath-index` -- is not wrapped. `psbt_signer.display_address`
 exists to compare a device's screen with the address a `Descriptor`
-computes, and a BIP388 policy's address is not one this library
-computes: `descriptors` reads the fragments a policy template may hold
-(issue #187) without building the template or deriving its address.
-Wiring those flags through with nothing to compare the device's answer
-against is the one thing `display_address`'s own docstring warns
-against -- "a caller that shows the user its own answer instead has
-checked nothing" -- so it stays out until that comparison exists. A
-caller with a registered policy still reads the address off the
-device's own screen; that is what the screen is for, whether or not
-this module checks it too.
+computes, and `descriptors.wallet_policy_address` is now that address for
+a policy too: `descriptors.wallet_policy` builds the `@N` template and
+key-information vector BIP388's own `/**` describes, from a receive and
+a change `Descriptor` of one account -- `account_descriptors`' own pair
+-- or the narrower `/*` form from one `Descriptor` alone, and
+`wallet_policy_descriptor`/`wallet_policy_address` read either pair back
+into the descriptor and the address the policy describes at an index.
+What is still missing is the wiring, not the computation (issue #1588):
+no method here takes `--registration`, `--index` or `--multipath-index`
+and no protocol this library defines carries a multipath index for
+`psbt_signer.display_address` to pass one through. A caller with a
+registered policy still reads the address off the device's own screen;
+that is what the screen is for, whether or not this module checks it
+too.
 
 Staying aligned with a project this does not import is two things, and
 neither is a copy of it. `tests/hwi_test.py` writes out the surface used
@@ -650,13 +654,10 @@ class HwiSigner:
         What comes back is opaque -- an HMAC on Ledger, nothing at all on a
         device that needs none -- and is the caller's to persist and pass
         back as `--registration` on a later `displayaddress`, which this
-        module does not wrap: there is nothing here to compare it against.
-        `psbt_signer.display_address` checks a device's screen against the
-        address a `Descriptor` computes, and a BIP388 policy's address is
-        not one this library computes: `descriptors` reads the fragments
-        a policy template may hold (issue #187) without building the
-        template or deriving its address, which registration does not
-        change.
+        module does not wrap: `descriptors.wallet_policy_address` computes
+        what a device would show under that flag, but nothing here takes
+        the registration, the index and the multipath index and passes
+        them to `displayaddress` to compare it against.
 
         The descriptor goes out ranged, whole rather than at one index:
         registration is of the policy, and `displayaddress --index` is

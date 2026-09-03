@@ -238,6 +238,9 @@ __all__ = [
     "parse",
     "satisfaction_sizer",
     "strip_checksum",
+    "wallet_policy",
+    "wallet_policy_address",
+    "wallet_policy_descriptor",
 ]
 
 INPUT_CHARSET = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ "
@@ -2736,6 +2739,480 @@ def multipath_descriptors(descriptor: str) -> list[str]:
         pieces[1::2] = [step[i] for step in steps]
         descriptors.append(add_checksum("".join(pieces)))
     return descriptors
+
+
+_POLICY_TOP_LEVEL = (
+    PkhDescriptor,
+    WpkhDescriptor,
+    ShDescriptor,
+    WshDescriptor,
+    MultiDescriptor,
+    TrDescriptor,
+)
+
+
+def _assert_policy_top_level(descriptor: Descriptor) -> None:
+    """Refuse a descriptor whose own function BIP388 does not list.
+
+    ``sh``, ``wsh``, ``pkh``, ``wpkh``, ``multi``/``sortedmulti`` and
+    ``tr`` are the SCRIPT functions BIP388 names, the miniscript
+    templates it also lists living inside ``wsh`` or ``tr`` only;
+    ``combo``, ``addr``, ``raw``, a bare ``pk`` and Core's own ``rawtr``
+    extension are not, and none of them is a policy an external signer's
+    registration flow reads.
+    This checks the function alone, not BIP388's position for it --
+    ``multi``/``sortedmulti`` inside ``sh``/``wsh`` only, ``wpkh`` at the
+    top level or inside ``sh`` only, ``pkh`` never inside ``tr`` -- so a
+    function BIP388 places nowhere the descriptor puts it still passes
+    this and reaches a template no device will register.
+    """
+    if not isinstance(descriptor, _POLICY_TOP_LEVEL):
+        err_msg = f"{type(descriptor).__name__} is not a BIP388 SCRIPT expression"
+        raise BTClibValueError(err_msg)
+
+
+def _assert_policy_wildcard(key: KeyExpression) -> None:
+    """Refuse anything but the bare, unhardened wildcard a placeholder takes.
+
+    A ``KEY`` expression of a wallet-policy template is *always* followed
+    by a wildcard and never by an explicit step in front of it -- BIP388's
+    own invalid examples are ``pkh(@0)``, with none, and ``pkh(@0/0/**)``,
+    with one. Hardened is refused too: the trailing step is what a device
+    holding only the account xpub still has to compute, which a hardened
+    step never lets it. A fixed public key fails this the same way a
+    hardened or absent wildcard does -- `_parse_key` never gives one a
+    `wildcard`, deriving further from a public key not being a thing -- so
+    it is refused here rather than by a check of its own that nothing
+    would ever reach: every key BIP390 lets an aggregate's own wildcard
+    reach is extended already, `_parse_musig`'s own rule.
+    """
+    if key.der_path:
+        err_msg = f"explicit derivation step before the wildcard: {key}"
+        raise BTClibValueError(err_msg)
+    if key.wildcard != 0:
+        err_msg = f"not an unhardened wildcard, no wallet-policy placeholder: {key}"
+        raise BTClibValueError(err_msg)
+
+
+def _placeholder_index(
+    key: KeyExpression,
+    pool: dict[tuple[BIP32KeyOrigin | None, str], int],
+    key_info: list[KeyExpression],
+) -> int:
+    """Return `key`'s position in the key-information vector, filing a new one.
+
+    Shared across every occurrence of the same origin and extended key,
+    whichever position writes it: a participant read from two ``musig()``
+    groups, or a key used once on its own and once inside one, is one
+    entry of the vector wherever it is written.
+    """
+    identity = (key.origin, key.xkey)
+    if identity not in pool:
+        pool[identity] = len(key_info)
+        key_info.append(replace(key, der_path=(), wildcard=None))
+    return pool[identity]
+
+
+def _assert_distinct_participants(indexes: tuple[int, ...], musig: str) -> None:
+    """Refuse a `musig()` naming the same key-information entry twice.
+
+    BIP388's *Additional rules*: a placeholder is not allowed to repeat
+    inside one aggregate, whether or not the whole group is written more
+    than once elsewhere -- that second question is `written`'s, not this
+    one's.
+    """
+    if len(set(indexes)) != len(indexes):
+        err_msg = f"musig() repeats a participant: {musig}"
+        raise BTClibValueError(err_msg)
+
+
+def _template_key(
+    key: KeyExpression,
+    pool: dict[tuple[BIP32KeyOrigin | None, str], int],
+    key_info: list[KeyExpression],
+    written: set[int | frozenset[int]],
+) -> KeyExpression:
+    """Return the `@N` placeholder a wallet-policy template writes for `key`.
+
+    A ``musig()`` aggregate numbers its participants and writes none for
+    itself, BIP388's placeholder there being the whole ``musig(@i,@j)``;
+    a plain key numbers itself. Either way the trailing wildcard this
+    `Descriptor` holds is the only shape the placeholder can carry --
+    a single, unhardened `/*` -- so a key or a participant set written
+    a second time cannot take a different suffix to stay disjoint by, and
+    is refused rather than folded into the first: BIP388 lists exactly
+    that repetition, ``sh(multi(1,@0/**,@0/**))``, as invalid.
+
+    A participant is never itself a ``musig()``: `_parse_key` reads one
+    with `musig_allowed=False`, refusing the nesting before this is ever
+    reached, so there is no check of that here for a test to have to
+    reach past.
+    """
+    if key.participants:
+        for participant in key.participants:
+            if participant.der_path or participant.wildcard is not None:
+                err_msg = "derivation before aggregation is not allowed in a"
+                err_msg += f" wallet policy: {participant}"
+                raise BTClibValueError(err_msg)
+        _assert_policy_wildcard(key)
+        indexes = tuple(
+            _placeholder_index(participant, pool, key_info)
+            for participant in key.participants
+        )
+        _assert_distinct_participants(indexes, str(key))
+        group = frozenset(indexes)
+        if group in written:
+            err_msg = f"musig() placeholder used more than once: {key}"
+            raise BTClibValueError(err_msg)
+        written.add(group)
+        return replace(
+            key, participants=tuple(KeyExpression(xkey=f"@{i}") for i in indexes)
+        )
+    _assert_policy_wildcard(key)
+    index = _placeholder_index(key, pool, key_info)
+    if index in written:
+        raise BTClibValueError(f"key expression used more than once: {key}")
+    written.add(index)
+    return KeyExpression(xkey=f"@{index}", wildcard=key.wildcard)
+
+
+def _skeleton_key(key: KeyExpression) -> KeyExpression:
+    """Return `key` with every wildcard, path and identity blanked out.
+
+    What is left is the shape alone: a plain key becomes the same stand-in
+    everywhere, and a ``musig()`` becomes one stand-in per participant, so
+    two structures compare equal exactly when they nest the same functions
+    over the same count of keys -- never mind which keys, and never mind
+    where either one's wildcard is.
+    """
+    if key.participants:
+        return KeyExpression(participants=tuple(map(_skeleton_key, key.participants)))
+    return KeyExpression(xkey="K")
+
+
+def _skeleton(descriptor: Descriptor) -> str:
+    """Return `descriptor` as text with every key replaced by the same stand-in.
+
+    Two descriptors with the same skeleton agree on every function, every
+    threshold and the shape of every tree and every ``musig()`` -- on
+    everything but which keys they name and where each one's wildcard
+    sits, which is exactly what a receive and a change descriptor of one
+    account are allowed to differ on.
+    """
+    return str(_mapped_keys(descriptor, _skeleton_key))
+
+
+def _paired_chain_digits(
+    recv_key: KeyExpression, chg_key: KeyExpression
+) -> tuple[int, int]:
+    """Return the receive and change chain digits a paired suffix picks between.
+
+    Each side is exactly one explicit, unhardened step before an
+    unhardened wildcard -- `account_descriptors`' own receive/change
+    shape, and the only trailing path BIP388's `/<M;N>/*` grammar allows
+    in front of one, whose own grammar spells `NUM` as "representing
+    unhardened derivations". The two digits are BIP388's own requirement
+    too: "two distinct decimal numbers", the receive and the change
+    descriptor naming the same account key at the same depth being no
+    policy at all.
+    """
+    for key in (recv_key, chg_key):
+        if (
+            len(key.der_path) != 1
+            or key.wildcard != 0
+            or key.der_path[0] >= _HARDENED_OFFSET
+        ):
+            err_msg = f"not a receive/change chain step before the wildcard: {key}"
+            raise BTClibValueError(err_msg)
+    recv, chg = recv_key.der_path[0], chg_key.der_path[0]
+    if recv == chg:
+        err_msg = f"receive and change use the same chain step: {recv}"
+        raise BTClibValueError(err_msg)
+    return recv, chg
+
+
+def _pair_suffix(recv: int, chg: int) -> str:
+    """Return BIP388's `/**`, its `<0;1>` shorthand, or `/<M;N>/*` otherwise.
+
+    `recv` and `chg` are the receive and change digit in that order, not
+    a low/high pair: BIP389's `<M;N>` positions M at multipath index 0
+    and N at index 1, so `<1;0>` and `<0;1>` are different templates and
+    neither is the other sorted.
+    """
+    return "**" if (recv, chg) == (0, 1) else f"<{recv};{chg}>/*"
+
+
+def _assert_disjoint_pair(
+    placeholder: int | frozenset[int],
+    recv: int,
+    chg: int,
+    seen: dict[int | frozenset[int], set[int]],
+    text: str,
+) -> None:
+    """Refuse a placeholder reused with a chain digit already written for it.
+
+    BIP388's own rule for a repeated placeholder is that its chain
+    digits are pairwise *disjoint*, not merely a different pair:
+    ``sh(multi(1,@0/<0;1>/*,@0/<1;2>/*))`` -- sharing digit 1 -- is
+    BIP388's own invalid example, and the identical pair twice,
+    ``sh(multi(1,@0/**,@0/**))``, is the one case that always shares
+    both. `seen` accumulates every digit written for `placeholder` so
+    far; catching the second is what catches the first too.
+    """
+    used = seen.setdefault(placeholder, set())
+    if used & {recv, chg}:
+        err_msg = f"chain digits are not disjoint from an earlier use: {text}"
+        raise BTClibValueError(err_msg)
+    used.update((recv, chg))
+
+
+def _paired_key(
+    recv_key: KeyExpression,
+    chg_key: KeyExpression,
+    pool: dict[tuple[BIP32KeyOrigin | None, str], int],
+    key_info: list[KeyExpression],
+    written: dict[int | frozenset[int], set[int]],
+) -> str:
+    """Return the placeholder and suffix one paired key position writes.
+
+    A key or a ``musig()`` group may be written more than once, but only
+    at chain digits pairwise disjoint from every earlier use of it,
+    BIP388's own rule (`_assert_disjoint_pair`): the sortedmulti_a()
+    vector reuses one key as `@0/**` (digits 0, 1) and, elsewhere in the
+    same tree, as `@0/<2;3>/*` (digits 2, 3) -- disjoint, and allowed.
+    """
+    if recv_key.participants or chg_key.participants:
+        # a participant count mismatch is already refused by `_skeleton`,
+        # `wallet_policy`'s own precondition for reaching this at all --
+        # `zip`'s `strict=True` is the defense that would fire if that
+        # were ever wrong, not a check of its own
+        indexes = []
+        for recv_participant, chg_participant in zip(
+            recv_key.participants, chg_key.participants, strict=True
+        ):
+            for participant in (recv_participant, chg_participant):
+                if participant.der_path or participant.wildcard is not None:
+                    err_msg = "derivation before aggregation is not allowed in a"
+                    err_msg += f" wallet policy: {participant}"
+                    raise BTClibValueError(err_msg)
+            if (recv_participant.origin, recv_participant.xkey) != (
+                chg_participant.origin,
+                chg_participant.xkey,
+            ):
+                err_msg = "receive and change disagree on a musig() participant:"
+                err_msg += f" {recv_participant} / {chg_participant}"
+                raise BTClibValueError(err_msg)
+            indexes.append(_placeholder_index(recv_participant, pool, key_info))
+        _assert_distinct_participants(tuple(indexes), str(recv_key))
+        recv, chg = _paired_chain_digits(recv_key, chg_key)
+        group = frozenset(indexes)
+        _assert_disjoint_pair(group, recv, chg, written, str(recv_key))
+        keys = ",".join(f"@{i}" for i in indexes)
+        return f"musig({keys})/{_pair_suffix(recv, chg)}"
+    if (recv_key.origin, recv_key.xkey) != (chg_key.origin, chg_key.xkey):
+        err_msg = f"receive and change disagree on a key: {recv_key} / {chg_key}"
+        raise BTClibValueError(err_msg)
+    recv, chg = _paired_chain_digits(recv_key, chg_key)
+    index = _placeholder_index(recv_key, pool, key_info)
+    _assert_disjoint_pair(index, recv, chg, written, f"@{index}")
+    return f"@{index}/{_pair_suffix(recv, chg)}"
+
+
+def wallet_policy(
+    descriptor: Descriptor, change: Descriptor | None = None
+) -> tuple[str, tuple[KeyExpression, ...]]:
+    """Return the BIP388 wallet-policy template of a Descriptor, and its keys.
+
+    Every KEY expression is written as its `@N` placeholder, in the order
+    it is first read -- BIP388's own pair, a *wallet descriptor template*
+    and the *key information vector* it indexes into, which is what an
+    external signer's registration flow reads and what
+    `wallet_policy_descriptor` reads back.
+
+    `change` is the account's change descriptor, `descriptor` its receive
+    one -- `account_descriptors`' own pair, or two built by hand the same
+    way. Given one, this writes BIP388's own `/<M;N>/*` (`/**` where the
+    pair is `<0;1>`), the shorthand its Test Vectors use throughout:
+    `descriptor` and `change` must share every function, threshold and
+    tree shape (`_skeleton` is the check), and must differ, key by key,
+    in nothing but one explicit, unhardened step in front of the wildcard
+    -- BIP389's own two-element multipath, read back out of two already
+    single-path descriptors rather than out of the `<a;b>` text
+    `multipath_descriptors` expands away before either one is parsed.
+
+    Left at its default, `change` is None and `descriptor` is read alone:
+    the only placeholder this writes then is the plain, unhardened `/*`
+    BIP388's "Optional derivation paths" section allows as an
+    implementation-specific pattern, a `Descriptor` holding one
+    derivation path and `/<M;N>/*` needing two. What cannot be written
+    either way is refused rather than silently dropped: a fixed public
+    key, a hardened or explicit step before the wildcard beyond the one
+    unhardened chain digit `change` accounts for, a ``musig()`` with
+    derivation on its participants, receive and change disagreeing on a
+    key or on the shape around it, and a key or a ``musig()`` group
+    written more than once with a chain digit that is not disjoint from
+    an earlier use -- each with the fragment that was wrong. So is a
+    descriptor whose own function is not one of BIP388's SCRIPT
+    expressions -- ``combo()``, ``addr()``, ``raw()``, ``rawtr()`` and a
+    bare ``pk()`` among them. Not checked: BIP388's position for a
+    function within another (`_assert_policy_top_level` says so), and
+    that every key is pairwise distinct from every other.
+    """
+    assert_type(descriptor, Descriptor, "descriptor")
+    _assert_policy_top_level(descriptor)
+    pool: dict[tuple[BIP32KeyOrigin | None, str], int] = {}
+    key_info: list[KeyExpression] = []
+    if change is None:
+        template_written: set[int | frozenset[int]] = set()
+        template = _mapped_keys(
+            descriptor,
+            lambda key: _template_key(key, pool, key_info, template_written),
+        )
+        return str(template), tuple(key_info)
+    assert_type(change, Descriptor, "change")
+    _assert_policy_top_level(change)
+    if _skeleton(descriptor) != _skeleton(change):
+        err_msg = "receive and change descriptors do not share the same structure"
+        raise BTClibValueError(err_msg)
+    recv_keys = descriptor.key_expressions
+    chg_keys = change.key_expressions
+    pair_written: dict[int | frozenset[int], set[int]] = {}
+    # a key-count mismatch is already refused by the skeleton check above;
+    # `zip`'s `strict=True` is the defense that would fire if that were
+    # ever wrong, not a check of its own
+    resolved = {
+        id(recv_key): _paired_key(recv_key, chg_key, pool, key_info, pair_written)
+        for recv_key, chg_key in zip(recv_keys, chg_keys, strict=True)
+    }
+    template = _mapped_keys(
+        descriptor, lambda key: KeyExpression(xkey=resolved[id(key)])
+    )
+    return str(template), tuple(key_info)
+
+
+# BIP388's KI index: a non-negative decimal integer, no leading zero
+# unless the integer is 0 itself -- so `@0` and `@10` are indexes and
+# `@00` is not one, the same digit string BIP388's own grammar spells
+_POLICY_INDEX = r"@(?:0|[1-9]\d*)"
+# a lone placeholder or a musig() group of them, immediately followed by
+# the one trailing wildcard BIP388 allows: the canonical `/**` shorthand,
+# BIP389's own `/<M;N>/*` it stands for, or the plain `/*` a `Descriptor`
+# writes, `/\*\*` tried first so it is not read as `/\*` with a stray `*`
+# left over
+_POLICY_PLACEHOLDER = re.compile(
+    rf"(?:musig\((?P<musig>{_POLICY_INDEX}(?:,{_POLICY_INDEX})*)\)"
+    rf"|@(?P<index>0|[1-9]\d*))"
+    r"(?P<suffix>/\*\*|/<(?P<recv>\d+);(?P<chg>\d+)>/\*|/\*)"
+)
+# every musig() call the template holds, checked before substitution: the
+# placeholder grammar allows nothing inside but comma-separated indexes,
+# so a participant carrying its own path -- derivation before aggregation,
+# which BIP388 forbids and BIP390 does not -- is refused here rather than
+# read as a lone placeholder that happens to sit after "musig("
+_POLICY_MUSIG_CALL = re.compile(r"musig\([^()]*\)")
+_POLICY_MUSIG_GROUP = re.compile(rf"musig\({_POLICY_INDEX}(?:,{_POLICY_INDEX})*\)")
+
+
+def _assert_multipath_index(multipath_index: int) -> None:
+    """Refuse anything but the two branches BIP388's cardinality allows."""
+    if multipath_index not in (0, 1):
+        raise BTClibValueError(f"invalid multipath index: {multipath_index}")
+
+
+def _assert_bare_key_info(key: KeyExpression) -> None:
+    """Refuse a key-information entry that carries its own derivation.
+
+    BIP388's vector holds an origin and an extended key and nothing past
+    it, the trailing path being the template's to write; `wallet_policy`
+    hands one back this way, and a caller building its own has to as well.
+    """
+    if key.der_path or key.wildcard is not None or key.participants:
+        raise BTClibValueError(f"not a bare key-information entry: {key}")
+
+
+def _resolved_placeholder(
+    match: re.Match[str], key_info: Sequence[KeyExpression], multipath_index: int
+) -> str:
+    """Return the text a wallet-policy placeholder and its suffix resolve to."""
+    try:
+        if match["musig"] is not None:
+            indexes = [int(token[1:]) for token in match["musig"].split(",")]
+            keys = ",".join(str(key_info[i]) for i in indexes)
+            text = f"musig({keys})"
+        else:
+            text = str(key_info[int(match["index"])])
+    except IndexError:
+        err_msg = f"key placeholder out of range: {match[0]}"
+        raise BTClibValueError(err_msg) from None
+    suffix = match["suffix"]
+    if suffix == "/**":
+        return f"{text}/{multipath_index}/*"
+    if suffix == "/*":
+        return f"{text}/*"
+    branch = match["chg"] if multipath_index else match["recv"]
+    return f"{text}/{branch}/*"
+
+
+def wallet_policy_descriptor(
+    template: str,
+    key_info: Sequence[KeyExpression],
+    multipath_index: int = 0,
+    network: str = "mainnet",
+) -> Descriptor:
+    """Return the ranged Descriptor a BIP388 wallet-policy template describes.
+
+    `template` and `key_info` are the pair `wallet_policy` returns, or the
+    same pair read off any other source of them -- BIP388's own test
+    vectors, or an external signer's registration flow. Every placeholder
+    is replaced with its key-information text, and every trailing wildcard
+    is resolved at `multipath_index`: BIP389's `/<M;N>/*` positions M at
+    index 0 and N at index 1, in that order and never by which digit is
+    the smaller, and `/**` is `/<0;1>/*` by definition; the plain `/*`
+    BIP388 also allows takes neither branch and reads the same descriptor
+    whatever `multipath_index` is. The result still holds the
+    index-selecting wildcard: `Descriptor.address` and the rest of what a
+    ranged descriptor answers are what `multipath_index` was resolved
+    *for*.
+
+    No `prv_keys`: every wildcard a wallet-policy template writes is
+    unhardened, which is the whole of BIP388's "the seed alone is no
+    longer enough" guarantee working in reverse -- the account xpub in
+    `key_info` computes every script the policy describes, hardened step
+    or not.
+    """
+    assert_type(template, str, "template")
+    _assert_multipath_index(multipath_index)
+    for key in key_info:
+        _assert_bare_key_info(key)
+    for call in _POLICY_MUSIG_CALL.findall(template):
+        if not _POLICY_MUSIG_GROUP.fullmatch(call):
+            raise BTClibValueError(f"not a wallet-policy musig() placeholder: {call}")
+    text, count = _POLICY_PLACEHOLDER.subn(
+        lambda match: _resolved_placeholder(match, key_info, multipath_index),
+        template,
+    )
+    if count == 0 or "@" in text:
+        raise BTClibValueError(f"not a BIP388 wallet-policy template: {template}")
+    return parse(text, network)
+
+
+def wallet_policy_address(
+    template: str,
+    key_info: Sequence[KeyExpression],
+    index: int = 0,
+    multipath_index: int = 0,
+    network: str = "mainnet",
+) -> str:
+    """Return the address a BIP388 wallet policy describes at `index`.
+
+    `wallet_policy_descriptor` resolved at `multipath_index`, then
+    `Descriptor.address` at `index` -- the derivation and the address
+    encoding are answered by the descriptor code every other caller of
+    this module uses, a wallet policy being a second way to name one of
+    its descriptors and not a second way to compute one.
+    """
+    descriptor = wallet_policy_descriptor(template, key_info, multipath_index, network)
+    return descriptor.address(index)
 
 
 # BIP44's fourth level, the two chains every wallet keeps: 0 receives and

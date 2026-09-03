@@ -54,6 +54,9 @@ from btclib.descriptors.descriptors import (
     parse,
     satisfaction_sizer,
     strip_checksum,
+    wallet_policy,
+    wallet_policy_address,
+    wallet_policy_descriptor,
 )
 from btclib.descriptors.key_expression import KeyExpression, PrvKeys
 from btclib.descriptors.miniscript import Miniscript, SpendContext
@@ -92,4 +95,7 @@ __all__ = [
     "parse",
     "satisfaction_sizer",
     "strip_checksum",
+    "wallet_policy",
+    "wallet_policy_address",
+    "wallet_policy_descriptor",
 ]

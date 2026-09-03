@@ -868,6 +868,40 @@ documented at release-notes length in the first place, and are still in
   non-hwi test in the job**, so a p2p test that skips itself fails the
   required check the same way a regtest one already does.
 
+### `descriptors` builds a BIP388 wallet-policy template, and derives its address
+
+- **`descriptors.wallet_policy` turns a `Descriptor`, or a receive and a
+  change `Descriptor` of one account, into the `@N` placeholder template
+  and key-information vector BIP388 defines, and
+  `descriptors.wallet_policy_descriptor`/`wallet_policy_address` read
+  the pair back into the descriptor, and the address, a policy
+  describes at an index** (closes #1348, closes #1589). Given the
+  receive/change pair `account_descriptors` already returns — checked,
+  key by key, to be the same policy apart from one explicit chain digit
+  before the wildcard — this writes BIP388's own canonical `/**`
+  shorthand (`/<M;N>/*` for a pair other than 0/1), every one of the
+  BIP's own Test Vectors reconstructed from its multipath descriptor
+  this way, byte for byte. Given one `Descriptor` alone, the only
+  trailing wildcard it can write is still the plain, unhardened `/*`
+  BIP388's "Optional derivation paths" section allows — a single parsed
+  `Descriptor` holding one path, and `/**` needing two. What neither
+  shape can become — a fixed public key, a hardened or explicit step
+  before the wildcard beyond the one unhardened chain digit the pair
+  accounts for, a `musig()` with derivation on a participant or
+  repeating one, receive and change disagreeing on a key or on the
+  shape around it, a key or a `musig()` group reused at a chain digit
+  that is not disjoint from an earlier use, or a function BIP388's
+  SCRIPT grammar does not list — is refused rather than silently
+  dropped, naming the fragment that was wrong. `wallet_policy_descriptor`
+  and `wallet_policy_address` read any BIP388 template this way, not
+  only one this module built.
+- **`hwi.py`'s module docstring and `HwiSigner.register_descriptor`
+  drop the "nothing here to check it against" reasoning `displayaddress`'s
+  policy mode was left unwrapped for.** What is still missing is the
+  wiring: no method here takes `--registration`, `--index` or
+  `--multipath-index`, and `psbt_signer.display_address` has no
+  multipath index to pass one through with.
+
 ## v2026.8.29
 
 ### Repository
