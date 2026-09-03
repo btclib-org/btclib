@@ -1688,6 +1688,59 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   below it answer `testnet` for every test network, and that is what it
   says.
 
+### `RELEASING.md`'s placeholder lines stand in fences of their own
+
+- **Pasted before its placeholder was filled in, the tag step reached
+  `git push origin v2026.8.4`** (closes btclib-org/.github#745). An
+  interactive shell answers `git tag -s v2026.8.4 -m "release v2026.8.4"
+  <sha of the release commit>` with a parse error and discards that
+  line, then reads the two under it as fresh commands; both name the tag
+  as a literal, so both ran.
+- **The recovery step under *If something goes wrong* reached
+  `gh run download` the same way**, and the job-listing step reached
+  `gh api` with no parse error to discard at all: its placeholder sits
+  inside a quoted URL, which makes it text rather than a pair of
+  redirections.
+- **Each of those placeholder lines stands in a fence with nothing under
+  it to reach.** Section 9 of the organization standard is the rule and
+  it gives the reason: the parse error guards only the line it sits on,
+  so an interactive shell reads what stands below a discarded line as a
+  fresh command.
+- **The fence a split leaves below is live, so each one writes what it
+  consumes from outside itself as `${name:?}` and joins its lines with
+  `&&`.** `${name:?}` is the shell's must-be-set form and turns an
+  unfilled paste into a run-time failure naming the variable; the chain
+  stops the lines under that failure, an interactive shell otherwise
+  answering a failed command by reading the next one. The tagging chain
+  does a second job at release time, putting the read-back of the tagged
+  `pyproject.toml` in front of the push: a `grep` that finds nothing
+  stops the tag from going up.
+- **The rebuild block's `gh attestation verify` lines name their files
+  from `${version:?}`** (closes #1613), where each named one as
+  `btclib-<version>` with the rest of the filename after it. A bare
+  placeholder with a word following it is a pair of redirections whose
+  `>` has a target: pasted from `repo=` down, in a directory holding a
+  file named `version`, those three lines wrote `-py3-none-any.whl`,
+  `.tar.gz` and `.cdx.json`. A paste of the whole block stopped above
+  them, at a `cd` that fails — a property of that line rather than of
+  these.
+- **`REPOSITORY.md`'s check-run count reads the head as `${head:?}`,
+  its placeholder line split off above it.** Pasted unfilled, the line
+  below the discarded one asked the API for
+  `repos/btclib-org/btclib/commits//check-runs`.
+- **Measured by pasting every `shell` fence of both files, unfilled,
+  into an interactive `zsh` and `bash` and into `zsh`, `bash` and `sh`
+  reading a file**, each in a fresh directory of its own, seeded with a
+  file named for every placeholder the fence holds, with stubs ahead of
+  the real `PATH` logging their argv and their `$PWD`, and reading back
+  what the directory gained. A fence holding `echo hi > outfile` writes
+  in every cell, which is what says the harness can write at all. No
+  fence holding an unfilled placeholder invokes a stub or gains a file
+  now, where the tag step, the job listing, the download and the
+  check-run count invoked one before; and every fence a split leaves
+  below, its values filled in, reaches what the block it replaces
+  reached.
+
 ## v2026.8.29
 
 ### Repository
