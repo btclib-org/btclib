@@ -63,7 +63,7 @@ when a caller deciding what to offer at all has to have the answer: a
 refusal is the right answer to a question that was asked, and the wrong
 way to find out there was nothing to ask.
 
-## Wallet policies, and the address `displayaddress` still cannot show
+## Wallet policies
 
 A Ledger will not display or sign a multisig it has not been shown
 first. BIP388 wallet policies are how it is shown, and registration is a
@@ -82,24 +82,18 @@ so the weekly `integration-hwi` job runs a command line
 removable.
 
 `displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
-`--multipath-index` -- is not wrapped, and is on `master` rather than in
-a release for the same reason `registerdescriptor` is.
-`psbt_signer.display_address` exists to compare a device's screen with
-the address a `Descriptor` computes, and
-`descriptors.wallet_policy_address` is now that address for a policy
-too: `descriptors.wallet_policy` builds the `@N` template and
-key-information vector BIP388's own `/**` describes, from a receive and
-a change `Descriptor` of one account -- `account_descriptors`' own pair
--- or the narrower `/*` form from one `Descriptor` alone, and
-`wallet_policy_descriptor`/`wallet_policy_address` read either pair back
-into the descriptor and the address the policy describes at an index.
-What is still missing is the wiring, not the computation (issue #1588):
-no method here takes `--registration`, `--index` or `--multipath-index`
-and no protocol this library defines carries a multipath index for
-`psbt_signer.display_address` to pass one through. A caller with a
-registered policy still reads the address off the device's own screen;
-that is what the screen is for, whether or not this module checks it
-too.
+`--multipath-index` -- is `HwiSigner.display_policy_address`, on the same
+unreleased footing as `register_descriptor`: no release through 3.2.0
+carries it either, so it runs against `master` and against the stand-in
+`tests/hwi_test.py` writes, never against the pinned release.
+`psbt_signer.WalletPolicyAddressDisplay`/`display_policy_address` are the
+protocol and the check beside `AddressDisplay`/`display_address`:
+`descriptors.wallet_policy_address` computes the address a policy
+describes at an index and a multipath index, from the template and
+key-information vector `descriptors.wallet_policy` writes when the
+policy is built, and `display_policy_address` compares it with what the
+device shows the way `display_address` compares a device's screen with a
+plain `Descriptor` (issue #1588).
 
 Staying aligned with a project this does not import is two things, and
 neither is a copy of it. `tests/hwi_test.py` writes out the surface used
@@ -663,15 +657,11 @@ class HwiSigner:
         first (module docstring, "Wallet policies"); this is that showing.
         What comes back is opaque -- an HMAC on Ledger, nothing at all on a
         device that needs none -- and is the caller's to persist and pass
-        back as `--registration` on a later `displayaddress`, which this
-        module does not wrap: `descriptors.wallet_policy_address` computes
-        what a device would show under that flag, but nothing here takes
-        the registration, the index and the multipath index and passes
-        them to `displayaddress` to compare it against.
+        back as `registration` to `display_policy_address`.
 
         The descriptor goes out ranged, whole rather than at one index:
-        registration is of the policy, and `displayaddress --index` is
-        what later asks for one address of it.
+        registration is of the policy, and `display_policy_address`'s own
+        index is what later asks for one address of it.
 
         Checksummed, which is what HWI's parser requires of anything it is
         given, `--desc` included.
@@ -683,6 +673,37 @@ class HwiSigner:
         assert_type(name, str, "name")
         text = add_checksum(str(descriptor))
         return self._answer(["registerdescriptor", name, text], "registration")
+
+    def display_policy_address(
+        self, registration: str, index: int = 0, multipath_index: int = 0
+    ) -> str:
+        """Show one address of a registered policy: HWI's `displayaddress`.
+
+        The registered-policy half of `displayaddress`, mutually exclusive
+        with the plain `--desc` `display_address` sends: `registration` is
+        what `register_descriptor` returned, and `index`/`multipath_index`
+        are what `psbt_signer.display_policy_address` also resolves
+        `descriptors.wallet_policy_address` at, on the host side, to check
+        this answer against.
+
+        No HWI release through 3.2.0 has this command's policy group
+        either, so it needs the same `master` build `register_descriptor`
+        does; the module docstring's *Wallet policies* says what ends
+        that.
+        """
+        assert_type(registration, str, "registration")
+        return self._answer(
+            [
+                "displayaddress",
+                "--registration",
+                registration,
+                "--index",
+                str(index),
+                "--multipath-index",
+                str(multipath_index),
+            ],
+            "address",
+        )
 
     @property
     def capabilities(self) -> SignerCapabilities:

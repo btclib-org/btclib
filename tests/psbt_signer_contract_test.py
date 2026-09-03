@@ -104,9 +104,21 @@ def test_the_reference_signer_conforms() -> None:
 
 
 def test_the_optional_protocols_are_reported() -> None:
-    """SoftwareSigner offers both; a signer of the four methods, neither."""
-    assert optional_protocols(_signer()) == (True, True)
-    assert optional_protocols(_Wrapper()) == (False, False)
+    """SoftwareSigner offers two of three; a signer of five methods, none."""
+    assert optional_protocols(_signer()) == (True, False, True)
+    assert optional_protocols(_Wrapper()) == (False, False, False)
+
+    class _PolicyDisplay(_Wrapper):
+        """A signer whose only optional operation is the policy one."""
+
+        def display_policy_address(
+            self, registration: str, index: int = 0, multipath_index: int = 0
+        ) -> str:
+            return "unused"
+
+    policy_display = _PolicyDisplay()
+    assert optional_protocols(policy_display) == (False, True, False)
+    assert policy_display.display_policy_address("registration") == "unused"
 
 
 def test_something_that_is_not_a_signer_is_refused() -> None:

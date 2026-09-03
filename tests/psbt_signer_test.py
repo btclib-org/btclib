@@ -31,6 +31,8 @@ from btclib.descriptors import (
     TrDescriptor,
     WpkhDescriptor,
     parse,
+    wallet_policy,
+    wallet_policy_address,
 )
 from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibValueError, SignerError
@@ -42,8 +44,10 @@ from btclib.psbt_signer import (
     PsbtSigner,
     SignerCapabilities,
     SignerDecorator,
+    WalletPolicyAddressDisplay,
     assert_public,
     display_address,
+    display_policy_address,
     export_account,
     merge_devices,
     request_signatures,
@@ -172,6 +176,7 @@ def test_the_protocols_are_what_a_signer_is_asked_for() -> None:
     assert isinstance(signer, PsbtSigner)
     assert not isinstance(signer, AddressDisplay)
     assert not isinstance(signer, MessageSigner)
+    assert not isinstance(signer, WalletPolicyAddressDisplay)
 
     assert signer.capabilities == SignerCapabilities(taproot=False, musig2=False)
     signer.close()
@@ -345,6 +350,52 @@ def test_a_displayed_address_is_compared_with_the_descriptor_s() -> None:
     for lie in (below, above):
         with pytest.raises(BTClibValueError, match="the signer displayed"):
             display_address(_Display(lie), receive, 3)
+
+
+class _PolicyDisplay(_Signer):
+    """A signer that shows a policy's address, honestly by default."""
+
+    def __init__(
+        self,
+        template: str,
+        key_info: tuple[KeyExpression, ...],
+        shown: str | None = None,
+    ) -> None:
+        super().__init__()
+        self.template = template
+        self.key_info = key_info
+        self.shown = shown
+
+    def display_policy_address(
+        self, registration: str, index: int = 0, multipath_index: int = 0
+    ) -> str:
+        """Return the address, or the one this was built to lie with."""
+        if self.shown is not None:
+            return self.shown
+        return wallet_policy_address(
+            self.template, self.key_info, index, multipath_index
+        )
+
+
+def test_a_registered_policy_s_address_is_compared_with_the_policy_s() -> None:
+    """The same check `display_address` runs, over a BIP388 policy instead.
+
+    `wallet_policy_address` computes what the policy describes at an
+    index and a multipath index -- the second parameter a plain
+    `Descriptor` and `AddressDisplay` have no room for, which is why this
+    is a second protocol rather than a widened first one.
+    """
+    receive, change = export_account(_Signer(), ACCOUNT)
+    template, key_info = wallet_policy(receive, change)
+    display = _PolicyDisplay(template, key_info)
+    assert isinstance(display, WalletPolicyAddressDisplay)
+
+    expected = wallet_policy_address(template, key_info, 3, 1)
+    assert display_policy_address(display, "cafe", template, key_info, 3, 1) == expected
+
+    lying = _PolicyDisplay(template, key_info, "bc1q" + "0" * (len(expected) - 4))
+    with pytest.raises(BTClibValueError, match="the signer displayed"):
+        display_policy_address(lying, "cafe", template, key_info, 3, 1)
 
 
 def test_a_descriptor_that_holds_a_private_key_is_not_sent() -> None:
@@ -557,11 +608,20 @@ def test_wrapping_a_signer_does_not_hide_what_it_offers() -> None:
     """
     assert not isinstance(SignerDecorator(_Signer()), AddressDisplay)
     assert not isinstance(SignerDecorator(_Signer()), MessageSigner)
+    assert not isinstance(SignerDecorator(_Signer()), WalletPolicyAddressDisplay)
 
     display = SignerDecorator(_Display())
     assert isinstance(display, AddressDisplay)
     receive = export_account(display, ACCOUNT)[0]
     assert display.display_address(receive, 3) == receive.address(3)
+
+    receive, change = export_account(_Signer(), ACCOUNT)
+    template, key_info = wallet_policy(receive, change)
+    policy_display = SignerDecorator(_PolicyDisplay(template, key_info))
+    assert isinstance(policy_display, WalletPolicyAddressDisplay)
+    assert policy_display.display_policy_address("cafe", 3, 1) == wallet_policy_address(
+        template, key_info, 3, 1
+    )
 
     assert isinstance(SignerDecorator(_MessageSigner()), MessageSigner)
 

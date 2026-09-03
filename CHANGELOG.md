@@ -1302,6 +1302,49 @@ documented at release-notes length in the first place, and are still in
   and against the hash `NETWORKS` already ships for each of the five —
   `tests/block/genesis_test.py`'s own "done when".
 
+### `HwiSigner.display_policy_address` wires the registered-policy half of `displayaddress`
+
+- **`psbt_signer.WalletPolicyAddressDisplay` and `display_policy_address`
+  check a registered BIP388 policy's address the way `AddressDisplay`
+  and `display_address` check a plain descriptor's** (closes #1588).
+  `descriptors.wallet_policy_address` (#1348) computes the address a
+  policy describes at an index and a multipath index, and
+  `HwiSigner.display_policy_address` sends `--registration`, `--index`
+  and `--multipath-index` to HWI's `displayaddress` for the comparison —
+  the second, registered-policy mode of the same command
+  `display_address` already sends `--desc` to, and mutually exclusive
+  with it. `registration` is `register_descriptor`'s own opaque answer,
+  passed back unexamined; `SignerDecorator` carries the new protocol the
+  way it already carries the other two, and a wrapper that never had it
+  or always claims it is wrong the same way either of the others would
+  be. `psbt_signer_contract.optional_protocols`, which is how an
+  implementer outside this repository asks what a signer offers, answers
+  for the third protocol beside the other two -- in the middle, grouped
+  with the address display it is a second mode of, rather than appended,
+  so the position a caller reads for the message signer is the last one.
+  `RELEASE_NOTES.md` carries what that costs a caller. No HWI release
+  through 3.2.0 carries this command's policy group, the same
+  footing #1592 already put `register_descriptor` on: it runs
+  against `master` and against the stand-in `tests/hwi_test.py` writes,
+  and raising `HWI_VERSION` to the first release whose `hwilib/_cli.py`
+  adds it is what ends that, exactly as for `registerdescriptor` -- the
+  caveat names when it stops being true, not only that it is.
+
+### `integration-hwi.yml`'s guix-builder comment states no count
+
+- **The comment above `BITCOIND_VERSION` said "as four independent guix
+  builders attested it in bitcoin-core/guix.sigs", and that count is
+  wrong** (closes #1596). `integration-bitcoind.yml` carried the
+  identical sentence and had it dropped rather than corrected while
+  #1412's branch had that file open for an unrelated reason; this copy
+  sat outside that diff and kept the stale count. The attestation
+  itself is unchanged and still true — the pinned `BITCOIND_SHA256` is
+  what `bitcoin-core/guix.sigs` publishes for the release under test —
+  so what changes here is the same: the number is dropped, not
+  corrected to whatever it currently reads as, per CLAUDE.md's *Never
+  state how many of anything a file holds*: a count nothing here
+  re-derives ages the same way a wrong one does.
+
 ## v2026.8.29
 
 ### Repository

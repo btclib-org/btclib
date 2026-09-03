@@ -449,6 +449,47 @@ def test_a_descriptor_is_registered_and_the_receipt_is_opaque(tmp_path: Path) ->
     assert e.value.code == -19
 
 
+def test_a_registered_policy_s_address_is_asked_for_at_its_index(
+    tmp_path: Path,
+) -> None:
+    """The registered-policy half of `displayaddress`.
+
+    `--registration`, `--index` and `--multipath-index` in place of
+    `--desc`: `registration` is what `register_descriptor` returned, and
+    `psbt_signer.display_policy_address` is what then compares the answer
+    with what `descriptors.wallet_policy_address` computes for the policy
+    at that index and that multipath index.
+    """
+    hwi = stand_in(tmp_path, {"displayaddress": {"address": "shown"}})
+    device = signer(hwi)
+
+    assert device.display_policy_address("cafe", 5, 1) == "shown"
+    argv = last_argv(hwi)
+    assert argv[argv.index("displayaddress") + 1 :] == [
+        "--registration",
+        "cafe",
+        "--index",
+        "5",
+        "--multipath-index",
+        "1",
+    ]
+    # the defaults, the way `display_address`'s index defaults to 0
+    device.display_policy_address("cafe")
+    argv = last_argv(hwi)
+    assert argv[argv.index("displayaddress") + 1 :] == [
+        "--registration",
+        "cafe",
+        "--index",
+        "0",
+        "--multipath-index",
+        "0",
+    ]
+
+    wrong = signer(stand_in(tmp_path, {"displayaddress": {"not-a": "key"}}))
+    with pytest.raises(SignerError, match="did not answer a address"):
+        wrong.display_policy_address("cafe")
+
+
 def test_a_message_signature_is_verified_against_the_address(hwi: list[str]) -> None:
     """And a message that is not text is one this cannot ask for.
 

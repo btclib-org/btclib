@@ -1354,17 +1354,25 @@ issue #381 keeps out of the signing surface deliberately, and
 computes for itself: `descriptors.account_descriptors` and
 `btclib.core_import` are those three, on btclib's own types.
 
-Not transcribed on purpose: the BIP388 policy arguments, `--index` and
-`--multipath-index`/`--change` on `displayaddress`, `--registration` on
-both `displayaddress` and, since this pin, `signtx`. `btclib.hwi`'s
-module docstring, "Wallet policies, and the address `displayaddress`
-still cannot show", is why — `descriptors.wallet_policy_address`
-(issue #1348) computes the address a policy-mode `displayaddress`
-would answer against, but no method here takes `--registration`,
-`--index` or `--multipath-index` and passes them to that command, so
-the surface `tests/hwi_test.py` transcribes still has nothing to send
-them on. `signtx`'s answer keys (`psbt`, `signed`) are unaffected by
-a registration being passed alongside the transaction.
+`displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
+`--multipath-index` -- is `HwiSigner.display_policy_address`
+(`btclib.hwi`'s module docstring, "Wallet policies", issue #1588), and
+`psbt_signer.WalletPolicyAddressDisplay`/`display_policy_address` are
+the protocol and the check beside `AddressDisplay`/`display_address`:
+`descriptors.wallet_policy_address` computes the address a policy
+describes at an index and a multipath index, and `display_policy_address`
+compares it with what the device answers. Its own argv is checked in
+`tests/hwi_test.py` directly rather than through the shared
+`HWI_COMMAND_FLAGS` table above, `displayaddress`'s two modes taking
+disjoint flags.
+
+Not transcribed on purpose: `--change`, `displayaddress`'s alias for
+`--multipath-index 1` -- `HwiSigner.display_policy_address` always
+sends `--multipath-index` and never reaches for the alias -- and
+`--registration` on `signtx`, which nothing here sends: a registration
+travels with `displayaddress`'s policy mode only, and `signtx`'s answer
+keys (`psbt`, `signed`) are unaffected by one being passed alongside
+the transaction regardless.
 
 Not in a release: `registerdescriptor` and its `registration` answer
 key, and the BIP388 policy arguments named above -- `--index`,
