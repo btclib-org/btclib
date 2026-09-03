@@ -21,7 +21,6 @@ green rather than for having written it once.
 import contextlib
 import importlib
 import json
-import pkgutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-import btclib
 from btclib import b32, b58, base58, bech32, bip322, descriptors, var_bytes, var_int
 from btclib.bip21 import Bip21
 from btclib.bip32.bip32 import BIP32KeyData
@@ -97,7 +95,7 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from tests import public_classes_with
+from tests import module_names, public_classes_with
 
 # What a btclib parser is allowed to raise. Anything else -- an
 # IndexError off a short slice, an OverflowError off an unchecked size,
@@ -257,14 +255,6 @@ def _functions_driven_here() -> set[str]:
     }
 
 
-def _module_names() -> list[str]:
-    """Every module of the installed btclib, the top-level one included."""
-    return [
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-    ]
-
-
 def test_every_class_that_parses_is_driven_here() -> None:
     """The inventory is a promise only if omission is what fails.
 
@@ -293,7 +283,7 @@ def test_every_module_function_that_parses_is_driven_here() -> None:
     wide enough to find those is a census this file does not keep.
     """
     found = set()
-    for module_name in _module_names():
+    for module_name in module_names():
         module = importlib.import_module(module_name)
         for name in ("parse", "decode"):
             function = getattr(module, name, None)
