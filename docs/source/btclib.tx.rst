@@ -4,6 +4,13 @@ btclib.tx package
 Submodules
 ----------
 
+btclib.tx.coin module
+---------------------
+
+.. automodule:: btclib.tx.coin
+   :members:
+   :show-inheritance:
+
 btclib.tx.limits module
 -----------------------
 
@@ -22,6 +29,13 @@ btclib.tx.tx module
 -------------------
 
 .. automodule:: btclib.tx.tx
+   :members:
+   :show-inheritance:
+
+btclib.tx.tx\_context module
+----------------------------
+
+.. automodule:: btclib.tx.tx_context
    :members:
    :show-inheritance:
 

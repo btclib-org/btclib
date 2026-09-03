@@ -4,6 +4,9 @@
 
 """How many inputs and outputs a transaction may declare.
 
+And the numbers `btclib.tx.tx_context`'s rules compare a lock time or a
+sequence against.
+
 A module of its own, as `block/limits.py` and `script/limits.py` are and
 for the same reason: `tx.py` is the dataclass and its serialization, while
 each name here is a rule about the transaction the wire declares.
@@ -18,15 +21,34 @@ divided here come from, and its docstring is why they are not read from
 
 The minimum sizes are the same arithmetic's other half, and they are
 `tests/tx`'s to check against a serialization rather than to be believed.
+
+`LOCKTIME_THRESHOLD`, `SEQUENCE_FINAL` and the four `SEQUENCE_LOCKTIME_*`
+constants are Core's `src/script/script.h` and `src/primitives/
+transaction.h`, at bitcoin/bitcoin@9be056a8a7; `COINBASE_MATURITY` is
+`src/consensus/consensus.h`, same tag. `block/limits.py` used to carry a
+paragraph explaining why `COINBASE_MATURITY` was absent from it -- "a
+rule about spending an output, so it needs the chain the output was
+created on" -- and that reasoning is what put it here instead: a
+`btclib.tx.coin.Coin` carrying its own creation height is that chain, so
+the rule is a function of its arguments and belongs beside the module
+that reads it rather than beside `block/limits.py`'s header rules, which
+`btclib.tx` cannot import.
 """
 
 from btclib.consensus import MAX_BLOCK_WEIGHT, WITNESS_SCALE_FACTOR
 
 __all__ = [
+    "COINBASE_MATURITY",
+    "LOCKTIME_THRESHOLD",
     "MAX_TX_IN_COUNT",
     "MAX_TX_OUT_COUNT",
     "MIN_TX_IN_SIZE",
     "MIN_TX_OUT_SIZE",
+    "SEQUENCE_FINAL",
+    "SEQUENCE_LOCKTIME_DISABLE_FLAG",
+    "SEQUENCE_LOCKTIME_GRANULARITY",
+    "SEQUENCE_LOCKTIME_MASK",
+    "SEQUENCE_LOCKTIME_TYPE_FLAG",
 ]
 
 # The smallest a TxIn serializes to: a 32-octet previous transaction id, a
@@ -42,3 +64,30 @@ MIN_TX_OUT_SIZE = 8 + 1
 # -- which is what lets a parser refuse it before allocating for it
 MAX_TX_IN_COUNT = MAX_BLOCK_WEIGHT // (MIN_TX_IN_SIZE * WITNESS_SCALE_FACTOR)
 MAX_TX_OUT_COUNT = MAX_BLOCK_WEIGHT // (MIN_TX_OUT_SIZE * WITNESS_SCALE_FACTOR)
+
+# Core's LOCKTIME_THRESHOLD: a lock_time below this is a block height, at
+# or above it a unix timestamp -- Tue Nov 5 00:53:20 1985 UTC, far past any
+# height a chain will reach and far before any timestamp a block will carry
+LOCKTIME_THRESHOLD = 500_000_000
+
+# Core's CTxIn::SEQUENCE_FINAL: every input carrying it makes lock_time
+# irrelevant, whatever lock_time says (Consensus::CheckTxInputs never
+# reads it once every input is this)
+SEQUENCE_FINAL = 0xFFFFFFFF
+
+# Core's CTxIn::SEQUENCE_LOCKTIME_*: bit 31 opts a whole input out of
+# BIP68 entirely, bit 22 picks a time-based relative lock over a
+# height-based one, and the low sixteen bits are the lock itself, in
+# whichever unit bit 22 named -- GRANULARITY is how far that field is
+# shifted to turn 512-second units into seconds
+SEQUENCE_LOCKTIME_DISABLE_FLAG = 1 << 31
+SEQUENCE_LOCKTIME_TYPE_FLAG = 1 << 22
+SEQUENCE_LOCKTIME_MASK = 0x0000FFFF
+SEQUENCE_LOCKTIME_GRANULARITY = 9
+
+# Core's own COINBASE_MATURITY: how many blocks a coinbase output has to
+# sit before a spend of it may connect (Consensus::CheckTxInputs,
+# bad-txns-premature-spend-of-coinbase). The same on every network,
+# regtest included -- unlike the heights and limits `btclib.consensus`
+# tabulates per network, nothing in chainparams.cpp relaxes this one
+COINBASE_MATURITY = 100

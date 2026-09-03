@@ -1090,6 +1090,36 @@ documented at release-notes length in the first place, and are still in
   interactive one ran, and in a directory holding a file named `version`
   it also wrote `-py3-none-any.whl`, `.tar.gz` and `.cdx.json` there.
 
+### `btclib.tx.tx_context` answers finality, sequence locks and coinbase rules
+
+- **`is_final`, `assert_sequence_locks`, `assert_coinbase_maturity` and
+  `assert_coinbase_value` are functions over a `Tx`, a `Sequence[Coin]`
+  of its prevouts, or both** (closes #1580): Bitcoin Core's `IsFinalTx`,
+  `CalculateSequenceLocks`/`EvaluateSequenceLocks`, the
+  `bad-txns-premature-spend-of-coinbase` half of
+  `Consensus::CheckTxInputs`, and `bad-cb-amount`
+  (`src/consensus/tx_verify.cpp` and `src/validation.cpp`, at
+  bitcoin/bitcoin@9be056a8a7), published from `btclib.tx`. `Coin`, also
+  new there, is a frozen `(tx_out, height, is_coinbase)` with no `parse`
+  and no `serialize`: how a node stores a prevout on disk is that node's
+  own decision, not this library's, and #1123 already declined Core's.
+- **`assert_sequence_locks` takes no `enforce_bip68` flag**: Core's own
+  `fEnforceBIP68` combines a fact about the transaction, its version,
+  with chain state the caller already holds before it is worth building
+  a `Coin` sequence at all, so activation stays the caller's `if` and
+  the version check alone stays in the function — the smaller contract,
+  and the one that cannot be handed the wrong flag by accident.
+  `is_final`'s `block_time` cutoff is the caller's the same way, BIP113
+  deciding between a parent's median time past and a block's own
+  timestamp from the chain's own activation height.
+- **`LOCKTIME_THRESHOLD`, `SEQUENCE_FINAL`, every `SEQUENCE_LOCKTIME_*`
+  bit-layout constant and `COINBASE_MATURITY` move to `btclib.tx.limits`**,
+  read off Core's `src/script/script.h`, `src/primitives/transaction.h`
+  and `src/consensus/consensus.h` at the same tag. `block/limits.py`'s
+  docstring, which named `COINBASE_MATURITY`'s absence as "a rule about
+  spending an output, so it needs the chain the output was created on",
+  now points at `Coin` and `assert_coinbase_maturity` as that chain.
+
 ## v2026.8.29
 
 ### Repository
