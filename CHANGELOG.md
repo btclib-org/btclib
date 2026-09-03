@@ -1573,6 +1573,31 @@ The tag is annotated, which is the part worth writing down. `gh api
 and pinning that is a reference no runner can check out. `git/tags/<sha>`
 dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
 
+### `CachingFetcher` and `FallbackFetcher`, two decorators over a `Fetcher`
+
+- **`btclib.fetch.decorators` adds `CachingFetcher`, which amortizes
+  `get_tx_out` by caching `get_tx`, and `FallbackFetcher`, which tries a
+  sequence of backends in order** (closes #1129). Both compose a
+  `Fetcher` rather than subclass a backend, and both are exported from
+  `btclib.fetch`. `Fetcher.get_tx_out` is concrete and calls `self.get_tx`,
+  so `CachingFetcher` does not override it: caching `get_tx` amortizes
+  every call to `get_tx_out` for free, twenty outpoints spending one
+  transaction costing one fetch of it instead of twenty. `get_tx` and
+  `get_block_header` are cached with no expiry; `get_block_count` and
+  `get_best_block_id` are never cached, both being the chain tip. A
+  `FetchError` is never cached, so a backend that is briefly down is
+  asked again rather than having its failure remembered. `max_size`
+  bounds each of the two caches separately, with LRU eviction; the
+  default is unbounded. `FallbackFetcher` moves on to the next backend
+  only for a `FetchError` -- `HttpError` and `RpcError` both subclass it
+  -- and lets a `BTClibValueError` propagate, a node serving the wrong
+  chain being a configuration error to fix rather than a failure to try
+  the next backend past. When every backend fails it raises a
+  `FetchError` naming each of them, chained from the last. It also
+  refuses, at construction, a sequence whose backends disagree about the
+  network, and an empty one. `CachingFetcher` has no such check and needs
+  none: wrapping a single fetcher, it has nothing to compare against.
+
 ## v2026.8.29
 
 ### Repository

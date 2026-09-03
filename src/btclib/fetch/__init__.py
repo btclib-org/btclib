@@ -61,11 +61,19 @@ which layer it is reaching into.
 `FetchError`, `HttpError` and `RpcError` are not here because no exception
 is: `btclib.exceptions` holds every one of them together, which is what
 lets a caller see at a glance what the library raises.
+
+**`CachingFetcher` and `FallbackFetcher` answer the same interface from
+another `Fetcher`, not from a network.** Neither is a third backend:
+both compose one or more `Fetcher`s and are exported beside the two that
+open a connection because a caller reaches for them the same way,
+`btclib.fetch.decorators` naming the module they actually live in the
+way `btclib.fetch.fetcher` does for the interface itself.
 """
 
 from bitcoin_core_rpc import BitcoinCoreRpcClient
 
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
+from btclib.fetch.decorators import CachingFetcher, FallbackFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
 from btclib.fetch.transport import (
@@ -80,7 +88,9 @@ __all__ = [
     "DEFAULT_TIMEOUT",
     "BitcoinCoreFetcher",
     "BitcoinCoreRpcClient",
+    "CachingFetcher",
     "EsploraFetcher",
+    "FallbackFetcher",
     "Fetcher",
     "HttpTransport",
     "SessionTransport",

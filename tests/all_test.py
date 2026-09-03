@@ -204,7 +204,13 @@ CHILD_MODULES = {
     },
     "btclib.fetch": {
         "groups": [],
-        "unpublished": ["bitcoin_core", "esplora", "fetcher", "transport"],
+        "unpublished": [
+            "bitcoin_core",
+            "decorators",
+            "esplora",
+            "fetcher",
+            "transport",
+        ],
     },
     "btclib.mnemonic": {
         "groups": [

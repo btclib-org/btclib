@@ -19,6 +19,13 @@ btclib.fetch.bitcoin_core integration module
    :show-inheritance:
    :exclude-members: BitcoinCoreRpcClient
 
+btclib.fetch.decorators module
+------------------------------
+
+.. automodule:: btclib.fetch.decorators
+   :members:
+   :show-inheritance:
+
 btclib.fetch.esplora module
 ---------------------------
 
