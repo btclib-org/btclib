@@ -25,6 +25,7 @@ from urllib.request import Request
 from typing_extensions import override
 
 from btclib.alias import Octets
+from btclib.block.block_header import BlockHeader
 from btclib.fetch.fetcher import Fetcher
 from btclib.tx import Tx
 
@@ -38,6 +39,14 @@ TX_ID = "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16"
 # tests/block/_data
 TIP_HEIGHT = 481824
 TIP_ID = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
+# the first eighty bytes of tests/block/_data/block_481824.bin, i.e. the
+# header of that same block -- its hash, recomputed by BlockHeader.parse,
+# is TIP_ID above, which is what makes this vector checkable without a node
+TIP_HEADER_RAW = (
+    "02000020801b81629334be8e7af5ebfb9df09c18e1f833b5f0efcb0000000000000000"
+    "0040d1ca077fefe7fb797711baa0c063eca9b8ed9469ae0128982b44ad0c253864913"
+    "29e59e93c011822ff5422"
+)
 
 
 def recorded_body(name: str) -> bytes:
@@ -113,3 +122,9 @@ class StubFetcher(Fetcher):
     def get_best_block_id(self) -> bytes:
         """Answer the tip block id the recorded responses report."""
         return bytes.fromhex(TIP_ID)
+
+    @override
+    def get_block_header(self, height: int) -> BlockHeader:
+        """Answer the tip header, whatever height is asked for."""
+        self.asked.append(str(height))
+        return BlockHeader.parse(TIP_HEADER_RAW)

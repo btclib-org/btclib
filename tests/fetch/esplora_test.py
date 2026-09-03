@@ -13,11 +13,18 @@ from __future__ import annotations
 
 import pytest
 
-from btclib.exceptions import BTClibValueError, FetchError, HttpError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.transport import SessionTransport
 from btclib.tx import OutPoint
-from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
+from tests.fetch import (
+    TIP_HEADER_RAW,
+    TIP_HEIGHT,
+    TIP_ID,
+    TX_ID,
+    Recorded,
+    recorded_body,
+)
 
 BASE = "https://esplora.example/api"
 # the coinbase of block 170: a transaction with the same provenance as
@@ -128,6 +135,53 @@ def test_the_tip_is_two_endpoints_and_not_one() -> None:
     assert tip.request.full_url == f"{BASE}/blocks/tip/hash"
 
 
+def test_get_block_header_asks_block_height_then_block_header() -> None:
+    """Two requests: the height maps to a hash before a header answers."""
+    transport = Recorded(
+        (200, recorded_body("esplora_block_height_hash.txt")),
+        (200, recorded_body("esplora_block_header.txt")),
+    )
+    header = EsploraFetcher(BASE, transport=transport).get_block_header(TIP_HEIGHT)
+    assert header.hash.hex() == TIP_ID
+    assert transport.requests[0].full_url == f"{BASE}/block-height/{TIP_HEIGHT}"
+    assert transport.requests[1].full_url == f"{BASE}/block/{TIP_ID}/header"
+
+
+@pytest.mark.parametrize("height", [-1, -481824])
+def test_get_block_header_refuses_a_negative_height(height: int) -> None:
+    """Refused before any request, both requests mapping a height to a block."""
+    transport = Recorded((200, b"unused"))
+    with pytest.raises(BTClibValueError, match="invalid height"):
+        EsploraFetcher(BASE, transport=transport).get_block_header(height)
+    assert transport.requests == []
+
+
+@pytest.mark.parametrize("height", ["481824", 481824.5, None])
+def test_get_block_header_refuses_a_non_integer_height(height: object) -> None:
+    """Refused before any request, the same as a negative one."""
+    transport = Recorded((200, b"unused"))
+    with pytest.raises(BTClibTypeError, match="invalid height type"):
+        EsploraFetcher(BASE, transport=transport).get_block_header(
+            height  # type: ignore[arg-type]
+        )
+    assert transport.requests == []
+
+
+def test_a_header_that_did_not_mine_the_bits_it_claims_is_refused() -> None:
+    """A well-formed header with a forged proof of work is not a header.
+
+    Zeroing the nonce leaves every other field untouched -- what fails is
+    `assert_valid_pow` alone.
+    """
+    forged = TIP_HEADER_RAW[:-8] + "00000000"
+    transport = Recorded(
+        (200, recorded_body("esplora_block_height_hash.txt")),
+        (200, forged.encode()),
+    )
+    with pytest.raises(FetchError, match=f"block header {TIP_HEIGHT}: invalid proof"):
+        EsploraFetcher(BASE, transport=transport).get_block_header(TIP_HEIGHT)
+
+
 def test_a_404_carries_what_the_explorer_said() -> None:
     """Esplora answers an unknown txid with a status and a sentence."""
     with pytest.raises(FetchError, match="HTTP 404 .*: Transaction not found"):
@@ -205,6 +259,28 @@ def test_each_answer_is_bounded_by_what_it_is() -> None:
     # half of the claim
     assert fetcher((200, b"481824\n")).get_block_count() == TIP_HEIGHT
     assert fetcher((200, TIP_ID.encode() + b"\n")).get_best_block_id().hex() == TIP_ID
+
+
+def test_the_header_answer_is_bounded_too() -> None:
+    """The fourth endpoint, bounded the same way the first three are.
+
+    Eighty bytes of hex is a hundred and sixty digits, so the limit
+    leaves room for a proxy's newline and nothing past it.
+    """
+    header = fetcher(
+        (200, recorded_body("esplora_block_height_hash.txt")), (200, b"a" * 257)
+    )
+    with pytest.raises(
+        FetchError, match="response of 257 bytes, more than the max_body_size of 256"
+    ):
+        header.get_block_header(TIP_HEIGHT)
+
+    # and the recorded answer is inside its limit
+    ok = fetcher(
+        (200, recorded_body("esplora_block_height_hash.txt")),
+        (200, recorded_body("esplora_block_header.txt")),
+    )
+    assert ok.get_block_header(TIP_HEIGHT).hash.hex() == TIP_ID
 
 
 def test_the_body_of_a_failure_is_not_held_to_the_answer_limit() -> None:

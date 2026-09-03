@@ -88,6 +88,20 @@ full year, short month, short day (YYYY-M-D)
   signs messages and now answers whether it displays a wallet-policy
   address. Read the last element for the message signer, or unpack.
 
+- **`btclib.fetch.fetcher.Fetcher` gained a fourth abstract method,
+  `get_block_header`** (closes #1132). It answers a header by height,
+  checked with `BlockHeader.assert_valid` and `assert_valid_pow` on
+  arrival.
+
+  Act on it if you subclass `Fetcher` yourself, rather than using
+  `BitcoinCoreFetcher` or `EsploraFetcher`: an existing subclass that
+  answered the previous three questions can no longer be instantiated.
+  Construction raises `TypeError`, naming `get_block_header` as the
+  method it has no implementation for. Match on that name and not on the
+  sentence around it -- CPython reworded the message in 3.12, and this
+  package supports 3.10. Add the method, answering a
+  `btclib.block.BlockHeader` for a non-negative `height: int`.
+
 ### Worth knowing, though nothing raises
 
 - **`btclib.org` is no longer this project's site, and this repository

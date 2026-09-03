@@ -33,9 +33,12 @@ from bitcoin_core_rpc import (
 from typing_extensions import override
 
 from btclib.alias import Octets
+from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.fetch.fetcher import (
     Fetcher,
+    block_header_from_raw,
+    block_header_height,
     client_errors,
     fetch_errors,
     tx_from_raw,
@@ -60,7 +63,7 @@ _MAX_SMALL_REPLY = 1024
 
 
 class BitcoinCoreFetcher(Fetcher):
-    """The three fetcher questions, answered by a node over its RPC.
+    """The four fetcher questions, answered by a node over its RPC.
 
     The client is a constructor argument rather than a set of connection
     arguments repeated here: one class owns the endpoint and credentials,
@@ -124,7 +127,7 @@ class BitcoinCoreFetcher(Fetcher):
     def _verify_once(self) -> None:
         """Compare the node's chain with this fetcher's label, once.
 
-        Called by the three fetches and not by `_call`, which is what
+        Called by the four fetches and not by `_call`, which is what
         `assert_network` itself goes through: a check in there would ask
         the node about the node, from inside the question.
 
@@ -200,6 +203,26 @@ class BitcoinCoreFetcher(Fetcher):
         with fetch_errors("getbestblockhash"):
             reply = self._call("getbestblockhash", None, max_body_size=_MAX_SMALL_REPLY)
             return bytes_from_octets(reply, 32)
+
+    @override
+    def get_block_header(self, height: int) -> BlockHeader:
+        """Return the header of the block at this height, checked on arrival.
+
+        Two calls, Core answering `getblockheader` by hash and not by
+        height: `getblockhash` maps the height first, and `getblockheader`
+        with verbosity `false` returns the serialization rather than a
+        rendering of it -- the same shape `getrawtransaction` answers
+        `get_tx` with.
+        """
+        self._verify_once()
+        height = block_header_height(height)
+        with fetch_errors("getblockhash"):
+            reply = self._call("getblockhash", [height], max_body_size=_MAX_SMALL_REPLY)
+            block_hash = bytes_from_octets(reply, 32).hex()
+        raw = self._call(
+            "getblockheader", [block_hash, False], max_body_size=_MAX_SMALL_REPLY
+        )
+        return block_header_from_raw(raw, height)
 
     def assert_network(self) -> None:
         """Raise unless the node serves the chain this fetcher labels with.

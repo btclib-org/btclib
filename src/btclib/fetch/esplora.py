@@ -5,7 +5,7 @@
 """The block-explorer fallback, for a caller with no node.
 
 Esplora's HTTP api, because it is an api and not a product: Blockstream
-publishes the server as open source, mempool.space serves the same three
+publishes the server as open source, mempool.space serves the same
 endpoints this module calls, and anyone can run their own -- so a client
 written against it is not written against one company's endpoint.
 `BLOCKSTREAM_INFO` below is the reference deployment and is offered as a
@@ -15,25 +15,30 @@ look up. mempool.space is not offered as a second constant for the same
 reason, and naming it here is the evidence for the sentence above rather
 than a recommendation.
 
-What the fallback promises is the same three answers behind the same
+What the fallback promises is the same four answers behind the same
 interface. What it does not promise is that they are true. A node
 validated the chain it reports; an explorer is a host on the internet
-that says it did. `get_tx` is the one answer that checks itself, in
-`tx_from_raw` -- the serialization comes back and the id is recomputed
-from it, so a substituted transaction is caught -- and the height and the
-tip hash are taken on trust, there being nothing here to check them
-against. Nor does anything here say a transaction is *confirmed*: the
-answer to that is a merkle branch against a header, which is what the
-Electrum backend of issue #204 would add and this one cannot. That is the
-trade the fallback exists to offer, and `SECURITY.md` states it.
+that says it did. `get_tx` is the one answer that checks itself
+completely, in `tx_from_raw` -- the serialization comes back and the id
+is recomputed from it, so a substituted transaction is caught.
+`get_block_header` checks less: `block_header_from_raw` only asks
+whether the eighty bytes are well-formed and cost a real hash to mine,
+which is cheap for a host to fabricate compared with the transaction it
+would have to forge to pass the id check. The height and the tip hash
+have nothing here to check them against at all, and are taken on trust.
+Nor does anything here say a transaction is *confirmed*: the answer to
+that is a merkle branch checked against a header, which is what the
+Electrum backend of issue #204 would add and this one cannot. That is
+the trade the fallback exists to offer, and `SECURITY.md` states it.
 
-Three endpoints, each answering in plain text rather than json:
-`/tx/<txid>/hex`, `/blocks/tip/height` and `/blocks/tip/hash`. The json
-renderings beside them carry the same values with more to disagree about
--- and `/hex` is what makes the id check above possible at all. That
-those three are what a second deployment has to serve is why they are
-the thing to check before naming one: a host answering json where this
-expects text is not compatible in the way that matters.
+Five endpoints, each answering in plain text rather than json:
+`/tx/<txid>/hex`, `/blocks/tip/height`, `/blocks/tip/hash`,
+`/block-height/<height>` and `/block/<hash>/header`. The json renderings
+beside them carry the same values with more to disagree about -- and
+`/hex` is what makes the id check above possible at all. That those five
+are what a second deployment has to serve is why they are the thing to
+check before naming one: a host answering json where this expects text
+is not compatible in the way that matters.
 """
 
 from __future__ import annotations
@@ -41,9 +46,12 @@ from __future__ import annotations
 from typing_extensions import override
 
 from btclib.alias import Octets
+from btclib.block.block_header import BlockHeader
 from btclib.exceptions import HttpError
 from btclib.fetch.fetcher import (
     Fetcher,
+    block_header_from_raw,
+    block_header_height,
     client_errors,
     fetch_errors,
     tx_from_raw,
@@ -75,25 +83,26 @@ BLOCKSTREAM_INFO = {
 }
 
 
-# What each answer may weigh, because each of the three is bounded by
+# What each answer may weigh, because each of the four is bounded by
 # what it is: a height is a decimal number, a tip hash is sixty-four hex
-# digits, and a raw transaction is hex of a transaction that fits in a
-# block -- DEFAULT_MAX_BODY_SIZE, which is that bound. The two small ones
-# leave room for the whitespace a deployment behind a proxy adds and for
-# nothing else: a host answering a height with a megabyte is answering
-# something that is not a height, and there is no reason to hold it in
-# order to find that out.
+# digits, a header is eighty bytes of hex, and a raw transaction is hex of
+# a transaction that fits in a block -- DEFAULT_MAX_BODY_SIZE, which is
+# that bound. The three small ones leave room for the whitespace a
+# deployment behind a proxy adds and for nothing else: a host answering a
+# height with a megabyte is answering something that is not a height, and
+# there is no reason to hold it in order to find that out.
 #
 # The body of a *failure* is not bounded by these -- see
 # `MAX_ERROR_BODY_SIZE` -- so a 404 whose error page is longer than a
 # height still arrives as the diagnosis it is
 _MAX_HEIGHT_BODY = 64
 _MAX_HASH_BODY = 128
+_MAX_HEADER_BODY = 256
 _MAX_TX_BODY = DEFAULT_MAX_BODY_SIZE
 
 
 class EsploraFetcher(Fetcher):
-    """The three questions, answered by an Esplora instance over HTTP.
+    """The four questions, answered by an Esplora instance over HTTP.
 
     `base_url` is required and has no default, for the reason
     `BLOCKSTREAM_INFO` is a constant and not one.
@@ -168,3 +177,18 @@ class EsploraFetcher(Fetcher):
         """Return the hash of the server's best chain tip, display order."""
         with fetch_errors("blocks/tip/hash"):
             return bytes_from_octets(self.text("/blocks/tip/hash", _MAX_HASH_BODY), 32)
+
+    @override
+    def get_block_header(self, height: int) -> BlockHeader:
+        """Return the header of the block at this height, checked on arrival.
+
+        Two requests: `/block-height/<height>` maps the height to the
+        hash `/block/<hash>/header` takes, both plain text like the tip
+        endpoints above.
+        """
+        height = block_header_height(height)
+        with fetch_errors("block-height"):
+            reply = self.text(f"/block-height/{height}", _MAX_HASH_BODY)
+            block_hash = bytes_from_octets(reply, 32).hex()
+        raw = self.text(f"/block/{block_hash}/header", _MAX_HEADER_BODY)
+        return block_header_from_raw(raw, height)

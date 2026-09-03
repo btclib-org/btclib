@@ -72,7 +72,7 @@ the same in each: there is no upstream file whose name they could take
   of that name inside a directory of vendored vectors would read as
   licensing all of them. Its entry says so, and carries the upstream
   name.
-- the seven under `tests/fetch/_data/` are response bodies, and a
+- the files under `tests/fetch/_data/` are response bodies, and a
   response has no name at all. Each takes the rpc method or the endpoint
   path that produces it, which is the closest thing to an upstream name
   they have and the one a re-check would type into `bitcoin-cli` or a
@@ -2097,17 +2097,21 @@ is where this copy came from, no node with a transaction index being at
 hand. The heights are the issue's own, and `getblockhash`/`getblock`
 confirm them.
 
-### `tests/fetch/_data/*` — seven response bodies
+### `tests/fetch/_data/*` — response bodies
 
 ```text
-getrawtransaction.json        594 bytes
-getblockcount.json             48
-getbestblockhash.json         108
-getrawtransaction_error.json  216
-esplora_tx_hex.txt            551
-esplora_blocks_tip_height.txt   7
-esplora_blocks_tip_hash.txt    65
-pulled  2026-08-02
+getrawtransaction.json          594 bytes
+getblockcount.json               48
+getbestblockhash.json           108
+getblockhash.json               108
+getblockheader.json             204
+getrawtransaction_error.json    216
+esplora_tx_hex.txt              551
+esplora_blocks_tip_height.txt     7
+esplora_blocks_tip_hash.txt      65
+esplora_block_height_hash.txt    65
+esplora_block_header.txt        161
+pulled  2026-08-02, and 2026-09-03 for the two get*header* pairs
 ```
 
 Verdict: **composed locally**, and the distinction between the envelope
@@ -2138,8 +2142,8 @@ txid  f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16
 — the first bitcoin payment between two people, and it is not fetched
 from anywhere: it is read out of `tests/block/_data/block_170.bin`,
 already vendored above, so the two copies can be compared without a
-network and `Tx.parse` recomputes the id from the bytes on every run. The
-height and hash the other five carry are block 481824,
+network and `Tx.parse` recomputes the id from the bytes on every run.
+The height and hash the rest carry are block 481824,
 
 ```text
 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
@@ -2147,16 +2151,21 @@ height and hash the other five carry are block 481824,
 
 which is `tests/block/_data/block_481824_complete.bin`, so that pair is
 checkable here too — `BlockHeader.parse(...).hash` against the hash, the
-height against the BIP34 number in the coinbase.
+height against the BIP34 number in the coinbase. `getblockheader.json`
+and `esplora_block_header.txt` carry the first eighty bytes of that same
+block, read from `tests/block/_data/block_481824.bin` rather than the
+`_complete` copy, a header needing none of a block's transactions —
+`BlockHeader.parse` recomputes the same hash from them, and
+`assert_valid_pow` accepts them, being a real header of a real block.
 
 The `.txt` files end in a newline that Esplora does not send: the
 `end-of-file-fixer` hook adds it, as it did to `script_assets_test.json`
 above, and `EsploraFetcher.text` strips whitespace for the same reason a
 deployment behind a proxy may add some.
 
-Regenerating any of the seven is reading the two block files and writing
-the envelope around what comes out; nothing upstream will refresh them,
-and nothing should.
+Regenerating any of them is reading the two block files and writing the
+envelope around what comes out; nothing upstream will refresh them, and
+nothing should.
 
 ## Not vendored from anywhere
 
