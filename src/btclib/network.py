@@ -364,9 +364,10 @@ datadir = Path(__file__).parent / "_data"
 # first network holding a version prefix is the one they answer with, so
 # testnet, the oldest, answers for the four networks that share its
 # prefixes, and appending a newer network cannot change any answer.
-# mainnet first, then the test networks oldest to newest -- signet.json
-# and testnet4.json differ from testnet.json in the genesis block, and in
-# nothing else.
+# mainnet first, then the test networks oldest to newest: signet.json and
+# testnet4.json share every version prefix with testnet.json, differing
+# from it in the consensus parameters and the genesis block, which no
+# prefix encodes.
 #
 # Annotated, where inference would widen it to tuple[str, ...]: this is
 # what ties NetworkName to the data it names, a sixth file loaded here
