@@ -20,8 +20,8 @@ is what says so.
 `LOCKTIME_THRESHOLD` is deliberately not here, though script.h declares it
 in the same block: it is not a limit but the value that tells a lock time
 read as a block height from one read as a timestamp, and it means the same
-in a transaction as in a script. It stays where OP_CHECKLOCKTIMEVERIFY
-reads it.
+in a transaction as in a script. It is `btclib.tx.limits`'s, and
+`OP_CHECKLOCKTIMEVERIFY` imports it from there.
 """
 
 __all__ = [

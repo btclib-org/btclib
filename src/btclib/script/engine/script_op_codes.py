@@ -31,6 +31,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
+from btclib.tx.limits import LOCKTIME_THRESHOLD
 from btclib.tx.tx import Tx
 from btclib.utils import assert_type, decode_num, encode_num
 
@@ -107,7 +108,8 @@ __all__ = [
 # from four octets at most, so that a script cannot compute with a value
 # outside the signed 32-bit range. The two lock-time op codes are the
 # exception consensus makes, five octets being what a lock time at or
-# above 500000000 needs -- Core spells the same 5 out at each of them
+# above LOCKTIME_THRESHOLD needs -- Core spells the same 5 out at each
+# of them
 _MAX_NUM_SIZE = 4
 _MAX_LOCK_TIME_NUM_SIZE = 5
 
@@ -770,10 +772,10 @@ def op_checklocktimeverify(
     Reads the top element without popping it, as a number of up to 5
     bytes. The refusals are BIP65's: an empty stack, a negative lock
     time, a type mismatch -- block height against timestamp, the two
-    sides of the 500000000 threshold -- a lock time the transaction's
-    has not reached, and a final input sequence, which would let the
-    transaction bypass its own lock_time. A NOP when the flag is off,
-    the op code being a redefined OP_NOP2.
+    sides of the LOCKTIME_THRESHOLD threshold -- a lock time the
+    transaction's has not reached, and a final input sequence, which
+    would let the transaction bypass its own lock_time. A NOP when the
+    flag is off, the op code being a redefined OP_NOP2.
     """
     if ScriptFlag.CHECKLOCKTIMEVERIFY not in flags:
         return
@@ -784,12 +786,12 @@ def op_checklocktimeverify(
         raise BTClibValueError(f"negative lock time: {lock_time}")
 
     # different lock time type
-    if tx.lock_time >= 500000000 > lock_time:
+    if tx.lock_time >= LOCKTIME_THRESHOLD > lock_time:
         raise BTClibValueError(
             f"block height lock time {lock_time} against "
             f"the timestamp lock time {tx.lock_time} of the transaction"
         )
-    if lock_time >= 500000000 > tx.lock_time:
+    if lock_time >= LOCKTIME_THRESHOLD > tx.lock_time:
         raise BTClibValueError(
             f"timestamp lock time {lock_time} against "
             f"the block height lock time {tx.lock_time} of the transaction"
