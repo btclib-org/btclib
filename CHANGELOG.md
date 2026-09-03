@@ -1225,6 +1225,18 @@ documented at release-notes length in the first place, and are still in
   here. They need the `Coin` value type the contextual transaction rules
   bring in, and are a second step the issue explicitly deferred.
 
+### `LOCKTIME_THRESHOLD` and `SEQUENCE_LOCKTIME_TYPE_FLAG` read from `btclib.tx.limits`
+
+- **`descriptors/miniscript.py`'s module-private `_LOCKTIME_THRESHOLD` and
+  `_SEQUENCE_LOCKTIME_TYPE_FLAG`, and the bare `500000000` littered twice
+  through `script/engine/script_op_codes.py`'s `op_checklocktimeverify`,
+  now read the two constants `btclib.tx.limits` already publishes**
+  (closes #1608): #1580 made them public there without removing the
+  copies its own diff claimed had "moved". `script/limits.py`'s docstring
+  said of `LOCKTIME_THRESHOLD` "it stays where `OP_CHECKLOCKTIMEVERIFY`
+  reads it", true of neither module before this, and now true of both --
+  the op code's own bare literal included.
+
 ## v2026.8.29
 
 ### Repository

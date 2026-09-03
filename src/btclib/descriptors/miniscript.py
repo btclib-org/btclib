@@ -92,6 +92,7 @@ from btclib.script.script import (
     push_int,
     serialize,
 )
+from btclib.tx.limits import LOCKTIME_THRESHOLD, SEQUENCE_LOCKTIME_TYPE_FLAG
 from btclib.utils import assert_type, bytes_from_octets, decode_num, encode_num
 from btclib.var_int import serialize as var_int_serialize
 
@@ -152,13 +153,6 @@ _MAX_TAPSCRIPT_SIZE = _TAPSCRIPT_WEIGHT_LEFT - len(
 # BIP342 puts no bound of its own on the keys of a multi_a(), so the bound
 # is the stack: one element per key, and no more than 1000 elements
 _MAX_PUBKEYS_PER_MULTI_A = 999
-
-# the lock time that tells a block height from a unix timestamp, and the
-# nSequence bit that tells a block count from a 512-second count: BIP65's
-# and BIP68's own thresholds, which is what the timelock-mixing rules are
-# about -- an expression may not need both kinds of one at once
-_LOCKTIME_THRESHOLD = 500000000
-_SEQUENCE_LOCKTIME_TYPE_FLAG = 1 << 22
 
 # 1 <= n < 2**31 for older() and after(): a script number is signed, so
 # 2**31 is the first value CHECKSEQUENCEVERIFY cannot be handed, and zero
@@ -279,14 +273,14 @@ def _leaf_properties(fragment: str, threshold: int) -> frozenset[str]:
     """Return the type of a fragment that has no subexpressions."""
     if fragment == "older":
         return (
-            _if(bool(threshold & _SEQUENCE_LOCKTIME_TYPE_FLAG), _t("g"))
-            | _if(not threshold & _SEQUENCE_LOCKTIME_TYPE_FLAG, _t("h"))
+            _if(bool(threshold & SEQUENCE_LOCKTIME_TYPE_FLAG), _t("g"))
+            | _if(not threshold & SEQUENCE_LOCKTIME_TYPE_FLAG, _t("h"))
             | _t("Bzfmxk")
         )
     if fragment == "after":
         return (
-            _if(threshold >= _LOCKTIME_THRESHOLD, _t("i"))
-            | _if(threshold < _LOCKTIME_THRESHOLD, _t("j"))
+            _if(threshold >= LOCKTIME_THRESHOLD, _t("i"))
+            | _if(threshold < LOCKTIME_THRESHOLD, _t("j"))
             | _t("Bzfmxk")
         )
     return _t(_LEAF_PROPERTIES[fragment])
@@ -2831,7 +2825,7 @@ class SpendContext:
         set it to 0xffffffff has asked for a transaction with no lock
         time at all.
         """
-        if (value >= _LOCKTIME_THRESHOLD) != (self.locktime >= _LOCKTIME_THRESHOLD):
+        if (value >= LOCKTIME_THRESHOLD) != (self.locktime >= LOCKTIME_THRESHOLD):
             return False
         return value <= self.locktime and self.sequence != 0xFFFFFFFF
 
@@ -2845,8 +2839,8 @@ class SpendContext:
         """
         if self.version < 2 or self.sequence & (1 << 31):
             return False
-        if value & _SEQUENCE_LOCKTIME_TYPE_FLAG != (
-            self.sequence & _SEQUENCE_LOCKTIME_TYPE_FLAG
+        if value & SEQUENCE_LOCKTIME_TYPE_FLAG != (
+            self.sequence & SEQUENCE_LOCKTIME_TYPE_FLAG
         ):
             return False
         return value & 0x0000FFFF <= self.sequence & 0x0000FFFF
