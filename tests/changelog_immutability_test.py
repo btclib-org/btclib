@@ -225,6 +225,11 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+def _newest_released(path: str) -> str | None:
+    """`path`'s topmost heading that is not "work in progress"."""
+    return next(iter(_sections((_ROOT / path).read_text(encoding="utf-8"))), None)
+
+
 def _verify(path: str, version: str) -> tuple[str, str] | None:
     """Compare `path`'s own `version` section against its own tag.
 
@@ -241,6 +246,16 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
     """
     tag_exists = _git("rev-parse", "-q", "--verify", f"refs/tags/{version}")
     if tag_exists.returncode != 0:
+        if version == _newest_released(path):
+            # The release being cut. Its section is retitled in the pull
+            # request and its tag is pushed from the commit that lands
+            # that pull request, so between the two this one heading
+            # names a tag that cannot exist yet -- a comparison not yet
+            # possible, which is not the same answer as one that failed.
+            # The window closes at the tag, and it reaches this heading
+            # alone: every older one whose tag stops resolving still
+            # falls through to the failure below.
+            return "skip", f"{version!r} is being released and has no tag yet"
         # _ANY_TAG established some v* tag resolves; one specific release
         # heading whose own tag still does not is not the shallow-clone
         # case above, and is not waved through as though it were.
@@ -300,6 +315,32 @@ def test_verify_fails_when_one_specific_tag_does_not_resolve(
     assert _verify("CHANGELOG.md", "v0.0.0") == (
         "fail",
         "'v0.0.0' does not resolve, though other v* tags do",
+    )
+
+
+def test_verify_skips_the_release_being_cut(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The newest heading names a tag that is pushed only after it lands.
+
+    A release pull request retitles the "work in progress" section to
+    the version being cut, and the tag is pushed from the commit that
+    lands that pull request -- so in between, the newest heading
+    resolves to no tag. The version is read back off the file rather
+    than written here, so this asks about whatever release is open
+    rather than needing an edit at each one.
+    """
+
+    def fake_run(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        assert cmd[1] == "rev-parse"
+        return subprocess.CompletedProcess(cmd, 1)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    newest = _newest_released("CHANGELOG.md")
+    assert newest is not None
+    assert _verify("CHANGELOG.md", newest) == (
+        "skip",
+        f"{newest!r} is being released and has no tag yet",
     )
 
 

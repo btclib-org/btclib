@@ -22,6 +22,8 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.9.3
+
 ### Repository
 
 - **The release pull request now opens the next cycle's changelog
@@ -1871,6 +1873,50 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   no fence this entry names invokes a stub or creates a file in any
   cell; and each second fence, filled in, runs what the block it
   replaces ran.
+
+### `changelog_immutability_test.py` skips the release being cut
+
+- **A released section whose own tag does not resolve is a skip where
+  it is its file's newest heading, and a failure everywhere else**
+  (closes #1654). A release pull request retitles the work-in-progress
+  section to the version it cuts, and that version's tag is pushed from
+  the commit which lands the pull request, so between the two the
+  newest heading names a tag that cannot exist yet. The test read that
+  as a tag gone missing and failed, which made every release pull
+  request red on the file it was written to guard. Position separates
+  the two: every heading but the newest already carries its tag, so a
+  tag missing lower down is still the defect the branch exists for, and
+  the window this skips closes at the tag itself.
+
+### The pinned dependencies and hook revisions move to their newest releases
+
+- **`ruff` moves to 0.16.6, in `uv.lock` and in its own pre-commit hook
+  revision, and nothing else moves.** `uv lock --upgrade` names one
+  package; `pre-commit autoupdate` offers three, and two of them are
+  held. `zizmor` stays at v1.29.0: its 1.30.0 self-repository audit
+  rewrites every `uses: ./...` reference to a syntax actionlint 1.7.12
+  cannot parse, and 1.7.12 is still actionlint's newest release, so the
+  condition the hold names has not been met. `pyroma` stays at 5.0.1,
+  its newest stable, `5.1b1` and `5.1b2` being prereleases that
+  `autoupdate` offers as readily as a release, having no notion of one.
+  Both holds carry their reason beside the pin, and `autoupdate` had
+  made both of those comments false by moving the revision they argue
+  against.
+
+### `deps-latest` fetches tags, so its coverage floor is reachable
+
+- **`deps-latest.yml`'s two suite jobs pass `fetch-tags: true`**
+  (closes #1660). `tests/changelog_immutability_test.py` reads a
+  release's own tag with `git show <tag>:...`, so on the default
+  shallow, tagless clone it skips rather than failing -- and a skipped
+  test's body is uncovered lines of `tests/`, which the 100% floor then
+  fails the job on. Every run was red at 99.93% on that one file, on
+  every runner, while every test passed and the bindings imported and
+  served: a shortfall saying nothing about the upgrade the workflow
+  exists to measure, sitting where `RELEASING.md` asks a release to
+  look hardest. `test.yml`'s `coverage` and `no-bindings` jobs already
+  fetch tags for this reason; this checkout cited that job and had
+  taken everything from it except the option.
 
 ## v2026.8.29
 
