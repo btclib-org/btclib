@@ -50,6 +50,24 @@ full year, short month, short day (YYYY-M-D)
   and the names accepted are wider than before — `" Testnet "` resolves
   here as it does everywhere else in the library.
 
+- **A Lightning invoice stating a feature without the features BOLT9
+  says it depends on is refused** (closes #1655).
+  `bolt11.Bolt11Invoice.from_invoice` and `assert_valid` accepted one,
+  where BOLT9's Dependencies column has `basic_mpp` depend on
+  `payment_secret`, `zero_fee_commitments` on `option_channel_type`,
+  `option_zeroconf` on `option_scid_alias`, `option_simple_close` on
+  `option_shutdown_anysegwit`, and `option_onion_messages_only_channels`
+  on `option_onion_messages`.
+
+  Act on it if you decode invoices whose `9` field is short of one: the
+  refusal is `BTClibValueError: unmet feature dependencies: basic_mpp
+  requires payment_secret`, naming every pair it found.
+  `btclib.bolt9.FEATURE_DEPENDENCIES` is that column and
+  `btclib.bolt9.unmet_dependencies` the same lookup over any feature
+  vector. Either bit of a pair states its feature, so an invoice
+  offering `payment_secret` at bit 15 meets `basic_mpp`'s dependency as
+  one requiring it at bit 14 does.
+
 ## v2026.9.3
 
 ### Breaking changes

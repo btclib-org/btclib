@@ -87,7 +87,7 @@ from btclib.b32 import (
 from btclib.b58 import address_from_h160, h160_from_address
 from btclib.bech32 import decode as _bech32_decode
 from btclib.bech32 import encode as _bech32_encode
-from btclib.bolt9 import unknown_even_bits
+from btclib.bolt9 import FEATURE_NAMES, unknown_even_bits, unmet_dependencies
 from btclib.curves import bytes_from_point, secp256k1
 from btclib.ecc.dsa import Sig, gen_keys, recover_pub_key_, sign_recoverable_, verify_
 from btclib.exceptions import BTClibValueError
@@ -412,8 +412,9 @@ class Bolt11Invoice:
 
         An **even** bit of the `9` field that BOLT9 does not assign
         fails the invoice, which is BOLT9's rule for a reader that meets
-        a feature bit it does not know; `btclib.bolt9` carries the table
-        that answers it.
+        a feature bit it does not know; a feature stated without the
+        features BOLT9 says it depends on fails it too. `btclib.bolt9`
+        carries the table that answers both.
         """
         if self.network not in _CURRENCY_FROM_NETWORK:
             raise BTClibValueError(f"not a lightning network: {self.network}")
@@ -453,10 +454,22 @@ class Bolt11Invoice:
         # `features` is read here rather than among the accessors above:
         # its own well-formedness is the bits, and an even one BOLT9 does
         # not assign is a requirement no reader has been told how to meet
-        unknown = unknown_even_bits(self.features)
+        features = self.features
+        unknown = unknown_even_bits(features)
         if unknown:
             bits = ", ".join(str(bit) for bit in unknown)
             raise BTClibValueError(f"unknown even feature bits: {bits}")
+
+        # the other half of a well-formed vector, and BOLT9's own word
+        # for it: a feature whose dependencies are set is one a reader can
+        # act on without checking them again at every gate
+        unmet = unmet_dependencies(features)
+        if unmet:
+            missing = ", ".join(
+                f"{FEATURE_NAMES[bit]} requires {FEATURE_NAMES[required]}"
+                for bit, required in unmet
+            )
+            raise BTClibValueError(f"unmet feature dependencies: {missing}")
 
         # the signature itself: this is what makes an invoice acceptable
         _payee = self.payee
@@ -529,8 +542,9 @@ class Bolt11Invoice:
         """Return the `9` field as a bitfield, 0 where none was stated.
 
         The bitfield, and not a verdict on it: `assert_valid` refuses
-        an even bit BOLT9 does not assign, and a caller acting on the
-        invoice checks the assigned ones against what it has itself
+        an even bit BOLT9 does not assign, and a feature whose own
+        dependencies the vector leaves unset. A caller acting on the
+        invoice checks the assigned bits against what it has itself
         implemented, `btclib.bolt9.FEATURE_NAMES` being that table.
         """
         words = _first(self.tagged_fields, _TAG_FEATURES, None)

@@ -136,6 +136,42 @@ documented at release-notes length in the first place, and are still in
   left as a builtin `TypeError`, which `btclib.exceptions` does not
   declare.
 
+### A Lightning invoice states what its features depend on
+
+- **`Bolt11Invoice.assert_valid` refuses a `9` field stating a feature
+  without the features BOLT9 says it depends on** (closes #1655), naming
+  the pair in the message. BOLT9's Dependencies column is what says
+  which: `basic_mpp` on `payment_secret`, `zero_fee_commitments` on
+  `option_channel_type`, `option_zeroconf` on `option_scid_alias`,
+  `option_simple_close` on `option_shutdown_anysegwit`, and
+  `option_onion_messages_only_channels` on `option_onion_messages`.
+- **The verdict is the codec's, because the question is about the vector
+  alone**: answering it takes BOLT9's table and nothing about what a
+  payer implements, which is the division issue #1637 drew, and BOLT9's
+  own rationale is that setting the dependencies is what makes a feature
+  vector well-formed. BOLT11 words the rule as "MUST NOT attempt the
+  payment", which btclib never does -- and words its checksum rule as
+  "MUST fail the payment", which `from_invoice` answers by refusing, so
+  the wording is not what decides whose half a rule is. The rejected
+  alternative is the column and a public lookup with no refusal, which
+  leaves every caller to reach the verdict the BOLT states once.
+- **`btclib.bolt9.FEATURE_DEPENDENCIES` is that column** and
+  `unmet_dependencies` the lookup over a feature vector rather than over
+  an invoice, answering with the pairs the vector leaves unset. The walk
+  is transitive, so a dependency's own dependencies are asked for in
+  turn; either bit of a pair states its feature, so the optional half
+  meets a dependency as the compulsory half does.
+- **`src/btclib/bolt9.py`'s transcription is pinned in
+  `tests/_data/README.md`** (closes #1661), where
+  `.github/workflows/vendored-vectors.yml` reads it every week and opens
+  an issue on a pin upstream has moved past. A pin in the module is read
+  by nobody, and this table decides an outcome: an invoice setting an
+  even bit it does not carry is refused, so a pair assigned upstream
+  after the pin is one a reader at upstream's tip accepts and btclib
+  does not. The entry is the shape that script already reads -- a repo,
+  a path, a commit and a `behind` of 0 -- with no `blob`, there being no
+  file upstream to compare against a table written in markdown.
+
 ## v2026.9.3
 
 ### Repository

@@ -552,3 +552,36 @@ def test_an_unknown_odd_feature_bit_is_carried() -> None:
         features=1 << 99,
     )
     assert Bolt11Invoice.from_invoice(invoice.to_invoice()).features == 1 << 99
+
+
+def test_a_feature_without_its_dependency_is_refused() -> None:
+    """`basic_mpp` names `payment_secret` in BOLT9's Dependencies column.
+
+    The `s` field is the payment secret and is compulsory; the feature bit
+    that says the payee understands one is not set by writing it.
+    """
+    with pytest.raises(BTClibValueError, match="basic_mpp requires payment_secret"):
+        Bolt11Invoice.sign(
+            _PRV_KEY,
+            "mainnet",
+            0,
+            payment_hash=bytes(32),
+            payment_secret=bytes(32),
+            description="d",
+            features=1 << 16,
+        )
+
+
+def test_a_feature_with_its_dependency_is_accepted() -> None:
+    """The same invoice, `payment_secret` offered beside `basic_mpp`."""
+    features = (1 << 16) | (1 << 15)
+    invoice = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "mainnet",
+        0,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+        features=features,
+    )
+    assert Bolt11Invoice.from_invoice(invoice.to_invoice()).features == features

@@ -13,6 +13,12 @@ pins `src/btclib/mnemonic/electrum.py` carries beside the constants naming
 them, and `italian.txt` and the eleven other BIP39 lists nowhere, which
 is a gap rather than a statement about them.
 
+`src/btclib/bolt9.py` has an entry too, and it is source rather than
+data: BOLT9's feature table, transcribed into python mappings instead of
+loaded from a file beside the tests. A pin recorded here is re-checked
+against upstream every week and a pin recorded in the module is
+re-checked by nobody, which is the whole of why it is written here.
+
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
 entry here: those files are btclib's own output, `to_dict()`
@@ -2067,6 +2073,29 @@ decoder. `tests/bolt11_test.py` reads both halves.
 Both sections are transcribed whole, the invalid case adding "unknown
 feature 100" included: what refuses that one is `btclib.bolt9`'s
 assignment table, which `Bolt11Invoice.assert_valid` reads.
+
+### `src/btclib/bolt9.py`
+
+```text
+repo    lightning/bolts
+path    09-features.md
+commit  35e79db504560b9d3494a0ed07bf1e8379c3663a  2026-07-27
+pulled  2026-09-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, off the document's own assignment table: the
+even bit of each assigned pair with the name that table gives it, as
+`FEATURE_NAMES`, and its Dependencies column as `FEATURE_DEPENDENCIES`.
+There is no blob to compare, the table being markdown inside the
+document.
+
+Source rather than a data file, and pinned here for what the table
+decides: `Bolt11Invoice.assert_valid` refuses an invoice setting an even
+bit the table does not carry, so a pair assigned upstream after this
+commit is one a reader at upstream's tip accepts and btclib refuses. The
+module points here for the revision and carries none of its own, which
+is what puts the pin where the weekly workflow reads it.
 
 ## Chain data, not a repository
 
