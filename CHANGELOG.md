@@ -1798,6 +1798,80 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   says the harness can write at all. No fence invokes a stub or gains a
   file now.
 
+### `RELEASING.md`'s placeholder lines stand in fences of their own
+
+- **Pasted before its placeholder was filled in, the tag step reached
+  `git push origin v2026.8.4`** (closes btclib-org/.github#745). Its
+  first line ended in `<sha of the release commit>`, which an
+  interactive shell answers with a parse error and discards, reading
+  what stood below it as fresh commands; those lines named the tag as a
+  literal, so they parsed and they ran.
+- **The recovery step under *If something goes wrong* reached
+  `gh run download` the same way.** An empty run id is not an error
+  there: `gh` resolves it to a run of its own choosing and writes
+  `dist/`, `sbom/` and `attestation/` into whatever directory the reader
+  is standing in.
+- **The two fences after that download consume `$version` and `$tag`,
+  and carry the same guards.** Pasted unfilled, the digest check reached
+  `curl`, `jq`, `basename` and `sha256sum`, and the `mv` above
+  `gh release create` renamed `attestation/attestation.jsonl` to
+  `.attestation.jsonl` in the reader's own directory — a dotfile, which
+  a listing does not show.
+- **Each of those steps, and the rebuild block, is a fence holding its
+  placeholder lines with nothing under them to reach and a fence
+  holding what uses those values.** Section 9 of the organization
+  standard is the rule and the reason it gives: the parse error guards
+  only the line it sits on, so an interactive shell reads the line below
+  it as a fresh command.
+- **The same section says the fence a split leaves below is live, so
+  each second fence writes every value it consumes from outside itself
+  as `${name:?}` and chains what follows with `&&`.** `${name:?}` is the
+  shell's must-be-set form and turns an unfilled paste into a run-time
+  failure naming the variable, and the chain short-circuits the lines
+  under that failure, an interactive shell otherwise answering a failed
+  command by reading the next one. A sentence beside each says so: a
+  reader who meets `:?` and is not told what it is for deletes it.
+- **The job-listing step's placeholder splits too, though no parse error
+  ever guarded it: quoted, it is text rather than a pair of
+  redirections.** Nothing in that line fails at the parse, so a paste
+  made before the run id was filled in ran it and sent `gh` the literal.
+  The fence below the placeholder reads it as `${run_id:?}`, and is one
+  command with nothing under it to chain.
+- **The tagging chain puts the read-back in front of the push.** The
+  `git show` that reads the tagged `pyproject.toml` back was already
+  there; chained, a grep that finds nothing now stops the tag from going
+  up rather than being something to notice.
+- **The rebuild block's `&&` chain is no longer the whole of what
+  refuses an unfilled paste.** What it guarded rested on the `cd` below
+  the placeholder failing — a property of that line rather than of the
+  chain — and btclib-org/.github#745 measured the other case: where the
+  line below a discarded placeholder succeeds, the chain forms below it
+  and runs. The placeholder sits in a fence of its own now, and the
+  chain is one of the two guards on the fence that reads it. At release
+  time it does what it always did, stopping the rebuild where a build or
+  a verification fails.
+- **The rebuild block's `gh attestation verify` lines name the
+  distribution files from `${version:?}`** (closes #1613), where each
+  spelled `btclib-<version>-` with the rest of the filename after it. A
+  bare placeholder with a word following it is a pair of redirections
+  whose `>` has a target, so in a directory holding a file named
+  `version` those lines wrote `-py3-none-any.whl`, `.tar.gz` and
+  `.cdx.json` rather than verifying anything.
+- **Measured by pasting each fence this entry names, unfilled, into a
+  shell whose `PATH` carries the real coreutils with stubs ahead of them
+  logging their argv and their `$PWD`** — interactively and not, in an
+  empty directory and in one seeded with a file named for each
+  placeholder's own first word. Two controls say a cell measures
+  something: a block holding `echo hi > outfile` writes in every one of
+  them, and one holding `gh run list` reaches its stub in every one. The
+  second is what tells a guarded command from a binary that is not on
+  the path, and a `PATH` holding only the stubs cannot tell them apart.
+  The push, the download, the rename and the job listing above are in
+  the log the fences produced before the change and in none of it after;
+  no fence this entry names invokes a stub or creates a file in any
+  cell; and each second fence, filled in, runs what the block it
+  replaces ran.
+
 ## v2026.8.29
 
 ### Repository

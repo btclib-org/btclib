@@ -414,9 +414,32 @@ to `deps-latest`'s own result.
    the tag back before pushing it:
 
    ```shell
-   git tag -s v2026.8.4 -m "release v2026.8.4" <sha of the release commit>
-   git show v2026.8.4:pyproject.toml | grep '^version'
-   git push origin v2026.8.4
+   version=<the version being released>
+   sha=<sha of the release commit>
+   ```
+
+   The placeholders stand in a fence with nothing under them to reach,
+   which is section 9 of the organization standard's rule: a parse error
+   guards only the line it sits on, so an interactive shell discards an
+   unfilled placeholder line and reads the next as a fresh command. The
+   fence below carries the other two guards, which are that section's
+   too: the first stops at the fence, and the fence a split leaves below
+   is live. Every value it consumes from outside itself is written
+   `${name:?}`, the shell's own "this must be set" form, and its lines
+   are chained: the first makes an unfilled paste a run-time failure
+   naming the variable, and the second short-circuits the lines under
+   that failure, an interactive shell otherwise answering a failed
+   command by reading the next one. The chain does a second job at
+   release time, putting the read-back in front of the push: a grep that
+   finds nothing — a tag that is not there, or a `pyproject.toml`
+   carrying no `version` line — stops the tag from going up. Which
+   version it found is still the releaser's to read, `grep '^version'`
+   matching that line whatever value it holds.
+
+   ```shell
+   git tag -s "v${version:?}" -m "release v${version:?}" "${sha:?}" &&
+   git show "v${version:?}:pyproject.toml" | grep '^version' &&
+   git push origin "v${version:?}"
    ```
 
    `git tag` with no commit tags whatever HEAD the shell is in, and every
@@ -465,7 +488,19 @@ to `deps-latest`'s own result.
    steps in it:
 
    ```shell
-   gh api "repos/btclib-org/btclib/actions/runs/<run id>/jobs?per_page=100" \
+   run_id=<the release.yml run>
+   ```
+
+   The placeholder stands in a fence of its own. Quoted, it is text
+   rather than a pair of redirections, so nothing in the line below
+   fails at the parse: pasted before the run id is filled in, it runs
+   and sends `gh` the literal. What stops it is the `${run_id:?}` the
+   fence below carries, the form the tagging step of *Release to PyPI*
+   describes.
+
+   ```shell
+   gh api \
+     "repos/btclib-org/btclib/actions/runs/${run_id:?}/jobs?per_page=100" \
      --jq '.jobs[] | [.conclusion, .name] | @tsv'
    ```
 
@@ -609,27 +644,20 @@ A worktree and not `git checkout`, for the reason CLAUDE.md gives: the
 primary checkout is the maintainer's, and a rebuild wants a tree of its
 own regardless.
 
-The block chains so that a paste made before `<version>` is filled in
-reaches no command outside the rebuild tree: an interactive shell answers
-the placeholder line with a parse error and reads the `cd` below it as a
-fresh command, and a failing `cd` inside the chain takes every line under
-it with it. What the chain buys is not that it forms across the first
-line, which the shell discards together with its trailing `&&`; it is
-that the `cd` is inside it.
+```shell
+version=<the released version>
+```
 
-Section 9 of the organization standard names a different remedy for this
-shape — the writing line in a fence of its own — and calls the
-trailing-`&&` guard the weaker of the two, resting "on the reader's
-directory rather than on the line". So which of the two is here is not
-settled by that section, and it is not settled by the block emptying
-either: the rejected alternative makes the `cd` fatal on its own — `||
-exit`, or a `set -e` above the block — and empties it just as
-completely. What separates them is that both of those refuse the paste by
-ending the shell the reader pasted into, where the chain leaves the
-session standing.
+The placeholder stands in a fence with nothing under it to reach, and the
+fence below carries the guard pair the tagging step of *Release to PyPI*
+describes: `version` is what it consumes from outside itself and is
+written `${version:?}`, where `repo` is assigned inside it, and its lines
+are chained. The chain does a second job at release time, stopping the
+rebuild where a build or a verification fails rather than carrying on
+against a tree that is not the one the tag names.
 
 ```shell
-git worktree add --detach /tmp/btclib-rebuild v<version> &&
+git worktree add --detach /tmp/btclib-rebuild "v${version:?}" &&
 cd /tmp/btclib-rebuild &&
 export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) &&
 uv build &&
@@ -638,11 +666,11 @@ uv run --no-project --python 3.14 \
 uv run --no-project --python 3.14 \
   .github/scripts/generate_sbom.py dist/ sbom/ &&
 repo=btclib-org/btclib &&
-gh attestation verify dist/btclib-<version>-py3-none-any.whl \
+gh attestation verify "dist/btclib-${version:?}-py3-none-any.whl" \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
-gh attestation verify dist/btclib-<version>.tar.gz \
+gh attestation verify "dist/btclib-${version:?}.tar.gz" \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml" &&
-gh attestation verify sbom/btclib-<version>.cdx.json \
+gh attestation verify "sbom/btclib-${version:?}.cdx.json" \
   --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
 ```
 
@@ -732,8 +760,18 @@ above needs no `uv sync` to produce the published bytes.
   ```shell
   run_id=<the release.yml run>
   version=<the released version, e.g. 2026.8.4>
-  tag="v$version"
-  gh run download "$run_id" -n dist -n sbom -n attestation
+  ```
+
+  The placeholders stand in a fence with nothing under them to reach: a
+  paste made before they are filled in would otherwise reach the
+  `gh run download` below, which takes an empty run id as a run of its
+  own choosing and writes it into the reader's directory. Every fence
+  under it carries the guard pair the tagging step of *Release to PyPI*
+  describes.
+
+  ```shell
+  tag="v${version:?}" &&
+  gh run download "${run_id:?}" -n dist -n sbom -n attestation
   ```
 
   Check the distribution files against the digests PyPI already
@@ -743,8 +781,9 @@ above needs no `uv sync` to produce the published bytes.
   against.
 
   ```shell
+  pypi_json="https://pypi.org/pypi/btclib/${version:?}/json" &&
   for f in dist/*.whl dist/*.tar.gz; do
-    sha=$(curl -sf "https://pypi.org/pypi/btclib/$version/json" |
+    sha=$(curl -sf "$pypi_json" |
       jq -r --arg n "$(basename "$f")" \
         '.urls[] | select(.filename==$n) | .digests.sha256')
     echo "$sha  $f" | sha256sum -c -
@@ -757,8 +796,8 @@ above needs no `uv sync` to produce the published bytes.
   materials:
 
   ```shell
-  mv attestation/attestation.jsonl "$tag.attestation.jsonl"
-  gh release create "$tag" dist/*.whl dist/*.tar.gz \
-    sbom/*.cdx.json "$tag.attestation.jsonl" \
-    --title "$tag" --notes-file <the tag's RELEASE_NOTES.md section>
+  mv attestation/attestation.jsonl "${tag:?}.attestation.jsonl" &&
+  gh release create "${tag:?}" dist/*.whl dist/*.tar.gz \
+    sbom/*.cdx.json "${tag:?}.attestation.jsonl" \
+    --title "${tag:?}" --notes-file <the tag's RELEASE_NOTES.md section>
   ```
