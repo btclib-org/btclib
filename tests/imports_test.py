@@ -20,19 +20,13 @@ time -- with nothing in that file to say so.
 from __future__ import annotations
 
 import importlib
-import pkgutil
 import subprocess
 import sys
 from collections.abc import Iterator
 
 import pytest
 
-import btclib
-
-MODULE_NAMES = [
-    "btclib",
-    *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-]
+from tests import module_names
 
 
 def btclib_modules() -> list[str]:
@@ -72,7 +66,7 @@ def unimported_btclib() -> Iterator[None]:
         sys.modules.update(saved)
 
 
-@pytest.mark.parametrize("module_name", MODULE_NAMES)
+@pytest.mark.parametrize("module_name", module_names())
 def test_import_first(module_name: str, unimported_btclib: None) -> None:
     """Import each module first, with no other btclib module loaded."""
     assert importlib.import_module(module_name).__name__ == module_name

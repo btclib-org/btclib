@@ -34,7 +34,7 @@ import ast
 from collections.abc import Iterable, Iterator
 from importlib import import_module
 from pathlib import Path
-from pkgutil import iter_modules, walk_packages
+from pkgutil import iter_modules
 from types import ModuleType
 
 import bitcoin_core_rpc
@@ -50,6 +50,7 @@ from btclib import consensus
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
+from tests import module_names
 
 # what a module defines without a leading underscore and deliberately does
 # not export, with the reason beside the list in each module's docstring.
@@ -310,15 +311,12 @@ def library_modules() -> list[ModuleType]:
     module whose name opens with an underscore is not part of the surface,
     so what is public *in* it is not reachable by any spelling a caller is
     offered.
+
+    The walk is `tests/__init__.py`'s, which is where the sites asking a
+    question of every btclib module take it from; what is this file's own
+    is the filter and the import.
     """
-    return [
-        btclib,
-        *(
-            import_module(name)
-            for _, name, _ in walk_packages(btclib.__path__, "btclib.")
-            if public_name(name)
-        ),
-    ]
+    return [import_module(name) for name in module_names() if public_name(name)]
 
 
 def module_scope(body: Iterable[ast.stmt]) -> Iterator[ast.stmt]:

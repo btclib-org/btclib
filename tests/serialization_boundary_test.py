@@ -73,7 +73,6 @@ every flag in the library and with the reason for each.
 from __future__ import annotations
 
 import json
-import pkgutil
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass
@@ -83,7 +82,6 @@ from typing import Any
 
 import pytest
 
-import btclib
 from btclib import bip322, var_bytes, var_int
 from btclib.bip21 import Bip21
 from btclib.bip32.bip32 import BIP32KeyData
@@ -140,7 +138,7 @@ from btclib.psbt.psbt_utils import PSBT_V0, PSBT_V2
 from btclib.script import Witness, script, taproot
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests import load_bin, public_classes_with
+from tests import load_bin, module_names, public_classes_with
 from tests.psbt import psbt_cases
 
 # a value of no type any of these positions declares. `Any`, because
@@ -822,10 +820,7 @@ def test_every_codec_that_is_a_function_is_covered() -> None:
         for _, function, _, _ in _MODULE_WRITERS
     }
     found = {}
-    for module_name in (
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-    ):
+    for module_name in module_names():
         module = import_module(module_name)
         for method in _FAMILY:
             function = getattr(module, method, None)
@@ -903,10 +898,7 @@ def test_the_family_takes_no_ec_or_hf() -> None:
             cls = getattr(import_module(module_name), class_name)
             found[f"{name}.{method}"] = set(signature(getattr(cls, method)).parameters)
 
-    for module_name in (
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-    ):
+    for module_name in module_names():
         module = import_module(module_name)
         for method in _FAMILY:
             function = getattr(module, method, None)

@@ -44,6 +44,21 @@ import btclib
 _TESTS_DIR = Path(__file__).parent
 
 
+def module_names() -> list[str]:
+    """Return every module of the installed btclib, the top-level one included.
+
+    Here rather than at each site that walks the package, for the reason
+    `public_classes_with` below gives. What the walk covers -- a second
+    package root, a different prefix, a module it has to skip -- is
+    settled here for all of them, and a copy that disagreed would be red
+    nowhere: each site asserts against whatever its own walk found.
+    """
+    return [
+        "btclib",
+        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    ]
+
+
 def public_classes_with(method_name: str) -> set[str]:
     """Return every public btclib class offering that method, module included.
 
@@ -56,16 +71,12 @@ def public_classes_with(method_name: str) -> set[str]:
     `Sig`. A private class is skipped, the contract being about what a
     caller can reach.
 
-    Here rather than in the one test that first needed it: two files hold
-    the same classes to two different contracts -- where the bytes end,
-    and what type the argument is -- and neither owns the walk.
+    Here rather than in the one test that first needed it: the files that
+    call it hold the same classes to contracts of their own, and none of
+    them owns the walk.
     """
-    module_names = [
-        "btclib",
-        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
-    ]
     found = set()
-    for module_name in module_names:
+    for module_name in module_names():
         module = importlib.import_module(module_name)
         for obj in vars(module).values():
             if not isinstance(obj, type):

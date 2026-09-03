@@ -56,6 +56,35 @@ documented at release-notes length in the first place, and are still in
   candidates on the base58 fields, which the assertions under it name. A
   network added to the catalogue moves none of them.
 
+### The walk over btclib's module names has one home in `tests/`
+
+- **`tests/__init__.py` offers `module_names`, and every test asking a
+  question of every btclib module takes the list from it** (closes
+  #1649). What the walk covers -- a second package root, a different
+  prefix, a module it has to skip -- is settled at one place, and a copy
+  that disagreed would be red nowhere: a site asserts against whatever
+  its own walk found, so two of them covering different sets are both
+  green.
+- **`all_test.py`'s `library_modules` is that list filtered to the
+  public names and imported**, rather than a traversal of its own: it
+  walks the same package root under the same prefix, so it is one of the
+  sites a change to the walk has to reach, and what is its own is the
+  filter and the import. Measured equivalent to what it replaces -- the
+  same module objects in the same order, `btclib._libsecp256k1` and
+  `btclib._ripemd160` being all the filter drops.
+- **A helper and not a shared constant**, so that the walk runs when a
+  site asks for it: `pkgutil.walk_packages` imports each package it
+  descends into, where importing the `tests` package on its own leaves
+  `btclib` alone in `sys.modules`.
+- **The alternative of writing down that each site owns its own
+  traversal is declined**: nothing goes red when two of them disagree,
+  so the sentence would have recorded that state rather than answered
+  it.
+- **`public_classes_with`'s docstring gives the shared reason without
+  counting the files that call it**, a count being what every new caller
+  would have to correct; `module_names` points at that reason rather
+  than restating it.
+
 ## v2026.9.3
 
 ### Repository
