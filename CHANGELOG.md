@@ -1406,6 +1406,35 @@ documented at release-notes length in the first place, and are still in
   `python` there and the txid command wrote `2`; neither writes after the
   change, `${name:?}` failing before the command it feeds is reached.
 
+### The documentation job's commands are compared where they are written
+
+- **`CONTRIBUTING.md` documented the unresolved-link grep as `grep -rn
+  'href="#\./'` where `.github/workflows/docs.yml` runs `grep -rnE
+  'href="#\.\.?/'`** (closes #1610). The documented pattern matches the
+  `./` spelling alone, so a contributor reproducing the job saw nothing
+  on a tree the job fails on -- exactly the `../` spelling the
+  workflow's pattern also matches. The paragraph beside the command now
+  says why it carries both, `.pre-commit-config.yaml`'s
+  `local-link-prefix` hook being what leaves a broken link those two
+  spellings and no other.
+- **`tests/docs_commands_test.py` compares the spellings of both
+  commands** (closes #1609). The build is written in
+  `.github/workflows/docs.yml`, `.readthedocs.yaml`, `CONTRIBUTING.md`
+  and `docs/README.rst`, and the grep in the first and the third:
+  changing one of them and not the others is red. The output directory
+  is read against the site that holds it rather than across the sites,
+  read the docs naming its destination in an environment variable of
+  its own.
+- **A site has to yield exactly one command for those comparisons to
+  say anything**, which is a test of its own: a reindented block or a
+  rewritten fence leaves an extraction empty, and what a comparison
+  over nothing reports is agreement. It found one while it was being
+  written -- a closing markdown fence read as the tail of the command
+  above it -- which is the shape it exists for.
+- **`docs.yml`'s comment names every file that spells the build
+  command, and the test that compares them**, so the agreement it
+  states is checked rather than asserted.
+
 ## v2026.8.29
 
 ### Repository
