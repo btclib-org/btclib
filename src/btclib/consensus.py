@@ -73,10 +73,6 @@ reader looking for one knows it was decided rather than missed:
   about an unknown deployment, which is a warning and not a rule
 - `defaultAssumeValid` is what a node skips signature checks below by
   default, which is a startup option and not a fact about the chain
-- `nPowTargetSpacing` and `nPowTargetTimespan` are the retarget window,
-  which `btclib.block.proof_of_work` states as mainnet's; issue #1579 is
-  where the header arithmetic that reads them per network goes, and it is
-  what moves them here
 - `signet_challenge` is per deployment rather than per network, which is
   the reason `btclib.network` gives for keeping the p2p magic out too
 - `signet_blocks` is the switch in front of the check that reads that
@@ -216,17 +212,28 @@ class ConsensusParams:
     # a chain nobody is hashing still moves
     pow_allow_min_difficulty_blocks: bool
 
-    # Core's enforce_BIP94: the timewarp mitigation, which bounds a
-    # block's timestamp below by the first block of the previous
-    # difficulty period rather than by the median of eleven ancestors,
-    # and on testnet4 also the block storm mitigation. Data here and a
-    # rule elsewhere, as the flags either side of it are: issue #1579 is
-    # where the header arithmetic that reads it goes
+    # Core's enforce_BIP94: the timewarp mitigation, checked at the first
+    # block of a new difficulty period, which may not be timestamped more
+    # than MAX_TIMEWARP seconds behind its own parent -- the last block of
+    # the period before it -- and, on testnet4 alone, the block storm
+    # mitigation that rides the same flag. Data here and a rule elsewhere,
+    # as the flags either side of it are: `btclib.block.header_context`
+    # is where the header arithmetic that reads it goes
     enforce_bip94: bool
 
     # Core's fPowNoRetargeting: the target never moves off the one the
     # genesis carries, which is what makes regtest minable at will
     pow_no_retargeting: bool
+
+    # Core's nPowTargetSpacing and nPowTargetTimespan: the block interval
+    # a retarget aims at and the window it measures, in seconds. Every
+    # network but regtest aims at two weeks of ten-minute blocks; regtest
+    # measures one day instead, which is what makes its own
+    # difficulty_adjustment_interval 144 rather than 2016 -- a fact the
+    # minimum-difficulty walk of `btclib.block.header_context` reads,
+    # `pow_no_retargeting` making the number otherwise unobservable there
+    pow_target_spacing: int
+    pow_target_timespan: int
 
     # Core's nMinimumChainWork, as the integer `proof_of_work.chain_work`
     # answers rather than as Core's 32 bytes: the work below which a node
@@ -248,6 +255,17 @@ class ConsensusParams:
     # A tuple of pairs and not a mapping: the row has to stay hashable,
     # and the lookup is over a handful of blocks in the whole chain
     script_flag_exceptions: tuple[tuple[bytes, tuple[str, ...]], ...]
+
+    @property
+    def difficulty_adjustment_interval(self) -> int:
+        """Return how many blocks a difficulty period holds on this network.
+
+        Core's `Consensus::Params::DifficultyAdjustmentInterval`, a
+        derived quantity there too rather than a stored one: 2016 blocks
+        on every network but regtest, whose 144 comes from a one-day
+        window over the same ten-minute spacing.
+        """
+        return self.pow_target_timespan // self.pow_target_spacing
 
     def script_flags_at(
         self, height: int, block_hash: Octets | None = None
@@ -336,6 +354,8 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_allow_min_difficulty_blocks=False,
         enforce_bip94=False,
         pow_no_retargeting=False,
+        pow_target_spacing=10 * 60,  # line 128
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 127, two weeks
         minimum_chain_work=0x0000000000000000000000000000000000000001128750F82F4C366153A3A030,
         bip30_exceptions=(
             (
@@ -385,6 +405,8 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_allow_min_difficulty_blocks=True,
         enforce_bip94=False,
         pow_no_retargeting=False,
+        pow_target_spacing=10 * 60,  # line 252
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 251, two weeks
         minimum_chain_work=0x0000000000000000000000000000000000000000000017DDE1C649F3708D14B6,
         bip30_exceptions=(),
         script_flag_exceptions=(
@@ -420,6 +442,12 @@ _consensus_params: dict[str, ConsensusParams] = {
         # command line can make of it
         enforce_bip94=False,
         pow_no_retargeting=True,
+        pow_target_spacing=10 * 60,  # line 581
+        # one day, not the two weeks every other network aims at (line
+        # 580): DifficultyAdjustmentInterval() is 144 rather than 2016,
+        # which is what the minimum-difficulty walk's own stop condition
+        # reads on this network
+        pow_target_timespan=24 * 60 * 60,
         minimum_chain_work=0,
         bip30_exceptions=(),
         script_flag_exceptions=(),
@@ -439,6 +467,8 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_allow_min_difficulty_blocks=False,
         enforce_bip94=False,
         pow_no_retargeting=False,
+        pow_target_spacing=10 * 60,  # line 496
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 495, two weeks
         minimum_chain_work=0x00000000000000000000000000000000000000000000000000000B463EA0A4B8,
         bip30_exceptions=(),
         script_flag_exceptions=(),
@@ -457,6 +487,8 @@ _consensus_params: dict[str, ConsensusParams] = {
         # true here alone, testnet4 being the chain BIP94 was written for
         enforce_bip94=True,
         pow_no_retargeting=False,
+        pow_target_spacing=10 * 60,  # line 352
+        pow_target_timespan=14 * 24 * 60 * 60,  # line 351, two weeks
         minimum_chain_work=0x0000000000000000000000000000000000000000000009A0FE15D0177D086304,
         bip30_exceptions=(),
         script_flag_exceptions=(),

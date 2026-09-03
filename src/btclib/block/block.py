@@ -518,28 +518,48 @@ class Block:
 
         Bitcoin Core's ContextualCheckBlockHeader and
         ContextualCheckBlock, as far as a height and a clock reach:
-        time-too-new, and bad-cb-height wherever BIP34 is in force. In
-        that order, which is Core's -- the header is checked before the
-        block it heads.
+        bad-diffbits and time-too-old wherever the caller has walked the
+        chain for them, time-too-new always, and bad-cb-height wherever
+        BIP34 is in force. In that order, which is Core's -- the header
+        is checked before the block it heads, and within the header
+        proof-of-work before the clock.
 
         Separate from assert_valid, which is CheckBlock: what the bytes
         answer for themselves, and therefore what Block.parse can ask.
         Both are asked of a block being accepted, and by whoever has the
         context; neither implies the other.
 
-        The rest of those two functions needs the chain and not merely a
-        context: time-too-old is the median time past of eleven ancestors,
-        bad-diffbits is the target of a whole retarget period,
-        bad-version the activation heights of BIP34, BIP66 and BIP65,
-        bad-txns-nonfinal every transaction's lock time against the same
-        median time past. Each is a field of BlockContext away, once the
-        chain state it reads is there to put in one.
+        bad-diffbits and time-too-old are the two rules
+        `BlockContext.median_time_past` and `.required_bits` answer for,
+        and each is skipped where the field is None -- a caller that has
+        not walked the chain for it, most of them until now. The rest of
+        Core's two functions still needs more than a context: bad-version
+        the activation heights of BIP34, BIP66 and BIP65, bad-txns-nonfinal
+        every transaction's lock time against the same median time past.
+        Each becomes a field of BlockContext once the chain state it reads
+        is there to put in one.
         """
         # the context is an object a caller builds, and `now` reaches
         # datetime arithmetic below: unasked, a str for it raised
         # AttributeError, which is no ValueError and flies past the handler
         # the contract asks for
         context.assert_valid()
+
+        if (
+            context.required_bits is not None
+            and self.header.bits != context.required_bits
+        ):
+            err_msg = "proof-of-work target not the required one: "
+            err_msg += f"{self.header.bits.hex()}"
+            err_msg += f" instead of {context.required_bits.hex()}"
+            raise BTClibValueError(err_msg)
+
+        if context.median_time_past is not None:
+            time = int(self.header.time.timestamp())
+            if time <= context.median_time_past:
+                err_msg = f"invalid timestamp (not after the median past): {time}"
+                err_msg += f" <= {context.median_time_past}"
+                raise BTClibValueError(err_msg)
 
         self.header.assert_valid_time(context.now)
 

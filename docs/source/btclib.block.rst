@@ -39,6 +39,13 @@ btclib.block.build module
    :members:
    :show-inheritance:
 
+btclib.block.header\_context module
+-----------------------------------
+
+.. automodule:: btclib.block.header_context
+   :members:
+   :show-inheritance:
+
 btclib.block.limits module
 --------------------------
 

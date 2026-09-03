@@ -20,6 +20,18 @@ more activation heights. Each becomes a field here when the chain state it
 takes arrives, and none of them changes the signature of
 `Block.assert_valid_contextual`.
 
+`median_time_past` and `required_bits` are the first two, arrived: values
+rather than a callable, because a context stays what it always was, a
+photograph of a moment rather than an object with a chain behind it that
+the two rules reading it could disagree about. Computing them is
+`btclib.block.header_context`'s `median_time_past` and
+`next_bits_required`, which walk the chain through a `ParentOf` callable
+the caller supplies and BlockContext never sees; both default to `None`,
+which is how a caller that has not walked the chain -- most of the
+existing callers of this class, checking only `bad-cb-height` and
+`time-too-new` -- still builds one, and how the two rules below stay
+skipped rather than fed a value nobody computed.
+
 The rules underneath take the datum they read and not the whole context --
 `BlockHeader.assert_valid_time(now)`,
 `Block.assert_valid_coinbase_height(height)` -- so a caller holding one
@@ -57,9 +69,10 @@ BIP34_HEIGHT = CONSENSUS_PARAMS["mainnet"].bip34_height
 class BlockContext:
     """What Block.assert_valid_contextual reads: a height and a clock.
 
-    The two facts a block cannot answer for itself, supplied by the
-    caller; bip34_height is the chain's activation height, defaulting
-    to mainnet's.
+    The facts a block cannot answer for itself, supplied by the caller;
+    bip34_height is the chain's activation height, defaulting to
+    mainnet's, and median_time_past and required_bits default to None,
+    which skips the rule each answers for.
     """
 
     # the height the block is being accepted at, i.e. Core's
@@ -69,6 +82,14 @@ class BlockContext:
     now: datetime
     # the height from which the chain enforces BIP34
     bip34_height: int = BIP34_HEIGHT
+    # time-too-old's bound: the caller's own
+    # `header_context.median_time_past(parent, parent_height, parent_of)`,
+    # or None to leave the rule unchecked
+    median_time_past: int | None = None
+    # bad-diffbits' answer: the caller's own
+    # `header_context.next_bits_required(header, parent, parent_height,
+    # parent_of, consensus)`, or None to leave the rule unchecked
+    required_bits: bytes | None = None
 
     @property
     def is_bip34_active(self) -> bool:
@@ -90,21 +111,53 @@ class BlockContext:
         height: int,
         now: datetime,
         bip34_height: int = BIP34_HEIGHT,
+        median_time_past: int | None = None,
+        required_bits: bytes | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "height", height)
         object.__setattr__(self, "now", now)
         object.__setattr__(self, "bip34_height", bip34_height)
+        object.__setattr__(self, "median_time_past", median_time_past)
+        object.__setattr__(self, "required_bits", required_bits)
 
         if check_validity:
             self.assert_valid()
+
+    def _assert_valid_chain_state(self) -> None:
+        """Refuse a median_time_past or required_bits given and malformed.
+
+        Split out of assert_valid to keep it under the complexity floor:
+        both fields are optional, so this is two independent, unrelated
+        checks rather than one.
+        """
+        if self.median_time_past is not None:
+            if not is_integer(self.median_time_past):
+                type_name = type(self.median_time_past).__name__
+                raise BTClibTypeError(f"invalid median_time_past type: {type_name}")
+            if self.median_time_past < 0:
+                err_msg = f"invalid median_time_past: {self.median_time_past}"
+                raise BTClibValueError(err_msg)
+
+        if self.required_bits is not None:
+            # bytes and not Octets: this is a value a caller computed with
+            # next_bits_required, not one read off the wire, so nothing
+            # here coerces a str or a bytearray into it
+            assert_type(self.required_bits, bytes, "required_bits")
+            if len(self.required_bits) != 4:
+                err_msg = f"invalid required_bits length: {len(self.required_bits)}"
+                err_msg += " bytes instead of 4"
+                raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
         """Refuse a negative or non-int height, or a now that is no datetime.
 
         Naive-datetime refusal is assert_valid_time's, the reader of
-        the clock being where the comparison happens.
+        the clock being where the comparison happens. median_time_past
+        and required_bits are refused only when given -- None is what
+        leaves the rule each answers for unchecked, not a value to
+        validate -- and _assert_valid_chain_state is where that happens.
         """
         for key in ("height", "bip34_height"):
             value = getattr(self, key)
@@ -125,3 +178,5 @@ class BlockContext:
         # future on one machine and not on another
         if self.now.tzinfo is None or self.now.tzinfo.utcoffset(self.now) is None:
             raise BTClibValueError(f"naive current time (no time zone): {self.now}")
+
+        self._assert_valid_chain_state()
