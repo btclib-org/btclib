@@ -91,6 +91,7 @@ __all__ = [
     "bip85",
     "bip322",
     "block",
+    "bolt9",
     "bolt11",
     "coin_selection",
     "consensus",

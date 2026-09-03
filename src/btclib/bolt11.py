@@ -87,6 +87,7 @@ from btclib.b32 import (
 from btclib.b58 import address_from_h160, h160_from_address
 from btclib.bech32 import decode as _bech32_decode
 from btclib.bech32 import encode as _bech32_encode
+from btclib.bolt9 import unknown_even_bits
 from btclib.curves import bytes_from_point, secp256k1
 from btclib.ecc.dsa import Sig, gen_keys, recover_pub_key_, sign_recoverable_, verify_
 from btclib.exceptions import BTClibValueError
@@ -409,11 +410,10 @@ class Bolt11Invoice:
         stored signature is checked against it, recovering the payee
         where none was stated.
 
-        One refusal BOLT11 requires is not here, and a caller relying on
-        this method has to know it: an unknown **even** bit in the `9`
-        field must fail the invoice, and does not. `features` says why
-        and issue #1637 is where it is tracked. The spec vector for that
-        case is the one left out of the vendored file.
+        An **even** bit of the `9` field that BOLT9 does not assign
+        fails the invoice, which is BOLT9's rule for a reader that meets
+        a feature bit it does not know; `btclib.bolt9` carries the table
+        that answers it.
         """
         if self.network not in _CURRENCY_FROM_NETWORK:
             raise BTClibValueError(f"not a lightning network: {self.network}")
@@ -437,7 +437,6 @@ class Bolt11Invoice:
         # forces every other accessor's own well-formedness check
         _expiry = self.expiry
         _min_final_cltv_expiry = self.min_final_cltv_expiry
-        _features = self.features
         _metadata = self.metadata
         _fallback_addresses = self.fallback_addresses
         _route_hints = self.route_hints
@@ -446,11 +445,18 @@ class Bolt11Invoice:
             _payment_secret,
             _expiry,
             _min_final_cltv_expiry,
-            _features,
             _metadata,
             _fallback_addresses,
             _route_hints,
         )
+
+        # `features` is read here rather than among the accessors above:
+        # its own well-formedness is the bits, and an even one BOLT9 does
+        # not assign is a requirement no reader has been told how to meet
+        unknown = unknown_even_bits(self.features)
+        if unknown:
+            bits = ", ".join(str(bit) for bit in unknown)
+            raise BTClibValueError(f"unknown even feature bits: {bits}")
 
         # the signature itself: this is what makes an invoice acceptable
         _payee = self.payee
@@ -522,13 +528,10 @@ class Bolt11Invoice:
     def features(self) -> int:
         """Return the `9` field as a bitfield, 0 where none was stated.
 
-        The bitfield, and not a verdict on it. BOLT11 requires a reader
-        to fail an invoice setting an unknown even bit, which is a
-        question about BOLT9's feature table rather than about this
-        encoding -- so answering it here would mean carrying that table,
-        and `assert_valid` does not ask. Issue #1637 is where that is
-        tracked; until it closes, a caller acting on an invoice checks
-        the bits it understands itself.
+        The bitfield, and not a verdict on it: `assert_valid` refuses
+        an even bit BOLT9 does not assign, and a caller acting on the
+        invoice checks the assigned ones against what it has itself
+        implemented, `btclib.bolt9.FEATURE_NAMES` being that table.
         """
         words = _first(self.tagged_fields, _TAG_FEATURES, None)
         return 0 if words is None else _words_to_int(words)

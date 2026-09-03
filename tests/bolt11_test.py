@@ -126,7 +126,7 @@ def test_sign_and_decode_round_trip() -> None:
                 )
             ]
         ],
-        features=0b101,
+        features=(1 << 8) | (1 << 14),
         metadata=b"\x01\xfa\xfa\xf0",
         extra_tags=[(31, (1, 2, 3))],
     )
@@ -141,7 +141,7 @@ def test_sign_and_decode_round_trip() -> None:
     assert decoded.expiry == 7200
     assert decoded.min_final_cltv_expiry == 40
     assert decoded.fallback_addresses == invoice.fallback_addresses
-    assert decoded.features == 0b101
+    assert decoded.features == (1 << 8) | (1 << 14)
     assert decoded.metadata == b"\x01\xfa\xfa\xf0"
     assert (31, (1, 2, 3)) in decoded.tagged_fields
     assert decoded.to_invoice() == text
@@ -524,3 +524,31 @@ def test_from_invoice_refuses_a_tagged_field_overrunning_the_data_part() -> None
     text = bech32_encode("lnbc", data, m=1).decode("ascii")
     with pytest.raises(BTClibValueError, match="overruns the data part"):
         Bolt11Invoice.from_invoice(text)
+
+
+def test_an_unknown_even_feature_bit_is_refused() -> None:
+    """The bit BOLT11's own invalid example sets, named in the refusal."""
+    with pytest.raises(BTClibValueError, match="unknown even feature bits: 100"):
+        Bolt11Invoice.sign(
+            _PRV_KEY,
+            "mainnet",
+            0,
+            payment_hash=bytes(32),
+            payment_secret=bytes(32),
+            description="d",
+            features=1 << 100,
+        )
+
+
+def test_an_unknown_odd_feature_bit_is_carried() -> None:
+    """It's ok to be odd: bit 99 is nobody's feature and rides along."""
+    invoice = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "mainnet",
+        0,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+        features=1 << 99,
+    )
+    assert Bolt11Invoice.from_invoice(invoice.to_invoice()).features == 1 << 99

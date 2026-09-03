@@ -85,6 +85,37 @@ documented at release-notes length in the first place, and are still in
   would have to correct; `module_names` points at that reason rather
   than restating it.
 
+### `btclib.bolt9`, and an even feature bit that fails an invoice
+
+- **`Bolt11Invoice.assert_valid` refuses a `9` field setting an even bit
+  BOLT9 does not assign** (closes #1637), naming the bits in the
+  message. BOLT9 hands out feature bits in pairs, the odd half of a pair
+  optional and the even half compulsory, so a reader meeting a bit it
+  does not know fails on the even one and ignores the odd one -- "it's
+  ok to be odd". Answering that is a lookup in BOLT9's assignment table,
+  which BOLT11 does not define: at `496b36c5` the BOLT's own invalid
+  example "adding invalid unknown feature 100" decoded and validated.
+- **`btclib.bolt9` is where that table lives**: `FEATURE_NAMES` gives
+  the even bit of each pair BOLT9 assigns and the name the BOLT gives
+  it, transcribed at the upstream commit named beside it, and
+  `unknown_even_bits` is the lookup. A module of its own rather than a
+  constant inside `bolt11.py` or a mapping every caller supplies, the
+  table being another BOLT's and read the same way by the `init` message
+  and by the gossip announcements, which carry a feature vector too.
+- **A bit is known when BOLT9 assigns it, whichever fields its Context
+  column names.** That column says where a feature may appear, `9` being
+  a BOLT11 invoice, and taking it as the criterion refuses invoices the
+  BOLT itself calls valid: its "supports features 8, 14 and 99" example
+  sets even bits 8 and 14, whose Context column is empty.
+- **Naming a bit is not implementing its feature**, so what
+  `assert_valid` refuses is the half nothing could support; a wallet
+  acting on an invoice checks the assigned even bits against what it has
+  implemented itself, out of the same table.
+- **BOLT11's "Same, but adding invalid unknown feature 100" joins
+  `tests/_data/bolt11_test_vectors.json`**, so both of that document's
+  example sections are transcribed whole; the file's entry in
+  `tests/_data/README.md` says so, and says what refuses this one.
+
 ## v2026.9.3
 
 ### Repository
