@@ -1351,17 +1351,25 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**, and a subset by design. `tests/hwi_test.py`
-holds the six commands `btclib.hwi` runs — `enumerate`, `getxpub`,
+holds the commands `btclib.hwi` runs — `enumerate`, `getxpub`,
 `signtx`, `signmessage`, `displayaddress`, `registerdescriptor` — with
-the positional arguments of each, the three global flags it passes
+the positional arguments of each, the global flags it passes
 (`--chain`, `--fingerprint`, `--emulators`), the `--desc` of
-`displayaddress`, the four chains `--chain` takes, and the keys read out
-of each answer. The other eleven commands are the device lifecycle —
-setup, wipe, restore, backup, the PIN and passphrase flows — which
-issue #381 keeps out of the signing surface deliberately, and
-`getdescriptors`, `getkeypool` and `getmasterxpub`, which btclib
-computes for itself: `descriptors.account_descriptors` and
-`btclib.core_import` are those three, on btclib's own types.
+`displayaddress`, the chains `--chain` takes, and the keys read out of
+each answer. Not every chain it transcribes is one btclib sends:
+testnet4 goes out as `test`, and `btclib.hwi`'s `_HWI_CHAIN` says why.
+
+What the parser declares and `btclib.hwi` leaves alone, under the reason
+each is left alone for. `setup`, `wipe`, `restore`, `backup`,
+`promptpin`, `togglepassphrase` and `sendpin` are the device lifecycle,
+which issue #381 keeps out of the signing surface deliberately.
+`getdescriptors`, `getkeypool` and `getmasterxpub` are what btclib
+computes for itself, on its own types, in
+`descriptors.account_descriptors` and `btclib.core_import`.
+`installudevrules` talks to no device -- it copies HWI's udev rules onto
+the host -- and it is the one subcommand of the pin above that the
+parser registers behind a platform guard,
+`sys.platform.startswith("linux")`.
 
 `displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
 `--multipath-index` -- is `HwiSigner.display_policy_address`

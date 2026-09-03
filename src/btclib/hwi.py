@@ -165,15 +165,30 @@ _POLL_INTERVAL = 0.05
 # in every language that has them and a ruff finding in this one
 NO_CAPABILITIES = SignerCapabilities()
 
-# btclib names five networks and HWI takes four chains: `--chain` is what
-# decides the version bytes of the xpubs it answers with, so the mapping
-# is what makes `account_descriptors` agree with the device about which
-# chain the account is on. testnet4 has no HWI chain of its own
+# `--chain` decides the version bytes of the xpubs HWI answers with, so
+# this mapping is what makes `account_descriptors` agree with the device
+# about which chain the account is on. Every btclib network has a chain
+# here, which is what `bitcoin_core_rpc.chain_from_network` is for Core's
+# vocabulary -- and unlike that one this is not a bijection: testnet4
+# goes out as `test`, HWI's own `testnet4`, which its parser takes, being
+# the rejected alternative.
+#
+# Both decide the same bytes. In 3.2.0, the release
+# `.github/workflows/integration-hwi.yml` pins, a chain is compared with
+# `Chain.MAIN` and with no other, `JadeClient.NETWORKS` excepted, so an
+# xpub comes back under the testnet version prefix and BIP44 coin type 1
+# for either name -- and that exception is what decides: it holds `test`
+# and answers `BadArgumentError: Unhandled network` for `testnet4`. So
+# sending `testnet4` would change no answer read here and would cost the
+# Jade. btclib's own testnet4 and testnet share every version prefix,
+# differing in the genesis block and the consensus parameters, which no
+# encoding reads
 _HWI_CHAIN = {
     "mainnet": "main",
     "testnet": "test",
     "regtest": "regtest",
     "signet": "signet",
+    "testnet4": "test",
 }
 
 
@@ -446,7 +461,12 @@ def enumerate_devices(
 
 
 def _chain_args(network: str) -> list[str]:
-    """Return HWI's `--chain` flag for a btclib network name."""
+    """Return HWI's `--chain` flag for a btclib network name.
+
+    `enumerate_devices` is the caller that can reach the refusal: it
+    takes a network name and names no device, where `HwiSigner` has
+    already refused a name `NETWORKS` does not hold.
+    """
     chain = _HWI_CHAIN.get(network)
     if chain is None:
         known = ", ".join(sorted(_HWI_CHAIN))

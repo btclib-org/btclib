@@ -55,6 +55,7 @@ from btclib.hwi import (
     enumerate_devices,
     is_available,
 )
+from btclib.network import NETWORKS
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import (
     AddressDisplay,
@@ -152,8 +153,9 @@ HWI_ANSWER_KEYS = {
 }
 
 # the chains `--chain` takes, which is what decides the version bytes of
-# every extended key HWI answers with
-HWI_CHAINS = ("main", "test", "signet", "regtest")
+# every extended key HWI answers with. `btclib.hwi` sends a subset:
+# `_HWI_CHAIN` says why btclib's testnet4 network goes out as `test`
+HWI_CHAINS = ("main", "test", "signet", "regtest", "testnet4")
 
 # every error code HWI defines, with the name it gives it: the numbers a
 # caller acts on, and `exceptions.SignerError` carries them through
@@ -311,26 +313,35 @@ def last_argv(hwi: list[str]) -> list[str]:
 def test_the_network_is_the_chain_hwi_is_told(tmp_path: Path) -> None:
     """`--chain` decides the version bytes of the xpubs that come back.
 
-    So a btclib network name is translated rather than passed on, and the
-    one btclib has and HWI has not — testnet4 — is named rather than sent
-    as a chain the command line would refuse.
+    So a btclib network name is translated rather than passed on, and
+    testnet4 is translated to `test`: `btclib.hwi`'s `_HWI_CHAIN` says
+    why the chain of that name is not what goes out.
+
+    Every network btclib has is a chain HWI is told, which is what a
+    sixth network would have to be given here: the mapping stands between
+    `NETWORKS` and a command line, and a network missing from it reaches
+    a caller as a refusal after the signer was built.
     """
     for network, chain in (
         ("mainnet", "main"),
         ("testnet", "test"),
         ("regtest", "regtest"),
+        ("signet", "signet"),
+        ("testnet4", "test"),
     ):
         hwi = stand_in(tmp_path, {})
         HwiSigner(FINGERPRINT, executable=hwi, network=network).xpub("m/0")
         argv = last_argv(hwi)
         assert argv[argv.index("--chain") + 1] == chain
 
+    assert set(_HWI_CHAIN) == set(NETWORKS)
+
     with pytest.raises(BTClibValueError, match="unknown network"):
         HwiSigner(FINGERPRINT, executable=stand_in(tmp_path, {}), network="nosuchnet")
-    with pytest.raises(BTClibValueError, match="no HWI chain for network testnet4"):
-        HwiSigner(
-            FINGERPRINT, executable=stand_in(tmp_path, {}), network="testnet4"
-        ).xpub("m/0")
+    # `enumerate_devices` names no device and checks no name against
+    # `NETWORKS`, so it is where the chain lookup can be asked for one
+    with pytest.raises(BTClibValueError, match="no HWI chain for network nosuchnet"):
+        enumerate_devices(executable=stand_in(tmp_path, {}), network="nosuchnet")
 
 
 def account_psbt(device: HwiSigner) -> tuple[Psbt, Descriptor]:
@@ -761,8 +772,8 @@ def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
         assert len(positional) == len(HWI_COMMANDS[command]) + len(command_flags)
         assert tuple(command_flags) == HWI_COMMAND_FLAGS.get(command, ())
 
-    # and the chain is one of the four HWI names
-    assert set(_HWI_CHAIN.values()) == set(HWI_CHAINS)
+    # and the chain is one of the names HWI takes
+    assert set(_HWI_CHAIN.values()) <= set(HWI_CHAINS)
     assert ran["getxpub"][ran["getxpub"].index("--chain") + 1] in HWI_CHAINS
 
 

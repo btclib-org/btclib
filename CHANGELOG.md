@@ -1454,6 +1454,40 @@ documented at release-notes length in the first place, and are still in
   interpreter's own reading of it: the two places that apply it now name
   the layout the same way.
 
+### `btclib.hwi` sends a chain for btclib's testnet4 network
+
+- **`_HWI_CHAIN` maps every network `NETWORKS` holds** (closes #1599).
+  `HwiSigner` takes any name that catalogue has, so a testnet4 signer
+  was built and then refused by the chain lookup at its first command.
+  The chain it goes out as is `test`, and HWI's own `testnet4` -- which
+  its parser takes -- is the rejected alternative. In 3.2.0, the release
+  `.github/workflows/integration-hwi.yml` pins, a chain is compared with
+  `Chain.MAIN` and with no other, `JadeClient.NETWORKS` excepted, so an
+  xpub comes back under the testnet version prefix and BIP44 coin type 1
+  for either name -- and that exception is what decides: it holds `test`
+  and answers `BadArgumentError: Unhandled network` for `testnet4`, so
+  sending the name would change no answer `btclib.hwi` reads and would
+  cost the Jade. btclib's testnet4 and testnet share
+  every version prefix, differing in the genesis block and the consensus
+  parameters, which no encoding reads.
+- **`tests/hwi_test.py` walks `NETWORKS` against the mapping**, which is
+  what a sixth btclib network is red on here rather than at a caller's
+  first command; the chains it transcribes from HWI's parser are what
+  the mapping's values are checked against, as a subset rather than as
+  the same set.
+
+### The HWI command-line pin names what it leaves out, and counts none of it
+
+- **`tests/_data/README.md`'s HWI CLI entry names the commands
+  `btclib.hwi` leaves alone, under the reason each is left alone for**
+  (closes #1595). `installudevrules` was under neither reason the entry
+  gave, and it has one of its own: it talks to no device -- it copies
+  HWI's udev rules onto the host -- and it is the one subcommand of that
+  pin the parser registers behind a platform guard,
+  `sys.platform.startswith("linux")`. The entry's counts of upstream's
+  parser and of its chains are gone with it, the names beside them being
+  what a reader checks and a number being what the next pin falsifies.
+
 ## v2026.8.29
 
 ### Repository
