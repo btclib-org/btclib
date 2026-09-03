@@ -1776,6 +1776,28 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   the octets of an object end -- and say nothing about the exception a
   refusal is raised with, which is what this file asks.
 
+### `REPOSITORY.md`'s check-run count puts the placeholder in its own fence
+
+- **The `gh api` call no longer sits under a line that ends in a
+  placeholder** (issue #1613). The assignment above it is a parse error
+  before it is a command, and a shell that discards a parse error reads
+  the next line as a fresh command, so a paste made before the pull
+  request was filled in asked the API for
+  `repos/btclib-org/btclib/commits//check-runs`. The placeholder's line
+  stands in a fence of its own now, with prose between the two fences
+  saying why the first closes early.
+- **The fence below reads the head as `${head:?}`**, the shell's
+  must-be-set form, so a paste of that fence alone fails naming the
+  variable rather than reaching the forge with no sha.
+- **Measured by feeding each fence, unfilled, to an interactive `zsh` and
+  `bash` and to `zsh`, `bash` and `sh` reading a file**, every cell in a
+  fresh directory of its own bound with `env -C`, seeded with a file
+  named for the placeholder's first word, with stubs ahead of the real
+  `PATH` logging their argv and their `$PWD`. A control fence whose
+  redirection names an absolute path writes in every cell, which is what
+  says the harness can write at all. No fence invokes a stub or gains a
+  file now.
+
 ## v2026.8.29
 
 ### Repository
