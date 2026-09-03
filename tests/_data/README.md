@@ -1319,6 +1319,49 @@ refactor -- which
 [ISS 1334](https://github.com/btclib-org/btclib/issues/1334) tracks,
 including whether btclib's own musig derivation shares either defect.
 
+### Not vendored as a file: the message types of Core's `NetMsgType`
+
+```text
+repo    bitcoin/bitcoin
+path    src/protocol.h
+commit  fad753611b5c074f38120fd9c1a87e37cc44bf6a  2026-08-05
+pulled  2026-09-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**. `tests/p2p/core_commands_test.py` holds every
+name that namespace declares, in the order it declares them, and asserts
+the census both ways: a message type Core has is one `src/btclib/p2p/`
+carries or one that module names under the issue deciding otherwise, and
+a command this package carries is Core's or is named there as one Core
+dropped.
+
+Not vendored as a file because there is no file: the names are string
+literals in a C++ header this project cannot compile, and the same header
+declares the service flags and the inventory type codes, so its bytes
+answer about far more than the message types. What the pin buys instead
+is the upstream re-check: a message type added to that namespace moves
+the commit, and the weekly run says so.
+
+`test/functional/test_framework/p2p.py`'s `MESSAGEMAP` is the rejected
+alternative, and it is the list a census here has been run against
+before. The two hold the same names, compared on 2026-09-03, and the
+header is what decides: `src/net_processing.cpp` reads the protocol off
+`NetMsgType`, where the map is the Python functional test framework's own
+dispatch and reads nothing.
+
+Not carried, and named as such: `merkleblock`, `filterload`, `filteradd`
+and `filterclear`, which are BIP37's bloom set and the answer a loaded
+filter draws.
+[ISS 1120](https://github.com/btclib-org/btclib/issues/1120) is where
+whether they belong here is argued, and the transcription points at it
+rather than restating it.
+
+Carried and not Core's: BIP61's `reject`, of which Core removed both
+directions in `bitcoin/bitcoin#15437`. `src/btclib/p2p/reject.py` says
+why a codec for it is here anyway, and the pin is what would make Core
+declaring the name again a red run rather than a stale sentence.
+
 ## bitcoin-core/HWI
 
 Nothing is vendored from HWI and nothing is imported from it: `btclib.hwi`
@@ -2341,10 +2384,15 @@ Composed 2026-08-02.
   upstream: the cases are btclib's, so the pin says where the psbts were
   read and nothing about the cases built on them. A refresh of it is a
   contradiction in terms.
-- **Nothing here is enforced.** No hook re-fetches an upstream and no
-  test compares a blob, so this file goes stale silently. That is a
-  deliberate stopping point: a network call in the test suite would trade
-  a documented drift for a flaky one.
+- **Nothing here is enforced by the suite.** No hook re-fetches an
+  upstream and no test compares a blob, and that is a deliberate stopping
+  point: a network call in the test suite would trade a documented drift
+  for a flaky one. Where a pin goes stale is
+  `.github/workflows/vendored-vectors.yml`'s to say instead, weekly and
+  outside the suite, and it opens an issue rather than refreshing
+  anything -- which vector to take next is a decision. What it does not
+  reach is an entry whose `behind` already reads other than 0, a gap
+  somebody has decided not to close being one it would report every week.
 
 ## Summary
 

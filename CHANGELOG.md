@@ -1688,6 +1688,37 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   below it answer `testnet` for every test network, and that is what it
   says.
 
+### `tests/p2p` compares its command set with Bitcoin Core's
+
+- **`tests/p2p/core_commands_test.py` holds Core's `NetMsgType` and
+  asserts the census both ways** (closes #1598): a message type Core
+  declares is one `src/btclib/p2p/` carries or one that module names
+  under the issue deciding otherwise, and a command this package carries
+  is Core's or is named there as one Core dropped -- BIP61's `reject`
+  being that. A command misspelled here round-trips as well as the real
+  one, the payload classes being the only thing that reads the constant,
+  so a comparison with Core is what a typo falls into.
+- **Core's set is transcribed rather than fetched**, pinned in
+  `tests/_data/README.md` to `src/protocol.h`, so
+  `.github/workflows/vendored-vectors.yml` reports the commit that moves
+  it. A test reading Core over the network would have a verdict that
+  depends on somebody else's uptime, which that file declines for every
+  vector it pins; a test reading a Core checkout behind an environment
+  switch measures nothing on the run that gates a merge; and vendoring
+  the header would put a file in the tree whose bytes answer for the
+  service flags and the inventory type codes as much as for a message
+  type.
+- **The walk over `Payload.__subclasses__` is `tests/p2p/__init__.py`'s**,
+  which is where `tests/__init__.py` says shared test code lives:
+  `payload_test.py` asks it whether every payload type is driven by a
+  value, and the census asks it for the commands.
+- **`tests/_data/README.md` puts its no-network stopping point on the
+  suite alone**: the file said no hook re-fetches an upstream and that it
+  goes stale silently, where `.github/workflows/vendored-vectors.yml`
+  runs weekly, opens an issue on a pin that has moved, and reaches no
+  entry whose `behind` reads other than 0. The pin above is checked by
+  that run, so the two sentences could not both stand.
+
 ## v2026.8.29
 
 ### Repository

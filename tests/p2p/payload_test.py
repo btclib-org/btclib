@@ -70,6 +70,7 @@ from btclib.p2p import (
 )
 from btclib.p2p.message import Message as MessageClass
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests.p2p import payload_types
 
 _MAINNET = bytes.fromhex("f9beb4d9")
 
@@ -123,29 +124,9 @@ _PAYLOADS: tuple[Payload, ...] = (
 _IDS = tuple(type(payload).__name__ for payload in _PAYLOADS)
 
 
-def _payload_subclasses() -> set[type[Any]]:
-    """Return every concrete payload type of the library.
-
-    Two things are skipped, and each for its own reason: a name starting
-    with an underscore is a shared body rather than a message type --
-    `keepalive._NoncePayload`, `inventory._InventoryPayload` and
-    `inventory._LocatorPayload` are those -- and a class defined outside
-    `btclib` is another test's, `__subclasses__` being a live registry
-    that whatever ran before this leaves its own subclasses in.
-    """
-    found: set[type[Any]] = set()
-    pending = list(Payload.__subclasses__())
-    while pending:
-        cls = pending.pop()
-        pending.extend(cls.__subclasses__())
-        if not cls.__name__.startswith("_") and cls.__module__.startswith("btclib"):
-            found.add(cls)
-    return found
-
-
 def test_every_payload_type_is_driven_here() -> None:
     """The inventory is a promise only if omission is what fails."""
-    assert {type(payload) for payload in _PAYLOADS} == _payload_subclasses()
+    assert {type(payload) for payload in _PAYLOADS} == payload_types()
 
 
 @pytest.mark.parametrize("payload", _PAYLOADS, ids=_IDS)
