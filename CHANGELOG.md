@@ -1187,6 +1187,44 @@ documented at release-notes length in the first place, and are still in
   conforms, and that is what makes the identifier something a caller
   matches on and this codec merely carries.
 
+### `btclib.muhash` implements Core's MuHash3072 UTXO-set accumulator
+
+- **`MuHash3072` represents a multiset as a fraction of two 3072-bit
+  numbers, so that `insert` and `remove` are one multiplication or one
+  division each rather than a walk of the rest of the set** (closes
+  #1122). `digest` divides the numerator by the denominator and returns
+  SHA256 of the 384-byte little-endian result; `serialize`/`deserialize`
+  round-trip the same two numbers, byte for byte what
+  `MuHash3072::SERIALIZE_METHODS` writes. Every constant, and the
+  per-element hash below, is transcribed from `src/crypto/muhash.{h,cpp}`
+  at Bitcoin Core v31.1, `bitcoin/bitcoin@9be056a8a7`, matched against
+  `src/test/crypto_tests.cpp`'s own `muhash_tests` case, vendored as
+  `tests/_data/muhash_vectors.json`.
+- **The per-element hash is SHA256 of the element keying a ChaCha20
+  keystream, read as one 3072-bit integer**, and the block function
+  implementing it is a private function of this module: `__all__` names
+  `MuHash3072` alone, so no caller can reach it, nothing is encrypted or
+  decrypted with it, and no byte of its output leaves the module.
+  [ISS #1066](https://github.com/btclib-org/btclib/issues/1066) put a
+  hand-rolled cipher out of scope because it would be the only
+  implementation, on by default, on a network path; this is not an
+  exception to that rule, since this module offers no cipher at all.
+  Checked against RFC 7539/8439's own vectors inside `crypto_tests.cpp`,
+  vendored as `tests/_data/chacha20_vectors.json`.
+- **The arithmetic is native Python `int`**, `%` and `pow(x, -1, m)` in
+  place of Core's own fixed-width `Num3072`, which exists only because a
+  CPU register has no 3072-bit width — a constraint Python's
+  arbitrary-precision integers do not have. `Num3072`'s lazily-reduced
+  "overflow" state has no counterpart here, `% _MODULUS` after every
+  multiply being the exact residue regardless of the operand's
+  magnitude; `crypto_tests.cpp`'s own overflow vector is matched anyway.
+  Not constant-time, and not a concern: every input `insert`/`remove`
+  sees is public UTXO-set data, never key material.
+- **`CoinStats`, the coin serialization `ApplyCoinHash` runs over, and
+  the two mainnet blocks a BIP30 duplicate coinbase exempts** are not
+  here. They need the `Coin` value type the contextual transaction rules
+  bring in, and are a second step the issue explicitly deferred.
+
 ## v2026.8.29
 
 ### Repository

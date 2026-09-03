@@ -632,6 +632,14 @@ ser_uint256 = "ser_uint256"
 # names a symbol that is not in the source it points at
 Ser = "Ser"
 Unser = "Unser"
+# Core's own local variable holding a MuHash3072 serialization vector's
+# expected hex, `Ser` for serialize once more (src/test/crypto_tests.cpp).
+# tests/_data/README.md cites it as the vector under
+# tests/_data/muhash_vectors.json's own "serialization" entry; the hook
+# runs with --write-changes and turns it into `set_exp`, a citation a
+# spell checker rewrote naming a symbol that is not in the source it
+# points at
+ser_exp = "ser_exp"
 
 [tool.typos.default.extend-words]
 # "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell

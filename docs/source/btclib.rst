@@ -149,6 +149,13 @@ btclib.key module
    :members:
    :show-inheritance:
 
+btclib.muhash module
+--------------------
+
+.. automodule:: btclib.muhash
+   :members:
+   :show-inheritance:
+
 btclib.network module
 ---------------------
 
