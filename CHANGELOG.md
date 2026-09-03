@@ -1631,6 +1631,26 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   the two state the same fact -- the network, and the amount where both
   give one -- the same pairing Electrum's `bip21.py` makes.
 
+### `btclib.coin_selection` chooses which candidates fund a payment, above `tx_builder.build_psbt`
+
+- **A new top-level module adds branch-and-bound, knapsack and
+  single-random-draw coin selection, stateless and above
+  `tx_builder.build_psbt`** (closes #1586): `Candidate` names an
+  outpoint, the `TxOut` it spends, and the weight its input will add;
+  `select_coins` runs whichever of the three algorithms it is asked to
+  -- every one of them by default -- and keeps the selection of lowest
+  waste, Bitcoin Core's own `SelectionResult::GetWaste` metric
+  (`bitcoin/bitcoin@4ec6ff022a`, `src/wallet/coinselection.cpp`).
+  `branch_and_bound`, `knapsack` and `single_random_draw` are public on
+  their own, for a caller who wants one algorithm rather than the
+  composition. Selection is on effective value -- an output's value less
+  its own input's fee at the chosen rate -- so a candidate costing more
+  to spend than it holds is excluded rather than needing a filter a
+  caller writes by hand. `knapsack` and `single_random_draw` take a
+  `random.Random` rather than reading the module-level `random`
+  functions, so a test -- or a caller after a reproducible selection --
+  seeds it.
+
 ## v2026.8.29
 
 ### Repository

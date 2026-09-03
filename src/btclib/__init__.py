@@ -92,6 +92,7 @@ __all__ = [
     "bip322",
     "block",
     "bolt11",
+    "coin_selection",
     "consensus",
     "core_import",
     "curves",

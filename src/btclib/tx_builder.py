@@ -67,8 +67,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from math import ceil
 
+from btclib import var_int
 from btclib.alias import Octets
+from btclib.consensus import WITNESS_SCALE_FACTOR
 from btclib.exceptions import BTClibValueError
 from btclib.fee import DUST_RELAY_FEE_RATE, FeeRate, dust_threshold, fee_from_vsize
 from btclib.psbt.psbt import Psbt, prevouts
@@ -77,6 +80,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import SolutionSizer
 from btclib.psbt.psbt_utils import PSBT_V0
 from btclib.tx import TxOut
+from btclib.tx.tx import _SEGWIT_MARKER
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -110,6 +114,58 @@ class FundedPsbt:
         if self.change_index is None:
             return 0
         return self.psbt.outputs[self.change_index].amount or 0
+
+
+def _target_overhead_vsize(outputs: Sequence[TxOut], candidate_count: int) -> int:
+    """Return what a transaction's own bytes cost, no input counted.
+
+    Version, lock time, the output count and the outputs themselves,
+    read off `Psbt.vsize_estimate` over a psbt of these outputs and no
+    inputs at all -- this function is that estimate, not a second copy
+    of its arithmetic, so a change to one reaches the other. Version and
+    lock time cost four bytes each whatever value they hold, so the
+    placeholder's own 2 and 0 answer for a caller who will pass
+    `build_psbt` something else too.
+
+    Padded by one virtual byte for the segwit marker `build_psbt` writes
+    once any selected input carries a witness, which this function --
+    given only the outputs, before a single input is chosen -- cannot
+    know either way. The pad rounds up rather than down: left off, a
+    selection built entirely of witness inputs would ask `build_psbt`
+    for a few satoshi it does not have; left on, a selection of
+    non-witness inputs alone asks for one virtual byte more than
+    `build_psbt` will actually charge, an overshoot rather than a
+    shortfall.
+
+    `candidate_count` bounds the other unknown, the input count's own
+    var_int: the placeholder above prices it at zero inputs, one byte,
+    but the true count is whatever the selection this overhead feeds
+    ends up choosing, which is not yet decided when this is asked and
+    can be as large as the whole pool it is choosing from. Read from
+    `candidate_count` -- the pool's own size, always at least the
+    selected count -- rather than the placeholder's zero, so the
+    estimate never charges for fewer input-count bytes than the real
+    selection can turn out to need; below 253 candidates the two
+    var_ints are one byte either way and this adds nothing.
+
+    `coin_selection` is the caller this exists for: what one input costs
+    is `tx.input_weight`'s answer, supplied per candidate; what the rest
+    of the transaction costs is this one, and a selection's own target is
+    the two added together, so that a match to it is a match `build_psbt`
+    can fund.
+    """
+    psbt_outputs = [
+        PsbtOut(amount=tx_out.value, script_pub_key=tx_out.script_pub_key.script)
+        for tx_out in outputs
+    ]
+    placeholder = Psbt(
+        2, [], psbt_outputs, PSBT_V0, {}, fallback_lock_time=0, check_validity=False
+    )
+    marker_pad = ceil(len(_SEGWIT_MARKER) / WITNESS_SCALE_FACTOR)
+    # the placeholder above already prices a zero-input var_int, one byte;
+    # this is only the extra width a pool of 253 or more candidates can add
+    input_count_pad = var_int._size(candidate_count) - var_int._size(0)
+    return placeholder.vsize_estimate() + marker_pad + input_count_pad
 
 
 def _assert_arguments(

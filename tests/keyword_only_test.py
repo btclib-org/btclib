@@ -126,6 +126,11 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "check_validity",
     ],
     "btclib.bolt11:RouteHintHop.__init__": ["check_validity"],
+    "btclib.coin_selection:Candidate.__init__": ["check_validity"],
+    "btclib.coin_selection:branch_and_bound": ["dust_fee_rate"],
+    "btclib.coin_selection:knapsack": ["dust_fee_rate", "rng"],
+    "btclib.coin_selection:select_coins": ["dust_fee_rate", "algorithms", "rng"],
+    "btclib.coin_selection:single_random_draw": ["dust_fee_rate", "rng"],
     "btclib.core_import:account_import_requests": ["active", "key_range"],
     "btclib.core_import:import_request": [
         "internal",
