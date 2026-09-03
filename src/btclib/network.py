@@ -33,7 +33,7 @@ activation height costs no import of this one, which is the direction
 that decides where the table lives.
 
 `datadir` stays out, and this is where that decision is recorded: it is
-where this package keeps the five json files loaded at the bottom of this
+where this package keeps the json files loaded at the bottom of this
 file, so it answers a question about the installation and not one about a
 network, and the only code that reads it is the loop it is written for --
 `btclib.curves.curve` has a `datadir` of its own for its own catalogues.
@@ -362,7 +362,7 @@ class Network:
 datadir = Path(__file__).parent / "_data"
 # order matters, and it is the order of the reverse lookups below: the
 # first network holding a version prefix is the one they answer with, so
-# testnet, the oldest, answers for the four networks that share its
+# testnet, the oldest, answers for every network that shares its
 # prefixes, and appending a newer network cannot change any answer.
 # mainnet first, then the test networks oldest to newest: signet.json and
 # testnet4.json share every version prefix with testnet.json, differing
@@ -435,8 +435,8 @@ for _name, _network in _networks.items():
     _XPRV_VERSIONS[_name] = _prv_versions
     _XPUB_VERSIONS[_name] = _pub_versions
     for _prv, _pub in zip(_prv_versions, _pub_versions, strict=True):
-        # setdefault, not assignment: the four test networks carry one set
-        # of versions between them, so testnet -- first of the four -- is
+        # setdefault, not assignment: the test networks carry one set of
+        # versions between them, so testnet -- the oldest of them -- is
         # what a shared version keeps answering
         _XPUB_VERSION_FROM_XPRV_VERSION.setdefault(_prv, _pub)
     # dict.fromkeys and not the concatenation itself: a network naming
@@ -451,10 +451,10 @@ for _name, _network in _networks.items():
 
 # every xkey version this library knows, private and public. Sets, because
 # each answers one question -- is this a private version, is this a public
-# one -- and the four test networks carry one set of versions between them,
-# so a list of them was four fifths repetition in an order that meant
-# nothing. `xpubversion_from_xprvversion` is the pairing the parallel lists
-# were also used for, and `xprvversions_from_network` the versions of one
+# one -- and the test networks carry one set of versions between them, so
+# a list of them was mostly repetition in an order that meant nothing.
+# `xpubversion_from_xprvversion` is the pairing the parallel lists were
+# also used for, and `xprvversions_from_network` the versions of one
 # network
 XPRV_VERSIONS_ALL = frozenset(_XPUB_VERSION_FROM_XPRV_VERSION)
 XPUB_VERSIONS_ALL = frozenset(_XPUB_VERSION_FROM_XPRV_VERSION.values())
@@ -477,7 +477,7 @@ XPUB_VERSIONS_ALL = frozenset(_XPUB_VERSION_FROM_XPRV_VERSION.values())
 # What none of them is is a substitute for the forward check, which is
 # what a caller who *knows* the chain should use: a version among
 # xprvversions_from_network(net), a prefix equal to NETWORKS[net].wif.
-# That check is exact for all five networks, and issue #207 records the
+# That check is exact for every network, and issue #207 records the
 # WIF path having got this wrong by comparing reverse-lookup names.
 def networks_from_key_value(
     key: NetworkField, prefix: str | bytes | Curve
@@ -487,15 +487,14 @@ def networks_from_key_value(
     The list is the ordinal the singular lookups below hide: [0] is the
     canonical answer, [n] the nth network sharing those bytes -- and its
     length says how many there are, which is what "testnet" alone could
-    never say. Mostly it holds the four test networks (one set of
-    prefixes between them) or exactly one (mainnet's bytes, and
-    regtest's bcrt hrp, are unique).
+    never say. Mostly it holds the test networks (one set of prefixes
+    between them) or exactly one (mainnet's bytes, and regtest's bcrt
+    hrp, are unique).
 
     A scan where the xkey-version trio is a table, and not for want of a
     key: `prefix` is whatever a caller passes, so a dict would answer an
     unhashable one with a TypeError where the comparison answers "no
-    network carries this". Five networks and one `getattr` each is what
-    that costs.
+    network carries this". One `getattr` per network is what that costs.
 
     A `key` that names no field of Network is refused rather than scanned
     for: `getattr` would raise `AttributeError`, which is neither a
@@ -550,8 +549,7 @@ def _validated_network_name(network: str) -> str:
 
     `strip().lower()` is the tolerance issue #216 decided to keep, and the
     reason `alias.NetworkName` is not the annotation of a `network`
-    parameter: the set accepted is wider than the five spellings it
-    names.
+    parameter: the set accepted is wider than the spellings it names.
     """
     if not isinstance(network, str):
         raise BTClibTypeError(f"not a network name: {network!r}")
@@ -575,8 +573,8 @@ def network_from_name(network: str = "mainnet") -> Network:
     caller filtering bad input sees an exception nothing told it to
     expect.
 
-    `NETWORKS` stays exported for a caller iterating the five, which is a
-    different question from resolving one name.
+    `NETWORKS` stays exported for a caller iterating the catalogue, which
+    is a different question from resolving one name.
     """
     return NETWORKS[_validated_network_name(network)]
 
@@ -629,11 +627,11 @@ def networks_from_xkeyversion(xkeyversion: bytes) -> list[str]:
 def network_from_xkeyversion(xkeyversion: bytes) -> str:
     """Return the oldest network with the xkey version prefix.
 
-    'testnet' for a testnet, regtest, signet or testnet4 version, those
-    four being the same bytes: the network to derive and re-encode
-    *with*, since all four agree on every version prefix. It is not an
-    answer to "which chain is this" -- network_type_from_xkeyversion is
-    what a prefix can answer, networks_from_xkeyversion the candidates.
+    'testnet' for a testnet, regtest, signet or testnet4 version, which
+    share those bytes: the network to derive and re-encode *with*, since
+    they agree on every version prefix. It is not an answer to "which
+    chain is this" -- network_type_from_xkeyversion is what a prefix can
+    answer, networks_from_xkeyversion the candidates.
     """
     networks = networks_from_xkeyversion(xkeyversion)
     if not networks:
