@@ -1135,6 +1135,58 @@ documented at release-notes length in the first place, and are still in
   `registerdescriptor` -- so the caveat says when it stops being true and
   not only that it is.
 
+### `btclib.p2p.negotiation` carries BIP434's `feature`
+
+- **`feature` is the negotiation message BIP434 defines for every
+  feature after it, and this package encodes it like any other**
+  (closes #1591). Its payload is a `featureid` naming the feature and a
+  `featuredata` holding whatever that feature's own specification puts
+  there, each behind a `CompactSize` length, which generalises what
+  `sendaddrv2` and `wtxidrelay` each do with a command of their own: the
+  next feature needs neither a command minted for it nor a protocol
+  version number agreed on. `Feature` is that codec.
+  `feature_id` has no default, as `Message`'s command and
+  `CmpctBlock`'s header have none: an identifier is the whole of what
+  this message says, so an object without one could not be valid.
+  `feature_data` defaults to the empty vector the BIP prescribes where a
+  feature wants no data.
+- **The ground recorded for leaving it out was Bitcoin Core's tree, and
+  Core's tree does not hold it.** Issue #1119 wrote it down as being in
+  no functional test and as Core's own rather than a published protocol.
+  `test/functional/p2p_bip434_feature.py` is a functional test dedicated
+  to it, added in the same series as the message; `doc/bips.md` lists
+  BIP 434 among what Core implements, from v32.0; and the BIP's own
+  header reads `Status: Complete`. What is left of the ground — that no
+  other implementation speaks it — is a claim that ages rather than one
+  that settles scope, and the line this package draws is what a
+  message's octets are and not who sends them. Core negotiating nothing
+  with it today is no ground either: `-txreconciliation` is debug-only
+  and off by default, so a stock node negotiates nothing with
+  `sendtxrcncl` either, and this module carried that one the commit
+  before. `feature` is post-v31.1, which is why a comparison pinned to
+  that tag does not see it at all.
+- **Both lengths BIP434 states are refused, where a `feefilter` outside
+  the money range is parsed.** The BIP writes them as a MUST on the
+  encoding — the identifier between four and eighty octets, the data at
+  most five hundred and twelve — and Core answers a payload outside
+  either with a disconnect, where `MoneyRange` is a question it asks
+  about a value it has already read. `btclib.p2p.limits` holds the three
+  numbers with the citation, `MIN_FEATUREID_LENGTH` being Core's test
+  framework's name for a four its C++ writes inline. The identifier is
+  octets and not text, as `Version.user_agent` is: BIP434 asks for
+  printable ASCII with a SHOULD, and Core's own test asserts a node
+  accepts an identifier that is not.
+- **What is not carried is the negotiation.** Which identifiers mean
+  anything is one half of it, and BIP434's placement rules are the
+  other: a `feature` must not follow the `verack`, must not go to a peer
+  advertising a protocol version below 70017, and must be accepted where
+  it arrives between the `version` and the `verack`. Each of those needs
+  a connection to hold and this package holds none, which is the line
+  `SendAddrV2` already draws for BIP155's own placement rule. BIP434 has
+  a node ignore an identifier it does not support so long as the payload
+  conforms, and that is what makes the identifier something a caller
+  matches on and this codec merely carries.
+
 ## v2026.8.29
 
 ### Repository

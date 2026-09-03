@@ -70,6 +70,7 @@ from btclib.p2p.inventory import (
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
 from btclib.p2p.negotiation import (
+    Feature,
     FeeFilter,
     GetAddr,
     Mempool,
@@ -137,6 +138,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "WtxidRelay.parse": WtxidRelay.parse,
     "SendTxRcncl.parse": SendTxRcncl.parse,
     "FeeFilter.parse": FeeFilter.parse,
+    "Feature.parse": Feature.parse,
     "Version.parse": Version.parse,
     "Verack.parse": Verack.parse,
     "Ping.parse": Ping.parse,

@@ -90,6 +90,7 @@ from btclib.p2p.inventory import (
 from btclib.p2p.keepalive import Ping, Pong
 from btclib.p2p.message import Message
 from btclib.p2p.negotiation import (
+    Feature,
     FeeFilter,
     GetAddr,
     Mempool,
@@ -111,6 +112,7 @@ __all__ = [
     "CFHeaders",
     "CFilter",
     "CmpctBlock",
+    "Feature",
     "FeeFilter",
     "GetAddr",
     "GetBlockTxn",

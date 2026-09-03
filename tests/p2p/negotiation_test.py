@@ -29,6 +29,15 @@ outside the money range is parsed rather than refused, Core asking
 `sendtxrcncl` version below BIP330's floor of 1 is parsed rather than
 refused too, that floor being a fact about the pair of versions two
 peers offer each other and not about one message's own octets.
+
+`feature` is the one here whose bounds go the other way, and the tests
+below drive both edges of each: BIP434 writes its two lengths as a MUST
+on the encoding, so what falls outside them is refused where a fee rate
+outside the money range is not. The edges are the boundary cases Core's
+`p2p_bip434_feature.py` asks a node for -- an identifier of nothing, of
+one octet below the minimum, of the minimum, of the maximum and of one
+past it, and data of nothing, of the maximum and of one past it -- read
+here against the same accept-or-refuse answer.
 """
 
 from __future__ import annotations
@@ -38,8 +47,10 @@ from io import BytesIO
 
 import pytest
 
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib import var_bytes
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p import (
+    Feature,
     FeeFilter,
     GetAddr,
     Mempool,
@@ -47,6 +58,11 @@ from btclib.p2p import (
     SendHeaders,
     SendTxRcncl,
     WtxidRelay,
+)
+from btclib.p2p.limits import (
+    MAX_FEATUREDATA_LENGTH,
+    MAX_FEATUREID_LENGTH,
+    MIN_FEATUREID_LENGTH,
 )
 
 _MAINNET = bytes.fromhex("f9beb4d9")
@@ -337,3 +353,147 @@ def test_a_sendtxrcncl_is_frozen() -> None:
     assert replace(sendtxrcncl, salt=3) == SendTxRcncl(1, 3)
     assert isinstance(replace(sendtxrcncl, salt=3), SendTxRcncl)
     assert hash(sendtxrcncl) == hash(SendTxRcncl(1, 2))
+
+
+@pytest.mark.parametrize(
+    "feature_id, feature_data",
+    [
+        (b"BIP434", b""),
+        (b"BIP434", b"\x01"),
+        (b"a" * MIN_FEATUREID_LENGTH, b""),
+        (b"a" * MAX_FEATUREID_LENGTH, bytes(MAX_FEATUREDATA_LENGTH)),
+        # BIP434 asks for printable ASCII with a SHOULD, and Core's
+        # `test_non_ascii_feature_id_accepted` is a node taking one that
+        # is not: what this codec answers has to be the same
+        (b"\x00\xff\x01\x7f", b"\xff" * 8),
+    ],
+)
+def test_a_feature_round_trips_identifier_and_data(
+    feature_id: bytes, feature_data: bytes
+) -> None:
+    """Two lengths and two fields, and back to the same value."""
+    feature = Feature(feature_id, feature_data)
+    assert Feature.parse(feature.serialize()) == feature
+    assert feature.feature_id == feature_id
+    assert feature.feature_data == feature_data
+
+
+def test_the_feature_octets_are_the_two_fields_behind_their_lengths() -> None:
+    """BIP434's own encoding: a CompactSize apiece, then that many."""
+    assert Feature.command == "feature"
+    assert Feature(b"BIP434").feature_data == b""
+    assert Feature(b"BIP434").serialize().hex() == "0642495034333400"
+    assert Feature(b"BIP434", b"\x01").serialize().hex() == "064249503433340101"
+    assert Feature(b"BIP434").to_message(_MAINNET).command == "feature"
+    assert (
+        Message.parse(Feature(b"BIP434").to_message(_MAINNET).serialize()).command
+        == "feature"
+    )
+
+
+def test_a_feature_names_something_or_is_no_message() -> None:
+    """No default identifier, as `Message`'s command has none.
+
+    The name is the whole of what the message says, so an object without
+    one could not be a valid message of any kind.
+    """
+    with pytest.raises(TypeError):
+        Feature()  # type: ignore[call-arg]
+
+
+@pytest.mark.parametrize(
+    "length", [0, MIN_FEATUREID_LENGTH - 1, MAX_FEATUREID_LENGTH + 1]
+)
+def test_an_identifier_length_bip434_excludes_is_refused(length: int) -> None:
+    """Core answers a payload outside the bounds with a disconnect."""
+    with pytest.raises(BTClibValueError, match="invalid feature id length"):
+        Feature(b"a" * length)
+
+    # and the octets carrying it are refused on the way in, where the
+    # bound is the same rule read off the wire rather than off a value
+    payload = var_bytes.serialize(b"a" * length) + var_bytes.serialize(b"")
+    with pytest.raises(BTClibValueError, match="invalid feature id length"):
+        Feature.parse(payload)
+
+
+def test_a_data_length_bip434_excludes_is_refused() -> None:
+    """The other bound, and the one the BIP states only as a maximum."""
+    with pytest.raises(BTClibValueError, match="invalid feature data length"):
+        Feature(b"BIP434", bytes(MAX_FEATUREDATA_LENGTH + 1))
+
+    payload = var_bytes.serialize(b"BIP434") + var_bytes.serialize(
+        bytes(MAX_FEATUREDATA_LENGTH + 1)
+    )
+    with pytest.raises(BTClibValueError, match="invalid feature data length"):
+        Feature.parse(payload)
+
+
+def test_what_a_feature_refuses_it_refuses_on_the_way_out_too() -> None:
+    """An unchecked object is one a caller may hold, so `serialize` asks."""
+    unchecked = Feature(b"abc", check_validity=False)
+    assert unchecked.feature_id == b"abc"
+    with pytest.raises(BTClibValueError, match="invalid feature id length"):
+        unchecked.serialize()
+
+    long_data = Feature(
+        b"BIP434", bytes(MAX_FEATUREDATA_LENGTH + 1), check_validity=False
+    )
+    with pytest.raises(BTClibValueError, match="invalid feature data length"):
+        long_data.serialize()
+
+    # what turning the check off buys is skipping the check, and not
+    # octets for a value there are none of
+    valid = Feature(b"BIP434", b"\x01")
+    assert valid.serialize(check_validity=False) == valid.serialize()
+    assert Feature.parse(valid.serialize(), check_validity=False) == valid
+
+
+def test_the_feature_octets_end_where_the_two_fields_do() -> None:
+    """A truncation is refused, and so is anything after the second field."""
+    for trailing in (b"\x00", b"junk"):
+        with pytest.raises(BTClibValueError, match="bytes after the feature payload"):
+            Feature.parse(Feature(b"BIP434").serialize() + trailing)
+
+    # an identifier whose length is longer than the octets that follow
+    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+        Feature.parse(var_bytes.serialize(b"BIP434")[:-1])
+    # and the same truncation in the second field
+    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+        Feature.parse(var_bytes.serialize(b"BIP434") + b"\x08xx")
+
+    with pytest.raises(BTClibValueError, match="not enough binary data for var_int"):
+        Feature.parse(b"")
+
+    with pytest.raises(BTClibTypeError, match="invalid octets type"):
+        Feature.parse(None)  # type: ignore[arg-type]
+
+
+def test_a_feature_length_that_is_not_minimally_encoded_is_refused() -> None:
+    """BIP434 uses only the shortest CompactSize, and so does this.
+
+    The bound is `btclib.var_int`'s own canonicality rule, reached here
+    through `var_bytes`: the same identifier behind a three-octet length
+    is a second encoding of one message.
+    """
+    non_canonical = b"\xfd\x06\x00" + b"BIP434" + b"\x00"
+    assert Feature.parse(b"\x06BIP434\x00") == Feature(b"BIP434")
+    with pytest.raises(BTClibValueError, match="non-canonical var_int"):
+        Feature.parse(non_canonical)
+
+
+def test_a_feature_leaves_a_stream_after_its_own_octets() -> None:
+    """Two length-prefixed fields wide, so a stream reads one and stops."""
+    stream = BytesIO(Feature(b"BIP434", b"\x01").serialize() + b"junk")
+    assert Feature.parse(stream) == Feature(b"BIP434", b"\x01")
+    assert stream.read() == b"junk"
+
+
+def test_a_feature_is_frozen() -> None:
+    """Refuse assignment to either field: a message is a value."""
+    feature = Feature(b"BIP434")
+
+    with pytest.raises(FrozenInstanceError):
+        feature.feature_id = b"BIP999"  # type: ignore[misc]
+
+    assert replace(feature, feature_id=b"BIP999") == Feature(b"BIP999")
+    assert hash(feature) == hash(Feature(b"BIP434"))

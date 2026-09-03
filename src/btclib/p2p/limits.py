@@ -42,6 +42,8 @@ __all__ = [
     "MAX_ADDRV2_SIZE",
     "MAX_ADDR_TO_SEND",
     "MAX_BLOCK_TX_INDEX",
+    "MAX_FEATUREDATA_LENGTH",
+    "MAX_FEATUREID_LENGTH",
     "MAX_GETCFHEADERS_SIZE",
     "MAX_GETCFILTERS_SIZE",
     "MAX_HEADERS_RESULTS",
@@ -49,6 +51,7 @@ __all__ = [
     "MAX_LOCATOR_SZ",
     "MAX_PROTOCOL_MESSAGE_LENGTH",
     "MAX_SUBVERSION_LENGTH",
+    "MIN_FEATUREID_LENGTH",
 ]
 
 # Maximum length of incoming protocol messages, spelled as Core spells it:
@@ -178,6 +181,31 @@ CFCHECKPT_INTERVAL = 1000
 # where it bounds a `block` message's own transaction count and where the
 # sixteen bits below have no say.
 MAX_BLOCK_TX_INDEX = (1 << 16) - 1
+
+# The three lengths BIP434 bounds a `feature` message's two fields by.
+# The BIP's own footnote on the two maxima is what those are for: they
+# "serve only to bound the volume of the feature message payload,
+# particularly as this data will be automatically advertised even to
+# peers that do not support the features in question".
+#
+# The two maxima are Core's names, `MAX_FEATUREID_LENGTH` and
+# `MAX_FEATUREDATA_LENGTH` of src/protocol.h, read there through a
+# `LIMITED_STRING` and a `LIMITED_VECTOR` that throw before the field is
+# built. `MIN_FEATUREID_LENGTH` is Core's test framework's name --
+# test/functional/p2p_bip434_feature.py -- for a four its C++ writes
+# inline at both the send check and `feature_id.size() < 4`, and the BIP
+# says where the four comes from: it "corresponds with a 'BIPx' string
+# for BIPs in the range 1-9".
+#
+# A bound on the octets and not on a value, which is why
+# `btclib.p2p.negotiation` refuses a `feature` outside them where it
+# parses a `feefilter` outside the money range: BIP434 states these as a
+# MUST on the encoding -- "The string length MUST be between 4 and 80,
+# inclusive", "The byte-vector size MUST NOT be more than 512 bytes" --
+# and Core answers a payload past either with a disconnect.
+MIN_FEATUREID_LENGTH = 4
+MAX_FEATUREID_LENGTH = 80
+MAX_FEATUREDATA_LENGTH = 512
 
 # The most block hashes a `getblocks` or `getheaders` locator may carry,
 # Core's src/net_processing.cpp: "The maximum number of entries in a
