@@ -136,6 +136,43 @@ documented at release-notes length in the first place, and are still in
   left as a builtin `TypeError`, which `btclib.exceptions` does not
   declare.
 
+### `curves.curve`'s prose names the standards a sentence is about
+
+- **`curve.py`'s module docstring, its `datadir` paragraph, the comment
+  over the order check, `_catalogued_curve`'s docstring and the comment
+  over `CURVES` name the standards, the files and the curves they are
+  about, in place of a total of them** (closes #1657). The docstring
+  names SEC2v1, SEC2v2, NIST and Brainpool, which is the form
+  `btclib/curves/__init__.py` already uses for the same list.
+  `tests/curves/curve_test.py` asserts `len(CURVES) == len(SEC2v1) +
+  len(NIST) + len(Brainpool)`, which is the de-counted form and pins none
+  of the numbers those sentences gave, so a curve added to a shipped json
+  file left each of them reading exactly as it read before.
+- **`test_wif_without_a_network`'s docstring names the rows driving it
+  rather than counting them** (closes #1658). `WIF_VECTORS` filters
+  `tests/_data/key_io_valid.json` on `isPrivkey`, so what moves the
+  number is a refresh of that vendored file, and nothing in such a
+  refresh reads this docstring. The exception `CLAUDE.md` keeps for a
+  count of what upstream published does not reach it: that one is in
+  `tests/_data/README.md`, the only file `tests/vendored_data_test.py`
+  reads.
+- **`curve.py`'s remaining counts go with them**, in prose the same diff
+  rewrites and outside what issue #1657 lists: the comment over
+  `_libsecp256k1_available` counted the modules importing the predicate
+  by name, and the comment over the order check counted the mult
+  implementations `tests/curves/curve_group_test.py` and
+  `curve_group_2_test.py` drive `n*G == INF` through. An `ast` walk over
+  `src/btclib` for the first and over those two modules for the second
+  answers neither total. The order-check comment also stops naming
+  `curve_group_2_test.py`: `all_curves`, the union that reaches
+  `CURVES`, does not appear in it, so what it drives `n*G == INF`
+  through is low-cardinality curves and secp256k1 alone.
+- **A count of a fixed structure the sentence names stays**: the
+  multiplications, which the line above them names; `multi_mult_var`'s
+  own entry points, which the sentence holding them lists; and the
+  version numbers of SEC 2 itself. A curve added to a shipped json file
+  moves none of them.
+
 ## v2026.9.3
 
 ### Repository

@@ -11,13 +11,13 @@ the bindings cannot express -- with curve_group's arithmetic.
 What this module exports is the class, the three multiplications,
 `PreparedPoint` -- the one way a caller has of saying that a point of
 its own will come back, so that the tables built for it are kept -- the
-catalogue, the four standards it is the union of -- which is where
-btclib.curves keeps them, a standard being a question about a curve and
-not a way of finding one -- and the `*_params2` each of those four is
-built from, which is what test_catalogued_curves rebuilds every curve
-out of with both expensive checks on.
+catalogue, the standards it is the union of, and the `*_params2` each of
+those is built from, which is what test_catalogued_curves rebuilds every
+curve out of with both expensive checks on. The standards are SEC2v1,
+SEC2v2, NIST and Brainpool, and this module is where btclib.curves keeps
+them: a standard is a question about a curve, not a way of finding one.
 
-`datadir` stays out: it is where this package keeps the four json files
+`datadir` stays out: it is where this package keeps the json files
 loaded below, so it answers a question about the installation rather than
 about a curve, and `btclib.network` has a `datadir` of its own for the
 network files. The loader's own names are underscored, a `with` target and
@@ -242,19 +242,19 @@ class Curve(CurveGroup):
             raise BTClibValueError(err_msg)
         # n*G is by far the most expensive check here -- a Python
         # double-and-add over nlen bits -- and it dominates the cost of
-        # building a curve: at import time the 27 catalogued curves would
+        # building a curve: at import time the catalogued curves would
         # spend most of it on n*G alone, and next to none of it on the
         # primality of n. The catalogue therefore passes
         # order_check=False, as it does weakness_check=False below: its
         # parameters are constants, and test_catalogued_curves rebuilds
         # every one of them from the json data with both checks on, while
-        # tests/curves/curve_group_test.py and curve_group_2_test.py assert
-        # n*G == INF for every curve of CURVES through ten distinct mult
-        # implementations. It stays on by default all the same, and is not
-        # merely a test-time luxury: a caller-defined curve whose n is
-        # not the order of G is accepted by every other check here and
-        # then fails silently downstream, mult and sign returning
-        # answers in a group nobody asked for
+        # tests/curves/curve_group_test.py asserts n*G == INF for every
+        # curve of CURVES through the affine and Jacobian double-and-adds
+        # and their recursive forms. It stays on by default all the same,
+        # and is not merely a test-time luxury: a caller-defined curve
+        # whose n is not the order of G is accepted by every other check
+        # here and then fails silently downstream, mult and sign
+        # returning answers in a group nobody asked for
         if order_check and _mult(n, self.GJ, self)[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
@@ -371,7 +371,7 @@ datadir = Path(__file__).parent / "_data"
 def _catalogued_curve(params: list[Any], name: str) -> Curve:
     """Build one curve of the shipped catalogue, from its json parameters.
 
-    One function for the four catalogues, so that the flags cannot drift
+    One function for every catalogue, so that the flags cannot drift
     apart. Both expensive checks are off: these parameters are the
     standardized constants of SEC 2, FIPS 186-4 and RFC 5639, and
     re-deriving from them at every interpreter start that n is the order
@@ -433,9 +433,9 @@ for _ec_name in SEC2v2_params2:
 
 # a new dict, deliberately: aliasing (CURVES = SEC2v1) followed by
 # update() calls would pour NIST and Brainpool into the SEC 2 v.1
-# catalogue -- SEC2v1 with 27 entries instead of its own 15, and
-# SEC2v1["nistp256"] answering a curve that is not in SEC 2 v.1 at all.
-# Each catalogue holds what it is named after
+# catalogue -- SEC2v1 holding every catalogued curve instead of its own,
+# and SEC2v1["nistp256"] answering a curve that is not in SEC 2 v.1 at
+# all. Each catalogue holds what it is named after
 CURVES = SEC2v1 | NIST | Brainpool
 
 secp256k1 = CURVES["secp256k1"]
@@ -446,9 +446,10 @@ secp256k1 = CURVES["secp256k1"]
 # bindings serve this call" but "may they serve any of them". Assigning
 # False turns the delegation off across the whole package, because every
 # dispatch asks the predicate and the predicate reads this global --
-# whereas rebinding the predicate itself reaches one module of the nine
-# that import it by name, so a caller that names them delegates in
-# silence wherever it forgets one, and times C while calling it Python.
+# whereas the predicate is imported by name, so rebinding it reaches the
+# one module it is rebound in: a caller that goes module by module
+# delegates in silence wherever it forgets one, and times C while calling
+# it Python.
 #
 # What the import answered, and not a constant: `btclib._libsecp256k1` is
 # the one place the bindings are imported, so an installation without

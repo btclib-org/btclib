@@ -173,7 +173,7 @@ def test_wif_without_a_network(
     prefix, issue #207 again. Naming the chain is what the argument above
     is for, and passing it is not a workaround: `_wif_network` checks the
     prefix against that network rather than comparing lookup names, so
-    every one of the sixteen rows is accepted on the chain Core names.
+    every one of `WIF_VECTORS`'s rows is accepted on the chain Core names.
     Nothing else moves -- the key and the compression flag are the
     payload, and the payload is unambiguous.
     """
