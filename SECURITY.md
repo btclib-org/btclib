@@ -60,9 +60,9 @@ a build provenance attestation of their own, signed in the run that built
 them:
 
 ```shell
-gh attestation verify btclib-<version>-py3-none-any.whl \
-  --repo btclib-org/btclib \
-  --signer-workflow btclib-org/btclib/.github/workflows/release.yml
+gh attestation verify --repo btclib-org/btclib \
+  --signer-workflow btclib-org/btclib/.github/workflows/release.yml \
+  <a distribution file from the release>
 ```
 
 `--signer-workflow` is what makes that say which workflow signed, rather
