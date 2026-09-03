@@ -222,7 +222,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     ],
     "btclib.key:PrvKeyData.__init__": ["check_validity"],
     "btclib.key:PubKeyData.__init__": ["check_validity"],
-    "btclib.network:Network.__init__": ["check_validity"],
+    "btclib.network:Network.__init__": ["consensus", "check_validity"],
     "btclib.network:Network.from_dict": ["check_validity"],
     "btclib.network:Network.to_dict": ["check_validity"],
     "btclib.p2p:Addr.__init__": ["check_validity"],

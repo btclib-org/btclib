@@ -12,7 +12,9 @@ version, plus the two version sets a caller matches against.
 fields are the prefixes and version bytes a network spells its keys and
 addresses with, plus the genesis block; every one of them is the same for
 every deployment of that network, so there is nothing here for a caller to
-register and the catalogue is a read-only mapping. What *is* per
+register and the catalogue is a read-only mapping.
+
+What *is* per
 deployment -- a custom signet's p2p magic, which its challenge determines
 -- is a fact about a node rather than about an encoding, and lives where
 the node is spoken to: `bitcoin_core_rpc.magic_from_signet_challenge`, and
@@ -20,6 +22,15 @@ the node is spoken to: `bitcoin_core_rpc.magic_from_signet_challenge`, and
 Fixed at import is what lets the reverse lookups below be tables built
 once: a network registered afterwards would be found by a scan and missed
 by a precomputed index, which is the disagreement issue 683 recorded.
+
+The one field that is not an encoding is `consensus`, and it is a
+reference rather than a copy: `btclib.consensus.CONSENSUS_PARAMS` holds
+the rules each of these networks validates by, this module holds the
+spellings a chain's keys and addresses are written in, and a `Network`
+carries the row so that the two tables cannot disagree about which
+networks exist. That module imports nothing of btclib, so reading an
+activation height costs no import of this one, which is the direction
+that decides where the table lives.
 
 `datadir` stays out, and this is where that decision is recorded: it is
 where this package keeps the five json files loaded at the bottom of this
@@ -39,6 +50,7 @@ from types import MappingProxyType
 from typing import Any
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
+from btclib.consensus import CONSENSUS_PARAMS, ConsensusParams
 from btclib.curves import Curve
 from btclib.curves.curve import CURVES, _assert_valid_ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -95,16 +107,33 @@ def _curve_from_name(name: Any) -> Curve:
     return CURVES[name]
 
 
+def _consensus_from_name(name: Any) -> ConsensusParams:
+    """Return the consensus row a name names, refusing what names none.
+
+    `_curve_from_name` above, for the other table a network dict points
+    at, and refusing for the same two reasons: `CONSENSUS_PARAMS[...]`
+    answers an unknown name with a `KeyError` and an unhashable one with
+    a `TypeError` about dict keys, neither of which this library tells a
+    caller to catch.
+    """
+    assert_type(name, str, "consensus name")
+    if name not in CONSENSUS_PARAMS:
+        raise BTClibValueError(f"unknown consensus parameters: {name}")
+    return CONSENSUS_PARAMS[name]
+
+
 @dataclass(frozen=True)
 class Network:
     """The encoding table of one network: prefixes, versions, genesis.
 
     What tells a mainnet spelling from a test one -- wif and address
     prefixes, the bech32 hrp, the BIP32 and SLIP132 version bytes --
-    plus the genesis block hash. No consensus parameter lives here, and
-    no p2p one: the message start belongs to the code that speaks to a
-    node, `bitcoin_core_rpc.magic_from_chain` being where it is, because
-    a custom signet's is a function of its challenge and therefore not a
+    plus the genesis block hash and the consensus row of the chain those
+    spell keys for. No consensus parameter is written out here, `consensus`
+    being a reference to `btclib.consensus`'s own table; and no p2p one at
+    all: the message start belongs to the code that speaks to a node,
+    `bitcoin_core_rpc.magic_from_chain` being where it is, because a
+    custom signet's is a function of its challenge and therefore not a
     field any table can hold. NETWORKS holds the built-in instances, and
     the ``*_from_network`` and ``*_from_xkeyversion`` functions below
     are the lookups.
@@ -116,6 +145,12 @@ class Network:
     # one question the version bytes can still answer, and the three
     # network_type_from_* functions below for the answering
     network_type: NetworkType
+
+    # the rules this chain validates by, one of btclib.consensus's rows.
+    # A field and not a lookup keyed on something else: a Network carries
+    # no name of its own, and a caller building one for a chain this
+    # library does not ship has a row to hand it
+    consensus: ConsensusParams
 
     genesis_block: bytes
 
@@ -174,10 +209,16 @@ class Network:
         # a forgotten argument claim a made-up chain is the real one
         network_type: NetworkType = "test",
         *,
+        # keyword-only and required, where network_type is positional and
+        # defaulted: no row is the safe answer for a network nobody named,
+        # the way "test" is the safe network type, so this is asked for
+        # rather than guessed
+        consensus: ConsensusParams,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "curve", curve)
         object.__setattr__(self, "network_type", network_type)
+        object.__setattr__(self, "consensus", consensus)
         object.__setattr__(self, "genesis_block", bytes_from_octets(genesis_block))
 
         object.__setattr__(self, "wif", bytes_from_octets(wif))
@@ -229,6 +270,10 @@ class Network:
         return {
             "curve": self.curve.name,
             "network_type": self.network_type,
+            # the row's name and not its fields: this dict is the network's
+            # own spellings, and the consensus parameters are written once,
+            # where they are transcribed
+            "consensus": self.consensus.name,
             "genesis_block": self.genesis_block.hex(),
             "wif": self.wif.hex(),
             "p2pkh": self.p2pkh.hex(),
@@ -272,6 +317,7 @@ class Network:
             # .get, alone among these keys: a dict serialized before the
             # field existed still loads, as a test network
             dict_.get("network_type", "test"),
+            consensus=_consensus_from_name(dict_["consensus"]),
             check_validity=check_validity,
         )
 
@@ -291,6 +337,11 @@ class Network:
         # bytes fields, TypeError being what they raise for a field
         # rebound to something else
         assert_type(self.hrp, str, "hrp")
+
+        # the row a dict points at is resolved by from_dict, so what this
+        # catches is a Network built in code with something else in the
+        # field -- and every reader of it below expects the dataclass
+        assert_type(self.consensus, ConsensusParams, "consensus")
 
         # NetworkType is a Literal, which is a mypy fact and not a runtime
         # one: from_dict takes whatever the json says, so this is the only

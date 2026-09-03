@@ -472,17 +472,17 @@ def test_a_json_array_is_asked_before_it_is_walked(
             cls.from_dict(broken)
 
 
-def test_the_two_fields_from_dict_converts_itself() -> None:
-    """The two fields no constructor sees as they were written.
+def test_the_fields_from_dict_converts_itself() -> None:
+    """The fields no constructor sees as they were written.
 
-    A header's time and a network's curve. Every other field of every
-    `from_dict` here is handed to a constructor, which is where
-    `assert_valid` asks about it; these two
-    are converted first -- one by `datetime.fromisoformat`, which
+    A header's time, and a network's curve and consensus row. Every other
+    field of every `from_dict` here is handed to a constructor, which is
+    where `assert_valid` asks about it; these
+    are converted first -- the time by `datetime.fromisoformat`, which
     refuses what is not a string with a TypeError of its own and an
-    unreadable one with a bare ValueError, and one by a lookup in
-    `CURVES`, which answers an unknown name with a `KeyError` and an
-    unhashable one with a TypeError about dict keys.
+    unreadable one with a bare ValueError, and the other two by a lookup
+    in a catalogue, which answers an unknown name with a `KeyError` and
+    an unhashable one with a TypeError about dict keys.
     """
     header = _as_json(_BLOCK.header)
     for wrong in _WRONG_TYPES:
@@ -497,6 +497,12 @@ def test_the_two_fields_from_dict_converts_itself() -> None:
             Network.from_dict({**network, "curve": wrong})
     with pytest.raises(BTClibValueError, match="unknown curve"):
         Network.from_dict({**network, "curve": "secp256k2"})
+
+    for wrong in (*_WRONG_TYPES, {"a": 1}):
+        with pytest.raises(BTClibTypeError, match="invalid consensus name type"):
+            Network.from_dict({**network, "consensus": wrong})
+    with pytest.raises(BTClibValueError, match="unknown consensus parameters"):
+        Network.from_dict({**network, "consensus": "mainnet2"})
 
 
 def test_a_json_null_is_not_an_amount() -> None:

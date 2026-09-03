@@ -32,6 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from btclib.consensus import CONSENSUS_PARAMS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, is_integer
 
@@ -40,16 +41,16 @@ __all__ = [
     "BlockContext",
 ]
 
-# Core's chainparams: 227,931 on mainnet, 21,111 on testnet3, and 1 on
-# testnet4, signet and regtest. Mainnet is the default, as it is
-# everywhere else in btclib.
+# mainnet's, which is the default here as it is everywhere else in
+# btclib. Every network's is a field of its `btclib.consensus` row, so a
+# caller validating another chain writes
+# `NETWORKS[name].consensus.bip34_height` rather than the number.
 #
-# A field of this dataclass rather than one of `Network`, which holds no
-# consensus parameter at all: the first one to go in belongs there with
-# the others a chain-aware validator needs -- the retarget interval,
-# BIP66's and BIP65's heights, the subsidy halving interval -- and putting
-# this one there alone would answer for a table that is otherwise absent.
-BIP34_HEIGHT = 227_931
+# A default of this dataclass and not a second copy: the context is what
+# a validator hands to one block, and the chain it came from is the table
+# -- which is also where the rest of what such a validator reads is, the
+# other activation heights and the subsidy interval among them
+BIP34_HEIGHT = CONSENSUS_PARAMS["mainnet"].bip34_height
 
 
 @dataclass(frozen=True)
