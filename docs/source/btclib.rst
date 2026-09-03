@@ -100,6 +100,13 @@ btclib.bolt11 module
    :members:
    :show-inheritance:
 
+btclib.coin_selection module
+----------------------------
+
+.. automodule:: btclib.coin_selection
+   :members:
+   :show-inheritance:
+
 btclib.consensus module
 -----------------------
 
