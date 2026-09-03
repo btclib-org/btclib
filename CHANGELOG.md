@@ -949,6 +949,50 @@ documented at release-notes length in the first place, and are still in
   rounded value being already above Core's own limit, so a header's
   `bits` fall on the same side of either.
 
+### `btclib.block.build` builds a coinbase and a block over a transaction list
+
+- **`build_coinbase` and `build_block` are what `btclib.block.mining`
+  did not build: what a candidate header commits to** (closes #1118).
+  `build_coinbase` pays `consensus.subsidy(height, halving_interval)`
+  plus fees to a `script_pub_key`, committing to `height` the way BIP34
+  requires (`bip34_commitment`); `build_block` assembles a header over a
+  transaction list, `mining.candidate_block_header`'s own contract, and
+  adds the BIP141 witness commitment to the coinbase where any
+  transaction carries a witness. `build_coinbase` validates what it
+  builds by default, `check_validity=False` the escape every
+  constructor of this library already has; `build_block` carries no
+  such parameter, since its own result has no proof-of-work yet and
+  `Block.assert_valid` always asks for one, but it still runs every
+  other rule `assert_valid` does — `Block.assert_valid_structure` is
+  the new method that holds them, factored out of `assert_valid` so the
+  two cannot drift apart, and it is what refuses a second coinbase, an
+  over-weight block or a malformed transaction handed to `build_block`
+  rather than returning a `Block` nothing has looked at.
+- **`consensus.subsidy(height, halving_interval=210_000)` is Bitcoin
+  Core's `GetBlockSubsidy`**: fifty bitcoin, right-shifted once per
+  interval and forced to zero past sixty-four halvings. The module
+  still imports nothing of btclib, the deferred-import style
+  `ConsensusParams.script_flags_at` already uses.
+- **`block.block`'s witness commitment arithmetic is now one
+  implementation, `coinbase_witness_commitment` and
+  `witness_commitment_output`, shared between
+  `Block.assert_valid_witness_commitment` and `build_block`** — the same
+  reason `merkle_root_and_mutated_from_transactions` is shared between a
+  header being validated and one being mined, so a block's builder and
+  its validator cannot disagree about what its transactions hash to.
+- Verified against real mainnet blocks rather than only against this
+  library's own round trip: `build_block`'s header assembly reproduces
+  block 1's own hash given its own nonce, its witness-commitment
+  arithmetic reproduces block 481,824's own coinbase output and witness
+  stack byte for byte, and the same header assembly reproduces
+  mainnet's own genesis hash from a hand-built pre-BIP34 coinbase.
+  Building a network's genesis block from its own per-network constants
+  is left to [ISS #1602](https://github.com/btclib-org/btclib/issues/1602):
+  `Network` cannot hold one as it stands, `btclib.block` already
+  reaching `btclib.network` through `btclib.tx`'s own `ScriptPubKey`, so
+  a `Network` field pointing back at `btclib.block` closes issue #147's
+  cycle.
+
 ## v2026.8.29
 
 ### Repository

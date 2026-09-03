@@ -159,7 +159,7 @@ CHILD_MODULES = {
         "unpublished": ["bip32", "der_path", "key_origin"],
     },
     "btclib.block": {
-        "groups": ["merkle_proof", "mining", "proof_of_work"],
+        "groups": ["build", "merkle_proof", "mining", "proof_of_work"],
         "unpublished": [
             "block",
             "block_context",
