@@ -1888,6 +1888,21 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   tag missing lower down is still the defect the branch exists for, and
   the window this skips closes at the tag itself.
 
+### The pinned dependencies and hook revisions move to their newest releases
+
+- **`ruff` moves to 0.16.6, in `uv.lock` and in its own pre-commit hook
+  revision, and nothing else moves.** `uv lock --upgrade` names one
+  package; `pre-commit autoupdate` offers three, and two of them are
+  held. `zizmor` stays at v1.29.0: its 1.30.0 self-repository audit
+  rewrites every `uses: ./...` reference to a syntax actionlint 1.7.12
+  cannot parse, and 1.7.12 is still actionlint's newest release, so the
+  condition the hold names has not been met. `pyroma` stays at 5.0.1,
+  its newest stable, `5.1b1` and `5.1b2` being prereleases that
+  `autoupdate` offers as readily as a release, having no notion of one.
+  Both holds carry their reason beside the pin, and `autoupdate` had
+  made both of those comments false by moving the revision they argue
+  against.
+
 ## v2026.8.29
 
 ### Repository
