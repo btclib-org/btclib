@@ -1120,6 +1120,21 @@ documented at release-notes length in the first place, and are still in
   spending an output, so it needs the chain the output was created on",
   now points at `Coin` and `assert_coinbase_maturity` as that chain.
 
+### `btclib.hwi` says which of its commands no HWI release carries
+
+- **`btclib.hwi`'s module docstring now says that
+  `HwiSigner.register_descriptor` runs a subcommand no HWI release
+  through 3.2.0 carries, and `tests/_data/README.md` says the same of
+  its `hwilib/_cli.py` and `hwilib/errors.py` pins, which are read
+  against `master` where `.github/workflows/integration-hwi.yml`
+  installs a release** (closes #1592). So the weekly `integration-hwi`
+  job runs a command line `register_descriptor` cannot reach, and
+  `tests/hwi_test.py` is green either way, its device being a stand-in it
+  writes itself rather than HWI. Both files name what ends the wait --
+  raising `HWI_VERSION` to the first release whose `hwilib/_cli.py` adds
+  `registerdescriptor` -- so the caveat says when it stops being true and
+  not only that it is.
+
 ## v2026.8.29
 
 ### Repository

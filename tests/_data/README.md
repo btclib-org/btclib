@@ -1268,6 +1268,12 @@ working against the next release somebody installs — so the weekly
 re-check is the alignment, and `tests/hwi_test.py` carries the
 transcription it is checked against.
 
+Both pins are read against `master`, and
+`.github/workflows/integration-hwi.yml` installs release 3.2.0, so two
+interfaces are in play and each entry below says what the release does
+not carry. `tests/hwi_test.py` answers from a stand-in it writes itself
+and is green against either; the weekly jobs are what run the release.
+
 ### Not vendored as a file: the commands and flags of HWI's JSON CLI
 
 ```text
@@ -1303,6 +1309,14 @@ the surface `tests/hwi_test.py` transcribes still has nothing to send
 them on. `signtx`'s answer keys (`psbt`, `signed`) are unaffected by
 a registration being passed alongside the transaction.
 
+Not in a release: `registerdescriptor` and its `registration` answer
+key, and the BIP388 policy arguments named above -- `--index`,
+`--multipath-index`/`--change`, and `--registration` on either command.
+All of them entered upstream in 2026-08, after 3.2.0 shipped, so the
+weekly jobs cannot reach `HwiSigner.register_descriptor` at all and
+would refuse those flags. Raising `HWI_VERSION` to the first release
+whose `hwilib/_cli.py` adds them is what makes the two interfaces one.
+
 The parser has only ever grown, and only additively, since 2021:
 `--emulators` in 2024, `--chain` and `--expert` on enumerate in 2022,
 `registerdescriptor` and the BIP388 policy arguments on `displayaddress`
@@ -1327,13 +1341,18 @@ Verdict: **transcribed**. The pin now carries the same commit
 the old name as a compat alias with the same code, -4 — is why
 `tests/hwi_test.py`'s table now reads `UNKNOWN_DEVICE_TYPE`;
 `pyproject.toml`'s typos exception for the old spelling stays, for
-`CHANGELOG.md`'s own narration of it. Nineteen numbers with the names
-HWI gives them, in `tests/hwi_test.py`, and one test per number that a
-`{"error": …, "code": …}` answer arrives as an `exceptions.SignerError`
-carrying it. The numbers are what a caller acts on — -14 is somebody
-pressing the button that says no, -3 is a cable, -9 is a model that will
-never do it — so an adapter that dropped them would leave a caller
-matching on the text of a message.
+`CHANGELOG.md`'s own narration of it. Every number `master` defines,
+under the name it gives, in `tests/hwi_test.py`, and one test per number
+that a `{"error": …, "code": …}` answer arrives as an
+`exceptions.SignerError` carrying it. The numbers are what a caller acts
+on — -14 is somebody pressing the button that says no, -3 is a cable, -9
+is a model that will never do it — so an adapter that dropped them would
+leave a caller matching on the text of a message.
+
+Not in a release: `INVALID_POLICY` (-19). The rest of the table is in
+3.2.0, where -4 carries the misspelling this pin's commit corrects — a
+name that differs and a number that does not, and the number is what
+`tests/hwi_test.py` asserts on.
 
 ## bitcoin-core/qa-assets
 
