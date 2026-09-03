@@ -22,6 +22,8 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.9.3
+
 ### Repository
 
 - **The release pull request now opens the next cycle's changelog

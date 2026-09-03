@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.9.3
+
 ### Breaking changes
 
 - **`btclib.__author__`, `btclib.__author_email__` and `btclib.__license__`
