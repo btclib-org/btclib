@@ -1903,6 +1903,21 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   made both of those comments false by moving the revision they argue
   against.
 
+### `deps-latest` fetches tags, so its coverage floor is reachable
+
+- **`deps-latest.yml`'s two suite jobs pass `fetch-tags: true`**
+  (closes #1660). `tests/changelog_immutability_test.py` reads a
+  release's own tag with `git show <tag>:...`, so on the default
+  shallow, tagless clone it skips rather than failing -- and a skipped
+  test's body is uncovered lines of `tests/`, which the 100% floor then
+  fails the job on. Every run was red at 99.93% on that one file, on
+  every runner, while every test passed and the bindings imported and
+  served: a shortfall saying nothing about the upgrade the workflow
+  exists to measure, sitting where `RELEASING.md` asks a release to
+  look hardest. `test.yml`'s `coverage` and `no-bindings` jobs already
+  fetch tags for this reason; this checkout cited that job and had
+  taken everything from it except the option.
+
 ## v2026.8.29
 
 ### Repository

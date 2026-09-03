@@ -106,6 +106,19 @@ jobs:
         with:
           # see the checkout of the coverage job in test.yml
           persist-credentials: false
+          # tests/changelog_immutability_test.py reads a release's own
+          # tag with `git show <tag>:...`, and the default shallow,
+          # tagless clone resolves no `v*` tag at all. The test tells
+          # that apart from a real mismatch and skips, which is right --
+          # but a skipped test's body is uncovered lines of tests/, and
+          # the 100% floor fails this job on them: 99.93%, one file,
+          # every runner, every week. That shortfall says nothing about
+          # the upgrade this job exists to measure, and it sits where
+          # RELEASING.md asks a release to look hardest (issue #1660).
+          # test.yml's coverage job carries this for the same reason
+          # (issue #1512); the reason is written out rather than pointed
+          # at, a pointer being what this checkout already had.
+          fetch-tags: true
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
@@ -179,6 +192,19 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # tests/changelog_immutability_test.py reads a release's own
+          # tag with `git show <tag>:...`, and the default shallow,
+          # tagless clone resolves no `v*` tag at all. The test tells
+          # that apart from a real mismatch and skips, which is right --
+          # but a skipped test's body is uncovered lines of tests/, and
+          # the 100% floor fails this job on them: 99.93%, one file,
+          # every runner, every week. That shortfall says nothing about
+          # the upgrade this job exists to measure, and it sits where
+          # RELEASING.md asks a release to look hardest (issue #1660).
+          # test.yml's coverage job carries this for the same reason
+          # (issue #1512); the reason is written out rather than pointed
+          # at, a pointer being what this checkout already had.
+          fetch-tags: true
       - name: Setup uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
