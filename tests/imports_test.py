@@ -214,6 +214,20 @@ def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     assert not [name for name in btclib_modules() if name.startswith("btclib.script")]
 
 
+def test_network_stays_below_block(unimported_btclib: None) -> None:
+    """btclib.network must not import btclib.block.
+
+    block.block already reaches btclib.network transitively, through
+    btclib.tx's TxOut.script_pub_key importing script.script_pub_key for
+    the address tables -- so a Network field holding a Block would close
+    issue #147's cycle from the other side. ISS 1602's genesis_block is
+    the temptation this guards: it lives in btclib.block.genesis, built
+    on demand, rather than beside NETWORKS.
+    """
+    importlib.import_module("btclib.network")
+    assert not [name for name in btclib_modules() if name.startswith("btclib.block")]
+
+
 def test_script_publishes_sig_hash_and_the_engine_without_importing_them(
     unimported_btclib: None,
 ) -> None:

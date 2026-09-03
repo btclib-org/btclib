@@ -15,6 +15,7 @@ from btclib.block.block import (
 from btclib.block.block_context import BlockContext
 from btclib.block.block_filter import BasicBlockFilter, prevout_scripts_from_utxos
 from btclib.block.block_header import BlockHeader
+from btclib.block.genesis import genesis_block
 from btclib.block.header_context import (
     ParentOf,
     header_at_height,
@@ -34,10 +35,10 @@ from btclib.block.header_context import (
 # function rather than a second one written from the BIP. Same reasoning
 # for coinbase_witness_commitment and witness_commitment_output, the pair
 # assert_valid_witness_commitment and build.build_block share. ParentOf,
-# header_at_height, median_time_past and next_bits_required are flattened
-# the same way rather than left under header_context: each is the one
-# operation a caller reaches for, not a namespace of related constants the
-# way proof_of_work and mining are
+# header_at_height, median_time_past, next_bits_required and genesis_block
+# are flattened the same way rather than left under their own modules:
+# each is the one operation a caller reaches for, not a namespace of
+# related constants the way proof_of_work and mining are
 __all__ = [
     "BasicBlockFilter",
     "Block",
@@ -47,6 +48,7 @@ __all__ = [
     "bip34_commitment",
     "build",
     "coinbase_witness_commitment",
+    "genesis_block",
     "header_at_height",
     "median_time_past",
     "merkle_proof",
