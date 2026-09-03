@@ -2,15 +2,19 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The two block rules that need something the block does not carry.
+"""The block rules that need something the block does not carry.
 
 `Block.assert_valid` is Bitcoin Core's `CheckBlock`, and these are the
 reachable part of `ContextualCheckBlockHeader` and `ContextualCheckBlock`:
-`time-too-new`, which needs a clock, and `bad-cb-height`, which needs the
-height the block is being accepted at and the height BIP34 binds from.
-`BlockContext` is what carries the three, and each rule is also a method
-taking the datum it reads, so a caller holding half a context asks the
-half it can answer.
+`time-too-new`, which needs a clock; `bad-cb-height`, which needs the
+height the block is being accepted at and the height BIP34 binds from;
+and, where the caller has walked the chain for them,
+`bad-diffbits` and `time-too-old`. `BlockContext` is what carries all
+five, and each rule but the last two is also a method taking the datum
+it reads, so a caller holding half a context asks the half it can
+answer -- `bad-diffbits` and `time-too-old` are read directly off the
+context instead, `median_time_past` and `required_bits` already being
+the answer rather than something to compute from a height.
 
 The blocks are the vendored ones, which is what makes these vectors and
 not fixtures: block 481,824 is a mainnet block above BIP34's activation
@@ -103,6 +107,38 @@ def test_a_context_is_a_height_and_an_instant() -> None:
     # and a context nobody checks can still be built, as everywhere else
     # in the library
     assert BlockContext(height=-1, now=now, check_validity=False).height == -1
+
+
+def test_median_time_past_and_required_bits_default_to_none_and_are_skipped() -> None:
+    """The two chain-state fields are optional, and refused only when given.
+
+    None is what a caller that has not walked the chain for them passes
+    -- which is every context built above, none of them naming either --
+    and it is not a value the type or range checks below ever see.
+    """
+    now = datetime.now(timezone.utc)
+    context = BlockContext(height=0, now=now)
+    assert context.median_time_past is None
+    assert context.required_bits is None
+    context.assert_valid()
+
+    with pytest.raises(BTClibTypeError, match="invalid median_time_past type: str"):
+        BlockContext(height=0, now=now, median_time_past="0")  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="invalid median_time_past: -1"):
+        BlockContext(height=0, now=now, median_time_past=-1)
+
+    with pytest.raises(BTClibTypeError, match="invalid required_bits type: str"):
+        BlockContext(height=0, now=now, required_bits="1d00ffff")  # type: ignore[arg-type]
+    err_msg = "invalid required_bits length: 3 bytes instead of 4"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BlockContext(height=0, now=now, required_bits=b"\x1d\x00\xff")
+
+    # a well-formed pair is accepted and read back unchanged
+    valid = BlockContext(
+        height=0, now=now, median_time_past=0, required_bits=b"\x1d\x00\xff\xff"
+    )
+    assert valid.median_time_past == 0
+    assert valid.required_bits == b"\x1d\x00\xff\xff"
 
 
 def test_the_height_is_committed_as_core_writes_it() -> None:
@@ -233,6 +269,69 @@ def test_a_timestamp_may_be_two_hours_ahead_and_no_more() -> None:
     for not_a_datetime in ("nope", 12345, None, header.time.date()):
         with pytest.raises(BTClibTypeError, match="invalid current time type: "):
             header.assert_valid_time(not_a_datetime)  # type: ignore[arg-type]
+
+
+def test_bad_diffbits_compares_the_header_against_required_bits() -> None:
+    """`assert_valid_contextual` refuses a header not carrying `required_bits`.
+
+    Block 1 carries `1d00ffff`, the genesis target: a context naming that
+    same value accepts it, and a context naming a stricter one refuses it
+    by the bytes each side carries.
+    """
+    block = block_of("block_1.bin")
+    now = block.header.time
+    assert block.header.bits == bytes.fromhex("1d00ffff")
+
+    block.assert_valid_contextual(
+        BlockContext(height=1, now=now, required_bits=bytes.fromhex("1d00ffff"))
+    )
+
+    err_msg = "proof-of-work target not the required one: 1d00ffff"
+    err_msg += " instead of 1c00ffff"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(height=1, now=now, required_bits=bytes.fromhex("1c00ffff"))
+        )
+
+    # None is what leaves the rule unchecked, not a value that happens
+    # to equal every header's own bits
+    block.assert_valid_contextual(BlockContext(height=1, now=now))
+
+
+def test_time_too_old_compares_the_header_against_the_median_past() -> None:
+    """`assert_valid_contextual` refuses a header at or before the median."""
+    block = block_of("block_1.bin")
+    now = block.header.time
+    time = int(block.header.time.timestamp())
+
+    # strictly after the median is required, so the median itself refuses
+    err_msg = f"invalid timestamp \\(not after the median past\\): {time} <= {time}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_contextual(
+            BlockContext(height=1, now=now, median_time_past=time)
+        )
+    block.assert_valid_contextual(
+        BlockContext(height=1, now=now, median_time_past=time - 1)
+    )
+
+
+def test_bad_diffbits_is_checked_before_time_too_old_and_time_too_new() -> None:
+    """Core's own order: bad-diffbits, then time-too-old, then time-too-new.
+
+    A context wrong on all three raises for the first of them, which is
+    what a caller reading the exception alone is told is wrong.
+    """
+    block = block_of("block_1.bin")
+    now = block.header.time
+    time = int(block.header.time.timestamp())
+    context = BlockContext(
+        height=1,
+        now=now - timedelta(days=1),
+        median_time_past=time,
+        required_bits=bytes.fromhex("1c00ffff"),
+    )
+    with pytest.raises(BTClibValueError, match="proof-of-work target not the required"):
+        block.assert_valid_contextual(context)
 
 
 def test_the_contextual_rules_are_not_asked_by_assert_valid() -> None:

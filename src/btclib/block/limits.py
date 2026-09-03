@@ -27,8 +27,15 @@ Some of `consensus.h`'s constants are deliberately absent.
 `MAX_BLOCK_SERIALIZED_SIZE` is marked in Core's own comment as a buffer
 bound and not a network rule, the weight being what consensus caps.
 `COINBASE_MATURITY` is a rule about spending an output, so it needs the
-chain the output was created on. `MAX_TIMEWARP` is BIP94's bound on the
-first block of a retarget period, which needs the previous block.
+chain the output was created on.
+
+`MAX_TIMEWARP` is here and not among those: it is BIP94's bound on the
+first block of a new retarget period, checked against that block's own
+parent -- the last block of the period before it -- so it needs one
+header rather than the whole chain, which is what makes it a bound
+rather than a rule of its own.
+`btclib.block.header_context.next_bits_required` is where it is read,
+behind `ConsensusParams.enforce_bip94`.
 
 `MIN_SERIALIZABLE_TRANSACTION_WEIGHT` is here, where its neighbour
 `MIN_TRANSACTION_WEIGHT` is not, and the pair is what says why: the second
@@ -45,6 +52,7 @@ __all__ = [
     "MAX_BLOCK_SIGOPS_COST",
     "MAX_BLOCK_WEIGHT",
     "MAX_FUTURE_BLOCK_TIME",
+    "MAX_TIMEWARP",
     "MIN_SERIALIZABLE_TRANSACTION_WEIGHT",
     "WITNESS_SCALE_FACTOR",
 ]
@@ -61,3 +69,10 @@ MIN_SERIALIZABLE_TRANSACTION_WEIGHT = WITNESS_SCALE_FACTOR * 10
 # Maximum number of seconds a block timestamp may exceed the current time,
 # spelled as Core spells it
 MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60
+
+# BIP94: how far behind its own parent the first block of a new retarget
+# period may be timestamped, on the networks ConsensusParams.enforce_bip94
+# names -- testnet4, and regtest under -test=bip94, which the table does
+# not carry since it is a command-line option and not a fact about the
+# chain
+MAX_TIMEWARP = 600

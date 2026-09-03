@@ -299,8 +299,12 @@ class BlockHeader:
         clock is neither.
 
         time-too-old is the other half of the pair Core checks beside this
-        one, and it stays out of reach: it is the median time past of
-        eleven ancestors, i.e. the chain.
+        one, and it is not asked here: it is the median time past of
+        eleven ancestors, which needs the chain rather than a datum this
+        method takes. `btclib.block.header_context.median_time_past` is
+        where the walk lives, and `Block.assert_valid_contextual` is
+        where the comparison is made, off `BlockContext.median_time_past`
+        rather than off a callable this method could take instead.
         """
         # the type before the time zone: `.tzinfo` on anything else is an
         # AttributeError, which is neither a ValueError nor a TypeError

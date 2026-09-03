@@ -64,6 +64,8 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_allow_min_difficulty_blocks": False,
         "enforce_bip94": False,
         "pow_no_retargeting": False,
+        "pow_target_spacing": 10 * 60,
+        "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
             "0000000000000000000000000000000000000001128750f82f4c366153a3a030", 16
         ),
@@ -106,6 +108,8 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_allow_min_difficulty_blocks": True,
         "enforce_bip94": False,
         "pow_no_retargeting": False,
+        "pow_target_spacing": 10 * 60,
+        "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
             "0000000000000000000000000000000000000000000017dde1c649f3708d14b6", 16
         ),
@@ -134,6 +138,11 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         # runs with, `-test=bip94` not being passed
         "enforce_bip94": False,
         "pow_no_retargeting": True,
+        "pow_target_spacing": 10 * 60,
+        # one day, not the two weeks every other network aims at: this is
+        # what makes ConsensusParams.difficulty_adjustment_interval 144
+        # on regtest rather than 2016
+        "pow_target_timespan": 24 * 60 * 60,
         # `uint256{}`, which is no work at all: a chain mined for a test
         # never leaves initial block download on this comparison
         "minimum_chain_work": 0,
@@ -150,6 +159,8 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         "pow_allow_min_difficulty_blocks": False,
         "enforce_bip94": False,
         "pow_no_retargeting": False,
+        "pow_target_spacing": 10 * 60,
+        "pow_target_timespan": 14 * 24 * 60 * 60,
         # the default signet's, which chainparams assigns above the class
         # body's own block: a custom challenge gets `uint256{}` instead
         "minimum_chain_work": int(
@@ -169,6 +180,8 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         # true on testnet4 alone, the chain BIP94 was written for
         "enforce_bip94": True,
         "pow_no_retargeting": False,
+        "pow_target_spacing": 10 * 60,
+        "pow_target_timespan": 14 * 24 * 60 * 60,
         "minimum_chain_work": int(
             "0000000000000000000000000000000000000000000009a0fe15d0177d086304", 16
         ),
@@ -375,6 +388,8 @@ def test_a_row_can_be_built_for_a_chain_this_library_does_not_ship() -> None:
         pow_allow_min_difficulty_blocks=False,
         enforce_bip94=False,
         pow_no_retargeting=False,
+        pow_target_spacing=10 * 60,
+        pow_target_timespan=14 * 24 * 60 * 60,
         minimum_chain_work=0,
         bip30_exceptions=(),
         script_flag_exceptions=(),

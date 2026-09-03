@@ -993,6 +993,38 @@ documented at release-notes length in the first place, and are still in
   a `Network` field pointing back at `btclib.block` closes issue #147's
   cycle.
 
+### `btclib.block.header_context` answers median time past and the next target
+
+- **`median_time_past`, `header_at_height` and `next_bits_required` are
+  functions over a `BlockHeader`, a height and a `ParentOf` callable**
+  (closes #1579): Bitcoin Core's `CBlockIndex::GetMedianTimePast`,
+  `GetAncestor` and `GetNextWorkRequired`/`CalculateNextWorkRequired`,
+  published from `btclib.block` beside `BlockContext`. `ParentOf` is
+  `Callable[[BlockHeader], BlockHeader]`, so a caller supplies the one
+  step back a batch of headers off the wire, or an indexed chain, both
+  answer; none of the three functions reads a block index.
+- **`next_bits_required` includes the minimum-difficulty walk and
+  BIP94's timewarp mitigation, gated on `ConsensusParams.enforce_bip94`**
+  — the rule Core enforces on testnet4 and on regtest under
+  `-test=bip94`. At a period boundary it raises for a header timestamped
+  more than `MAX_TIMEWARP` seconds behind its own parent, `MAX_TIMEWARP`
+  now a constant of `btclib.block.limits`, and where BIP94 is enforced it
+  scales the period's own first target rather than the parent's.
+- **`ConsensusParams` gains `pow_target_spacing`, `pow_target_timespan`
+  and the derived `difficulty_adjustment_interval` property**, Core's own
+  `DifficultyAdjustmentInterval()`. Every network but regtest aims at two
+  weeks of ten-minute blocks; regtest measures one day, which is what
+  makes its own interval 144 rather than 2016, a fact the
+  minimum-difficulty walk reads per network.
+- **`BlockContext` gains `median_time_past` and `required_bits`, both
+  `None` by default**: the two values its own docstring named as arriving
+  once the chain state they need does. A caller that supplies them gets
+  `time-too-old` and `bad-diffbits` checked by `assert_valid_contextual`,
+  in Core's own order ahead of `time-too-new` and `bad-cb-height`; a
+  caller that does not builds a context exactly as before, and neither
+  new check runs. A context stays a value either way — nothing here
+  gives it a callable of its own.
+
 ## v2026.8.29
 
 ### Repository
