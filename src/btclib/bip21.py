@@ -8,9 +8,10 @@ https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 
 The gap between what a user pastes or scans and the typed surface this
 library offers. It is pure string handling and it sits above the
-encodings: the address goes to `b32`/`b58`, the amount to `amount`, and
-the network type to `network`; nothing else in btclib imports this
-module, so the dependency graph the README draws gains no edge.
+encodings: the address goes to `b32`/`b58`, the amount to `amount`, the
+network type to `network`, and a `lightning=` parameter to `bolt11`;
+nothing else in btclib imports this module, so the dependency graph the
+README draws gains no edge from it, only the one edge into it.
 
 Four rules carry the whole of it, and each is the thing an
 implementation gets wrong:
@@ -23,6 +24,11 @@ implementation gets wrong:
 - `label` and `message` are percent-encoded, and a bech32 address is
   legally uppercase -- the QR-code case -- so nothing here lowercases
   what it hands to the address decoders
+
+`lightning` is the one parameter this module gives its own type rather
+than leaving in `others`: a BOLT11 invoice, cross-checked against the
+address it rides beside wherever the two state the same fact -- the
+network, and the amount where both give one.
 """
 
 from __future__ import annotations
@@ -37,6 +43,7 @@ from urllib.parse import quote, unquote
 from btclib import b32, b58
 from btclib.alias import NetworkType
 from btclib.amount import valid_btc_amount
+from btclib.bolt11 import Bolt11Invoice
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
 from btclib.utils import assert_type
@@ -113,6 +120,13 @@ class Bip21:
     dropped, because "ignore" is a rule about not *rejecting* them, and
     a caller that recognises one is better served by being handed it.
     Nothing here treats them as meaningful.
+
+    `lightning` is the one parameter this module does treat as
+    meaningful: a BOLT11 invoice, typed rather than left in `others`, and
+    cross-checked against the on-chain half of the same request wherever
+    both state a fact -- the network, and the amount where both give one.
+    Electrum's `bip21.py` does the same pairing, which is why the two
+    land in one change.
     """
 
     address: str
@@ -120,6 +134,7 @@ class Bip21:
     label: str | None
     message: str | None
     others: Mapping[str, str] = field(default_factory=dict)
+    lightning: Bolt11Invoice | None = None
 
     @property
     def network_type(self) -> NetworkType:
@@ -141,6 +156,7 @@ class Bip21:
         label: str | None = None,
         message: str | None = None,
         others: Mapping[str, str] | None = None,
+        lightning: Bolt11Invoice | str | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -151,12 +167,19 @@ class Bip21:
         object.__setattr__(self, "label", label)
         object.__setattr__(self, "message", message)
         object.__setattr__(self, "others", dict(others or {}))
+        object.__setattr__(
+            self,
+            "lightning",
+            Bolt11Invoice.from_invoice(lightning, check_validity=check_validity)
+            if isinstance(lightning, str)
+            else lightning,
+        )
 
         if check_validity:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Refuse a URI without a decodable address, or a bad amount."""
+        """Refuse a bad address, a bad amount, or an inconsistent invoice."""
         if not isinstance(self.address, str) or not self.address:  # type: ignore[redundant-expr]
             raise BTClibValueError("missing address in the bip21 URI")
         # the decoders *are* the validation, and each says what is wrong
@@ -173,6 +196,17 @@ class Bip21:
                 raise BTClibValueError("empty parameter name in the bip21 URI")
             if key.lower().startswith("req-"):
                 raise BTClibValueError(f"unknown required parameter: {key}")
+
+        if self.lightning is not None:
+            self.lightning.assert_valid()
+            if network_type_from_network(self.lightning.network) != self.network_type:
+                err_msg = "the lightning invoice's network does not match the address"
+                raise BTClibValueError(err_msg)
+            if self.amount is not None and self.lightning.amount_msat is not None:
+                invoice_amount = Decimal(self.lightning.amount_msat) / Decimal(10**11)
+                if invoice_amount != self.amount:
+                    err_msg = "the lightning invoice's amount does not match the URI"
+                    raise BTClibValueError(err_msg)
 
     def serialize(self, *, check_validity: bool = True) -> str:
         """Return the `bitcoin:` URI of this payment request."""
@@ -194,6 +228,8 @@ class Bip21:
             params.append(f"label={quote(self.label, safe=_SAFE)}")
         if self.message is not None:
             params.append(f"message={quote(self.message, safe=_SAFE)}")
+        if self.lightning is not None:
+            params.append(f"lightning={quote(self.lightning.to_invoice(), safe=_SAFE)}")
         params.extend(
             f"{quote(key, safe=_SAFE)}={quote(value, safe=_SAFE)}"
             for key, value in self.others.items()
@@ -225,6 +261,7 @@ class Bip21:
         amount: str | None = None
         label: str | None = None
         message: str | None = None
+        lightning: str | None = None
         others: dict[str, str] = {}
         seen: set[str] = set()
         for element in query.split("&") if query else []:
@@ -245,6 +282,11 @@ class Bip21:
                 label = _decode(raw_value, "label")
             elif key == "message":
                 message = _decode(raw_value, "message")
+            elif key == "lightning":
+                # typed below, in __init__: not one of "the parameters
+                # BIP21 says to ignore" any more, so it does not join
+                # `others`
+                lightning = _decode(raw_value, "the lightning parameter")
             else:
                 others[key] = _decode(raw_value, f"the {key} parameter")
 
@@ -258,6 +300,7 @@ class Bip21:
             label,
             message,
             others,
+            lightning,
             check_validity=check_validity,
         )
 

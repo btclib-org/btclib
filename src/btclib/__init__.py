@@ -91,6 +91,7 @@ __all__ = [
     "bip85",
     "bip322",
     "block",
+    "bolt11",
     "consensus",
     "core_import",
     "curves",

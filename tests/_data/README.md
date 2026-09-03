@@ -2003,6 +2003,24 @@ own terms and btclib's own `LICENSE` being at the root. The upstream
 name is in the entry above instead, where the pin already is. It is the
 name bitcoin-core/secp256k1 gives its copy for the same reason.
 
+### `tests/_data/bolt11_test_vectors.json`
+
+```text
+repo    lightning/bolts
+path    11-payment-encoding.md
+commit  14901bdcacee53d95b46dc276b0f09c85d7d71fd  2026-03-09
+pulled  2026-09-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, off the document's own "Examples" and
+"Examples of Invalid Invoices" sections. Every invoice string is copied
+verbatim; every field the valid cases assert -- network, amount,
+timestamp, payment hash, payee, description or its hash, a fallback
+address, a routing hop, the feature bits -- is checked against that same
+example's own "Breakdown" in the document, not derived from btclib's own
+decoder. `tests/bolt11_test.py` reads both halves.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no

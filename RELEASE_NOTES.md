@@ -101,6 +101,18 @@ full year, short month, short day (YYYY-M-D)
   sentence around it -- CPython reworded the message in 3.12, and this
   package supports 3.10. Add the method, answering a
   `btclib.block.BlockHeader` for a non-negative `height: int`.
+- **`Bip21.parse`'s `lightning=` parameter is typed, and no longer one
+  of the parameters `Bip21.others` keeps untyped** (closes #1585). It
+  used to be swept in like any other unrecognised parameter; it is now
+  parsed into a `bolt11.Bolt11Invoice` and cross-checked against the
+  address it rides beside.
+
+  Act on it if you read `uri.others["lightning"]` or iterate `.others`
+  expecting that key: it is gone, and `uri.lightning` is where the value
+  is now, typed rather than a raw string. Act on it too if you parse a
+  URI whose `lightning=` value is not a well-formed, internally
+  consistent invoice: `Bip21.parse` now raises where it used to store
+  the string unexamined, `others` having no validation to fail.
 
 ### Worth knowing, though nothing raises
 

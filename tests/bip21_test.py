@@ -25,6 +25,7 @@ from decimal import Decimal
 import pytest
 
 from btclib.bip21 import Bip21
+from btclib.bolt11 import Bolt11Invoice
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 # BIP21's example address, with its last character corrected
@@ -332,3 +333,62 @@ def test_the_flag_still_switches_the_check_off() -> None:
     assert uri.serialize(check_validity=False) == "bitcoin:"
     with pytest.raises(BTClibValueError, match="missing address"):
         uri.serialize()
+
+
+# a mainnet BOLT11 invoice for 0.02 BTC (2,000,000,000 msat), payment
+# hash and payment secret both zero, signed with the BOLT's own example
+# `priv_key` -- Bolt11Invoice.sign is what tests/bolt11_test.py exercises
+# on its own, this only needs one already-signed instance
+_INVOICE = Bolt11Invoice.sign(
+    "e126f68f7eafcc8b74f54d269fe206be715000f94dac067d1c04a8ca3b2db734",
+    "mainnet",
+    1496314658,
+    payment_hash=bytes(32),
+    payment_secret=bytes(32),
+    description="d",
+    amount_msat=2_000_000_000,
+)
+
+
+def test_lightning_parameter_is_typed_not_kept_in_others() -> None:
+    """A `lightning=` parameter no longer joins `others`, unlike before."""
+    uri = Bip21.parse(f"bitcoin:{ADDR}?lightning={_INVOICE.to_invoice()}")
+    assert isinstance(uri.lightning, Bolt11Invoice)
+    assert uri.lightning.to_invoice() == _INVOICE.to_invoice()
+    assert "lightning" not in uri.others
+
+
+def test_lightning_round_trips_through_serialize() -> None:
+    """A `Bip21` built with an invoice writes it out and reads it back."""
+    uri = Bip21(ADDR, lightning=_INVOICE)
+    text = uri.serialize()
+    assert f"lightning={_INVOICE.to_invoice()}" in text
+    parsed = Bip21.parse(text).lightning
+    assert parsed is not None
+    assert parsed.to_invoice() == _INVOICE.to_invoice()
+
+
+def test_lightning_network_mismatch_is_refused() -> None:
+    """A testnet invoice beside a mainnet address is refused."""
+    testnet_invoice = Bolt11Invoice.sign(
+        "e126f68f7eafcc8b74f54d269fe206be715000f94dac067d1c04a8ca3b2db734",
+        "testnet",
+        1496314658,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+    )
+    with pytest.raises(BTClibValueError, match="network does not match"):
+        Bip21(ADDR, lightning=testnet_invoice)
+
+
+def test_lightning_amount_mismatch_is_refused() -> None:
+    """A URI amount disagreeing with the invoice's own is refused."""
+    with pytest.raises(BTClibValueError, match="amount does not match"):
+        Bip21(ADDR, amount="1", lightning=_INVOICE)
+
+
+def test_lightning_amount_consistent_is_accepted() -> None:
+    """A URI amount agreeing with the invoice's own is accepted."""
+    uri = Bip21(ADDR, amount="0.02", lightning=_INVOICE)
+    assert uri.lightning is _INVOICE
