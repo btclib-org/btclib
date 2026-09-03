@@ -19,7 +19,9 @@ green rather than for having written it once.
 """
 
 import contextlib
+import importlib
 import json
+import pkgutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -28,14 +30,18 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+import btclib
 from btclib import b32, b58, base58, bech32, bip322, descriptors, var_bytes, var_int
+from btclib.bip21 import Bip21
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.block.block import Block
+from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
 from btclib.curves.sec_point import point_from_octets
 from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
+from btclib.ecc.borromean import BorromeanSig
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
@@ -78,6 +84,7 @@ from btclib.p2p.negotiation import (
     SendTxRcncl,
     WtxidRelay,
 )
+from btclib.p2p.reject import Reject, RejectCode
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
@@ -90,6 +97,7 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
+from tests import public_classes_with
 
 # What a btclib parser is allowed to raise. Anything else -- an
 # IndexError off a short slice, an OverflowError off an unchecked size,
@@ -118,6 +126,11 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "Tx.parse": Tx.parse,
     "BlockHeader.parse": BlockHeader.parse,
     "Block.parse": Block.parse,
+    # `block_hash` left at its default, which the caller supplies and
+    # the serialization does not carry: what the default reaches is the
+    # count read under MAX_FILTER_ELEMENT_COUNT and the block hash width
+    # refusal, which stands in front of the Golomb decoding
+    "BasicBlockFilter.parse": BasicBlockFilter.parse,
     "Psbt.parse": Psbt.parse,
     "PsbtIn.parse": PsbtIn.parse,
     "PsbtOut.parse": PsbtOut.parse,
@@ -169,11 +182,20 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # wrapper adding no octets of its own to flip
     "TxPayload.parse": TxPayload.parse,
     "BlockPayload.parse": BlockPayload.parse,
+    # BIP61's payload: two var_bytes strings around a code octet, and a
+    # trailing hash that is either exactly thirty-two octets or absent
+    "Reject.parse": Reject.parse,
     "BIP32KeyData.parse": BIP32KeyData.parse,
     "BIP32KeyOrigin.parse": BIP32KeyOrigin.parse,
     "dsa.Sig.parse": dsa.Sig.parse,
     "ssa.Sig.parse": ssa.Sig.parse,
     "bms.Sig.parse": bms.Sig.parse,
+    # `rsizes` left at its default, which is the ring structure a
+    # verifier supplies and the wire format does not carry: what the
+    # default reaches is the digest read, the trailing-octet refusal, and
+    # -- for the input of exactly thirty-two octets that passes both --
+    # `assert_valid`'s own "no rings"
+    "BorromeanSig.parse": BorromeanSig.parse,
     # no bip322.Sig.parse: that class has none, its three payloads being
     # three unrelated serializations told apart by the prefix of the text
     # form alone, so the text entry point below is where it is read
@@ -196,6 +218,7 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "bech32.decode": bech32.decode,
     "b32.witness_from_address": b32.witness_from_address,
     "b58.h160_from_address": b58.h160_from_address,
+    "Bip21.parse": Bip21.parse,
     "BIP32KeyData.b58decode": BIP32KeyData.b58decode,
     "bms.Sig.b64decode": bms.Sig.b64decode,
     "bip322.Sig.b64decode": bip322.Sig.b64decode,
@@ -205,6 +228,85 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "descriptors.parse": descriptors.parse,
     "miniscript.parse": miniscript.parse,
 }
+
+
+def _classes_driven_here() -> set[str]:
+    """Every class the two dicts above drive through its own `parse`.
+
+    A bound classmethod carries in `__self__` the class it was read off
+    rather than the one that defines the method, which is what the entry
+    names: `GetCFilters` inherits `_FilterRangeRequest.parse`, and
+    `__qualname__` answers with a private base the walk below never
+    returns. A `b58decode` or a `b64decode` entry is not counted, its
+    class being driven here through a decoder and not through `parse`.
+    """
+    driven = set()
+    for entry_point in (*BINARY_PARSERS.values(), *TEXT_PARSERS.values()):
+        cls = getattr(entry_point, "__self__", None)
+        if isinstance(cls, type) and entry_point.__name__ == "parse":
+            driven.add(f"{cls.__module__}.{cls.__qualname__}")
+    return driven
+
+
+def _functions_driven_here() -> set[str]:
+    """Every module function the two dicts above drive, module included."""
+    return {
+        f"{entry_point.__module__}.{entry_point.__name__}"
+        for entry_point in (*BINARY_PARSERS.values(), *TEXT_PARSERS.values())
+        if getattr(entry_point, "__self__", None) is None
+    }
+
+
+def _module_names() -> list[str]:
+    """Every module of the installed btclib, the top-level one included."""
+    return [
+        "btclib",
+        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    ]
+
+
+def test_every_class_that_parses_is_driven_here() -> None:
+    """The inventory is a promise only if omission is what fails.
+
+    A class added to the library and given no line above is held to
+    nothing here: the tests keep passing on the entry points they were
+    given, and the new parser answers hostile octets however it likes.
+    The walk is `tests/__init__.py`'s, `parse_contract_test.py` and
+    `serialization_boundary_test.py` holding these same classes to their
+    own contracts through it.
+    """
+    found = public_classes_with("parse")
+    # a walk returning nothing is a defect in the walk and not in the
+    # inventory, and the equality alone answers it with a mismatch of
+    # every name: this is what says which of the two a red run is
+    assert found
+    assert found == _classes_driven_here()
+
+
+def test_every_module_function_that_parses_is_driven_here() -> None:
+    """And the same promise where the entry point is a module function.
+
+    The walk above finds classes, so `var_int.parse` and `bech32.decode`
+    would be invisible to it. What is asserted is containment and not
+    equality: the dicts drive entry points these two names do not reach
+    -- `psbt_utils.deserialize_map`, `point_from_octets` -- and a family
+    wide enough to find those is a census this file does not keep.
+    """
+    found = set()
+    for module_name in _module_names():
+        module = importlib.import_module(module_name)
+        for name in ("parse", "decode"):
+            function = getattr(module, name, None)
+            if not callable(function) or isinstance(function, type):
+                continue
+            if getattr(function, "__module__", "") != module_name:
+                continue
+            found.add(f"{module_name}.{name}")
+
+    # the containment below is what an empty walk passes, the class walk
+    # above having an equality to fail instead
+    assert found
+    assert found - _functions_driven_here() == set()
 
 
 def _assert_contract(parse: Callable[[Any], Any], data: Any) -> None:
@@ -340,6 +442,13 @@ CMPCTBLOCK_BIN = CmpctBlock(
     [PrefilledTransaction(1, Block.parse(BLOCK_BIN).transactions[0])],
 ).serialize()
 GETBLOCKTXN_BIN = GetBlockTxn(BLOCK_HEADER_BIN[4:36][::-1], [0, 2, 5]).serialize()
+# BIP61's payload, whose trailing hash carries no length of its own and
+# is either exactly thirty-two octets or absent: a truncation and an
+# extension both land in the gap between the two, and the two var_bytes
+# lengths in front of it are what a flipped octet reaches instead
+REJECT_BIN = Reject(
+    "tx", RejectCode.insufficientfee, "min relay fee not met", bytes(range(32))
+).serialize()
 
 
 def _mutations(sample: bytes) -> st.SearchStrategy[bytes]:
@@ -392,6 +501,7 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
     # the differences a `getblocktxn` is a list of
     "CmpctBlock.parse": (CmpctBlock.parse, CMPCTBLOCK_BIN),
     "GetBlockTxn.parse": (GetBlockTxn.parse, GETBLOCKTXN_BIN),
+    "Reject.parse": (Reject.parse, REJECT_BIN),
     "Tx.parse": (Tx.parse, TX_BIN),
     "BlockHeader.parse": (BlockHeader.parse, BLOCK_HEADER_BIN),
     "Block.parse": (Block.parse, BLOCK_BIN),
