@@ -1744,6 +1744,38 @@ dereferences it, and `refs/tags/v1^{}` does the same from a checkout.
   the reason to derive with `testnet` — that they agree on every version
   prefix, not only on the one looked up — is said once.
 
+### `tests/fuzz_test.py`'s parser inventory is a walk's promise
+
+- **`Reject.parse` is driven by the hypothesis layer, in
+  `BINARY_PARSERS` and with a mutation sample of its own** (closes
+  #1629). BIP61's payload is two var_bytes strings around a code octet
+  and then a hash carrying no length of its own, either exactly
+  thirty-two octets or absent, so `_mutations`' truncation and its
+  extension both land in the gap between the two. `fuzz/fuzz_reject.py`
+  already generates input nobody wrote down — it is `atheris.Fuzz()`, an
+  hour of libFuzzer on `fuzz.yml`'s weekly schedule — and
+  `tests/fuzz_corpus_test.py` replays, on every commit, seeds somebody
+  wrote down. What neither is is a per-commit run over a declared
+  strategy, which is what `tests/fuzz_test.py`'s docstring means by
+  keeping it green rather than having written it once.
+- **`test_every_class_that_parses_is_driven_here` and
+  `test_every_module_function_that_parses_is_driven_here` are what make
+  the dicts a promise rather than a list**: a parser added to the
+  package and given no line is red here instead of held to nothing. The
+  class walk is `tests/__init__.py`'s `public_classes_with`, which
+  `parse_contract_test.py` and `serialization_boundary_test.py` already
+  hold these same classes to their own contracts through; the module
+  functions get a walk of their own, `var_int.parse` and `bech32.decode`
+  being invisible to one over classes. Each asserts the walk found
+  something before comparing, an empty walk being what a containment
+  assertion passes.
+- **`BasicBlockFilter.parse` and `BorromeanSig.parse` join
+  `BINARY_PARSERS`, and `Bip21.parse` joins `TEXT_PARSERS`**, which is
+  what the walk answered with. `parse_contract_test.py` names each of
+  them an exclusion, for reasons that are its own contract's -- where
+  the octets of an object end -- and say nothing about the exception a
+  refusal is raised with, which is what this file asks.
+
 ## v2026.8.29
 
 ### Repository
