@@ -40,7 +40,7 @@ issue and issue #1193 hold the interface itself unchanged. What
 `Fetcher`'s own class docstring calls "evidence beside the data" is what
 these two are -- a merkle branch checked against a header this fetcher
 fetched on its own, which is a different kind of answer from the other
-three backends' word for it, and the reason this backend exists.
+backends' word for it, and the reason this backend exists.
 """
 
 from __future__ import annotations
@@ -50,6 +50,7 @@ from typing_extensions import override
 from btclib import electrum
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
+from btclib.exceptions import BTClibValueError
 from btclib.fetch.fetcher import (
     Fetcher,
     block_header_from_raw,
@@ -60,6 +61,7 @@ from btclib.fetch.fetcher import (
     tx_id_hex,
 )
 from btclib.fetch.transport import DEFAULT_TIMEOUT, LineTransport
+from btclib.network import NETWORKS
 from btclib.tx import Tx
 
 __all__ = [
@@ -97,6 +99,18 @@ class ElectrumFetcher(Fetcher):
     history and its unspent outputs, `blockchain.scripthash.get_history`
     and `.listunspent`, but the interface does not ask those questions
     and this issue does not add them.
+
+    `verify_network` is who asks whether the server is on the chain this
+    fetcher labels with, and `assert_network` below is the question it
+    asks. On by default and before the first fetch rather than in this
+    constructor: the answer costs a round trip that is worth paying
+    where it is checked and wasted where a fetcher is built and never
+    used, and a server that is merely unreachable should not be a
+    failure to *construct* anything. The answer is then kept -- a server
+    does not change chain under a client that goes on pointing at it --
+    and a caller that would rather not ask says `verify_network=False`.
+    Same name, same keyword-only argument, same default, same opt-out as
+    `BitcoinCoreFetcher.verify_network`.
     """
 
     def __init__(
@@ -104,12 +118,16 @@ class ElectrumFetcher(Fetcher):
         network: str = "mainnet",
         *,
         transport: LineTransport,
+        verify_network: bool = True,
         timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
         super().__init__(network)
         self.transport = transport
+        self.verify_network = verify_network
         self.timeout = timeout
         self._next_id = 0
+        self._agreed = False
+        self._disagreement = ""
 
     def _next_request_id(self) -> int:
         """Return a fresh request id, one higher than the last.
@@ -131,6 +149,33 @@ class ElectrumFetcher(Fetcher):
         with client_errors():
             return self.transport(request, self.timeout)
 
+    def _verify_once(self) -> None:
+        """Compare the server's chain with this fetcher's label, once.
+
+        `BitcoinCoreFetcher._verify_once`, unchanged: called by the
+        fetches and not by `_round_trip` or `_header_at`, which is what
+        `assert_network` itself goes through -- a check in there would
+        ask the server about the server, from inside the question.
+
+        A disagreement is remembered and raised again for every later
+        call, because it is a settled fact about a configuration rather
+        than a request that failed -- and a fetcher that asked once,
+        refused once and then served an address would be the silent
+        failure this exists to stop. A `FetchError` is not an answer and
+        is remembered as nothing: the server was unreachable or spoke
+        nonsense, which the next call may well find otherwise.
+        """
+        if not self.verify_network or self._agreed:
+            return
+        if self._disagreement:
+            raise BTClibValueError(self._disagreement)
+        try:
+            self.assert_network()
+        except BTClibValueError as e:
+            self._disagreement = str(e)
+            raise
+        self._agreed = True
+
     def _tip(self) -> electrum.HeaderTip:
         """Return the chain tip `blockchain.headers.subscribe` answers."""
         request_id = self._next_request_id()
@@ -138,9 +183,28 @@ class ElectrumFetcher(Fetcher):
         with fetch_errors("headers.subscribe"):
             return electrum.headers_subscribe_response(line, request_id)
 
+    def _header_at(self, height: int) -> BlockHeader:
+        """Return the header at this height, checked, asking nothing else.
+
+        The seam `get_block_header` and `assert_network` share, the way
+        `_tip` is the one `get_block_count` and `get_best_block_id`
+        share: `assert_network` reaches the genesis header through this
+        and not through `get_block_header`, which calls `_verify_once`.
+
+        `block_header_from_raw` is what checks the eighty bytes, so the
+        header a caller compares or hashes is one that is well-formed and
+        cost real work to find, and not the server's word for either.
+        """
+        request_id = self._next_request_id()
+        line = self._round_trip(electrum.block_header_request(request_id, height))
+        with fetch_errors(f"block header {height}"):
+            raw = electrum.block_header_response(line, request_id)
+        return block_header_from_raw(raw, height)
+
     @override
     def get_tx(self, tx_id: Octets) -> Tx:
         """Return the transaction with this id, via `transaction.get`."""
+        self._verify_once()
         hex_ = tx_id_hex(tx_id)
         request_id = self._next_request_id()
         line = self._round_trip(electrum.transaction_get_request(request_id, hex_))
@@ -151,6 +215,7 @@ class ElectrumFetcher(Fetcher):
     @override
     def get_block_count(self) -> int:
         """Return the height of the chain tip, via `headers.subscribe`."""
+        self._verify_once()
         return self._tip().height
 
     @override
@@ -162,6 +227,7 @@ class ElectrumFetcher(Fetcher):
         `block_header_from_raw`'s check on the bytes it sent, and then
         the hash of the header that passed it.
         """
+        self._verify_once()
         tip = self._tip()
         header = block_header_from_raw(tip.header, tip.height)
         return header.hash
@@ -169,19 +235,66 @@ class ElectrumFetcher(Fetcher):
     @override
     def get_block_header(self, height: int) -> BlockHeader:
         """Return the header at this height, via `blockchain.block.header`."""
-        height = block_header_height(height)
-        request_id = self._next_request_id()
-        line = self._round_trip(electrum.block_header_request(request_id, height))
-        with fetch_errors(f"block header {height}"):
-            raw = electrum.block_header_response(line, request_id)
-        return block_header_from_raw(raw, height)
+        self._verify_once()
+        return self._header_at(block_header_height(height))
+
+    def assert_network(self) -> None:
+        """Raise unless the server serves the chain this fetcher labels with.
+
+        One request and one comparison: `blockchain.block.header` at
+        height 0 -- the same method `get_block_header` asks for every
+        other height, asked here for the block every chain starts from --
+        against `NETWORKS[self.network].genesis_block`. What is compared
+        is `BlockHeader.hash` of the eighty bytes `_header_at` has
+        checked, so this backend answers the question the way it answers
+        `get_best_block_id`: by hashing a header rather than by reading a
+        hash the server chose. `server.features` carries a `genesis_hash`
+        member and is what Electrum's own client compares
+        (`electrum/interface.py`); the header is asked for instead
+        because it makes the server produce eighty bytes that hash to the
+        genesis rather than repeat a string, and because it needs no
+        codec function `btclib.electrum` does not already have.
+
+        Public for the same reason `BitcoinCoreFetcher.assert_network` is
+        -- a caller that wants the question answered at a moment of its
+        own.
+
+        Worth the call, because the failure it catches is silent, the
+        same one `BitcoinCoreFetcher.assert_network`'s docstring names: a
+        fetcher labelled `mainnet` over a server on another chain renders
+        a mainnet address for every output it fetches, for coins that are
+        not there. It is sharper here than elsewhere, because `verify_tx`
+        checks a branch against a header fetched from that same server:
+        a caller on the wrong chain is otherwise handed a proof that is
+        valid and about a chain they did not mean.
+
+        What a genesis hash cannot separate is two signets, and
+        `EsploraFetcher.assert_network`'s docstring is where that is
+        written down. This class takes no `signet_challenge` of its own,
+        for the reason that class takes none: nothing among the methods
+        `btclib.electrum` speaks is a signet's challenge to compare
+        against.
+
+        A malformed reply is a `FetchError`. A disagreement is a
+        `BTClibValueError` naming both hashes: the server is the
+        authority on which chain it serves, so the fetcher's label is the
+        thing to fix.
+        """
+        reported = self._header_at(0).hash
+        expected = NETWORKS[self.network].genesis_block
+        if reported != expected:
+            err_msg = "the server serves a chain whose genesis is"
+            err_msg += f" {reported.hex()}, not the {expected.hex()}"
+            err_msg += f" this {self.network} fetcher was built for"
+            raise BTClibValueError(err_msg)
 
     def get_tx_merkle(self, tx_id: Octets, height: int) -> electrum.MerkleProof:
         """Return the branch proving `tx_id` confirmed at `height`.
 
-        `blockchain.transaction.get_merkle`, the one question the other
-        two backends cannot answer at all.
+        `blockchain.transaction.get_merkle`, the one question no other
+        backend here can answer at all.
         """
+        self._verify_once()
         hex_ = tx_id_hex(tx_id)
         height = block_header_height(height)
         request_id = self._next_request_id()
