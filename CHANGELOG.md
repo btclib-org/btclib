@@ -234,20 +234,21 @@ is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
   this half; a second one adds the transport and the default that comes
   with it.
 
-### `btclib.minikey` reads Casascius minikeys (closes #653)
+### `btclib.minikey` reads Casascius minikeys
 
-`minikey.prv_key_data_from_minikey` turns a Casascius minikey into a
-`key.PrvKeyData`: `sha256(text)` is the private key, mainnet and
-uncompressed by the format's own convention, and `sha256(text + "?")`
-starting with a zero byte is its own typo check. A string of another
-shape refuses as NotAPrvKeyError -- too short, a first character other
-than `S`, a character outside the base58 alphabet -- and a well-shaped
-minikey whose typo check fails refuses as InvalidPrvKeyError. The format
-is neither Base58Check nor a `to_prv_key` spelling, so it lives in a
-module of its own rather than in `b58` or `to_prv_key`, and the module
-publishes no way to write one: Casascius physical coins stopped being
-made in 2013, and generating a key this short is not something to do
-today.
+- **`minikey.prv_key_data_from_minikey` turns a Casascius minikey into a
+  `key.PrvKeyData`** (closes #653). `sha256(text)` is the private key,
+  mainnet and uncompressed by the format's own convention, and
+  `sha256(text + "?")` starting with a zero byte is its own typo check. A
+  string of another shape refuses as NotAPrvKeyError -- too short, a
+  first character other than `S`, a character outside the base58
+  alphabet -- and a well-shaped minikey whose typo check fails refuses as
+  InvalidPrvKeyError.
+- **The format lives in a module of its own rather than in `b58` or
+  `to_prv_key`.** It is neither Base58Check nor a `to_prv_key` spelling,
+  and the module publishes no way to write one: Casascius physical coins
+  stopped being made in 2013, and generating a key this short is not
+  something to do today.
 
 ### `btclib.bip38`: password-protected private keys, both modes
 
@@ -273,36 +274,38 @@ in this library since #1188's WIF row landed.
   `$WT` the shell happens to hold; `${WT:?}` turns an unset `$WT` into a
   shell refusal instead.
 
-### SECURITY.md's fetch-trust bullet accounts for every answer (closes #1673)
+### SECURITY.md's fetch-trust bullet accounts for every answer
 
-The `btclib.fetch` trust bullet stops saying only the transaction's id is
-checked. The block header is parsed and validated on arrival by every
-backend's `get_block_header` -- `assert_valid` and `assert_valid_pow` --
-and an output's amount is covered by the same txid check as the
-transaction it is read from: `Fetcher.get_tx_out` derives it from
-`get_tx`, and no shipped backend overrides it. The bullet also carries
-what the header check does not establish -- the height asked for, or the
-chain meant -- because a security document is read on its own and a
-pointer to a docstring is not an answer there. The height is still the
-backend's word alone, and so is the tip hash from every backend but
-`ElectrumFetcher`, which recomputes it from the header it was sent.
+- **The `btclib.fetch` trust bullet stops saying only the transaction's
+  id is checked** (closes #1673). The block header is parsed and
+  validated on arrival by every backend's `get_block_header` --
+  `assert_valid` and `assert_valid_pow` -- and an output's amount is
+  covered by the same txid check as the
+  transaction it is read from: `Fetcher.get_tx_out` derives it from
+  `get_tx`, and no shipped backend overrides it. The bullet also carries
+  what the header check does not establish -- the height asked for, or the
+  chain meant -- because a security document is read on its own and a
+  pointer to a docstring is not an answer there. The height is still the
+  backend's word alone, and so is the tip hash from every backend but
+  `ElectrumFetcher`, which recomputes it from the header it was sent.
 
-### `EsploraFetcher` gains `verify_network` (closes #1674)
+### `EsploraFetcher` gains `verify_network`
 
-`EsploraFetcher` takes `verify_network`, on by default, asked once before
-the first fetch and not in the constructor: `GET /block-height/0` --
-which `get_block_header` already reads for every other height -- compared
-against `NETWORKS[network].genesis_block`, refusing with both hashes in
-the message on a mismatch. Same name, same keyword-only argument, same
-default, same opt-out as `BitcoinCoreFetcher.verify_network` -- and a
-different question, since it compares one block rather than reading the
-host's own verdict on itself. A genesis hash tells mainnet, testnet,
-testnet4, signet and regtest apart, and no two signets from each other
--- Core builds every signet's genesis from
-the same parameters, the challenge going into the message start and not
-the block -- which is the same limit the node backends have without a
-`signet_challenge`; SECURITY.md's bullet now says so once for every
-backend instead of implying Esplora is worse.
+- **`EsploraFetcher` takes `verify_network`, on by default, asked once
+  before the first fetch and not in the constructor** (closes #1674).
+  `GET /block-height/0` --
+  which `get_block_header` already reads for every other height -- compared
+  against `NETWORKS[network].genesis_block`, refusing with both hashes in
+  the message on a mismatch. Same name, same keyword-only argument, same
+  default, same opt-out as `BitcoinCoreFetcher.verify_network` -- and a
+  different question, since it compares one block rather than reading the
+  host's own verdict on itself. A genesis hash tells mainnet, testnet,
+  testnet4, signet and regtest apart, and no two signets from each other
+  -- Core builds every signet's genesis from
+  the same parameters, the challenge going into the message start and not
+  the block -- which is the same limit the node backends have without a
+  `signet_challenge`; SECURITY.md's bullet now says so once for every
+  backend instead of implying Esplora is worse.
 
 ### `merkleblock` joins `btclib.p2p`, over a new `PartialMerkleTree`
 
@@ -406,27 +409,28 @@ a script for being spendable is not a question anybody asks.
   and `.fork` decide alike here and the swap the old example warned against
   would show up in no run.
 
-### `ElectrumFetcher` gains `verify_network` (closes #1691)
+### `ElectrumFetcher` gains `verify_network`
 
-`ElectrumFetcher` takes `verify_network`, on by default, asked once
-before the first fetch and not in the constructor: `blockchain.block.header`
-at height 0 -- which `get_block_header` already reads for every other
-height -- with `BlockHeader.hash` of the eighty bytes it answers compared
-against `NETWORKS[network].genesis_block`, refusing with both hashes in
-the message on a mismatch. Same name, same keyword-only argument, same
-default, same opt-out as `BitcoinCoreFetcher.verify_network`. The header
-and not `server.features`, which carries the `genesis_hash` member
-Electrum's own client compares: `btclib.electrum` already carries this
-request and the reply, where that one would want a codec function it
-does not have. The header is also what this backend can check rather
-than take, the eighty bytes going through `block_header_from_raw` before
-their hash is compared, the same way `get_best_block_id` recomputes the
-tip. `get_tx_merkle` asks as the `Fetcher` questions do, and `verify_tx`
-through it: a branch checked
-against a header from a server on another chain is a proof that is valid
-and about a chain the caller did not mean. SECURITY.md's fetch-trust
-bullet names this backend beside the others, the genesis check and the
-signet limit alike now being one sentence for every one of them.
+- **`ElectrumFetcher` takes `verify_network`, on by default, asked once
+  before the first fetch and not in the constructor** (closes #1691).
+  `blockchain.block.header`
+  at height 0 -- which `get_block_header` already reads for every other
+  height -- with `BlockHeader.hash` of the eighty bytes it answers compared
+  against `NETWORKS[network].genesis_block`, refusing with both hashes in
+  the message on a mismatch. Same name, same keyword-only argument, same
+  default, same opt-out as `BitcoinCoreFetcher.verify_network`. The header
+  and not `server.features`, which carries the `genesis_hash` member
+  Electrum's own client compares: `btclib.electrum` already carries this
+  request and the reply, where that one would want a codec function it
+  does not have. The header is also what this backend can check rather
+  than take, the eighty bytes going through `block_header_from_raw` before
+  their hash is compared, the same way `get_best_block_id` recomputes the
+  tip. `get_tx_merkle` asks as the `Fetcher` questions do, and `verify_tx`
+  through it: a branch checked
+  against a header from a server on another chain is a proof that is valid
+  and about a chain the caller did not mean. SECURITY.md's fetch-trust
+  bullet names this backend beside the others, the genesis check and the
+  signet limit alike now being one sentence for every one of them.
 
 ### The `uv` floor is raised to match Dependabot's ceiling
 
@@ -459,25 +463,42 @@ entry now records the count alone.
 `RELEASE_NOTES.md` does not carry this: the guard is a test's own, over a
 file of the test tree, and no caller acts on it.
 
-### SECURITY.md's source citations are held to their lines (closes #1690)
+### SECURITY.md's source citations are held to their lines
 
-`tests/security_citations_test.py` reads every `path:line` citation in
-SECURITY.md and asks the source whether it still answers: the file
-exists, the line exists, and the backticked span the prose puts in front
-of the citation is on that line -- a fragment of source matched against
-the line's own text, a dotted name against the definition the line sits
-in, read off the module's own `ast`. What it cannot say is which line
-inside a named definition is the right one, so a citation wanting that
-check quotes its line rather than naming its function.
+- **`tests/security_citations_test.py` reads every `path:line` citation
+  in SECURITY.md and asks the source whether it still answers** (closes
+  #1690): the file
+  exists, the line exists, and the backticked span the prose puts in front
+  of the citation is on that line -- a fragment of source matched against
+  the line's own text, a dotted name against the definition the line sits
+  in, read off the module's own `ast`. What it cannot say is which line
+  inside a named definition is the right one, so a citation wanting that
+  check quotes its line rather than naming its function.
 
-The citations move to what they name. The `musig2` one points at the sum
-it quotes; the `bip32` one at `__prv_key_derivation`, the function that
-reads the tweaked key into a Python `int`, and the sentence after it
-names the `_BIP32KeyData` working copy that keeps the `int` across a
-path derivation rather than `derive`, which hands back a string. The
-`dsa` one moves beside the conversion it quotes, on the line that
-builds the owned buffer: after the constructor's name it would have
-been held to the constructor, which is the whole of that function.
+  The citations move to what they name. The `musig2` one points at the sum
+  it quotes; the `bip32` one at `__prv_key_derivation`, the function that
+  reads the tweaked key into a Python `int`, and the sentence after it
+  names the `_BIP32KeyData` working copy that keeps the `int` across a
+  path derivation rather than `derive`, which hands back a string. The
+  `dsa` one moves beside the conversion it quotes, on the line that
+  builds the owned buffer: after the constructor's name it would have
+  been held to the constructor, which is the whole of that function.
+
+### The open section's citations sit in the bullet that makes the claim
+
+- **Every `###` heading of the open section names its entry and nothing
+  else, the `(closes #N)` moving down into the bullet stating the fact it
+  answers for** (closes #1704). Section 9 of the organization standard
+  fixes that placement and names the heading citation as the alternative
+  it rejects: an entry's bullets are separate facts and cite separately,
+  so a citation gathered onto the heading answers for the entry as a
+  whole while the bullets beneath it name issues of their own, and
+  nothing says how the two sets relate.
+- **The entries that carried one all landed on the same day, each written
+  against the shape of the one before it.** Every released section is
+  free of the shape, so nothing was being followed except the file's own
+  most recent lines -- which is the failure the standard's rule is for,
+  and which had already spread to a branch in another repository.
 
 ## v2026.9.3
 
