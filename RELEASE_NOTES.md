@@ -85,6 +85,20 @@ full year, short month, short day (YYYY-M-D)
   `btclib.b58.prv_key_data_from_wif(wif).pub.sec` reads the SEC octets
   `p2wpkh` still takes.
 
+### Worth knowing, though nothing raises
+
+- **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
+  a `NamedTuple`, in place of a plain tuple** (closes #1624). Act on it
+  if you read the result by index rather than by name: a field read by
+  name keeps answering the same question after the next optional
+  protocol is inserted, where an index answers whatever question now
+  sits at that position.
+
+  Unpacking, indexing, `isinstance` against `tuple` and comparing
+  against a plain tuple of `bool` all answer as before, so this is no
+  breaking change; `type(...) is tuple` and `repr(...)` do not, which is
+  what to check if either is what you read.
+
 ## v2026.9.3
 
 ### Breaking changes

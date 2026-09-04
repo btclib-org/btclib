@@ -176,6 +176,16 @@ WIF carries and `PrvKeyData` now states explicitly --
 handing one in were two different calls behind one name, and the second
 is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
 
+### `optional_protocols` returns a `NamedTuple`, not a plain tuple
+
+- **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
+  a `NamedTuple` of `displays_address`, `displays_policy_address` and
+  `signs_message`, in that order** (closes #1624). #1588 inserted a
+  protocol between the two that were already there, so `[1]` meant "signs
+  messages" in `v2026.8.29` and means "displays a wallet-policy address"
+  now; unpacking the old shape raises, and indexing it does not. The
+  class docstring is where the return type argues what it is.
+
 ## v2026.9.3
 
 ### Repository
