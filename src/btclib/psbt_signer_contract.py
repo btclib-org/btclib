@@ -47,7 +47,7 @@ check into an end-to-end one.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, NamedTuple, NoReturn
 
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from btclib.bip32.der_path import DerPath
 
 __all__ = [
+    "OptionalProtocols",
     "assert_psbt_signer",
     "optional_protocols",
     "unsignable_psbt",
@@ -236,7 +237,29 @@ def assert_psbt_signer(
     signer.close()
 
 
-def optional_protocols(signer: object) -> tuple[bool, bool, bool]:
+class OptionalProtocols(NamedTuple):
+    """Answers to unrelated questions, which is a record and no sequence.
+
+    A plain tuple is right for a sequence -- things of one kind whose
+    count is the point, where an index is a position and means it.
+    `displays_address`, `displays_policy_address` and `signs_message`
+    answer questions that have nothing to do with each other, and how
+    many of them there are is an accident of which optional protocols
+    exist today. An index into a record is a position standing in for a
+    name, and the name is what a caller reading `[1]` meant.
+
+    The field names are an escape from that for a caller who reads them,
+    not a guard: a caller who indexes rather than names a field reads
+    the wrong answer the moment a protocol is inserted rather than
+    appended.
+    """
+
+    displays_address: bool
+    displays_policy_address: bool
+    signs_message: bool
+
+
+def optional_protocols(signer: object) -> OptionalProtocols:
     """Return which optional protocols the signer offers, as a caller asks.
 
     `isinstance` against the three runtime-checkable protocols, which is
@@ -246,7 +269,7 @@ def optional_protocols(signer: object) -> tuple[bool, bool, bool]:
     caller says the answer must match, and a conformance pass has none of
     that material.
     """
-    return (
+    return OptionalProtocols(
         isinstance(signer, AddressDisplay),
         isinstance(signer, WalletPolicyAddressDisplay),
         isinstance(signer, MessageSigner),

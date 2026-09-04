@@ -121,6 +121,46 @@ def test_the_optional_protocols_are_reported() -> None:
     assert policy_display.display_policy_address("registration") == "unused"
 
 
+def test_optional_protocols_answers_by_name_and_by_unpacking() -> None:
+    """A field read by name, not only a position, is what the record adds."""
+    reference = optional_protocols(_signer())
+    assert reference.displays_address is True
+    assert reference.displays_policy_address is False
+    assert reference.signs_message is True
+    displays_address, displays_policy_address, signs_message = reference
+    assert displays_address is True
+    assert displays_policy_address is False
+    assert signs_message is True
+
+    wrapped = optional_protocols(_Wrapper())
+    assert wrapped.displays_address is False
+    assert wrapped.displays_policy_address is False
+    assert wrapped.signs_message is False
+    displays_address, displays_policy_address, signs_message = wrapped
+    assert displays_address is False
+    assert displays_policy_address is False
+    assert signs_message is False
+
+    class _PolicyDisplay(_Wrapper):
+        """A signer whose only optional operation is the policy one."""
+
+        def display_policy_address(
+            self, registration: str, index: int = 0, multipath_index: int = 0
+        ) -> str:
+            return "unused"
+
+    policy_display = _PolicyDisplay()
+    policy = optional_protocols(policy_display)
+    assert policy.displays_address is False
+    assert policy.displays_policy_address is True
+    assert policy.signs_message is False
+    displays_address, displays_policy_address, signs_message = policy
+    assert displays_address is False
+    assert displays_policy_address is True
+    assert signs_message is False
+    assert policy_display.display_policy_address("registration") == "unused"
+
+
 def test_something_that_is_not_a_signer_is_refused() -> None:
     """The one check a caller cannot make with a type annotation."""
     with pytest.raises(BTClibValueError, match="does not implement PsbtSigner"):
