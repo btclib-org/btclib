@@ -61,9 +61,15 @@ jobs:
     # mention job below is the path that still works there: issue_comment
     # is a base-repository event, so it is handed the secret.
     #
-    # Compared by full_name rather than by `.fork`, which asks whether the
-    # head repository is a fork of anything and is true of a branch of
-    # btclib-org/bbt, itself a fork.
+    # Compared by full_name rather than by `.fork`: what withholds the
+    # secret is the head repository not being this one, and `.fork` asks
+    # instead whether the head repository has a parent. The two part on a
+    # repository that is itself a fork -- one the organization has taken
+    # over, say -- whose own branches are handed the secret and answer
+    # `.fork` true, so there `.fork` skips the review this condition means
+    # to run. `gh api repos/btclib-org/btclib --jq .fork` answers `false`,
+    # so the two decide alike here and a swap between them would show up
+    # in no run.
     #
     # CLAUDE_REVIEW_ENABLED is the switch, an *organization* variable,
     # and section 11's *Review* is where what it does is stated rather
