@@ -129,9 +129,8 @@ standard's rule. With the placeholder ahead of `"$WT"` the `>` closing it
 takes that path as its target, and a path with no directory at it is a
 file the paste creates.
 
-No line in the block writes. `uv sync` is absent because `uv run` syncs
-before every gate, and because the `&&` that used to carry it is no
-guard: with `WT` unset, `cd "$WT"` is `cd ""`, which `zsh` and the
+No line in the block writes. The `&&` that used to carry `uv sync` is
+no guard: with `WT` unset, `cd "$WT"` is `cd ""`, which `zsh` and the
 `bash` 3.2 macOS ships answer 0, where `bash` 5 refuses it. So the reach
 is the reader's shell rather than every reader's, and where the chain
 does proceed a sync line here runs in the reader's own directory, which
