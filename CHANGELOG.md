@@ -559,6 +559,26 @@ file of the test tree, and no caller acts on it.
   call site to compare, and the file's own docstring is where it is
   stated.
 
+### `btclib.fetch`'s prose names what it holds rather than counting it
+
+- **No docstring or comment under `src/btclib/fetch/` states how many
+  backends implement `Fetcher`, nor how many questions `Fetcher`
+  declares** (closes #1708). Either number moves when the package grows,
+  in files the growth does not otherwise touch, and one had never been
+  true: the package docstring called `Broadcaster` a `typing.Protocol`
+  "rather than a fourth `Fetcher` method", where `Fetcher` already
+  declared four abstract methods when that sentence was written -- the
+  number was counting against a list of questions in the prose above it
+  and not against the class it names. What replaces a
+  count is the property the sentence was about -- each backend's class
+  docstring opens on every question `Fetcher` declares -- and the
+  enumerations stay, `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher`,
+  `EsploraFetcher` and `ElectrumFetcher` still named where naming them
+  helps.
+- **The same rule reaches the rest of the package's prose**, where the
+  exported clients, the transport implementations and the fetchers that
+  compose another `Fetcher` were counted too.
+
 ## v2026.9.3
 
 ### Repository

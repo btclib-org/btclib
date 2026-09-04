@@ -15,7 +15,7 @@ to a block explorer rather than to a node.
 The client's own surface is two methods, `get_bin` and `get_json`, and no
 method per resource -- `path` is the caller's own, built from Core's
 `doc/REST-interface.md` and appended after `/rest` unread. That is why
-this is a third class rather than `EsploraFetcher` with a second
+this is a class of its own rather than `EsploraFetcher` with a second
 `base_url`: `EsploraFetcher` speaks HTTP itself and takes a `base_url`
 with no client in front of it, where this fetcher takes a *client*, the
 same shape `BitcoinCoreFetcher` takes a `BitcoinCoreRpcClient` in. One
@@ -29,9 +29,11 @@ unmodified, so `chain` and `signet_challenge` are both members of it and
 `verify_network` and `signet_challenge` mean here exactly what they mean
 there. What differs is authentication -- `-rest` needs no cookie and
 refuses nobody, which is what this class is for -- and the endpoints the
-four questions are asked at, none of which is shared with
-`EsploraFetcher` either: `.bin` answers octets where Esplora answers text,
-hex for three of its four and a decimal height for the fourth.
+questions are asked at, none of which is shared with `EsploraFetcher`
+either: a transaction and a header are read as octets from a `.bin`
+endpoint, where Esplora answers text -- hex, save for the chain tip's
+height, which is a decimal number -- and the tip's height and hash are
+members of a `/chaininfo.json` reply rather than endpoints of their own.
 """
 
 from __future__ import annotations
@@ -107,7 +109,7 @@ def _field(reply: Any, name: str) -> Any:
 
 
 class BitcoinCoreRestFetcher(NetworkVerifyingFetcher):
-    """The four fetcher questions, answered by a node over `-rest`.
+    """Every `Fetcher` question, answered by a node over `-rest`.
 
     The client is a constructor argument rather than connection
     arguments repeated here, the same reason `BitcoinCoreFetcher` takes a

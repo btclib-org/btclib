@@ -5,7 +5,7 @@
 """The btclib fetcher backed by an Electrum server.
 
 `btclib.electrum` is the codec -- the JSON-RPC framing, the shapes of the
-four methods this fetcher asks, and the merkle-branch check -- and holds
+methods this fetcher asks, and the merkle-branch check -- and holds
 no socket; this module is the `Fetcher` over it, taking a `transport` and
 turning each question into a request line and a line back into a btclib
 type, the way `EsploraFetcher` and `BitcoinCoreRestFetcher` do over their
@@ -32,15 +32,16 @@ operator, and a caller running their own server is invisible to that
 list entirely. Naming any one of the four as a constant would repeat the
 mistake `BLOCKSTREAM_INFO` already refuses.
 
-**A fifth question, answered by nothing else in this package.**
-`get_tx_merkle` and `verify_tx` are not on `Fetcher`: adding a return type
-only one backend can honor is what the interface's four abstract methods,
-each with a return type of its own, already exist to avoid, and both the
-issue and issue #1193 hold the interface itself unchanged. What
-`Fetcher`'s own class docstring calls "evidence beside the data" is what
-these two are -- a merkle branch checked against a header this fetcher
-fetched on its own, which is a different kind of answer from the other
-backends' word for it, and the reason this backend exists.
+**A question the interface does not declare, answered by nothing else in
+this package.** `get_tx_merkle` and `verify_tx` are not on `Fetcher`:
+adding a return type no other backend can honor is what the interface's
+abstract methods, each with a return type of its own, already exist to
+avoid, and both the issue and issue #1193 hold the interface itself
+unchanged. What `Fetcher`'s own class docstring calls "evidence beside
+the data" is what these two are -- a merkle branch checked against a
+header this fetcher fetched on its own, which is a different kind of
+answer from the other backends' word for it, and the reason this backend
+exists.
 """
 
 from __future__ import annotations
@@ -70,7 +71,7 @@ __all__ = [
 
 
 class ElectrumFetcher(NetworkVerifyingFetcher):
-    """The four fetcher questions, and a fifth, answered by an Electrum server.
+    """Every `Fetcher` question, and a merkle branch, from an Electrum server.
 
     `get_tx` is `blockchain.transaction.get`, the raw hex decoded and
     handed to `tx_from_raw`, which recomputes the id the same way every

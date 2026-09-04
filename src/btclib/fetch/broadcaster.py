@@ -5,7 +5,7 @@
 """The interface a chain backend answers to announce a transaction.
 
 Kept apart from `Fetcher`: broadcasting is a write and not every backend
-that answers `Fetcher`'s four questions can perform one --
+that answers `Fetcher`'s questions can perform one --
 `BitcoinCoreRestFetcher`, over Core's read-only `-rest` interface, is
 exactly that backend, `bitcoin-core-rpc`'s `BitcoinCoreRestClient`
 declaring no method that writes. An ABC method here would force a choice

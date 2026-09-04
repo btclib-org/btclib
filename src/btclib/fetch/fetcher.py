@@ -4,7 +4,7 @@
 
 """The interface a chain backend answers, whichever backend it is.
 
-Four questions btclib cannot answer from bytes it was handed: what
+The questions btclib cannot answer from bytes it was handed: what
 transaction has this id, what output does this outpoint name, where is
 the chain tip, and what header does a given height carry. `Fetcher` is
 those questions and nothing else, so that calling code takes a `Fetcher`
@@ -58,7 +58,7 @@ def client_errors() -> Iterator[None]:
 
     `bitcoin_core_rpc` declares a `FetchError`, an `HttpError` and an
     `RpcError` of its own -- it declares zero dependencies and imports
-    nothing of btclib's -- so those three are not the classes
+    nothing of btclib's -- so those are not the classes
     `btclib.exceptions` declares, and an `except FetchError` written
     against btclib does not catch them. This is the one place the
     two meet, and every call that crosses into the package goes through
@@ -115,7 +115,7 @@ def fetch_errors(source: str) -> Iterator[None]:
     `bytes_from_octets`, and as BTClibRuntimeError from the stream
     readers under `Tx.parse` -- "not enough binary data" is what a
     transaction truncated in transit looks like from inside `var_bytes`.
-    All three name the converter and not the host, and the host is what
+    All of them name the converter and not the host, and the host is what
     has to be fixed.
     """
     try:
@@ -216,12 +216,12 @@ class Fetcher(ABC):
         but the Electrum protocol's `blockchain.block.header` takes a
         height and publishes no call that takes a hash at all. A hash-only
         signature would be one an Electrum backend could never answer, which is
-        the `NotImplementedError`-in-an-ABC outcome the three questions
-        above already avoid.
+        the `NotImplementedError`-in-an-ABC outcome the questions above
+        already avoid.
 
         Checked on arrival: `assert_valid` and `assert_valid_pow`, so a
         well-formed header answers for eighty bytes that took a real hash
-        to produce. `assert_valid_time` is not one of the two -- it
+        to produce. `assert_valid_time` is not among them -- it
         compares against the local clock, and a header that is genuinely
         on the chain should not start failing this because the machine
         running it has drifted.
@@ -403,10 +403,10 @@ def block_header_from_raw(raw: Octets, height: int) -> BlockHeader:
     rendering of it, the way `get_tx` does -- but a header names no
     height and no chain of its own, so there is nothing here to recompute
     it against the way `tx_from_raw` recomputes a txid. What is checked
-    instead is `Fetcher.get_block_header`'s two: `BlockHeader.assert_valid`,
-    for eighty well-formed bytes, and `assert_valid_pow`, for a hash that
-    took real work to find. Its docstring is where what neither check
-    establishes is written down.
+    instead is what `Fetcher.get_block_header` promises:
+    `BlockHeader.assert_valid`, for eighty well-formed bytes, and
+    `assert_valid_pow`, for a hash that took real work to find. Its
+    docstring is where what neither check establishes is written down.
     """
     with fetch_errors(f"block header {height}"):
         header = BlockHeader.parse(raw, check_validity=False)

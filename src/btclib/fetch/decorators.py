@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Two `Fetcher`s that answer from another `Fetcher`, not from a network.
+"""Fetchers that answer from another `Fetcher`, not from a network.
 
 `CachingFetcher` composes one backend and remembers what it answered;
 `FallbackFetcher` composes several and tries them in order. Both are
