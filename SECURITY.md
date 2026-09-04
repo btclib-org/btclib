@@ -354,27 +354,29 @@ used to teach and to prototype as much as to build:
     password still runs the cipher once; `scrypt`'s cost is what BIP38
     relies on to make that expensive per guess, not a MAC that would
     turn the guess away first
-- **a `btclib.fetch` backend is trusted, and they are not trusted
-    alike.** `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher` and
-    `EsploraFetcher` all ask by default which chain they are talking to,
-    and `verify_network` is the same name, the same keyword-only
-    argument, the same default and the same opt-out on all three -- not
-    the same question, which is the next sentence. `BitcoinCoreFetcher` and
+- **a `btclib.fetch` backend is trusted, and they are not trusted alike.**
+    `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher`, `EsploraFetcher` and
+    `ElectrumFetcher` each ask by default which chain they are talking to,
+    and `verify_network` is the same name, the same keyword-only argument,
+    the same default and the same opt-out on every one of them -- not the
+    same question, which is the next sentence. `BitcoinCoreFetcher` and
     `BitcoinCoreRestFetcher` talk to a node that validated the chain it
     reports, and `signet_challenge` holds either to the fetcher's label
     beside `verify_network`: `rest_chaininfo` writes out what
     `getblockchaininfo` answers and adds nothing, so `/chaininfo.json`
-    carries the members the JSON-RPC check reads. What `-rest` adds is
-    that it authenticates nobody who reaches it, so the endpoint is
-    trusted on whoever handed it over. `EsploraFetcher` talks to a host
-    that says it validated, and its own `verify_network` compares one
-    block rather than reading the host's own verdict on itself:
-    `/block-height/0`, the genesis, against `NETWORKS[network].genesis_block`.
-    None of the three tells two signets apart on a genesis hash alone —
+    carries the members the JSON-RPC check reads. What `-rest` adds is that
+    it authenticates nobody who reaches it, so the endpoint is trusted on
+    whoever handed it over. `EsploraFetcher` and `ElectrumFetcher` talk to a
+    host that says it validated, and their own `verify_network` compares one
+    block rather than reading the host's own verdict on itself: the genesis,
+    against `NETWORKS[network].genesis_block` — `/block-height/0` for the
+    one, `blockchain.block.header` at height 0 for the other, whose answer
+    is the eighty bytes rather than a hash, so what is compared there is
+    their hash. No backend tells two signets apart on a genesis hash alone —
     Core builds every signet's genesis from the same parameters, the
-    challenge going into the message start and not into the block — so
-    the node backends need `signet_challenge` for that half of the
-    question and `EsploraFetcher`, which takes none, cannot ask it.
+    challenge going into the message start and not into the block — so the
+    node backends need `signet_challenge` for that half of the question, and
+    `EsploraFetcher` and `ElectrumFetcher`, which take none, cannot ask it.
 
     Past that question, the answers a fetch itself makes are checked to
     different degrees. The transaction: its id is recomputed

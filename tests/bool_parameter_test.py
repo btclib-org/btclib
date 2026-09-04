@@ -132,6 +132,7 @@ from btclib.ecc import bms, dsa, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
+from btclib.fetch.electrum import ElectrumFetcher
 from btclib.fetch.esplora import EsploraFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
 from btclib.key import PrvKeyData
@@ -173,6 +174,7 @@ from btclib.tx.tx_out import TxOut
 from btclib.wallet.script_wallet import KeyGroup
 from tests.fetch import Recorded
 from tests.fetch.bitcoin_core_test import client
+from tests.fetch.electrum_test import LineRecorded
 from tests.psbt import psbt_cases
 
 
@@ -1078,6 +1080,15 @@ _TRUTHS = (
         {"base_url": "https://esplora.example/api", "transport": Recorded()},
         reason="whether the explorer is asked which chain it serves; the"
         " same check under the same name, made before its first fetch",
+    ),
+    _Case(
+        "btclib.fetch.electrum.ElectrumFetcher.__init__",
+        "verify_network",
+        ElectrumFetcher,
+        {"transport": LineRecorded()},
+        reason="whether the server is asked which chain it serves; the"
+        " same check again, over the header at height 0 this backend"
+        " hashes rather than a chain name it would be told",
     ),
     _Case(
         "btclib.bip32.bip32.derive_from_account",

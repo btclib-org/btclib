@@ -301,8 +301,8 @@ testnet4, signet and regtest apart, and no two signets from each other
 -- Core builds every signet's genesis from
 the same parameters, the challenge going into the message start and not
 the block -- which is the same limit the node backends have without a
-`signet_challenge`; SECURITY.md's bullet now says so once for all three
-backends instead of implying Esplora is worse.
+`signet_challenge`; SECURITY.md's bullet now says so once for every
+backend instead of implying Esplora is worse.
 
 ### `merkleblock` joins `btclib.p2p`, over a new `PartialMerkleTree`
 
@@ -405,6 +405,28 @@ a script for being spendable is not a question anybody asks.
   `gh api repos/btclib-org/btclib --jq .fork` answers `false`, so `full_name`
   and `.fork` decide alike here and the swap the old example warned against
   would show up in no run.
+
+### `ElectrumFetcher` gains `verify_network` (closes #1691)
+
+`ElectrumFetcher` takes `verify_network`, on by default, asked once
+before the first fetch and not in the constructor: `blockchain.block.header`
+at height 0 -- which `get_block_header` already reads for every other
+height -- with `BlockHeader.hash` of the eighty bytes it answers compared
+against `NETWORKS[network].genesis_block`, refusing with both hashes in
+the message on a mismatch. Same name, same keyword-only argument, same
+default, same opt-out as `BitcoinCoreFetcher.verify_network`. The header
+and not `server.features`, which carries the `genesis_hash` member
+Electrum's own client compares: `btclib.electrum` already carries this
+request and the reply, where that one would want a codec function it
+does not have. The header is also what this backend can check rather
+than take, the eighty bytes going through `block_header_from_raw` before
+their hash is compared, the same way `get_best_block_id` recomputes the
+tip. `get_tx_merkle` asks as the `Fetcher` questions do, and `verify_tx`
+through it: a branch checked
+against a header from a server on another chain is a proof that is valid
+and about a chain the caller did not mean. SECURITY.md's fetch-trust
+bullet names this backend beside the others, the genesis check and the
+signet limit alike now being one sentence for every one of them.
 
 ## v2026.9.3
 

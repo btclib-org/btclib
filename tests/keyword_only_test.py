@@ -254,7 +254,11 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "verify_network",
         "signet_challenge",
     ],
-    "btclib.fetch:ElectrumFetcher.__init__": ["transport", "timeout"],
+    "btclib.fetch:ElectrumFetcher.__init__": [
+        "transport",
+        "verify_network",
+        "timeout",
+    ],
     "btclib.fetch:EsploraFetcher.__init__": [
         "network",
         "verify_network",

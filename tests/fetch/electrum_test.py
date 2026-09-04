@@ -23,6 +23,7 @@ from bitcoin_core_rpc import FetchError as RpcFetchError
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError, FetchError, RpcError
 from btclib.fetch.electrum import ElectrumFetcher
+from btclib.network import NETWORKS
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEADER_RAW, TIP_HEIGHT, TIP_ID, TX_ID
 
@@ -53,6 +54,26 @@ MERKLE_BRANCH = [
     "b3c8b80f3aca397fba2062b35cc042ff806655d0e593c5ef50d6df48d7360836",
     "66532296fd04814bf47c9b0bbe2760262d5e452a77671c5cac90624d6d8c8554",
 ]
+
+# the eighty bytes `blockchain.block.header` answers for height 0 on each
+# chain: the first eighty of the genesis block serializations this tree
+# already carries, mainnet's in tests/block/_data/checkblock_valid.json and
+# testnet's in tests/block/_data/blockfilters.json. What makes them vectors
+# rather than literals to trust is that their hashes are the ones
+# `NETWORKS[network].genesis_block` holds, which is what the first test of
+# the network check asserts before any of the others rests on it
+MAINNET_GENESIS_HEADER = (
+    "010000000000000000000000000000000000000000000000000000000000000000000000"
+    "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49"
+    "ffff001d1dac2b7c"
+)
+TESTNET_GENESIS_HEADER = (
+    "010000000000000000000000000000000000000000000000000000000000000000000000"
+    "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4adae5494d"
+    "ffff001d1aa4ae18"
+)
+MAINNET_GENESIS = NETWORKS["mainnet"].genesis_block.hex()
+TESTNET_GENESIS = NETWORKS["testnet"].genesis_block.hex()
 
 
 class RpcErrorAnswer:
@@ -108,11 +129,26 @@ class LineRecorded:
 
 
 def fetcher(*answers: object, **kwargs: object) -> ElectrumFetcher:
-    """Return an ElectrumFetcher over a scripted LineTransport."""
+    """Return an ElectrumFetcher over a scripted LineTransport.
+
+    `verify_network=False` unless a test says otherwise: the scripted
+    answers are consumed in order, so a fetcher that asked the server
+    which chain it serves would eat the answer the test wrote for the
+    call it is about. The tests that *are* about the question build the
+    fetcher themselves -- one of them passing no `verify_network` at all,
+    which is what pins the default.
+    """
     network = kwargs.pop("network", "mainnet")
     assert isinstance(network, str)
+    verify_network = kwargs.pop("verify_network", False)
+    assert isinstance(verify_network, bool)
     transport = LineRecorded(*answers)
-    return ElectrumFetcher(network, transport=transport, **kwargs)  # type: ignore[arg-type]
+    return ElectrumFetcher(
+        network,
+        transport=transport,
+        verify_network=verify_network,
+        **kwargs,  # type: ignore[arg-type]
+    )
 
 
 def transport_of(endpoint: ElectrumFetcher) -> LineRecorded:
@@ -218,7 +254,7 @@ def test_get_block_header_refuses_a_negative_height(height: int) -> None:
 
 
 def test_get_tx_merkle_round_trips_the_proof() -> None:
-    """`get_tx_merkle` is the question the other two backends cannot answer."""
+    """`get_tx_merkle` is the question no other backend can answer."""
     endpoint = fetcher(
         {"block_height": TIP_HEIGHT, "merkle": MERKLE_BRANCH, "pos": MERKLE_TX_POS}
     )
@@ -302,3 +338,138 @@ def test_a_transport_failure_is_translated() -> None:
     """`LineTransport`'s exception contract, translated by `client_errors`."""
     with pytest.raises(FetchError, match="connection refused"):
         fetcher(RpcFetchError("connection refused")).get_tx(MERKLE_TX_ID)
+
+
+@pytest.mark.parametrize(
+    "network, raw",
+    [("mainnet", MAINNET_GENESIS_HEADER), ("testnet", TESTNET_GENESIS_HEADER)],
+)
+def test_the_genesis_headers_hash_to_what_networks_carries(
+    network: str, raw: str
+) -> None:
+    """The control the two vectors above rest on, for both chains.
+
+    `assert_network` compares the hash of the eighty bytes the server
+    sent, so a header vector that hashed to something else would make
+    every test below agree about the wrong thing.
+    """
+    assert BlockHeader.parse(raw).hash == NETWORKS[network].genesis_block
+
+
+def test_assert_network_accepts_the_genesis_of_the_network_given() -> None:
+    """The check that passes: the server answers the genesis expected."""
+    endpoint = fetcher(MAINNET_GENESIS_HEADER)
+    endpoint.assert_network()
+    request = json.loads(transport_of(endpoint).requests[0])
+    assert request["method"] == "blockchain.block.header"
+    assert request["params"] == [0]
+
+
+def test_assert_network_refuses_a_different_genesis() -> None:
+    """The silent failure this exists for: a testnet server, a mainnet label.
+
+    Both hashes are in the message, so the caller can see which is which.
+    """
+    with pytest.raises(BTClibValueError, match=f"{TESTNET_GENESIS}.*{MAINNET_GENESIS}"):
+        fetcher(TESTNET_GENESIS_HEADER).assert_network()
+
+
+def test_a_header_that_is_not_the_genesis_of_any_chain_is_refused() -> None:
+    """A server answering height 0 with some other block it mined is refused.
+
+    The tip header is well-formed and cost real work, so
+    `block_header_from_raw` passes it: what refuses it is the comparison.
+    """
+    with pytest.raises(BTClibValueError, match=f"{TIP_ID}.*{MAINNET_GENESIS}"):
+        fetcher(TIP_HEADER_RAW).assert_network()
+
+
+def test_the_first_fetch_asks_the_server_which_chain_it_serves() -> None:
+    """Which is what `verify_network` buys, and it is on by default.
+
+    No `verify_network` argument here on purpose: this is the test that
+    would fail if the default were flipped.
+    """
+    transport = LineRecorded(MAINNET_GENESIS_HEADER, MERKLE_TX_RAW)
+    endpoint = ElectrumFetcher("mainnet", transport=transport)
+    assert endpoint.get_tx(MERKLE_TX_ID).id.hex() == MERKLE_TX_ID
+    assert transport.methods == [
+        "blockchain.block.header",
+        "blockchain.transaction.get",
+    ]
+    assert json.loads(transport.requests[0])["params"] == [0]
+
+
+def test_the_chain_is_asked_for_once_and_not_per_fetch() -> None:
+    """A server does not change chain under a client pointing at it.
+
+    Built with no `verify_network` argument, like the test above: the
+    default is what these two pin.
+    """
+    tip = {"height": TIP_HEIGHT, "hex": TIP_HEADER_RAW}
+    transport = LineRecorded(MAINNET_GENESIS_HEADER, tip)
+    endpoint = ElectrumFetcher("mainnet", transport=transport)
+    assert endpoint.get_block_count() == TIP_HEIGHT
+    assert endpoint.get_best_block_id().hex() == TIP_ID
+    assert transport.methods == [
+        "blockchain.block.header",
+        "blockchain.headers.subscribe",
+        "blockchain.headers.subscribe",
+    ]
+
+
+def test_a_server_on_another_chain_answers_no_fetch_at_all() -> None:
+    """The failure the option exists for, and it does not wear off.
+
+    A fetcher that asked once, was refused once and then served an
+    address on the next call would be the silent failure with an extra
+    step, so the disagreement is remembered -- and remembered rather than
+    re-asked, which is what the second call proves by adding no request.
+    """
+    transport = LineRecorded(TESTNET_GENESIS_HEADER)
+    endpoint = ElectrumFetcher("mainnet", transport=transport, verify_network=True)
+    for _ in range(2):
+        with pytest.raises(BTClibValueError, match=TESTNET_GENESIS):
+            endpoint.get_block_count()
+    assert len(transport.requests) == 1
+
+
+def test_the_fifth_question_is_refused_on_another_chain_too() -> None:
+    """`get_tx_merkle` asks first, as the four `Fetcher` questions do.
+
+    The proof is the answer a caller is likeliest to trust, so a branch
+    from a server on the wrong chain is the one worth never returning.
+    """
+    transport = LineRecorded(TESTNET_GENESIS_HEADER)
+    endpoint = ElectrumFetcher("mainnet", transport=transport, verify_network=True)
+    with pytest.raises(BTClibValueError, match=TESTNET_GENESIS):
+        endpoint.get_tx_merkle(MERKLE_TX_ID, TIP_HEIGHT)
+    with pytest.raises(BTClibValueError, match=TESTNET_GENESIS):
+        endpoint.verify_tx(MERKLE_TX_ID, TIP_HEIGHT)
+
+
+def test_a_server_that_could_not_be_asked_is_asked_again() -> None:
+    """A server that did not answer said nothing about which chain it is on.
+
+    The distinction the remembering rests on: a chain that disagrees is a
+    fact about a configuration, where a request that did not answer is
+    one to make again.
+    """
+    tip = {"height": TIP_HEIGHT, "hex": TIP_HEADER_RAW}
+    transport = LineRecorded(
+        RpcFetchError("connection refused"), MAINNET_GENESIS_HEADER, tip
+    )
+    endpoint = ElectrumFetcher("mainnet", transport=transport, verify_network=True)
+    with pytest.raises(FetchError, match="connection refused"):
+        endpoint.get_block_count()
+    assert endpoint.get_block_count() == TIP_HEIGHT
+    assert len(transport.requests) == 3
+
+
+def test_verify_network_false_asks_the_server_nothing() -> None:
+    """With the opt-out taken, the fetch is the only request made."""
+    tip = {"height": TIP_HEIGHT, "hex": TIP_HEADER_RAW}
+    transport = LineRecorded(tip)
+    endpoint = ElectrumFetcher("mainnet", transport=transport, verify_network=False)
+    assert endpoint.get_block_count() == TIP_HEIGHT
+    assert transport.methods == ["blockchain.headers.subscribe"]
