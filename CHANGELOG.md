@@ -579,6 +579,25 @@ file of the test tree, and no caller acts on it.
   exported clients, the transport implementations and the fetchers that
   compose another `Fetcher` were counted too.
 
+### `.github/mutation/fetch.toml` mutates every backend that reaches a host
+
+- **`bitcoin_core_rest.py` and `electrum.py` join the profile's
+  `module-path`** (closes #1675). Both recompute a transaction id from
+  the bytes that arrived and refuse a host serving another chain, and
+  `bitcoin_core_rest.py` bounds each reply whose shape it knows -- a
+  hash, a header, a `chaininfo` reply -- leaving a raw transaction to
+  the client's own default, unbounded in the way those are not. Those
+  are the guards this scope exists to measure, and a backend outside the
+  profile is one whose weakened guard the suite is not known to notice.
+  `decorators.py` and `broadcaster.py` stay out, and the configuration
+  says why: neither judges a reply.
+- **A complete session over the new scope is recorded in that
+  configuration's own comment**, with its survivors read against the
+  classes the comment argues. The survivors belonging to no class are
+  what the boundary is held to on either side of a call, and
+  `tests/fetch` does not notice any of them weakened; issue #1716 names
+  each with its line.
+
 ## v2026.9.3
 
 ### Repository
