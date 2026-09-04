@@ -325,6 +325,42 @@ backends instead of implying Esplora is worse.
   where a `merkleblock` is only ever something a peer sends and parsing
   it is not endorsing the request that produced it.
 
+### An extended key is read in `bip32`, by the module that defines it
+
+`bip32.prv_keyinfo_from_xprv`, `bip32.pub_keyinfo_from_xpub` and
+`bip32.point_from_xpub` are where an xprv or an xpub is turned into a
+scalar, into SEC octets or into a curve point (issue #1188). The three
+were private to `to_prv_key` and `to_pub_key`, so the format and its
+parser sat in different modules; `bip32` is where the format is defined,
+where the version bytes are already read against a network, and where
+`BIP32KeyData` is decoded and validated, so it is where the parse
+belongs.
+
+Nothing a caller of the converters can see changes.
+`to_prv_key.int_from_prv_key` and `prv_keyinfo_from_prv_key`, and
+`to_pub_key.point_from_key`, `point_from_pub_key`, `pub_keyinfo_from_key`
+and `pub_keyinfo_from_pub_key` take the same spellings of a key they took
+before, a `BIP32KeyData` among them, and answer the same values with the
+same exceptions. The converters call the three instead of defining them.
+
+What the move does change is the class an extended key spelled as
+something no `b58decode` reads comes back as. `NotAPrvKeyError` is
+`to_prv_key`'s vocabulary -- "wrong format, try the next one", which only
+means something where formats are being guessed -- so `bip32` refuses
+with what `BIP32KeyData.b58decode` refuses with, a `BTClibTypeError` for
+a type no extended key is spelled as and a `BTClibValueError` for text
+that is not one. `to_prv_key._prv_keyinfo_if_xprv` is the guessing
+itself: it decodes, translates that refusal into a `NotAPrvKeyError`, and
+hands the decoded key to `bip32._prv_keyinfo_from_xprv`. Handing the
+undecoded key to the public spelling instead would validate it a second
+time, and for an extended public key -- which the guessing decodes and
+then declines -- `_assert_valid_key`'s on-curve test is most of what
+validating one costs.
+
+`RELEASE_NOTES.md` does not carry this: it is the first half of the
+issue's `xprv, xpub` row, and nothing a caller has to act on moves until
+the second half takes `BIP32KeyData` out of `PrvKey`, `PubKey` and `Key`.
+
 ## v2026.9.3
 
 ### Repository
