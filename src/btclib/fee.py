@@ -40,9 +40,8 @@ from btclib import var_int
 from btclib.alias import Octets
 from btclib.amount import sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.script.limits import MAX_SCRIPT_SIZE
-from btclib.script.script import BYTE_FROM_OP_CODE_NAME
 from btclib.script.script_pub_key import is_segwit
+from btclib.script.spendability import is_unspendable
 from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
@@ -348,17 +347,7 @@ def dust_threshold(
     """
     script_pub_key = bytes_from_octets(script_pub_key)
 
-    # Core's CScript::IsUnspendable, spelled out rather than read off
-    # btclib's is_nulldata, which is narrower on purpose (issue #211): a
-    # bare OP_RETURN, and an OP_RETURN followed by several pushes, are
-    # unknown to that classifier and unspendable to a node, and asking it
-    # would hand each of them a threshold it does not have.
-    # Sliced and not indexed, so that an empty script is a script with no
-    # leading OP_RETURN rather than an IndexError
-    if (
-        script_pub_key[:1] == BYTE_FROM_OP_CODE_NAME["OP_RETURN"]
-        or len(script_pub_key) > MAX_SCRIPT_SIZE
-    ):
+    if is_unspendable(script_pub_key):
         return 0
 
     size = (

@@ -54,6 +54,13 @@ btclib.script.sig\_ops module
    :members:
    :show-inheritance:
 
+btclib.script.spendability module
+---------------------------------
+
+.. automodule:: btclib.script.spendability
+   :members:
+   :show-inheritance:
+
 btclib.script.taproot module
 ----------------------------
 

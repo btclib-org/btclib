@@ -128,6 +128,12 @@ def node(
             # transaction whole, and a node without the index answers only
             # for what is still in its mempool
             "-txindex=1",
+            # so that `gettxoutsetinfo` answers at a named height, which
+            # is what makes it read the index's own incrementally
+            # maintained numbers rather than scan the set: the two are
+            # the same answer where they agree and only the index says
+            # anything about how it was kept
+            "-coinstatsindex=1",
             "-printtoconsole=0",
         ],
     )

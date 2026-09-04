@@ -95,6 +95,7 @@ __all__ = [
     "bolt9",
     "bolt11",
     "coin_selection",
+    "coinstats",
     "consensus",
     "core_import",
     "curves",

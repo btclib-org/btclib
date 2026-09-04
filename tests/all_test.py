@@ -271,6 +271,7 @@ CHILD_MODULES = {
             "script",
             "script_pub_key",
             "sig_ops",
+            "spendability",
             "witness",
         ],
     },

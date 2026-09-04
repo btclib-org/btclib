@@ -121,6 +121,13 @@ btclib.coin_selection module
    :members:
    :show-inheritance:
 
+btclib.coinstats module
+-----------------------
+
+.. automodule:: btclib.coinstats
+   :members:
+   :show-inheritance:
+
 btclib.consensus module
 -----------------------
 
