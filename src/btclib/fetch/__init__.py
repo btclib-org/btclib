@@ -7,15 +7,15 @@
 **Where the chain is.** Everything else in btclib works on bytes it was
 handed. This package is the one place that goes and asks: what
 transaction has this id, what output does this outpoint name, where is
-the chain tip. `Fetcher` is the interface, and it is implemented four
-times -- `BitcoinCoreFetcher` over a full node's JSON-RPC,
+the chain tip. `Fetcher` is the interface, implemented once per
+backend -- `BitcoinCoreFetcher` over a full node's JSON-RPC,
 `BitcoinCoreRestFetcher` over the same node's unauthenticated `-rest`
 interface, `EsploraFetcher` over a block explorer's HTTP api,
 `ElectrumFetcher` over an Electrum server -- so that calling code takes a
 `Fetcher` and never branches on which one it got.
 
 **`Broadcaster` is the one place that announces a transaction rather than
-asking about one**, and is a `typing.Protocol` rather than a fourth
+asking about one**, and is a `typing.Protocol` rather than another
 `Fetcher` method: `BitcoinCoreFetcher` and `EsploraFetcher` satisfy it,
 `BitcoinCoreRestFetcher` does not -- Core's `-rest` interface is
 read-only, and a protocol lets that asymmetry be a fact of the type
@@ -49,12 +49,12 @@ fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.
 
 **What is exported, and what is not.** The fetchers, the interface
-they implement, `Broadcaster` beside it, the two clients a Bitcoin Core
+they implement, `Broadcaster` beside it, the clients a Bitcoin Core
 node is reached through -- `BitcoinCoreRpcClient` for the JSON-RPC
 server, `BitcoinCoreRestClient` for `-rest` -- and the transport seam:
-the timeout, the two protocols a substitute has to satisfy and the two
-HTTP implementations of one of them that open a socket -- one connection
-per call, and one kept open across calls. `LineTransport`,
+the timeout, the protocols a substitute has to satisfy and the HTTP
+implementations of one of them that open a socket -- one connection per
+call, and one kept open across calls. `LineTransport`,
 `ElectrumFetcher`'s own protocol, has no implementation here yet; its
 own docstring in `btclib.fetch.transport` says why. That last group is
 here because the seam is the supported way to test calling code without

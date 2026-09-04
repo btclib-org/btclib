@@ -19,9 +19,10 @@ through to `http_request`, and a caller substituting one for a test needs
 the object those two agree on. `HttpTransport` is that seam, and this is
 btclib's name for it.
 
-Two implementations satisfy it. `urlopen_transport` is the default: one
-connection per call, opened and handed to the node to close.
-`SessionTransport` keeps one connection per `(scheme, host, port)` open
+The implementations here differ in how they hold the connection.
+`urlopen_transport` is the default: one connection per call, opened and
+handed to the node to close. `SessionTransport` keeps one connection per
+`(scheme, host, port)` open
 across calls instead, which is worth choosing over many calls against one
 node -- a walker fetching many transactions, a client polling one --
 where the reused connection, and on `https` the reused TLS handshake, is

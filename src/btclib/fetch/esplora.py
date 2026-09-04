@@ -15,7 +15,7 @@ look up. mempool.space is not offered as a second constant for the same
 reason, and naming it here is the evidence for the sentence above rather
 than a recommendation.
 
-What the fallback promises is the same four answers behind the same
+What the fallback promises is the same answers behind the same
 interface. What it does not promise is that they are all true. `get_tx`
 is the one answer that checks itself completely, in `tx_from_raw` -- the
 serialization comes back and the id is recomputed from it, so a
@@ -26,8 +26,8 @@ fabricate compared with the transaction it would have to forge to pass
 the id check. The height and the tip hash have nothing here to check
 them against at all, and are taken on trust.
 
-Which chain the explorer serves is a separate question from those four,
-and `verify_network` is what asks it: declared once on
+Which chain the explorer serves is a separate question from the answers
+above, and `verify_network` is what asks it: declared once on
 `NetworkVerifyingFetcher` rather than agreed among the backends, on by
 default, comparing `/block-height/0` against the genesis `NETWORKS`
 carries for the network this fetcher was built for. The failure it
@@ -94,14 +94,14 @@ BLOCKSTREAM_INFO = {
 }
 
 
-# What each answer may weigh, because each of the four is bounded by
-# what it is: a height is a decimal number, a tip hash is sixty-four hex
-# digits, a header is eighty bytes of hex, and a raw transaction is hex of
-# a transaction that fits in a block -- DEFAULT_MAX_BODY_SIZE, which is
-# that bound. The three small ones leave room for the whitespace a
-# deployment behind a proxy adds and for nothing else: a host answering a
-# height with a megabyte is answering something that is not a height, and
-# there is no reason to hold it in order to find that out.
+# What each answer may weigh, because each is bounded by what it is: a
+# height is a decimal number, a tip hash is sixty-four hex digits, a
+# header is eighty bytes of hex, and a raw transaction is hex of a
+# transaction that fits in a block -- DEFAULT_MAX_BODY_SIZE, which is
+# that bound. The small ones leave room for the whitespace a deployment
+# behind a proxy adds and for nothing else: a host answering a height
+# with a megabyte is answering something that is not a height, and there
+# is no reason to hold it in order to find that out.
 #
 # The body of a *failure* is not bounded by these -- see
 # `MAX_ERROR_BODY_SIZE` -- so a 404 whose error page is longer than a
@@ -113,7 +113,7 @@ _MAX_TX_BODY = DEFAULT_MAX_BODY_SIZE
 
 
 class EsploraFetcher(NetworkVerifyingFetcher):
-    """The four questions, answered by an Esplora instance over HTTP.
+    """Every `Fetcher` question, answered by an Esplora instance over HTTP.
 
     `base_url` is required and has no default, for the reason
     `BLOCKSTREAM_INFO` is a constant and not one.
@@ -181,8 +181,8 @@ class EsploraFetcher(NetworkVerifyingFetcher):
         """Return the body of a GET on `path`, as stripped text.
 
         `max_body_size` is what this particular answer may weigh; the
-        default is the widest of the three, so a caller asking for
-        something narrow says so.
+        default is the widest of the bounds above, so a caller asking
+        for something narrow says so.
 
         A status that is not 200 is an `HttpError`, which carries it:
         every answer here is a GET of an immutable value, so a 429 or a

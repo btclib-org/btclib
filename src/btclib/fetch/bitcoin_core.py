@@ -63,7 +63,7 @@ _MAX_SMALL_REPLY = 1024
 
 
 class BitcoinCoreFetcher(NetworkVerifyingFetcher):
-    """The four fetcher questions, answered by a node over its RPC.
+    """Every `Fetcher` question, answered by a node over its RPC.
 
     Also a `Broadcaster`: `broadcast` sends `sendrawtransaction`, which
     `-rest` -- and so `BitcoinCoreRestFetcher` -- has no equivalent of.
