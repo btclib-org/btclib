@@ -22,7 +22,6 @@ from btclib.exceptions import (
 )
 from btclib.hashes import hash160, sha256
 from btclib.script.script import serialize
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key
 
 ec = secp256k1
@@ -178,14 +177,15 @@ def test_p2pkh_from_wif() -> None:
     """Verify the p2pkh of a derived WIF, and refuse an xpub as a key.
 
     `wif_from_prv_key` takes the scalar an xprv resolves to, not the
-    xprv itself: `to_prv_key` is what still resolves one, `b58` having
-    no way to reach `bip32` for it (issue #1188).
+    xprv itself, and `bip32.prv_keyinfo_from_xprv` is what resolves one:
+    an extended key is `bip32`'s format, and no converter reads one
+    (issue #1188).
     """
     seed = b"\x00" * 32  # better be a documented test case
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
     xprv = bip32.derive(rxprv, path)
-    q, network, compressed = prv_keyinfo_from_prv_key(xprv)
+    q, network, compressed = bip32.prv_keyinfo_from_xprv(xprv)
     wif = b58.wif_from_prv_key(q, network, compressed)
     assert wif == "L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
     pub_key = b58.prv_key_data_from_wif(wif).pub.sec
@@ -195,7 +195,7 @@ def test_p2pkh_from_wif() -> None:
 
     err_msg = "not a private key"
     with pytest.raises(BTClibValueError, match=err_msg):
-        prv_keyinfo_from_prv_key(xpub)
+        bip32.prv_keyinfo_from_xprv(xpub)
 
 
 def test_p2pkh_from_pub_key() -> None:

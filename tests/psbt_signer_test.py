@@ -22,7 +22,12 @@ from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.bip32 import fingerprint
-from btclib.bip32.bip32 import derive, rootxprv_from_seed, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    derive,
+    prv_keyinfo_from_xprv,
+    rootxprv_from_seed,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import DerPath
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import (
@@ -55,7 +60,6 @@ from btclib.psbt_signer import (
     select_device,
     sign_message,
 )
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # the "abandon abandon ... about" root of BIP39, which BIP84 publishes
@@ -82,7 +86,7 @@ class _KeyManager:
     def _prv_key(self, origin: BIP32KeyOrigin | None) -> int | None:
         if origin is None or origin.master_fingerprint != fingerprint(self.xprv):
             return None
-        return prv_keyinfo_from_prv_key(derive(self.xprv, origin.der_path))[0]
+        return prv_keyinfo_from_xprv(derive(self.xprv, origin.der_path))[0]
 
     def sign_ecdsa(
         self, pub_key: bytes, origin: BIP32KeyOrigin | None, msg_hash: bytes
@@ -445,7 +449,7 @@ class _MessageSigner(_Signer):
         back: the serialization is 65 bytes and no encoding of its own.
         """
         path = self.der_path if self.der_path is not None else der_path
-        q, network, compressed = prv_keyinfo_from_prv_key(derive(self.xprv, path))
+        q, network, compressed = prv_keyinfo_from_xprv(derive(self.xprv, path))
         prv_key = PrvKeyData(q, network, compressed)
         return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
 

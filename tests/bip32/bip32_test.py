@@ -17,6 +17,7 @@ from btclib._libsecp256k1 import keys as libsecp256k1_keys
 from btclib.b58 import p2pkh
 from btclib.bip32 import (
     BIP328_CHAIN_CODE,
+    BIP32Key,
     BIP32KeyData,
     # the module, not only the names in it: `libsecp256k1_keys` is a
     # module attribute, and putting it out of reach is how
@@ -30,7 +31,11 @@ from btclib.bip32 import (
     derive_from_account_range,
     derive_from_account_range_,
     fingerprint,
+    point_from_xpub,
+    prv_keyinfo_from_xprv,
     pub_key_derivation_tweaks,
+    pub_keyinfo_from_xkey,
+    pub_keyinfo_from_xpub,
     rootxprv_from_seed,
     rootxprv_from_seed_,
     xpub_from_xprv,
@@ -58,17 +63,70 @@ from btclib.ecc.musig2 import key_agg
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS
-from btclib.to_pub_key import pub_keyinfo_from_key
 from tests import load, needs_bindings, replace_unchecked, vector_id
 from tests.curves.curve_test import no_bindings, no_bindings_anywhere
 
 
+def _p2pkh_of(xkey: BIP32Key) -> str:
+    """Return the p2pkh address of an extended key, whichever half it is.
+
+    The composition `bip44` performs, spelled here because an address
+    builder takes a public key and no extended key (issue #1188): what
+    an xprv and its xpub both derive to is one public key, so both
+    spellings answer one address. The network travels with it, the key's
+    version bytes being where it is stated and the SEC octets carrying
+    no network at all.
+    """
+    sec, network = pub_keyinfo_from_xkey(xkey)
+    return p2pkh(sec, network)
+
+
+def test_the_three_key_reads_answer_for_one_half_each() -> None:
+    """Each names the half it reads, and refuses the other.
+
+    The reads a caller reaches for now that no converter resolves an
+    extended key (issue #1188): the scalar of an xprv, the SEC octets of
+    an xpub, the point of an xpub, and the SEC octets of either half.
+    `network` and `compressed` are consistency checks throughout, an
+    extended key stating both in its version bytes.
+    """
+    xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xpub = xpub_from_xprv(xprv)
+
+    q, network, compressed = prv_keyinfo_from_xprv(xprv)
+    assert (network, compressed) == ("mainnet", True)
+    assert prv_keyinfo_from_xprv(xprv, "mainnet") == (q, "mainnet", True)
+    assert pub_keyinfo_from_xpub(xpub) == pub_keyinfo_from_xkey(xpub)
+    assert pub_keyinfo_from_xkey(xprv) == pub_keyinfo_from_xkey(xpub)
+    assert point_from_xpub(xpub) == mult(q)
+
+    # a BIP32 key is always compressed, so uncompressed is another format
+    err_msg = "uncompressed SEC / compressed BIP32 mismatch"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        prv_keyinfo_from_xprv(xprv, compressed=False)
+    with pytest.raises(BTClibValueError, match="ompressed SEC / compressed BIP32"):
+        pub_keyinfo_from_xpub(xpub, compressed=False)
+
+    # the version bytes say which network claims the key, so a network
+    # the caller names has to be that one
+    with pytest.raises(BTClibValueError, match="not a testnet key: version "):
+        prv_keyinfo_from_xprv(xprv, "testnet")
+    with pytest.raises(BTClibValueError, match="Not a testnet key: version "):
+        pub_keyinfo_from_xpub(xpub, "testnet")
+
+    # and each public read refuses the private half by its prefix
+    with pytest.raises(BTClibValueError, match="not a public key: prefix 0x00"):
+        pub_keyinfo_from_xpub(xprv)
+    with pytest.raises(BTClibValueError, match="not a public key: prefix 0x00"):
+        point_from_xpub(xprv)
+
+
 def test_exceptions() -> None:
     """Refuse a bad checksum, a public key, and seeds of the wrong size."""
-    with pytest.raises(BTClibValueError, match="not a private or public key"):
+    with pytest.raises(BTClibValueError, match="invalid checksum: "):
         # invalid checksum
         xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
-        p2pkh(xprv)
+        pub_keyinfo_from_xkey(xprv)
 
     with pytest.raises(BTClibValueError, match="not a private key"):
         xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
@@ -512,12 +570,14 @@ def test_derive() -> None:
         ],
     }
 
+    # `p2pkh` takes a public key and no extended key, so what is handed
+    # to it is `pub_keyinfo_from_xkey` of the derived one (issue #1188)
     for rootxprv, value in test_vectors.items():
         for der_path, address in value:
-            assert address == p2pkh(derive(rootxprv, der_path))
+            assert address == _p2pkh_of(derive(rootxprv, der_path))
 
             indexes = _indexes_from_der_path_str(der_path, True)
-            assert address == p2pkh(derive(rootxprv, indexes))
+            assert address == _p2pkh_of(derive(rootxprv, indexes))
 
         assert derive(rootxprv, "m") == rootxprv
 
@@ -533,7 +593,7 @@ def test_derive_exceptions() -> None:
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
 
-    fingerprint = hash160(pub_keyinfo_from_key(xprv)[0])[:4]
+    fingerprint = hash160(pub_keyinfo_from_xkey(xprv)[0])[:4]
     assert (
         fingerprint == _derive(xprv, bytes.fromhex("80000000"), None).parent_fingerprint
     )
@@ -610,8 +670,8 @@ def test_derive_from_account() -> None:
 
     for branch, index in test_vectors:
         full_path = f"{der_path}/{branch}/{index}"
-        addr = p2pkh(derive(rmxprv, full_path))
-        assert addr == p2pkh(derive_from_account(mxpub, branch, index))
+        addr = _p2pkh_of(derive(rmxprv, full_path))
+        assert addr == _p2pkh_of(derive_from_account(mxpub, branch, index))
 
     err_msg = "invalid private derivation at branch level"
     with pytest.raises(BTClibValueError, match=err_msg):

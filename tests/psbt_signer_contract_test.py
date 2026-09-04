@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import pytest
 from typing_extensions import override
 
-from btclib.bip32.bip32 import derive
+from btclib.bip32.bip32 import derive, pub_keyinfo_from_xkey
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
@@ -33,7 +33,6 @@ from btclib.psbt_signer_contract import (
 )
 from btclib.script import serialize, sig_hash
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -84,7 +83,7 @@ def _signable() -> Psbt:
     xprv = derive(
         bip39.mxprv_from_mnemonic(_MNEMONIC, "", "mainnet"), f"{_ACCOUNT}/0/0"
     )
-    pub_key = pub_keyinfo_from_key(xprv)[0]
+    pub_key = pub_keyinfo_from_xkey(xprv)[0]
     script_pub_key = ScriptPubKey.p2wpkh(pub_key)
 
     tx_in = TxIn(OutPoint(b"\xbb" * 32, 0))
@@ -398,7 +397,7 @@ def _partly_signed_quorum() -> Psbt:
         root,
         *(bip39.mxprv_from_mnemonic(m, "", "mainnet") for m in _OTHER_MNEMONICS),
     ]
-    keys = [pub_keyinfo_from_key(derive(r, f"{_ACCOUNT}/0/0"))[0] for r in roots]
+    keys = [pub_keyinfo_from_xkey(derive(r, f"{_ACCOUNT}/0/0"))[0] for r in roots]
     witness_script = serialize(["OP_3", *keys, "OP_3", "OP_CHECKMULTISIG"])
     script_pub_key = ScriptPubKey.p2wsh(witness_script)
 

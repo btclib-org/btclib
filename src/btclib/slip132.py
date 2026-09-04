@@ -78,7 +78,11 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     ]
     for version, function in zip(version_list, function_list, strict=True):
         if network := network_from_key_value(version, xpub.version):
-            return function(xpub, network)
+            # `BIP32KeyData.key`, which for an xpub is the SEC octets and
+            # is what the encoders take: an extended key is not a `Key`
+            # (issue #1188), and the prefix check above is what makes the
+            # field readable as a public key here
+            return function(xpub.key, network)
     # reachable: b58decode accepts the p2wsh versions too, and a p2wsh
     # address is not a function of the public key alone
     err_msg = f"unknown xpub version: {xpub.version.hex()}"

@@ -381,8 +381,7 @@ _CASES = (
     _Case("btclib.ecc.ssa.sign_", ssa.sign_, {"msg": _MSG, "prv_key": _PRV_KEY}),
     _Case("btclib.ecc.ssa.sign", ssa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}),
     # the extended-key parse, which compares `ec` against the curve the
-    # version bytes name rather than computing in it: `point_from_pub_key`
-    # below reaches it for an xpub
+    # version bytes name rather than computing in it
     _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),
     _Case(
         "btclib.to_prv_key.int_from_prv_key",
@@ -537,29 +536,23 @@ def test_the_curve_a_key_names_is_still_a_value() -> None:
     """The second rule, which is the one the guard sits in front of.
 
     A key that names a network names its curve, so an ec that is not that
-    curve is a fact about the pair and a `BTClibValueError`. All three
-    compare rather than parse, which is why the type check comes first: an
-    ec of no curve type compares unequal to every network's curve, so
-    without it a caller's own mistake leaves as this same mismatch -- a
-    statement about the key, about which nothing was wrong.
+    curve is a fact about the pair and a `BTClibValueError`. Both compare
+    rather than parse, which is why the type check comes first: an ec of
+    no curve type compares unequal to every network's curve, so without it
+    a caller's own mistake leaves as this same mismatch -- a statement
+    about the key, about which nothing was wrong.
     """
     ec = low_card_curves["ec23_31"]
 
-    # an xprv and not a WIF: `to_prv_key` still resolves an xprv, WIF
-    # resolution having moved to `b58` (issue #1188); what makes it a
-    # mainnet key is the network, which is the whole of what this test
-    # is about
-    xprv = rootxprv_from_seed("00" * 32)
-    with pytest.raises(BTClibValueError, match="ec / network"):
-        int_from_prv_key(xprv, ec)
+    # the scalar's octets, whose network is mainnet because that is what
+    # `to_prv_key` fills in for a spelling naming none: the curve of that
+    # network is what `ec` is held against
     with pytest.raises(BTClibValueError, match="Curve mismatch"):
-        point_from_key(xprv, ec)
+        point_from_key("00" * 31 + "0c", ec)
 
-    # the parsed form, and not the string it b58decodes from: a spelling
-    # this converter has to guess at is tried as octets after the xkey
-    # branch declines it, so the mismatch is reported as "not a public
-    # key" -- the pair is what is wrong, and which of the two spellings
-    # says so is `point_from_pub_key`'s own business
+    # an extended key names its network in its version bytes, and `bip32`
+    # is where that is read: no converter resolves one any more (issue
+    # #1188)
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv_from_seed("00" * 32)))
     with pytest.raises(BTClibValueError, match="ec/xpub version"):
-        point_from_pub_key(xpub, ec)
+        point_from_xpub(xpub, ec)

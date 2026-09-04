@@ -139,33 +139,33 @@ The four aliases:
     function names tells you which reading applies.
 
 ``PrvKey``
-    An ``int``, an ``Octets`` scalar, a BIP32 ``xprv``, or a
-    ``BIP32KeyData``. **Prefer the extended key.** It carries the
-    network and the compressed-public-key flag with it; a bare integer
-    carries neither and everything downstream has to assume mainnet and
-    compressed.
+    An ``int``, or an ``Octets`` scalar. Neither carries a network or a
+    compressed-public-key flag, so everything downstream is told mainnet
+    and compressed, or is told otherwise by an argument.
 
-    A WIF is not among them: it is ``b58``'s own object, read with
-    ``b58.prv_key_data_from_wif`` and built with ``b58.wif_from_prv_key``
-    — ``to_prv_key``, which is what this type belongs to, has no way
-    back up to a parser living above it (issue #1188). ``b58.p2pkh(wif)``
-    still knows which address to build: it tries a WIF itself, ahead of
-    anything this type covers.
+    The two spellings that do carry both are read where they are defined
+    (issue #1188). A WIF is ``b58``'s own object,
+    ``b58.prv_key_data_from_wif`` reading it and ``b58.wif_from_prv_key``
+    building it; an extended key is ``bip32``'s, and
+    ``bip32.prv_keyinfo_from_xprv`` answers the same
+    ``(scalar, network, compressed)`` triple from an ``xprv``.
+    ``b58.p2pkh(wif)`` still knows which address to build: it tries a WIF
+    itself, ahead of anything this type covers.
 
-    **This is the bitcoin layer's type, not** ``ecc``\ **'s.** The
-    signature schemes take a scalar — an ``int``, its ``n_size`` octets,
-    or their hex — because an extended key is ``bip32``'s object and
-    converting one is a call you make. So ``dsa.sign(msg, xprv)`` does
-    not work; pass ``prv_keyinfo_from_prv_key(xprv)[0]``. ``ecc.bms`` is
-    narrower still: message signing wants the network and the
+    **This is the arithmetic layer's type.** ``dsa.sign(msg, xprv)`` does
+    not work; pass ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
+    is narrower still: message signing wants the network and the
     compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
     a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
     one, ``btclib.key.PrvKeyData(q)`` for the other.
 
 ``Key``
-    A public key in any of its spellings — SEC bytes compressed or not,
-    an ``(x, y)`` tuple, an ``xpub`` — and also anything that is a
-    ``PrvKey``, from which the public key is computed. Convert once with
+    A public key in its spellings — SEC bytes compressed or not, an
+    ``(x, y)`` tuple — and also anything that is a ``PrvKey``, from which
+    the public key is computed. An ``xpub`` is not one of them:
+    ``bip32.pub_keyinfo_from_xkey`` answers the SEC octets and the
+    network of an extended key, from either half of a pair, and that is
+    what the address builders take. Convert once with
     ``btclib.to_pub_key.pub_keyinfo_from_key`` if you are about to use
     it repeatedly.
 
@@ -378,6 +378,10 @@ number to a script type. btclib does not enforce the tie — you pick the
 path, then you pick the address function — but following it is what lets
 another wallet find your coins from the same mnemonic.
 
+The address functions take a public key, so the derived extended key is
+resolved with ``bip32.pub_keyinfo_from_xkey`` first — it answers the SEC
+octets and the network, from either half of a key pair.
+
 >>> from btclib import b32, b58
 >>> from btclib.script import taproot
 >>> for purpose, address in [
@@ -387,7 +391,8 @@ another wallet find your coins from the same mnemonic.
 ...     (86, lambda k: b32.p2tr(taproot.output_pubkey(k)[0])),
 ... ]:
 ...     acct = bip32.xpub_from_xprv(bip32.derive(rootxprv, f"m/{purpose}h/0h/0h"))
-...     print(purpose, address(bip32.derive_from_account(acct, 0, 0)))
+...     xkey = bip32.derive_from_account(acct, 0, 0)
+...     print(purpose, address(bip32.pub_keyinfo_from_xkey(xkey)[0]))
 44 1PEha8dk5Me5J1rZWpgqSt5F4BroTBLS5y
 49 3Aho3kS7vgVWKTpRHjcqBoPXiCujiSuTaZ
 84 bc1qv5rmq0kt9yz3pm36wvzct7p3x6mtgehjul0feu

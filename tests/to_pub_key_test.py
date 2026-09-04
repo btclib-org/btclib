@@ -34,8 +34,6 @@ from tests.to_key_test import (
     compressed_pub_keys,
     invalid_prv_keys,
     invalid_pub_keys,
-    net_aware_prv_keys,
-    net_aware_pub_keys,
     net_unaware_prv_keys,
     net_unaware_pub_keys,
     not_a_pub_keys,
@@ -161,22 +159,6 @@ def _check_uncompressed(api: Conversions, keys: Sequence[Key]) -> None:
             keyinfo_from(key, "testnet", compressed=True)
 
 
-def _check_net_aware(api: Conversions, keys: Sequence[Key]) -> None:
-    """Check a form naming mainnet: testnet is refused.
-
-    Whether the answer is compressed depends on the form, which is what
-    _check_compressed and _check_uncompressed pin down; here either one
-    will do.
-    """
-    point_from, keyinfo_from = api
-    for key in keys:
-        _check_point(point_from, key)
-        assert keyinfo_from(key) in {m_c, m_unc}
-        assert keyinfo_from(key, "mainnet") in {m_c, m_unc}
-        with pytest.raises(BTClibValueError):
-            keyinfo_from(key, "testnet")
-
-
 def _check_net_unaware(api: Conversions, keys: Sequence[Key]) -> None:
     """Check a form naming no network: both answered, mainnet by default."""
     point_from, keyinfo_from = api
@@ -209,7 +191,7 @@ def _check_refused(api: Conversions, keys: Sequence[Key]) -> None:
             keyinfo_from(key)
 
 
-def _check_refused_as_a_type(api: Conversions, keys: Sequence[Key]) -> None:
+def _check_refused_as_a_type(api: Conversions, keys: Sequence[object]) -> None:
     """Check the refusal of a type no spelling of a public key has.
 
     The other half of `_check_refused`, and the difference is issue
@@ -221,6 +203,10 @@ def _check_refused_as_a_type(api: Conversions, keys: Sequence[Key]) -> None:
     An int is the one that matters: in this library an int is a private
     key and never a public one, so passing one here is the very
     confusion issue #143 is about.
+
+    `object` and not `Key`, which is the point of the function: what it
+    is handed is what the union does not declare, so a parameter of that
+    union would be a type error at every call site rather than at none.
     """
     point_from, keyinfo_from = api
     for key in keys:
@@ -234,28 +220,27 @@ def test_from_pub_key() -> None:
     """Every public-key form, crossed with network and compression."""
     api: Conversions = point_from_pub_key, pub_keyinfo_from_pub_key
     _check_plain(api, [Q, *plain_pub_keys])
-    _check_compressed(api, [xpub_data, *compressed_pub_keys])
+    _check_compressed(api, compressed_pub_keys)
     _check_uncompressed(api, uncompressed_pub_keys)
-    _check_net_aware(api, [xpub_data, *net_aware_pub_keys])
     _check_net_unaware(api, net_unaware_pub_keys)
-    _check_refused(api, [INF, INF_xpub_data, *invalid_pub_keys])
+    _check_refused(api, [INF, *invalid_pub_keys])
     _check_refused(
         api,
         [
             INF,
-            INF_xpub_data,
             *not_a_pub_keys,
             *plain_prv_keys,
-            xprv_data,
-            xprv0_data,
-            xprvn_data,
             *compressed_prv_keys,
             *uncompressed_prv_keys,
         ],
     )
     # the three int spellings of a private key, which `test_from_key`
-    # below accepts and this must not: an int is no PubKey at all
-    _check_refused_as_a_type(api, [q, q0, qn])
+    # below accepts and this must not: an int is no PubKey at all. An
+    # extended key joins them, being `bip32`'s type and no longer a
+    # spelling of this union (issue #1188)
+    _check_refused_as_a_type(
+        api, [q, q0, qn, xpub_data, xprv_data, xprv0_data, xprvn_data, INF_xpub_data]
+    )
 
 
 def test_from_key() -> None:
@@ -263,36 +248,17 @@ def test_from_key() -> None:
 
     The private forms answer with the public key they derive, so each
     check is the one its public counterpart above gets: an int and its
-    hex-string carry neither network nor compression, an xprv carries
-    both. A WIF is not among the forms: it is `b58`'s spelling, and
-    `to_pub_key` has no way to reach it (issue #1188).
+    hex-string carry neither network nor compression, and nothing left in
+    this union carries either. A WIF is `b58`'s spelling and an extended
+    key is `bip32`'s, and `to_pub_key` reaches neither (issue #1188).
     """
     api: Conversions = point_from_key, pub_keyinfo_from_key
     _check_plain(api, [Q, *plain_pub_keys, q, *plain_prv_keys])
-    _check_compressed(
-        api, [*compressed_pub_keys, xpub_data, xprv_data, *compressed_prv_keys]
-    )
+    _check_compressed(api, [*compressed_pub_keys, *compressed_prv_keys])
     _check_uncompressed(api, [*uncompressed_pub_keys, *uncompressed_prv_keys])
-    _check_net_aware(
-        api, [*net_aware_pub_keys, xpub_data, xprv_data, *net_aware_prv_keys]
-    )
     _check_net_unaware(api, [q, *net_unaware_prv_keys, *net_unaware_pub_keys])
-    _check_refused(
-        api,
-        [
-            INF,
-            INF_xpub_data,
-            *invalid_pub_keys,
-            q0,
-            qn,
-            xprv0_data,
-            xprvn_data,
-            *invalid_prv_keys,
-        ],
-    )
-    _check_refused(
-        api, [q0, qn, xprv0_data, xprvn_data, INF, INF_xpub_data, *not_a_pub_keys]
-    )
+    _check_refused(api, [INF, *invalid_pub_keys, q0, qn, *invalid_prv_keys])
+    _check_refused(api, [q0, qn, INF, *not_a_pub_keys])
 
 
 def test_no_key_material_in_exceptions() -> None:
@@ -365,8 +331,9 @@ def test_the_unproven_conversion_takes_every_spelling_a_key_has() -> None:
     cheap one for the call this feeds, and compressed from the public
     spelling, which answers "whatever the key says" and a point says
     nothing -- so the two are compared as the points they name. A private
-    key as an int, a point, a prepared point, an xpub. A WIF is not among
-    them: it is `b58`'s spelling, not `Key`'s (issue #1188).
+    key as an int, a point, a prepared point, SEC octets. A WIF is
+    `b58`'s spelling and an extended key is `bip32`'s, and neither is
+    `Key`'s (issue #1188).
 
     What this one does not do is prove octets a point: it leaves that to
     the call it feeds, `script.taproot`'s tweak.
@@ -377,10 +344,10 @@ def test_the_unproven_conversion_takes_every_spelling_a_key_has() -> None:
     neither kind of key.
     """
     q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
-    xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     point = mult(q)
+    sec = bytes_from_point(point, compressed=True)
 
-    for key in (q, point, PreparedPoint(point), xpub):
+    for key in (q, point, PreparedPoint(point), sec):
         assert point_from_octets(_sec_from_key(key)) == point_from_key(key)
 
     # what is no key in any spelling is refused in the same words, the

@@ -137,6 +137,7 @@ from btclib.bip32.bip32 import (
     _key_data_from_bip32_key,
     derive_from_account_,
     fingerprint,
+    pub_keyinfo_from_xkey,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import str_from_index_int
@@ -158,7 +159,6 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE
 from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.utils import assert_type, is_integer
 from btclib.wallet.wallet import RangedWallet
 
@@ -291,7 +291,7 @@ def _account_sec(xkey: BIP32KeyData) -> bytes:
     by material one of them does not have -- and the same wallet built
     from xpubs would order them the other way.
     """
-    return pub_keyinfo_from_key(xkey)[0]
+    return pub_keyinfo_from_xkey(xkey)[0]
 
 
 def _assert_group_arguments(
@@ -510,17 +510,17 @@ class ScriptWallet(RangedWallet):
         whose `BIP32KeyData.key` is the private key behind a zero byte, and
         that is not what goes into a script. `bip32.derive_from_account_` is
         what imposes the bounds -- branch 0 or 1, index at most 65535 --
-        and the network check is `to_pub_key`'s.
+        and the network check is `bip32`'s, against the xpub versions
+        this wallet's network claims.
 
         The object spelling of that walk, `derive_from_account_`: the
         Base58Check text `derive_from_account` answers would be decoded
-        straight back by `pub_keyinfo_from_key` on this same line, a
-        `BIP32KeyData` being in the `PubKey` union already, and decoding
-        the text straight back is the dearer of the two per derived key,
-        a fresh index each call so that no decode cache answers (issue
-        886)
+        straight back by `pub_keyinfo_from_xkey` on this same line, and
+        decoding the text straight back is the dearer of the two per
+        derived key, a fresh index each call so that no decode cache
+        answers (issue 886)
         """
-        return pub_keyinfo_from_key(
+        return pub_keyinfo_from_xkey(
             derive_from_account_(key, branch, index), self.network
         )[0]
 

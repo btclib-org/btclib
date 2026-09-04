@@ -42,10 +42,7 @@ from tests.to_key_test import q_hexstring as prv_key_hexstring
 from tests.to_key_test import (
     wif_compressed_string,
     wif_uncompressed_string,
-    xprv_data,
     xprv_string,
-    xpub_data,
-    xpub_string,
 )
 
 
@@ -526,8 +523,8 @@ def test_prv_key_is_not_a_pub_key() -> None:
     # which converts the key on its own
     sig_sha1 = dsa.sign(msg, prv_key_int, hf=sha1)
 
-    # the spellings a PubKey declares -- a str, a BIP32KeyData -- which
-    # carry a private key and are refused for what they hold. No
+    # the spellings a PubKey declares -- text, which is `Octets` here --
+    # carrying a private key and refused for what they hold. No
     # `type: ignore` on these: they type check, which is the whole of
     # what makes False the right answer for them
     for prv_key in (
@@ -535,7 +532,6 @@ def test_prv_key_is_not_a_pub_key() -> None:
         wif_compressed_string,
         wif_uncompressed_string,
         xprv_string,
-        xprv_data,
     ):
         assert not dsa.verify(msg, prv_key, sig)
         assert not dsa.verify(msg, prv_key, sig_sha1, hf=sha1)
@@ -561,13 +557,13 @@ def test_prv_key_is_not_a_pub_key() -> None:
             call(msg, prv_key_int, sig)  # type: ignore[arg-type]
         assert str(prv_key_int) not in str(wrong_type.value)
 
-    # the very same key, in its public representations, still verifies
+    # the very same key, in its public representations, still verifies.
+    # An xpub is not among them: it is `bip32`'s object, and a caller
+    # holding one passes `bip32.point_from_xpub` of it (issue #1188)
     for pub_key in (
         pub_key_point,
         pub_key_compressed,
         pub_key_compressed.hex(),
-        xpub_string,
-        xpub_data,
     ):
         assert dsa.verify(msg, pub_key, sig)
         assert dsa.verify(msg, pub_key, sig_sha1, hf=sha1)

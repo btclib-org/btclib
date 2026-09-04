@@ -217,18 +217,20 @@ package's list:
 
 **Two findings did not survive being checked**, which is the other half of
 what an audit is for. `bip32.slip132` could not be exported at all: it
-imports `b58` and `b32`, which import `to_pub_key`, which imports
-`btclib.bip32`, so naming it meant importing it and that closed a cycle —
-73 tests failed with `cannot import name 'BIP32Key' from partially
-initialized module`. That one was a defect after all, and issue #340 had
-the cause rather than the symptom: `ecc.bms` imports `b58` and `b32` the
-same way and `btclib.ecc` exports it without trouble, so what was wrong
-was narrower — `bip32` was the only package a lower layer imports *and*
-that held a module belonging to a higher one. The module is
+imports `b58` and `b32`, which at the time reached `btclib.bip32` through
+`to_pub_key`, so naming it meant importing it and that closed a cycle — 73
+tests failed with `cannot import name 'BIP32Key' from partially initialized
+module`. That chain is gone, an extended key being `bip32`'s to read rather
+than a converter's (issue #1188), so `import btclib.b58` now puts no
+`btclib.bip32` in `sys.modules`. That one was a defect after all, and
+issue #340 had the cause rather than the symptom: `ecc.bms` imports `b58`
+and `b32` the same way and `btclib.ecc` exports it without trouble, so
+what was wrong was narrower — `bip32` was the only package a lower layer
+imports *and* that held a module belonging to a higher one. The module is
 `btclib.slip132` now, published at the root, which is why the tables below
 spell it without a package in front. And `fetch.cookie_auth` is not
-missing: `BitcoinCoreRpcClient` takes a `cookie_path` and reads the file at
-every call, the node rewriting the cookie when it restarts, so a caller
+missing: `BitcoinCoreRpcClient` takes a `cookie_path` and reads the file
+at every call, the node rewriting the cookie when it restarts, so a caller
 passes a path and never a credential. In both cases what was missing was
 the statement of why, not the name.
 
@@ -322,9 +324,10 @@ One open question, larger than the six: `to_prv_key` and `to_pub_key`
 read as verbs and stutter under the mirror, `btclib to-pub-key
 pub-keyinfo-from-key` being the worst command in the tree. `to_pub_key`
 already imports `to_prv_key`, so a single `btclib.keys` holding
-`prv_keyinfo_from_prv_key`, `pub_keyinfo_from_key`, `point_from_key` and
-`fingerprint` would be acyclic; it is 26 import sites inside the library,
-and it is not part of this proposal.
+`prv_keyinfo_from_prv_key`, `pub_keyinfo_from_key` and `point_from_key`
+would be acyclic. How many import sites it is, is
+`git grep -c "from btclib.to_p" -- "src/btclib/*.py" "src/btclib/**/*.py"`;
+it is not part of this proposal.
 
 ## Argument and option types
 

@@ -35,7 +35,6 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.key import PrvKeyData
 from btclib.mnemonic import bip39
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import no_bindings_anywhere
 
@@ -819,13 +818,15 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig;
-    # the xpub, verification taking public keys alone
-    xpub = bip32.xpub_from_xprv(xprv)
-    dsa.assert_as_valid(magic_msg, xpub, dsa_sig)
-    assert dsa.verify(magic_msg, xpub, dsa_sig)
+    # the public key of the xpub, verification taking public keys alone.
+    # `bip32` is what reads an extended key: neither `dsa` nor `b58`
+    # resolves one (issue #1188)
+    sec = bip32.pub_keyinfo_from_xkey(bip32.xpub_from_xprv(xprv))[0]
+    dsa.assert_as_valid(magic_msg, sec, dsa_sig)
+    assert dsa.verify(magic_msg, sec, dsa_sig)
 
     # compressed address
-    addr = b58.p2pkh(xprv)
+    addr = b58.p2pkh(sec)
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
@@ -836,7 +837,7 @@ def test_ledger() -> None:
     assert bms.verify(msg, addr, bms_sig)
     assert not bms.verify(magic_msg, addr, bms_sig)
 
-    bms.sign(msg, PrvKeyData(*prv_keyinfo_from_prv_key(xprv)))
+    bms.sign(msg, PrvKeyData(*bip32.prv_keyinfo_from_xprv(xprv)))
 
     # standard leading 30 in DER serialization
     derivation_path = "m/0/0"
@@ -856,13 +857,15 @@ def test_ledger() -> None:
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
     # ECDSA signature verification of the patched dersig;
-    # the xpub, verification taking public keys alone
-    xpub = bip32.xpub_from_xprv(xprv)
-    dsa.assert_as_valid(magic_msg, xpub, dsa_sig)
-    assert dsa.verify(magic_msg, xpub, dsa_sig)
+    # the public key of the xpub, verification taking public keys alone.
+    # `bip32` is what reads an extended key: neither `dsa` nor `b58`
+    # resolves one (issue #1188)
+    sec = bip32.pub_keyinfo_from_xkey(bip32.xpub_from_xprv(xprv))[0]
+    dsa.assert_as_valid(magic_msg, sec, dsa_sig)
+    assert dsa.verify(magic_msg, sec, dsa_sig)
 
     # compressed address
-    addr = b58.p2pkh(xprv)
+    addr = b58.p2pkh(sec)
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
