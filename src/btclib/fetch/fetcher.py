@@ -41,6 +41,7 @@ from btclib.utils import bytes_from_octets, is_integer, is_octets
 
 __all__ = [
     "Fetcher",
+    "NetworkVerifyingFetcher",
     "block_header_from_raw",
     "block_header_height",
     "client_errors",
@@ -253,6 +254,84 @@ class Fetcher(ABC):
             err_msg += f" for a transaction with {len(tx.vout)} outputs"
             raise FetchError(err_msg)
         return tx.vout[out_point.vout]
+
+
+class NetworkVerifyingFetcher(Fetcher):
+    """A `Fetcher` that can ask its host which chain it serves.
+
+    Every backend reaching a host over a connection is one of these:
+    `network` is a label the caller chose, a host on another chain
+    answers every question just as readily, and asking is the only way
+    to tell. `CachingFetcher` and `FallbackFetcher` are `Fetcher`s and
+    not these -- each answers from another `Fetcher`, which is where the
+    host is and where the question belongs -- which is why the check is
+    declared here rather than on `Fetcher`, where those two would carry
+    a `verify_network` with nothing to ask.
+
+    `verify_network` is who asks. On by default and before the first
+    fetch rather than in the constructor: the answer costs a round trip
+    that is worth paying where it is checked and wasted where a fetcher
+    is built and never used, and a host that is merely unreachable
+    should not be a failure to *construct* anything. The answer is then
+    kept -- a host does not change chain under a client that goes on
+    pointing at it -- and a caller that would rather not ask says
+    `verify_network=False`.
+    """
+
+    verify_network: bool
+
+    def __init__(
+        self, network: str = "mainnet", *, verify_network: bool = True
+    ) -> None:
+        """Bind the fetcher to a network, and to whether its host is asked."""
+        super().__init__(network)
+        self.verify_network = verify_network
+        self._agreed = False
+        self._disagreement = ""
+
+    @abstractmethod
+    def assert_network(self) -> None:
+        """Raise unless the host serves the chain this fetcher labels with.
+
+        What settles it is the backend's: a chain name and a signet
+        challenge where the host is a node reporting both, a genesis
+        block where it is a host that only says it validated. Abstract
+        rather than a default, which could only pass: a backend
+        declaring none would check the chain never and compile.
+
+        Public, for a caller that wants the question answered at a moment
+        of its own -- at startup, or after a client was repointed.
+
+        A malformed reply is a `FetchError`. A disagreement is a
+        `BTClibValueError`: the host is the authority on which chain it
+        serves, so the fetcher's label is the thing to fix.
+        """
+
+    def _verify_once(self) -> None:
+        """Compare the host's chain with this fetcher's label, once.
+
+        Called by every question a backend answers, and by nothing
+        `assert_network` itself goes through -- a check there would ask
+        the host about the host, from inside the question.
+
+        A disagreement is remembered and raised again for every later
+        call, because it is a settled fact about a configuration rather
+        than a request that failed -- and a fetcher that asked once, was
+        refused once and then served an address would be the silent
+        failure this exists to stop. A `FetchError` is not an answer and
+        is remembered as nothing: the host was unreachable or spoke
+        nonsense, which the next call may well find otherwise.
+        """
+        if not self.verify_network or self._agreed:
+            return
+        if self._disagreement:
+            raise BTClibValueError(self._disagreement)
+        try:
+            self.assert_network()
+        except BTClibValueError as e:
+            self._disagreement = str(e)
+            raise
+        self._agreed = True
 
 
 def tx_id_hex(tx_id: Octets) -> str:

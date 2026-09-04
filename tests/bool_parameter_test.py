@@ -1053,6 +1053,20 @@ _TRUTHS = (
         reason="whether the outputs are required to be worth no more than"
         " the inputs; the scripts run either way",
     ),
+    # the declaration the four below forward to, and the one that gives
+    # them the same name, the same keyword-only argument and the same
+    # default. Driven through a backend because the class it belongs to
+    # is abstract: `assert_network` is what a backend answers for itself,
+    # so there is no instance of the base to construct
+    _Case(
+        "btclib.fetch.fetcher.NetworkVerifyingFetcher.__init__",
+        "verify_network",
+        ElectrumFetcher,
+        {"transport": LineRecorded()},
+        reason="whether the host is asked which chain it serves before"
+        " the first answer leaves; a check, and the fetch is the same"
+        " fetch either way",
+    ),
     _Case(
         "btclib.fetch.bitcoin_core.BitcoinCoreFetcher.__init__",
         "verify_network",

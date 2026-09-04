@@ -36,7 +36,7 @@ from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError, FetchError
 from btclib.fetch.fetcher import (
-    Fetcher,
+    NetworkVerifyingFetcher,
     block_header_from_raw,
     block_header_height,
     client_errors,
@@ -62,7 +62,7 @@ __all__ = [
 _MAX_SMALL_REPLY = 1024
 
 
-class BitcoinCoreFetcher(Fetcher):
+class BitcoinCoreFetcher(NetworkVerifyingFetcher):
     """The four fetcher questions, answered by a node over its RPC.
 
     Also a `Broadcaster`: `broadcast` sends `sendrawtransaction`, which
@@ -80,14 +80,6 @@ class BitcoinCoreFetcher(Fetcher):
     it is what the outputs of a fetched transaction are labelled with. The
     client knows a URL and no chain, so the label is a claim until the node
     is asked, and `assert_network` is the question.
-
-    `verify_network` is who asks it. On by default and before the first
-    fetch rather than in this constructor: the answer costs a round trip
-    that is worth paying where it is checked and wasted where a fetcher is
-    built and never used, and a node that is merely down should not be a
-    failure to *construct* anything. The answer is then kept -- a node
-    does not change chain under a client that goes on pointing at it --
-    and a caller that would rather not ask says `verify_network=False`.
 
     `signet_challenge` is which signet, for the one label that names more
     than one chain: Core answers `signet` for the default signet and for
@@ -108,7 +100,7 @@ class BitcoinCoreFetcher(Fetcher):
         verify_network: bool = True,
         signet_challenge: str | bytes | None = None,
     ) -> None:
-        super().__init__(network)
+        super().__init__(network, verify_network=verify_network)
         if signet_challenge is not None:
             if chain_from_network(self.network) != "signet":
                 err_msg = f"a signet_challenge for {self.network},"
@@ -125,36 +117,7 @@ class BitcoinCoreFetcher(Fetcher):
             with client_errors():
                 magic_from_signet_challenge(signet_challenge)
         self.client = client
-        self.verify_network = verify_network
         self.signet_challenge = signet_challenge
-        self._agreed = False
-        self._disagreement = ""
-
-    def _verify_once(self) -> None:
-        """Compare the node's chain with this fetcher's label, once.
-
-        Called by the four fetches and not by `_call`, which is what
-        `assert_network` itself goes through: a check in there would ask
-        the node about the node, from inside the question.
-
-        A disagreement is remembered and raised again for every later
-        fetch, because it is a settled fact about a configuration rather
-        than a request that failed -- and a fetcher that asked once,
-        refused once and then served an address would be the silent
-        failure this exists to stop. A `FetchError` is not an answer and
-        is remembered as nothing: the node was unreachable or spoke
-        nonsense, which the next fetch may well find otherwise.
-        """
-        if not self.verify_network or self._agreed:
-            return
-        if self._disagreement:
-            raise BTClibValueError(self._disagreement)
-        try:
-            self.assert_network()
-        except BTClibValueError as e:
-            self._disagreement = str(e)
-            raise
-        self._agreed = True
 
     def _call(
         self,
@@ -230,14 +193,9 @@ class BitcoinCoreFetcher(Fetcher):
         )
         return block_header_from_raw(raw, height)
 
+    @override
     def assert_network(self) -> None:
         """Raise unless the node serves the chain this fetcher labels with.
-
-        One round trip, asked once and not per fetch: the answer cannot
-        change under a client that goes on pointing at the same node.
-        `verify_network` is what asks it before the first fetch, and this
-        stays public for a caller that wants the question answered at a
-        moment of its own -- at startup, or after a client was repointed.
 
         Worth the call, because the failure it catches is silent.
         A client built for a testnet node -- an explicit url, no port
@@ -260,10 +218,6 @@ class BitcoinCoreFetcher(Fetcher):
         `chain_from_network` on the way in, `client_errors` on the way out.
         The check itself belongs beside the protocol it reads, and lived
         here only while `bitcoin_core_rpc` did not have it.
-
-        A malformed reply is a `FetchError`. A disagreement is a
-        `BTClibValueError`: the node is the authority on which chain it
-        serves, so the fetcher's label is the thing to fix.
         """
         # every network of NETWORKS is a chain of Core's -- the catalogue is
         # fixed at import and `tests/fetch/bitcoin_core_test.py` holds the

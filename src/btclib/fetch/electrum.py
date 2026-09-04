@@ -52,7 +52,7 @@ from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.fetch.fetcher import (
-    Fetcher,
+    NetworkVerifyingFetcher,
     block_header_from_raw,
     block_header_height,
     client_errors,
@@ -69,7 +69,7 @@ __all__ = [
 ]
 
 
-class ElectrumFetcher(Fetcher):
+class ElectrumFetcher(NetworkVerifyingFetcher):
     """The four fetcher questions, and a fifth, answered by an Electrum server.
 
     `get_tx` is `blockchain.transaction.get`, the raw hex decoded and
@@ -99,18 +99,6 @@ class ElectrumFetcher(Fetcher):
     history and its unspent outputs, `blockchain.scripthash.get_history`
     and `.listunspent`, but the interface does not ask those questions
     and this issue does not add them.
-
-    `verify_network` is who asks whether the server is on the chain this
-    fetcher labels with, and `assert_network` below is the question it
-    asks. On by default and before the first fetch rather than in this
-    constructor: the answer costs a round trip that is worth paying
-    where it is checked and wasted where a fetcher is built and never
-    used, and a server that is merely unreachable should not be a
-    failure to *construct* anything. The answer is then kept -- a server
-    does not change chain under a client that goes on pointing at it --
-    and a caller that would rather not ask says `verify_network=False`.
-    Same name, same keyword-only argument, same default, same opt-out as
-    `BitcoinCoreFetcher.verify_network`.
     """
 
     def __init__(
@@ -121,13 +109,10 @@ class ElectrumFetcher(Fetcher):
         verify_network: bool = True,
         timeout: float = DEFAULT_TIMEOUT,
     ) -> None:
-        super().__init__(network)
+        super().__init__(network, verify_network=verify_network)
         self.transport = transport
-        self.verify_network = verify_network
         self.timeout = timeout
         self._next_id = 0
-        self._agreed = False
-        self._disagreement = ""
 
     def _next_request_id(self) -> int:
         """Return a fresh request id, one higher than the last.
@@ -148,33 +133,6 @@ class ElectrumFetcher(Fetcher):
         """
         with client_errors():
             return self.transport(request, self.timeout)
-
-    def _verify_once(self) -> None:
-        """Compare the server's chain with this fetcher's label, once.
-
-        `BitcoinCoreFetcher._verify_once`, unchanged: called by the
-        fetches and not by `_round_trip` or `_header_at`, which is what
-        `assert_network` itself goes through -- a check in there would
-        ask the server about the server, from inside the question.
-
-        A disagreement is remembered and raised again for every later
-        call, because it is a settled fact about a configuration rather
-        than a request that failed -- and a fetcher that asked once,
-        refused once and then served an address would be the silent
-        failure this exists to stop. A `FetchError` is not an answer and
-        is remembered as nothing: the server was unreachable or spoke
-        nonsense, which the next call may well find otherwise.
-        """
-        if not self.verify_network or self._agreed:
-            return
-        if self._disagreement:
-            raise BTClibValueError(self._disagreement)
-        try:
-            self.assert_network()
-        except BTClibValueError as e:
-            self._disagreement = str(e)
-            raise
-        self._agreed = True
 
     def _tip(self) -> electrum.HeaderTip:
         """Return the chain tip `blockchain.headers.subscribe` answers."""
@@ -238,6 +196,7 @@ class ElectrumFetcher(Fetcher):
         self._verify_once()
         return self._header_at(block_header_height(height))
 
+    @override
     def assert_network(self) -> None:
         """Raise unless the server serves the chain this fetcher labels with.
 
@@ -255,10 +214,6 @@ class ElectrumFetcher(Fetcher):
         genesis rather than repeat a string, and because it needs no
         codec function `btclib.electrum` does not already have.
 
-        Public for the same reason `BitcoinCoreFetcher.assert_network` is
-        -- a caller that wants the question answered at a moment of its
-        own.
-
         Worth the call, because the failure it catches is silent, the
         same one `BitcoinCoreFetcher.assert_network`'s docstring names: a
         fetcher labelled `mainnet` over a server on another chain renders
@@ -274,11 +229,6 @@ class ElectrumFetcher(Fetcher):
         for the reason that class takes none: nothing among the methods
         `btclib.electrum` speaks is a signet's challenge to compare
         against.
-
-        A malformed reply is a `FetchError`. A disagreement is a
-        `BTClibValueError` naming both hashes: the server is the
-        authority on which chain it serves, so the fetcher's label is the
-        thing to fix.
         """
         reported = self._header_at(0).hash
         expected = NETWORKS[self.network].genesis_block

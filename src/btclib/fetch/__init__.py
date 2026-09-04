@@ -66,12 +66,13 @@ call -- the node rewrites the cookie whenever it restarts -- so a caller
 who wants cookie authentication passes the path and never the credential,
 and a name for reading it is one way to hold a credential longer than the
 node does. `-rest` takes no credential to hold, `BitcoinCoreRestClient`
-declaring no equivalent at all. `fetcher.fetch_errors`,
-`tx_from_raw`, `tx_id_hex` and `tx_for_network` are not here either: they
-are what an implementation of the interface is built out of, and they are
-the answer to a caller writing their own rather than to a caller of the
-ones shipped here -- `from btclib.fetch.fetcher import fetch_errors` is
-that answer, and it says which layer it is reaching into.
+declaring no equivalent at all. `fetcher.NetworkVerifyingFetcher`,
+`fetch_errors`, `tx_from_raw`, `tx_id_hex` and `tx_for_network` are not
+here either: they are what an implementation of the interface is built
+out of, and they are the answer to a caller writing their own rather
+than to a caller of the ones shipped here --
+`from btclib.fetch.fetcher import fetch_errors` is that answer, and it
+says which layer it is reaching into.
 
 `FetchError`, `HttpError` and `RpcError` are not here because no exception
 is: `btclib.exceptions` holds every one of them together, which is what
