@@ -77,6 +77,7 @@ from btclib.descriptors import (
 )
 from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibValueError, SignerError
+from btclib.key import PrvKeyData
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
@@ -833,7 +834,10 @@ class SoftwareSigner:
         self._assert_open()
         if self.is_watch_only:
             raise BTClibValueError("watch-only signer: it holds no key that signs")
-        prv_key = self._at(der_path)
+        # `_at` answers an xprv, `to_prv_key`'s object and not `bms.sign`'s
+        # (issue #1188): resolve it to a `PrvKeyData` before handing it over.
+        q, network, compressed = prv_keyinfo_from_prv_key(self._at(der_path))
+        prv_key = PrvKeyData(q, network, compressed)
         return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
 
     def _prv_key(self, pub_key: bytes, origin: BIP32KeyOrigin | None) -> int | None:

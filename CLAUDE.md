@@ -43,12 +43,17 @@ which is the single most important thing to know before touching
 Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
 bms, borromean, pedersen, rfc6979/bip340 nonces). At the key boundary,
 `base58` and `bech32` are the low-level codecs; `bip32/` depends on
-`base58`; `to_prv_key` and `to_pub_key` depend on `bip32/`; and `b58`
-and `b32` depend on those converters. `slip132` therefore sits above the
-address encodings, beside `bip44`. `mnemonic/`, `script/`, `tx/`,
-`block/`, `psbt/` and `descriptors` build on those layers. `alias.py`
-holds the type aliases the public API accepts, and much of the surface
-takes "anything convertible" rather than one type.
+`base58`; `to_prv_key` and `to_pub_key` depend on `bip32/`; `b32` depends
+on `to_pub_key`. `b58` depends on `to_pub_key` too, but not on
+`to_prv_key`: a WIF is Base58Check with a prefix and a flag, so it is
+`b58`'s own object, read by `b58.prv_key_data_from_wif` and written by
+`b58.wif_from_prv_key`, and `to_prv_key` -- which sits below `b58`
+through `to_pub_key` -- has no way back up to a parser living above it
+(issue #1188). `slip132` therefore sits above the address encodings,
+beside `bip44`. `mnemonic/`, `script/`, `tx/`, `block/`, `psbt/` and
+`descriptors` build on those layers. `alias.py` holds the type aliases
+the public API accepts, and much of the surface takes "anything
+convertible" rather than one type.
 
 Each of those pairs is one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;

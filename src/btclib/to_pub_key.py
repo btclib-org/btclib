@@ -147,9 +147,9 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     - native tuple
     """
     # as in `point_from_pub_key` below and `to_prv_key.int_from_prv_key`:
-    # a WIF is compared against the curve rather than parsed with it, and
-    # an ec of no curve type compares unequal to every network's, which is
-    # "Curve mismatch" for what is a caller's own mistake
+    # an xkey is compared against the curve rather than parsed with it,
+    # and an ec of no curve type compares unequal to every network's,
+    # which is "Curve mismatch" for what is a caller's own mistake
     _assert_valid_ec(ec)
     _assert_key_type(key)
     if isinstance(key, PreparedPoint):
@@ -289,7 +289,7 @@ def _sec_from_key(key: Key) -> bytes:
 
 def _err_msg(key: Key, network: str | None, compressed: bool | None) -> str:
     # never echo the key: it may well be private material
-    # (e.g. an xprv or WIF on the wrong network)
+    # (e.g. an xprv on the wrong network)
     err_msg = "not a private or"
     if compressed is not None:
         err_msg += " compressed" if compressed else " uncompressed"

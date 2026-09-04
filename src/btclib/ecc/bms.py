@@ -76,11 +76,11 @@ where:
 +----------+---------+-----------------------------------------------------+
 
 This implementation endorses the Electrum approach: a signature
-generated with a compressed WIF (i.e. without explicit address or
+generated with a compressed key (i.e. without explicit address or
 with a compressed p2pkh address) is valid also for the
-p2wpkh-p2sh and p2wpkh addresses derived from the same WIF.
+p2wpkh-p2sh and p2wpkh addresses derived from the same key.
 
-The BIP137 behaviour is available all the same: a compressed WIF
+The BIP137 behaviour is available all the same: a compressed key
 supplemented at signing time with a p2wpkh-p2sh or p2wpkh address
 yields a signature valid for that address alone.
 
@@ -124,9 +124,14 @@ from btclib.ecc import dsa
 from btclib.ecc.dsa import _libsecp256k1_recover_sec_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, reduce_to_hlen
+from btclib.key import PrvKeyData
 from btclib.network import network_from_name
-from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import assert_no_trailing, bytesio_from_binarydata, str_from_string
+from btclib.utils import (
+    assert_no_trailing,
+    assert_type,
+    bytesio_from_binarydata,
+    str_from_string,
+)
 
 __all__ = [
     "Sig",
@@ -258,30 +263,35 @@ class Sig:
         return cls.parse(data_decoded, check_validity=check_validity)
 
 
-def gen_keys(
-    prv_key: PrvKey | None = None,
-    network: str | None = None,
-    compressed: bool | None = None,
-) -> tuple[str, str]:
-    """Return a private/public key pair.
+def gen_keys(network: str = "mainnet", compressed: bool = True) -> tuple[str, str]:
+    """Return a private/public key pair, drawn on the network's curve.
 
     The private key is a WIF, the public key is a base58 p2pkh address.
     """
-    if prv_key is None:
-        if network is None:
-            network = "mainnet"
-        ec = network_from_name(network).curve
-        # q in the range [1, ec.n-1]
-        prv_key = 1 + secrets.randbelow(ec.n - 1)
-
-    wif = wif_from_prv_key(prv_key, network, compressed)
-    return wif, p2pkh(wif)
+    ec = network_from_name(network).curve
+    # q in the range [1, ec.n-1]
+    q = 1 + secrets.randbelow(ec.n - 1)
+    # `wif_from_prv_key` is what refuses a `compressed` that is no bool,
+    # ahead of the derivation below reading it
+    wif = wif_from_prv_key(q, network, compressed)
+    return wif, p2pkh(bytes_from_prv_key_int(q, ec, compressed), network)
 
 
-def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
-    """Generate address-based compact signature for the provided message."""
+def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
+    """Generate address-based compact signature for the provided message.
+
+    The key is the parsed form and not a spelling of one. What signs is
+    the scalar, and what names the address is the network and the
+    compression flag beside it -- the three a WIF carries, which
+    `b58.prv_key_data_from_wif` reads once, and which a caller holding a
+    scalar states with `PrvKeyData(q, network, compressed)`.
+    """
+    # asked here whatever `check_validity` the object was built with: a
+    # key the constructor was told not to check is one a caller may hold
+    assert_type(prv_key, PrvKeyData, "prv_key")
+    prv_key.assert_valid()
     magic_msg = magic_message(msg)
-    q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
+    q, network, compressed = prv_key.q, prv_key.network, prv_key.compressed
 
     # signing and naming the key_id are one call, not two, and this module
     # has no dispatch of its own for it: `dsa.sign_recoverable` answers the

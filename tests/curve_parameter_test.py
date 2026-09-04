@@ -78,7 +78,6 @@ from typing import Any
 
 import pytest
 
-from btclib.b58 import wif_from_prv_key
 from btclib.bip32.bip32 import BIP32KeyData, rootxprv_from_seed, xpub_from_xprv
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.curves import CurveGroup, secp256k1
@@ -536,13 +535,15 @@ def test_the_curve_a_key_names_is_still_a_value() -> None:
     """
     ec = low_card_curves["ec23_31"]
 
-    # derived rather than written out: what makes it a mainnet WIF is the
-    # network, which is the whole of what this test is about
-    wif = wif_from_prv_key(_PRV_KEY)
+    # an xprv and not a WIF: `to_prv_key` still resolves an xprv, WIF
+    # resolution having moved to `b58` (issue #1188); what makes it a
+    # mainnet key is the network, which is the whole of what this test
+    # is about
+    xprv = rootxprv_from_seed("00" * 32)
     with pytest.raises(BTClibValueError, match="ec / network"):
-        int_from_prv_key(wif, ec)
+        int_from_prv_key(xprv, ec)
     with pytest.raises(BTClibValueError, match="Curve mismatch"):
-        point_from_key(wif, ec)
+        point_from_key(xprv, ec)
 
     # the parsed form, and not the string it b58decodes from: a spelling
     # this converter has to guess at is tried as octets after the xkey

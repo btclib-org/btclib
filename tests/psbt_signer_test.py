@@ -37,6 +37,7 @@ from btclib.descriptors import (
 from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibValueError, SignerError
 from btclib.hwi import HwiDevice
+from btclib.key import PrvKeyData
 from btclib.psbt.psbt import Psbt, sign
 from btclib.psbt_signer import (
     AddressDisplay,
@@ -444,7 +445,8 @@ class _MessageSigner(_Signer):
         back: the serialization is 65 bytes and no encoding of its own.
         """
         path = self.der_path if self.der_path is not None else der_path
-        prv_key = derive(self.xprv, path)
+        q, network, compressed = prv_keyinfo_from_prv_key(derive(self.xprv, path))
+        prv_key = PrvKeyData(q, network, compressed)
         return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
 
 

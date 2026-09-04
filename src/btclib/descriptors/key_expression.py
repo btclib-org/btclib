@@ -33,6 +33,7 @@ from dataclasses import dataclass
 
 from typing_extensions import override
 
+from btclib import b58
 from btclib.bip32.bip32 import (
     BIP328_CHAIN_CODE,
     BIP32KeyData,
@@ -518,10 +519,11 @@ def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
     """
     if _HEX.fullmatch(key):
         return _pub_key_from_hex(key, x_only=x_only)
-    # what is left is a WIF, and pub_keyinfo_from_key answers both for it
-    # and for characters that are no key expression at all
+    # what is left is a WIF, which is b58's object and not to_pub_key's
+    # (issue #1188); prv_key_data_from_wif answers both for it and for
+    # characters that are no key expression at all
     try:
-        return pub_keyinfo_from_key(key)[0], x_only
+        return b58.prv_key_data_from_wif(key).pub.sec, x_only
     except (TypeError, ValueError) as e:
         raise BTClibValueError("invalid key expression") from e
 

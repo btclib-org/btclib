@@ -47,16 +47,16 @@ xprv_data = BIP32KeyData(
 xprv_string = xprv_data.b58encode(check_validity=False)
 xprv_string2 = " " + xprv_string + " "
 
+# a WIF is `b58`'s object, not `to_prv_key`'s or `to_pub_key`'s, so it is
+# not among the private-key spellings the two `*_prv_keys` families below
+# feed to their converters (issue #1188); `wif_compressed_string` and
+# `wif_uncompressed_string` above stay for the modules that still take a
+# WIF directly -- `b58`'s own tests among them
 net_aware_compressed_prv_keys: list[bytes | str] = [
-    wif_compressed_string,
-    wif_compressed_string2,
     xprv_string,
     xprv_string2,
 ]
-net_aware_uncompressed_prv_keys: list[bytes | str] = [
-    wif_uncompressed_string,
-    wif_uncompressed_string2,
-]
+net_aware_uncompressed_prv_keys: list[bytes | str] = []
 net_unaware_compressed_prv_keys: list[bytes | str] = []
 net_unaware_uncompressed_prv_keys: list[bytes | str] = []
 

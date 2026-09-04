@@ -64,7 +64,7 @@ from btclib.bip32.der_path import (
 from btclib.bip44 import _ADDRESS_FROM_SCRIPT_TYPE, _script_type_from_purpose
 from btclib.curves import PreparedPoint
 from btclib.ecc import bms
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, NotAPrvKeyError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_xkeyversion
 from btclib.script.script_pub_key import ScriptPubKey
@@ -120,8 +120,7 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
     being a point and a caller's word about how often it will be
     multiplied, which says nothing about who can sign.
 
-    The rest -- octets, a WIF or an extended key -- are told apart in the
-    order `to_pub_key.pub_keyinfo_from_key` tells them apart, public
+    The rest -- octets, a WIF or an extended key -- are told apart public
     first: a public key is a complete answer here, the wallet watching
     that address and unable to sign for it, while anything that is not
     one has to be a private key, and the error raised for a malformed one
@@ -131,6 +130,11 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
     through to the private branch and come back as "not a private key",
     its own diagnosis lost. Nothing reaches that today, and the narrow
     `try` is so that nothing can rather than that nothing does.
+
+    A WIF is tried ahead of `to_prv_key.prv_keyinfo_from_prv_key`, which
+    cannot resolve one itself: `b58` is where a WIF is read, and this
+    module already imports it for the direction `add` below writes
+    (issue #1188).
 
     Both types re-check what the converter that fed them has already
     guaranteed, which looks redundant and is not: `to_prv_key` admits a
@@ -145,8 +149,16 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
     try:
         pub_key_info = pub_keyinfo_from_pub_key(key, network)
     except BTClibValueError:
-        return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
-    return PubKeyData(*pub_key_info)
+        pass
+    else:
+        return PubKeyData(*pub_key_info)
+
+    if isinstance(key, (str, bytes, bytearray, memoryview)):
+        try:
+            return b58.prv_key_data_from_wif(key, network)
+        except NotAPrvKeyError:
+            pass
+    return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
 
 
 class KeyWallet(Wallet):
@@ -256,7 +268,8 @@ class KeyWallet(Wallet):
             err_msg = f"BMS cannot sign for a p2tr address: {info.address};"
             err_msg += " message signing for taproot is btclib.bip322"
             raise BTClibValueError(err_msg)
-        return bms.sign(msg, self.prv_key(info.address), info.address)
+        prv_key = b58.prv_key_data_from_wif(self.prv_key(info.address))
+        return bms.sign(msg, prv_key, info.address)
 
 
 class BIP32KeyWallet(KeyWallet, RangedWallet):
@@ -369,12 +382,15 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         `bip32.derive_from_account_` is what imposes them -- branch 0 or 1,
         index at most 65535 -- and the message on a violation is its own.
 
-        The key and not its xprv/xpub text: all three callers hand it to
+        The key and not its xprv/xpub text: both other callers hand it to
         something that decodes it -- an address builder,
-        `ScriptPubKey.p2wpkh`, `b58.wif_from_prv_key` -- and a
-        `BIP32KeyData` is in the `Key` and `PrvKey` unions those take.
-        Answering text instead would make each of them build it and read
-        it back inside one line (issue 886)
+        `ScriptPubKey.p2wpkh` -- and a `BIP32KeyData` is in the `Key`
+        union those take. Answering text instead would make each of them
+        build it and read it back inside one line (issue 886). `prv_key`
+        below is the one caller that cannot take it directly any more:
+        `b58.wif_from_prv_key` wants the scalar an xprv resolves to, not
+        the xprv itself (issue #1188), so it goes through
+        `to_prv_key.prv_keyinfo_from_prv_key` first.
         """
         return derive_from_account_(self._xkey, branch, index)
 
@@ -437,4 +453,6 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         # wallet holding one private key, the account one, however many
         # addresses it has handed out
         branch, index = indexes_from_der_path(info.der_path)[-2:]
-        return b58.wif_from_prv_key(self._derived_xkey(branch, index))
+        xkey = self._derived_xkey(branch, index)
+        q, network, compressed = prv_keyinfo_from_prv_key(xkey)
+        return b58.wif_from_prv_key(q, network, compressed)

@@ -31,6 +31,59 @@ full year, short month, short day (YYYY-M-D)
   Act on it if you hold a BIP340 sign-to-contract commitment made
   before this release: it no longer opens, and there is no version
   byte to switch on. Re-derive it with the new tags.
+- **A WIF is `btclib.b58`'s object now, not `btclib.to_prv_key`'s**
+  (issue #1188). `btclib.b58.wif_from_prv_key(prv_key: PrvKey, network:
+  str | None = None, compressed: bool | None = None)` took the wide
+  `PrvKey` union -- an int, an octets scalar, a WIF, a BIP32 xprv, or a
+  `BIP32KeyData` -- and narrows to `wif_from_prv_key(prv_key: Integer,
+  network: str = "mainnet", compressed: bool = True)`, an int, its
+  octets or their hex only. Reading a WIF back is a new function,
+  `btclib.b58.prv_key_data_from_wif`, answering a `btclib.key.PrvKeyData`
+  rather than the `(int, str, bool)` tuple `to_prv_key.prv_keyinfo_from_prv_key`
+  used to for one. `to_prv_key.PrvKey`, `int_from_prv_key` and
+  `prv_keyinfo_from_prv_key` no longer accept a WIF at all: a WIF handed
+  to any of them is refused as the octets it is not.
+
+  Act on it if you called `wif_from_prv_key` with a WIF, an xprv or a
+  `BIP32KeyData` to re-encode it under a different network or compression,
+  or if you passed a WIF to `to_prv_key.int_from_prv_key` or
+  `prv_keyinfo_from_prv_key`. `btclib.b58.prv_key_data_from_wif(wif,
+  network, compressed).q` reads the scalar out of a WIF; an xprv or a
+  `BIP32KeyData` still goes through `to_prv_key`, unaffected.
+
+- **`btclib.ecc.bms.sign` and `btclib.bip322.sign` take a
+  `btclib.key.PrvKeyData`, not a `PrvKey`** (issue #1188). Both took
+  `prv_key: PrvKey` -- `bms.sign(msg: Octets, prv_key: PrvKey, addr:
+  String | None = None)` at v2023.7.12, unchanged since -- and answered
+  the network and the compression flag by parsing whatever spelling was
+  handed in; both now take the already-parsed `PrvKeyData` and raise
+  `BTClibTypeError` for anything else, a WIF and a bare scalar included.
+
+  Act on it if you called either with a WIF, an xprv, a `BIP32KeyData` or
+  a bare scalar. `btclib.b58.prv_key_data_from_wif(wif)` reads a WIF into
+  the object both now want; a bare scalar is
+  `btclib.key.PrvKeyData(q, network, compressed)`.
+
+- **`btclib.ecc.bms.gen_keys` no longer takes a `prv_key` argument**
+  (issue #1188). It was `gen_keys(prv_key: PrvKey | None = None, network:
+  str | None = None, compressed: bool | None = None)` at v2023.7.12,
+  drawing a random key when `prv_key` was `None` and re-deriving the pair
+  from it otherwise; it is `gen_keys(network: str = "mainnet", compressed:
+  bool = True)` now, drawing only.
+
+  Act on it if you called `gen_keys` with an explicit `prv_key`.
+  `btclib.b58.wif_from_prv_key(prv_key, network, compressed)` and
+  `btclib.b58.p2pkh` on the WIF it returns are the pair `gen_keys` used
+  to hand back for one.
+
+- **`btclib.b32.p2wpkh` no longer resolves a WIF** (issue #1188). It took
+  `key: Key` at v2023.7.12 and resolved a WIF among the spellings `Key`
+  covers; `b32` sits below `b58`, which is where a WIF is read now, and
+  has no way to reach it.
+
+  Act on it if you called `b32.p2wpkh` with a WIF.
+  `btclib.b58.prv_key_data_from_wif(wif).pub.sec` reads the SEC octets
+  `p2wpkh` still takes.
 
 ## v2026.9.3
 

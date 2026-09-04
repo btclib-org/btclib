@@ -32,6 +32,7 @@ from typing import Any
 
 import pytest
 
+from btclib import b58
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed, xpub_from_xprv
 from btclib.bip85 import (
     _HMAC_KEY,
@@ -53,7 +54,6 @@ from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import entropy_from_mnemonic
 from btclib.network import NETWORKS
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests import load, vector_id
 
 _VECTORS = load("_data", "bip85_test_vectors.json")
@@ -107,8 +107,8 @@ def test_hd_seed_wif_application(vector: dict[str, Any]) -> None:
 
     wif = wif_from_root_key(_ROOT)
     assert wif == vector["derived_wif"]
-    _, network, compressed = prv_keyinfo_from_prv_key(wif)
-    assert (network, compressed) == ("mainnet", True)
+    data = b58.prv_key_data_from_wif(wif)
+    assert (data.network, data.compressed) == ("mainnet", True)
 
 
 @pytest.mark.parametrize("vector", **_ids("xprv"))
@@ -200,8 +200,7 @@ def test_a_testnet_root_emits_testnet_keys() -> None:
     seed = "000102030405060708090a0b0c0d0e0f"
     tprv = rootxprv_from_seed(seed, NETWORKS["testnet"].bip32_prv)
     assert xprv_from_root_key(tprv).startswith("tprv")
-    _, network, _ = prv_keyinfo_from_prv_key(wif_from_root_key(tprv))
-    assert network == "testnet"
+    assert b58.prv_key_data_from_wif(wif_from_root_key(tprv)).network == "testnet"
 
 
 def test_a_slip132_root_still_emits_an_xprv() -> None:

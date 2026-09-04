@@ -31,6 +31,7 @@ from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader
 from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData
 from btclib.p2p import (
     Addr,
     AddrV2,
@@ -143,7 +144,7 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("block", Block, _block_1()),
     ("bip32_key", BIP32KeyData, BIP32KeyData.b58decode(_XPRV).serialize()),
     ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
-    ("bms_sig", bms.Sig, bms.sign(b"parse contract", 1).serialize()),
+    ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
     ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
     ("psbt", Psbt, _psbt().serialize()),
     ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),

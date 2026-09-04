@@ -305,10 +305,12 @@ class ScriptError(BTClibValueError):
 class NotAPrvKeyError(BTClibValueError):
     """The input is not in this private key format at all: try the next one.
 
-    The library accepts a private key as a WIF, a BIP32 xprv, octets, or an
-    int, and works out which by trying them in turn. That only reads well
-    when a failed attempt says which kind of failure it was, and this is
-    the kind that means "wrong format, keep going".
+    `to_prv_key` accepts a private key as a BIP32 xprv, octets, or an int,
+    and works out which by trying them in turn. That only reads well when
+    a failed attempt says which kind of failure it was, and this is the
+    kind that means "wrong format, keep going". `b58.prv_key_data_from_wif`
+    raises it for text that is no WIF, the same question asked of the one
+    format it reads.
 
     A BTClibValueError, so code catching that keeps catching this.
     """
@@ -317,10 +319,13 @@ class NotAPrvKeyError(BTClibValueError):
 class InvalidPrvKeyError(BTClibValueError):
     """The format was recognised and the content is wrong: stop here.
 
-    The counterpart of NotAPrvKeyError. A WIF whose version prefix says
-    mainnet but whose payload is the wrong size is not something another
-    format might accept: reporting it is more use than trying the input as
-    a hex string and telling the caller it was not a private key.
+    The counterpart of NotAPrvKeyError. An xprv whose version bytes name a
+    network and whose key prefix is not the private one is not something
+    another format might accept: reporting it is more use than trying the
+    input as a hex string and telling the caller it was not a private key.
+    A WIF whose version prefix says mainnet but whose payload is the wrong
+    size is the same answer from `b58.prv_key_data_from_wif`: a WIF, with
+    a fault in it.
 
     A BTClibValueError, so code catching that keeps catching this.
     """
