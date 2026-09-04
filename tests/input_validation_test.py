@@ -367,6 +367,9 @@ def test_the_vocabulary_is_the_libraries_input_types() -> None:
         # a callable, and the same again: its wrong values are the
         # non-callables, and it is never a required parameter
         "CipherF",
+        # a callable of a different arity, for the same reason: BIP38's
+        # cipher takes a key and a block, with no iv to make it CipherF's
+        "BlockCipherF",
         # the internal coordinates: no public parameter takes them from a
         # caller, `curves` converting to them and back
         "JacPoint",

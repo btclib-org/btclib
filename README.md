@@ -329,9 +329,11 @@ satisfying one. `psbt_signer`
 is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
-Nothing in the library imports `bip322`, `bip85`, `slip132`, `fee`,
-`wallet`, `hwi`, `p2p` or `fetch`: they are the top of the stack, and
-`fetch` is the only one that goes out to the network. `bolt11` is BOLT11's
+Nothing in the library imports `bip322`, `bip85`, `bip38`, `slip132`,
+`wallet`, `hwi`, `p2p` or `fetch`: they are the top of the stack,
+and `fetch` is the only one that goes out to the network. `bip38` is a
+password-protected private key, Base58Check with `scrypt` and the caller's
+own AES-256, over `b58` and `curves` alone. `bolt11` is BOLT11's
 own codec -- bech32 with `m=1` explicit, `ecc.dsa` for the signature and
 its recovery -- and `bip21` is this tier's one importer, composing it for
 the typed `lightning=` parameter the way it already composes `b32`, `b58`

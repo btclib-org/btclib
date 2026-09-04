@@ -4,19 +4,18 @@
 
 """Tests for the `btclib.ecc.ecies` module.
 
-**There is an AES-128 in this file, and it is here because tests are not
-shipped.** btclib takes no cipher dependency and will not ship a
-pure-Python block cipher: a table-driven AES leaks its key through cache
-timing, which is the whole reason `btclib.ecc.ecies` takes the cipher as a
-parameter. None of that argument reaches this file. The wheel and the sdist
-carry no tests, so nothing here is installed on a user's machine; the keys
-below are fixed test vectors published in Electrum's own test suite, so
-there is no secret for a timing side channel to leak. What this cipher buys
-is the only evidence that matters for a scheme with no specification:
-btclib decrypting ciphertexts that Electrum really produced.
+**This file drives an AES-128, and it is here because tests are not
+shipped.** `tests/__init__.py` has why a test writes its own block cipher
+rather than taking a dependency, AES-256 for `bip38_test.py` beside this
+module's AES-128: the keys below are fixed test vectors published in
+Electrum's own test suite, so there is no secret for a timing side
+channel to leak. What this cipher buys is the only evidence that matters
+for a scheme with no specification: btclib decrypting ciphertexts that
+Electrum really produced.
 
-It is written for the vectors, not for use: correct, small enough to read
-against FIPS-197, and slow. Do not import it from anywhere.
+The CBC chaining and the PKCS#7 padding are this module's own: BIE1
+names both, where BIP38 names neither, so they stay beside the vectors
+that need them rather than in the shared block cipher.
 """
 
 import base64
@@ -34,139 +33,20 @@ from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
 )
+from tests import aes_decrypt_block, aes_encrypt_block, aes_expand_key, aes_xor
 
 # --------------------------------------------------------------------------
-# AES-128-CBC with PKCS#7, for this file alone. See the module docstring.
+# AES-128-CBC with PKCS#7, for this file alone. The block cipher itself is
+# `tests`', shared with `bip38_test.py`'s AES-256-ECB; the chaining and the
+# padding are BIE1's own and stay here. See the module docstring.
 # --------------------------------------------------------------------------
 
 _BLOCK_SIZE = 16
-# FIPS-197 section 5.2, the round constants of the 128-bit key schedule
-_RCON = (0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
-
-
-def _xtime(a: int) -> int:
-    """Multiply by x in GF(2^8), modulo the AES polynomial x^8+x^4+x^3+x+1."""
-    a <<= 1
-    return a ^ 0x11B if a & 0x100 else a
-
-
-def _mul(a: int, b: int) -> int:
-    """Multiply two elements of GF(2^8)."""
-    result = 0
-    while b:
-        if b & 1:
-            result ^= a
-        a = _xtime(a)
-        b >>= 1
-    return result
-
-
-def _build_boxes() -> tuple[tuple[int, ...], tuple[int, ...]]:
-    """Return the S-box and its inverse, derived rather than tabulated.
-
-    A 256-entry table copied from somewhere is a table nobody can check;
-    the definition is short enough to write instead. Each byte maps to its
-    multiplicative inverse in GF(2^8) -- read off the exp/log tables of the
-    generator 3, with zero mapping to itself -- under the AES affine
-    transform, which is the byte xored with four rotations of itself and
-    with 0x63.
-    """
-    exp = [0] * 255
-    log = [0] * 256
-    x = 1
-    for i in range(255):
-        exp[i] = x
-        log[x] = i
-        x = _mul(x, 3)
-
-    sbox = []
-    for i in range(256):
-        inverse = 0 if i == 0 else exp[(255 - log[i]) % 255]
-        rotated = inverse
-        affine = inverse
-        for _ in range(4):
-            rotated = ((rotated << 1) | (rotated >> 7)) & 0xFF
-            affine ^= rotated
-        sbox.append(affine ^ 0x63)
-
-    inv_sbox = [0] * 256
-    for i, s in enumerate(sbox):
-        inv_sbox[s] = i
-    return tuple(sbox), tuple(inv_sbox)
-
-
-_SBOX, _INV_SBOX = _build_boxes()
-
-
-def _expand_key(key: bytes) -> list[list[int]]:
-    """Return the eleven 16-byte round keys of an AES-128 key."""
-    words = [list(key[4 * i : 4 * i + 4]) for i in range(4)]
-    for i in range(4, 44):
-        word = list(words[i - 1])
-        if i % 4 == 0:
-            word = [_SBOX[b] for b in (*word[1:], word[0])]
-            word[0] ^= _RCON[i // 4 - 1]
-        words.append([a ^ b for a, b in zip(words[i - 4], word, strict=True)])
-    return [[b for word in words[4 * r : 4 * r + 4] for b in word] for r in range(11)]
-
-
-# the state is 16 bytes in input order, so flat index 4*column+row: that is
-# exactly how FIPS-197 fills its 4x4 array, column by column
-def _sub_bytes(state: list[int], box: tuple[int, ...]) -> list[int]:
-    return [box[b] for b in state]
-
-
-def _shift_rows(state: list[int], *, inverse: bool = False) -> list[int]:
-    out = [0] * 16
-    for r in range(4):
-        for c in range(4):
-            source = (c - r) % 4 if inverse else (c + r) % 4
-            out[4 * c + r] = state[4 * source + r]
-    return out
-
-
-def _mix_columns(state: list[int], *, inverse: bool = False) -> list[int]:
-    coefficients = (14, 11, 13, 9) if inverse else (2, 3, 1, 1)
-    out = [0] * 16
-    for c in range(4):
-        column = state[4 * c : 4 * c + 4]
-        for r in range(4):
-            acc = 0
-            for k in range(4):
-                acc ^= _mul(column[k], coefficients[(k - r) % 4])
-            out[4 * c + r] = acc
-    return out
-
-
-def _add_round_key(state: list[int], round_key: list[int]) -> list[int]:
-    return [a ^ b for a, b in zip(state, round_key, strict=True)]
-
-
-def _encrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
-    state = _add_round_key(list(block), round_keys[0])
-    for rnd in range(1, 10):
-        state = _mix_columns(_shift_rows(_sub_bytes(state, _SBOX)))
-        state = _add_round_key(state, round_keys[rnd])
-    state = _shift_rows(_sub_bytes(state, _SBOX))
-    return bytes(_add_round_key(state, round_keys[10]))
-
-
-def _decrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
-    state = _add_round_key(list(block), round_keys[10])
-    for rnd in range(9, 0, -1):
-        state = _sub_bytes(_shift_rows(state, inverse=True), _INV_SBOX)
-        state = _mix_columns(_add_round_key(state, round_keys[rnd]), inverse=True)
-    state = _sub_bytes(_shift_rows(state, inverse=True), _INV_SBOX)
-    return bytes(_add_round_key(state, round_keys[0]))
-
-
-def _xor(a: bytes, b: bytes) -> bytes:
-    return bytes(x ^ y for x, y in zip(a, b, strict=True))
 
 
 def aes_128_cbc_encrypt(key: bytes, iv: bytes, plaintext: bytes) -> bytes:
     """Encrypt with AES-128-CBC, applying PKCS#7 padding."""
-    round_keys = _expand_key(key)
+    round_keys = aes_expand_key(key)
     # PKCS#7 always adds between 1 and 16 bytes, a whole block when the
     # plaintext is already aligned: that is what makes the padding
     # unambiguous to strip
@@ -175,19 +55,21 @@ def aes_128_cbc_encrypt(key: bytes, iv: bytes, plaintext: bytes) -> bytes:
     out = bytearray()
     previous = iv
     for i in range(0, len(data), _BLOCK_SIZE):
-        previous = _encrypt_block(_xor(data[i : i + _BLOCK_SIZE], previous), round_keys)
+        previous = aes_encrypt_block(
+            aes_xor(data[i : i + _BLOCK_SIZE], previous), round_keys
+        )
         out += previous
     return bytes(out)
 
 
 def aes_128_cbc_decrypt(key: bytes, iv: bytes, ciphertext: bytes) -> bytes:
     """Decrypt with AES-128-CBC, stripping and checking PKCS#7 padding."""
-    round_keys = _expand_key(key)
+    round_keys = aes_expand_key(key)
     out = bytearray()
     previous = iv
     for i in range(0, len(ciphertext), _BLOCK_SIZE):
         block = ciphertext[i : i + _BLOCK_SIZE]
-        out += _xor(_decrypt_block(block, round_keys), previous)
+        out += aes_xor(aes_decrypt_block(block, round_keys), previous)
         previous = block
     pad = out[-1]
     if not 1 <= pad <= _BLOCK_SIZE or bytes(out[-pad:]) != bytes([pad]) * pad:
@@ -205,9 +87,9 @@ def test_aes_against_fips_197() -> None:
     key = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
     plaintext = bytes.fromhex("00112233445566778899aabbccddeeff")
     ciphertext = bytes.fromhex("69c4e0d86a7b0430d8cdb78070b4c55a")
-    round_keys = _expand_key(key)
-    assert _encrypt_block(plaintext, round_keys) == ciphertext
-    assert _decrypt_block(ciphertext, round_keys) == plaintext
+    round_keys = aes_expand_key(key)
+    assert aes_encrypt_block(plaintext, round_keys) == ciphertext
+    assert aes_decrypt_block(ciphertext, round_keys) == plaintext
 
 
 def test_aes_cbc_pads_a_whole_block_when_aligned() -> None:
@@ -384,12 +266,12 @@ def test_encrypt_refuses_a_cipher_that_does_not_pad() -> None:
     """
 
     def no_padding(key: bytes, iv: bytes, data: bytes) -> bytes:
-        round_keys = _expand_key(key)
+        round_keys = aes_expand_key(key)
         out = bytearray()
         previous = iv
         for i in range(0, len(data), _BLOCK_SIZE):
-            previous = _encrypt_block(
-                _xor(data[i : i + _BLOCK_SIZE], previous), round_keys
+            previous = aes_encrypt_block(
+                aes_xor(data[i : i + _BLOCK_SIZE], previous), round_keys
             )
             out += previous
         return bytes(out)

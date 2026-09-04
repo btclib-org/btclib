@@ -249,6 +249,20 @@ publishes no way to write one: Casascius physical coins stopped being
 made in 2013, and generating a key this short is not something to do
 today.
 
+### `btclib.bip38`: password-protected private keys, both modes
+
+`bip38.encrypt` and `bip38.decrypt` are non-EC-multiply -- a known
+private key encrypted under a password -- and `bip38.decrypt` reads an
+EC-multiply record back too; `bip38.intermediate_code` and
+`bip38.new_key_pair` are EC-multiply's owner and printer halves, the
+second never learning the password or the key it creates (closes #642).
+AES-256 is the caller's, as two `encrypt_block`/`decrypt_block`
+callables of one 16-byte block each -- the shape `ecc.ecies` already
+takes for AES-128-CBC, and the same reason: a pure-Python block cipher
+in this tree would leak its key through cache timing. `decrypt` returns
+a `key.PrvKeyData`, the shape a parsed private key takes everywhere else
+in this library since #1188's WIF row landed.
+
 ## v2026.9.3
 
 ### Repository

@@ -97,7 +97,7 @@ from typing import Any
 
 import pytest
 
-from btclib import b32, b58, bip322, core_import, slip132, var_bytes
+from btclib import b32, b58, bip38, bip322, core_import, slip132, var_bytes
 from btclib._libsecp256k1 import INSTALLED
 from btclib.bip32.bip32 import (
     _PythonPubKeyTweakChain,
@@ -204,6 +204,19 @@ _DER_SIG = dsa.sign(_MSG, _PRV_KEY).serialize()
 
 _ROOT_XPRV = rootxprv_from_seed("00" * 32)
 _ACCOUNT_XPRV = derive(_ROOT_XPRV, "m/44h/0h/0h")
+
+
+# a block cipher this file never has to get right: `bip38.encrypt` and
+# `new_key_pair` need one to reach `compressed` at all, and what happens
+# to the plaintext is not this file's question, only whether the flag it
+# is refusing was read for its type. A 16-byte block in, the same 16
+# bytes out, is a cipher no BIP38 record could be decrypted with and a
+# perfectly good fixture
+def _block_cipher(key: bytes, block: bytes) -> bytes:
+    return block
+
+
+_INT_CODE = bip38.intermediate_code("test password")
 
 # the cheapest catalogued curve, and the point of it is that both
 # construction-time checks pass on it: a low-cardinality one is MOV-weak,
@@ -340,6 +353,22 @@ _KINDS = (
         optional=True,
     ),
     _Case("btclib.b58.p2pkh", "compressed", b58.p2pkh, {"key": _SEC}, optional=True),
+    _Case(
+        "btclib.bip38.encrypt",
+        "compressed",
+        bip38.encrypt,
+        {
+            "prv_key": _PRV_KEY,
+            "password": "pw",  # pragma: allowlist secret
+            "encrypt_block": _block_cipher,
+        },
+    ),
+    _Case(
+        "btclib.bip38.new_key_pair",
+        "compressed",
+        bip38.new_key_pair,
+        {"int_code": _INT_CODE, "encrypt_block": _block_cipher},
+    ),
     # the one that is a bound method: a chain holds the point it steps,
     # so the instance is built here and `bytes_from_point` above is the
     # check this one reaches. A refused call must not step it, which is

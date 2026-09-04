@@ -30,6 +30,7 @@ __all__ = [
     "INFJ",
     "BIP44ScriptType",
     "BinaryData",
+    "BlockCipherF",
     "CipherF",
     "Command",
     "EmbeddedScriptType",
@@ -434,6 +435,14 @@ HashDigestF = Callable[[Octets], bytes]
 # The three parameters are positional here and passed positionally, so a
 # caller's own names for them do not have to match
 CipherF = Callable[[bytes, bytes, bytes], bytes]
+
+# A single block under a key, with no mode and no padding: (key, block) to
+# the transformed block, both fixed-size. btclib.bip38 takes one of these
+# in each direction for the same reason CipherF exists -- it ships no
+# cipher of its own -- but BIP38 calls AES-256 directly on one or two
+# 16-byte blocks rather than chaining them, so there is no iv and nothing
+# for a mode parameter to name
+BlockCipherF = Callable[[bytes, bytes], bytes]
 
 H160_Net = tuple[bytes, str]
 
