@@ -510,12 +510,12 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # writing it differently -- unlike the rest of what this hook found,
 # which was corrected instead of listed here
 # "ser" and "unser" join them for a reason of this file's own rather than
-# of the prose: `[tool.typos.default.extend-identifiers]` below has to
-# carry Core's `Ser` and `Unser` as bare TOML keys, and a key cannot be
-# written in the backticks the rule below hides a deliberate misspelling
-# in. Every *prose* mention of either is backticked and already invisible
-# to this hook; what these two entries cover is the two lines that
-# configure the other one.
+# of the prose: `[tool.typos.default.extend-words]` below configures the
+# other spell checker with `ser = "ser"` and `unser = "unser"`, and a TOML
+# key cannot be written in the backticks the rule below hides a deliberate
+# misspelling in. Every *prose* mention of either is backticked and
+# already invisible to this hook; what these two entries cover is the two
+# lines that configure the other one.
 # "te" is what electrum's own NFD spelling of "término" tokenizes into:
 # base "e" and the combining acute accent on it are two codepoints, so
 # the word splits into "te" and "rmino" at the mark, and "te" alone is in
@@ -612,36 +612,6 @@ OP_SUCCESSx = "OP_SUCCESSx"
 # tests/hwi_test.py's transcription follows the rename, and CHANGELOG.md
 # still narrates the misspelling that was pinned before it
 UNKNWON_DEVICE_TYPE = "UNKNWON_DEVICE_TYPE"
-# Bitcoin Core's own name for the serialization parameters of an address,
-# `Ser` for serialize where the dictionary reads a misspelt `Set`
-# (src/protocol.h). src/btclib/p2p/address.py cites it, the hook runs
-# with --write-changes, and a citation a spell checker rewrote names a
-# symbol that is not in the source it points at -- which is worse than no
-# citation, being one a reader would go and fail to find
-SerParams = "SerParams"
-# Core's writer for a 256-bit hash, `Ser` for serialize again
-# (src/serialize.h). tests/p2p/block_filters_test.py cites it as the one
-# function every BIP157 hash field is written with, and a citation the
-# spell checker turned into `set_uint256` names nothing
-ser_uint256 = "ser_uint256"
-# Core's two halves of a serializer, `Ser` for serialize a third time and
-# `Unser` for the reverse (src/serialize.h, and src/blockencodings.h's
-# `DifferenceFormatter`, which is where BIP152's differential index
-# encoding is written and read). src/btclib/p2p/compact_blocks.py cites
-# both methods by name as the place each of its two overflow refusals is
-# spelled in Core; the hook runs with --write-changes and turns them into
-# `Set` and one of four guesses, and a citation a spell checker rewrote
-# names a symbol that is not in the source it points at
-Ser = "Ser"
-Unser = "Unser"
-# Core's own local variable holding a MuHash3072 serialization vector's
-# expected hex, `Ser` for serialize once more (src/test/crypto_tests.cpp).
-# tests/_data/README.md cites it as the vector under
-# tests/_data/muhash_vectors.json's own "serialization" entry; the hook
-# runs with --write-changes and turns it into `set_exp`, a citation a
-# spell checker rewrote naming a symbol that is not in the source it
-# points at
-ser_exp = "ser_exp"
 # BOLT9's own name for the feature at bits 8/9, `optin` for opt-in
 # (09-features.md). src/btclib/bolt9.py transcribes that table and the hook
 # runs with --write-changes, so without this line the name becomes
@@ -665,6 +635,26 @@ ful = "ful"
 # code; without this entry the hook splits it and rewrites the comment
 # into one naming COPY001, a rule that does not exist
 CPY = "CPY"
+# Bitcoin Core's abbreviation for serialize, which the dictionary reads
+# as a misspelt "set", and `unser` for the reverse. This tree cites Core's
+# names that carry one -- `SerParams` (src/protocol.h),
+# `Ser`/`Unser` (src/serialize.h, and src/blockencodings.h's
+# `DifferenceFormatter`), `ser_exp` (src/test/crypto_tests.cpp),
+# `ser_uint256` (test/functional/test_framework/messages.py, which is
+# where it is defined rather than in serialize.h) and `TxOutSer`
+# (src/kernel/coinstats.cpp) -- and carries the abbreviation in a name of
+# its own, `btclib.coinstats.tx_out_ser`, which is what that last one is
+# called here. The hook runs with --write-changes, so without these two
+# lines it rewrites a public function into `tx_out_set` and a citation
+# into a symbol the source it points at does not have, which is worse
+# than no citation: a reader would go and fail to find it.
+# A word rather than an entry per name in
+# [tool.typos.default.extend-identifiers] above, which matches a whole
+# identifier and so needs one line for every name Core spells this way;
+# [tool.codespell]'s own ignore-words-list states the same two as words
+# for the same reason
+ser = "ser"
+unser = "unser"
 
 [tool.typos.type.verbatim]
 # the three files that quote a word rather than use it: CHANGELOG.md names

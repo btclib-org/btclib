@@ -103,6 +103,11 @@ verdict. The verdicts used:
 - **transcribed** — the upstream is prose (a BIP, an RFC), so there is no
   file to compare; the check is that every value in our copy appears
   verbatim in the pinned text.
+- **composed locally**, **recorded** — there is nothing upstream to
+  compare, so the entry says what stands in for one. *composed locally*
+  is a case this tree wrote, naming the third implementation that
+  answered it; *recorded* is one reply a program gave, kept verbatim,
+  naming the program and the calls that ask it again.
 - **extended**, **edited** — characterised in the entry. No file here
   carries one, and that is the discipline rather than an accident: a case
   of btclib's own is written in the test module that reads the file,
@@ -2392,6 +2397,58 @@ btclib's.
 
 Composed 2026-08-02.
 
+### `tests/_data/gettxoutsetinfo_regtest.json`
+
+```text
+program   bitcoind v31.1, the tag at bitcoin/bitcoin@9be056a8a7
+chain     regtest, started with -coinstatsindex=1
+calls     getblockhash <height>
+          getblock <hash> 2
+          gettxout <txid> <n> false
+          gettxoutsetinfo muhash <height>
+recorded  2026-09-04
+```
+
+Verdict: **recorded**. There is no upstream file and no repository: this
+is one throwaway regtest chain, the outputs it left unspent, and what
+`gettxoutsetinfo` reported about the set they are. Nothing upstream will
+ever refresh it.
+
+It is here because nothing in this tree can say `btclib.coinstats` is
+right. `bogo_size` reproduces no wire size and `tx_out_ser` no storage
+format, so an assertion written from btclib's own answer would say only
+that the answer has not changed; a node's `gettxoutsetinfo` is the one
+thing that says more, and a wrong byte in either shows up there as a
+plausible number rather than as an error.
+
+**What the node was asked.** The `gettxoutsetinfo` key is that reply
+verbatim, taken at the tip height -- naming a height is what makes Core
+answer from `coinstatsindex`, which maintains those numbers
+incrementally, rather than by scanning the set. `utxos` is every output
+`gettxout` answered for, which is Core's own set: the value and the
+script are that reply's own, and the height and the coinbase bit come
+from the `getblock` the transaction sits in. `unspendable_outputs` is
+what `gettxout` answers null for and no transaction ever spent -- an
+OP_RETURN output, and each block's own witness commitment -- read from
+`getblock` alone, Core's set having never held either.
+
+**The amounts are strings** because json carries no exact decimal: the
+digits are the ones `bitcoin-cli` printed, and `tests/coinstats_test.py`
+reads them through `Decimal` and `btclib.amount.sats_from_btc`.
+
+**The genesis coinbase is in neither list**, Core excluding it from the
+set by hand -- the recorded reply reports its value as
+`total_unspendable_amount`.
+
+**Recording another** is `tests/integration/coinstats_test.py`, which
+builds a chain of this shape against a live `bitcoind`, walks it with
+the calls above and makes the comparison the unit test makes against
+this file: re-recording is that test writing down what it collected. So
+the procedure is a test rather than a note here. The chain is not
+reproducible byte for byte -- the addresses, and so the txids, are
+whatever the node's wallet minted -- so a re-recording is a new file
+rather than a refreshed one.
+
 ## What is not pinned, and why
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
@@ -2476,10 +2533,11 @@ No upstream blob exists for the rest:
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
-  `electrum_language_vectors.json`, `fakeenglish.txt` and
-  `btclib_test_vectors.json` (btclib's own). The last is the only one
-  composed rather than recorded: its cases were built here, out of psbts
-  BIP174 prints as prose.
+  `electrum_language_vectors.json`, `fakeenglish.txt`,
+  `gettxoutsetinfo_regtest.json` and `btclib_test_vectors.json`
+  (btclib's own). The last is the only one composed rather than
+  recorded: its cases were built here, out of psbts BIP174 prints as
+  prose.
 
 ### Left for a maintainer to decide
 

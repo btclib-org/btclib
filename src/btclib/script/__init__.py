@@ -22,9 +22,10 @@ closes a cycle on a half-initialized `btclib.script`. That is issue #147's
 shape, and tests/imports_test.py is what reports it.
 
 The other submodules are not named: `script`, `script_pub_key`,
-`sig_ops` and `witness` are where the flat names above are defined, and
-`limits` and `op_codes_tapscript` are tables the engine reads. Each
-declares its own `__all__` and is importable; none is a group.
+`sig_ops`, `spendability` and `witness` are where the flat names above
+are defined, and `limits` and `op_codes_tapscript` are tables the engine
+reads. Each declares its own `__all__` and is importable; none is a
+group.
 """
 
 from importlib import import_module
@@ -68,6 +69,7 @@ from btclib.script.script_pub_key import (
     type_and_payload,
 )
 from btclib.script.sig_ops import sig_op_count
+from btclib.script.spendability import is_unspendable
 from btclib.script.taproot import (
     check_output_pubkey,
     input_script_sig,
@@ -110,6 +112,7 @@ __all__ = [
     "is_p2wpkh",
     "is_p2wsh",
     "is_segwit",
+    "is_unspendable",
     "op_int",
     "output_prvkey",
     "output_prvkey_from_merkle_root",

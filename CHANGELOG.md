@@ -361,6 +361,39 @@ validating one costs.
 issue's `xprv, xpub` row, and nothing a caller has to act on moves until
 the second half takes `BIP32KeyData` out of `PrvKey`, `PubKey` and `Key`.
 
+### `btclib.coinstats` reproduces `gettxoutsetinfo`
+
+`coinstats.CoinStats` is a MuHash commitment to a UTXO set and the
+counters Bitcoin Core's `CoinStatsIndex` keeps beside it, maintained
+the same way it maintains them: one output at a time, `insert` and
+`remove` exact inverses of each other (closes #1623).
+`coinstats.tx_out_ser` is what an output is committed to as -- Core's
+`TxOutSer`, whose packed `(height << 1) | coinbase` is a fixed 4-byte
+little-endian `uint32` and not the `var_int` a store is free to write
+the same number as -- and `coinstats.bogo_size` is Core's `GetBogoSize`,
+a fixed part plus the script's own length, which reproduces no wire
+size. Neither can be checked against this tree, so a regtest
+`bitcoind` running with `-coinstatsindex=1` is the oracle:
+`tests/integration/coinstats_test.py` puts the question to a live node,
+and `tests/coinstats_test.py` to a recorded reply,
+`tests/_data/gettxoutsetinfo_regtest.json`. A module of its own and not
+part of `btclib.muhash`, which is the general accumulator and imports no
+transaction; `CoinStats` carries no `serialize` and no `parse`, for the
+reason `btclib.tx.coin`'s `Coin` carries none.
+
+### `script.is_unspendable` is one predicate for Core's `IsUnspendable`
+
+A leading OP_RETURN, or a script over `MAX_SCRIPT_SIZE`: the test
+`fee.dust_threshold` spelled inline is a name of its own in
+`btclib.script.spendability`, which `coinstats.CoinStats` gates on too.
+Why it is not `is_nulldata` -- a bare OP_RETURN, and an OP_RETURN
+followed by several pushes, are unknown to that classifier and
+unspendable to a node (issue #211) -- is argued once, where the
+predicate is. A module of its own rather than a name in
+`script_pub_key`, which pairs an `assert_x` with every `is_x` it
+publishes: unspendable is not one of the standard shapes, and refusing
+a script for being spendable is not a question anybody asks.
+
 ## v2026.9.3
 
 ### Repository

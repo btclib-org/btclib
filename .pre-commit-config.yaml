@@ -170,9 +170,10 @@ repos:
         # check-json above still answers the question worth asking of
         # them, which is whether they parse. The lookahead names the
         # files in there with no pinned blob for a reformat to void --
-        # btclib's own, and one of chain data whose provenance is a txid
-        # rather than a blob -- because the default for anything else in
-        # that directory has to stay "not touched". (?x) is verbose mode,
+        # btclib's own, one of chain data whose provenance is a txid
+        # rather than a blob, and one recorded from a node this repository
+        # does not ship -- because the default for anything else in that
+        # directory has to stay "not touched". (?x) is verbose mode,
         # i.e. the newlines below are not part of the pattern
         # `.vscode` is the second name in the alternation and is there for
         # the reason check-json above is given the same exclude: those files
@@ -186,6 +187,7 @@ repos:
               |descriptor_checksums\.json
               |rfc6979\.json
               |electrum_test_vectors\.json
+              |gettxoutsetinfo_regtest\.json
               |unspendable_script_pub_keys\.json))
       - id: check-merge-conflict
       - id: check-vcs-permalinks
