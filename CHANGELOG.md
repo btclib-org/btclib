@@ -186,6 +186,18 @@ is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
   now; unpacking the old shape raises, and indexing it does not. The
   class docstring is where the return type argues what it is.
 
+### `tests/vendored_data_test.py` forbids a numeral instead of a shape
+
+- **The guard over `tests/_data/README.md` inverts** (closes #1633): a
+  digit run or a spelled-out numeral is now forbidden anywhere in the
+  file unless the line it sits on is named in an allowlist that carries
+  the reason beside it, rather than matched against two shapes that
+  missed a spelled-out count and anything outside `## Summary`. The
+  heading that named BIP327's vendored file count as an "upstream fact"
+  was the shape the old guard actually let through; the prose that
+  stated a count of this tree's own vendored files drops the numeral
+  instead of being spared.
+
 ## v2026.9.3
 
 ### Repository
