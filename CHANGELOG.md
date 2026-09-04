@@ -84,6 +84,25 @@ documented at release-notes length in the first place, and are still in
   own gates cannot see it: `uv.lock` already pinned 2026.9.3, so the
   suite exercises the locked release and never the declared floor.
 
+### `tests/README.md` documents replaying a ClusterFuzzLite crash locally
+
+- **`tests/README.md` gains a *Fuzzing* section, with the local
+  reproduction command #530 asked for** (closes #530). #530 read "a
+  documented local command" as `uv run` on the machine writing the
+  code, which Atheris's missing macOS and aarch64 wheels since 2.2.2
+  rule out; btclib-org/btclib#1361's `fuzz.yml` answers a different
+  premise, reproducible rather than co-located, and a crash it finds
+  replays with `google/oss-fuzz`'s `infra/helper.py`, against the same
+  `gcr.io/oss-fuzz-base/base-builder-python` image
+  `.clusterfuzzlite/Dockerfile` builds, which is what makes the wheel
+  gap irrelevant to reproducing a finding rather than blocking it. The
+  section also states where a crash and a batch run's corpus land —
+  GitHub Actions artifacts, `crashes-<fuzzer>` and
+  `cifuzz-corpus-<fuzzer>`, `fuzz.yml` naming no `storage-repo` to keep
+  either in a git branch instead — and the minimization step,
+  `-minimize_crash=1` forwarded through `reproduce` to the fuzzer's own
+  libFuzzer binary.
+
 ## v2026.9.3
 
 ### Repository
