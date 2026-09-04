@@ -509,6 +509,25 @@ file of the test tree, and no caller acts on it.
   measurement is btclib-org/.github#739's material and stands as it is
   written.
 
+### `ConsensusParams.bip30_unspendable`, beside `bip30_exceptions`
+
+- **A row carries the `(height, hash)` pairs Bitcoin Core's
+  `IsBIP30Unspendable` names, mainnet's populated and every other
+  chain's empty** (closes #1695): the blocks whose coinbase a UTXO-set
+  accumulator leaves out, a later block's duplicate coinbase replacing
+  its outputs in the set before anything spends them. It sits beside
+  `bip30_exceptions`, the other BIP30 pair and the opposite one -- those
+  are the later blocks, whose repeat of an earlier coinbase the BIP30
+  check waives rather than rejects. `tests/consensus_test.py`
+  transcribes the row a second time off `src/validation.cpp` at
+  bitcoin/bitcoin@9be056a8a7 (v31.1), which is the blob the rest of the
+  table is read from.
+- **No predicate comes with it.** Nothing in this library asks the
+  question -- `btclib.coinstats` takes one output at a time and walks no
+  chain -- and `bip30_exceptions` carries none either, for the same
+  reason: the library holds the consensus fact, and whoever walks blocks
+  asks it of the row.
+
 ## v2026.9.3
 
 ### Repository

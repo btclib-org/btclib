@@ -94,6 +94,14 @@ full year, short month, short day (YYYY-M-D)
   or already knows which chain it is asking: `EsploraFetcher(base_url,
   verify_network=False)` is the previous behaviour.
 
+- **`ConsensusParams` takes a `bip30_unspendable` argument** (closes #1695),
+  the blocks Bitcoin Core's `IsBIP30Unspendable` names. It has no default,
+  as no field of the row has.
+
+  Act on it if you build a row of your own for a custom chain: pass
+  `bip30_unspendable=()`, which is what every chain but mainnet
+  carries.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
