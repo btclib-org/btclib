@@ -15,12 +15,13 @@ scriptPubKey of an address, and the key behind a WIF, are Core's answer.
 
 One module for the two files, rather than one per entry point they
 reach. A row is a bare string with no field saying which encoding it
-uses, so the reader that decides is the same reader `b58`, `b32`,
-`ScriptPubKey.from_address` and `to_prv_key` would each need, and
-splitting the files would write it four times while leaving no module
-able to say what the whole of either file covers. The invalid half makes
-that plain: what it asserts is that *all four* refuse the string, which
-is not a claim any one of those modules could hold.
+uses, so the reader that decides is the same reader `b58` (twice over,
+an address and a WIF being two of its own functions), `b32` and
+`ScriptPubKey.from_address` would each need, and splitting the files
+would write it four times while leaving no module able to say what the
+whole of either file covers. The invalid half makes that plain: what it
+asserts is that *all four* refuse the string, which is not a claim any
+one of those modules could hold.
 """
 
 from __future__ import annotations
@@ -32,7 +33,6 @@ from btclib import b32, b58
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
 from btclib.script import ScriptPubKey
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests import load, vector_id
 
 # the `chain` of each vector is Core's name for it, as its `-chain=`
@@ -154,11 +154,11 @@ def test_address_case_flip(address: str, script_pub_key: str) -> None:
 @pytest.mark.parametrize("wif, prv_key, network, compressed", WIF_VECTORS)
 def test_wif(wif: str, prv_key: str, network: str, compressed: bool) -> None:
     """The key Core encoded, its compression flag, and the WIF written back."""
-    q, net, compr = prv_keyinfo_from_prv_key(wif, network)
-    assert f"{q:064x}" == prv_key
-    assert compr == compressed
-    assert net == network
-    assert b58.wif_from_prv_key(q, network, compressed) == wif
+    data = b58.prv_key_data_from_wif(wif, network)
+    assert f"{data.q:064x}" == prv_key
+    assert data.compressed == compressed
+    assert data.network == network
+    assert b58.wif_from_prv_key(data.q, network, compressed) == wif
 
 
 @pytest.mark.parametrize("wif, prv_key, network, compressed", WIF_VECTORS)
@@ -177,10 +177,10 @@ def test_wif_without_a_network(
     Nothing else moves -- the key and the compression flag are the
     payload, and the payload is unambiguous.
     """
-    q, net, compr = prv_keyinfo_from_prv_key(wif)
-    assert f"{q:064x}" == prv_key
-    assert compr == compressed
-    assert net == ("mainnet" if network == "mainnet" else "testnet")
+    data = b58.prv_key_data_from_wif(wif)
+    assert f"{data.q:064x}" == prv_key
+    assert data.compressed == compressed
+    assert data.network == ("mainnet" if network == "mainnet" else "testnet")
 
 
 @pytest.mark.parametrize("string", REFUSED_VECTORS)
@@ -190,8 +190,8 @@ def test_refused(string: str) -> None:
     Four and not one, because a string arrives without a label: an
     application handed one of these has no way to know it was meant as
     an address rather than as a key, and tries what it has. A refusal
-    from `ScriptPubKey.from_address` is worth nothing if `to_prv_key`
-    then accepts the same bytes as a WIF.
+    from `ScriptPubKey.from_address` is worth nothing if `b58` then
+    accepts the same bytes as a WIF.
 
     BTClibValueError covers `NotAPrvKeyError` and `InvalidPrvKeyError`,
     which is the whole of the contract here: the string is refused, and
@@ -205,4 +205,4 @@ def test_refused(string: str) -> None:
     with pytest.raises(BTClibValueError):
         b32.witness_from_address(string)
     with pytest.raises(BTClibValueError):
-        prv_keyinfo_from_prv_key(string)
+        b58.prv_key_data_from_wif(string)

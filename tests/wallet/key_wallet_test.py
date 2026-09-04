@@ -257,8 +257,11 @@ def test_sign_by_address_verifies_with_bms(purpose: int) -> None:
     address = wallet.next_address()
     sig = wallet.sign(address, _MSG)
     assert bms.verify(_MSG, address, sig)
-    # and the signature is bms's own, reachable the long way round
-    assert sig == bms.sign(_MSG, wallet.prv_key(address), address)
+    # and the signature is bms's own, reachable the long way round: the
+    # WIF `prv_key` answers is `b58`'s object, not `bms.sign`'s (issue
+    # #1188)
+    prv_key = b58.prv_key_data_from_wif(wallet.prv_key(address))
+    assert sig == bms.sign(_MSG, prv_key, address)
 
 
 def test_the_recovery_flag_names_the_address_type() -> None:
@@ -419,6 +422,35 @@ def test_add_takes_a_script_type_of_its_own() -> None:
     assert wallet.addresses == (p2pkh, p2wpkh)
     assert wallet.address_info(p2wpkh).script_type == "p2wpkh"
     assert not wallet.is_watch_only
+
+
+def test_add_takes_an_xprv_too() -> None:
+    """An added key that is not a WIF still resolves to a private one.
+
+    `_key_data` tries a WIF first and falls through to `to_prv_key` for
+    everything that is not one, an xprv string among it -- the
+    fallthrough this exercises, where the WIF-only cases above do not
+    (issue #1188).
+    """
+    wallet = KeyWallet()
+    address = wallet.add(_ACCOUNT_44_XPRV)
+    assert not wallet.is_watch_only
+    assert bms.verify(_MSG, address, wallet.sign(address, _MSG))
+
+
+def test_add_takes_a_bip32keydata_too() -> None:
+    """A decoded `BIP32KeyData` skips the WIF attempt outright.
+
+    It is neither `str` nor `bytes`, so `_key_data` never tries
+    `b58.prv_key_data_from_wif` on it -- the one `Key` spelling that
+    reaches `to_prv_key` without going through that attempt first
+    (issue #1188).
+    """
+    xkey = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPRV)
+    wallet = KeyWallet()
+    address = wallet.add(xkey)
+    assert not wallet.is_watch_only
+    assert bms.verify(_MSG, address, wallet.sign(address, _MSG))
 
 
 def test_a_key_added_to_a_bip32_wallet_is_not_derived() -> None:

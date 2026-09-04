@@ -218,7 +218,7 @@ _SMALL_CURVE = dict(
 _XPUB = xpub_from_xprv(_ROOT_XPRV)
 _DESCRIPTOR = descriptor_from_string(f"wpkh({_XPUB}/0/*)")
 _ADDRESS = b58.p2pkh(_PUB_KEY)
-_BIP322_SIG = bip322.sign(_MSG, _PRV_KEY, _ADDRESS)
+_BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_PRV_KEY), _ADDRESS)
 
 # a transaction with an input, which is what the engine and the psbt
 # boundary both refuse to work without
@@ -278,8 +278,8 @@ class _Case:
 
 _KINDS = (
     # `compressed` chooses which public key is computed, and therefore
-    # which address: eleven parameters, four checks, the rest reaching one
-    # of those four
+    # which address: a handful of checks, the rest of the `compressed`
+    # parameters reaching one of them
     _Case(
         "btclib.curves.sec_point.bytes_from_point",
         "compressed",
@@ -331,6 +331,12 @@ _KINDS = (
         "compressed",
         b58.wif_from_prv_key,
         {"prv_key": _PRV_KEY},
+    ),
+    _Case(
+        "btclib.b58.prv_key_data_from_wif",
+        "compressed",
+        b58.prv_key_data_from_wif,
+        {"wif": b58.wif_from_prv_key(_PRV_KEY)},
         optional=True,
     ),
     _Case("btclib.b58.p2pkh", "compressed", b58.p2pkh, {"key": _SEC}, optional=True),
@@ -348,8 +354,6 @@ _KINDS = (
         "btclib.ecc.bms.gen_keys",
         "compressed",
         bms.gen_keys,
-        {"prv_key": _PRV_KEY},
-        optional=True,
     ),
     _Case(
         "btclib.script.script_pub_key.ScriptPubKey.p2pkh",

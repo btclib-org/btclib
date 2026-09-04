@@ -52,7 +52,6 @@ from btclib.curves import (
     scalar_from_prv_key,
     secp256k1,
 )
-from btclib.ecc.bms import sign as bms_sign
 from btclib.ecc.dsa import recover_pub_key_
 from btclib.ecc.dsa import sign as dsa_sign
 from btclib.ecc.ssa import challenge_ as ssa_challenge_
@@ -210,14 +209,17 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # the key path, which this census did not reach until issue #1206.
     # Two lines of the library stand behind all of it: `int_from_integer`,
     # and `to_prv_key`'s type gate for the int branch that does not reach
-    # the coercion. Neither is alone everywhere -- `bms.sign` is behind
-    # both, and `point_from_key`, `p2pkh` and `p2wpkh` meet `to_pub_key`'s
-    # gate before either -- so dropping one line lets a bool back through
-    # only where nothing else stands behind it, and these cases are here
-    # for the reach of the policy and not as a test apiece. `to_pub_key`'s
-    # gate is a third line and not a third refusal: drop it and
-    # `to_prv_key`'s answers those three one frame down, which is why the
-    # wordings below are what pin it
+    # the coercion. Neither is alone everywhere -- `point_from_key`,
+    # `p2pkh` and `p2wpkh` meet `to_pub_key`'s gate before either -- so
+    # dropping one line lets a bool back through only where nothing else
+    # stands behind it, and these cases are here for the reach of the
+    # policy and not as a test apiece. `to_pub_key`'s gate is a third line
+    # and not a third refusal: drop it and `to_prv_key`'s answers those
+    # three one frame down, which is why the wordings below are what pin
+    # it. `bms.sign` is not among them any more: it takes a `PrvKeyData`
+    # and nothing else, so a bool is refused by `assert_type` before
+    # either line runs, on the same terms as any other wrong type
+    # (issue #1188) -- a refusal `key_test.py` holds, not this census
     ("integer coercion", int_from_integer),
     ("hex string", hex_string),
     ("curve multiplier", mult),
@@ -227,7 +229,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("WIF private key", wif_from_prv_key),
     ("base58 address key", p2pkh),
     ("bech32 address key", p2wpkh),
-    ("message signing key", lambda v: bms_sign(b"msg", v)),
     ("BIP340 x-only key", point_from_bip340pub_key),
     # not the converter twice: `verify` answers False where it cannot
     # verify, so what this pins is that the refusal is not one of those
@@ -330,9 +331,8 @@ _WORDINGS = [
     ("curve multiplier", mult, "non-integer: True"),
     ("curve scalar", scalar_from_prv_key, "non-integer: True"),
     ("dsa signing key", lambda v: dsa_sign(b"msg", v), "non-integer: True"),
+    ("WIF private key", wif_from_prv_key, "non-integer: True"),
     ("private key converter", int_from_prv_key, "not a private key"),
-    ("WIF private key", wif_from_prv_key, "not a private key"),
-    ("message signing key", lambda v: bms_sign(b"msg", v), "not a private key"),
     ("public key converter", point_from_key, "not a private or public key"),
     ("base58 address key", p2pkh, "not a private or public key"),
     ("bech32 address key", p2wpkh, "not a private or public key"),
@@ -451,7 +451,6 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert wif_from_prv_key(1).startswith("Kw")
     assert p2pkh(1).startswith("1")
     assert p2wpkh(1).startswith("bc1")
-    assert bms_sign(b"msg", 1).dsa_sig.r
     assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
     assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)

@@ -9,7 +9,6 @@ from collections.abc import Callable, Sequence
 import pytest
 
 from btclib.alias import INF, Point
-from btclib.b58 import wif_from_prv_key
 from btclib.curves import (
     PreparedPoint,
     bytes_from_point,
@@ -264,8 +263,9 @@ def test_from_key() -> None:
 
     The private forms answer with the public key they derive, so each
     check is the one its public counterpart above gets: an int and its
-    hex-string carry neither network nor compression, a compressed WIF
-    carries both.
+    hex-string carry neither network nor compression, an xprv carries
+    both. A WIF is not among the forms: it is `b58`'s spelling, and
+    `to_pub_key` has no way to reach it (issue #1188).
     """
     api: Conversions = point_from_key, pub_keyinfo_from_key
     _check_plain(api, [Q, *plain_pub_keys, q, *plain_prv_keys])
@@ -365,7 +365,8 @@ def test_the_unproven_conversion_takes_every_spelling_a_key_has() -> None:
     cheap one for the call this feeds, and compressed from the public
     spelling, which answers "whatever the key says" and a point says
     nothing -- so the two are compared as the points they name. A private
-    key as an int and as a WIF, a point, a prepared point, an xpub.
+    key as an int, a point, a prepared point, an xpub. A WIF is not among
+    them: it is `b58`'s spelling, not `Key`'s (issue #1188).
 
     What this one does not do is prove octets a point: it leaves that to
     the call it feeds, `script.taproot`'s tweak.
@@ -376,11 +377,10 @@ def test_the_unproven_conversion_takes_every_spelling_a_key_has() -> None:
     neither kind of key.
     """
     q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
-    wif = wif_from_prv_key(q)
     xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
     point = mult(q)
 
-    for key in (q, wif, point, PreparedPoint(point), xpub):
+    for key in (q, point, PreparedPoint(point), xpub):
         assert point_from_octets(_sec_from_key(key)) == point_from_key(key)
 
     # what is no key in any spelling is refused in the same words, the

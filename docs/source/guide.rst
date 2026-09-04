@@ -139,20 +139,28 @@ The four aliases:
     function names tells you which reading applies.
 
 ``PrvKey``
-    An ``int``, an ``Octets`` scalar, a WIF, a BIP32 ``xprv``, or a
-    ``BIP32KeyData``. **Prefer the WIF or the extended key.** They carry
-    the network and the compressed-public-key flag with them, so
-    ``b58.p2pkh(wif)`` knows which address to build; a bare integer
+    An ``int``, an ``Octets`` scalar, a BIP32 ``xprv``, or a
+    ``BIP32KeyData``. **Prefer the extended key.** It carries the
+    network and the compressed-public-key flag with it; a bare integer
     carries neither and everything downstream has to assume mainnet and
     compressed.
 
+    A WIF is not among them: it is ``b58``'s own object, read with
+    ``b58.prv_key_data_from_wif`` and built with ``b58.wif_from_prv_key``
+    — ``to_prv_key``, which is what this type belongs to, has no way
+    back up to a parser living above it (issue #1188). ``b58.p2pkh(wif)``
+    still knows which address to build: it tries a WIF itself, ahead of
+    anything this type covers.
+
     **This is the bitcoin layer's type, not** ``ecc``\ **'s.** The
     signature schemes take a scalar — an ``int``, its ``n_size`` octets,
-    or their hex — because a WIF and an extended key are ``b58``'s and
-    ``bip32``'s objects, and converting one is a call you make. So
-    ``b58.p2pkh(wif)`` works and ``dsa.sign(msg, wif)`` does not; pass
-    ``prv_keyinfo_from_prv_key(wif)[0]``. ``ecc.bms`` is the exception,
-    message signing being bitcoin: it still takes the lot.
+    or their hex — because an extended key is ``bip32``'s object and
+    converting one is a call you make. So ``dsa.sign(msg, xprv)`` does
+    not work; pass ``prv_keyinfo_from_prv_key(xprv)[0]``. ``ecc.bms`` is
+    narrower still: message signing wants the network and the
+    compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
+    a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
+    one, ``btclib.key.PrvKeyData(q)`` for the other.
 
 ``Key``
     A public key in any of its spellings — SEC bytes compressed or not,
@@ -740,7 +748,9 @@ byte for byte, with no trimming of your own.
 >>> address = b58.p2pkh(wif)
 >>> address
 '13eeg4y5wYGxNTxBEuWLPFauoMJQLxdoip'
->>> signature = bms.sign(b"paid invoice 42 on 2026-01-01", wif)
+>>> signature = bms.sign(
+...     b"paid invoice 42 on 2026-01-01", b58.prv_key_data_from_wif(wif)
+... )
 >>> signature.b64encode()
 'IPn1BZ4xi86uCS5NrSrX+2g+RSsHgm94QX5+krikMl4Fd25te6nrF53iI9amQ5XtAcM4fMggHPybYOxufoR8MVA='
 >>> bms.verify(b"paid invoice 42 on 2026-01-01", address, signature)

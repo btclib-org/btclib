@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 
-from btclib import bip322
+from btclib import b58, bip322
 from btclib.b32 import p2tr, p2wpkh, p2wsh
 from btclib.b58 import p2pkh, p2wpkh_p2sh, wif_from_prv_key
 from btclib.ecc import bms, dsa, ssa
@@ -48,8 +48,6 @@ from btclib.script.sig_hash import (
 from btclib.script.sig_hash import taproot as taproot_sig_hash
 from btclib.script.taproot import output_prvkey, output_pubkey
 from btclib.script.witness import Witness
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
@@ -68,12 +66,17 @@ _NATIVE_SEGWIT = frozenset({"p2wpkh", "p2wsh", "p2tr"})
 
 
 def _address(wif: str, script_type: str) -> str:
-    """Return the address of one of the four types a single key owns."""
+    """Return the address of one of the four types a single key owns.
+
+    The pub key and not the WIF: `b32.p2wpkh` sits below `b58` and has
+    no way to read one, where `b58.p2pkh` and `b58.p2wpkh_p2sh` would
+    (issue #1188) -- the octets work for all four alike.
+    """
+    pub_key = b58.prv_key_data_from_wif(wif, compressed=True).pub.sec
     if script_type == "p2tr":
-        pub_key = pub_keyinfo_from_key(wif, compressed=True)[0]
         return p2tr(output_pubkey(pub_key)[0])
     return {"p2pkh": p2pkh, "p2wpkh": p2wpkh, "p2sh-p2wpkh": p2wpkh_p2sh}[script_type](
-        wif
+        pub_key
     )
 
 
@@ -223,7 +226,7 @@ def test_sign_and_verify(script_type: str, msg: bytes) -> None:
     everything passes the first assertion too.
     """
     addr = _address(WIF, script_type)
-    sig = bip322.sign(msg, WIF, addr)
+    sig = bip322.sign(msg, b58.prv_key_data_from_wif(WIF), addr)
     assert sig.variant == (
         bip322.SIMPLE if script_type in _NATIVE_SEGWIT else bip322.FULL
     )
@@ -234,7 +237,9 @@ def test_sign_and_verify(script_type: str, msg: bytes) -> None:
     assert not bip322.verify(msg + b"!", addr, text)
     assert not bip322.verify(msg, _address(OTHER_WIF, script_type), text)
     other = _address(OTHER_WIF, script_type)
-    assert not bip322.verify(msg, addr, bip322.sign(msg, OTHER_WIF, other))
+    assert not bip322.verify(
+        msg, addr, bip322.sign(msg, b58.prv_key_data_from_wif(OTHER_WIF), other)
+    )
 
 
 @pytest.mark.parametrize(
@@ -251,7 +256,9 @@ def test_signing_reproduces_the_ecdsa_vectors(case: dict[str, Any]) -> None:
     vector sets a version and a lock time that `sign` does not.
     """
     sig = bip322.sign(
-        case["message"].encode(), case["private_keys"][0], case["address"]
+        case["message"].encode(),
+        b58.prv_key_data_from_wif(case["private_keys"][0]),
+        case["address"],
     )
     assert sig.b64encode() in case["bip322_signatures"]
 
@@ -260,16 +267,18 @@ def test_sign_refuses_an_address_the_key_does_not_own() -> None:
     """A key that does not open the address is refused before it signs."""
     for script_type in ("p2pkh", "p2wpkh", "p2sh-p2wpkh", "p2tr"):
         with pytest.raises(BTClibValueError, match="mismatch between private key"):
-            bip322.sign(b"", OTHER_WIF, _address(WIF, script_type))
+            bip322.sign(
+                b"", b58.prv_key_data_from_wif(OTHER_WIF), _address(WIF, script_type)
+            )
 
 
 def test_sign_refuses_a_script_no_single_key_satisfies() -> None:
     """p2wsh is not one of the four, and says so rather than signing."""
     script = serialize(
-        ["OP_1", pub_keyinfo_from_key(WIF)[0], "OP_1", "OP_CHECKMULTISIG"]
+        ["OP_1", b58.prv_key_data_from_wif(WIF).pub.sec, "OP_1", "OP_CHECKMULTISIG"]
     )
     with pytest.raises(BTClibValueError, match="mismatch between private key"):
-        bip322.sign(b"", WIF, p2wsh(script))
+        bip322.sign(b"", b58.prv_key_data_from_wif(WIF), p2wsh(script))
 
 
 def test_sign_refuses_an_uncompressed_key_for_segwit() -> None:
@@ -279,12 +288,14 @@ def test_sign_refuses_an_uncompressed_key_for_segwit() -> None:
     mismatch rather than a signature nobody can verify.
     """
     wif = wif_from_prv_key(
-        prv_keyinfo_from_prv_key(WIF)[0], "mainnet", compressed=False
+        b58.prv_key_data_from_wif(WIF).q, "mainnet", compressed=False
     )
-    assert bip322.verify(b"", p2pkh(wif), bip322.sign(b"", wif, p2pkh(wif)))
+    assert bip322.verify(
+        b"", p2pkh(wif), bip322.sign(b"", b58.prv_key_data_from_wif(wif), p2pkh(wif))
+    )
     for script_type in ("p2wpkh", "p2sh-p2wpkh", "p2tr"):
         with pytest.raises(BTClibValueError, match="mismatch between private key"):
-            bip322.sign(b"", wif, _address(WIF, script_type))
+            bip322.sign(b"", b58.prv_key_data_from_wif(wif), _address(WIF, script_type))
 
 
 def test_multisig_is_signed_through_the_witness_it_needs() -> None:
@@ -296,7 +307,10 @@ def test_multisig_is_signed_through_the_witness_it_needs() -> None:
     the simple variant. Which is the shape the vectors verify, arrived
     at from the other side.
     """
-    keys = [pub_keyinfo_from_key(wif, compressed=True)[0] for wif in (WIF, OTHER_WIF)]
+    keys = [
+        b58.prv_key_data_from_wif(wif, compressed=True).pub.sec
+        for wif in (WIF, OTHER_WIF)
+    ]
     witness_script = serialize(["OP_2", *keys, "OP_2", "OP_CHECKMULTISIG"])
     addr = p2wsh(witness_script)
     msg = b"two keys, one message"
@@ -317,7 +331,7 @@ def test_multisig_is_signed_through_the_witness_it_needs() -> None:
 
 def dsa_sign(msg_hash: bytes, wif: str) -> bytes:
     """Return the DER signature of the hash, SIGHASH_ALL appended."""
-    q = prv_keyinfo_from_prv_key(wif)[0]
+    q = b58.prv_key_data_from_wif(wif).q
     return dsa.sign_(msg_hash, q).serialize() + ALL.to_bytes(1, "big")
 
 
@@ -330,11 +344,13 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     whatever `ecc.bms` would say of it.
     """
     msg = b"legacy"
-    legacy = bms.sign(msg, WIF).b64encode()
-    assert bms.verify(msg, p2wpkh(WIF), legacy)
+    # b32.p2wpkh sits below b58 and cannot read a WIF (issue #1188)
+    wif_pub_key = b58.prv_key_data_from_wif(WIF).pub.sec
+    legacy = bms.sign(msg, b58.prv_key_data_from_wif(WIF)).b64encode()
+    assert bms.verify(msg, p2wpkh(wif_pub_key), legacy)
 
     assert bip322.verify(msg, p2pkh(WIF), legacy)
-    assert not bip322.verify(msg, p2wpkh(WIF), legacy)
+    assert not bip322.verify(msg, p2wpkh(wif_pub_key), legacy)
     assert not bip322.verify(msg, p2pkh(WIF), legacy, legacy=False)
     assert not bip322.verify(b"another", p2pkh(WIF), legacy)
 
@@ -352,7 +368,7 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     octets = legacy.encode("ascii")
     for spelling in (octets, bytearray(octets), memoryview(octets)):
         assert bip322.verify(msg, p2pkh(WIF), spelling)
-        assert not bip322.verify(msg, p2wpkh(WIF), spelling)
+        assert not bip322.verify(msg, p2wpkh(wif_pub_key), spelling)
 
 
 def test_a_simple_signature_is_not_65_octets() -> None:
@@ -364,7 +380,7 @@ def test_a_simple_signature_is_not_65_octets() -> None:
     the prefixless case decidable.
     """
     addr = _address(WIF, "p2tr")
-    shortest = bip322.sign(b"", WIF, addr)
+    shortest = bip322.sign(b"", b58.prv_key_data_from_wif(WIF), addr)
     assert len(shortest.serialize()) == 66
 
 
@@ -372,7 +388,9 @@ def test_sig_round_trip() -> None:
     """Each variant survives b64encode and b64decode, and keeps its name."""
     msg = b"round trip"
     for script_type, variant in (("p2wpkh", bip322.SIMPLE), ("p2pkh", bip322.FULL)):
-        sig = bip322.sign(msg, WIF, _address(WIF, script_type))
+        sig = bip322.sign(
+            msg, b58.prv_key_data_from_wif(WIF), _address(WIF, script_type)
+        )
         text = sig.b64encode()
         assert text[:3] == variant
         assert bip322.Sig.b64decode(text) == sig
@@ -394,7 +412,7 @@ def test_sig_is_frozen_and_check_validity_defaults_to_true() -> None:
     instead of passing the keyword explicitly.
     """
     msg, addr = b"frozen", _address(WIF, "p2pkh")
-    sig = bip322.sign(msg, WIF, addr)
+    sig = bip322.sign(msg, b58.prv_key_data_from_wif(WIF), addr)
     with pytest.raises(dataclasses.FrozenInstanceError):
         sig.payload = sig.payload  # type: ignore[misc]
 
@@ -428,7 +446,7 @@ def test_b64decode_refuses_what_is_not_base64() -> None:
     # and `☃` above fail regardless of `validate`, where a stray
     # newline is stripped and silently decoded under `validate=False`
     # and is what `validate=True` is actually for
-    sig = bip322.sign(b"x", WIF, _address(WIF, "p2pkh"))
+    sig = bip322.sign(b"x", b58.prv_key_data_from_wif(WIF), _address(WIF, "p2pkh"))
     text = sig.b64encode()
     smuggled = text[:10] + "\n" + text[10:]
     with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
@@ -461,7 +479,7 @@ def _to_sign_of(msg: bytes, addr: str, **kwargs: Any) -> tuple[Tx, Tx]:
 def test_shape_of_to_sign_is_checked() -> None:
     """Every field BIP322 fixes is a refusal when it is something else."""
     msg, addr = b"shape", _address(WIF, "p2wpkh")
-    signed = bip322.sign(msg, WIF, addr)
+    signed = bip322.sign(msg, b58.prv_key_data_from_wif(WIF), addr)
     spend, tx = _to_sign_of(msg, addr, witness=signed.payload)
 
     other = bip322.to_spend(b"other", ScriptPubKey.from_address(addr).script)
@@ -534,7 +552,7 @@ def test_a_version_that_is_not_0_or_2_is_inconclusive() -> None:
     False for both, an inconclusive signature not being a valid one.
     """
     msg, addr = b"version", _address(WIF, "p2wpkh")
-    signed = bip322.sign(msg, WIF, addr)
+    signed = bip322.sign(msg, b58.prv_key_data_from_wif(WIF), addr)
     _, tx = _to_sign_of(msg, addr, witness=signed.payload, version=1)
 
     with pytest.raises(InconclusiveError, match="BIP322 allows 0 and 2"):
@@ -612,7 +630,7 @@ def _sign_with(msg: bytes, script_type: str, hash_type: int) -> tuple[str, bip32
     addr = _address(WIF, script_type)
     spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
     tx = bip322.to_sign(spend)
-    q = prv_keyinfo_from_prv_key(WIF)[0]
+    q = b58.prv_key_data_from_wif(WIF).q
 
     if script_type == "p2tr":
         msg_hash = taproot_sig_hash(tx, 0, spend.vout, hash_type, 0, b"", b"")
@@ -625,7 +643,7 @@ def _sign_with(msg: bytes, script_type: str, hash_type: int) -> tuple[str, bip32
 
     msg_hash = from_tx(spend.vout, tx, 0, hash_type)
     signature = dsa.sign_(msg_hash, q).serialize() + hash_type.to_bytes(1, "big")
-    pub_key = pub_keyinfo_from_key(WIF, compressed=True)[0]
+    pub_key = b58.prv_key_data_from_wif(WIF, compressed=True).pub.sec
     if script_type == "p2pkh":
         tx.vin[0].script_sig = serialize([signature, pub_key])
         return addr, bip322.Sig(tx)
@@ -711,8 +729,8 @@ def test_proof_of_funds_refuses_anyonecanpay_on_a_further_input(
     prevouts = [spend.vout[0], funded]
 
     psbt = Psbt.from_tx(tx)
-    pub_key = pub_keyinfo_from_key(WIF, compressed=True)[0]
-    q = prv_keyinfo_from_prv_key(WIF)[0]
+    pub_key = b58.prv_key_data_from_wif(WIF, compressed=True).pub.sec
+    q = b58.prv_key_data_from_wif(WIF).q
     for i, one_type in enumerate((ALL, hash_type)):
         signature = dsa.sign_(from_tx(prevouts, tx, i, one_type), q).serialize()
         psbt.inputs[i].witness_utxo = prevouts[i]
@@ -746,14 +764,14 @@ def test_a_broken_required_rule_answers_before_an_upgradeable_one(
     because the first run never reaches the end of the script: it is
     the case for the second run collecting at all.
     """
-    keys = pub_keyinfo_from_key(WIF, compressed=True)[0]
+    keys = b58.prv_key_data_from_wif(WIF, compressed=True).pub.sec
     witness_script = serialize([keys, "OP_CHECKSIGVERIFY", "OP_NOP4", "OP_1"])
     msg, addr = b"two rules at once", p2wsh(witness_script)
 
     spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
     tx = bip322.to_sign(spend)
     msg_hash = segwit_v0(witness_script, tx, 0, hash_type, 0)
-    q = prv_keyinfo_from_prv_key(WIF)[0]
+    q = b58.prv_key_data_from_wif(WIF).q
     signature = dsa.sign_(msg_hash, q).serialize() + hash_type.to_bytes(1, "big")
     sig = bip322.Sig(Witness([signature, witness_script]))
 
@@ -890,7 +908,10 @@ def test_a_created_psbt_is_signed_and_finalized_into_a_proof() -> None:
     coordination flow -- the psbt is how the two signatures meet, and
     the field is how the second signer knows what it is signing.
     """
-    keys = [pub_keyinfo_from_key(wif, compressed=True)[0] for wif in (WIF, OTHER_WIF)]
+    keys = [
+        b58.prv_key_data_from_wif(wif, compressed=True).pub.sec
+        for wif in (WIF, OTHER_WIF)
+    ]
     witness_script = serialize(["OP_2", *keys, "OP_2", "OP_CHECKMULTISIG"])
     addr = p2wsh(witness_script)
     msg = b"two keys, one psbt"

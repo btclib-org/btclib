@@ -65,6 +65,7 @@ from btclib import b58, bip322
 from btclib.block import merkle_proof
 from btclib.ecc import bms, dleq, dsa, pedersen, ssa
 from btclib.hashes import reduce_to_hlen
+from btclib.key import PrvKeyData
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -78,10 +79,10 @@ _MSG_HASH = reduce_to_hlen(_MSG)
 _ADDR = b58.p2pkh(_PUB)
 _DSA_SIG = dsa.sign(_MSG, _Q)
 _SSA_SIG = ssa.sign(_MSG, _Q)
-_BMS_SIG = bms.sign(_MSG, _Q)
+_BMS_SIG = bms.sign(_MSG, PrvKeyData(_Q))
 # BIP322 declares a `Sig` of its own, and it is not bms's: the two are
 # distinct classes, so each case is given the one its function takes
-_BIP322_SIG = bip322.sign(_MSG, _Q, _ADDR)
+_BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_Q), _ADDR)
 _TX_ID = bytes.fromhex("01" * 32)
 # a DLEQ triple: A = a*G and C = a*B, so the proof holds for (A, B, C)
 _DLEQ_B = pub_keyinfo_from_prv_key(2)[0]

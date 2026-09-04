@@ -101,6 +101,7 @@ from btclib.exceptions import (
     InconclusiveError,
 )
 from btclib.hashes import hash160, tagged_hash
+from btclib.key import PrvKeyData
 from btclib.psbt import Psbt, extract_tx
 from btclib.script import serialize
 from btclib.script.engine import ALL_FLAGS, ScriptFlag, verify_transaction
@@ -109,7 +110,6 @@ from btclib.script.sig_hash import ALL, DEFAULT, from_tx
 from btclib.script.sig_hash import taproot as taproot_sig_hash
 from btclib.script.taproot import output_prvkey_from_merkle_root, output_pubkey
 from btclib.script.witness import Witness
-from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
@@ -659,12 +659,18 @@ def _assert_key_owns(script_type: str, payload: bytes, pub_key: bytes) -> None:
         raise BTClibValueError("mismatch between private key and address")
 
 
-def sign(msg: Octets, prv_key: PrvKey, addr: String) -> Sig:
+def sign(msg: Octets, prv_key: PrvKeyData, addr: String) -> Sig:
     """Return the BIP322 signature of a message for a single-key address.
 
     The address is the argument and not something worked out from the
     key, one key owning an address of each type: it is the challenge
     being signed, and BIP322 has no default for it.
+
+    The key is the parsed form, as `ecc.bms.sign` takes it: the scalar
+    signs and the compression flag beside it says which SEC octets the
+    address was built from. A WIF is read once by
+    `b58.prv_key_data_from_wif`, and a scalar is stated with
+    `PrvKeyData(q, network, compressed)`.
 
     p2pkh, p2wpkh, p2sh-p2wpkh and p2tr are what one private key
     satisfies on its own, so they are what this signs; the taproot case
@@ -678,9 +684,13 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String) -> Sig:
     `Descriptor.satisfy` over the signatures it needs, and then a `Sig`
     of what comes out. This function is the case that needs neither.
     """
+    # asked here whatever `check_validity` the object was built with: a
+    # key the constructor was told not to check is one a caller may hold
+    assert_type(prv_key, PrvKeyData, "prv_key")
+    prv_key.assert_valid()
     script_pub_key = ScriptPubKey.from_address(addr).script
     script_type, payload = type_and_payload(script_pub_key)
-    q, _, compressed = prv_keyinfo_from_prv_key(prv_key)
+    q, compressed = prv_key.q, prv_key.compressed
     pub_key = bytes_from_prv_key_int(q, compressed=compressed)
     _assert_key_owns(script_type, payload, pub_key)
 

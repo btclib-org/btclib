@@ -145,6 +145,37 @@ documented at release-notes length in the first place, and are still in
   `fetcher.client_errors` unchanged, neither reshaped into a code common
   to both backends.
 
+### WIF parsing and building move to `b58`, taking a WIF and not the key union
+
+`b58.wif_from_prv_key` and the new `b58.prv_key_data_from_wif` are where
+a WIF is read and written now (issue #1188), and `to_prv_key.PrvKey`
+drops it: a WIF is Base58Check with a version prefix and a compression
+flag, which is `b58`'s own idea and not a spelling `to_prv_key` has any
+business resolving, `b58` sitting below it and having no way back up to
+a parser living above it. `to_prv_key.int_from_prv_key` and
+`prv_keyinfo_from_prv_key` keep the rest -- an int, an octets scalar, a
+BIP32 xprv, a `BIP32KeyData` -- and refuse a WIF as the octets it is
+not, on the same `bytes_from_octets` "invalid hex string" terms as any
+other non-hex text.
+
+`b58.p2pkh` and `b58.p2wpkh_p2sh` still take a WIF: each tries one
+first, ahead of `to_pub_key.pub_keyinfo_from_key`, since a WIF is
+disjoint from every other spelling `Key` carries and costs nothing to
+try. `b32.p2wpkh` does not: `b32` imports `to_pub_key` and `b58` imports
+`b32`, so resolving a WIF there would need the import the other way
+round. A caller holding a WIF for `b32.p2wpkh` now derives the SEC
+octets first, with `b58.prv_key_data_from_wif(wif).pub.sec`.
+
+`ecc.bms.sign`, `ecc.bms.gen_keys` and `bip322.sign` take the parsed
+`btclib.key.PrvKeyData` and not a `PrvKey` union: message signing wants
+the network and the compression flag beside the scalar, which is what a
+WIF carries and `PrvKeyData` now states explicitly --
+`b58.prv_key_data_from_wif(wif)` for the one,
+`btclib.key.PrvKeyData(q, network, compressed)` for a bare scalar.
+`bms.gen_keys` drops its `prv_key` parameter with it: drawing a key and
+handing one in were two different calls behind one name, and the second
+is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
+
 ## v2026.9.3
 
 ### Repository

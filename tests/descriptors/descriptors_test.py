@@ -38,6 +38,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from btclib import b58
 from btclib.alias import BIP44ScriptType, Octets
 from btclib.bip32 import BIP32KeyOrigin, fingerprint
 from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
@@ -1137,7 +1138,7 @@ def test_no_private_key_survives_the_parse() -> None:
     assert prv_keys == {xpub: xprv}
     assert parsed.key_expressions[0].xkey == xpub
 
-    for secret in (xprv, wif, str(prv_keyinfo_from_prv_key(wif)[0])):
+    for secret in (xprv, wif, str(b58.prv_key_data_from_wif(wif).q)):
         assert secret not in repr(parsed)
         assert secret not in str(vars(parsed))
 
@@ -1147,7 +1148,7 @@ def test_no_private_key_survives_the_parse() -> None:
     # the WIF was already public before this: no derivation is made from
     # it and nothing here signs, so it is reduced and not filed
     assert wif not in prv_keys.values()
-    assert parsed.key_expressions[1].pub_key == pub_keyinfo_from_key(wif)[0]
+    assert parsed.key_expressions[1].pub_key == b58.prv_key_data_from_wif(wif).pub.sec
 
 
 def test_a_hardened_step_takes_the_keys_back() -> None:
@@ -2833,7 +2834,7 @@ def test_what_writing_a_descriptor_normalizes() -> None:
     the one whose two spellings are two checksums.
     """
     wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
-    pub_key = pub_keyinfo_from_key(wif)[0].hex()
+    pub_key = b58.prv_key_data_from_wif(wif).pub.sec.hex()
     assert str(parse(f"pkh({wif})")) == f"pkh({pub_key})"
     assert str(parse(f"pkh({pub_key.upper()})")) == f"pkh({pub_key})"
 

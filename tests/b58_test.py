@@ -23,58 +23,57 @@ from btclib.exceptions import (
 from btclib.hashes import hash160, sha256
 from btclib.script.script import serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
+from btclib.to_pub_key import pub_keyinfo_from_key
 
 ec = secp256k1
 
 
 def test_wif_from_prv_key() -> None:
-    """Verify WIF encoding from any key spelling, and the malformed WIFs."""
+    """Verify WIF encoding from a scalar, and the malformed scalars.
+
+    A WIF is not among `wif_from_prv_key`'s own inputs any more: it is
+    what the function writes, and what `prv_key_data_from_wif` below
+    reads back, never what either takes as the other's spelling
+    (issue #1188).
+    """
     q_prv_key = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
-    wif_prv_keys = [
-        "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617",
-        "cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx",
-        "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ",
-        "91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2",
-        " KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617",
-        "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ",
-    ]
-    for alt_prv_key in wif_prv_keys:
-        assert alt_prv_key.strip() == b58.wif_from_prv_key(alt_prv_key)
+    q_int = int(q_prv_key, 16)
 
     test_vectors = [
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
         ("cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True),
         ("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ", "mainnet", False),
         ("91gGn1HgSap6CbU12F6z3pJri26xzp7Ay1VW6NHCoEayNXwRpu2", "testnet", False),
-        (" KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
-        ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ", "mainnet", True),
     ]
-    for v in test_vectors:
-        for prv_key in [q_prv_key, *wif_prv_keys]:
-            assert v[0].strip() == b58.wif_from_prv_key(prv_key, v[1], v[2])
-            q, network, compressed = prv_keyinfo_from_prv_key(v[0])
-            assert q == int(q_prv_key, 16)
-            assert network == v[1]
-            assert compressed == v[2]
+    for wif, network, compressed in test_vectors:
+        assert wif == b58.wif_from_prv_key(q_prv_key, network, compressed)
+        assert wif == b58.wif_from_prv_key(q_int, network, compressed)
+        data = b58.prv_key_data_from_wif(wif)
+        assert (data.q, data.network, data.compressed) == (q_int, network, compressed)
 
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
     with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
+    # not a private key: 33 bytes, not the 32 a scalar's octets are
+    bad_q = 33 * b"\x02"
+    with pytest.raises(BTClibValueError, match="invalid size: 33 bytes"):
+        b58.wif_from_prv_key(bad_q, "mainnet", True)
+
+
+def test_prv_key_data_from_wif() -> None:
+    """The malformed WIFs, and the two error classes they fall into."""
+    bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
     # a well-formed WIF -- base58, checksum, 0x80 prefix, right size --
     # carrying a scalar equal to n. The format is recognised, so the
-    # fault in it is reported rather than swallowed, the string retried
-    # as a hex-string, and the caller told "not a private key"
+    # fault in it is reported rather than swallowed as "not a WIF"
     with pytest.raises(InvalidPrvKeyError, match="private key not in 1..n-1"):
-        prv_keyinfo_from_prv_key(badwif)
+        b58.prv_key_data_from_wif(badwif)
 
-    # not a private key: 33 bytes
+    # not a WIF at all: 33 bytes wrapped as if it were a scalar's payload
     bad_q = 33 * b"\x02"
-    with pytest.raises(BTClibValueError, match="not a private key"):
-        b58.wif_from_prv_key(bad_q, "mainnet", True)
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
     # 34 bytes is the compressed-WIF size, so the trailing byte is what is
@@ -82,31 +81,82 @@ def test_wif_from_prv_key() -> None:
     # reason to try the string as something else
     err_msg = "not a compressed WIF: missing trailing 0x01"
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
-        prv_keyinfo_from_prv_key(badwif)
+        b58.prv_key_data_from_wif(badwif)
 
-    # Not a WIF: missing leading 0x80. Nothing says WIF about it, so the
-    # guessing goes on, and what the caller gets is every reason together
+    # Not a WIF: missing leading 0x80
     good_q = 32 * b"\x02"
     payload = b"\x81" + good_q
     badwif = b58encode(payload)
-    with pytest.raises(NotAPrvKeyError, match="not a private key") as exc_info:
-        prv_keyinfo_from_prv_key(badwif)
-    message = str(exc_info.value)
-    assert "not a WIF (invalid prefix 0x81)" in message
-    assert "not a BIP32 xkey" in message
-    assert "not octets" in message
+    with pytest.raises(NotAPrvKeyError, match="not a WIF") as exc_info:
+        b58.prv_key_data_from_wif(badwif)
+    assert "invalid prefix 0x81" in str(exc_info.value)
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
     badwif = b58encode(payload)
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
-        prv_keyinfo_from_prv_key(badwif)
+        b58.prv_key_data_from_wif(badwif)
 
     # Not a WIF: wrong size (35)
     payload = b"\x80" + good_q + b"\x01\x00"
     badwif = b58encode(payload)
     with pytest.raises(InvalidPrvKeyError, match="wrong WIF size: 35"):
-        prv_keyinfo_from_prv_key(badwif)
+        b58.prv_key_data_from_wif(badwif)
+
+    # leading/trailing spaces in a str are stripped; a WIF is also read
+    # from bytes, base58's own alphabet excluding the space either way
+    wif = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    for alt in (f" {wif}", f"{wif} ", wif.encode("ascii")):
+        assert b58.prv_key_data_from_wif(alt) == b58.prv_key_data_from_wif(wif)
+
+    # a mainnet WIF asked for as a testnet one: the prefix is recognised,
+    # so the fault is reported as the wrong network rather than "not a
+    # WIF"
+    with pytest.raises(InvalidPrvKeyError, match="not a testnet wif: prefix 0x80"):
+        b58.prv_key_data_from_wif(wif, "testnet")
+
+
+def test_a_mistyped_wif_is_reported_as_one() -> None:
+    """The headline case: one wrong character in a WIF.
+
+    The checksum failure must not be swallowed, and never as "not a
+    private key": a WIF is the one format `prv_key_data_from_wif` reads,
+    so there is nothing else left to try it as.
+    """
+    good = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    assert b58.prv_key_data_from_wif(good).network == "mainnet"
+
+    mistyped = f"{good[:-1]}8"
+    with pytest.raises(NotAPrvKeyError, match="not a WIF") as exc_info:
+        b58.prv_key_data_from_wif(mistyped)
+    message = str(exc_info.value)
+    assert "invalid checksum" in message
+    # never the input itself, which is candidate key material
+    assert mistyped not in message
+
+    # the address functions answer otherwise, and that is the contract
+    # rather than a gap: the checksum is verified before any prefix is
+    # read, so nothing there knows a WIF was meant, and there are other
+    # spellings left to try the text as
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
+        b58.p2pkh(mistyped)
+
+
+def test_a_faulty_wif_keeps_its_diagnosis_through_an_address() -> None:
+    """A WIF a network has claimed does not degrade to "not a key".
+
+    `NotAPrvKeyError` says another spelling is worth trying and
+    `_pub_keyinfo_from_key` tries it. `InvalidPrvKeyError` says the
+    format was recognised, so there is nothing left to try and the
+    diagnosis already computed is the answer.
+    """
+    uncompressed = "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf"
+    with pytest.raises(InvalidPrvKeyError, match="compression requirement mismatch"):
+        b58.p2wpkh_p2sh(uncompressed)
+
+    testnet_wif = "cMahea7zqjxrtgAbB7LSGbcQUr1uX1ojuat9jZodMN87JcbXMTcA"
+    with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif"):
+        b58.p2pkh(testnet_wif, network="mainnet")
 
 
 def test_address_from_h160() -> None:
@@ -125,21 +175,27 @@ def test_address_from_h160() -> None:
 
 
 def test_p2pkh_from_wif() -> None:
-    """Verify the p2pkh of a derived WIF, and refuse an xpub as a key."""
+    """Verify the p2pkh of a derived WIF, and refuse an xpub as a key.
+
+    `wif_from_prv_key` takes the scalar an xprv resolves to, not the
+    xprv itself: `to_prv_key` is what still resolves one, `b58` having
+    no way to reach `bip32` for it (issue #1188).
+    """
     seed = b"\x00" * 32  # better be a documented test case
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
     xprv = bip32.derive(rxprv, path)
-    wif = b58.wif_from_prv_key(xprv)
+    q, network, compressed = prv_keyinfo_from_prv_key(xprv)
+    wif = b58.wif_from_prv_key(q, network, compressed)
     assert wif == "L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
-    pub_key, _ = pub_keyinfo_from_prv_key(wif)
+    pub_key = b58.prv_key_data_from_wif(wif).pub.sec
     address = b58.p2pkh(pub_key)
     xpub = bip32.xpub_from_xprv(xprv)
     assert address == slip132.address_from_xpub(xpub)
 
     err_msg = "not a private key"
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58.wif_from_prv_key(xpub)
+        prv_keyinfo_from_prv_key(xpub)
 
 
 def test_p2pkh_from_pub_key() -> None:
@@ -272,14 +328,18 @@ def test_address_from_wif() -> None:
     ]
     for compressed, network, wif, address in test_cases:
         assert wif == b58.wif_from_prv_key(q, network, compressed)
-        assert prv_keyinfo_from_prv_key(wif) == (q, network, compressed)
+        data = b58.prv_key_data_from_wif(wif)
+        assert (data.q, data.network, data.compressed) == (q, network, compressed)
         assert address == b58.p2pkh(wif)
         script_type, payload, net = b58.h160_from_address(address)
         assert net == network
         assert script_type == "p2pkh"
 
         if compressed:
-            b32_address = b32.p2wpkh(wif)
+            # b58 reads the WIF itself; b32 sits below it and cannot, so
+            # the pub key it derives is handed over instead (issue #1188)
+            pub_key = data.pub.sec
+            b32_address = b32.p2wpkh(pub_key, network)
             assert (0, payload, net) == b32.witness_from_address(b32_address)
 
             b58_address = b58.p2wpkh_p2sh(wif)
@@ -287,10 +347,14 @@ def test_address_from_wif() -> None:
             assert ("p2sh", script_bin, net) == b58.h160_from_address(b58_address)
 
         else:
+            # b32 cannot read a WIF, so an uncompressed one reaches it as
+            # text no spelling resolves; b58 reads it, finds a WIF that a
+            # p2wpkh cannot use, and says which of the two it is
             err_msg = "not a private or compressed public key"
             with pytest.raises(BTClibValueError, match=err_msg):
                 b32.p2wpkh(wif)
-            with pytest.raises(BTClibValueError, match=err_msg):
+            err_msg = "compression requirement mismatch"
+            with pytest.raises(InvalidPrvKeyError, match=err_msg):
                 b58.p2wpkh_p2sh(wif)
 
 
@@ -328,4 +392,5 @@ def test_round_trip_address(script_type: ScriptType, h160: bytes, network: str) 
 def test_round_trip_wif(prv_key: int, compressed: bool) -> None:
     """A WIF decodes to the key it was made from, and to its compression."""
     wif = b58.wif_from_prv_key(prv_key, "mainnet", compressed)
-    assert prv_keyinfo_from_prv_key(wif) == (prv_key, "mainnet", compressed)
+    data = b58.prv_key_data_from_wif(wif)
+    assert (data.q, data.network, data.compressed) == (prv_key, "mainnet", compressed)

@@ -9,23 +9,9 @@ import pytest
 
 # Library imports
 from btclib.alias import INF
-from btclib.b58 import wif_from_prv_key
-from btclib.base58 import encode as b58encode
-from btclib.bip32 import BIP32KeyData
-from btclib.bip32.bip32 import rootxprv_from_seed
 from btclib.curves.curve import CURVES
-from btclib.exceptions import (
-    BTClibTypeError,
-    BTClibValueError,
-    InvalidPrvKeyError,
-    NotAPrvKeyError,
-)
-from btclib.to_prv_key import (
-    _prv_keyinfo_from_wif,
-    _prv_keyinfo_from_xprvwif,
-    int_from_prv_key,
-    prv_keyinfo_from_prv_key,
-)
+from btclib.exceptions import BTClibTypeError, BTClibValueError, InvalidPrvKeyError
+from btclib.to_prv_key import int_from_prv_key, prv_keyinfo_from_prv_key
 from tests.to_key_test import (
     INF_xpub_data,
     Q,
@@ -40,9 +26,7 @@ from tests.to_key_test import (
     q,
     q0,
     qn,
-    uncompressed_prv_keys,
     uncompressed_pub_keys,
-    wif_compressed_string,
     xprv0_data,
     xprv_data,
     xprv_string,
@@ -52,7 +36,13 @@ from tests.to_key_test import (
 
 
 def test_from_prv_key() -> None:
-    """Check every private-key form against network and compression."""
+    """Check every private-key form against network and compression.
+
+    A WIF is not one of the forms: `to_prv_key` cannot spell it, so
+    `compressed_prv_keys` and `net_aware_prv_keys` below hold only an
+    xprv, which is always compressed -- there is no uncompressed
+    net-aware form left for this module to resolve (issue #1188).
+    """
     secp256r1 = CURVES["secp256r1"]
     m_c = (q, "mainnet", True)
     m_unc = (q, "mainnet", False)
@@ -90,31 +80,12 @@ def test_from_prv_key() -> None:
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(prv_key2, "testnet", compressed=False)
 
-    for prv_key3 in uncompressed_prv_keys:
-        assert q == int_from_prv_key(prv_key3)
-        with pytest.raises(BTClibValueError):
-            int_from_prv_key(prv_key3, secp256r1)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key3)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, "mainnet")
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key3, "mainnet", compressed=True)
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key3, compressed=True)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, "mainnet", compressed=False)
-        assert m_unc == prv_keyinfo_from_prv_key(prv_key3, compressed=False)
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key3, "testnet")
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key3, "testnet", compressed=True)
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(prv_key3, "testnet", compressed=False)
-
     for prv_key4 in [xprv_data, *net_aware_prv_keys]:
         assert q == int_from_prv_key(prv_key4)
         with pytest.raises(BTClibValueError):
             int_from_prv_key(prv_key4, secp256r1)
-        assert prv_keyinfo_from_prv_key(prv_key4) in {m_c, m_unc}
-        assert prv_keyinfo_from_prv_key(prv_key4, "mainnet") in {m_c, m_unc}
+        assert prv_keyinfo_from_prv_key(prv_key4) == m_c
+        assert prv_keyinfo_from_prv_key(prv_key4, "mainnet") == m_c
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(prv_key4, "testnet")
 
@@ -169,11 +140,6 @@ def test_no_key_material_in_exceptions() -> None:
         prv_keyinfo_from_prv_key(xprv_data, "testnet")
     assert xprv_string not in str(excinfo.value)
 
-    # network mismatch on a valid WIF
-    with pytest.raises(BTClibValueError, match="not a testnet wif: ") as excinfo:
-        _prv_keyinfo_from_wif(wif_compressed_string, "testnet", None)
-    assert wif_compressed_string not in str(excinfo.value)
-
     # out-of-range scalar
     with pytest.raises(BTClibValueError, match="not in 1..n-1") as excinfo:
         int_from_prv_key(qn)
@@ -185,54 +151,20 @@ def test_no_key_material_in_exceptions() -> None:
     assert "0202" not in str(excinfo.value)
 
 
-def test_a_mistyped_wif_is_reported_as_one() -> None:
-    """The headline case: one wrong character in a WIF.
-
-    The checksum failure must not be swallowed -- the string retried as
-    a hex-string, and the caller told "not a private key", which is true
-    and useless. Every reason travels with the exception.
-    """
-    good = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    assert prv_keyinfo_from_prv_key(good)[1] == "mainnet"
-
-    mistyped = f"{good[:-1]}8"
-    for func in (int_from_prv_key, prv_keyinfo_from_prv_key):
-        with pytest.raises(NotAPrvKeyError, match="not a private key") as exc_info:
-            func(mistyped)
-        message = str(exc_info.value)
-        assert "invalid checksum" in message
-        assert "not a WIF" in message
-        assert "not a BIP32 xkey" in message
-        assert "not octets" in message
-        # never the input itself, which is candidate key material
-        assert mistyped not in message
-
-
 def test_a_recognised_format_stops_the_guessing() -> None:
-    """InvalidPrvKeyError propagates; NotAPrvKeyError moves on.
+    """InvalidPrvKeyError propagates; a format neither recognises moves on.
 
-    Which is the whole of the split. A WIF whose prefix and checksum are
-    right is a WIF: what is wrong with it is worth more than the news that
-    it is not a hex-string either.
+    An xpub is a BIP32 xkey, so "not a private key" is the answer and not
+    a step on the way to one -- the format is recognised, and what is
+    wrong with it is worth more than the news that it is not octets
+    either. The WIF half of this question is now `b58`'s (issue #1188).
     """
-    # 0x80, right checksum, right size, trailing byte 0x00 instead of 0x01
-    payload = b"\x80" + 32 * b"\x02" + b"\x00"
-    with pytest.raises(InvalidPrvKeyError, match="missing trailing 0x01") as info:
-        prv_keyinfo_from_prv_key(b58encode(payload))
-    # the reason, not an accumulation: the guessing stopped
-    assert "not octets" not in str(info.value)
-    assert "not a BIP32 xkey" not in str(info.value)
-
-    # an xpub is an xkey, so "not a private key" is the answer and not a
-    # step on the way to one
     xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
     with pytest.raises(InvalidPrvKeyError, match="not a private key: prefix 0x03"):
         prv_keyinfo_from_prv_key(xpub)
 
-    # both are BTClibValueError, so code catching that is unaffected
-    for bad in (b58encode(payload), xpub):
-        with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(bad)
+    with pytest.raises(BTClibValueError):
+        prv_keyinfo_from_prv_key(xpub)
 
 
 def test_an_uncompressed_sec_key_still_resolves() -> None:
@@ -256,53 +188,3 @@ def test_an_uncompressed_sec_key_still_resolves() -> None:
     err_msg = "uncompressed SEC / compressed BIP32 mismatch"
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
         prv_keyinfo_from_prv_key(xprv, compressed=False)
-
-
-def test_a_wif_on_a_network_sharing_its_prefix() -> None:
-    """A signet WIF declared as signet is accepted (issue #207).
-
-    A name comparison against the reverse lookup cannot do it: the lookup
-    answers "testnet" for the 0xef prefix the four test networks share,
-    so a signet WIF asked for as signet would be refused as "not a signet
-    wif: prefix 0xef" -- naming the very prefix signet asks for. The
-    check is the forward one the xprv path uses, i.e. membership.
-    """
-    for network in ("testnet", "regtest", "signet", "testnet4"):
-        wif = wif_from_prv_key(q, network)
-        # the declared network is the one returned, not the lookup's guess
-        assert prv_keyinfo_from_prv_key(wif, network) == (q, network, True)
-        assert _prv_keyinfo_from_wif(wif, network, None) == (q, network, True)
-
-    # undeclared, the canonical name of the shared prefix is what it is
-    assert prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet")) == (
-        q,
-        "testnet",
-        True,
-    )
-
-    # and the check still refuses what it should: mainnet is a different
-    # prefix, so it is a different network type
-    with pytest.raises(InvalidPrvKeyError, match="not a signet wif: prefix 0x80"):
-        prv_keyinfo_from_prv_key(wif_from_prv_key(q, "mainnet"), "signet")
-    with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif: prefix 0xef"):
-        prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet"), "mainnet")
-
-
-def test_the_xprvwif_helper_takes_a_bip32_key_data_too() -> None:
-    """`_prv_keyinfo_from_xprvwif` answers for a parsed xprv, not only a str.
-
-    Both public callers dispatch a `BIP32KeyData` to `_prv_keyinfo_from_xprv`
-    before they reach this helper, so its `isinstance` guard is never False
-    through them and the WIF attempt it skips is what nothing else measures.
-    The guard is the helper's own contract rather than a duplicate of theirs:
-    a parsed xprv is not a string the WIF decoder could be asked about, and
-    handing it to `_prv_keyinfo_from_wif` would be a `NotAPrvKeyError` added
-    to the reasons of a key that is in good order.
-    """
-    xprv = rootxprv_from_seed(b"\x01" * 32)
-    data = BIP32KeyData.b58decode(xprv)
-
-    assert _prv_keyinfo_from_xprvwif(data, None, None) == _prv_keyinfo_from_xprvwif(
-        xprv, None, None
-    )
-    assert _prv_keyinfo_from_xprvwif(data, "mainnet", None)[1] == "mainnet"
