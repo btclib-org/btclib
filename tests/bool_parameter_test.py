@@ -130,6 +130,7 @@ from btclib.ecc import bms, dsa, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
+from btclib.fetch.esplora import EsploraFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
 from btclib.key import PrvKeyData
 from btclib.mnemonic import bip39, slip39
@@ -1045,6 +1046,14 @@ _TRUTHS = (
         },
         reason="whether the node is asked which chain it serves, the same"
         " check over -rest, `/chaininfo.json` carrying the same `chain`",
+    ),
+    _Case(
+        "btclib.fetch.esplora.EsploraFetcher.__init__",
+        "verify_network",
+        EsploraFetcher,
+        {"base_url": "https://esplora.example/api", "transport": Recorded()},
+        reason="whether the explorer is asked which chain it serves; the"
+        " same check under the same name, made before its first fetch",
     ),
     _Case(
         "btclib.bip32.bip32.derive_from_account",

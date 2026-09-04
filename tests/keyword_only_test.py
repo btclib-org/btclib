@@ -251,7 +251,12 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "signet_challenge",
     ],
     "btclib.fetch:ElectrumFetcher.__init__": ["transport", "timeout"],
-    "btclib.fetch:EsploraFetcher.__init__": ["network", "timeout", "transport"],
+    "btclib.fetch:EsploraFetcher.__init__": [
+        "network",
+        "verify_network",
+        "timeout",
+        "transport",
+    ],
     "btclib.fetch:SessionTransport.__init__": ["max_body_size", "connection_factory"],
     "btclib.fetch:urlopen_transport": ["max_body_size"],
     "btclib.hwi:HwiSigner.__init__": [
