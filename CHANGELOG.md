@@ -304,6 +304,27 @@ the block -- which is the same limit the node backends have without a
 `signet_challenge`; SECURITY.md's bullet now says so once for all three
 backends instead of implying Esplora is worse.
 
+### `merkleblock` joins `btclib.p2p`, over a new `PartialMerkleTree`
+
+- **`btclib.block.partial_merkle_tree` adds `PartialMerkleTree`, BIP37's
+  `CPartialMerkleTree` codec, and `btclib.p2p.merkleblock` adds
+  `MerkleBlock`, the `merkleblock` message wrapping it** (closes #1120).
+  `merkle_root` and `matches` are the walk that recomputes the root and
+  the matched txids with their positions, over the arithmetic
+  `btclib.block.merkle_proof` already carries; every way Bitcoin Core's
+  own `ExtractMatches`/`TraverseAndExtract` can set `fBad` -- more
+  hashes than the transaction count allows, fewer flag bits than hashes,
+  the bit stream or the hash vector running out mid-walk, two children
+  of one node hashing equal, and a bit or a hash left over once the walk
+  is done -- is a `BTClibValueError` naming what was wrong, raised
+  before a caller ever sees a matched txid or a recomputed root a
+  malformed tree produced. `filterload`, `filteradd` and `filterclear`,
+  BIP37's other three messages, are deliberately not carried: they ask a
+  remote node to build a bloom filter of a wallet's own scripts, which
+  is the privacy leak BIP157/158 already in this tree exist to replace,
+  where a `merkleblock` is only ever something a peer sends and parsing
+  it is not endorsing the request that produced it.
+
 ## v2026.9.3
 
 ### Repository

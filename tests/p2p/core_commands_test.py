@@ -102,13 +102,12 @@ _CORE_COMMANDS = (
     "feature",
 )
 
-# what Core declares and this package does not carry, under the issue
-# holding the decision. BIP37's bloom set and the `merkleblock` a loaded
-# filter is answered with are one question -- whether a deprecated
-# privacy leak belongs in a library whose defence is that parsing is not
-# endorsing -- and it is argued in the issue rather than here.
+# what Core declares and this package does not carry. The value is the
+# issue that decided leaving it out, not an open task: #1120 took BIP37's
+# four as one question and split them, carrying `merkleblock` in
+# `btclib.p2p.merkleblock` and leaving these three out for good. That
+# issue's decision comment is the argument; this map points at it.
 _NOT_CARRIED = {
-    "merkleblock": 1120,
     "filterload": 1120,
     "filteradd": 1120,
     "filterclear": 1120,

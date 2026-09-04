@@ -36,6 +36,7 @@ from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.block.block import Block
 from btclib.block.block_filter import BasicBlockFilter
 from btclib.block.block_header import BlockHeader
+from btclib.block.partial_merkle_tree import PartialMerkleTree
 from btclib.curves.sec_point import point_from_octets
 from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
@@ -72,6 +73,7 @@ from btclib.p2p.inventory import (
     NotFound,
 )
 from btclib.p2p.keepalive import Ping, Pong
+from btclib.p2p.merkleblock import MerkleBlock
 from btclib.p2p.message import Message
 from btclib.p2p.negotiation import (
     Feature,
@@ -129,6 +131,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # count read under MAX_FILTER_ELEMENT_COUNT and the block hash width
     # refusal, which stands in front of the Golomb decoding
     "BasicBlockFilter.parse": BasicBlockFilter.parse,
+    "PartialMerkleTree.parse": PartialMerkleTree.parse,
     "Psbt.parse": Psbt.parse,
     "PsbtIn.parse": PsbtIn.parse,
     "PsbtOut.parse": PsbtOut.parse,
@@ -175,6 +178,7 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "PrefilledTransaction.parse": PrefilledTransaction.parse,
     "GetBlockTxn.parse": GetBlockTxn.parse,
     "BlockTxn.parse": BlockTxn.parse,
+    "MerkleBlock.parse": MerkleBlock.parse,
     # the two payloads that are a transaction and a block: their own
     # mutation samples are `Tx.parse`'s and `Block.parse`'s below, the
     # wrapper adding no octets of its own to flip

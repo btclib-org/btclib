@@ -74,6 +74,13 @@ btclib.block.mining module
    :members:
    :show-inheritance:
 
+btclib.block.partial\_merkle\_tree module
+-----------------------------------------
+
+.. automodule:: btclib.block.partial_merkle_tree
+   :members:
+   :show-inheritance:
+
 btclib.block.proof\_of\_work module
 -----------------------------------
 

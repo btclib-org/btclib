@@ -98,6 +98,7 @@ from btclib.p2p.inventory import (
     NotFound,
 )
 from btclib.p2p.keepalive import Ping, Pong
+from btclib.p2p.merkleblock import MerkleBlock
 from btclib.p2p.message import Message
 from btclib.p2p.negotiation import (
     Feature,
@@ -138,6 +139,7 @@ __all__ = [
     "Inventory",
     "InventoryType",
     "Mempool",
+    "MerkleBlock",
     "Message",
     "NetworkAddress",
     "NetworkAddressV2",

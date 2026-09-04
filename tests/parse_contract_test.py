@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 
 from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
-from btclib.block import Block, BlockHeader
+from btclib.block import Block, BlockHeader, PartialMerkleTree
 from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
@@ -58,6 +58,7 @@ from btclib.p2p import (
     Inventory,
     InventoryType,
     Mempool,
+    MerkleBlock,
     Message,
     NetworkAddress,
     NetworkAddressV2,
@@ -131,6 +132,12 @@ def _psbt() -> Psbt:
     return Psbt.from_tx(_tx())
 
 
+def _partial_merkle_tree() -> PartialMerkleTree:
+    """Return the tree that keeps the coinbase of the block after genesis."""
+    txids = [tx.id for tx in Block.parse(_block_1()).transactions]
+    return PartialMerkleTree.from_txids(txids, [True] * len(txids))
+
+
 # every object with a fixed-width field in it or a length of its own,
 # with the class whose `parse` reads it back: (name, class, serialization).
 # The class and not the bound method, so that the inventory says which
@@ -142,6 +149,11 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("tx", Tx, _tx().serialize(include_witness=True)),
     ("block_header", BlockHeader, _block_1()[:80]),
     ("block", Block, _block_1()),
+    (
+        "partial_merkle_tree",
+        PartialMerkleTree,
+        _partial_merkle_tree().serialize(),
+    ),
     ("bip32_key", BIP32KeyData, BIP32KeyData.b58decode(_XPRV).serialize()),
     ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
     ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
@@ -254,6 +266,13 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
         GetBlockTxn(_inventory().hash, [0, 2, 5]).serialize(),
     ),
     ("p2p_blocktxn", BlockTxn, BlockTxn(_inventory().hash, [_tx()]).serialize()),
+    (
+        "p2p_merkleblock",
+        MerkleBlock,
+        MerkleBlock(
+            BlockHeader.parse(_block_1()[:80]), _partial_merkle_tree()
+        ).serialize(),
+    ),
     ("p2p_tx", TxPayload, TxPayload(_tx(), include_witness=True).serialize()),
     (
         "p2p_block",

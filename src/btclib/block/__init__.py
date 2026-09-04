@@ -22,6 +22,7 @@ from btclib.block.header_context import (
     median_time_past,
     next_bits_required,
 )
+from btclib.block.partial_merkle_tree import PartialMerkleTree
 
 # btclib.block.limits is not here, as btclib.script.limits is not in
 # btclib.script: a caller reading a consensus constant names the module it
@@ -45,6 +46,7 @@ __all__ = [
     "BlockContext",
     "BlockHeader",
     "ParentOf",
+    "PartialMerkleTree",
     "bip34_commitment",
     "build",
     "coinbase_witness_commitment",

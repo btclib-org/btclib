@@ -1350,12 +1350,12 @@ header is what decides: `src/net_processing.cpp` reads the protocol off
 `NetMsgType`, where the map is the Python functional test framework's own
 dispatch and reads nothing.
 
-Not carried, and named as such: `merkleblock`, `filterload`, `filteradd`
-and `filterclear`, which are BIP37's bloom set and the answer a loaded
-filter draws.
+Not carried, and named as such: `filterload`, `filteradd` and
+`filterclear`, BIP37's bloom set. `merkleblock`, which is what a peer
+sends back, is carried:
 [ISS 1120](https://github.com/btclib-org/btclib/issues/1120) is where
-whether they belong here is argued, and the transcription points at it
-rather than restating it.
+that line is argued, and the transcription points at it rather than
+restating it.
 
 Carried and not Core's: BIP61's `reject`, of which Core removed both
 directions in `bitcoin/bitcoin#15437`. `src/btclib/p2p/reject.py` says
