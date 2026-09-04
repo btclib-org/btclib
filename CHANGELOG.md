@@ -459,6 +459,26 @@ entry now records the count alone.
 `RELEASE_NOTES.md` does not carry this: the guard is a test's own, over a
 file of the test tree, and no caller acts on it.
 
+### SECURITY.md's source citations are held to their lines (closes #1690)
+
+`tests/security_citations_test.py` reads every `path:line` citation in
+SECURITY.md and asks the source whether it still answers: the file
+exists, the line exists, and the backticked span the prose puts in front
+of the citation is on that line -- a fragment of source matched against
+the line's own text, a dotted name against the definition the line sits
+in, read off the module's own `ast`. What it cannot say is which line
+inside a named definition is the right one, so a citation wanting that
+check quotes its line rather than naming its function.
+
+The citations move to what they name. The `musig2` one points at the sum
+it quotes; the `bip32` one at `__prv_key_derivation`, the function that
+reads the tweaked key into a Python `int`, and the sentence after it
+names the `_BIP32KeyData` working copy that keeps the `int` across a
+path derivation rather than `derive`, which hands back a string. The
+`dsa` one moves beside the conversion it quotes, on the line that
+builds the owned buffer: after the constructor's name it would have
+been held to the constructor, which is the whole of that function.
+
 ## v2026.9.3
 
 ### Repository

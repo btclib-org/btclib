@@ -116,7 +116,7 @@ used to teach and to prototype as much as to build:
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    (`src/btclib/ecc/musig2.py:813`), spreads 1.016x over uniform scalars
+    (`src/btclib/ecc/musig2.py:838`), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
@@ -143,16 +143,16 @@ used to teach and to prototype as much as to build:
     `ecdh.shared_secret`, `ellswift.xdh`, `dsa.nonce_rfc6979` and
     `ssa.nonce_bip340`. btclib passes none of them, and that is a
     decision, not an oversight. These call sites read one of those
-    straight into a Python `int`: `bip32.derive`
-    (`src/btclib/bip32/bip32.py:666`), `commit_nonce.commit_nonce_`
+    straight into a Python `int`: `bip32.__prv_key_derivation`
+    (`src/btclib/bip32/bip32.py:808`), `commit_nonce.commit_nonce_`
     (`src/btclib/ecc/commit_nonce.py:155`) and `taproot._tweaked_prvkey`
     (`src/btclib/script/taproot.py:474`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
-    into cannot be, and outlives the call regardless —
-    `bip32.derive` keeps `prv_key_int` for the life of the key
-    object — so taking the buffer at these three would cost a public
-    signature and buy nothing, short of btclib no longer holding a
-    private key as a Python `int`, which is a change to that
+    into cannot be, and outlives the call regardless — the
+    `_BIP32KeyData` working copy keeps `prv_key_int` for the whole of
+    a path derivation — so taking the buffer at these three would cost
+    a public signature and buy nothing, short of btclib no longer
+    holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
     (`src/btclib/ecc/ellswift.py:362`) is the one of them that returns
     octets rather than an `int`, so a caller-owned buffer there would
@@ -162,15 +162,15 @@ used to teach and to prototype as much as to build:
     function then returns. btclib declines that too, for the reason
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
-    `dsa.Signer.__init__` (`src/btclib/ecc/dsa.py:1347`) crosses the same
-    boundary the other way, once, at construction: the plain `int`
-    `int_from_prv_key` already produced becomes a transient `bytes` via
-    `self._q.to_bytes(32, "big")` on the way into the owned buffer
-    `wipe` overwrites afterwards. That `bytes` is dropped rather than
-    erased, same as the `int` it replaces — one call rather than the
-    buffer's whole lifetime, which is the trade this class exists to
-    make, and stated here for the same reason the other three call
-    sites are
+    `dsa.Signer.__init__` crosses the same boundary the other way,
+    once, at construction: the plain `int` `int_from_prv_key` already
+    produced becomes a transient `bytes` via
+    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1352`) on the
+    way into the owned buffer `wipe` overwrites afterwards. That
+    `bytes` is dropped rather than erased, same as the `int` it
+    replaces — one call rather than the buffer's whole lifetime, which
+    is the trade this class exists to make, and stated here for the
+    same reason the other three call sites are
 - the boundary is not always there, and an install decides whether it
     is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
     the guide give -- installs the bindings, and everything the next
