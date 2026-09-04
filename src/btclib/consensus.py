@@ -54,8 +54,9 @@ gone from it, buried the way `script_flags_at` below describes.
 
 What a row carries that `chainparams.cpp` does not hold is cited to
 `src/validation.cpp` at the same tag: `bip30_exceptions` is
-`IsBIP30Repeat` there. So is the rule that combines a row's heights into
-script flags, `GetBlockScriptFlags`, which `script_flags_at` names.
+`IsBIP30Repeat` there and `bip30_unspendable` is `IsBIP30Unspendable`.
+So is the rule that combines a row's heights into script flags,
+`GetBlockScriptFlags`, which `script_flags_at` names.
 
 Fields of `Consensus::Params` that are deliberately absent, so that a
 reader looking for one knows it was decided rather than missed:
@@ -247,6 +248,14 @@ class ConsensusParams:
     # heights has a different block there and is not exempt
     bip30_exceptions: tuple[tuple[int, bytes], ...]
 
+    # Core's IsBIP30Unspendable: the (height, hash) of every block whose
+    # coinbase a UTXO-set accumulator leaves out, a later block's
+    # duplicate coinbase replacing its outputs in the set before
+    # anything spends them. Not the pair above and not a subset of it:
+    # that one is the later blocks, whose repeat the BIP30 check waives,
+    # this one the earlier blocks whose outputs are never hashed
+    bip30_unspendable: tuple[tuple[int, bytes], ...]
+
     # Core's script_flag_exceptions: the blocks that are consensus-valid,
     # buried, and fail the flags every other block is checked with. The
     # value is the flag names `to_script_flags` accepts, replacing the
@@ -339,9 +348,9 @@ _POW_LIMIT_BITS_SIGNET = b"\x1e\x03\x77\xae"
 # afterwards would be in one table and in neither the other nor the
 # Network instances built from it
 _consensus_params: dict[str, ConsensusParams] = {
-    # read at lines 84 to 117 of chainparams.cpp, and at IsBIP30Repeat in
-    # validation.cpp for the blocks of 2010 whose coinbase repeats an earlier
-    # one
+    # read at lines 84 to 117 of chainparams.cpp, and in validation.cpp for
+    # the blocks of 2010 that a duplicate coinbase pairs: IsBIP30Repeat for
+    # the ones repeating, IsBIP30Unspendable for the ones repeated
     "mainnet": ConsensusParams(
         name="mainnet",
         subsidy_halving_interval=210_000,
@@ -368,6 +377,20 @@ _consensus_params: dict[str, ConsensusParams] = {
                 91_880,
                 bytes.fromhex(
                     "00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"
+                ),
+            ),
+        ),
+        bip30_unspendable=(
+            (
+                91_722,
+                bytes.fromhex(
+                    "00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e"
+                ),
+            ),
+            (
+                91_812,
+                bytes.fromhex(
+                    "00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"
                 ),
             ),
         ),
@@ -409,6 +432,7 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_target_timespan=14 * 24 * 60 * 60,  # line 251, two weeks
         minimum_chain_work=0x0000000000000000000000000000000000000000000017DDE1C649F3708D14B6,
         bip30_exceptions=(),
+        bip30_unspendable=(),
         script_flag_exceptions=(
             # testnet3's own BIP16 exception, the mainnet one's twin
             (
@@ -450,6 +474,7 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_target_timespan=24 * 60 * 60,
         minimum_chain_work=0,
         bip30_exceptions=(),
+        bip30_unspendable=(),
         script_flag_exceptions=(),
     ),
     # read at lines 478 to 491 of chainparams.cpp for the heights and the
@@ -471,6 +496,7 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_target_timespan=14 * 24 * 60 * 60,  # line 495, two weeks
         minimum_chain_work=0x00000000000000000000000000000000000000000000000000000B463EA0A4B8,
         bip30_exceptions=(),
+        bip30_unspendable=(),
         script_flag_exceptions=(),
     ),
     # read at lines 326 to 356 of chainparams.cpp
@@ -491,6 +517,7 @@ _consensus_params: dict[str, ConsensusParams] = {
         pow_target_timespan=14 * 24 * 60 * 60,  # line 351, two weeks
         minimum_chain_work=0x0000000000000000000000000000000000000000000009A0FE15D0177D086304,
         bip30_exceptions=(),
+        bip30_unspendable=(),
         script_flag_exceptions=(),
     ),
 }

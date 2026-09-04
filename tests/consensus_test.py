@@ -51,8 +51,9 @@ _POW_LIMIT = {
 
 # src/kernel/chainparams.cpp, at the tag above: the class of each chain
 # type, read at the lines the module's own rows cite. `bip30_exceptions`
-# is src/validation.cpp's `IsBIP30Repeat` instead, which is where Core
-# hardcodes the pair rather than keeping it in the params struct
+# is src/validation.cpp's `IsBIP30Repeat` instead and `bip30_unspendable`
+# its `IsBIP30Unspendable`, which is where Core hardcodes both pairs
+# rather than keeping them in the params struct
 _CHAINPARAMS: dict[str, dict[str, Any]] = {
     "mainnet": {
         "subsidy_halving_interval": 210000,
@@ -80,6 +81,20 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
                 91880,
                 bytes.fromhex(
                     "00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"
+                ),
+            ),
+        ),
+        "bip30_unspendable": (
+            (
+                91722,
+                bytes.fromhex(
+                    "00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e"
+                ),
+            ),
+            (
+                91812,
+                bytes.fromhex(
+                    "00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"
                 ),
             ),
         ),
@@ -114,6 +129,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
             "0000000000000000000000000000000000000000000017dde1c649f3708d14b6", 16
         ),
         "bip30_exceptions": (),
+        "bip30_unspendable": (),
         "script_flag_exceptions": (
             (
                 bytes.fromhex(
@@ -147,6 +163,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
         # never leaves initial block download on this comparison
         "minimum_chain_work": 0,
         "bip30_exceptions": (),
+        "bip30_unspendable": (),
         "script_flag_exceptions": (),
     },
     "signet": {
@@ -167,6 +184,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
             "00000000000000000000000000000000000000000000000000000b463ea0a4b8", 16
         ),
         "bip30_exceptions": (),
+        "bip30_unspendable": (),
         "script_flag_exceptions": (),
     },
     "testnet4": {
@@ -186,6 +204,7 @@ _CHAINPARAMS: dict[str, dict[str, Any]] = {
             "0000000000000000000000000000000000000000000009a0fe15d0177d086304", 16
         ),
         "bip30_exceptions": (),
+        "bip30_unspendable": (),
         "script_flag_exceptions": (),
     },
 }
@@ -392,6 +411,7 @@ def test_a_row_can_be_built_for_a_chain_this_library_does_not_ship() -> None:
         pow_target_timespan=14 * 24 * 60 * 60,
         minimum_chain_work=0,
         bip30_exceptions=(),
+        bip30_unspendable=(),
         script_flag_exceptions=(),
     )
     assert custom.script_flags_at(1) == CONSENSUS_PARAMS["signet"].script_flags_at(1)
