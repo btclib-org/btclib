@@ -129,6 +129,7 @@ from btclib.descriptors.descriptors import parse as descriptor_from_string
 from btclib.ecc import bms, dsa, musig2, ssa
 from btclib.exceptions import BTClibTypeError
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
+from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRestFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
 from btclib.key import PrvKeyData
 from btclib.mnemonic import bip39, slip39
@@ -167,6 +168,7 @@ from btclib.tx.tx import join as tx_join
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.wallet.script_wallet import KeyGroup
+from tests.fetch import Recorded
 from tests.fetch.bitcoin_core_test import client
 from tests.psbt import psbt_cases
 
@@ -998,6 +1000,18 @@ _TRUTHS = (
         {"client": client()},
         reason="whether the node is asked which chain it serves; a check,"
         " and the one the fetcher makes before its first fetch",
+    ),
+    _Case(
+        "btclib.fetch.bitcoin_core_rest.BitcoinCoreRestFetcher.__init__",
+        "verify_network",
+        BitcoinCoreRestFetcher,
+        {
+            "client": BitcoinCoreRestClient(
+                "http://127.0.0.1:8332", transport=Recorded()
+            )
+        },
+        reason="whether the node is asked which chain it serves, the same"
+        " check over -rest, `/chaininfo.json` carrying the same `chain`",
     ),
     _Case(
         "btclib.bip32.bip32.derive_from_account",

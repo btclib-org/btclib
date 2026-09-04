@@ -2176,7 +2176,12 @@ esplora_blocks_tip_height.txt     7
 esplora_blocks_tip_hash.txt      65
 esplora_block_height_hash.txt    65
 esplora_block_header.txt        161
-pulled  2026-08-02, and 2026-09-03 for the two get*header* pairs
+rest_tx.bin                     275
+rest_chaininfo.json             191
+rest_blockhashbyheight.bin       32
+rest_headers.bin                 80
+pulled  2026-08-02, and 2026-09-03 for the two get*header* pairs and the
+        four rest_* files
 ```
 
 Verdict: **composed locally**, and the distinction between the envelope
@@ -2228,9 +2233,29 @@ The `.txt` files end in a newline that Esplora does not send: the
 above, and `EsploraFetcher.text` strips whitespace for the same reason a
 deployment behind a proxy may add some.
 
-Regenerating any of them is reading the two block files and writing the
-envelope around what comes out; nothing upstream will refresh them, and
-nothing should.
+The `rest_*` files carry no envelope at all, `-rest` answering `.bin` and
+`.json` alike with the body and nothing wrapped around it: `rest_tx.bin`
+is the same 275 bytes as the hex in `getrawtransaction.json` and
+`esplora_tx_hex.txt`, decoded rather than re-derived, and
+`rest_headers.bin` the same eighty bytes as `getblockheader.json` and
+`esplora_block_header.txt`. `rest_blockhashbyheight.bin` is the one
+exception to "the same bytes another fixture already carries": Core's
+`.bin` answers a block hash in its internal byte order, the reverse of
+every hash `getblockhash.json` and the two `esplora_block*` files carry
+in display order, so this file is `TIP_ID`'s bytes reversed rather than
+its hex decoded — `BitcoinCoreRestFetcher.get_block_header`'s docstring
+is where that reversal is checked against `uint256::GetHex()`.
+`rest_chaininfo.json` is the one member of this group with nothing to
+verify against a vendored block: `blocks` and `bestblockhash` are the
+same height and hash as every other fixture here, and the members beside
+them are what a real `-rest` reply carries and this fetcher does not
+read.
+
+Regenerating one of these is reading the two block files: the Core and
+Esplora fixtures take the envelope their backend wraps around what comes
+out, the `rest_*` files take those bytes unwrapped, and
+`rest_chaininfo.json` is composed rather than read. Nothing upstream will
+refresh any of them, and nothing should.
 
 ## Not vendored from anywhere
 

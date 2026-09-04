@@ -20,7 +20,8 @@ What *is* per
 deployment -- a custom signet's p2p magic, which its challenge determines
 -- is a fact about a node rather than about an encoding, and lives where
 the node is spoken to: `bitcoin_core_rpc.magic_from_signet_challenge`, and
-`BitcoinCoreFetcher(..., signet_challenge=...)` for the check it feeds.
+the `signet_challenge` argument of the fetchers that reach a Bitcoin Core
+node, over the JSON-RPC server or over `-rest`, for the check it feeds.
 Fixed at import is what lets the reverse lookups below be tables built
 once: a network registered afterwards would be found by a scan and missed
 by a precomputed index, which is the disagreement issue 683 recorded.

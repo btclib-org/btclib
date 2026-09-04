@@ -61,8 +61,13 @@ def client_errors() -> Iterator[None]:
     `btclib.exceptions` declares, and an `except FetchError` written
     against btclib does not catch them. This is the one place the
     two meet, and every call that crosses into the package goes through
-    it: `EsploraFetcher.text` and `BitcoinCoreFetcher._call` are the two
-    lines that do.
+    it: the fetches, by way of `EsploraFetcher.text`,
+    `BitcoinCoreFetcher._call` and
+    `BitcoinCoreRestFetcher._get_bin`/`_get_json`; the constructors that
+    derive a signet challenge before any fetch; and
+    `BitcoinCoreFetcher.assert_network`, which reaches `assert_chain`
+    directly where its `-rest` twin asks the same question through
+    `_get_json` and is covered by the first group.
 
     The fields are what make this a translation rather than a blanket
     wrap: `status` and `code` are the whole reason those two classes
@@ -196,12 +201,12 @@ class Fetcher(ABC):
     def get_block_header(self, height: int) -> BlockHeader:
         """Return the header of the block at this height.
 
-        Height, and not hash: Bitcoin Core and Esplora both answer for a
-        hash and map a height to one with a second call --
-        `getblockhash`, `/block-height/<height>` -- but the Electrum
-        protocol's `blockchain.block.header` takes a height and publishes
-        no call that takes a hash at all. A hash-only signature would be
-        one this interface's third backend could never answer, which is
+        Height, and not hash: every backend here answers for a hash and
+        maps a height to one with a second call -- `getblockhash`,
+        `/block-height/<height>`, `/blockhashbyheight/<height>.bin` --
+        but the Electrum protocol's `blockchain.block.header` takes a
+        height and publishes no call that takes a hash at all. A hash-only
+        signature would be one an Electrum backend could never answer, which is
         the `NotImplementedError`-in-an-ABC outcome the three questions
         above already avoid.
 
@@ -245,8 +250,8 @@ class Fetcher(ABC):
 def tx_id_hex(tx_id: Octets) -> str:
     """Return the display hex of a transaction id, checking it is one.
 
-    Both backends put the id in a request as hex, and both accept
-    whatever `Octets` accepts, so both need the same 32-byte check --
+    Every backend puts the id in a request as hex, and each accepts
+    whatever `Octets` accepts, so each needs the same 32-byte check --
     performed here rather than left to the backend, which would otherwise
     report a mistyped id as the remote host's 404.
     """
@@ -256,7 +261,7 @@ def tx_id_hex(tx_id: Octets) -> str:
 def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
     """Return the transaction a serialization holds, if it is the one asked for.
 
-    Both backends answer `get_tx` with the serialization rather than with
+    Every backend answers `get_tx` with the serialization rather than with
     a rendering of it, and this is why: the id is a hash of those bytes,
     so recomputing it says whether what arrived is what was asked for. No
     other answer here can be checked at all -- a height and a tip hash
@@ -286,13 +291,16 @@ def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
 def block_header_height(height: int) -> int:
     """Return the height, refusing what no chain has a block at.
 
-    Both backends map a height to a block before they can answer
-    `get_block_header` at all -- `getblockhash`,
-    `/block-height/<height>` -- so both need the same guard in front of
-    that first request, rather than each discovering its own backend's
-    answer to a negative or fractional height: RPC code -8 for Core, a
-    404 or a 400 for an Esplora deployment, neither naming the height as
-    what is wrong with the request.
+    Every backend maps a height to a block before it can answer
+    `get_block_header` at all -- `getblockhash`, `/block-height/<height>`,
+    `/blockhashbyheight/<height>.bin` -- so each needs the same guard in
+    front of that first request, rather than each discovering its own
+    backend's answer to a negative or fractional height: RPC code -8 for
+    Core, a 404 or a 400 for an Esplora deployment, neither naming the
+    height as what is wrong with the request. `-rest` alone does -- a 400
+    whose body is `Invalid height: <text>` -- and the guard still stands
+    in front of it, so that they answer the same exception for the
+    same mistake rather than one of them a better one.
     """
     if not is_integer(height):
         raise BTClibTypeError(f"invalid height type: {type(height).__name__}")
@@ -304,7 +312,7 @@ def block_header_height(height: int) -> int:
 def block_header_from_raw(raw: Octets, height: int) -> BlockHeader:
     """Return the header a serialization holds, checked on arrival.
 
-    Both backends answer with the raw serialization rather than a
+    Every backend answers with the raw serialization rather than a
     rendering of it, the way `get_tx` does -- but a header names no
     height and no chain of its own, so there is nothing here to recompute
     it against the way `tx_from_raw` recomputes a txid. What is checked

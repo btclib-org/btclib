@@ -349,8 +349,9 @@ The rpc client `fetch` speaks through is not in that stack: it is
 package of its own that btclib depends on — zero dependencies of its
 own, standard library only, and usable by anyone who wants a node
 client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
-and `TxOut`, and checks the chain the node reports against the network
-those are labelled for.
+and `TxOut`, and where the backend is a node — over JSON-RPC or over
+`-rest` — checks the chain it reports against the network those are
+labelled for.
 
 The dependency stops at `src/btclib/fetch/` and at `src/btclib/p2p/magic.py`,
 which is where the p2p message start is — that package's table, not a

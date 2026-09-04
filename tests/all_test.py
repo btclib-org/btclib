@@ -111,6 +111,10 @@ REEXPORTED = {
             "cookie_auth",
         ],
     ),
+    "btclib.fetch.bitcoin_core_rest": (
+        bitcoin_core_rpc,
+        ["BitcoinCoreRestClient"],
+    ),
     "btclib.fetch.transport": (
         bitcoin_core_rpc,
         [
@@ -207,6 +211,7 @@ CHILD_MODULES = {
         "groups": [],
         "unpublished": [
             "bitcoin_core",
+            "bitcoin_core_rest",
             "decorators",
             "esplora",
             "fetcher",

@@ -167,7 +167,7 @@ def test_tx_from_raw_returns_the_transaction_asked_for() -> None:
 
 
 def test_tx_from_raw_catches_the_answer_to_another_question() -> None:
-    """The one answer a backend cannot fake, checked for both backends."""
+    """The one answer a backend cannot fake, checked for every backend."""
     with pytest.raises(FetchError, match=f"transaction {OTHER_ID}: the answer is"):
         tx_from_raw(RAW, OTHER_ID, "mainnet")
 
@@ -209,7 +209,7 @@ def test_block_header_height_accepts_a_non_negative_int(height: int) -> None:
 
 
 def test_block_header_height_refuses_a_negative_height() -> None:
-    """Refuse a negative height, both backends mapping it to a block first."""
+    """Refuse a negative height, every backend mapping it to a block first."""
     with pytest.raises(BTClibValueError, match="invalid height: -1"):
         block_header_height(-1)
 
