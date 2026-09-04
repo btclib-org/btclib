@@ -441,6 +441,24 @@ Raising the floor as the ceiling moves is always safe, the ceiling only
 rising. `uv.lock` carries no `required-version` of its own and is
 unchanged.
 
+### The numeral guard reads past a date, a BIP number and an issue reference
+
+`tests/vendored_data_test.py` subtracts the numerals that name something
+before looking for one that counts something (closes #1684): an ISO
+date, a `bip-`/`slip-` or NIST `P-` number, an `issue #N` or an `ISS N`,
+a Wycheproof `tcId N`, and a dotted version. A line of
+`tests/_data/README.md` carrying nothing else needs no entry in
+`_EXEMPT`, and the entries such lines held are gone. A hyphen is what
+puts a specification number in front of the pattern at all: a digit run
+is matched between word boundaries, which `bip-0327` offers and a fused
+`BIP0327` does not. What stays enumerated is the one exception CLAUDE.md
+names -- a count of what upstream published, which has no shape -- and
+the lines stating such a count beside a date or an identifier, whose
+entry now records the count alone.
+
+`RELEASE_NOTES.md` does not carry this: the guard is a test's own, over a
+file of the test tree, and no caller acts on it.
+
 ## v2026.9.3
 
 ### Repository
