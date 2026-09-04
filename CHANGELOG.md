@@ -234,6 +234,21 @@ is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
   this half; a second one adds the transport and the default that comes
   with it.
 
+### `btclib.minikey` reads Casascius minikeys (closes #653)
+
+`minikey.prv_key_data_from_minikey` turns a Casascius minikey into a
+`key.PrvKeyData`: `sha256(text)` is the private key, mainnet and
+uncompressed by the format's own convention, and `sha256(text + "?")`
+starting with a zero byte is its own typo check. A string of another
+shape refuses as NotAPrvKeyError -- too short, a first character other
+than `S`, a character outside the base58 alphabet -- and a well-shaped
+minikey whose typo check fails refuses as InvalidPrvKeyError. The format
+is neither Base58Check nor a `to_prv_key` spelling, so it lives in a
+module of its own rather than in `b58` or `to_prv_key`, and the module
+publishes no way to write one: Casascius physical coins stopped being
+made in 2013, and generating a key this short is not something to do
+today.
+
 ## v2026.9.3
 
 ### Repository

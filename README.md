@@ -311,7 +311,8 @@ The rest, roughly bottom-up. `alias` holds the types the public API
 accepts, much of it taking anything convertible rather than one type, and
 `exceptions` the errors it raises. `to_prv_key` and `to_pub_key` resolve
 the key spellings below them into one; a WIF is not among those, being
-`b58`'s own and read there. `bip32` and `mnemonic` derive keys.
+`b58`'s own and read there, and neither is a Casascius minikey, being
+`minikey`'s own and read-only there. `bip32` and `mnemonic` derive keys.
 `script`, `tx`, `block` and `psbt` build and validate what goes on
 the chain, and `script.engine` runs a transaction against the consensus
 rules. `p2p` is the wire format peers speak — the message envelope, its
