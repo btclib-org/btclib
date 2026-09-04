@@ -85,6 +85,15 @@ full year, short month, short day (YYYY-M-D)
   `btclib.b58.prv_key_data_from_wif(wif).pub.sec` reads the SEC octets
   `p2wpkh` still takes.
 
+- **`EsploraFetcher` asks which chain the explorer serves, before the
+  first fetch** (closes #1674). An explorer on another chain than the
+  label is now a `BTClibValueError` where it used to be addresses for
+  coins that are not there.
+
+  Act on it if a caller has checked the explorer's chain by other means,
+  or already knows which chain it is asking: `EsploraFetcher(base_url,
+  verify_network=False)` is the previous behaviour.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,

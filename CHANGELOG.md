@@ -273,6 +273,37 @@ in this library since #1188's WIF row landed.
   `$WT` the shell happens to hold; `${WT:?}` turns an unset `$WT` into a
   shell refusal instead.
 
+### SECURITY.md's fetch-trust bullet accounts for every answer (closes #1673)
+
+The `btclib.fetch` trust bullet stops saying only the transaction's id is
+checked. The block header is parsed and validated on arrival by every
+backend's `get_block_header` -- `assert_valid` and `assert_valid_pow` --
+and an output's amount is covered by the same txid check as the
+transaction it is read from: `Fetcher.get_tx_out` derives it from
+`get_tx`, and no shipped backend overrides it. The bullet also carries
+what the header check does not establish -- the height asked for, or the
+chain meant -- because a security document is read on its own and a
+pointer to a docstring is not an answer there. The height is still the
+backend's word alone, and so is the tip hash from every backend but
+`ElectrumFetcher`, which recomputes it from the header it was sent.
+
+### `EsploraFetcher` gains `verify_network` (closes #1674)
+
+`EsploraFetcher` takes `verify_network`, on by default, asked once before
+the first fetch and not in the constructor: `GET /block-height/0` --
+which `get_block_header` already reads for every other height -- compared
+against `NETWORKS[network].genesis_block`, refusing with both hashes in
+the message on a mismatch. Same name, same keyword-only argument, same
+default, same opt-out as `BitcoinCoreFetcher.verify_network` -- and a
+different question, since it compares one block rather than reading the
+host's own verdict on itself. A genesis hash tells mainnet, testnet,
+testnet4, signet and regtest apart, and no two signets from each other
+-- Core builds every signet's genesis from
+the same parameters, the challenge going into the message start and not
+the block -- which is the same limit the node backends have without a
+`signet_challenge`; SECURITY.md's bullet now says so once for all three
+backends instead of implying Esplora is worse.
+
 ## v2026.9.3
 
 ### Repository

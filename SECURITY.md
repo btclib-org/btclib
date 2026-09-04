@@ -355,20 +355,44 @@ used to teach and to prototype as much as to build:
     relies on to make that expensive per guess, not a MAC that would
     turn the guess away first
 - **a `btclib.fetch` backend is trusted, and they are not trusted
-    alike.** `BitcoinCoreFetcher` and `BitcoinCoreRestFetcher` talk to a
-    node that validated the chain it reports, and both ask it by default
-    which chain that is, and which signet: `rest_chaininfo` writes out
-    what `getblockchaininfo` answers and adds nothing, so `/chaininfo.json`
-    carries the members the JSON-RPC check reads and `verify_network` and
-    `signet_challenge` hold either backend to the fetcher's label through
-    the same two comparisons. What `-rest` adds is that it authenticates
-    nobody who reaches it, so the endpoint is trusted on whoever handed it
-    over. `EsploraFetcher` talks to a host that says it validated, and
-    asks it nothing about which chain.
-    Only one answer of the four is checked at all — the transaction, whose
-    id is recomputed from the bytes that came back — so a height, a tip
-    hash and the amount of an output all rest on the backend's word. An
-    explorer also learns every txid and outpoint you look up, which is a
+    alike.** `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher` and
+    `EsploraFetcher` all ask by default which chain they are talking to,
+    and `verify_network` is the same name, the same keyword-only
+    argument, the same default and the same opt-out on all three -- not
+    the same question, which is the next sentence. `BitcoinCoreFetcher` and
+    `BitcoinCoreRestFetcher` talk to a node that validated the chain it
+    reports, and `signet_challenge` holds either to the fetcher's label
+    beside `verify_network`: `rest_chaininfo` writes out what
+    `getblockchaininfo` answers and adds nothing, so `/chaininfo.json`
+    carries the members the JSON-RPC check reads. What `-rest` adds is
+    that it authenticates nobody who reaches it, so the endpoint is
+    trusted on whoever handed it over. `EsploraFetcher` talks to a host
+    that says it validated, and its own `verify_network` compares one
+    block rather than reading the host's own verdict on itself:
+    `/block-height/0`, the genesis, against `NETWORKS[network].genesis_block`.
+    None of the three tells two signets apart on a genesis hash alone —
+    Core builds every signet's genesis from the same parameters, the
+    challenge going into the message start and not into the block — so
+    the node backends need `signet_challenge` for that half of the
+    question and `EsploraFetcher`, which takes none, cannot ask it.
+
+    Past that question, the answers a fetch itself makes are checked to
+    different degrees. The transaction: its id is recomputed
+    from the bytes that came back and refused unless it matches. An
+    output's amount: `get_tx_out` derives it from `get_tx`, so it is
+    covered by that same check — no shipped backend overrides it. The
+    block header: parsed and checked for a well-formed, real proof of
+    work by every backend alike, which says it is well-formed and cost
+    real work and not that it is the header at the height asked for or
+    on the chain meant — `Fetcher.get_block_header`'s own docstring is
+    where that caveat is written down. The height rests on the backend's
+    word. So does the tip hash, from every backend but one:
+    `ElectrumFetcher`'s `headers.subscribe` answers the tip's header
+    rather than a hash field, so what comes back is the hash of eighty
+    bytes that passed the same check, and not a string the server
+    chose.
+
+    An explorer also learns every txid and outpoint you look up, which is a
     good deal of what a wallet is; btclib names a public deployment as a
     constant and never as a default, so nothing here contacts anyone
     until a caller writes the endpoint down. `Broadcaster.broadcast` is a
