@@ -222,7 +222,7 @@ dev = [
 # update. Section 1 of the organization standard states that argument
 # once; section 15 carries the command that re-derives the ceiling
 # (btclib-org/.github#312)
-required-version = ">=0.12.1"
+required-version = ">=0.12.7"
 
 [tool.uv.build-backend]
 # what the sdist carries beyond what the backend puts there by itself --
