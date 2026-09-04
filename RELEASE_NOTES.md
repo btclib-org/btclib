@@ -21,6 +21,17 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`ssa`'s sign-to-contract tags change** (closes #1680). They were
+  `s2c/bip340/point` and `s2c/bip340/data`; they are now
+  `s2c/schnorr/point` and `s2c/schnorr/data`, matching
+  bitcoin-core/secp256k1#1140's spelling.
+
+  Act on it if you hold a BIP340 sign-to-contract commitment made
+  before this release: it no longer opens, and there is no version
+  byte to switch on. Re-derive it with the new tags.
+
 ## v2026.9.3
 
 ### Breaking changes

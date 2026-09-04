@@ -116,15 +116,18 @@ __all__ = [
     "verify_",
 ]
 
-# btclib's own sign-to-contract tags, and the only invented thing in the
-# scheme: libsecp256k1 has an ecdsa_s2c module and no schnorr one, and
-# BIP340 says nothing about commitments, so there is no upstream string
-# to copy and nothing to be interoperable with. Named for the standard
-# rather than for btclib's `ssa`, and not under BIP0340/, which would
-# claim the BIP defines this. Frozen all the same: a different string is
-# a different scheme, and every signature already made would stop opening
-_S2C_POINT_TAG = b"s2c/bip340/point"
-_S2C_DATA_TAG = b"s2c/bip340/data"
+# bitcoin-core/secp256k1#1140 ("Schnorr sign-to-contract and anti-exfil")
+# spells these `s2c/schnorr/point` and `s2c/schnorr/data`, in
+# src/modules/schnorrsig/main_impl.h at its head 49c31379, and this tree
+# matches it byte for byte: if it lands, a commitment made here opens
+# there. #1140 is open and unmerged, so it is a reference and not an
+# authority -- its spelling can still change, and the pull request may
+# never land at all. Named for the standard rather than for btclib's
+# `ssa`, and not under BIP0340/, which would claim the BIP defines this.
+# Frozen all the same: a different string is a different scheme, and
+# every signature already made would stop opening
+_S2C_POINT_TAG = b"s2c/schnorr/point"
+_S2C_DATA_TAG = b"s2c/schnorr/data"
 
 # BIP340 serializes a signature as thirty-two octets of r and thirty-two
 # of s, on secp256k1 and by that BIP alone: a Sig on another curve has no

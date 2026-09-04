@@ -103,6 +103,19 @@ documented at release-notes length in the first place, and are still in
   `-minimize_crash=1` forwarded through `reproduce` to the fuzzer's own
   libFuzzer binary.
 
+### `ssa.py`'s sign-to-contract tags switch to `s2c/schnorr/…`
+
+- **`ssa._S2C_POINT_TAG` and `ssa._S2C_DATA_TAG` spell `s2c/schnorr/point`
+  and `s2c/schnorr/data`** (closes #1680), matching
+  bitcoin-core/secp256k1#1140 ("Schnorr sign-to-contract and
+  anti-exfil") byte for byte, at its head `49c31379`. #1140 is open and
+  unmerged, so this is a reference rather than an authority and its
+  spelling can still move — but the tags are frozen the moment they
+  ship, so the cost of aligning to it never falls below what it is
+  today. This is a breaking change: every BIP340 sign-to-contract
+  commitment already made stops opening, with no version byte to switch
+  on. RELEASE_NOTES.md has what to act on.
+
 ## v2026.9.3
 
 ### Repository

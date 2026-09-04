@@ -10,9 +10,11 @@ an ordinary one, opens against the value committed to, and opens against
 nothing else.
 
 The dsa construction is libsecp256k1-zkp's `ecdsa_s2c`, and the fixed
-vectors of that module's test suite are below. There is no upstream
-schnorr sign-to-contract, so the ssa side has no vector to match and is
-tested against itself and against the properties the scheme needs.
+vectors of that module's test suite are below. The ssa side matches
+bitcoin-core/secp256k1#1140's tags, an open and unmerged pull request
+whose `tests_impl.h` publishes no fixed vector of its own, so it has
+none to match and is tested against itself and against the properties
+the scheme needs.
 """
 
 import random
