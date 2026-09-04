@@ -263,6 +263,16 @@ in this tree would leak its key through cache timing. `decrypt` returns
 a `key.PrvKeyData`, the shape a parsed private key takes everywhere else
 in this library since #1188's WIF row landed.
 
+### `CLAUDE.md`'s worktree-removal fence takes the `${WT:?}` guard
+
+- **`CLAUDE.md`'s worktree-removal fence closes with `${WT:?}` rather
+  than a bare `"$WT"`, and its paragraph gains the sentence explaining
+  why** (closes btclib-org/.github#790): the fence stands in a block of
+  its own precisely so that a paste of it alone still runs, and a bare
+  `"$WT"` there reaches `git worktree remove --force` with whatever
+  `$WT` the shell happens to hold; `${WT:?}` turns an unset `$WT` into a
+  shell refusal instead.
+
 ## v2026.9.3
 
 ### Repository

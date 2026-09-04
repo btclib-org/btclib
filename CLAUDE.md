@@ -138,9 +138,11 @@ Removing the worktree is part of finishing, and it stands in a block of
 its own: the block above ends in a placeholder, and a shell that
 discards that line as a parse error reads the next as a fresh command —
 which, in one block, is this line against whatever `$WT` already held.
+Standing alone it is a second fence, so `${WT:?}` is what it writes:
+with no `$WT` set the expansion fails and the removal does not run.
 
 ```shell
-git worktree remove --force "$WT"
+git worktree remove --force "${WT:?}"
 ```
 
 The venv is the whole of the cost, and it buys the thing that matters: a
