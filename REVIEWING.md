@@ -138,7 +138,7 @@ line; it is whether this change is what put it there or made it worse.
 Look for the issue already open before filing another:
 
 ```shell
-gh issue list --state open --search "<the thing, in a word or two>"
+gh issue list --state open --search <the thing, in a word or two>
 ```
 
 The issue stands on its own, read by somebody who never sees this pull
@@ -147,9 +147,13 @@ it matters. No fix, and no reference to the pull request as a blocker,
 because it is not one.
 
 ```shell
-gh issue create --title "<the finding, as a claim>" \
-  --body "<what was noticed and where, how it is known, why it matters>"
+gh issue create --title <the finding, as a claim> \
+  --body <what was noticed and where, how it is known, why it matters>
 ```
+
+Both blocks leave their placeholders unquoted, which section 9 of the
+standard asks for: quoted, a paste of the second files an issue whose
+title is the placeholder.
 
 Name the issues filed at the foot of the summary comment, under a line
 saying they are **not** findings against this pull request. Without that
