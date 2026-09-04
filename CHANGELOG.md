@@ -428,6 +428,19 @@ and about a chain the caller did not mean. SECURITY.md's fetch-trust
 bullet names this backend beside the others, the genesis check and the
 signet limit alike now being one sentence for every one of them.
 
+### The `uv` floor is raised to match Dependabot's ceiling
+
+`[tool.uv] required-version` moves from `>=0.12.1` to `>=0.12.7` (issue
+btclib-org/.github#448), the uv version `dependabot/dependabot-core`'s
+`uv/Dockerfile` currently bundles (`ghcr.io/astral-sh/uv:0.12.7`,
+checked 2026-09-04). Section 1 of the organization standard sets the
+floor at that ceiling rather than below it: a floor below the ceiling
+admits a uv older than the one Dependabot's own lock updates are
+written with, which is the rewrite the key exists to guard against.
+Raising the floor as the ceiling moves is always safe, the ceiling only
+rising. `uv.lock` carries no `required-version` of its own and is
+unchanged.
+
 ## v2026.9.3
 
 ### Repository
