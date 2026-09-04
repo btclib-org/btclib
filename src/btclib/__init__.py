@@ -107,6 +107,7 @@ __all__ = [
     "hwi",
     "kdf",
     "key",
+    "minikey",
     "mnemonic",
     "muhash",
     "network",

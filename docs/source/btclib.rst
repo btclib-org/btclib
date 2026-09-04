@@ -177,6 +177,13 @@ btclib.key module
    :members:
    :show-inheritance:
 
+btclib.minikey module
+---------------------
+
+.. automodule:: btclib.minikey
+   :members:
+   :show-inheritance:
+
 btclib.muhash module
 --------------------
 
