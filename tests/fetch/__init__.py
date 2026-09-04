@@ -96,10 +96,10 @@ class Recorded:
 class StubFetcher(Fetcher):
     """A Fetcher over a fixed transaction, for testing the base class.
 
-    The concrete half of `Fetcher` -- the network check, `get_tx_out`
-    deriving an output from the transaction that made it -- is code no
-    backend re-implements, so testing it through one of them would test
-    it once for bitcoind and never for the interface.
+    The concrete half of `Fetcher` -- the network name it normalizes,
+    `get_tx_out` deriving an output from the transaction that made it --
+    is code no backend re-implements, so testing it through one of them
+    would test it once for bitcoind and never for the interface.
     """
 
     def __init__(self, tx: Tx, network: str = "mainnet") -> None:

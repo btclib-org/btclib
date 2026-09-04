@@ -50,7 +50,7 @@ from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.fetch.fetcher import (
-    Fetcher,
+    NetworkVerifyingFetcher,
     block_header_from_raw,
     block_header_height,
     client_errors,
@@ -106,7 +106,7 @@ def _field(reply: Any, name: str) -> Any:
     return reply[name]
 
 
-class BitcoinCoreRestFetcher(Fetcher):
+class BitcoinCoreRestFetcher(NetworkVerifyingFetcher):
     """The four fetcher questions, answered by a node over `-rest`.
 
     The client is a constructor argument rather than connection
@@ -114,11 +114,8 @@ class BitcoinCoreRestFetcher(Fetcher):
     `BitcoinCoreRpcClient`: one class owns the endpoint, this one owns
     the mapping onto btclib types.
 
-    `network` labels the outputs `get_tx` returns, and `verify_network`
-    holds the node to it: on by default, asked before the first fetch and
-    not in this constructor, remembered once agreed and remembered once
-    refused -- `BitcoinCoreFetcher`'s reasons, unchanged, and its
-    `verify_network=False` for a caller that would rather not ask.
+    `network` labels the outputs `get_tx` returns, and `assert_network`
+    holds the node to it.
 
     `signet_challenge` is which signet, and means what it means on
     `BitcoinCoreFetcher`: Core answers `signet` for the default signet
@@ -142,7 +139,7 @@ class BitcoinCoreRestFetcher(Fetcher):
         verify_network: bool = True,
         signet_challenge: str | bytes | None = None,
     ) -> None:
-        super().__init__(network)
+        super().__init__(network, verify_network=verify_network)
         if signet_challenge is not None:
             if chain_from_network(self.network) != "signet":
                 err_msg = f"a signet_challenge for {self.network},"
@@ -158,11 +155,9 @@ class BitcoinCoreRestFetcher(Fetcher):
             with client_errors():
                 magic_from_signet_challenge(signet_challenge)
         self.client = client
-        self.verify_network = verify_network
         self.signet_challenge = signet_challenge
-        self._agreed = False
-        self._disagreement = ""
 
+    @override
     def assert_network(self) -> None:
         """Raise unless the node serves the chain, and the signet, this labels.
 
@@ -175,15 +170,9 @@ class BitcoinCoreRestFetcher(Fetcher):
         the magic `signet_challenge` derives, since Core answers `signet`
         for every signet and the name therefore separates none of them.
 
-        Public for the same reason `BitcoinCoreFetcher.assert_network`
-        is -- a caller that wants the question answered at a moment of its
-        own.
-
-        A reply that cannot be read is a `FetchError`, a node too old to
-        report its challenge included: that is one this cannot answer
-        for, and not a pass. A disagreement is a `BTClibValueError`, the
-        node being the authority on what it serves and the fetcher's
-        label therefore the thing to fix.
+        A node too old to report its challenge answers a reply this
+        cannot read, so a `FetchError`: one it cannot answer for, and not
+        a pass.
         """
         expected = chain_from_network(self.network)
         expected_magic: bytes | None = None
@@ -215,25 +204,6 @@ class BitcoinCoreRestFetcher(Fetcher):
             err_msg += f" {node_magic.hex()}, where {expected_magic.hex()}"
             err_msg += " was expected"
             raise BTClibValueError(err_msg)
-
-    def _verify_once(self) -> None:
-        """Compare the node's chain with this fetcher's label, once.
-
-        `BitcoinCoreFetcher._verify_once`, unchanged: a disagreement is a
-        settled fact about a configuration and is raised again for every
-        later fetch, where a `FetchError` is no answer and is remembered
-        as nothing, the next fetch asking again.
-        """
-        if not self.verify_network or self._agreed:
-            return
-        if self._disagreement:
-            raise BTClibValueError(self._disagreement)
-        try:
-            self.assert_network()
-        except BTClibValueError as e:
-            self._disagreement = str(e)
-            raise
-        self._agreed = True
 
     def _get_bin(self, path: str, *, max_body_size: int | None) -> bytes:
         """Return the raw body of one `-rest` request, translating its errors.

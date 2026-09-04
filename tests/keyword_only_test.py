@@ -201,6 +201,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.ssa:verify_": ["commit_hash", "receipt"],
     "btclib.fee:FeeRate.__init__": ["sats_per_kvbyte"],
     "btclib.fee:package_fee": ["ancestor_vsize", "ancestor_fee"],
+    "btclib.fetch.fetcher:NetworkVerifyingFetcher.__init__": ["verify_network"],
     "btclib.fetch.transport:http_request": [
         "data",
         "headers",

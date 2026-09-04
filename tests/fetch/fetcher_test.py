@@ -17,6 +17,7 @@ from btclib.exceptions import (
 )
 from btclib.fetch.fetcher import (
     Fetcher,
+    NetworkVerifyingFetcher,
     block_header_from_raw,
     block_header_height,
     fetch_errors,
@@ -283,6 +284,32 @@ def test_leaving_any_one_of_the_four_abstract_refuses_construction(
     incomplete = type("Incomplete", (Fetcher,), methods)
     with pytest.raises(TypeError, match="abstract"):
         incomplete("mainnet")
+
+
+def test_a_verifying_fetcher_without_assert_network_is_refused() -> None:
+    """The four questions answered and the chain question not declared.
+
+    What a backend costs its caller when it is written without one is
+    the check made never, on a class that compiles and passes its own
+    tests, so `NetworkVerifyingFetcher` declares `assert_network`
+    abstract and this is that refusal.
+    """
+    questions = {
+        "get_tx": lambda self, tx_id: Tx.parse(RAW),
+        "get_block_count": lambda self: TIP_HEIGHT,
+        "get_best_block_id": lambda self: bytes.fromhex(TIP_ID),
+        "get_block_header": lambda self, height: BlockHeader.parse(TIP_HEADER_RAW),
+    }
+    unasked = type("Unasked", (NetworkVerifyingFetcher,), questions)
+    with pytest.raises(TypeError, match="abstract"):
+        unasked("mainnet")
+
+    asking = type(
+        "Asking",
+        (NetworkVerifyingFetcher,),
+        {**questions, "assert_network": lambda self: None},
+    )
+    assert asking("mainnet").verify_network is True
 
 
 def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:

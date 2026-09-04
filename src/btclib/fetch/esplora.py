@@ -27,14 +27,14 @@ the id check. The height and the tip hash have nothing here to check
 them against at all, and are taken on trust.
 
 Which chain the explorer serves is a separate question from those four,
-and `verify_network` is what asks it: on by default, the same name and
-the same opt-out `BitcoinCoreFetcher.verify_network` is, comparing
-`/block-height/0` against the genesis `NETWORKS` carries for the network
-this fetcher was built for. The failure it catches is the same silent
-one -- a fetcher labelled `mainnet` over a host serving another chain
-renders a mainnet address for every output it fetches -- and what a
-genesis hash cannot do is separate two signets; `assert_network`'s own
-docstring says why.
+and `verify_network` is what asks it: declared once on
+`NetworkVerifyingFetcher` rather than agreed among the backends, on by
+default, comparing `/block-height/0` against the genesis `NETWORKS`
+carries for the network this fetcher was built for. The failure it
+catches is the same silent one -- a fetcher labelled `mainnet` over a
+host serving another chain renders a mainnet address for every output it
+fetches -- and what a genesis hash cannot do is separate two signets;
+`assert_network`'s own docstring says why.
 
 Nor does anything here say a transaction is *confirmed*: the answer to
 that is a merkle branch checked against a header, which is what the
@@ -59,7 +59,7 @@ from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError, FetchError, HttpError
 from btclib.fetch.fetcher import (
-    Fetcher,
+    NetworkVerifyingFetcher,
     block_header_from_raw,
     block_header_height,
     client_errors,
@@ -112,7 +112,7 @@ _MAX_HEADER_BODY = 256
 _MAX_TX_BODY = DEFAULT_MAX_BODY_SIZE
 
 
-class EsploraFetcher(Fetcher):
+class EsploraFetcher(NetworkVerifyingFetcher):
     """The four questions, answered by an Esplora instance over HTTP.
 
     `base_url` is required and has no default, for the reason
@@ -122,17 +122,6 @@ class EsploraFetcher(Fetcher):
     this class that writes. Holding a fetcher is not broadcasting; a
     caller has to call the method, and `broadcast`'s own docstring is
     where its non-idempotence is stated, at the point a caller meets it.
-
-    `verify_network` is who asks whether the explorer is on the chain
-    this fetcher labels with. On by default and before the first fetch
-    rather than in this constructor: the answer costs a round trip that
-    is worth paying where it is checked and wasted where a fetcher is
-    built and never used, and an explorer that is merely unreachable
-    should not be a failure to *construct* anything. The answer is then
-    kept -- an explorer does not change chain under a client that goes on
-    pointing at it -- and a caller that would rather not ask says
-    `verify_network=False`. Same name, same keyword-only argument, same
-    default, same opt-out as `BitcoinCoreFetcher.verify_network`.
     """
 
     def __init__(
@@ -144,41 +133,10 @@ class EsploraFetcher(Fetcher):
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
     ) -> None:
-        super().__init__(network)
+        super().__init__(network, verify_network=verify_network)
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.transport = transport
-        self.verify_network = verify_network
-        self._agreed = False
-        self._disagreement = ""
-
-    def _verify_once(self) -> None:
-        """Compare the explorer's chain with this fetcher's label, once.
-
-        `BitcoinCoreFetcher._verify_once`, unchanged: called by the four
-        fetches and by `broadcast`, and not by `text` or `_request`,
-        which is what `assert_network` itself goes through -- a check in
-        there would ask the explorer about the explorer, from inside the
-        question.
-
-        A disagreement is remembered and raised again for every later
-        call, because it is a settled fact about a configuration rather
-        than a request that failed -- and a fetcher that asked once,
-        refused once and then served an address would be the silent
-        failure this exists to stop. A `FetchError` is not an answer and
-        is remembered as nothing: the explorer was unreachable or spoke
-        nonsense, which the next call may well find otherwise.
-        """
-        if not self.verify_network or self._agreed:
-            return
-        if self._disagreement:
-            raise BTClibValueError(self._disagreement)
-        try:
-            self.assert_network()
-        except BTClibValueError as e:
-            self._disagreement = str(e)
-            raise
-        self._agreed = True
 
     def _request(
         self, path: str, *, data: bytes | None, max_body_size: int
@@ -276,6 +234,7 @@ class EsploraFetcher(Fetcher):
         raw = self.text(f"/block/{block_hash}/header", _MAX_HEADER_BODY)
         return block_header_from_raw(raw, height)
 
+    @override
     def assert_network(self) -> None:
         """Raise unless the explorer serves the chain this fetcher labels with.
 
@@ -283,10 +242,6 @@ class EsploraFetcher(Fetcher):
         `get_block_header` reads for every other height, asked here for
         the block every chain starts from -- compared against
         `NETWORKS[self.network].genesis_block`.
-
-        Public for the same reason `BitcoinCoreFetcher.assert_network` is
-        -- a caller that wants the question answered at a moment of its
-        own.
 
         Worth the call, because the failure it catches is silent, the
         same one `BitcoinCoreFetcher.assert_network`'s docstring names: a
@@ -303,11 +258,6 @@ class EsploraFetcher(Fetcher):
         `signet_challenge` is given. This class takes no
         `signet_challenge` of its own: nothing Esplora's api publishes is
         a signet's challenge to compare it against.
-
-        A malformed reply is a `FetchError`. A disagreement is a
-        `BTClibValueError` naming both hashes: the explorer is the
-        authority on which chain it serves, so the fetcher's label is the
-        thing to fix.
         """
         with fetch_errors("block-height"):
             reply = self.text("/block-height/0", _MAX_HASH_BODY)

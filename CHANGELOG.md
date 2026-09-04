@@ -528,6 +528,37 @@ file of the test tree, and no caller acts on it.
   reason: the library holds the consensus fact, and whoever walks blocks
   asks it of the row.
 
+### The chain check is one method on a `NetworkVerifyingFetcher` base
+
+- **`btclib.fetch.fetcher` gains `NetworkVerifyingFetcher`, the `Fetcher`
+  of a backend that reaches a host and can therefore be asked which chain
+  it serves** (closes #1698). It carries `verify_network`, the memo
+  behind it -- ask once, remember a disagreement for ever, remember a
+  `FetchError` as nothing -- and declares `assert_network` abstract, so a
+  backend written without one does not construct rather than checking the
+  chain never. `BitcoinCoreFetcher`, `BitcoinCoreRestFetcher`,
+  `EsploraFetcher` and `ElectrumFetcher` derive from it and keep
+  `assert_network` alone, which is what differs between them: a chain
+  name and a signet challenge for the node backends, a genesis block for
+  the others. `CachingFetcher` and `FallbackFetcher` stay plain
+  `Fetcher`s -- each answers from another `Fetcher`, which is where the
+  host is and where the question belongs -- so neither carries a
+  `verify_network` with nothing to ask. Nothing a caller writes changes:
+  the argument keeps its name, its keyword-only position and its default
+  on every backend, and now has one declaration to keep them the same.
+
+- **`tests/fetch/verify_network_test.py` holds every entry point of every
+  backend to that check** (closes #1701). Each is called on a scripted
+  host serving another chain and must refuse with one request made, the
+  chain question having consumed it and the fetch behind it never having
+  gone out. The file also reads the call sites out of the source and
+  compares them with the cases, so a call site the cases do not pin, or
+  a pinned call site deleted, is a failing test rather than a fetcher
+  answering from a chain the caller did not mean. What it cannot see is
+  an entry point that never calls the check at all: that one leaves no
+  call site to compare, and the file's own docstring is where it is
+  stated.
+
 ## v2026.9.3
 
 ### Repository
