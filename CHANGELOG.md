@@ -500,6 +500,15 @@ file of the test tree, and no caller acts on it.
   most recent lines -- which is the failure the standard's rule is for,
   and which had already spread to a branch in another repository.
 
+### `CLAUDE.md` states the worktree block's absent `uv sync` in one place
+
+- **The paragraph below the worktree fence gives only what the sentence
+  above it does not** (closes btclib-org/.github#794): the sentence gives
+  the absence of `uv sync` and the gate as its reason, and the paragraph
+  says the `&&` that used to carry the sync is no guard. That `cd ""`
+  measurement is btclib-org/.github#739's material and stands as it is
+  written.
+
 ## v2026.9.3
 
 ### Repository
