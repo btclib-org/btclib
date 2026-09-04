@@ -193,6 +193,28 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     assert transport_cost not in loaded
 
 
+def test_electrum_codec_does_not_import_fetch() -> None:
+    """`btclib.electrum` is the codec `btclib.fetch.electrum` is built on.
+
+    Not the reverse: `btclib.fetch.__init__` imports every fetcher, so an
+    importer of this module alone -- node, should it ever serve the
+    protocol rather than only speak it -- does not pay for `urllib`,
+    `ssl` and `socket` through that package. `btclib.p2p`'s own docstring
+    states the same rule for the same reason.
+
+    A subprocess and not `unimported_btclib`: that fixture takes btclib
+    out of `sys.modules` and leaves `bitcoin_core_rpc` wherever an
+    earlier test in this process put it, so `btclib.fetch`'s absence
+    needs a fresh interpreter to mean anything -- the same reason the
+    p2p test above uses one.
+    """
+    probe = "import btclib.electrum, sys; print(sorted(sys.modules))"
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe], check=True, capture_output=True, encoding="utf-8"
+    ).stdout
+    assert "btclib.fetch" not in loaded
+
+
 def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     """b58 and b32 must not import btclib.script.
 

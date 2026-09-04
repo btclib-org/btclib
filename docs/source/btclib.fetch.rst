@@ -48,6 +48,13 @@ btclib.fetch.decorators module
    :members:
    :show-inheritance:
 
+btclib.fetch.electrum module
+-----------------------------
+
+.. automodule:: btclib.fetch.electrum
+   :members:
+   :show-inheritance:
+
 btclib.fetch.esplora module
 ---------------------------
 

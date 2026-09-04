@@ -154,15 +154,17 @@ class HttpError(FetchError):
 
 
 class RpcError(FetchError):
-    """bitcoind answered with a JSON-RPC error object, and this is it.
+    """A backend answered with a JSON-RPC error object, and this is it.
 
-    `code` is the node's, from `src/rpc/protocol.h`: -5 is
-    RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
-    for a transaction it cannot find -- including every non-wallet
-    transaction on a node running without `-txindex`. A caller that means
-    to tell "no such transaction" from "the node is unreachable" needs the
-    number, and parsing it back out of the message is what having a field
-    avoids.
+    `code` is the backend's own. From bitcoind, `src/rpc/protocol.h`: -5
+    is RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction`
+    returns for a transaction it cannot find -- including every
+    non-wallet transaction on a node running without `-txindex`. From an
+    Electrum server (`btclib.electrum`), the field carries that server's
+    own JSON-RPC 2.0 code instead, nothing here asking anything
+    bitcoind-specific of it. A caller that means to tell "no such
+    transaction" from "the backend is unreachable" needs the number, and
+    parsing it back out of the message is what having a field avoids.
 
     `data` is JSON-RPC's optional third member of an error object, kept as
     it arrived. Core leaves it out today, so it is None for every error a
