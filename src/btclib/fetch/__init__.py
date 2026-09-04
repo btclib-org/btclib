@@ -13,6 +13,14 @@ times -- `BitcoinCoreFetcher` over a full node's JSON-RPC,
 interface, `EsploraFetcher` over a block explorer's HTTP api -- so that
 calling code takes a `Fetcher` and never branches on which one it got.
 
+**`Broadcaster` is the one place that announces a transaction rather than
+asking about one**, and is a `typing.Protocol` rather than a fourth
+`Fetcher` method: `BitcoinCoreFetcher` and `EsploraFetcher` satisfy it,
+`BitcoinCoreRestFetcher` does not -- Core's `-rest` interface is
+read-only, and a protocol lets that asymmetry be a fact of the type
+rather than a `NotImplementedError` written into a class that never
+promised the capability.
+
 **It adds no dependency.** `urllib.request`, `json` and `base64` from the
 standard library are the whole of the client. Its canonical implementation is
 the `bitcoin-core-rpc` package, which btclib depends on and does not
@@ -40,14 +48,14 @@ fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.
 
 **What is exported, and what is not.** The fetchers, the interface
-they implement, the two clients a Bitcoin Core node is reached through --
-`BitcoinCoreRpcClient` for the JSON-RPC server, `BitcoinCoreRestClient`
-for `-rest` -- and the transport seam: the timeout, the protocol a
-substitute has to satisfy and the two implementations of it that open a
-socket -- one connection per call, and one kept open across calls. That
-last group is here because the seam is the supported way to test calling
-code without a node, which is not a detail of the fetcher
-implementations.
+they implement, `Broadcaster` beside it, the two clients a Bitcoin Core
+node is reached through -- `BitcoinCoreRpcClient` for the JSON-RPC
+server, `BitcoinCoreRestClient` for `-rest` -- and the transport seam:
+the timeout, the protocol a substitute has to satisfy and the two
+implementations of it that open a socket -- one connection per call, and
+one kept open across calls. That last group is here because the seam is
+the supported way to test calling code without a node, which is not a
+detail of the fetcher implementations.
 
 `bitcoin_core.cookie_auth` is deliberately not here:
 `BitcoinCoreRpcClient` takes a `cookie_path` and reads that file at every
@@ -78,6 +86,7 @@ from bitcoin_core_rpc import BitcoinCoreRestClient, BitcoinCoreRpcClient
 
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestFetcher
+from btclib.fetch.broadcaster import Broadcaster
 from btclib.fetch.decorators import CachingFetcher, FallbackFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
@@ -95,6 +104,7 @@ __all__ = [
     "BitcoinCoreRestClient",
     "BitcoinCoreRestFetcher",
     "BitcoinCoreRpcClient",
+    "Broadcaster",
     "CachingFetcher",
     "EsploraFetcher",
     "FallbackFetcher",

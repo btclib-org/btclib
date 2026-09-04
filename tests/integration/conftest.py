@@ -38,6 +38,7 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 
 from btclib.amount import sats_from_btc
 from btclib.descriptors import Descriptor, add_checksum, parse
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.psbt.psbt import Psbt, extract_tx, finalize
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -244,12 +245,13 @@ def broadcast(node: BitcoinCoreRpcClient, psbt: Psbt) -> str:
 
     Which is the oracle these tests are here for: a signature that does
     not verify, a witness assembled wrong or a fee that is not there are
-    all this call failing.
+    all this call failing. `BitcoinCoreFetcher.broadcast` is what makes
+    the call, `verify_network=True` and `regtest` its label -- the one
+    chain this suite's node ever serves -- so a fixture pointed at the
+    wrong node fails here rather than mining a transaction nobody meant
+    to send it.
     """
     final = extract_tx(finalize(psbt), check_validity=True)
-    # with the witness, which is the whole point of what was just signed:
-    # `serialize` asks rather than assuming, a txid being the other one
-    raw = final.serialize(include_witness=True).hex()
-    tx_id = str(node.call("sendrawtransaction", [raw]))
-    assert tx_id == final.id.hex()
-    return tx_id
+    tx_id = BitcoinCoreFetcher(node, "regtest").broadcast(final)
+    assert tx_id == final.id
+    return tx_id.hex()

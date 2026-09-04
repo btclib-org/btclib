@@ -16,7 +16,7 @@ import pytest
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.transport import SessionTransport
-from btclib.tx import OutPoint
+from btclib.tx import OutPoint, Tx
 from tests.fetch import (
     TIP_HEADER_RAW,
     TIP_HEIGHT,
@@ -30,6 +30,15 @@ BASE = "https://esplora.example/api"
 # the coinbase of block 170: a transaction with the same provenance as
 # the recorded one, and not the one asked for
 OTHER_ID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
+
+
+def broadcast_tx() -> Tx:
+    """Return the recorded transaction, parsed, as a signed Tx to announce.
+
+    The same one `esplora_tx_hex.txt` answers `get_tx` with: it exists
+    already, so broadcasting it needs no new vector of its own.
+    """
+    return Tx.parse(bytes.fromhex(recorded_body("esplora_tx_hex.txt").decode().strip()))
 
 
 def fetcher(
@@ -293,3 +302,28 @@ def test_the_body_of_a_failure_is_not_held_to_the_answer_limit() -> None:
     page = b"<html><body>Block not found, and here is why: " + b"x" * 200 + b"</body>"
     with pytest.raises(FetchError, match="HTTP 404"):
         fetcher((404, page)).get_block_count()
+
+
+def test_broadcast_posts_the_wire_serialization_and_returns_the_txid() -> None:
+    """`POST /tx`, the hex body, the txid the server answers as text."""
+    tx = broadcast_tx()
+    transport = Recorded((200, tx.id.hex().encode()))
+    txid = EsploraFetcher(BASE, transport=transport).broadcast(tx)
+    assert txid == tx.id
+    assert transport.request.full_url == f"{BASE}/tx"
+    assert transport.request.get_method() == "POST"
+    assert transport.body == tx.serialize(include_witness=True).hex().encode("ascii")
+
+
+def test_broadcast_refuses_a_success_naming_another_txid() -> None:
+    """The server answered for a transaction that is not the one it was sent."""
+    tx = broadcast_tx()
+    with pytest.raises(FetchError, match=f"the server confirmed {OTHER_ID}"):
+        fetcher((200, OTHER_ID.encode())).broadcast(tx)
+
+
+def test_broadcast_reports_a_400_with_the_explorers_own_body() -> None:
+    """A refusal keeps Esplora's reason, the way a 404 on `get_tx` does."""
+    tx = broadcast_tx()
+    with pytest.raises(FetchError, match="HTTP 400 .*: min relay fee not met"):
+        fetcher((400, b"min relay fee not met")).broadcast(tx)

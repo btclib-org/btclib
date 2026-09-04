@@ -31,6 +31,7 @@ import pytest
 from bitcoin_core_rpc import (
     DEFAULT_SIGNET_CHALLENGE,
     BitcoinCoreRpcClient,
+    RPCErrorCode,
     SessionTransport,
     chain_from_network,
     network_from_chain,
@@ -47,7 +48,7 @@ from btclib.exceptions import (
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.network import NETWORKS
-from btclib.tx import OutPoint
+from btclib.tx import OutPoint, Tx
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
 # the rpc credentials every test here passes. Named once rather than
@@ -158,6 +159,16 @@ def asked(endpoint: BitcoinCoreRpcClient) -> list[str]:
         assert isinstance(body, dict)
         methods.append(str(body["method"]))
     return methods
+
+
+def broadcast_tx() -> Tx:
+    """Return the recorded transaction, parsed, as a signed Tx to announce.
+
+    The same transaction `getrawtransaction.json` answers `get_tx` with:
+    it exists already, so broadcasting it needs no new vector of its own.
+    """
+    body = json.loads(recorded_body("getrawtransaction.json"))
+    return Tx.parse(bytes.fromhex(body["result"]))
 
 
 def test_get_tx_parses_the_serialization_the_node_sent() -> None:
@@ -660,3 +671,96 @@ def test_an_rpc_error_keeps_its_code_and_its_data_across_the_translation() -> No
     # the message itself, and not the code or the data carried beside it
     # under the same positional index once `args` holds all three
     assert "No such mempool transaction" in str(exc.value)
+
+
+def test_broadcast_sends_the_wire_serialization_and_returns_the_txid() -> None:
+    """`sendrawtransaction` with the hex serialization, and no maxfeerate.
+
+    `maxfeerate` absent from `params` and not defaulted to `None`: json
+    has no null the way `sendrawtransaction`'s optional parameter reads
+    it, so a caller who passed nothing gets a request with one parameter,
+    not two.
+    """
+    tx = broadcast_tx()
+    endpoint = client(
+        (200, json.dumps({"jsonrpc": "2.0", "result": tx.id.hex(), "id": "x"}).encode())
+    )
+    txid = BitcoinCoreFetcher(endpoint, verify_network=False).broadcast(tx)
+    assert txid == tx.id
+    assert asked(endpoint) == ["sendrawtransaction"]
+    body = sent(endpoint)
+    assert body["params"] == [tx.serialize(include_witness=True).hex()]
+
+
+def test_broadcast_passes_maxfeerate_only_when_given() -> None:
+    """`maxfeerate` rides as a second positional parameter, never a default."""
+    tx = broadcast_tx()
+    endpoint = client(
+        (200, json.dumps({"jsonrpc": "2.0", "result": tx.id.hex(), "id": "x"}).encode())
+    )
+    BitcoinCoreFetcher(endpoint, verify_network=False).broadcast(tx, maxfeerate=0.02)
+    body = sent(endpoint)
+    assert body["params"] == [tx.serialize(include_witness=True).hex(), 0.02]
+
+
+def test_broadcast_refuses_a_success_naming_another_txid() -> None:
+    """The node answered for a transaction that is not the one it was sent."""
+    tx = broadcast_tx()
+    other = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
+    endpoint = client(
+        (200, json.dumps({"jsonrpc": "2.0", "result": other, "id": "x"}).encode())
+    )
+    with pytest.raises(FetchError, match=f"the node confirmed {other}"):
+        BitcoinCoreFetcher(endpoint, verify_network=False).broadcast(tx)
+
+
+@pytest.mark.parametrize(
+    "code", [RPCErrorCode.VERIFY_REJECTED, RPCErrorCode.VERIFY_ALREADY_IN_UTXO_SET]
+)
+def test_broadcast_reports_the_nodes_refusal_with_its_own_reason(
+    code: RPCErrorCode,
+) -> None:
+    """A refusal keeps Core's code and message, through `client_errors`.
+
+    `-26` is a policy rejection and `-27` a transaction already
+    confirmed: two different refusals, and the message is what a caller
+    tells them apart with, not a code flattened to "broadcast failed".
+    """
+    tx = broadcast_tx()
+    message = (
+        "min relay fee not met" if code == -26 else "Transaction already in block chain"
+    )
+    error = {"code": int(code), "message": message}
+    body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
+    with pytest.raises(RpcError) as exc:
+        BitcoinCoreFetcher(client((200, body)), verify_network=False).broadcast(tx)
+    assert exc.value.code == code
+    assert message in str(exc.value)
+
+
+def test_broadcast_verifies_the_network_before_sending_anything() -> None:
+    """A wrong-chain node is refused before the transaction ever leaves.
+
+    The worst version of the silent failure `verify_network` exists to
+    catch: `sendrawtransaction` is never called at all, `assert_network`
+    consuming the one scripted reply.
+    """
+    endpoint = client(blockchaininfo(chain="test"))
+    with pytest.raises(BTClibValueError, match="reports chain 'test', not the 'main'"):
+        BitcoinCoreFetcher(endpoint, network="mainnet").broadcast(broadcast_tx())
+    assert asked(endpoint) == ["getblockchaininfo"]
+
+
+def test_broadcast_verifies_the_network_once_like_the_other_methods() -> None:
+    """Agreeing once, the fifth call goes straight through like the fourth."""
+    tx = broadcast_tx()
+    endpoint = client(
+        blockchaininfo(chain="main"),
+        (
+            200,
+            json.dumps({"jsonrpc": "2.0", "result": tx.id.hex(), "id": "x"}).encode(),
+        ),
+    )
+    core = BitcoinCoreFetcher(endpoint)
+    assert core.broadcast(tx) == tx.id
+    assert asked(endpoint) == ["getblockchaininfo", "sendrawtransaction"]

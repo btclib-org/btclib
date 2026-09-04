@@ -212,6 +212,7 @@ CHILD_MODULES = {
         "unpublished": [
             "bitcoin_core",
             "bitcoin_core_rest",
+            "broadcaster",
             "decorators",
             "esplora",
             "fetcher",

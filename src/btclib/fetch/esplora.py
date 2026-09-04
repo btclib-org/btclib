@@ -47,7 +47,7 @@ from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import HttpError
+from btclib.exceptions import FetchError, HttpError
 from btclib.fetch.fetcher import (
     Fetcher,
     block_header_from_raw,
@@ -106,6 +106,11 @@ class EsploraFetcher(Fetcher):
 
     `base_url` is required and has no default, for the reason
     `BLOCKSTREAM_INFO` is a constant and not one.
+
+    Also a `Broadcaster`: `broadcast` is `POST /tx`, the one endpoint of
+    this class that writes. Holding a fetcher is not broadcasting; a
+    caller has to call the method, and `broadcast`'s own docstring is
+    where its non-idempotence is stated, at the point a caller meets it.
     """
 
     def __init__(
@@ -121,14 +126,47 @@ class EsploraFetcher(Fetcher):
         self.timeout = timeout
         self.transport = transport
 
-    def text(self, path: str, max_body_size: int = DEFAULT_MAX_BODY_SIZE) -> str:
-        """Return the body of a GET on `path`, as stripped text.
+    def _request(
+        self, path: str, *, data: bytes | None, max_body_size: int
+    ) -> tuple[int, str]:
+        """Return the status and stripped text body of one exchange on `path`.
+
+        `data` is what decides the verb, the way `http_request` itself
+        decides it: `None` is the GET every read here is, and bytes are a
+        POST body -- `broadcast`'s only caller today.
 
         Stripped because a deployment behind a proxy may add a newline
-        and none of the three answers can contain whitespace. Decoded
-        with `replace` rather than strictly: the body of a failure is an
-        error page from whatever is in the way, and it is more use
-        rendered imperfectly than swallowed by a UnicodeDecodeError.
+        and none of the answers this seam carries can contain whitespace.
+        Decoded with `replace` rather than strictly: the body of a
+        failure is an error page from whatever is in the way, and it is
+        more use rendered imperfectly than swallowed by a
+        UnicodeDecodeError.
+
+        `client_errors` because `http_request` is `bitcoin_core_rpc`'s and
+        raises that package's exceptions: a refused connection reaching a
+        caller as something no `except FetchError` of btclib's catches is
+        what it is there to prevent.
+        """
+        url = f"{self.base_url}{path}"
+        headers = None if data is None else {"Content-Type": "text/plain"}
+        with client_errors():
+            status, payload = http_request(
+                url,
+                data=data,
+                headers=headers,
+                timeout=self.timeout,
+                max_body_size=max_body_size,
+                transport=self.transport,
+            )
+        return status, payload.decode("utf-8", errors="replace").strip()
+
+    def _http_error(self, path: str, status: int, text: str) -> HttpError:
+        """Return the `HttpError` a non-200 status on `path` reports."""
+        url = f"{self.base_url}{path}"
+        return HttpError(f"HTTP {status} from {url}: {text}", status)
+
+    def text(self, path: str, max_body_size: int = DEFAULT_MAX_BODY_SIZE) -> str:
+        """Return the body of a GET on `path`, as stripped text.
 
         `max_body_size` is what this particular answer may weigh; the
         default is the widest of the three, so a caller asking for
@@ -140,23 +178,10 @@ class EsploraFetcher(Fetcher):
         attempt, and telling it from a 404 without reading a message is
         what the field is for. btclib retries nothing itself -- an
         explorer's rate limit is the caller's budget to spend.
-
-        `client_errors` because `http_request` is `bitcoin_core_rpc`'s and
-        raises that package's exceptions: a refused connection reaching a
-        caller as something no `except FetchError` of btclib's catches is
-        what it is there to prevent.
         """
-        url = f"{self.base_url}{path}"
-        with client_errors():
-            status, payload = http_request(
-                url,
-                timeout=self.timeout,
-                max_body_size=max_body_size,
-                transport=self.transport,
-            )
-        text = payload.decode("utf-8", errors="replace").strip()
+        status, text = self._request(path, data=None, max_body_size=max_body_size)
         if status != 200:
-            raise HttpError(f"HTTP {status} from {url}: {text}", status)
+            raise self._http_error(path, status, text)
         return text
 
     @override
@@ -192,3 +217,42 @@ class EsploraFetcher(Fetcher):
             block_hash = bytes_from_octets(reply, 32).hex()
         raw = self.text(f"/block/{block_hash}/header", _MAX_HEADER_BODY)
         return block_header_from_raw(raw, height)
+
+    def broadcast(self, tx: Tx) -> bytes:
+        """Announce `tx` to the server, and return the txid it confirmed.
+
+        `POST /tx` with the wire serialization's hex, witness included, as
+        the body -- what a peer relays and eventually mines, not the
+        stripped form `Tx.id` hashes. The server answers the same way its
+        GET endpoints do, plain text and not json, which is why this
+        shares `_request` with `text` rather than opening a second seam:
+        the bounded read, the `transport` argument and the `client_errors`
+        translation are the same regardless of which verb sent the body.
+
+        The id is computed from `tx` before the request, the way
+        `tx_from_raw` recomputes one from a fetched serialization: a
+        success naming a different txid is a `FetchError`, the server
+        having confirmed some other transaction. One request and no
+        retry, for the reason `BitcoinCoreFetcher.broadcast`'s docstring
+        gives: after a timeout this method cannot tell a transaction that
+        never reached the server from one that did and whose
+        acknowledgement was merely lost on the way back, and that is the
+        caller's decision to make, not this one's.
+
+        A non-200 status is an `HttpError` carrying the body, the way
+        `text` reports one for a GET: an Esplora deployment answers a
+        rejected transaction with a 400 and the reason in plain text.
+        """
+        txid = tx.id
+        hex_ = tx.serialize(include_witness=True).hex()
+        status, answer = self._request(
+            "/tx", data=hex_.encode("ascii"), max_body_size=_MAX_HASH_BODY
+        )
+        if status != 200:
+            raise self._http_error("/tx", status, answer)
+        with fetch_errors("POST /tx"):
+            answered = bytes_from_octets(answer, 32)
+        if answered != txid:
+            err_msg = f"broadcast {txid.hex()}: the server confirmed {answered.hex()}"
+            raise FetchError(err_msg)
+        return answered
