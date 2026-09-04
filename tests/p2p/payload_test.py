@@ -24,7 +24,7 @@ from typing import Any
 
 import pytest
 
-from btclib.block import Block
+from btclib.block import Block, PartialMerkleTree
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.p2p import (
     Addr,
@@ -51,6 +51,7 @@ from btclib.p2p import (
     Inventory,
     InventoryType,
     Mempool,
+    MerkleBlock,
     Message,
     NotFound,
     Payload,
@@ -83,6 +84,10 @@ _BLOCK_1 = Block.parse(
 
 _TX = Tx(1, 0, [TxIn(OutPoint(b"\x11" * 32, 0))], [TxOut(1000, b"\x51")])
 
+_PARTIAL_MERKLE_TREE = PartialMerkleTree.from_txids(
+    [tx.id for tx in _BLOCK_1.transactions], [True] * len(_BLOCK_1.transactions)
+)
+
 # every payload type of this package, with a value of each: the walk
 # below is what says the list is complete
 _PAYLOADS: tuple[Payload, ...] = (
@@ -111,6 +116,7 @@ _PAYLOADS: tuple[Payload, ...] = (
     CmpctBlock(_BLOCK_1.header, 1, [0x0102_0304_0506], [PrefilledTransaction(1, _TX)]),
     GetBlockTxn(_BLOCK_1.header.hash, [0, 2, 5]),
     BlockTxn(_BLOCK_1.header.hash, [_TX]),
+    MerkleBlock(_BLOCK_1.header, _PARTIAL_MERKLE_TREE),
     GetAddr(),
     Mempool(),
     SendHeaders(),

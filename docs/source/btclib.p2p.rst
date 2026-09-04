@@ -86,6 +86,13 @@ btclib.p2p.magic module
        magic_from_signet_challenge
    :show-inheritance:
 
+btclib.p2p.merkleblock module
+-----------------------------
+
+.. automodule:: btclib.p2p.merkleblock
+   :members:
+   :show-inheritance:
+
 btclib.p2p.message module
 -------------------------
 

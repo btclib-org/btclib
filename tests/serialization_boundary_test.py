@@ -86,7 +86,7 @@ from btclib import bip322, var_bytes, var_int
 from btclib.bip21 import Bip21
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.block import BasicBlockFilter, Block, BlockHeader
+from btclib.block import BasicBlockFilter, Block, BlockHeader, PartialMerkleTree
 from btclib.descriptors import descriptors, miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
@@ -115,6 +115,7 @@ from btclib.p2p import (
     Inv,
     Inventory,
     Mempool,
+    MerkleBlock,
     Message,
     NetworkAddress,
     NetworkAddressV2,
@@ -232,6 +233,7 @@ _OCTETS_DECODERS = (
     ("BlockHeader.parse", BlockHeader, "parse"),
     ("Block.parse", Block, "parse"),
     ("BasicBlockFilter.parse", BasicBlockFilter, "parse"),
+    ("PartialMerkleTree.parse", PartialMerkleTree, "parse"),
     ("Psbt.parse", Psbt, "parse"),
     ("PsbtIn.parse", PsbtIn, "parse"),
     ("PsbtOut.parse", PsbtOut, "parse"),
@@ -279,6 +281,7 @@ _OCTETS_DECODERS = (
     ("CmpctBlock.parse", CmpctBlock, "parse"),
     ("GetBlockTxn.parse", GetBlockTxn, "parse"),
     ("BlockTxn.parse", BlockTxn, "parse"),
+    ("MerkleBlock.parse", MerkleBlock, "parse"),
     ("TxPayload.parse", TxPayload, "parse"),
     ("BlockPayload.parse", BlockPayload, "parse"),
     ("Reject.parse", Reject, "parse"),

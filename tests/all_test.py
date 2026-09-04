@@ -173,6 +173,7 @@ CHILD_MODULES = {
             "genesis",
             "header_context",
             "limits",
+            "partial_merkle_tree",
         ],
     },
     "btclib.curves": {
@@ -244,6 +245,7 @@ CHILD_MODULES = {
             "keepalive",
             "limits",
             "magic",
+            "merkleblock",
             "message",
             "negotiation",
             "payload",
