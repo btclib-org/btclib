@@ -394,6 +394,18 @@ predicate is. A module of its own rather than a name in
 publishes: unspendable is not one of the standard shapes, and refusing
 a script for being spendable is not a question anybody asks.
 
+### `claude-review.yml`'s fork-condition comment drops its stale `bbt` example
+
+- **The fork-condition comment stops illustrating `.fork` with `btclib-org/bbt`,
+  which is not a fork** (closes btclib-org/.github#456): the argument for
+  comparing by `full_name` instead of `.fork` stands on its own -- `.fork` asks
+  whether the head repository has a parent, not whether it is this one -- and
+  the example now names the case that still trips it, a repository the
+  organization has taken over, whose own branches would be handed the secret.
+  `gh api repos/btclib-org/btclib --jq .fork` answers `false`, so `full_name`
+  and `.fork` decide alike here and the swap the old example warned against
+  would show up in no run.
+
 ## v2026.9.3
 
 ### Repository
