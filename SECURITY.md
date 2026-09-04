@@ -345,6 +345,15 @@ used to teach and to prototype as much as to build:
     `hmac.compare_digest`, so what btclib does with the envelope does not
     depend on the secret byte by byte; a caller wanting the same of the
     decryption should bring a cipher that gives it
+- `btclib.bip38` takes the same two callables for AES-256, ECB rather
+    than CBC, for the reason above. It differs from `ecies` in one way
+    worth its own notice: BIP38 has no MAC, so `decrypt` calls the
+    caller's cipher before it can tell a wrong password from a right
+    one -- the check is a re-derived Bitcoin address, compared against
+    the record's own four-byte hash only after decryption. A wrong
+    password still runs the cipher once; `scrypt`'s cost is what BIP38
+    relies on to make that expensive per guess, not a MAC that would
+    turn the guess away first
 - **a `btclib.fetch` backend is trusted, and they are not trusted
     alike.** `BitcoinCoreFetcher` and `BitcoinCoreRestFetcher` talk to a
     node that validated the chain it reports, and both ask it by default

@@ -186,3 +186,175 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
 # mode or a rootdir changes. This package already holds the shared
 # loaders these same modules import.
 needs_bindings = pytest.mark.bindings
+
+# --------------------------------------------------------------------------
+# AES-128 and AES-256, shared by `ecc/ecies_test.py`'s CBC vectors and
+# `bip38_test.py`'s ECB ones.
+#
+# **Why a test writes its own block cipher.** btclib takes no
+# cryptographic dependency and ships no cipher: hashlib and the
+# secp256k1 bindings are the whole of it, `ecc.ecies`'s module docstring
+# has the argument in full, and `ecc.dsa`/`ecc.ssa` inherit it -- a
+# table-driven AES leaks its key through cache timing, and a
+# timing-vulnerable cipher is a worse thing to ship than none. None of
+# that reaches this file: the wheel and the sdist carry no tests, so
+# nothing here is installed on a user's machine, and the keys used
+# against it below are fixed published test vectors, so there is no
+# secret for a timing side channel to leak. A test-only dependency would
+# buy the same vectors for the price of a package neither module
+# otherwise needs, and would make this reasoning invisible, since a
+# dependency does not explain itself.
+#
+# It is written for the vectors, not for use: correct, small enough to
+# read against FIPS-197, and slow. Do not import it from anywhere but
+# `ecc/ecies_test.py` and `bip38_test.py`.
+# --------------------------------------------------------------------------
+
+_AES_BLOCK_SIZE = 16
+# FIPS-197 section 5.2, the round constants a 128- or 256-bit key
+# schedule needs: the highest index either ever reads is `i // nk - 1`
+# with `i < 4 * (nr + 1)`, which stays below 7 for both key lengths
+_AES_RCON = (0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36)
+
+
+def _aes_xtime(a: int) -> int:
+    """Multiply by x in GF(2^8), modulo the AES polynomial x^8+x^4+x^3+x+1."""
+    a <<= 1
+    return a ^ 0x11B if a & 0x100 else a
+
+
+def _aes_mul(a: int, b: int) -> int:
+    """Multiply two elements of GF(2^8)."""
+    result = 0
+    while b:
+        if b & 1:
+            result ^= a
+        a = _aes_xtime(a)
+        b >>= 1
+    return result
+
+
+def _aes_build_boxes() -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Return the S-box and its inverse, derived rather than tabulated.
+
+    A 256-entry table copied from somewhere is a table nobody can check;
+    the definition is short enough to write instead. Each byte maps to its
+    multiplicative inverse in GF(2^8) -- read off the exp/log tables of the
+    generator 3, with zero mapping to itself -- under the AES affine
+    transform, which is the byte xored with four rotations of itself and
+    with 0x63.
+    """
+    exp = [0] * 255
+    log = [0] * 256
+    x = 1
+    for i in range(255):
+        exp[i] = x
+        log[x] = i
+        x = _aes_mul(x, 3)
+
+    sbox = []
+    for i in range(256):
+        inverse = 0 if i == 0 else exp[(255 - log[i]) % 255]
+        rotated = inverse
+        affine = inverse
+        for _ in range(4):
+            rotated = ((rotated << 1) | (rotated >> 7)) & 0xFF
+            affine ^= rotated
+        sbox.append(affine ^ 0x63)
+
+    inv_sbox = [0] * 256
+    for i, s in enumerate(sbox):
+        inv_sbox[s] = i
+    return tuple(sbox), tuple(inv_sbox)
+
+
+_AES_SBOX, _AES_INV_SBOX = _aes_build_boxes()
+
+
+def aes_expand_key(key: bytes) -> list[list[int]]:
+    """Return the round keys of an AES-128 or AES-256 key, by its length.
+
+    `nk` -- the key length in 32-bit words -- is 4 for AES-128 and 8 for
+    AES-256; `nr`, the number of rounds, is `nk + 6` either way, FIPS-197
+    table 1. The schedules differ in one place: AES-256's, alone among
+    the three FIPS-197 defines, runs an extra SubWord with no rotation
+    and no round constant every fourth word that RotWord does not
+    already cover -- `i % nk == 4`, reachable only where `nk > 6`, so an
+    AES-128 schedule never takes the branch and an AES-256 one always
+    does at 6 of its 60 words.
+    """
+    nk = len(key) // 4
+    nr = nk + 6
+    words = [list(key[4 * i : 4 * i + 4]) for i in range(nk)]
+    for i in range(nk, 4 * (nr + 1)):
+        word = list(words[i - 1])
+        if i % nk == 0:
+            word = [_AES_SBOX[b] for b in (*word[1:], word[0])]
+            word[0] ^= _AES_RCON[i // nk - 1]
+        elif nk > 6 and i % nk == 4:
+            word = [_AES_SBOX[b] for b in word]
+        words.append([a ^ b for a, b in zip(words[i - nk], word, strict=True)])
+    return [
+        [b for word in words[4 * r : 4 * r + 4] for b in word] for r in range(nr + 1)
+    ]
+
+
+# the state is 16 bytes in input order, so flat index 4*column+row: that is
+# exactly how FIPS-197 fills its 4x4 array, column by column
+def _aes_sub_bytes(state: list[int], box: tuple[int, ...]) -> list[int]:
+    return [box[b] for b in state]
+
+
+def _aes_shift_rows(state: list[int], *, inverse: bool = False) -> list[int]:
+    out = [0] * 16
+    for r in range(4):
+        for c in range(4):
+            source = (c - r) % 4 if inverse else (c + r) % 4
+            out[4 * c + r] = state[4 * source + r]
+    return out
+
+
+def _aes_mix_columns(state: list[int], *, inverse: bool = False) -> list[int]:
+    coefficients = (14, 11, 13, 9) if inverse else (2, 3, 1, 1)
+    out = [0] * 16
+    for c in range(4):
+        column = state[4 * c : 4 * c + 4]
+        for r in range(4):
+            acc = 0
+            for k in range(4):
+                acc ^= _aes_mul(column[k], coefficients[(k - r) % 4])
+            out[4 * c + r] = acc
+    return out
+
+
+def _aes_add_round_key(state: list[int], round_key: list[int]) -> list[int]:
+    return [a ^ b for a, b in zip(state, round_key, strict=True)]
+
+
+def aes_encrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
+    """Encrypt one 16-byte block under an expanded key, no mode, no padding."""
+    nr = len(round_keys) - 1
+    state = _aes_add_round_key(list(block), round_keys[0])
+    for rnd in range(1, nr):
+        state = _aes_mix_columns(_aes_shift_rows(_aes_sub_bytes(state, _AES_SBOX)))
+        state = _aes_add_round_key(state, round_keys[rnd])
+    state = _aes_shift_rows(_aes_sub_bytes(state, _AES_SBOX))
+    return bytes(_aes_add_round_key(state, round_keys[nr]))
+
+
+def aes_decrypt_block(block: bytes, round_keys: list[list[int]]) -> bytes:
+    """Decrypt one 16-byte block under an expanded key, no mode, no padding."""
+    nr = len(round_keys) - 1
+    state = _aes_add_round_key(list(block), round_keys[nr])
+    for rnd in range(nr - 1, 0, -1):
+        state = _aes_sub_bytes(_aes_shift_rows(state, inverse=True), _AES_INV_SBOX)
+        state = _aes_mix_columns(
+            _aes_add_round_key(state, round_keys[rnd]), inverse=True
+        )
+    state = _aes_sub_bytes(_aes_shift_rows(state, inverse=True), _AES_INV_SBOX)
+    return bytes(_aes_add_round_key(state, round_keys[0]))
+
+
+def aes_xor(a: bytes, b: bytes) -> bytes:
+    """Return the byte-wise XOR of two equal-length buffers."""
+    return bytes(x ^ y for x, y in zip(a, b, strict=True))

@@ -87,6 +87,7 @@ __all__ = [
     "bech32",
     "bip21",
     "bip32",
+    "bip38",
     "bip44",
     "bip85",
     "bip322",

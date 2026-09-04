@@ -84,6 +84,9 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.bip32:hardenings_from_der_path": ["bip380_enforced"],
     "btclib.bip32:indexes_from_der_path": ["bip380_enforced"],
     "btclib.bip32:int_from_index_str": ["bip380_enforced"],
+    "btclib.bip38:encrypt": ["compressed"],
+    "btclib.bip38:intermediate_code": ["lot", "sequence", "owner_salt"],
+    "btclib.bip38:new_key_pair": ["compressed", "seed_b"],
     "btclib.block.build:build_block": ["version"],
     "btclib.block.build:build_coinbase": [
         "fees",
