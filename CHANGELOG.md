@@ -198,6 +198,42 @@ is `wif_from_prv_key` and `b58.p2pkh` in the caller's own code now.
   stated a count of this tree's own vendored files drops the numeral
   instead of being spared.
 
+### `btclib.electrum`, the Electrum protocol codec, and `ElectrumFetcher`
+
+- **`btclib.electrum` adds the Electrum protocol codec: newline-delimited
+  JSON-RPC framing, the shapes of `blockchain.transaction.get`,
+  `blockchain.headers.subscribe`, `blockchain.block.header` and
+  `blockchain.transaction.get_merkle`, and the merkle-branch check of a
+  `get_merkle` answer against a `BlockHeader`, built on
+  `btclib.block.merkle_proof`** (issue #1127). It sits beside
+  `btclib.p2p` and outside `btclib.fetch`, on the same pattern and for
+  the same reason: `btclib.fetch.__init__` imports every fetcher it
+  ships, so a module that only ever speaks or serves this protocol reads
+  and writes lines without loading `urllib`, `ssl` or `socket` through
+  it. No socket anywhere in it, which
+  `tests/imports_test.py::test_electrum_codec_does_not_import_fetch`
+  checks in a subprocess.
+- **`btclib.fetch.electrum` adds `ElectrumFetcher`, a `Fetcher` over the
+  codec above and a `transport: LineTransport`.** It answers the four
+  interface questions the way `btclib.electrum`'s shapes carry them, and
+  a fifth `get_tx_merkle`/`verify_tx` pair the interface itself does not
+  gain: the one answer among the four other backends cannot check at
+  all, a transaction proven confirmed by checking its branch against a
+  header this fetcher fetched on its own rather than taking either on
+  the server's word. No default server, `EsploraFetcher`'s
+  `base_url`'s own reason: naming any one of the handful of hosts that
+  pass strict certificate verification would repeat the mistake
+  `BLOCKSTREAM_INFO` already refuses.
+- **`LineTransport` is declared in `btclib.fetch.transport`, beside
+  `HttpTransport`, and ships with no implementation in this half.**
+  `ElectrumFetcher.transport` is therefore required and keyword-only,
+  with no default: a lax placeholder would hand every caller the
+  self-signed certificate a private Electrum server presents by
+  construction, and this half cannot yet build the strict one the
+  measurement behind this issue argues for. Issue #1127 stays open on
+  this half; a second one adds the transport and the default that comes
+  with it.
+
 ## v2026.9.3
 
 ### Repository

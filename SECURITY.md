@@ -367,6 +367,20 @@ used to teach and to prototype as much as to build:
     the txid this code computed from the transaction handed to it, and
     nothing checks that the transaction went on to propagate beyond
     whichever peer or node answered
+- **`ElectrumFetcher` is the one backend that can prove an answer rather
+    than take it on trust.** `get_tx_merkle`/`verify_tx` check a
+    transaction's branch against a header this fetcher fetched with
+    `get_block_header` itself, `btclib.block.merkle_proof` doing the
+    arithmetic — a caller who runs the check learns that the transaction
+    is in the block that header names, not merely that some server said
+    so. It establishes nothing about that header being the right chain's
+    or the right height's, `Fetcher.get_block_header`'s own caveat and
+    unaffected by the branch matching underneath it. `transport:
+    LineTransport` is required and carries no default in this half — its
+    own docstring in `btclib.fetch.transport` says why — so nothing here
+    contacts a server until a caller supplies both a transport and, once
+    one exists, a host: the same refusal to name one `BLOCKSTREAM_INFO`
+    already carries
 - **rpc credentials.** They are passed as arguments and refused in the
     url, so that a password is not carried in a string that ends up in
     config files, tracebacks and logs. bitcoind's `.cookie` needs none at

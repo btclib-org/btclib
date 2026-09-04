@@ -7,11 +7,12 @@
 **Where the chain is.** Everything else in btclib works on bytes it was
 handed. This package is the one place that goes and asks: what
 transaction has this id, what output does this outpoint name, where is
-the chain tip. `Fetcher` is the interface, and it is implemented three
+the chain tip. `Fetcher` is the interface, and it is implemented four
 times -- `BitcoinCoreFetcher` over a full node's JSON-RPC,
 `BitcoinCoreRestFetcher` over the same node's unauthenticated `-rest`
-interface, `EsploraFetcher` over a block explorer's HTTP api -- so that
-calling code takes a `Fetcher` and never branches on which one it got.
+interface, `EsploraFetcher` over a block explorer's HTTP api,
+`ElectrumFetcher` over an Electrum server -- so that calling code takes a
+`Fetcher` and never branches on which one it got.
 
 **`Broadcaster` is the one place that announces a transaction rather than
 asking about one**, and is a `typing.Protocol` rather than a fourth
@@ -51,11 +52,13 @@ what raises if there is nothing to connect to.
 they implement, `Broadcaster` beside it, the two clients a Bitcoin Core
 node is reached through -- `BitcoinCoreRpcClient` for the JSON-RPC
 server, `BitcoinCoreRestClient` for `-rest` -- and the transport seam:
-the timeout, the protocol a substitute has to satisfy and the two
-implementations of it that open a socket -- one connection per call, and
-one kept open across calls. That last group is here because the seam is
-the supported way to test calling code without a node, which is not a
-detail of the fetcher implementations.
+the timeout, the two protocols a substitute has to satisfy and the two
+HTTP implementations of one of them that open a socket -- one connection
+per call, and one kept open across calls. `LineTransport`,
+`ElectrumFetcher`'s own protocol, has no implementation here yet; its
+own docstring in `btclib.fetch.transport` says why. That last group is
+here because the seam is the supported way to test calling code without
+a node, which is not a detail of the fetcher implementations.
 
 `bitcoin_core.cookie_auth` is deliberately not here:
 `BitcoinCoreRpcClient` takes a `cookie_path` and reads that file at every
@@ -88,11 +91,13 @@ from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestFetcher
 from btclib.fetch.broadcaster import Broadcaster
 from btclib.fetch.decorators import CachingFetcher, FallbackFetcher
+from btclib.fetch.electrum import ElectrumFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
 from btclib.fetch.transport import (
     DEFAULT_TIMEOUT,
     HttpTransport,
+    LineTransport,
     SessionTransport,
     urlopen_transport,
 )
@@ -106,10 +111,12 @@ __all__ = [
     "BitcoinCoreRpcClient",
     "Broadcaster",
     "CachingFetcher",
+    "ElectrumFetcher",
     "EsploraFetcher",
     "FallbackFetcher",
     "Fetcher",
     "HttpTransport",
+    "LineTransport",
     "SessionTransport",
     "urlopen_transport",
 ]

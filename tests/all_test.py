@@ -214,6 +214,7 @@ CHILD_MODULES = {
             "bitcoin_core_rest",
             "broadcaster",
             "decorators",
+            "electrum",
             "esplora",
             "fetcher",
             "transport",

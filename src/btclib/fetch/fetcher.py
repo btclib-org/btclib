@@ -71,6 +71,12 @@ def client_errors() -> Iterator[None]:
     directly where its `-rest` twin asks the same question through
     `_get_json` and is covered by the first group.
 
+    `ElectrumFetcher._round_trip` is the same wrap over a caller-supplied
+    `transport` rather than a call into this package directly: a
+    `LineTransport` that cannot answer raises this same vocabulary, its
+    own docstring says so, and this is where that translation happens
+    for every one of that fetcher's calls.
+
     The fields are what make this a translation rather than a blanket
     wrap: `status` and `code` are the whole reason those two classes
     exist, and losing them would leave a caller matching on the text of a
@@ -160,8 +166,8 @@ def tx_for_network(tx: Tx, network: str) -> Tx:
 class Fetcher(ABC):
     """What a backend must answer, and what btclib does with the answers.
 
-    Four abstract methods, one per question, each with a return type of
-    its own. That is the shape on purpose rather than one `get(kind, id)`
+    One abstract method per question, each with a return type of its
+    own. That is the shape on purpose rather than one `get(kind, id)`
     returning whatever: a backend able to *prove* what it says -- the
     Electrum protocol serves a merkle branch, which a client checks
     against a header it already holds (issues #188, #204 and #1132) --

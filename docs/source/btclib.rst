@@ -128,6 +128,13 @@ btclib.core_import module
    :members:
    :show-inheritance:
 
+btclib.electrum module
+-----------------------
+
+.. automodule:: btclib.electrum
+   :members:
+   :show-inheritance:
+
 btclib.exceptions module
 ------------------------
 

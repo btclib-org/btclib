@@ -99,6 +99,7 @@ __all__ = [
     "curves",
     "descriptors",
     "ecc",
+    "electrum",
     "exceptions",
     "fee",
     "fetch",
