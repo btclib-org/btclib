@@ -122,13 +122,13 @@ Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The files vendored since are the exception by date
 alone, all of them taken at the tip of their path on 2026-08-02, which is
-what their `pulled` says: the eight BIP327 files, the three Core files
+what their `pulled` says: the BIP327 files, the Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
-and the two python-bitcoinlib block files added here; Core's
-`blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
+and the python-bitcoinlib block files added here; Core's
+`blockfilters.json`, the psbts of BIP370 and BIP373 and the BIP324
 csv files followed on 2026-08-03, at the tip of their paths too, the
-two BIP322 files on 2026-08-08, and the Wycheproof files with the licence
-beside them, the two BIP374 csv files, BIP352's
+BIP322 files on 2026-08-08, and the Wycheproof files with the licence
+beside them, the BIP374 csv files, BIP352's
 `send_and_receive_test_vectors.json` and BIP375's
 `bip375_test_vectors.json` on 2026-08-13, and Core's `siphash.json` on
 2026-08-20. BIP375's `bip375_test_vectors.json`, Core's
@@ -168,7 +168,7 @@ The two hashes match for every file whose verdict is **identical**. Where
 upstream is CRLF they cannot, this repository being LF throughout, and the
 entry says so with our own blob alongside. Every csv file vendored from
 bitcoin/bips is that case, and so far only those: `bip340_test_vectors.csv`,
-the two BIP324 files and the two BIP374 files. A csv there is written on
+the BIP324 files and the BIP374 files. A csv there is written on
 Windows line endings often enough that it is worth expecting rather than
 discovering -- `mixed-line-ending` rewrites the file with `--fix=lf` as it
 is staged, so the blob to compare is never the one just fetched.
@@ -212,17 +212,17 @@ Python path (issue 169) is gone. All four pass on either arithmetic:
 `verify_` accepts each, and `sign_` reproduces each signature byte for
 byte.
 
-### BIP327 (MuSig2): eight files under `tests/ecc/_data/`
+### BIP327 (MuSig2): files under `tests/ecc/_data/`
 
-The vectors of `bip-0327/vectors/`, all eight of them, vendored whole
+The vectors of `bip-0327/vectors/`, vendored whole
 and under upstream's own names: `key_sort_vectors.json`,
 `key_agg_vectors.json`, `nonce_gen_vectors.json`,
 `nonce_agg_vectors.json`, `sign_verify_vectors.json`,
 `tweak_vectors.json`, `det_sign_vectors.json` and
 `sig_agg_vectors.json`. Each is pinned below in its own entry, one real
-path per pin, rather than to one placeholder path shared by all eight:
+path per pin, rather than to one placeholder path shared by all of them:
 a placeholder is not a path GitHub's own "commits touching a path" API
-can be asked about, which is what kept every one of the eight out of
+can be asked about, which is what kept every one of them out of
 the weekly check. It also papered over a real difference between
 them: six were untouched since the commit that added all eight,
 `87394eaeb436d02e0a68b38a1e94bc526d50056e` (2023-03-27, "Add BIP327:
@@ -355,7 +355,7 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **identical**.
 
-### BIP324 (ElligatorSwift): two files under `tests/ecc/_data/`
+### BIP324 (ElligatorSwift): files under `tests/ecc/_data/`
 
 `ellswift_decode_test_vectors.csv` and `xswiftec_inv_test_vectors.csv`,
 under upstream's own names, both genuinely tipped by the same commit --
@@ -395,14 +395,14 @@ behind  0 revisions; that commit is the tip of the path
 Verdict: **identical but for line endings**, the same exception, our
 blob `135958f6` rather than the one above.
 
-The two files test the two halves of the map, and both halves are
+The files test the two halves of the map, and both halves are
 btclib's own Python: `tests/ecc/ellswift_test.py` runs the decode file
 against `_xswiftec` and the inverse file against `_xswiftec_inv`, whose
 eight `case` columns are eight assertions per row rather than one — an
 empty cell is a case with no preimage, and asserting that it *has* none
 is what keeps a permissive inverse from passing. The comment column of
 each row names the branch it exercises (`valid_x(x1)`, `non_square(s)`,
-`t>=p`, `info[v=0]`), which is what makes the two files a branch
+`t>=p`, `info[v=0]`), which is what makes the files a branch
 inventory and not a sample.
 
 Neither file covers `create` or `encode`: those pick one of up to eight
@@ -414,11 +414,11 @@ authority named in the entry that has no file to cite.
 directory and is **not** vendored: it is the v2 transport's, which btclib
 does not implement.
 
-### BIP374 (DLEQ): two files under `tests/ecc/_data/`
+### BIP374 (DLEQ): files under `tests/ecc/_data/`
 
 `test_vectors_generate_proof.csv` and `test_vectors_verify_proof.csv`,
 under upstream's own names, which is the whole of `bip-0374/`'s vector
-set. The two are pinned separately below and their pins differ, which is
+set. They are pinned separately below and their pins differ, which is
 the reason a shared one is not offered: the verification file was
 regenerated seven weeks after the generation file, and one pin would have
 had to be wrong about one of them.
@@ -778,15 +778,15 @@ and their five p2sh addresses — appear verbatim in the pinned text, and
 re-checking against the tip on 2026-07-30 and again on 2026-08-06 found no
 sixth group. Nothing to refresh.
 
-### BIP322 (signed messages): two files under `tests/_data/`
+### BIP322 (signed messages): files under `tests/_data/`
 
-The two files of `bip-0322/`, vendored whole and under upstream's own
+The files of `bip-0322/`, vendored whole and under upstream's own
 names: `basic-test-vectors.json` and `generated-test-vectors.json`. One
 commit added both and one has touched them since — `3ab70c98`
 (2026-04-10, "BIP-0322: turn test vectors into JSON, add more") and
 `d77863fb` (2026-05-06, "BIP-0322: update test vectors"), which is the
 tip of both paths — and each is pinned below in its own entry all the
-same, a shared placeholder path being what kept eight BIP327 files out of
+same, a shared placeholder path being what kept the BIP327 files out of
 the weekly check.
 
 Between them they are what `tests/bip322_test.py` runs: three
@@ -1223,8 +1223,8 @@ commit  0f38524c31da4cf69d8e904569fe56292e4325b9  2022-10-30
 pulled  2023-07-12
 ```
 
-Verdict: **composed locally**, not vendored. All 18 descriptors appear
-verbatim in the pinned document; none of the 18 checksums does, because
+Verdict: **composed locally**, not vendored. Descriptors appear
+verbatim in the pinned document; none of their checksums does, because
 Core's document does not list them. They were computed with a third
 implementation, `bdk`'s `descriptor::checksum::get_checksum`, as
 `tests/descriptors_test.py` records — which is the point of the file: the
@@ -1235,8 +1235,8 @@ Nothing to refresh from upstream. A new descriptor needs a checksum from
 somewhere other than btclib.
 
 Checked again on 2026-07-30, against the current document rather than the
-pin: all 18 of ours are still in it, and it still carries no checksum at
-all — not one `descriptor#checksum` pair in the file. It has grown three
+pin: ours are still all in it, and it still carries no checksum at
+all — not one `descriptor#checksum` pair in the file. It has grown
 concrete descriptors we do not hold (a `tr(musig(...))`, a
 `wsh(sortedmulti(...))` and a `wsh(thresh(...))`, the rest of what it shows
 being syntax templates like `sh(SCRIPT)`), and each would need a checksum
@@ -1801,7 +1801,7 @@ extendable-output function having no output length of its own, so
 library does not. The pinned length is `n_size` and any length above it
 is the same test, `challenge_` reading the leftmost `nlen` bits of a
 digest whose longer forms have these very bytes as their prefix --
-measured, all four files verify identically at 32 and at 64.
+measured, all files verify identically at 32 and at 64.
 
 `ecdsa_secp256k1_sha256_bitcoin_test.json` names its own schema now,
 `ecdsa_bitcoin_verify_schema.json`, which upstream added beside it;
@@ -2104,7 +2104,7 @@ sees it, which no RPC hands over. It is derivable —
 `Block.parse(complete).serialize(include_witness=False)` reproduces it
 byte for byte, checked — and that is how to regenerate it.
 
-### `tests/tx/_data/*.bin` — one segwit transaction
+### `tests/tx/_data/*.bin` — segwit transactions
 
 ```text
 txid   d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970
@@ -2241,7 +2241,7 @@ is the same 275 bytes as the hex in `getrawtransaction.json` and
 `esplora_block_header.txt`. `rest_blockhashbyheight.bin` is the one
 exception to "the same bytes another fixture already carries": Core's
 `.bin` answers a block hash in its internal byte order, the reverse of
-every hash `getblockhash.json` and the two `esplora_block*` files carry
+every hash `getblockhash.json` and the `esplora_block*` files carry
 in display order, so this file is `TIP_ID`'s bytes reversed rather than
 its hex decoded — `BitcoinCoreRestFetcher.get_block_header`'s docstring
 is where that reversal is checked against `uint256::GetHex()`.
@@ -2343,7 +2343,7 @@ Pulled 2018-06-01.
 
 ### `tests/psbt/_data/btclib_test_vectors.json`
 
-**btclib's own, composed rather than copied.** Seven cases that no BIP
+**btclib's own, composed rather than copied.** Cases that no BIP
 publishes: each is a psbt btclib must refuse, and what it must say. There
 is no upstream URL to give, because there is no upstream — inventing one
 is the failure mode this entry exists to prevent.
@@ -2404,7 +2404,7 @@ Composed 2026-08-02.
 - **`tests/script/_data/script_assets_test.json`** has a commit, but
   in a repository that rewrites its history. The blob SHA-1 is the pin
   that will still resolve next year.
-- **The six transcribed files** are pinned to a prose revision, not to a
+- **The transcribed files** are pinned to a prose revision, not to a
   blob, so "identical" is not a claim that can be made about them. What
   was checked instead is stated in each entry: every value present,
   verbatim, in the pinned text.
@@ -2447,13 +2447,13 @@ Against a pinned upstream blob:
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `siphash.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
-  `bip39_test_vectors.json`, the eight BIP327 vector files,
+  `bip39_test_vectors.json`, the BIP327 vector files,
   `send_and_receive_test_vectors.json`, `bip375_test_vectors.json`, and
   the Wycheproof vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
-- identical but for CRLF against LF: `bip340_test_vectors.csv`, the two
-  BIP324 vector files and the two BIP374 vector files -- every csv
+- identical but for CRLF against LF: `bip340_test_vectors.csv`, the
+  BIP324 vector files and the BIP374 vector files -- every csv
   vendored from bitcoin/bips, so far.
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
@@ -2483,6 +2483,6 @@ No upstream blob exists for the rest:
 
 ### Left for a maintainer to decide
 
-- **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
+- **Descriptors of Core's `doc/descriptors.md` are not vendored**,
   and cannot be without a checksum from a third implementation. See that
   entry.
