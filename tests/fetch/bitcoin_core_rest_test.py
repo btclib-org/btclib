@@ -29,6 +29,7 @@ from bitcoin_core_rpc import (
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
 from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestFetcher
+from btclib.fetch.broadcaster import Broadcaster
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
@@ -461,3 +462,19 @@ def test_a_challenge_that_is_no_script_fails_at_the_constructor() -> None:
     """Derived and thrown away there, so it fails where it was written."""
     with pytest.raises((BTClibValueError, FetchError)):
         BitcoinCoreRestFetcher(client(), "signet", signet_challenge="not hex")
+
+
+def test_bitcoin_core_rest_fetcher_does_not_satisfy_broadcaster() -> None:
+    """A mypy fact and not a runtime one: `-rest` has no write method.
+
+    `Broadcaster` is not `runtime_checkable`, so an `isinstance` check
+    would either raise or, marked checkable, pass on the method name
+    `broadcast` alone without asking about the contract behind it --
+    neither is the question. What actually says this class is not one is
+    the assignment below failing under `strict = true`'s
+    `warn_unused_ignores`: the `# type: ignore[assignment]` is only valid
+    while `BitcoinCoreRestFetcher` really has no `broadcast`, and mypy
+    fails the line the day that stops being true.
+    """
+    rest = BitcoinCoreRestFetcher(client(), verify_network=False)
+    _not_a_broadcaster: Broadcaster = rest  # type: ignore[assignment]

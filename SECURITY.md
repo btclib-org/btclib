@@ -362,7 +362,11 @@ used to teach and to prototype as much as to build:
     explorer also learns every txid and outpoint you look up, which is a
     good deal of what a wallet is; btclib names a public deployment as a
     constant and never as a default, so nothing here contacts anyone
-    until a caller writes the endpoint down
+    until a caller writes the endpoint down. `Broadcaster.broadcast` is a
+    write and not idempotent: what it checks is that the backend named
+    the txid this code computed from the transaction handed to it, and
+    nothing checks that the transaction went on to propagate beyond
+    whichever peer or node answered
 - **rpc credentials.** They are passed as arguments and refused in the
     url, so that a password is not carried in a string that ends up in
     config files, tracebacks and logs. bitcoind's `.cookie` needs none at

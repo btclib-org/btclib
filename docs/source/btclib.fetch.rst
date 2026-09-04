@@ -34,6 +34,13 @@ btclib.fetch.bitcoin_core_rest integration module
    :show-inheritance:
    :exclude-members: BitcoinCoreRestClient
 
+btclib.fetch.broadcaster module
+-------------------------------
+
+.. automodule:: btclib.fetch.broadcaster
+   :members:
+   :show-inheritance:
+
 btclib.fetch.decorators module
 ------------------------------
 

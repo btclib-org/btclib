@@ -61,8 +61,10 @@ def client_errors() -> Iterator[None]:
     `btclib.exceptions` declares, and an `except FetchError` written
     against btclib does not catch them. This is the one place the
     two meet, and every call that crosses into the package goes through
-    it: the fetches, by way of `EsploraFetcher.text`,
-    `BitcoinCoreFetcher._call` and
+    it: the fetches and the broadcasts alike, by way of
+    `EsploraFetcher._request` -- `text` and `broadcast` both going
+    through it -- `BitcoinCoreFetcher._call`, which `broadcast` uses the
+    same as every other method there, and
     `BitcoinCoreRestFetcher._get_bin`/`_get_json`; the constructors that
     derive a signet challenge before any fetch; and
     `BitcoinCoreFetcher.assert_network`, which reaches `assert_chain`

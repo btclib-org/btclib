@@ -205,6 +205,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "verify_network",
         "signet_challenge",
     ],
+    "btclib.fetch:BitcoinCoreFetcher.broadcast": ["maxfeerate"],
     "btclib.fetch:BitcoinCoreRpcClient.__init__": [
         "user",
         "password",

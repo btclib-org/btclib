@@ -116,6 +116,35 @@ documented at release-notes length in the first place, and are still in
   commitment already made stops opening, with no version byte to switch
   on. RELEASE_NOTES.md has what to act on.
 
+### `Broadcaster`, a typed announce over the two fetchers that can
+
+- **`btclib.fetch.broadcaster` adds `Broadcaster`, a `typing.Protocol`
+  with one method, `broadcast(tx: Tx) -> bytes`** (closes #1584).
+  `Fetcher` only reads the chain; this is the write, and a separate
+  protocol rather than a fifth abstract method because not every backend
+  that answers `Fetcher`'s four questions can announce a transaction --
+  Core's `-rest` interface is read-only, so `BitcoinCoreRestFetcher`
+  does not satisfy it, where `BitcoinCoreFetcher` and `EsploraFetcher`
+  do.
+- **The txid is computed from the transaction before the request, and a
+  success naming any other txid is refused as a `FetchError`.** One
+  request and no retry: after a timeout, neither implementation can tell
+  a transaction that never arrived from one that did and whose
+  acknowledgement was merely lost, so retrying is left to the caller.
+- **`BitcoinCoreFetcher.broadcast` sends `sendrawtransaction`, checking
+  the chain first through `_verify_once`** the way every other method on
+  this class does, and takes `maxfeerate` as an optional keyword-only
+  argument, forwarded exactly as given rather than defaulted: Core's own
+  default refuses a fee a caller may have deliberately chosen.
+- **`EsploraFetcher.broadcast` sends `POST /tx`, the wire serialization
+  as the body, the txid as the text answer** -- the fetcher's first POST,
+  sharing the bounded read, the `transport` seam and the `client_errors`
+  translation with the GET requests its other four methods make.
+- **A refusal keeps its reason.** Core's `RpcError` code and message, an
+  Esplora deployment's 400 body, both reach the caller through
+  `fetcher.client_errors` unchanged, neither reshaped into a code common
+  to both backends.
+
 ## v2026.9.3
 
 ### Repository

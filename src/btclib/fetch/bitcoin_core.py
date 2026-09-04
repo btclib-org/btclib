@@ -34,7 +34,7 @@ from typing_extensions import override
 
 from btclib.alias import Octets
 from btclib.block.block_header import BlockHeader
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, FetchError
 from btclib.fetch.fetcher import (
     Fetcher,
     block_header_from_raw,
@@ -64,6 +64,12 @@ _MAX_SMALL_REPLY = 1024
 
 class BitcoinCoreFetcher(Fetcher):
     """The four fetcher questions, answered by a node over its RPC.
+
+    Also a `Broadcaster`: `broadcast` sends `sendrawtransaction`, which
+    `-rest` -- and so `BitcoinCoreRestFetcher` -- has no equivalent of.
+    Holding a fetcher is not broadcasting; a caller has to call the
+    method, and `broadcast`'s own docstring is where its non-idempotence
+    is stated, at the point a caller meets it.
 
     The client is a constructor argument rather than a set of connection
     arguments repeated here: one class owns the endpoint and credentials,
@@ -268,3 +274,45 @@ class BitcoinCoreFetcher(Fetcher):
                 chain_from_network(self.network),
                 signet_challenge=self.signet_challenge,
             )
+
+    def broadcast(self, tx: Tx, *, maxfeerate: float | None = None) -> bytes:
+        """Announce `tx` to the node, and return the txid it confirmed.
+
+        `_verify_once` is called first, as every other method here calls
+        it -- but a broadcast to a node on the wrong chain is the worst
+        version of the silent failure `verify_network` exists to catch: a
+        fetch answering with the wrong data is corrected on the next
+        read, where a signed transaction fanned out to the wrong network's
+        peers cannot be called back.
+
+        `sendrawtransaction` with the wire serialization, witness
+        included -- what a peer relays and eventually mines, not the
+        stripped form `Tx.id` hashes. `maxfeerate` is forwarded exactly as
+        given, an absent one leaving the parameter out of the call rather
+        than substituting a value of this method's choosing: Core's own
+        default (`DEFAULT_MAX_RAW_TX_FEE_RATE`) refuses a fee a caller may
+        have deliberately chosen, so a default written here would refuse
+        it on the caller's behalf.
+
+        The id is computed from `tx` before the request, the way
+        `tx_from_raw` recomputes one from a fetched serialization: a
+        success naming a different txid is a `FetchError`, the node
+        having confirmed some other transaction. One request and no
+        retry -- after a timeout this method cannot tell a transaction
+        that never reached the mempool from one that did and whose
+        acknowledgement was merely lost on the way back, so trying again
+        could announce the same signed spend twice for no information
+        gained. That decision is the caller's, made with whatever else it
+        can ask the node.
+        """
+        self._verify_once()
+        txid = tx.id
+        hex_ = tx.serialize(include_witness=True).hex()
+        params: list[Any] = [hex_] if maxfeerate is None else [hex_, maxfeerate]
+        reply = self._call("sendrawtransaction", params, max_body_size=_MAX_SMALL_REPLY)
+        with fetch_errors("sendrawtransaction"):
+            answered = bytes_from_octets(reply, 32)
+        if answered != txid:
+            err_msg = f"broadcast {txid.hex()}: the node confirmed {answered.hex()}"
+            raise FetchError(err_msg)
+        return answered
