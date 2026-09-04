@@ -92,7 +92,7 @@ def _wif_network(prefix: bytes, network: str | None) -> str:
     # regtest, signet and testnet4 all use, so comparing names would
     # reject a signet WIF as "not a signet wif: prefix 0xef" --
     # naming the very prefix signet asks for (issue #207).
-    # `to_prv_key._prv_keyinfo_from_xprv` makes the same membership check
+    # `bip32.prv_keyinfo_from_xprv` makes the same membership check
     if prefix != network_from_name(network).wif:
         raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
     # the declared network, not the lookup's guess: for a caller who

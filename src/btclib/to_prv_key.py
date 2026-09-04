@@ -13,20 +13,16 @@ reach a parser living there (issue #1188).
 from __future__ import annotations
 
 from btclib.alias import Octets
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    _key_data_from_bip32_key,
+    _prv_keyinfo_from_xprv,
+)
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import _assert_valid_ec
-from btclib.exceptions import (
-    BTClibTypeError,
-    BTClibValueError,
-    InvalidPrvKeyError,
-    NotAPrvKeyError,
-)
-from btclib.network import (
-    network_from_name,
-    network_from_xkeyversion,
-    xprvversions_from_network,
-)
+from btclib.exceptions import BTClibTypeError, BTClibValueError, NotAPrvKeyError
+from btclib.network import network_from_name
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -102,13 +98,13 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     if isinstance(prv_key, int):
         q = prv_key
     elif isinstance(prv_key, BIP32KeyData):
-        q, network, _ = _prv_keyinfo_from_xprv(prv_key, None, None)
+        q, network, _ = _prv_keyinfo_if_xprv(prv_key, None, None)
         # q has been validated on the xprv network
         return _q_if_network_and_ec_match(q, network, ec)
     else:
         reasons = []
         try:
-            q, network, _ = _prv_keyinfo_from_xprv(prv_key, None, None)
+            q, network, _ = _prv_keyinfo_if_xprv(prv_key, None, None)
         except NotAPrvKeyError as e:
             # an InvalidPrvKeyError is not caught: the format was
             # recognised, so trying the input as octets and reporting "not
@@ -156,58 +152,39 @@ def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
 PrvkeyInfo = tuple[int, str, bool]
 
 
-def _prv_keyinfo_from_xprv(
+def _prv_keyinfo_if_xprv(
     xprv: BIP32Key, network: str | None, compressed: bool | None
 ) -> PrvkeyInfo:
-    """Return prv_key tuple (int, compressed, network) from BIP32 xprv.
+    """Return `bip32.prv_keyinfo_from_xprv`, or say it is another format.
 
-    BIP32Key is always compressed and includes network information: here
-    the 'network, compressed' input parameters are passed only to allow
-    consistency checks.
+    The parse is bip32's and the guessing is this module's, which is the
+    whole of what this adds: base58, 78 bytes, and a known xkey version
+    or not -- a negative answer leaves the input free to be octets or an
+    int, so it is NotAPrvKeyError, carrying the reason rather than
+    discarding it. A fault inside a key that did decode is an
+    InvalidPrvKeyError and stops the guessing, which is why the decode
+    and not the whole call is what is caught here.
+
+    Both classes on the decode, as everywhere a format is guessed here: a
+    type the decode refuses says this is not an xkey, not that the caller
+    is owed a TypeError from inside the guessing.
+
+    `bip32._prv_keyinfo_from_xprv` and not the public spelling beside it:
+    the decode above is the validation that one makes, and asking for it
+    again validates the key a second time. An xpub decodes here and is
+    declined a frame later, and `_assert_valid_key`'s on-curve test is
+    most of what validating one costs.
     """
     if isinstance(xprv, BIP32KeyData):
         # the caller has already committed to the format by building one
-        xprv = _key_data_from_bip32_key(xprv)
+        key_data = _key_data_from_bip32_key(xprv)
     else:
-        # base58, 78 bytes, and a known xkey version or not: a negative
-        # answer leaves the input free to be octets or an int, so it is
-        # NotAPrvKeyError, carrying the reason rather than discarding it.
-        # Both classes, as everywhere a format is guessed here: a type the
-        # decode refuses says this is not an xkey, not that the caller is
-        # owed a TypeError from inside the guessing
         try:
-            xprv = _key_data_from_bip32_key(xprv)
+            key_data = _key_data_from_bip32_key(xprv)
         except (TypeError, ValueError) as e:
             raise NotAPrvKeyError(f"not a BIP32 xkey ({e})") from e
 
-    # a BIP32 key is always compressed, so a caller asking for uncompressed
-    # is asking about another format. This follows the decode rather than
-    # preceding it: for a str or bytes input the decode is what decides
-    # whether there is an xkey here at all, and 32 raw bytes with
-    # compressed=False are octets -- which the guessing callers must
-    # stay free to try, or every uncompressed SEC key stops resolving
-    if compressed is not None and not compressed:
-        raise InvalidPrvKeyError("uncompressed SEC / compressed BIP32 mismatch")
-
-    # from here it is an xkey, so what follows is a fault in one
-    if xprv.key[0] != 0:
-        # the offending key is public here, but never echo a
-        # serialized xkey: the prefix already says what is wrong
-        err_msg = f"not a private key: prefix 0x{xprv.key[:1].hex()}"
-        raise InvalidPrvKeyError(err_msg)
-
-    if network is None:
-        network = network_from_xkeyversion(xprv.version)
-
-    allowed_versions = xprvversions_from_network(network)
-    if xprv.version not in allowed_versions:
-        # never echo the xprv, which is a private key:
-        # the version is the mismatching, non-secret, part
-        err_msg = f"not a {network} key: version 0x{xprv.version.hex()}"
-        raise InvalidPrvKeyError(err_msg)
-
-    q = int.from_bytes(xprv.key[1:], byteorder="big")
-    return q, network, True
+    return _prv_keyinfo_from_xprv(key_data, network, compressed)
 
 
 def prv_keyinfo_from_prv_key(
@@ -233,12 +210,12 @@ def prv_keyinfo_from_prv_key(
     if isinstance(prv_key, int):
         q = prv_key
     elif isinstance(prv_key, BIP32KeyData):
-        return _prv_keyinfo_from_xprv(prv_key, network, compressed)
+        return _prv_keyinfo_if_xprv(prv_key, network, compressed)
     else:
         reasons = []
         # NotAPrvKeyError only, letting an InvalidPrvKeyError through
         try:
-            return _prv_keyinfo_from_xprv(prv_key, network, compressed)
+            return _prv_keyinfo_if_xprv(prv_key, network, compressed)
         except NotAPrvKeyError as e:
             reasons.append(str(e))
         # it must be octets

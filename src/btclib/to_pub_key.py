@@ -9,7 +9,11 @@ from __future__ import annotations
 import contextlib
 
 from btclib.alias import Octets, Point
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, _key_data_from_bip32_key
+from btclib.bip32.bip32 import (
+    BIP32KeyData,
+    point_from_xpub,
+    pub_keyinfo_from_xpub,
+)
 from btclib.curves import (
     Curve,
     PreparedPoint,
@@ -22,12 +26,7 @@ from btclib.curves import (
 from btclib.curves.curve import _assert_valid_ec
 from btclib.curves.sec_point import _sec_from_octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.network import (
-    curve_from_xkeyversion,
-    network_from_name,
-    network_from_xkeyversion,
-    xpubversions_from_network,
-)
+from btclib.network import network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import assert_type, bytes_from_octets
 
@@ -43,7 +42,7 @@ __all__ = [
 ]
 
 # public key inputs:
-# elliptic curve point as Union[Octets, BIP32Key, Point, PreparedPoint]
+# elliptic curve point as Union[Octets, BIP32KeyData, Point, PreparedPoint]
 PubKey = Octets | BIP32KeyData | Point | PreparedPoint
 
 # public or private key input,
@@ -123,20 +122,6 @@ def _assert_key_type(key: Key) -> None:
         raise BTClibTypeError("not a private or public key")
 
 
-def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
-    """Return an elliptic curve point tuple from a xpub key."""
-    xpub = _key_data_from_bip32_key(xpub)
-
-    if xpub.is_private:
-        # never echo the key, which is private here:
-        # the prefix already says what is wrong
-        raise BTClibValueError(f"not a public key: prefix 0x{xpub.key[:1].hex()}")
-    ec2 = curve_from_xkeyversion(xpub.version)
-    if ec != ec2:
-        raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
-    return point_from_octets(xpub.key, ec)
-
-
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     """Return a point tuple from any possible key representation.
 
@@ -184,9 +169,9 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
             return pub_key[0], pub_key[1]
         raise BTClibValueError(f"not a valid public key: {pub_key}")
     if isinstance(pub_key, BIP32KeyData):
-        return _point_from_xpub(pub_key, ec)
+        return point_from_xpub(pub_key, ec)
     with contextlib.suppress(TypeError, BTClibValueError):
-        return _point_from_xpub(pub_key, ec)
+        return point_from_xpub(pub_key, ec)
     # it must be octets
     try:
         return point_from_octets(pub_key, ec)
@@ -198,40 +183,6 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 
 # public key bytes representation, network
 PubkeyInfo = tuple[bytes, str]
-
-
-def _pub_keyinfo_from_xpub(
-    xpub: BIP32Key, network: str | None, compressed: bool | None
-) -> PubkeyInfo:
-    """Return the pub_key tuple (SEC-bytes, network) from a BIP32 xpub.
-
-    BIP32Key is always compressed and includes network information: here
-    the 'network, compressed' input parameters are passed only to allow
-    consistency checks.
-    """
-    compressed = True if compressed is None else compressed
-    if not compressed:
-        raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
-
-    xpub = _key_data_from_bip32_key(xpub)
-
-    if xpub.key[0] not in {2, 3}:
-        # this branch is reached with an xprv: never echo it,
-        # the prefix already says what is wrong
-        err_msg = f"not a public key: prefix 0x{xpub.key[:1].hex()}"
-        raise BTClibValueError(err_msg)
-
-    if network is None:
-        return xpub.key, network_from_xkeyversion(xpub.version)
-
-    allowed_versions = xpubversions_from_network(network)
-    if xpub.version not in allowed_versions:
-        # an xpub is not funds-critical, but it derives all child pub
-        # keys: keep it out of exception messages (and logs) too
-        err_msg = f"Not a {network} key: version 0x{xpub.version.hex()}"
-        raise BTClibValueError(err_msg)
-
-    return xpub.key, network
 
 
 def pub_keyinfo_from_key(
@@ -372,9 +323,9 @@ def _pub_keyinfo_from_pub_key(
     if isinstance(pub_key, tuple):
         return (bytes_from_point(pub_key, ec, compr), net), False
     if isinstance(pub_key, BIP32KeyData):
-        return _pub_keyinfo_from_xpub(pub_key, network, compressed), False
+        return pub_keyinfo_from_xpub(pub_key, network, compressed), False
     with contextlib.suppress(TypeError, BTClibValueError):
-        return _pub_keyinfo_from_xpub(pub_key, network, compressed), False
+        return pub_keyinfo_from_xpub(pub_key, network, compressed), False
     # it must be octets, and compressed is a filter on which form they may
     # be in rather than a conversion to it: the size below is required of
     # the input, so octets that pass come back in the form they came in

@@ -78,7 +78,12 @@ from typing import Any
 
 import pytest
 
-from btclib.bip32.bip32 import BIP32KeyData, rootxprv_from_seed, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP32KeyData,
+    point_from_xpub,
+    rootxprv_from_seed,
+    xpub_from_xprv,
+)
 from btclib.consensus import CONSENSUS_PARAMS
 from btclib.curves import CurveGroup, secp256k1
 from btclib.curves.curve import (
@@ -116,6 +121,7 @@ _PRV_KEY = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 _PRV_KEY_2, _PUB_KEY_2 = dsa.gen_keys(_PRV_KEY + 1)
 _PUB_KEY = mult(_PRV_KEY)
 _SEC = bytes_from_point(_PUB_KEY)
+_XPUB = xpub_from_xprv(rootxprv_from_seed("00" * 32))
 _MSG = b"Satoshi Nakamoto"
 _MSG_HASH = sha256(_MSG).digest()
 _DSA_SIG = dsa.sign(_MSG, _PRV_KEY)
@@ -374,6 +380,10 @@ _CASES = (
     ),
     _Case("btclib.ecc.ssa.sign_", ssa.sign_, {"msg": _MSG, "prv_key": _PRV_KEY}),
     _Case("btclib.ecc.ssa.sign", ssa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}),
+    # the extended-key parse, which compares `ec` against the curve the
+    # version bytes name rather than computing in it: `point_from_pub_key`
+    # below reaches it for an xpub
+    _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),
     _Case(
         "btclib.to_prv_key.int_from_prv_key",
         int_from_prv_key,

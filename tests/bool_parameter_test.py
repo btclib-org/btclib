@@ -106,6 +106,8 @@ from btclib.bip32.bip32 import (
     derive_from_account_,
     derive_from_account_range,
     derive_from_account_range_,
+    prv_keyinfo_from_xprv,
+    pub_keyinfo_from_xpub,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
@@ -286,7 +288,7 @@ class _Case:
     # the classification, which is prose because it is a judgement: for a
     # truth what the flag turns on and what it therefore cannot change,
     # and for a kind only where the kind is the polarity rather than the
-    # answer, three flags below being that
+    # answer -- the flags carrying one below are those
     reason: str = ""
 
 
@@ -760,7 +762,7 @@ _KINDS = (
         {},
         valid=INSTALLED,
     ),
-    # The three below decide no answer, which every kind above does, and
+    # The ones below decide no answer, which every kind above does, and
     # are here for the other half of the line: their `True` is the
     # permissive value. A truth is safe because a non-bool is true and
     # its `True` is the conservative one -- `verify_checksum="no"` checks
@@ -817,6 +819,28 @@ _KINDS = (
         " value: one octet for True or False and none for None, so a"
         " non-bool would serialize as the True a peer reading it takes"
         " for a request to relay transactions",
+    ),
+    # the two extended-key parses. Their `compressed` computes nothing --
+    # a BIP32 key is compressed, so the flag is a check on a key that has
+    # already answered the question -- and it is the polarity that makes
+    # each a kind
+    _Case(
+        "btclib.bip32.bip32.prv_keyinfo_from_xprv",
+        "compressed",
+        prv_keyinfo_from_xprv,
+        {"xprv": _ROOT_XPRV},
+        optional=True,
+        reason="`True` is the value an extended key already has, so a"
+        " non-bool passes the check a False was written down to fail and"
+        " an uncompressed key is reported as this compressed one",
+    ),
+    _Case(
+        "btclib.bip32.bip32.pub_keyinfo_from_xpub",
+        "compressed",
+        pub_keyinfo_from_xpub,
+        {"xpub": _XPUB},
+        optional=True,
+        reason="`prv_keyinfo_from_xprv`'s above, on the public half",
     ),
 )
 

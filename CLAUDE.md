@@ -49,11 +49,14 @@ on `to_pub_key`. `b58` depends on `to_pub_key` too, but not on
 `b58`'s own object, read by `b58.prv_key_data_from_wif` and written by
 `b58.wif_from_prv_key`, and `to_prv_key` -- which sits below `b58`
 through `to_pub_key` -- has no way back up to a parser living above it
-(issue #1188). `slip132` therefore sits above the address encodings,
-beside `bip44`. `mnemonic/`, `script/`, `tx/`, `block/`, `psbt/` and
-`descriptors` build on those layers. `alias.py` holds the type aliases
-the public API accepts, and much of the surface takes "anything
-convertible" rather than one type.
+(issue #1188). An extended key is read the same way round: `bip32`
+defines the format, so `bip32.prv_keyinfo_from_xprv`,
+`bip32.pub_keyinfo_from_xpub` and `bip32.point_from_xpub` are the parse,
+and the two converters call them. `slip132` therefore sits above the
+address encodings, beside `bip44`. `mnemonic/`, `script/`, `tx/`,
+`block/`, `psbt/` and `descriptors` build on those layers. `alias.py`
+holds the type aliases the public API accepts, and much of the surface
+takes "anything convertible" rather than one type.
 
 Each of those pairs is one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
