@@ -5,10 +5,11 @@
 """`tx` and `block`: the two messages that deliver what a `getdata` named.
 
 Bitcoin Core's `msg_tx` and `msg_block`, of
-test/functional/test_framework/messages.py: one transaction and one
-block, each serialized exactly as it is serialized anywhere else. So the
-wire format is `btclib.tx`'s and `btclib.block`'s, and what is left for
-this module is the one thing those two leave open.
+test/functional/test_framework/messages.py, whose revision `TF2.md`
+pins: one transaction and one block, each serialized exactly as it is
+serialized anywhere else. So the wire format is `btclib.tx`'s and
+`btclib.block`'s, and what is left for this module is the one thing
+those two leave open.
 
 **`include_witness` is a field of the payload, not an argument of
 `serialize`.** `Tx.serialize` and `Block.serialize` take it, and on the

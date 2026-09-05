@@ -12,8 +12,9 @@ asks for every thousandth filter header and is answered by a `cfcheckpt`.
 BIP157 is the specification, and its field tables are the wire form; the
 layout Core writes is test/functional/test_framework/messages.py's
 `msg_getcfilters`, `msg_cfilter`, `msg_getcfheaders`, `msg_cfheaders`,
-`msg_getcfcheckpt` and `msg_cfcheckpt`, and the handlers reading them are
-`ProcessGetCFilters`, `ProcessGetCFHeaders` and `ProcessGetCFCheckPt` of
+`msg_getcfcheckpt` and `msg_cfcheckpt` -- `TF2.md` pins that file's
+revision -- and the handlers reading them are `ProcessGetCFilters`,
+`ProcessGetCFHeaders` and `ProcessGetCFCheckPt` of
 src/net_processing.cpp.
 
 **A `cfilter` holds the filter as octets, not as a `BasicBlockFilter`.**

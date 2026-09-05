@@ -10,7 +10,8 @@ trip that fills what the receiver had not got. BIP152 is the
 specification and its field tables are the wire form; Core's
 src/blockencodings.h and .cpp are the implementation, and its
 test/functional/test_framework/messages.py's `msg_sendcmpct`,
-`msg_cmpctblock`, `msg_getblocktxn` and `msg_blocktxn` the layout.
+`msg_cmpctblock`, `msg_getblocktxn` and `msg_blocktxn` the layout;
+`TF2.md` pins that file's revision.
 
 **This is the one module of the package that carries an algorithm**, and
 the algorithm rather than the layout is where a compact block goes wrong:

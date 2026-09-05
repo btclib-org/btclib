@@ -6,8 +6,9 @@
 
 The vectors are the ones the authors of RIPEMD-160 publish at
 https://homes.esat.kuleuven.be/~bosselae/ripemd160.html, as the vendored
-upstream carries them in its own unittest -- bitcoin/bitcoin at 08a4a56c,
-test/functional/test_framework/crypto/ripemd160.py.
+upstream carries them in its own unittest -- Bitcoin Core's
+test/functional/test_framework/crypto/ripemd160.py, whose revision
+`TF2.md` pins.
 
 Eight of that upstream's nine. The ninth is 10^6 times "a", and in pure
 Python it takes 1.5 s, which would make it the slowest test in this suite

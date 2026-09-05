@@ -5,9 +5,10 @@
 """The two messages a connection opens with: `version` and `verack`.
 
 Bitcoin Core's `msg_version` and `msg_verack`, of
-test/functional/test_framework/messages.py, read against what
-`net_processing.cpp` actually does with the octets -- which is not the
-same thing, and the difference is this module's one hard decision.
+test/functional/test_framework/messages.py (`TF2.md` pins the
+revision), read against what `net_processing.cpp` actually does with the
+octets -- which is not the same thing, and the difference is this
+module's one hard decision.
 
 **`version`'s trailing fields are conditional, and the conditional is not
 the protocol version.** Core's test framework reads the relay flag `if

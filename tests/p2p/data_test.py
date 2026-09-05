@@ -29,8 +29,9 @@ own header, which anybody can recompute over anything; a mainnet header
 is pinned by its proof of work, so no other eighty octets hash below the
 target it declares. `assert_valid_pow` is that check, run here.
 
-Everything else is a round trip, a refusal, or a reading of BIP144 and of
-Core's test/functional/test_framework/messages.py.
+Everything else is a round trip, a refusal, or a reading of BIP144 and
+of Core's test/functional/test_framework/messages.py, whose revision
+`TF2.md` pins.
 """
 
 from __future__ import annotations

@@ -232,12 +232,13 @@ def input_weight(script_sig: Octets, witness: Witness | None = None) -> int:
     """Return the weight one input adds to a transaction, per BIP141.
 
     Bitcoin Core's `calculate_input_weight`, of
-    test/functional/test_framework/wallet_util.py: the non-witness bytes
-    weigh WITNESS_SCALE_FACTOR each -- the 36-byte outpoint, the
-    script_sig behind its var_int length, the 4-byte sequence -- and the
-    serialized witness stack weighs one each. Which output is spent and
-    what the sequence says do not enter the answer, both fields being
-    fixed-width, so neither is an argument.
+    test/functional/test_framework/wallet_util.py, whose revision
+    `TF2.md` pins: the non-witness bytes weigh WITNESS_SCALE_FACTOR each
+    -- the 36-byte outpoint, the script_sig behind its var_int length,
+    the 4-byte sequence -- and the serialized witness stack weighs one
+    each. Which output is spent and what the sequence says do not enter
+    the answer, both fields being fixed-width, so neither is an
+    argument.
 
     It is computable before the input exists, which is the point: a fee
     is chosen before the transaction is signed, so the weight the fee is

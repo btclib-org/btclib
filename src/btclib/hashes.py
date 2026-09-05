@@ -164,12 +164,12 @@ def siphash(k0: int, k1: int, octets: Octets) -> int:
     k0 and k1 are the two 64-bit words of the key, in the order Core's
     `CSipHasher(k0, k1)` takes them (`crypto/siphash.h`) and its Python
     mirror `siphash(k0, k1, data)`
-    (`test/functional/test_framework/crypto/siphash.py`) reads them out
-    of a key: two rounds of compression per eight-byte word of octets,
-    padded with a trailing byte counting the input length mod 256, and
-    four rounds of finalization. The result is an unsigned 64-bit
-    integer, `v0 ^ v1 ^ v2 ^ v3` of the finalized state, never negative
-    and never wider than 8 bytes.
+    (`test/functional/test_framework/crypto/siphash.py`; `TF2.md` pins
+    the revision) reads them out of a key: two rounds of compression
+    per eight-byte word of octets, padded with a trailing byte counting
+    the input length mod 256, and four rounds of finalization. The
+    result is an unsigned 64-bit integer, `v0 ^ v1 ^ v2 ^ v3` of the
+    finalized state, never negative and never wider than 8 bytes.
 
     A hash keyed on a peer- or block-derived secret and not a
     general-purpose digest: BIP158's filter and BIP152's short

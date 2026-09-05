@@ -557,7 +557,8 @@ class PrecomputedTxData:
         return sha256(self.sha_outputs)
 
 
-# https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
+# Core's `SegwitV0SignatureHash`, of
+# test/functional/test_framework/script.py; `TF2.md` pins the revision
 def segwit_v0(
     script_code: Octets,
     tx: Tx,

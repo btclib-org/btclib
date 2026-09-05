@@ -23,9 +23,10 @@ candidate cannot pass, and which `mining.candidate_block_header` has
 already asked of the header the same way `BlockHeader` always does.
 `build_block`'s own docstring has why the two remaining rules are left
 to the caller. A caller wanting a block that is invalid on purpose, the
-way Bitcoin Core's own `test_framework.blocktools.create_block` is
-meant to be driven into invalid states, builds a `Tx` or a `Block` by
-hand with `check_validity=False` and mutates the result, exactly as a
+way Bitcoin Core's `create_block`
+(`test/functional/test_framework/blocktools.py`; `TF2.md` pins the
+revision) is meant to be driven into invalid states, builds a `Tx` or a
+`Block` by hand with `check_validity=False` and mutates the result, as a
 caller already does for a regtest block whose proof-of-work `mainnet`'s
 own default limit would refuse.
 """
@@ -73,9 +74,9 @@ def build_coinbase(
     """Return a coinbase transaction paying the subsidy at `height`, plus fees.
 
     Bitcoin Core's `create_coinbase`
-    (`test/functional/test_framework/blocktools.py`, at
-    bitcoin/bitcoin@9be056a8a7): a null-outpoint input committing to
-    `height` (BIP34, `bip34_commitment`) and one output paying
+    (`test/functional/test_framework/blocktools.py`; `TF2.md` pins the
+    revision): a null-outpoint input committing to `height` (BIP34,
+    `bip34_commitment`) and one output paying
     `consensus.subsidy(height, halving_interval) + fees` to
     `script_pub_key`. `halving_interval` defaults to mainnet's own;
     a caller building for another network passes that network's own row
