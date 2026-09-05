@@ -600,8 +600,8 @@ def prv_keyinfo_from_xprv(
     # a BIP32 key is always compressed, so a caller asking for
     # uncompressed is asking about another format. This follows the
     # decode rather than preceding it, so that what it answers is a fault
-    # in a key that did decode -- an `InvalidPrvKeyError` -- where text
-    # that is no xkey has already left as the decode's own refusal
+    # in a key that did decode, where text that is no xkey has already
+    # left as the decode's own refusal
     if compressed is not None and not compressed:
         raise InvalidPrvKeyError("uncompressed SEC / compressed BIP32 mismatch")
 
@@ -642,12 +642,15 @@ def pub_keyinfo_from_xpub(
     """
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
-        # a BIP32 key is always compressed, so a caller asking for
-        # uncompressed is asking about another format
-        if not compressed:
-            raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
 
-    return _pub_keyinfo_from_xpub(_key_data_from_bip32_key(xpub), network)
+    xpub_data = _key_data_from_bip32_key(xpub)
+
+    # `prv_keyinfo_from_xprv`'s refusal above, on the public half, and
+    # after the decode for the reason stated there
+    if compressed is not None and not compressed:
+        raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
+
+    return _pub_keyinfo_from_xpub(xpub_data, network)
 
 
 def _pub_keyinfo_from_xpub(
@@ -662,8 +665,9 @@ def _pub_keyinfo_from_xpub(
     validating an extended public key costs. `prv_keyinfo_from_xprv`
     above has no such second caller and is one function.
 
-    No `compressed`: the argument is a consistency check the public
-    spelling makes before there is a key to make it against.
+    No `compressed`: the argument is a consistency check
+    `pub_keyinfo_from_xpub` makes on the key it has decoded, before
+    calling here.
     """
     if xpub_data.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,

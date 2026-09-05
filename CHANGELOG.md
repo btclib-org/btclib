@@ -788,6 +788,23 @@ file of the test tree, and no caller acts on it.
   produce their scalar with, which neither has done since either took
   `curves.scalar_from_prv_key`.
 
+### `pub_keyinfo_from_xpub` answers about `compressed` once the key has decoded
+
+- **`bip32.pub_keyinfo_from_xpub` tests `compressed` after the decode**
+  (closes #1721), which is the order `prv_keyinfo_from_xprv` beside it
+  reads in and states the reason for: what the check answers is then a
+  fault in a key that did decode, where text that is no extended key has
+  already left as the decode's own refusal.
+  `pub_keyinfo_from_xpub("not an xkey", compressed=False)` raises
+  `Base58 string contains invalid characters` where it raised
+  `uncompressed SEC / compressed BIP32 mismatch`, so a caller handed a
+  garbled key is told about the key rather than about the argument it
+  also passed.
+- **`_pub_keyinfo_from_xpub`'s docstring names `compressed` as the check
+  `pub_keyinfo_from_xpub` makes on the key it has decoded**, in place of
+  the account it gave of a check made before there is a key to make it
+  against.
+
 ## v2026.9.3
 
 ### Repository

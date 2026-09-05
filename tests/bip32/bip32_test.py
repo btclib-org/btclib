@@ -107,6 +107,14 @@ def test_the_three_key_reads_answer_for_one_half_each() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         pub_keyinfo_from_xpub(xpub, compressed=False)
 
+    # and each answers about `compressed` on a key that decoded, so text
+    # that is no extended key leaves as the decode's own refusal
+    err_msg = "Base58 string contains invalid characters"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        prv_keyinfo_from_xprv("not an xkey", compressed=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pub_keyinfo_from_xpub("not an xkey", compressed=False)
+
     # the version bytes say which network claims the key, so a network
     # the caller names has to be that one
     err_msg = "not a testnet key: version "
