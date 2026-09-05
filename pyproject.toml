@@ -263,17 +263,21 @@ source-include = [
 # pattern here takes out is not reported as one the sdist is missing,
 # and does not have to be named again in [tool.check-sdist] below
 source-exclude = [
-    # tests whose subject the sdist does not carry: what
-    # .github/scripts holds is not shipped, so each of these loads a
-    # path that is not there -- a fixture error rather than a test.
+    # tests whose subject the sdist does not carry: what .github holds
+    # is not shipped, so each of these loads a path that is not there --
+    # a fixture error rather than a test for the ones that load a script
+    # of .github/scripts, and a collection error for
+    # mutation_sessions_test.py, which reads the workflow as it is
+    # imported and so does not reach a test at all.
     # Anchored, because a name this specific matching at some other
     # depth would be an accident rather than a decision.
-    # tests/build_system_test.py checks that every test reaching
-    # .github/scripts or fuzz/ this way is named here
+    # tests/build_system_test.py checks that every test its own reader
+    # recognizes as reaching .github or fuzz/ is named here
     "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
     "/tests/generate_sbom_test.py",
     "/tests/mutation_counts_test.py",
+    "/tests/mutation_sessions_test.py",
     "/tests/normalize_sdist_test.py",
     "/tests/tf2_ledger_test.py",
     "/tests/verify_dist_contents_test.py",
