@@ -1009,6 +1009,17 @@ file of the test tree, and no caller acts on it.
 - **Triaging those survivors is issue #1745**, which is what both files
   defer to: the deferral named issue #822, and that one is closed.
 
+### `[build-system] requires`'s `uv_build` floor is a range, not a rev copy
+
+- **The floor sits above the `0.12.0` boundary and no higher than the rev
+  `.pre-commit-config.yaml` pins for `uv-pre-commit`, rather than at
+  that rev** (closes #1743): pre-commit.ci moves the rev on this
+  repository's own weekly schedule with nothing moving the floor, so a
+  floor written equal to it stops being equal at the next bump where a
+  floor under it stays right. The `check-sdist` and `pyroma` hook
+  environments and `RELEASING.md`'s prose move with it, `RELEASING.md`
+  naming the range rather than restating the number.
+
 ## v2026.9.3
 
 ### Repository
