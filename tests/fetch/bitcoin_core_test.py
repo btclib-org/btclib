@@ -49,7 +49,15 @@ from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.network import NETWORKS
 from btclib.tx import OutPoint, Tx
-from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
+from tests.fetch import (
+    LATER_TX_ID,
+    SEGWIT_TX_RAW,
+    TIP_HEIGHT,
+    TIP_ID,
+    TX_ID,
+    Recorded,
+    recorded_body,
+)
 
 # the rpc credentials every test here passes. Named once rather than
 # written at each call, which is what keeps the string out of a
@@ -162,13 +170,14 @@ def asked(endpoint: BitcoinCoreRpcClient) -> list[str]:
 
 
 def broadcast_tx() -> Tx:
-    """Return the recorded transaction, parsed, as a signed Tx to announce.
+    """Return the transaction the broadcast tests announce, parsed.
 
-    The same transaction `getrawtransaction.json` answers `get_tx` with:
-    it exists already, so broadcasting it needs no new vector of its own.
+    A segwit spend and not the transaction `getrawtransaction.json`
+    answers `get_tx` with: what `sendrawtransaction` carries is the wire
+    serialization, and a transaction with no witness has one
+    serialization rather than two.
     """
-    body = json.loads(recorded_body("getrawtransaction.json"))
-    return Tx.parse(bytes.fromhex(body["result"]))
+    return Tx.parse(SEGWIT_TX_RAW)
 
 
 def test_get_tx_parses_the_serialization_the_node_sent() -> None:
@@ -680,6 +689,11 @@ def test_broadcast_sends_the_wire_serialization_and_returns_the_txid() -> None:
     has no null the way `sendrawtransaction`'s optional parameter reads
     it, so a caller who passed nothing gets a request with one parameter,
     not two.
+
+    The witness is in that serialization: the two serializations of this
+    transaction are different bytes under one id, so a broadcast
+    stripping it announces a transaction carrying none of the signatures
+    and the node confirms the same id either way.
     """
     tx = broadcast_tx()
     endpoint = client(
@@ -690,6 +704,9 @@ def test_broadcast_sends_the_wire_serialization_and_returns_the_txid() -> None:
     assert asked(endpoint) == ["sendrawtransaction"]
     body = sent(endpoint)
     assert body["params"] == [tx.serialize(include_witness=True).hex()]
+    # the vector tells the two serializations apart, which is the other
+    # half of the claim
+    assert tx.serialize(include_witness=False) != tx.serialize(include_witness=True)
 
 
 def test_broadcast_passes_maxfeerate_only_when_given() -> None:
@@ -703,14 +720,24 @@ def test_broadcast_passes_maxfeerate_only_when_given() -> None:
     assert body["params"] == [tx.serialize(include_witness=True).hex(), 0.02]
 
 
-def test_broadcast_refuses_a_success_naming_another_txid() -> None:
-    """The node answered for a transaction that is not the one it was sent."""
+@pytest.mark.parametrize(
+    "confirmed",
+    # the coinbase of block 170, whose id sorts before the transaction
+    # announced, and one of block 481824's, whose id sorts after it
+    ["b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082", LATER_TX_ID],
+)
+def test_broadcast_refuses_a_success_naming_another_txid(confirmed: str) -> None:
+    """The node answered for a transaction that is not the one it was sent.
+
+    One wrong id on each side of the one announced: the check is
+    inequality, and a guard written `<` hands the second back as the id
+    of a broadcast the node never confirmed.
+    """
     tx = broadcast_tx()
-    other = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
     endpoint = client(
-        (200, json.dumps({"jsonrpc": "2.0", "result": other, "id": "x"}).encode())
+        (200, json.dumps({"jsonrpc": "2.0", "result": confirmed, "id": "x"}).encode())
     )
-    with pytest.raises(FetchError, match=f"the node confirmed {other}"):
+    with pytest.raises(FetchError, match=f"the node confirmed {confirmed}"):
         BitcoinCoreFetcher(endpoint, verify_network=False).broadcast(tx)
 
 

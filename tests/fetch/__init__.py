@@ -47,6 +47,27 @@ TIP_HEADER_RAW = (
     "0040d1ca077fefe7fb797711baa0c063eca9b8ed9469ae0128982b44ad0c253864913"
     "29e59e93c011822ff5422"
 )
+# transaction 22 of block 481824, read out of
+# tests/block/_data/block_481824_complete.bin: a P2SH-P2WPKH spend, and
+# the transaction the broadcasts announce. A witness is what separates
+# the two serializations of one transaction, and the id is computed from
+# the one without it -- so a broadcast that stripped the witness sends
+# bytes carrying none of the signatures and still names this same id,
+# which is why a witnessless vector cannot tell the two apart
+SEGWIT_TX_RAW = (
+    "0200000000010140d43a99926d43eb0e619bf0b3d83b4a31f60c176beecfb9d3"
+    "5bf45e54d0f7420100000017160014a4b4ca48de0b3fffc15404a1acdc8dbaae"
+    "226955ffffffff0100e1f5050000000017a9144a1154d50b03292b3024370901"
+    "711946cb7cccc387024830450221008604ef8f6d8afa892dee0f31259b6ce02d"
+    "d70c545cfcfed8148179971876c54a022076d771d6e91bed212783c9b06e0de6"
+    "00fab2d518fad6f15a2b191d7fbd262a3e0121039d25ab79f41f75ceaf882411"
+    "fd41fa670a4c672c23ffaf0e361a969cde0692e800000000"
+)
+# another transaction of that block, and the wrong id that sorts *after*
+# the one above where block 170's coinbase sorts before it: a check that
+# a backend confirmed what it was handed is an inequality, and a fixture
+# offering one wrong value cannot say whether it is an ordering instead
+LATER_TX_ID = "dfcec48bb8491856c353306ab5febeb7e99e4d783eedf3de98f3ee0812b92bad"
 
 
 def recorded_body(name: str) -> bytes:

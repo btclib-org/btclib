@@ -851,6 +851,41 @@ file of the test tree, and no caller acts on it.
   has gained a file is another, the census holding the ledger to that
   transcription rather than to the directory.
 
+### `tests/fetch` holds each guard on the boundary to its own value
+
+- **A `-rest` body bound moved either way is a failing test** (closes
+  #1716). A reply one octet over the limit is refused with that limit in
+  the message, and the recorded answer inside it is accepted, so a
+  chaininfo reply, a block hash and a header are each held to the size
+  their endpoint answers rather than to something wider.
+- **A wrong value sorting each way is what tells an ordering from an
+  inequality**, and the checks on this boundary each get one on each
+  side: a node naming a chain that sorts before the fetcher's own, an
+  explorer serving a genesis that sorts before it, a broadcast answered
+  with a status below 200, and a host confirming a txid on either side
+  of the one it was handed.
+- **A signet challenge is asked for on signet and nowhere else**, which
+  the testnets pin: their chain names sort after `signet`, so a name
+  check weakened to an ordering would derive a magic for a testnet and
+  then read a member no node reports outside a signet.
+- **The broadcasts announce a transaction that has a witness.** The
+  witness separates the two serializations of one transaction and the id
+  is computed from the one without it, so a broadcast stripping it sends
+  bytes carrying none of the signatures under the id the host confirms
+  either way, which a witnessless vector cannot tell apart. The vector
+  is a spend out of the block already vendored under `tests/block/_data`.
+- **`POST /tx` carries the `Content-Type` and the reads carry none**,
+  the header describing a body a GET does not send.
+- **One `ElectrumFetcher` asked two questions sends two request ids.**
+  `decode_response` refuses a reply answering another id, which is a
+  check on a counter and no check at all on a constant.
+- **`.github/mutation/fetch.toml`'s header records what a session over
+  it measures**, every survivor of that session belonging to a class the
+  comment argues. The entry above that opened this scope says the
+  boundary's own guards go unnoticed when weakened, and names issue
+  #1716 as where they are answered; it stays as the record of what a
+  session found then, and this is that answer.
+
 ## v2026.9.3
 
 ### Repository

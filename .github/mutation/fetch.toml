@@ -52,25 +52,25 @@ excluded-modules = []
 # itself rather than by the grep alone: `cosmic-ray init` over this file
 # enumerates the 474 mutants the session below did, and
 # `cosmic_ray.tools.filters.operators_filter` marks 110 of them SKIPPED
-# -- the same 110 the session below finds surviving on annotation lines,
-# and the "class fetch.toml documents" every other profile's own comment
-# points back to -- leaving 364 for a future session to have an opinion
-# about (issue #987).
+# -- the annotation lines the session below records as skipped, and the
+# "class fetch.toml documents" every other profile's own comment points
+# back to -- leaving the 364 that session executes (issue #987).
+#
+# That class is deferred evaluation, and this is what the other profiles
+# point back here for: an annotation is not evaluated where it is
+# written, so `str | bytes | None` rewritten `str + bytes + None` is
+# never built and no call changes. `bitcoin_core.py` has that from PEP
+# 649 and the 3.14 `.python-version` pins, `esplora.py` and
+# `bitcoin_core_rest.py` from `from __future__ import annotations` as
+# well. The filter is what keeps them out of a session that would
+# otherwise run them and find every one of them surviving.
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 474 mutants, complete: 314 killed, 160 survived. Four classes account
-# for 142 of the 160, and eighteen belong to none of them:
+# 474 mutants, complete: 332 killed, 32 survived, 110 skipped by the
+# filter above, for a survival rate of 8.79% over the 364 executed.
+# Three classes account for every survivor and nothing is left over:
 #
-# - 110 are `X | None` annotations, in `bitcoin_core.py`,
-#   `bitcoin_core_rest.py` and `esplora.py`. This is the class the other
-#   profiles' comments point back here for, and it is deferred
-#   evaluation: an annotation is not evaluated where it is written, so
-#   `str | bytes | None` rewritten `str + bytes + None` is never built
-#   and no call changes. `bitcoin_core.py` has that from PEP 649 and the
-#   3.14 `.python-version` pins, the other two from `from __future__
-#   import annotations` as well. The filter above is what keeps them out
-#   of a session that would otherwise run them.
 # - 5 in `fetcher.py` are equivalent by inspection: `==` against `is` on
 #   the very object `NETWORKS` holds, and four `check_validity=False`
 #   turned `True`, each on data the line beside it has already
@@ -90,20 +90,19 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   docstring saying so, and a private method's calling convention is
 #   nothing this library promises.
 #
-# The 18 left are what this boundary is held to on either side of a call --
-# what a reply is checked against, and what a request carries -- and
-# `tests/fetch` does not notice any of them weakened: the three `-rest` body
-# bounds moved by one, six comparisons turned into orderings -- issue #978's
-# shape, in `bitcoin_core_rest.py`'s and `esplora.py`'s `assert_network`, in
-# both broadcasts' txid check and at `esplora.py`'s `status != 200` --
-# `include_witness=True` turned `False` in both broadcasts, `esplora.py`'s
-# `Content-Type` condition read either way, and `ElectrumFetcher`'s
-# request-id counter, which `+= 0` makes the constant `_next_request_id`'s
-# own docstring rules out. Issue #1716 has each with its line and is where
-# they are answered.
+# What this boundary is held to on either side of a call -- what a reply
+# is checked against, and what a request carries -- is measured rather
+# than argued: each `-rest` body bound moved by one, the comparisons
+# turned into orderings in `bitcoin_core_rest.py`'s and `esplora.py`'s
+# `assert_network`, in both broadcasts' txid check and at `esplora.py`'s
+# `status != 200`, `include_witness=True` turned `False` in both
+# broadcasts, `esplora.py`'s `Content-Type` condition read either way,
+# and `ElectrumFetcher`'s request-id counter, which `+= 0` makes the
+# constant `_next_request_id`'s own docstring rules out -- each of them
+# is a failing test in `tests/fetch` (issue #1716).
 #
-# So the rate is not the reading here: those eighteen are, and a verdict
-# worth acting on is one that moves among them.
+# So the rate is not the reading here: a survivor outside those three
+# classes is, and it is a test nobody has written.
 
 [cosmic-ray.distributor]
 name = "local"
