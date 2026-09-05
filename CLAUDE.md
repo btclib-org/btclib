@@ -310,10 +310,15 @@ Do not use Fable unless explicitly instructed.
   release wants it, and do not estimate:
 
   ```shell
-  grep -c '^- ' CHANGELOG.md
   git ls-files 'tests/_data/*' 'tests/*/_data/*' \
       src/btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
+
+  CHANGELOG.md has no command of this kind: a `###` heading names one
+  entry or a theme several entries share, and an entry's own claims sit
+  in a bullet or, where it makes a single claim, in a paragraph with no
+  bullet at all — so counting its entries is a reading of the file, not
+  a pattern any command matches.
 
   The why is section 9 of the organization standard, which
   `CONTRIBUTING.md` points at; what this file adds is that nothing states

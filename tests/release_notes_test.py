@@ -15,8 +15,8 @@ Checking the number against the bullets is one answer, and it costs what
 it fixes: the count is then a line every open branch has to edit, so it
 becomes the one conflict a pull request is guaranteed to have -- and two
 branches moving it to the same new number merge without a conflict into a
-number that is wrong. So neither file states it, and
-`grep -c '^- ' CHANGELOG.md` derives it whenever a release wants it.
+number that is wrong. So neither file states it, and counting the
+entries is a reading of the file, not a command.
 
 Which is what this module guards, the assertions running the other way
 round: a count anywhere in either file is a failure. Not only because one
@@ -74,15 +74,15 @@ def test_neither_file_states_a_count(path: Path) -> None:
 
     Written by hand or put back by a `union` merge that had nothing to
     decide: either way the number is a claim nothing derives, and the
-    command in the header derives it instead.
+    header explains why -- counting the entries is a reading of the
+    file, not a command.
     """
     text = path.read_text(encoding="utf-8")
     for pattern in _FORBIDDEN:
         match = re.search(pattern, text)
         assert match is None, (
             f"{path.name} states a count again: {match[0]!r}."
-            " Remove it -- `grep -c '^- ' CHANGELOG.md` answers on demand,"
-            " and a rebase restores such a paragraph in silence."
+            " Remove it -- a rebase restores such a paragraph in silence."
         )
 
 
