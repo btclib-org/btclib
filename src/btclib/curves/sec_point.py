@@ -14,6 +14,7 @@ from btclib._libsecp256k1 import pubkey_verify as libsecp256k1_pubkey_verify
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
+    PreparedPoint,
     _assert_valid_ec,
     _libsecp256k1_serves,
     _point_from_sec,
@@ -21,15 +22,31 @@ from btclib.curves.curve import (
     mult,
     secp256k1,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import assert_type, bytes_from_octets, hex_string, int_from_integer
 
 __all__ = [
+    "PubKey",
     "bytes_from_point",
     "bytes_from_prv_key_int",
     "point_from_octets",
+    "point_from_pub_key",
     "scalar_from_prv_key",
 ]
+
+# public key inputs: the curve point, as a tuple, as a PreparedPoint, or
+# as the SEC octets of one.
+#
+# Named where `scalar_from_prv_key`'s union is not, and the difference is
+# whether mypy has anything to check: a scalar's spellings are `Integer`
+# exactly, so a second name for that union would say nothing, where these
+# three types are a union no alias holds
+PubKey = Octets | Point | PreparedPoint
+
+# the union at run time, with the buffers bytes_from_octets accepts beside
+# bytes. `to_pub_key._KEY_TYPES` is this list plus the int that names a
+# private key, and is built from this one rather than repeating it
+_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, tuple, PreparedPoint)
 
 
 def scalar_from_prv_key(prv_key: Integer, ec: Curve = secp256k1) -> int:
@@ -57,8 +74,8 @@ def scalar_from_prv_key(prv_key: Integer, ec: Curve = secp256k1) -> int:
     want of anything to gain: a comparison on a value that is already a
     Python int, with no constant-time argument to pay for the call with,
     since whether a key is in range is precisely what the caller is being
-    told. `to_prv_key.int_from_prv_key` carries the measurement behind
-    that, and carries it until issue #1188's last step removes it.
+    told. The comparison also serves every curve, where the binding is
+    secp256k1 alone.
     """
     _assert_valid_ec(ec)
 
@@ -210,6 +227,72 @@ def point_from_octets(
         # never echo the octets: a 33-byte 0x00-prefixed input
         # is the key field of an xprv, i.e. a private key
         raise BTClibValueError(f"not a point: prefix 0x{pub_key[:1].hex()}")
+
+
+def _assert_pub_key_type(pub_key: PubKey) -> None:
+    """Refuse a type no spelling of a public key has.
+
+    Asked at the top of the parse, not inferred from whichever spelling
+    failed last: a value of no key type at all is a BTClibTypeError here,
+    kept apart from the BTClibValueError a spelling raises once its type
+    is right and its content is not, so "this key is not on the curve"
+    and "this is not a key at all" answer as two different classes rather
+    than one.
+
+    The difference is what a boolean verification reads, and issue #814
+    is where it is stated: `dsa.verify` answers False about a value of a
+    declared type and refuses a type it does not declare, exactly as
+    `script_pub_key.is_p2sh` does. The union is closed, so the question
+    has an answer here; `ssa.point_from_bip340pub_key` ends in this same
+    refusal for the same reason.
+
+    Never echo the input: it may be private material passed by mistake,
+    which is the very confusion issue #143 is about -- an int is a
+    private key here, so it is refused as a type rather than reported as
+    a public key that does not verify.
+    """
+    if not isinstance(pub_key, _PUB_KEY_TYPES):
+        raise BTClibTypeError("not a public key")
+
+
+def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
+    """Return an elliptic curve point tuple from a public key.
+
+    `point_from_octets` is the parse of the one spelling that has to be
+    parsed; this is that parse with the two spellings that are already a
+    point in front of it, and it lives here for the reason
+    `scalar_from_prv_key` does -- what a public key is, at this layer, is
+    a point of the curve, and nothing above knows more about one than
+    this file (issue #1188). A spelling that carries a network or a
+    compression flag is not among them: an extended key is `bip32`'s
+    object, read by `bip32.point_from_xpub`.
+
+    **A prepared point is read as the point it holds.**
+    `curves.PreparedPoint` is a `Point` plus a caller's word that it will
+    be multiplied again, and the word is the whole of the difference: a
+    point is the point's. What is *not* is the memoized tables, which
+    whatever reads them reads off the object and not through here.
+
+    Nothing compares a curve on the way through: a prepared point of
+    another curve fails the `is_on_curve` its tuple then faces, exactly
+    as a bare `Point` of that curve does and with the same message.
+    """
+    _assert_valid_ec(ec)
+    _assert_pub_key_type(pub_key)
+    if isinstance(pub_key, PreparedPoint):
+        return point_from_pub_key(pub_key.point, ec)
+
+    if isinstance(pub_key, tuple):
+        if ec.is_on_curve(pub_key) and pub_key[1] != 0:
+            return pub_key[0], pub_key[1]
+        raise BTClibValueError(f"not a valid public key: {pub_key}")
+    # it must be octets
+    try:
+        return point_from_octets(pub_key, ec)
+    except (TypeError, ValueError) as e:
+        # never echo the input: it may be private material passed by
+        # mistake; the chained exception carries the parsing reason
+        raise BTClibValueError("not a public key") from e
 
 
 def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:

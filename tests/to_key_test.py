@@ -4,8 +4,9 @@
 
 """Test vectors of valid and invalid keys.
 
-Used by `btclib.tests.to_pub_key` and `btclib.tests.to_pub_key` modules.
-Test vectors do include str only: no int, point tuble, or BIP32KeyData.
+Used by the tests of the two converters, and by `tests/ecc/dsa_test.py`
+and `tests/hashes_test.py`. The vectors are str only: no int, no point
+tuple, no BIP32KeyData.
 
 The `*_prv_keys` and `*_pub_keys` families below hold what the two
 converters resolve, which is the scalar and the point in their octet

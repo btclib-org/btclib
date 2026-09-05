@@ -152,8 +152,13 @@ The four aliases:
     ``b58.p2pkh(wif)`` still knows which address to build: it tries a WIF
     itself, ahead of anything this type covers.
 
-    **This is the arithmetic layer's type.** ``dsa.sign(msg, xprv)`` does
-    not work; pass ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
+    **The arithmetic layer spells it** ``Integer``, which is the same
+    union of types: ``curves.scalar_from_prv_key`` is what reads a scalar
+    there, and a second name for one union would be nothing a type
+    checker could tell apart (issue #1188). ``PrvKey`` is the name
+    ``to_prv_key.prv_keyinfo_from_prv_key`` keeps, for the record above
+    the scalar. Neither takes an extended key: ``dsa.sign(msg, xprv)``
+    does not work; pass ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
     is narrower still: message signing wants the network and the
     compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
     a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the

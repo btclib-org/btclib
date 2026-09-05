@@ -60,9 +60,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import NamedTuple
 
-from btclib.alias import Octets
+from btclib.alias import Integer, Octets
 from btclib.bip32 import BIP328_CHAIN_CODE, pub_key_derivation_tweaks
-from btclib.curves import secp256k1
+from btclib.curves import scalar_from_prv_key, secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import musig2, ssa
 from btclib.exceptions import BTClibValueError
@@ -81,7 +81,6 @@ from btclib.psbt.psbt_utils import (
     assert_valid_musig2_pub_key,
 )
 from btclib.script import type_and_payload
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -365,7 +364,7 @@ def _session_partial_sigs(
 def nonce_gen(
     psbt: Psbt,
     vin_i: int,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aggregate_pub_key: Octets,
     *,
     leaf_hash: Octets = b"",
@@ -389,7 +388,7 @@ def nonce_gen(
     # the scalar here rather than the spelling below: `ecc.musig2` takes
     # an int and the octets of one, and a WIF or an xprv is this layer's
     # to decode -- an explicit call where a union guessed (issue #1188)
-    q = int_from_prv_key(prv_key)
+    q = scalar_from_prv_key(prv_key)
     pub_key = musig2.individual_pub_key(q)
     if pub_key not in parts.participants:
         err_msg = f"{pub_key.hex()} is not a participant of aggregate key "
@@ -408,7 +407,7 @@ def partial_sign(
     psbt: Psbt,
     vin_i: int,
     sec_nonce: bytearray,
-    prv_key: PrvKey,
+    prv_key: Integer,
     aggregate_pub_key: Octets,
     *,
     leaf_hash: Octets = b"",
@@ -428,7 +427,7 @@ def partial_sign(
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
     # as in `nonce_gen` above, and for its reason
-    q = int_from_prv_key(prv_key)
+    q = scalar_from_prv_key(prv_key)
     pub_key = musig2.individual_pub_key(q)
     tweaked_pub_key = _session_parts(
         psbt, vin_i, aggregate_pub_key, leaf_hash

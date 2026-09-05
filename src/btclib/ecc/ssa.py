@@ -280,7 +280,7 @@ def _x_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve) -> int:
     if isinstance(x_Q, PreparedPoint):
         x_Q = x_Q.point
     if isinstance(x_Q, tuple):
-        # the same check `to_pub_key.point_from_pub_key` made for a point
+        # the same check `curves.point_from_pub_key` makes for a point
         # before this function stopped going through it: on the curve,
         # and a y that is not zero -- `alias` marks infinity that way,
         # no affine point of a prime-order group having y = 0

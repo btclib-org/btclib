@@ -91,9 +91,15 @@ layer is the integer, its n_size octets, or their hex. That is narrower
 than everything Integer takes -- int_from_integer reads a "0x" prefix
 and a short hex string, which a key of a fixed size must not be -- and
 the annotation is Integer because the two are the same union of types
-and a second name for it would say nothing mypy could check. A WIF and
-an extended key are not among the spellings at all, belonging to b58 and
-bip32, above here (issue #1188).
+and a second name for it would say nothing mypy could check.
+
+point_from_pub_key is the public half of that pair, and PubKey is what it
+takes: the point as a tuple, as a PreparedPoint, or as the SEC octets
+point_from_octets parses. Both halves are here rather than in a converter
+above because a scalar in 1..n-1 and a point of the curve are facts about
+the curve, and nothing above knows more about either than this package
+does. A WIF and an extended key are not among the spellings of either,
+belonging to b58 and bip32, above here (issue #1188).
 """
 
 from btclib.curves.curve import (
@@ -110,9 +116,11 @@ from btclib.curves.curve import (
 from btclib.curves.curve_group import CurveGroup
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
 from btclib.curves.sec_point import (
+    PubKey,
     bytes_from_point,
     bytes_from_prv_key_int,
     point_from_octets,
+    point_from_pub_key,
     scalar_from_prv_key,
 )
 
@@ -121,6 +129,7 @@ __all__ = [
     "Curve",
     "CurveGroup",
     "PreparedPoint",
+    "PubKey",
     "bytes_from_point",
     "bytes_from_prv_key_int",
     "double_mult_var",
@@ -130,6 +139,7 @@ __all__ = [
     "mult",
     "multi_mult_var",
     "point_from_octets",
+    "point_from_pub_key",
     "scalar_from_prv_key",
     "secp256k1",
     "set_libsecp256k1_serving",

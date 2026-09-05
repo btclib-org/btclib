@@ -50,12 +50,11 @@ from btclib.bip32.der_path import (
     str_from_index_int,
 )
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.curves import secp256k1
+from btclib.curves import point_from_pub_key, secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc.musig2 import key_agg, key_sort
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_name
-from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import bytes_from_octets
 
 __all__ = ["KeyExpression", "PrvKeys"]

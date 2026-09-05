@@ -1491,8 +1491,9 @@ def test_prepared_point_refuses_a_point_with_no_tables() -> None:
         PreparedPoint(INF)
     with pytest.raises(BTClibValueError, match="point not on curve"):
         PreparedPoint((secp256k1.G[0], secp256k1.G[1] + 1))
-    # a point of another curve is that same refusal, and it is why
-    # `to_pub_key._unwrapped` needs no curve comparison of its own
+    # a point of another curve is that same refusal, and it is why the
+    # one-line unwrapping at each converter needs no curve comparison of
+    # its own
     with pytest.raises(BTClibValueError, match="point not on curve"):
         PreparedPoint(secp256k1.G, CURVES["secp256r1"])
 

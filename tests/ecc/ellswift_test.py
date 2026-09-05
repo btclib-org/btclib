@@ -257,7 +257,7 @@ def test_invalid_party() -> None:
 
 
 def test_invalid_private_key() -> None:
-    """A key outside 1..n-1 is refused, and by int_from_prv_key."""
+    """A key outside 1..n-1 is refused, and by `scalar_from_prv_key`."""
     ell = ellswift.create_var(secrets.randbelow(secp256k1.n - 1) + 1)
 
     for prv_key in (0, secp256k1.n):

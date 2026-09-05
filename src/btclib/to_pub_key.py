@@ -2,12 +2,18 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Functions for conversions between different public key formats.
+"""The key record an address is built from, and the key union it takes.
 
-The formats are the curve point and its SEC octets. An extended key is
-not among them: it is `bip32`'s object, read by `bip32.point_from_xpub`
-and `bip32.pub_keyinfo_from_xkey`, which sit below this module and are
-the call a caller holding one makes (issue #1188).
+The curve point itself is not read here: `curves.point_from_pub_key` is
+what takes a `Point`, a `PreparedPoint` or the SEC octets of one, a point
+of the curve being a fact about the curve (issue #1188). What is left to
+this module is the (SEC-bytes, network) record above it, which a point
+carries no network for, and the `Key` union that lets an address builder
+be handed either half of a key pair.
+
+An extended key is not among the spellings: it is `bip32`'s object, read
+by `bip32.point_from_xpub` and `bip32.pub_keyinfo_from_xkey`, which sit
+below this module and are the call a caller holding one makes.
 """
 
 from __future__ import annotations
@@ -18,14 +24,19 @@ from btclib.alias import Octets, Point
 from btclib.curves import (
     Curve,
     PreparedPoint,
+    PubKey,
     bytes_from_point,
     bytes_from_prv_key_int,
     mult,
-    point_from_octets,
+    point_from_pub_key,
     secp256k1,
 )
 from btclib.curves.curve import _assert_valid_ec
-from btclib.curves.sec_point import _sec_from_octets
+from btclib.curves.sec_point import (
+    _PUB_KEY_TYPES,
+    _assert_pub_key_type,
+    _sec_from_octets,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import network_from_name
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
@@ -33,27 +44,20 @@ from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
     "Key",
-    "PubKey",
     "PubkeyInfo",
     "point_from_key",
-    "point_from_pub_key",
     "pub_keyinfo_from_key",
     "pub_keyinfo_from_prv_key",
     "pub_keyinfo_from_pub_key",
 ]
 
-# public key inputs:
-# elliptic curve point as Union[Octets, Point, PreparedPoint]
-PubKey = Octets | Point | PreparedPoint
-
 # public or private key input,
 # usable wherever a PubKey is logically expected
 Key = int | Octets | Point | PreparedPoint
 
-# the two unions at run time, with the buffers bytes_from_octets accepts
-# beside bytes. An int is in one and not the other on purpose: in this
-# library an int is a private key, and never a public one
-_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, tuple, PreparedPoint)
+# that union at run time, built from the public one rather than repeating
+# it: the two differ by the int, and on purpose -- in this library an int
+# is a private key, and never a public one
 _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 
 
@@ -62,9 +66,8 @@ _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 # be multiplied again, and the word is the whole of the difference: an
 # address and a SEC encoding are the point's, so each converter answers
 # a prepared point by asking itself about `.point`.
-# What is *not* the point's is the memoized tables, and
-# `dsa.assert_as_valid_` and `ssa.assert_as_valid_` are the two places
-# that read those, off the object and not through here.
+# What is *not* the point's is the memoized tables, which whatever
+# reads them reads off the object and not through here.
 #
 # Spelled as a one-line recursion at each site that unwraps one, rather
 # than as one unwrapping helper, and the types are why: a helper would
@@ -78,37 +81,12 @@ _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 # a bare `Point` of that curve does and with the same message.
 
 
-def _assert_pub_key_type(pub_key: PubKey) -> None:
-    """Refuse a type no spelling of a public key has.
-
-    Asked at the top of a converter, not inferred from whichever
-    spelling failed last: a value of no key type at all is a
-    BTClibTypeError here, kept apart from the BTClibValueError a
-    spelling raises once its type is right and its content is not, so
-    "this key is not on the curve" and "this is not a key at all"
-    answer as two different classes rather than one.
-
-    The difference is what a boolean verification reads, and issue #814
-    is where it is stated: `dsa.verify` answers False about a value of a
-    declared type and refuses a type it does not declare, exactly as
-    `script_pub_key.is_p2sh` does. The union is closed, so the question
-    has an answer here; `ssa.point_from_bip340pub_key` ends in this same
-    refusal for the same reason.
-
-    Never echo the input: it may be private material passed by mistake,
-    which is the very confusion issue #143 is about -- an int is a
-    private key here, so it is refused as a type rather than reported as
-    a public key that does not verify.
-    """
-    if not isinstance(pub_key, _PUB_KEY_TYPES):
-        raise BTClibTypeError("not a public key")
-
-
 def _assert_key_type(key: Key) -> None:
     """Refuse a type no spelling of a key has, private or public.
 
-    `_assert_pub_key_type`'s wider twin, for the converters that take
-    either: an int is a private key, and the two lists differ by it.
+    `curves.sec_point._assert_pub_key_type`'s wider twin, for the
+    converters that take either: an int is a private key, and the two
+    lists differ by it.
 
     A bool is named here for the sentence and not for the refusal: with
     the line dropped it still does not become a key, `to_prv_key`'s own
@@ -163,26 +141,6 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
         return mult(q, ec.G, ec)
 
     return point_from_pub_key(key, ec)
-
-
-def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
-    """Return an elliptic curve point tuple from a public key."""
-    _assert_valid_ec(ec)
-    _assert_pub_key_type(pub_key)
-    if isinstance(pub_key, PreparedPoint):
-        return point_from_pub_key(pub_key.point, ec)
-
-    if isinstance(pub_key, tuple):
-        if ec.is_on_curve(pub_key) and pub_key[1] != 0:
-            return pub_key[0], pub_key[1]
-        raise BTClibValueError(f"not a valid public key: {pub_key}")
-    # it must be octets
-    try:
-        return point_from_octets(pub_key, ec)
-    except (TypeError, ValueError) as e:
-        # never echo the input: it may be private material passed by
-        # mistake; the chained exception carries the parsing reason
-        raise BTClibValueError("not a public key") from e
 
 
 # public key bytes representation, network

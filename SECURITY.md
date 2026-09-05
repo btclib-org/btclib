@@ -122,8 +122,8 @@ used to teach and to prototype as much as to build:
     The gain left is narrower than that figure suggests: delegating
     would only keep `k_1` and `k_2` from becoming Python `int`s, and
     the bullet above already covers why that does not decide anything
-    -- `int_from_prv_key` produces an unzeroizable `int` from the
-    private key on the delegated path too. `btclib_secp256k1` itself
+    -- `curves.scalar_from_prv_key` produces an unzeroizable `int` from
+    the private key on the delegated path too. `btclib_secp256k1` itself
     takes the equivalent opaque handle for `musig_keyagg_cache` and
     `musig_session` without this reasoning landing on a different
     answer there: those have no octets form to begin with, where an
@@ -146,7 +146,7 @@ used to teach and to prototype as much as to build:
     straight into a Python `int`: `bip32.__prv_key_derivation`
     (`src/btclib/bip32/bip32.py:838`), `commit_nonce.commit_nonce_`
     (`src/btclib/ecc/commit_nonce.py:155`) and `taproot._tweaked_prvkey`
-    (`src/btclib/script/taproot.py:474`). A caller-owned buffer can be
+    (`src/btclib/script/taproot.py:479`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless — the
     `_BIP32KeyData` working copy keeps `prv_key_int` for the whole of
@@ -154,7 +154,7 @@ used to teach and to prototype as much as to build:
     a public signature and buy nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
-    (`src/btclib/ecc/ellswift.py:362`) is the one of them that returns
+    (`src/btclib/ecc/ellswift.py:363`) is the one of them that returns
     octets rather than an `int`, so a caller-owned buffer there would
     hold what it wiped: taking it means growing `xdh`'s public
     signature with `into=` and owning the contract that comes with
@@ -163,9 +163,9 @@ used to teach and to prototype as much as to build:
     the bullet above already gives: no Python object holding a secret
     is zeroized, on either path, and this one is no exception to it.
     `dsa.Signer.__init__` crosses the same boundary the other way,
-    once, at construction: the plain `int` `int_from_prv_key` already
+    once, at construction: the plain `int` `scalar_from_prv_key` already
     produced becomes a transient `bytes` via
-    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1352`) on the
+    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1350`) on the
     way into the owned buffer `wipe` overwrites afterwards. That
     `bytes` is dropped rather than erased, same as the `int` it
     replaces — one call rather than the buffer's whole lifetime, which

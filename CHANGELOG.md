@@ -738,6 +738,56 @@ file of the test tree, and no caller acts on it.
   `IndexError` on such a construction while passing every other test in
   the file.
 
+### A scalar and a curve point are read in `curves`, by the layer that owns them
+
+- **`to_prv_key.int_from_prv_key` is removed;
+  `curves.scalar_from_prv_key` is the call** (issue #1188). The two
+  answered the same question about the same spellings -- the integer, its
+  `n_size` octets, their hex -- and the destination had been in `curves`
+  since `bytes_from_prv_key_int` gained a twin there. `bip85`,
+  `mnemonic.electrum`, `psbt.musig2`, `psbt.silent_payments`,
+  `script.taproot` and `silent_payments` were the callers left on the
+  converter. Where one of them declares a `prv_key` parameter that
+  parameter is `Integer` now -- the union `PrvKey` was, and the spelling
+  every `ecc` module already on `scalar_from_prv_key` used; `bip85` and
+  `mnemonic.electrum` declare none and changed only the call.
+- **`to_pub_key.point_from_pub_key` and `PubKey` move to `curves`.** A
+  point of the curve is a fact about the curve, so the parse sits beside
+  `point_from_octets`, which it is the two already-a-point spellings in
+  front of: a `Point`, a `PreparedPoint`, or SEC octets.
+  `ecc.dleq`, `ecc.dsa`, `ecc.ecies`, `ecc.ellswift` and
+  `silent_payments` take both from `btclib.curves` now;
+  `descriptors.key_expression` and `psbt.silent_payments` name the
+  function alone, having no use for the union. `_assert_pub_key_type` and
+  `_PUB_KEY_TYPES` go with them, and `to_pub_key._KEY_TYPES` is built
+  from the second rather than repeating it.
+- **What each converter is left with is the record and not the key.**
+  `to_prv_key` answers the `(int, network, compressed)` triple and
+  `to_pub_key` the `(SEC-bytes, network)` pair, neither of which a scalar
+  or a point carries, plus the `Key` union an address builder takes. Both
+  modules' docstrings say so, and `README.md`, `CLAUDE.md` and
+  `docs/source/guide.rst`'s `PrvKey` entry are corrected with them.
+- **The refusals a caller sees change class and wording.**
+  `int_from_prv_key` raised `BTClibTypeError("not a private key")` for a
+  type no spelling has and `NotAPrvKeyError("not a private key: not
+  octets (...)")` for octets that are not a scalar;
+  `scalar_from_prv_key` refuses the first through `bytes_from_octets` --
+  `invalid octets type: float` -- and the second through the same
+  coercion, `invalid hex string: ...` or a size. A bool is refused either
+  way, `int_from_integer`'s `non-integer: True` in place of the type
+  gate's sentence. Every refusal stays a `BTClibValueError` or a
+  `BTClibTypeError`, so code catching those is unaffected;
+  `NotAPrvKeyError` keeps its raisers in `to_prv_key`, `b58`, `bip38` and
+  `minikey`.
+- **Three of `SECURITY.md`'s call-site citations are re-derived.**
+  `dsa.py:1352`, `ellswift.py:362` and `taproot.py:474` moved with the
+  import blocks above them; only the first carries a quoted anchor, so
+  `tests/security_citations_test.py` caught one of the three and the
+  other two were checked by hand. The same paragraphs named
+  `int_from_prv_key` as what `ecc.musig2` and `dsa.Signer.__init__`
+  produce their scalar with, which neither has done since either took
+  `curves.scalar_from_prv_key`.
+
 ## v2026.9.3
 
 ### Repository

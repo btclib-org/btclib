@@ -20,13 +20,19 @@ from btclib import var_bytes
 from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import (
     BinaryData,
+    Integer,
     Octets,
     ScriptList,
     TaprootLeaf,
     TaprootLeafPaths,
     TaprootScriptTree,
 )
-from btclib.curves import bytes_from_prv_key_int, mult, secp256k1
+from btclib.curves import (
+    bytes_from_prv_key_int,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import _libsecp256k1_serves, _y_even_var
 from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -39,7 +45,6 @@ from btclib.script.op_codes_tapscript import (
     _serialize_str_command,
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
-from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, _sec_from_key
 from btclib.utils import (
     assert_type,
@@ -438,7 +443,7 @@ def output_pubkey_from_merkle_root(
 
 
 def output_prvkey(
-    prv_key: PrvKey,
+    prv_key: Integer,
     script_tree: TaprootScriptTree | None = None,
 ) -> int:
     """Return the private key of the taproot output key, per BIP341.
@@ -449,7 +454,7 @@ def output_prvkey(
     exactly.
     """
     h = tree_helper(script_tree)[1] if script_tree else b""
-    return _tweaked_prvkey(int_from_prv_key(prv_key), h)
+    return _tweaked_prvkey(scalar_from_prv_key(prv_key), h)
 
 
 def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
@@ -481,7 +486,7 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     # delegation but a deletion, which is what this path
     # needed: it runs where the bindings do not, so there was nothing
     # here to dispatch to. The two spellings differ on the infinity
-    # btclib writes as y == 0, and mult of a key int_from_prv_key has
+    # btclib writes as y == 0, and mult of a key scalar_from_prv_key has
     # refused zero for cannot be it
     has_even_y = P[1] % 2 == 0
     internal_prvkey = internal_prvkey if has_even_y else secp256k1.n - internal_prvkey
@@ -489,7 +494,7 @@ def _tweaked_prvkey(internal_prvkey: int, h: bytes) -> int:
     return (internal_prvkey + t) % secp256k1.n
 
 
-def output_prvkey_from_merkle_root(prv_key: PrvKey, merkle_root: Octets = b"") -> int:
+def output_prvkey_from_merkle_root(prv_key: Integer, merkle_root: Octets = b"") -> int:
     """Return the private key of a taproot output from a merkle root.
 
     `output_prvkey` with the root already in hand, the shape
@@ -498,7 +503,7 @@ def output_prvkey_from_merkle_root(prv_key: PrvKey, merkle_root: Octets = b"") -
     field, never the script tree that produced the root, a psbt naming
     a script path by its leaf and control block instead.
     """
-    return _tweaked_prvkey(int_from_prv_key(prv_key), bytes_from_octets(merkle_root))
+    return _tweaked_prvkey(scalar_from_prv_key(prv_key), bytes_from_octets(merkle_root))
 
 
 def input_script_sig(
