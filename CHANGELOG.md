@@ -886,6 +886,25 @@ file of the test tree, and no caller acts on it.
   #1716 as where they are answered; it stays as the record of what a
   session found then, and this is that answer.
 
+### Every `.github/mutation` profile is held to a session of `mutation.yml`
+
+- **`tests/mutation_sessions_test.py` asserts that the configurations
+  under `.github/mutation/` and the sessions of
+  `.github/workflows/mutation.yml`'s matrix are the same set** (closes
+  #1723). A configuration no session names enumerates nothing and
+  reports nothing while the workflow stays green, a job that does not
+  exist being unable to fail; a session naming a configuration that is
+  not there is a red `Check the baselines` step in a weekly run of a
+  workflow that gates nothing. Each is a failure of the ordinary suite
+  instead.
+- **The workflow is read as text and not parsed as yaml**: the suite's
+  own dependency group carries no yaml parser, so a module importing one
+  collects on a contributor's `uv sync`, which installs every group, and
+  fails to collect in CI. What is read is the block scalars `sessions:`
+  opens, and the census asserts what each side found before subtracting
+  one from the other, an empty side being a subtraction that passes
+  whatever the other holds.
+
 ## v2026.9.3
 
 ### Repository

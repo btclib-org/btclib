@@ -136,10 +136,10 @@ def test_the_bindings_extra_and_group_ask_for_the_same_thing() -> None:
 
 
 # `[tool.uv.build-backend] source-exclude` carries its own reasoning in
-# pyproject.toml for why a test loading `.github/scripts` or `fuzz/` off
-# disk belongs in it: each such test is unrunnable from an unpacked
-# sdist, neither directory being shipped. What no comment there can show
-# is that the list still names every test with that shape -- ISS 1509
+# pyproject.toml for why a test loading `.github` or `fuzz/` off disk
+# belongs in it: each such test is unrunnable from an unpacked sdist,
+# neither directory being shipped. What no comment there can show is
+# that the list still names the tests of the shape below -- ISS 1509
 # found one it did not, and nothing failed
 _SOURCE_EXCLUDE = re.compile(
     r"^source-exclude\s*=\s*\[(.*?)^\]", re.MULTILINE | re.DOTALL
@@ -199,11 +199,19 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
 
 
 def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
-    """A `tests/*.py` built on `.github/scripts` or `fuzz/` is in the list.
+    """A `tests/*.py` the reader above recognizes is named in the list.
 
     Not the other direction: `source-exclude` also names entries no test
     file could match -- `docs/build`, the linter caches -- so only this
     direction closes what ISS 1509 found open.
+
+    And not every test that reaches outside the sdist: what the reader
+    sees of a directory is a `/` join on its own name, so a path with
+    the whole of it in one literal -- `_ROOT / ".github/workflows"` --
+    is outside its reach and outside this assertion's, which is issue
+    #1736. Widening the sentence here without widening the reader is
+    what would put the guarantee ISS 1509 asked for on a green run that
+    does not give it.
     """
     excluded = set(_source_exclude())
     missing = [
