@@ -42,13 +42,18 @@ btclib-secp256k1 carries a copy of it under the same name that a change
 to either would be owed. Wiring is therefore its own change, not this
 file's.
 
-An entry's `commit` is the tip of its own path, so `behind` reads zero
-and a re-check can clear it. A repository-wide revision is a perfectly
-good "this is the tree I read" pin, and `contents/<path>?ref=<sha>`
-resolves one; what it cannot be is the tip of any single path, so
-`behind` never reads zero for it and a per-path staleness check never
-clears it. A ledger whose whole purpose is re-checkability takes the pin
-that goes stale loudly.
+An entry's `commit` is the tip of the path the entry names, so `behind`
+reads zero and a re-check can clear it. A repository-wide revision is a
+perfectly good "this is the tree I read" pin, and
+`contents/<path>?ref=<sha>` resolves one; what it settles is the tree
+and not the path. It is the tip of a path only where nothing on the
+default branch has touched that path since, which is a fact about that
+history rather than about the pin:
+`.github/scripts/check_vendored_vectors.py` records BIP327's files
+sharing a commit that was the tip of only one of the paths it stood
+for. So a per-path `behind` cannot be counted on to read zero for such
+a revision, and a ledger whose whole purpose is re-checkability takes
+the per-path pin, which is the one that goes stale loudly.
 
 ## The verdicts
 

@@ -1132,7 +1132,7 @@ implements no jumbo-block hasher.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
-commit  9be056a8a72b624dae9623b2f7bded92c2a21c91  2026-07-06
+commit  dbbb780af02d850a1f9257f18610cfb9de9cb828  2026-02-26
 blob    b348793bfb6397ebde806961b6783b1540a33804
 pulled  2026-09-03
 behind  0 revisions; that commit is the tip of the path
@@ -1158,7 +1158,7 @@ that source file, and the weekly re-check reports a case added to it.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/crypto_tests.cpp
-commit  9be056a8a72b624dae9623b2f7bded92c2a21c91  2026-07-06
+commit  dbbb780af02d850a1f9257f18610cfb9de9cb828  2026-02-26
 blob    b348793bfb6397ebde806961b6783b1540a33804
 pulled  2026-09-03
 behind  0 revisions; that commit is the tip of the path

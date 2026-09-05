@@ -924,6 +924,42 @@ file of the test tree, and no caller acts on it.
   `src/btclib/_ripemd160.py`'s vendored copy says which bytes were
   taken, and belongs where the copy is.
 
+### `TF2.md` says what a repository-wide revision settles
+
+- **A commit chosen to name a tree is the tip of a path only where
+  nothing on the default branch has touched that path since**
+  (closes #1739). *Reading an entry* said such a revision cannot be the
+  tip of any single path, so that `behind` never reads zero for it and
+  no per-path check can clear it; `tests/p2p/addrv2_test.py` cites
+  Core's C++ at two such commits, and one of them is the tip of the
+  path it names. What the passage says now is that being a tip is a
+  fact about the default branch's history rather than about the pin, so
+  a per-path `behind` cannot be counted on to read zero for such a
+  revision -- which is what makes the per-path pin the one a ledger
+  built for re-checking takes.
+- **The entry *`TF2.md`, one entry per file of Core's test framework*
+  above carries that universal too**, as "only the first can ever read
+  `behind 0`". It is landed text and stands as written; the bullet above
+  is where the corrected sentence is.
+
+### `crypto_tests.cpp`'s pins name the tip of that path
+
+- **`tests/_data/chacha20_vectors.json` and
+  `tests/_data/muhash_vectors.json` pin `src/test/crypto_tests.cpp` to
+  `bitcoin/bitcoin@dbbb780af0`** (closes #1737), where they pinned
+  `9be056a8a7`, Core's v31.1 release merge. That merge is the tree this
+  repository reads for Core's consensus rules and is no ancestor of
+  Core's default branch, so the entries claimed `behind 0` under a
+  commit the weekly `.github/scripts/check_vendored_vectors.py` reports
+  as drift instead. *Re-checking a pin* in that file compares blobs and
+  answers at either commit; where a pin goes stale is the weekly
+  check's to say.
+- **No vendored byte moves.** `src/test/crypto_tests.cpp` is blob
+  `b348793bfb` at the release merge and at the tip of its path alike,
+  which is the `blob` both entries already carried, so what was
+  transcribed is a reading of the same source either way and the pin is
+  what changes.
+
 ## v2026.9.3
 
 ### Repository
