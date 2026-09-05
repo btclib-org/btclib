@@ -825,6 +825,32 @@ file of the test tree, and no caller acts on it.
   operators than hosts; and a caller running their own server is on it
   nowhere.
 
+### `TF2.md`, one entry per file of Core's test framework
+
+- **The ledger [ISS 198](https://github.com/btclib-org/btclib/issues/198)
+  keeps asking for is a file at the root** (closes #1124). One entry per
+  Python file of `test/functional/test_framework/`, each naming what
+  covers it in btclib, what the covering module asserts, and the commit
+  of that path it was read at. "Strictly equivalent" is a claim about a
+  moving target, and an equivalence measured against a revision nobody
+  wrote down is one nobody can re-check.
+- **A pin is the tip of its own path, not a repository-wide revision.**
+  Both are honest ways to say which tree was read, and only the first
+  can ever read `behind 0`, so only the first is one a per-path
+  staleness check can clear. The entry grammar is
+  `tests/_data/README.md`'s for that reason: the same `repo`, `path`,
+  `commit` and `behind` fields, which
+  `.github/scripts/check_vendored_vectors.py` already parses.
+- **`tests/tf2_ledger_test.py` holds the file to its shape offline.**
+  Core's directory is transcribed and the census asserted in both
+  directions, every verdict is from the vocabulary the ledger defines
+  and every defined verdict is used, every btclib path an entry names is
+  a file of this tree, and no entry states a count. What it cannot see
+  is upstream, and in more than one way: whether a pin is still a tip is
+  a network question the re-checker will answer weekly, and whether Core
+  has gained a file is another, the census holding the ledger to that
+  transcription rather than to the directory.
+
 ## v2026.9.3
 
 ### Repository

@@ -275,6 +275,7 @@ source-exclude = [
     "/tests/generate_sbom_test.py",
     "/tests/mutation_counts_test.py",
     "/tests/normalize_sdist_test.py",
+    "/tests/tf2_ledger_test.py",
     "/tests/verify_dist_contents_test.py",
     "/tests/wait_for_hwi_device_test.py",
     "/tests/wait_for_pypi_release_test.py",
