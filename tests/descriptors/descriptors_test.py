@@ -1051,7 +1051,7 @@ def test_network() -> None:
     assert script_pub_key.network == "testnet"
     assert script_pub_key.address.startswith("tb1")
     assert ScriptPubKey.from_address(script_pub_key.address) == script_pub_key
-    with pytest.raises(BTClibValueError, match="Not a mainnet key: version "):
+    with pytest.raises(BTClibValueError, match="not a mainnet key: version "):
         parse(descriptor).script_pub_key()
 
 

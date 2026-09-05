@@ -384,7 +384,7 @@ def test_a_script_too_long_for_the_output_it_would_pay() -> None:
 
 def test_a_key_of_another_network_cannot_be_in_the_quorum() -> None:
     """The template is built at construction, which is where this shows."""
-    with pytest.raises(BTClibValueError, match="Not a testnet key: version "):
+    with pytest.raises(BTClibValueError, match="not a testnet key: version "):
         ScriptWallet([KeyGroup(1, _XPUBS[:1])], "p2wsh", network="testnet")
 
 

@@ -645,7 +645,7 @@ def pub_keyinfo_from_xpub(
         # a BIP32 key is always compressed, so a caller asking for
         # uncompressed is asking about another format
         if not compressed:
-            raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
+            raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
 
     return _pub_keyinfo_from_xpub(_key_data_from_bip32_key(xpub), network)
 
@@ -678,7 +678,7 @@ def _pub_keyinfo_from_xpub(
     if xpub_data.version not in allowed_versions:
         # an xpub is not funds-critical, but it derives all child pub
         # keys: keep it out of exception messages (and logs) too
-        err_msg = f"Not a {network} key: version 0x{xpub_data.version.hex()}"
+        err_msg = f"not a {network} key: version 0x{xpub_data.version.hex()}"
         raise BTClibValueError(err_msg)
 
     return xpub_data.key, network

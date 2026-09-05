@@ -651,7 +651,7 @@ file of the test tree, and no caller acts on it.
   `bip32` call and pass the octets on, where they used to hand the key
   itself to a converter that decoded it again. An extended key on the
   wrong network is refused by `bip32` as a result, with the version bytes
-  that mismatched -- `Not a mainnet key: version 0x...` -- where a
+  that mismatched -- `not a mainnet key: version 0x...` -- where a
   `contextlib.suppress` around the BIP32 parse used to leave
   `to_pub_key`'s "not a private or public key for mainnet" behind. A
   caller matching on the old text has to change; the new text names the
@@ -669,6 +669,19 @@ file of the test tree, and no caller acts on it.
   `docs/source/guide.rst`'s alias descriptions and
   `docs/proposals/cli.md`'s account of the `bip32.slip132` cycle each
   carried the old arrow and are corrected.
+
+### `bip32`'s public-half refusals take the words of their private twins
+
+- **`pub_keyinfo_from_xpub` answers `uncompressed SEC / compressed BIP32
+  mismatch`, and both it and `pub_keyinfo_from_xkey` answer `not a
+  <network> key: version 0x...`** (closes #1719), which is word for word
+  what `prv_keyinfo_from_xprv` beside them answers for the same two
+  faults. The capital spelling of the second gave one key two wordings:
+  `pub_keyinfo_from_xkey` neuters an xprv through `_xpub_from_xprv`, so
+  an xprv on a network other than the one asked for is refused both
+  there and by `prv_keyinfo_from_xprv`. The pair is what decides this
+  rather than a spelling rule over the tree: a capital-initial message
+  elsewhere in `src/btclib` stays as it is.
 
 ## v2026.9.3
 
