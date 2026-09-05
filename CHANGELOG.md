@@ -978,6 +978,37 @@ file of the test tree, and no caller acts on it.
 - **The head comment gives both halves of the rule**, having named the
   image's `?branch=main` alone.
 
+### `mutation.yml`'s dispatch options and its matrix slugs name one set
+
+- **`tests/mutation_sessions_test.py` asserts that
+  `.github/workflows/mutation.yml`'s `workflow_dispatch` options and the
+  matrix's own `slug` values are the same names**, `all` excepted
+  (closes #1734). An option no slug answers leaves the job's `SELECTED`
+  expression false in every entry of the matrix: each takes a runner and
+  gives it back in seconds, and the run is green having measured
+  nothing. A slug no option offers is the quieter direction, the
+  schedule running that profile whatever the dropdown holds.
+- **What that module reads is the dropdown as well as the block scalars
+  `sessions:` opens**, through one reader over the lines a key indents
+  under it, where the entry landing the session census named the block
+  scalars alone.
+- **`all` is asserted present before it is subtracted, and a repeated
+  name is asserted against on both sides.** Subtracting a member that is
+  not there removes nothing, so the equality would hold for a dropdown
+  that had lost the entry its own `default:` names; and two matrix
+  entries sharing a slug answer one option and upload their sessions
+  under one artifact name, which an equality of sets cannot see either.
+
+### `curve_group.toml` and `mutation.yml` report the curve session as sampled
+
+- **The `curves` matrix entry of `.github/workflows/mutation.yml` and
+  `.github/mutation/curve_group.toml` say what the weekly session does
+  with the scope** (closes #1735), where each said that none had run it.
+  The job cuts the session at the budget the matrix gives it and reports
+  what it judged, so the scope is sampled rather than unmeasured.
+- **Triaging those survivors is issue #1745**, which is what both files
+  defer to: the deferral named issue #822, and that one is closed.
+
 ## v2026.9.3
 
 ### Repository

@@ -233,14 +233,14 @@ jobs:
             sessions: |
               signatures.toml 90m
           # the pure-Python point arithmetic under the two signing modules
-          # above: 5529 mutants, nearly double their pair's 2980, and
-          # written for issue #822 -- which this scope answers and
-          # signatures.toml's own header still names as the profile with
-          # none of it yet -- but never added to a job of its own, so no
-          # session has run it. 90 minutes, matching signatures.toml's
-          # budget for a scope nearly double the size, is a first sample
-          # rather than a measured one; what it finds is #822's follow-up,
-          # the same note curve_group.toml itself makes
+          # above: 5529 mutants, nearly double their pair's 2980, and the
+          # scope issue #822 asks for -- why it is invisible to the
+          # signatures profile is curve_group.toml's own header. 90
+          # minutes, matching signatures.toml's budget for a scope nearly
+          # double the size, samples the scope rather than finishing it:
+          # the weekly job cuts the session there and reports what it
+          # judged, and triaging that is issue #1745, the same note
+          # curve_group.toml itself makes
           - profile: the pure-Python curve arithmetic
             slug: curves
             ceiling: 100
