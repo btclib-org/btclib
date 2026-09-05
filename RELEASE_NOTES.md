@@ -174,6 +174,19 @@ full year, short month, short day (YYYY-M-D)
   still a `BTClibTypeError` or a `BTClibValueError`, so an `except` on
   either class is unaffected.
 
+- **`bip32.pub_keyinfo_from_xpub` answers about `compressed` once the
+  key has decoded** (closes #1721). `pub_keyinfo_from_xpub("not an
+  xkey", compressed=False)` raises `Base58 string contains invalid
+  characters`, the decode's own refusal, where the compression mismatch
+  answered first; `prv_keyinfo_from_xprv` beside it reads in that order.
+
+  Act on it if you match on the text of that mismatch to catch a bad
+  key: it answers for a key that decoded, so text that is no extended
+  key wants the decode's own refusal matched instead. The mismatch reads
+  `uncompressed SEC / compressed BIP32 mismatch` in this release, and
+  `Uncompressed SEC / compressed BIP32 mismatch` at v2026.9.3 and at
+  v2023.7.12, where reading an extended key was `to_pub_key`'s.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
