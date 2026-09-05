@@ -960,6 +960,24 @@ file of the test tree, and no caller acts on it.
   transcribed is a reading of the same source either way and the pin is
   what changes.
 
+### A workflow-status badge's link filters the runs page to `main`
+
+- **Every workflow-status badge link in `README.md` carries
+  `?query=branch%3Amain`** (issue btclib-org/.github#762), where it
+  addressed the workflow's runs page with no filter on it. Section 2 of
+  the organization standard is where that is decided and why: the row is
+  an audit of `main`, so the page the reader arrives on lists the runs
+  the image answers for, and a feature branch's red run at the top of an
+  unfiltered list says nothing about `main`.
+- **The link's spelling is not the image's.** `?branch=main` is ignored
+  on a runs page, which then renders unfiltered, so copying the query
+  that qualifies the image onto the link leaves the click-through
+  answering for every branch. A badge that reports no workflow run --
+  `scorecard`, Read the Docs, pre-commit.ci -- is outside the rule and
+  its link is unchanged.
+- **The head comment gives both halves of the rule**, having named the
+  image's `?branch=main` alone.
+
 ## v2026.9.3
 
 ### Repository
