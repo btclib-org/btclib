@@ -683,6 +683,36 @@ file of the test tree, and no caller acts on it.
   rather than a spelling rule over the tree: a capital-initial message
   elsewhere in `src/btclib` stays as it is.
 
+### `tests/fetch`'s prose names the questions rather than counting them
+
+- **No docstring, comment or test name under `tests/fetch/` states how
+  many questions `Fetcher` declares** (closes #1714). The number moves
+  when the interface grows, in files the growth does not otherwise
+  touch, and it is the same count `src/btclib/fetch/` no longer carries.
+  What replaces it is the property each sentence was about -- every
+  question `Fetcher` declares, the stub answering all of them, a fetch
+  verifying the chain like the others -- and the enumerations stay.
+- **A count in a test name is a rename**, so what a failure prints
+  changes with the prose: `test_the_stub_answers_every_question`,
+  `test_leaving_any_one_question_abstract_refuses_construction`,
+  `test_fallback_answers_every_question_from_the_first_backend`,
+  `test_get_block_header_verifies_the_chain_once_like_the_others` in
+  both Bitcoin Core test modules, and
+  `test_get_tx_merkle_and_verify_tx_are_refused_on_another_chain_too`,
+  which names the entry points it is about rather than their place in a
+  sequence.
+- **One count named a set the code it describes never reads**:
+  `EsploraFetcher`'s refusal of an unknown network was documented as a
+  name that "is none of the three known ones", where the deployments
+  `BLOCKSTREAM_INFO` names have nothing to do with that refusal --
+  `Fetcher.__init__` puts the name through
+  `network._validated_network_name`, which answers for the whole of
+  `NETWORKS`. The test now says the name is one btclib does not know.
+- **A number that indexes the test's own script stays**, a count of what
+  a test builds being no claim about the tree: the ids a cache test
+  inserts, the parameters a case is repeated over, and the members
+  JSON-RPC fixes on an error object.
+
 ## v2026.9.3
 
 ### Repository

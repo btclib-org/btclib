@@ -53,7 +53,7 @@ from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
 # the rpc credentials every test here passes. Named once rather than
 # written at each call, which is what keeps the string out of a
-# `password=` argument: the two secret scanners read a literal there as a
+# `password=` argument: the secret scanners read a literal there as a
 # credential, and they are right to -- a real one belongs in neither
 RPC_USER = "rpcuser"
 RPC_PASSWORD = "rpcpassword"  # noqa: S105  # pragma: allowlist secret
@@ -236,7 +236,7 @@ def blockchaininfo(**members: object) -> tuple[int, bytes]:
     """Return a 200 answer whose result is a getblockchaininfo of these members.
 
     Written here rather than recorded: the reply carries a dozen members
-    beyond the two this question reads, so a recording of it would be a
+    beyond the ones this question reads, so a recording of it would be a
     fixture to re-take whenever Core adds one, and every test below would
     then be edited to change the one member it is about.
     """
@@ -266,7 +266,7 @@ def test_every_network_btclib_ships_has_a_chain_name() -> None:
 def test_assert_network_accepts_the_chain_the_node_reports(
     network: str, chain: str
 ) -> None:
-    """The two names that differ, which are the two a mismatch hides behind."""
+    """The names that differ, which are what a mismatch hides behind."""
     fetcher(blockchaininfo(chain=chain), network=network).assert_network()
 
 
@@ -357,7 +357,7 @@ def test_a_challenge_is_refused_for_a_testnet_too(network: str) -> None:
 
     The chain names are compared as strings, and `main` and `regtest` both
     sort before `signet` where an ordering and an inequality agree. The
-    testnets sort after it, so they are the two networks a comparison
+    testnets sort after it, so they are the networks a comparison
     would accept a challenge for -- one that could never be checked,
     because there is no signet challenge in a testnet's genesis to hold it
     to.
@@ -580,8 +580,8 @@ def test_get_block_header_refuses_a_non_integer_height(height: object) -> None:
     assert asked(endpoint) == []
 
 
-def test_get_block_header_verifies_the_chain_once_like_the_other_three() -> None:
-    """The fourth fetch goes through `_verify_once`, as the first three do."""
+def test_get_block_header_verifies_the_chain_once_like_the_others() -> None:
+    """`get_block_header` goes through `_verify_once`, as the others do."""
     endpoint = client(
         blockchaininfo(chain="main"),
         (200, recorded_body("getblockhash.json")),
@@ -598,7 +598,7 @@ def test_a_small_reply_carries_a_small_limit() -> None:
     `call` defaults to the widest answer a fetcher asks for, a raw
     transaction as hex inside a json envelope, because it is public and
     takes any method -- `getblock` on a large block is a legitimate call.
-    The two answers that are a number and a hash say so instead.
+    The answers that are a number and a hash say so instead.
     """
     oversized = b'{"result":' + b"9" * 1100 + b',"error":null,"id":"x"}'
     with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
@@ -642,8 +642,8 @@ def test_an_error_the_client_raises_without_a_status_is_a_fetch_error() -> None:
 
     The transport raises rather than answering, which is what a socket
     that never connected does; the client turns it into its own
-    `FetchError`, and this is the third branch of the translation -- the
-    one with no field to carry.
+    `FetchError`, and this is the branch of the translation with no field
+    to carry.
     """
     refused = rpc.FetchError("no answer from http://127.0.0.1:8332: refused")
     with pytest.raises(FetchError, match="refused") as exc:
@@ -752,7 +752,7 @@ def test_broadcast_verifies_the_network_before_sending_anything() -> None:
 
 
 def test_broadcast_verifies_the_network_once_like_the_other_methods() -> None:
-    """Agreeing once, the fifth call goes straight through like the fourth."""
+    """Agreeing once, `broadcast` goes straight through as the questions do."""
     tx = broadcast_tx()
     endpoint = client(
         blockchaininfo(chain="main"),
