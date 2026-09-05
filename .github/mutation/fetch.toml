@@ -1,19 +1,33 @@
-# The fetch boundary, mutated: the transport, the JSON-RPC and Esplora
-# backends, and the fetcher module they call into -- `module-path` below
-# is the whole of the scope, and the REST backend is outside it. Issue
-# #327 proposed this scope
-# directly -- a response-size limit weakened, a status check turned into
-# an acceptance, a tx-id verification skipped -- as the same class of gap
-# #219 found in the consensus code, on a boundary that is network input
-# rather than a parsed byte string. The test transport seam already keeps
-# these runs offline and deterministic, which is what makes a mutation
-# session over this scope no slower than any other local one.
+# The fetch boundary, mutated: every backend that reaches a host over the
+# transport, and the fetcher module they all call into. `transport.py` is
+# in `module-path` and enumerates nothing -- it is imports, a `Callable`
+# alias and `__all__`, no expression a mutation operator can reach -- so it
+# is named there for a body it may grow rather than for anything measured
+# below. Issue #327 proposed this scope directly -- a response-size limit
+# weakened, a status check turned into an acceptance, a tx-id verification
+# skipped -- as the same class of gap #219 found in the consensus code, on a
+# boundary that is network input rather than a parsed byte string. The test
+# transport seam already keeps these runs offline and deterministic, which is
+# what makes a mutation session over this scope no slower than any other
+# local one.
+#
+# `decorators.py` and `broadcaster.py` are outside `module-path`, and the
+# boundary is why: neither judges a reply, so neither holds a guard of the
+# kind above to weaken. `CachingFetcher` and `FallbackFetcher` answer from
+# another `Fetcher` rather than from a host, which is the reason
+# `NetworkVerifyingFetcher`'s own docstring gives for their carrying no
+# chain check, and whether they are worth a scope of their own is issue
+# #1717. `broadcaster.py` needs no such decision: `cosmic-ray init` over a
+# configuration naming it enumerates nothing there, `Broadcaster` being a
+# `Protocol` whose method bodies are `...`.
 
 [cosmic-ray]
 module-path = [
     "src/btclib/fetch/transport.py",
     "src/btclib/fetch/esplora.py",
     "src/btclib/fetch/bitcoin_core.py",
+    "src/btclib/fetch/bitcoin_core_rest.py",
+    "src/btclib/fetch/electrum.py",
     "src/btclib/fetch/fetcher.py",
 ]
 
@@ -27,44 +41,69 @@ excluded-modules = []
 # Measured rather than assumed, as script.toml's own comment on this
 # exclusion asks:
 #
-#   grep -n ' | ' src/btclib/fetch/transport.py src/btclib/fetch/esplora.py \
-#       src/btclib/fetch/bitcoin_core.py src/btclib/fetch/fetcher.py
+#   grep -n ' | ' src/btclib/fetch/transport.py \
+#       src/btclib/fetch/esplora.py src/btclib/fetch/bitcoin_core.py \
+#       src/btclib/fetch/bitcoin_core_rest.py src/btclib/fetch/electrum.py \
+#       src/btclib/fetch/fetcher.py
 #
-# Every hit is an annotation. Confirmed by running the filter itself
-# rather than by the grep alone: `cosmic-ray init` over this file still
-# enumerates the 177 mutants the session below did, and
-# `cosmic_ray.tools.filters.operators_filter` marks 55 of them SKIPPED
-# -- the same 55 the session below already found equivalent by
-# inspection, and the "class fetch.toml documents" every other
-# profile's own comment points back to -- leaving 122 for a future
-# session to have an opinion about (issue #987).
+# Every hit is an annotation but one, `bitcoin_core_rest.py`'s docstring
+# on why `_get_json`'s bound is an `int` where `_get_bin`'s is not, which
+# is text rather than an expression. Confirmed by running the filter
+# itself rather than by the grep alone: `cosmic-ray init` over this file
+# enumerates the 474 mutants the session below did, and
+# `cosmic_ray.tools.filters.operators_filter` marks 110 of them SKIPPED
+# -- the same 110 the session below finds surviving on annotation lines,
+# and the "class fetch.toml documents" every other profile's own comment
+# points back to -- leaving 364 for a future session to have an opinion
+# about (issue #987).
 [cosmic-ray.filters.operators-filter]
 exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 
-# 177 mutants, complete: 114 killed, 63 survived. One of the 63 is killed
-# now -- `chain_from_network(self.network) != "signet"` weakened to `<`,
-# which accepted a challenge for the two testnets whose chain names sort
-# after `signet`, where mainnet's and regtest's sort before it and an
-# ordering cannot be told from an inequality (issue #978). The 62 left are
-# three classes and no missing test among them:
+# 474 mutants, complete: 314 killed, 160 survived. Four classes account
+# for 142 of the 160, and eighteen belong to none of them:
 #
-# - 55 are three `X | None` annotations in `bitcoin_core.py`, mutated
-#   eleven ways on one and twenty-two on each of the others: the class
-#   under Python 3.14's deferred annotation evaluation (PEP 649) that
-#   numeric.toml documents at length. Nine tenths of this profile's
-#   survivors are those three lines, which is what its rate is, and no
-#   test can reach any of them.
-# - 4 in `fetcher.py` are equivalent by inspection: `==` against `is` on
-#   the very object `NETWORKS` holds, and three `check_validity=False`
-#   turned `True`, which validates data already valid.
-# - 3 are the keyword-only `*` marker turned `/`, in `bitcoin_core.py`
-#   and `esplora.py`. Nothing in the library asserts a keyword-only one is
-#   one -- 89 public callables take 132 of them -- so these three survive
-#   for a reason that is neither this profile's nor a test to write here.
-#   Issue #980 is where that is decided.
+# - 110 are `X | None` annotations, in `bitcoin_core.py`,
+#   `bitcoin_core_rest.py` and `esplora.py`. This is the class the other
+#   profiles' comments point back here for, and it is deferred
+#   evaluation: an annotation is not evaluated where it is written, so
+#   `str | bytes | None` rewritten `str + bytes + None` is never built
+#   and no call changes. `bitcoin_core.py` has that from PEP 649 and the
+#   3.14 `.python-version` pins, the other two from `from __future__
+#   import annotations` as well. The filter above is what keeps them out
+#   of a session that would otherwise run them.
+# - 5 in `fetcher.py` are equivalent by inspection: `==` against `is` on
+#   the very object `NETWORKS` holds, and four `check_validity=False`
+#   turned `True`, each on data the line beside it has already
+#   validated.
+# - 23 are killed by a gate this profile's test command does not run.
+#   Twenty are `@override` removed, which changes nothing at runtime --
+#   `typing_extensions.override` sets `__override__` and hands the method
+#   back -- and which `[tool.mypy] enable_error_code`'s
+#   `explicit-override` refuses: deleting the one on
+#   `BitcoinCoreFetcher.get_tx` and running `mypy` on that file exits 1,
+#   naming the method. The other three are the keyword-only `*` marker
+#   turned `/` on a public signature, which `tests/keyword_only_test.py`
+#   pins: making those three mutations at once leaves `tests/fetch`
+#   passing and fails that file at each of the three sites.
+# - 4 are the same marker on `_call`, `_get_bin`, `_get_json` and
+#   `_request`. That walk stops at a class's public names, its own
+#   docstring saying so, and a private method's calling convention is
+#   nothing this library promises.
 #
-# So the rate to read from this profile is the annotations', and a verdict
-# that moves in it is a verdict outside those three lines.
+# The 18 left are what this boundary is held to on either side of a call --
+# what a reply is checked against, and what a request carries -- and
+# `tests/fetch` does not notice any of them weakened: the three `-rest` body
+# bounds moved by one, six comparisons turned into orderings -- issue #978's
+# shape, in `bitcoin_core_rest.py`'s and `esplora.py`'s `assert_network`, in
+# both broadcasts' txid check and at `esplora.py`'s `status != 200` --
+# `include_witness=True` turned `False` in both broadcasts, `esplora.py`'s
+# `Content-Type` condition read either way, and `ElectrumFetcher`'s
+# request-id counter, which `+= 0` makes the constant `_next_request_id`'s
+# own docstring rules out. Issue #1716 has each with its line and is where
+# they are answered.
+#
+# So the rate is not the reading here: those eighteen are, and a verdict
+# worth acting on is one that moves among them.
 
 [cosmic-ray.distributor]
 name = "local"
