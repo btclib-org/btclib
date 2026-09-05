@@ -16,10 +16,10 @@
 # kind above to weaken. `CachingFetcher` and `FallbackFetcher` answer from
 # another `Fetcher` rather than from a host, which is the reason
 # `NetworkVerifyingFetcher`'s own docstring gives for their carrying no
-# chain check, and whether they are worth a scope of their own is issue
-# #1717. `broadcaster.py` needs no such decision: `cosmic-ray init` over a
-# configuration naming it enumerates nothing there, `Broadcaster` being a
-# `Protocol` whose method bodies are `...`.
+# chain check, and `fetch_decorators.toml` is the scope of their own that
+# follows from it. `broadcaster.py` needs no such decision: `cosmic-ray
+# init` over a configuration naming it enumerates nothing there,
+# `Broadcaster` being a `Protocol` whose method bodies are `...`.
 
 [cosmic-ray]
 module-path = [

@@ -713,6 +713,31 @@ file of the test tree, and no caller acts on it.
   inserts, the parameters a case is repeated over, and the members
   JSON-RPC fixes on an error object.
 
+### `.github/mutation/fetch_decorators.toml` mutates the cache and the failover
+
+- **`src/btclib/fetch/decorators.py` gets a mutation profile of its
+  own** (closes #1717). `CachingFetcher` and `FallbackFetcher` answer
+  from another `Fetcher` rather than from a host, so neither holds a
+  guard of the kind `fetch.toml` exists to weaken, and naming them there
+  would leave that profile's name describing neither half. What they
+  hold instead is an eviction bound, a lookup that decides whether the
+  backend is reached at all, and a failover loop, and
+  `tests/fetch/decorators_test.py` is what a mutant of those is held to.
+  `.github/workflows/mutation.yml` runs the session in the `shared` job,
+  whose ceiling rises by its budget.
+- **A complete session over the new scope is recorded in that
+  configuration's own comment**, every survivor belonging to one of the
+  two classes it argues: `@override` removed, which `[tool.mypy]`'s
+  `explicit-override` refuses, and a comparison or an index no test can
+  distinguish -- one of them because a length is never negative, the
+  other two because a guard above them has already narrowed what
+  reaches the line.
+- **`tests/fetch/decorators_test.py` builds a `FallbackFetcher` over one
+  backend**, which is the sequence where the constructor's `fetchers[0]`
+  is the only valid index: a mutant reading `fetchers[1]` there raises
+  `IndexError` on such a construction while passing every other test in
+  the file.
+
 ## v2026.9.3
 
 ### Repository
