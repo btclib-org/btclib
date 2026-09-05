@@ -305,6 +305,22 @@ def test_a_response_whose_id_does_not_match_is_refused() -> None:
         fetcher(wrong_id).get_tx(MERKLE_TX_ID)
 
 
+def test_two_questions_carry_two_request_ids() -> None:
+    """A counter and not a constant, read off the wire rather than stated.
+
+    `decode_response` refuses a line answering a different id, so two
+    requests sharing one id could not be told apart by anything this
+    codec checks: what one fetcher asked, in order, is the whole of the
+    evidence for that.
+    """
+    tip = {"height": TIP_HEIGHT, "hex": TIP_HEADER_RAW}
+    endpoint = fetcher(tip)
+    endpoint.get_block_count()
+    endpoint.get_best_block_id()
+    ids = [json.loads(request)["id"] for request in transport_of(endpoint).requests]
+    assert ids == [1, 2]
+
+
 def test_a_line_that_is_not_json_is_refused() -> None:
     """A line a server never sends, refused rather than misread."""
     with pytest.raises(FetchError, match="not a JSON-RPC line"):

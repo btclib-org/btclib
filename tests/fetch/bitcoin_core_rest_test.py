@@ -25,6 +25,7 @@ from bitcoin_core_rpc import (
     DEFAULT_SIGNET_CHALLENGE,
     BitcoinCoreRestClient,
     SessionTransport,
+    chain_from_network,
 )
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError, HttpError
@@ -316,6 +317,19 @@ def test_a_node_on_another_chain_answers_no_fetch_at_all() -> None:
     assert urls(endpoint) == [f"{URL}/rest/chaininfo.json"]
 
 
+def test_a_node_on_a_chain_sorting_before_the_expected_one_is_refused() -> None:
+    """The refusal is inequality with the chain name, not an ordering on it.
+
+    Core names mainnet `main`, which sorts before `signet`: a signet
+    fetcher over a mainnet node is the case a guard written `>` accepts,
+    where the mainnet fetcher over a `test` node above refuses under that
+    same weakening.
+    """
+    endpoint = client((200, chaininfo(chain="main", blocks=TIP_HEIGHT)))
+    with pytest.raises(BTClibValueError, match="reports chain 'main'"):
+        BitcoinCoreRestFetcher(endpoint, "signet").assert_network()
+
+
 def test_a_node_that_could_not_be_asked_is_asked_again() -> None:
     """A node that did not answer said nothing about which chain it is on."""
     endpoint = client(
@@ -419,6 +433,21 @@ def test_a_signet_challenge_that_cannot_be_read_is_no_answer(body: bytes) -> Non
         BitcoinCoreRestFetcher(client((200, body)), "signet").assert_network()
 
 
+@pytest.mark.parametrize("network", ["testnet", "testnet4"])
+def test_a_testnet_node_is_not_asked_for_a_signet_challenge(network: str) -> None:
+    """A magic is signet's question, and the chain name is what asks it.
+
+    Core's names for the testnets sort after `signet`, so a check written
+    `>=` would derive a magic for a testnet and then read a member no
+    node reports outside one -- turning an agreement into a reply this
+    cannot read.
+    """
+    chain = chain_from_network(network)
+    BitcoinCoreRestFetcher(
+        client((200, chaininfo(chain=chain, blocks=TIP_HEIGHT))), network
+    ).assert_network()
+
+
 def test_a_challenge_is_refused_where_it_would_check_nothing() -> None:
     """Refused at construction, where the mistake was written."""
     with pytest.raises(BTClibValueError, match="challenge for mainnet"):
@@ -456,6 +485,43 @@ def test_the_body_bound_admits_a_maximal_signet_challenge() -> None:
     BitcoinCoreRestFetcher(
         client((200, answer)), "signet", signet_challenge=maximal
     ).assert_network()
+
+
+def test_each_answer_is_bounded_by_what_it_is() -> None:
+    """A chaininfo reply, a block hash and a header, each bounded by what it is.
+
+    The client's own default is wide enough for a block, which is the
+    bound a raw transaction wants and no other answer here does: a node
+    answering `/blockhashbyheight` with a block's worth of octets is
+    answering something that is not a hash, and there is no reason to
+    hold it in order to find that out. The hash and the header bounds
+    are the size their endpoint answers with; the chaininfo bound is
+    what a maximal signet challenge needs, which the constant's own
+    comment argues. Each refusal carries the number it was measured
+    against, which is what pins the bound to its value.
+    """
+    with pytest.raises(FetchError, match="more than the max_body_size of 32768"):
+        fetcher((200, b"x" * 32769)).get_block_count()
+
+    with pytest.raises(FetchError, match="more than the max_body_size of 32"):
+        fetcher((200, b"\x00" * 33)).get_block_header(TIP_HEIGHT)
+
+    oversized_header = fetcher(
+        (200, recorded_body("rest_blockhashbyheight.bin")), (200, b"\x00" * 81)
+    )
+    with pytest.raises(FetchError, match="more than the max_body_size of 80"):
+        oversized_header.get_block_header(TIP_HEIGHT)
+
+    # and the recorded answers are inside their limits, which is the
+    # other half of the claim
+    assert fetcher((200, recorded_body("rest_chaininfo.json"))).get_block_count() == (
+        TIP_HEIGHT
+    )
+    inside = fetcher(
+        (200, recorded_body("rest_blockhashbyheight.bin")),
+        (200, recorded_body("rest_headers.bin")),
+    )
+    assert inside.get_block_header(TIP_HEIGHT).hash.hex() == TIP_ID
 
 
 def test_a_challenge_that_is_no_script_fails_at_the_constructor() -> None:

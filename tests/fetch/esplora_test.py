@@ -19,6 +19,8 @@ from btclib.fetch.transport import SessionTransport
 from btclib.network import NETWORKS
 from btclib.tx import OutPoint, Tx
 from tests.fetch import (
+    LATER_TX_ID,
+    SEGWIT_TX_RAW,
     TIP_HEADER_RAW,
     TIP_HEIGHT,
     TIP_ID,
@@ -37,12 +39,13 @@ TESTNET_GENESIS = NETWORKS["testnet"].genesis_block.hex()
 
 
 def broadcast_tx() -> Tx:
-    """Return the recorded transaction, parsed, as a signed Tx to announce.
+    """Return the transaction the broadcast tests announce, parsed.
 
-    The same one `esplora_tx_hex.txt` answers `get_tx` with: it exists
-    already, so broadcasting it needs no new vector of its own.
+    A segwit spend and not the one `esplora_tx_hex.txt` answers `get_tx`
+    with: what `POST /tx` carries is the wire serialization, and a
+    transaction with no witness has one serialization rather than two.
     """
-    return Tx.parse(bytes.fromhex(recorded_body("esplora_tx_hex.txt").decode().strip()))
+    return Tx.parse(SEGWIT_TX_RAW)
 
 
 def fetcher(
@@ -223,6 +226,17 @@ def test_assert_network_refuses_a_different_genesis() -> None:
     """
     with pytest.raises(BTClibValueError, match=f"{TESTNET_GENESIS}.*{MAINNET_GENESIS}"):
         fetcher((200, TESTNET_GENESIS.encode())).assert_network()
+
+
+def test_assert_network_refuses_a_genesis_sorting_before_the_expected_one() -> None:
+    """The refusal is inequality with the genesis, not an ordering against it.
+
+    Mainnet's genesis sorts before testnet's, so a testnet fetcher over a
+    mainnet explorer is the case a guard written `>` accepts, where the
+    mainnet fetcher above refuses under the same weakening.
+    """
+    with pytest.raises(BTClibValueError, match=f"{MAINNET_GENESIS}.*{TESTNET_GENESIS}"):
+        fetcher((200, MAINNET_GENESIS.encode()), network="testnet").assert_network()
 
 
 def test_the_first_fetch_asks_the_explorer_which_chain_it_serves() -> None:
@@ -407,7 +421,13 @@ def test_the_body_of_a_failure_is_not_held_to_the_answer_limit() -> None:
 
 
 def test_broadcast_posts_the_wire_serialization_and_returns_the_txid() -> None:
-    """`POST /tx`, the hex body, the txid the server answers as text."""
+    """`POST /tx`, the hex body, the txid the server answers as text.
+
+    The witness is in the body: the two serializations of this
+    transaction are different bytes under one id, so what a broadcast
+    stripping it announces is a transaction carrying none of the
+    signatures, at the id the server confirms either way.
+    """
     tx = broadcast_tx()
     transport = Recorded((200, tx.id.hex().encode()))
     esplora = EsploraFetcher(BASE, transport=transport, verify_network=False)
@@ -416,13 +436,53 @@ def test_broadcast_posts_the_wire_serialization_and_returns_the_txid() -> None:
     assert transport.request.full_url == f"{BASE}/tx"
     assert transport.request.get_method() == "POST"
     assert transport.body == tx.serialize(include_witness=True).hex().encode("ascii")
+    # the vector tells the two serializations apart, which is the other
+    # half of the claim
+    assert tx.serialize(include_witness=False) != tx.serialize(include_witness=True)
 
 
-def test_broadcast_refuses_a_success_naming_another_txid() -> None:
-    """The server answered for a transaction that is not the one it was sent."""
+def test_a_content_type_rides_with_a_body_and_not_with_a_read() -> None:
+    """`Content-Type` rides with a body, and a GET has none to describe.
+
+    Esplora reads `POST /tx`'s body as the hex of a transaction, so the
+    header says what it is; a header on the reads would describe a
+    request that carries nothing.
+    """
     tx = broadcast_tx()
-    with pytest.raises(FetchError, match=f"the server confirmed {OTHER_ID}"):
-        fetcher((200, OTHER_ID.encode())).broadcast(tx)
+    posting = Recorded((200, tx.id.hex().encode()))
+    EsploraFetcher(BASE, transport=posting, verify_network=False).broadcast(tx)
+    assert posting.request.get_header("Content-type") == "text/plain"
+
+    getting = Recorded((200, recorded_body("esplora_blocks_tip_height.txt")))
+    EsploraFetcher(BASE, transport=getting, verify_network=False).get_block_count()
+    assert getting.request.get_header("Content-type") is None
+
+
+@pytest.mark.parametrize("confirmed", [OTHER_ID, LATER_TX_ID])
+def test_broadcast_refuses_a_success_naming_another_txid(confirmed: str) -> None:
+    """The server answered for a transaction that is not the one it was sent.
+
+    One wrong id sorting before the transaction announced and one after:
+    the check is inequality, and a guard written `<` hands the second
+    back as the id of a broadcast the server never confirmed.
+    """
+    tx = broadcast_tx()
+    with pytest.raises(FetchError, match=f"the server confirmed {confirmed}"):
+        fetcher((200, confirmed.encode())).broadcast(tx)
+
+
+@pytest.mark.parametrize("status", [100, 429, 503])
+def test_the_status_of_a_broadcast_failure_is_a_field(status: int) -> None:
+    """A broadcast reads its status the way a read does, and reports it.
+
+    100 is below 200, not above it: `!= 200` weakened to `> 200` refuses
+    every status above and accepts every status below, and what an
+    accepted one costs here is a body read as the id of a transaction
+    the server never took.
+    """
+    with pytest.raises(HttpError) as exc:
+        fetcher((status, b"no")).broadcast(broadcast_tx())
+    assert exc.value.status == status
 
 
 def test_broadcast_verifies_the_network_before_sending_anything() -> None:
