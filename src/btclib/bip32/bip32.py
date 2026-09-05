@@ -89,6 +89,7 @@ __all__ = [
     "point_from_xpub",
     "prv_keyinfo_from_xprv",
     "pub_key_derivation_tweaks",
+    "pub_keyinfo_from_xkey",
     "pub_keyinfo_from_xpub",
     "rootxprv_from_seed",
     "rootxprv_from_seed_",
@@ -593,51 +594,35 @@ def prv_keyinfo_from_xprv(
     # it is the one non-bool this position takes
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
-    return _prv_keyinfo_from_xprv(_key_data_from_bip32_key(xprv), network, compressed)
 
+    xprv_data = _key_data_from_bip32_key(xprv)
 
-def _prv_keyinfo_from_xprv(
-    xprv: BIP32KeyData, network: str | None, compressed: bool | None
-) -> tuple[int, str, bool]:
-    """`prv_keyinfo_from_xprv` on a key already decoded and validated.
-
-    What `to_prv_key` composes with a decode of its own, and the decode
-    is the whole of the difference: that module guesses among the
-    spellings of a private key, so text no `b58decode` reads is "not this
-    format, try the next" there and a `NotAPrvKeyError` carries the
-    reason, where here it is the refusal `BIP32KeyData.b58decode` gives.
-    Reaching this through the public spelling instead would validate the
-    decoded key a second time, and for an extended public key
-    `_assert_valid_key`'s on-curve test is most of what validating one
-    costs.
-    """
-    # a BIP32 key is always compressed, so a caller asking for uncompressed
-    # is asking about another format. This follows the decode rather than
-    # preceding it: for a str or bytes input the decode is what decides
-    # whether there is an xkey here at all, and 32 raw bytes with
-    # compressed=False are octets -- which the guessing callers must
-    # stay free to try, or every uncompressed SEC key stops resolving
+    # a BIP32 key is always compressed, so a caller asking for
+    # uncompressed is asking about another format. This follows the
+    # decode rather than preceding it, so that what it answers is a fault
+    # in a key that did decode -- an `InvalidPrvKeyError` -- where text
+    # that is no xkey has already left as the decode's own refusal
     if compressed is not None and not compressed:
         raise InvalidPrvKeyError("uncompressed SEC / compressed BIP32 mismatch")
 
     # from here it is an xkey, so what follows is a fault in one
-    if xprv.key[0] != 0:
+    if xprv_data.key[0] != 0:
         # the offending key is public here, but never echo a
         # serialized xkey: the prefix already says what is wrong
-        err_msg = f"not a private key: prefix 0x{xprv.key[:1].hex()}"
+        err_msg = f"not a private key: prefix 0x{xprv_data.key[:1].hex()}"
         raise InvalidPrvKeyError(err_msg)
 
     if network is None:
-        network = network_from_xkeyversion(xprv.version)
+        network = network_from_xkeyversion(xprv_data.version)
 
     allowed_versions = xprvversions_from_network(network)
-    if xprv.version not in allowed_versions:
+    if xprv_data.version not in allowed_versions:
         # never echo the xprv, which is a private key:
         # the version is the mismatching, non-secret, part
-        err_msg = f"not a {network} key: version 0x{xprv.version.hex()}"
+        err_msg = f"not a {network} key: version 0x{xprv_data.version.hex()}"
         raise InvalidPrvKeyError(err_msg)
 
-    q = int.from_bytes(xprv.key[1:], byteorder="big")
+    q = int.from_bytes(xprv_data.key[1:], byteorder="big")
     return q, network, True
 
 
@@ -650,6 +635,10 @@ def pub_keyinfo_from_xpub(
     `network` and `compressed` mean the same thing here. The pair is
     spelled out for the same reason the triple is: `to_pub_key.PubkeyInfo`
     is the name for it, above this module.
+
+    An xprv is refused rather than neutered: this answers about the key
+    it is handed, and `pub_keyinfo_from_xkey` below is the spelling for a
+    caller that holds either half.
     """
     if compressed is not None:
         assert_type(compressed, bool, "compressed")
@@ -658,8 +647,24 @@ def pub_keyinfo_from_xpub(
         if not compressed:
             raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
 
-    xpub_data = _key_data_from_bip32_key(xpub)
+    return _pub_keyinfo_from_xpub(_key_data_from_bip32_key(xpub), network)
 
+
+def _pub_keyinfo_from_xpub(
+    xpub_data: BIP32KeyData, network: str | None
+) -> tuple[bytes, str]:
+    """`pub_keyinfo_from_xpub` on a key already decoded and validated.
+
+    Split off because `pub_keyinfo_from_xkey` below asks for it: the key
+    it passes is the one `_xpub_from_xprv` has just built, so decoding it
+    again through the public spelling would validate a key this module
+    made, and `_assert_valid_key`'s on-curve test is most of what
+    validating an extended public key costs. `prv_keyinfo_from_xprv`
+    above has no such second caller and is one function.
+
+    No `compressed`: the argument is a consistency check the public
+    spelling makes before there is a key to make it against.
+    """
     if xpub_data.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,
         # the prefix already says what is wrong
@@ -677,6 +682,31 @@ def pub_keyinfo_from_xpub(
         raise BTClibValueError(err_msg)
 
     return xpub_data.key, network
+
+
+def pub_keyinfo_from_xkey(
+    xkey: BIP32Key, network: str | None = None
+) -> tuple[bytes, str]:
+    """Return the SEC octets and the network of an extended key, either half.
+
+    The public key of an xprv is the public key of the xpub it neuters
+    to, which is `fingerprint` above reading the same material the same
+    way: a pair that answered two different public keys would not be a
+    pair. So an address, a script and a key origin all ask this rather
+    than asking whether they were handed the private half.
+
+    Here and not in a converter, for the reason `prv_keyinfo_from_xprv`
+    above is here: an extended key is this module's format (issue #1188).
+    An xprv costs the scalar multiplication `_xpub_from_xprv` performs,
+    and an xpub costs nothing beyond the decode.
+
+    No `compressed`: a BIP32 key is always compressed, so the only value
+    that argument could carry is the one the key already states.
+    """
+    xkey_data = _key_data_from_bip32_key(xkey)
+    if xkey_data.is_private:
+        xkey_data = _xpub_from_xprv(xkey_data)
+    return _pub_keyinfo_from_xpub(xkey_data, network)
 
 
 def point_from_xpub(xpub: BIP32Key, ec: Curve = secp256k1) -> Point:

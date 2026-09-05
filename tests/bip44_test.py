@@ -177,7 +177,9 @@ def test_unknown_purpose() -> None:
     # names is the one it performs
     der_path = "m/48h/0h/0h/0/0"
     address = address_from_der_path(_XPRV_ROOT, der_path, "p2wpkh")
-    assert address == b32.p2wpkh(bip32.derive(_XPRV_ROOT, der_path))
+    # `b32.p2wpkh` takes a public key and no extended key (issue #1188)
+    derived = bip32.pub_keyinfo_from_xkey(bip32.derive(_XPRV_ROOT, der_path))[0]
+    assert address == b32.p2wpkh(derived)
 
     # it overrides a known purpose too, and the p2wpkh of BIP84's path is
     # BIP84's address whichever way it is asked for

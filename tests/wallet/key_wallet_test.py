@@ -424,33 +424,20 @@ def test_add_takes_a_script_type_of_its_own() -> None:
     assert not wallet.is_watch_only
 
 
-def test_add_takes_an_xprv_too() -> None:
-    """An added key that is not a WIF still resolves to a private one.
+def test_add_refuses_an_extended_key() -> None:
+    """An extended key is `bip32`'s object and no `Key` at all.
 
-    `_key_data` tries a WIF first and falls through to `to_prv_key` for
-    everything that is not one, an xprv string among it -- the
-    fallthrough this exercises, where the WIF-only cases above do not
-    (issue #1188).
+    Both spellings of one: the text, which is base58 and no scalar's
+    octets, and the decoded `BIP32KeyData`, whose type the union does not
+    declare. A caller holding either resolves it with `bip32` and adds
+    what comes back (issue #1188).
     """
     wallet = KeyWallet()
-    address = wallet.add(_ACCOUNT_44_XPRV)
-    assert not wallet.is_watch_only
-    assert bms.verify(_MSG, address, wallet.sign(address, _MSG))
-
-
-def test_add_takes_a_bip32keydata_too() -> None:
-    """A decoded `BIP32KeyData` skips the WIF attempt outright.
-
-    It is neither `str` nor `bytes`, so `_key_data` never tries
-    `b58.prv_key_data_from_wif` on it -- the one `Key` spelling that
-    reaches `to_prv_key` without going through that attempt first
-    (issue #1188).
-    """
+    with pytest.raises(BTClibValueError, match="not a private key"):
+        wallet.add(_ACCOUNT_44_XPRV)
     xkey = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPRV)
-    wallet = KeyWallet()
-    address = wallet.add(xkey)
-    assert not wallet.is_watch_only
-    assert bms.verify(_MSG, address, wallet.sign(address, _MSG))
+    with pytest.raises(BTClibTypeError, match="not a public key"):
+        wallet.add(xkey)  # type: ignore[arg-type]
 
 
 def test_a_key_added_to_a_bip32_wallet_is_not_derived() -> None:

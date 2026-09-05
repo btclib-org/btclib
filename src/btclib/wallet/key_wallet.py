@@ -54,6 +54,8 @@ from btclib.bip32.bip32 import (
     _key_data_from_bip32_key,
     derive_,
     derive_from_account_,
+    prv_keyinfo_from_xprv,
+    pub_keyinfo_from_xkey,
 )
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
@@ -120,11 +122,11 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
     being a point and a caller's word about how often it will be
     multiplied, which says nothing about who can sign.
 
-    The rest -- octets, a WIF or an extended key -- are told apart public
-    first: a public key is a complete answer here, the wallet watching
-    that address and unable to sign for it, while anything that is not
-    one has to be a private key, and the error raised for a malformed one
-    is the diagnosis the caller needs rather than a silent demotion to
+    The rest -- octets or a WIF -- are told apart public first: a public
+    key is a complete answer here, the wallet watching that address and
+    unable to sign for it, while anything that is not one has to be a
+    private key, and the error raised for a malformed one is the
+    diagnosis the caller needs rather than a silent demotion to
     watch-only. Only the converter's refusal is caught, and not
     `PubKeyData`'s own: what the type refused would otherwise fall
     through to the private branch and come back as "not a private key",
@@ -133,8 +135,10 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
 
     A WIF is tried ahead of `to_prv_key.prv_keyinfo_from_prv_key`, which
     cannot resolve one itself: `b58` is where a WIF is read, and this
-    module already imports it for the direction `add` below writes
-    (issue #1188).
+    module already imports it for the direction `add` below writes. It is
+    tried unguarded, the two branches above having left `Octets` as the
+    whole of what reaches it -- an extended key is not a `Key` at all,
+    `bip32` being where one is read (issue #1188).
 
     Both types re-check what the converter that fed them has already
     guaranteed, which looks redundant and is not: `to_prv_key` admits a
@@ -153,11 +157,10 @@ def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
     else:
         return PubKeyData(*pub_key_info)
 
-    if isinstance(key, (str, bytes, bytearray, memoryview)):
-        try:
-            return b58.prv_key_data_from_wif(key, network)
-        except NotAPrvKeyError:
-            pass
+    try:
+        return b58.prv_key_data_from_wif(key, network)
+    except NotAPrvKeyError:
+        pass
     return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
 
 
@@ -382,24 +385,33 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         `bip32.derive_from_account_` is what imposes them -- branch 0 or 1,
         index at most 65535 -- and the message on a violation is its own.
 
-        The key and not its xprv/xpub text: both other callers hand it to
-        something that decodes it -- an address builder,
-        `ScriptPubKey.p2wpkh` -- and a `BIP32KeyData` is in the `Key`
-        union those take. Answering text instead would make each of them
-        build it and read it back inside one line (issue 886). `prv_key`
-        below is the one caller that cannot take it directly any more:
-        `b58.wif_from_prv_key` wants the scalar an xprv resolves to, not
-        the xprv itself (issue #1188), so it goes through
-        `to_prv_key.prv_keyinfo_from_prv_key` first.
+        The key and not its xprv/xpub text: every caller resolves it with
+        a `bip32` call, and answering text instead would make each of
+        them build it and read it back inside one line (issue 886).
+        Which call it is, is what the caller wants of the key: the
+        address builders and `ScriptPubKey.p2wpkh` take a public key, so
+        `_derived_sec` below is what feeds them, and
+        `b58.wif_from_prv_key` wants the scalar an xprv resolves to
+        (issue #1188).
         """
         return derive_from_account_(self._xkey, branch, index)
+
+    def _derived_sec(self, branch: int, index: int) -> bytes:
+        """Return the SEC public key of a position, whichever half derives it.
+
+        An account xprv and its xpub derive to the same public key, so
+        this is what an address is built from either way, and the wallet
+        being watch-only is a question about signing rather than about
+        the address.
+        """
+        return pub_keyinfo_from_xkey(self._derived_xkey(branch, index))[0]
 
     @override
     def _address(self, branch: int, index: int) -> str:
         # checked again for the narrowing and not for the check, which the
         # constructor already made: see `add` above
         return _ADDRESS_FROM_SCRIPT_TYPE[_checked_script_type(self.script_type)](
-            self._derived_xkey(branch, index), self.network
+            self._derived_sec(branch, index), self.network
         )
 
     @override
@@ -431,7 +443,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         if self.script_type != "p2wpkh-p2sh":
             return super().redeem_script(branch, index)
         self._assert_position(branch, index)
-        return ScriptPubKey.p2wpkh(self._derived_xkey(branch, index)).script
+        return ScriptPubKey.p2wpkh(self._derived_sec(branch, index)).script
 
     @override
     def prv_key(self, address: String) -> str:
@@ -454,5 +466,5 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         # addresses it has handed out
         branch, index = indexes_from_der_path(info.der_path)[-2:]
         xkey = self._derived_xkey(branch, index)
-        q, network, compressed = prv_keyinfo_from_prv_key(xkey)
+        q, network, compressed = prv_keyinfo_from_xprv(xkey)
         return b58.wif_from_prv_key(q, network, compressed)

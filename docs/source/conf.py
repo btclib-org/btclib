@@ -112,13 +112,7 @@ nitpick_ignore = [
     ("py:class", "collections.abc.Callable[[]"),
     ("py:class", "tuple[int"),
     ("py:class", "collections.abc.Mapping[bytes"),
-    (
-        "py:class",
-        (
-            "bytes | str | bytearray | memoryview | "
-            "~btclib.bip32.bip32.BIP32KeyData | tuple[int"
-        ),
-    ),
+    ("py:class", "bytes | str | bytearray | memoryview | tuple[int"),
     ("py:class", "int | bytes | str | bytearray | memoryview | tuple[int"),
     ("py:class", "btclib.p2p.inventory._InventoryPayload"),
     ("py:class", "btclib.p2p.inventory._LocatorPayload"),

@@ -307,12 +307,15 @@ class ScriptError(BTClibValueError):
 class NotAPrvKeyError(BTClibValueError):
     """The input is not in this private key format at all: try the next one.
 
-    `to_prv_key` accepts a private key as a BIP32 xprv, octets, or an int,
-    and works out which by trying them in turn. That only reads well when
-    a failed attempt says which kind of failure it was, and this is the
-    kind that means "wrong format, keep going". `b58.prv_key_data_from_wif`
-    raises it for text that is no WIF, the same question asked of the one
-    format it reads.
+    A caller resolving a private key has more than one format to try, so
+    a failed attempt has to say which kind of failure it was, and this is
+    the kind that means "wrong format, keep going". Each raiser asks it
+    of the one format it reads: `to_prv_key` for what is not the octets
+    of a scalar, `b58.prv_key_data_from_wif` for text that is no WIF, `bip38`
+    for a record no version prefix claims, `minikey` for text of no
+    minikey shape. `b58._pub_keyinfo_from_key` and
+    `wallet.key_wallet._key_data` are what catch it, to try the spelling
+    after the one that declined.
 
     A BTClibValueError, so code catching that keeps catching this.
     """
@@ -321,13 +324,14 @@ class NotAPrvKeyError(BTClibValueError):
 class InvalidPrvKeyError(BTClibValueError):
     """The format was recognised and the content is wrong: stop here.
 
-    The counterpart of NotAPrvKeyError. An xprv whose version bytes name a
-    network and whose key prefix is not the private one is not something
-    another format might accept: reporting it is more use than trying the
-    input as a hex string and telling the caller it was not a private key.
-    A WIF whose version prefix says mainnet but whose payload is the wrong
-    size is the same answer from `b58.prv_key_data_from_wif`: a WIF, with
-    a fault in it.
+    The counterpart of NotAPrvKeyError. A WIF whose version prefix says
+    mainnet but whose payload is the wrong size is not something another
+    format might accept, so `b58.prv_key_data_from_wif` raising this is
+    more use to `b58._pub_keyinfo_from_key` than a "try the next
+    spelling" that would end in "not a private key": a WIF, with a fault
+    in it. `bip32.prv_keyinfo_from_xprv` answers the same way about an
+    xprv whose version bytes name a network and whose key prefix is not
+    the private one.
 
     A BTClibValueError, so code catching that keeps catching this.
     """

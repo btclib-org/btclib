@@ -142,23 +142,30 @@ def test_slip132_test_vectors() -> None:
         xprv = bip32.derive(mxprv, kpath)
         address = slip132.address_from_xkey(xprv)
         assert addr == address
+        # the encoders take a public key and no extended key, so what
+        # each is handed is `bip32.pub_keyinfo_from_xkey` of the pair --
+        # the same octets from either half, which is what makes the two
+        # answers one address (issue #1188)
+        sec_from_xpub = bip32.pub_keyinfo_from_xkey(xpub)[0]
+        sec_from_xprv = bip32.pub_keyinfo_from_xkey(xprv)[0]
+        assert sec_from_xpub == sec_from_xprv
         if version == NETWORKS["mainnet"].bip32_prv:
-            address = b58.p2pkh(xpub)
+            address = b58.p2pkh(sec_from_xpub)
             assert addr == address
-            address = b58.p2pkh(xprv)
+            address = b58.p2pkh(sec_from_xprv)
             assert addr == address
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv:
-            address = b58.p2wpkh_p2sh(xpub)
+            address = b58.p2wpkh_p2sh(sec_from_xpub)
             assert addr == address
-            address = b58.p2wpkh_p2sh(xprv)
+            address = b58.p2wpkh_p2sh(sec_from_xprv)
             assert addr == address
         # `no branch`: the three versions above are the three the local
         # vector list holds, so the chain is exhaustive over it and the
         # last arm never falls through
         elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:  # pragma: no branch
-            address = b32.p2wpkh(xpub)
+            address = b32.p2wpkh(sec_from_xpub)
             assert addr == address
-            address = b32.p2wpkh(xprv)
+            address = b32.p2wpkh(sec_from_xprv)
             assert addr == address
 
 

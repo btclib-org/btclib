@@ -2,18 +2,19 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Functions for conversions between different public key formats."""
+"""Functions for conversions between different public key formats.
+
+The formats are the curve point and its SEC octets. An extended key is
+not among them: it is `bip32`'s object, read by `bip32.point_from_xpub`
+and `bip32.pub_keyinfo_from_xkey`, which sit below this module and are
+the call a caller holding one makes (issue #1188).
+"""
 
 from __future__ import annotations
 
 import contextlib
 
 from btclib.alias import Octets, Point
-from btclib.bip32.bip32 import (
-    BIP32KeyData,
-    point_from_xpub,
-    pub_keyinfo_from_xpub,
-)
 from btclib.curves import (
     Curve,
     PreparedPoint,
@@ -42,17 +43,17 @@ __all__ = [
 ]
 
 # public key inputs:
-# elliptic curve point as Union[Octets, BIP32KeyData, Point, PreparedPoint]
-PubKey = Octets | BIP32KeyData | Point | PreparedPoint
+# elliptic curve point as Union[Octets, Point, PreparedPoint]
+PubKey = Octets | Point | PreparedPoint
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = int | Octets | BIP32KeyData | Point | PreparedPoint
+Key = int | Octets | Point | PreparedPoint
 
 # the two unions at run time, with the buffers bytes_from_octets accepts
 # beside bytes. An int is in one and not the other on purpose: in this
 # library an int is a private key, and never a public one
-_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, BIP32KeyData, tuple, PreparedPoint)
+_PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, tuple, PreparedPoint)
 _KEY_TYPES = (int, *_PUB_KEY_TYPES)
 
 
@@ -127,14 +128,21 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
     It supports:
 
-    - BIP32 extended keys (bytes, string, or BIP32KeyData)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
-    - native tuple
+    - the `ec.n_size` octets of a scalar, and a native int
+    - a native tuple, and a `PreparedPoint`
+
+    The two scalar spellings do not reach `ec` the same way. Octets are
+    resolved by `prv_keyinfo_from_prv_key`, on the curve the network it
+    answers names, and `ec` is compared against that curve; a native int
+    names no network, so there is nothing to compare it against and the
+    scalar is multiplied on `ec` itself.
     """
-    # as in `point_from_pub_key` below and `to_prv_key.int_from_prv_key`:
-    # an xkey is compared against the curve rather than parsed with it,
-    # and an ec of no curve type compares unequal to every network's,
-    # which is "Curve mismatch" for what is a caller's own mistake
+    # the type check first, and that is what it is for rather than
+    # tidiness: the comparison below compares rather than parses, so
+    # without it an `ec` of no curve type compares unequal to every
+    # network's and leaves as "Curve mismatch" -- a statement about the
+    # key, about which nothing was wrong
     _assert_valid_ec(ec)
     _assert_key_type(key)
     if isinstance(key, PreparedPoint):
@@ -168,10 +176,6 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
             return pub_key[0], pub_key[1]
         raise BTClibValueError(f"not a valid public key: {pub_key}")
-    if isinstance(pub_key, BIP32KeyData):
-        return point_from_xpub(pub_key, ec)
-    with contextlib.suppress(TypeError, BTClibValueError):
-        return point_from_xpub(pub_key, ec)
     # it must be octets
     try:
         return point_from_octets(pub_key, ec)
@@ -240,7 +244,7 @@ def _sec_from_key(key: Key) -> bytes:
 
 def _err_msg(key: Key, network: str | None, compressed: bool | None) -> str:
     # never echo the key: it may well be private material
-    # (e.g. an xprv on the wrong network)
+    # (e.g. a scalar handed where a public key was meant)
     err_msg = "not a private or"
     if compressed is not None:
         err_msg += " compressed" if compressed else " uncompressed"
@@ -304,9 +308,8 @@ def _pub_keyinfo_from_pub_key(
 
     True for octets, which arrive unproven and are proved by the public
     spelling; False for a `Point`, which `bytes_from_point` has just
-    refused if it was not one, and for an extended key, whose 33 octets
-    are validated as a BIP32 key rather than as a point -- neither has a
-    proof left for a caller to make, and neither is one this would add.
+    refused if it was not one and so has no proof left for a caller to
+    make.
     """
     _assert_pub_key_type(pub_key)
     if isinstance(pub_key, PreparedPoint):
@@ -322,10 +325,6 @@ def _pub_keyinfo_from_pub_key(
 
     if isinstance(pub_key, tuple):
         return (bytes_from_point(pub_key, ec, compr), net), False
-    if isinstance(pub_key, BIP32KeyData):
-        return pub_keyinfo_from_xpub(pub_key, network, compressed), False
-    with contextlib.suppress(TypeError, BTClibValueError):
-        return pub_keyinfo_from_xpub(pub_key, network, compressed), False
     # it must be octets, and compressed is a filter on which form they may
     # be in rather than a conversion to it: the size below is required of
     # the input, so octets that pass come back in the form they came in

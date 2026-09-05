@@ -6,6 +6,13 @@
 
 Used by `btclib.tests.to_pub_key` and `btclib.tests.to_pub_key` modules.
 Test vectors do include str only: no int, point tuble, or BIP32KeyData.
+
+The `*_prv_keys` and `*_pub_keys` families below hold what the two
+converters resolve, which is the scalar and the point in their octet
+spellings and nothing else: a WIF is `b58`'s object and an extended key
+is `bip32`'s, each read where it is defined (issue #1188). The xprv and
+xpub built here stay, because what they feed is the refusals -- neither
+converter has a spelling they answer to any more.
 """
 
 from __future__ import annotations
@@ -45,30 +52,17 @@ xprv_data = BIP32KeyData(
     key=b"\x00" + q_bytes,
 )
 xprv_string = xprv_data.b58encode(check_validity=False)
-xprv_string2 = " " + xprv_string + " "
 
-# a WIF is `b58`'s object, not `to_prv_key`'s or `to_pub_key`'s, so it is
-# not among the private-key spellings the two `*_prv_keys` families below
-# feed to their converters (issue #1188); `wif_compressed_string` and
-# `wif_uncompressed_string` above stay for the modules that still take a
-# WIF directly -- `b58`'s own tests among them
-net_aware_compressed_prv_keys: list[bytes | str] = [
-    xprv_string,
-    xprv_string2,
-]
-net_aware_uncompressed_prv_keys: list[bytes | str] = []
-net_unaware_compressed_prv_keys: list[bytes | str] = []
-net_unaware_uncompressed_prv_keys: list[bytes | str] = []
+# the private-key spellings `to_prv_key` resolves are `plain_prv_keys`
+# above and nothing else: the scalar's octets and their hex, naming
+# neither a network nor a compression. The two spellings that name both
+# are read where they are defined -- a WIF by `b58`, an xprv by `bip32`
+# (issue #1188) -- so these two families are empty, and there is no
+# network-aware family at all
+compressed_prv_keys: list[bytes | str] = []
+uncompressed_prv_keys: list[bytes | str] = []
 
-compressed_prv_keys = net_aware_compressed_prv_keys + net_unaware_compressed_prv_keys
-uncompressed_prv_keys = (
-    net_aware_uncompressed_prv_keys + net_unaware_uncompressed_prv_keys
-)
-
-net_aware_prv_keys = net_aware_compressed_prv_keys + net_aware_uncompressed_prv_keys
-net_unaware_prv_keys = (
-    plain_prv_keys + net_unaware_compressed_prv_keys + net_unaware_uncompressed_prv_keys
-)
+net_unaware_prv_keys = plain_prv_keys
 
 Q = mult(q)
 
@@ -101,13 +95,9 @@ xpub_data = BIP32KeyData(
 )
 xpub_string = xpub_data.b58encode(check_validity=False)
 
-xpub_string2 = " " + xpub_string + " "
-
-net_aware_compressed_pub_keys: list[bytes | str] = [
-    xpub_string,
-    xpub_string2,
-]
-net_aware_uncompressed_pub_keys: list[bytes | str] = []
+# an xpub is the only public spelling that names a network, and it is
+# `bip32.pub_keyinfo_from_xpub`'s to read (issue #1188), so every family
+# here is network-unaware
 net_unaware_compressed_pub_keys: list[bytes | str] = [
     Q_compressed_hexstring,
     Q_compressed_hexstring2,
@@ -119,12 +109,9 @@ net_unaware_uncompressed_pub_keys: list[bytes | str] = [
     Q_uncompressed_hexstring3,
 ]
 
-compressed_pub_keys = net_aware_compressed_pub_keys + net_unaware_compressed_pub_keys
-uncompressed_pub_keys = (
-    net_aware_uncompressed_pub_keys + net_unaware_uncompressed_pub_keys
-)
+compressed_pub_keys = net_unaware_compressed_pub_keys
+uncompressed_pub_keys = net_unaware_uncompressed_pub_keys
 
-net_aware_pub_keys = net_aware_compressed_pub_keys + net_aware_uncompressed_pub_keys
 net_unaware_pub_keys = (
     net_unaware_compressed_pub_keys + net_unaware_uncompressed_pub_keys
 )

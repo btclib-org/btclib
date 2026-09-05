@@ -65,6 +65,8 @@ from btclib.bip32.bip32 import (
     BIP32KeyData,
     derive,
     fingerprint,
+    prv_keyinfo_from_xprv,
+    pub_keyinfo_from_xkey,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import DerPath, indexes_from_der_path, str_from_der_path
@@ -80,8 +82,6 @@ from btclib.exceptions import BTClibValueError, SignerError
 from btclib.key import PrvKeyData
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.utils import assert_type, bytes_from_octets
 
 if TYPE_CHECKING:
@@ -834,9 +834,9 @@ class SoftwareSigner:
         self._assert_open()
         if self.is_watch_only:
             raise BTClibValueError("watch-only signer: it holds no key that signs")
-        # `_at` answers an xprv, `to_prv_key`'s object and not `bms.sign`'s
+        # `_at` answers an xprv, `bip32`'s object and not `bms.sign`'s
         # (issue #1188): resolve it to a `PrvKeyData` before handing it over.
-        q, network, compressed = prv_keyinfo_from_prv_key(self._at(der_path))
+        q, network, compressed = prv_keyinfo_from_xprv(self._at(der_path))
         prv_key = PrvKeyData(q, network, compressed)
         return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
 
@@ -861,10 +861,10 @@ class SoftwareSigner:
         # xpub, or an index BIP32 refuses
         except BTClibValueError:
             return None
-        sec = pub_keyinfo_from_key(derived)[0]
+        sec = pub_keyinfo_from_xkey(derived)[0]
         if pub_key not in {sec, sec[1:]}:
             return None
-        return prv_keyinfo_from_prv_key(derived)[0]
+        return prv_keyinfo_from_xprv(derived)[0]
 
     def sign_ecdsa(
         self, pub_key: bytes, origin: BIP32KeyOrigin | None, msg_hash: bytes

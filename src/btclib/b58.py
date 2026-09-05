@@ -57,8 +57,9 @@ def wif_from_prv_key(
     A scalar, a network and whether the public key is compressed are the
     three things a WIF encodes, and they are the three arguments. A
     spelling that carries the other two with it is parsed first -- a WIF
-    by `prv_key_data_from_wif` below, an xprv by `to_prv_key` -- and the
-    fields of what comes back are handed here.
+    by `prv_key_data_from_wif` below, an xprv by
+    `bip32.prv_keyinfo_from_xprv` -- and the fields of what comes back
+    are handed here.
     """
     assert_type(compressed, bool, "compressed")
     net = network_from_name(network)

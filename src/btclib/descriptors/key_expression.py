@@ -38,6 +38,7 @@ from btclib.bip32.bip32 import (
     BIP328_CHAIN_CODE,
     BIP32KeyData,
     derive_,
+    pub_keyinfo_from_xkey,
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import (
@@ -54,7 +55,7 @@ from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc.musig2 import key_agg, key_sort
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_name
-from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
+from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import bytes_from_octets
 
 __all__ = ["KeyExpression", "PrvKeys"]
@@ -189,7 +190,7 @@ class KeyExpression:
                 chain_code=BIP328_CHAIN_CODE,
                 key=aggregate,
             )
-            return pub_keyinfo_from_key(derive_(synthetic, musig_path), network)[0]
+            return pub_keyinfo_from_xkey(derive_(synthetic, musig_path), network)[0]
         if self.pub_key is not None:
             return self.pub_key
         der_path = list(self.der_path)
@@ -197,13 +198,12 @@ class KeyExpression:
             der_path.append(self.wildcard + index)
         xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
         # `derive_` and not `derive`: the Base58Check text would be decoded
-        # straight back by `pub_keyinfo_from_key` on this same line, a
-        # `BIP32KeyData` being in the `PubKey` union already, the text
-        # spelling being the dearer of the two per key at an index (issue
-        # 886). The union `derive_` takes is `derive`'s, so the xkey a
-        # descriptor holds as a string
+        # straight back by `pub_keyinfo_from_xkey` on this same line, the
+        # text spelling being the dearer of the two per key at an index
+        # (issue 886). The union `derive_` takes is `derive`'s, so the
+        # xkey a descriptor holds as a string
         # still goes in as it is
-        return pub_keyinfo_from_key(derive_(xkey, der_path), network)[0]
+        return pub_keyinfo_from_xkey(derive_(xkey, der_path), network)[0]
 
     def participant_keys(
         self,

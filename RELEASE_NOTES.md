@@ -94,6 +94,39 @@ full year, short month, short day (YYYY-M-D)
   or already knows which chain it is asking: `EsploraFetcher(base_url,
   verify_network=False)` is the previous behaviour.
 
+- **An extended key is no longer a key spelling** (issue #1188).
+  `to_prv_key.PrvKey` was `int | bytes | str | BIP32KeyData` at
+  v2023.7.12 and is `int | Octets`; `to_pub_key.PubKey` was
+  `bytes | str | BIP32KeyData | Point` and is
+  `Octets | Point | PreparedPoint`; `Key` was
+  `int | bytes | str | BIP32KeyData | Point` and is
+  `int | Octets | Point | PreparedPoint`. So an xprv or an xpub -- as
+  Base58Check text or as a `BIP32KeyData` -- is refused wherever one of
+  the three is taken: `b58.p2pkh(key: Key, ...)`,
+  `b58.p2wpkh_p2sh(key: Key, ...)` and `b32.p2wpkh(key: Key, ...)`, all
+  three unchanged in signature since v2023.7.12,
+  `dsa.verify(msg, key, sig, ...)` and its `assert_as_valid` twin, the
+  `script.script_pub_key` constructors, `wallet.KeyWallet.add`, and
+  `to_prv_key`/`to_pub_key`'s own converters.
+
+  Act on it if you pass an extended key to any of them. `bip32` reads
+  one: `bip32.prv_keyinfo_from_xprv(xprv)` answers the
+  `(scalar, network, compressed)` triple, `bip32.point_from_xpub(xpub)`
+  the point, and `bip32.pub_keyinfo_from_xkey(xkey)` -- new in this
+  release -- the SEC octets and the network from either half of a pair,
+  which is what the address builders and the script constructors take.
+  `b58.p2pkh(xprv)` becomes
+  `b58.p2pkh(*bip32.pub_keyinfo_from_xkey(xprv))`, the network travelling
+  with the octets because a SEC key names none. `bip44.address_from_der_path`,
+  `slip132.address_from_xkey` and the `wallet` classes still take an
+  extended key and are unaffected: each performs that call for you.
+
+  Act on it too if you match on the text of the refusal. An extended key
+  on the wrong network now leaves `bip32` as `Not a mainnet key: version
+  0x...`, where the `contextlib.suppress` around the BIP32 parse used to
+  let `to_pub_key`'s "not a private or public key for mainnet" out
+  instead.
+
 - **`ConsensusParams` takes a `bip30_unspendable` argument** (closes #1695),
   the blocks Bitcoin Core's `IsBIP30Unspendable` names. It has no default,
   as no field of the row has.

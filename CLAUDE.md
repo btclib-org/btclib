@@ -43,20 +43,22 @@ which is the single most important thing to know before touching
 Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
 bms, borromean, pedersen, rfc6979/bip340 nonces). At the key boundary,
 `base58` and `bech32` are the low-level codecs; `bip32/` depends on
-`base58`; `to_prv_key` and `to_pub_key` depend on `bip32/`; `b32` depends
-on `to_pub_key`. `b58` depends on `to_pub_key` too, but not on
-`to_prv_key`: a WIF is Base58Check with a prefix and a flag, so it is
-`b58`'s own object, read by `b58.prv_key_data_from_wif` and written by
-`b58.wif_from_prv_key`, and `to_prv_key` -- which sits below `b58`
-through `to_pub_key` -- has no way back up to a parser living above it
-(issue #1188). An extended key is read the same way round: `bip32`
-defines the format, so `bip32.prv_keyinfo_from_xprv`,
-`bip32.pub_keyinfo_from_xpub` and `bip32.point_from_xpub` are the parse,
-and the two converters call them. `slip132` therefore sits above the
-address encodings, beside `bip44`. `mnemonic/`, `script/`, `tx/`,
-`block/`, `psbt/` and `descriptors` build on those layers. `alias.py`
-holds the type aliases the public API accepts, and much of the surface
-takes "anything convertible" rather than one type.
+`base58`; `b58` and `b32` depend on `to_pub_key`, which depends on
+`to_prv_key`, and neither converter depends on `bip32/` -- so importing
+`btclib.b58` does not put `btclib.bip32` in `sys.modules`, which is the
+measurement behind the arrow. What each spelling of a key resolves
+through is the module that defines it: a WIF is Base58Check with a prefix
+and a flag, so `b58.prv_key_data_from_wif` reads it and
+`b58.wif_from_prv_key` writes it; an extended key is BIP32's format, so
+`bip32.prv_keyinfo_from_xprv`, `bip32.pub_keyinfo_from_xpub`,
+`bip32.pub_keyinfo_from_xkey` and `bip32.point_from_xpub` are the parse,
+and a caller holding one calls one of them and passes the scalar or the
+point on (issue #1188). What is left to `to_prv_key` and `to_pub_key` is
+the scalar and the curve point in their octet spellings. `slip132` sits
+above the address encodings, beside `bip44`. `mnemonic/`, `script/`,
+`tx/`, `block/`, `psbt/` and `descriptors` build on those layers.
+`alias.py` holds the type aliases the public API accepts, and much of the
+surface takes "anything convertible" rather than one type.
 
 Each of those pairs is one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;

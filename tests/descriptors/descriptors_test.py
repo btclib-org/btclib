@@ -41,7 +41,12 @@ from hypothesis import strategies as st
 from btclib import b58
 from btclib.alias import BIP44ScriptType, Octets
 from btclib.bip32 import BIP32KeyOrigin, fingerprint
-from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP32KeyData,
+    derive,
+    prv_keyinfo_from_xprv,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import _HARDENING
 from btclib.bip44 import SCRIPT_TYPE_FROM_PURPOSE
 from btclib.descriptors import (
@@ -89,7 +94,6 @@ from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, replace_unchecked, vector_id
@@ -1047,7 +1051,7 @@ def test_network() -> None:
     assert script_pub_key.network == "testnet"
     assert script_pub_key.address.startswith("tb1")
     assert ScriptPubKey.from_address(script_pub_key.address) == script_pub_key
-    with pytest.raises(BTClibValueError, match="key for mainnet"):
+    with pytest.raises(BTClibValueError, match="Not a mainnet key: version "):
         parse(descriptor).script_pub_key()
 
 
@@ -1742,7 +1746,7 @@ def test_a_musig_descriptor_builds_a_psbt_its_group_can_sign() -> None:
     assert origin.master_fingerprint == hash160(aggregate)[:4]
     assert origin.description.endswith("/0/1")
 
-    signers = [prv_keyinfo_from_prv_key(xprv)[0] for xprv in (XPRV_ROOT, XPRV_SECOND)]
+    signers = [prv_keyinfo_from_xprv(xprv)[0] for xprv in (XPRV_ROOT, XPRV_SECOND)]
     sec_nonces = [nonce_gen(psbt, 0, signer, aggregate) for signer in signers]
     for signer, sec_nonce in zip(signers, sec_nonces, strict=True):
         partial_sign(psbt, 0, sec_nonce, signer, aggregate)

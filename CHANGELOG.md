@@ -598,6 +598,78 @@ file of the test tree, and no caller acts on it.
   `tests/fetch` does not notice any of them weakened; issue #1716 names
   each with its line.
 
+### An extended key leaves the `PrvKey`, `PubKey` and `Key` unions
+
+- **`to_prv_key.PrvKey` is `int | Octets`, and
+  `to_pub_key.PubKey` and `Key` drop `BIP32KeyData` with it** (issue
+  #1188). What is left in the three is the scalar and the curve point in
+  their octet spellings, so `int_from_prv_key`,
+  `prv_keyinfo_from_prv_key`, `point_from_key`, `point_from_pub_key`,
+  `pub_keyinfo_from_key`, `pub_keyinfo_from_pub_key` and
+  `pub_keyinfo_from_prv_key` no longer attempt a BIP32 parse: an xprv or
+  an xpub as text is refused as the octets it is not, and a
+  `BIP32KeyData` is refused as a type the union does not declare. This is
+  the row `ssa.BIP340PubKey` already carried, and it is the same
+  correction: withdrawing the type from the union while the body still
+  called a converter that resolved one would have changed nothing.
+- **`to_prv_key._prv_keyinfo_if_xprv` and `_q_if_network_and_ec_match` go
+  with it.** The first existed to say "this is not an xprv, try the next
+  format", which is a resolution order rather than a signature; the
+  second compared `ec` against the network an xprv named, and no spelling
+  left in `PrvKey` names one.
+- **`NotAPrvKeyError` keeps a raiser and a reader.** `to_prv_key` raises
+  it for octets that are no scalar, `b58` for text that is no WIF,
+  `bip38` for a record whose prefix no version claims and `minikey` for
+  text of no minikey shape; `b58._pub_keyinfo_from_key` and
+  `wallet.key_wallet._key_data` catch it to try the spelling after the
+  one that declined.
+- **`wallet.key_wallet._key_data` tries a WIF unguarded.** The two
+  branches above it answer an `int`, a `Point` and a `PreparedPoint`, so
+  what reaches the WIF attempt is `Octets` and the `isinstance` test in
+  front of it could not fail.
+
+### `bip32.pub_keyinfo_from_xkey`, the SEC octets of either half of a pair
+
+- **`bip32` gains `pub_keyinfo_from_xkey(xkey, network=None)`, answering
+  the SEC octets and the network of an extended key whichever half it
+  is** (issue #1188). The public key of an xprv is the public key of the
+  xpub it neuters to, which is what `fingerprint` beside it already reads
+  the same way, so an address, a script and a key origin ask this rather
+  than asking which half they were handed. It takes no `compressed`: a
+  BIP32 key is always compressed, so the only value that argument could
+  carry is the one the key already states.
+- **`pub_keyinfo_from_xpub` splits into a validating public spelling and
+  `_pub_keyinfo_from_xpub`.** The private twin is what
+  `pub_keyinfo_from_xkey` calls on the key `_xpub_from_xprv` has just
+  built, the public spelling's decode being a validation of a key this
+  module made. `_prv_keyinfo_from_xprv` goes the other way and folds back
+  into `prv_keyinfo_from_xprv`: its second caller was
+  `to_prv_key._prv_keyinfo_if_xprv`, which this release also removes.
+- **The address builders take a public key.** `bip44`'s encoder table,
+  `wallet.key_wallet`, `wallet.script_wallet`, `descriptors.key_expression`,
+  `psbt_signer` and `slip132` each resolve their extended key with a
+  `bip32` call and pass the octets on, where they used to hand the key
+  itself to a converter that decoded it again. An extended key on the
+  wrong network is refused by `bip32` as a result, with the version bytes
+  that mismatched -- `Not a mainnet key: version 0x...` -- where a
+  `contextlib.suppress` around the BIP32 parse used to leave
+  `to_pub_key`'s "not a private or public key for mainnet" behind. A
+  caller matching on the old text has to change; the new text names the
+  version that mismatched rather than the network that was asked for.
+
+### `to_prv_key` and `to_pub_key` no longer reach `bip32`
+
+- **`import btclib.b58` puts no `btclib.bip32` in `sys.modules`** (issue
+  #1188). `b58` and `b32` import `to_pub_key`, which imports
+  `to_prv_key`, and neither converter imports `bip32` now that an
+  extended key is not a spelling either resolves -- so the address
+  encodings sit directly on `base58`, `bech32` and `curves`, and a layer
+  leaves that stack rather than moving inside it. `README.md`'s
+  module-layout paragraph, `CLAUDE.md`'s architecture section,
+  `docs/source/guide.rst`'s alias descriptions and
+  `docs/proposals/cli.md`'s account of the `bip32.slip132` cycle each
+  carried the old arrow and are corrected.
+
 ## v2026.9.3
 
 ### Repository
