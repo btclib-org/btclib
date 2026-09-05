@@ -196,7 +196,7 @@ jobs:
             sessions: |
               block.toml 75m
           # the shared codec helpers and the numeric/network boundaries
-          # built on them: utils.toml is the slow one of the four -- a
+          # built on them: utils.toml is the slow one here -- a
           # weakened size bound turns into a near-timeout mutant the way
           # numeric.toml's own does -- so it carries the largest budget
           # here for the same reason, sampled rather than expected to
@@ -205,16 +205,23 @@ jobs:
           # per-mutant timeout that configuration argues for, 25 is what a
           # complete session costs: 602 mutants in 75 minutes of job, and a
           # profile that finishes states a survival rate where a sampled
-          # one can only be read for the verdicts that move in it. The four
-          # budgets sum to 85 against this ceiling, which is what leaves it
-          # unchanged
+          # one can only be read for the verdicts that move in it.
+          # fetch_decorators.toml sits beside fetch.toml rather than
+          # taking a runner of its own, a session this short buying
+          # nothing from one: 69 mutants, 11 of them skipped by the
+          # operator filter that configuration explains, and complete in
+          # 200 s of wall clock at a load average of 24 on the machine
+          # that timed it. 10 minutes is three times that, and the budgets
+          # sum to 95 against a ceiling raised by those same 10, which
+          # leaves the others the slack they were measured with
           - profile: shared helpers, numeric bounds and fetch
             slug: shared
-            ceiling: 95
+            ceiling: 105
             sessions: |
               utils.toml 30m
               numeric.toml 25m
               fetch.toml 15m
+              fetch_decorators.toml 10m
               mnemonic.toml 15m
           # Schnorr and ECDSA signing: 2475 mutants between the two
           # modules, nearly as large as the consensus job's own two

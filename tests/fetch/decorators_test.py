@@ -292,3 +292,20 @@ def test_fallback_refuses_an_empty_sequence() -> None:
     """A FallbackFetcher with nothing to fall back to answers nothing."""
     with pytest.raises(BTClibValueError, match="no backends given"):
         FallbackFetcher([])
+
+
+def test_fallback_over_one_backend_answers_from_it() -> None:
+    """One backend is a legal sequence: only the empty one is refused.
+
+    `fetchers[0]` is what the constructor takes the network from, and a
+    sequence of one is where that index is the only valid one -- a
+    `FallbackFetcher` built over two backends answers the same whichever
+    of them the network came from.
+    """
+    tx = Tx.parse(RAW)
+    only = CountingFetcher(tx=tx)
+    fallback = FallbackFetcher([only])
+
+    assert fallback.network == only.network
+    assert fallback.get_tx(TX_ID) is tx
+    assert only.calls["get_tx"] == 1
