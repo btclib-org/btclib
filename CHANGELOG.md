@@ -805,6 +805,26 @@ file of the test tree, and no caller acts on it.
   the account it gave of a check made before there is a key to make it
   against.
 
+### `ElectrumFetcher`'s reason for no default server stops counting hosts
+
+- **`src/btclib/fetch/electrum.py` no longer says how many of the hosts
+  on Electrum's shipped server list pass strict certificate
+  verification** (closes #1722). The list moves with every Electrum
+  release and is vendored nowhere here, so nothing re-derives the
+  number; and the list cannot answer for it in any case, an entry
+  carrying a host's ports, its pruning and the protocol version it
+  speaks and nothing about the certificate that host presents.
+- **What stands in its place is what the list does answer for**, the
+  argument for naming no host as a constant being what the number
+  carried. Electrum's own client pins the certificate a server presents
+  and connects with `check_hostname` off wherever the CA-signed
+  handshake fails (`electrum/interface.py`,
+  `Interface._get_ssl_context`), so being listed says what protocol
+  version a server speaks rather than that a strict transport would
+  accept it; entries share registrable domains, so the list names fewer
+  operators than hosts; and a caller running their own server is on it
+  nowhere.
+
 ## v2026.9.3
 
 ### Repository

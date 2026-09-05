@@ -26,11 +26,19 @@ that is is `transport`'s own business. `EsploraFetcher.base_url`'s
 reasoning -- `BLOCKSTREAM_INFO` is offered as a value to pass and never
 as a default, because which host sees every address a caller looks up is
 not btclib's decision to make on anyone's behalf -- applies here with
-even less room: measured against Electrum's own shipped server list,
-strict certificate verification reaches four hosts, two of them one
-operator, and a caller running their own server is invisible to that
-list entirely. Naming any one of the four as a constant would repeat the
-mistake `BLOCKSTREAM_INFO` already refuses.
+even less room. Electrum's own shipped server list carries each host's
+ports, its pruning and the protocol version it speaks, and nothing about
+the certificate it presents, so which of its entries a transport
+verifying against a public CA store reaches is not a question the list
+answers. Electrum's own client does not ask it either: where the
+CA-signed handshake fails it pins the certificate that server presented
+and connects with `check_hostname` off (`electrum/interface.py`,
+`Interface._get_ssl_context`), so being listed says what protocol
+version a server speaks and not that its certificate is one a strict
+transport accepts. Entries share registrable domains, so the list names
+fewer operators than hosts, and a caller running their own server is
+invisible to it entirely. Naming any one entry as a constant would
+repeat the mistake `BLOCKSTREAM_INFO` already refuses.
 
 **A question the interface does not declare, answered by nothing else in
 this package.** `get_tx_merkle` and `verify_tx` are not on `Fetcher`:
