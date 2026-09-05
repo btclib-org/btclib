@@ -733,7 +733,7 @@ repos:
     hooks:
       - id: check-sdist
         args: [--inject-junk, --installer=pip]
-        additional_dependencies: ["uv_build>=0.12.6,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.9,<0.13"]
   - repo: https://github.com/regebro/pyroma
     # the newest *stable* tag: 5.1b1 and 5.1b2 sit above it, and
     # `pre-commit autoupdate` offers a prerelease as readily as a release,
@@ -761,4 +761,4 @@ repos:
         # dependencies elsewhere in this file: what this has to match is
         # a range rather than a release, and the isolated build it
         # replaces would have resolved the same range itself
-        additional_dependencies: ["uv_build>=0.12.6,<0.13"]
+        additional_dependencies: ["uv_build>=0.12.9,<0.13"]

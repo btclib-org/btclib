@@ -4,13 +4,21 @@
 # language of a MANIFEST.in. The sdist's own pyproject.toml becomes a
 # normalized copy of this file at 0.12.0, with the verbatim source kept
 # beside it as pyproject.toml.orig; below it, pyproject.toml is that
-# verbatim file itself, with no .orig. This floor sits above the boundary
-# on purpose, at the rev .pre-commit-config.yaml's uv-pre-commit hook
-# pins, so the backend building the sdist matches the uv whose lock
-# format that hook's uv-lock writes. The ceiling is the next minor, which
-# is where uv's versioning policy puts a breaking change, this backend
-# releasing with uv and versioned by it
-requires = ["uv_build>=0.12.6,<0.13"]
+# verbatim file itself, with no .orig. The floor sits above that boundary
+# and no higher than the rev .pre-commit-config.yaml pins for
+# uv-pre-commit -- a range and not an equality on purpose: pre-commit.ci
+# moves that rev upward on this repository's own weekly schedule with
+# nothing moving this number, so a floor written equal to it stops being
+# equal at the next bump where a floor under it stays right. The upper
+# bound, and the number to lower first if a resolver ever wants this one
+# lower:
+#
+#     grep -A1 'astral-sh/uv-pre-commit' .pre-commit-config.yaml
+#
+# The ceiling is the next minor, which is where uv's versioning policy
+# puts a breaking change, this backend releasing with uv and versioned by
+# it
+requires = ["uv_build>=0.12.9,<0.13"]
 build-backend = "uv_build"
 
 [project]
