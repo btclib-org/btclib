@@ -90,8 +90,8 @@ _BACKENDS = {
     "EsploraFetcher": _Backend(_esplora, TESTNET_GENESIS),
 }
 
-# `Fetcher`'s four, which every backend answers and every backend checks
-# the chain in front of
+# the questions `Fetcher` declares, which every backend answers and
+# every backend checks the chain in front of
 _QUESTIONS: dict[str, Callable[[Fetcher], object]] = {
     "get_best_block_id": lambda endpoint: endpoint.get_best_block_id(),
     "get_block_count": lambda endpoint: endpoint.get_block_count(),
@@ -103,7 +103,7 @@ _QUESTIONS: dict[str, Callable[[Fetcher], object]] = {
 # tested rather than a second time here:
 # `test_broadcast_verifies_the_network_before_sending_anything` in
 # `bitcoin_core_test.py` and in `esplora_test.py`, and
-# `test_the_fifth_question_is_refused_on_another_chain_too` in
+# `test_get_tx_merkle_and_verify_tx_are_refused_on_another_chain_too` in
 # `electrum_test.py`
 _ELSEWHERE = {
     ("BitcoinCoreFetcher", "broadcast"),

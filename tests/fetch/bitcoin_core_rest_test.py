@@ -357,8 +357,8 @@ def test_verify_network_false_asks_the_node_nothing() -> None:
     assert urls(endpoint) == [f"{URL}/rest/tx/{TX_ID}.bin"]
 
 
-def test_get_block_header_verifies_the_chain_once_like_the_other_three() -> None:
-    """The fourth question asks first too, and before the height is mapped."""
+def test_get_block_header_verifies_the_chain_once_like_the_others() -> None:
+    """`get_block_header` asks first too, and before the height is mapped."""
     endpoint = client(
         (200, recorded_body("rest_chaininfo.json")),
         (200, recorded_body("rest_blockhashbyheight.bin")),
@@ -434,7 +434,7 @@ def test_a_challenge_is_refused_for_a_testnet_too(network: str) -> None:
     """The refusal is inequality with signet, not an ordering against it.
 
     `main` and `regtest` sort before `signet`, so a guard written as `<`
-    refuses them and would accept the two testnets, which sort after --
+    refuses them and would accept the testnets, which sort after --
     a challenge that could never be checked. The mainnet case above
     passes under that weakening and these two do not.
     """

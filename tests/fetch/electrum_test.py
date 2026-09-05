@@ -434,8 +434,8 @@ def test_a_server_on_another_chain_answers_no_fetch_at_all() -> None:
     assert len(transport.requests) == 1
 
 
-def test_the_fifth_question_is_refused_on_another_chain_too() -> None:
-    """`get_tx_merkle` asks first, as the four `Fetcher` questions do.
+def test_get_tx_merkle_and_verify_tx_are_refused_on_another_chain_too() -> None:
+    """`get_tx_merkle` asks first, as every question `Fetcher` declares does.
 
     The proof is the answer a caller is likeliest to trust, so a branch
     from a server on the wrong chain is the one worth never returning.

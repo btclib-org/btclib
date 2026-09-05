@@ -206,7 +206,7 @@ def test_clear_forgets_every_cached_answer() -> None:
 # --- FallbackFetcher -----------------------------------------------------
 
 
-def test_fallback_answers_all_four_from_the_first_backend() -> None:
+def test_fallback_answers_every_question_from_the_first_backend() -> None:
     """A working primary answers every question; the secondary is unused."""
     tx = Tx.parse(RAW)
     header = BlockHeader.parse(TIP_HEADER_RAW)

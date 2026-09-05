@@ -94,7 +94,7 @@ def test_a_session_transport_can_drive_the_fetcher() -> None:
 
 
 def test_an_unknown_network_is_refused() -> None:
-    """Refuse a network name that is none of the three known ones."""
+    """Refuse a network name btclib does not know."""
     with pytest.raises(BTClibValueError, match="unknown network: 'liquid'"):
         EsploraFetcher(BASE, network="liquid")
 
@@ -348,7 +348,7 @@ def test_whitespace_around_an_answer_is_not_part_of_it() -> None:
 def test_each_answer_is_bounded_by_what_it_is() -> None:
     """A height is not megabytes, and the limit says so per endpoint.
 
-    One limit for all three would have to be the widest of them -- a raw
+    One limit for every answer would have to be the widest of them -- a raw
     transaction in hex -- so a host answering `blocks/tip/height` with a
     transaction's worth of digits would be held in memory and only then
     refused by `int`. The narrow answers carry narrow limits, with room
@@ -373,7 +373,7 @@ def test_each_answer_is_bounded_by_what_it_is() -> None:
 
 
 def test_the_header_answer_is_bounded_too() -> None:
-    """The fourth endpoint, bounded the same way the first three are.
+    """The header endpoint, bounded the same way the others are.
 
     Eighty bytes of hex is a hundred and sixty digits, so the limit
     leaves room for a proxy's newline and nothing past it.

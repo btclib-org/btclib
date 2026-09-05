@@ -265,14 +265,14 @@ def test_the_interface_is_abstract() -> None:
     "missing",
     ["get_tx", "get_block_count", "get_best_block_id", "get_block_header"],
 )
-def test_leaving_any_one_of_the_four_abstract_refuses_construction(
+def test_leaving_any_one_question_abstract_refuses_construction(
     missing: str,
 ) -> None:
-    """Each of the four is `abstractmethod` on its own, not by inheriting one.
+    """Each question is `abstractmethod` on its own, not by inheriting one.
 
     `test_the_interface_is_abstract` covers `Fetcher` itself; a subclass
-    that overrides three of the four and forgets the last one is what a
-    decorator removed from only one of them would let through.
+    that overrides every question but one is what a decorator removed
+    from only one of them would let through.
     """
     methods = {
         "get_tx": lambda self, tx_id: Tx.parse(RAW),
@@ -287,7 +287,7 @@ def test_leaving_any_one_of_the_four_abstract_refuses_construction(
 
 
 def test_a_verifying_fetcher_without_assert_network_is_refused() -> None:
-    """The four questions answered and the chain question not declared.
+    """Every question answered and the chain question not declared.
 
     What a backend costs its caller when it is written without one is
     the check made never, on a class that compiles and passes its own
@@ -330,16 +330,16 @@ def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
 
 @pytest.mark.parametrize("network", ["mainnet", "testnet", "testnet4", "regtest"])
 def test_the_network_is_the_one_it_was_given(network: str) -> None:
-    """Expose the name the constructor resolved, for all four."""
+    """Expose the name the constructor resolved, for every name given."""
     assert StubFetcher(Tx.parse(RAW), network).network == network
 
 
-def test_the_stub_answers_all_four_questions() -> None:
-    """A Fetcher is the four or it is not one, so the stub must be one.
+def test_the_stub_answers_every_question() -> None:
+    """A Fetcher answers every question it declares, so the stub must.
 
     A subclass leaving one abstract could not be instantiated at all, and
     the tests below would then be testing nothing -- which is what this
-    says out loud rather than leaving to the two lines never called.
+    says out loud rather than leaving to the lines never called.
     """
     fetcher = StubFetcher(Tx.parse(RAW))
     assert fetcher.get_tx(TX_ID).id.hex() == TX_ID
