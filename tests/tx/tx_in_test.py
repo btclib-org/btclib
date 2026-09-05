@@ -214,13 +214,14 @@ def test_script_sig_is_not_validated_and_that_is_the_answer() -> None:
 def test_input_weight() -> None:
     """Match Core's TestFrameworkWalletUtil.test_calculate_input_weight.
 
-    Its cases transcribed from
-    test/functional/test_framework/wallet_util.py at bitcoin/bitcoin
-    42330922, with Core's `witness_stack_hex=None` spelled `None` and its
-    `[]` spelled `Witness()`. They are chosen for the two boundaries the
-    arithmetic can be wrong at: a length of 252 against one of 253, where
-    a var_int grows from one byte to three, on the script_sig and on the
-    witness item count alike; and no witness against an empty stack.
+    Its cases transcribed from Core's
+    test/functional/test_framework/wallet_util.py, whose revision
+    `TF2.md` pins, with Core's `witness_stack_hex=None` spelled `None`
+    and its `[]` spelled `Witness()`. They are chosen for the two
+    boundaries the arithmetic can be wrong at: a length of 252 against
+    one of 253, where a var_int grows from one byte to three, on the
+    script_sig and on the witness item count alike; and no witness
+    against an empty stack.
     """
     SKELETON_BYTES = 32 + 4 + 4  # prevout-txid, prevout-index, sequence
     SMALL_LEN_BYTES = 1  # a var_int announcing a length below 253

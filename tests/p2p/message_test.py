@@ -8,9 +8,10 @@
 where that is said.** Bitcoin Core publishes no file of envelope vectors:
 there is no `message.json` to pin the way `tests/_data/README.md` pins
 `siphash.json` and `blockfilters.json`, the header being exercised in
-Core through `test/functional/test_framework/p2p.py`, which builds it in
-Python and reads it back -- a round trip, which is what these tests are
-too. So nothing here is vendored, and nothing is claimed to be.
+Core through `test/functional/test_framework/p2p.py` (`TF2.md` pins the
+revision), which builds it in Python and reads it back -- a round trip,
+which is what these tests are too. So nothing here is vendored, and
+nothing is claimed to be.
 
 What stands in for it are the two messages the Bitcoin Wiki's Protocol
 documentation publishes with their octets -- a `version` a

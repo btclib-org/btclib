@@ -905,6 +905,25 @@ file of the test tree, and no caller acts on it.
   one from the other, an empty side being a subtraction that passes
   whatever the other holds.
 
+### A `test_framework` citation names the file and leaves the pin to `TF2.md`
+
+- **A module or a test citing Core's `test/functional/test_framework/`
+  names the framework file and carries no revision of its own** (closes
+  #1726). `TF2.md` is where that path's pin lives, so a refresh moves
+  the entry rather than every site that repeats it: a pin written beside
+  a citation is right the day it is written, and is the copy the next
+  refresh misses.
+- **`script/sig_hash.py`'s `segwit_v0` names Core's
+  `SegwitV0SignatureHash` of `test/functional/test_framework/script.py`,
+  where it carried a permalink with a line number in it.** A line number
+  into another repository is re-checked by nothing, and an edit upstream
+  moves it with nothing here going red.
+- **`TF2.md` says which form a citation takes**, and which shapes are
+  not it. It pins no C++ path, so a citation of Core's C++ has no entry
+  there to leave a revision to and stands as it is; the revision beside
+  `src/btclib/_ripemd160.py`'s vendored copy says which bytes were
+  taken, and belongs where the copy is.
+
 ## v2026.9.3
 
 ### Repository

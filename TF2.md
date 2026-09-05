@@ -107,6 +107,33 @@ No entry carries a `blob`, and that is where this file parts from
 below but the RIPEMD-160 implementation, whose own entry names where
 that comparison lives instead of making one here.
 
+## Citing the framework from btclib
+
+A module or a test citing a file of this directory names the file and
+says that `TF2.md` pins the revision, carrying no revision of its own.
+That is `tests/_data/README.md`'s shape applied to a second ledger: the
+record is the single place a pin is refreshed, so a re-check reads one
+file rather than finding every site that repeats it. A pin written
+beside a citation is right on the day it is written, and it is the copy
+the next refresh misses.
+
+A citation carries no line number into another repository either.
+Nothing here re-checks such a line, and an edit upstream moves it with
+nothing going red, so what a citation names beside the file is the
+function: `script/sig_hash.py`'s `segwit_v0` cites
+`SegwitV0SignatureHash` of `test/functional/test_framework/script.py`.
+
+**A citation of Core's C++ is a different thing**, and none of the above
+reaches it. This file pins no C++ path, so such a citation has no entry
+here to leave a revision to, and *Reading an entry* above is about the
+entries below rather than about how Core's C++ is cited from this tree.
+Those citations stand as they are.
+
+**A vendoring line is not a citation.** `_ripemd160.py` is Core's own
+file, and the revision its docstring carries says which bytes were
+copied, beside the attribution the licence asks for. That pin belongs
+where the copy is, and moves when the copy does.
+
 ## bitcoin/bitcoin
 
 ### `test/functional/test_framework/__init__.py`

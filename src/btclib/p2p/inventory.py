@@ -11,8 +11,8 @@ what they do not, and the type code under them. `inv`, `getdata` and
 hash; `headers` is block headers. The layout is Core's
 test/functional/test_framework/messages.py -- `msg_inv`, `msg_getdata`,
 `msg_notfound`, `msg_getblocks`, `msg_getheaders`, `msg_headers` and the
-`CInv` and `CBlockLocator` under them -- and the type codes are
-src/protocol.h's `GetDataMsg`.
+`CInv` and `CBlockLocator` under them, at the revision `TF2.md` pins --
+and the type codes are src/protocol.h's `GetDataMsg`.
 
 **Three commands share one body, and so one class each over one private
 base**, which is `btclib.p2p.keepalive`'s shape for `ping` and `pong`:

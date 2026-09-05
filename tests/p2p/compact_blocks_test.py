@@ -16,11 +16,11 @@ The vectors are block 481,824 -- the first segwit block, already in the
 tree under tests/block/_data and authenticated by its own proof of work,
 which is what issue #1101 and issue #1103 leaned on -- and the short ids
 and the key below were computed with Bitcoin Core's own
-test/functional/test_framework/crypto/siphash.py, a second implementation
-of SipHash-2-4 and not `btclib.hashes.siphash` under another name. So a
-short id keyed on a txid, or on a hash the wrong way round, or under a
-digest of the header without the nonce, fails here rather than
-round-tripping.
+test/functional/test_framework/crypto/siphash.py, whose revision
+`TF2.md` pins: a second implementation of SipHash-2-4 and not
+`btclib.hashes.siphash` under another name. So a short id keyed on a
+txid, or on a hash the wrong way round, or under a digest of the header
+without the nonce, fails here rather than round-tripping.
 
 **The wire form has weaker authority, and saying so is better than
 dressing it up.** BIP152 publishes field tables and no test vectors, and
@@ -81,11 +81,12 @@ _BLOCK_1 = Block.parse((_DATA / "block_1.bin").read_bytes())
 _NONCE = 0x0123_4567_89AB_CDEF
 
 # what Bitcoin Core's test/functional/test_framework/crypto/siphash.py
-# answers for the block and the nonce above: the key is the first two
-# little-endian 64-bit words of the single-SHA256 of the eighty octets of
-# the header with the nonce appended, and each short id is that
-# implementation's `siphash(k0, k1, wtxid)` with the two most significant
-# octets dropped -- `calculate_shortid`, of that framework's messages.py.
+# answers for the block and the nonce above, at the revision `TF2.md`
+# pins: the key is the first two little-endian 64-bit words of the
+# single-SHA256 of the eighty octets of the header with the nonce
+# appended, and each short id is that implementation's
+# `siphash(k0, k1, wtxid)` with the two most significant octets dropped
+# -- `calculate_shortid`, of that framework's messages.py.
 #
 # The transactions are picked for carrying a witness, which few of that
 # block's do: a wtxid is a txid for a transaction that has none, and over

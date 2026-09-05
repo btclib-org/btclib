@@ -8,7 +8,7 @@ The layout is Bitcoin Core's `CMessageHeader`, of src/protocol.h: four
 octets of message start, twelve of message type, four of payload size
 little-endian and four of checksum, followed by the payload the last two
 describe. Core's own test framework writes the same header by hand, in
-`test/functional/test_framework/p2p.py`.
+`test/functional/test_framework/p2p.py`; `TF2.md` pins the revision.
 
 Core spells the second field `m_msg_type`, where the wire documentation,
 the BIPs and every other implementation say "command". The name here is

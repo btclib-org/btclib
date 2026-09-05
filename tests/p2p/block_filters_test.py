@@ -10,8 +10,8 @@ annotates a `version`, a `verack` and an `addr` and none of these six,
 and Bitcoin Core has no vector file for them. The wire form here is
 BIP157's own field tables and the writer Core reads them back with,
 test/functional/test_framework/messages.py's `msg_cfilter` and its five
-neighbours, and the octets below were assembled from those tables rather
-than captured from anything.
+neighbours -- `TF2.md` pins that file's revision -- and the octets below
+were assembled from those tables rather than captured from anything.
 
 **What is vendored is the other half of the message, and it is real.**
 `tests/block/_data/blockfilters.json` is Core's BIP158 vector file, pinned
