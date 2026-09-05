@@ -122,7 +122,7 @@ full year, short month, short day (YYYY-M-D)
   extended key and are unaffected: each performs that call for you.
 
   Act on it too if you match on the text of the refusal. An extended key
-  on the wrong network now leaves `bip32` as `Not a mainnet key: version
+  on the wrong network now leaves `bip32` as `not a mainnet key: version
   0x...`, where the `contextlib.suppress` around the BIP32 parse used to
   let `to_pub_key`'s "not a private or public key for mainnet" out
   instead.
@@ -134,6 +134,18 @@ full year, short month, short day (YYYY-M-D)
   Act on it if you build a row of your own for a custom chain: pass
   `bip30_unspendable=()`, which is what every chain but mainnet
   carries.
+
+- **`bip32`'s refusals of an extended key's public half are lower case**
+  (closes #1719). `pub_keyinfo_from_xpub` raises `uncompressed SEC /
+  compressed BIP32 mismatch` where it raised `Uncompressed SEC /
+  compressed BIP32 mismatch`, and both it and `pub_keyinfo_from_xkey`
+  raise `not a <network> key: version 0x...` where they raised `Not a
+  <network> key: version 0x...`. Each is the wording
+  `prv_keyinfo_from_xprv` uses for the same fault on the private half.
+
+  Act on it if you match on the text of either refusal. One pattern
+  serves both halves of a pair, so a match written for the private half
+  needs no second spelling for the public one.
 
 ### Worth knowing, though nothing raises
 

@@ -104,14 +104,15 @@ def test_the_three_key_reads_answer_for_one_half_each() -> None:
     err_msg = "uncompressed SEC / compressed BIP32 mismatch"
     with pytest.raises(BTClibValueError, match=err_msg):
         prv_keyinfo_from_xprv(xprv, compressed=False)
-    with pytest.raises(BTClibValueError, match="ompressed SEC / compressed BIP32"):
+    with pytest.raises(BTClibValueError, match=err_msg):
         pub_keyinfo_from_xpub(xpub, compressed=False)
 
     # the version bytes say which network claims the key, so a network
     # the caller names has to be that one
-    with pytest.raises(BTClibValueError, match="not a testnet key: version "):
+    err_msg = "not a testnet key: version "
+    with pytest.raises(BTClibValueError, match=err_msg):
         prv_keyinfo_from_xprv(xprv, "testnet")
-    with pytest.raises(BTClibValueError, match="Not a testnet key: version "):
+    with pytest.raises(BTClibValueError, match=err_msg):
         pub_keyinfo_from_xpub(xpub, "testnet")
 
     # and each public read refuses the private half by its prefix
