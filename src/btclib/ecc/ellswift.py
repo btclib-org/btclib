@@ -58,8 +58,10 @@ from btclib._libsecp256k1 import ellswift as libsecp256k1_ellswift
 from btclib.alias import Integer, Octets, Point
 from btclib.curves import (
     Curve,
+    PubKey,
     bytes_from_point,
     mult,
+    point_from_pub_key,
     scalar_from_prv_key,
     secp256k1,
 )
@@ -73,7 +75,6 @@ from btclib.curves.curve import (
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.number_theory import mod_inv_var, mod_sqrt_var
-from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
 __all__ = [

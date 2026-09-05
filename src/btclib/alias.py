@@ -75,7 +75,7 @@ __all__ = [
 #
 # Every buffer, and not `bytes` alone: each is accepted at run time by
 # every consumer of an `Octets`, `utils.bytes_from_octets` being the one
-# coercion they share and `to_pub_key._PUB_KEY_TYPES` naming the same
+# coercion they share and `curves.sec_point._PUB_KEY_TYPES` naming the same
 # list from the other side. Narrower here than in the code, this cost a
 # caller who wrote a buffer down a `type: ignore` -- and cost more than
 # that, mypy not being able to see the buffer paths, so a place that

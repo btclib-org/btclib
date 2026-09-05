@@ -66,8 +66,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from btclib import silent_payments as sp
-from btclib.alias import Octets, Point
-from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.alias import Integer, Octets, Point
+from btclib.curves import (
+    bytes_from_point,
+    mult,
+    point_from_pub_key,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.ecc import dleq
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibValueError
@@ -83,8 +89,6 @@ from btclib.script.script_pub_key import (
     is_p2wpkh,
 )
 from btclib.script.sig_hash import ALL
-from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import point_from_pub_key
 
 __all__ = [
     "assert_as_valid",
@@ -513,7 +517,7 @@ def _share_for(a: int, scan_key: bytes, aux: Octets | None) -> tuple[bytes, byte
 
 
 def set_input_share(
-    psbt: Psbt, vin_i: int, prv_key: PrvKey, aux: Octets | None = None
+    psbt: Psbt, vin_i: int, prv_key: Integer, aux: Octets | None = None
 ) -> None:
     """Write the ECDH share and proof of one input, for every recipient.
 
@@ -531,7 +535,7 @@ def set_input_share(
     if A is None:
         err_msg = f"input {vin_i}: no public key, so no share BIP352 would count"
         raise BTClibValueError(err_msg)
-    a = int_from_prv_key(prv_key)
+    a = scalar_from_prv_key(prv_key)
     if mult(a) != A:
         err_msg = f"input {vin_i}: the private key is not the one of its public key"
         raise BTClibValueError(err_msg)
@@ -542,7 +546,7 @@ def set_input_share(
 
 
 def set_global_share(
-    psbt: Psbt, prv_keys: Sequence[PrvKey], aux: Octets | None = None
+    psbt: Psbt, prv_keys: Sequence[Integer], aux: Octets | None = None
 ) -> None:
     """Write the one ECDH share standing for every eligible input.
 
@@ -562,7 +566,7 @@ def set_global_share(
         raise BTClibValueError(err_msg)
     a = 0
     for prv_key in prv_keys:
-        a = (a + int_from_prv_key(prv_key)) % secp256k1.n
+        a = (a + scalar_from_prv_key(prv_key)) % secp256k1.n
     if a == 0:
         raise BTClibValueError("input private keys sum to zero")
     if mult(a) != sp.pub_key_sum(list(pub_keys.values())):

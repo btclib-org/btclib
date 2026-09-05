@@ -99,6 +99,7 @@ from btclib.curves.sec_point import (
     bytes_from_point,
     bytes_from_prv_key_int,
     point_from_octets,
+    point_from_pub_key,
     scalar_from_prv_key,
 )
 from btclib.ecc import borromean, dsa, ellswift, pedersen, ssa
@@ -108,8 +109,7 @@ from btclib.ecc.dh import diffie_hellman
 from btclib.ecc.rfc6979_nonce import challenge_, rfc6979_nonce_
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
-from btclib.to_prv_key import int_from_prv_key
-from btclib.to_pub_key import point_from_key, point_from_pub_key
+from btclib.to_pub_key import point_from_key
 from tests.curves.curve_test import low_card_curves
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
@@ -230,6 +230,11 @@ _CASES = (
         {"prv_key": _PRV_KEY},
     ),
     _Case(
+        "btclib.curves.sec_point.point_from_pub_key",
+        point_from_pub_key,
+        {"pub_key": _SEC},
+    ),
+    _Case(
         "btclib.curves.sec_point.point_from_octets",
         point_from_octets,
         {"pub_key": _SEC},
@@ -292,7 +297,7 @@ _CASES = (
     ),
     _Case("btclib.ecc.dsa.gen_keys", dsa.gen_keys, {"prv_key": _PRV_KEY}),
     # the same function with the key it draws itself, which is the branch
-    # that reads n off the curve rather than reaching int_from_prv_key
+    # that reads n off the curve rather than reaching scalar_from_prv_key
     _Case(
         "btclib.ecc.dsa.gen_keys",
         dsa.gen_keys,
@@ -383,15 +388,7 @@ _CASES = (
     # the extended-key parse, which compares `ec` against the curve the
     # version bytes name rather than computing in it
     _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),
-    _Case(
-        "btclib.to_prv_key.int_from_prv_key",
-        int_from_prv_key,
-        {"prv_key": _PRV_KEY},
-    ),
     _Case("btclib.to_pub_key.point_from_key", point_from_key, {"key": _SEC}),
-    _Case(
-        "btclib.to_pub_key.point_from_pub_key", point_from_pub_key, {"pub_key": _SEC}
-    ),
     # the one curve parameter that is a field rather than an argument to
     # compute with, and the one not called `ec`. `to_dict`'s keys are the
     # constructor's parameter names, so the valid call is mainnet rebuilt

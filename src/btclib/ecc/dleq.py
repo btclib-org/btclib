@@ -45,15 +45,16 @@ import secrets
 
 from btclib.alias import Integer, Octets, Point
 from btclib.curves import (
+    PubKey,
     bytes_from_point,
     double_mult_var,
     mult,
+    point_from_pub_key,
     scalar_from_prv_key,
     secp256k1,
 )
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
 __all__ = [

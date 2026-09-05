@@ -51,7 +51,9 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.curves import (
     Curve,
     PreparedPoint,
+    PubKey,
     mult,
+    point_from_pub_key,
     scalar_from_prv_key,
     secp256k1,
 )
@@ -67,11 +69,7 @@ from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
-from btclib.to_pub_key import (
-    PubKey,
-    _sec_from_pub_key,
-    point_from_pub_key,
-)
+from btclib.to_pub_key import _sec_from_pub_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -1647,7 +1645,7 @@ def assert_as_valid_(
             )
         except ValueError as e:
             # what the octets were not: a point of the curve. Never echoed,
-            # as `to_pub_key` does not echo them either
+            # as `curves.point_from_pub_key` does not echo them either
             raise BTClibValueError("not a public key") from e
         if not verified:
             # one fixed sentence, as ssa.assert_as_valid_'s own delegated
@@ -1707,9 +1705,9 @@ def verify_(
     # failed. A value of a type this function does not declare is
     # neither, and reaches the caller: the classes that say so are
     # TypeErrors -- `_assert_valid_hf` for an hf passed as sha256()
-    # instead of sha256, `to_pub_key` for what is no spelling of a key --
-    # and no TypeError is in the tuple below, so none of them has to be
-    # refused ahead of the try to get out.
+    # instead of sha256, `curves.point_from_pub_key` for what is no
+    # spelling of a key -- and no TypeError is in the tuple below, so
+    # none of them has to be refused ahead of the try to get out.
     #
     # The line is the annotation, and not which built-in a helper happens
     # to derive from: those two coincide only by accident, which is what

@@ -49,6 +49,7 @@ from btclib.curves import (
     PreparedPoint,
     bytes_from_point,
     mult,
+    point_from_pub_key,
     scalar_from_prv_key,
     secp256k1,
 )
@@ -66,8 +67,8 @@ from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
-from btclib.to_prv_key import int_from_prv_key
-from btclib.to_pub_key import point_from_key, point_from_pub_key
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
+from btclib.to_pub_key import point_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
     bytes_from_octets,
@@ -224,7 +225,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hex string", hex_string),
     ("curve multiplier", mult),
     ("curve scalar", scalar_from_prv_key),
-    ("private key converter", int_from_prv_key),
+    ("private key record", prv_keyinfo_from_prv_key),
     ("public key converter", point_from_key),
     ("WIF private key", wif_from_prv_key),
     ("base58 address key", p2pkh),
@@ -332,7 +333,7 @@ _WORDINGS = [
     ("curve scalar", scalar_from_prv_key, "non-integer: True"),
     ("dsa signing key", lambda v: dsa_sign(b"msg", v), "non-integer: True"),
     ("WIF private key", wif_from_prv_key, "non-integer: True"),
-    ("private key converter", int_from_prv_key, "not a private key"),
+    ("private key record", prv_keyinfo_from_prv_key, "not a private key"),
     ("public key converter", point_from_key, "not a private or public key"),
     ("base58 address key", p2pkh, "not a private or public key"),
     ("bech32 address key", p2wpkh, "not a private or public key"),
@@ -446,7 +447,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert hex_string(1) == "01"
     assert mult(1) == secp256k1.G
     assert scalar_from_prv_key(1) == 1
-    assert int_from_prv_key(1) == 1
+    assert prv_keyinfo_from_prv_key(1) == (1, "mainnet", True)
     assert point_from_key(1) == secp256k1.G
     assert wif_from_prv_key(1).startswith("Kw")
     assert p2pkh(1).startswith("1")

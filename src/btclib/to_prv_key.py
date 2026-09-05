@@ -2,22 +2,24 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Functions for conversions between different private key formats.
+"""The (int, network, compressed) record a private key is filled into.
 
-The formats are the scalar and its octets, and a spelling that carries
-more than a scalar is read where it is defined. A WIF is `b58`'s object,
-read by `b58.prv_key_data_from_wif` and written by
-`b58.wif_from_prv_key`; an xprv is `bip32`'s, read by
+The scalar itself is not read here: `curves.scalar_from_prv_key` is what
+takes an int, its octets or their hex, a scalar in 1..n-1 being a fact
+about the curve (issue #1188). What is left to this module is the record
+above it, which a scalar carries none of.
+
+A spelling that does carry a network and a compression is read where it
+is defined. A WIF is `b58`'s object, read by `b58.prv_key_data_from_wif`
+and written by `b58.wif_from_prv_key`; an xprv is `bip32`'s, read by
 `bip32.prv_keyinfo_from_xprv`. Neither is reachable from here: `b58` sits
 above this module, and an extended key resolved here would be `bip32`'s
-format parsed somewhere else (issue #1188).
+format parsed somewhere else.
 """
 
 from __future__ import annotations
 
 from btclib.alias import Octets
-from btclib.curves import Curve, secp256k1
-from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError, NotAPrvKeyError
 from btclib.network import network_from_name
 from btclib.utils import assert_type, bytes_from_octets
@@ -25,7 +27,6 @@ from btclib.utils import assert_type, bytes_from_octets
 __all__ = [
     "PrvKey",
     "PrvkeyInfo",
-    "int_from_prv_key",
     "prv_keyinfo_from_prv_key",
 ]
 
@@ -33,15 +34,15 @@ __all__ = [
 PrvKey = int | Octets
 
 # the union at run time, with the buffers bytes_from_octets accepts beside
-# bytes. `to_pub_key._PUB_KEY_TYPES` is the counterpart, and is where the
-# int this list holds and that one does not is explained
+# bytes. `curves.sec_point._PUB_KEY_TYPES` is the counterpart, and is
+# where the int this list holds and that one does not is explained
 _PRV_KEY_TYPES = (int, bytes, bytearray, memoryview, str)
 
 
 def _assert_prv_key_type(prv_key: PrvKey) -> None:
     """Refuse a type no spelling of a private key has.
 
-    `to_pub_key._assert_pub_key_type`'s twin, and asked for the same
+    `curves.sec_point._assert_pub_key_type`'s twin, and asked for the same
     reason: a type the union does not declare is the caller's own
     mistake, where a value of a declared type that is no key is a
     NotAPrvKeyError. Without this the two would be one class: a float
@@ -64,46 +65,6 @@ def _assert_prv_key_type(prv_key: PrvKey) -> None:
     """
     if isinstance(prv_key, bool) or not isinstance(prv_key, _PRV_KEY_TYPES):
         raise BTClibTypeError("not a private key")
-
-
-def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
-    """Return a verified-as-valid private key integer.
-
-    It supports the scalar as a native int, and as the `ec.n_size`
-    octets or hex-string of one.
-    """
-    # before the key, because the branches below reach the curve for the
-    # size they require and for the range they check
-    _assert_valid_ec(ec)
-    _assert_prv_key_type(prv_key)
-
-    if isinstance(prv_key, int):
-        q = prv_key
-    else:
-        try:
-            prv_key = bytes_from_octets(prv_key, ec.n_size)
-            q = int.from_bytes(prv_key, "big")
-        # both, as `to_pub_key` catches both here: what is neither octets
-        # nor a spelling of them is a TypeError, and it means the same
-        # thing as a wrong size does -- this input is not a private key
-        except (TypeError, ValueError) as e:
-            # never echo the input: it is candidate key material. What the
-            # reason carries is why the format rejected it -- a size, a
-            # character outside hex -- which is not secret
-            raise NotAPrvKeyError(f"not a private key: not octets ({e})") from e
-
-    # libsecp256k1's keys.prvkey_verify is the C answer to this check,
-    # here and at the other site in this module, and it is not called
-    # for want of anything to gain: the foreign call costs more than the
-    # comparison it would replace, on a value that is already a Python
-    # int, and no constant-time argument to pay it with, since whether a
-    # key is in
-    # range is precisely what the caller is being told. The comparison
-    # also serves every curve, where the binding is secp256k1 alone.
-    if not 0 < q < ec.n:
-        raise BTClibValueError("private key not in 1..n-1")
-
-    return q
 
 
 PrvkeyInfo = tuple[int, str, bool]

@@ -65,7 +65,7 @@ from pathlib import Path
 from btclib.bip32 import derive, rootxprv_from_seed
 from btclib.bip32.der_path import _HARDENED_OFFSET
 from btclib.curves.curve import mult, secp256k1
-from btclib.curves.sec_point import bytes_from_point
+from btclib.curves.sec_point import bytes_from_point, scalar_from_prv_key
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.entropy import (
     BinStr,
@@ -82,7 +82,6 @@ from btclib.mnemonic.mnemonic import (
     mnemonic_from_indexes,
 )
 from btclib.network import network_from_name
-from btclib.to_prv_key import int_from_prv_key
 
 __all__ = [
     "ELECTRUM_WORDLISTS",
@@ -719,9 +718,9 @@ def old_master_pub_key_from_mnemonic(
     can be taken from.
     """
     prv_key = old_master_prv_key_from_mnemonic(mnemonic, passphrase)
-    # int_from_prv_key and not mult alone: mult reduces the scalar mod n
+    # scalar_from_prv_key and not mult alone: mult reduces the scalar mod n
     # and would answer for a stretch that landed outside 1..n-1, where
     # electrum's ECPrivkey raises. A 2**-128 disagreement, and refusing
     # is the side that costs nothing
-    point = mult(int_from_prv_key(prv_key, secp256k1), secp256k1.G, secp256k1)
+    point = mult(scalar_from_prv_key(prv_key, secp256k1), secp256k1.G, secp256k1)
     return bytes_from_point(point, secp256k1, compressed=False)[1:].hex()

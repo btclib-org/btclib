@@ -53,8 +53,11 @@ and a flag, so `b58.prv_key_data_from_wif` reads it and
 `bip32.prv_keyinfo_from_xprv`, `bip32.pub_keyinfo_from_xpub`,
 `bip32.pub_keyinfo_from_xkey` and `bip32.point_from_xpub` are the parse,
 and a caller holding one calls one of them and passes the scalar or the
-point on (issue #1188). What is left to `to_prv_key` and `to_pub_key` is
-the scalar and the curve point in their octet spellings. `slip132` sits
+point on (issue #1188). The scalar and the curve point in their octet
+spellings are not a converter's either: they are facts about the curve,
+so `curves.scalar_from_prv_key` and `curves.point_from_pub_key` read
+them, and what is left to `to_prv_key` and `to_pub_key` is the network
+and the compression a record carries and a key does not. `slip132` sits
 above the address encodings, beside `bip44`. `mnemonic/`, `script/`,
 `tx/`, `block/`, `psbt/` and `descriptors` build on those layers.
 `alias.py` holds the type aliases the public API accepts, and much of the

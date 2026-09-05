@@ -66,11 +66,11 @@ from btclib.bip32.der_path import (
     indexes_from_der_path,
     str_from_index_int,
 )
+from btclib.curves import scalar_from_prv_key
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.bip39 import mnemonic_from_entropy
 from btclib.mnemonic.mnemonic import Mnemonic
 from btclib.network import network_from_name, network_from_xkeyversion
-from btclib.to_prv_key import int_from_prv_key
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -362,7 +362,7 @@ def nsec_from_root_key(root_key: BIP32Key, identity: int, account_index: int) ->
     entropy = _entropy_from_der_path(xkey, der_path)
     # the hard failure the docstring above documents, raised before the
     # bech32 encoding rather than after it
-    int_from_prv_key(entropy[:32])
+    scalar_from_prv_key(entropy[:32])
     data = power_of_2_base_conversion(entropy[:32], 8, 5)
     return encode(_NSEC_HRP, data, _BECH32_1_CONST).decode("ascii")
 

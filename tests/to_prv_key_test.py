@@ -9,9 +9,8 @@ import pytest
 
 # Library imports
 from btclib.alias import INF
-from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError, NotAPrvKeyError
-from btclib.to_prv_key import int_from_prv_key, prv_keyinfo_from_prv_key
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests.to_key_test import (
     Q,
     compressed_pub_keys,
@@ -40,14 +39,11 @@ def test_from_prv_key() -> None:
     where it is defined (issue #1188). So what is crossed here is what
     the arguments fill in, and nothing contradicts them.
     """
-    secp256r1 = CURVES["secp256r1"]
     m_c = (q, "mainnet", True)
     m_unc = (q, "mainnet", False)
     t_c = (q, "testnet", True)
     t_unc = (q, "testnet", False)
     for prv_key in [q, *plain_prv_keys]:
-        assert q == int_from_prv_key(prv_key)
-        assert q == int_from_prv_key(prv_key, secp256r1)
         assert m_c == prv_keyinfo_from_prv_key(prv_key)
         assert m_c == prv_keyinfo_from_prv_key(prv_key, "mainnet")
         assert m_c == prv_keyinfo_from_prv_key(prv_key, "mainnet", compressed=True)
@@ -59,15 +55,11 @@ def test_from_prv_key() -> None:
         assert t_unc == prv_keyinfo_from_prv_key(prv_key, "testnet", compressed=False)
 
     for prv_key5 in [q, *net_unaware_prv_keys]:
-        assert q == int_from_prv_key(prv_key5)
-        assert q == int_from_prv_key(prv_key5, secp256r1)
         assert prv_keyinfo_from_prv_key(prv_key5) in {m_c, m_unc}
         assert prv_keyinfo_from_prv_key(prv_key5, "mainnet") in {m_c, m_unc}
         assert prv_keyinfo_from_prv_key(prv_key5, "testnet") in {t_c, t_unc}
 
     for invalid_prv_key in [q0, qn, *invalid_prv_keys]:
-        with pytest.raises(BTClibValueError):
-            int_from_prv_key(invalid_prv_key)
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(invalid_prv_key)
 
@@ -80,8 +72,6 @@ def test_from_prv_key() -> None:
         *uncompressed_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(not_a_prv_key)
-        with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(not_a_prv_key)
 
     # a Point and an extended key are spellings of other modules' types,
@@ -89,8 +79,6 @@ def test_from_prv_key() -> None:
     # and the `type: ignore` these need -- where none of the spellings
     # above needs one -- is the same line drawn by the type checker
     for wrong_type in [INF, Q, xprv_data, xprv0_data, xprvn_data, xpub_data]:
-        with pytest.raises(BTClibTypeError, match="not a private key"):
-            int_from_prv_key(wrong_type)  # type: ignore[arg-type]
         with pytest.raises(BTClibTypeError, match="not a private key"):
             prv_keyinfo_from_prv_key(wrong_type)  # type: ignore[arg-type]
 
@@ -107,12 +95,12 @@ def test_no_key_material_in_exceptions() -> None:
 
     # out-of-range scalar
     with pytest.raises(BTClibValueError, match="not in 1..n-1") as excinfo:
-        int_from_prv_key(qn)
+        prv_keyinfo_from_prv_key(qn)
     assert f"{qn:x}" not in str(excinfo.value).lower()
 
     # unparsable octets
     with pytest.raises(BTClibValueError, match="not a private key") as excinfo:
-        int_from_prv_key("02" * 33)
+        prv_keyinfo_from_prv_key("02" * 33)
     assert "0202" not in str(excinfo.value)
 
 
@@ -130,8 +118,6 @@ def test_the_text_spellings_of_other_modules_are_refused() -> None:
     for text in (xprv, xpub, wif):
         with pytest.raises(NotAPrvKeyError, match="not a private key: not octets"):
             prv_keyinfo_from_prv_key(text)
-        with pytest.raises(NotAPrvKeyError, match="not a private key: not octets"):
-            int_from_prv_key(text)
 
 
 def test_an_uncompressed_sec_key_still_resolves() -> None:
@@ -147,4 +133,3 @@ def test_an_uncompressed_sec_key_still_resolves() -> None:
         "mainnet",
         False,
     )
-    assert int_from_prv_key(bytes.fromhex(q_hex)) == q_int

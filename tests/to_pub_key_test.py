@@ -2,7 +2,15 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the `btclib.to_pub_key` module."""
+"""Tests for the `btclib.to_pub_key` module, and the parse under it.
+
+`curves.point_from_pub_key` is where a public key becomes a point since
+issue #1188, and it is exercised here rather than beside its own module:
+the checks below are questions about a key *form*, each asked of both
+conversions at once, and splitting the pair would ask each question of
+half the answer. What is asked of `curves` alone -- which spellings that
+layer takes at all -- is in `tests/curves/sec_point_test.py`.
+"""
 
 from collections.abc import Callable, Sequence
 
@@ -14,6 +22,7 @@ from btclib.curves import (
     bytes_from_point,
     mult,
     point_from_octets,
+    point_from_pub_key,
 )
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -23,7 +32,6 @@ from btclib.to_pub_key import (
     _sec_from_key,
     _sec_from_pub_key,
     point_from_key,
-    point_from_pub_key,
     pub_keyinfo_from_key,
     pub_keyinfo_from_pub_key,
 )

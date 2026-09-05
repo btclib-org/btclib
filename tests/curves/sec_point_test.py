@@ -11,6 +11,7 @@ from btclib.b58 import wif_from_prv_key
 from btclib.bip32 import BIP32KeyData, rootxprv_from_seed
 from btclib.curves import (
     Curve,
+    PreparedPoint,
     bytes_from_point,
     bytes_from_prv_key_int,
     # the module, not only the names in it: `_libsecp256k1_available` is
@@ -19,6 +20,7 @@ from btclib.curves import (
     curve,
     mult,
     point_from_octets,
+    point_from_pub_key,
     scalar_from_prv_key,
     secp256k1,
 )
@@ -349,3 +351,48 @@ def test_a_scalar_is_an_int_or_its_octets_and_nothing_else() -> None:
     for out_of_range in (0, secp256k1.n):
         with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
             scalar_from_prv_key(out_of_range)
+
+
+def test_a_public_key_is_a_point_or_its_octets_and_nothing_else() -> None:
+    """What a public key may be spelled as at this layer (issue #1188).
+
+    `scalar_from_prv_key`'s twin above, asked of the other half: the
+    point as a tuple, as a `PreparedPoint`, or as the SEC octets
+    `point_from_octets` parses. A WIF and an extended key are not among
+    them for that test's reason, and neither is a scalar -- in this
+    library an int is a private key and never a public one, so it is
+    refused as a type rather than reported as a key that does not verify.
+
+    Which spellings the two conversions of `to_pub_key` build on this one
+    then accept, crossed with network and compression, is
+    `tests/to_pub_key_test.py`; what is here is the parse itself.
+    """
+    q = 0xC0FFEE
+    point = mult(q)
+    for spelling in (
+        point,
+        PreparedPoint(point),
+        bytes_from_point(point),
+        bytes_from_point(point, compressed=False),
+        bytes_from_point(point).hex(),
+        bytearray(bytes_from_point(point)),
+    ):
+        assert point_from_pub_key(spelling) == point
+
+    # a type no spelling has, the scalar among them: refused as a type,
+    # and never echoed -- it may be the private material issue #143 is
+    # about
+    for wrong_type in (q, 1.5, None):
+        with pytest.raises(BTClibTypeError, match="not a public key"):
+            point_from_pub_key(wrong_type)  # type: ignore[arg-type]
+
+    # a tuple of the right shape that is no point of the curve, and the
+    # infinity point, which has no public key
+    for not_a_point in ((1, 2), INF):
+        with pytest.raises(BTClibValueError, match="not a valid public key"):
+            point_from_pub_key(not_a_point)
+
+    # octets of a declared type whose content is no point: a value error,
+    # and the parse's own reason is chained under it
+    with pytest.raises(BTClibValueError, match="not a public key"):
+        point_from_pub_key(wif_from_prv_key(q))

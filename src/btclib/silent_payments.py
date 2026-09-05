@@ -69,10 +69,18 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from btclib._libsecp256k1 import silentpayments as libsecp256k1_silentpayments
-from btclib.alias import NetworkType, Octets, Point, String
+from btclib.alias import Integer, NetworkType, Octets, Point, String
 from btclib.b32 import power_of_2_base_conversion
 from btclib.bech32 import _BECH32_M_CONST, decode, encode
-from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
+from btclib.curves import (
+    PubKey,
+    bytes_from_point,
+    mult,
+    point_from_octets,
+    point_from_pub_key,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.curves.curve import (
     _libsecp256k1_serves,
     _sum_var,
@@ -86,8 +94,7 @@ from btclib.hashes import hash160, tagged_hash
 from btclib.network import network_type_from_network
 from btclib.script.script_pub_key import is_p2pkh, is_p2sh, is_p2tr, is_p2wpkh
 from btclib.script.witness import Witness
-from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
+from btclib.to_pub_key import pub_keyinfo_from_pub_key
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, is_integer, is_octets, str_from_string
 
@@ -300,7 +307,7 @@ def keys_from_address(address: String) -> tuple[Point, Point, NetworkType]:
     return B_scan, B_m, network_type
 
 
-def label_tweak(b_scan: PrvKey, m: int) -> int:
+def label_tweak(b_scan: Integer, m: int) -> int:
     """Return the scalar labelling an address with the integer m.
 
     The scan private key is what the tweak is derived from, so the
@@ -308,13 +315,13 @@ def label_tweak(b_scan: PrvKey, m: int) -> int:
     the spend key: BIP352 exports the scan key on purpose, and a label
     derived from the spend key would have undone that.
     """
-    b = int_from_prv_key(b_scan)
+    b = scalar_from_prv_key(b_scan)
     hash_input = b.to_bytes(secp256k1.n_size, "big") + _label_bytes(m)
     return _scalar(tagged_hash(_LABEL_TAG, hash_input), "label")
 
 
 def labeled_address_from_keys(
-    b_scan: PrvKey, B_spend: PubKey, m: int, network: str = "mainnet"
+    b_scan: Integer, B_spend: PubKey, m: int, network: str = "mainnet"
 ) -> str:
     """Return the address of the spend key labelled with the integer m.
 
@@ -323,12 +330,12 @@ def labeled_address_from_keys(
     always, which is what makes that convention safe to rely on when
     recovering a wallet from a seed alone.
     """
-    B_scan = mult(int_from_prv_key(b_scan))
+    B_scan = mult(scalar_from_prv_key(b_scan))
     B_m = _tweak_add_var(point_from_pub_key(B_spend), label_tweak(b_scan, m), secp256k1)
     return address_from_keys(B_scan, B_m, network)
 
 
-def label_lookup(b_scan: PrvKey, m_values: Iterable[int]) -> dict[bytes, bytes]:
+def label_lookup(b_scan: Integer, m_values: Iterable[int]) -> dict[bytes, bytes]:
     """Precompute the {label point: label tweak} map a scan reads.
 
     Once per wallet, not once per transaction, which is the point of it:
@@ -343,7 +350,7 @@ def label_lookup(b_scan: PrvKey, m_values: Iterable[int]) -> dict[bytes, bytes]:
     a `bytearray` or a `memoryview` as a key and is what
     `scan_transaction_outputs` hands the bindings unconverted where they
     serve. `scan_outputs`'s Python loop reads the same bytes through
-    `int_from_prv_key`, which already accepts 32-octet SEC input, so
+    `scalar_from_prv_key`, which already accepts 32-octet SEC input, so
     neither arm pays a conversion this function did not already do once,
     per wallet rather than per scan.
     """
@@ -449,7 +456,7 @@ def pub_key_from_input(
     return None
 
 
-def prv_key_sum(prv_keys: Sequence[tuple[PrvKey, Octets]]) -> int:
+def prv_key_sum(prv_keys: Sequence[tuple[Integer, Octets]]) -> int:
     """Return the sum of the input private keys, taproot ones negated.
 
     Each pair is one input's private key and the script_pub_key it
@@ -470,7 +477,7 @@ def prv_key_sum(prv_keys: Sequence[tuple[PrvKey, Octets]]) -> int:
     """
     total = 0
     for prv_key, script_pub_key in prv_keys:
-        a = int_from_prv_key(prv_key)
+        a = scalar_from_prv_key(prv_key)
         if is_p2tr(bytes_from_octets(script_pub_key)) and mult(a)[1] % 2:
             a = secp256k1.n - a
         total = (total + a) % secp256k1.n
@@ -544,7 +551,7 @@ def tweak_data(outpoints: Sequence[OutPoint], A_sum: PubKey) -> Point:
     return mult(_input_hash_(outpoints, A), A)
 
 
-def shared_secret(scalar: PrvKey, point: PubKey) -> Point:
+def shared_secret(scalar: Integer, point: PubKey) -> Point:
     """Return scalar*point, the ECDH shared secret of BIP352.
 
     One function for both ends, because there is one secret: the sender
@@ -561,7 +568,7 @@ def shared_secret(scalar: PrvKey, point: PubKey) -> Point:
     ECDH-shaped computations.
     """
     sec = pub_keyinfo_from_pub_key(point)[0]
-    return _mult_sec_var(sec, int_from_prv_key(scalar), secp256k1)
+    return _mult_sec_var(sec, scalar_from_prv_key(scalar), secp256k1)
 
 
 def _output_tweak(secret: Point, k: int) -> int:
@@ -590,7 +597,7 @@ def output_key(secret: PubKey, B_m: PubKey, k: int) -> bytes:
 
 
 def _delegated_output_keys(
-    prv_keys: Sequence[tuple[PrvKey, Octets]],
+    prv_keys: Sequence[tuple[Integer, Octets]],
     outpoints: Sequence[OutPoint],
     groups: Mapping[Point, list[Point]],
 ) -> list[bytes]:
@@ -627,7 +634,7 @@ def _delegated_output_keys(
         bucket = (
             taproot_prvkeys if is_p2tr(bytes_from_octets(script_pub_key)) else prvkeys
         )
-        bucket.append(int_from_prv_key(prv_key))
+        bucket.append(scalar_from_prv_key(prv_key))
     try:
         return libsecp256k1_silentpayments.create_outputs(
             recipients_bytes, outpoint_smallest36, taproot_prvkeys, prvkeys
@@ -644,7 +651,7 @@ def _delegated_output_keys(
 
 
 def output_keys(
-    prv_keys: Sequence[tuple[PrvKey, Octets]],
+    prv_keys: Sequence[tuple[Integer, Octets]],
     outpoints: Sequence[OutPoint],
     addresses: Sequence[String],
 ) -> list[bytes]:
@@ -758,12 +765,12 @@ def _labelled(
         # P_k up to parity, which the x-only comparison already caught
         tweak = labels.get(bytes_from_point(label_point, secp256k1))
         if tweak is not None:
-            return _sum_var([P_k, label_point], secp256k1), int_from_prv_key(tweak)
+            return _sum_var([P_k, label_point], secp256k1), scalar_from_prv_key(tweak)
     return None
 
 
 def scan_outputs(
-    b_scan: PrvKey,
+    b_scan: Integer,
     B_spend: PubKey,
     tweak: PubKey,
     outputs_to_check: Sequence[Octets],
@@ -839,7 +846,7 @@ def scan_outputs(
 
 
 def _delegated_scan_outputs(
-    b_scan: PrvKey,
+    b_scan: Integer,
     outpoints: Sequence[OutPoint],
     pub_keys: Sequence[tuple[PubKey, Octets]],
     B_spend: PubKey,
@@ -883,7 +890,7 @@ def _delegated_scan_outputs(
         ]
         found = libsecp256k1_silentpayments.scan_outputs(
             outputs_bytes,
-            int_from_prv_key(b_scan),
+            scalar_from_prv_key(b_scan),
             summary,
             bytes_from_point(point_from_pub_key(B_spend), secp256k1),
             labels,
@@ -901,7 +908,7 @@ def _delegated_scan_outputs(
 
 
 def scan_transaction_outputs(
-    b_scan: PrvKey,
+    b_scan: Integer,
     B_spend: PubKey,
     outpoints: Sequence[OutPoint],
     pub_keys: Sequence[tuple[PubKey, Octets]],
@@ -938,7 +945,7 @@ def scan_transaction_outputs(
     `labels` is `label_lookup`'s map -- 33-byte label to 32-byte tweak,
     the bindings' own spelling -- and reaches the delegated arm
     unconverted; the Python arm, `scan_outputs`, reads the same bytes
-    through `int_from_prv_key`.
+    through `scalar_from_prv_key`.
     """
     # `scan_outputs`'s own guard, checked again here rather than relying
     # on the delegation below: the bindings arm never reaches that
@@ -964,14 +971,16 @@ def scan_transaction_outputs(
     return scan_outputs(b_scan, B_spend, tweak, outputs_to_check, labels)
 
 
-def prv_key_from_tweak(b_spend: PrvKey, prv_key_tweak: int) -> int:
+def prv_key_from_tweak(b_spend: Integer, prv_key_tweak: int) -> int:
     """Return the private key that spends a found output.
 
     b_spend plus the tweak `scan_outputs` reported, modulo n. The taproot
     output is x-only, so a signer negates this key if it has to; that is
     BIP340's business and `btclib.ecc.ssa.sign` does it.
     """
-    d = (int_from_prv_key(b_spend) + int_from_prv_key(prv_key_tweak)) % secp256k1.n
+    d = (
+        scalar_from_prv_key(b_spend) + scalar_from_prv_key(prv_key_tweak)
+    ) % secp256k1.n
     if d == 0:
         raise BTClibValueError("spend private key and tweak sum to zero")
     return d

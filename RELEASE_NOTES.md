@@ -146,6 +146,33 @@ full year, short month, short day (YYYY-M-D)
   Act on it if you match on the text of either refusal. One pattern
   serves both halves of a pair, so a match written for the private half
   needs no second spelling for the public one.
+- **`to_prv_key.int_from_prv_key` and `to_pub_key.point_from_pub_key`
+  move to `btclib.curves`** (issue #1188).
+  `int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1)` -- that
+  spelling at v2023.7.12 -- is removed, and
+  `btclib.curves.scalar_from_prv_key(prv_key: Integer, ec: Curve =
+  secp256k1)` is the call: same answer, same spellings, and `Integer` is
+  the union `PrvKey` had already narrowed to.
+  `point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1)` keeps its
+  name and its signature and is imported from `btclib.curves` now, as is
+  `PubKey` itself; `btclib.to_pub_key` exports neither.
+
+  Act on it if you import either name from a converter:
+  `from btclib.curves import point_from_pub_key, scalar_from_prv_key`,
+  and `from btclib.curves import PubKey` for the annotation.
+  `point_from_key`, `pub_keyinfo_from_key`, `pub_keyinfo_from_pub_key`,
+  `pub_keyinfo_from_prv_key`, `prv_keyinfo_from_prv_key`, `PrvKey` and
+  `Key` stay where they are.
+
+  Act on it too if you match on the text of a private key's refusal.
+  `int_from_prv_key` answered a type no spelling has with
+  `BTClibTypeError("not a private key")` and octets that are no scalar
+  with `NotAPrvKeyError("not a private key: not octets (...)")`;
+  `scalar_from_prv_key` refuses both through `bytes_from_octets`, as
+  `invalid octets type: float` and `invalid hex string: ...` or a size,
+  and a bool as `int_from_integer`'s `non-integer: True`. Every one is
+  still a `BTClibTypeError` or a `BTClibValueError`, so an `except` on
+  either class is unaffected.
 
 ### Worth knowing, though nothing raises
 

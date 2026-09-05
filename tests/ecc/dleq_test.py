@@ -16,10 +16,9 @@ produced.
 
 import pytest
 
-from btclib.curves import mult, secp256k1
+from btclib.curves import mult, point_from_pub_key, secp256k1
 from btclib.ecc import dleq
 from btclib.exceptions import BTClibValueError
-from btclib.to_pub_key import point_from_pub_key
 from tests import load_csv, vector_id
 
 # what the generation file writes in the proof column of a case that must

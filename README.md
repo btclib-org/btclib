@@ -309,10 +309,12 @@ these modules says the same in its own docstring.
 
 The rest, roughly bottom-up. `alias` holds the types the public API
 accepts, much of it taking anything convertible rather than one type, and
-`exceptions` the errors it raises. `to_prv_key` and `to_pub_key` resolve
-the scalar and the curve point in their octet spellings, and nothing
-else: a spelling that carries a network or a compression flag belongs to
-the module that defines it, so a WIF is `b58`'s, an extended key is
+`exceptions` the errors it raises. The scalar and the curve point in
+their octet spellings are `curves`' own, read by
+`curves.scalar_from_prv_key` and `curves.point_from_pub_key`; what is
+left to `to_prv_key` and `to_pub_key` is the network and compression a
+record carries and a key does not. A spelling that carries either belongs
+to the module that defines it, so a WIF is `b58`'s, an extended key is
 `bip32`'s, and a Casascius minikey is `minikey`'s, read-only. `bip32` and
 `mnemonic` derive keys.
 `script`, `tx`, `block` and `psbt` build and validate what goes on
