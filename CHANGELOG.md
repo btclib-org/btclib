@@ -1664,6 +1664,19 @@ file of the test tree, and no caller acts on it.
   widened detector still does not see; both now join
   `[tool.uv.build-backend] source-exclude`.
 
+### `check_vendored_vectors.py` names an entry with no `behind` line of its own
+
+- **`_entries_at_tip` skips an entry carrying no `behind` line at all as
+  `(no behind line at all)`, not `(already documented as behind)`**
+  (closes #1741). `.get("behind", "").startswith("0")` answered the
+  same skip for both, so a pin nobody has confirmed at upstream's tip
+  read as a gap somebody had already decided to leave —
+  `tests/_data/descriptor_checksums.json` is that shape, its `commit`
+  pinning a document revision rather than a copy this repository
+  re-derives, so it carries no `behind` line by design. The docstring
+  now names this as one more shape the script does not attempt,
+  beside the ones it already listed.
+
 ## v2026.9.3
 
 ### Repository

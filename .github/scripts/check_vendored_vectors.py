@@ -39,22 +39,28 @@ A path upstream has renamed or deleted is reported rather than raising:
 it has no commit to name as a tip, and a pin standing on a file that is
 not there any more is the one drift nobody would otherwise notice.
 
-Three shapes a ledger can carry that this script does not attempt: an
-entry with no `commit` at all (chain data self-identified by hash,
-files this project composed itself), a path carrying a `<name>`
-placeholder -- one pin standing in for several real paths under a
-directory, which the "commits touching a path" call above cannot be
-asked about in one request -- and a heading with no fenced block under
-it at all, which is either a group heading the pins below it supersede
-or a pin whose block an edit broke. No current entry uses the
-placeholder shape: BIP327's eight files and BIP324's two were
-themselves written that way once, each pin citing one commit as the tip
-of every path it stood in for.
-Splitting them into one pin per real path is what brought them into
-this script's scope, and also corrected BIP327's, whose shared commit
-was the tip of only one of the eight. Every heading the ledger carries
-but this script did not check is listed in its own report, so nothing
-silently reads as "checked and clean" that was not checked at all.
+Shapes a ledger can carry that this script does not attempt: an entry
+with no `commit` at all (chain data self-identified by hash, files
+this project composed itself), a path carrying a `<name>` placeholder
+-- one pin standing in for several real paths under a directory, which
+the "commits touching a path" call above cannot be asked about in one
+request; a heading with no fenced block under it at all, which is
+either a group heading the pins below it supersede or a pin whose
+block an edit broke; and a block carrying no `behind` line at all,
+which is neither a documented gap nor a tip a human confirmed and is
+named on its own rather than folded into either.
+
+No current entry uses the placeholder shape: BIP327's eight files and
+BIP324's two were themselves written that way once, each pin citing
+one commit as the tip of every path it stood in for. Splitting them
+into one pin per real path is what brought them into this script's
+scope, and also corrected BIP327's, whose shared commit was the tip of
+only one of the eight. `tests/_data/descriptor_checksums.json` carries
+no `behind` line: it pins the document revision its checksums were
+checked against, not a copy this repository re-derives. Every heading
+the ledger carries but this script did not check is listed in its own
+report, so nothing silently reads as "checked and clean" that was not
+checked at all.
 
     python .github/scripts/check_vendored_vectors.py \
         tests/_data/README.md "Vendored vectors behind upstream"
@@ -119,10 +125,12 @@ class Drift:
 def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     """Return the checkable entries, and the headings this skips.
 
-    A heading is skippable for any of four reasons: no fenced block of
-    its own, no repo/path/commit triple, a path carrying a `<name>`
-    placeholder, or a `behind` already other than 0 -- a gap a human
-    already decided not to close.
+    A heading is skippable for several reasons: no fenced block of its
+    own, no repo/path/commit triple, a path carrying a `<name>`
+    placeholder, a `behind` already other than 0 -- a gap a human
+    already decided not to close -- or no `behind` line at all, which
+    is distinct from that gap and is named as its own reason rather
+    than folded into it.
 
     The first is the one the loop below cannot see, walking blocks as it
     does: a heading owning none never enters it. A group heading a finer
@@ -160,7 +168,11 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
         if "<" in path:
             skipped.append(f"{heading} (one pin serves several files)")
             continue
-        if not fields.get("behind", "").startswith("0"):
+        behind = fields.get("behind")
+        if behind is None:
+            skipped.append(f"{heading} (no behind line at all)")
+            continue
+        if not behind.startswith("0"):
             skipped.append(f"{heading} (already documented as behind)")
             continue
         entries.append(Entry(heading, repo, path.strip(), commit.split()[0]))
