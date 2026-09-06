@@ -244,10 +244,26 @@ jobs:
   # so that entry is what any such gate would read. What it does not
   # settle is the comparison: the walk is against the last release, so a
   # per-pull-request run reports every break already entered earlier in
-  # the same cycle, once more on each pull request that follows. Here
-  # the answer arrives while RELEASE_NOTES.md is already being written,
-  # so a break with no entry is refused at the moment somebody is
-  # already writing entries.
+  # the same cycle, once more on each pull request that follows. Here it
+  # runs once per release: a rehearsal reads the code as checked out,
+  # while RELEASE_NOTES.md is still open, and a tag reads what is about
+  # to be published.
+  # Nothing in this job reads RELEASE_NOTES.md, and every finding griffe
+  # reports fails the step. A break whose entry is already written
+  # reddens this job exactly as an undocumented one does, so any release
+  # with a finding at all leaves a red job behind it. That is the
+  # intended reading rather than an oversight: the red carries the
+  # surface diff to whoever is writing the notes, and says nothing about
+  # whether the entry exists. What it costs is that a red expected on
+  # every cycle with breaking changes in it is a red nobody reads as
+  # news, which is why RELEASING.md asks for the job list rather than
+  # the run's own badge.
+  # A finding is not by itself a change a caller can observe: griffe
+  # compares expressions and does not import, so a constant moved behind
+  # a lookup into a table is reported as changed while its value is
+  # identical. The step's own command below, given both tags, re-derives
+  # the list outside a run, and importing the two releases is what
+  # settles such a finding.
   # No `needs:` of its own, so it starts when the run does, beside the
   # platform sweeps rather than ahead of them. What the graph orders
   # after it is the upload: publish-testpypi and publish-pypi list it,
@@ -328,8 +344,9 @@ jobs:
           if ! uvx griffe==2.2.0 check btclib -s . -s src \
               -a "$PREVIOUS_TAG" "${base_args[@]}" -f github; then
             msg="the public API changed since $PREVIOUS_TAG:"
-            echo "::error::$msg add a breaking-changes bullet to" \
-              "RELEASE_NOTES.md, or say here why the change is not one"
+            echo "::error::$msg reconcile the findings above with" \
+              "RELEASE_NOTES.md's breaking-changes list;" \
+              "not every finding is a break"
             exit 1
           fi
       - name: Skip the check (no previous release to compare against)
