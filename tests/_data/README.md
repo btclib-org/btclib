@@ -2077,6 +2077,15 @@ Both sections are transcribed whole, the invalid case adding "unknown
 feature 100" included: what refuses that one is `btclib.bolt9`'s
 assignment table, which `Bolt11Invoice.assert_valid` reads.
 
+### `tests/ecc/_data/rfc6979.json`
+
+Verdict: **transcribed**. Appendix A.2 of RFC 6979 gives 50 vectors, ten each
+for NIST P-192, P-224, P-256, P-384 and P-521, as `tests/ecc/rfc6979_test.py`
+says. An RFC number is already an immutable reference — there is no commit to
+pin, and `rfc-editor.org/rfc/rfc6979` is the document.
+
+Pulled 2020-05-08.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -2271,15 +2280,6 @@ out, the `rest_*` files take those bytes unwrapped, and
 refresh any of them, and nothing should.
 
 ## Not vendored from anywhere
-
-### `tests/ecc/_data/rfc6979.json`
-
-Appendix A.2 of RFC 6979, transcribed: 50 vectors, ten each for NIST
-P-192, P-224, P-256, P-384 and P-521, as `tests/ecc/rfc6979_test.py`
-says. An RFC number is already an immutable reference — there is no
-commit to pin, and `rfc-editor.org/rfc/rfc6979` is the document.
-
-Pulled 2020-05-08.
 
 ### `tests/mnemonic/_data/electrum_test_vectors.json`
 
@@ -2535,7 +2535,8 @@ Not checked byte for byte against one:
   `bip371_test_vectors.json`, `bip373_test_vectors.json`,
   `bip67_test_vectors.json`, `bip85_test_vectors.json`,
   `chacha20_vectors.json`, `muhash_vectors.json`,
-  `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`.
+  `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`,
+  `rfc6979.json`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
@@ -2544,7 +2545,7 @@ Not checked byte for byte against one:
 - response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
+- not vendored: `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt`,
   `gettxoutsetinfo_regtest.json`, `descriptor_checksums.json` and
   `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`,

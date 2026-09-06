@@ -388,7 +388,7 @@ _EXEMPT: dict[str, str] = {
     "is the same 275 bytes as the hex in `getrawtransaction.json` and": _UPSTREAM_FACT,
     "`rest_headers.bin` the same eighty bytes as `getblockheader.json` and": _UPSTREAM_FACT,
     "Regenerating one of these is reading the two block files: the Core and": _UPSTREAM_FACT,
-    "Appendix A.2 of RFC 6979, transcribed: 50 vectors, ten each for NIST": _UPSTREAM_FACT,
+    "Verdict: **transcribed**. Appendix A.2 of RFC 6979 gives 50 vectors, ten each": _UPSTREAM_FACT,
     "**Unresolved, and probably unresolvable.** These 12-word mnemonics with": _UPSTREAM_FACT,
     "citation two lines above the values is one that gets checked.": _UPSTREAM_FACT,
     "`SEED_VECTORS`' five passphrase-bearing rows each carry the": _UPSTREAM_FACT,

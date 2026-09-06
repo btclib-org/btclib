@@ -1614,6 +1614,19 @@ file of the test tree, and no caller acts on it.
   makes the shape common rather than incidental, so the comment says
   plainly that whoever reads the diff is what catches it.
 
+### `tests/_data/README.md` files `rfc6979.json` where its own verdict puts it
+
+- **`tests/ecc/_data/rfc6979.json`'s entry now carries `Verdict:
+  **transcribed**` and sits under `## Other projects` rather than `##
+  Not vendored from anywhere`** (closes #1788): its own prose already
+  says the file is Appendix A.2 of RFC 6979, transcribed, which is
+  *Reading an entry*'s own definition of that verdict — an RFC is not a
+  git repository, so there is no commit to pin, not an absence of
+  anything upstream to compare against. The Summary's transcribed
+  bullet gains the file and its not-vendored bullet drops it, so
+  `tests/vendored_data_test.py`'s cross-check between the two still
+  agrees.
+
 ## v2026.9.3
 
 ### Repository
