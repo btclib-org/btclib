@@ -610,9 +610,9 @@ class Headers(Payload):
     headers by hand: "we don't want to risk deserializing 2000 full
     blocks".
 
-    Frozen, and the one class here that is not hashable: `BlockHeader` is
-    a mutable dataclass, so a tuple of them cannot be hashed.
-    `dataclasses.replace` is what changes the headers in one.
+    Frozen, and not hashable: `BlockHeader` is a mutable dataclass, so a
+    tuple of them cannot be hashed. `dataclasses.replace` is what changes
+    the headers in one.
     """
 
     command = "headers"

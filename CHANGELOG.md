@@ -1704,6 +1704,22 @@ file of the test tree, and no caller acts on it.
   literal tuple reaches without turning into the exclusion list this
   file otherwise avoids, and its docstring says so.
 
+### A frozen dataclass's hashable-or-not sentence is checked against `hash()`
+
+- **`tests/frozen_hashable_test.py` walks the public frozen dataclasses whose
+  docstring states "Frozen and hashable, ..." or "Frozen, and not hashable:
+  ...", builds one value with the field the sentence names populated, and
+  asserts `hash()` agrees (closes #1692).
+
+  `@dataclass(frozen=True)` gives every one of them a `__hash__`, so what the
+  test exercises is `hash()` on a value whose field holds a plain, non-frozen
+  dataclass -- `eq=True` there sets that object's own `__hash__` to `None`. A
+  docstring that mentions hashability without matching either shape fails the
+  walk by name; one silent about it is not asked.
+
+  `p2p/inventory.py`'s `Headers` docstring now matches the pinned "not
+  hashable" shape instead of a wording of its own.
+
 ## v2026.9.3
 
 ### Repository
