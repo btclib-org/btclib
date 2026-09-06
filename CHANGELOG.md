@@ -1305,6 +1305,43 @@ file of the test tree, and no caller acts on it.
   and matching `btclib-node`'s `scorecard.yml`, which already reads this
   way. Neither file's actual permissions change.
 
+### `[build-system] requires`'s `uv_build` floor moves to the boundary
+
+- **The floor is `0.12.0`, the boundary itself, rather than a range
+  under the `uv-pre-commit` rev** (issue btclib-org/.github#858):
+  btclib-org/.github#835 and btclib-org/.github#834 name that
+  alignment, and a sibling's own number, as the organization standard's
+  two rejected alternatives for this floor, so the comment above
+  `requires` drops the reason and gains the measurement recipe the
+  boundary was found by, matching the family's wording rather than
+  inventing a fourth. `[tool.uv] required-version` does not move: it
+  answers a different question, the uv that reads `uv.lock` rather
+  than the backend that builds the archive. This supersedes the entry
+  above for #1743, whose reason for sitting above the boundary is what
+  is removed here.
+- **The `check-sdist` and `pyroma` hook environments move with it**,
+  both to `uv_build>=0.12.0,<0.13`. Each carries a comment saying its
+  specifier is `[build-system]`'s own range and not a number of its
+  own, and #1743's entry above says the two move together; a floor
+  lowered on one side alone leaves both those sentences false. No gate
+  catches it, and `.pre-commit-config.yaml` says why in the lines
+  above `check-sdist`: a `requires` widened past the hook's line leaves
+  that line still satisfying it, so `build --no-isolation` stays green
+  either way.
+- **The comment says why `uv build` cannot run the version sweep that
+  recipe is, and for which direction.** A `requires` asking for a
+  backend older than the one running is where `uv build` falls back to
+  the copy it bundles and only warns, answering for that copy and not
+  for the pin; above the running uv it resolves the pin from the index
+  and answers for it, so the sweep needs the hook call, its versions
+  being the ones below. Both directions were measured on three
+  projects differing only in that key, by the count of uv's own
+  `Selecting: uv-build` lines and again in the archive -- the
+  below-direction sdist carries
+  `pyproject.toml.orig`, which no version its pin admits can write.
+  btclib-org/.github#834 is where the second direction stood recorded
+  as unmeasured.
+
 ## v2026.9.3
 
 ### Repository
