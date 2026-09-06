@@ -567,19 +567,23 @@ def _normalized_network_name(network: Any) -> Any:
 
     `_validated_network_name` below applies it between its type check and
     its membership test, so every name that function returns or refuses has
-    been through here. The frozen classes that keep a `network` field reach
-    for it directly, and it buys each of them something different.
-    `key.PubKeyData` and `key.PrvKeyData` compare and hash the field itself,
-    so two spellings of one network would build objects that are neither
-    equal nor hashed alike. `script.ScriptPubKey` compares and hashes the
-    network *type*, which resolves either spelling on its own; what the
-    coercion settles there is the field read back as it stands, which
-    `tx.TxOut.to_dict` reports verbatim. `bolt11.Bolt11Invoice` shares the
-    equality-and-hash reason with the two key classes, and has one of its
-    own besides: `_hrp` reads the field through a raw
+    been through here. A frozen class that keeps a `network` field reaches
+    for it directly, in whichever of `__init__` or `__post_init__` builds
+    it, and what it buys differs by how the class compares and hashes that
+    field. `key.PubKeyData` and `key.PrvKeyData` compare and hash the field
+    itself, so two spellings of one network would build objects that are
+    neither equal nor hashed alike; `descriptors.Descriptor` and its
+    fragment subclasses share that reason, `network` being a plain
+    dataclass field there too, and none of them defining its own `__init__`
+    is why the coercion sits in `__post_init__` instead. `script.ScriptPubKey`
+    compares and hashes the network *type*, which resolves either spelling
+    on its own; what the coercion settles there is the field read back as it
+    stands, which `tx.TxOut.to_dict` reports verbatim. `bolt11.Bolt11Invoice`
+    shares the equality-and-hash reason with the two key classes, and has
+    one of its own besides: `_hrp` reads the field through a raw
     `_CURRENCY_FROM_NETWORK[network]` lookup, so with
     `check_validity=False` -- where nothing refuses an unnormalized name --
-    an uncoerced field left `to_invoice` a bare `KeyError` rather than an
+    an uncoerced field leaves `to_invoice` a bare `KeyError` rather than an
     encoded string.
     """
     return network.strip().lower() if isinstance(network, str) else network

@@ -189,6 +189,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
     NETWORKS,
+    _normalized_network_name,
     _validated_network_name,
     network_from_xkeyversion,
 )
@@ -724,6 +725,17 @@ class Descriptor(ABC):
     """
 
     network: str = "mainnet"
+
+    def __post_init__(self) -> None:
+        # every fragment's generated `__init__` calls this, none of them
+        # defining its own: the parse path already refuses a name no
+        # network answers to (`_validated_network_name`, above), so what
+        # is left to the direct constructor is the same tolerance rule
+        # issue #216 kept for everything else, not a new refusal. Without
+        # it, two spellings of one network build descriptors that are
+        # neither equal nor hashed alike, `network` comparing and hashing
+        # as the plain field it is
+        object.__setattr__(self, "network", _normalized_network_name(self.network))
 
     @property
     @abstractmethod

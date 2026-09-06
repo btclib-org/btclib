@@ -194,6 +194,77 @@ def test_sign_refuses_neither_or_both_description() -> None:
         )
 
 
+def test_sign_coerces_the_network_name() -> None:
+    """`sign` accepts the spellings `Bolt11Invoice.__init__` accepts.
+
+    `_hrp` and `_fallback_field` read the raw parameter before `cls`, so
+    `sign` normalizes it once at its own top rather than relying on the
+    coercion `__init__` applies afterwards.
+    """
+    invoice = Bolt11Invoice.sign(
+        _PRV_KEY,
+        " MainNet ",
+        0,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+    )
+    assert invoice.network == "mainnet"
+
+
+def test_sign_refuses_an_unknown_network_with_a_value_error() -> None:
+    """`sign` refuses what `_hrp`'s own dict lookup would otherwise KeyError on.
+
+    `KeyError` is a `LookupError`, not a `BTClibException`, so no
+    `except BTClibValueError` written against this library would have
+    caught it.
+    """
+    with pytest.raises(BTClibValueError, match="not a lightning network: 'testnet4'"):
+        Bolt11Invoice.sign(
+            _PRV_KEY,
+            "testnet4",
+            0,
+            payment_hash=bytes(32),
+            payment_secret=bytes(32),
+            description="d",
+        )
+
+
+def test_sign_refuses_a_network_that_is_not_a_string() -> None:
+    """A `network` of a type no conversion accepts is a `BTClibTypeError`."""
+    with pytest.raises(BTClibTypeError, match="invalid network type"):
+        Bolt11Invoice.sign(
+            _PRV_KEY,
+            None,  # type: ignore[arg-type]
+            0,
+            payment_hash=bytes(32),
+            payment_secret=bytes(32),
+            description="d",
+        )
+
+
+def test_sign_two_spellings_of_one_network_build_equal_invoices() -> None:
+    """Two spellings signed through `sign` compare equal and hash alike."""
+    lower = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "mainnet",
+        0,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+    )
+    upper = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "MAINNET",
+        0,
+        payment_hash=bytes(32),
+        payment_secret=bytes(32),
+        description="d",
+    )
+    assert lower == upper
+    assert hash(lower) == hash(upper)
+
+
 def test_bolt11_defaults_expiry_and_min_final_cltv_expiry() -> None:
     """BOLT11's own defaults stand where the tags are absent."""
     invoice = Bolt11Invoice.sign(
