@@ -1034,6 +1034,27 @@ file of the test tree, and no caller acts on it.
   landed text and stand as written, this entry being where the
   correction is read instead.
 
+### Every `pragma: no cover` names its case on the pragma's own line
+
+- **Every `# pragma: no cover` in this tree carries its case after
+  ` -- ` on the pragma's own line** (issue btclib-org/.github#838):
+  `git grep -nE 'pragma: no cover$' -- '*.py'` answers empty, matching
+  section 8's current rule, and the fuller reason a site already
+  carried off the line stays where it was. `CONTRIBUTING.md`,
+  `pyproject.toml` and `tests/minikey_test.py` carry the same rule in
+  prose, worded to match.
+
+### `bms` no longer stands as an example of a pragma it does not carry
+
+- **`pyproject.toml`, `src/btclib/curves/curve.py` and
+  `tests/curves/curve_test.py` name `dleq` where they named `bms`**:
+  `git grep -n pragma -- src/btclib/ecc/bms.py` answers nothing here
+  and at the commit this branch is built on alike, where
+  `borromean.py`, `dleq.py` and `musig2.py` each carry one for a branch
+  the arithmetic rules out. The released entry repeating the claim is
+  landed text and stands as written, this entry being where the
+  correction is read instead.
+
 ## v2026.9.3
 
 ### Repository

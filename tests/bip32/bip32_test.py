@@ -340,7 +340,7 @@ def no_bindings_bip32(monkeypatch: pytest.MonkeyPatch) -> None:
         def __getattr__(self, name: str) -> Any:
             # a green suite is one where this never runs, which is the
             # pragma curve_test.no_bindings carries for the same reason
-            raise AssertionError(  # pragma: no cover
+            raise AssertionError(  # pragma: no cover -- cleared _libsecp256k1_available keeps this uncalled
                 f"the dispatch is switched off, and bip32 asked for {name}"
             )
 
@@ -441,7 +441,7 @@ def test_public_key_validation_does_not_lift(
     def refuse(*_: object) -> int:
         # a green suite is one where this never runs, which is the pragma
         # curve_test.no_bindings carries for the same reason
-        raise AssertionError(  # pragma: no cover
+        raise AssertionError(  # pragma: no cover -- the fast path here never needs mod_sqrt_var
             "the y of an extended public key was computed"
         )
 

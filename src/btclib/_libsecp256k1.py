@@ -129,7 +129,7 @@ try:
 # coverage that job does not collect. So this branch is a structural
 # miss in that report regardless of the union, and removing the pragma
 # would fail the one gate this issue chose to leave unchanged
-except ImportError:  # pragma: no cover
+except ImportError:  # pragma: no cover -- only the no-bindings job reaches this
     # None and not a callable that raises: what would raise is never
     # called, so the object would be a second thing to keep true. The
     # ignore is on the assignment and not on the module: every other

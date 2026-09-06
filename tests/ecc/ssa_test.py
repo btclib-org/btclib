@@ -237,7 +237,7 @@ def test_refusing_an_r_takes_no_square_root(
     """
 
     def refuse(*_: object) -> int:
-        raise AssertionError(  # pragma: no cover
+        raise AssertionError(  # pragma: no cover -- the fast path here never needs mod_sqrt_var
             "an r was lifted to a point in order to refuse it"
         )
 
@@ -869,9 +869,15 @@ def test_musig1() -> None:
     # parity would cover the lines instead, trading away the fresh
     # randomness that makes this protocol demo worth running
     if Q[1] % 2:
-        a1 = ec.n - a1  # pragma: no cover
-        a2 = ec.n - a2  # pragma: no cover
-        a3 = ec.n - a3  # pragma: no cover
+        a1 = (
+            ec.n - a1
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        a2 = (
+            ec.n - a2
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        a3 = (
+            ec.n - a3
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
 
     # round 1: each signer picks a nonce and publishes only a commitment
     # to it. Committing before any nonce is visible is the round the
@@ -922,9 +928,15 @@ def test_musig1() -> None:
     K = ec.add_var(ec.add_var(K1, K2), K3)
     # the same coin flip as above, on the aggregated nonce
     if K[1] % 2:
-        k1 = ec.n - k1  # pragma: no cover
-        k2 = ec.n - k2  # pragma: no cover
-        k3 = ec.n - k3  # pragma: no cover
+        k1 = (
+            ec.n - k1
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        k2 = (
+            ec.n - k2
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        k3 = (
+            ec.n - k3
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
     r = K[0]
     e = ssa.challenge_(msg_hash, Q[0], r, ec, hf)
     s_1 = (k1 + e * a1 * q1) % ec.n
@@ -1071,11 +1083,21 @@ def test_threshold() -> None:
     Q = A[0]
     # the same coin flip as in test_musig1: fresh keys, random parity
     if Q[1] % 2:
-        A[1] = ec.negate(A[1])  # pragma: no cover
-        alpha1 = ec.n - alpha1  # pragma: no cover
-        alpha2 = ec.n - alpha2  # pragma: no cover
-        alpha3 = ec.n - alpha3  # pragma: no cover
-        Q = ec.negate(Q)  # pragma: no cover
+        A[1] = ec.negate(
+            A[1]
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        alpha1 = (
+            ec.n - alpha1
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        alpha2 = (
+            ec.n - alpha2
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        alpha3 = (
+            ec.n - alpha3
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        Q = ec.negate(
+            Q
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
 
     # SECOND PHASE: generation of the nonces' pair  ######################
     # Assume signer one and three want to sign
@@ -1118,10 +1140,18 @@ def test_threshold() -> None:
     # even help: k1 and k3 come from bip340_nonce_ with aux=None, i.e.
     # fresh OS randomness, so the aux would need pinning too
     if K[1] % 2:
-        B[1] = ec.negate(B[1])  # pragma: no cover
-        beta1 = ec.n - beta1  # pragma: no cover
-        beta3 = ec.n - beta3  # pragma: no cover
-        K = ec.negate(K)  # pragma: no cover
+        B[1] = ec.negate(
+            B[1]
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        beta1 = (
+            ec.n - beta1
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        beta3 = (
+            ec.n - beta3
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
+        K = ec.negate(
+            K
+        )  # pragma: no cover -- runs on half of this random parity's coin flips
 
     # PHASE THREE: signature generation ###
 

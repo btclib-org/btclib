@@ -724,9 +724,9 @@ def _multi_mult_x_only_var(
                 _y_even_var(x, ec)
             # the loop above raises, every ValueError from the bindings
             # here being a term they could not read: the pragma is the
-            # one borromean and bms carry, for a line the arithmetic
+            # one borromean and dleq carry, for a line the arithmetic
             # rules out
-            raise  # pragma: no cover
+            raise  # pragma: no cover -- the loop above always raises first
         return INF if total is None else _point_from_sec(total)
 
     points = [(x, _y_even_var(x, ec)) for x in x_coords]

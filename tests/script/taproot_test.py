@@ -286,7 +286,7 @@ def test_the_python_prvkey_tweak_lifts_nothing(
     delegated = [output_prvkey(prv_key, tree) for tree in SCRIPT_TREES]
 
     def refuse(*_: object) -> int:
-        raise AssertionError(  # pragma: no cover
+        raise AssertionError(  # pragma: no cover -- the Python arm reads parity off the y mult returned
             "the internal point's x was lifted to read a parity"
         )
 

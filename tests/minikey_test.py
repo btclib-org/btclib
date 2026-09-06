@@ -98,7 +98,9 @@ def test_out_of_range_scalar(monkeypatch: pytest.MonkeyPatch) -> None:
     CONTRIBUTING.md's coverage rule takes 100% literally, so a statement
     no test reaches is either covered by patching what stands in the way
     -- as the ripemd160 fallback and electrum's round-trip check are --
-    or marked `pragma: no cover` with the reason beside it.
+    or marked `pragma: no cover --` with the reason on that same line,
+    and a reason too long for the line above it as well, the inline
+    half naming the case.
     """
     good_minikey = "SzavMBLoXU6kDrqtUVmffv"
     bad_q = ec.n.to_bytes(32, byteorder="big")

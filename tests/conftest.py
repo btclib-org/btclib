@@ -279,7 +279,9 @@ def check_golden(path: Path, name: str, value: Any, module: str) -> None:
         )
 
 
-def _skip_what_needs_the_bindings(items: list[pytest.Item]) -> None:  # pragma: no cover
+def _skip_what_needs_the_bindings(
+    items: list[pytest.Item],
+) -> None:  # pragma: no cover -- only the no-bindings job reaches this
     """Skip every test marked `bindings`, naming why once.
 
     Runs only where `btclib_secp256k1` is absent, `INSTALLED` being set
@@ -318,4 +320,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     into doing only one.
     """
     if not INSTALLED:
-        _skip_what_needs_the_bindings(items)  # pragma: no cover
+        _skip_what_needs_the_bindings(
+            items
+        )  # pragma: no cover -- only the no-bindings job reaches this

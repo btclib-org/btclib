@@ -59,7 +59,7 @@ from tests import load, needs_bindings, vector_id
 
 if INSTALLED:
     from btclib_secp256k1 import musig as libsecp256k1_musig
-else:  # pragma: no cover
+else:  # pragma: no cover -- only the no-bindings job reaches this
     # never called from a skipped test, mirroring the fallback
     # `btclib._libsecp256k1` gives every name it wraps
     libsecp256k1_musig = None  # type: ignore[assignment]

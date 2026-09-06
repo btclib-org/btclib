@@ -159,7 +159,7 @@ def generate_proof(
         t + bytes_from_point(A, secp256k1) + bytes_from_point(C, secp256k1) + m,
     )
     k = int.from_bytes(rand, "big") % secp256k1.n
-    if k == 0:  # pragma: no cover
+    if k == 0:  # pragma: no cover -- k is zero only by an unreachable hash preimage
         # a preimage of a multiple of n for the nonce tagged hash: not
         # reachable by choosing arguments, and BIP374 fails rather than
         # signs with it
@@ -175,7 +175,9 @@ def generate_proof(
     # rather than in its reference harness: a proof that does not verify
     # is a fault in the arithmetic that produced it, and handing it out
     # is what the protocol above was going to use it to rule out
-    if not verify_proof(A, B_point, C, proof, G_point, msg):  # pragma: no cover
+    if not verify_proof(
+        A, B_point, C, proof, G_point, msg
+    ):  # pragma: no cover -- the proof just computed cannot fail to verify
         raise BTClibRuntimeError("implausible proof failure")
     return proof
 

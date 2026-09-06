@@ -386,7 +386,9 @@ def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
         if len(points) == 1
         else multi_mult_var(coefficients, points, secp256k1)
     )
-    if Q[1] == 0:  # pragma: no cover
+    if (
+        Q[1] == 0
+    ):  # pragma: no cover -- cancelling every coefficient is the discrete-log problem
         # the coefficients are hashes, so cancelling them all out is the
         # discrete-log problem rather than a case to handle: raise where
         # BIP327's reference asserts, an assert being absent under -O
