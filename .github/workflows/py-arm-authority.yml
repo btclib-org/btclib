@@ -30,17 +30,27 @@ name: py arm authority
 # an arm `_WITHOUT_AN_AUTHORITY` says nothing reaches. It exits non-zero
 # on any of the three, which is what makes this job red.
 #
-# No `issues: write`, unlike `vendored-vectors.yml`: what that workflow
-# measures is a pin against somebody else's tree, so a pin that has
-# drifted is visible to nothing here -- the suite reads both of its
-# ledgers, and reads their shape rather than upstream -- and a failed
-# run's notification is the only signal that drift gets, and a
-# persistent issue is what carries it past that one email. `_AUTHORITY`
-# is different -- it is a tracked file a pull request touching
-# `src/btclib/curves/` or `src/btclib/ecc/` can and does edit, reviewed
-# the ordinary way, so a red scheduled run and the Actions tab it lands
-# on are enough, the same choice `links.yml` and `pypi-install.yml`
-# already make for a comparable reason.
+# `issues: write` on the job below, the same choice `vendored-vectors.yml`
+# makes and by the test its own header states: a link is noticed the next
+# time somebody follows it, where a vendored vector is trusted without
+# anybody looking at it again. `_AUTHORITY` is on that second
+# side. `tests/py_arm_authority_test.py` checks the table's shape and
+# never its values, so an entry claiming a module whose run no longer
+# reaches the arm passes every other check in the tree, and a run of
+# this workflow is the only thing that reads what the entry says.
+#
+# The issue is beside the red run rather than instead of it: the script
+# still exits non-zero on any disagreement, which is what makes this job
+# red, and reports before it returns. What the issue adds is that it
+# stays open, where a failed run notifies the last person to have
+# touched the cron and then sits in the Actions tab.
+#
+# Which pull request can invalidate the table is not a path list. An arm
+# is any function calling `_libsecp256k1_serves`, and what reaches one
+# changes above it: `bip32/bip32_test.py` reaches
+# `curves.sec_point._sec_from_octets` through `to_pub_key`, which holds
+# no arm of its own. That is the push trigger's reasoning below, where a
+# filter naming this surface honestly "would be `every merge`".
 
 on:
   # a merge creates a commit no pull request measured, and this census is
@@ -116,6 +126,14 @@ jobs:
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # the elevation, on the job that needs it and nowhere else: the
+    # workflow-level contents: read above stays as it is, so a job added
+    # here later starts read-only rather than inheriting this.
+    # issues: write is what the script's gh issue create/edit/close calls
+    # take, on the tracking issue this run opens, updates or closes
+    permissions:
+      contents: read
+      issues: write # gh issue create/edit/close, in the last step below
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -141,7 +159,33 @@ jobs:
           from btclib.curves import is_libsecp256k1_serving;
           assert not is_libsecp256k1_serving()"
 
+      # --dry-run on the pull_request trigger only: a fork's read-only
+      # token could not write the issue anyway, and a same-repository
+      # pull request testing a change to one of the three paths that
+      # trigger it -- this file, the script, the table -- should not edit
+      # or close whatever tracking issue is open at the time as a side
+      # effect of that test.
+      # The flag reaches the shell through the environment rather than
+      # through a `${{ }}` inside the script, which would be text pasted
+      # into it: the value is this file's own, and the habit is what
+      # zizmor's template-injection rule is asking for. The array built
+      # from it, rather than an unquoted expansion, is release.yml's own
+      # shape for an optional flag (its "Check the public API against the
+      # previous release" step).
+      # The title is written here rather than in the script, so what this
+      # run files is named beside the trigger and the permission that let
+      # it -- the same argument `vendored-vectors.yml` passes its own
+      # script, for a reason of its own
       - name: Re-derive the authority table against a fresh measurement
-        run: >
-          uv run --locked --no-default-groups --group harness
-          python .github/scripts/check_py_arm_authority.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
+        run: |
+          args=()
+          if [ -n "$DRY_RUN" ]; then
+            args=(--dry-run)
+          fi
+          uv run --locked --no-default-groups --group harness \
+            python .github/scripts/check_py_arm_authority.py \
+            "Python arm authority table disagrees with a fresh measurement" \
+            "${args[@]}"

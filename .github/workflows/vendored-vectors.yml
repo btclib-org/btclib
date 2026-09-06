@@ -15,13 +15,13 @@ name: vendored vectors
 # means this tree holds a stale copy, where a TF2.md pin behind upstream
 # means a verdict is now a claim about a file that has moved.
 #
-# issues: write is new to this repository -- links.yml's own comment
-# explains why every other scheduled workflow here stops at contents:
-# read, an automatic issue being the usual next step it deliberately
-# does not take. This one does take it, on purpose: a link is noticed
-# the next time somebody follows it, where a vendored vector is trusted
-# without anybody looking at it again, and an issue is what carries that
-# past the one email a failed run sends
+# issues: write is what the job below takes; links.yml's own comment is
+# where the opposite choice is argued, an automatic issue being the usual
+# next step a scheduled workflow here does not take. This one does take
+# it, on purpose: a link is noticed the next time somebody follows it,
+# where a vendored vector is trusted without anybody looking at it again,
+# and an issue is what carries that past the one email a failed run
+# sends. py-arm-authority.yml takes it by this same test
 
 on:
   schedule:

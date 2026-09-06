@@ -1087,6 +1087,39 @@ file of the test tree, and no caller acts on it.
   whether a red run is signal enough, and whether the pull requests it
   names are the ones that invalidate the table -- are not answered here.
 
+### The py-arm census opens an issue, and its header names no population
+
+- **`.github/workflows/py-arm-authority.yml` gives its job `issues:
+  write`, and `.github/scripts/check_py_arm_authority.py` opens, updates
+  or closes a tracking issue under the title the workflow passes it**
+  (closes #1753). The header's earlier answer -- that a red scheduled
+  run and the Actions tab it lands on are signal enough -- was tested by
+  the run that made this issue: the job went red on 2026-09-05 with
+  `755d5081b`, and every push to `main` from there to `9d409b7d` ran it
+  and failed identically with nobody answering. The census still goes
+  red, the script reporting before it returns the same non-zero exit, so
+  the issue is signal added to that run rather than a replacement for
+  it.
+- **The title is the workflow's argument rather than a constant in the
+  script** (issue #1732's choice on `check_vendored_vectors.py`), and
+  says which kind of staleness this one is: a table disagreeing with a
+  fresh measurement, where that script's two titles each name a pin
+  behind upstream. A `pull_request` run passes `--dry-run`, so a pull
+  request touching one of the three paths that trigger it exercises the
+  script without editing whatever issue is open at the time.
+- **The header no longer says the table is edited by a pull request
+  touching `src/btclib/curves/` or `src/btclib/ecc/`**: an arm is any
+  function calling `_libsecp256k1_serves`, and what reaches one changes
+  above it -- `bip32/bip32_test.py` reaches
+  `curves.sec_point._sec_from_octets` through `to_pub_key`, which holds
+  no arm of its own. The push trigger's own comment already said a paths
+  filter naming this surface honestly would be "every merge", and the
+  permissions paragraph now says the same thing rather than the
+  opposite.
+- **`vendored-vectors.yml`'s header stops calling `issues: write` new to
+  this repository**, that workflow no longer being the only one here
+  whose script files an issue.
+
 ## v2026.9.3
 
 ### Repository
