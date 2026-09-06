@@ -96,6 +96,10 @@ def coverage_fail_under(
     file_or_dir: list[str] | None,
     keyword: str,
     markexpr: str,
+    deselect: list[str] | None,
+    ignore: list[str] | None,
+    ignore_glob: list[str] | None,
+    lf: bool,
     testpaths: list[str],
     rootpath: Path,
 ) -> float | None:
@@ -128,27 +132,37 @@ def coverage_fail_under(
     untouched whichever kind of run it is -- the caller naming the
     threshold is the one thing this must not overrule.
 
-    A subset is what pytest was *asked* for: a path that leaves part of
-    the suite behind, `-k` or `-m`. Not every way a run can be short --
-    `--lf`, `--deselect` and an `-x` that stops early are not read -- so
-    those still meet the full threshold and report a shortfall the tree
-    does not have. They are the flags of an iteration whose next run is
-    the whole suite, and reading intent off all of them would make this a
-    second definition of what a real run is.
+    A subset is what pytest was *asked* for, and section 8 of the
+    organization standard is what names the set: a path that leaves part
+    of the suite behind, `-k`, `-m`, `--deselect`, `--ignore`,
+    `--ignore-glob`, or `--lf`. A run that leaves tests out measures the
+    same source with fewer tests, so what its report is short of is the
+    tests it did not run: a shortfall it reports cannot be told apart
+    from one the tree has, and a gate whose red cannot be read is what
+    teaches whoever runs it to reach for `--no-cov`.
 
-    Section 8 of the organization standard has since taken the other
-    side -- it counts `--deselect`, `--ignore`, `--ignore-glob` and
-    `--lf` as selections too, and records the paragraph above as the
-    reading it rejects. This tree agreeing with the wider set is
-    btclib-org/.github#424, and is not what the containment rule here
-    was about.
+    The narrower reading -- paths, `-k` and `-m` alone -- is rejected: it
+    holds the rest to be the flags of an iteration whose next run is the
+    whole suite, and reading intent off all of them to make this
+    function a second definition of what a real run is. What the wider
+    set costs is the occasion where such a run would have cleared 100
+    anyway -- a `--lf` that finds nothing to rerun and so is the whole
+    suite, a `--deselect` of one arm of a parametrization the others
+    cover -- and the next bare run measures the tree again. An early
+    `-x` is outside the set either way: what cuts that run short is a
+    failure and not what the invocation asked for.
+
+    `lf` arrives as a plain `bool` rather than read off `config.option`
+    here, because `-p no:cacheprovider` leaves the attribute unregistered
+    rather than false, and a run that cannot pass the flag has not passed
+    it -- the caller is where that distinction is made.
 
     Which paths leave nothing behind is `asks_for_everything` above, and
     it is the reason `testpaths` and the rootdir are arguments here.
     """
     if asked is not None:
         return asked
-    if keyword or markexpr:
+    if keyword or markexpr or deselect or ignore or ignore_glob or lf:
         return 0
     if not asks_for_everything(file_or_dir, testpaths, rootpath):
         return 0
@@ -172,6 +186,10 @@ def pytest_configure(config: pytest.Config) -> None:
         config.option.file_or_dir,
         config.option.keyword,
         config.option.markexpr,
+        config.option.deselect,
+        config.option.ignore,
+        config.option.ignore_glob,
+        getattr(config.option, "lf", False),
         config.getini("testpaths"),
         config.rootpath,
     )

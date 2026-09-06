@@ -32,15 +32,14 @@ have it there: the suite takes the same time either way on the 3.14
 **A run that selects a subset is not gated.** `fail_under` applies to
 every report coverage writes, so `uv run pytest tests/bip32` would fail
 on the tree's coverage rather than on anything about that run. A path
-that leaves part of the suite behind, `-k` or `-m` therefore drops the
-threshold to zero: `coverage_fail_under` in `tests/conftest.py` is where
-that happens, and its docstring is why. The report still prints, which is
-what makes it worth reading while iterating on one module. Ways of
-shortening a run that are not a selection — `--lf`, `--deselect`, an `-x`
-that stops early — keep the full threshold and will report a shortfall
-the tree does not have. Section 8 of the organization standard counts
-the first two of those as selections, which this tree does not yet do;
-btclib-org/.github#424 is that gap.
+that leaves part of the suite behind, `-k`, `-m`, `--deselect`,
+`--ignore`, `--ignore-glob` or `--lf` therefore drops the threshold to
+zero: `coverage_fail_under` in `tests/conftest.py` is where that
+happens, and its docstring is why. The report still prints, which is
+what makes it worth reading while iterating on one module. An `-x` that
+stops early is outside the set: what cuts that run short is a failure
+and not what the invocation asked for. Section 8 of the organization
+standard is what names the set.
 
 `uv run pytest tests` is not a selection either. What decides is whether
 the paths named contain every `testpaths` entry, so the directory that
