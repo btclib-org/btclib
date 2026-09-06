@@ -158,11 +158,19 @@ def _source_exclude() -> list[str]:
 def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     """Whether a module reads `.github`, `fuzz`, or `.git` off the tree.
 
-    Two shapes. The first is the convention `Path(__file__).parents[1] /
-    ".github" / "scripts" / "<name>.py"` and `Path(__file__).parent.parent
-    / "fuzz"` follow -- a `/` join with one side the literal directory
-    name -- walked rather than matched on the formatted text, so a reflow
-    of the expression across lines is still seen.
+    Two shapes. The first is a `/` join whose right side is the literal
+    directory name or opens with it and a slash -- the convention
+    `Path(__file__).parents[1] / ".github" / "scripts" / "<name>.py"` and
+    `Path(__file__).parent.parent / "fuzz"` follow, and `_ROOT /
+    ".github/workflows"` too -- walked rather than matched on the
+    formatted text, so a reflow of the expression across lines is still
+    seen. Split on the slash rather than matched as a substring, so a
+    name merely starting with the same letters -- ".githubbookmark" --
+    is not mistaken for the directory. What this still does not reach is
+    a literal that never sits at the join itself:
+    `tests/docs_commands_test.py` names ".github/workflows/docs.yml" as
+    a dict key and reads through a variable holding it, so that module
+    is named in `source-exclude` by hand rather than found here.
 
     The second is `tests/changelog_immutability_test.py`'s own: it reads
     a release's own tag with `subprocess.run([_GIT, ...])` rather than a
@@ -182,7 +190,8 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
             isinstance(node, ast.BinOp)
             and isinstance(node.op, ast.Div)
             and isinstance(node.right, ast.Constant)
-            and node.right.value in (".github", "fuzz")
+            and isinstance(node.right.value, str)
+            and node.right.value.split("/", 1)[0] in (".github", "fuzz")
         ):
             return True
         if (
@@ -206,12 +215,13 @@ def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
     direction closes what ISS 1509 found open.
 
     And not every test that reaches outside the sdist: what the reader
-    sees of a directory is a `/` join on its own name, so a path with
-    the whole of it in one literal -- `_ROOT / ".github/workflows"` --
-    is outside its reach and outside this assertion's, which is issue
-    #1736. Widening the sentence here without widening the reader is
-    what would put the guarantee ISS 1509 asked for on a green run that
-    does not give it.
+    sees is a `/` join whose own right side names the directory, so a
+    literal that reaches a join only through a variable -- a dict key
+    read out by name and joined later, the way
+    `tests/docs_commands_test.py` reads ".github/workflows/docs.yml" --
+    is outside its reach and outside this assertion's. Widening the
+    sentence here without widening the reader is what would put the
+    guarantee ISS 1509 asked for on a green run that does not give it.
     """
     excluded = set(_source_exclude())
     missing = [
