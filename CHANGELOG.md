@@ -1282,6 +1282,17 @@ file of the test tree, and no caller acts on it.
   type, which resolves either spelling — there the coercion settles the
   field rather than the comparison.
 
+### `tests/curves/curve_test.py`'s stated counts go the way `curve.py`'s went
+
+- **`test_catalogued_curves`'s docstring and `test_libsecp256k1_available`'s
+  comment name what they are about in place of a total** (closes #1767):
+  the docstring now names `tests/curves/curve_group_test.py` and what it
+  asserts `n*G == INF` through, and the comment now says the assignment
+  reaches every module that imported the predicate by name rather than a
+  fixed number of them. The comment's own number was already wrong: an
+  `ast` walk over `src/btclib` for modules importing `_libsecp256k1_serves`
+  by name answers more than the stated count.
+
 ## v2026.9.3
 
 ### Repository

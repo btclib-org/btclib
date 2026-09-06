@@ -296,9 +296,10 @@ def test_catalogued_curves() -> None:
     fails a test rather than nothing at all.
 
     Not the only place either check happens -- test_ec_repr rebuilds each
-    curve from its repr, and test_curve_group and test_curve_group_2
-    assert n*G == INF through ten distinct mult implementations -- but the
-    one that is about them.
+    curve from its repr, and tests/curves/curve_group_test.py asserts n*G
+    == INF for every curve of CURVES through the affine and Jacobian
+    double-and-adds and their recursive forms -- but the one that is
+    about them.
     """
     catalogues = (Brainpool_params2, NIST_params2, SEC2v1_params2, SEC2v2_params2)
     checked = set()
@@ -781,8 +782,8 @@ def test_libsecp256k1_serves() -> None:
 def test_libsecp256k1_available(monkeypatch: pytest.MonkeyPatch) -> None:
     """The switch refuses the pair the predicate otherwise takes."""
     # read on every call and not captured at import, which is the whole
-    # point of it: one assignment reaches the nine modules that imported
-    # the predicate by name
+    # point of it: one assignment reaches every module that imported the
+    # predicate by name
     monkeypatch.setattr(curve, "_libsecp256k1_available", False)
     assert not _libsecp256k1_serves(secp256k1, None)
     assert not _libsecp256k1_serves(secp256k1, sha256)
