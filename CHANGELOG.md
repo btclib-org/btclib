@@ -1342,6 +1342,19 @@ file of the test tree, and no caller acts on it.
   btclib-org/.github#834 is where the second direction stood recorded
   as unmeasured.
 
+### `coverage_fail_under` reads the wide selection set section 8 names
+
+- **`--deselect`, `--ignore`, `--ignore-glob` and `--lf` now drop the
+  coverage floor alongside a path, `-k` and `-m`** (issue
+  btclib-org/.github#424): section 8 of the organization standard counts
+  all six as a selection, and this tree's `coverage_fail_under` read only
+  the first three, its own docstring naming the gap and pointing at this
+  issue. The docstring now states the wide set with its reason and
+  carries the narrower reading as the rejected alternative rather than
+  as what the function does, and the pointer paragraph goes with it.
+  `tests/conftest_test.py` gains one case per new flag and passes the
+  four extra arguments through every existing call.
+
 ## v2026.9.3
 
 ### Repository

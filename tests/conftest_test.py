@@ -32,6 +32,10 @@ _ROOT = Path(__file__).parents[1]
 # `testpaths`, and reading the real one would make them a test of the
 # configuration as well
 _TESTPATHS = ["tests"]
+# `deselect, ignore, ignore_glob, lf`, all unset: spliced into a call that
+# is testing something else, so the four further triggers stay off
+# without restating "None, None, None, False" at every one of them
+_NO_FURTHER_SELECTION = (None, None, None, False)
 
 
 @pytest.fixture(autouse=True)
@@ -128,8 +132,18 @@ def test_a_whole_run_is_gated_at_what_pyproject_configured() -> None:
     worth pinning: pyproject.toml is where 100 is decided, and a copy of
     it in this file would be a second place to change it.
     """
-    assert coverage_fail_under(None, 100.0, [], "", "", _TESTPATHS, _ROOT) == 100.0
-    assert coverage_fail_under(None, 42.0, [], "", "", _TESTPATHS, _ROOT) == 42.0
+    assert (
+        coverage_fail_under(
+            None, 100.0, [], "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+        )
+        == 100.0
+    )
+    assert (
+        coverage_fail_under(
+            None, 42.0, [], "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+        )
+        == 42.0
+    )
 
 
 @pytest.mark.parametrize(
@@ -165,7 +179,9 @@ def test_a_path_that_collects_the_suite_is_a_whole_run(
     rootdir for them to mean the suite.
     """
     monkeypatch.chdir(_ROOT)
-    gate = coverage_fail_under(None, 100.0, file_or_dir, "", "", _TESTPATHS, _ROOT)
+    gate = coverage_fail_under(
+        None, 100.0, file_or_dir, "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+    )
     assert gate == 100.0
 
 
@@ -195,7 +211,55 @@ def test_a_selected_subset_is_gated_at_nothing(
     """
     monkeypatch.chdir(_ROOT)
     gate = coverage_fail_under(
-        None, 100.0, file_or_dir, keyword, markexpr, _TESTPATHS, _ROOT
+        None,
+        100.0,
+        file_or_dir,
+        keyword,
+        markexpr,
+        *_NO_FURTHER_SELECTION,
+        _TESTPATHS,
+        _ROOT,
+    )
+    assert gate == 0
+
+
+@pytest.mark.parametrize(
+    "deselect, ignore, ignore_glob, lf",
+    [
+        (["tests/bip32/bip32_test.py::test_one"], None, None, False),
+        (None, ["tests/bip32"], None, False),
+        (None, None, ["tests/**/*_test.py"], False),
+        (None, None, None, True),
+    ],
+    ids=["--deselect", "--ignore", "--ignore-glob", "--lf"],
+)
+def test_a_further_selection_is_gated_at_nothing(
+    deselect: list[str] | None,
+    ignore: list[str] | None,
+    ignore_glob: list[str] | None,
+    lf: bool,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Section 8's four further triggers drop the threshold too.
+
+    The path still collects the whole suite and neither `-k` nor `-m` is
+    set, so each case here isolates the one flag it names -- the same
+    property `test_a_selected_subset_is_gated_at_nothing` checks for a
+    path, `-k` and `-m`.
+    """
+    monkeypatch.chdir(_ROOT)
+    gate = coverage_fail_under(
+        None,
+        100.0,
+        ["tests"],
+        "",
+        "",
+        deselect,
+        ignore,
+        ignore_glob,
+        lf,
+        _TESTPATHS,
+        _ROOT,
     )
     assert gate == 0
 
@@ -208,7 +272,10 @@ def test_without_testpaths_a_named_path_is_a_subset() -> None:
     answer the opposite -- every run a whole one, and the floor never
     relaxed for the one-file run it exists for.
     """
-    assert coverage_fail_under(None, 100.0, ["tests"], "", "", [], _ROOT) == 0
+    gate = coverage_fail_under(
+        None, 100.0, ["tests"], "", "", *_NO_FURTHER_SELECTION, [], _ROOT
+    )
+    assert gate == 0
 
 
 def test_cov_is_not_the_last_token_of_addopts() -> None:
@@ -243,8 +310,23 @@ def test_cov_is_not_the_last_token_of_addopts() -> None:
 def test_an_explicit_threshold_survives_either_kind_of_run() -> None:
     """`--cov-fail-under` is the caller's, and outranks both branches."""
     subset = ["tests/bip32"]
-    assert coverage_fail_under(90.0, 100.0, subset, "", "", _TESTPATHS, _ROOT) == 90.0
-    assert coverage_fail_under(90.0, 100.0, [], "", "", _TESTPATHS, _ROOT) == 90.0
+    assert (
+        coverage_fail_under(
+            90.0, 100.0, subset, "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+        )
+        == 90.0
+    )
+    assert (
+        coverage_fail_under(
+            90.0, 100.0, [], "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+        )
+        == 90.0
+    )
     # zero is a threshold somebody asked for, not a missing answer: it
     # has to survive the `is not None` test rather than be falsy
-    assert coverage_fail_under(0, 100.0, [], "", "", _TESTPATHS, _ROOT) == 0
+    assert (
+        coverage_fail_under(
+            0, 100.0, [], "", "", *_NO_FURTHER_SELECTION, _TESTPATHS, _ROOT
+        )
+        == 0
+    )

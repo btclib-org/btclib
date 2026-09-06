@@ -401,9 +401,11 @@ with the reason on that same line, and a reason too long for the line
 above it as well, the inline half naming the case. `--cov` is in
 pyproject.toml's addopts, so `uv run
 pytest` prints the total and enforces the ratchet on every whole run, on
-the 3.14 the gate is checked on — a run that selects a subset with paths,
-`-k` or `-m` reports without gating, since `fail_under` would otherwise
-fail it on the tree's coverage rather than on its own.
+the 3.14 the gate is checked on — a run that selects a subset reports
+without gating, since `fail_under` would otherwise fail it on the tree's
+coverage rather than on its own. Which flags select is section 8 of the
+organization standard's, and `tests/README.md` is where this tree states
+it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
