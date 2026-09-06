@@ -1508,6 +1508,22 @@ file of the test tree, and no caller acts on it.
   points at `REVIEWING.md`'s exception rather than restating it, adding
   only the test and the re-derivation commands.
 
+### The `line-too-long` reason names the lines the formatter left over 88
+
+- **`pyproject.toml`'s `line-too-long` entry no longer gives as the rule's
+  residual a shape the rule passes over** (closes btclib-org/.github#873):
+  the reason named a test vector, an extended key or a base64 signature on
+  one line, and an extended key written on a line of its own is silent
+  under `--select E501` where the same line carrying one space inside the
+  key is reported, at the same width. What the rule does report here is a
+  line carried past 88 by a string literal or a comment -- take those out
+  and every one of them is back under the limit -- so that is what the
+  entry says now, with the command that lists them. It names two classes
+  and not one: some of those lines sit inside a `# fmt: off` region, where
+  the formatter was never asked, and calling the whole residual what it
+  could not shorten would have been a third wrong reason in the same
+  place.
+
 ## v2026.9.3
 
 ### Repository

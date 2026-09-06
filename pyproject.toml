@@ -983,9 +983,15 @@ ignore = [
     "undocumented-public-init",
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for this
-    # rule to find is what no width can break, almost all of it a test
-    # vector, an extended key or a base64 signature on one line. The
-    # prose the formatter never touches is measured instead by
+    # rule to find is the line the formatter could not shorten and, in a
+    # `# fmt: off` region, the line it was never given: what carries
+    # each of them past 88 is a string literal or a comment, and taking
+    # those out puts every one back under the limit. Neither gets
+    # shorter for being reported, the region's lines only at the cost of
+    # the layout it is there to hold, so the rule kept buys a
+    # suppression at each site or a limit raised past the longest of
+    # them. `uv run ruff check --select E501 --no-cache .` lists them.
+    # The prose the formatter never touches is measured instead by
     # max-doc-length below
     "line-too-long",
     # complexity metrics this codebase does not bound globally: measured
