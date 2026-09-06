@@ -27,8 +27,8 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 | 256 |  8 |    264 | 24 |
 +-----+----+--------+----+
 
-Every word-list of the reference implementation is here, twelve of them,
-and three things follow from a mnemonic being more than English.
+Every word-list of the reference implementation is here, and three
+things follow from a mnemonic being more than English.
 
 - the sentence is NFKD-normalized before it is looked up, hashed or
   stretched, and so is the passphrase. That is what BIP39 asks for and

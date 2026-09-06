@@ -1397,6 +1397,36 @@ file of the test tree, and no caller acts on it.
   sections, with a synthetic pair proving the comparison can actually
   disagree with itself.
 
+### Prose outside `curve.py` stops counting the catalogued curves
+
+- **`src/btclib/ecc/ellswift.py`, `tests/ecc/ellswift_test.py`,
+  `tests/curves/curve_test.py` and `tests/ecc/dsa_test.py` no longer
+  state how many catalogued curves hold a property** (closes #1668):
+  each such count was a fact about the shipped json data rather than
+  about the module stating it, and nothing re-derived any of it, so a
+  curve added to or removed from the catalogue would leave it false
+  with nothing red. `src/btclib/curves/__init__.py`'s form, naming its
+  catalogues beside the count, is the one case this does not touch.
+
+### `alias.py` and the mnemonic package stop counting their word-lists
+
+- **`src/btclib/alias.py`, every module of `src/btclib/mnemonic/` and
+  every test file of `tests/mnemonic/` that stated one no longer state
+  how many word-lists btclib ships, how many of electrum's it holds, or
+  how many `lang: str` parameters the package has** (closes #1670):
+  `alias.py`'s stated count of `lang: str` parameters had already gone
+  stale without any test failing, which is what a stated count nothing
+  checks does. Where the count named no members, it is gone; where
+  removing it would have left a bare total with nothing to attach it
+  to, the sentence names the members instead of counting them, as
+  `electrum.py`'s "the four 2048-word lists" becoming "the 2048-word
+  lists" does. `alias.py`'s `MnemonicLang` `Literal` and `electrum.py`'s
+  "Electrum reads five word-lists -- en, es, ja, pt, zh --", both
+  already naming every member beside the count, are untouched.
+- **`tests/mnemonic/electrum_test.py` states what `ELECTRUM_WORDLISTS`
+  holds now rather than what btclib used to ship**, dropping the two
+  counts the sentence carried along with the past tense.
+
 ## v2026.9.3
 
 ### Repository

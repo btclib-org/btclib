@@ -386,16 +386,15 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
 def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
     """The mirror of the case above, and issue 183's n > p box.
 
-    `r = x_K % ec.n` can only reduce while n < p, so on a curve whose order
-    is above the field prime -- four of the eight low-cardinality curves,
-    and six of the 27 catalogued ones, `secp224k1` among them -- r *is* x_K
-    and the signer is always named by the j = 0 pair, key_id 0 or 1. Which
-    makes the j >= 1 candidates spurious rather than merely unlikely: they
-    are the `(r + j*ec.n) % ec.p` wrap, and every one of them either misses
-    the curve or fails to verify. Over the 5832 signatures ec13_19 admits,
-    every one of them: 18 private keys, 18 nonces and 18 challenges, no r
-    of them zero -- which is itself the n > p property, x_K never reaching
-    a multiple of the order.
+    `r = x_K % ec.n` can only reduce while n < p, so on a curve whose order is
+    above the field prime -- a low-cardinality curve or a catalogued one,
+    `secp224k1` among them -- r *is* x_K and the signer is always named by the
+    j = 0 pair, key_id 0 or 1. Which makes the j >= 1 candidates spurious
+    rather than merely unlikely: they are the `(r + j*ec.n) % ec.p` wrap, and
+    every one of them either misses the curve or fails to verify. Over the 5832
+    signatures ec13_19 admits, every one of them: 18 private keys, 18 nonces
+    and 18 challenges, no r of them zero -- which is itself the n > p property,
+    x_K never reaching a multiple of the order.
     """
     ec = low_card_curves["ec13_19"]
     assert ec.n > ec.p

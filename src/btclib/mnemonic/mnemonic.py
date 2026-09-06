@@ -34,8 +34,8 @@ def data_file(filename: str) -> str:
     return str(Path(__file__).parent / "_data" / filename)
 
 
-# The twelve word-lists of BIP39's reference implementation, keyed by
-# ISO 639-1 code. Ten are bip-0039/'s own; russian and turkish are in
+# The word-lists of BIP39's reference implementation, keyed by ISO
+# 639-1 code. Most are bip-0039/'s own; russian and turkish are in
 # trezor/python-mnemonic and on no page of the BIP, which is what makes
 # them a way to read what that implementation writes rather than a
 # language to reach for when generating -- and BIP39 itself says
@@ -60,7 +60,7 @@ BIP39_LANGUAGE_FILES = {
     "zh_tw": data_file("chinese_traditional.txt"),
 }
 
-# every word-list btclib ships: BIP39's twelve and slip39's, which is a
+# every word-list btclib ships: BIP39's and slip39's, which is a
 # scheme and not a language code, as its key says. SLIP-0039 supports no
 # localization at all, so there is no "en" of it to collide with BIP39's
 # -- which is a different list of a different length, 1024 words of ten
@@ -80,13 +80,13 @@ class WordLists:
     """Class for word-lists to be used in entropy/mnemonic conversions.
 
     The word-lists loaded by default are DEFAULT_LANGUAGE_FILES: the
-    twelve of BIP39's reference implementation, plus slip39's. More can
+    languages of BIP39's reference implementation, plus slip39's. More can
     be added, or an existing language pointed at another file, with the
     load_lang method; a caller wanting an altogether different set -- as
     electrum.py does, electrum's Portuguese not being BIP39's -- passes
     language_files to the constructor.
 
-    The thirteen keys above are what alias.MnemonicLang names, and
+    The keys above are what alias.MnemonicLang names, and
     load_lang is why no lang parameter here or in bip39 and electrum is
     typed with it: the set is open, so a Literal would reject the
     language a caller has just loaded (issue #216).
@@ -177,10 +177,10 @@ class WordLists:
 
     def _read_wordlist(self, filename: str) -> list[str]:
         """Return the words of a word-list file, NFKD and comments dropped."""
-        # utf-8 and not ascii: nine of the twelve word-lists are not
-        # ascii, japanese and korean not even close, and the BIP
-        # publishes them NFKD-encoded. A '#' starts a comment, which is
-        # what carries the licence header of electrum's Portuguese list
+        # utf-8 and not ascii: most word-lists are not ascii, japanese and
+        # korean not even close, and the BIP publishes them NFKD-encoded.
+        # A '#' starts a comment, which is what carries the licence
+        # header of electrum's Portuguese list
         with Path(filename).open(encoding="utf-8") as file_:
             lines = file_.readlines()
         stripped = (line.split("#")[0].strip() for line in lines)

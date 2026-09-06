@@ -106,7 +106,7 @@ BIP39_VECTORS.append(
 
 @pytest.mark.parametrize("lang, entr, mnemonic, seed, xprv", BIP39_VECTORS)
 def test_vectors(lang: str, entr: str, mnemonic: str, seed: str, xprv: str) -> None:
-    """BIP39 test vectors, all twelve languages of them.
+    """BIP39 test vectors, every language of them.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
 

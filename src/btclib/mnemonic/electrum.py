@@ -21,13 +21,13 @@ BIP39's behaviour, so none of them can be guessed from `bip39.py`:
   or accented sentence is read, not rejected
 
 Electrum reads five word-lists -- en, es, ja, pt, zh -- and its own
-registry here holds all twelve of BIP39's beside them, so a language
+registry here holds all of BIP39's beside them, so a language
 Electrum does not read is still a language this module writes: an
 "electrum" mnemonic in Italian is btclib's extension, and Electrum
 cannot read it.
 
-Four of the five are BIP39's file after NFKD normalization, byte for
-byte, so nothing above depends on which of the two schemes loaded them.
+Most are BIP39's file after NFKD normalization, byte for byte, so
+nothing above depends on which of the two schemes loaded them.
 Portuguese is the exception and the reason this module has a registry of
 its own rather than sharing WORDLISTS: Electrum's Portuguese is Monero's
 word-list, 1626 words rather than 2048, and "pt" therefore names one
@@ -291,7 +291,7 @@ def _is_bip39_mnemonic(mnemonic: Mnemonic, lang: str) -> bool:
     towards generating what electrum generates.
 
     Electrum's bip39_is_checksum_valid, arithmetic included, rather than a
-    call into bip39.py -- which is the same answer for the four 2048-word
+    call into bip39.py -- which is the same answer for the 2048-word
     lists, and a test pins that, but not for Portuguese. Electrum hands
     that function its own word-list whatever the language, so for
     Portuguese it is 1626 words being read with eleven bits per word:

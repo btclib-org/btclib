@@ -208,7 +208,7 @@ def test_anomalous_curve(p: Integer) -> None:
 
 
 def test_curves_with_n_above_p() -> None:
-    """Hasse admits n > p, and six catalogued curves take it up (issue 183).
+    """Hasse admits n > p, and catalogued curves take it up (issue 183).
 
     The neighbour of the n == p check that issue #166 found never fired: p
     and n are within 2*sqrt(p) of each other, so which is the larger is a
@@ -730,7 +730,7 @@ def test_curve_equality() -> None:
 
 def test_sec2_catalogues_share_one_curve() -> None:
     """Verify SEC 2 v.2 holds the very objects of v.1, secp256k1 too."""
-    # the eight curves of SEC 2 v.2 are in v.1 too; guards against them
+    # the curves of SEC 2 v.2 are in v.1 too; guards against them
     # being built twice, where only one of the two objects is the
     # secp256k1 the dispatch compares against and SEC2v2 holds the other
     for ec_name, ec in SEC2v2.items():
@@ -743,7 +743,7 @@ def test_each_catalogue_holds_what_it_is_named_after() -> None:
 
     "CURVES = SEC2v1" would bind the same dict, so CURVES.update(NIST) and
     CURVES.update(Brainpool) would pour those catalogues into the SEC 2 v.1
-    one: SEC2v1 with 27 entries instead of its own 15, and
+    one, holding every catalogued curve instead of its own, and
     SEC2v1["nistp256"] answering a curve that is not in SEC 2 v.1 at all.
     The union operator builds a new dict, which is what keeps them apart.
     """
