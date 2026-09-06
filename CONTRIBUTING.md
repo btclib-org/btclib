@@ -501,7 +501,7 @@ read by every checkout of this repository.
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `integration-hwi` | weekly, push to main | two device emulators |
 | `links`, `mutation` | weekly | — |
-| `vendored-vectors` | weekly | upstream's vectors |
+| `vendored-vectors` | weekly | the pin ledgers |
 | `pypi-install` | weekly, a release | what PyPI serves |
 | `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |

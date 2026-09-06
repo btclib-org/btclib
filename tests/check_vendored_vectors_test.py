@@ -319,11 +319,13 @@ def test_every_heading_of_the_pin_file_is_checked_or_named_once(
 
     A fixture answers for the shapes it was written to carry, and this
     parser's failure mode is a shape nobody thought to write down: what
-    it does not match, it drops. `tests/_data/README.md` is what the
-    workflow passes, so it is what settles whether a heading can go
-    missing from the report -- and the first assertion is what says the
-    parse still sees the file at all, a parser that matched nothing
-    passing every other line here.
+    it does not match, it drops. `tests/_data/README.md` is one of the
+    ledgers the workflow passes, so it is what settles whether a heading
+    of it can go missing from the report -- and the first assertion is
+    what says the parse still sees the file at all, a parser that
+    matched nothing passing every other line here. The other ledger,
+    `TF2.md`, is asked the same question by
+    `tests/tf2_ledger_test.py`, beside what else that file owes.
     """
     readme = _PIN_README.read_text(encoding="utf-8")
 
@@ -427,18 +429,26 @@ def test_find_drift_reports_a_path_upstream_no_longer_has(
     assert "renamed, moved or deleted upstream" in body
 
 
-@pytest.mark.parametrize("argv", [["prog"], ["prog", "a.md", "b.md"]])
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["prog"],
+        ["prog", "a.md"],  # a ledger and no title
+        ["prog", "a.md", "a title", "b.md"],
+    ],
+)
 def test_main_says_how_to_be_called_when_it_is_not(
     checker: ModuleType,
     argv: list[str],
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """No README, or two of them, is the usage rather than an IndexError.
+    """Anything but a ledger and a title is the usage, not an IndexError.
 
     Only a human running this by hand reaches it -- the workflow passes
-    the path every time -- and what they used to get was `IndexError:
-    list index out of range` naming a list they never saw.
+    both every time -- and what an unchecked index into `args` gives
+    them is `IndexError: list index out of range` naming a list they
+    never saw.
     """
     monkeypatch.setattr(sys, "argv", argv)
 
@@ -447,7 +457,7 @@ def test_main_says_how_to_be_called_when_it_is_not(
     captured = capsys.readouterr()
     # argv[0] is what names the program, so the fixture's own "prog" is
     # what comes back here rather than the script's file name
-    assert captured.err == "usage: prog <README path> [--dry-run]\n"
+    assert captured.err == "usage: prog <ledger path> <issue title> [--dry-run]\n"
     assert not captured.out
 
 
@@ -470,7 +480,7 @@ def test_main_says_gone_rather_than_behind_for_a_vanished_path(
         ),
     )
     fake_gh.commits["r", "gone.json"] = None
-    monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
 
     assert checker.main() == 0
 
@@ -544,14 +554,16 @@ def test_open_issue_number_reads_the_first_match(
 ) -> None:
     """The number of the first issue `gh issue list` names, as a string."""
     fake_gh.open_issue = 42
-    assert checker._open_issue_number() == "42"
+    assert checker._open_issue_number("A title") == "42"
+    (call,) = fake_gh.calls
+    assert '"A title" in:title' in call
 
 
 def test_open_issue_number_is_none_when_none_is_open(
     checker: ModuleType, fake_gh: FakeGh
 ) -> None:
     """An empty `gh issue list` is None, not an empty string."""
-    assert checker._open_issue_number() is None
+    assert checker._open_issue_number("A title") is None
 
 
 def test_report_closes_an_open_issue_when_nothing_drifted(
@@ -559,7 +571,7 @@ def test_report_closes_an_open_issue_when_nothing_drifted(
 ) -> None:
     """Nothing drifted, an issue was open: it gets closed."""
     fake_gh.open_issue = 7
-    checker.report(tmp_path / "README.md", [], [])
+    checker.report(tmp_path / "README.md", "A title", [], [])
     verbs = [call[2] for call in fake_gh.calls if call[1] == "issue"]
     assert verbs == ["list", "close"]
 
@@ -568,18 +580,27 @@ def test_report_does_nothing_when_clean_and_no_issue_is_open(
     checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
 ) -> None:
     """Nothing drifted, no issue was open: nothing is written."""
-    checker.report(tmp_path / "README.md", [], [])
+    checker.report(tmp_path / "README.md", "A title", [], [])
     assert [call[2] for call in fake_gh.calls] == ["list"]
 
 
 def test_report_creates_an_issue_when_none_is_open(
     checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
 ) -> None:
-    """Something drifted, no issue was open: a new one is created."""
+    """Something drifted, no issue was open: a new one is created.
+
+    Under the title it was handed, and the same title is what the search
+    before it asked for: one ledger's run finds and files its own issue
+    rather than the other ledger's (issue #1732).
+    """
     drift = checker.Drift(_entry(checker, "`p.json`"), "new0000", "2026-01-01")
-    checker.report(tmp_path / "README.md", [drift], [])
+    checker.report(tmp_path / "README.md", "Ledger A behind upstream", [drift], [])
     verbs = [call[2] for call in fake_gh.calls if call[1] == "issue"]
     assert verbs == ["list", "create"]
+    (list_call,) = (call for call in fake_gh.calls if call[2] == "list")
+    assert '"Ledger A behind upstream" in:title' in list_call
+    (create_call,) = (call for call in fake_gh.calls if call[2] == "create")
+    assert create_call[create_call.index("--title") + 1] == "Ledger A behind upstream"
 
 
 def test_report_edits_the_open_issue(
@@ -588,7 +609,7 @@ def test_report_edits_the_open_issue(
     """Something drifted, an issue was already open: it is edited, by number."""
     fake_gh.open_issue = 9
     drift = checker.Drift(_entry(checker, "`p.json`"), "new0000", "2026-01-01")
-    checker.report(tmp_path / "README.md", [drift], [])
+    checker.report(tmp_path / "README.md", "A title", [drift], [])
     verbs = [call[2] for call in fake_gh.calls if call[1] == "issue"]
     assert verbs == ["list", "edit"]
     (edit_call,) = (call for call in fake_gh.calls if call[2] == "edit")
@@ -621,7 +642,7 @@ def test_main_dry_run_prints_but_never_calls_issue(
         entry("stale", repo="r", path="s.json", commit="x", behind="1"),
     )
     fake_gh.commits["r", "p.json"] = ("new0000", "2026-01-01")
-    monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
 
     assert checker.main() == 0
 
@@ -651,7 +672,7 @@ def test_main_reports_and_says_nothing_drifted_when_clean(
     )
     fake_gh.commits["r", "p.json"] = ("old0000", "2020-01-01")
     fake_gh.open_issue = 3
-    monkeypatch.setattr(sys, "argv", ["prog", str(path)])
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title"])
 
     assert checker.main() == 0
 
@@ -688,7 +709,7 @@ def test_the_main_guard_runs_the_script_as___main__(
     fake = FakeGh()
     fake.commits["r", "p.json"] = ("old0000", "2020-01-01")
     monkeypatch.setattr(subprocess, "run", fake)
-    monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "A title", "--dry-run"])
 
     with pytest.raises(SystemExit) as excinfo:
         runpy.run_path(str(_SCRIPT), run_name="__main__")

@@ -1055,6 +1055,24 @@ file of the test tree, and no caller acts on it.
   landed text and stands as written, this entry being where the
   correction is read instead.
 
+### The weekly pin re-check reads `TF2.md`, under a title of its own
+
+- **`.github/workflows/vendored-vectors.yml` runs
+  `.github/scripts/check_vendored_vectors.py` over `TF2.md` as well as
+  `tests/_data/README.md`** (issue #1732), as a matrix whose cells pair
+  a ledger with the title of the issue its drift is reported under, and
+  its `paths:` filter names `TF2.md` so a pull request touching that
+  file is checked.
+- **Each title says which kind of staleness it is**: a vendored file
+  behind upstream means this tree holds a stale copy, where a `TF2.md`
+  pin behind upstream means a verdict is now a claim about a file that
+  has moved. They are acted on differently, so they are reported apart.
+- **The script takes that title beside the ledger path** rather than
+  naming it in a module constant: one title across both ledgers would
+  file a single issue for them, each run rewriting what the other
+  wrote. `btclib-org/btclib-secp256k1` carries a copy of the script
+  under the same name, which the same signature change is owed.
+
 ## v2026.9.3
 
 ### Repository

@@ -1,13 +1,19 @@
 ---
 name: vendored vectors
 
-# tests/_data/README.md pins every vendored test vector to a commit and a
-# git blob SHA-1, with a documented manual procedure to re-check one --
-# last done by hand on specific dates the file itself records. This runs
-# that procedure once a week instead, over every pin the script can
-# check, and opens or updates an issue on drift rather than fixing
-# anything: refreshing a vector file is a decision the script does not
-# get to make.
+# tests/_data/README.md pins every vendored test vector to a commit and
+# a git blob SHA-1, and TF2.md pins every Python file of Core's test
+# framework to the commit its verdict was read at. Both carry a
+# documented manual procedure to re-check one pin. This runs that
+# procedure once a week instead, over every pin the script can check,
+# and opens or updates an issue on drift rather than fixing anything:
+# what to do about a pin that has moved is a decision the script does
+# not get to make.
+#
+# One issue per ledger, under a title of its own, because the two kinds
+# of staleness are acted on differently: a vendored file behind upstream
+# means this tree holds a stale copy, where a TF2.md pin behind upstream
+# means a verdict is now a claim about a file that has moved.
 #
 # issues: write is new to this repository -- links.yml's own comment
 # explains why every other scheduled workflow here stops at contents:
@@ -49,6 +55,7 @@ on:
       - .github/workflows/vendored-vectors.yml
       - .github/scripts/check_vendored_vectors.py
       - tests/_data/README.md
+      - TF2.md
 
 permissions:
   contents: read
@@ -65,7 +72,7 @@ concurrency:
 
 jobs:
   vectors:
-    name: Check vendored vectors against upstream
+    name: Check ${{ matrix.ledger }} against upstream
     # a draft pull request is work in progress and spends no runner
     # here either: a draft is work its author is not asking anyone to
     # read yet. The same condition lint.yml and test.yml carry, and
@@ -76,6 +83,20 @@ jobs:
     if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # the ledger and the title of its issue travel together, which is
+    # what a matrix is for: two run: blocks would repeat the dry-run
+    # preamble below and let the pair drift apart. fail-fast is off
+    # because the two checks answer different questions -- one gh error
+    # against upstream is no reason to leave the other ledger unchecked
+    # for the week, and a matrix's default would cancel it.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ledger: tests/_data/README.md
+            title: Vendored vectors behind upstream
+          - ledger: TF2.md
+            title: tf2 ledger verdicts pinned to superseded revisions
     # the elevation, on the job that needs it and nowhere else: no other
     # job in this workflow declares permissions, so no other job elevates.
     # issues: write is what the script's gh issue create/edit/close calls
@@ -99,7 +120,7 @@ jobs:
       # already has.
       # --dry-run on the pull_request trigger only: a fork's read-only
       # token could not write the issue anyway, and a same-repository
-      # pull request testing a change to this script or the README
+      # pull request testing a change to this script or to a ledger
       # should not close or edit whatever tracking issue is open at the
       # time as a side effect of that test.
       # The flag reaches the shell through the environment rather than
@@ -110,14 +131,19 @@ jobs:
       # pattern). The array built from it, rather than an unquoted
       # expansion, is release.yml's own shape for an optional flag
       # (its "Check the public API against the previous release" step).
+      # The ledger and the title take that same route for that same
+      # reason, a matrix value being this file's own as much as the flag
+      # is.
       - name: Re-check every pin already at upstream's tip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
+          LEDGER: ${{ matrix.ledger }}
+          ISSUE_TITLE: ${{ matrix.title }}
         run: |
           args=()
           if [ -n "$DRY_RUN" ]; then
             args=(--dry-run)
           fi
           python .github/scripts/check_vendored_vectors.py \
-            tests/_data/README.md "${args[@]}"
+            "$LEDGER" "$ISSUE_TITLE" "${args[@]}"
