@@ -728,6 +728,21 @@ class Bolt11Invoice:
             err_msg = "exactly one of description and description_hash is required"
             raise BTClibValueError(err_msg)
 
+        # normalized once here, ahead of every read below: `_hrp` and
+        # `_fallback_field` take the raw parameter, and `_hrp` reads it
+        # through a bare `_CURRENCY_FROM_NETWORK[network]` lookup, so an
+        # unnormalized " MainNet " reached a bare `KeyError` before `cls`
+        # -- and `__init__`'s own coercion -- were ever called. The
+        # membership refusal below is not deferred to `assert_valid`
+        # either: the wire's currency prefix is part of the message this
+        # signs, so `sign` needs one whether or not `check_validity` later
+        # runs, where `Bolt11Invoice.__init__` can build an object
+        # `check_validity=False` leaves unchecked
+        assert_type(network, str, "network")
+        network = _normalized_network_name(network)
+        if network not in _CURRENCY_FROM_NETWORK:
+            raise BTClibValueError(f"not a lightning network: {network!r}")
+
         _, payee_point = gen_keys(prv_key, secp256k1)
         payee = bytes_from_point(payee_point, secp256k1, compressed=True)
 

@@ -1453,6 +1453,36 @@ file of the test tree, and no caller acts on it.
   `Point`, and no `Q[0] == 0` comparison exists anywhere in the module
   (closes #1752).
 
+### `Bolt11Invoice.sign` refuses a network name with a `BTClibValueError`
+
+- **`sign` normalizes `network` once at its own top, ahead of `_hrp` and
+  `_fallback_field`, and refuses what does not resolve to a lightning
+  network there rather than deferring to `_hrp`'s own dict lookup**
+  (closes #1775). `_hrp` reads the parameter through a bare
+  `_CURRENCY_FROM_NETWORK[network]` lookup, so a spelling `network_from_name`
+  resolves elsewhere in the library, `" MainNet "`, reached a bare `KeyError`
+  before `Bolt11Invoice.__init__`'s own coercion ever ran; `KeyError` is a
+  `LookupError`, not a `BTClibException`, so no `except BTClibValueError`
+  written against this library caught it. The refusal is not conditional on
+  `check_validity` the way `assert_valid`'s own copy of it is: the wire's
+  currency prefix is part of the message `sign` builds and signs, so it needs
+  one regardless of whether the resulting invoice is checked.
+
+### `Descriptor` takes a network name as the rest of the library does
+
+- **`Descriptor.__post_init__` coerces `network` through
+  `network._normalized_network_name`, and every fragment class inherits
+  the coercion rather than defining its own `__init__`** (closes #1776).
+  The parse path already normalized through `_validated_network_name`;
+  the direct constructor -- `RawDescriptor(script=..., network=" MainNet ")`
+  and the like -- kept the name exactly as given, so two spellings of one
+  network built descriptors that were neither equal nor hashed alike, the
+  dataclass comparing `network` as a plain field.
+- **`network.py`'s `_normalized_network_name` docstring states the split as
+  a mechanism a frozen class with a `network` field reaches for, rather
+  than naming an exhaustive list of which ones do**, and gives
+  `descriptors.Descriptor` as one more class reaching for it.
+
 ## v2026.9.3
 
 ### Repository

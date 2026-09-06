@@ -215,6 +215,33 @@ full year, short month, short day (YYYY-M-D)
   `check_validity=False` being distinct in a set or as dict keys: they
   now collapse to one.
 
+- **`btclib.bolt11.Bolt11Invoice.sign` accepts the same network-name
+  spellings, and refuses the rest with `BTClibValueError`** (closes
+  #1775). `" MainNet "` now resolves to `"mainnet"` where it raised a
+  bare `KeyError` before `sign` ever reached `Bolt11Invoice.__init__`'s
+  own coercion; a name no lightning network answers to, `"testnet4"`
+  included, now raises `BTClibValueError` where it raised that same bare
+  `KeyError`.
+
+  Act on it if you relied on `Bolt11Invoice.sign(..., " MainNet ", ...)`
+  raising, or if you catch `KeyError` around `sign` to detect a network
+  it does not recognize: catch `BTClibValueError`, or the `BTClibException`
+  it is a subclass of, instead.
+
+- **`btclib.descriptors.Descriptor` and every fragment class built on it
+  accept the network-name spellings the rest of the library does**
+  (closes #1776). `" MainNet "` now resolves to `"mainnet"` in the
+  `network` field of a directly constructed descriptor —
+  `RawDescriptor(script=..., network=" MainNet ")` and the like — where
+  the field kept it exactly as given; two spellings of one network now
+  compare equal and hash alike, where they used to compare unequal and
+  hash apart.
+
+  Act on it if you rely on two differently-spelled descriptors built
+  this way being distinct in a set or as dict keys: they now collapse to
+  one. The parse path, `descriptors.parse`, already normalized the name
+  and is unaffected.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,

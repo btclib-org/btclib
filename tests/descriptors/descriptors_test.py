@@ -1055,6 +1055,31 @@ def test_network() -> None:
         parse(descriptor).script_pub_key()
 
 
+def test_descriptor_coerces_the_network_name() -> None:
+    """A direct constructor takes the spellings the parse path already did.
+
+    `descriptors.py:2346`'s `parse` already normalizes through
+    `_validated_network_name`; `Descriptor.__post_init__` is what does the
+    same for `RawDescriptor(...)` and every other fragment class built
+    directly rather than parsed.
+    """
+    descriptor = RawDescriptor(script=b"\x51", network=" MainNet ")
+    assert descriptor.network == "mainnet"
+
+
+def test_descriptor_two_spellings_of_one_network_are_equal_and_hash_alike() -> None:
+    r"""Two spellings of one network build equal, equally-hashed descriptors.
+
+    Without the coercion `RawDescriptor(script=b"\x51", network=" MainNet ")`
+    and `RawDescriptor(script=b"\x51", network="mainnet")` compare unequal
+    and hash apart, the dataclass comparing `network` as a plain field.
+    """
+    spaced = RawDescriptor(script=b"\x51", network=" MainNet ")
+    plain = RawDescriptor(script=b"\x51", network="mainnet")
+    assert spaced == plain
+    assert hash(spaced) == hash(plain)
+
+
 def test_addr_takes_the_network_of_its_address() -> None:
     """An address states its own chain, so no parameter can contradict it."""
     address = "tb1qjwxuan3npm4489vlt0gcyqxwvaghkux009tfyd"
