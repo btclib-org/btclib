@@ -1020,6 +1020,20 @@ file of the test tree, and no caller acts on it.
   environments and `RELEASING.md`'s prose move with it, `RELEASING.md`
   naming the range rather than restating the number.
 
+### Counting `CHANGELOG.md`'s entries is a reading, not a command
+
+- **`CLAUDE.md` and `tests/release_notes_test.py` no longer offer
+  `grep -c '^- ' CHANGELOG.md` as what counts this file's entries**
+  (issue btclib-org/.github#829): a `###` heading names one entry or a
+  theme several entries share, and an entry making a single claim can be
+  a paragraph with no bullet at all, so no bullet-anchored pattern
+  reaches every entry and only entries. Counting them is a reading of
+  the file. `CLAUDE.md`'s own rule against stating a count is unchanged;
+  the places in `## v2026.8.7` making the same claim -- that section's
+  own opening prose and a bullet of its `### Repository` entry -- are
+  landed text and stand as written, this entry being where the
+  correction is read instead.
+
 ## v2026.9.3
 
 ### Repository
