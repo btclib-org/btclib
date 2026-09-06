@@ -233,6 +233,7 @@ _AUTHORITY: dict[str, tuple[str, ...]] = {
         "silent_payments_test.py",
     ),
     "curves.sec_point._sec_from_octets": (
+        "bip32/bip32_test.py",
         "bip322_test.py",
         "curves/sec_point_test.py",
         "ecc/bms_test.py",

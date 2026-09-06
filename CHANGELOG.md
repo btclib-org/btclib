@@ -1073,6 +1073,20 @@ file of the test tree, and no caller acts on it.
   wrote. `btclib-org/btclib-secp256k1` carries a copy of the script
   under the same name, which the same signature change is owed.
 
+### The `_sec_from_octets` authority entry names `bip32/bip32_test.py`
+
+- **`tests/py_arm_authority_test.py`'s `_AUTHORITY` entry for
+  `curves.sec_point._sec_from_octets` names `bip32/bip32_test.py`**
+  (issue #1753): that module, run under coverage in an environment with
+  no bindings installed, executes the arm's body, its `_p2pkh_of` helper
+  handing `bip32.pub_keyinfo_from_xkey`'s octets to `b58.p2pkh`, where
+  `to_pub_key.pub_keyinfo_from_pub_key` proves them a point of the
+  curve -- the composition a caller writes now that no converter
+  resolves an extended key (issue #1188). The issue's two questions
+  about `.github/workflows/py-arm-authority.yml`'s header comment --
+  whether a red run is signal enough, and whether the pull requests it
+  names are the ones that invalidate the table -- are not answered here.
+
 ## v2026.9.3
 
 ### Repository
