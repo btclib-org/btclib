@@ -81,6 +81,8 @@ in any `needs` list.
 import re
 from pathlib import Path
 
+import pytest
+
 _README = Path(__file__).parents[1] / "tests" / "_data" / "README.md"
 
 # a digit run, or a spelled-out cardinal as a whole word ("one" and "zero"
@@ -134,7 +136,7 @@ _EXEMPT: dict[str, str] = {
     "citation is pinned to a commit and the two blobs are compared.": _UPSTREAM_FACT,
     "The two halves are kept in agreement in one direction only: a test module": _UPSTREAM_FACT,
     "one of the five that *is* a copy, upstream publishing a file of that very": _UPSTREAM_FACT,
-    "citation is pinned to, the git blob SHA-1 that was compared, and a": _UPSTREAM_FACT,
+    "gives the git blob SHA-1 of what that entry pins; what it pins, and": _UPSTREAM_FACT,
     "whatever had drifted was refreshed, so `behind` is 0 wherever a refresh": _UPSTREAM_FACT,
     "The comparison is on git blob SHA-1, not sha256: it is what a tree entry": _UPSTREAM_FACT,
     "alternative and caps out — `script_assets_test.json` is 9 MB.": _UPSTREAM_FACT,
@@ -520,3 +522,139 @@ def test_a_numeral_that_names_something_is_subtracted_and_a_count_is_not() -> No
         "`.github/workflows/integration-hwi.yml` installs release 3.2.0, so two",
     ):
         assert _NUMERAL.search(_countable(counted)), counted
+
+
+# a "## " or "### " heading, matched to split the README into sections without
+# a sliding window: a window over-counts a "### " heading's own verdict past
+# the next entry, which is what first over-counted here (issue #1669)
+_SECTION_HEADING = re.compile(r"^#{2,3} .+$", re.MULTILINE)
+
+# a "### " heading that is nothing but one file path in backticks -- a "Not
+# vendored as a file: ..." heading has prose of its own and never matches,
+# which is the point: such an entry has no name to compare the Summary
+# against. The same shape also excludes a heading with trailing prose after
+# the path -- "### `tests/tx/_data/*.bin` — segwit transactions" and "###
+# `tests/fetch/_data/*` — response bodies" among them -- and neither is
+# transcribed today, so nothing is missed; a transcribed entry written with a
+# trailing dash would drop out of both sets with nothing red to say so
+_VENDORED_FILE_HEADING = re.compile(r"^### `([^`]+)`$")
+
+_TRANSCRIBED_VERDICT = "Verdict: **transcribed**"
+
+_SUMMARY_FILENAME = re.compile(r"`([\w.-]+\.\w+)`")
+
+
+def _sections(text: str) -> list[tuple[str, str]]:
+    """Every heading of `text`, paired with the section text that follows it."""
+    heads = [(m.start(), m.group(0)) for m in _SECTION_HEADING.finditer(text)]
+    return [
+        (
+            heading,
+            text[pos : heads[i + 1][0] if i + 1 < len(heads) else len(text)],
+        )
+        for i, (pos, heading) in enumerate(heads)
+    ]
+
+
+def _transcribed_vendored_files(text: str) -> set[str]:
+    """Basenames of the vendored files whose own entry is transcribed."""
+    return {
+        match.group(1).rsplit("/", 1)[-1]
+        for heading, body in _sections(text)
+        if (match := _VENDORED_FILE_HEADING.match(heading))
+        and _TRANSCRIBED_VERDICT in body
+    }
+
+
+def _summary_transcribed_files(text: str) -> set[str]:
+    """Basenames the Summary lists in its transcribed bullet."""
+    for heading, body in _sections(text):
+        if heading.strip() != "## Summary":
+            continue
+        lines = body.split("\n")
+        start = next(
+            (i for i, line in enumerate(lines) if line.startswith("- transcribed")),
+            None,
+        )
+        if start is None:
+            raise AssertionError(
+                'tests/_data/README.md\'s Summary has no "- transcribed" bullet'
+            )
+        end = start + 1
+        while end < len(lines) and not lines[end].startswith("- "):
+            end += 1
+        return set(_SUMMARY_FILENAME.findall("\n".join(lines[start:end])))
+    raise AssertionError("tests/_data/README.md has no ## Summary section")
+
+
+def test_summary_names_every_transcribed_vendored_file() -> None:
+    """The Summary names exactly the vendored files whose entry is transcribed.
+
+    [ISS 1669](https://github.com/btclib-org/btclib/issues/1669) found
+    the bullet naming fewer files than the entries carry, and naming one,
+    `descriptor_checksums.json`, whose own verdict is **composed
+    locally**, not transcribed. Reading the file by its own `###`
+    sections is what finds either kind of drift; a sliding window over a
+    fixed span of text is not, since it can run past the next entry's own
+    verdict and count it as the current one's.
+    """
+    text = _README.read_text(encoding="utf-8")
+    entries = _transcribed_vendored_files(text)
+    summary = _summary_transcribed_files(text)
+    assert entries == summary, (
+        f"in the entries but not the Summary: {sorted(entries - summary)!r}; "
+        f"in the Summary but not transcribed in the entries: "
+        f"{sorted(summary - entries)!r}"
+    )
+
+
+def test_the_transcribed_comparison_can_actually_fail() -> None:
+    """The check above passes for free if it can never disagree with itself.
+
+    Mirrors `test_the_pattern_still_matches`'s idiom: a synthetic pair,
+    identical but for one file name, proves the comparison distinguishes
+    a matching Summary from a mismatched one rather than only ever
+    confirming the real file, which cannot itself demonstrate that.
+    """
+    heading_and_verdict = (
+        "### `tests/_data/kept.json`\n\n"
+        "Verdict: **transcribed**, for the purpose of this test.\n\n"
+    )
+    matching = heading_and_verdict + (
+        "## Summary\n\n- transcribed, matched:\n  `kept.json`.\n"
+    )
+    mismatched = heading_and_verdict + (
+        "## Summary\n\n- transcribed, matched:\n  `other.json`.\n"
+    )
+
+    assert _transcribed_vendored_files(matching) == _summary_transcribed_files(matching)
+    assert _transcribed_vendored_files(mismatched) != _summary_transcribed_files(
+        mismatched
+    )
+
+
+def test_a_summary_transcribed_read_needs_a_summary_section() -> None:
+    """`_summary_transcribed_files` raises rather than answering an empty set.
+
+    The real README always has a `## Summary`, so nothing in the check
+    above trips this path; a text with none is what does, and is what
+    keeps a rewrite that drops the heading loud instead of silently
+    reading as "the Summary names nothing transcribed".
+    """
+    with pytest.raises(AssertionError, match="no ## Summary section"):
+        _summary_transcribed_files("### `tests/_data/kept.json`\n\nno Summary here.\n")
+
+
+def test_a_summary_transcribed_read_needs_a_transcribed_bullet() -> None:
+    """`_summary_transcribed_files` raises with a message, not `StopIteration`.
+
+    A `## Summary` with no bullet starting "- transcribed" is what trips
+    this: the generator `next()` reads has nothing to give it, and the
+    message is what keeps such a rewrite loud instead of surfacing as an
+    unrelated `RuntimeError` with no README path in it -- the same
+    failure class the sibling test above guards, on the other bullet.
+    """
+    with pytest.raises(AssertionError, match='no "- transcribed" bullet'):
+        _summary_transcribed_files(
+            "### `tests/_data/kept.json`\n\n## Summary\n\n- identical: `kept.json`.\n"
+        )

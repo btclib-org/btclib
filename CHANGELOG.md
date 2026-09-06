@@ -1372,6 +1372,31 @@ file of the test tree, and no caller acts on it.
   network: 'MAINNET'`, matching `_parse_hrp`'s own `!r` for a rejected
   string elsewhere in this module.
 
+### `tests/_data/README.md` agrees with itself about what is transcribed
+
+- **`tests/_data/README.md`'s *Reading an entry* no longer claims every entry
+  gives a blob, or ties a blob's presence to a single upstream file to hash**
+  (closes #1636): a `blob` line, where an entry carries one, names the git blob
+  SHA-1 of what that entry pins, and the entry itself says what that is and
+  whether it was compared byte for byte; `transcribed` over a source file's own
+  test cases is checked the way the entry itself states, since that differs
+  from matching values against pinned prose. Most entries close on a verdict,
+  and one with nothing upstream to compare against says so in prose instead.
+  The *What is not pinned, and why* bullet on the transcribed files made the
+  same prose-only claim and is corrected the same way, and the Summary's
+  heading above the transcribed bullet now says what is actually absent there:
+  a byte comparison, not a blob.
+- **The Summary's transcribed bullet names every vendored file whose own
+  entry carries that verdict, and drops one that does not carry it**
+  (closes #1669): some transcribed vendored files were missing from the
+  bullet, and `descriptor_checksums.json`, whose own verdict is composed
+  locally, was named there by mistake; it moves to the Summary's
+  not-vendored bullet, beside the other file composed rather than
+  recorded. `tests/vendored_data_test.py` gains a
+  check comparing the two lists by reading the file's own `###`
+  sections, with a synthetic pair proving the comparison can actually
+  disagree with itself.
+
 ## v2026.9.3
 
 ### Repository
