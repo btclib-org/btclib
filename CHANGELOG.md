@@ -1594,6 +1594,26 @@ file of the test tree, and no caller acts on it.
   "1 s-value" are untouched: their figures are assertions' expected
   strings, not prose making an argument.
 
+### `pyproject.toml`'s `line-too-long` comment narrows what `max-doc-length` measures
+
+- **The comment above `"line-too-long"` in `[tool.ruff.lint]`'s
+  `ignore` said the prose the formatter never touches is measured
+  instead by `max-doc-length`, true of a docstring and a standalone
+  comment and false of a comment following code on its line**
+  (closes #1749): `W505` reports the first two and stays silent on
+  the third, a positive control in the same run confirming the
+  silence rather than a rule that found nothing. The comment now
+  narrows the claim to the shapes `max-doc-length` reaches, and names
+  what leaves a trailing comment unmeasured: `line-too-long` is the
+  rule that reaches one, `E501` counting the physical line and
+  reporting a line a trailing comment carries past 88 like any other,
+  so it is this entry and not the rule's scope that leaves the width
+  unmeasured -- for the reason the entry already gives, reaching a
+  trailing comment costing a report on every other line the rule
+  finds. `# pragma: no cover`'s inline reason (btclib-org/.github#838)
+  makes the shape common rather than incidental, so the comment says
+  plainly that whoever reads the diff is what catches it.
+
 ## v2026.9.3
 
 ### Repository
