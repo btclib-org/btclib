@@ -478,10 +478,10 @@ repos:
         name: taplo (toml, in place fixes)
         exclude: ^uv\.lock$
   # the width of a yaml line, which nothing else here measured: the hook
-  # above holds markdown to 80 columns and ruff holds Python comments and
-  # docstrings to the same, and the workflows were a place prose could
-  # grow without a limit -- 117 columns at the worst. Toml was the other,
-  # and the hook below is what closed it.
+  # above holds markdown to 80 columns and ruff holds a docstring and a
+  # comment on a line of its own to the same, and the workflows were a
+  # place prose could grow without a limit -- 117 columns at the worst.
+  # Toml was the other, and the hook below is what closed it.
   # Width is the half of this a sibling gate could in principle have
   # covered; a key written twice, a block indented under nothing, a value
   # that is octal by accident are read by nothing else at all.

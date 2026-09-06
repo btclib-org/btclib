@@ -1677,6 +1677,18 @@ file of the test tree, and no caller acts on it.
   now names this as one more shape the script does not attempt,
   beside the ones it already listed.
 
+### The yamllint and `max-doc-length` comments name the prose W505 reaches
+
+- **`.pre-commit-config.yaml`'s yamllint-hook comment said ruff holds
+  Python comments and docstrings to 80 columns, and `pyproject.toml`'s
+  `max-doc-length` comment called itself the rest of what the formatter
+  leaves alone** (closes #1792): both are unqualified over a comment,
+  and so read as covering one following code on its line, which `W505`
+  does not reach — `line-too-long` reaches that shape and this tree
+  ignores it. Each now names the docstring and the comment on a line of
+  its own, and `max-doc-length` holds part of what the formatter leaves
+  rather than the whole of it.
+
 ## v2026.9.3
 
 ### Repository
