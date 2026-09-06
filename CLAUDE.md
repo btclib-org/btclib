@@ -118,45 +118,62 @@ once, which the ordinary sequence avoids by each removing its own.
 
 An issue of `btclib-org/.github`'s tracker worked in `btclib` by a coder
 names its worktree `wt-github-255-btclib-coder`. No `uv sync` follows
-the `cd`, the gate doing that itself, and the editing, the gates and the
-commits all happen in the worktree before the push.
+`git worktree add`, the gate doing that itself, and the editing, the
+gates and the commits all happen in the worktree before the push.
 
 ```shell
 WT=<scratchpad>/wt-<tracker>-<issue>-<repo>-<role>
 git worktree add "$WT" origin/main -b <branch>
-cd "$WT"
-git push origin HEAD:refs/heads/<branch>
+git -C "$WT" push origin HEAD:refs/heads/<branch>
 ```
 
 `-b <branch>` sits after the path and the commit-ish so that the
 placeholder ends the command, which is section 9 of the organization
-standard's rule. With the placeholder ahead of `"$WT"` the `>` closing it
-takes that path as its target, and a path with no directory at it is a
-file the paste creates.
+standard's rule. With the placeholder ahead of `"$WT"`, its `<` and its
+`>` are redirections performed left to right, so the `>` is reached only
+where the reader's own directory already holds the name `branch`: there
+the `<` succeeds, the line runs, and the `>` takes `"$WT"` as its
+target — a path with no directory at it is the file it creates.
+Ordinarily nothing holds that name, so the `<` fails first (`no such
+file or directory: branch`) and the line ends before the `>` opens
+anything.
 
-No line in the block writes. The `&&` that used to carry `uv sync` is
-no guard: with `WT` unset, `cd "$WT"` is `cd ""`, which `zsh` and the
-`bash` 3.2 macOS ships answer 0, where `bash` 5 refuses it. So the reach
-is the reader's shell rather than every reader's, and where the chain
-does proceed a sync line here runs in the reader's own directory, which
-for a reader of this file is the primary checkout.
+The push names the worktree with `git -C "$WT"` because a `cd` binds the
+shell that runs it: a session that runs each line as its own command
+starts the next one in the directory it began in, the primary checkout,
+so a push after a `cd` offers that checkout's `HEAD` instead of the
+worktree's. `env -C <dir>` is the same binding for a command that takes
+no `-C` of its own. Neither binding rescues the assignment above it: a
+session that loses the `cd` loses `WT` with it, and `git -C ""` is
+documented to leave the working directory unchanged, so that push lands
+the same way, exit 0 and no diagnostic. What the `-C` buys is a path
+that can be written out in full; write it out.
 
 Removing the worktree is part of finishing, and it stands in a block of
 its own: the block above ends in a placeholder, and a shell that
 discards that line as a parse error reads the next as a fresh command —
 which, in one block, is this line against whatever `$WT` already held.
 Standing alone it is a second fence, so `${WT:?}` is what it writes:
-with no `$WT` set the expansion fails and the removal does not run.
+with `$WT` unset or empty the expansion fails and the removal does not
+run. Those are the only cases it catches — a `$WT` an earlier session or
+command left holding a path expands, and the removal runs against
+whatever worktree that path names.
 
 ```shell
 git worktree remove --force "${WT:?}"
 ```
 
-The venv is the whole of the cost, and it buys the thing that matters: a
-commit cannot contain work that was never in it. Expect `origin/main` to
-move while you work, so `git fetch && git rebase origin/main` before
-pushing, resolving in favour of *both* sides (their change and yours,
-both CHANGELOG.md bullets).
+What the fence says about the create, the push and the removal converged
+in `btclib-org/.github`'s `CLAUDE.md` at `20ad654`, which is what a
+later reader compares it against rather than an issue's quotation of it.
+
+A worktree is its own project root, so `uv run` creates and syncs a
+`.venv` inside it rather than sharing the checkout's. The venv is the
+whole of the cost, and it buys the thing that matters: a commit cannot
+contain work that was never in it. Expect `origin/main` to move while
+you work, so `git fetch && git rebase origin/main` before pushing,
+resolving in favour of *both* sides (their change and yours, both
+CHANGELOG.md bullets).
 
 **Never `git stash` in a worktree either: `refs/stash` is shared.** A
 worktree isolates files, not refs. The stash is a single ref in the
