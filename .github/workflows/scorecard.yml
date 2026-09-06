@@ -33,7 +33,7 @@ on:
     # scheduled runs; this covers what push cannot -- a week with none.
     - cron: "4 5 * * 0"
 
-# least privilege for the GITHUB_TOKEN at the workflow level, with one
+# least privilege for the GITHUB_TOKEN at the workflow level, with
 # elevation on the job below: the analysis reads the tree, requests a
 # transparency-log entry for its own result and files that result as
 # code-scanning alerts, and pushes nothing back to the tree.

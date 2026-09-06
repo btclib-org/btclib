@@ -522,8 +522,8 @@ asking.
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-needing more must declare it. Most of those declarations are in
-`release.yml`: `contents: write` on `github-release`, `id-token: write` on
+needing more must declare it. The largest group of those declarations is
+in `release.yml`: `contents: write` on `github-release`, `id-token: write` on
 `publish-pypi` and `publish-testpypi`, and `contents: read` with
 `pull-requests: read` on `test` — that last one there because `test`
 calls `test.yml`, and a caller's `permissions:` block replaces the
