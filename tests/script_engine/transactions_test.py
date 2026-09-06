@@ -218,7 +218,7 @@ def witness_v0_vectors() -> list[Any]:
         # that brings one, and a synthetic vector written to cover it
         # would test the vendored data, not btclib
         if len(x[0]) != len(tx.vin):
-            continue  # pragma: no cover
+            continue  # pragma: no cover -- today's tx_valid.json has no mismatched-prevouts vector
         params.append(param)
     return params
 
@@ -246,7 +246,9 @@ def test_verify_transaction_does_not_touch_witness_v0(vector: list[Any]) -> None
         # NONE is not a member of the enum, hence the first test: it is
         # how Core spells an empty flag field, not a rule to switch off
         if f in ScriptFlag.__members__ and ScriptFlag[f] in flags:
-            flags &= ~ScriptFlag[f]  # pragma: no cover
+            flags &= ~ScriptFlag[
+                f
+            ]  # pragma: no cover -- today's vectors never carry a flag ALL_FLAGS enforces
 
     prevouts, check_amounts = prevouts_of(vector)
 

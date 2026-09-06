@@ -765,9 +765,9 @@ precision = 2
 # library that is installed, a guard the shipped data cannot trip --
 # no longer disappears into a rounding step. It is covered by patching
 # what stands in the way, which is what hashes_test and electrum_test
-# already do and say, or it carries a `pragma: no cover` with the reason
-# beside it, as borromean, bms and musig2 do for a branch arithmetic
-# rules out. Neither of those is a build left red.
+# already do and say, or it carries a `pragma: no cover --` whose reason
+# names the case on that same line, as borromean, dleq and musig2 do for
+# a branch arithmetic rules out. Neither of those is a build left red.
 # Measured on one interpreter, 3.14, and that is still enough at 100:
 # btclib has no sys.version_info and no sys.platform branch, so every
 # job walks the same lines and a tree at 100.00% there is at 100.00%

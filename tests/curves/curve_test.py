@@ -1011,9 +1011,9 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def refuse(*_: object, **__: object) -> bytes:
         # a green suite is one where this never runs: the pragma is the
-        # same one borromean and bms carry, for a line the arithmetic --
+        # same one borromean and dleq carry, for a line the arithmetic --
         # here the dispatch above it -- rules out
-        raise AssertionError(  # pragma: no cover
+        raise AssertionError(  # pragma: no cover -- cleared _libsecp256k1_available keeps this uncalled
             "the libsecp256k1 dispatch is switched off"
         )
 
@@ -1056,7 +1056,7 @@ def no_bindings_anywhere(monkeypatch: pytest.MonkeyPatch) -> None:
         def asked(*_args: object, **_kwargs: object) -> Any:
             # a green suite is one where this never runs, the same pragma
             # no_bindings above carries for a call the dispatch rules out
-            raise AssertionError(  # pragma: no cover
+            raise AssertionError(  # pragma: no cover -- cleared _libsecp256k1_available keeps this uncalled
                 f"the Python arm reached libsecp256k1: {what}"
             )
 

@@ -515,8 +515,10 @@ def sign(
             # low-cardinality curve makes it a one-in-n *accident* rather
             # than something a chosen message can arrange
             if not 0 < e[i][j] < ec.n:
-                err_msg = "implausible signature failure"  # pragma: no cover
-                raise BorromeanRingError(err_msg, i, j)  # pragma: no cover
+                err_msg = "implausible signature failure"  # pragma: no cover -- e is zero only by a one-in-n accident
+                raise BorromeanRingError(
+                    err_msg, i, j
+                )  # pragma: no cover -- e is zero only by a one-in-n accident
         # reduced mod n, like every forged value above: unreduced, this
         # is about twice the bit length of the others -- k and
         # q_ints[i] * e[i][j_star] are each near n, so their sum is

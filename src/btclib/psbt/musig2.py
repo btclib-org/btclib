@@ -446,7 +446,9 @@ def partial_sign(
         # the context is the one the signature was just made against.
         # It stays because what it costs is one verification against a
         # partial signature that no other signer can be told to ignore
-        raise BTClibValueError("invalid musig2 partial signature")  # pragma: no cover
+        raise BTClibValueError(
+            "invalid musig2 partial signature"
+        )  # pragma: no cover -- sign() and verify() here share one session.context
     psbt_in.musig2_partial_sigs[key_data] = psig
     return psig
 

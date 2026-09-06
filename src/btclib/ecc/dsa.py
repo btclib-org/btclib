@@ -771,7 +771,9 @@ def _libsecp256k1_sign_(
             except BTClibValueError:
                 raise BTClibValueError("not a public key") from e
         raise BTClibValueError(str(e)) from e
-    except RuntimeError as e:  # pragma: no cover
+    except (
+        RuntimeError
+    ) as e:  # pragma: no cover -- libsecp256k1_dsa.sign's own RuntimeError, no argument
         # unreachable from an argument, as the Python arm's own is: what
         # it reports is the computation having gone wrong
         raise BTClibRuntimeError(str(e)) from e
@@ -1251,7 +1253,9 @@ def _delegated_sign_(
             verify=verify,
             pubkey=pubkey_sec if verify else None,
         )
-    except RuntimeError as e:  # pragma: no cover
+    except (
+        RuntimeError
+    ) as e:  # pragma: no cover -- libsecp256k1_dsa.sign's own RuntimeError, no argument
         # unreachable from an argument, as `_libsecp256k1_sign_`'s own is:
         # what it reports is the computation having gone wrong
         raise BTClibRuntimeError(str(e)) from e

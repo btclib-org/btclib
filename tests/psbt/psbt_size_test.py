@@ -90,7 +90,7 @@ def pushes(script: bytes) -> list[bytes] | None:
             # and nothing else. The guard is what keeps the answer None
             # rather than a misreading the day a corpus grows a spend
             # whose script_sig executes something
-            return None  # pragma: no cover
+            return None  # pragma: no cover -- the corpus's script_sigs are all pushes
     return out
 
 
@@ -124,7 +124,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
     stack = list(tx_in.script_witness.stack)
     script_sig_pushes = pushes(script_sig) if script_sig else []
     if script_sig_pushes is None or (script_sig and not script_sig_pushes):
-        return None  # pragma: no cover
+        return None  # pragma: no cover -- pushes() is never None or empty here
     redeem_script = script_sig_pushes[-1] if script_sig_pushes else b""
 
     if stack:
@@ -138,13 +138,13 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
             # the witness shapes below are the ones the corpus holds; a
             # key path taproot spend is what would reach this, and the
             # blocks predate it
-            return None  # pragma: no cover
+            return None  # pragma: no cover -- a key-path taproot spend, absent from this corpus
         # the script_sig of a segwit input is empty, or the push of the
         # program and nothing else, which is what p2sh-wrapping is. One
         # comparison rather than three, the push being what says both
         # that there is a single one and that it is the program
         if script_sig and script_sig != serialize([program]):
-            return None  # pragma: no cover
+            return None  # pragma: no cover -- a p2sh-wrapped script_sig is definitionally just that push
         script_pub_key = ScriptPubKey.p2sh(program).script if script_sig else program
         psbt_in = PsbtIn(
             witness_utxo=TxOut(1000, script_pub_key, check_validity=False),

@@ -142,7 +142,9 @@ def test_verify_answers_false_for_what_cannot_be_parsed(
     So the contract is asserted here, and against both arms rather than
     the one this installation happens to have.
     """
-    if delegated and not curve._libsecp256k1_available:  # pragma: no cover
+    if (
+        delegated and not curve._libsecp256k1_available
+    ):  # pragma: no cover -- pytestmark skips one job, the flag guards the other
         # the id would say `bindings` and the run would be the Python arm:
         # both answer False here, so nothing would go red and half the
         # parametrization would check the same thing twice. Skipped rather

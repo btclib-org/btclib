@@ -116,7 +116,7 @@ used to teach and to prototype as much as to build:
     measured rather than assumed: the point-multiplication side has
     been regular since #254, and `sign`'s own line, `s = (k_1_ +
     values.b * k_2_ + values.e * a * d) % secp256k1.n`
-    (`src/btclib/ecc/musig2.py:838`), spreads 1.016x over uniform scalars
+    (`src/btclib/ecc/musig2.py:840`), spreads 1.016x over uniform scalars
     in `[1, n-1]` -- the magnitude leak that remains shows only for
     scalars with zero high bits, keys already lost for other reasons.
     The gain left is narrower than that figure suggests: delegating
@@ -154,7 +154,7 @@ used to teach and to prototype as much as to build:
     a public signature and buy nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
-    (`src/btclib/ecc/ellswift.py:363`) is the one of them that returns
+    (`src/btclib/ecc/ellswift.py:365`) is the one of them that returns
     octets rather than an `int`, so a caller-owned buffer there would
     hold what it wiped: taking it means growing `xdh`'s public
     signature with `into=` and owning the contract that comes with
@@ -165,7 +165,7 @@ used to teach and to prototype as much as to build:
     `dsa.Signer.__init__` crosses the same boundary the other way,
     once, at construction: the plain `int` `scalar_from_prv_key` already
     produced becomes a transient `bytes` via
-    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1350`) on the
+    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1354`) on the
     way into the owned buffer `wipe` overwrites afterwards. That
     `bytes` is dropped rather than erased, same as the `int` it
     replaces — one call rather than the buffer's whole lifetime, which

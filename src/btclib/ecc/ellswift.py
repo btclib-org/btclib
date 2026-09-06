@@ -168,8 +168,10 @@ def _xswiftec_var(u: int, t: int, ec: Curve) -> int:
     # the map is total -- the SwiftEC paper's result is that one of the
     # three candidates is always an x-coordinate, and BIP324's reference
     # implementation writes this line as `assert False`
-    err_msg = "no x-coordinate for the given field elements"  # pragma: no cover
-    raise BTClibRuntimeError(err_msg)  # pragma: no cover
+    err_msg = "no x-coordinate for the given field elements"  # pragma: no cover -- one of the three candidates is always an x-coordinate
+    raise BTClibRuntimeError(
+        err_msg
+    )  # pragma: no cover -- one of the three candidates is always an x-coordinate
 
 
 def _xswiftec_inv_var(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: PLR0911
