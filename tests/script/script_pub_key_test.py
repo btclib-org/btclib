@@ -14,7 +14,7 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.alias import ScriptList
 from btclib.curves import bytes_from_point, mult
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script import (
     Script,
@@ -65,10 +65,41 @@ def test_eq() -> None:
     assert script_pub_key != Script(script_pub_key.script)
 
 
-def test_unknown_network() -> None:
-    """Refuse an unknown network name at construction."""
-    with pytest.raises(BTClibValueError, match="unknown network: "):
+def test_a_network_name_is_taken_as_the_rest_of_the_library_takes_one() -> None:
+    """`ScriptPubKey` normalizes the name it is given, and refuses the rest.
+
+    `__init__` coerces through `network._normalized_network_name` and
+    `assert_valid` refuses through `network._validated_network_name`, so
+    the spellings issue #216 decided to keep reach a script, and
+    `ScriptPubKey.network` is the name `network_from_name` answers to.
+    """
+    assert ScriptPubKey(b"", " TestNet4 ").network == "testnet4"
+    with pytest.raises(BTClibValueError, match="unknown network: 'no_network'"):
         ScriptPubKey(b"", "no_network")
+    # a name that is not a string is the type rule, which RELEASE_NOTES.md
+    # tells a caller to act on
+    with pytest.raises(BTClibTypeError, match="not a network name"):
+        ScriptPubKey(b"", [])  # type: ignore[arg-type]
+
+
+def test_the_coercion_runs_where_the_refusal_does_not() -> None:
+    """`check_validity=False` still settles the spelling of the name.
+
+    The two halves are split because they answer to different flags: the
+    refusal is what `check_validity` switches off, and the field is read
+    as it stands -- `TxOut.to_dict` reports it verbatim -- whether or not
+    a check has run. Deferring the refusal gets the answer the
+    constructor would have given, which is what `TxOut.assert_valid` asks
+    of it.
+    """
+    script_pub_key = ScriptPubKey(b"", " TestNet4 ", check_validity=False)
+    assert script_pub_key.network == "testnet4"
+    script_pub_key.assert_valid()
+
+    unchecked = ScriptPubKey(b"", "no_network", check_validity=False)
+    assert unchecked.network == "no_network"
+    with pytest.raises(BTClibValueError, match="unknown network: 'no_network'"):
+        unchecked.assert_valid()
 
 
 def test_nulldata() -> None:
@@ -791,7 +822,7 @@ def test_script_pub_key_construction_parses_nothing() -> None:
         script_module.parse = real_parse
 
     # what is left of the check, and the network half of it
-    with pytest.raises(BTClibValueError, match="unknown network: mainet"):
+    with pytest.raises(BTClibValueError, match="unknown network: 'mainet'"):
         ScriptPubKey(script, "mainet")
 
 

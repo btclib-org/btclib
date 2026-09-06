@@ -1238,6 +1238,50 @@ file of the test tree, and no caller acts on it.
   version numbers of SEC 2 itself. A curve added to a shipped json file
   moves none of them.
 
+### `ScriptPubKey` takes a network name as the rest of the library does
+
+- **`ScriptPubKey.__init__` coerces its `network` through
+  `network._normalized_network_name`, and `ScriptPubKey.assert_valid`
+  refuses through `network._validated_network_name`** (closes #1662). A
+  script accepts the spellings issue #216 decided to keep — `" MainNet "`
+  resolves to `mainnet` — where `assert_valid` checked membership of
+  `NETWORKS` itself and refused them. It is the last site of the family
+  #1631 answered in `btclib.hwi` and #1641 in `Fetcher` and `Wallet`:
+  `git grep -n 'not in NETWORKS' -- src` answers `network.py`, the
+  converter, alone.
+- **`ScriptPubKey` is a frozen dataclass**, so `__init__` sets `network`
+  through `object.__setattr__` and `assert_valid` writes nothing at all.
+  That is what splits the pair between them: the refusal is what
+  `check_validity=False` switches off, and the coercion is not a check,
+  so a name settles its spelling whether or not anything validates it —
+  `TxOut.to_dict` reports the field verbatim. Deferring the refusal gets
+  the answer the constructor would have given, which is what
+  `TxOut.assert_valid` asks of the pair.
+- **Refusing in `__init__` and normalizing in `assert_valid` are the two
+  rejected alternatives.** The first takes away what
+  `tests/check_validity_test.py` states — that the flag still switches
+  validation off — and with it the spelling
+  `ScriptPubKey(script, "notanetwork", check_validity=False)` that
+  `tests/tx/tx_out_test.py` and `tests/descriptors/descriptors_test.py`
+  build their deferred refusal from. The second writes a frozen field
+  during a validity check, and not only on the object being validated:
+  `TxOut.__init__` and `sig_hash._assert_valid_prevouts` call
+  `assert_valid()` on a `ScriptPubKey` their caller still holds.
+- **A `network` of a type no conversion accepts is a `BTClibTypeError`**,
+  which is a `TypeError` and not a `ValueError`;
+  [RELEASE_NOTES.md](./RELEASE_NOTES.md) has what a caller catching
+  `BTClibValueError` around a `ScriptPubKey` does about it. An unhashable
+  one was hashed as a dict key by the membership test and left as a
+  builtin `TypeError`, which `btclib.exceptions` does not declare.
+- **`key._normalized` becomes `network._normalized_network_name`**, in
+  the module that states the tolerance rule and beside the
+  `_validated_network_name` that applies it. `key.PubKeyData`,
+  `key.PrvKeyData` and `ScriptPubKey` are the frozen classes that reach
+  for it, and not for one reason: the two in `key.py` compare and hash
+  the field itself, where `ScriptPubKey` compares and hashes the network
+  type, which resolves either spelling — there the coercion settles the
+  field rather than the comparison.
+
 ## v2026.9.3
 
 ### Repository

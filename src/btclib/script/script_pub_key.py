@@ -26,7 +26,11 @@ from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTr
 from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.network import NETWORKS, network_type_from_network
+from btclib.network import (
+    _normalized_network_name,
+    _validated_network_name,
+    network_type_from_network,
+)
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
@@ -610,7 +614,16 @@ class ScriptPubKey(Script):
         *,
         check_validity: bool = True,
     ) -> None:
-        object.__setattr__(self, "network", network)
+        # normalized here and refused in assert_valid below, which is the
+        # split `key.PubKeyData` takes for the same field:
+        # `_normalized_network_name` refuses nothing, so
+        # `check_validity=False` still builds the invalid object a caller
+        # means to exercise, and asking `assert_valid()` afterwards gets
+        # the answer the constructor would have given. The coercion is not
+        # deferred with the refusal, because it is not a check: the field
+        # is read as it stands -- `TxOut.to_dict` reports it verbatim --
+        # so its spelling is settled even where no check runs
+        object.__setattr__(self, "network", _normalized_network_name(network))
         # network first, then super(): Script.__init__ calls
         # self.assert_valid(), which dispatches to the override below and
         # so needs the field set. That call is also the whole validation,
@@ -621,10 +634,16 @@ class ScriptPubKey(Script):
 
     @override
     def assert_valid(self) -> None:
-        """Run Script's checks, then refuse a network name not in NETWORKS."""
+        """Run Script's checks, then refuse a name no network answers to."""
         super().assert_valid()
-        if self.network not in NETWORKS:
-            raise BTClibValueError(f"unknown network: {self.network}")
+        # `_validated_network_name` and not a `NETWORKS` membership test:
+        # membership hashes its operand, which leaves a name of an
+        # unhashable type a builtin `TypeError` that `btclib.exceptions`
+        # does not declare, where this raises `BTClibTypeError`. It also
+        # quotes the name it refuses, beside the names there are. Its
+        # return value is not read: `__init__` above applies the same
+        # normalization to the field
+        _validated_network_name(self.network)
 
     @classmethod
     def from_address(cls, addr: String, *, check_validity: bool = True) -> ScriptPubKey:
