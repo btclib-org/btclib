@@ -94,15 +94,19 @@ outstanding half of this convention rather than an exception to it.
 
 ## Reading an entry
 
-Each entry gives the upstream repository, the path in it, the commit the
-citation is pinned to, the git blob SHA-1 that was compared, and a
-verdict. The verdicts used:
+Where an entry pins to a commit, it gives the upstream repository, the
+path in it, and the commit. A `blob` line, where the entry carries one,
+gives the git blob SHA-1 of what that entry pins; what it pins, and
+whether it was compared byte for byte, is the entry's own to say. Most
+entries close on a verdict; one with nothing upstream to compare
+against says so in prose instead. The verdicts used:
 
 - **identical** — our file and the upstream blob are the same bytes.
 - **reformatted** — same parsed JSON value, different whitespace.
-- **transcribed** — the upstream is prose (a BIP, an RFC), so there is no
-  file to compare; the check is that every value in our copy appears
-  verbatim in the pinned text.
+- **transcribed** — there is no file compared byte for byte. Over prose
+  (a BIP, an RFC, a BOLT) the check is that every value in our copy
+  appears verbatim in the pinned text; over a source file the check is
+  the entry's own to state.
 - **composed locally**, **recorded** — there is nothing upstream to
   compare, so the entry says what stands in for one. *composed locally*
   is a case this tree wrote, naming the third implementation that
@@ -2461,10 +2465,11 @@ rather than a refreshed one.
 - **`tests/script/_data/script_assets_test.json`** has a commit, but
   in a repository that rewrites its history. The blob SHA-1 is the pin
   that will still resolve next year.
-- **The transcribed files** are pinned to a prose revision, not to a
-  blob, so "identical" is not a claim that can be made about them. What
-  was checked instead is stated in each entry: every value present,
-  verbatim, in the pinned text.
+- **The transcribed files** are pinned to a prose revision, or, where the
+  upstream is a source file rather than a document, to that file's blob;
+  neither makes "identical" a claim that can be made about them. What was
+  checked is stated in each entry: matching every value verbatim against
+  the pinned text, or a check the entry states on its own.
 - **`tests/psbt/_data/btclib_test_vectors.json`** pins the prose revision
   its raw material came from, which is not the same as having an
   upstream: the cases are btclib's, so the pin says where the psbts were
@@ -2516,14 +2521,16 @@ Against a pinned upstream blob:
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
   `test_JP_BIP39.json`.
 
-No upstream blob exists for the rest:
+Not checked byte for byte against one:
 
-- transcribed from a pinned prose revision, every value matched:
+- transcribed, every value matched either in the pinned text or, for a
+  source file, by the check the entry itself states:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip370_test_vectors.json`,
   `bip371_test_vectors.json`, `bip373_test_vectors.json`,
   `bip67_test_vectors.json`, `bip85_test_vectors.json`,
-  `descriptor_checksums.json`.
+  `chacha20_vectors.json`, `muhash_vectors.json`,
+  `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
@@ -2534,10 +2541,12 @@ No upstream blob exists for the rest:
   chain data two of the entries above already hold.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt`,
-  `gettxoutsetinfo_regtest.json` and `btclib_test_vectors.json`
-  (btclib's own). The last is the only one composed rather than
-  recorded: its cases were built here, out of psbts BIP174 prints as
-  prose.
+  `gettxoutsetinfo_regtest.json`, `descriptor_checksums.json` and
+  `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`
+  and `btclib_test_vectors.json` are composed rather than recorded:
+  the former's checksums come from a third implementation run over
+  Core's own descriptors, and the latter's cases were built here, out of
+  psbts BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 
