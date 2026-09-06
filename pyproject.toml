@@ -1260,9 +1260,10 @@ max-complexity = 10
 [tool.ruff.lint.pycodestyle]
 # 80 columns on the prose, where the code keeps the formatter's 88. Not a
 # compromise between two numbers: ruff-format reflows code and never a
-# comment or a docstring, so 88 is what it can enforce and this is the
-# rest -- the half of a file that carries the reasoning, held to the width
-# every markdown file here is already held to by MD013.
+# comment or a docstring, so 88 is what it can enforce and this holds
+# part of what it leaves -- a docstring and a comment on a line of its
+# own, where a file carries its reasoning -- to the width every markdown
+# file here is already held to by MD013.
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the
 # switch. Which over-width lines the rule passes over is section 9 of
