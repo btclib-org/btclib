@@ -232,21 +232,40 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
 }
 
 
+# A class-level decoder is one of these three: `parse` for octets, `b64decode`
+# and `b58decode` for the two text encodings a class reads on its own.
+# `serialization_boundary_test.py`'s `test_every_decoder_is_covered` draws the
+# same three names for the same reason -- no class in the library has ever
+# needed a fourth -- so widening this tuple is what a class gaining one would
+# ask for, in both files at once.
+_CLASS_DECODER_METHODS = ("parse", "b64decode", "b58decode")
+
+# And the module-function side of the same family: a bare function takes the
+# same three roles under different names, `descriptors.checksum` being the one
+# member with no class to read a `b64decode` or a `b58decode` off. What this
+# tuple does not reach is a decoder named otherwise -- `point_from_octets` and
+# `b58.h160_from_address` are two such, both driven by the dicts above and
+# found by neither this walk nor any tuple of literal names, since nothing
+# about their name says they decode. Their coverage rests on the dicts, by
+# hand, not on this walk
+_MODULE_DECODER_NAMES = ("parse", "decode", "checksum")
+
+
 def _classes_driven_here() -> set[str]:
-    """Every class the two dicts above drive through its own `parse`.
+    """Every class the two dicts above drive, through which decoder.
 
     A bound classmethod carries in `__self__` the class it was read off
     rather than the one that defines the method, which is what the entry
     names: `GetCFilters` inherits `_FilterRangeRequest.parse`, and
     `__qualname__` answers with a private base the walk below never
-    returns. A `b58decode` or a `b64decode` entry is not counted, its
-    class being driven here through a decoder and not through `parse`.
+    returns. The method name is part of the key, since a class offering
+    two of the three would otherwise collide.
     """
     driven = set()
     for entry_point in (*BINARY_PARSERS.values(), *TEXT_PARSERS.values()):
         cls = getattr(entry_point, "__self__", None)
-        if isinstance(cls, type) and entry_point.__name__ == "parse":
-            driven.add(f"{cls.__module__}.{cls.__qualname__}")
+        if isinstance(cls, type) and entry_point.__name__ in _CLASS_DECODER_METHODS:
+            driven.add(f"{cls.__module__}.{cls.__qualname__}.{entry_point.__name__}")
     return driven
 
 
@@ -259,17 +278,21 @@ def _functions_driven_here() -> set[str]:
     }
 
 
-def test_every_class_that_parses_is_driven_here() -> None:
+def test_every_class_that_decodes_is_driven_here() -> None:
     """The inventory is a promise only if omission is what fails.
 
     A class added to the library and given no line above is held to
     nothing here: the tests keep passing on the entry points they were
-    given, and the new parser answers hostile octets however it likes.
+    given, and the new decoder answers hostile input however it likes.
     The walk is `tests/__init__.py`'s, `parse_contract_test.py` and
     `serialization_boundary_test.py` holding these same classes to their
     own contracts through it.
     """
-    found = public_classes_with("parse")
+    found = {
+        f"{name}.{method}"
+        for method in _CLASS_DECODER_METHODS
+        for name in public_classes_with(method)
+    }
     # a walk returning nothing is a defect in the walk and not in the
     # inventory, and the equality alone answers it with a mismatch of
     # every name: this is what says which of the two a red run is
@@ -277,19 +300,22 @@ def test_every_class_that_parses_is_driven_here() -> None:
     assert found == _classes_driven_here()
 
 
-def test_every_module_function_that_parses_is_driven_here() -> None:
+def test_every_module_function_that_decodes_is_driven_here() -> None:
     """And the same promise where the entry point is a module function.
 
-    The walk above finds classes, so `var_int.parse` and `bech32.decode`
-    would be invisible to it. What is asserted is containment and not
-    equality: the dicts drive entry points these two names do not reach
-    -- `psbt_utils.deserialize_map`, `point_from_octets` -- and a family
-    wide enough to find those is a census this file does not keep.
+    The walk above finds classes, so a module-level decoder needs its
+    own names: `parse`, `decode` and `checksum` are what a bare function
+    carries in place of a class's `parse`, `b64decode` and `b58decode`.
+    What is asserted is containment and not equality: the dicts already
+    drive entry points named otherwise, and a tuple of literal names wide
+    enough to find every one of those is the exclusion list this file
+    otherwise avoids -- their coverage rests on the dicts above, by
+    hand, not on this walk.
     """
     found = set()
     for module_name in module_names():
         module = importlib.import_module(module_name)
-        for name in ("parse", "decode"):
+        for name in _MODULE_DECODER_NAMES:
             function = getattr(module, name, None)
             if not callable(function) or isinstance(function, type):
                 continue

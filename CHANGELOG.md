@@ -1689,6 +1689,21 @@ file of the test tree, and no caller acts on it.
   its own, and `max-doc-length` holds part of what the formatter leaves
   rather than the whole of it.
 
+### `tests/fuzz_test.py`'s walks widen past `parse` and `decode`
+
+- **`test_every_class_that_decodes_is_driven_here` walks `parse`,
+  `b64decode` and `b58decode` together, and
+  `test_every_module_function_that_decodes_is_driven_here` walks
+  `parse`, `decode` and `checksum`** (closes #1646): a class gaining a
+  `b64decode` or a `b58decode`, or a module gaining a `checksum`, used
+  to join `TEXT_PARSERS` only where somebody remembered the line, which
+  is the mechanism issue #1629's own walk left standing for every family
+  beside `parse` and `decode`. The module-function walk stays a
+  containment check rather than an equality one: `point_from_octets`
+  and `b58.h160_from_address` are driven by the dicts under names no
+  literal tuple reaches without turning into the exclusion list this
+  file otherwise avoids, and its docstring says so.
+
 ## v2026.9.3
 
 ### Repository
