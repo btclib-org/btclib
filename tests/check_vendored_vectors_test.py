@@ -183,6 +183,29 @@ def test_a_pin_with_no_behind_line_is_skipped(checker: ModuleType) -> None:
     assert skipped == ["stale (no behind line at all)"]
 
 
+def test_a_pin_with_an_empty_behind_line_is_skipped(checker: ModuleType) -> None:
+    """A `behind` line present but blank is a skip of its own, not a gap.
+
+    `fields.get("behind")` answers `""` here, not `None`, so
+    `"".startswith("0")` is False and the entry would otherwise fall
+    into the same skip as a `behind` a human has already read and left
+    at something other than 0 -- which nobody has done by leaving the
+    value blank.
+    """
+    text = readme(
+        entry(
+            "stale",
+            repo="btclib-org/btclib",
+            path="tests/f.json",
+            commit="deadbeef  2026-01-01",
+            behind="",
+        )
+    )
+    entries, skipped = checker._entries_at_tip(text)
+    assert entries == []
+    assert skipped == ["stale (behind line present but empty)"]
+
+
 @pytest.mark.parametrize(
     "fields",
     [

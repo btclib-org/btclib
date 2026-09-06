@@ -1730,6 +1730,17 @@ file of the test tree, and no caller acts on it.
   other here. Both docstrings keep the argument the figure was
   standing in for and state it without the figure.
 
+### `check_vendored_vectors.py` names a `behind` line present but empty
+
+- **`_entries_at_tip` skips a `behind` line that is present but carries
+  no value of its own as `(behind line present but empty)`, not
+  `(already documented as behind)`** (closes #1799): `.get("behind")`
+  answers `""` for such a line, and `"".startswith("0")` is False, so
+  it fell into the same skip as a `behind` a human has already read
+  and left at something other than 0. Nobody has "already documented"
+  anything by leaving the value blank -- the shape is closer to a
+  broken block than to a decision, and is now named apart from both.
+
 ## v2026.9.3
 
 ### Repository

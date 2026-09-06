@@ -46,9 +46,11 @@ this project composed itself), a path carrying a `<name>` placeholder
 the "commits touching a path" call above cannot be asked about in one
 request; a heading with no fenced block under it at all, which is
 either a group heading the pins below it supersede or a pin whose
-block an edit broke; and a block carrying no `behind` line at all,
-which is neither a documented gap nor a tip a human confirmed and is
-named on its own rather than folded into either.
+block an edit broke; a block carrying no `behind` line at all, which
+is neither a documented gap nor a tip a human confirmed and is named
+on its own rather than folded into either; and a `behind` line
+present but empty, closer to that same broken block than to a
+decision anybody made, and named apart from both.
 
 No current entry uses the placeholder shape: BIP327's eight files and
 BIP324's two were themselves written that way once, each pin citing
@@ -128,9 +130,10 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     A heading is skippable for several reasons: no fenced block of its
     own, no repo/path/commit triple, a path carrying a `<name>`
     placeholder, a `behind` already other than 0 -- a gap a human
-    already decided not to close -- or no `behind` line at all, which
-    is distinct from that gap and is named as its own reason rather
-    than folded into it.
+    already decided not to close -- no `behind` line at all, which is
+    distinct from that gap and is named as its own reason rather than
+    folded into it, or a `behind` line present but empty, closer to a
+    broken block than to either decision and named apart from both.
 
     The first is the one the loop below cannot see, walking blocks as it
     does: a heading owning none never enters it. A group heading a finer
@@ -171,6 +174,9 @@ def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
         behind = fields.get("behind")
         if behind is None:
             skipped.append(f"{heading} (no behind line at all)")
+            continue
+        if not behind.strip():
+            skipped.append(f"{heading} (behind line present but empty)")
             continue
         if not behind.startswith("0"):
             skipped.append(f"{heading} (already documented as behind)")
