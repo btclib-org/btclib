@@ -2106,6 +2106,9 @@ block_481824.bin and block_481824_complete.bin
 
 Pulled 2020-06-08, except `block_200000.bin`, 2020-06-09.
 
+Verdict: **recorded**, except `block_481824.bin`, which is derived rather
+than returned by any call (below).
+
 `bitcoin-cli getblock <hash> 0` returns the first three and
 `block_481824_complete.bin`. It does not return `block_481824.bin`: that
 is the same block serialized *without* witness data, as a pre-segwit node
@@ -2122,9 +2125,10 @@ size   4,740 bytes, vsize 1,471, 8 inputs, 1 output
 pulled 2020-12-02
 ```
 
-The file is named after the txid, and `Tx.parse` recomputes it, so a
-corrupted copy announces itself. `bitcoin-cli getrawtransaction <txid>`
-returns these bytes, given a node with the transaction index.
+Verdict: **recorded**. The file is named after the txid, and `Tx.parse`
+recomputes it, so a corrupted copy announces itself. `bitcoin-cli
+getrawtransaction <txid>` returns these bytes, given a node with the
+transaction index.
 
 ### `tests/script/_data/unspendable_script_pub_keys.json`
 
@@ -2343,7 +2347,8 @@ Pulled 2018-06-11; the pre-2.0 values 2026-08-02.
 
 ### `tests/mnemonic/_data/fakeenglish.txt`
 
-btclib's own, and deliberately broken: `english.txt` with the first word,
+Verdict: **composed locally**. btclib's own, and deliberately broken:
+`english.txt` with the first word,
 `abandon`, deleted — 2047 words, so that `WORDLISTS.load_lang` raises
 "invalid wordlist length". Not vendored, nothing to pin; regenerate it
 from `english.txt` if that ever changes, which it has not since 2014.
@@ -2352,7 +2357,7 @@ Pulled 2018-06-01.
 
 ### `tests/psbt/_data/btclib_test_vectors.json`
 
-**btclib's own, composed rather than copied.** Cases that no BIP
+Verdict: **composed locally**, not vendored. Cases that no BIP
 publishes: each is a psbt btclib must refuse, and what it must say. There
 is no upstream URL to give, because there is no upstream — inventing one
 is the failure mode this entry exists to prevent.
@@ -2542,11 +2547,12 @@ Not checked byte for byte against one:
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt`,
   `gettxoutsetinfo_regtest.json`, `descriptor_checksums.json` and
-  `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`
-  and `btclib_test_vectors.json` are composed rather than recorded:
-  the former's checksums come from a third implementation run over
-  Core's own descriptors, and the latter's cases were built here, out of
-  psbts BIP174 prints as prose.
+  `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`,
+  `fakeenglish.txt` and `btclib_test_vectors.json` are composed rather
+  than recorded: `descriptor_checksums.json`'s checksums come from a
+  third implementation run over Core's own descriptors, `fakeenglish.txt`
+  is `english.txt` with one word deleted, and `btclib_test_vectors.json`'s
+  cases were built here, out of psbts BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 

@@ -929,12 +929,12 @@ same five commands run any of them: `parsers.toml` is the one that
 excludes a family, and it states which and why. `sig_hash.toml` or
 `engine.toml` in place of it is the consensus profile, minutes of cpu
 against hours; the parser profile is the one that finishes fastest. Each
-configuration carries its own arithmetic — `cosmic-ray baseline` reports
-the mutant count and the cpu cost for whichever one is run, rather than a
-figure fixed here that the source can grow past. The report is
-`--surviving-only`, which is the whole of what anybody acts on: a killed
-mutant is the suite doing its job, and printing every one of them buries
-the handful that are not.
+configuration carries its own arithmetic — `cosmic-ray init` enumerates
+the mutant count and `cosmic-ray baseline` reports the cpu cost for
+whichever one is run, rather than a figure fixed here that the source can
+grow past. The report is `--surviving-only`, which is the whole of what
+anybody acts on: a killed mutant is the suite doing its job, and printing
+every one of them buries the handful that are not.
 
 Three things to know before starting one. The session mutates the source
 file in place and restores it afterwards, so nothing else may read the
