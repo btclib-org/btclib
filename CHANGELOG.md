@@ -1141,6 +1141,26 @@ file of the test tree, and no caller acts on it.
   `scorecard.yml`'s `analysis`, and `claude-review.yml`'s `review` and
   `mention`, each with what the second permission is for.
 
+### What the `public-api` job refuses is every griffe finding
+
+- **`.github/workflows/release.yml`'s `public-api` job stops saying it
+  refuses a break with no `RELEASE_NOTES.md` entry** (closes #1754):
+  nothing in the job reads that file, so a break documented at the tag
+  reddens it exactly as an undocumented one does. What the comment says
+  instead is that every finding `griffe check` reports fails the step,
+  so any release with a finding at all leaves a red job behind; that the
+  red carries the surface diff to whoever is writing the notes; and that
+  a red expected on every cycle with breaking changes in it is a red
+  nobody reads as news.
+- **The comment names the finding that is not a change a caller can
+  observe**: griffe compares expressions and does not import, so a
+  constant moved behind a lookup into a table is reported as changed
+  while its value is identical.
+- **The step's `::error::` message asks for the findings to be
+  reconciled with `RELEASE_NOTES.md`'s breaking-changes list**: the
+  words it replaces offered to "say here why the change is not one",
+  and a run's log is not a place to write that in.
+
 ## v2026.9.3
 
 ### Repository
