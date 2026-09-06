@@ -233,14 +233,13 @@ jobs:
             sessions: |
               signatures.toml 90m
           # the pure-Python point arithmetic under the two signing modules
-          # above: 5529 mutants, nearly double their pair's 2980, and the
-          # scope issue #822 asks for -- why it is invisible to the
-          # signatures profile is curve_group.toml's own header. 90
-          # minutes, matching signatures.toml's budget for a scope nearly
-          # double the size, samples the scope rather than finishing it:
-          # the weekly job cuts the session there and reports what it
-          # judged, and triaging that is issue #1745, the same note
-          # curve_group.toml itself makes
+          # above: 5529 mutants, nearly double their pair's 2980; why it
+          # is invisible to the signatures profile is curve_group.toml's
+          # own header. 90 minutes, matching signatures.toml's budget for
+          # a scope nearly double the size, samples the scope rather than
+          # finishing it: the weekly job cuts the session there and
+          # reports what it judged, and triaging that session's own
+          # survivors is curve_group.toml's own header too
           - profile: the pure-Python curve arithmetic
             slug: curves
             ceiling: 100

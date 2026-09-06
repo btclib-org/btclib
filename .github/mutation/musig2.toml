@@ -84,7 +84,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   `Q[1] % 2 == 0` as `<= 0` -- the interned-int and the `% 2` classes.
 # - `apply_tweak`'s `(g * gacc) % n` as `+ n`: the value is reduced again
 #   before use, so it is equivalent here and fragile rather than wrong.
-# - `key_agg`'s `Q[0] == 0` sits under `# pragma: no cover` -- BIP327's
+# - `key_agg`'s `Q[1] == 0` sits under `# pragma: no cover` -- BIP327's
 #   placeholder for an aggregate key at infinity, which no vector
 #   reaches -- so its mutants are unkillable by construction, the way an
 #   annotation's are.

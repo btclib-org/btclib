@@ -1427,6 +1427,32 @@ file of the test tree, and no caller acts on it.
   holds now rather than what btclib used to ship**, dropping the two
   counts the sentence carried along with the past tense.
 
+### `.github/mutation`'s two profile headers stop citing what does not hold
+
+- **`curve_group.toml`'s header now states what two mutation sessions' own
+  survivors are, rather than pointing a reader at issue #822, which closed
+  without anything else taking up the triage it deferred to** (closes #1745).
+  Read against the source rather than counted, the survivors in both sessions'
+  artifacts sort into recurring families: intermediate values reduced mod `p` a
+  second time downstream, where `% p` weakened to `+ p` or `- p` stays
+  congruent to the original and is unkillable by construction; `CurveGroup`'s
+  own constructor checks, `_is_prime`, and its y-symmetry and
+  coordinate-extraction methods -- three of those eight names are already
+  reached by the pair's own `Curve` construction and by `second_generator`, but
+  asserted on by neither, and the other five the pair never reaches at all,
+  where `Curve`'s own tests assert on all eight — closed by adding
+  `tests/curves/curve_test.py` to the profile's own `test-command`; the
+  `fixed`-point memoization sets and the sliding-window table's own length,
+  whose mutants change cost and not the returned point; and
+  `_multiplier_decomposer`'s rounding constant, which
+  `_double_mult_regular_window`'s own digit count absorbs rather than relies on
+  for correctness. `mutation.yml`'s matrix comment, which named the same closed
+  issue for the same scope, now points at `curve_group.toml`'s header instead.
+- **`musig2.toml` names `key_agg`'s BIP327 infinity guard `Q[1] == 0`,
+  not `Q[0] == 0`**: the guard reads `Q`'s y-coordinate, index 1 of a
+  `Point`, and no `Q[0] == 0` comparison exists anywhere in the module
+  (closes #1752).
+
 ## v2026.9.3
 
 ### Repository
