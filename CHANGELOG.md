@@ -1293,6 +1293,18 @@ file of the test tree, and no caller acts on it.
   `ast` walk over `src/btclib` for modules importing `_libsecp256k1_serves`
   by name answers more than the stated count.
 
+### `REPOSITORY.md` and `scorecard.yml` count an elevation the same way
+
+- **`REPOSITORY.md`'s *Token permissions* stops calling `release.yml`'s
+  share of the job-level declarations "most" of them** (closes #1762):
+  it is the largest single group, not a majority, and the sentence now
+  says that instead. `scorecard.yml`'s header comment drops the "one" in
+  front of "elevation on the job below", matching `analysis`'s own
+  `permissions:` block, which holds two — `id-token: write` and
+  `security-events: write`, both argued in the comments beside them —
+  and matching `btclib-node`'s `scorecard.yml`, which already reads this
+  way. Neither file's actual permissions change.
+
 ## v2026.9.3
 
 ### Repository
