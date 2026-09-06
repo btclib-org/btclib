@@ -1524,6 +1524,27 @@ file of the test tree, and no caller acts on it.
   could not shorten would have been a third wrong reason in the same
   place.
 
+### `test_curves_with_n_above_p`'s docstring names its curves, not their count
+
+- **The sentence naming the low-cardinality curves on the `n > p` side
+  now names `ec13_19`, `ec17_23`, `ec19_23` and `ec23_31` instead of
+  stating a count** (closes #1779), matching the sentence above it,
+  which already names its `secp*` curves rather than counting them.
+  Neither count was re-derived by anything, and the names are exactly
+  what the test's own assertion checks.
+
+### `tests/mnemonic`'s prose stops crediting a test with mutating `WORDLISTS`
+
+- **Docstrings in `tests/mnemonic/mnemonic_test.py` and
+  `tests/mnemonic/bip39_test.py` said a sibling test adds a language to
+  the shared `WORDLISTS` singleton, which no test does** (closes #1782):
+  every `.load_lang()` call taking a language the registry does not
+  already carry runs on a private `WordLists()` instance, never on
+  `WORDLISTS` itself. They now say why a private instance is used
+  regardless -- `WORDLISTS` is process-wide and is never reset between
+  tests, so reading it directly would make a test's result depend on
+  what earlier tests had already loaded.
+
 ## v2026.9.3
 
 ### Repository

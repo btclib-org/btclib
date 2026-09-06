@@ -22,9 +22,10 @@ from tests.mnemonic.mnemonic_test import fullwidth
 def candidates(mnemonic: str) -> list[str]:
     """List the languages of the shipped word-lists that hold every word.
 
-    A private WordLists and not the singleton bip39 reads: another test
-    adds a language to that one, so a candidate list taken from it would
-    depend on which test ran first.
+    A private WordLists and not the singleton bip39 reads: that
+    singleton is process-wide and is never reset between tests, so a
+    candidate list taken from it would depend on which tests had already
+    run.
     """
     return WordLists().langs_of_words(mnemonic.split())
 

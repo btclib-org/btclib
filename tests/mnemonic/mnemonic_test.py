@@ -212,9 +212,9 @@ def test_wordlist_2() -> None:
 def test_every_wordlist() -> None:
     """Every BIP39 language, and 2048 unique NFKD words in each.
 
-    A private WordLists rather than the singleton: test_wordlist_2 adds
-    two languages to that one, so a count taken from it would depend on
-    which test ran first.
+    A private WordLists rather than the singleton: the singleton is
+    process-wide and is never reset between tests, so a count taken from
+    it would depend on which tests had already run.
 
     One entry more than the BIP39 languages, because the registry holds
     every word-list btclib ships: "slip39" is a scheme keyed beside them,
@@ -382,9 +382,12 @@ def test_load_lang_is_idempotent_and_reads_once() -> None:
 def test_mnemonic_lang_names_the_shipped_word_lists() -> None:
     """MnemonicLang is what a fresh WordLists knows, and no more.
 
-    A fresh one, not the WORDLISTS singleton the tests above add two
-    languages to: that openness is the reason no lang parameter is typed
-    with the alias (issue #216), and the reason the alias needs a check
-    of its own here rather than one from mypy.
+    A fresh one, not the WORDLISTS singleton: `load_lang` lets any
+    WordLists take a language at runtime, and the singleton is never
+    reset between tests, so a fresh instance is what keeps this check
+    independent of what ran before it. That dynamic loading is the
+    reason no lang parameter is typed with the alias (issue #216), and
+    the reason the alias needs a check of its own here rather than one
+    from mypy.
     """
     assert set(get_args(MnemonicLang)) == set(WordLists().languages)

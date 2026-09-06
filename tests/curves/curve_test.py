@@ -214,8 +214,8 @@ def test_curves_with_n_above_p() -> None:
     and n are within 2*sqrt(p) of each other, so which is the larger is a
     property of the curve and not of the library, and `secp112r1`,
     `secp128r1`, `secp160k1`, `secp160r1`, `secp160r2` and `secp224k1` all
-    have the order above the field prime. Four of the eight
-    low-cardinality curves are on that side too, which is what makes the
+    have the order above the field prime. `ec13_19`, `ec17_23`,
+    `ec19_23` and `ec23_31` are on that side too, which is what makes the
     case testable at all: every (private key, nonce, challenge) triple of a
     curve of order 19 fits in a test.
 
