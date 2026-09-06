@@ -1,10 +1,10 @@
 # The pure-Python point arithmetic, mutated: `curve_group.py`'s generic
 # window/ladder/NAF methods and `curve_group_2.py`'s secp256k1-only GLV
-# endomorphism and interleaved wNAF beside them. Issue #822 is why the
-# scope exists at all: `signatures.toml`'s own header names this pair as
-# invisible to it, because `curve.py`'s dispatch sends a default-curve
-# call to the libsecp256k1 bindings before either module's code ever
-# runs, and no profile other than this one names them.
+# endomorphism and interleaved wNAF beside them. `signatures.toml`'s own
+# header names this pair as invisible to it, because `curve.py`'s
+# dispatch sends a default-curve call to the libsecp256k1 bindings before
+# either module's code ever runs, and no profile other than this one
+# names them.
 #
 # Neither module goes through that dispatch here. Both test files below
 # import and call the underscore-prefixed algorithm functions directly
@@ -21,13 +21,46 @@ module-path = [
     "src/btclib/curves/curve_group_2.py",
 ]
 
-# each file's own dedicated test, and only those: curve_test.py's own
-# subject is curve.py's dispatch, already exercised by a profile of its
-# own question (mutation coverage of the dispatch itself is issue #822's
-# follow-up, not this file's); curve_group_f_test.py's subject is
-# curve_group_f.py, a third, separate module this scope does not name
+# curve_group_test.py and curve_group_2_test.py are each file's own
+# dedicated test. curve_test.py joins them for a different reason than
+# either: `CurveGroup.__init__`'s own parameter checks, `_is_prime`,
+# `p_is_3_mod_4`, and the y-symmetry and coordinate-extraction methods
+# (`y_even_var`, `y_low_var`, `y_quadratic_residue_var`,
+# `x_aff_from_jac_var`, `y_aff_from_jac_var`) are defined in
+# curve_group.py and mutated here. Three of those eight names are
+# already reached by the pair: both files import `btclib.curves`, whose
+# module-level `Curve(...)` calls run the constructor checks and
+# `_is_prime` at import time, `curve_group_test.py` constructs further
+# `Curve`s of its own, and `curve_group_test.py`'s own
+# `second_generator(ec)` calls `y_even_var` -- but nothing in the pair
+# asserts which root `y_even_var` returns or that an invalid parameter
+# is refused, so a mutant that changes only the root `y_even_var`
+# returns, or only which parameters the checks refuse, survives here
+# regardless. A mutant of `_is_prime` or of the constructor checks that
+# instead makes a catalogued curve's own `p` or `n` fail to build is
+# killed at that same import, before either test file collects --
+# checked rather than assumed: `pow(2, x - 1, x)` weakened to
+# `pow(2, x + 1, x)` raises `BTClibValueError("p is not prime")` while
+# `btclib.curves` is being imported, Fermat answering 4 and not 1 for
+# every prime `p` above 4. The other five -- `p_is_3_mod_4`'s own read,
+# `y_low_var`, `y_quadratic_residue_var`, `x_aff_from_jac_var`,
+# `y_aff_from_jac_var` -- the pair never reaches at all. curve_test.py
+# is what exercises all eight for correctness (`test_exceptions`,
+# `test_symmetry`, `test_aff_jac_conversions`), for curve.py's own
+# dispatch and not for this scope. Leaving it out means every mutant of
+# those five survives regardless of correctness, which is most of
+# what the header below reads back. curve.py's dispatch itself stays a
+# different profile's question, mutation coverage of it not being this
+# file's -- adding curve_test.py judges more of *this* module-path's
+# mutants, not more of curve.py's. curve_group_f_test.py is left out
+# still: its subject is curve_group_f.py, a third, separate module this
+# scope does not name.
+# The addition measured 2 s of overhead locally (`pytest -q -n0
+# -p no:randomly`, the pair alone against the three together) against
+# the 90-minute session budget below
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/curves/curve_group_test.py tests/curves/curve_group_2_test.py"""
+  tests/curves/curve_group_test.py tests/curves/curve_group_2_test.py \
+  tests/curves/curve_test.py"""
 
 timeout = 300
 
@@ -39,9 +72,91 @@ excluded-modules = []
 # issue #987, which is what wires this profile into a job at last),
 # nearly double signatures.toml's dsa.py/ssa.py pair at 2980, and the
 # weekly job cuts the session at the budget mutation.yml's matrix gives
-# it. What it judged is in the run's own artifact; reading the survivors
-# back into a header here, the way signatures.toml's header reports its
-# own session, is issue #1745
+# it. What it judged is in the run's own artifact:
+#
+#   gh run list --repo btclib-org/btclib --workflow mutation.yml \
+#     --json databaseId,createdAt,event,conclusion \
+#     --jq '.[] | select(.event == "schedule")'
+#   gh api repos/btclib-org/btclib/actions/runs/<id>/artifacts \
+#     --jq '.artifacts[] | select(.name | test("curves"))'
+#   gh api repos/btclib-org/btclib/actions/artifacts/<artifact-id>/zip \
+#     > run.zip
+#
+# unzips to `curve_group-survivors.txt`, one `cr-report
+# --surviving-only --show-diff` entry per surviving mutant. Several
+# recurring families, each checked against the source rather than
+# assumed, account for much of what both of the last two sessions found:
+#
+# - modular-reduction elision: `X = ... % p` weakened to `... + p` or
+#   `... - p` inside `add_jac`, `add_jac_aff` and `_double_jac_helper`.
+#   `p` is congruent to zero mod itself, so `x + p` and `x - p` are
+#   congruent to `x` mod p for every integer x, and `MV2`, `V2`, `V3`
+#   and `X` each feed only a further expression closed by its own
+#   `% p` -- `X = (W * W - V3 - 2 * MV2) % p` reduces to the same value
+#   whichever representative `MV2` carried. `V` and `W` are not of this
+#   kind in `add_jac` and `add_jac_aff`: their own `if V == 0 and Q[2]
+#   and R[2]:` branch (`R[1]` in the affine one) reads the reduced value
+#   directly, so a representative shifted by `p` can flip which branch
+#   runs and not just an intermediate value -- the low-cardinality
+#   curves take that branch constantly, which is what kills those
+#   mutants rather than this argument. Checked rather than assumed:
+#   applying `MV2 = M * V2 - p` by hand and running the test-command
+#   above, widened, still passes in full.
+# - the family the widened test-command above exists for: `Curve`
+#   inherits `p_is_3_mod_4`, `y_even_var`, `y_low_var`,
+#   `y_quadratic_residue_var`, `x_aff_from_jac_var` and
+#   `y_aff_from_jac_var` from `CurveGroup`. curve_test.py's own fixtures
+#   assert on every one of the six; the pair reaches `y_even_var` too,
+#   through `second_generator` in curve_group_test.py, but asserts
+#   nothing about which root it returns -- the other five the pair
+#   never reaches at all. Checked rather than assumed, four mutants by
+#   hand: `self.p + root`, `-root` and a hardcoded `0` each still pass
+#   the pair; `self.p / root` does not -- the float survives into a
+#   Jacobian coordinate and is caught when `aff_from_jac_batch_var`
+#   calls `number_theory.mod_inv_batch_var`, whose own per-operand
+#   integer check rejects it, not any assertion on what `y_even_var`
+#   returns.
+#   Checked rather than assumed: `self.p_is_3_mod_4 = p ** 4 == 3` in
+#   place of `p % 4 == 3`, and `// self.p` in place of `% self.p` in
+#   `x_aff_from_jac_var`, each now fails `test_symmetry` and
+#   `test_aff_jac_conversions` respectively under the widened command,
+#   where both survived under the pair alone.
+# - memoization only: `_double_mult_w_NAF_var` and
+#   `_multi_mult_w_NAF_var`'s `fixed`/`_fixed_points` membership tests
+#   decide which point gets a precomputed table and at what width, never
+#   the arithmetic result, so a wrong `|`/`&` or a negated `in` there
+#   changes cost and not the returned point -- the same class
+#   `_sliding_window_table`'s own table-length mutants belong to, since
+#   `_mult_sliding_window_var` computes its own indexing offset
+#   independently of that table's length and never reads past it.
+#   Checked rather than assumed: both `fixed = fixed & {U1, U2}` beside
+#   `if not QJ in fixed:`, and `pow(2, w ** 1)` in place of
+#   `pow(2, w - 1)` in the table's own loop bound, still pass the widened
+#   command in full.
+# - `_multiplier_decomposer`'s rounding constant (`_N // 2` weakened to
+#   `_N // 3` and similar): the docstring's "at most 128 bits" is what
+#   the correct constant buys, not what `_double_mult_regular_window`
+#   requires of its callers -- that function's own `bits = max(scalar_len
+#   or ec.scalar_len, u.bit_length(), v.bit_length())` sizes the digit
+#   array to the actual coefficients it is handed, so a coarser split
+#   costs doublings rather than correctness. Checked rather than
+#   assumed: applying `_N // 3` and running the widened command still
+#   passes in full.
+#
+# `_is_prime`'s own parity check (`x % 2 != 0` weakened to `x - 2 != 0`
+# or to `x << 2 != 0`) is equivalent for an unrelated reason: every x
+# either `Curve` or `CurveGroup` ever calls it with is odd already or is
+# an even composite above 2, and `pow(2, x - 1, x) == 1` right after it
+# already answers False for every even x above 2 on its own, x and 2
+# sharing a factor there -- checked rather than assumed, applying the
+# weakened check and running the widened command still passes in full.
+#
+# Neither run's survivor list was read past these families: a family
+# this header does not yet name, and the exact list either run actually
+# found, is what the commands above -- run against the two artifacts
+# while they have not expired, or against a fresh session under the
+# widened command -- answer, rather than a count fixed here that the
+# next weekly run outdates
 
 [cosmic-ray.distributor]
 name = "local"
