@@ -1545,6 +1545,36 @@ file of the test tree, and no caller acts on it.
   tests, so reading it directly would make a test's result depend on
   what earlier tests had already loaded.
 
+### `tests/_data/README.md` gives a verdict where its vocabulary already fits
+
+- **`tests/block/_data/block_*.bin`, `tests/tx/_data/*.bin`,
+  `tests/mnemonic/_data/fakeenglish.txt` and
+  `tests/psbt/_data/btclib_test_vectors.json` each carry a `Verdict:`
+  line now** (closes #1780): the block and transaction files are
+  **recorded**, one reply a program gave and kept verbatim, per *Reading
+  an entry*'s own definition, except `block_481824.bin`, which the entry
+  already says is derived rather than returned by any call;
+  `fakeenglish.txt` and `btclib_test_vectors.json` are **composed
+  locally**, a case this tree wrote, joining `descriptor_checksums.json`
+  in the Summary's own `composed rather than recorded` sentence.
+  `tests/ecc/_data/rfc6979.json`,
+  `tests/script/_data/unspendable_script_pub_keys.json`,
+  `tests/mnemonic/_data/electrum_test_vectors.json` and
+  `tests/mnemonic/_data/electrum_language_vectors.json` keep no
+  `Verdict:` line: each already explains, in its own prose, why neither
+  word reaches it.
+
+### `CONTRIBUTING.md` attributes the mutant count to `cosmic-ray init`, not `baseline`
+
+- **The mutation section's arithmetic sentence now reads that
+  `cosmic-ray init` enumerates the mutant count and `cosmic-ray
+  baseline` reports the cpu cost** (closes #1785): `baseline --help`
+  runs the test suite over unmutated code and says nothing about mutant
+  enumeration; `init --help` is what scans the modules under test and
+  generates the work order, which is where the count comes from,
+  matching what every `.github/mutation/*.toml` profile's own comment
+  already says of `init`.
+
 ## v2026.9.3
 
 ### Repository
