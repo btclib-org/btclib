@@ -1765,6 +1765,35 @@ file of the test tree, and no caller acts on it.
   line at all)` for `behind`, `(no commit to check against)` for a bare
   `repo`, `path` or `commit`.
 
+### `toml-comment-width`'s comment describes the pattern and no other tool
+
+- **The comment above the hook no longer says that a comment whose
+  overflow is one unbroken token is reported where the same text is a
+  whole-line Python comment** (issue btclib-org/.github#843): of two
+  94-column comments alike but for the `:` of `https://`, `W505` at this
+  tree's `max-doc-length = 80` passes over the one whose last word is a
+  link and reports the other, and one space inserted just after column
+  80 in the passed-over line makes both it and the pygrep report the
+  line, which is the control saying that silence is an absence. The
+  clause read the two rules as disjoint besides, and they overlap: the
+  pygrep reports a comment opening with `# type:` or `# noqa:` that
+  `W505` passes over, a `# abcd:` of the same width and shape flipping
+  the answer. What replaces it states the pattern's own predicate and
+  names no other tool, which is the wording btclib-org/.github#843
+  settled for the trees carrying this hook.
+- **The entry that stated the clause stays as written**: this file
+  rewrites nothing already in it, so *`pyproject.toml` and
+  `.pre-commit-config.yaml` stop wording the URL amnesty* keeps both its
+  `toml-comment-width` bullet and its `max-doc-length` bullet, of which
+  this corrects the `toml-comment-width` one. That change's commit
+  message says the same thing and reaches `git log` under
+  `squash_merge_commit_message = COMMIT_MESSAGES`, which nothing
+  rewrites, so this entry is where a reader of either is told otherwise.
+- **The hook's `name:` and `entry:` are left alone**: the lexical
+  amnesty the `name:` states against the positional rule the `entry:`
+  implements is btclib-org/.github#843's other half, one decision for
+  every tree carrying the hook rather than this tree's to take alone.
+
 ## v2026.9.3
 
 ### Repository
