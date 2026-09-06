@@ -1627,6 +1627,28 @@ file of the test tree, and no caller acts on it.
   `tests/vendored_data_test.py`'s cross-check between the two still
   agrees.
 
+### `pyproject.toml` and `.pre-commit-config.yaml` stop wording the URL amnesty
+
+- **The `max-doc-length` comment no longer states that a comment ending
+  in a URL is exempt, nor that the comments over 80 columns are every
+  one of them a link** (issue btclib-org/.github#866): of two whole-line
+  comments ending in the same link, the one whose prose fills 80 columns
+  before the link begins is reported and the one whose prose does not is
+  passed over, so the exemption is conditional where the sentence gave
+  it flat. The clause beside it described a population that moves --
+  comments following code on their line are over 80 columns throughout
+  this tree, and none of those ends in a link. What the comment says now
+  is what a passing `uv run ruff check --select W505 --no-cache .` makes
+  true of any comment left over 80 columns, and section 9 of the
+  organization standard is where the condition is stated.
+- **The `toml-comment-width` reason no longer identifies its own test
+  with W505's** (issue btclib-org/.github#866): the hook reports a
+  comment only where whitespace is left past column 80, which is
+  markdownlint's test -- a line whose overflow is one unbroken token
+  passes the hook and markdownlint alike, and the same text as a
+  whole-line Python comment is reported. The census went with it there
+  too.
+
 ## v2026.9.3
 
 ### Repository
