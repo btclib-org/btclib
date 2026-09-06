@@ -524,15 +524,14 @@ asking.
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
 needing more must declare it. Most of those declarations are in
 `release.yml`: `contents: write` on `github-release`, `id-token: write` on
-`publish-pypi` and `publish-testpypi`, `id-token: write` with
-`attestations: write` on
-`attest`, and `contents: read` with `pull-requests: read` on `test` — that
-last one there because `test` calls `test.yml`, and a caller's
-`permissions:` block replaces the callee's default outright rather than
-adding to it, so it has to grant what `test.yml`'s own jobs declare, not
-only what `release.yml` itself needs. `test.yml` has one such declaration
-of its own, on `changes`: `pull-requests: read`, to list a pull request's
-files. And `codeql.yml`'s `analyze` has one: `security-events: write` is
+`publish-pypi` and `publish-testpypi`, and `contents: read` with
+`pull-requests: read` on `test` — that last one there because `test`
+calls `test.yml`, and a caller's `permissions:` block replaces the
+callee's default outright rather than adding to it, so it has to grant
+what `test.yml`'s own jobs declare, not only what `release.yml` itself
+needs. `test.yml` has one such declaration of its own, on `changes`:
+`pull-requests: read`, to list a pull request's files. And
+`codeql.yml`'s `analyze` has one: `security-events: write` is
 what uploading a SARIF to code scanning takes, with `actions: read` beside
 it — redundant while this repository is public, and written down so that
 the file does not quietly stop working the day it is not. Every
@@ -550,12 +549,31 @@ open as well as into the red run that notifies once (issue #1753).
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 
+Two elevations on one job is the exception to that shape, and the reason
+for the pair sits beside it. `release.yml`'s `attest` holds `id-token:
+write` with `attestations: write`: OIDC for the short-lived Sigstore
+signing certificate, and the write that persists the attestation against
+the repository. `scorecard.yml`'s `analysis` holds `id-token: write` with
+`security-events: write`: the transparency-log entry `publish_results`
+asks for, and the SARIF filed as code-scanning alerts, with `contents` at
+the workflow's `read` because the analysis pushes nothing back to the
+tree.
+`claude-review.yml`'s `review` and `mention` hold `pull-requests: write`
+with `id-token: write`, where only the first is a write of theirs: the
+action mints a GitHub OIDC token during its own startup whatever the
+Anthropic credential is, and without it the run dies before reaching
+authentication at all.
+
+These are the declarations this file argues, not a roster of them.
+
 ```shell
 git grep -n "permissions:$" -- .github/workflows/*.yml
 ```
 
-re-derives the current list, whenever it's wanted, rather than a count
-here going stale the next time a job's own needs change.
+names every declaration, and `: write` in place of `permissions:$`
+narrows it to the jobs that elevate, comments discussing one included.
+Either is re-derived whenever it's wanted, where a list here goes stale
+the next time a job's own needs change.
 
 ### Whether that default is pinned here is untested
 
