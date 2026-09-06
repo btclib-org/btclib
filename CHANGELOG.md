@@ -1355,6 +1355,23 @@ file of the test tree, and no caller acts on it.
   `tests/conftest_test.py` gains one case per new flag and passes the
   four extra arguments through every existing call.
 
+### `Bolt11Invoice` takes a network name as the rest of the library does
+
+- **`Bolt11Invoice.__init__` coerces `network` through
+  `network._normalized_network_name`, and `assert_valid` keeps refusing
+  by membership in `_CURRENCY_FROM_NETWORK`, now against the normalized
+  name** (closes #1671). `" MainNet "` resolves to `mainnet`, where the
+  field kept it exactly as given and the refusal read `not a lightning
+  network: MAINNET` for that spelling; two spellings of one network now
+  build invoices that compare equal and hash alike, the dataclass
+  comparing `network` as a plain field. `_validated_network_name` is not
+  the substitution #1662 took for `ScriptPubKey`: `_CURRENCY_FROM_NETWORK`
+  is a strict subset of `NETWORKS`, with no code for `testnet4`, so it
+  would accept a name this class must still refuse.
+- **The refusal now quotes the name it rejects**, `not a lightning
+  network: 'MAINNET'`, matching `_parse_hrp`'s own `!r` for a rejected
+  string elsewhere in this module.
+
 ## v2026.9.3
 
 ### Repository

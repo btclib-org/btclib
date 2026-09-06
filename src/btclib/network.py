@@ -574,7 +574,13 @@ def _normalized_network_name(network: Any) -> Any:
     equal nor hashed alike. `script.ScriptPubKey` compares and hashes the
     network *type*, which resolves either spelling on its own; what the
     coercion settles there is the field read back as it stands, which
-    `tx.TxOut.to_dict` reports verbatim.
+    `tx.TxOut.to_dict` reports verbatim. `bolt11.Bolt11Invoice` shares the
+    equality-and-hash reason with the two key classes, and has one of its
+    own besides: `_hrp` reads the field through a raw
+    `_CURRENCY_FROM_NETWORK[network]` lookup, so with
+    `check_validity=False` -- where nothing refuses an unnormalized name --
+    an uncoerced field left `to_invoice` a bare `KeyError` rather than an
+    encoded string.
     """
     return network.strip().lower() if isinstance(network, str) else network
 
