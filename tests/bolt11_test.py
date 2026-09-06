@@ -251,8 +251,8 @@ def test_from_invoice_takes_text_not_octets() -> None:
 
 
 def test_assert_valid_refuses_an_unknown_network() -> None:
-    """A network `bech32` never issues a prefix for is refused."""
-    with pytest.raises(BTClibValueError, match="not a lightning network"):
+    """A network `bech32` never issues a prefix for is refused, name quoted."""
+    with pytest.raises(BTClibValueError, match="not a lightning network: 'testnet4'"):
         Bolt11Invoice(
             "testnet4",
             0,
@@ -261,6 +261,70 @@ def test_assert_valid_refuses_an_unknown_network() -> None:
             0,
             check_validity=False,
         ).assert_valid()
+
+
+def test_bolt11_coerces_the_network_name() -> None:
+    """A network name in another spelling builds where it used to be refused."""
+    signed = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "mainnet",
+        1700000000,
+        payment_hash=bytes(range(32)),
+        payment_secret=b"\x11" * 32,
+        description="coercion",
+    )
+    invoice = Bolt11Invoice(
+        " MainNet ",
+        signed.timestamp,
+        signed.tagged_fields,
+        signed.signature,
+        signed.recovery_id,
+        signed.amount_msat,
+    )
+    assert invoice.network == "mainnet"
+
+
+def test_bolt11_coerces_the_network_name_regardless_of_check_validity() -> None:
+    """The coercion runs where the refusal does not: that is why it is here."""
+    invoice = Bolt11Invoice(
+        " MainNet ",
+        0,
+        [(1, (0,) * 52), (16, (0,) * 52), (13, _pow_2_words(b"d"))],
+        Sig(1, 1, check_validity=False),
+        0,
+        check_validity=False,
+    )
+    assert invoice.network == "mainnet"
+
+
+def test_bolt11_two_spellings_of_one_network_are_equal_and_hash_alike() -> None:
+    """Two spellings of one network build equal, equally-hashed invoices."""
+    signed = Bolt11Invoice.sign(
+        _PRV_KEY,
+        "mainnet",
+        1700000000,
+        payment_hash=bytes(range(32)),
+        payment_secret=b"\x11" * 32,
+        description="coercion",
+    )
+    lower = Bolt11Invoice(
+        "mainnet",
+        signed.timestamp,
+        signed.tagged_fields,
+        signed.signature,
+        signed.recovery_id,
+        signed.amount_msat,
+    )
+    upper = Bolt11Invoice(
+        "MAINNET",
+        signed.timestamp,
+        signed.tagged_fields,
+        signed.signature,
+        signed.recovery_id,
+        signed.amount_msat,
+    )
+    assert lower == upper
+    assert hash(lower) == hash(upper)
 
 
 def test_assert_valid_refuses_an_out_of_range_timestamp() -> None:

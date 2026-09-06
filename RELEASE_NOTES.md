@@ -203,6 +203,18 @@ full year, short month, short day (YYYY-M-D)
   and the names accepted are wider than before — `" MainNet "` resolves
   here as it does everywhere else in the library.
 
+- **`btclib.bolt11.Bolt11Invoice` accepts the network-name spellings the
+  rest of the library does** (closes #1671). `" MainNet "` and
+  `"MAINNET"` now resolve to `"mainnet"` in the `network` field, where
+  the default `check_validity=True` refused them outright; built with
+  `check_validity=False`, two spellings of one network now compare equal
+  and hash alike, where they used to compare unequal and hash apart.
+
+  Act on it if you relied on `Bolt11Invoice(" MainNet ", ...)` raising,
+  or on two differently-spelled invoices built with
+  `check_validity=False` being distinct in a set or as dict keys: they
+  now collapse to one.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
