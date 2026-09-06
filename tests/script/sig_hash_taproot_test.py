@@ -66,8 +66,7 @@ def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
 
     Selecting them here rather than skipping the others with `continue`
     inside the test is what makes the count in the report the count of
-    what ran: of the 2243 vectors in the file, three quarters are not
-    key path spends.
+    what ran: most of the vectors in the file are not key path spends.
 
     The parse of every prevout is the price, paid once per worker at
     collection rather than repeated per test.

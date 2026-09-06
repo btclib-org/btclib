@@ -46,8 +46,8 @@ def unimported_btclib() -> Iterator[None]:
     A subprocess per module would be the obvious way to get a virgin
     interpreter, and it is what issue #147 used to demonstrate the
     failure, but as a test it costs an interpreter start-up per module,
-    some sixty of them, and buys nothing: the import machinery decides
-    what to execute by consulting sys.modules and nothing else.
+    and buys nothing: the import machinery decides what to execute by
+    consulting sys.modules and nothing else.
 
     What the modules imported inside the fixture must not do is outlive
     it. They are fresh objects, so a class reimported here is not the
