@@ -1120,6 +1120,27 @@ file of the test tree, and no caller acts on it.
   this repository**, that workflow no longer being the only one here
   whose script files an issue.
 
+### Which workflows elevate is left to the command that lists them
+
+- **`.github/workflows/links.yml`'s permissions comment states no claim
+  about what else in this repository can write**
+  (closes #1758): what keeps the workflow at `contents: read` is the
+  signal argument -- a link is noticed the next time somebody follows
+  it, so nothing has to carry the finding past the failed run's own
+  notification. `vendored-vectors.yml`'s header states the other side of
+  that test, and `py-arm-authority.yml`'s is answered against it.
+- **`REPOSITORY.md`'s *Token permissions* says the jobs it names are the
+  declarations it argues rather than a roster of them**
+  (closes #1759), and names the grep that narrows the section's own
+  command to the jobs that elevate. The enumeration it replaces named
+  neither `scorecard.yml`'s `analysis` nor `claude-review.yml`'s
+  `review` and `mention`, and a roster costs a sentence for every job
+  that starts elevating.
+- **The section argues each job departing from its own
+  one-elevation-per-job shape**: `release.yml`'s `attest`,
+  `scorecard.yml`'s `analysis`, and `claude-review.yml`'s `review` and
+  `mention`, each with what the second permission is for.
+
 ## v2026.9.3
 
 ### Repository

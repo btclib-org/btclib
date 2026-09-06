@@ -63,9 +63,11 @@ on:
 # links only, where an unauthenticated runner is rate limited hard enough
 # to look like rot; contents: read is all that needs.
 # Deliberately not issues: write: an automatic "link rot" issue is the
-# usual next step here, and it would be the only workflow in this
-# repository that can write anything, to save a maintainer from reading a
-# failure notification they already get
+# usual next step here, and it carries nothing past the failed run's own
+# notification -- a link is noticed the next time somebody follows it.
+# vendored-vectors.yml's header states the other side of that test, a
+# vendored vector being trusted without anybody looking at it again, and
+# py-arm-authority.yml's is answered against it
 permissions:
   contents: read
 
