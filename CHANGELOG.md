@@ -1172,6 +1172,35 @@ file of the test tree, and no caller acts on it.
   and `check_validity` going keyword-only**, and its own opening sentence no
   longer counts the shapes it lists.
 
+### `CLAUDE.md`'s worktree fence takes the standard's form, and names the venv
+
+- **The fence's push is `git -C "$WT" push origin
+  HEAD:refs/heads/<branch>`, in place of a `cd "$WT"` above a bare `git
+  push`** (issue btclib-org/.github#824): a `cd` binds the shell that
+  runs it, so a session running each line as its own command pushes the
+  primary checkout's `HEAD`. The paragraph below the create paragraph
+  gives that binding and its limit, `git -C ""` being documented to
+  leave the working directory unchanged.
+- **The paragraph reasoning about `cd ""` goes with the `cd` it reasons
+  about**, which supersedes this section's *`CLAUDE.md` states the
+  worktree block's absent `uv sync` in one place*: that entry says the
+  paragraph stands as written, and the sentence above the fence is what
+  the worktree section says about the absent `uv sync`.
+- **The create paragraph states what makes the `>` closing `<branch>`
+  reachable**: the `<` ahead of it succeeds only where the reader's own
+  directory already holds that name, and ordinarily nothing holds it.
+- **The removal guard is stated as refusing an unset or empty `WT`**,
+  which is what `${WT:?}` does; this section's *`CLAUDE.md`'s
+  worktree-removal fence takes the `${WT:?}` guard* names the unset case
+  alone.
+- **The paragraph weighing what a worktree costs names the venv it
+  weighs** (closes #1710): a worktree is its own project root, so
+  `uv run` creates and syncs a `.venv` inside it.
+- **A sentence below the removal fence names `btclib-org/.github`'s
+  `CLAUDE.md` at `20ad654` as what the create, the push and the removal
+  converged on**, so a later reader compares against a tree rather than
+  against an issue's quotation of one.
+
 ## v2026.9.3
 
 ### Repository
