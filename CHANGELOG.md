@@ -1483,6 +1483,31 @@ file of the test tree, and no caller acts on it.
   than naming an exhaustive list of which ones do**, and gives
   `descriptors.Descriptor` as one more class reaching for it.
 
+### `CLAUDE.md`'s `SECURITY.md`-citations bullet names the gate that checks them
+
+- **`CLAUDE.md`'s bullet on `SECURITY.md`'s `path:line` citations stops
+  claiming no gate checks them** (closes #1750): `tests/security_citations_test.py`
+  parses every citation's anchor and checks a dotted-name one against
+  its enclosing function, via `ast`, and a citation that quotes its own
+  line against that line's exact text. The former passes a citation
+  that has drifted within its own function, which the bullet's
+  `awk 'NR==N' <file>` advice still answers for; the latter is already
+  checked by the gate.
+
+### The no-stated-count rule gains a second exception, in `REVIEWING.md`
+
+- **`REVIEWING.md`'s closed set of exceptions to "never state a count"
+  gains a second member, `.github/mutation/`'s profiles, beside
+  `tests/_data/README.md`'s** (closes #1777): each profile states what
+  a mutation session measured over its own scope at its own sha, which
+  `CONTRIBUTING.md`'s mutation section already licenses. Unlike the
+  vendored-data exception, no test spares this one:
+  `tests/mutation_counts_test.py` tests the counting script's
+  arithmetic, not whether a profile states a figure, so a stale count
+  is caught by hand rather than by a gate. `CLAUDE.md`'s own bullet
+  points at `REVIEWING.md`'s exception rather than restating it, adding
+  only the test and the re-derivation commands.
+
 ## v2026.9.3
 
 ### Repository

@@ -233,12 +233,21 @@ Do not use Fable unless explicitly instructed.
   enforces as `formatter.exclude`, so `file_resolver.exclude`, which
   holds ruff's built-in defaults, answers no for a file the formatter
   does skip.
-- **`SECURITY.md`'s file:line citations are unchecked by any gate and
-  drift silently.** An unrelated edit to a cited file shifts the line
-  with nothing red; verify with `awk 'NR==N' <file>` against the
-  claimed content, not against which function the line lands in — a
-  citation landing inside the right function has still been off by
-  several lines.
+- **`tests/security_citations_test.py` checks every `path:line` citation
+  `SECURITY.md` carries, but a symbol anchor pins only the function.**
+  The anchor is the backticked span in front of a citation: a dotted
+  name (`dsa.Signer.__init__`) is matched with `ast` against the
+  definition enclosing the cited line, while a citation that quotes its
+  line instead of naming a symbol — the way musig2.py's sum and dsa.py's
+  `to_bytes` call do — is matched verbatim against that line. A
+  dotted-name anchor is satisfied by any line inside the right function,
+  which is most of what `SECURITY.md` cites, so a citation that drifts a
+  few lines within its own function still passes there. `awk 'NR==N'
+  <file>` verified against the claimed content, not against which
+  function the line lands in, is still the check for a dotted-name
+  citation — a citation landing inside the right function has still been
+  off by several lines; a quoted-line citation already gets that from
+  the gate.
 - **`btclib-org/.github`'s weekly calendar is two tables, and either can
   move mid-campaign.** Section 10 splits day/hour (per workflow) from
   minute (per repository, `btclib` is `04`); the issue proposing one
@@ -358,10 +367,19 @@ Do not use Fable unless explicitly instructed.
 
   A survey that says "with the count, so that nobody has to run it
   again" is the shape to distrust: every one of the twelve it recorded
-  was wrong when re-run. The exception is a count of what upstream
+  was wrong when re-run. One exception is a count of what upstream
   published — `tests/_data/README.md`'s "121 vectors, Core's entire
   file" — which pins a vendored file rather than measuring this tree,
   and which `tests/vendored_data_test.py` spares on purpose.
+  `REVIEWING.md`'s *This repository in particular* names the other:
+  `.github/mutation/`, where a profile's stated mutant count,
+  kill/survive/skip breakdown or wall clock is what a session measured
+  over its own scope at its own sha, re-derived by the commands
+  `CONTRIBUTING.md`'s mutation section already gives.
+  `tests/mutation_counts_test.py` is not what spares it: that script
+  tests the counting script's own arithmetic against a synthetic
+  session, never whether a profile's prose states a figure, so a stale
+  count there fails nothing.
 
 ## Verifying
 
