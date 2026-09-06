@@ -146,27 +146,41 @@ def test_a_placeholder_path_is_skipped(checker: ModuleType) -> None:
     assert skipped == ["group (one pin serves several files)"]
 
 
-@pytest.mark.parametrize(
-    "fields",
-    [
-        {"behind": "3 revisions, none touching the vectors"},
-        {},  # no `behind` field at all
-    ],
-)
-def test_a_behind_pin_is_skipped(checker: ModuleType, fields: dict[str, str]) -> None:
-    """A `behind` reading anything but 0, explicit or absent, is a skip."""
+def test_a_behind_pin_is_skipped(checker: ModuleType) -> None:
+    """A `behind` reading anything but 0 is a skip, named as documented."""
     text = readme(
         entry(
             "stale",
             repo="btclib-org/btclib",
             path="tests/f.json",
             commit="deadbeef  2026-01-01",
-            **fields,
+            behind="3 revisions, none touching the vectors",
         )
     )
     entries, skipped = checker._entries_at_tip(text)
     assert entries == []
     assert skipped == ["stale (already documented as behind)"]
+
+
+def test_a_pin_with_no_behind_line_is_skipped(checker: ModuleType) -> None:
+    """No `behind` line at all is a skip distinct from a documented one.
+
+    `.get("behind", "").startswith("0")` would answer False here too,
+    which is the defect this tells apart: an entry that was never
+    marked either way is not the same as one a human has already
+    decided to leave behind.
+    """
+    text = readme(
+        entry(
+            "stale",
+            repo="btclib-org/btclib",
+            path="tests/f.json",
+            commit="deadbeef  2026-01-01",
+        )
+    )
+    entries, skipped = checker._entries_at_tip(text)
+    assert entries == []
+    assert skipped == ["stale (no behind line at all)"]
 
 
 @pytest.mark.parametrize(
