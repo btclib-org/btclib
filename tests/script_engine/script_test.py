@@ -1006,13 +1006,14 @@ def test_wrapped_p2wsh_codeseparator_cuts_the_same_script() -> None:
 def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
     """CONST_SCRIPTCODE refuses every signature-check op in a script_sig.
 
-    Core watches all four through one rule -- FindAndDelete of the
-    signature from the script code, an error on a match under the flag,
-    before the signature is read at all -- so the class is one list of
-    four names here, and a name missing from it is a rule that does not
-    run rather than a rule that fails. Which is what the vectors cannot
-    say: they put only OP_CHECKSIG in a script_sig under the flag, so
-    three quarters of the list rest on this test alone.
+    Core watches all four through one rule -- FindAndDelete of the signature
+    from the script code, an error on a match under the flag, before the
+    signature is read at all -- so the class is one list of four names here,
+    and a name missing from it is a rule that does not run rather than a rule
+    that fails. Which is what the vendored vectors cannot say: OP_CHECKSIG is
+    the only one of the four they carry in a script_sig under the flag, so
+    OP_CHECKSIGVERIFY, OP_CHECKMULTISIG and OP_CHECKMULTISIGVERIFY rest on this
+    test alone.
     """
     prevout = TxOut(1000, ScriptPubKey(""))
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([op_code]), 1, Witness([]))
