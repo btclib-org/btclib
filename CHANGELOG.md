@@ -1575,6 +1575,25 @@ file of the test tree, and no caller acts on it.
   matching what every `.github/mutation/*.toml` profile's own comment
   already says of `init`.
 
+### `tests/` states the relation a wall clock argued for, not the wall clock
+
+- **Docstrings in `tests/` stated a millisecond or second figure that
+  nothing re-derives, one of them restating a measurement its own
+  `src/btclib` twin no longer makes** (closes #1770):
+  `tests/curves/curve_test.py`'s `test_catalogued_curves` docstring said
+  "123 ms of a 168 ms module import", the same import cost
+  `src/btclib/curves/curve.py`'s `_catalogued_curve` docstring already
+  describes without a figure since `8d8fd0f3`. Each site now carries the
+  relation its argument needs instead: a growth ratio in
+  `tests/base58_test.py`, a noise-floor comparison in
+  `tests/curves/curve_group_test.py`, a one-time-cost argument in
+  `tests/script/sig_hash_taproot_test.py`, and, in
+  `tests/ripemd160_test.py`, an argument for excluding the slowest
+  upstream vector that no longer ranks it against the rest of the suite.
+  `tests/wait_for_*_test.py` and `tests/ecc/borromean_test.py`'s
+  "1 s-value" are untouched: their figures are assertions' expected
+  strings, not prose making an argument.
+
 ## v2026.9.3
 
 ### Repository

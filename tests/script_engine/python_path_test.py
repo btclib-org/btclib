@@ -76,11 +76,11 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     installation will do.
 
     The price is real and was measured rather than assumed: the vectors
-    of this module take 2.95 s with the arithmetic delegated and 17.21 s
-    without, one process, `-p no:randomly`, one machine. The suite runs
-    distributed, so what a contributor waits is the slowest worker and
-    not this; and the alternative buys back fourteen seconds by testing a
-    configuration nobody installs.
+    of this module take several times longer with the arithmetic in
+    Python than with it delegated, one process, `-p no:randomly`, one
+    machine. The suite runs distributed, so what a contributor waits is
+    the slowest worker and not this; and the alternative buys back that
+    difference by testing a configuration nobody installs.
     """
     monkeypatch.setattr(curve, "_libsecp256k1_available", False)
 

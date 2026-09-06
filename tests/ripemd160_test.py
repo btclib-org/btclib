@@ -10,11 +10,11 @@ upstream carries them in its own unittest -- Bitcoin Core's
 test/functional/test_framework/crypto/ripemd160.py, whose revision
 `TF2.md` pins.
 
-Eight of that upstream's nine. The ninth is 10^6 times "a", and in pure
-Python it takes 1.5 s, which would make it the slowest test in this suite
-(the slowest today is 1.47 s) for the one property it has over the others,
-that the input spans many blocks. `test_matches_hashlib` covers that
-property over 138 lengths, 4096 bytes among them, in some 5 ms.
+Eight of that upstream's nine. The ninth is 10^6 times "a"; in pure
+Python, excluding it saves meaningfully on this suite's running time,
+for the one property it has over the others, that the input spans many
+blocks. `test_matches_hashlib` covers that property over 138 lengths,
+4096 bytes among them, without paying for a full megabyte of input.
 """
 
 from __future__ import annotations

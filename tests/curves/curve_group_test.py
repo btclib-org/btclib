@@ -430,8 +430,9 @@ class _CountingGroup(CurveGroup):
 
     The number of additions is what the scalar used to decide (issue 254),
     and counting them is how the test below says it no longer does: a
-    timing at 0.8 ms a multiplication is noise against a spread of one
-    addition in seventy.
+    wall-clock timing per multiplication is too noisy to resolve a spread
+    of one addition in seventy, which is why the test counts additions
+    directly instead.
     """
 
     def __init__(self) -> None:
@@ -876,8 +877,9 @@ def test_multi_mult_distant_magnitudes() -> None:
     indifferent to their magnitudes, so the pathological pairs reach
     Bos-Coster only inside a batch above the threshold -- where they are
     the whole of the batch's cost. Euclid's quotient is what bounds it:
-    the subtractive step takes 10.6 s on the first pair and does not
-    finish on the third, and this test would say so by not returning.
+    the subtractive step is slow enough on the first pair to notice, and
+    does not finish at all on the third, so this test would say so by
+    not returning.
     """
     ec = secp256k1
     HJ = _jac_from_aff(second_generator(ec))
