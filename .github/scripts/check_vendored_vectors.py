@@ -2,27 +2,36 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Re-check every vendored-vector pin against upstream, weekly.
+r"""Re-check a pin ledger against upstream, weekly.
 
-tests/_data/README.md pins each vendored file to a commit and a git blob
-SHA-1, with a documented manual procedure to re-check one -- last done
-by hand on specific dates the file itself records. This automates that
-procedure and reports drift, rather than fixing it: refreshing a vector
-file is a decision this script does not get to make, so what it opens
-is an issue, never a commit.
+A ledger pins each entry to a repository, a path and a commit, and
+carries a documented manual procedure to re-check one pin. This
+automates that procedure and reports drift, rather than fixing it: what
+to do about a pin that has moved is a decision this script does not get
+to make, so what it opens is an issue, never a commit.
+
+The ledger and the issue title are both the caller's, because the
+ledgers this repository passes go stale in different ways and are acted
+on differently: tests/_data/README.md pins the revision a file here was
+copied from, so a moved commit says the copy is behind, and TF2.md pins
+the revision a verdict was read at, so a moved commit says the verdict
+is a claim about a file that has moved. One title over both would name
+one issue for the pair, each run rewriting what the other wrote.
 
 btclib-secp256k1 carries a copy under this same name, over its own
 tests/README.md, whose entries are each pinned to a commit under a
-heading owning one fenced block. A fix to the parsing, to the `gh` call
-or to a field's spelling is owed to the other copy in the same
-campaign; the collapsing of identical skip lines below is not, a
-heading owning several blocks being a shape that README does not carry.
+heading owning one fenced block. What the two copies share is owed to
+the other in the same campaign: the parsing, the `gh` calls, a field's
+spelling, the arguments this takes. What answers to one ledger's own
+shape is not, and the collapsing of identical skip lines below is
+that -- a heading owning several blocks being a shape that README does
+not carry.
 
-Scope is narrower than the README: only entries whose `behind` already
+Scope is narrower than the ledger: only entries whose `behind` already
 reads 0 -- the ones a human last confirmed were exactly at upstream's
 tip. An entry documented as behind is a decision already made, and
 re-reporting the same gap every week would just be noise; if a *new*
-commit moves it further, `behind`'s own count in the README goes stale
+commit moves it further, `behind`'s own count in the ledger goes stale
 in a way this script cannot see either, which is the reason it never
 tries to judge relevance, only tip-vs-pinned identity.
 
@@ -30,23 +39,25 @@ A path upstream has renamed or deleted is reported rather than raising:
 it has no commit to name as a tip, and a pin standing on a file that is
 not there any more is the one drift nobody would otherwise notice.
 
-Three shapes in the README this script does not attempt: an entry with
-no `commit` at all (chain data self-identified by hash, files this
-project composed itself), a path carrying a `<name>` placeholder -- one
-pin standing in for several real paths under a directory, which the
-"commits touching a path" call above cannot be asked about in one
-request -- and a heading with no fenced block under it at all, which is
-either a group heading the pins below it supersede or a pin whose block
-an edit broke. No current entry uses the placeholder shape: BIP327's
-eight files and BIP324's two were themselves written that way once,
-each pin citing one commit as the tip of every path it stood in for.
+Three shapes a ledger can carry that this script does not attempt: an
+entry with no `commit` at all (chain data self-identified by hash,
+files this project composed itself), a path carrying a `<name>`
+placeholder -- one pin standing in for several real paths under a
+directory, which the "commits touching a path" call above cannot be
+asked about in one request -- and a heading with no fenced block under
+it at all, which is either a group heading the pins below it supersede
+or a pin whose block an edit broke. No current entry uses the
+placeholder shape: BIP327's eight files and BIP324's two were
+themselves written that way once, each pin citing one commit as the tip
+of every path it stood in for.
 Splitting them into one pin per real path is what brought them into
 this script's scope, and also corrected BIP327's, whose shared commit
-was the tip of only one of the eight. Every heading the README carries
+was the tip of only one of the eight. Every heading the ledger carries
 but this script did not check is listed in its own report, so nothing
 silently reads as "checked and clean" that was not checked at all.
 
-    python .github/scripts/check_vendored_vectors.py tests/_data/README.md
+    python .github/scripts/check_vendored_vectors.py \
+        tests/_data/README.md "Vendored vectors behind upstream"
 """
 
 from __future__ import annotations
@@ -59,15 +70,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-_ISSUE_TITLE = "Vendored vectors behind upstream"
-
 # resolved once: S607 is what a bare "gh" in a subprocess list would be,
 # a partial executable path relying on PATH's own search order rather
 # than naming what actually runs
 _GH = shutil.which("gh") or "gh"
 
-# a vendored file's own ### heading, so a drift report -- and the
-# skipped-entry list -- can name the file rather than only its upstream
+# a ledger entry's own ### heading, so a drift report -- and the
+# skipped-entry list -- can name the entry rather than only its upstream
 # path
 _HEADING = re.compile(r"^### (.+)$", re.MULTILINE)
 
@@ -107,7 +116,7 @@ class Drift:
         return not self.latest_commit
 
 
-def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
+def _entries_at_tip(ledger: str) -> tuple[list[Entry], list[str]]:
     """Return the checkable entries, and the headings this skips.
 
     A heading is skippable for any of four reasons: no fenced block of
@@ -132,8 +141,8 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
     owned: set[str] = set()
     heading = ""
     pos = 0
-    for match in re.finditer(r"```text\n(.*?)\n```", readme, re.DOTALL):
-        headings_before = _HEADING.findall(readme[pos : match.start()])
+    for match in re.finditer(r"```text\n(.*?)\n```", ledger, re.DOTALL):
+        headings_before = _HEADING.findall(ledger[pos : match.start()])
         if headings_before:
             heading = headings_before[-1]
         pos = match.end()
@@ -157,7 +166,7 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
         entries.append(Entry(heading, repo, path.strip(), commit.split()[0]))
     skipped.extend(
         f"{unowned} (no fenced block)"
-        for unowned in _HEADING.findall(readme)
+        for unowned in _HEADING.findall(ledger)
         if unowned not in owned
     )
     # dict.fromkeys keeps the first of each identical line, in the
@@ -202,9 +211,9 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
     return sha, date
 
 
-def find_drift(readme_path: Path) -> tuple[list[Drift], list[str]]:
+def find_drift(ledger_path: Path) -> tuple[list[Drift], list[str]]:
     """Return every pin no longer at upstream's tip, and what was skipped."""
-    entries, skipped = _entries_at_tip(readme_path.read_text(encoding="utf-8"))
+    entries, skipped = _entries_at_tip(ledger_path.read_text(encoding="utf-8"))
     drifted = []
     for entry in entries:
         latest = _latest_commit(entry.repo, entry.path)
@@ -216,9 +225,9 @@ def find_drift(readme_path: Path) -> tuple[list[Drift], list[str]]:
     return drifted, skipped
 
 
-def _issue_body(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> str:
+def _issue_body(ledger_path: Path, drifted: list[Drift], skipped: list[str]) -> str:
     lines = [
-        f"`{readme_path}` pins below are no longer at upstream's tip.",
+        f"`{ledger_path}` pins below are no longer at upstream's tip.",
         "Refreshing is a decision, not a chore -- this issue only reports it.",
         "",
     ]
@@ -243,7 +252,7 @@ def _issue_body(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> 
     return "\n".join(lines)
 
 
-def _open_issue_number() -> str | None:
+def _open_issue_number(title: str) -> str | None:
     result = subprocess.run(  # noqa: S603
         [
             _GH,
@@ -252,7 +261,7 @@ def _open_issue_number() -> str | None:
             "--state",
             "open",
             "--search",
-            f'"{_ISSUE_TITLE}" in:title',
+            f'"{title}" in:title',
             "--json",
             "number",
         ],
@@ -264,9 +273,17 @@ def _open_issue_number() -> str | None:
     return str(issues[0]["number"]) if issues else None
 
 
-def report(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> None:
-    """Open, update, or close the tracking issue, whichever applies."""
-    number = _open_issue_number()
+def report(
+    ledger_path: Path, title: str, drifted: list[Drift], skipped: list[str]
+) -> None:
+    """Open, update, or close this ledger's tracking issue, whichever applies.
+
+    The title is what tells one ledger's issue from another's: it is the
+    search term that finds an issue already open as well as the title a
+    new one is created under, so a caller passing a title of its own
+    gets an issue of its own.
+    """
+    number = _open_issue_number(title)
     if not drifted:
         if number is not None:
             subprocess.run(  # noqa: S603
@@ -281,10 +298,10 @@ def report(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> None:
                 check=True,
             )
         return
-    body = _issue_body(readme_path, drifted, skipped)
+    body = _issue_body(ledger_path, drifted, skipped)
     if number is None:
         subprocess.run(  # noqa: S603
-            [_GH, "issue", "create", "--title", _ISSUE_TITLE, "--body", body],
+            [_GH, "issue", "create", "--title", title, "--body", body],
             check=True,
         )
     else:
@@ -294,26 +311,32 @@ def report(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> None:
 
 
 def main() -> int:
-    """Check the README named on argv, report drift, and say so on stdout.
+    """Check the ledger named on argv, report drift, and say so on stdout.
+
+    The title names the issue this run opens, updates or closes. It is
+    required, which is what makes it a positional beside the path: a
+    default would file one ledger's drift onto whichever issue the
+    default happened to name. The one option here is a boolean, so what
+    reads it is the filter below rather than a parser.
 
     --dry-run skips opening, updating or closing the issue: what the
     pull_request trigger of vendored-vectors.yml passes, so a change to
-    this script or to the README is exercised without the run editing
+    this script or to a ledger is exercised without the run editing
     whatever tracking issue happens to be open at the time.
     """
     args = [a for a in sys.argv[1:] if a != "--dry-run"]
     dry_run = len(args) != len(sys.argv) - 1
-    if len(args) != 1:
+    if len(args) != 2:
         # a human running this by hand is the only way here, the workflow
-        # passing the path every time: without this check, `args[0]`
-        # below would answer with an IndexError naming a list instead
+        # passing both every time: without this check, the indexing below
+        # would answer with an IndexError naming a list instead
         print(
-            f"usage: {Path(sys.argv[0]).name} <README path> [--dry-run]",
+            f"usage: {Path(sys.argv[0]).name} <ledger path> <issue title> [--dry-run]",
             file=sys.stderr,
         )
         return 2
-    readme_path = Path(args[0])
-    drifted, skipped = find_drift(readme_path)
+    ledger_path, title = Path(args[0]), args[1]
+    drifted, skipped = find_drift(ledger_path)
     for drift in drifted:
         if drift.path_is_gone:
             print(
@@ -331,7 +354,7 @@ def main() -> int:
     if not drifted:
         print("Every checked pin is still at upstream's tip.")
     if not dry_run:
-        report(readme_path, drifted, skipped)
+        report(ledger_path, title, drifted, skipped)
     return 0
 
 

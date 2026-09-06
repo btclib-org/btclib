@@ -36,11 +36,10 @@ upstream revisions of that path have landed since. That is the grammar
 `tests/_data/README.md` uses, so an entry here can be read without
 learning a second shape -- by a person, and by
 `.github/scripts/check_vendored_vectors.py`, which parses exactly those
-fields. That script is not yet asked to read this file: it takes one
-README path and names one drift issue in a module constant, and
-btclib-secp256k1 carries a copy of it under the same name that a change
-to either would be owed. Wiring is therefore its own change, not this
-file's.
+fields. `.github/workflows/vendored-vectors.yml` runs that script over
+this file weekly, under an issue title of its own: a pin here that has
+moved says a verdict is now a claim about a file that has moved, where
+a pin in that README says this tree holds a stale copy.
 
 An entry's `commit` is the tip of the path the entry names, so `behind`
 reads zero and a re-check can clear it. A repository-wide revision is a

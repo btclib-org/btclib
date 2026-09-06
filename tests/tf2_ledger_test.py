@@ -393,10 +393,9 @@ def test_the_weekly_re_checker_reads_every_entry(checker: ModuleType) -> None:
 
     The grammar is that script's, so this is what says the ledger is in
     it: an entry whose fenced block lacks `repo`, `path` or `commit`, or
-    whose `behind` does not read zero, is skipped by the script and
-    would be skipped in silence once the ledger is wired into the weekly
-    run. Wiring it is a change owed to btclib-secp256k1's copy of the
-    script as well, and is not this file's; being parseable is.
+    whose `behind` does not read zero, is skipped by the script, and
+    `.github/workflows/vendored-vectors.yml` runs that script over this
+    file weekly -- so a skip is a pin nothing re-checks, silently.
     """
     entries, skipped = checker._entries_at_tip(_TEXT)
     assert not skipped, f"the re-checker would skip: {skipped}"

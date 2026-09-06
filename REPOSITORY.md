@@ -541,7 +541,8 @@ elevation per job is the shape to keep — the job that writes releases holds
 no OIDC token, and the job that signs writes no release.
 `vendored-vectors.yml`'s `vectors` job has one such declaration of its
 own: `issues: write`, for the `gh issue create`/`edit`/`close` calls its
-script makes on the tracking issue it maintains.
+script makes on the tracking issue of each ledger its matrix checks, one
+title per ledger.
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 
