@@ -70,7 +70,7 @@ def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
     key path spends.
 
     The parse of every prevout is the price, paid once per worker at
-    collection: 3 ms for the file.
+    collection rather than repeated per test.
     """
     params = []
     for index, x in enumerate(TAPSCRIPT):

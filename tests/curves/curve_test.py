@@ -289,11 +289,11 @@ def test_catalogued_curves() -> None:
     """Rebuild the catalogue from its json data, with every check on.
 
     btclib.curves.curve builds it with order_check=False and
-    weakness_check=False, the two being 123 ms of a 168 ms module
-    import; this is where they happen instead, and both
-    default to on, so constructing the curves here is what runs them. A
-    wrong n in the json data, or a curve whose embedding degree is small,
-    fails a test rather than nothing at all.
+    weakness_check=False, since re-deriving them at every interpreter
+    start would cost most of a module import; this is where they happen
+    instead, and both default to on, so constructing the curves here is
+    what runs them. A wrong n in the json data, or a curve whose
+    embedding degree is small, fails a test rather than nothing at all.
 
     Not the only place either check happens -- test_ec_repr rebuilds each
     curve from its repr, and tests/curves/curve_group_test.py asserts n*G

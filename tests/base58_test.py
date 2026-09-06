@@ -165,9 +165,10 @@ def test_integers() -> None:
 def test_max_length() -> None:
     """Decoding is quadratic, so the input is bounded first.
 
-    Measured 13 ms at 10k characters, 198 ms at 40k and 3312 ms at 160k,
-    four times the cost per doubling -- and the checksum that rejects
-    the string is verified only once the decoding has been paid for.
+    Measured across three input sizes, each four times the last,
+    quadrupling the input multiplies the decoding time by about
+    sixteen -- and the checksum that rejects the string is verified
+    only once the decoding has been paid for.
     """
     # the longest thing btclib encodes: a 78-byte BIP32 extended key,
     # here the one whose 112 characters no payload can exceed
