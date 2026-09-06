@@ -1720,6 +1720,16 @@ file of the test tree, and no caller acts on it.
   `p2p/inventory.py`'s `Headers` docstring now matches the pinned "not
   hashable" shape instead of a wording of its own.
 
+### `key_path_vectors` and `unimported_btclib` drop counts nothing re-derives
+
+- **`tests/script/sig_hash_taproot_test.py`'s `key_path_vectors` and
+  `tests/imports_test.py`'s `unimported_btclib` each stated a figure
+  that nothing in the tree re-derives** (closes #1796): a docstring
+  figure is checked by no test and pinned in no README, the shape
+  `tests/vendored_data_test.py` spares, so each is a count like any
+  other here. Both docstrings keep the argument the figure was
+  standing in for and state it without the figure.
+
 ## v2026.9.3
 
 ### Repository
