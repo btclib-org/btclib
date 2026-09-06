@@ -33,8 +33,24 @@ where each arm's body lives rather than re-walking the AST: one parser,
 one definition of "arm", read by the shape tests, the content tests and
 this script alike.
 
+A disagreement is reported twice: this exits non-zero, which is what
+makes the run red, and it opens or updates a tracking issue under the
+title it is given, closing that issue with a comment once a measurement
+agrees again. The two are not alternatives. A failed scheduled run
+notifies the last person to have touched the cron, once, and
+`tests/py_arm_authority_test.py` reads the table's shape and never its
+values -- so an entry claiming a reach the suite no longer has leaves
+every other check in the tree green, and the open issue is what still
+says otherwise.
+
+The title is the caller's rather than a constant here, which is what
+`check_vendored_vectors.py` beside it does: what an issue this
+repository files is called then sits in the workflow that files it,
+beside the trigger and the permission that let it, rather than in a
+script the workflow only names.
+
     uv sync --no-default-groups --group harness
-    python .github/scripts/check_py_arm_authority.py
+    python .github/scripts/check_py_arm_authority.py "<issue title>"
 
 Not a gate: `.github/workflows/py-arm-authority.yml` runs this on a
 schedule, with no branch rule attached, for the reason `vendored-vectors`
@@ -45,6 +61,7 @@ minutes, and it answers a question no pull request introduces.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -52,6 +69,11 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
+
+# resolved once: S607 is what a bare "gh" in a subprocess list would be,
+# a partial executable path relying on PATH's own search order rather
+# than naming what actually runs
+_GH = shutil.which("gh") or "gh"
 
 from tests.py_arm_authority_test import (  # noqa: E402
     _AUTHORITY,
@@ -144,16 +166,129 @@ def compare(actual: dict[str, frozenset[str]]) -> list[str]:
     return mismatches
 
 
+def _issue_body(mismatches: list[str]) -> str:
+    """Return the issue body: the lines stdout carries, and where to look.
+
+    The same strings `compare` built, rather than a second phrasing of
+    them: one description of a disagreement, printed by the run and read
+    by whoever opens the issue.
+    """
+    return "\n".join(
+        [
+            (
+                "A fresh no-bindings measurement disagrees with"
+                " `tests/py_arm_authority_test.py`'s `_AUTHORITY`."
+            ),
+            (
+                "The run that measured it is red as well, and stays red"
+                " until the table and the measurement agree."
+            ),
+            "",
+            *(f"- {line}" for line in mismatches),
+        ]
+    )
+
+
+def _open_issue_number(title: str) -> str | None:
+    result = subprocess.run(  # noqa: S603
+        [
+            _GH,
+            "issue",
+            "list",
+            "--state",
+            "open",
+            "--search",
+            f'"{title}" in:title',
+            "--json",
+            "number",
+        ],
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    )
+    issues = json.loads(result.stdout)
+    return str(issues[0]["number"]) if issues else None
+
+
+def report(title: str, mismatches: list[str]) -> None:
+    """Open, update, or close this census's tracking issue, whichever applies.
+
+    The title is the search term that finds an issue already open as
+    well as the title a new one is created under, so it is a caller's
+    argument: the workflow above this script is where what this run
+    files is named.
+    """
+    number = _open_issue_number(title)
+    if not mismatches:
+        if number is not None:
+            subprocess.run(  # noqa: S603
+                [
+                    _GH,
+                    "issue",
+                    "close",
+                    number,
+                    "--comment",
+                    (
+                        "Re-measured: every _AUTHORITY entry matches a fresh"
+                        " no-bindings measurement."
+                    ),
+                ],
+                check=True,
+            )
+        return
+    body = _issue_body(mismatches)
+    if number is None:
+        subprocess.run(  # noqa: S603
+            [_GH, "issue", "create", "--title", title, "--body", body],
+            check=True,
+        )
+    else:
+        subprocess.run(  # noqa: S603
+            [_GH, "issue", "edit", number, "--body", body], check=True
+        )
+
+
 def main() -> int:
-    """Measure, compare, print, and fail on any disagreement found."""
+    """Measure, compare, print, report, and fail on any disagreement found.
+
+    The title names the issue this run opens, updates or closes. It is
+    required, which is what makes it a positional: a default would name
+    the issue in the one place a reader of the workflow does not look.
+    The one option here is a boolean, so what reads it is the filter
+    below rather than a parser.
+
+    --dry-run skips opening, updating or closing that issue: what the
+    pull_request trigger of py-arm-authority.yml passes, so a change to
+    this script, to the workflow or to the table is exercised without
+    the run editing whatever tracking issue happens to be open at the
+    time.
+
+    `report` runs before the non-zero return rather than after it: the
+    exit code is what makes the run red, and the issue is what outlives
+    the notification that run sends.
+    """
+    args = [a for a in sys.argv[1:] if a != "--dry-run"]
+    dry_run = len(args) != len(sys.argv) - 1
+    if len(args) != 1:
+        # a human running this by hand is the only way here, the workflow
+        # passing the title every time: without this check, the unpacking
+        # below would answer with a ValueError naming a list instead
+        print(
+            f"usage: {Path(sys.argv[0]).name} <issue title> [--dry-run]",
+            file=sys.stderr,
+        )
+        return 2
+    (title,) = args
     mismatches = compare(measure())
     for line in mismatches:
         print(line)
     if mismatches:
         print(f"{len(mismatches)} disagreement(s) with a fresh measurement.")
-        return 1
-    print("Every _AUTHORITY entry matches a fresh no-bindings measurement.")
-    return 0
+    else:
+        print("Every _AUTHORITY entry matches a fresh no-bindings measurement.")
+    if not dry_run:
+        report(title, mismatches)
+    return 1 if mismatches else 0
 
 
 if __name__ == "__main__":

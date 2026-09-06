@@ -543,6 +543,10 @@ no OIDC token, and the job that signs writes no release.
 own: `issues: write`, for the `gh issue create`/`edit`/`close` calls its
 script makes on the tracking issue of each ledger its matrix checks, one
 title per ledger.
+`py-arm-authority.yml`'s `authority` job has the same one, for the same
+calls: that workflow's own run is what re-derives the arm-authority
+table, so a disagreement it finds is reported into an issue that stays
+open as well as into the red run that notifies once (issue #1753).
 The workflow-level `permissions: contents: read` is belt and braces; keep
 it, it is what makes the intent readable in the file.
 
