@@ -193,8 +193,8 @@ SEED_VECTORS = [
 ]
 
 # the entropy field of those same SEED_TEST_CASES, i.e. what electrum's
-# mnemonic_decode answers. Only now testable: decoding takes the
-# word-list of the language, and btclib shipped two of electrum's five
+# mnemonic_decode answers. Decoding takes the word-list of the language, and
+# btclib holds every language electrum's own scheme needs.
 DECODE_VECTORS = [
     pytest.param(
         JAPANESE, "ja", 1938439226660562861250521787963972783469, id="japanese"
@@ -220,11 +220,12 @@ DECODE_VECTORS = [
 # kind for any language, so these are btclib's in the sense
 # electrum_test_vectors.json is: cross-checked against the application.
 #
-# Not the full five-by-four matrix. The version is what the four columns
-# vary and it is a hash of the sentence, language and all, so one
-# language shows it; Portuguese has all four because it is the one
-# word-list that is not 2048 words -- thirteen words to the sentence,
-# which is what makes "2fa" impossible there and nowhere else.
+# Not the full language-by-version matrix. The version is what the
+# columns vary and it is a hash of the sentence, language and all, so
+# one language shows it for most versions; Portuguese needs every
+# version because it is the one word-list that is not 2048 words --
+# thirteen words to the sentence, which is what makes "2fa" impossible
+# there and nowhere else.
 #
 # In a file and not inline, unlike every other vector here, and for a
 # reason the values cannot defend themselves against: the two spell
@@ -853,7 +854,7 @@ def test_generated_vectors(
 
 def test_electrum_wordlists() -> None:
     """Electrum's word-lists are BIP39's, but for Portuguese."""
-    # the shipped twelve, and not WORDLISTS.languages: that one is a
+    # BIP39_LANGUAGE_FILES, and not WORDLISTS.languages: that one is a
     # singleton another test adds a language to
     assert ELECTRUM_WORDLISTS.languages == list(BIP39_LANGUAGE_FILES)
     for lang in BIP39_LANGUAGE_FILES:

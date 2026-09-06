@@ -210,13 +210,13 @@ def test_wordlist_2() -> None:
 
 
 def test_every_wordlist() -> None:
-    """Twelve BIP39 languages, and 2048 unique NFKD words in each.
+    """Every BIP39 language, and 2048 unique NFKD words in each.
 
     A private WordLists rather than the singleton: test_wordlist_2 adds
     two languages to that one, so a count taken from it would depend on
     which test ran first.
 
-    Thirteen entries and twelve languages, because the registry holds
+    One entry more than the BIP39 languages, because the registry holds
     every word-list btclib ships: "slip39" is a scheme keyed beside them,
     1024 words rather than 2048, and it is what bip39._base refuses.
     """

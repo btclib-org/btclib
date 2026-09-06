@@ -238,18 +238,17 @@ NetworkField = Literal[
 # keeps this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
 
-# The word-lists btclib ships: BIP39's twelve languages, and SLIP-0039's
-# single list under a key that is a scheme and not a language code -- the
-# SLIP defines no localization, so "slip39" is the whole of it. Every key
-# of the WORDLISTS registry is named here, which is what keeps this list
-# equal to the data; that the thirteen are not interchangeable is the
-# schemes' business, and bip39 enforces its own half by refusing any list
-# that is not 2048 words long.
+# The word-lists btclib ships: BIP39's languages, and SLIP-0039's own list
+# under a key that is a scheme and not a language code -- the SLIP defines no
+# localization, so "slip39" is the whole of it. Every key of the WORDLISTS
+# registry is named here, which is what keeps this list equal to the data;
+# that they are not interchangeable is the schemes' business, and bip39
+# enforces its own half by refusing any list that is not 2048 words long.
 #
 # Open, as NetworkName is, and more plainly so:
 # WordLists.load_lang(lang, filename) adds a language, which is how a
 # word-list btclib does not ship is read -- electrum's 1626-word
-# Portuguese is one, on a registry of its own -- so the ten `lang: str`
+# Portuguese is one, on a registry of its own -- so the `lang: str`
 # parameters of mnemonic, bip39 and electrum stay str: a Literal there
 # would type check the library's own languages and reject the file a
 # caller has just loaded

@@ -26,7 +26,7 @@ from btclib.ecc.ellswift import _xswiftec_inv_var, _xswiftec_var
 from btclib.exceptions import BTClibValueError
 from tests import load_csv, needs_bindings, vector_id
 
-# the other three Koblitz curves of the catalogue: a == 0 and a square
+# the other Koblitz curves of the catalogue: a == 0 and a square
 # -3, which is all the map wants, so the Python path serves them and this
 # is what says so. secp224k1 is the one with p % 4 == 1, i.e. the one
 # whose square roots go through Tonelli-Shanks rather than a single pow

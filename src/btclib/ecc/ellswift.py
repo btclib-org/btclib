@@ -45,7 +45,7 @@ btclib would be a promise the specification does not make.
 
 **The map wants a curve with a == 0**, y^2 = x^3 + b, and every function
 here refuses one with a != 0. secp256k1 is such a curve and so are the
-other three Koblitz curves of the catalogue, which is why these take an
+other Koblitz curves of the catalogue, which is why these take an
 `ec` at all: the Python arithmetic below is what serves them, where
 secp256k1 is handed to the libsecp256k1 bindings.
 """
