@@ -239,21 +239,27 @@ to `deps-latest`'s own result.
    reads both revisions and answers that: it reports breakage alone — a
    public object removed, a parameter that changed kind or default or
    moved, an attribute whose value changed — and says nothing at all about
-   an addition, so every line it prints wants an entry. What the step asks
-   is that nothing it names is missing from RELEASE_NOTES.md. The converse is
-   not its to answer: an entry describing a break it did not find is a
+   an addition. It compares the expression an attribute is assigned rather
+   than the value the module resolves it to, so a line can print for a
+   change no caller can observe; the paragraph below names the shapes that
+   fall out that way. What the step asks is that nothing it names, once
+   that noise is set aside, is missing from RELEASE_NOTES.md. The converse
+   is not its to answer: an entry describing a break it did not find is a
    claim about the prose, which review still has to read. It exits 1 on a
    finding.
 
-   Breakage by griffe's classification is not breakage a user would
-   notice, though, and two shapes are most of the noise. `Attribute value
-   was changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks
-   nobody, and `__version__` and `__copyright__` report the same way. And
-   one systemic change repeats once per site: `check_validity` going
-   keyword-only is dozens of lines on its own and belongs in
-   RELEASE_NOTES.md once, as a rule, not once per class. Discount those and
-   what is left is short enough to check bullet by bullet — four entries
-   were missing from v2026.8.7's list, and all four were in that remainder.
+   Breakage by griffe's classification is not breakage a user would notice,
+   though, and the noise recurs in recognizable shapes. `Attribute value was
+   changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks nobody, and
+   `__version__` and `__copyright__` report the same way. A constant moved from
+   a literal into a lookup table reports the same way too: `BIP34_HEIGHT`
+   moving into `CONSENSUS_PARAMS` prints as a changed attribute while the
+   constant itself is unchanged. And one systemic change repeats once per site:
+   `check_validity` going keyword-only is dozens of lines on its own and
+   belongs in RELEASE_NOTES.md once, as a rule, not once per class. Discount
+   those and what is left is short enough to check bullet by bullet — four
+   entries were missing from v2026.8.7's list, and all four were in that
+   remainder.
 
    Not a gate on every commit, and deliberately so: the comparison is
    against the previous *release* tag, so it reports the whole of a

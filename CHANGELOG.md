@@ -1161,6 +1161,17 @@ file of the test tree, and no caller acts on it.
   words it replaces offered to "say here why the change is not one",
   and a run's log is not a place to write that in.
 
+### RELEASING.md's griffe step stops promising every finding an entry
+
+- **RELEASING.md's griffe step no longer says every line it prints wants a
+  breaking-changes entry** (closes #1763): griffe compares the expression an
+  attribute is assigned rather than the value it resolves to, so a constant
+  moved from a literal into a lookup table reports as changed while the value
+  a caller sees is unchanged.
+- **The noise paragraph beside it names that shape next to PEP 604 spelling
+  and `check_validity` going keyword-only**, and its own opening sentence no
+  longer counts the shapes it lists.
+
 ## v2026.9.3
 
 ### Repository
