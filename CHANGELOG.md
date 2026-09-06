@@ -1649,6 +1649,21 @@ file of the test tree, and no caller acts on it.
   whole-line Python comment is reported. The census went with it there
   too.
 
+### `tests/build_system_test.py`'s join reader sees a directory in one literal
+
+- **`_reaches_outside_the_sdist`'s `/`-join check widens from an exact
+  `".github"`/`"fuzz"` match on the right operand to one that also
+  opens with the name and a slash** (closes #1736): `_ROOT /
+  ".github/workflows"` carries the sub-path in the same literal the
+  join reads, which the exact match missed, and `tests/interpreters_test.py`
+  reads `.github/workflows` this way while shipping in the sdist and
+  meeting a missing `.github` when run from an unpacked one.
+  `tests/docs_commands_test.py` ships the same way, but its own
+  `.github/workflows/docs.yml` sits in a dict key the join reaches
+  through a variable rather than through the literal itself, which the
+  widened detector still does not see; both now join
+  `[tool.uv.build-backend] source-exclude`.
+
 ## v2026.9.3
 
 ### Repository
