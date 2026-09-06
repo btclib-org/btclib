@@ -1260,9 +1260,11 @@ max-complexity = 10
 # every markdown file here is already held to by MD013.
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the
-# switch. A comment that ends in a URL is exempt, which is the amnesty
-# MD013 gives an unbreakable link: the comments still over 80 columns are
-# every one of them a link, and none is a defect
+# switch. Which over-width lines the rule passes over is section 9 of
+# the organization standard's and is not restated here. While
+# `uv run ruff check --select W505 --no-cache .` passes, a comment over
+# 80 columns is either one of those or one this key does not reach, and
+# not a defect
 max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
