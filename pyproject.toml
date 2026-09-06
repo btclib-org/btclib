@@ -991,8 +991,17 @@ ignore = [
     # the layout it is there to hold, so the rule kept buys a
     # suppression at each site or a limit raised past the longest of
     # them. `uv run ruff check --select E501 --no-cache .` lists them.
-    # The prose the formatter never touches is measured instead by
-    # max-doc-length below
+    # A docstring and a standalone comment are what max-doc-length
+    # below measures, and a comment following code on its line is
+    # neither. This rule is the one that reaches it -- E501 counts the
+    # physical line, so a trailing comment carrying one past 88 is
+    # reported like any other -- which leaves that width measured by
+    # nothing here, the rule being ignored. `# pragma: no cover`'s
+    # inline reason (btclib-org/.github#838) makes the shape common
+    # rather than incidental, and the reason above still decides it:
+    # reaching a trailing comment means reporting every other line the
+    # rule finds too, none of which gets shorter for being reported. A
+    # trailing comment's width is left to whoever reads the diff
     "line-too-long",
     # complexity metrics this codebase does not bound globally: measured
     # one at a time, too-many-arguments and too-many-positional-arguments
