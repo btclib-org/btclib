@@ -1909,6 +1909,22 @@ file of the test tree, and no caller acts on it.
   a path, a commit and a `behind` of 0 -- with no `blob`, there being no
   file upstream to compare against a table written in markdown.
 
+### `asks_for_everything` says what resolving the command line's path buys
+
+- **`tests/conftest.py`'s `asks_for_everything` docstring said the paths
+  are resolved so that `./tests` and `tests/` compare equal to `tests`**
+  (closes btclib-org/.github#816): `pathlib` collapses `.` and a trailing
+  separator at construction, so those spellings are already one object
+  where the docstring said resolving is what makes them one. What the
+  call on the command-line side buys is measured by removing it: every
+  relative spelling then reads as a subset, where the `testpaths` side is
+  absolute already from the join onto `rootpath` and is resolved because
+  a `rootpath` spelled through a symlink survives the join, where
+  `Path.resolve` follows the link. The docstring gives that reason in
+  place of the spellings, and the enumeration goes with them -- the
+  spellings being one path, what equality misses is the path above
+  `testpaths` and nothing else.
+
 ## v2026.9.3
 
 ### Repository
