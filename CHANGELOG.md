@@ -2136,6 +2136,25 @@ file of the test tree, and no caller acts on it.
   issue asks one wording of every tree carrying the sentence, so the
   clause replacing it names no job and no file.
 
+### `conventions_test.py`'s module docstring names the ways and counts nothing
+
+- **The last paragraph of `tests/conventions_test.py`'s module docstring
+  states no number of the assertions below it** (issue
+  btclib-org/.github#906): it said the four assertions below are the ones
+  that fail on the ways a declaration actually rots, and the ways it
+  listed left out `test_the_table_is_not_empty`, which is what fails
+  where a third column added to `tests/README.md`'s table, or the
+  backticks dropped from its second, stops the row pattern matching. An
+  unmatched table is the first of the ways now, the ways standing in the
+  order the assertions are defined in rather than one to an assertion --
+  either mutation fails `test_the_two_halves_account_for_every_convention`
+  too. The number is gone rather than corrected, section 9 of the
+  organization standard refusing a stated total, a line every open branch
+  has to edit. The wording is `btclib-node`'s, landed there as
+  btclib-org/btclib-node#903, and this tree carries that paragraph byte
+  for byte; btclib-org/.github#906 is filed against the copies of this
+  module across the organization and stays open.
+
 ## v2026.9.3
 
 ### Repository
