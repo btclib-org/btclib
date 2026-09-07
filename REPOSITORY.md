@@ -555,9 +555,11 @@ write` with `attestations: write`: OIDC for the short-lived Sigstore
 signing certificate, and the write that persists the attestation against
 the repository. `scorecard.yml`'s `analysis` holds `id-token: write` with
 `security-events: write`: the transparency-log entry `publish_results`
-asks for, and the SARIF filed as code-scanning alerts, with `contents` at
-the workflow's `read` because the analysis pushes nothing back to the
-tree.
+asks for, and the SARIF filed as code-scanning alerts. `contents: read`
+sits in that block too, granted there rather than taken from the
+workflow's: a job's own `permissions:` replaces the workflow-level one
+rather than adding to it. `read` is all the analysis takes of it,
+pushing nothing back to the tree.
 `claude-review.yml`'s `review` and `mention` hold `pull-requests: write`
 with `id-token: write`, where only the first is a write of theirs: the
 action mints a GitHub OIDC token during its own startup whatever the
