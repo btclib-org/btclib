@@ -368,7 +368,7 @@ to `deps-latest`'s own result.
 
    `gh pr merge <n> --squash` alone can still refuse this pull request —
    `the base branch policy prohibits the merge` — the way it did on
-   btclib-secp256k1's own v0.8.0.4 (btclib-secp256k1#288): a
+   btclib-secp256k1's own v0.8.0.4 (btclib-org/btclib-secp256k1#288): a
    solo-maintainer repository never clears `REVIEW_REQUIRED`, so gh's
    client-side mergeable check declines before it asks the server at
    all, and `--auto` only waits longer for the same review that will not

@@ -89,7 +89,7 @@ try:
     # package can overwrite, the way `ssa.Signer` already can through the
     # keypair `ssa` itself builds. Nothing else here needs it, `dsa.sign`
     # and every other wrapped call taking that buffer as the `prvkey` a
-    # caller may already hold (btclib-secp256k1#253)
+    # caller may already hold (btclib-org/btclib-secp256k1#253)
     from btclib_secp256k1 import (
         dsa,
         ellswift,

@@ -891,8 +891,8 @@ def sign_(
     # parsed: a caller who declined the check and supplied a key to check
     # with should hear about the two arguments rather than about the
     # octets of one of them. The bindings refuse the same pair
-    # (btclib-secp256k1#245), and this raises it on both arms so that a
-    # dispatch nobody asked for is not what decides
+    # (btclib-org/btclib-secp256k1#245), and this raises it on both arms
+    # so that a dispatch nobody asked for is not what decides
     if pub_key is not None and not verify:
         raise BTClibValueError("pub_key is for the check that verify=False declines")
 
@@ -1167,10 +1167,10 @@ def sign_recoverable_(
         # reads the recovery id, and the id is a value this call is made
         # for and that nothing downstream re-derives -- a faulted r or s
         # fails the first verification anybody makes, a wrong id does not.
-        # A verification's worth (btclib-secp256k1#224), once per
+        # A verification's worth (btclib-org/btclib-secp256k1#224), once per
         # signature, this path not grinding. Written out, it survives
         # the day the wrapper's default is asked again in
-        # btclib-secp256k1#224
+        # btclib-org/btclib-secp256k1#224
         sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q, verify=True)
         # `_sig_from_compact` for `sign_`'s reason, stated there: these
         # are the values secp256k1_ecdsa_sign_recoverable has just
@@ -1230,7 +1230,7 @@ def _delegated_sign_(
     holds, not an `int`: `dsa.sign`'s `prvkey` argument passes a cffi
     array of exactly that length straight through to libsecp256k1
     unconverted rather than coercing it to a fresh `bytes`
-    (btclib-secp256k1#253), which is what lets the class docstring's
+    (btclib-org/btclib-secp256k1#253), which is what lets the class docstring's
     `wipe` reach every signature this makes and not only the reference
     this object drops.
 
@@ -1284,11 +1284,11 @@ class Signer:
     `Signer` holding one copy of the key needs somewhere of its own to
     keep it. `dsa.sign`'s `prvkey` argument takes a cffi array of
     exactly 32 octets and passes it through unconverted
-    (btclib-secp256k1#253), so a caller who owns the buffer keeps owning
-    it. This class builds one such buffer at construction --
+    (btclib-org/btclib-secp256k1#253), so a caller who owns the buffer
+    keeps owning it. This class builds one such buffer at construction --
     `ffi.new("unsigned char[32]", ...)` -- and hands the bindings that
-    same pointer on every signature it makes, so there is one copy of
-    the secret this holds throughout its life, on both arms, and `wipe`
+    same pointer on every signature it makes, so there is one copy of the
+    secret this holds throughout its life, on both arms, and `wipe`
     overwrites it on both: the buffer's own 32 octets here,
     `secp256k1_keypair`'s there.
 
@@ -1348,8 +1348,8 @@ class Signer:
         # signature and `wipe` overwrites on the way out, built here
         # rather than left as the `int` above: `dsa.sign`'s `prvkey`
         # passes a 32-octet cffi array through unconverted
-        # (btclib-secp256k1#253), so this is the one copy of the secret
-        # this arm holds for the whole of the instance's life
+        # (btclib-org/btclib-secp256k1#253), so this is the one copy of
+        # the secret this arm holds for the whole of the instance's life
         self._prvkey_buffer: Any | None = (
             libsecp256k1_ffi.new("unsigned char[32]", self._q.to_bytes(32, "big"))
             if self._pub_key_sec is not None
@@ -1386,7 +1386,7 @@ class Signer:
 
         On the delegated arm the buffer built at construction is what is
         overwritten, `ffi.buffer(self._prvkey_buffer)[:] = bytes(32)`
-        (btclib-secp256k1#253 is what makes it the same memory every
+        (btclib-org/btclib-secp256k1#253 is what makes it the same memory every
         signature reads, rather than a copy the bindings threw away):
         this arm's every signature has read the same 32 octets this
         instance holds, so wiping them reaches every one of them at

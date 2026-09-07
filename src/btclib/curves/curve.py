@@ -664,12 +664,12 @@ def _libsecp256k1_multi_mult_(
     including `double_mult_var`'s two, the count most callers have.
     Handing over the whole equation is what stops it, and that is the one
     composition the bindings hold rather than this side
-    (btclib-secp256k1#182): a term of a multi-scalar multiplication is a
-    `secp256k1_pubkey` nobody outside the sum has a use for, and this
-    library holds no parsed key by design. The measurement per term count
-    is in the CHANGELOG entry that took each half, which is where a
-    figure belongs: an entry is read as the history of a release and this
-    is read as a statement about the code as it stands.
+    (btclib-org/btclib-secp256k1#182): a term of a multi-scalar
+    multiplication is a `secp256k1_pubkey` nobody outside the sum has a use
+    for, and this library holds no parsed key by design. The measurement
+    per term count is in the CHANGELOG entry that took each half, which is
+    where a figure belongs: an entry is read as the history of a release
+    and this is read as a statement about the code as it stands.
 
     At least one term, the sum refusing an empty sequence as
     `pubkey_combine` does, and as many scalars as points, which is what

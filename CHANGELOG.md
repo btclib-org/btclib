@@ -1967,6 +1967,24 @@ file of the test tree, and no caller acts on it.
   `version-check`, declaring no block in the same run, logs
   `Contents: read` under the same workflow-level grant.
 
+### A cross-repository reference in this tree's prose names its owner
+
+- **The references to `btclib-secp256k1`'s and `bitcoin-core-rpc`'s
+  trackers in source comments, docstrings, `pyproject.toml`,
+  `RELEASING.md` and `REPOSITORY.md` are written `btclib-org/<repo>#N`**
+  (issue btclib-org/.github#642): section 9's *A reference to another
+  repository is qualified* asks for `owner/repo#N`, and it is a general
+  bullet of that section rather than one of its `CHANGELOG.md`
+  subsection's, so it reaches a comment and a docstring the way it
+  reaches an entry. Its one exemption is a pull request's closing
+  keyword, which the forge reads.
+- **`CHANGELOG.md`'s own unqualified references stay as they are**:
+  *Nothing already written is rewritten* binds what is written next.
+- **A paragraph that `btclib-org/` pushed past 80 columns is rewrapped,
+  and its words are unchanged**: `max-doc-length` holds a docstring and
+  a whole-line comment to that width, and `toml-comment-width` a toml
+  comment.
+
 ## v2026.9.3
 
 ### Repository

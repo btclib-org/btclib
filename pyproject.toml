@@ -141,23 +141,24 @@ classifiers = [
 # upgrade onto the Python arithmetic, which is tens of times slower and
 # is not constant-time -- SECURITY.md publishes both
 secp256k1 = [
-    # 0.8.0.3 for `xonly.tweak_add_` (btclib-secp256k1#158), which
-    # `script.taproot` calls: it tweaks the parsed internal key, where
-    # `xonly.tweak_add` parses the x again and that parse is a field square
-    # root. The same version for `keys.pubkey_sum`, `xonly.pubkey_verify`
-    # and `xonly.to_pubkey` (btclib-secp256k1#171), which `curves.curve`
-    # calls -- one sum instead of a combine per term, and the two
-    # questions about an x asked as x-only questions. The same version
-    # again for `keys.pubkey_tweak_mul_sum` (btclib-secp256k1#182), which
+    # 0.8.0.3 for `xonly.tweak_add_` (btclib-org/btclib-secp256k1#158),
+    # which `script.taproot` calls: it tweaks the parsed internal key,
+    # where `xonly.tweak_add` parses the x again and that parse is a field
+    # square root. The same version for `keys.pubkey_sum`,
+    # `xonly.pubkey_verify` and `xonly.to_pubkey`
+    # (btclib-org/btclib-secp256k1#171), which `curves.curve` calls -- one
+    # sum instead of a combine per term, and the two questions about an x
+    # asked as x-only questions. The same version again for
+    # `keys.pubkey_tweak_mul_sum` (btclib-org/btclib-secp256k1#182), which
     # is that sum with its terms as well, so that no product of a
     # multi-scalar multiplication crosses the boundary; and for
-    # `ssa.Signer` (btclib-secp256k1#154), which `ecc.ssa.Signer` holds so
-    # that a keypair is built once per key rather than once per signature;
-    # and for `dsa.sign` accepting a caller-owned 32-octet cffi array as
-    # `prvkey` and passing it through unconverted (btclib-secp256k1#253),
-    # which `ecc.dsa.Signer` now holds so that `wipe` reaches the
-    # delegated arm too (issue #1009).
-    # 0.8.0.4 for the `musig` module (btclib-secp256k1#282), which
+    # `ssa.Signer` (btclib-org/btclib-secp256k1#154), which
+    # `ecc.ssa.Signer` holds so that a keypair is built once per key rather
+    # than once per signature; and for `dsa.sign` accepting a caller-owned
+    # 32-octet cffi array as `prvkey` and passing it through unconverted
+    # (btclib-org/btclib-secp256k1#253), which `ecc.dsa.Signer` now holds
+    # so that `wipe` reaches the delegated arm too (issue #1009).
+    # 0.8.0.4 for the `musig` module (btclib-org/btclib-secp256k1#282), which
     # `btclib._libsecp256k1` imports and `btclib.ecc.musig2` calls --
     # `KeyAggCache` and `Session`, which is issue #1049's delegation of
     # `partial_sig_verify_`.
