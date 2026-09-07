@@ -185,6 +185,97 @@ def test_a_path_that_collects_the_suite_is_a_whole_run(
     assert gate == 100.0
 
 
+def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(
+    tmp_path: Path,
+) -> None:
+    """Both sides are resolved, so one directory named twice is one path.
+
+    A path on the command line and a `testpaths` entry joined onto the
+    rootdir can each be spelled through a symlink -- `/tmp` is one on
+    macOS, and a checkout under a linked home is another. pytest builds
+    `rootpath` with `os.path.abspath`, which leaves the link in the path
+    alone, so the two sides meet only once `Path.resolve` has followed
+    it: unresolved on one side, `/tmp/...` neither equals
+    `/private/tmp/...` nor is above it, and the run that collects
+    everything is gated at nothing.
+
+    One assertion per call, and neither stands in for the other: the
+    first answers the ratchet with the `testpaths` side left unresolved,
+    the second with the command line's side left unresolved.
+
+    The link is made here rather than taken from the machine, so what
+    the case is about is the comparison and not which directories an
+    operating system happens to link. Creating one on Windows takes a
+    privilege a runner need not hold, so a platform that refuses says so
+    as a skip, which `-ra` reports.
+    """
+    base = tmp_path.resolve()
+    real = base / "real"
+    (real / "tests").mkdir(parents=True)
+    link = base / "link"
+    try:
+        link.symlink_to(real, target_is_directory=True)
+    except OSError as refused:  # pragma: no cover -- Windows without the privilege
+        pytest.skip(f"this platform will not create a symlink: {refused}")
+
+    named_through_the_link = coverage_fail_under(
+        None,
+        100.0,
+        [str(link / "tests")],
+        "",
+        "",
+        *_NO_FURTHER_SELECTION,
+        _TESTPATHS,
+        real,
+    )
+    assert named_through_the_link == 100.0
+
+    rootdir_through_the_link = coverage_fail_under(
+        None,
+        100.0,
+        [str(real / "tests")],
+        "",
+        "",
+        *_NO_FURTHER_SELECTION,
+        _TESTPATHS,
+        link,
+    )
+    assert rootdir_through_the_link == 100.0
+
+
+def test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches(
+    tmp_path: Path,
+) -> None:
+    """`tests/../src` is `src`, which a command line naming `tests` misses.
+
+    `pathlib` keeps a parent-directory segment where it collapses `.`
+    and a trailing separator, so the unresolved join carries `..` into a
+    path whose parents include the directory that segment left: `tests`
+    then reads as above `tests/../src`, and a run collecting nothing of
+    `src` is handed the whole suite's ratchet. Resolving the join makes
+    the entry the directory it reaches, which `tests` is not above.
+
+    That is the `testpaths` side's second reason, and it asks for no
+    symlink and no privilege, so it holds where the case above can only
+    skip. A `..` that re-enters the directory it left -- `tests/../tests`
+    -- cannot see it: the unresolved target then has more parents and the
+    command line's path is one of them, so containment answers the same
+    with the call and without it.
+    """
+    base = tmp_path.resolve()
+    gate = coverage_fail_under(
+        None,
+        100.0,
+        [str(base / "tests")],
+        "",
+        "",
+        *_NO_FURTHER_SELECTION,
+        ["tests/../src"],
+        base,
+    )
+    assert gate == 0
+
+
 @pytest.mark.parametrize(
     "file_or_dir, keyword, markexpr",
     [

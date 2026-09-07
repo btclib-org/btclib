@@ -1925,6 +1925,26 @@ file of the test tree, and no caller acts on it.
   spellings being one path, what equality misses is the path above
   `testpaths` and nothing else.
 
+### `conftest_test.py` defends each `.resolve()` of `asks_for_everything`
+
+- **Two cases fail where either `.resolve()` of `asks_for_everything`
+  is removed** (issue btclib-org/.github#806): the `testpaths` side's
+  call was the one with nothing to fail, a suite without it green where
+  a suite without the command line's is red on the relative spellings
+  the whole-run case names. What a missing call costs is not a red test
+  but the coverage ratchet relaxed to zero for a run that collects
+  everything, in a tree reached through a symlink -- `/tmp` on macOS.
+- **The symlink case asserts each call separately**, the command line
+  spelled through a link against a real rootdir and then the mirror, so
+  neither assertion stands in for the other. The parent-segment case is
+  the `testpaths` side's alone and asks for no symlink and no
+  privilege: `pathlib` keeps `..` at construction, so the unresolved
+  join `tests/../src` has `tests` among its parents, and a command line
+  naming `tests` reads as above an entry that collects nothing of `src`.
+- **`asks_for_everything`'s own docstring is unchanged**, what it says
+  about the parent-directory case being btclib-org/.github#836's one
+  decision across the trees that carry the function.
+
 ## v2026.9.3
 
 ### Repository
