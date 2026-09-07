@@ -1985,6 +1985,37 @@ file of the test tree, and no caller acts on it.
   a whole-line comment to that width, and `toml-comment-width` a toml
   comment.
 
+### `scorecard.yml`'s workflow-level comment points at the job block
+
+- **The comment over the workflow-level `permissions:` enumerates
+  nothing and leaves each grant to the line explaining it in the
+  analysis job's own block** (issue btclib-org/.github#891): it named
+  the tree read, the transparency-log entry and the code-scanning
+  alerts, and nothing for the `actions: read` that the Packaging check's
+  workflow-run history call asks for. The wording is
+  `btclib-secp256k1`'s, which `bitcoin-core-rpc` and `btclib-node` took
+  for this issue. *`REPOSITORY.md` and `scorecard.yml` count an
+  elevation the same way* above records this comment dropping the "one"
+  in front of "elevation on the job below": the phrase it names is gone
+  and the comment counts nothing at all, and the agreement with
+  `btclib-node`'s copy that the same entry records holds under the new
+  wording, that tree having taken it too. That entry stays where it is.
+
+### `scorecard.yml`'s `contents: read` comment names the scope it is about
+
+- **The comment says what omitting `contents` from the analysis job's
+  block would do rather than what omitting any scope would do**
+  (closes btclib-org/.github#893): `metadata` is where the wider
+  reading fails, `actionlint` refusing it as a scope a `permissions:`
+  block may name while the analysis job's `GITHUB_TOKEN Permissions`
+  group logs `Metadata: read` all the same. `contents` is the only
+  scope this file grants at both levels, so it is the only one for
+  which replacing rather than adding decides anything.
+  *`scorecard.yml`'s `actions: read` carries its own reason* above
+  draws that consequence for every scope, and this entry supersedes
+  that sentence, which holds of `contents`, the scope the `release.yml`
+  run it cites measured. That entry stays where it is.
+
 ## v2026.9.3
 
 ### Repository
