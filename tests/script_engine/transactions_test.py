@@ -100,11 +100,11 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
 def annex_vectors() -> list[Any]:
     """Select the TAPROOT vectors whose witness carries an annex to strip.
 
-    The flags test `taproot_vectors` above omits is made here, and
-    selects the same 248 vectors with or without it: no vector whose
-    flags stop short of TAPROOT carries an annex, measured. It stands as
-    the statement that an annex is a taproot notion, which is what makes
-    a future vector contradicting it worth looking at.
+    The flags test `taproot_vectors` above omits is made here, and selects
+    the same vectors with or without it: no vector whose flags stop short
+    of TAPROOT carries an annex, measured. It stands as the statement that
+    an annex is a taproot notion, which is what makes a future vector
+    contradicting it worth looking at.
     """
     params = []
     for index, x in enumerate(TAPSCRIPT):
@@ -179,8 +179,8 @@ def legacy_vectors(fname: str) -> list[Any]:
     for index, x in enumerate(load("script_engine", "_data", fname)):
         if isinstance(x[0], str):
             # a comment line, and it describes the vectors that follow:
-            # "MAX_MONEY output", "Coinbase of size 2" -- an id the
-            # flags field cannot give, naming a dozen vectors "41-P2SH"
+            # "MAX_MONEY output", "Coinbase of size 2" -- an id the flags field
+            # cannot give
             comment = x[0]
             continue
         params.append(pytest.param(x, id=vector_id(index, comment, x[2])))
