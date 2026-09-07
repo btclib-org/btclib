@@ -33,10 +33,9 @@ on:
     # scheduled runs; this covers what push cannot -- a week with none.
     - cron: "4 5 * * 0"
 
-# least privilege for the GITHUB_TOKEN at the workflow level, with
-# elevation on the job below: the analysis reads the tree, requests a
-# transparency-log entry for its own result and files that result as
-# code-scanning alerts, and pushes nothing back to the tree.
+# least privilege for the GITHUB_TOKEN at the workflow level, elevated
+# on the job below -- each grant explained at its own line there -- and
+# pushes nothing back to the tree.
 permissions:
   contents: read
 
@@ -62,8 +61,8 @@ jobs:
       # this job writes neither a release nor anything else to the
       # tree, so read is all it takes -- granted here rather than
       # inherited, a job's own block replacing the workflow-level one
-      # rather than adding to it, so a scope this block omits is none
-      # for this job
+      # rather than adding to it, so contents omitted from this block
+      # would be none for this job
       contents: read
       # what the Packaging check reads workflow-run history with, to see
       # whether release.yml has runs that succeeded -- ossf/scorecard's
