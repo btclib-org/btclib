@@ -2044,6 +2044,39 @@ file of the test tree, and no caller acts on it.
   other copies of this module owing the same header sentence, so it
   stays open.
 
+### The census of token elevations is keyed on where the key sits
+
+- **`REPOSITORY.md`'s *Token permissions* reads the jobs that elevate
+  out of a second command rather than out of a substitution into its
+  first** (issue btclib-org/.github#897): the substitution, `: write` in
+  place of `permissions:$`, keyed on text anywhere in a line, so it
+  returned the comment lines naming a permission beside the grants --
+  several of them saying a permission is deliberately *not* taken, which
+  is the opposite of what the reader asked for. The command that
+  replaces it, `git grep -nE '^ +[a-z-]+: write([[:blank:]]+#|$)'`, keys
+  on where the key sits, first on its line after the indentation.
+  *Which workflows elevate is left to the command that lists them* above
+  says this section names a grep narrowing its own command; that
+  narrowing is a command of its own now.
+- **The anchored `: write$` form is not what lands here**: it drops a
+  grant carrying a trailing comment, which `codeql.yml`'s
+  `security-events: write` and `py-arm-authority.yml`'s and
+  `vendored-vectors.yml`'s `issues: write` each do. The character class
+  before the `#` rather than a bare space is insurance rather than the
+  fix: what it admits is a tab there, and `yamllint` refuses that line
+  as a syntax error, so the gate is what keeps that shape out.
+- **What the command cannot see is named beside it**:
+  `permissions: write-all`, a flow mapping, and a quoted key or value
+  are each outside its answer. Folding one of them in buys nothing, the
+  shapes a line-oriented pattern reads past having no end -- a value
+  carried onto the line below is the next of them. What refuses
+  `write-all` here is `zizmor`'s `excessive-permissions` audit, and not
+  this command.
+- **Both commands take `.github/workflows` rather than
+  `.github/workflows/*.yml`**: the two answer the same where every
+  workflow is a `.yml`, and the directory goes on answering the day one
+  is not.
+
 ## v2026.9.3
 
 ### Repository
