@@ -2095,6 +2095,36 @@ file of the test tree, and no caller acts on it.
   where it is, which is section 9's *Nothing already written is
   rewritten*, and the bullet above is what the tree holds.
 
+### `conventions_test.py` says what this tree answers and what it asserts
+
+- **The comment above `_NOT_TESTED` stops calling `none` the answer this
+  repository gives** (closes btclib-org/.github#903): `tests/README.md`
+  answers with the conventions this suite leaves untested, so the clause
+  was false here. The sentence replacing it is `btclib-node`'s, which
+  `bitcoin-core-rpc` ported: `none` is the literal the code below
+  special-cases, and the deletion `btclib-secp256k1` took instead leaves
+  nothing saying why that branch exists. This is the last copy of the
+  module carrying the clause, so the issue closes with it.
+- **The clause beside it, which gave a sibling repository's declaration
+  as the reason `re.DOTALL` is on the pattern, goes with it** (closes
+  btclib-org/.github#903): this tree's own answer fits a line, so
+  nothing here demonstrated the wrap that clause was offered for. The
+  reason names the wrap a list of names outgrowing eighty columns takes,
+  which is what the flag is for whether or not this declaration has
+  grown into one.
+- **`test_the_table_is_not_empty`'s docstring stops saying an unmatched
+  table satisfies every assertion below it silently** (issue
+  btclib-org/.github#904):
+  `test_the_two_halves_account_for_every_convention` is not
+  parametrized, so on a table this module's regex stopped matching it
+  fails, naming every convention the table declared as accounted for by
+  neither half; the parametrized assertions are skipped on the empty
+  parameter set, with the reason `-ra` prints. A retitled heading
+  reaches neither: `_section` asserts while the module is imported, so
+  collection errors. The docstring is `bitcoin-core-rpc`'s byte for
+  byte, and the issue stays open for the copies that still say
+  otherwise.
+
 ## v2026.9.3
 
 ### Repository
