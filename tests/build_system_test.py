@@ -158,26 +158,36 @@ def _source_exclude() -> list[str]:
 def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     """Whether a module reads `.github`, `fuzz`, or `.git` off the tree.
 
-    Two shapes. The first is a `/` join whose right side is the literal
-    directory name or opens with it and a slash -- the convention
-    `Path(__file__).parents[1] / ".github" / "scripts" / "<name>.py"` and
-    `Path(__file__).parent.parent / "fuzz"` follow, and `_ROOT /
-    ".github/workflows"` too -- walked rather than matched on the
-    formatted text, so a reflow of the expression across lines is still
-    seen. Split on the slash rather than matched as a substring, so a
-    name merely starting with the same letters -- ".githubbookmark" --
-    is not mistaken for the directory. What this still does not reach is
-    a literal that never sits at the join itself:
-    `tests/docs_commands_test.py` names ".github/workflows/docs.yml" as
-    a dict key and reads through a variable holding it, so that module
-    is named in `source-exclude` by hand rather than found here.
+    Two shapes. The first is any string literal that is the directory
+    name or opens with it and a slash -- split on the slash rather than
+    matched as a substring, so a name merely starting with the same
+    letters (".githubbookmark") is not mistaken for the directory.
+    Walked rather than matched on the formatted text, so a reflow across
+    lines is still seen, and wherever in the module the literal sits: a
+    `/` join's own right side, the way `Path(__file__).parents[1] /
+    ".github" / "scripts" / "<name>.py"` and `_ROOT /
+    ".github/workflows"` hold it, or a dict key read out by name and
+    joined once a comprehension binds it, the way
+    `tests/docs_commands_test.py` reaches ".github/workflows/docs.yml".
 
-    The second is `tests/changelog_immutability_test.py`'s own: it reads
-    a release's own tag with `subprocess.run([_GIT, ...])` rather than a
-    `Path` join, `.git` not being a directory any test builds a path
-    through. `_GIT` -- `shutil.which("git") or "git"`, resolved once, the
-    convention `generate_sbom.py` and its own test already use -- is a
-    bare name and not the string "git" itself, ruff's own
+    Exempted is a literal that never leaves a closed membership test --
+    an element of the tuple, list or set an `in` or `not in` comparison
+    reads its answer from, this function's own `(".github", "fuzz")`
+    included. Comparing a value against a fixed set of names reads
+    nothing off the tree; joining a path or keying a dict on the name
+    does, whichever of the two shapes above carries it there. The
+    exemption is why this module reports nothing about its own two
+    literals, and why `tests/tf2_ledger_test.py`'s `{"tests", "src",
+    ".github"}` -- the same kind of comparison, holding the same word --
+    is silent too; that module is excluded for a read its own `/` join
+    makes elsewhere, not for this one.
+
+    The second shape is `tests/changelog_immutability_test.py`'s own: it
+    reads a release's own tag with `subprocess.run([_GIT, ...])` rather
+    than a `Path` join, `.git` not being a directory any test builds a
+    path through. `_GIT` -- `shutil.which("git") or "git"`, resolved
+    once, the convention `generate_sbom.py` and its own test already
+    use -- is a bare name and not the string "git" itself, ruff's own
     start-process-with-partial-path check being what a literal there
     would trip; matching that name is what the shape actually looks like
     now, a call whose first argument is a list or tuple literal opening
@@ -185,13 +195,21 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     called (`run`, `check_output`, ...) or what object the call is made
     through (issue #1512).
     """
+    exempt = {
+        id(elt)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Compare)
+        for op, comparator in zip(node.ops, node.comparators, strict=True)
+        if isinstance(op, (ast.In, ast.NotIn))  # codespell:ignore notin
+        and isinstance(comparator, (ast.Tuple, ast.List, ast.Set))
+        for elt in comparator.elts
+    }
     for node in ast.walk(tree):
         if (
-            isinstance(node, ast.BinOp)
-            and isinstance(node.op, ast.Div)
-            and isinstance(node.right, ast.Constant)
-            and isinstance(node.right.value, str)
-            and node.right.value.split("/", 1)[0] in (".github", "fuzz")
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and node.value.split("/", 1)[0] in (".github", "fuzz")
+            and id(node) not in exempt
         ):
             return True
         if (
@@ -213,15 +231,6 @@ def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
     Not the other direction: `source-exclude` also names entries no test
     file could match -- `docs/build`, the linter caches -- so only this
     direction closes what ISS 1509 found open.
-
-    And not every test that reaches outside the sdist: what the reader
-    sees is a `/` join whose own right side names the directory, so a
-    literal that reaches a join only through a variable -- a dict key
-    read out by name and joined later, the way
-    `tests/docs_commands_test.py` reads ".github/workflows/docs.yml" --
-    is outside its reach and outside this assertion's. Widening the
-    sentence here without widening the reader is what would put the
-    guarantee ISS 1509 asked for on a green run that does not give it.
     """
     excluded = set(_source_exclude())
     missing = [

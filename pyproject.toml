@@ -290,9 +290,6 @@ source-exclude = [
     # recognizes as reaching .github or fuzz/ is named here
     "/tests/check_py_arm_authority_test.py",
     "/tests/check_vendored_vectors_test.py",
-    # a shape the reader above does not see at all: the path sits in a
-    # dict key here, and the join it feeds happens through a variable
-    # rather than through the literal itself (issue #1736)
     "/tests/docs_commands_test.py",
     "/tests/generate_sbom_test.py",
     "/tests/interpreters_test.py",
