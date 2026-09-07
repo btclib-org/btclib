@@ -1858,6 +1858,21 @@ file of the test tree, and no caller acts on it.
   are selected whether or not the TAPROOT flag filter is applied, and that no
   vector short of TAPROOT carries an annex -- and states it without the figure.
 
+### `_reaches_outside_the_sdist` matches a literal by its shape, not its join
+
+- **The reader recognizes a `.github`- or `fuzz`-opening string literal
+  wherever it sits in a module, not only at a `/` join's own right
+  side** (closes #1801): `tests/docs_commands_test.py` reaches
+  ".github/workflows/docs.yml" through a dict key and a variable a
+  comprehension binds later, a shape the join-only reader could not see,
+  so its `source-exclude` entry was correct by memory and removing it
+  failed nothing. Removing it now fails the assertion, naming the
+  module. Exempted is a literal that never leaves a closed membership
+  test -- an element of the tuple, list or set an `in` or `not in`
+  comparison reads its answer from -- which is why the reader stays
+  silent about its own `(".github", "fuzz")` and about
+  `tests/tf2_ledger_test.py`'s unrelated `{"tests", "src", ".github"}`.
+
 ## v2026.9.3
 
 ### Repository
