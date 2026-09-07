@@ -569,12 +569,21 @@ authentication at all.
 These are the declarations this file argues, not a roster of them.
 
 ```shell
-git grep -n "permissions:$" -- .github/workflows/*.yml
+git grep -n "permissions:$" -- .github/workflows
 ```
 
-names every declaration, and `: write` in place of `permissions:$`
-narrows it to the jobs that elevate, comments discussing one included.
-Either is re-derived whenever it's wanted, where a list here goes stale
+names every declaration, and the write grants among them read out of a
+second command — keyed on where the key sits, first on its line after
+the indentation, so that a comment naming a permission stays out of the
+answer while a grant carrying a trailing comment stays in:
+
+```shell
+git grep -nE '^ +[a-z-]+: write([[:blank:]]+#|$)' -- .github/workflows
+```
+
+A grant written some other way — `permissions: write-all`, a flow
+mapping, or a quoted key or value — is outside that answer. Either
+command is re-derived whenever it's wanted, where a list here goes stale
 the next time a job's own needs change.
 
 ### Whether that default is pinned here is untested
