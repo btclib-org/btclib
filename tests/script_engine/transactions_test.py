@@ -39,16 +39,15 @@ TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 def taproot_vectors(outcome: str) -> list[Any]:
     """Every vector carrying an `outcome` witness, whatever its flags.
 
-    No `"TAPROOT" in x["flags"]` filter: it would drop 1016 of the
-    file's 3737 cases, 685 `success` and 331 `failure` whose flags field
-    stops at NULLDUMMY, and those are not off-topic vectors. Core's
-    `feature_taproot.py` dumps a spend twice, once with the soft fork
-    enforced and once without, and the second copy is what asserts that
-    a taproot output stays anyone-can-spend to a node that does not
-    know the rule -- the upgrade path. Nothing else covers them: 612 of
-    them are reached by no other test, and the remaining 73 only by
-    `test_valid_script_path`, which checks the taproot commitment and
-    runs no script.
+    No `"TAPROOT" in x["flags"]` filter: it would drop a large part of the file
+    -- both `success` and `failure` cases whose flags field stops at NULLDUMMY
+    -- and those are not off-topic vectors. Core's `feature_taproot.py` dumps a
+    spend twice, once with the soft fork enforced and once without, and the
+    second copy is what asserts that a taproot output stays anyone-can-spend to
+    a node that does not know the rule -- the upgrade path. The large majority
+    of them are reached by no other test, and a small remainder only by
+    `test_valid_script_path`, which checks the taproot commitment and runs no
+    script.
     """
     return [
         pytest.param(x, id=vector_id(index, x["comment"]))

@@ -1794,6 +1794,31 @@ file of the test tree, and no caller acts on it.
   implements is btclib-org/.github#843's other half, one decision for
   every tree carrying the hook rather than this tree's to take alone.
 
+### `script_vectors`'s comment drops a proportion nothing re-derives
+
+- **`tests/script_engine/script_test.py`'s `script_vectors` comment stated a
+  proportion of the vendored `script_tests.json` that nothing in the tree
+  checks** (closes #1809): a comment's own figure is checked by no test and
+  pinned in no README, the shape `tests/vendored_data_test.py` spares, so it is
+  a count like any other here. Measured against the vendored file, the comment
+  had the direction backwards -- most vectors carry no trailing comment, not
+  most of them. It now says that `vector_id` falls back to the script itself
+  for the vectors that carry none, without a figure.
+
+### `taproot_vectors`'s docstring drops figures nothing re-derives
+
+- **`tests/script_engine/transactions_test.py`'s `taproot_vectors` docstring
+  stated several figures describing the vendored `script_assets_test.json`,
+  none of which anything in the tree checks** (closes #1810): a docstring
+  figure is checked by no test and pinned in no README, the shape
+  `tests/vendored_data_test.py` spares, so each is a count like any other here.
+  The docstring keeps the argument the figures stood in for -- that filtering
+  by the TAPROOT flag would drop a large part of the file that is not
+  off-topic, and that the large majority of the dropped vectors are reached by
+  no other test while a small remainder is reached only by
+  `test_valid_script_path`, which runs no script -- and states it without the
+  figures.
+
 ## v2026.9.3
 
 ### Repository

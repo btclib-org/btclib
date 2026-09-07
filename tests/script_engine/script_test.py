@@ -148,8 +148,8 @@ def script_vectors() -> list[Any]:
         vector = ScriptVector(
             stack, amount, x[i], script_pub_key, x[i + 2], x[i + 3] == "OK"
         )
-        # the trailing comment of the vector says what it is testing, and
-        # two thirds of them have one; the script itself for the rest
+        # the trailing comment of the vector says what it is testing; most
+        # vectors carry none, and vector_id falls back to the script itself
         comment = x[i + 4] if len(x) > i + 4 else ""
         params.append(
             pytest.param(vector, id=vector_id(index, comment or vector.script_pub_key))
