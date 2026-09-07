@@ -11,14 +11,24 @@ of them. That clause is right, and its price is that an *absent*
 convention test is indistinguishable from a convention this repository
 does not have. Nothing anywhere recorded which of the two it was.
 
-A filename cannot answer it either. The suites of the organization name
-the same idea three ways -- a module per bullet here, a `test_` prefix in
-btclib-secp256k1, and in bitcoin-core-rpc several of these checks folded
-into the one file that is about its single module, which is the honest
-shape for a package that is one module. So the audit reads a declaration
-rather than a directory, and this module is what keeps the declaration
-from being prose: section 7's own rule, that a convention worth stating
-is worth a test, applied to section 7 itself.
+A filename cannot answer it either -- tests/README.md already says the
+suites of the organization name this idea differently tree to tree, and
+saying it again here would be the second statement section 9 refuses.
+What is left to this module is what follows from that: the audit reads
+a declaration rather than a directory, and this module is what keeps
+the declaration from being prose -- section 7's own rule, that a
+convention worth stating is worth a test, applied to section 7 itself.
+
+The header section 14 asks of every copy of this module is not that
+naming point again -- it is what this module itself reads, and which of
+its departures are decided rather than accidental. `_CONVENTIONS` below
+transcribes section 7's list rather than reading it live: the
+organization standard's own suite can read `README.md` straight, because
+the standard and the declaration are the same commit there, and a
+transcribed copy would be the second statement section 9 refuses and the
+one that goes stale. Here the standard lives in `btclib-org/.github`, so
+a transcribed copy is the only form this tree can hold it in, and
+`_CONVENTIONS` is that copy.
 
 What it does not check is whether a named module tests the convention it
 is named against. Nothing short of reading it can, and the four
@@ -94,7 +104,7 @@ _ROWS = tuple((m["convention"], m["module"]) for m in _ROW.finditer(_SECTION))
 def test_the_table_is_not_empty() -> None:
     """A declaration that parsed to nothing is the failure that hides.
 
-    Every assertion below quantifies over the rows, so a table this
+    Every assertion below is parametrized by the rows, so a table this
     module's regex stopped matching -- a column added, the backticks
     dropped, the heading retitled -- would satisfy all of them silently.
     """
