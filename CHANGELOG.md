@@ -1741,6 +1741,18 @@ file of the test tree, and no caller acts on it.
   anything by leaving the value blank -- the shape is closer to a
   broken block than to a decision, and is now named apart from both.
 
+### `test_const_scriptcode_refuses_signature_checks` drops a proportion
+
+- **`tests/script_engine/script_test.py`'s
+  `test_const_scriptcode_refuses_signature_checks` docstring stated "three
+  quarters of the list" without a command that derives it** (closes #1804): a
+  docstring figure is checked by no test and pinned in no README, the shape
+  `tests/vendored_data_test.py` spares, so it is a count like any other here.
+  The docstring keeps the argument the figure was standing in for -- that the
+  vendored vectors cover only `OP_CHECKSIG` in a `script_sig` under the flag,
+  so the other three names rest on this test alone -- and states it without
+  the figure.
+
 ## v2026.9.3
 
 ### Repository
