@@ -504,12 +504,7 @@ repos:
   # formats values and leaves comments alone, by design, a formatter that
   # reflowed prose being a formatter that rewrites it.
   # `.{80}\S*[ \t]` reports a line only when whitespace is left past
-  # column 80, which is MD013's test and not W505's: a line whose
-  # overflow is one unbroken token passes here and in markdownlint, and
-  # the same text in a whole-line .py comment is reported. What W505
-  # passes over instead is section 9 of the organization standard's.
-  # With no amnesty at all this would be stricter on toml prose than the
-  # rules it mirrors are on the same sentences in a .py or a .md.
+  # column 80: a comment whose overflow is one unbroken token is exempt.
   # The `#` after optional indent selects a comment and not a long value:
   # `addopts` and `skip` in pyproject.toml are single tokens no width can
   # break, and a value is not prose.
