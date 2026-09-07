@@ -2016,6 +2016,20 @@ file of the test tree, and no caller acts on it.
   that sentence, which holds of `contents`, the scope the `release.yml`
   run it cites measured. That entry stays where it is.
 
+### `exclude_patterns` converges on `btclib-benchmarks`'s empty list
+
+- **`exclude_patterns` drops `sphinx-quickstart`'s stock
+  `["_build", "Thumbs.db", ".DS_Store"]` for `list[str] = []`** (issue
+  btclib-org/.github#418): `Thumbs.db` and `.DS_Store` never survive
+  `path2doc` under the `.md`/`.rst` this tree declares, and nothing
+  writes a `_build` directory inside `docs/source` for the entry naming
+  it to ever match. Section 2 of the organization standard is where the
+  rule this converges on now lives -- "`exclude_patterns` names what the
+  tree writes under `docs/source/`, and is empty where nothing does" --
+  and the three lines dropped above the line were `sphinx-quickstart`'s
+  own boilerplate about sphinx's API, not this tree's reasoning, so
+  nothing this tree said is lost with them.
+
 ## v2026.9.3
 
 ### Repository
