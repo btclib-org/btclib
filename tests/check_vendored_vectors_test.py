@@ -206,6 +206,29 @@ def test_a_pin_with_an_empty_behind_line_is_skipped(checker: ModuleType) -> None
     assert skipped == ["stale (behind line present but empty)"]
 
 
+def test_a_bare_field_that_is_not_last_does_not_swallow_the_next_line(
+    checker: ModuleType,
+) -> None:
+    r"""A bare key with nothing after it on its own line matches nothing.
+
+    `\s+` between a key and its value also matches the newline ending a
+    bare key's own line, so the separator used to cross into the
+    following line and capture it whole as the bare key's own value --
+    and the field that line actually names was then never matched at
+    all. Here `behind` is bare and is not the last field in its block,
+    so under the old separator it would swallow `commit`'s whole line
+    and the entry would wrongly read as having no commit rather than no
+    `behind`. `entry()` cannot pose this: it always writes a value,
+    hence the block is written out by hand, README-shaped.
+    """
+    text = (
+        "### `f.json`\n\n```text\nrepo  r\npath  p.json\nbehind\ncommit  cafe1234\n```"
+    )
+    entries, skipped = checker._entries_at_tip(text)
+    assert entries == []
+    assert skipped == ["`f.json` (no behind line at all)"]
+
+
 @pytest.mark.parametrize(
     "fields",
     [
