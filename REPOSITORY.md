@@ -586,6 +586,15 @@ mapping, or a quoted key or value — is outside that answer. Either
 command is re-derived whenever it's wanted, where a list here goes stale
 the next time a job's own needs change.
 
+`zizmor`'s `excessive-permissions` audit reaches
+`permissions: write-all`, and reaches it conditionally: it reports the
+grant written on a job, and written on a workflow only where that
+workflow holds more than one job. On a workflow holding a single job the
+audit takes the grant, the finding suppressed under the persona the hook
+runs, so it is then outside that audit's answer as well as the
+position-keyed command's. The `--persona=auditor` run named beside the
+hook in `.pre-commit-config.yaml` reports it.
+
 ### Whether that default is pinned here is untested
 
 ```shell

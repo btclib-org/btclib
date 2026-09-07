@@ -2077,6 +2077,24 @@ file of the test tree, and no caller acts on it.
   workflow is a `.yml`, and the directory goes on answering the day one
   is not.
 
+### `zizmor`'s refusal of `write-all` is keyed on where the grant sits
+
+- **`REPOSITORY.md`'s *Token permissions* names the placements of
+  `permissions: write-all` that `zizmor` reports, beside the command
+  that returns none of them** (issue btclib-org/.github#902): the
+  `excessive-permissions` audit reports the grant written on a job, and
+  written on a workflow only where that workflow holds more than one
+  job. `lint.yml` holds one job, and with its `permissions:` block
+  replaced whole by `permissions: write-all` and nothing else changed
+  the audit takes it, the finding suppressed under the persona the hook
+  runs; the same grant written on that file's job instead is reported.
+  The `--persona=auditor` run `.pre-commit-config.yaml` names beside the
+  hook reports the suppressed one.
+- **The entry *The census of token elevations is keyed on where the key
+  sits* above states that refusal without the condition**: it stays
+  where it is, which is section 9's *Nothing already written is
+  rewritten*, and the bullet above is what the tree holds.
+
 ## v2026.9.3
 
 ### Repository
