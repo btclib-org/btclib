@@ -2030,6 +2030,20 @@ file of the test tree, and no caller acts on it.
   own boilerplate about sphinx's API, not this tree's reasoning, so
   nothing this tree said is lost with them.
 
+### `conventions_test.py`'s docstring says what it reads and departs
+
+- **The docstring's second half stops restating how the organization's
+  suites name convention tests -- `tests/README.md` already says that
+  -- and instead names what this module itself reads and which of its
+  departures from the standard are decided** (issue
+  btclib-org/.github#690): `_CONVENTIONS` transcribes section 7's list
+  of conventions rather than reading `README.md` live, because the
+  standard lives in `btclib-org/.github` and a copy in this tuple is
+  the only form this tree can hold it in; a sibling whose standard and
+  declaration are the same commit reads it live instead. The issue names
+  other copies of this module owing the same header sentence, so it
+  stays open.
+
 ## v2026.9.3
 
 ### Repository
