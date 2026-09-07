@@ -2125,6 +2125,17 @@ file of the test tree, and no caller acts on it.
   byte, and the issue stays open for the copies that still say
   otherwise.
 
+### `release.yml`'s caller-permissions comment names the scope it is about
+
+- **The comment above the `test` job's `permissions:` says what omitting
+  `contents` from the caller's list would do rather than what omitting
+  any scope would do** (issue btclib-org/.github#896): `metadata` is
+  where the wider reading fails, `actionlint` refusing it as a scope a
+  `permissions:` block may name while `test.yml`'s `changes` job,
+  reached through that call, logs `Metadata: read` all the same. The
+  issue asks one wording of every tree carrying the sentence, so the
+  clause replacing it names no job and no file.
+
 ## v2026.9.3
 
 ### Repository

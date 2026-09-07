@@ -374,7 +374,7 @@ jobs:
     # declares, not against what it goes on to do. contents: read is
     # repeated rather than left to test.yml's own default for the same
     # reason: a caller's grant replaces the callee's default outright, so
-    # anything this list leaves off becomes none for every job over
+    # contents omitted from this list would be none for every job over
     # there, not only for the one this comment names
     permissions:
       contents: read
