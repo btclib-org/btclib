@@ -480,9 +480,9 @@ def sign_(
     multiplication the check would otherwise do per signature; here there
     is none to save, the keypair holding the point already, so the check
     costs what it costs whether the caller holds the key or not --
-    btclib-secp256k1#224 is where that is measured, and #982 is where the
-    two schemes are put side by side. It would buy nothing and sell one
-    thing: a second reason a check can fail, and with it the
+    btclib-org/btclib-secp256k1#224 is where that is measured, and #982 is
+    where the two schemes are put side by side. It would buy nothing and
+    sell one thing: a second reason a check can fail, and with it the
     discrimination step `dsa._abort_unless_checked` has to pay for.
 
     commit_hash is a value to commit to inside the nonce, sign-to-contract
@@ -533,9 +533,9 @@ def sign_(
         # BIP340's step being a bare verification under a point the
         # keypair already holds. What it costs is measured where it is
         # performed -- cheaper than ECDSA's own analogous step,
-        # btclib-secp256k1#224 -- and is not re-measured here, a figure
-        # of theirs kept in this file being one that ages when they
-        # change and says nothing when it does
+        # btclib-org/btclib-secp256k1#224 -- and is not re-measured here,
+        # a figure of theirs kept in this file being one that ages when
+        # they change and says nothing when it does
         try:
             signature = libsecp256k1_ssa.sign_custom(msg, q, aux, verify=verify)
         except RuntimeError as e:
@@ -839,7 +839,7 @@ class Signer:
         # largest share of what it is added to: the keypair was built
         # when this signer was, so signing here is markedly cheaper than
         # a fresh signature, and the same check on it is 61% of the call
-        # against 44% there (btclib-secp256k1#224). It is the
+        # against 44% there (btclib-org/btclib-secp256k1#224). It is the
         # one of btclib's signing calls a caller would most plausibly
         # want to decline, which is why the keyword reaching here is the
         # point of exposing it at all

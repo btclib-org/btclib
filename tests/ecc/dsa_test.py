@@ -2316,14 +2316,14 @@ def test_a_wiped_python_signer_refuses_rather_than_signing_with_the_zeros(
 def test_a_delegated_signer_s_wipe_zeroes_the_buffer_it_signs_from() -> None:
     """`wipe` reaches this arm's key now, not only the reference to it.
 
-    btclib-secp256k1#253 is what makes this true: `dsa.sign`'s `prvkey`
-    argument passes a 32-octet cffi array through unconverted rather
-    than coercing it to a fresh, unreachable `bytes` on every call
-    (btclib-secp256k1#247, closed by that change), so the buffer this
-    signer built at construction is the same 32 octets every signature
-    it has made was read from, and overwriting it now reaches every one
-    of them at once -- not only the copy this object happens to be
-    holding when `wipe` is called.
+    btclib-org/btclib-secp256k1#253 is what makes this true: `dsa.sign`'s
+    `prvkey` argument passes a 32-octet cffi array through unconverted
+    rather than coercing it to a fresh, unreachable `bytes` on every call
+    (btclib-org/btclib-secp256k1#247, closed by that change), so the
+    buffer this signer built at construction is the same 32 octets every
+    signature it has made was read from, and overwriting it now reaches
+    every one of them at once -- not only the copy this object happens to
+    be holding when `wipe` is called.
     """
     signer = dsa.Signer(prv_key_int)
     assert signer.sign(b"a message")

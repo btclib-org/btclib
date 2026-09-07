@@ -758,7 +758,7 @@ answering an empty list, so the `0` above is a repository with no hook
 and not a permission ceiling that reads like one. Every repository of the
 organization answers `0`; the last per-repository webhook left anywhere
 was bitcoin-core-rpc's, dead since the App arrived and deleted on
-2026-08-28 (bitcoin-core-rpc#291).
+2026-08-28 (btclib-org/bitcoin-core-rpc#291).
 
 ## Security settings
 
