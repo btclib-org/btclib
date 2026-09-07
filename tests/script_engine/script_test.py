@@ -192,14 +192,14 @@ def test_script(vector: ScriptVector) -> None:
     if vector.valid:
         verify()
     else:
-        # BTClibValueError, not Exception: a vector expecting a failure
-        # gets one from anything that raises, the harness included, and
-        # `parse_script` raises KeyError on an op code name btclib does
-        # not know. That is how the seventeen DISABLED_OPCODE vectors
-        # below passed while the rule they test was missing -- the names
-        # were unknown, the scripts were never built, and no engine ever
-        # saw them. Everything the engine refuses is a BTClibValueError,
-        # ScriptError included, so a KeyError is now a red test
+        # BTClibValueError, not Exception: a vector expecting a failure gets
+        # one from anything that raises, the harness included, and
+        # `parse_script` raises KeyError on an op code name btclib does not
+        # know. That is how the DISABLED_OPCODE vectors below passed while the
+        # rule they test was missing -- the names were unknown, the scripts
+        # were never built, and no engine ever saw them. Everything the engine
+        # refuses is a BTClibValueError, ScriptError included, so a KeyError is
+        # now a red test
         with pytest.raises(BTClibValueError):
             verify()
 
@@ -566,11 +566,11 @@ def test_verif_in_an_unexecuted_branch(op_code: bytes) -> None:
 def test_disabled_op_codes() -> None:
     """The fifteen op codes CVE-2010-5137 switched off, named and refused.
 
-    Core's own vectors cover the refusal — twenty-four DISABLED_OPCODE
-    cases, seventeen of them in a branch never taken — and not one of
+    Core's own vectors cover the refusal, some of them placing the op
+    code where a conditional branch never reaches it — and not one of
     them could reach the engine while the names were missing:
     `parse_script` raised KeyError, `pytest.raises(Exception)` took it
-    for a verdict, and all twenty-four passed against a rule that was
+    for a verdict, and every one of them passed against a rule that was
     not there. What is left to pin here is the property they assume,
     which is also why the names are in the tables: every byte has one,
     the name serializes back to the byte, and the engine refuses it

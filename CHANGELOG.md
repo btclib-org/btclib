@@ -1819,6 +1819,45 @@ file of the test tree, and no caller acts on it.
   `test_valid_script_path`, which runs no script -- and states it without the
   figures.
 
+### `test_disabled_op_codes` and `test_script` drop counts nothing re-derives
+
+- **`tests/script_engine/script_test.py`'s `test_disabled_op_codes` docstring
+  and `test_script`'s own comment each counted the vendored
+  `script_tests.json`'s DISABLED_OPCODE vectors, in whole and split by whether
+  a conditional branch ever reaches the op code** (closes #1814): neither count
+  is checked by any test or pinned in any README, the shape
+  `tests/vendored_data_test.py` spares, so both are counts like any other here.
+  The branch split does not reproduce either: traced through each vector's own
+  conditional nesting against the vendored file, the split is not the one
+  either sentence stated. Both drop, and the docstring and the comment keep the
+  argument the counts stood in for -- that Core's vectors refuse the op code
+  whether or not a conditional branch ever reaches it, and that none of them
+  could reach the engine while the disabled op codes' names were missing.
+
+### `legacy_vectors`'s comment drops a count and id nothing matches
+
+- **`tests/script_engine/transactions_test.py`'s `legacy_vectors` comment
+  illustrated the id a governing comment gives `vector_id`, and its third
+  example named neither a count nor an id `vector_id` actually produces**
+  (closes #1815): checked against `vector_id`'s own output on the vendored
+  `tx_valid.json` and `tx_invalid.json`, no index produces that literal id, and
+  the count of vectors whose governing comment shares the example's subject
+  falls short of what the comment claimed. The comment keeps its two real
+  examples and the argument they illustrate -- that a governing comment gives
+  `vector_id` something the flags field cannot -- and drops the invented third
+  one.
+
+### `annex_vectors`'s docstring drops a count nothing re-derives
+
+- **`tests/script_engine/transactions_test.py`'s `annex_vectors` docstring
+  stated a count of the vendored `script_assets_test.json`'s annex-bearing
+  vectors** (closes #1816): the count is checked by no test and pinned in no
+  README, the shape `tests/vendored_data_test.py` spares, so it is a count like
+  any other here even though it is confirmed against the vendored file. The
+  docstring keeps the argument the count stood in for -- that the same vectors
+  are selected whether or not the TAPROOT flag filter is applied, and that no
+  vector short of TAPROOT carries an annex -- and states it without the figure.
+
 ## v2026.9.3
 
 ### Repository
