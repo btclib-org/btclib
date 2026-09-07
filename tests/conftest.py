@@ -52,10 +52,8 @@ def asks_for_everything(
     No path at all narrows nothing and is the whole run. A path above one
     of them -- `pytest .`, or the rootdir spelled out -- collects it too,
     so what decides is containment and not equality. `tests` alone would
-    match either way; `./tests` and `tests/` are the same directory under
-    another name and need the paths resolved before they compare equal;
-    and a path above `testpaths` is never equal to it, so only
-    containment reads all four as the whole run they collect.
+    match either way, and a path above `testpaths` is never equal to it,
+    so only containment reads both as the whole run they collect.
 
     `file_or_dir` is `None` rather than `[]` on the `--help` path, the
     parse having been abandoned rather than left unfinished: `--help` is
@@ -67,12 +65,15 @@ def asks_for_everything(
 
     The two sides are relative to different directories: a path on the
     command line to where pytest was run from, a `testpaths` entry to the
-    rootdir, which is what `testpaths` means. Both are then resolved, and
-    the second needs it as much as the first -- pytest builds `rootpath`
-    with `os.path.abspath`, which leaves a symlink in the path alone,
-    while `Path.resolve` follows one, so a tree reached through `/tmp` on
-    macOS would compare `/tmp/...` against `/private/tmp/...` and find no
-    containment anywhere.
+    rootdir, which is what `testpaths` means. What the join onto
+    `rootpath` does for the second, `Path.resolve` does for the first: a
+    relative path neither equals an absolute one nor is above it, so
+    without that call every relative spelling of the suite reads as a
+    subset. The second is resolved as well because pytest builds
+    `rootpath` with `os.path.abspath`, which leaves a symlink in the path
+    alone, while `Path.resolve` follows one, so a tree reached through
+    `/tmp` on macOS would compare `/tmp/...` against `/private/tmp/...`
+    and find no containment anywhere.
     """
     given = [Path(path).resolve() for path in file_or_dir or []]
     if not given:
