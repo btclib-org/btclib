@@ -1753,6 +1753,18 @@ file of the test tree, and no caller acts on it.
   so the other three names rest on this test alone -- and states it without
   the figure.
 
+### `check_vendored_vectors.py`'s field separator no longer crosses a newline
+
+- **`_FIELD`'s separator between a key and its value is `[ \t]+`, not `\s+`**
+  (closes #1807): `\s` also matches the newline ending a bare key's own line,
+  so a key written with no value and no trailing whitespace, and not last in
+  its fenced block, let the separator cross into the following line and
+  capture that whole line as the bare key's own value, leaving the field that
+  line actually names unmatched. A bare key now matches nothing at all, which
+  `_entries_at_tip` already reads as that field being absent -- `(no behind
+  line at all)` for `behind`, `(no commit to check against)` for a bare
+  `repo`, `path` or `commit`.
+
 ## v2026.9.3
 
 ### Repository
