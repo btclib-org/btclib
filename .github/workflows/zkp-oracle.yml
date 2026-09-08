@@ -1,0 +1,176 @@
+---
+name: zkp-oracle
+
+# Issue #1679's sentinel: installs btclib-secp256k1 from the sdist with
+# `BTCLIB_LIBSECP256K1_ZKP=true`, so the second extension,
+# `_btclib_secp256k1_zkp`, exists, and runs the tests marked `zkp`
+# against it. `true` and not the issue's own original `=1` --
+# btclib-secp256k1's `scripts/cffi_build.py` tests strict equality with
+# the string, so `=1` would build nothing, say nothing about it, and
+# leave this job green having compared nothing, exactly the "an absent
+# thing is silent" failure CLAUDE.md names.
+#
+# A sentinel and not a gate: `--no-binary-package` compiles two C
+# libraries from source (mainline libsecp256k1, which every install of
+# this dependency builds this way, and the secp256k1-zkp fork the flag
+# adds), and no published wheel of either btclib or btclib-secp256k1
+# carries the second extension -- btclib_secp256k1.zkp's own docstring
+# says so. `test.yml` and every gate stay on the published wheels, which
+# is why this is `zkp-oracle.yml` rather than a job of theirs.
+#
+# `tests.needs_zkp` is the marker this job selects on, `tests.ZKP_AVAILABLE`
+# the probe that skips it everywhere else: an attribute access on
+# `btclib_secp256k1.zkp.lib`, not the import, which always succeeds --
+# `tests/__init__.py` has the reasoning in full, alongside the existing
+# `bindings` marker's own.
+#
+# What it must not do, issue #1679's own words: move any run-time path.
+# `tests/ecc/commit_nonce_test.py`'s `test_dsa_commitment_opens_under_zkp`
+# and `test_zkp_commitment_opens_under_dsa` are the first of the three
+# oracles issue #1679 names, sign-to-contract over random keys, messages
+# and commitments, in both directions. The other two -- the MuSig2
+# adaptor and the rangeproof -- are each their own issue and their own
+# pull request.
+#
+# Landing that first oracle with the workflow is not, on its own, what
+# keeps a compile-only green run silent: `pytest -m zkp`'s selection is
+# not empty whether or not the flagged extension actually built, because
+# `tests/conftest.py`'s `_skip_what_needs_zkp` marks the two tests skip
+# rather than dropping them, and a skipped test is still a selected one.
+# Pytest's own exit 5 ("no tests ran") is real protection against a
+# renamed marker or a moved file, never against `tests.ZKP_AVAILABLE`
+# reading False -- which is what a build that silently kept the
+# unflagged wheel in place (the hazard the sync step's own comment below
+# measures) would do, and it is not a shape `-m`'s own selection can see.
+# What actually closes that gap is the step below the sync, asserting on
+# the same attribute the marker's own probe reads before pytest ever
+# runs -- see its comment for why that one and not the raw extension
+# module.
+
+on:
+  schedule:
+    # zkp-oracle joins the family that asks what this tree does against
+    # software it does not ship -- fuzz, integration-bitcoind and
+    # integration-hwi below it on Tuesday and Wednesday -- one hour
+    # ahead of fuzz's own: no published wheel of btclib-secp256k1 ships
+    # the extension this job builds, the same shape as an emulator or a
+    # regtest node this repository does not ship either.
+    # The time is section 10's grid in btclib-org/.github and not this
+    # file's to restate.
+    # Only the default branch schedules workflows, so on any other
+    # branch this is reachable through the dispatch below alone
+    - cron: "4 3 * * 2"
+  workflow_dispatch:
+  pull_request:
+    # ready_for_review and closed for the reason vendored-vectors.yml's
+    # own trigger gives: a readied draft would otherwise wait for its
+    # next push, and a merge or a close needs the event to land in this
+    # ref's own concurrency group for cancel-in-progress to reach it.
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    # Named for the same reason vendored-vectors.yml names its own
+    # dependencies rather than leaving this job to `git push`'s default
+    # schedule: a pull request that changes what the oracle compares
+    # without breaking `test_libsecp256k1_zkp_fixed_vectors` (the file's
+    # existing one-way pin) selects nothing today and waits for the
+    # Tuesday cron otherwise. `dsa.py` and `commit_nonce.py` are that
+    # dependency's surface for the ECDSA side this oracle exercises:
+    # `commit_entropy_`, `commit_nonce_` and `commit_point_`, defined in
+    # commit_nonce.py, are what `dsa.sign_`/`verify_` call to build and
+    # open a sign-to-contract commitment. `ssa.py` imports and calls the
+    # same functions for Schnorr's own sign-to-contract scheme, and stays
+    # out of this list on purpose: nothing this job runs exercises
+    # that call site, so naming ssa.py here would not make the filter
+    # select on anything this oracle would notice a break in -- it earns
+    # a place once a Schnorr sign-to-contract oracle lands beside a test
+    # that compares against it, the way this file earned its own.
+    # `rfc6979_nonce.py`, which `dsa.py` also imports, and `curves/`'s
+    # point arithmetic and serialization, which both files call, stay out
+    # for py-arm-authority.yml's own reason: both are wide, ordinary
+    # surface shared by nearly every other test in the suite, so a break
+    # there is already caught elsewhere, and naming them here would be
+    # "most of ecc/ and most of curves/", wrong the next time either
+    # grows a function
+    paths:
+      - .github/workflows/zkp-oracle.yml
+      - tests/ecc/commit_nonce_test.py
+      - src/btclib/ecc/dsa.py
+      - src/btclib/ecc/commit_nonce.py
+
+permissions:
+  contents: read
+
+# head_ref falls back to ref so a scheduled or dispatched run still gets
+# its own group, and a pull request always groups by its own branch --
+# vendored-vectors.yml's own concurrency block has the reasoning in full
+concurrency:
+  group: zkp-oracle-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zkp:
+    name: Build the flagged secp256k1-zkp extension, and run its tests
+    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    # far above what the build and the tests take -- see CONTRIBUTING.md's
+    # timeout-minutes convention; what this bounds is a hung job
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      # --no-binary-package is what keeps uv from resolving the
+      # published wheel, which carries no `_btclib_secp256k1_zkp`
+      # regardless of the flag: without it, BTCLIB_LIBSECP256K1_ZKP
+      # would be set on an install that never compiles anything.
+      # BTCLIB_LIBSECP256K1_DYNAMIC is left unset on purpose --
+      # cffi_build.py:859 declines the flag alongside a dynamic build,
+      # so the default (static) is the only build this flag has an
+      # effect on.
+      # --reinstall-package and --no-cache for the reason
+      # btclib-secp256k1's own `zkp` job in `test.yml` gives for the
+      # identical pair: neither `uv`'s build cache nor an
+      # already-satisfied venv is keyed on this environment variable,
+      # only on the sdist's own content -- measured here, a plain
+      # `uv sync --no-binary-package` left a previously installed,
+      # unflagged 0.8.0.5 in place under the flag, saying nothing
+      - name: Sync the environment, building btclib-secp256k1 from the sdist
+        env:
+          BTCLIB_LIBSECP256K1_ZKP: "true"
+        run: >
+          uv sync --locked --no-default-groups --group test
+          --reinstall-package btclib-secp256k1 --no-cache
+          --no-binary-package btclib-secp256k1
+      # The sync step above already fails loudly on a real compile error
+      # -- a bad CMake configure, a header this build cannot preprocess,
+      # a link error -- so what this step has to catch is the one thing
+      # that would not fail there: the sync succeeding, quietly, against
+      # an unflagged extension it already had (the hazard the sync
+      # step's own comment measures). `btclib_secp256k1.zkp.lib` rather
+      # than `_btclib_secp256k1_zkp` directly, the assertion
+      # btclib-secp256k1's own `zkp` job in `test.yml` makes on its own
+      # editable build: that name is the raw extension module one layer
+      # below what matters here, where `zkp.lib` is the exact attribute
+      # `tests.ZKP_AVAILABLE` reads -- so this step fails on precisely
+      # the condition that would otherwise leave `pytest -m zkp` below
+      # selecting two tests and skipping both, in silence
+      - name: Assert the flagged extension is loadable
+        run: >
+          uv run --locked --no-default-groups --group test
+          python -c "from btclib_secp256k1 import zkp; assert zkp.lib"
+      # nothing here tolerates pytest's own exit 5 ("no tests ran"): a
+      # selection that collects nothing -- a renamed marker, a moved
+      # file -- is a real failure, and the step above is what keeps a
+      # build that never ran at all from being the reason the selection
+      # is non-empty but skipped instead. `-m` alone already sets this
+      # run's own coverage floor to zero (`tests/conftest.py`'s
+      # `coverage_fail_under`), so `--no-cov` only saves a report nobody
+      # would read for a selection this narrow
+      - name: Run the tests marked zkp
+        run: >
+          uv run --locked --no-default-groups --group test
+          pytest -m zkp --no-cov

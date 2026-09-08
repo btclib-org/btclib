@@ -315,7 +315,7 @@ repos:
       - id: typos
         name: typos
         language: python
-        additional_dependencies: [typos==1.49.0]
+        additional_dependencies: [typos==1.50.1]
         entry: typos
         args: [--write-changes, --force-exclude]
         types: [text]

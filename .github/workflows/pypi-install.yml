@@ -336,7 +336,7 @@ jobs:
         # broken pair can in principle hide behind either axis, but the
         # two are not equally likely to hide one. Measured against
         # https://pypi.org/pypi/btclib-secp256k1/json for the newest
-        # release, 0.8.0.4: every platform below has a wheel for every
+        # release, 0.8.0.5: every platform below has a wheel for every
         # supported interpreter, cp310 through cp315t, win_arm64's floor
         # of cp311 excepted -- which is the paragraph below -- so trying a
         # second interpreter on a platform that already has one answers

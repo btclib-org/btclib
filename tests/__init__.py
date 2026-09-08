@@ -187,6 +187,51 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
 # loaders these same modules import.
 needs_bindings = pytest.mark.bindings
 
+# What a test asking the flagged `btclib_secp256k1.zkp` extension for the
+# right answer is marked with. Issue #1679 is the sentinel that installs
+# btclib-secp256k1 from the sdist with `BTCLIB_LIBSECP256K1_ZKP=true`,
+# which is the only environment where the extension exists at all: every
+# published wheel carries the `zkp` wrapper modules and none carries
+# `_btclib_secp256k1_zkp`, so this marker's own environment is narrower
+# than `bindings`' and needs a probe of its own.
+#
+# `import btclib_secp256k1.zkp` succeeds wherever `btclib_secp256k1`
+# itself does, wheel or sdist, flagged or not -- the wrapper modules bind
+# their names without reaching for the extension, which is why the
+# condition below is an attribute access and not the import. `zkp.lib`
+# and `zkp.ffi` are what the subpackage resolves lazily, through a
+# module-level `__getattr__` its own docstring names, and raise
+# `ImportError` where the build the environment installed has none.
+# `ImportError` and not `ModuleNotFoundError` alone, because
+# `btclib_secp256k1` itself is absent in the no-bindings job, and the
+# import above raises the narrower `ModuleNotFoundError` there -- a
+# subclass of `ImportError`, so one `except` covers both without a
+# tuple.
+#
+# Here rather than beside `INSTALLED` in `src/btclib/_libsecp256k1.py`:
+# that module answers what btclib's own run-time asks of libsecp256k1,
+# and nothing in btclib delegates to secp256k1-zkp -- issue #1679 asks
+# only for the comparison this suite makes to be runnable, not for a
+# dispatch, so the question "is zkp available" is this suite's own and
+# has no answer `_libsecp256k1.py` would ever read.
+try:
+    from btclib_secp256k1 import zkp
+
+    # the probe itself: not assigned because nothing here reads it back,
+    # `ffi` answering the same question `lib` does once either has run
+    _ = zkp.lib
+except ImportError:
+    ZKP_AVAILABLE = False
+else:
+    # unlike `INSTALLED` above, whose `try` is what an ordinary job
+    # reaches and whose `except` is the no-bindings job's alone: every
+    # job that measures coverage builds without the flag, so this is
+    # the arm only `zkp-oracle.yml` ever takes, and that job's own
+    # `pytest -m zkp --no-cov` collects no coverage data to combine
+    ZKP_AVAILABLE = True  # pragma: no cover
+
+needs_zkp = pytest.mark.zkp
+
 # --------------------------------------------------------------------------
 # AES-128 and AES-256, shared by `ecc/ecies_test.py`'s CBC vectors and
 # `bip38_test.py`'s ECB ones.

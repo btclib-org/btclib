@@ -24,7 +24,7 @@ from hashlib import sha1, sha256
 import pytest
 
 from btclib.alias import INF
-from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.curves import bytes_from_point, mult, point_from_pub_key, secp256k1
 from btclib.curves.curve import CURVES
 from btclib.ecc import commit_nonce, dsa, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
@@ -34,12 +34,22 @@ from btclib.ecc.commit_nonce import (
     commit_nonce_,
     commit_point_,
 )
-from btclib.ecc.dsa import _S2C_DATA_TAG, _S2C_POINT_TAG
+from btclib.ecc.dsa import _S2C_DATA_TAG, _S2C_POINT_TAG, _compact, _sig_from_compact
 from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.ecc.ssa import _S2C_POINT_TAG as _SSA_POINT_TAG
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
+from tests import needs_zkp
 from tests.curves.curve_test import low_card_curves
+
+# guarded module scope, the same shape `btclib._libsecp256k1` uses: this
+# file is collected in every job, including the no-bindings one where
+# `btclib_secp256k1` does not exist at all, and pytest imports every
+# module it collects before `tests.needs_zkp` can skip anything in it
+try:
+    from btclib_secp256k1.zkp import ecdsa_s2c
+except ImportError:  # pragma: no cover -- only the no-bindings job reaches this
+    ecdsa_s2c = None  # type: ignore[assignment]
 
 random.seed(42)
 
@@ -211,6 +221,62 @@ def test_libsecp256k1_zkp_fixed_vectors(commit_hash: str, opening: str) -> None:
     assert dsa.verify_(
         _ZKP_MSG_HASH, pub_key, sig, commit_hash=commit_hash, receipt=receipt
     )
+
+
+# Issue #1679's first oracle: the two fixed vectors above pin btclib's own
+# derivation against libsecp256k1-zkp's fixture, over one key and one
+# message; these two ask the same question the other way, over random
+# keys, messages and commitments, in both directions -- a btclib
+# commitment has to open under zkp's own `verify_commit`, and a zkp
+# opening has to open under `dsa.verify_`. Neither fixed vector nor a
+# hand-rolled generator: `random.seed(42)` at the top of this file is
+# what the rest of it already draws from, and every `ecc/` comparison
+# against the bindings does the same rather than reaching for
+# hypothesis, which this suite reserves for parsers and codecs.
+#
+# `_compact` and `_sig_from_compact` round-trip a `Sig` through the
+# 64-byte `r || s` form `zkp.ecdsa_s2c` reads and writes -- the same form
+# `dsa.py`'s own docstring gives the reason for over DER, here for the
+# opposite direction. `bytes_from_point`/`point_from_pub_key` do the same
+# for a receipt against zkp's 33-byte compressed opening.
+#
+# `# pragma: no cover` on both signatures below: `ZKP_AVAILABLE` is False
+# in every job that measures coverage, `.github/workflows/zkp-oracle.yml`
+# being the one job where it is True, and that job's own `pytest -m zkp
+# --no-cov` collects no coverage data for any report to combine.
+@needs_zkp
+def test_dsa_commitment_opens_under_zkp() -> None:  # pragma: no cover
+    """A btclib sign-to-contract commitment opens under zkp's own check."""
+    for _ in range(16):
+        prv_key = 1 + random.randrange(secp256k1.n - 1)
+        msg_hash = random.randbytes(32)
+        commit_hash = random.randbytes(32)
+        sig, receipt = dsa.sign_(
+            msg_hash, prv_key, grind=False, commit_hash=commit_hash
+        )
+        opening = bytes_from_point(receipt, secp256k1)
+        assert ecdsa_s2c.verify_commit(_compact(sig), commit_hash, opening)
+        # not to another commitment, or under another signature's r
+        assert not ecdsa_s2c.verify_commit(_compact(sig), b"\x00" * 32, opening)
+
+
+@needs_zkp
+def test_zkp_commitment_opens_under_dsa() -> None:  # pragma: no cover
+    """A zkp sign-to-contract commitment opens under `dsa.verify_` too."""
+    for _ in range(16):
+        prv_key = 1 + random.randrange(secp256k1.n - 1)
+        pub_key = mult(prv_key, secp256k1.G, secp256k1)
+        msg_hash = random.randbytes(32)
+        s2c_data32 = random.randbytes(32)
+        sig_bytes, opening_bytes = ecdsa_s2c.sign(msg_hash, prv_key, s2c_data32)
+        sig = _sig_from_compact(sig_bytes, secp256k1)
+        receipt = point_from_pub_key(opening_bytes, secp256k1)
+        assert dsa.verify_(
+            msg_hash, pub_key, sig, commit_hash=s2c_data32, receipt=receipt
+        )
+        assert not dsa.verify_(
+            msg_hash, pub_key, sig, commit_hash=b"\x00" * 32, receipt=receipt
+        )
 
 
 # src/modules/ecdsa_s2c/main_impl.h hardcodes, for each of its two tagged
