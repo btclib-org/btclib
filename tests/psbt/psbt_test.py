@@ -49,7 +49,7 @@ from btclib.psbt.psbt import (
 from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
 from btclib.psbt.psbt_in import LOCK_TIME_THRESHOLD
 from btclib.psbt.psbt_out import _V2_FIELDS as _V2_OUTPUT_FIELDS
-from btclib.psbt.psbt_utils import PSBT_SEPARATOR
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR, PSBT_V2
 from btclib.script import (
     ScriptPubKey,
     TaprootScriptTree,
@@ -1163,7 +1163,11 @@ def test_finalize() -> None:
 
     to_be_finalized_psbt = Psbt.b64decode(TO_BE_FINALIZED)
     finalized_psbt = finalize(to_be_finalized_psbt)
-    assert finalized_psbt == psbt
+    # finalizing does not clear the fields BIP174 drops: `serialize`
+    # drops them, at the point Bitcoin Core's own `PSBTInput::Serialize`
+    # does, so the wire form and not the object's own fields is what
+    # reproduces the example
+    assert finalized_psbt.b64encode() == psbt_str
 
 
 def test_extract_tx() -> None:
@@ -3883,13 +3887,26 @@ def test_a_finalized_input_keeps_the_utxo_and_the_unknown_fields_only(
 
     signed, signed_vins = sign(_fully_populated(psbt), key_manager)
     assert signed_vins == [0]
-    psbt_in = finalize(signed).inputs[0]
+    finalized_psbt = finalize(signed)
+    psbt_in = finalized_psbt.inputs[0]
 
-    # spelled out rather than imported from psbt.py: `_FINALIZED_KEEPS`
-    # is what the code believes, and a test that imported it would agree
-    # with a wrong list as readily as with a right one. Every other field
-    # of PsbtIn is walked, so a field added there and left out of both
-    # lists fails here
+    # finalizing no longer clears these in memory -- `PsbtIn.serialize`
+    # drops them, at the point Bitcoin Core's own `PSBTInput::Serialize`
+    # does -- so the object finalize() returns still legitimately carries
+    # what an eager clear used to destroy, and this is what proves the
+    # mechanism moved rather than merely that the test below was loosened
+    assert psbt_in.hd_key_paths == {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+    assert psbt_in.ripemd160_preimages == {ripemd160(b"one"): b"one"}
+
+    # what actually reaches the wire is what BIP174's rule, and Core's
+    # own guarantee, are about
+    round_tripped = Psbt.b64decode(finalized_psbt.b64encode()).inputs[0]
+
+    # spelled out rather than imported from psbt_in.py:
+    # `_DROPPED_ONCE_FINALIZED` is what the code believes, and a test
+    # that imported it would agree with a wrong list as readily as with
+    # a right one. Every other field of PsbtIn is walked, so a field
+    # added there and left out of both lists fails here
     kept = {
         "non_witness_utxo",
         "witness_utxo",
@@ -3901,19 +3918,52 @@ def test_a_finalized_input_keeps_the_utxo_and_the_unknown_fields_only(
         "required_height_lock_time",
         "final_script_sig",
         "final_script_witness",
+        "sp_ecdh_shares",
+        "sp_dleq_proofs",
     }
     empty = PsbtIn(check_validity=False)
-    for field in dataclasses.fields(psbt_in):
+    for field in dataclasses.fields(round_tripped):
         if field.name not in kept:
-            assert getattr(psbt_in, field.name) == getattr(empty, field.name), (
+            assert getattr(round_tripped, field.name) == getattr(empty, field.name), (
                 f"{field.name} survived finalization"
             )
 
     # the two BIP174 exempts by name, and the spend it built
-    assert psbt_in.unknown == {b"\xfc\x01": b"vendor"}
-    assert psbt_in.witness_utxo or psbt_in.non_witness_utxo
-    assert psbt_in.final_script_sig or psbt_in.final_script_witness
+    assert round_tripped.unknown == {b"\xfc\x01": b"vendor"}
+    assert round_tripped.witness_utxo or round_tripped.non_witness_utxo
+    assert round_tripped.final_script_sig or round_tripped.final_script_witness
     verify_transaction(prevouts, extract_tx(finalize(signed), check_validity=False))
+
+
+def test_finalizing_keeps_the_silent_payment_input_fields() -> None:
+    """The incidental bug this same change fixes.
+
+    The removed eager clearer did not exempt `sp_ecdh_shares` and
+    `sp_dleq_proofs` the way the serializer's own `_DROPPED_ONCE_FINALIZED`
+    deliberately does -- BIP375 gives the Transaction Extractor the job
+    of recomputing every silent payment output script, which it cannot do
+    once finalizing has thrown the shares and their proofs away. So a
+    finalized input had already lost data the serializer's own design
+    says should survive it. With nothing clearing fields at finalization
+    any more, both fields survive in memory, and the wire behavior --
+    `_DROPPED_ONCE_FINALIZED` not naming either -- is unchanged by this
+    fix.
+    """
+    signed, _ = _single_key_psbt("p2wsh")
+    signed.version = PSBT_V2  # BIP375's fields are refused in a v0 psbt
+    share = b"\x02" + b"\x11" * 32
+    proof = b"\x22" * 64
+    signed.inputs[0].sp_ecdh_shares = {_PUB_KEY: share}
+    signed.inputs[0].sp_dleq_proofs = {_PUB_KEY: proof}
+
+    finalized_psbt = finalize(signed)
+    psbt_in = finalized_psbt.inputs[0]
+    assert psbt_in.sp_ecdh_shares == {_PUB_KEY: share}
+    assert psbt_in.sp_dleq_proofs == {_PUB_KEY: proof}
+
+    round_tripped = Psbt.b64decode(finalized_psbt.b64encode()).inputs[0]
+    assert round_tripped.sp_ecdh_shares == {_PUB_KEY: share}
+    assert round_tripped.sp_dleq_proofs == {_PUB_KEY: proof}
 
 
 @pytest.mark.parametrize("kind", ["p2wsh", "p2tr"])
@@ -4662,11 +4712,16 @@ def test_a_solver_spends_a_script_this_finalizer_would_guess_at() -> None:
     solved = finalize(signed, solver=solver)
     assert solved.inputs[0].final_script_witness == stack
     assert solved.inputs[0].final_script_sig == b""
-    # the bookkeeping is the finalizer's either way: what BIP174 says to
-    # clear is cleared, and the utxo it says to keep is kept
-    assert not solved.inputs[0].partial_sigs
-    assert not solved.inputs[0].witness_script
-    assert solved.inputs[0].witness_utxo or solved.inputs[0].non_witness_utxo
+    # the bookkeeping is the finalizer's either way, and it happens at
+    # serialization rather than here: finalizing no longer clears the
+    # input in memory, so what BIP174 says to drop is still there on
+    # `solved` and only gone once the wire form is read back
+    assert solved.inputs[0].partial_sigs
+    assert solved.inputs[0].witness_script
+    round_tripped = Psbt.b64decode(solved.b64encode()).inputs[0]
+    assert not round_tripped.partial_sigs
+    assert not round_tripped.witness_script
+    assert round_tripped.witness_utxo or round_tripped.non_witness_utxo
     assert prevouts_
 
 
@@ -4715,7 +4770,12 @@ def test_a_solver_spends_the_taproot_leaf_the_psbt_cannot_choose() -> None:
     # an empty script_sig, which is what BIP341 spends a witness v1
     # program with, and the caller's to get right
     assert solved.inputs[0].final_script_sig == b""
-    assert not solved.inputs[0].taproot_script_spend_signatures
+    # finalizing does not clear the input in memory any more, so the
+    # unchosen signature is still on `solved` and only gone once the
+    # wire form -- what `PsbtIn.serialize` actually drops -- is read back
+    assert solved.inputs[0].taproot_script_spend_signatures
+    round_tripped = Psbt.b64decode(solved.b64encode()).inputs[0]
+    assert not round_tripped.taproot_script_spend_signatures
 
 
 def test_a_solver_does_not_take_over_checking_the_signatures() -> None:

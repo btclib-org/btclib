@@ -2898,10 +2898,10 @@ def assert_signed(psbt: Psbt, *, allow_partial: bool = False) -> None:
     partial signature is not one until the session's are added up, which
     is `musig2.partial_sigs_agg` and which writes the taproot signature
     this then checks -- so an input holding a session mid-round is
-    unsigned, and saying so is the point. And a finalized input carries
-    no signature at all, BIP174 having the Finalizer clear them: it is
-    refused with that said rather than reported unsigned, what it now
-    carries being a spend for the script engine to verify.
+    unsigned, and saying so is the point. And a finalized input is
+    refused before its signature is asked about at all, on the presence
+    of its final scripts alone: what it carries by then is a spend for
+    the script engine to verify, not a signature for this function.
     """
     assert_type(allow_partial, bool, "allow_partial")
     if not psbt.inputs:
@@ -3144,73 +3144,6 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
             raise BTClibValueError(err_msg)
 
 
-# what a finalized input keeps, BIP174's rule being that everything else
-# goes: "All other data except the UTXO and unknown fields in the input
-# key-value map should be cleared from the PSBT". Three groups, and the
-# BIP names only the first two --
-#
-# - the utxo and `unknown`, exempted by that sentence: the utxo so that
-#   "Transaction Extractors [can] verify the final network serialized
-#   transaction", and the unknown fields because no reader here knows
-#   what dropping one would cost;
-# - the two finalized scripts, which are what finalizing produced;
-# - BIP370's transaction fields, which are not "data" about how the input
-#   is spent but the input *itself*: clearing `previous_tx_id` and
-#   `output_index` would leave a version 2 psbt naming no outpoint, and
-#   the sequence and the two required lock times are what its unsigned
-#   transaction is computed from.
-#
-# A keep list and not a clear list, so that a field added to PsbtIn is
-# cleared by default: BIP174's sentence is about everything, and a new
-# field that has to survive finalization is the exception worth writing
-# down here.
-_FINALIZED_KEEPS = frozenset(
-    {
-        "non_witness_utxo",
-        "witness_utxo",
-        "unknown",
-        "final_script_sig",
-        "final_script_witness",
-        "previous_tx_id",
-        "output_index",
-        "sequence",
-        "required_time_lock_time",
-        "required_height_lock_time",
-    }
-)
-
-
-def _clear_finalized(psbt_in: PsbtIn) -> None:
-    """Drop everything finalizing the input made redundant.
-
-    One rule for both kinds of input, which is the point of it being one
-    function: a taproot input cleared nothing at all, so a finalized psbt
-    went on publishing that input's key origins -- master fingerprint and
-    derivation path, per key -- where an ECDSA input published none. The
-    asymmetry was not a wrong spend, the witness being built already, but
-    no reader could state what the rule was.
-
-    Each field is set to what a fresh `PsbtIn` has, rather than to a
-    literal per field: the empty value of a field is the constructor's
-    business, and spelling it twice is how the two drift.
-
-    This keep list agrees with what Bitcoin Core actually puts on the
-    wire for a finalized input: `PSBTInput::Serialize` guards
-    `partial_sigs`, `hd_keypaths`, `redeem_script`, `witness_script`, the
-    taproot fields, the sighash type and the preimages behind
-    `if (final_script_sig.empty() && final_script_witness.IsNull())`, so
-    none of them are serialized once an input is finalized.
-    `PSBTInput::FromSignatureData` clears only the first four of those in
-    memory, but that function is not the wire format. BIP174's sentence
-    covers all of them, and what they buy after finalization is nothing:
-    the preimage a hash-locked script needs is in the witness by then.
-    """
-    empty = PsbtIn(check_validity=False)
-    for field in fields(psbt_in):
-        if field.name not in _FINALIZED_KEEPS:
-            setattr(psbt_in, field.name, getattr(empty, field.name))
-
-
 # the spend of one input, by the caller who knows: the final script_sig
 # and the final witness, and None for an input this caller leaves to the
 # generic finalizer
@@ -3247,10 +3180,12 @@ def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
     them into the input key-value map.
 
     All other data except the UTXO and unknown fields in the input key-
-    value map should be cleared from the PSBT. The UTXO should be kept
-    to allow Transaction Extractors to verify the final network
-    serialized transaction. `_FINALIZED_KEEPS` is that list, and one list
-    for both kinds of input is what keeps the two from drifting apart.
+    value map should be dropped from the wire representation. The UTXO
+    is kept to allow Transaction Extractors to verify the final network
+    serialized transaction. This function does not clear those fields on
+    the input it returns: `PsbtIn.serialize` drops them, guarded on the
+    same finalized state this function produces, which is where Bitcoin
+    Core's own `PSBTInput::Serialize` does it too.
 
     Deciding that an input has enough data is two checks beyond the
     presence of a signature, and both are per input: the sighash type
@@ -3283,9 +3218,9 @@ def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
     of this function for a reason of layering: `descriptors` imports this
     module and nothing here imports back.
 
-    What the solver does not take over is the bookkeeping: the clearing
-    BIP174 asks for, what is kept, and the verification of whatever
-    signatures the input does carry are this function's either way.
+    What the solver does not take over is the bookkeeping: what is kept
+    and dropped at serialization, and the verification of whatever
+    signatures the input does carry, are this function's either way.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
@@ -3314,7 +3249,6 @@ def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
             _assert_partial_sigs_verify(psbt_in, tx, vin_i)
             script_sig, witness = _finalized_input(psbt_in)
 
-        _clear_finalized(psbt_in)
         psbt_in.final_script_sig = script_sig
         psbt_in.final_script_witness = witness
     return psbt

@@ -2474,6 +2474,23 @@ file of the test tree, and no caller acts on it.
   what the line under the table is. btclib-org/.github#910 is filed
   against the copies in the other trees and stays open.
 
+### PSBT fields drop only at serialization, matching Bitcoin Core
+
+- **`finalize` no longer mutates an input's non-kept fields to their
+  empty value** (closes #1859): `_FINALIZED_KEEPS` and
+  `_clear_finalized` are removed, and `PsbtIn.serialize`'s own
+  `_DROPPED_ONCE_FINALIZED` guard -- already the mechanism Bitcoin
+  Core's `PSBTInput::Serialize` uses -- is what drops those fields, at
+  the point a finalized input is written rather than at the point it is
+  finalized. A finalized `PsbtIn` still carries its partial signatures,
+  key origins and scripts in memory; only its wire form omits them.
+  This also fixes a drift between the two removed lists and the
+  serializer's own: `_FINALIZED_KEEPS` did not exempt
+  `sp_ecdh_shares`/`sp_dleq_proofs`, so finalizing destroyed them in
+  memory even though `_DROPPED_ONCE_FINALIZED` deliberately keeps them
+  for BIP375's Transaction Extractor. Collapsing to the one list removes
+  that drift by construction.
+
 ## v2026.9.3
 
 ### Repository
