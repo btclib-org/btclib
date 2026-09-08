@@ -736,7 +736,7 @@ repos:
     # having no notion of one -- it did so here and in pull request #315
     # before it. What a beta of the packaging checker would gate is the
     # release workflow, on a judgement its own author has not settled yet
-    rev: "5.1b1"
+    rev: "5.0.1"
     hooks:
       - id: pyroma
         # the backend, in pyroma's own environment. pyroma's command line
