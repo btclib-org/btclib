@@ -119,13 +119,13 @@ def _cached_base58_decode(address: String) -> bytes:
     `address` is caller-supplied, and an unbounded cache on it would be
     a memory leak (issue #287).
 
-    2048 rather than the module's usual bare default (128) is measured
-    on two workloads: btclib's own suite, and a caller that also calls
+    2048 rather than the module's usual bare default (128) is measured on
+    two workloads: btclib's own suite, and a caller that also calls
     `b58decode` directly once per derived key, on top of what `derive`
-    already does (checksig#643, the heavier of the two). Hit rate at
-    128, 512, 1024 and 2048 respectively: 22.2%, 24.3%, 27.5% and 28.8%
-    for the first; 52.8%, 55.6%, 56.1% and 72.9% for the second -- most
-    of the second workload's climb from 1024 to 2048, the first
+    already does (checksig-custody/checksig#643, the heavier of the two).
+    Hit rate at 128, 512, 1024 and 2048 respectively: 22.2%, 24.3%, 27.5%
+    and 28.8% for the first; 52.8%, 55.6%, 56.1% and 72.9% for the second
+    -- most of the second workload's climb from 1024 to 2048, the first
     already flat by then.
 
     Past 2048 the second workload keeps climbing -- at 8192 it is still

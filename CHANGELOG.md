@@ -2358,6 +2358,24 @@ file of the test tree, and no caller acts on it.
   (closes #1828): nothing in this tree's tooling or docs writes a
   directory of that name.
 
+### A reference naming a repository outside the organization names its owner
+
+- **`musig2.py`'s `secp256k1-zkp#330` references are
+  `BlockstreamResearch/secp256k1-zkp#330`** (issue #1827):
+  btclib-org/.github#642's census of cross-repository references is keyed on
+  the organization's own sibling names, so a reference to a repository outside
+  it is invisible to that census and was left behind by db7a4ab7. The
+  docstring's own URL naming the same repository, below one of the two
+  references, does not satisfy section 9's *A reference to another repository
+  is qualified* on its own -- that rule says nothing about a nearby URL doing
+  the work -- so both are qualified explicitly.
+- **`bip32.py`'s `checksig#643` is `checksig-custody/checksig#643`**:
+  `checksig` alone resolves to no organization, and `checksig-custody` is its
+  real name. The repository is private, so the citation stays the opaque
+  provenance note it already is rather than becoming a link a public reader can
+  follow -- the number beside it, a cache hit rate, is what that sentence's
+  reader needs.
+
 ## v2026.9.3
 
 ### Repository

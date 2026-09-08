@@ -79,7 +79,7 @@ secret t behind T, or that `extract_adaptor` recovers t from, given
 both the pre-signature and the signature `adapt` produced. Splitting
 the entry point rather than widening `partial_sig_agg`'s return type
 keeps every existing caller narrowing nothing, and matches where the
-C library is going: secp256k1-zkp#330 is splitting
+C library is going: BlockstreamResearch/secp256k1-zkp#330 is splitting
 `musig_nonce_process` the same way, back to five arguments plus a
 separate `musig_nonce_process_adaptor`, so the base API stays
 uncontaminated by a capability most callers never touch. A DLC's
@@ -105,7 +105,7 @@ the vendored library, mainline `bitcoin-core/secp256k1`, has no
 adaptor support at all, so the round-trip tests below are this
 module's only check for now. What would supply that delegation,
 btclib-org/btclib-secp256k1#283, is decided and waits on
-secp256k1-zkp#330 upstream.
+BlockstreamResearch/secp256k1-zkp#330 upstream.
 """
 
 from __future__ import annotations
