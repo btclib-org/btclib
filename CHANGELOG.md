@@ -2211,6 +2211,57 @@ file of the test tree, and no caller acts on it.
   The issue is owed by the trees still carrying the key, so it stays
   open.
 
+### A `zkp` marker, `zkp-oracle.yml`, and the first of the three oracles
+
+- **A `zkp` pytest marker, beside the existing `bindings` one,
+  `.github/workflows/zkp-oracle.yml`, which builds btclib-secp256k1 from
+  the sdist with `BTCLIB_LIBSECP256K1_ZKP=true`, and the first of the
+  three comparisons issue #1679 asks for** (issue #1679).
+  `tests.ZKP_AVAILABLE` is the probe, an attribute access on
+  `btclib_secp256k1.zkp.lib` rather than the import of
+  `btclib_secp256k1.zkp`, which always succeeds regardless of the flag;
+  it lives in `tests/__init__.py` and not beside `INSTALLED` in
+  `src/btclib/_libsecp256k1.py`, because nothing in btclib's own
+  run-time delegates to secp256k1-zkp, and this sentinel does not change
+  that.
+
+  `tests/ecc/commit_nonce_test.py` gains
+  `test_dsa_commitment_opens_under_zkp` and
+  `test_zkp_commitment_opens_under_dsa`: over random keys, messages and
+  commitments, a btclib sign-to-contract commitment opens under
+  `zkp.ecdsa_s2c.verify_commit`, and a zkp one opens under `dsa.verify_`.
+  The file's own fixed vectors, over one key and one message, pin only
+  the first direction, and against a hardcoded constant rather than the
+  live module: `test_libsecp256k1_zkp_fixed_vectors` calls no function of
+  `btclib_secp256k1.zkp` at all. The workflow and this first oracle land
+  together rather than the workflow alone, on the maintainer's own decision
+  recorded on the issue: a sentinel that compiles two C libraries and
+  then runs no comparison is the silent-absence asymmetry CLAUDE.md's
+  *Verifying* names, nothing in a green run saying the comparison never
+  happened. The MuSig2 adaptor and the rangeproof stay their own issues
+  and their own pull requests.
+
+### The bindings floor moves to `btclib-secp256k1>=0.8.0.5`
+
+- **`btclib-secp256k1>=0.8.0.4` becomes `>=0.8.0.5`, in both the
+  `secp256k1` extra and the `bindings` group** (issue #1679). Outside
+  `zkp`, 0.8.0.5 adds, removes and renames no public name, so nothing
+  this tree already imports needed the floor to move; what needs it is
+  `zkp-oracle.yml` above, which resolves this same specifier and has no
+  `btclib_secp256k1.zkp` subpackage to build against below it.
+  `pypi-install.yml`'s `install-published-secp256k1` job carries a
+  comment measuring the newest release's wheel coverage by number, which
+  this bump re-measures at 0.8.0.5: the same platforms and the same
+  win_arm64 floor of cp311 as at 0.8.0.4.
+
+### The local `typos` hook moves to `1.50.1`
+
+- **`.pre-commit-config.yaml`'s local `typos` hook moves from `1.49.0`
+  to `1.50.1`.** Measured with `typos --diff` against an unstaged
+  checkout before landing: the newer release rewrites nothing in this
+  tree, `--write-changes` in the hook's own `args` therefore leaving the
+  working tree exactly as it found it.
+
 ## v2026.9.3
 
 ### Repository

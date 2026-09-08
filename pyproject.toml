@@ -169,8 +169,16 @@ secp256k1 = [
     # one of them: the install answers on the Python arithmetic,
     # silently, tens of times slower and not in constant time. A floor
     # naming 0.8.0.3 while this tree imports `musig` describes exactly
-    # that install, which is issue #1116
-    "btclib-secp256k1>=0.8.0.4",
+    # that install, which is issue #1116.
+    # 0.8.0.5 for a name this tree does not import: outside `zkp`, that
+    # release adds, removes and renames nothing (its own release notes
+    # say so), so nothing above needed it. What needs it is issue
+    # #1679's `zkp-oracle.yml`, which resolves this same specifier with
+    # `--no-binary-package btclib-secp256k1` and
+    # `BTCLIB_LIBSECP256K1_ZKP=true` set -- `btclib_secp256k1.zkp` is
+    # what 0.8.0.5 is, and a floor below it has no such subpackage to
+    # build against at all
+    "btclib-secp256k1>=0.8.0.5",
 ]
 
 [project.urls]
@@ -194,7 +202,7 @@ pull_requests = "https://github.com/btclib-org/btclib/pulls"
 # refuses the day the two stop agreeing. What the group buys is that no
 # documented command had to grow an `--extra`, and that the job of issue
 # #991 is those same commands with this group left out
-bindings = ["btclib-secp256k1>=0.8.0.4"]
+bindings = ["btclib-secp256k1>=0.8.0.5"]
 # what runs the suite, without what the suite delegates to: `test` is the
 # two together and is what every documented command asks for, while
 # `harness` alone is the environment the no-bindings job of test.yml
@@ -478,6 +486,7 @@ xfail_strict = true
 markers = [
     "integration: needs an external program, opt-in via BTCLIB_INTEGRATION",
     "bindings: compares against btclib_secp256k1, so it needs it installed",
+    "zkp: compares against btclib_secp256k1.zkp, built with BTCLIB_LIBSECP256K1_ZKP",
 ]
 # a deprecation warning is the early form of a break, emitted years before
 # the removal that will fail the suite: on a 3.10 to 3.14 spread, plus

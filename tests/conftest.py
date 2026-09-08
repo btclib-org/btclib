@@ -20,6 +20,7 @@ import pytest
 from hypothesis import settings
 
 from btclib._libsecp256k1 import INSTALLED
+from tests import ZKP_AVAILABLE
 
 # The deadline is a per-example time limit, measured on a run whose cost
 # the interpreter and the runner decide: pypy meets these tests with a
@@ -330,15 +331,44 @@ def _skip_what_needs_the_bindings(
             item.add_marker(skip)
 
 
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Turn the `bindings` marker into a skip where there is nothing to compare.
+def _skip_what_needs_zkp(items: list[pytest.Item]) -> None:
+    """Skip every test marked `zkp`, naming why once.
 
-    The marker is what `tests.needs_bindings` applies and what `pytest -m
-    "not bindings"` selects on; this is what makes it a skip as well, so
-    that one name does the selecting and the skipping and cannot drift
-    into doing only one.
+    Runs wherever `btclib_secp256k1.zkp.lib` is not the flagged
+    extension -- every job but `zkp-oracle.yml`'s, `ZKP_AVAILABLE` being
+    set once at import from that same attribute access, in
+    `tests/__init__.py`. The reason is worded like `bindings`' own rather
+    than naming the extension by name: a contributor reading a skip
+    report wants to know what to build, not which cffi module answered.
+    """
+    skip = pytest.mark.skip(
+        reason="btclib_secp256k1.zkp is not built with BTCLIB_LIBSECP256K1_ZKP"
+    )
+    for item in items:
+        # see `iter_markers` and not `item.keywords` above, same reason
+        if any(mark.name == "zkp" for mark in item.iter_markers()):
+            item.add_marker(skip)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Turn the `bindings` and `zkp` markers into a skip absent their build.
+
+    Each marker is what `tests.needs_bindings` or `tests.needs_zkp`
+    applies and what `pytest -m "not bindings"` or `-m "not zkp"` selects
+    on; this is what makes it a skip as well, so that one name does the
+    selecting and the skipping and cannot drift into doing only one.
     """
     if not INSTALLED:
         _skip_what_needs_the_bindings(
             items
         )  # pragma: no cover -- only the no-bindings job reaches this
+    # `no branch` rather than a pragma on the function above, the two
+    # being each other's mirror image: `ZKP_AVAILABLE` is False in every
+    # job that measures coverage, `zkp-oracle.yml`'s own `pytest -m zkp
+    # --no-cov` run being the one place it is True, and that run carries
+    # no coverage instrumentation to combine -- there is no `coverage`
+    # counterpart here for a `coverage-union` to lean on, unlike
+    # `INSTALLED` above. So this line runs, and is covered, in every
+    # measured job; only the branch that skips it never is
+    if not ZKP_AVAILABLE:  # pragma: no branch
+        _skip_what_needs_zkp(items)
