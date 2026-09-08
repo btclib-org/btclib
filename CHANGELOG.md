@@ -2293,6 +2293,37 @@ file of the test tree, and no caller acts on it.
   different mechanism -- a job's own `permissions:` against its own
   workflow's top level -- and is untouched.
 
+### `zkp-oracle` is an integration sentinel, and is scheduled as one
+
+- **`.github/workflows/zkp-oracle.yml` moves to `cron: "4 2 * * 3"`**
+  (issue btclib-org/.github#926): section 10 of the organization
+  standard orders its calendar family by family, so a slot standing free
+  between two rows of another family does not seat a row beside its own,
+  and the band grows downward where none does. This job's family is the
+  integration one, the instant is that section's to give, and `btclib`'s
+  minute is `04`. The row is section 10's own and lands in
+  `btclib-org/.github`, so `tests/grid_test.py` there reads a
+  disagreement in one direction or the other until both have landed.
+- **The comment above that `cron:` names the family and stops
+  enumerating `fuzz` in it**: `fuzz` asks how deep a suite is tested
+  rather than what a tree does against software it does not ship, and
+  the clause seating this job one hour ahead of it went with the move.
+  What stays is why this is an integration sentinel at all -- no
+  published wheel of btclib-secp256k1 ships the extension the job
+  builds, which is the shape of an emulator or a regtest node this
+  repository does not ship either. The `paths:` comment below it says
+  "the weekly cron" rather than naming a day, the day being section 10's
+  grid and not this file's to restate.
+- **`README.md` gains the `zkp-oracle` badge**, between
+  `integration-bitcoind`'s and `integration-hwi`'s: section 2 makes a
+  sentinel's badge and its workflow one membership rather than two, and
+  reads the sentinels' badge order off the calendar, so the badge sits
+  where the row does.
+- **`integration-bitcoind.yml`'s and `integration-hwi.yml`'s schedule
+  comments name the whole family**: each enumerated it as a pair, which
+  the sentinel above makes wrong, and the reason each gives for its own
+  cadence is untouched.
+
 ## v2026.9.3
 
 ### Repository
