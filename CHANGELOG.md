@@ -2171,6 +2171,32 @@ file of the test tree, and no caller acts on it.
   whoever reads the diff is the whole of what declines it. The comment
   beside the pin now says that as well.
 
+### `conventions_test.py` splits the *Not tested here* list at its separator
+
+- **`tests/conventions_test.py` splits the collapsed list at a semicolon
+  and a space, and collapses the whitespace of each name no further**
+  (issue btclib-org/.github#911): the line above the split replaces every
+  run of whitespace, newlines included, with one space, so a semicolon
+  the declaration wrote with a space or a line break after it is that
+  separator by the time the split runs, and collapsing a name again is
+  `strip()` over a piece with nothing left to strip. Where the two
+  spellings answer differently is a separator written some other way: the
+  semicolon alone takes it as one and this does not, so the name keeps
+  whatever the split left and the assertion that every name listed is one
+  of section 7's reports it.
+- **The comment above the split stops giving an eighty-column wrap
+  falling inside a name as the reason for a collapse the line above it
+  has already made** (closes #1836): `tests/README.md`'s *Not tested
+  here* line does not wrap, and the collapse that takes a wrap out of a
+  name whatever the list grows into is the one that stays. What replaces
+  the comment says why the separator carries its space, which is what
+  stops the next reader from splitting on the semicolon alone.
+- **That assertion's message quotes the names it read out of the
+  declaration**: a separator written with a space on each side of the
+  semicolon leaves a name differing from a convention in whitespace
+  alone, which unquoted reads as one the same message goes on to list as
+  known.
+
 ## v2026.9.3
 
 ### Repository
