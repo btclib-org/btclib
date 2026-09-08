@@ -3862,9 +3862,13 @@ def test_a_finalized_input_keeps_the_utxo_and_the_unknown_fields_only(
     the four preimage maps, which after finalization are in the witness
     anyway.
 
-    btclib is stricter than Bitcoin Core here, whose
-    `PSBTInput::FromSignatureData` clears four fields and leaves the
-    taproot ones, the sighash type and the preimages.
+    This is what Bitcoin Core's `PSBTInput::Serialize` writes for a
+    finalized input too: it guards partial sigs, keypaths, the redeem
+    and witness scripts, the taproot fields, the sighash type and the
+    preimages behind the same emptiness check on the final scripts, so
+    none of them reach the wire. `PSBTInput::FromSignatureData` clears
+    only four of those fields in memory, but that function is not the
+    wire format.
     """
     if kind == "p2tr":
         psbt, prevouts = _taproot_key_path_psbt()

@@ -2401,6 +2401,18 @@ file of the test tree, and no caller acts on it.
   level and at the job level, and excludes a comment line by its own
   leading `#`.
 
+### `_clear_finalized`'s docstring names Core's wire serializer
+
+- **The docstring and its test's mirror said btclib is stricter than
+  Bitcoin Core here, reasoning from `PSBTInput::FromSignatureData`,
+  Core's in-memory clearing function rather than its wire serializer**
+  (closes #1841). `PSBTInput::Serialize` guards partial sigs, keypaths,
+  the redeem and witness scripts, the taproot fields, the sighash type
+  and the preimages behind the same emptiness check on the final
+  scripts that `_FINALIZED_KEEPS` already encodes, so a finalized
+  input's wire serialization carries the same fields whether it is
+  Core's or btclib's. `_FINALIZED_KEEPS` needed no change.
+
 ## v2026.9.3
 
 ### Repository
