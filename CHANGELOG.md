@@ -2514,6 +2514,31 @@ file of the test tree, and no caller acts on it.
   source it runs against**, since `testpaths` is relative and `--project`
   does not bind the process's working directory.
 
+### `CONTRIBUTING.md`'s *What runs when* table names every workflow
+
+- **`zkp-oracle` takes a row, and `tests/what_runs_when_test.py`
+  compares the table's first column with `.github/workflows/` in both
+  directions** (closes #1849): the paragraph under the table leaves
+  which day each workflow runs to section 10 of the organization
+  standard, which reads the table as covering the rest, so a table
+  exhaustive but for one workflow is read as exhaustive and the row that
+  is missing says "there is no such workflow" rather than "nobody wrote
+  the row". The `when` cell says weekly: a paths-filtered `pull_request`
+  is not what a `when` cell reports, the `links` and `vendored-vectors`
+  rows carrying one each and saying weekly, and `py-arm-authority`'s row
+  naming its unconditional push rather than its own filtered trigger.
+  What `zkp-oracle` varies is a bindings build carrying `secp256k1-zkp`.
+  A table the module cannot locate is refused by the `assert` inside its
+  own extraction, which fires through every test that calls it, and each
+  comparison being a set difference leaves an empty side loud in the
+  other's message, so what `test_both_sides_were_read` holds is the one
+  case they cannot see between them: both sides empty at once. The cells
+  are not read, which the paragraph now under the table says in as many
+  words, beside what the test does hold. An unpacked sdist carries no
+  `.github/`, so a test reading it off the tree cannot run from one, and
+  `[tool.uv.build-backend] source-exclude` names the module as
+  `tests/build_system_test.py` asks.
+
 ## v2026.9.3
 
 ### Repository
