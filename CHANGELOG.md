@@ -2413,6 +2413,16 @@ file of the test tree, and no caller acts on it.
   input's wire serialization carries the same fields whether it is
   Core's or btclib's. `_FINALIZED_KEEPS` needed no change.
 
+### `tests/vendored_data_test.py`'s `_EXEMPT` key tracks the rewrapped README line
+
+- **`tests/vendored_data_test.py`'s `_EXEMPT` dict names the wrapped
+  line as `tests/_data/README.md` carries it today** (closes #1862): the
+  rewrap that landed with #1857 moved "the split between" onto the line
+  `_EXEMPT` names, and the dict still carried the pre-#1857 wrapping
+  verbatim, so both tests reading it against the file's current wrapping
+  failed. The key now reads "the split between the two ECDSA profiles is
+  explained, and where the", matching the line as it stands in the file.
+
 ## v2026.9.3
 
 ### Repository
