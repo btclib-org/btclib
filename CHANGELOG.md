@@ -2453,6 +2453,27 @@ file of the test tree, and no caller acts on it.
   which is why the cross-validation is against zkp specifically. The
   rangeproof oracle, which issue #1679 also asks for, stays its own issue.
 
+### The declaration says what it is and leaves its assertions to the module
+
+- **`tests/README.md`'s *Convention tests* sentence names no assertion of
+  `conventions_test.py`** (issue btclib-org/.github#910): the list it
+  carried left out `test_the_table_is_not_empty`, which is what fails
+  where a column added to the table or the backticks dropped from its
+  second stops a row parsing, either mutation failing
+  `test_the_two_halves_account_for_every_convention` too. That module
+  reads the heading, the row pattern and the *Not tested here* line and
+  not the sentence, so a list of its assertions there is a second
+  statement of what it checks with no gate holding the two together, and
+  completing the list would leave the next assertion free to go out of
+  step the same way. What replaces it says what the declaration is -- the
+  table and the *Not tested here* line under it, accounting between them
+  for every one of section 7's conventions -- and sends a reader wanting
+  what those assertions catch to that module's docstring, section 9 of
+  the organization standard asking that the second statement point at the
+  first. The halves are named because nothing else in the section says
+  what the line under the table is. btclib-org/.github#910 is filed
+  against the copies in the other trees and stays open.
+
 ## v2026.9.3
 
 ### Repository
