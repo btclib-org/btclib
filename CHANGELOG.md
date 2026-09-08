@@ -2491,6 +2491,29 @@ file of the test tree, and no caller acts on it.
   for BIP375's Transaction Extractor. Collapsing to the one list removes
   that drift by construction.
 
+### `CLAUDE.md` names the union-driver seam and the lint tool's false pass
+
+- **`CLAUDE.md` names the mechanism `.gitattributes`' `merge=union`
+  driver leaves behind a squash-merge, `lint.yml`'s push-to-`main`
+  trigger as what catches it, and the reconstruction remedy that
+  restores the blank line without trusting the rebase's own output**
+  (closes #1865). No prevention mechanism is added: blocking the squash
+  button or a merge queue is a larger branch-protection change this
+  pull request does not attempt, so detection-after-landing stays the
+  policy and the remedy is what a future session no longer has to
+  rediscover.
+- **`CLAUDE.md` names the concurrent-load conditions under which
+  `pre-commit run markdownlint-cli2` has reported `Passed` on
+  `CHANGELOG.md` without applying its own `--fix`, and the mitigation
+  of invoking the pinned tool directly** (closes #1863). The mechanism
+  is not established as a deterministic code path -- an isolated repro
+  did not reproduce the false pass -- so this documents a known
+  limitation with its workaround rather than a fix.
+- **`CLAUDE.md` names that `uv run --project <worktree> pytest` with no
+  path argument can collect a different tree's test files than the
+  source it runs against**, since `testpaths` is relative and `--project`
+  does not bind the process's working directory.
+
 ## v2026.9.3
 
 ### Repository
