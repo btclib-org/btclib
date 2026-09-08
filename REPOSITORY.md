@@ -574,7 +574,7 @@ authentication at all.
 These are the declarations this file argues, not a roster of them.
 
 ```shell
-git grep -n "permissions:$" -- .github/workflows
+git grep -nE '^[[:blank:]]*permissions:$' -- .github/workflows
 ```
 
 names every declaration, and the write grants among them read out of a

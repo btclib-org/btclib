@@ -2389,6 +2389,18 @@ file of the test tree, and no caller acts on it.
   entry now names, so the refresh corrects what commit each pin names
   without changing a vector.
 
+### `REPOSITORY.md`'s declaration census is keyed on where `permissions:` sits
+
+- **The command that names every `permissions:` declaration is
+  `git grep -nE '^[[:blank:]]*permissions:$'`, not
+  `git grep -n "permissions:$"`** (closes #1833): the retired form keys
+  on the end of a line, so a comment whose own text happens to end in
+  the word `permissions:` would land in its answer -- the same shape
+  issue btclib-org/.github#897 fixed for the elevation census beside it.
+  The anchored form still matches every declaration, at the workflow
+  level and at the job level, and excludes a comment line by its own
+  leading `#`.
+
 ## v2026.9.3
 
 ### Repository
