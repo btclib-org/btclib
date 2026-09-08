@@ -381,12 +381,13 @@ idea three different ways, and one of them folds several checks into the
 file that is about its single module.
 
 So which of section 7's conventions this repository tests is **declared
-here**, and `conventions_test.py` asserts the declaration is true: every
-convention named below is one of section 7's, every module named exists
-and holds at least one test, and the two halves together account for
-every one of them. One row per module, so a convention answered by more
-than one file is named once per file rather than in a row too wide for
-eighty columns.
+here**, in two halves that together account for every one of them: the
+table below and the "Not tested here" line under it.
+`conventions_test.py` asserts the declaration is true, and what its
+assertions catch is written in that module's docstring, a second list
+here being the statement section 9 refuses. One row per module, so a
+convention answered by more than one file is named once per file rather
+than in a row too wide for eighty columns.
 
 | convention | tested in |
 | --- | --- |
