@@ -29,9 +29,9 @@ name: integration-hwi
 
 on:
   schedule:
-    # An integration sentinel, the other being integration-bitcoind.yml:
-    # an emulator is a service to keep working, and a week is as often as
-    # anybody acts on the answer.
+    # An integration sentinel, the others being integration-bitcoind.yml
+    # and zkp-oracle.yml: an emulator is a service to keep working, and a
+    # week is as often as anybody acts on the answer.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch

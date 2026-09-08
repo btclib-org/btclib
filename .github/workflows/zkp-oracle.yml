@@ -49,17 +49,16 @@ name: zkp-oracle
 
 on:
   schedule:
-    # zkp-oracle joins the family that asks what this tree does against
-    # software it does not ship -- fuzz, integration-bitcoind and
-    # integration-hwi below it on Tuesday and Wednesday -- one hour
-    # ahead of fuzz's own: no published wheel of btclib-secp256k1 ships
-    # the extension this job builds, the same shape as an emulator or a
-    # regtest node this repository does not ship either.
+    # An integration sentinel, the others being
+    # integration-bitcoind.yml and integration-hwi.yml: no published
+    # wheel of btclib-secp256k1 ships the extension this job builds, the
+    # same shape as an emulator or a regtest node this repository does
+    # not ship either.
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other
     # branch this is reachable through the dispatch below alone
-    - cron: "4 3 * * 2"
+    - cron: "4 2 * * 3"
   workflow_dispatch:
   pull_request:
     # ready_for_review and closed for the reason vendored-vectors.yml's
@@ -72,7 +71,7 @@ on:
     # schedule: a pull request that changes what the oracle compares
     # without breaking `test_libsecp256k1_zkp_fixed_vectors` (the file's
     # existing one-way pin) selects nothing today and waits for the
-    # Tuesday cron otherwise. `dsa.py` and `commit_nonce.py` are that
+    # weekly cron otherwise. `dsa.py` and `commit_nonce.py` are that
     # dependency's surface for the ECDSA side this oracle exercises:
     # `commit_entropy_`, `commit_nonce_` and `commit_point_`, defined in
     # commit_nonce.py, are what `dsa.sign_`/`verify_` call to build and
