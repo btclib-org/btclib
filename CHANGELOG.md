@@ -2197,6 +2197,20 @@ file of the test tree, and no caller acts on it.
   alone, which unquoted reads as one the same message goes on to list as
   known.
 
+### `templates_path` goes, this tree keeping no templates
+
+- **`docs/source/conf.py` no longer assigns `templates_path`** (issue
+  btclib-org/.github#901): nothing is tracked under
+  `docs/source/_templates` and `docs/` holds no template of its own, so
+  the key named a directory this repository does not have. Section 2 of
+  the organization standard is where the rule this converges on lives --
+  "`templates_path` names the directory under `docs/source/` where the
+  tree keeps its own templates, and a tree keeping none does not carry
+  the key" -- and it names writing the key empty, the way
+  `exclude_patterns` beside it is written, as the rejected alternative.
+  The issue is owed by the trees still carrying the key, so it stays
+  open.
+
 ## v2026.9.3
 
 ### Repository

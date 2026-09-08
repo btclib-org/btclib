@@ -128,8 +128,6 @@ nitpick_ignore = [
 # resolve is not a visibly broken link, it is an anchor to an id the page
 # does not have
 
-templates_path = ["_templates"]
-
 exclude_patterns: list[str] = []
 
 
