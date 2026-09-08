@@ -55,7 +55,7 @@ from btclib.exceptions import (
     BTClibValueError,
     InvalidContributionError,
 )
-from tests import load, needs_bindings, vector_id
+from tests import load, needs_bindings, needs_zkp, vector_id
 
 if INSTALLED:
     from btclib_secp256k1 import musig as libsecp256k1_musig
@@ -63,6 +63,21 @@ else:  # pragma: no cover -- only the no-bindings job reaches this
     # never called from a skipped test, mirroring the fallback
     # `btclib._libsecp256k1` gives every name it wraps
     libsecp256k1_musig = None  # type: ignore[assignment]
+
+# `INSTALLED`, not `tests.ZKP_AVAILABLE`: `btclib_secp256k1.zkp.musig`'s
+# own docstring defers every `ffi`/`lib`/`ctx` lookup to call time, through
+# `context._bindings()`, precisely so that importing this module never
+# needs the flag -- Sphinx's autodoc does exactly this import, in a build
+# that never sets `BTCLIB_LIBSECP256K1_ZKP`. So this import succeeds
+# whenever the bindings exist at all, flagged or not, the same condition
+# `libsecp256k1_musig` above already guards on; a job with the bindings
+# installed but not flagged imports a real, merely uncallable module here,
+# and never calls it, since every test below reaching for it is also
+# `@needs_zkp`
+if INSTALLED:
+    from btclib_secp256k1.zkp import musig as zkp_musig
+else:  # pragma: no cover -- only the no-bindings job reaches this
+    zkp_musig = None  # type: ignore[assignment]
 
 # the two exception types BIP327 tells apart: a caller's own bad
 # argument, and a peer's bad contribution
@@ -1008,6 +1023,117 @@ def test_adaptor_must_be_a_valid_point() -> None:
         musig2.session_values(session_ctx)
     assert exc_info.value.signer is None
     assert exc_info.value.contrib == "adaptor"
+
+
+@needs_zkp
+def test_musig2_matches_zkp_with_no_adaptor() -> None:  # pragma: no cover
+    """Pin session agreement with no adaptor, before the adaptor test adds one.
+
+    `zkp.musig.Session` is its own implementation, over its own opaque
+    session struct built by its own `nonce_process` call (that module's
+    own docstring: "nothing here is `btclib_secp256k1.musig`'s code
+    reused") -- a different module from the one
+    `test_partial_sig_agg_matches_bindings` above already checks, so
+    agreement with it is not proven by that test. Checked here on its
+    own, with no adaptor, so that a disagreement in the adaptor test
+    below is attributable to the adaptor arithmetic rather than to the
+    two sessions describing different sessions to begin with: btclib
+    folds the adaptor point into R_1 before b is hashed, and if zkp's
+    own `nonce_process` disagreed anywhere upstream of that, every
+    comparison downstream would fail at once, which would read as "the
+    adaptor math is wrong" rather than "the harness mirrored the session
+    badly".
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)
+    pub_keys = musig2.key_sort([pk_1, pk_2])
+    sk_of = {pk_1: _SK_1, pk_2: _SK_2}
+    nonces = {pk: musig2.nonce_gen(sk_of[pk], pk, None, _MSG32) for pk in pub_keys}
+    agg_nonce = musig2.nonce_agg([nonces[pk][1] for pk in pub_keys])
+    session_ctx = musig2.SessionContext(agg_nonce, pub_keys, [], [], _MSG32)
+    psigs = [musig2.sign(nonces[pk][0], sk_of[pk], session_ctx) for pk in pub_keys]
+    sig = musig2.partial_sig_agg(psigs, session_ctx)
+
+    cache = zkp_musig.KeyAggCache(pub_keys)
+    session = zkp_musig.Session(agg_nonce, _MSG32, cache)
+    assert session.partial_sig_agg(psigs) == sig.serialize()
+    # dropping a signer's contribution is a different sum: the
+    # agreement above is not a vacuous comparison against a constant
+    assert session.partial_sig_agg(psigs[:1]) != sig.serialize()
+
+
+@needs_zkp
+def test_musig2_adaptor_matches_zkp() -> None:  # pragma: no cover
+    """A btclib pre-signature completes and extracts the same as zkp's.
+
+    Both parities of the final nonce R, exercised the way
+    `test_adapt_and_extract_adaptor_round_trip` above does: fresh keys,
+    nonces and adaptor secret each iteration, real randomness rather
+    than a seed -- this file's own idiom for exactly this "cover both
+    parities" problem, kept rather than a seeded `random` module this
+    file otherwise never imports -- until both have been seen.
+    `zkp.musig.Session`'s `adapt` and `extract_adaptor` are its own
+    `secp256k1_musig_adapt`/`secp256k1_musig_extract_adaptor` calls,
+    entirely independent of the `session_values`/`adapt`/
+    `extract_adaptor` above, so agreement here is a real cross-check and
+    not the same arithmetic read twice through two names.
+
+    `Session.nonce_parity()` is what zkp asks the caller to track and
+    pass to `adapt`/`extract_adaptor`; btclib derives the identical bit
+    on its own, from `session_values(session_ctx).R[1] % 2`. Asserting
+    the two agree is plausibly the single most valuable assertion this
+    test makes: a disagreement there is exactly the sign error `adapt`
+    and `extract_adaptor` each hide behind a negation, on the parity
+    where it matters, and it is checked before any other comparison
+    below is allowed to run.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    pk_2 = musig2.individual_pub_key(_SK_2)
+    pub_keys = musig2.key_sort([pk_1, pk_2])
+    sk_of = {pk_1: _SK_1, pk_2: _SK_2}
+
+    parities_seen: set[int] = set()
+    for _ in range(64):
+        t = 1 + secrets.randbelow(secp256k1.n - 1)
+        adaptor = bytes_from_point(mult(t, ec=secp256k1), secp256k1)
+
+        nonces = {pk: musig2.nonce_gen(sk_of[pk], pk, None, _MSG32) for pk in pub_keys}
+        agg_nonce = musig2.nonce_agg([nonces[pk][1] for pk in pub_keys])
+        session_ctx = musig2.SessionContext(
+            agg_nonce, pub_keys, [], [], _MSG32, adaptor
+        )
+        psigs = [musig2.sign(nonces[pk][0], sk_of[pk], session_ctx) for pk in pub_keys]
+        pre_sig = musig2.partial_sig_agg_adaptor(psigs, session_ctx)
+        pre_sig_bytes = pre_sig.r.to_bytes(32, "big") + pre_sig.s.to_bytes(32, "big")
+
+        cache = zkp_musig.KeyAggCache(pub_keys)
+        session = zkp_musig.Session(agg_nonce, _MSG32, cache, adaptor)
+        parity = session.nonce_parity()
+        assert parity == musig2.session_values(session_ctx).R[1] % 2
+        parities_seen.add(parity)
+
+        # the pre-signature: the same sum over the same psigs, from two
+        # independent implementations
+        assert session.partial_sig_agg(psigs) == pre_sig_bytes
+
+        # completion: btclib's own adapt agrees with zkp's, byte for byte
+        sig = musig2.adapt(pre_sig, t, session_ctx)
+        zkp_sig = zkp_musig.adapt(pre_sig_bytes, t, parity)
+        assert zkp_sig == sig.serialize()
+        # the wrong parity is a different negation, not a rejected call:
+        # 1 - parity is still 0 or 1, so this still runs and disagrees
+        assert zkp_musig.adapt(pre_sig_bytes, t, 1 - parity) != sig.serialize()
+
+        # extraction: whoever holds the completed signature and the
+        # pre-signature recovers t, in either implementation
+        extracted = musig2.extract_adaptor(sig, pre_sig, session_ctx)
+        zkp_extracted = zkp_musig.extract_adaptor(zkp_sig, pre_sig_bytes, parity)
+        assert extracted == zkp_extracted == t.to_bytes(32, "big")
+        assert zkp_musig.extract_adaptor(
+            zkp_sig, pre_sig_bytes, 1 - parity
+        ) != t.to_bytes(32, "big")
+
+    assert parities_seen == {0, 1}
 
 
 def test_sec_nonce_signs_once() -> None:

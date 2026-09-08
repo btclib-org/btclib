@@ -2423,6 +2423,36 @@ file of the test tree, and no caller acts on it.
   failed. The key now reads "the split between the two ECDSA profiles is
   explained, and where the", matching the line as it stands in the file.
 
+### The MuSig2 adaptor is cross-validated against `zkp.musig`
+
+- **`partial_sig_agg_adaptor`, `adapt` and `extract_adaptor` are checked
+  against `btclib_secp256k1.zkp.musig`'s `Session.partial_sig_agg`,
+  `adapt` and `extract_adaptor`, both directions and both parities of
+  the final nonce** (issue #1679). `tests/ecc/musig2_test.py` gains
+  `test_musig2_matches_zkp_with_no_adaptor`, pinning
+  that the two independent sessions -- `zkp.musig.Session` builds its
+  own, over its own opaque struct, not `btclib_secp256k1.musig`'s --
+  agree with no adaptor before one is added, and
+  `test_musig2_adaptor_matches_zkp`, which does add one: the same
+  pre-signature, the same completed signature and the same extracted
+  secret from both implementations, over fresh keys and an adaptor
+  secret each run, until both parities of the final nonce have been
+  seen. `zkp.musig.Session.nonce_parity()` is what zkp asks its caller
+  to track and pass to its own `adapt`/`extract_adaptor`;
+  `musig2.session_values(session_ctx).R[1] % 2` is the identical bit,
+  which btclib derives on its own -- the two are asserted equal before
+  anything downstream of it is compared, since a disagreement there is
+  exactly the sign error `adapt` and `extract_adaptor` each hide behind
+  a negation. `.github/workflows/zkp-oracle.yml`'s `pull_request.paths`
+  gains `src/btclib/ecc/musig2.py` for the same reason it already names
+  `src/btclib/ecc/dsa.py`. `src/btclib/ecc/musig2.py`'s own module
+  docstring is corrected to describe this rather than name it an open question:
+  btclib-org/btclib-secp256k1#156 and btclib-org/btclib-secp256k1#283 are both
+  closed, and mainline libsecp256k1 -- what `_bindings_session` delegates the
+  rest of this module's arithmetic to -- still has no adaptor support at all,
+  which is why the cross-validation is against zkp specifically. The
+  rangeproof oracle, which issue #1679 also asks for, stays its own issue.
+
 ## v2026.9.3
 
 ### Repository
