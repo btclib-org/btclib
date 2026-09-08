@@ -99,13 +99,23 @@ negates t exactly when the final nonce has odd y, because the
 pre-signature's nonce is then really -(r+t)*G rather than (r+t)*G --
 `adaptor_impl.h`'s own comment gives this reasoning in full.
 
-Cross-validating this construction against zkp is
-btclib-org/btclib-secp256k1#156's open question, not answered here:
-the vendored library, mainline `bitcoin-core/secp256k1`, has no
-adaptor support at all, so the round-trip tests below are this
-module's only check for now. What would supply that delegation,
-btclib-org/btclib-secp256k1#283, is decided and waits on
-BlockstreamResearch/secp256k1-zkp#330 upstream.
+This construction is cross-validated against secp256k1-zkp's own musig
+module, `btclib_secp256k1.zkp.musig`, in `tests/ecc/musig2_test.py`:
+`partial_sig_agg_adaptor`, `adapt` and `extract_adaptor` against its
+`Session.partial_sig_agg`, `adapt` and `extract_adaptor`, both
+directions and both parities of the final nonce, over fresh keys and an
+adaptor secret each run. `zkp.musig.Session.nonce_parity()` is what zkp
+asks its caller to track and pass to its own `adapt`/`extract_adaptor`;
+`session_values(session_ctx).R[1] % 2` is the identical bit, derived
+here instead of carried by the caller, and the two are asserted equal
+before anything downstream of it is compared. Mainline
+`bitcoin-core/secp256k1`, `_bindings_session`'s own
+`btclib_secp256k1.musig`, still has no adaptor support at all -- which
+is why a session that carries one takes the Python arm in
+`partial_sig_verify_` below regardless of whether the bindings would
+otherwise serve -- so this cross-validation is against zkp specifically,
+the one implementation this module has to check against for the
+capability BIP327 itself does not cover.
 """
 
 from __future__ import annotations
@@ -960,12 +970,12 @@ def partial_sig_verify_(
     resolved it there, and BIP327's own empty-message and
     38-byte-message vectors are what keeps this Python arm live and
     validated for a message of any size. The bindings have no adaptor
-    extension at all (this module's own docstring's "Cross-validating
-    this construction against zkp" paragraph), so a session that
-    carries one takes the Python arm regardless of the other two
-    conditions. Nothing else in this module is delegated -- `key_agg`,
-    `key_sort` and `nonce_agg` measured too close to their Python cost,
-    or run once per session already, to be worth a second code path.
+    extension at all (this module's own docstring's paragraph on
+    cross-validating against zkp), so a session that carries one takes
+    the Python arm regardless of the other two conditions. Nothing else
+    in this module is delegated -- `key_agg`, `key_sort` and `nonce_agg`
+    measured too close to their Python cost, or run once per session
+    already, to be worth a second code path.
 
     The signer's pubkey has to be one of the session's -- a membership
     test with no C equivalent, `musig_partial_sig_verify` answering a

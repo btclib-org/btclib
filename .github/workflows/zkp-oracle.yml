@@ -88,12 +88,27 @@ on:
     # surface shared by nearly every other test in the suite, so a break
     # there is already caught elsewhere, and naming them here would be
     # "most of ecc/ and most of curves/", wrong the next time either
-    # grows a function
+    # grows a function.
+    # `musig2.py` and its own test file join the list for the MuSig2
+    # adaptor oracle: unlike `dsa.py`, where three shared functions are
+    # the whole dependency, `tests/ecc/musig2_test.py`'s zkp-marked tests
+    # exercise nearly all of `musig2.py`'s own public surface --
+    # `key_sort`, `key_agg`, `nonce_gen`, `nonce_agg`, `sign`,
+    # `SessionContext`, `partial_sig_agg_adaptor`, `adapt` and
+    # `extract_adaptor` -- so the file is named whole rather than
+    # itemized. `ssa.py`'s `Sig.serialize()`, which those same tests call
+    # on what `musig2.adapt`/`partial_sig_agg` return, stays out for the
+    # same reason `curves/` does above: a two-field big-endian
+    # concatenation, already exhaustively checked by BIP340's own
+    # vectors, not the sort of surface a MuSig2-specific oracle exists to
+    # cover a second time
     paths:
       - .github/workflows/zkp-oracle.yml
       - tests/ecc/commit_nonce_test.py
+      - tests/ecc/musig2_test.py
       - src/btclib/ecc/dsa.py
       - src/btclib/ecc/commit_nonce.py
+      - src/btclib/ecc/musig2.py
 
 permissions:
   contents: read
