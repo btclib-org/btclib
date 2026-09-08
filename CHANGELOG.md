@@ -2352,6 +2352,12 @@ file of the test tree, and no caller acts on it.
   walk itself; the new guard is what protects a table that does, and
   `test_a_transitively_reached_cycle_terminates` drives it against one.
 
+### `.gitignore` drops `envtest/`
+
+- **`.gitignore`'s `# Environments` block no longer carries `envtest/`**
+  (closes #1828): nothing in this tree's tooling or docs writes a
+  directory of that name.
+
 ## v2026.9.3
 
 ### Repository
