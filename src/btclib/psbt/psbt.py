@@ -3194,12 +3194,16 @@ def _clear_finalized(psbt_in: PsbtIn) -> None:
     literal per field: the empty value of a field is the constructor's
     business, and spelling it twice is how the two drift.
 
-    btclib is stricter than Bitcoin Core here, whose
-    `PSBTInput::FromSignatureData` clears `partial_sigs`, `hd_keypaths`,
-    `redeem_script` and `witness_script` and leaves the taproot fields,
-    the sighash type and the preimages in place. BIP174's sentence covers
-    those too, and what they buy after finalization is nothing: the
-    preimage a hash-locked script needs is in the witness by then.
+    This keep list agrees with what Bitcoin Core actually puts on the
+    wire for a finalized input: `PSBTInput::Serialize` guards
+    `partial_sigs`, `hd_keypaths`, `redeem_script`, `witness_script`, the
+    taproot fields, the sighash type and the preimages behind
+    `if (final_script_sig.empty() && final_script_witness.IsNull())`, so
+    none of them are serialized once an input is finalized.
+    `PSBTInput::FromSignatureData` clears only the first four of those in
+    memory, but that function is not the wire format. BIP174's sentence
+    covers all of them, and what they buy after finalization is nothing:
+    the preimage a hash-locked script needs is in the witness by then.
     """
     empty = PsbtIn(check_validity=False)
     for field in fields(psbt_in):
