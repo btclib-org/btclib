@@ -587,7 +587,12 @@ repos:
     # bump waits on whichever lands first: an actionlint release that
     # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
     # workspace-relative references the thing to flag instead.
-    rev: v1.30.0
+    #
+    # Nothing enforces that: `pinned-rev` above is a pygrep pattern over
+    # one line, so it refuses a shape -- a bare major, a prerelease -- and
+    # a hold naming a version is not one. `autoupdate` offers 1.30.0 on
+    # every run, and whoever reads the diff is the whole of what declines it
+    rev: v1.29.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
