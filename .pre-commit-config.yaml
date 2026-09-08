@@ -27,16 +27,27 @@ ci:
   skip: [mypy]
 
 repos:
-  # this file checking itself, and the only two hooks here with no
-  # environment to install. A `files` or `exclude` pattern that stops
-  # matching anything is a hook that has quietly stopped running, which is
-  # the shape of issue #145 one level up: the rule is still written down
-  # and no longer enforced
+  # this file checking itself, on hooks pre-commit ships rather than a
+  # repository's: no `rev`, pre-commit requiring its absence wherever the
+  # repo is `meta` or `local`, and no `additional_dependencies`, because
+  # `language: unsupported` -- what a meta hook is validated as -- installs
+  # no environment to put one in. Neither property is this block's alone.
+  # pygrep installs nothing either, which is what `pinned-rev` and
+  # `held-rev` below are written in; `language: system` is `unsupported`
+  # after translation, and the mypy hook that declares it runs in the
+  # project environment uv provisions for it; and a local hook that does
+  # need an environment says so, `typos` below being `language: python`
+  # with its version in `additional_dependencies`.
+  #
+  # A `files` or `exclude` pattern that stops matching anything is a hook
+  # that has quietly stopped running, which is the shape of issue
+  # btclib-org/.github#145: the rule is still written down and no longer
+  # enforced
   - repo: meta
     hooks:
       - id: check-hooks-apply
       - id: check-useless-excludes
-  # this file checking itself further, on the two moves `autoupdate` makes
+  # this file checking itself further, on the moves `autoupdate` makes
   # that it must not take. A rev naming only a major version follows every
   # future release of that major, which is the one thing a rev is here to
   # prevent -- and a prerelease is not a release.
@@ -54,14 +65,99 @@ repos:
   # a gate.
   #
   # A commit SHA stays acceptable, should a hook ever want one: the pattern
-  # requires the prerelease marker and its digits to end the value, which
-  # forty hex characters do not
+  # refuses a value that is all digits, or one ending in a prerelease marker
+  # and its digits, and forty hex characters are neither -- unless every one
+  # of them is a digit, which is a SHA nobody has.
+  #
+  # What may follow the value is a comment, which `held-rev` below makes
+  # the prescribed form for a rev held at a version. Stopping at the quote
+  # instead would let a bare major or a prerelease through on any line
+  # carrying a trailer -- the rule still written down and no longer
+  # enforced, which is the shape above
   - repo: local
     hooks:
       - id: pinned-rev
         name: every pre-commit rev names a released version
         language: pygrep
-        entry: '^ *rev: "?v?([0-9]+|[0-9][0-9.]*(a|b|rc|dev)[0-9]+)"?$'
+        entry: '^ *rev: "?v?([0-9]+|[0-9][0-9.]*(a|b|rc|dev)[0-9]+)"? *(?:#.*)?$'
+        files: ^\.pre-commit-config\.yaml$
+      # the move a shape cannot describe: a rev held below the latest
+      # release for a stated reason. `autoupdate` proposes that release on
+      # every run, so a hold needs a value to compare the rev against, and
+      # the `rev:` line is the only place pygrep can read one -- it matches
+      # a line at a time, which puts a comment above the value out of
+      # reach.
+      #
+      # Nothing lets the updater be told instead. `autoupdate` has no flag for
+      # a repository to leave alone -- --repo is an allow list for the one
+      # run, and --bleeding-edge and --freeze change what it writes, --freeze
+      # the trailing comment included -- a repository entry takes `repo`,
+      # `rev` and `hooks`, with pre-commit warning on any other key, and
+      # pre-commit.ci's `ci:` block has no autoupdate exclusion either, its
+      # `skip:` being hook ids at run time. So the guard comes after the bump,
+      # and it can: an ordinary run rewrites the value and re-emits the marker
+      # verbatim. The bump the marker is there to catch therefore leaves the
+      # value and the marker disagreeing inside one line, which is the whole
+      # of what pygrep sees. `# frozen:` is the one trailer an ordinary run
+      # does not keep, pre-commit writing that one itself and dropping it
+      # wherever the run is not `--freeze`.
+      #
+      # `--freeze` is the exception, and it erases a marker rather than
+      # preserving it: that run writes `# frozen: <tag>` in place of
+      # whatever trailed the value, the frozen branch of
+      # `_write_new_config` being taken ahead of the one that keeps a
+      # comment, so the hold goes and this hook has nothing left to find
+      # disagreeing. Measured, not read: a `--freeze` run over a held
+      # entry leaves the line a sha with a `# frozen:` trailer and this
+      # hook silent. No run here passes it.
+      #
+      # `"? +#` right after the capture is what makes the marker name the
+      # whole value. With no fixed anchor there the group gives characters
+      # back until it matches a shorter string, that shorter string then
+      # differs from the marker legitimately, and the hook fails a correct
+      # line as readily as a bumped one. The space is ` +` rather than a
+      # fixed width because prettier below settles what precedes a trailing
+      # comment.
+      #
+      # The marker names the issue that says when the hold lifts, and that
+      # is the half a paragraph does not deliver: what the reader of the
+      # bot's two-line diff has in front of them is the `rev:` line.
+      #
+      # Its form is the rev's own value and then, anywhere after it on that
+      # line, the word issue with a reference -- `#<digits>`, or
+      # `owner/repo#<digits>` where the issue is another repository's,
+      # which is the form section 9 of the organization standard requires
+      # of a cross-repository reference, a bare number resolving in the
+      # repository it is written in. What precedes the `#` is admitted as
+      # any run of characters that are neither whitespace nor a `#`, this
+      # hook being no judge of whether a qualification names a real
+      # repository; what it insists on is the keyword and a number, so
+      # `see #1563` is refused and `issues #1563 and #1600` with it. A
+      # marker on a line of its own is refused by the first branch, since
+      # there it would enforce nothing -- the shape `check-hooks-apply` above
+      # answers for a hook that matches no file. One further along the line,
+      # behind another comment, is silent rather than refused: what stops the
+      # capture backtracking to a shorter string is that ` +#` follows it, so
+      # the position is the anchor and relaxing it gives up the comparison.
+      #
+      # A hold written with no marker is what this does not reach: a `rev:`
+      # line carrying none matches nothing here, so the guard is opt-in and
+      # the hold after this one is invisible to it until somebody writes
+      # the marker. Nothing local closes that, the value to compare against
+      # being the marker itself, so what catches it is the review of the
+      # diff that adds the hold -- which is where the reason for the hold
+      # is being written anyway.
+      #
+      # What the census left outside the pattern: pyroma's hold below
+      # refuses a prerelease, and that is a shape `pinned-rev` already
+      # reads; actionlint's is a floor rather than a ceiling, and
+      # `autoupdate` only ever proposes the newest release; a version in
+      # `additional_dependencies` is not a `rev`, and `autoupdate` rewrites
+      # `rev` and nothing else
+      - id: held-rev
+        name: a held rev names the version it is held at, and its issue
+        language: pygrep
+        entry: '^(?: *# hold:| *rev: "?([^\s"]+)"? +# hold:(?! \1 .*\bissue [^\s#]*#[0-9]))'
         files: ^\.pre-commit-config\.yaml$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -588,11 +684,12 @@ repos:
     # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
     # workspace-relative references the thing to flag instead.
     #
-    # Nothing enforces that: `pinned-rev` above is a pygrep pattern over
-    # one line, so it refuses a shape -- a bare major, a prerelease -- and
-    # a hold naming a version is not one. `autoupdate` offers 1.30.0 on
-    # every run, and whoever reads the diff is the whole of what declines it
-    rev: v1.29.0
+    # `autoupdate` offers 1.30.0 on every run, and the marker on the rev
+    # line is what declines it: `held-rev` above reads the value and the
+    # marker as one line and fails wherever the two differ. `pinned-rev`
+    # cannot, being a refusal of a shape -- a bare major, a prerelease --
+    # and a hold naming a version is not one
+    rev: v1.29.0 # hold: v1.29.0 -- issue #1563
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about

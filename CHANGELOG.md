@@ -2565,6 +2565,54 @@ file of the test tree, and no caller acts on it.
   match `.yml` and `.yaml` alike -- were checked and found not to share
   the defect.
 
+### A held `rev:` carries its version in a marker on that line
+
+- **`held-rev` fails wherever a `rev:` line's `# hold:` marker names a
+  version other than the value beside it** (closes #1843). A hold that
+  names a version to stay at is what `pinned-rev` cannot read: that hook
+  refuses a shape -- a bare major, a prerelease -- and a version is not
+  one, so `pre-commit autoupdate` proposes the newer release with nothing
+  local to tell the two apart. Declaring the hold to the updater is not
+  available: `autoupdate` has no flag for a repository to leave alone, a
+  repository entry takes `repo`, `rev` and `hooks`, and pre-commit.ci's
+  `ci:` block skips hook ids at run time and nothing at autoupdate time.
+  The guard can come after the bump because an ordinary `autoupdate` run
+  re-emits the marker verbatim, so it outlives the bump it is there to
+  catch and the disagreement lands inside the one line pygrep reads. `--freeze`
+  erases the marker instead, writing its own `# frozen:` trailer over it, and
+  no run here passes it. The marker names the issue that says when the hold
+  lifts, which puts what declines the bot's two-line diff on the line that diff
+  shows; a marker on a line of its own is refused, since there it would enforce
+  nothing. The reference is `#<digits>` or `owner/repo#<digits>`, so a hold
+  tracked in another repository does not have to be written in the one form
+  section 9 of the organization standard refuses. A `rev:` line with no marker
+  matches nothing, which leaves the guard opt-in: what catches a hold written
+  without one is the review of the diff that adds it. zizmor's rev carries the
+  marker, held at v1.29.0 (issue #1563).
+- **The `- repo: meta` block's comment gives the reason those hooks carry
+  no `rev` and no `additional_dependencies`, in place of calling them the
+  only ones here with no environment to install** (closes #1873). Neither
+  property is that block's: pre-commit requires `rev` absent wherever the
+  repo is `meta` or `local`, and `language: unsupported`, which a meta
+  hook is validated as, installs no environment to put a dependency in --
+  as pygrep installs none, which is what `pinned-rev` and `held-rev` are
+  written in, and as `language: system` installs none, being
+  `unsupported` after translation. A local hook that does need an
+  environment says so: `typos` is `language: python` with its version in
+  `additional_dependencies`.
+- **That same comment's second paragraph cites `btclib-org/.github#145`
+  rather than a bare `#145`** (closes #1875): a bare number resolves
+  inside the repository it is written in, and that one is a different
+  real issue of this tree, so the reference named the wrong thing while
+  reading as precise. The prose qualifier it leaned on goes with the
+  change, the reference now saying which tracker it means.
+- **`pinned-rev` tolerates a comment after the value, so a held rev is
+  still held to naming a released version.** Its pattern ended at the
+  value, so any trailing comment defeated it -- and a trailing comment is
+  what a hold now is, which would have let a bare major or a prerelease
+  through on the very lines this convention creates, the rule still
+  written down and no longer enforced.
+
 ## v2026.9.3
 
 ### Repository
