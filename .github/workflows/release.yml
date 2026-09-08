@@ -363,19 +363,22 @@ jobs:
     name: Run the test workflow
     needs: version-check
     uses: ./.github/workflows/test.yml
-    # a called workflow's jobs are capped at what the caller grants here,
-    # not at what the called workflow's own top-level default declares:
-    # this workflow's contents: read alone would leave test.yml's
-    # `changes` job, which asks for pull-requests: read to list a pull
-    # request's files, refused before a single job starts, version-check
-    # included -- `changes` never actually reads a file list on a
-    # release, answering code=true unconditionally off anything that is
-    # not a pull_request event, but the check is against what the job
-    # declares, not against what it goes on to do. contents: read is
-    # repeated rather than left to test.yml's own default for the same
-    # reason: a caller's grant replaces the callee's default outright, so
-    # contents omitted from this list would be none for every job over
-    # there, not only for the one this comment names
+    # this block bounds test.yml rather than standing in for what
+    # test.yml declares: a job over there with no block of its own is
+    # granted test.yml's own top-level contents: read and not the
+    # pull-requests: read granted here. The bound refuses rather than
+    # trims, so this workflow's contents: read alone would leave
+    # test.yml's `changes` job, which asks for pull-requests: read to
+    # list a pull request's files, refused before a single job starts,
+    # version-check included -- `changes` never actually reads a file
+    # list on a release, answering code=true unconditionally off anything
+    # that is not a pull_request event, but the check is against what the
+    # job declares, not against what it goes on to do. contents: read is
+    # repeated rather than left to test.yml's own default to keep that
+    # top-level declaration inside this list: what a run does where a
+    # called workflow's top-level declaration falls outside the caller's
+    # list is not measured, and the refusal above is not evidence for it
+    # (btclib-org/.github#912)
     permissions:
       contents: read
       pull-requests: read

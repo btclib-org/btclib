@@ -2262,6 +2262,37 @@ file of the test tree, and no caller acts on it.
   tree, `--write-changes` in the hook's own `args` therefore leaving the
   working tree exactly as it found it.
 
+### The caller-permissions clause says the block bounds what it calls
+
+- **`release.yml`'s comment above the `test` job's `permissions:` says
+  that block bounds `test.yml` rather than standing in for what
+  `test.yml` declares** (issue btclib-org/.github#912): a job over there
+  with no block of its own is granted `test.yml`'s own top-level
+  `contents: read` and not the `pull-requests: read` the caller grants
+  beyond it, which is what refutes the substitution reading. `changes`,
+  reached through the same call in the same run, declares
+  `pull-requests: read` and logs it with no `Contents`, so those
+  absences are absences. The wording follows section 11 of the
+  organization standard.
+- **What omitting `contents` from that list would do is named as
+  unmeasured rather than drawn as a consequence**: `contents: read` is
+  what `test.yml` declares at its own top level, so leaving it off is a
+  called workflow's top-level declaration falling outside the caller's
+  list, which is the case no run covers -- the refusal a called *job*'s
+  declaration draws is not evidence for it. The entry above under
+  *`release.yml`'s caller-permissions comment names the scope it is
+  about*, which cites btclib-org/.github#896, narrowed that consequence
+  to `contents`; the narrowing stands, and what changes is that the
+  comment no longer states the outcome.
+- **`REPOSITORY.md`'s *Token permissions* states the mechanism the same
+  way** (closes btclib-org/.github#917): what the caller's list has to
+  name is what `test.yml`'s own jobs declare, and the reason is the
+  refusal a job's declaration outside that list draws. The unmeasured
+  top-level case is left to `release.yml`'s comment, which is where this
+  tree argues the call. The other `replaces` in that section states a
+  different mechanism -- a job's own `permissions:` against its own
+  workflow's top level -- and is untouched.
+
 ## v2026.9.3
 
 ### Repository

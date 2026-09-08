@@ -526,11 +526,16 @@ needing more must declare it. The largest group of those declarations is
 in `release.yml`: `contents: write` on `github-release`, `id-token: write` on
 `publish-pypi` and `publish-testpypi`, and `contents: read` with
 `pull-requests: read` on `test` — that last one there because `test`
-calls `test.yml`, and a caller's `permissions:` block replaces the
-callee's default outright rather than adding to it, so it has to grant
-what `test.yml`'s own jobs declare, not only what `release.yml` itself
-needs. `test.yml` has one such declaration of its own, on `changes`:
-`pull-requests: read`, to list a pull request's files. And
+calls `test.yml`, and a caller's `permissions:` block bounds the
+workflow it calls rather than standing in for what that workflow
+declares: a job of `test.yml` with no block of its own is granted
+`test.yml`'s own top-level `contents: read` and not the
+`pull-requests: read` the caller grants beyond it, and a scope one of
+its jobs declares that the caller's list leaves off fails the run before
+a job of it starts (btclib-org/btclib-secp256k1#281). So that list has
+to name what `test.yml`'s own jobs declare, not only what `release.yml`
+itself needs. `test.yml` has one such declaration of its own, on
+`changes`: `pull-requests: read`, to list a pull request's files. And
 `codeql.yml`'s `analyze` has one: `security-events: write` is
 what uploading a SARIF to code scanning takes, with `actions: read` beside
 it — redundant while this repository is public, and written down so that
