@@ -363,7 +363,7 @@ _EXEMPT: dict[str, str] = {
     "the 1-of-1 shares, whose value is the encrypted master secret itself and": _UPSTREAM_FACT,
     "regenerates each of the four mnemonics word for word from the master": _UPSTREAM_FACT,
     "secret. The other 11 are recovery only, a 2-of-3 share being random by": _UPSTREAM_FACT,
-    "the two ECDSA profiles is explained, and where the difference the files": _UPSTREAM_FACT,
+    "the split between the two ECDSA profiles is explained, and where the": _UPSTREAM_FACT,
     "measured, all files verify identically at 32 and at 64.": _UPSTREAM_FACT,
     "and its verifier no longer applies that rule, so two of these verdicts": _UPSTREAM_FACT,
     "are exempted rather than asserted — `wycheproof_test.py` reads which two": _UPSTREAM_FACT,
