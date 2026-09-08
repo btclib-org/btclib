@@ -12,13 +12,14 @@ feature example sets. `tests/bolt11_test.py` drives those two invoices
 themselves.
 
 The Dependencies column is the same kind of transcription and is held to
-the same kind of shape, with one addition: the walk over it ends because
-the table has no cycle, so a cycle is what one of the tests below refuses.
-Every row of that column is asked for in turn, which is what a
-mistranscribed bit fails. A chain -- a dependency that has one of its own
--- is what `_walk_dependencies` is separable for: BOLT9 assigns none at
-the pinned revision, so the transitive step is driven over a table
-written here instead.
+the same kind of shape, with one addition: a mistranscribed row could
+introduce a cycle, which one of the tests below refuses regardless of
+whether `_walk_dependencies` itself would terminate on one. Every row of
+that column is asked for in turn, which is what a mistranscribed bit
+fails. A chain -- a dependency that has one of its own -- and a cycle
+reached through one are what `_walk_dependencies` is separable for:
+BOLT9 assigns neither at the pinned revision, so both are driven over
+tables written here instead.
 """
 
 from __future__ import annotations
@@ -89,11 +90,11 @@ def test_every_dependency_is_between_assigned_features() -> None:
 
 
 def test_no_feature_depends_on_itself() -> None:
-    """Directly or through a chain, which is what ends the walk.
+    """Directly or through a chain.
 
-    Its own closure rather than `_walk_dependencies`: that one is what
-    this guarantees terminates, so asking it would be asking the question
-    of itself, and the answer to a cycle would be a hung suite.
+    Its own closure rather than `_walk_dependencies`, which terminates on
+    any table, cyclic or not: this test is a claim about
+    `FEATURE_DEPENDENCIES` itself, independent of the walk's own safety.
     """
     for bit in FEATURE_DEPENDENCIES:
         reached: set[int] = set()
@@ -154,4 +155,19 @@ def test_a_chain_is_followed_to_its_end() -> None:
     assert _walk_dependencies(dependencies, (1 << 4) | (1 << 16) | (1 << 18)) == (
         (4, 8),
         (8, 12),
+    )
+
+
+def test_a_transitively_reached_cycle_terminates() -> None:
+    """2 depends on 4, which depends on 6, which depends back on 4.
+
+    None of the cycle's three nodes is set in the vector, so 4 is reached
+    twice -- once from 2 and once from 6 -- and the second time is where
+    the walk has to stop rather than requeue it forever.
+    """
+    dependencies = {2: (4,), 4: (6,), 6: (4,)}
+    assert _walk_dependencies(dependencies, 1 << 2) == (
+        (2, 4),
+        (4, 6),
+        (6, 4),
     )

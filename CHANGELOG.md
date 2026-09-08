@@ -2340,6 +2340,18 @@ file of the test tree, and no caller acts on it.
   relative-path naming against a synthetic `sub/offender_test.py` rather
   than relying on the real tree to happen to hold one.
 
+### `_walk_dependencies` terminates on a cyclic table
+
+- **`btclib.bolt9._walk_dependencies` skips a bit it has already
+  expanded rather than re-queueing it** (closes #1822): a `visited` set
+  is what a table whose cycle is reached only transitively -- three or
+  more nodes, none of them set in the vector -- needs to stop the walk
+  instead of requeuing the cycle's members forever.
+  `FEATURE_DEPENDENCIES` carries no such cycle, which
+  `test_no_feature_depends_on_itself` holds it to independently of the
+  walk itself; the new guard is what protects a table that does, and
+  `test_a_transitively_reached_cycle_terminates` drives it against one.
+
 ## v2026.9.3
 
 ### Repository
