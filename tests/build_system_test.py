@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Iterable
 from pathlib import Path
 
 _PYPROJECT = Path(__file__).parents[1] / "pyproject.toml"
@@ -225,20 +226,52 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     return False
 
 
+def _missing_source_excludes(tests_dir: Path, excluded: Iterable[str]) -> list[str]:
+    """Every `*.py` under `tests_dir`, recursively, unlisted in `excluded`.
+
+    Recursive, `tests/bip32/`, `tests/ecc/` and the rest of the package's
+    own subdirectories being as reachable from an installed test as the
+    top level is -- a module there naming `.github` or `fuzz` would be
+    just as unrunnable from an unpacked sdist. `source-exclude`'s own
+    entries are full paths from the project root, not bare filenames, so
+    a subdirectory member is named by its path relative to `tests_dir`
+    and not by its `name` alone.
+    """
+    excluded = set(excluded)
+    return [
+        f"/tests/{path.relative_to(tests_dir).as_posix()}"
+        for path in sorted(tests_dir.rglob("*.py"))
+        if _reaches_outside_the_sdist(
+            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        )
+        and f"/tests/{path.relative_to(tests_dir).as_posix()}" not in excluded
+    ]
+
+
 def test_every_test_reaching_outside_the_sdist_is_source_excluded() -> None:
-    """A `tests/*.py` the reader above recognizes is named in the list.
+    """A `tests/**/*.py` the reader above recognizes is named in the list.
 
     Not the other direction: `source-exclude` also names entries no test
     file could match -- `docs/build`, the linter caches -- so only this
     direction closes what ISS 1509 found open.
     """
-    excluded = set(_source_exclude())
-    missing = [
-        f"/tests/{path.name}"
-        for path in sorted(_TESTS.glob("*.py"))
-        if _reaches_outside_the_sdist(
-            ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        )
-        and f"/tests/{path.name}" not in excluded
-    ]
+    missing = _missing_source_excludes(_TESTS, _source_exclude())
     assert not missing, f"reaches outside the sdist, not in source-exclude: {missing}"
+
+
+def test_a_subdirectory_module_is_reached_and_named_by_its_relative_path(
+    tmp_path: Path,
+) -> None:
+    """`_missing_source_excludes` opens a subdirectory, not only the top.
+
+    A synthetic `sub/offender_test.py`, planted under a directory this
+    test builds rather than the real `tests/`, is what proves the reader
+    descends into it -- `_TESTS.glob("*.py")`, the shape this replaced,
+    never opened a subdirectory at all, so a module there naming
+    `.github` would have passed unseen whatever `source-exclude` said.
+    """
+    sub = tmp_path / "sub"
+    sub.mkdir()
+    (sub / "offender_test.py").write_text('URL = ".github/x.yml"\n', encoding="utf-8")
+
+    assert _missing_source_excludes(tmp_path, []) == ["/tests/sub/offender_test.py"]

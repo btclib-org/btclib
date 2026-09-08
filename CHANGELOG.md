@@ -2324,6 +2324,22 @@ file of the test tree, and no caller acts on it.
   the sentinel above makes wrong, and the reason each gives for its own
   cadence is untouched.
 
+### `tests/build_system_test.py`'s reader reaches subdirectories of `tests/`
+
+- **`_TESTS.glob("*.py")` becomes `_TESTS.rglob("*.py")`, and the
+  reader's own entry for a match is its path relative to `tests/`, not
+  its bare filename** (closes #1818). The top-level-only glob left
+  `tests/bip32/`, `tests/ecc/` and the rest of the package's own
+  subdirectories unopened, so a subdirectory module reaching `.github`
+  or `fuzz` would have passed `source-exclude`'s check unseen -- no such
+  module exists in this tree today, checked by running the widened
+  reader against it, but a future one would have reproduced ISS
+  1509/1736/1801's mechanism one level down. The reader is factored into
+  `_missing_source_excludes`, taking a directory rather than closing over
+  `tests/`, so a second test can exercise the descent and the
+  relative-path naming against a synthetic `sub/offender_test.py` rather
+  than relying on the real tree to happen to hold one.
+
 ## v2026.9.3
 
 ### Repository
