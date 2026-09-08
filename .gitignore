@@ -31,7 +31,6 @@ sbom/
 .env
 .venv
 env/
-envtest/
 venv/
 ENV/
 env.bak/
