@@ -129,13 +129,18 @@ def _walk_dependencies(
 
     The walk is transitive: a feature the vector must set for one it does
     set is itself asked for, so a chain through the table is followed to
-    its end. What ends the walk is the table having no cycle, and
-    `tests/bolt9_test.py` is what holds BOLT9's own to that.
+    its end. A bit already expanded is skipped rather than re-queued, so
+    a cycle in `dependencies` stops the walk instead of running it
+    forever.
     """
     unmet: set[tuple[int, int]] = set()
+    visited: set[int] = set()
     pending = [bit for bit in dependencies if value >> bit & 0b11]
     while pending:
         bit = pending.pop()
+        if bit in visited:
+            continue
+        visited.add(bit)
         for required in dependencies.get(bit, ()):
             if not value >> required & 0b11:
                 unmet.add((bit, required))
