@@ -299,6 +299,83 @@ Do not use Fable unless explicitly instructed.
   with a regex — the idiom `_pyproject_author()` in the same file
   already uses on `pyproject.toml`, for the identical reason — rather
   than executing the module.
+- **A GitHub squash-merge can land `CHANGELOG.md` missing the blank
+  line above a new `###` heading, and nothing stops the merge button
+  from doing it.** `.gitattributes`' `merge=union` on `CHANGELOG.md`
+  applies to a local `git rebase`, which is where that blank line is
+  ordinarily eaten and then restored by `markdownlint-cli2 --fix`;
+  GitHub's server-side merge does not apply the driver at all, so a
+  squash-merge landing two branches that both append an entry can
+  commit the seam damage straight to `main` with no local gate ever
+  having seen it (issue #1568, its own commit `0bc9e72d`). `lint.yml`'s
+  `push: branches: [main]` trigger runs the same hooks the pull request
+  did and is what catches it, so this is a detective control rather
+  than a preventive one. The remedy is reconstruction, not the rebase's
+  own output, which can silently carry the same damage forward: build
+  the expected file from the pre-rebase blob's own added block spliced
+  into the new base's blob, verify the result byte for byte against
+  what actually landed on `main`, then run `markdownlint-cli2` on the
+  reconstructed file to restore the blank line before pushing the fix.
+- **`pre-commit run markdownlint-cli2` can report `Passed` on
+  `CHANGELOG.md` without applying a fix its own `--fix` is configured
+  to make.** Measured under concurrent load from several sessions'
+  pre-commit and pytest runs sharing one machine-wide
+  `~/.cache/pre-commit/repo<hash>` hook cache: `pre-commit run
+  markdownlint-cli2 --files CHANGELOG.md` answered `Passed` with zero
+  diff on a file that still carried the blank-line defect above, and
+  invoking the pinned tool directly against the same file immediately
+  found and fixed it. An isolated repro — same file, same tool, same
+  config, no concurrent load — did not reproduce the false pass, so
+  contention over the shared cache under heavy concurrent load is the
+  standing hypothesis rather than a confirmed code path (issue #1863).
+  Whenever a rebase has touched `CHANGELOG.md`, invoke the pinned tool
+  directly as a second check rather than trusting a bare `Passed`: find
+  the cache directory by matching its `package.json`'s `version`
+  against `.pre-commit-config.yaml`'s pinned `rev` for
+  `markdownlint-cli2`, then run
+
+  ```shell
+  d=~/.cache/pre-commit/repo<hash>/node_env-system/lib/node_modules/markdownlint-cli2
+  node "$d/markdownlint-cli2-bin.mjs" \
+    --fix --config .markdownlint.jsonc CHANGELOG.md
+  ```
+
+  **And the direct invocation's own `Summary: N issues in M files` line
+  is not the confirmation either.** `markdownlint-cli2.mjs`'s
+  `flattenTaskResults` builds `filesReported` only from result entries
+  whose `errorInfos.length > 0` — a file with nothing left to report
+  reads identically whether the tool fixed every issue it found or
+  never opened the file at all. `Summary: 0 issues in 0 files` is
+  consistent with both, even *with* `--fix`: the tool re-lints after
+  applying a fix, so a file whose only defects were fixable reports the
+  same `Summary: 0 issues in 0 files` as a file it never opened, and
+  neither exits 1 nor names a rule — that only happens on a check-only
+  run, `--fix` dropped. What actually confirms the run touched the file
+  is `git diff` showing the blank line restored, or the `--fix`
+  invocation's own `Attempted: N fixes in M files` line, present only
+  when a real pre-fix pass found something to fix and not filtered the
+  way `Summary` is; a planted control makes this concrete: delete a
+  known blank line above a `###` heading, run the check-only form
+  (`--config .markdownlint.jsonc CHANGELOG.md`, no `--fix`) and confirm
+  it exits 1 naming `MD022`/`MD032`, then run the `--fix` form and
+  confirm it reports `Attempted: 2 fixes in 1 file`, then restore the
+  line and re-run to confirm both go quiet again.
+- **`uv run --project <worktree> pytest` with no path argument can
+  collect a different tree's test files than the source it runs
+  against.** `[tool.pytest.ini_options] testpaths = ["tests"]` in
+  `pyproject.toml` is relative, and `--project` changes which project's
+  environment and dependencies `uv` resolves, not the process's working
+  directory — so `testpaths` resolves against wherever the shell's cwd
+  already is, which resets to the primary checkout between tool calls.
+  `btclib` itself still resolves correctly (the editable install's
+  absolute-path finder wins regardless of cwd), so the failure is
+  narrower and easier to miss than an ordinary wrong-tree import: source
+  from the worktree, tests from the primary checkout's unmodified copy,
+  producing failures that read as real regressions in code the worktree
+  never touched. `env -C <worktree> uv run pytest` (no path argument
+  needed once cwd is bound) is unaffected; so is any invocation that
+  passes the test path explicitly, `uv run --project <worktree> pytest
+  <worktree>/tests`.
 
 ## Conventions to match
 
