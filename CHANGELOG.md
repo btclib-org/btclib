@@ -2155,6 +2155,22 @@ file of the test tree, and no caller acts on it.
   for byte; btclib-org/.github#906 is filed against the copies of this
   module across the organization and stays open.
 
+### `zizmor`'s pin and the paragraph holding it name one version
+
+- **`.pre-commit-config.yaml` pins `zizmor` at v1.29.0, which is the
+  version the paragraph above the pin says it holds** (issue #1563):
+  1.30.0's `self-repository` audit reports every `uses: ./...` reference
+  in `.github/workflows/` and auto-fixes each to `uses: $/...`, which the
+  pinned actionlint does not parse, so the bump trades one red hook for
+  another. `gh api repos/rhysd/actionlint/releases/latest` answers the
+  version pinned here, so neither condition that paragraph names for
+  lifting the hold has arrived. With the pin ahead of its own comment the
+  lint gate was red on `main`. Nothing enforces the hold: `pinned-rev`
+  refuses a shape -- a bare major, a prerelease -- and a hold naming a
+  version is not one, so `autoupdate` offers 1.30.0 on every run and
+  whoever reads the diff is the whole of what declines it. The comment
+  beside the pin now says that as well.
+
 ## v2026.9.3
 
 ### Repository
