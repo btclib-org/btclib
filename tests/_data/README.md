@@ -1800,14 +1800,16 @@ is a copy of the licence, so `WYCHEPROOF_COPYING` is vendored beside
 them and has its own entry below. There is no `NOTICE` file at the pin
 to carry with it.
 
-All are pinned to the same commit, `5722833c` of 2026-08-11, and all
-live in `testvectors_v1/`. Not `testvectors/`, which upstream removed
-on 2025-09-02 and which no refresh can reach again. They are read by
-`tests/ecc/wycheproof_test.py`, which is also where the split between
-the two ECDSA profiles is explained, and where the difference the files
-under a hash other than sha256 make is: `_libsecp256k1_serves`
-admits sha256 alone, so those reach the Python arithmetic without the
-dispatch being switched off, and are run once rather than twice.
+Each entry below is pinned to its own path's last commit rather than to
+one commit shared by all of them, since the files do not all move
+together. All live in `testvectors_v1/`. Not `testvectors/`, which
+upstream removed on 2025-09-02 and which no refresh can reach again.
+They are read by `tests/ecc/wycheproof_test.py`, which is also where
+the split between the two ECDSA profiles is explained, and where the
+difference the files under a hash other than sha256 make is:
+`_libsecp256k1_serves` admits sha256 alone, so those reach the Python
+arithmetic without the dispatch being switched off, and are run once
+rather than twice.
 
 The SHAKE files need one thing the others do not, and it is a type
 rather than a reader: `hashlib.shake_128` is not a `HashF`, an
@@ -1855,9 +1857,9 @@ case is otherwise the same 463 cases, `numberOfTests` included.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha256_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  878e5366008753df2064d40c49f8e2f50f9c6af7  2026-05-12
 blob    48797ce3b697f47175bdf4dc93976c2dc94438c5
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1872,9 +1874,9 @@ and `invalid` there differ by the low-s rule and by nothing else.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha256_p1363_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  878e5366008753df2064d40c49f8e2f50f9c6af7  2026-05-12
 blob    3c59b142ede26ecbafecf83341e907dd3bfda40f
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1886,9 +1888,9 @@ side, which reaches `Sig` with no DER in front of it.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha512_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  878e5366008753df2064d40c49f8e2f50f9c6af7  2026-05-12
 blob    612e1912bfb5e523fbe8183e0d12f468e8309a08
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1901,9 +1903,9 @@ and nowhere else.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha3_256_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    5c6c5901f4d41af8a992cafc4aa31b6bc7b87163
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1916,9 +1918,9 @@ so what it varies is the dispatch and not the arithmetic.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha3_512_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    2a5770e00be1c4d1218b79e8a805f52a0a1c7f26
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1930,9 +1932,9 @@ of the two the files above vary one at a time.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_sha512_p1363_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  878e5366008753df2064d40c49f8e2f50f9c6af7  2026-05-12
 blob    089040205b9d99313d284154cdcdc646079d1d43
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1945,10 +1947,10 @@ and s stay `n_size` each while the message hash doubles.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_shake128_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    bffa63ed0097e4910a5d99381f88a4b1c12db757
-pulled  2026-08-13
-behind  0 revisions; last changed at e0df04e0, 2025-10-07
+pulled  2026-09-08
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. An extendable-output function read as a hash of
@@ -1961,10 +1963,10 @@ digests that report their own length and a SHAKE's is 0.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_shake256_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    5bfb394cf971b3c9a68862f23b1251f3d3e7b1c0
-pulled  2026-08-13
-behind  0 revisions; last changed at e0df04e0, 2025-10-07
+pulled  2026-09-08
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The same stream read at the same `n_size`, over
@@ -1980,10 +1982,10 @@ it read.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_shake128_p1363_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    3f63208d4cbeaed6a8c46c430678199bd52d0e50
-pulled  2026-08-13
-behind  0 revisions; last changed at e0df04e0, 2025-10-07
+pulled  2026-09-08
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The XOF with no DER around it: `Sig` answers for
@@ -1995,10 +1997,10 @@ message hashes to and nothing about the encoding.
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdsa_secp256k1_shake256_p1363_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    c2b431b5d76016a8da19fdc1aab1ecaa5cfe12f1
-pulled  2026-08-13
-behind  0 revisions; last changed at e0df04e0, 2025-10-07
+pulled  2026-09-08
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The fourth corner, and it carries the
@@ -2009,9 +2011,9 @@ Verdict: **identical**. The fourth corner, and it carries the
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdh_secp256k1_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  78898104021ebd2cd98820e4112da89b1531d999  2026-03-11
 blob    3ed5207460f29a270e024d0f3c0e1b57d1fa52a9
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -2024,10 +2026,10 @@ rather than a bare point: the invalid-curve, twist and wrong-curve cases
 ```text
 repo    C2SP/wycheproof
 path    testvectors_v1/ecdh_secp256k1_webcrypto_test.json
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  e0df04e0c033f2d25c5051dd06230336c7822358  2025-10-07
 blob    a675c5378e8d10aad7ae241ef5460f4aefa10d0b
-pulled  2026-08-25
-behind  0 revisions; last changed at e0df04e0, 2025-10-07
+pulled  2026-09-08
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. The same key agreement as `ecdh_secp256k1_test.json`
@@ -2040,9 +2042,9 @@ and its valid cases' shared secrets are exactly that file's own.
 ```text
 repo    C2SP/wycheproof
 path    LICENSE
-commit  5722833ca004983abd1a91bcb6c24596d50ac0f9  2026-08-11
+commit  31387e2cd596587c859c611027b6a44d2e2b65ff  2018-04-04
 blob    7a4a3ea2424c09fbe48d455aed1eaa94d9124835
-pulled  2026-08-13
+pulled  2026-09-08
 behind  0 revisions; that commit is the tip of the path
 ```
 
