@@ -2376,6 +2376,19 @@ file of the test tree, and no caller acts on it.
   follow -- the number beside it, a cache hit rate, is what that sentence's
   reader needs.
 
+### `tests/_data/README.md`'s C2SP/wycheproof pins move to each path's own commit
+
+- **The C2SP/wycheproof pins under `tests/ecc/_data/` move from one
+  commit shared by every entry, `5722833ca004`, to each path's own last
+  commit** (closes #1830): the ECDSA and ECDH vector files and
+  `WYCHEPROOF_COPYING`, vendored from upstream's `LICENSE`, each now
+  record the commit that actually last touched their own path --
+  `878e53660087`, `e0df04e0c033` or `78898104021e` for the vector files,
+  `31387e2cd596` for the licence. The vendored content is unchanged:
+  none of these paths has been touched upstream since the date its own
+  entry now names, so the refresh corrects what commit each pin names
+  without changing a vector.
+
 ## v2026.9.3
 
 ### Repository
