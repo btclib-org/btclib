@@ -2548,6 +2548,23 @@ file of the test tree, and no caller acts on it.
   is the spelling `tests/_data/README.md` already uses for that
   repository.
 
+### `interpreters_test.py` reads a `.yaml` workflow as readily as a `.yml` one
+
+- **`tests/interpreters_test.py`'s workflow discovery globs `*.yml` and
+  `*.yaml` alike** (closes #1874): GitHub itself reads both extensions
+  for a workflow file, so a glob matching only one silently drops any
+  workflow written with the other, and the interpreter list such a file
+  declares is then compared against nothing. `os-macos.yml`'s own bytes,
+  copied to a `.yaml` name with `*.yml` alone in place, reproduced this:
+  the copy went unread and the module's own claim that the platform
+  sweeps agree held regardless of what the unread file said. The two
+  other places the issue named as the same question -- `pyproject.toml`'s
+  `[tool.uv.build-backend] source-exclude`, which excludes by test-file
+  name rather than by workflow extension, and the `actionlint` and
+  `zizmor` pre-commit hooks, whose upstream `files:` patterns already
+  match `.yml` and `.yaml` alike -- were checked and found not to share
+  the defect.
+
 ## v2026.9.3
 
 ### Repository
