@@ -113,19 +113,26 @@ rewrote their own text in place rather than adding a bullet, so there is
 nothing left to relocate -- matching the tag again would mean undoing
 two already-reviewed corrections instead.
 
-`_KNOWN_DRIFT` below names the one remaining section and marks it
-`xfail(strict=True)`: a further hand fix that makes it match its tag
-again turns that case into an *unexpected* pass, which is a failure too,
-so the exemption cannot quietly outlive the drift it names.
+`_KNOWN_DRIFT` below is where that exemption is written, and what an
+entry pins is the text its section reads at rather than the section
+itself: the digest, and beside it that entry's own reason for the text
+being what it is. A section digesting to what its entry pins is the text
+somebody reviewed; one matching its own tag again leaves the entry
+exempting nothing, which is what takes the entry out; and one matching
+neither has taken a line nobody read -- the union driver lands an entry
+wherever its branch wrote it, anywhere inside the section rather than at
+the edit an exemption was registered for, so an exemption reaching the
+whole section would swallow exactly what is described above.
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import NamedTuple
 
 import pytest
 
@@ -138,17 +145,42 @@ _HEADING = re.compile(r"^## (\S+)(.*)$", re.MULTILINE)
 # "git" in a subprocess list is a partial executable path
 _GIT = shutil.which("git") or "git"
 
-# what emptied v2026.8.7 of relocatable content is issue #1524 moving
-# out 237c86d4's own bullets, not the separate move of v2026.8.21's
-# and v2026.8.27's. What remains, 13941fd1's and 0744d3f4's own
-# deliberate edits, rewrote text already in that section rather than
-# adding a bullet, so there is nothing to relocate -- matching the tag
-# again would mean undoing two already-reviewed corrections
-_KNOWN_DRIFT = frozenset(
-    {
-        ("CHANGELOG.md", "v2026.8.7"),
-    }
-)
+
+class _Drift(NamedTuple):
+    """One exempt section: the digest it reads at, and why it reads so."""
+
+    digest: str
+    reason: str
+
+
+# a digest rather than the section's own bytes: CHANGELOG.md is where
+# that text lives, and a copy of a released section inside a test module
+# is a second place for it to be edited. What a digest gives up is
+# showing what the drift is, which is what the reason beside it says,
+# and the failing message prints the digest a section reads at, so a
+# reviewed edit costs its entry one line
+_KNOWN_DRIFT: dict[tuple[str, str], _Drift] = {
+    ("CHANGELOG.md", "v2026.8.7"): _Drift(
+        digest="8cb4a0458fc3da3484fe493b28ee28b103fbc9d7f76bd7245cb4464664ff0884",
+        reason=(
+            "13941fd1 de-linked [HISTORY.md](...) inside it, the file"
+            " having been renamed, and 0744d3f4 rewrote a bullet's quoted"
+            " misspellings; each rewrote text already there rather than"
+            " adding a bullet, so there is nothing to relocate (issue"
+            " #1524)"
+        ),
+    ),
+}
+
+
+def _digest(section: str) -> str:
+    """Return a section's own sha256, which is what a `_Drift` pins."""
+    return hashlib.sha256(section.encode("utf-8")).hexdigest()
+
+
+def _read(path: str) -> str:
+    """`path`'s own text, as this checkout holds it."""
+    return (_ROOT / path).read_text(encoding="utf-8")
 
 
 def _sections(text: str) -> dict[str, str]:
@@ -184,32 +216,8 @@ def _released_headings() -> list[tuple[str, str]]:
     """Every (path, version) naming an already-released heading on disk."""
     pairs: list[tuple[str, str]] = []
     for name in _FILES:
-        text = (_ROOT / name).read_text(encoding="utf-8")
-        pairs.extend((name, version) for version in _sections(text))
+        pairs.extend((name, version) for version in _sections(_read(name)))
     return pairs
-
-
-def _cases() -> list[Any]:
-    """`_released_headings`, `_KNOWN_DRIFT` marked `xfail(strict=True)`."""
-    cases: list[Any] = []
-    for path, version in _released_headings():
-        if (path, version) in _KNOWN_DRIFT:
-            marks = pytest.mark.xfail(
-                reason=(
-                    f"deliberate, reviewed post-release edit: {path}'s"
-                    f" {version!r} section carries 13941fd1's and"
-                    " 0744d3f4's own text, rewritten in place rather than"
-                    " added as a bullet, so there is nothing to relocate"
-                    " (issue #1524); a further fix making this match its"
-                    " tag again should turn this case into an unexpected"
-                    " pass, which is what removes it from _KNOWN_DRIFT"
-                ),
-                strict=True,
-            )
-            cases.append(pytest.param(path, version, marks=marks))
-        else:
-            cases.append(pytest.param(path, version))
-    return cases
 
 
 _ANY_TAG = bool(_git("tag", "-l", "v*").stdout.split())
@@ -227,7 +235,49 @@ pytestmark = pytest.mark.skipif(
 
 def _newest_released(path: str) -> str | None:
     """`path`'s topmost heading that is not "work in progress"."""
-    return next(iter(_sections((_ROOT / path).read_text(encoding="utf-8"))), None)
+    return next(iter(_sections(_read(path))), None)
+
+
+def _verdict(
+    path: str, version: str, current: str, tagged: str
+) -> tuple[str, str] | None:
+    """Judge one section's own text against its tag and its exemption.
+
+    Returns `None` where the section reads as it should -- its own tag's
+    text, or, where `_KNOWN_DRIFT` names it, the text that entry pins --
+    and otherwise a `("fail", message)` pair. The two texts are
+    arguments rather than reads, so a test can plant a line in a real
+    section and ask what this answers about it.
+    """
+    drift = _KNOWN_DRIFT.get((path, version))
+    if drift is None:
+        if current != tagged:
+            return (
+                "fail",
+                f"{path}'s {version!r} section no longer matches its own {version} tag",
+            )
+        return None
+    if current == tagged:
+        return (
+            "fail",
+            (
+                f"{path}'s {version!r} section matches its own {version} tag"
+                f" again, so its _KNOWN_DRIFT entry exempts nothing:"
+                f" {drift.reason}"
+            ),
+        )
+    digest = _digest(current)
+    if digest != drift.digest:
+        return (
+            "fail",
+            (
+                f"{path}'s {version!r} section is neither its own {version}"
+                f" tag's text nor what _KNOWN_DRIFT pins for it"
+                f" ({drift.reason}); a reviewed edit is what puts {digest} in"
+                f" that entry"
+            ),
+        )
+    return None
 
 
 def _verify(path: str, version: str) -> tuple[str, str] | None:
@@ -237,9 +287,9 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
     message)` pair naming what the caller does with it: "fail" for a
     real disagreement or a tag this repository's own history never
     leaves unresolved, "skip" for a comparison this module cannot make
-    at all. Kept apart from the test function below so a fixture can
-    drive the two branches no released heading in this repository's own
-    history reaches -- `test_a_released_section_still_matches_its_own_tag`
+    at all. Kept apart from the test function below so a test can drive
+    the branches no released heading in this repository's own history
+    reaches -- `test_a_released_section_still_matches_its_own_tag`
     only calls it, in the shape the 100% coverage floor asks of a
     defensive branch: not removed, moved where a test can trip it on
     purpose.
@@ -269,32 +319,28 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
     if version not in tagged_sections:
         return "skip", f"{version}:{path} carries no {version!r} heading of its own"
 
-    current = _sections((_ROOT / path).read_text(encoding="utf-8"))[version]
-    if current != tagged_sections[version]:
-        return (
-            "fail",
-            f"{path}'s {version!r} section no longer matches its own {version} tag",
-        )
-    return None
+    current = _sections(_read(path))[version]
+    return _verdict(path, version, current, tagged_sections[version])
 
 
-@pytest.mark.parametrize("path, version", _cases())
-def test_a_released_section_still_matches_its_own_tag(path: str, version: str) -> None:
-    """`<path>`'s `## <version>` section reads the same as at its own tag."""
-    verdict = _verify(path, version)
+def _answer(verdict: tuple[str, str] | None) -> None:
+    """Turn one `_verify` verdict into a pass, a skip or a failure."""
     if verdict is None:
         return
     kind, message = verdict
     if kind == "skip":
         pytest.skip(message)
-    else:
-        pytest.fail(message)
+    pytest.fail(message)
 
 
-# ---- _verify's own two branches, which no released heading in this
-# repository's own history reaches: a tag genuinely missing among ones
-# that resolve, and a tag whose file exists under its current name but
-# not the heading being asked about
+@pytest.mark.parametrize("path, version", _released_headings())
+def test_a_released_section_still_matches_its_own_tag(path: str, version: str) -> None:
+    """`<path>`'s `## <version>` section reads the same as at its own tag."""
+    _answer(_verify(path, version))
+
+
+# ---- what `_verify`, `_verdict` and `_answer` answer where no
+# released heading of this repository's own history reaches them
 
 
 def test_verify_fails_when_one_specific_tag_does_not_resolve(
@@ -365,3 +411,73 @@ def test_verify_skips_when_the_tags_own_snapshot_lacks_the_heading(
         "skip",
         "v0.0.0:CHANGELOG.md carries no 'v0.0.0' heading of its own",
     )
+
+
+def test_a_line_planted_inside_an_exempt_section_fails() -> None:
+    """An exemption reaches the text it pins and not the section.
+
+    The union driver lands a rebased branch's entry at the anchor that
+    branch wrote it at, which is anywhere inside a section a release has
+    since sealed rather than where the exemption was registered. The
+    unplanted section is the control: the same call passes on it, so
+    what the planted call answers is the line and not the exemption.
+    """
+    assert _KNOWN_DRIFT, "no exemption to ask about"
+    (path, version), drift = next(iter(_KNOWN_DRIFT.items()))
+    tagged = _sections(_git("show", f"{version}:{path}").stdout)[version]
+    current = _sections(_read(path))[version]
+    assert _verdict(path, version, current, tagged) is None
+
+    lines = current.splitlines(keepends=True)
+    middle = len(lines) // 2
+    planted = "".join([*lines[:middle], "- a rebase put this here\n", *lines[middle:]])
+    assert planted != current
+    assert _verdict(path, version, planted, tagged) == (
+        "fail",
+        (
+            f"{path}'s {version!r} section is neither its own {version}"
+            f" tag's text nor what _KNOWN_DRIFT pins for it ({drift.reason});"
+            f" a reviewed edit is what puts {_digest(planted)} in that entry"
+        ),
+    )
+
+
+def test_an_exemption_for_a_section_matching_its_tag_fails() -> None:
+    """An exemption cannot outlive the drift it names.
+
+    A hand fix putting an exempt section back to its own tag leaves its
+    entry pinning text nothing holds any more, and the entry is what
+    goes.
+    """
+    assert _KNOWN_DRIFT, "no exemption to ask about"
+    (path, version), drift = next(iter(_KNOWN_DRIFT.items()))
+    tagged = _sections(_git("show", f"{version}:{path}").stdout)[version]
+    assert _verdict(path, version, tagged, tagged) == (
+        "fail",
+        (
+            f"{path}'s {version!r} section matches its own {version} tag"
+            f" again, so its _KNOWN_DRIFT entry exempts nothing: {drift.reason}"
+        ),
+    )
+
+
+def test_a_section_no_entry_names_is_held_to_its_own_tag() -> None:
+    """The comparison itself, on a heading no exemption names."""
+    assert ("CHANGELOG.md", "v0.0.0") not in _KNOWN_DRIFT
+    assert _verdict(
+        "CHANGELOG.md", "v0.0.0", "## v0.0.0\n\ndrift\n", "## v0.0.0\n"
+    ) == (
+        "fail",
+        "CHANGELOG.md's 'v0.0.0' section no longer matches its own v0.0.0 tag",
+    )
+
+
+def test_a_disagreement_is_a_failure_and_not_a_skip() -> None:
+    """The outcome a section drifting past its entry is reported as.
+
+    Every released heading of this repository's own history answers
+    `None` or "skip", so the branch that carries a real disagreement to
+    the report is driven from here.
+    """
+    with pytest.raises(pytest.fail.Exception, match="planted"):
+        _answer(("fail", "a planted line"))

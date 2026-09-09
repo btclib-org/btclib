@@ -3010,6 +3010,24 @@ file of the test tree, and no caller acts on it.
   `## v2026.8.21` becomes an expected failure as well -- which is the
   damage that module exists to catch.
 
+### A drift exemption pins the text it excuses, and carries its own reason
+
+- **`tests/changelog_immutability_test.py`'s `_KNOWN_DRIFT` holds the
+  digest each exempt section reads at** (closes #1901). Keyed on the
+  section alone, an entry excused every later line as well as the edit
+  it was registered for, and `merge=union` puts a rebased branch's entry
+  wherever that branch wrote it -- anywhere inside a section a release
+  has since sealed, which is the damage that module is there to catch.
+  A section digesting to something else now fails, and the failure
+  prints the digest a reviewed edit puts back in the entry.
+- **Each entry carries its own reason**, printed by its own failure,
+  where one sentence about `v2026.8.7` stood for whatever the set held.
+- **This supersedes *The released `v2026.8.21` borromean entry stays as
+  it was published* above, whose second bullet has the exemption such an
+  edit needs swallowing any further line a rebase puts in that
+  section**: what an exemption there costs now is the digest, so the
+  further line is what fails.
+
 ## v2026.9.3
 
 ### Repository
