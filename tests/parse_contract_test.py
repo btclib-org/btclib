@@ -30,6 +30,8 @@ import pytest
 from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader, PartialMerkleTree
 from btclib.ecc import bms, ssa
+from btclib.ecc.borromean import BorromeanSig
+from btclib.ecc.rangeproof import RangeProof
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.key import PrvKeyData
 from btclib.p2p import (
@@ -157,6 +159,16 @@ _CASES: list[tuple[str, type[Any], bytes]] = [
     ("bip32_key", BIP32KeyData, BIP32KeyData.b58decode(_XPRV).serialize()),
     ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
     ("bms_sig", bms.Sig, bms.sign(b"parse contract", PrvKeyData(1)).serialize()),
+    # the public-value proof, which is the smallest one this format has:
+    # a header, its min_value, and the single-key ring the commitment
+    # itself gives. What a longer one adds is more of the same fields,
+    # and `tests/ecc/rangeproof_test.py` drives those against the proofs
+    # libsecp256k1-zkp signed
+    (
+        "rangeproof",
+        RangeProof,
+        RangeProof(-1, 0, 100000, (), (), BorromeanSig(bytes(32), [[1]])).serialize(),
+    ),
     ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
     ("psbt", Psbt, _psbt().serialize()),
     ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),

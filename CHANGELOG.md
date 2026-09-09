@@ -2782,6 +2782,43 @@ file of the test tree, and no caller acts on it.
   reader**: an issue's state is what a landing in another tree moves,
   where a tree and a sha are not.
 
+### `ecc.rangeproof` reads a Confidential Transactions rangeproof
+
+- **`btclib.ecc.rangeproof` adds `RangeProof`, which parses the proof
+  secp256k1-zkp's `rangeproof` module writes and serializes those octets
+  back** (issue #1072). Reading is the whole of it: nothing here proves
+  a range, verifies a proof or rewinds one, and the digit decomposition,
+  `rangeproof_pub_expand` and `rangeproof_genrand` that the rest of the
+  work needs have no counterpart in this tree. Reading is also the
+  direction that can be checked -- every header field is one
+  `zkp.rangeproof.info` answers for over the same octets, where the
+  first artefact a writer could be held to is a whole proof.
+- **The signature inside the proof is a `BorromeanSig`** rather than an
+  `e0` and an `s` of the new module's own: `ecc.borromean` already reads
+  that layout, and what the rangeproof adds is the ring structure the
+  mantissa decides, which `secp256k1_rangeproof_verify_impl` computes
+  rather than reading out of the proof.
+- **The sign bit beside a ring commitment is quadratic residuosity, not
+  parity**: `secp256k1_rangeproof_serialize_point` writes
+  `!secp256k1_fe_is_square_var(&point->y)`, where `bytes_from_point`,
+  BIP340 and the `02`/`03` prefix all write the even/odd bit. A
+  `RangeProof` holds the octets' own answer rather than recomputing it,
+  and `tests/ecc/rangeproof_test.py` is where the two conventions are
+  measured against each other on the vectors.
+- **`ecc.borromean`'s docstring points at the module that reads that
+  header** (closes #1892). Its paragraph on the distance between the
+  primitive and a Confidential Transactions rangeproof names
+  `ecc.rangeproof`, and says what the parser does not do -- write a
+  proof, verify one, rewind one -- so the pointer does not read as that
+  distance being closed.
+- **`tests/ecc/_data/zkp_rangeproof_vectors.json` records proofs
+  libsecp256k1-zkp signed**, with the arguments that produced them and
+  with what `info` answers for each. The flagged extension exists in
+  `.github/workflows/zkp-oracle.yml`'s job alone, so vendored proofs are
+  what exercise the parser in an ordinary run; the `zkp`-marked tests
+  beside them put the same questions to the library, and check that
+  signing again with the recorded arguments answers the recorded octets.
+
 ## v2026.9.3
 
 ### Repository
