@@ -69,9 +69,13 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     module by default, the derived H equals the H hardcoded as
     `secp256k1_generator_h` in libsecp256k1-zkp -- the H of Elements and
     of Confidential Transactions.
-    `tests/ecc/pedersen_test.py::test_second_generator` pins that
-    value; no published constant exists to pin it against on another
-    curve or hash function.
+    `tests/ecc/pedersen_test.py::test_second_generator` pins that value
+    against a literal, and
+    `tests/ecc/pedersen_test.py::test_second_generator_matches_zkp`
+    against `btclib_secp256k1.zkp.generator.h()`, which is that library
+    answering with its own copy rather than a transcription of it. No
+    published constant exists to pin either against on another curve or
+    hash function.
 
     idea:
     https://crypto.stackexchange.com/questions/25581/second-generator-for-secp256k1-curve
