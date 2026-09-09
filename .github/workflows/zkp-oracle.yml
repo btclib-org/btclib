@@ -130,12 +130,13 @@ on:
     # source, read by hand, and not against a proof zkp wrote.
     # `pedersen.py` and its own test file join for the rangeproof oracle,
     # itemized the way `dsa.py` is rather than named whole: of that
-    # module, `second_generator` and `commit` are what
-    # `tests/ecc/pedersen_test.py`'s zkp-marked tests compare against
-    # `zkp.generator`, and the commitment `commit` returns is what
-    # `zkp.rangeproof` then proves, verifies and rewinds. `curves/`,
-    # which `commit` calls and those tests call directly, stays out for
-    # the reason `curves/` stays out above
+    # module, `second_generator`, `commit` and the codec that writes and
+    # reads libsecp256k1-zkp's own octets for a commitment and for a
+    # generator are what `tests/ecc/pedersen_test.py`'s zkp-marked tests
+    # compare against `zkp.generator`, and the commitment `commit`
+    # returns is what `zkp.rangeproof` then proves, verifies and
+    # rewinds. `curves/`, which `commit` calls and those tests call
+    # directly, stays out for the reason `curves/` stays out above
     paths:
       - .github/workflows/zkp-oracle.yml
       - tests/ecc/commit_nonce_test.py

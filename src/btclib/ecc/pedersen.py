@@ -22,20 +22,50 @@ supplemented with a second random generator H and
 the commitment algorithm is Commit(r,v)=rG+vH.
 It is crucial for H to be Nothing-Up-My-Sleeve (NUMS), i.e.
 the discrete logarithm of H with respect to G must be unknown.
+
+**The octets say residuosity, where a SEC prefix says parity.**
+libsecp256k1-zkp writes a commitment as one octet and then x, and that
+octet reports whether y is a quadratic residue:
+`secp256k1_pedersen_commitment_save` writes
+`9 ^ secp256k1_fe_is_square_var(&ge->y)` and
+`secp256k1_generator_serialize` writes `11 ^` the same bit, both in
+`src/modules/generator/main_impl.h`. `ecc.rangeproof` carries that same
+convention at a third base, `1 ^` it: `_serialize_point` writes what
+`sign_public_value` hashes, and `_point_from_ring_commitment` lifts a
+ring commitment's x against it. Lifting such an octet by the parity the
+`02`/`03` of `curves.point_from_octets` carries answers the same point
+for some x and its negation for others, with nothing in the octets to
+say which reading wrote them, so the two are not one function under two
+names.
+
+The codec below is secp256k1's and takes no `ec`: the tags and the width
+of x are libsecp256k1-zkp's format, and that library is secp256k1's. The
+commitment functions above take one because rG+vH is a sum of points,
+which every curve has.
 """
 
 from functools import lru_cache
 from hashlib import sha256
 
-from btclib.alias import HashF, Integer, Point
+from btclib.alias import HashF, Integer, Octets, Point
 from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
 from btclib.curves.curve import _assert_valid_ec
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.utils import assert_type, int_from_bits, int_from_integer
+from btclib.number_theory import legendre_symbol_var
+from btclib.utils import (
+    assert_type,
+    bytes_from_octets,
+    int_from_bits,
+    int_from_integer,
+)
 
 __all__ = [
     "assert_as_valid",
+    "bytes_from_commitment",
+    "bytes_from_generator",
     "commit",
+    "commitment_from_octets",
+    "generator_from_octets",
     "second_generator",
     "verify",
 ]
@@ -163,3 +193,105 @@ def verify(
         return False
 
     return True
+
+
+# the leading octet of each of libsecp256k1-zkp's two serializations,
+# before the bit that reports the residuosity of y is xored into it.
+# Both tags are odd, so bit 0 of the octet is that bit complemented: it
+# is set exactly where y is not a square, which is what
+# `secp256k1_pedersen_commitment_load` reads to decide whether to negate
+# the point `secp256k1_ge_set_xquad` lifted. An even tag would leave bit
+# 0 the bit itself, and that negation would take the wrong half
+_COMMITMENT_TAG = 9
+_GENERATOR_TAG = 11
+
+
+def _bytes_from_point(Q: Point, tag: int) -> bytes:
+    """Return `tag ^ is_square(y)` and then x, at whichever tag.
+
+    The tag is the whole of what a commitment's octets and a
+    generator's do not share, so what both refuse is asked here rather
+    than once each: a pair that is no point of secp256k1, and the
+    infinity point, which has no x to write.
+
+    The Legendre symbol is what `secp256k1_fe_is_square_var` answers,
+    and each computes it as a gcd rather than as an exponentiation.
+    """
+    secp256k1.require_on_curve(Q)
+    if Q[1] == 0:  # infinity point in affine coordinates
+        raise BTClibValueError("no bytes representation for infinity point")
+
+    residue = legendre_symbol_var(Q[1], secp256k1.p) == 1
+    return bytes([tag ^ int(residue)]) + Q[0].to_bytes(secp256k1.p_size, "big")
+
+
+def _point_from_octets(octets: Octets, tag: int, name: str) -> Point:
+    """Return the point those octets name, lifted by residuosity.
+
+    `secp256k1_pedersen_commitment_parse`'s own refusals, at whichever
+    tag: `(input[0] & 0xFE) != 8` is the leading octet outside the pair,
+    written here against the tag it is given, and
+    `secp256k1_fe_set_b32_limit` with `secp256k1_ge_x_on_curve_var` are
+    an x past p and an x that is the x-coordinate of no point --
+    `y_quadratic_residue_var` refuses those two and says which.
+
+    The lift is `secp256k1_ge_set_xquad` and the negation
+    `secp256k1_pedersen_commitment_load` makes on bit 0: the y that is a
+    square, negated where the octet says y is not one.
+    """
+    octets = bytes_from_octets(octets, secp256k1.p_size + 1)
+    prefix = octets[0]
+    if prefix & 0xFE != tag ^ 1:
+        raise BTClibValueError(f"not a {name}: prefix 0x{prefix:02x}")
+
+    x = int.from_bytes(octets[1:], byteorder="big")
+    y = secp256k1.y_quadratic_residue_var(x)
+    return x, secp256k1.p - y if prefix & 1 else y
+
+
+def bytes_from_commitment(Q: Point) -> bytes:
+    """Return a commitment as libsecp256k1-zkp serializes one.
+
+    `secp256k1_pedersen_commitment_serialize` hands back what
+    `_save` stored: `08` where the y of the commitment is a quadratic
+    residue and `09` where it is not, then x. `curves.bytes_from_point`
+    writes the parity of that same y, so the two answer the same octets
+    only where the y that is a square is also the even one.
+    """
+    return _bytes_from_point(Q, _COMMITMENT_TAG)
+
+
+def commitment_from_octets(octets: Octets) -> Point:
+    """Return the commitment libsecp256k1-zkp's octets name.
+
+    `secp256k1_pedersen_commitment_parse`. An Elements output carries
+    these, and this is the lift a caller holding them makes before
+    calling anything that takes the commitment as a point --
+    `ecc.rangeproof.RangeProof.pubk_rings`, `assert_as_valid`, `verify`.
+    """
+    return _point_from_octets(octets, _COMMITMENT_TAG, "Pedersen commitment")
+
+
+def bytes_from_generator(Q: Point) -> bytes:
+    """Return a generator as libsecp256k1-zkp serializes one.
+
+    `secp256k1_generator_serialize`, which is `bytes_from_commitment`'s
+    octet at another tag: `0a` for a y that is a quadratic residue and
+    `0b` for one that is not. `second_generator` is the generator this
+    library computes; a blinded asset generator is what else this format
+    carries.
+    """
+    return _bytes_from_point(Q, _GENERATOR_TAG)
+
+
+def generator_from_octets(octets: Octets) -> Point:
+    """Return the generator libsecp256k1-zkp's octets name.
+
+    `secp256k1_generator_parse`, whose `(input[0] & 0xFE) != 10` refuses
+    a commitment's own leading octet -- which is what
+    `test_generator_fixed_vector` puts to it in
+    `src/modules/generator/tests_impl.h`. The x is the same octets
+    either way, so the tag is the whole of what keeps the two formats
+    apart.
+    """
+    return _point_from_octets(octets, _GENERATOR_TAG, "generator")
