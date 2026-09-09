@@ -240,12 +240,12 @@ def test_libsecp256k1_zkp_fixed_vectors(commit_hash: str, opening: str) -> None:
 # opposite direction. `bytes_from_point`/`point_from_pub_key` do the same
 # for a receipt against zkp's 33-byte compressed opening.
 #
-# `pragma: no cover` on both `@needs_zkp` lines below: an unflagged
-# build skips these tests, and CI's flagged build runs them under
-# `.github/workflows/zkp-oracle.yml`'s `pytest -m zkp --no-cov`, which
-# collects no coverage data for any report to combine. The marker's line
-# and not the `def` under it, as `tests/ecc/pedersen_test.py` does and
-# for the reason it gives there.
+# `pragma: no cover` on every `@needs_zkp` below, the marker being the
+# reason: `tests/conftest.py` turns it into a skip in an unflagged
+# build, and excluding what a build cannot execute is what leaves the
+# floor a measurement of the suite rather than of the build the machine
+# has (issue #1885). The marker's line and not the `def` under it, as
+# `tests/ecc/pedersen_test.py` does and for the reason it gives there.
 @needs_zkp  # pragma: no cover -- no zkp ecdsa_s2c.verify_commit to open the receipt
 def test_dsa_commitment_opens_under_zkp() -> None:
     """A btclib sign-to-contract commitment opens under zkp's own check."""
