@@ -240,12 +240,14 @@ def test_libsecp256k1_zkp_fixed_vectors(commit_hash: str, opening: str) -> None:
 # opposite direction. `bytes_from_point`/`point_from_pub_key` do the same
 # for a receipt against zkp's 33-byte compressed opening.
 #
-# `# pragma: no cover` on both signatures below: `ZKP_AVAILABLE` is False
-# in every job that measures coverage, `.github/workflows/zkp-oracle.yml`
-# being the one job where it is True, and that job's own `pytest -m zkp
-# --no-cov` collects no coverage data for any report to combine.
-@needs_zkp
-def test_dsa_commitment_opens_under_zkp() -> None:  # pragma: no cover
+# `pragma: no cover` on both `@needs_zkp` lines below: an unflagged
+# build skips these tests, and CI's flagged build runs them under
+# `.github/workflows/zkp-oracle.yml`'s `pytest -m zkp --no-cov`, which
+# collects no coverage data for any report to combine. The marker's line
+# and not the `def` under it, as `tests/ecc/pedersen_test.py` does and
+# for the reason it gives there.
+@needs_zkp  # pragma: no cover -- no zkp ecdsa_s2c.verify_commit to open the receipt
+def test_dsa_commitment_opens_under_zkp() -> None:
     """A btclib sign-to-contract commitment opens under zkp's own check."""
     for _ in range(16):
         prv_key = 1 + random.randrange(secp256k1.n - 1)
@@ -260,8 +262,8 @@ def test_dsa_commitment_opens_under_zkp() -> None:  # pragma: no cover
         assert not ecdsa_s2c.verify_commit(_compact(sig), b"\x00" * 32, opening)
 
 
-@needs_zkp
-def test_zkp_commitment_opens_under_dsa() -> None:  # pragma: no cover
+@needs_zkp  # pragma: no cover -- no zkp ecdsa_s2c.sign to write the commitment
+def test_zkp_commitment_opens_under_dsa() -> None:
     """A zkp sign-to-contract commitment opens under `dsa.verify_` too."""
     for _ in range(16):
         prv_key = 1 + random.randrange(secp256k1.n - 1)

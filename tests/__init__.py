@@ -235,21 +235,28 @@ needs_bindings = pytest.mark.bindings
 # only for the comparison this suite makes to be runnable, not for a
 # dispatch, so the question "is zkp available" is this suite's own and
 # has no answer `_libsecp256k1.py` would ever read.
+#
+# Both arms below carry a pragma, the build deciding which one a run
+# takes: a flagged build never raises here and an unflagged one never
+# reaches the `else`, so an arm left measured is one that run cannot
+# execute. Unlike `INSTALLED` above, whose arms `test.yml`'s `coverage`
+# and `no-bindings` jobs measure between them and its `coverage-union`
+# combines: `zkp-oracle.yml` runs `pytest -m zkp --no-cov`, which
+# collects nothing for a union to combine. What the reasons name is the
+# build and not the job, because a contributor who builds the extension
+# to run `pytest -m zkp` measures coverage in that build too, and a
+# reason true only of CI leaves that run short of the floor in files
+# the contributor never touched (issue #1885).
 try:
     from btclib_secp256k1 import zkp
 
     # the probe itself: not assigned because nothing here reads it back,
     # `ffi` answering the same question `lib` does once either has run
     _ = zkp.lib
-except ImportError:
+except ImportError:  # pragma: no cover -- the arm an unflagged build takes
     ZKP_AVAILABLE = False
 else:
-    # unlike `INSTALLED` above, whose `try` is what an ordinary job
-    # reaches and whose `except` is the no-bindings job's alone: every
-    # job that measures coverage builds without the flag, so this is
-    # the arm only `zkp-oracle.yml` ever takes, and that job's own
-    # `pytest -m zkp --no-cov` collects no coverage data to combine
-    ZKP_AVAILABLE = True  # pragma: no cover
+    ZKP_AVAILABLE = True  # pragma: no cover -- the arm a flagged build takes
 
 needs_zkp = pytest.mark.zkp
 

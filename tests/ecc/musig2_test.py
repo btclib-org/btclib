@@ -1025,8 +1025,8 @@ def test_adaptor_must_be_a_valid_point() -> None:
     assert exc_info.value.contrib == "adaptor"
 
 
-@needs_zkp
-def test_musig2_matches_zkp_with_no_adaptor() -> None:  # pragma: no cover
+@needs_zkp  # pragma: no cover -- no zkp.musig.Session to aggregate the same partial sigs
+def test_musig2_matches_zkp_with_no_adaptor() -> None:
     """Pin session agreement with no adaptor, before the adaptor test adds one.
 
     `zkp.musig.Session` is its own implementation, over its own opaque
@@ -1062,8 +1062,8 @@ def test_musig2_matches_zkp_with_no_adaptor() -> None:  # pragma: no cover
     assert session.partial_sig_agg(psigs[:1]) != sig.serialize()
 
 
-@needs_zkp
-def test_musig2_adaptor_matches_zkp() -> None:  # pragma: no cover
+@needs_zkp  # pragma: no cover -- no zkp.musig adapt and extract_adaptor to compare with
+def test_musig2_adaptor_matches_zkp() -> None:
     """A btclib pre-signature completes and extracts the same as zkp's.
 
     Both parities of the final nonce R, exercised the way

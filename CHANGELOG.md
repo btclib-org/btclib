@@ -2849,6 +2849,39 @@ file of the test tree, and no caller acts on it.
   spellings a broken local link can render is what that sentence is
   about, and it does not turn on when the refusal lands.
 
+### The `zkp` guard carries an exclusion on each arm, one per build
+
+- **`uv run pytest` reaches its 100% floor in a working copy that has
+  the flagged `btclib_secp256k1.zkp` extension built** (closes #1885).
+  `tests/__init__.py`'s `except ImportError` arm, `tests/conftest.py`'s
+  `_skip_what_needs_zkp` and the call to it run only where the extension
+  is absent, and only the arm a flagged build takes carried a pragma, so
+  whoever built the extension to run `pytest -m zkp` met a coverage
+  failure naming files their own branch never touched.
+- **Each arm's reason names the build that takes it, not the job.** The
+  `bindings` guard beside it is measured by `test.yml`'s `coverage` and
+  `no-bindings` jobs between them, and `coverage-union` combines their
+  data; `zkp-oracle.yml` runs `pytest -m zkp --no-cov` and writes no
+  data file, so there is nothing for a union to combine and the
+  exclusion is what the floor has here.
+
+### Every `# pragma: no cover` in the suite carries its reason inline
+
+- **The `zkp` sites that carried a bare `# pragma: no cover` gain the
+  half that goes on the pragma's own line** (closes #1887), which is
+  what makes `git grep -nE 'pragma: no cover$' -- '*.py'` answer empty:
+  section 8 of the organization standard reads every line that command
+  names as a defect, whether or not a reason for it is written
+  elsewhere, and a fuller reason in the block comment above a group does
+  not replace the inline one.
+- **The pragma sits on the `@needs_zkp` line rather than on the `def`
+  under it**, as `tests/ecc/pedersen_test.py` already does: a trailing
+  comment carries a signature past the formatter's 88 columns, and
+  `ruff format` then splits a no-argument test's return annotation
+  across three lines to hang the comment on. coverage carries an
+  exclusion from a decorator to the body under it, so the two placements
+  exclude the same lines.
+
 ## v2026.9.3
 
 ### Repository
