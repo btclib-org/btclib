@@ -3086,6 +3086,36 @@ file of the test tree, and no caller acts on it.
   `KeyError` on the entry rather than an answer about `_verdict`, and
   which entry that is was decided by insertion order.
 
+### `ecc.pedersen` reads and writes libsecp256k1-zkp's 33-octet commitment
+
+- **`btclib.ecc.pedersen` gains `commitment_from_octets`,
+  `bytes_from_commitment`, `generator_from_octets` and
+  `bytes_from_generator`** (closes #1904). `commit` answers a point, and
+  a caller holding the octets an Elements output carries had nothing
+  here to lift them with. What stands between the two is the leading
+  octet: it reports whether y is a quadratic residue, where the `02` and
+  `03` of a SEC compressed point report whether y is odd. Reading it as
+  parity answers the point residuosity answers for some x and its
+  negation for others, and nothing in the octets says which reading
+  wrote them.
+- **The tag is the whole of what the two encodings do not share**, so
+  one private pair writes and reads both:
+  `secp256k1_pedersen_commitment_save` xors the residuosity bit into 9
+  and `secp256k1_generator_serialize` into 11, both in
+  `src/modules/generator/main_impl.h`. `ecc.rangeproof` carries the same
+  bit at a third base, `1 ^` it, in `_serialize_point` and in
+  `_point_from_ring_commitment`, which is the second copy issue #1910
+  is about.
+- **`tests/ecc/pedersen_test.py` calls the module where it carried a
+  writer of its own** for the zkp-marked tests. The commitments vendored
+  in `tests/ecc/_data/zkp_rangeproof_vectors.json` round-trip through
+  the reader, the parity reading is shown to disagree with it, and
+  libsecp256k1-zkp's own fixed vectors for each of the two encodings --
+  `test_generator_fixed_vector` and
+  `test_pedersen_commitment_fixed_vector` in
+  `src/modules/generator/tests_impl.h` -- are read, written back, and
+  held against a point computed here.
+
 ## v2026.9.3
 
 ### Repository
