@@ -2632,6 +2632,27 @@ file of the test tree, and no caller acts on it.
   not fit the summary line under `max-doc-length`, so it goes into a body
   paragraph.
 
+### One helper answers which files are the workflows
+
+- **`tests/what_runs_when_test.py` and `tests/interpreters_test.py` read
+  `.github/workflows/` through `tests.workflow_files`, which globs `*.yml` and
+  `*.yaml`** (closes #1879): a workflow is either spelling, and that rule had a
+  site per module, the two of them written differently. `*.y*ml` is a `y`,
+  anything and an `ml`, so it takes `test.yXml` and `test.ymml`, which GitHub
+  does not run, and a comparison with `CONTRIBUTING.md`'s *What runs when* table
+  built on it asks for a row naming a file nothing runs. Every file the
+  directory holds is `.yml`, so the two globs answered alike and what was wrong
+  was the second site rather than an answer. The reason moves onto the function
+  and each call keeps what is local to it: the stems, the table's first column
+  writing `release` where the file is `release.yml`. `tests/__init__.py` is
+  where it lives, beside the walks and loaders the suite already shares from
+  there, and it returns paths -- the one caller wanting stems takes `.stem`,
+  where a second function returning them would be a second thing to hold in
+  agreement. The directory is a parameter, so
+  `test_workflow_files_reads_the_names_github_runs` points it at one holding
+  `os-macos.yml`'s bytes under three names and reads back the two spellings
+  GitHub runs.
+
 ## v2026.9.3
 
 ### Repository

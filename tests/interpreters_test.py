@@ -29,21 +29,11 @@ carries a parser for that either.
 import re
 from pathlib import Path
 
+from tests import workflow_files
+
 _ROOT = Path(__file__).parents[1]
 _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-
-
-def _workflow_files(directory: Path) -> tuple[Path, ...]:
-    """Return every workflow in `directory`, `.yml` and `.yaml` alike.
-
-    GitHub itself reads both extensions for a workflow file, so a glob
-    matching only one silently drops any workflow written with the
-    other (issue #1874).
-    """
-    return tuple(sorted((*directory.glob("*.yml"), *directory.glob("*.yaml"))))
-
-
-_WORKFLOWS = _workflow_files(_ROOT / ".github/workflows")
+_WORKFLOWS = workflow_files(_ROOT / ".github/workflows")
 
 # "3.10" out of `requires-python = ">=3.10"`, the floor and nothing else:
 # an upper bound is not declared here and would be a different claim
@@ -204,18 +194,17 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
     )
 
 
-def test_workflow_files_reads_dot_yaml_too(tmp_path: Path) -> None:
-    """`.yml` and `.yaml` are read alike (issue #1874).
+def test_workflow_files_reads_the_names_github_runs(tmp_path: Path) -> None:
+    """`.yml` and `.yaml` are read alike, `.yXml` is not a workflow.
 
-    `os-macos.yml`'s own bytes, copied to a `.yaml` name: before the fix
-    the glob matched only the first, and the second's interpreter list
-    went uncompared -- the reproduction the issue carries, with the
-    extension the whole of the difference.
+    `os-macos.yml`'s own bytes under three names, the extension the
+    whole of the difference: the two spellings GitHub runs come back and
+    the third, which a `*.y*ml` glob would take, does not.
     """
     text = (_ROOT / ".github/workflows/os-macos.yml").read_text(encoding="utf-8")
-    (tmp_path / "os-extra.yml").write_text(text, encoding="utf-8")
-    (tmp_path / "os-extra.yaml").write_text(text, encoding="utf-8")
-    found = sorted(p.name for p in _workflow_files(tmp_path))
+    for name in ("os-extra.yml", "os-extra.yaml", "os-extra.yXml"):
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    found = sorted(path.name for path in workflow_files(tmp_path))
     assert found == ["os-extra.yaml", "os-extra.yml"]
 
 
