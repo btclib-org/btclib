@@ -3256,6 +3256,20 @@ file of the test tree, and no caller acts on it.
   justifications are properties of the format* above, which has the
   event still told there; the rest of that entry stands.
 
+### The `claude-code-action` pin names a point release
+
+`claude-review.yml` pins `anthropics/claude-code-action` at the commit
+`v1.0.220` names, in the review step and in the mention step, with that
+tag as the trailing comment (closes #1924).
+
+The comment beside a pin is what makes a bump reviewable, and `# v1`
+cannot be that: `v1` names whatever commit that repository released
+last, so the comment reads the same before and after the sha moves and
+the diff carries no version at all. Following a name its owner moves is
+what pinning to a sha exists to stop, and it costs more here than
+elsewhere: the two jobs holding this pin run with `pull-requests: write`
+and `id-token: write`.
+
 ## v2026.9.3
 
 ### Repository
