@@ -310,6 +310,7 @@ source-exclude = [
     "/tests/wait_for_hwi_device_test.py",
     "/tests/wait_for_pypi_release_test.py",
     "/tests/wait_for_readthedocs_build_test.py",
+    "/tests/what_runs_when_test.py",
     # the same reasoning, for fuzz/ rather than .github/scripts: git-only
     # below is why it is not in the sdist, and this test reads
     # fuzz/fuzz_*.py and fuzz/corpus/ off the tree, both absent from an

@@ -502,6 +502,7 @@ read by every checkout of this repository.
 | `os-windows` | weekly, a release | Windows images and interpreters |
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
 | `integration-hwi` | weekly, push to main | two device emulators |
+| `zkp-oracle` | weekly | a bindings build carrying `secp256k1-zkp` |
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | the pin ledgers |
 | `pypi-install` | weekly, a release | what PyPI serves |
@@ -525,6 +526,13 @@ Which day each of the rest runs is section 10 of the organization
 standard, in `btclib-org/.github`, and not this file's to restate — one
 calendar in one place is one thing to keep true, where a copy of it in
 every repository would be one more.
+
+Every workflow the tree holds has a row above, and
+`tests/what_runs_when_test.py` is what holds it to that: it compares the
+first column with `.github/workflows/` both ways, so a workflow added
+without a row fails the suite, and so does a row left behind by one
+renamed or removed. What the cells say is nobody's to check but the
+reader's.
 
 Why so little gates is one number: the ceiling GitHub Free puts on an
 organization's concurrent jobs, shared across every repository in it.
