@@ -3223,6 +3223,18 @@ file of the test tree, and no caller acts on it.
   encoding can land on are among them; what the flagged job adds is the
   same two questions over mantissas no entry fixes.
 
+### The `@needs_zkp` pragmas name the build, not the job
+
+- **`tests/ecc/pedersen_test.py` and `tests/ecc/rangeproof_test.py`
+  justify their `pragma: no cover` the way `tests/__init__.py` and
+  `tests/conftest.py` justify theirs** (closes #1897): what turns the
+  marker into a skip is a btclib-secp256k1 installed without
+  `BTCLIB_LIBSECP256K1_ZKP`, and excluding what a build cannot execute
+  is what leaves the floor a measurement of the suite.
+- **A contributor who builds the flagged extension measures coverage in
+  that build too**, so the reason a further `@needs_zkp` test copies has
+  to hold outside CI. No exclusion moves.
+
 ## v2026.9.3
 
 ### Repository

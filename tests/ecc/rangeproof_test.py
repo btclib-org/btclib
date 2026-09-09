@@ -900,10 +900,11 @@ def test_a_zero_signature_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # `pragma: no cover` on every `@needs_zkp` below, the marker being the
-# reason: `ZKP_AVAILABLE` is False in every job that measures coverage,
-# and `zkp-oracle.yml`'s own `pytest -m zkp --no-cov` collects none. The
-# marker's line and not the `def` under it, as `tests/ecc/pedersen_test.py`
-# does and for the reason it gives there
+# reason: `tests/conftest.py` turns it into a skip in an unflagged
+# build, and excluding what a build cannot execute is what leaves the
+# floor a measurement of the suite rather than of the build the machine
+# has (issue #1885). The marker's line and not the `def` under it, as
+# `tests/ecc/pedersen_test.py` does and for the reason it gives there
 @needs_zkp  # pragma: no cover -- no zkp.rangeproof to sign the vectors again
 def test_the_vectors_are_what_zkp_signs_today() -> None:
     """Signing again with the recorded arguments answers the recorded octets.
