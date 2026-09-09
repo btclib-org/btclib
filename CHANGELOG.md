@@ -2715,6 +2715,21 @@ file of the test tree, and no caller acts on it.
   this oracle compares selects the sentinel rather than waiting for the
   weekly run.
 
+### `borromean.py` stops calling zkp's rangeproof the only other implementation
+
+- **The module docstring no longer says that secp256k1-zkp's
+  `rangeproof` module is the only other implementation of this
+  construction anything reads** (closes #1881). A code search for
+  `borromean_sign` reaches implementations in Python and in Rust that
+  are not copies of that C, so the clause was false rather than merely
+  unmeasured. Nothing replaces it: a survey named in a docstring ages
+  the same way, and issue #1881 carries the search, its date and what
+  it found. The sentence still says what the paragraph and
+  `tests/ecc/borromean_test.py` rest on -- that `_hash`'s challenge
+  preimage matches `secp256k1_borromean_hash` in
+  `src/modules/rangeproof/borromean_impl.h`, Elements and Confidential
+  Transactions among its callers.
+
 ## v2026.9.3
 
 ### Repository
