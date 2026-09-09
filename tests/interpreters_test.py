@@ -31,7 +31,19 @@ from pathlib import Path
 
 _ROOT = Path(__file__).parents[1]
 _PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-_WORKFLOWS = sorted((_ROOT / ".github/workflows").glob("*.yml"))
+
+
+def _workflow_files(directory: Path) -> tuple[Path, ...]:
+    """Return every workflow in `directory`, `.yml` and `.yaml` alike.
+
+    GitHub itself reads both extensions for a workflow file, so a glob
+    matching only one silently drops any workflow written with the
+    other (issue #1874).
+    """
+    return tuple(sorted((*directory.glob("*.yml"), *directory.glob("*.yaml"))))
+
+
+_WORKFLOWS = _workflow_files(_ROOT / ".github/workflows")
 
 # "3.10" out of `requires-python = ">=3.10"`, the floor and nothing else:
 # an upper bound is not declared here and would be a different claim
@@ -190,6 +202,21 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
         f"the free-threading classifier is {'present' if classified else 'absent'}"
         f" and test.yml names {', '.join(run) or 'no free-threaded interpreter'}"
     )
+
+
+def test_workflow_files_reads_dot_yaml_too(tmp_path: Path) -> None:
+    """`.yml` and `.yaml` are read alike (issue #1874).
+
+    `os-macos.yml`'s own bytes, copied to a `.yaml` name: before the fix
+    the glob matched only the first, and the second's interpreter list
+    went uncompared -- the reproduction the issue carries, with the
+    extension the whole of the difference.
+    """
+    text = (_ROOT / ".github/workflows/os-macos.yml").read_text(encoding="utf-8")
+    (tmp_path / "os-extra.yml").write_text(text, encoding="utf-8")
+    (tmp_path / "os-extra.yaml").write_text(text, encoding="utf-8")
+    found = sorted(p.name for p in _workflow_files(tmp_path))
+    assert found == ["os-extra.yaml", "os-extra.yml"]
 
 
 def test_every_sweep_runs_the_same_interpreters() -> None:
