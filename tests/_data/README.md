@@ -27,6 +27,23 @@ serialized form fails a test instead of passing unnoticed. Nothing
 upstream to pin, and nothing to compare against but ourselves —
 `BTCLIB_REGENERATE_GOLDEN=1 uv run pytest` rewrites them on purpose.
 
+Upstream prose that btclib *paraphrases* has no entry here either: a
+BIP's reasoning, a Core comment, a libsecp256k1 header's rationale are
+cited in the docstring or the comment that paraphrases them, and a
+paraphrase admits no byte comparison, so there is nothing for the weekly
+job to ask. What such a citation carries is decided by what it names. A
+file needs no revision -- the path keeps its name, and a reader who opens
+it reads the reasoning upstream holds now, which is what a paraphrase
+sends them for -- and `btclib.ecc.dsa`'s anti-exfil docstrings cite
+`include/secp256k1_ecdsa_s2c.h` that way. A line needs one: a line number
+is the one thing that moves under a file that keeps its name, so without
+a revision the citation degrades into pointing at whatever now occupies
+it. The revision sits in the citation or in the module docstring that
+pins every citation in the module: `src/btclib/script/spendability.py`
+names a range of Core's `script/script.h` and the released tag it read
+them at, and `src/btclib/consensus.py` pins its tag once at the top and
+says why a tag rather than a `master` tip.
+
 Where every file under a `tests/**/_data/` directory came from, and
 whether our copy still matches it. The test modules already cite their
 sources, but against `master`: a citation like
