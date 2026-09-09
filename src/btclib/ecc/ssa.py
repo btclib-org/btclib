@@ -120,12 +120,12 @@ __all__ = [
 # spells these `s2c/schnorr/point` and `s2c/schnorr/data`, in
 # src/modules/schnorrsig/main_impl.h at its head 49c31379, and this tree
 # matches it byte for byte: if it lands, a commitment made here opens
-# there. #1140 is open and unmerged, so it is a reference and not an
-# authority -- its spelling can still change, and the pull request may
-# never land at all. Named for the standard rather than for btclib's
-# `ssa`, and not under BIP0340/, which would claim the BIP defines this.
-# Frozen all the same: a different string is a different scheme, and
-# every signature already made would stop opening
+# there. bitcoin-core/secp256k1#1140 is open and unmerged, so it is a
+# reference and not an authority -- its spelling can still change, and
+# the pull request may never land at all. Named for the standard rather
+# than for btclib's `ssa`, and not under BIP0340/, which would claim the
+# BIP defines this. Frozen all the same: a different string is a
+# different scheme, and every signature already made would stop opening
 _S2C_POINT_TAG = b"s2c/schnorr/point"
 _S2C_DATA_TAG = b"s2c/schnorr/data"
 

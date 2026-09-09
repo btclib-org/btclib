@@ -2613,6 +2613,25 @@ file of the test tree, and no caller acts on it.
   through on the very lines this convention creates, the rule still
   written down and no longer enforced.
 
+### A reference whose sentence names the other tree still carries the qualifier
+
+- **`ssa.py`'s back-reference to `bitcoin-core/secp256k1#1140` is written in
+  full, as the citation opening the same comment is**
+  (closes btclib-org/.github#907): section 9's *A reference to another
+  repository is qualified* exempts a pull request's closing keyword and
+  nothing else, and bare the number is a pull request of this tree about
+  `latest.yml`. The comment is rewrapped around the longer reference and its
+  other words are unchanged.
+- **`compact_blocks.py`'s differential-index paragraph cites
+  `btclib-org/btclib-node#20`, not `btclib_node issue #20`**: bare, the number
+  is this tree's *Schnorr speed up*. `btclib_node` is the package and
+  `btclib-node` the repository holding its tracker, so the sentence keeps the
+  first where it names the code and the citation takes the second.
+- **`test_a_payload_carries_the_command_bitcoin_core_spells`'s docstring cites
+  `btclib-org/btclib-node#12`, not `its issue #12`**: the qualified form does
+  not fit the summary line under `max-doc-length`, so it goes into a body
+  paragraph.
+
 ## v2026.9.3
 
 ### Repository
