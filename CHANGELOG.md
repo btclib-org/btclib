@@ -3270,6 +3270,50 @@ what pinning to a sha exists to stop, and it costs more here than
 elsewhere: the two jobs holding this pin run with `pull-requests: write`
 and `id-token: write`.
 
+### Dependencies are refreshed, and no floor moves with them
+
+- **`uv lock --upgrade` takes `btclib-secp256k1` to 0.8.0.6**, and
+  `ast-serialize`, `filelock`, `gitpython`, `hypothesis`, `multidict`,
+  `platformdirs` and `virtualenv` with it. The specifier stays
+  `>=0.8.0.5` in `[dependency-groups]`'s `bindings` and in
+  `project.optional-dependencies`: a floor states what this tree needs,
+  nothing here imports a name 0.8.0.6 adds, and raising it would cost
+  every consumer an upgrade for nothing.
+- **`zkp.rangeproof.borromean_verify` is what that release adds**, so
+  `borromean.py`'s module docstring stops saying the bindings wrap no
+  borromean. It wraps `secp256k1_borromean_verify` over serialized
+  arguments, in the flagged `zkp` extension alone, which puts one
+  direction of the interoperation that docstring asserts within reach
+  of a measurement; `secp256k1_borromean_sign` is `static` upstream,
+  so the other stays out of it.
+- **`secp256k1_borromean_verify_impl` is the function zkp's rangeproof
+  path calls in that fork**, the plain name being the public wrapper
+  that delegates to it, so `ecc.borromean` and `ecc.rangeproof` name
+  the call site with the suffix.
+- **`tests/_data/README.md`'s entry for
+  `zkp_rangeproof_fixed_vectors.json` says which tree the bindings
+  vendor**: their `secp256k1-zkp` submodule is
+  `fametrano/secp256k1-zkp`, a fork exposing that symbol as public API,
+  whose blob at `src/modules/rangeproof/tests_impl.h` is therefore not
+  the one the entry pins. The functions the entry transcribes read the
+  same in both, which is what naming the blob was for. The pin does not
+  move: it names the tip of that path in
+  `BlockstreamResearch/secp256k1-zkp`, which is what
+  `.github/scripts/check_vendored_vectors.py` compares against.
+- **`pre-commit autoupdate` takes `astral-sh/uv-pre-commit` to
+  0.12.12.** It offered `zizmorcore/zizmor-pre-commit` v1.30.1 and
+  `regebro/pyroma` 5.1b1 as well, and neither is taken: the first is
+  held at v1.29.0 by the marker on its own `rev:` line (issue #1563),
+  and the second is a prerelease, which `pinned-rev` refuses.
+- **`github/codeql-action` moves to v4.38.0**, sha and comment
+  together, in `codeql.yml`'s `init` and `analyze` steps and
+  `scorecard.yml`'s `upload-sarif`.
+- **`pypi-install.yml`'s wheel census is re-read at 0.8.0.6**: every
+  platform its matrix names has a wheel for every supported
+  interpreter, win_arm64's cp311 floor excepted, which is what the
+  comment beside the interpreter axis already said of the release
+  before it.
+
 ## v2026.9.3
 
 ### Repository

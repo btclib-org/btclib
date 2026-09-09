@@ -875,7 +875,7 @@ def test_a_challenge_that_is_no_scalar_is_refused(
     `secp256k1_borromean_sign` reads its challenge through
     `secp256k1_scalar_set_b32` too and returns zero on the flag, where
     `borromean.sign` takes the hash modulo n and carries on. Reducing
-    here would write a proof `secp256k1_borromean_verify` refuses.
+    here would write a proof `secp256k1_borromean_verify_impl` refuses.
     """
     monkeypatch.setattr(rangeproof, "_hash", lambda *_: challenge)
     with pytest.raises(BTClibRuntimeError, match="challenge is not a scalar"):
@@ -887,7 +887,7 @@ def test_a_zero_signature_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> N
 
     Both halves are handed in, that challenge being k over the blinding
     factor: `secp256k1_borromean_sign` returns zero rather than write
-    the s, and `secp256k1_borromean_verify` refuses one it is handed.
+    the s, and `secp256k1_borromean_verify_impl` refuses one it is handed.
     """
     k = 5
     e = k * pow(int(_BLIND, 16), -1, secp256k1.n) % secp256k1.n
