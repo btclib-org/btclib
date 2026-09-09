@@ -3116,6 +3116,21 @@ file of the test tree, and no caller acts on it.
   `src/modules/generator/tests_impl.h` -- are read, written back, and
   held against a point computed here.
 
+### `compact_blocks`'s two justifications are properties of the format
+
+- **The differential-encoding paragraph states what holding the wire's
+  value costs without naming a package that holds it** (closes #1883):
+  never undoing the difference leaves a decoder that agrees with its own
+  encoder and with nothing else, which is a property of BIP152's
+  encoding, where the same cost attributed to another tree is a claim
+  this one cannot check.
+- **`test_a_payload_carries_the_command_bitcoin_core_spells`'s docstring
+  says why the four spellings are asserted**: `Message` looks a command
+  up nowhere, so a misspelling round-trips as well as the real thing and
+  only an assertion against Core's own spelling tells the two apart.
+- **The `sendcmpt` that reached the network is still told in the p2p
+  tests, as the event it was.**
+
 ## v2026.9.3
 
 ### Repository

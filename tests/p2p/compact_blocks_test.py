@@ -725,9 +725,13 @@ def test_reconstruct_says_what_it_was_handed_rather_than_reading_a_field() -> No
 
 
 def test_a_payload_carries_the_command_bitcoin_core_spells() -> None:
-    """The four names, which btclib_node misspells two of.
+    """A command is text the format does not check, so it is checked here.
 
-    btclib-org/btclib-node#12 names the two.
+    `Message` looks a command up nowhere, taking any printable ascii, so
+    a misspelling round-trips as well as the real thing and only an
+    assertion against Core's own spelling tells the two apart.
+    `tests/p2p/core_commands_test.py` asks whether a command is one Core
+    declares; which class carries which is asked here.
     """
     assert SendCmpct.command == "sendcmpct"
     assert CmpctBlock.command == "cmpctblock"
