@@ -29,6 +29,14 @@ lands on the same octets. Both shapes that proof has are recorded, the
 one carrying a `min_value` field and the one whose value is zero and
 carries none.
 
+Every entry is asked something further still, and this one needs no
+signature at all: `pubk_rings` and `sign_key_idx`, given the entry's own
+commitment and value, have to name keys that add up to the blinding
+factor the entry records. Nothing in a proof states that sum, and the
+published ring commitments cannot be asked to state it -- each carries a
+blinding factor drawn from the nonce chain, so the value, the exponent
+and the mantissa do not determine them.
+
 The `zkp`-marked tests at the end put the same questions to the library
 itself, and two more the recording cannot answer: that signing again
 with the recorded arguments answers the very octets vendored here, and
@@ -40,9 +48,10 @@ from typing import Any
 
 import pytest
 
-from btclib.curves import secp256k1
+from btclib.curves import mult, secp256k1
 from btclib.ecc import rangeproof
 from btclib.ecc.borromean import BorromeanSig
+from btclib.ecc.pedersen import commit, second_generator
 from btclib.ecc.rangeproof import RangeProof, sign_public_value
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from tests import load, needs_zkp, replace_unchecked, vector_id
@@ -367,6 +376,159 @@ def test_rsizes_are_the_digits_the_mantissa_asks_for() -> None:
         assert RangeProof.parse(_octets(id_)).rsizes == rsizes
 
 
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_pubk_rings_open_at_the_recorded_blinding_factor(
+    vector: dict[str, Any],
+) -> None:
+    """The keys a proof's signature is over, checked with no signature read.
+
+    Each ring's key at the value's own digit is that ring's blinding
+    factor times G: `secp256k1_rangeproof_genrand` draws all but the
+    last and answers the last with minus their sum, and
+    `secp256k1_rangeproof_sign_impl` adds the caller's blinding factor
+    to it. So the keys `sign_key_idx` names add up to `blind * G`, which
+    the recording states and no octet of the proof does.
+
+    That sum is what pins the derivation before there is a verifier to
+    pin it. The published ring commitments cannot do it: each is
+    `sec * G` plus its digit's own multiple of the generator, and `sec`
+    comes from the chain the caller's nonce seeds, so the value, the
+    exponent and the mantissa do not determine them.
+
+    What the sum does not say is where a point sits. It reduces to
+    `sum(digit * weight) == value - min_value`, a scalar equation that
+    survives any permutation of the ring commitments across rings, the
+    recovered one included, so each stated commitment's placement is
+    asserted directly rather than inferred from it. The recovered one
+    needs no assertion beside them: with the stated heads, the digits
+    and the weights fixed, the sum leaves it a single group element.
+    """
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    # the entry's own commitment octets, which zkp writes under the same
+    # residuosity bit at another base: `9 ^ is_square(y)` for a Pedersen
+    # commitment where `_serialize_point` writes `1 ^ is_square(y)`
+    recorded = bytes.fromhex(vector["commitment"])
+    assert rangeproof._serialize_point(commitment) == (
+        bytes([recorded[0] ^ 8]) + recorded[1:]
+    )
+
+    rings = proof.pubk_rings(commitment)
+    assert tuple(len(ring) for ring in rings) == proof.rsizes
+    stated = tuple(
+        rangeproof._point_from_ring_commitment(x, sign)
+        for x, sign in zip(proof.ring_commitments, proof.signs, strict=True)
+    )
+    assert tuple(ring[0] for ring in rings[: len(stated)]) == stated
+    total = None
+    for ring, j in zip(rings, proof.sign_key_idx(vector["value"]), strict=True):
+        total = ring[j] if total is None else secp256k1.add_aff_var(total, ring[j])
+    assert total == mult(vector["blind"], secp256k1.G, secp256k1)
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_sign_key_idx_is_the_value_s_own_base_four_digits(
+    vector: dict[str, Any],
+) -> None:
+    """Digit by digit, least significant ring first, back to the value.
+
+    `secp256k1_range_proveparams` writes `secidx[i] = (v >> (i*2)) & 3`
+    over the value less `min_value` and divided by ten as many times as
+    the exponent says, so weighing each digit by its own ring and
+    summing is what says the decomposition is that one. Each digit is a
+    position the ring it names has, the ring of two an odd mantissa ends
+    with included.
+    """
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    sign_key_idx = proof.sign_key_idx(vector["value"])
+    v = sum(digit << 2 * i for i, digit in enumerate(sign_key_idx))
+    assert v * 10 ** max(proof.exp, 0) + (proof.min_value or 0) == vector["value"]
+    assert all(j < size for j, size in zip(sign_key_idx, proof.rsizes, strict=True))
+
+
+def test_a_ring_commitment_x_resolves_against_residuosity() -> None:
+    """`_serialize_point` read the other way, over every x vendored here.
+
+    `secp256k1_ge_set_xquad` answers the y that is a square and
+    `secp256k1_rangeproof_verify_impl` negates it where the sign bit is
+    set, so the round trip through `_serialize_point` is what says the
+    resolution is that serialization's own inverse. Reading the bit as
+    parity would answer a different point wherever the two conventions
+    disagree, and `test_the_sign_bit_is_residuosity_and_not_parity` is
+    where the vendored proofs are shown to carry both cases.
+    """
+    for vector in _VECTORS:
+        proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+        for x, sign in zip(proof.ring_commitments, proof.signs, strict=True):
+            point = rangeproof._point_from_ring_commitment(x, sign)
+            octets = bytes([sign]) + x.to_bytes(secp256k1.p_size, "big")
+            assert rangeproof._serialize_point(point) == octets
+
+
+def test_sign_key_idx_refuses_a_value_this_proof_has_no_digit_for() -> None:
+    """Outside the range the header states, or between two of its steps."""
+    proof = RangeProof.parse(_octets("padded sign bits"))
+    err_msg = f"rangeproof value not in 1000..{proof.max_value}: "
+    with pytest.raises(BTClibValueError, match=f"{err_msg}999"):
+        proof.sign_key_idx(999)
+    with pytest.raises(BTClibValueError, match=f"{err_msg}{proof.max_value + 1}"):
+        proof.sign_key_idx(proof.max_value + 1)
+
+    # an exponent of 2, so the proof steps by a hundred and says nothing
+    # about what lies between two steps
+    scaled = RangeProof.parse(_octets("scaled exponent"))
+    err_msg = "rangeproof value 100001 is not the exponent's own multiple"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        scaled.sign_key_idx(100001)
+
+
+def test_pubk_rings_refuses_what_names_no_public_key() -> None:
+    """A commitment off the curve, an x on no point, and a ring at infinity.
+
+    The last is the one zkp checks by name: a commitment equal to
+    `min_value` times the generator leaves the single ring of a
+    public-value proof at infinity, and
+    `secp256k1_rangeproof_verify_impl` returns zero where its own
+    `pubs[npub]` lands there.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        proof.pubk_rings((1, 2))
+
+    # 7 is no x-coordinate of this curve, and it is a ring commitment
+    # `assert_valid` takes: what a proof states there is an integer of
+    # the field's width and this is where it has to name a point
+    with pytest.raises(BTClibValueError, match="invalid x-coordinate: 7"):
+        replace_unchecked(
+            proof, ring_commitments=(7, *proof.ring_commitments[1:])
+        ).pubk_rings(commitment)
+
+    public = RangeProof.parse(_octets("public value"))
+    min_value = public.min_value
+    # the entry whose value is not zero, so the field is there to read
+    assert min_value is not None
+    err_msg = "last ring commitment is the point at infinity"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        public.pubk_rings(mult(min_value, second_generator(), secp256k1))
+
+
+def test_pubk_rings_does_not_check_the_proof_twice() -> None:
+    """`check_validity` is `serialize`'s flag and means the same here.
+
+    The derivation reads no field `assert_valid` has not already held
+    against the mantissa, so a caller that has checked the object once
+    says so and gets the same rings.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    assert proof.pubk_rings(commitment, check_validity=False) == proof.pubk_rings(
+        commitment
+    )
+
+
 class _FixedDraw:
     """A `_HmacDrbg` whose chain the test wrote.
 
@@ -413,8 +575,8 @@ def test_the_proof_written_carries_no_ring_commitment() -> None:
     bit each, and the public-value proof has a single ring. So what
     `sign_public_value` writes exercises neither the digit
     decomposition nor the residuosity convention on a ring commitment,
-    and that is the distance still ahead of it rather than a property of
-    this test.
+    and the tests above reach both through a proof this module reads
+    rather than one it writes.
     """
     proof = sign_public_value(_BLIND, 100000, _NONCE)
     assert proof.rsizes == (1,)
@@ -620,10 +782,9 @@ def test_zkp_signs_and_verifies_the_proof_this_module_writes() -> None:
     the recording fixes under these same arguments; zero, which it fixes
     under others; and one and the widest the eight-octet field holds,
     which no entry fixes at this exponent. `verify` is asked beside
-    `sign`
-    because the two are different questions -- the first says zkp writes
-    these octets, the second that zkp reads them as the range they
-    state.
+    `sign` because the two are different questions -- the first says zkp
+    writes these octets, the second that zkp reads them as the range
+    they state.
     """
     blind = bytes.fromhex(_BLIND)
     nonce = bytes.fromhex(_NONCE)

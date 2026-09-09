@@ -3028,6 +3028,47 @@ file of the test tree, and no caller acts on it.
   section**: what an exemption there costs now is the digest, so the
   further line is what fails.
 
+### `ecc.rangeproof` rebuilds the rings a proof's signature is over
+
+- **`RangeProof.pubk_rings` answers, from a proof and the value
+  commitment it was written against, the rings
+  `secp256k1_borromean_verify` is handed** (issue #1072). It is
+  `secp256k1_rangeproof_verify_impl` up to that call and no further:
+  every ring commitment the proof states, resolved against the sign bit
+  beside it; the one the proof does not state, recovered as the
+  commitment less `min_value` times the generator and less all the
+  others; and `secp256k1_rangeproof_pub_expand` over them, a ring's keys
+  stepping down by the weight of the digit that ring proves.
+  `RangeProof.sign_key_idx` is that decomposition itself,
+  `secp256k1_range_proveparams`' `secidx` under the name
+  `ecc.borromean.sign` gives the same argument. Nothing here reads `e0`
+  or an `s`, and nothing here signs: verifying a proof, rewinding one
+  and writing one that states a range rather than a value are all still
+  ahead of the module.
+- **What holds it is a sum no octet of a proof carries, and it needs no
+  flagged extension to run.** The key a ring's own digit names is that
+  ring's blinding factor times G; `secp256k1_rangeproof_genrand` answers
+  the last ring's with minus the sum of the rest and
+  `secp256k1_rangeproof_sign_impl` adds the caller's to it, so the keys
+  `sign_key_idx` names add up to `blind * G` -- and `blind` is what
+  every entry of `tests/ecc/_data/zkp_rangeproof_vectors.json` records
+  beside its proof. The published ring commitments cannot be asked
+  instead: each is `sec * G` plus its digit's own multiple of the
+  generator, with `sec` drawn from the chain the caller's nonce seeds,
+  so the value, the exponent and the mantissa do not determine them.
+- **An x resolves under residuosity, and that sum is blind to it.**
+  `secp256k1_ge_set_xquad` takes the y that is a square and
+  `secp256k1_rangeproof_verify_impl` negates it where the sign bit is
+  set, so reading the bit as parity answers a different point wherever
+  the square y is the odd one. The recovered ring commitment absorbs
+  exactly that error, the others' resolution being what it is subtracted
+  from, which is why the round trip back through `_serialize_point` is a
+  test of its own rather than a corollary of the one above. Where a
+  point sits is the same shape of gap: the sum reduces to
+  `sum(digit * weight) == value - min_value`, a scalar equation that
+  fixes no point to a ring, so each stated commitment is asserted at the
+  head of its own.
+
 ## v2026.9.3
 
 ### Repository

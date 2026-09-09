@@ -171,6 +171,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.borromean:BorromeanSig.serialize": ["check_validity"],
     "btclib.ecc.rangeproof:RangeProof.__init__": ["check_validity"],
     "btclib.ecc.rangeproof:RangeProof.parse": ["check_validity"],
+    "btclib.ecc.rangeproof:RangeProof.pubk_rings": ["check_validity"],
     "btclib.ecc.rangeproof:RangeProof.serialize": ["check_validity"],
     "btclib.ecc.dsa:Sig.__init__": ["check_validity"],
     "btclib.ecc.dsa:Sig.parse": ["check_validity", "strict"],

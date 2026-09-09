@@ -11,12 +11,12 @@ writes those octets back.
 
 `sign_public_value` writes one proof, and it is the one that proves no
 range: `exp` is -1, the value is stated in the clear, and the single
-ring holds the key the commitment itself gives. What a reader means by
-a rangeproof is on the far side of it -- the digit decomposition, the
-mantissa, `rangeproof_pub_expand`'s rings, and the squareness bit,
-which is written on a serialized ring commitment and so reaches no
-octet of a proof that carries none. Nothing here verifies a proof or
-rewinds one. Issue #1072 is where the rest of that distance is tracked.
+ring holds the key the commitment itself gives. `RangeProof.pubk_rings`
+rebuilds, from a proof and the value commitment it was written against,
+the rings `secp256k1_borromean_verify` is handed, and
+`RangeProof.sign_key_idx` says which key of each ring a value's own
+digit names. Nothing here verifies a proof or rewinds one. Issue #1072
+is where the rest of that distance is tracked.
 
 Elements and Liquid use this format, and a design starting today would
 choose bulletproofs, which zkp carries as its `bppp` module.
@@ -62,15 +62,29 @@ computed here -- a parse reads it and a serialize writes it back, so
 what a `RangeProof` holds is the octets' own answer -- while
 `_serialize_point` is that function of zkp's, and what
 `sign_public_value` hashes the value commitment and the generator
-under. A stage that resolves an x to a point computes against this
-convention and not the familiar one.
+under. Resolving an x back to a point is the same convention read the
+other way, and `_point_from_ring_commitment` is where this module does
+it: `secp256k1_ge_set_xquad` takes the y that is a square, and
+`secp256k1_rangeproof_verify_impl` negates it where the sign bit says
+the y is not one.
 
-Which points those are, and whether the signature over them verifies,
-this module does not ask: an x here is an integer of the width the
-format fixes. `assert_valid` refuses the headers
-`secp256k1_rangeproof_getheader_impl` refuses, and a body this object
-could not write the octets of; an x that names no point on the curve
-is neither, and a verifier is what turns it down.
+The digit decomposition is `rangeproof_pub_expand`: a ring's keys step
+down from the ring commitment by the weight of the digit that ring
+proves, `10**exp` for the first and four times its predecessor for each
+ring after it. The last ring states no commitment of its own --
+`secp256k1_rangeproof_verify_impl` recovers it as the value commitment
+less `min_value` times the generator and less every ring commitment
+before it, which is the digit a prover does not have to send. So the
+value commitment is what the whole structure hangs from, and it is
+`pubk_rings`'s argument.
+
+An x is an integer of the width the format fixes wherever a proof is
+parsed, serialized or held against itself: `assert_valid` refuses the
+headers `secp256k1_rangeproof_getheader_impl` refuses, and a body this
+object could not write the octets of, and an x naming no point on the
+curve is neither. `pubk_rings` is where an x has to name a point, and
+is what turns down one that does not. Whether the signature over those
+rings verifies, this module does not ask.
 """
 
 from __future__ import annotations
@@ -79,9 +93,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 
-from btclib.alias import BinaryData, Integer, Octets, Point
+from btclib.alias import INF, BinaryData, Integer, Octets, Point
 from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
-from btclib.ecc.borromean import BorromeanSig, _hash
+from btclib.ecc.borromean import BorromeanSig, PubkeyRing, _hash
 from btclib.ecc.pedersen import commit, second_generator
 from btclib.ecc.rfc6979_nonce import _HmacDrbg
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -231,6 +245,51 @@ def _serialize_point(Q: Point) -> bytes:
     return bytes([0 if residue else 1]) + Q[0].to_bytes(secp256k1.p_size, "big")
 
 
+def _point_from_ring_commitment(x: int, sign: bool) -> Point:
+    """Return the point a ring commitment's x and sign bit name.
+
+    `secp256k1_rangeproof_verify_impl` reads its x through
+    `secp256k1_ge_set_xquad`, which is the y that is a square, and
+    negates the result where the sign bit is set. The parity convention
+    coincides with this one only where the square y is also the even
+    one, so reading the bit that way answers a different point on some x
+    coordinates and the same point on others, with nothing in the octets
+    saying which was read.
+    """
+    y = secp256k1.y_quadratic_residue_var(x)
+    return x, secp256k1.p - y if sign else y
+
+
+def _pub_expand(
+    ring_commitments: Sequence[Point], exp: int, rsizes: Sequence[int]
+) -> tuple[PubkeyRing, ...]:
+    """Return each ring's keys, from the commitment that ring opens at.
+
+    `secp256k1_rangeproof_pub_expand`. A ring's key at position j is its
+    commitment less j times the weight of the digit that ring proves, so
+    the position the prover knows the key of is the digit itself.
+
+    zkp reaches the first weight by doubling: it negates the generator
+    and multiplies by ten as many times as `exp` says, three doublings
+    and an addition each. One scalar multiplication is the same group
+    element, and this tree has one that libsecp256k1 answers where the
+    doubling chain would be Python arithmetic. The quadrupling between
+    rings stays as zkp writes it, needing no scalar at all.
+    """
+    # zkp holds a negative exponent at zero here, `pub_expand` being
+    # reached with the -1 of a proof that states its value
+    base = secp256k1.negate(mult(10 ** max(exp, 0), second_generator(), secp256k1))
+    rings: list[PubkeyRing] = []
+    for i, size in enumerate(rsizes):
+        ring = [ring_commitments[i]]
+        for _ in range(size - 1):
+            ring.append(secp256k1.add_aff_var(ring[-1], base))
+        rings.append(tuple(ring))
+        if i < len(rsizes) - 1:
+            base = secp256k1.double_aff_var(secp256k1.double_aff_var(base))
+    return tuple(rings)
+
+
 @dataclass(frozen=True, init=False)
 class RangeProof:
     """A Confidential Transactions rangeproof, as its octets state it.
@@ -331,6 +390,80 @@ class RangeProof:
             err_msg = f"borromean rings {sig_rsizes} are not the mantissa's"
             err_msg += f" {self.rsizes}"
             raise BTClibValueError(err_msg)
+
+    def pubk_rings(
+        self, commitment: Point, *, check_validity: bool = True
+    ) -> tuple[PubkeyRing, ...]:
+        """Return the rings of keys this proof's signature is over.
+
+        `secp256k1_rangeproof_verify_impl` up to the point where it hands
+        those rings to `secp256k1_borromean_verify`: every ring
+        commitment the proof states, resolved against the residuosity
+        convention the module docstring gives; the one it does not state,
+        recovered from `commitment`; and `_pub_expand` over all of them.
+        Nothing here reads `e0` or an `s`, so a proof whose signature is
+        wrong answers the same rings as one whose signature is right.
+
+        `commitment` is the Pedersen commitment the proof was written
+        against, `ecc.pedersen.commit`'s own point rather than octets --
+        the ones `secp256k1_pedersen_commitment_serialize` hands back
+        carry the residuosity bit too, `secp256k1_pedersen_commitment_save`
+        writing it at `9 ^ is_square(y)` where `_serialize_point` writes
+        `1 ^ is_square(y)`.
+
+        A commitment that leaves the last ring at infinity is refused,
+        as `secp256k1_rangeproof_verify_impl` refuses it where its own
+        `pubs[npub]` lands there: infinity is no public key. So is an x
+        at or past the field prime, which is
+        `secp256k1_fe_set_b32_limit`'s refusal and `Curve.y_var`'s own.
+        """
+        if check_validity:
+            self.assert_valid()
+        secp256k1.require_on_curve(commitment)
+
+        stated = [
+            _point_from_ring_commitment(x, sign)
+            for x, sign in zip(self.ring_commitments, self.signs, strict=True)
+        ]
+        # zkp's own order: the offset and the stated commitments are
+        # accumulated, the sum negated, and the commitment added to it
+        acc = (
+            mult(self.min_value, second_generator(), secp256k1)
+            if self.min_value
+            else INF
+        )
+        for point in stated:
+            acc = secp256k1.add_aff_var(acc, point)
+        last = secp256k1.add_aff_var(commitment, secp256k1.negate(acc))
+        if last == INF:
+            err_msg = "rangeproof last ring commitment is the point at infinity"
+            raise BTClibValueError(err_msg)
+
+        return _pub_expand([*stated, last], self.exp, self.rsizes)
+
+    def sign_key_idx(self, value: int) -> tuple[int, ...]:
+        """Return where in each ring the key of that value sits.
+
+        `secp256k1_range_proveparams`' `secidx`, and
+        `ecc.borromean.sign`'s argument of this name: the base-4 digits
+        of the value less `min_value` over `10**exp`, least significant
+        ring first. A ring of two takes the odd bit an odd mantissa
+        leaves over, and the digit there is below two because the value
+        is within the range the header states.
+
+        The value the proof was written for is what this answers for. A
+        value outside that range, or one the exponent's own scaling
+        cannot reach, is no digit of this proof and is refused.
+        """
+        min_value = self.min_value or 0
+        if not min_value <= value <= self.max_value:
+            err_msg = f"rangeproof value not in {min_value}..{self.max_value}: {value}"
+            raise BTClibValueError(err_msg)
+        v, remainder = divmod(value - min_value, 10 ** max(self.exp, 0))
+        if remainder:
+            err_msg = f"rangeproof value {value} is not the exponent's own multiple"
+            raise BTClibValueError(err_msg)
+        return tuple((v >> 2 * i) & 3 for i in range(len(self.rsizes)))
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the header, the sign bits, the commitments and the signature.
