@@ -2730,6 +2730,58 @@ file of the test tree, and no caller acts on it.
   `src/modules/rangeproof/borromean_impl.h`, Elements and Confidential
   Transactions among its callers.
 
+### An entry cites an issue for what it records, not for its state
+
+- **This supersedes *`conventions_test.py`'s docstring says what it reads
+  and departs* above, whose entry says btclib-org/.github#690 stays open
+  for the other copies of this module owing the same header sentence**
+  (issue btclib-org/.github#946): that issue is closed, on 2026-09-07.
+  This repository took the replacement in `62d58055`, `btclib-benchmarks`
+  in btclib-org/btclib-benchmarks@81f1313c, `btclib-secp256k1` in
+  btclib-org/btclib-secp256k1@1e587dac, `btclib-node` in
+  btclib-org/btclib-node@3a8a719e and `bitcoin-core-rpc` in
+  btclib-org/bitcoin-core-rpc@85f7dbd3.
+- **This supersedes *`conventions_test.py` says what this tree answers and
+  what it asserts* above, whose entry says btclib-org/.github#904 stays
+  open for the copies that still say otherwise** (issue
+  btclib-org/.github#946): that issue is closed, on 2026-09-07. This
+  repository took the replacement in `7004b856`, `btclib-secp256k1` in
+  btclib-org/btclib-secp256k1@58bf3d72, `bitcoin-core-rpc` in
+  btclib-org/bitcoin-core-rpc@c9ac78f3 and `btclib-node` in
+  btclib-org/btclib-node@8e0a0a48. The bullets citing
+  btclib-org/.github#903 in that entry make no claim about an issue's
+  state, so they stand.
+- **This supersedes *`conventions_test.py`'s module docstring names the
+  ways and counts nothing* above, whose entry says btclib-org/.github#906
+  is filed against the copies of this module across the organization and
+  stays open** (issue btclib-org/.github#946): that issue is closed, on
+  2026-09-08. This repository took the replacement in `385406f1`,
+  `btclib-secp256k1` in btclib-org/btclib-secp256k1@8d84015d,
+  `btclib-node` in btclib-org/btclib-node@8e0a0a48, `bitcoin-core-rpc` in
+  btclib-org/bitcoin-core-rpc@be5bacd7 and `btclib-benchmarks` in
+  btclib-org/btclib-benchmarks@dc47a41f.
+- **This supersedes *`templates_path` goes, this tree keeping no
+  templates* above, whose entry says btclib-org/.github#901 is owed by the
+  trees still carrying the key and stays open** (issue
+  btclib-org/.github#946): that issue is closed, on 2026-09-08. This
+  repository dropped the key in `c352c145`, `btclib-node` in
+  btclib-org/btclib-node@a035aab8, `btclib-secp256k1` in
+  btclib-org/btclib-secp256k1@76766d18 and `bitcoin-core-rpc` in
+  btclib-org/bitcoin-core-rpc@fd9a7c87, and `btclib-benchmarks` carries no
+  such key. That sentence wraps between `stays` and `open`, so a search
+  by line does not find it.
+- **This supersedes *The declaration says what it is and leaves its
+  assertions to the module* above, whose entry says btclib-org/.github#910
+  is filed against the copies in the other trees and stays open** (issue
+  btclib-org/.github#946): that issue is closed, on 2026-09-08. This
+  repository took the replacement in `bd4a4654`, `btclib-secp256k1` in
+  btclib-org/btclib-secp256k1@d80e2c07, `bitcoin-core-rpc` in
+  btclib-org/bitcoin-core-rpc@a0bb7ef6 and `btclib-node` in
+  btclib-org/btclib-node@c8586937.
+- **The trees and the shas are what each of those sentences owed a
+  reader**: an issue's state is what a landing in another tree moves,
+  where a tree and a sha are not.
+
 ## v2026.9.3
 
 ### Repository
