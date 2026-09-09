@@ -106,6 +106,21 @@ on:
     # concatenation, already exhaustively checked by BIP340's own
     # vectors, not the sort of surface a MuSig2-specific oracle exists to
     # cover a second time.
+    # `rangeproof.py` and its own test file join for the parser oracle,
+    # and so does the vector file beside them: those tests check the
+    # recording itself -- signing again with an entry's own arguments
+    # has to answer that entry's proof -- so an edit to the json is an
+    # edit to what this job verifies, which is not true of any other
+    # vector file here. The module is named whole, as `musig2.py` is:
+    # `parse`, `serialize`, `assert_valid` and the two properties are
+    # all of it, and the marked tests read every one of them against
+    # `zkp.rangeproof.info` and against the octets `zkp.rangeproof.sign`
+    # answers. `borromean.py` joins for a narrower reason than
+    # `pedersen.py`'s below: `BorromeanSig.parse` reads the `e0` and the
+    # `s` values inside every proof this oracle parses, and that call
+    # site has no zkp octets to reach it anywhere else --
+    # `tests/ecc/borromean_test.py` holds the wire format against zkp's
+    # source, read by hand, and not against a proof zkp wrote.
     # `pedersen.py` and its own test file join for the rangeproof oracle,
     # itemized the way `dsa.py` is rather than named whole: of that
     # module, `second_generator` and `commit` are what
@@ -119,10 +134,14 @@ on:
       - tests/ecc/commit_nonce_test.py
       - tests/ecc/musig2_test.py
       - tests/ecc/pedersen_test.py
+      - tests/ecc/rangeproof_test.py
+      - tests/ecc/_data/zkp_rangeproof_vectors.json
+      - src/btclib/ecc/borromean.py
       - src/btclib/ecc/dsa.py
       - src/btclib/ecc/commit_nonce.py
       - src/btclib/ecc/musig2.py
       - src/btclib/ecc/pedersen.py
+      - src/btclib/ecc/rangeproof.py
 
 permissions:
   contents: read

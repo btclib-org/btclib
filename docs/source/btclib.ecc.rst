@@ -81,6 +81,13 @@ btclib.ecc.pedersen module
    :members:
    :show-inheritance:
 
+btclib.ecc.rangeproof module
+----------------------------
+
+.. automodule:: btclib.ecc.rangeproof
+   :members:
+   :show-inheritance:
+
 btclib.ecc.rfc6979\_nonce module
 --------------------------------
 

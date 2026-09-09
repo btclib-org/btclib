@@ -41,6 +41,7 @@ from btclib.curves.sec_point import point_from_octets
 from btclib.descriptors import miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
+from btclib.ecc.rangeproof import RangeProof
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
@@ -198,6 +199,11 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     # -- for the input of exactly thirty-two octets that passes both --
     # `assert_valid`'s own "no rings"
     "BorromeanSig.parse": BorromeanSig.parse,
+    # the proof that carries one of those signatures, whose own ring
+    # structure a mutation *can* reach: the mantissa octet is what says
+    # how many rings follow, so a flip there asks for a body the buffer
+    # does not hold
+    "RangeProof.parse": RangeProof.parse,
     # no bip322.Sig.parse: that class has none, its three payloads being
     # three unrelated serializations told apart by the prefix of the text
     # form alone, so the text entry point below is where it is read

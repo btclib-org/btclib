@@ -2489,6 +2489,53 @@ reproducible byte for byte -- the addresses, and so the txids, are
 whatever the node's wallet minted -- so a re-recording is a new file
 rather than a refreshed one.
 
+### `tests/ecc/_data/zkp_rangeproof_vectors.json`
+
+```text
+program   btclib-secp256k1 0.8.0.5, the version uv.lock resolves, built
+          from its sdist with BTCLIB_LIBSECP256K1_ZKP=true; its
+          secp256k1-zkp submodule is 037cc6d74cbb4a89e443117459b577d56a582e54
+calls     zkp.generator.pedersen_commit(blind, value)
+          zkp.rangeproof.sign(commitment, blind, nonce, value, **args)
+          zkp.rangeproof.info(proof)
+          zkp.rangeproof.verify(commitment, proof)
+recorded  2026-09-09
+```
+
+Verdict: **recorded**. There is no upstream vector file, which is what
+[ISS 1072](https://github.com/btclib-org/btclib/issues/1072) says of
+this format too. What libsecp256k1-zkp publishes instead is inside a C
+test source, `src/modules/rangeproof/tests_impl.h` -- blob
+`19c83ecbd84ae318d8eccf9336638238d3a29826` at the submodule commit
+above -- where `test_rangeproof_fixed_vectors` and
+`test_rangeproof_fixed_vectors_reproducible` hold proofs as C arrays,
+beside the commitments and the ranges they assert. Reading those here
+is [ISS 1893](https://github.com/btclib-org/btclib/issues/1893) and is
+not what this file holds: each entry below is one proof
+libsecp256k1-zkp signed for this tree, kept verbatim, beside the
+arguments that produced it and what that library then said about it.
+
+It is here because `tests/ecc/rangeproof_test.py` would otherwise
+measure nothing wherever the suite usually runs: the flagged extension
+those calls need is built in `.github/workflows/zkp-oracle.yml`'s job
+alone, and `btclib.ecc.rangeproof` reads a format no other vector file
+in this tree carries.
+
+**Recording another is this file's own arguments.** A rangeproof draws
+nothing -- its nonces are the hash chain `rangeproof_genrand` derives
+from the caller's -- so `sign` called again with an entry's `blind`,
+`nonce`, `value` and `sign arguments` answers that entry's `proof`,
+byte for byte. `test_the_vectors_are_what_zkp_signs_today` is that
+check, so the procedure is a test rather than a note here, and it runs
+wherever the extension does.
+
+**The `info` key is why a run without the extension still compares
+against something.** Those are `zkp.rangeproof.info`'s own answers for
+the same octets, so btclib's reading of a header is held to
+libsecp256k1-zkp's rather than to btclib's own; what `info` says
+nothing about -- the sign bits, the ring commitments and the borromean
+signature -- is held by the proof going back out byte for byte.
+
 ## What is not pinned, and why
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
@@ -2578,8 +2625,9 @@ Not checked byte for byte against one:
   chain data two of the entries above already hold.
 - not vendored: `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt`,
-  `gettxoutsetinfo_regtest.json`, `descriptor_checksums.json` and
-  `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`,
+  `gettxoutsetinfo_regtest.json`, `zkp_rangeproof_vectors.json`,
+  `descriptor_checksums.json` and `btclib_test_vectors.json` (btclib's
+  own). `descriptor_checksums.json`,
   `fakeenglish.txt` and `btclib_test_vectors.json` are composed rather
   than recorded: `descriptor_checksums.json`'s checksums come from a
   third implementation run over Core's own descriptors, `fakeenglish.txt`

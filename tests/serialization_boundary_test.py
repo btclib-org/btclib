@@ -90,6 +90,7 @@ from btclib.block import BasicBlockFilter, Block, BlockHeader, PartialMerkleTree
 from btclib.descriptors import descriptors, miniscript
 from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
+from btclib.ecc.rangeproof import RangeProof
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
 from btclib.p2p import (
@@ -241,6 +242,7 @@ _OCTETS_DECODERS = (
     ("BIP32KeyData.parse", BIP32KeyData, "parse"),
     ("BIP32KeyOrigin.parse", BIP32KeyOrigin, "parse"),
     ("BorromeanSig.parse", BorromeanSig, "parse"),
+    ("RangeProof.parse", RangeProof, "parse"),
     ("bms.Sig.parse", bms.Sig, "parse"),
     ("ssa.Sig.parse", ssa.Sig, "parse"),
     ("dsa.Sig.parse", dsa.Sig, "parse"),

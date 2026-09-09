@@ -6,8 +6,9 @@
 
 **The schemes.** btclib.ecc holds what is built *on* an elliptic curve:
 dsa, ssa, bms and borromean signatures, the MuSig2 aggregation of many
-ssa signers into one, pedersen commitments, the Diffie-Hellman key
-agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
+ssa signers into one, pedersen commitments, the reader for the
+Confidential Transactions rangeproof built over one, the Diffie-Hellman
+key agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
 of a public key with the x-only ECDH on it, the BIP374 proof that two
 points share one discrete logarithm, and the RFC6979, BIP340 and
 sign-to-contract nonces. The curve arithmetic underneath is
@@ -74,6 +75,7 @@ from btclib.ecc import (
     ellswift,
     musig2,
     pedersen,
+    rangeproof,
     rfc6979_nonce,
     ssa,
 )
@@ -93,6 +95,7 @@ __all__ = [
     "ellswift",
     "musig2",
     "pedersen",
+    "rangeproof",
     "rfc6979_nonce",
     "second_generator",
     "ssa",
