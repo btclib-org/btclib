@@ -2155,6 +2155,49 @@ out, the range the header proves, and the rings the value's digits index.
 [ISS 1072](https://github.com/btclib-org/btclib/issues/1072) is where
 rewinding a proof and verifying one are tracked.
 
+### `tests/ecc/anti_exfil_test.py`
+
+```text
+repo    BlockstreamResearch/secp256k1-zkp
+path    src/modules/ecdsa_s2c/tests_impl.h
+commit  72867fd682279ff2c79cf13f4f8d8484048d2527  2026-08-17
+blob    ea0b650d829c87c39908903abe7a5b164e06063c
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, off `ecdsa_s2c_tests`, the array
+`test_ecdsa_s2c_fixed_vectors` and `test_ecdsa_anti_exfil_signer_commit`
+both walk: `_ZKP_VECTORS` is its rows, column for column -- `s2c_data`,
+`expected_s2c_opening` and `expected_s2c_exfil_opening` -- and
+`_PRV_KEY` and `_MSG_HASH` are the key and the message both functions
+run those rows against. There is no blob to compare, the values
+being `0x` arrays inside C source, so what is checked is that each of
+them is in the pinned blob when those arrays are read as octets rather
+than as text:
+
+```shell
+blob=<the blob this entry gives>
+value=<a hex string the module transcribes>
+```
+
+```shell
+gh api -H 'Accept: application/vnd.github.raw' \
+    "repos/BlockstreamResearch/secp256k1-zkp/git/blobs/${blob:?}" \
+    | python3 -c "import re,sys
+h = ''.join(re.findall(r'0x([0-9a-fA-F]{2})', sys.stdin.read()))
+print(sys.argv[1].lower() in h.lower())" "${value:?}"
+```
+
+Source rather than a data file, and pinned here for what the columns
+settle: a row's openings are one `anti_exfil_host_commit` apart, so the
+module holds the R the device promises and the R its signature carries
+to libsecp256k1-zkp's own octets rather than to btclib run twice. A row
+upstream regenerates is one this tree would go on asserting, which is
+what the pin is read for. The module points here for the revision
+and carries none of its own, which is what puts the pin where the weekly
+workflow reads it.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -2660,7 +2703,8 @@ Not checked byte for byte against one:
   `bip67_test_vectors.json`, `bip85_test_vectors.json`,
   `chacha20_vectors.json`, `muhash_vectors.json`,
   `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`, `bolt9.py`,
-  `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`.
+  `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`,
+  `anti_exfil_test.py`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole

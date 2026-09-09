@@ -16,17 +16,13 @@ apart -- and that is exactly the property the handshake stands on, step
 2 and step 4 reaching one nonce. It is checked here against upstream's
 own bytes rather than against btclib run twice.
 
-```text
-repo    BlockstreamResearch/secp256k1-zkp
-path    src/modules/ecdsa_s2c/tests_impl.h
-commit  baac08d207003151d095423487d3954503a52aeb  2026-04-20
-blob    ba4f158c5d5c63b195011cda8c24331e5d21a4d4
-```
-
-Read at master `2af926dc309a673461f0e2da090105c8f05b4505`, whose tree
-carries that blob; the commit above is the tip of the path. The protocol
-rationale quoted in the docstrings is `include/secp256k1_ecdsa_s2c.h` at
-the same master, blob `c931457d6a53ca8aed8189257e7a2ff496fd084c`.
+Which revision of `src/modules/ecdsa_s2c/tests_impl.h` those columns
+are is `tests/_data/README.md`'s entry for this module, beside the
+vendored files, and none is recorded here: a pin in that ledger is what
+`.github/workflows/vendored-vectors.yml` re-checks weekly, opening an
+issue where it is no longer the tip of its path. The protocol rationale
+quoted in `btclib.ecc.dsa`'s docstrings is
+`include/secp256k1_ecdsa_s2c.h` of the same repository.
 """
 
 from hashlib import sha1, sha256

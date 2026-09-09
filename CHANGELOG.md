@@ -3170,6 +3170,23 @@ file of the test tree, and no caller acts on it.
   landing it, the heading resolves to no tag, and an entry written in
   that window is evaluated from the tag onward rather than never.
 
+### The anti-exfil vectors are pinned in the ledger the weekly run reads
+
+- **`tests/_data/README.md` gains an entry for
+  `tests/ecc/anti_exfil_test.py`, whose docstring keeps no revision of
+  its own** (closes #1913). The fixture is libsecp256k1-zkp's
+  `ecdsa_s2c_tests` transcribed into python, which is the case
+  `src/btclib/bolt9.py` already has an entry for: a pin in that ledger
+  is re-checked against upstream every week by
+  `.github/workflows/vendored-vectors.yml`, and a pin in a module is
+  re-checked by nobody.
+- **The pin names the tip of `src/modules/ecdsa_s2c/tests_impl.h`**,
+  `72867fd682279ff2c79cf13f4f8d8484048d2527` (2026-08-17), blob
+  `ea0b650d829c87c39908903abe7a5b164e06063c`. Every value the module
+  transcribes -- the columns of `_ZKP_VECTORS`, and the key and the
+  message beside them -- is in that blob, read as the octets of its
+  `0x` arrays.
+
 ## v2026.9.3
 
 ### Repository
