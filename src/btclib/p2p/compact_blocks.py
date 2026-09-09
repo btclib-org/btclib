@@ -54,7 +54,7 @@ Nothing is lost by storing the absolute index: over indexes that
 strictly increase the two are the same sequence written twice, so the
 octets round-trip either way. btclib_node holds the wire's value and
 never undoes the difference, which is a decoder that agrees with its own
-encoder and with nothing else (btclib_node issue #20).
+encoder and with nothing else (btclib-org/btclib-node#20).
 
 **Version 2 alone is implemented, and version 1 is not.** The two differ
 in one field and one hash: version 2 writes the transactions inside
