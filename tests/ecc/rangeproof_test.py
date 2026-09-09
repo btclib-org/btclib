@@ -37,6 +37,15 @@ published ring commitments cannot be asked to state it -- each carries a
 blinding factor drawn from the nonce chain, so the value, the exponent
 and the mantissa do not determine them.
 
+The `nonce` is what determines them, and every entry is asked that too:
+`nonce_chain` has to write the ring commitments the proof states, x and
+sign bit, and every `s` the signature did not overwrite. That is the
+whole of `secp256k1_rangeproof_genrand` held to octets zkp wrote, its
+two acceptance rules apart: a chain that redrew no ring blinding factor
+and refused no ring member's draw answers every entry here, and each of
+those draws is reached at one in about 2**128. What puts them is a
+chain a test writes.
+
 The `zkp`-marked tests at the end put the same questions to the library
 itself, and two more the recording cannot answer: that signing again
 with the recorded arguments answers the very octets vendored here, and
@@ -529,20 +538,233 @@ def test_pubk_rings_does_not_check_the_proof_twice() -> None:
     )
 
 
-class _FixedDraw:
-    """A `_HmacDrbg` whose chain the test wrote.
+def _seed(vector: dict[str, Any]) -> bytes:
+    # what `secp256k1_rangeproof_sign_impl` hands the chain, built from
+    # the recording rather than asked of the module: the header octets
+    # are the proof's own prefix, so nothing under test supplies them
+    octets = bytes.fromhex(vector["proof"])
+    return (
+        bytes.fromhex(vector["nonce"])
+        + rangeproof._serialize_point(commit(vector["blind"], vector["value"]))
+        + rangeproof._serialize_point(second_generator())
+        + octets[: _header_size(octets)]
+    )
 
-    `sign_public_value` builds one and asks it once, so a stand-in with
-    a `generate` is the whole of what has to be replaced: the draws
-    below are refused at one in about 2**128 and cannot be reached by
-    choosing a nonce.
+
+class _FixedDraws:
+    """A `_HmacDrbg` whose chain the test wrote, block by block.
+
+    The blocks come back in the order they were given, which is what
+    lets a test put a draw at one step of `_genrand` and a different one
+    at the next: refused draws are reached at one in about 2**128 and
+    cannot be had by choosing a nonce.
     """
 
-    def __init__(self, octets: bytes) -> None:
-        self.octets = octets
+    def __init__(self, *blocks: bytes) -> None:
+        self.blocks = list(blocks)
 
     def generate(self, size: int) -> bytes:
-        return self.octets[:size]
+        return self.blocks.pop(0)[:size]
+
+    def reseed(self) -> None:
+        """Advance nothing: what the chain answers is the list above."""
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_the_nonce_chain_writes_the_ring_commitments_a_proof_states(
+    vector: dict[str, Any],
+) -> None:
+    """Every ring commitment, rebuilt from the nonce that drew its factor.
+
+    A ring commitment is its ring's blinding factor times G plus the
+    digit that ring proves times the generator, and every blinding
+    factor but the last comes off the chain the caller's nonce seeds.
+    So the x coordinates and sign bits a proof states are a function of
+    the recording's `nonce`, which is what
+    `test_pubk_rings_open_at_the_recorded_blinding_factor` cannot ask:
+    that sum holds for any assignment of factors adding up to `blind`.
+
+    The last ring's factor is minus the sum of the others, and
+    `secp256k1_rangeproof_sign_impl` adds the caller's own to it, which
+    is the head `pubk_rings` recovers rather than reads.
+    """
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    chain = proof.nonce_chain(commitment, vector["value"], vector["nonce"])
+    sign_key_idx = proof.sign_key_idx(vector["value"])
+    scale = 10 ** max(proof.exp, 0)
+
+    heads = []
+    factors = list(chain.blinding_factors)
+    factors[-1] = (factors[-1] + int(vector["blind"], 16)) % secp256k1.n
+    for i, (sec, digit) in enumerate(zip(factors, sign_key_idx, strict=True)):
+        heads.append(
+            secp256k1.add_aff_var(
+                mult(sec, secp256k1.G, secp256k1),
+                mult(digit * scale << 2 * i, second_generator(), secp256k1),
+            )
+        )
+
+    stated = [rangeproof._serialize_point(head) for head in heads[:-1]]
+    assert tuple(int.from_bytes(o[1:], "big") for o in stated) == proof.ring_commitments
+    assert tuple(bool(o[0]) for o in stated) == proof.signs
+    assert tuple(ring[0] for ring in proof.pubk_rings(commitment)) == tuple(heads)
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_the_nonce_chain_answers_every_s_the_signature_did_not_write(
+    vector: dict[str, Any],
+) -> None:
+    """The draws, against the `s` values the proof carries.
+
+    `secp256k1_rangeproof_sign_impl` moves the draw at the key the
+    value's own digit names into the nonce that closes the ring and
+    writes a signature there, and leaves every other draw where it is.
+    So the two agree at exactly the keys `sign_key_idx` does not name,
+    which is what makes the whole chain -- the discarded block of every
+    ring but the last included -- answerable to octets zkp wrote.
+    """
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    chain = proof.nonce_chain(commitment, vector["value"], vector["nonce"])
+    sign_key_idx = proof.sign_key_idx(vector["value"])
+
+    for i, (drawn, written) in enumerate(zip(chain.draws, proof.sig.s, strict=True)):
+        for j, (a, b) in enumerate(zip(drawn, written, strict=True)):
+            assert (a == b) == (j != sign_key_idx[i])
+
+
+def test_nonce_chain_refuses_a_commitment_that_is_no_point() -> None:
+    """The seed hashes the commitment, and hashing it checks nothing.
+
+    `_serialize_point` asks the y for its residuosity and writes the x,
+    which a pair off the curve answers as readily as a point: absent
+    the check, a commitment naming no public key derives a chain like
+    any other. The refusal is `pubk_rings`' own, on the argument of the
+    same name.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        proof.nonce_chain((1, 2), vector["value"], vector["nonce"])
+
+
+def test_nonce_chain_does_not_check_the_proof_twice() -> None:
+    """`check_validity` is `pubk_rings`' flag and means the same here.
+
+    The chain reads the mantissa, the exponent and `min_value`, which
+    `assert_valid` has already held against each other, so a caller
+    that has checked the object once says so and gets the same scalars.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    commitment = commit(vector["blind"], vector["value"])
+    assert proof.nonce_chain(
+        commitment, vector["value"], vector["nonce"], check_validity=False
+    ) == proof.nonce_chain(commitment, vector["value"], vector["nonce"])
+
+
+def test_a_ring_but_the_last_spends_a_block_before_the_one_it_keeps() -> None:
+    """The draw `secp256k1_rangeproof_genrand` makes and does not read.
+
+    It draws into the buffer it overwrites before testing it, so the
+    blinding factor of every ring but the last is the second block of
+    its pair and the first is spent on the chain's advance alone. A
+    derivation taking the first is off by a block from that ring
+    onward, which no proof of a single ring can show.
+    """
+    vector = _vector("scaled exponent")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    chain = proof.nonce_chain(
+        commit(vector["blind"], vector["value"]), vector["value"], vector["nonce"]
+    )
+
+    blocks = rangeproof._blocks(_seed(vector))
+    discarded, tested, member = (int.from_bytes(next(blocks), "big") for _ in range(3))
+    assert chain.blinding_factors[0] == tested
+    assert chain.blinding_factors[0] != discarded
+    assert chain.draws[0][0] == member
+
+
+@pytest.mark.parametrize(
+    "id_, key",
+    [("padded sign bits", 3), ("scaled exponent", 2)],
+    ids=["the last key of the ring", "the one before the digit's own"],
+)
+def test_the_last_ring_carries_the_value_in_one_of_its_draws(
+    id_: str, key: int
+) -> None:
+    """`prep`'s value encoding, which is one draw of one ring and no more.
+
+    `secp256k1_rangeproof_sign_impl` writes the value into the octets
+    it hands the chain, and `secp256k1_rangeproof_rewind_inner` reads
+    it back out of the `s` the proof states there. The key is the
+    ring's last, or the one before it where the value's own digit is
+    that one, since the draw at the digit's key is spent as a nonce.
+
+    Fold nothing in and every other draw is what it was: the chain
+    advances on the blocks alone, so what this costs is one `s` of one
+    ring, in a proof that is otherwise byte for byte the same.
+    """
+    vector = _vector(id_)
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    value = vector["value"]
+    sign_key_idx = proof.sign_key_idx(value)
+    v = proof._mantissa_value(value)
+
+    prep = rangeproof._prep(proof.rsizes, v, sign_key_idx[-1])
+    seed = _seed(vector)
+    written = rangeproof._genrand(seed, proof.rsizes, prep)
+    plain = rangeproof._genrand(seed, proof.rsizes, bytes(len(prep)))
+
+    moved = [
+        (i, j)
+        for i, ring in enumerate(plain.draws)
+        for j, drawn in enumerate(ring)
+        if drawn != written.draws[i][j]
+    ]
+    assert moved == [(len(proof.rsizes) - 1, key)]
+    assert written.blinding_factors == plain.blinding_factors
+
+    i, j = moved[0]
+    assert written.draws[i][j] == proof.sig.s[i][j]
+    encoding = b"\x80" + bytes(7) + v.to_bytes(8, "big") * 3
+    assert plain.draws[i][j] ^ written.draws[i][j] == int.from_bytes(encoding, "big")
+
+
+def test_a_ring_blinding_factor_that_is_no_scalar_is_redrawn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Genrand's other acceptance rule, the one a single ring never meets.
+
+    A ring blinding factor at or past n, or zero, sends
+    `secp256k1_rangeproof_genrand` back to the chain for another block,
+    where the same draw for a ring member fails the proof outright --
+    which is `test_a_draw_that_is_no_scalar_is_refused_and_not_redrawn`
+    below. The factor of the last ring is drawn from nothing: it is
+    minus the sum of the others, so two rings answer with a pair
+    summing to zero.
+    """
+    accepted = bytes(31) + b"\x07"
+    members = [bytes(31) + bytes([j]) for j in range(1, 5)]
+    monkeypatch.setattr(
+        rangeproof,
+        "_HmacDrbg",
+        lambda *_: _FixedDraws(
+            b"\x11" * 32,
+            bytes(32),
+            secp256k1.n.to_bytes(32, "big"),
+            accepted,
+            *members,
+        ),
+    )
+
+    rsizes = (2, 2)
+    zeroed = bytes(rangeproof._RING_STRIDE * secp256k1.n_size * len(rsizes))
+    chain = rangeproof._genrand(b"", rsizes, zeroed)
+    assert chain.blinding_factors[0] == int.from_bytes(accepted, "big")
+    assert chain.blinding_factors[1] == secp256k1.n - chain.blinding_factors[0]
+    assert chain.draws == ((1, 2), (3, 4))
 
 
 @pytest.mark.parametrize("vector", _PUBLIC_VALUES, ids=_PUBLIC_VALUE_IDS)
@@ -635,7 +857,7 @@ def test_a_draw_that_is_no_scalar_is_refused_and_not_redrawn(
     candidate. A proof written from that next block is one zkp does not
     write.
     """
-    monkeypatch.setattr(rangeproof, "_HmacDrbg", lambda *_: _FixedDraw(draw))
+    monkeypatch.setattr(rangeproof, "_HmacDrbg", lambda *_: _FixedDraws(draw))
     with pytest.raises(BTClibRuntimeError, match="nonce is not a scalar"):
         sign_public_value(_BLIND, 1, _NONCE)
 
@@ -670,7 +892,7 @@ def test_a_zero_signature_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> N
     k = 5
     e = k * pow(int(_BLIND, 16), -1, secp256k1.n) % secp256k1.n
     monkeypatch.setattr(
-        rangeproof, "_HmacDrbg", lambda *_: _FixedDraw(k.to_bytes(32, "big"))
+        rangeproof, "_HmacDrbg", lambda *_: _FixedDraws(k.to_bytes(32, "big"))
     )
     monkeypatch.setattr(rangeproof, "_hash", lambda *_: e.to_bytes(32, "big"))
     with pytest.raises(BTClibRuntimeError, match="signature value is zero"):
@@ -793,3 +1015,52 @@ def test_zkp_signs_and_verifies_the_proof_this_module_writes() -> None:
         octets = sign_public_value(_BLIND, value, _NONCE).serialize()
         assert octets == zkp_rangeproof.sign(commitment, blind, nonce, value, exp=-1)
         assert zkp_rangeproof.verify(commitment, octets) == (value, value)
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to sign at other arguments
+def test_the_nonce_chain_answers_proofs_zkp_signs_at_other_shapes() -> None:
+    """The derivation put to rings the recording does not fix.
+
+    Each entry fixes one mantissa, where the library signs at any of
+    them: the mantissas here are none of the entries', so the ring
+    count varies, and with it the digit of the last ring and the key
+    its value encoding lands on.
+    Each proof is asked what an entry is asked -- that the chain writes
+    the ring commitments it states, x and sign bit, and every `s` its
+    signature did not overwrite.
+    """
+    blind = bytes(31) + b"\x0b"
+    for min_bits, exp, value in (
+        (2, 0, 3),
+        (13, 0, 5000),
+        (16, 2, 123400),
+        (52, 0, 2**51),
+    ):
+        nonce = bytes(31) + bytes([min_bits])
+        octets = zkp_rangeproof.sign(
+            zkp_generator.pedersen_commit(blind, value),
+            blind,
+            nonce,
+            value,
+            exp=exp,
+            min_bits=min_bits,
+        )
+        proof = RangeProof.parse(octets)
+        chain = proof.nonce_chain(commit(blind, value), value, nonce)
+        sign_key_idx = proof.sign_key_idx(value)
+        scale = 10 ** max(proof.exp, 0)
+
+        for i, x in enumerate(proof.ring_commitments):
+            head = secp256k1.add_aff_var(
+                mult(chain.blinding_factors[i], secp256k1.G, secp256k1),
+                mult(sign_key_idx[i] * scale << 2 * i, second_generator(), secp256k1),
+            )
+            assert rangeproof._serialize_point(head) == bytes(
+                [proof.signs[i]]
+            ) + x.to_bytes(secp256k1.p_size, "big")
+
+        for i, (drawn, written) in enumerate(
+            zip(chain.draws, proof.sig.s, strict=True)
+        ):
+            for j, (a, b) in enumerate(zip(drawn, written, strict=True)):
+                assert (a == b) == (j != sign_key_idx[i])

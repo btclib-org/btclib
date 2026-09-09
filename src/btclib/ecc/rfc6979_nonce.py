@@ -72,9 +72,9 @@ class _HmacDrbg:
     asks the chain again, and `secp256k1_rangeproof_genrand` does that
     too for the ring blinding factors a proof of more than one ring
     draws, while failing outright on a ring member's own draw.
-    `ecc.rangeproof` takes one draw and it is of that second kind, a
-    single ring drawing no blinding factor at all; it seeds this with a
-    commitment and a proof header rather than with a key and a message.
+    `ecc.rangeproof` meets both, the single-ring proof it writes taking
+    one draw of the second kind alone; it seeds this with a commitment
+    and a proof header rather than with a key and a message.
     secp256k1-zkp's `secp256k1_rfc6979_hmac_sha256` reseeds between
     every pair of draws whichever kind they are.
     """
