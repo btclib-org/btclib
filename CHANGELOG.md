@@ -3131,6 +3131,31 @@ file of the test tree, and no caller acts on it.
 - **The `sendcmpt` that reached the network is still told in the p2p
   tests, as the event it was.**
 
+### The rangeproofs secp256k1-zkp publishes are vendored and read
+
+- **`tests/ecc/_data/zkp_rangeproof_fixed_vectors.json` holds the proofs
+  `src/modules/rangeproof/tests_impl.h` publishes as C arrays, each with
+  the blinding factor, the value and the range that module's own
+  `CHECK`s state about it** (closes #1893). `tests/_data/README.md` pins
+  the blob those arrays sit in, which is also the blob the bindings
+  `uv.lock` resolves carry, and says how they were read. The provenance
+  is what keeps them apart from `zkp_rangeproof_vectors.json` beside
+  them: that file records what this tree asked libsecp256k1-zkp to sign,
+  where these octets and the answers beside them are what that
+  implementation published of its own accord.
+- **`tests/ecc/rangeproof_fixed_vectors_test.py` reads them, and asks
+  nothing of the flagged extension.** A parse writes the octets back
+  byte for byte; the header states the range
+  `secp256k1_rangeproof_verify` is checked upstream to answer for those
+  same octets, so it is held to an implementation this tree neither runs
+  nor installs; and `pubk_rings` and `sign_key_idx`, over the commitment
+  `ecc.pedersen.commit` builds from the published blinding factor and
+  value, name keys that add up to that factor times G. They carry shapes
+  the recording does not reach: a mantissa filling the width the format
+  allows, over as many rings as that takes; an exponent the signer
+  lowered from the one it was asked for; a `min_value` a step below the
+  signed ceiling; and a value stated in the clear that zkp itself wrote.
+
 ## v2026.9.3
 
 ### Repository

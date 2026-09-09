@@ -2117,6 +2117,44 @@ pin, and `rfc-editor.org/rfc/rfc6979` is the document.
 
 Pulled 2020-05-08.
 
+### `tests/ecc/_data/zkp_rangeproof_fixed_vectors.json`
+
+```text
+repo    BlockstreamResearch/secp256k1-zkp
+path    src/modules/rangeproof/tests_impl.h
+commit  72867fd682279ff2c79cf13f4f8d8484048d2527  2026-08-17
+blob    19c83ecbd84ae318d8eccf9336638238d3a29826
+pulled  2026-09-09
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically. One json object per `vector_<n>`
+array of `test_rangeproof_fixed_vectors` and
+`test_rangeproof_fixed_vectors_reproducible`, which is where
+libsecp256k1-zkp publishes fixed rangeproofs: `proof` and `commitment`
+are that array and the `commit_<n>` beside it, `blind` is the `blind_<n>`
+of the first function and the `vector_blind` the second shares, and
+`value` and `verify` are what those functions' own `CHECK`s state about
+the octets -- the value a rewind answers, and the range
+`secp256k1_rangeproof_verify` answers. `id` is the function and the array
+upstream names each by. The pass that produced the file is not committed
+-- a one-off read of C source is not a tool -- and what re-derives it is
+reading those arrays again.
+
+Not vendored as the file itself because there is no data file upstream
+and none anywhere: this format has no published vector file, which is
+what the entry below says of it too, so the blob above is that C source
+and the weekly re-check reports a proof added to it. The bindings
+`uv.lock` resolves carry that same blob, their `secp256k1-zkp` submodule
+being `037cc6d74cbb4a89e443117459b577d56a582e54`.
+
+The message a rewind also answers is left out, and so is the nonce it is
+read with: what reads this file is a parse.
+`tests/ecc/rangeproof_fixed_vectors_test.py` asks for the octets back
+out, the range the header proves, and the rings the value's digits index.
+[ISS 1072](https://github.com/btclib-org/btclib/issues/1072) is where
+rewinding a proof and verifying one are tracked.
+
 ## Chain data, not a repository
 
 These are consensus bytes. There is no upstream repository to pin and no
@@ -2509,9 +2547,9 @@ test source, `src/modules/rangeproof/tests_impl.h` -- blob
 `19c83ecbd84ae318d8eccf9336638238d3a29826` at the submodule commit
 above -- where `test_rangeproof_fixed_vectors` and
 `test_rangeproof_fixed_vectors_reproducible` hold proofs as C arrays,
-beside the commitments and the ranges they assert. Reading those here
-is [ISS 1893](https://github.com/btclib-org/btclib/issues/1893) and is
-not what this file holds: each entry below is one proof
+beside the commitments and the ranges they assert. Those are the entry
+`zkp_rangeproof_fixed_vectors.json` has above, and are not what this
+file holds: each entry below is one proof
 libsecp256k1-zkp signed for this tree, kept verbatim, beside the
 arguments that produced it and what that library then said about it.
 
@@ -2622,7 +2660,7 @@ Not checked byte for byte against one:
   `bip67_test_vectors.json`, `bip85_test_vectors.json`,
   `chacha20_vectors.json`, `muhash_vectors.json`,
   `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`, `bolt9.py`,
-  `rfc6979.json`.
+  `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
