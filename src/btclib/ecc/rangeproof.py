@@ -2,27 +2,34 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The Confidential Transactions rangeproof, read from its octets.
+"""The Confidential Transactions rangeproof, and the one shape btclib writes.
 
 `RangeProof.parse` reads what secp256k1-zkp's `rangeproof` module
 writes -- `secp256k1_rangeproof_sign_impl`,
 `src/modules/rangeproof/rangeproof_impl.h` -- and `RangeProof.serialize`
-writes those octets back. Reading is the whole of what is here: nothing
-in this module proves a range, verifies a proof or rewinds one, and the
-pieces those need -- the digit decomposition, `rangeproof_pub_expand`'s
-rings and `rangeproof_genrand`'s nonce chain -- have no counterpart in
-this tree yet. Issue #1072 is where the rest of that distance is
-tracked.
+writes those octets back.
+
+`sign_public_value` writes one proof, and it is the one that proves no
+range: `exp` is -1, the value is stated in the clear, and the single
+ring holds the key the commitment itself gives. What a reader means by
+a rangeproof is on the far side of it -- the digit decomposition, the
+mantissa, `rangeproof_pub_expand`'s rings, and the squareness bit,
+which is written on a serialized ring commitment and so reaches no
+octet of a proof that carries none. Nothing here verifies a proof or
+rewinds one. Issue #1072 is where the rest of that distance is tracked.
 
 Elements and Liquid use this format, and a design starting today would
 choose bulletproofs, which zkp carries as its `bppp` module.
 
-Reading before writing, because reading is the direction with an
-oracle: every header field here is one `zkp.rangeproof.info` answers
-for over the same octets, and what that call is silent about -- the
-sign bits, the ring commitments and the signature -- is pinned by the
-octets going back out unchanged. The first artefact a writer could be
-judged by is a whole proof.
+Each direction is held to what can hold it. A parse answers to
+`zkp.rangeproof.info`, field for field over the same octets, and what
+that call is silent about -- the sign bits, the ring commitments and
+the signature -- to the octets going back out unchanged. The writer
+answers to something stronger, and that is what makes this the shape to
+write first: a rangeproof draws nothing, its nonce being the hash chain
+`rangeproof_genrand` derives from the caller's, so the octets are a
+function of the arguments and the proof zkp signs for those same
+arguments is the answer, byte for byte.
 
 `secp256k1_rangeproof_sign_impl` writes, in order:
 
@@ -50,11 +57,13 @@ which `_rsizes` below computes the same way.
 the ring commitment's y is not a square. That is not the even/odd
 convention `curves.bytes_from_point`, BIP340 and the `02`/`03` SEC
 prefix carry, and the two disagree on the vectors
-`tests/ecc/rangeproof_test.py` reads. Nothing here computes the bit --
-a parse reads it and a serialize writes it back -- so what a
-`RangeProof` holds is the octets' own answer; a stage that resolves an
-x to a point computes against this convention and not the familiar
-one.
+`tests/ecc/rangeproof_test.py` reads. No ring commitment's bit is
+computed here -- a parse reads it and a serialize writes it back, so
+what a `RangeProof` holds is the octets' own answer -- while
+`_serialize_point` is that function of zkp's, and what
+`sign_public_value` hashes the value commitment and the generator
+under. A stage that resolves an x to a point computes against this
+convention and not the familiar one.
 
 Which points those are, and whether the signature over them verifies,
 this module does not ask: an x here is an integer of the width the
@@ -68,14 +77,24 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from hashlib import sha256
 
-from btclib.alias import BinaryData
-from btclib.curves import secp256k1
-from btclib.ecc.borromean import BorromeanSig
-from btclib.exceptions import BTClibValueError
-from btclib.utils import assert_no_trailing, bytesio_from_binarydata, read_exactly
+from btclib.alias import BinaryData, Integer, Octets, Point
+from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
+from btclib.ecc.borromean import BorromeanSig, _hash
+from btclib.ecc.pedersen import commit, second_generator
+from btclib.ecc.rfc6979_nonce import _HmacDrbg
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.number_theory import legendre_symbol_var
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    int_from_bits,
+    read_exactly,
+)
 
-__all__ = ["RangeProof"]
+__all__ = ["RangeProof", "sign_public_value"]
 
 # the flags octet, as secp256k1_rangeproof_getheader_impl reads it
 _RESERVED = 128
@@ -92,6 +111,11 @@ _UINT64_MAX = 2**64 - 1
 # what a min_value field occupies: zkp writes it at a fixed width rather
 # than behind a length, and reads it back the same way
 _MIN_VALUE_SIZE = 8
+
+# what a nonce occupies, and it is zkp's own 32 rather than the scalar
+# width every other length here generalizes: `rangeproof_genrand` copies
+# that many octets of the caller's nonce into its seed
+_NONCE_SIZE = 32
 
 
 def _rsizes(mantissa: int) -> tuple[int, ...]:
@@ -171,6 +195,40 @@ def _assert_valid_header(exp: int, mantissa: int, min_value: int | None) -> None
         raise BTClibValueError(err_msg)
 
     _ = _max_value(exp, mantissa, min_value or 0)
+
+
+def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
+    """Return the flags octet and the fields its own bits say follow it.
+
+    A function of the header alone, because `sign_public_value` needs
+    these octets before it has a signature to put after them:
+    `secp256k1_rangeproof_sign_impl` writes the header first and then
+    hashes it, into the nonce chain's seed and into the message the ring
+    is signed over.
+    """
+    flags = _HAS_NZ_RANGE | exp if mantissa else 0
+    if min_value is not None:
+        flags |= _HAS_MIN
+    out = bytes([flags])
+    if mantissa:
+        out += bytes([mantissa - 1])
+    if min_value is not None:
+        out += min_value.to_bytes(_MIN_VALUE_SIZE, byteorder="big")
+    return out
+
+
+def _serialize_point(Q: Point) -> bytes:
+    """Return the encoding a rangeproof hashes a point under.
+
+    `secp256k1_rangeproof_serialize_point`: one octet saying the y is
+    not a square, then the x. The octet is the residuosity the module
+    docstring above distinguishes from parity, so this is not
+    `curves.bytes_from_point` with another name: a proof hashed under
+    the parity convention verifies nowhere, and nothing in the octets
+    says which of the two wrote them.
+    """
+    residue = legendre_symbol_var(Q[1], secp256k1.p) == 1
+    return bytes([0 if residue else 1]) + Q[0].to_bytes(secp256k1.p_size, "big")
 
 
 @dataclass(frozen=True, init=False)
@@ -284,14 +342,7 @@ class RangeProof:
         if check_validity:
             self.assert_valid()
 
-        flags = _HAS_NZ_RANGE | self.exp if self.mantissa else 0
-        if self.min_value is not None:
-            flags |= _HAS_MIN
-        out = bytes([flags])
-        if self.mantissa:
-            out += bytes([self.mantissa - 1])
-        if self.min_value is not None:
-            out += self.min_value.to_bytes(_MIN_VALUE_SIZE, byteorder="big")
+        out = _header_octets(self.exp, self.mantissa, self.min_value)
 
         signs = bytearray(_sign_octets(len(self.rsizes)))
         for i, sign in enumerate(self.signs):
@@ -376,3 +427,79 @@ class RangeProof:
             sig,
             check_validity=check_validity,
         )
+
+
+def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
+    """Return the proof that states its value in the clear.
+
+    `secp256k1_rangeproof_sign_impl` with an `exp` of -1, which
+    `secp256k1_range_proveparams` answers with one ring holding the
+    single key the commitment itself gives. So this proof asserts no
+    range: it says what the commitment commits to, and that whoever
+    wrote it knows the blinding factor. The mantissa, the digit
+    decomposition, `rangeproof_pub_expand` and the sign bits are all
+    absent from it, a proof carrying one ring commitment per ring but
+    the last and this one having a single ring.
+
+    A value of zero writes the flags octet and nothing after it; any
+    other writes `min_value` in the eight octets behind bit 5.
+
+    secp256k1 and sha256, which `parse` fixes for the reason it gives.
+    `blind` is a scalar, read through `curves.scalar_from_prv_key`;
+    `value` is what those eight octets carry; `nonce` is the 32 octets
+    `rangeproof_genrand` seeds its chain with.
+
+    Deterministic in all three, so what comes back is the octets
+    `zkp.rangeproof.sign` answers for the same arguments -- which is
+    what `tests/ecc/rangeproof_test.py` asks of it, against a vendored
+    proof where the flagged extension is absent and against the library
+    where it is.
+    """
+    blind_int = scalar_from_prv_key(blind, secp256k1)
+    if not 0 <= value <= _UINT64_MAX:
+        raise BTClibValueError(f"rangeproof value not in 0..2**64-1: {value}")
+    nonce_bytes = bytes_from_octets(nonce, _NONCE_SIZE)
+
+    # zkp sets bit 5 from the value, this path's `min_value` being the
+    # value itself: `min_value ? 32 : 0`, so zero carries no field
+    min_value = value or None
+    header = _header_octets(-1, 0, min_value)
+    points = _serialize_point(commit(blind_int, value))
+    points += _serialize_point(second_generator())
+
+    # the one draw a single ring takes. `rangeproof_genrand` draws
+    # nothing for the last ring's blinding factor -- that is minus the
+    # sum of the others, and there are no others, so `sec` is zero and
+    # the caller's `blind` is the whole of it -- and one block for the
+    # ring's one public key, which `sign_impl` then moves into the nonce
+    # the ring is closed with
+    seed = nonce_bytes + points + header
+    k = int.from_bytes(_HmacDrbg(seed, sha256).generate(secp256k1.n_size), "big")
+    if not 0 < k < secp256k1.n:
+        # genrand's answer to a draw it cannot use, not
+        # `rfc6979_nonce`'s: `secp256k1_scalar_set_b32` flags a draw at
+        # or past n, zero is refused beside it, and `sign` returns zero
+        # on either rather than asking the chain again
+        raise BTClibRuntimeError("rangeproof nonce is not a scalar")
+
+    m = sha256(points + header).digest()
+    r = bytes_from_point(mult(k, secp256k1.G, secp256k1), secp256k1)
+    e0 = sha256(r + m).digest()
+    # `secp256k1_borromean_sign` over one ring of one key: `e0` hashes
+    # the nonce point and then the message, and the challenge that
+    # closes the ring is `e0`'s own at ring 0, position 0, which
+    # `borromean._hash` is the preimage of. Not reduced modulo n the
+    # way `ecc.borromean` reduces it -- zkp refuses a challenge at or
+    # past n here, and a proof it would not have written is a proof its
+    # verifier does not take
+    e = int_from_bits(_hash(m, e0, 0, 0, sha256), secp256k1.nlen)
+    if not 0 < e < secp256k1.n:
+        raise BTClibRuntimeError("rangeproof challenge is not a scalar")
+
+    s = (k - e * blind_int) % secp256k1.n
+    if s == 0:
+        # a zero s is the one `BorromeanSig` holds and zkp does not
+        # write: `secp256k1_borromean_sign` returns zero on it, and
+        # `secp256k1_borromean_verify` refuses one it is handed
+        raise BTClibRuntimeError("rangeproof signature value is zero")
+    return RangeProof(-1, 0, min_value, (), (), BorromeanSig(e0, [[s]]))

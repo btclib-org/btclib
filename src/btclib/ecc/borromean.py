@@ -66,13 +66,18 @@ counterpart for, rebuilding its pubkey rings from that commitment
 where this module takes them as an explicit argument. Issue #1072 is
 that remaining distance, filed and decided wanted.
 
-`ecc.rangeproof` is the part of it that reads: `RangeProof.parse`
-takes the flags, the exponent, the mantissa, the `min_value`, the sign
-bits and the ring commitments of such a header, and holds the `e0` and
-the `s` values inside the proof as a `BorromeanSig` of this module's.
-It writes no proof, verifies none and rewinds none, so what the digit
-decomposition, the pubkey rings and the nonce chain are for is still
-ahead of it.
+`ecc.rangeproof` is where that distance is being closed.
+`RangeProof.parse` takes the flags, the exponent, the mantissa, the
+`min_value`, the sign bits and the ring commitments of such a header,
+and holds the `e0` and the `s` values inside the proof as a
+`BorromeanSig` of this module's. `sign_public_value` writes the proof
+whose ring structure is one ring of one key -- the value in the clear,
+so no digit decomposition and no ring commitment -- and it closes that
+ring on its own rather than through `sign` here, `_get_msg_format`
+being a message format a rangeproof does not have: what it hashes is
+the value commitment, the generator and the proof's own header, with
+no pubkey ring in the preimage. Verifying a proof and rewinding one
+are still ahead of it.
 
 btclib-org/btclib-secp256k1#828 asks the bindings for borromean over
 serialized arguments, which is what would discharge the assertion in

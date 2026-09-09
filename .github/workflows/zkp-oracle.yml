@@ -106,16 +106,23 @@ on:
     # concatenation, already exhaustively checked by BIP340's own
     # vectors, not the sort of surface a MuSig2-specific oracle exists to
     # cover a second time.
-    # `rangeproof.py` and its own test file join for the parser oracle,
-    # and so does the vector file beside them: those tests check the
-    # recording itself -- signing again with an entry's own arguments
-    # has to answer that entry's proof -- so an edit to the json is an
-    # edit to what this job verifies, which is not true of any other
-    # vector file here. The module is named whole, as `musig2.py` is:
-    # `parse`, `serialize`, `assert_valid` and the two properties are
-    # all of it, and the marked tests read every one of them against
-    # `zkp.rangeproof.info` and against the octets `zkp.rangeproof.sign`
-    # answers. `borromean.py` joins for a narrower reason than
+    # `rangeproof.py` and its own test file join for the parser and the
+    # writer, and so does the vector file beside them: those tests check
+    # the recording itself -- signing again with an entry's own
+    # arguments has to answer that entry's proof -- so an edit to the
+    # json is an edit to what this job verifies, which is not true of
+    # any other vector file here. The module is named whole, as
+    # `musig2.py` is: `parse`, `serialize`, `assert_valid`, the two
+    # properties and `sign_public_value` are all of it, and the marked
+    # tests read every one of them against `zkp.rangeproof.info`,
+    # against the octets `zkp.rangeproof.sign` answers, and against what
+    # `zkp.rangeproof.verify` makes of a proof this tree wrote.
+    # `rfc6979_nonce.py` holds the K and V machine `sign_public_value`
+    # seeds its chain with, and stays out for a reason of its own beside
+    # the one given for it above: that writer's octets are held to a
+    # vendored proof in every ordinary run, so a change there reddens
+    # the suite before this job could be asked about it.
+    # `borromean.py` joins for a narrower reason than
     # `pedersen.py`'s below: `BorromeanSig.parse` reads the `e0` and the
     # `s` values inside every proof this oracle parses, and that call
     # site has no zkp octets to reach it anywhere else --

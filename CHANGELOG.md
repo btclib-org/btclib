@@ -2908,6 +2908,52 @@ file of the test tree, and no caller acts on it.
   are compared against that tree rather than against an issue's
   quotation of one.
 
+### `ecc.rangeproof` writes the proof that states its value in the clear
+
+- **`btclib.ecc.rangeproof` adds `sign_public_value`** (issue #1072),
+  which writes `secp256k1_rangeproof_sign_impl`'s `exp = -1` proof: the
+  value in the clear, one ring holding the single key the commitment
+  itself gives, and no ring commitment at all, a proof carrying one per
+  ring but the last. So it asserts no range, and the digit
+  decomposition, the mantissa, `rangeproof_pub_expand` and the
+  squareness bit -- which is written on a serialized ring commitment --
+  are all still ahead of the module, as are verifying a proof and
+  rewinding one.
+- **What holds it is byte identity with the proof libsecp256k1-zkp
+  signs, and that runs without the flagged extension.** A rangeproof
+  draws nothing, its nonce being the chain `rangeproof_genrand` derives
+  from the caller's, so the `public value` entry of
+  `tests/ecc/_data/zkp_rangeproof_vectors.json` states the whole of what
+  produced its octets and writing them again has to answer that
+  recording. `zkp.rangeproof.verify` accepting the result would say only
+  that it is a proof. Both shapes the proof has are recorded, one
+  carrying a `min_value` field and one whose value is zero and carries
+  none, so neither waits on `.github/workflows/zkp-oracle.yml`'s job;
+  what that job adds is the same comparison over values no entry fixes,
+  and `verify` reading back the range.
+- **`ecc.rfc6979_nonce` gains `_HmacDrbg`, RFC6979 section 3.2's K and V
+  machine**, which `rfc6979_nonce_` and the rangeproof's nonce chain
+  both seed. Two things stay with each caller rather than moving into
+  it. What makes a draw acceptable, where
+  `secp256k1_rangeproof_genrand` alone has two answers: a candidate
+  outside 1..n-1 sends `rfc6979_nonce_` back to the chain, and sends
+  genrand back too for the ring blinding factors a proof of more than
+  one ring draws, where a ring member's own draw makes it fail outright
+  -- the only kind a single ring takes, so `sign_public_value` fails
+  with it. And when to reseed:
+  `secp256k1_rfc6979_hmac_sha256_generate` reseeds between every pair of
+  draws where RFC6979 reseeds after a rejected candidate alone. No nonce
+  this library derives moves.
+- **The challenge is not reduced modulo n where `ecc.borromean` reduces
+  it**: `secp256k1_borromean_sign` reads it through
+  `secp256k1_scalar_set_b32` and returns zero on a hash at or past n, so
+  reducing would write a proof `secp256k1_borromean_verify` refuses.
+  `sign_public_value` closes its one ring itself rather than through
+  `borromean.sign` for a second reason as well -- `_get_msg_format`
+  hashes a caller's message together with the pubkey rings, and what a
+  rangeproof hashes is the value commitment, the generator and the
+  proof's own header.
+
 ## v2026.9.3
 
 ### Repository
