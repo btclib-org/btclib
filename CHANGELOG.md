@@ -2994,6 +2994,22 @@ file of the test tree, and no caller acts on it.
   that closed later in this same section, where a tree and a sha would
   have stayed true.
 
+### The released `v2026.8.21` borromean entry stays as it was published
+
+- **`CHANGELOG.md`'s `## v2026.8.21` section keeps the clause calling
+  secp256k1-zkp's `rangeproof` module the only other implementation of
+  this construction anything reads** (closes #1889). The clause is
+  false, and issue #1881 carries the code search for `borromean_sign`
+  that refutes it. Correcting it where it stands is what this entry
+  rejects: a released section is the record of what was published, and
+  `tests/changelog_immutability_test.py` holds each one to its own tag.
+- **What an edit there would cost is that gate over the whole section.**
+  The exemption it needs is a `_KNOWN_DRIFT` entry, which is keyed on
+  the section rather than on the edit and marks it `xfail(strict=True)`,
+  so any further line a rebase's `merge=union` resolution puts into
+  `## v2026.8.21` becomes an expected failure as well -- which is the
+  damage that module exists to catch.
+
 ## v2026.9.3
 
 ### Repository
