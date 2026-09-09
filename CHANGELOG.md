@@ -2882,6 +2882,32 @@ file of the test tree, and no caller acts on it.
   exclusion from a decorator to the body under it, so the two placements
   exclude the same lines.
 
+### `CLAUDE.md`'s worktree name and advance clause take the standard's words
+
+- **The worktree paragraph now argues the order of
+  `wt-<tracker>-<issue>-<repo>-<role>` rather than only listing what
+  each part answers** (issue btclib-org/.github#854): most general part
+  first, an issue filed in `btclib-org/.github` being the key and the
+  repository a detail of it, so the repository is what varies underneath
+  an issue rather than the other way round.
+- **The sentence about sorting every worktree of one issue together
+  moves out of the `repo` collision clause and into that argument**
+  (issue btclib-org/.github#854): sorting needs the order and not just
+  `repo`'s presence, so where it stood it read as a property of one
+  part rather than of the sequence. It is stated once either way.
+- **The clause on a local `refs/heads/main` says where the ref may end
+  up rather than whose work may move it** (issue
+  btclib-org/.github#919): no ruleset reaches that name, a ruleset
+  binding the forge's copy, so the fast-forward onto `origin/main` this
+  file already describes is the move that stays inside the rule.
+- **The mechanism sentence and the pointer to `CONTRIBUTING.md` stay, so
+  this paragraph is deliberately not `btclib-org/.github`'s at `cdb0333`
+  byte for byte** (issue btclib-org/.github#886): that issue's interim
+  instruction is to replace the opening sentence and its reasoning and
+  leave those two standing, so the sentences this paragraph does take
+  are compared against that tree rather than against an issue's
+  quotation of one.
+
 ## v2026.9.3
 
 ### Repository
