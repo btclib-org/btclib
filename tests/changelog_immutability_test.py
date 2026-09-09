@@ -131,6 +131,18 @@ one written against the still-open cycle `_sections` skips -- reaches no
 case at all, so the table is held to those headings as well: an exemption
 the comparison never applies is a claim about this tree that nothing
 would otherwise check (issue #1905).
+
+A case of its own is still not a comparison, and `_verify`'s own skips
+are where the two part. A key whose tag cannot resolve the file under
+this name, and one whose tag's own snapshot carries no such heading, are
+answered before `_verdict` reads either text, so the digest such an
+entry pins is held against nothing; a tag is what it is, so neither
+answer changes afterwards. The window between a release's retitling
+commit and its own tag is the one skip that closes, and it reaches the
+heading `_newest_released` names alone -- an exemption written there is
+a statement every check here applies to from the tag onward, which is
+why the table is held to that pair of cases rather than to
+comparability alone (issue #1911).
 """
 
 from __future__ import annotations
@@ -285,6 +297,47 @@ def _newest_released(path: str) -> str | None:
     return next(iter(_sections(_read(path))), None)
 
 
+def _tag_resolves(version: str) -> bool:
+    """Whether `refs/tags/<version>` is in this checkout's own ref store.
+
+    The one test that tells the release being cut from a release the
+    file has outlived, and `_verify` and the table check below read it
+    the same way rather than each spelling out a `git` call of its own.
+    """
+    return _git("rev-parse", "-q", "--verify", f"refs/tags/{version}").returncode == 0
+
+
+def _exemptions_no_verdict_can_reach(
+    drift: dict[tuple[str, str], _Drift],
+) -> list[tuple[str, str]]:
+    """Which of `drift`'s keys `_verify` answers before `_verdict` sees them.
+
+    `_comparable_exemptions` is where an entry's digest and its section
+    meet; a key outside it is one of `_verify`'s skips, and the release
+    window is the skip that closes. That heading is
+    `_newest_released(path)` and its tag is pushed as the pull request
+    lands, so an exemption written for it is evaluated from there on. A
+    rename and a tag whose snapshot opens no such heading are permanent
+    instead, and an exemption on either excuses a comparison nothing
+    performs. Where a key names one of `_FILES`, having no section on
+    disk leaves it neither comparable nor `_newest_released(path)`, so
+    what `_exemptions_naming_no_released_heading` names is a subset of
+    this and its own message is the narrower reading of it. A key naming
+    any other path has nothing for `_read` to open, and
+    `_comparable_exemptions` raises there rather than answering. The
+    table is an argument, as it is above.
+    """
+    comparable = {key for key, _, _, _ in _comparable_exemptions(drift)}
+    unreachable: list[tuple[str, str]] = []
+    for path, version in drift:
+        if (path, version) in comparable:
+            continue
+        if version == _newest_released(path) and not _tag_resolves(version):
+            continue
+        unreachable.append((path, version))
+    return unreachable
+
+
 def _verdict(
     path: str, version: str, current: str, tagged: str
 ) -> tuple[str, str] | None:
@@ -341,8 +394,7 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
     defensive branch: not removed, moved where a test can trip it on
     purpose.
     """
-    tag_exists = _git("rev-parse", "-q", "--verify", f"refs/tags/{version}")
-    if tag_exists.returncode != 0:
+    if not _tag_resolves(version):
         if version == _newest_released(path):
             # The release being cut. Its section is retitled in the pull
             # request and its tag is pushed from the commit that lands
@@ -387,7 +439,7 @@ def test_a_released_section_still_matches_its_own_tag(path: str, version: str) -
 
 
 def test_every_exemption_names_a_released_heading_on_disk() -> None:
-    """`_KNOWN_DRIFT` exempts sections this module actually compares.
+    """`_KNOWN_DRIFT` exempts a released heading a case is generated for.
 
     An entry keyed on anything else is never evaluated, and a table read
     for which sections are excused and why is where that costs most. The
@@ -409,11 +461,82 @@ def test_every_exemption_names_a_released_heading_on_disk() -> None:
     assert _exemptions_naming_no_released_heading(planted) == [bogus]
 
 
+def test_every_exemption_is_compared_or_names_the_release_being_cut() -> None:
+    """`_KNOWN_DRIFT` exempts comparisons that reach a verdict.
+
+    A key naming a released heading on disk still buys nothing where the
+    comparison for it is skipped: `git show <version>:<path>` fails for
+    a release predating the file's current name, and `_verify` answers
+    that before `_verdict` reads either text, so the digest the entry
+    pins is held against nothing. The planted key is
+    `RELEASE_NOTES.md`'s `v2020.4.7`, whose tag resolves and whose file
+    did not carry this name there, and it carries a live entry's own
+    value: the key is the only thing that differs.
+    """
+    assert _KNOWN_DRIFT, "no exemption to ask about"
+    unreachable = _exemptions_no_verdict_can_reach(_KNOWN_DRIFT)
+    assert not unreachable, (
+        f"_KNOWN_DRIFT exempts {unreachable}, a comparison this module skips"
+        " rather than answers, so nothing is ever held to the digest it pins"
+    )
+
+    renamed = ("RELEASE_NOTES.md", "v2020.4.7")
+    assert renamed not in _KNOWN_DRIFT
+    planted = {**_KNOWN_DRIFT, renamed: next(iter(_KNOWN_DRIFT.values()))}
+    assert _exemptions_no_verdict_can_reach(planted) == [renamed]
+
+
+def test_an_exemption_may_name_the_release_being_cut(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_exemptions_no_verdict_can_reach` leaves the release window alone.
+
+    A release pull request retitles the "work in progress" section and
+    the tag is pushed from the commit that lands it, so in between the
+    newest heading is on disk with no tag to read it at. An exemption
+    written there is evaluated from the tag onward, and the check the
+    table is held to is the one that says so. No tag resolves under the
+    first stub, which is what makes the window; the heading below the
+    newest is the control, named under that same stub, so what the
+    newest one answers is the window rather than the stub.
+
+    What excuses that heading is the tag it has yet to name and not its
+    position, and a permanent skip can sit on it: at `13941fd1` the
+    newest released heading of `RELEASE_NOTES.md` is `v2026.8.9`, whose
+    tag resolves while `git show v2026.8.9:RELEASE_NOTES.md` does not,
+    the file having carried another name at that release. The second
+    stub is that pair, and the newest heading is named under it.
+    """
+
+    def no_tag_yet(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        assert cmd[1] in {"rev-parse", "show"}
+        return subprocess.CompletedProcess(cmd, 1)
+
+    def tag_pushed(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if cmd[1] == "rev-parse":
+            return subprocess.CompletedProcess(cmd, 0)
+        assert cmd[1] == "show"
+        return subprocess.CompletedProcess(cmd, 1)
+
+    released = list(_sections(_read("CHANGELOG.md")))
+    entry = next(iter(_KNOWN_DRIFT.values()))
+    window = ("CHANGELOG.md", released[0])
+    older = ("CHANGELOG.md", released[1])
+
+    monkeypatch.setattr(subprocess, "run", no_tag_yet)
+    assert _exemptions_no_verdict_can_reach({window: entry}) == []
+    assert _exemptions_no_verdict_can_reach({older: entry}) == [older]
+
+    monkeypatch.setattr(subprocess, "run", tag_pushed)
+    assert _exemptions_no_verdict_can_reach({window: entry}) == [window]
+
+
 def test_a_comparable_exemption_is_picked_by_readability_not_position() -> None:
     """An entry neither test below can read is passed over wherever it sits.
 
-    `RELEASE_NOTES.md`'s `v2020.4.7` heading is on disk, so the check
-    above has nothing to say about it, and `git show
+    `RELEASE_NOTES.md`'s `v2020.4.7` heading is on disk, so
+    `test_every_exemption_names_a_released_heading_on_disk` has nothing
+    to say about it, and `git show
     v2020.4.7:RELEASE_NOTES.md` exits non-zero all the same, that
     release predating the file's current name. Planted first, it is what
     picking by position hands the two tests below.

@@ -3156,6 +3156,20 @@ file of the test tree, and no caller acts on it.
   lowered from the one it was asked for; a `min_value` a step below the
   signed ceiling; and a value stated in the clear that zkp itself wrote.
 
+### A drift exemption names a comparison that can answer it
+
+- **`tests/changelog_immutability_test.py` holds every `_KNOWN_DRIFT`
+  key to a comparison that reaches a verdict** (closes #1911). A
+  released heading can be answered before its section and its tag's are
+  compared at all: the tag cannot resolve the file under this name --
+  `RELEASE_NOTES.md` at `v2020.4.7`, that release predating the rename --
+  or the tag's own snapshot opens no heading of that version. An entry
+  keyed on either excused nothing, and now fails, naming itself.
+- **An exemption may still name the release being cut**: between the
+  commit that retitles that section and the tag pushed from the commit
+  landing it, the heading resolves to no tag, and an entry written in
+  that window is evaluated from the tag onward rather than never.
+
 ## v2026.9.3
 
 ### Repository
