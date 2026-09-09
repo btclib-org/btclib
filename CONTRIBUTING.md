@@ -354,11 +354,11 @@ report `Removed virtual environment at: .venv` and create it again — so
 whatever groups the command asks for are the only ones installed
 afterwards. With the group-restricted commands under "Reproducing what CI
 runs" below, that leaves an environment holding one group where `uv sync`
-installs them all, and pre-commit is not in it. The git hook pre-commit
-installs `exec`s `.venv/bin/python -mpre_commit` by absolute path, and
-that python does exist, so the hook's own "did you forget to activate your
-virtualenv" fallback never runs: the next `git commit` dies with
-`No module named pre_commit`. `uv sync` puts it back.
+installs them all, and pre-commit is not in it. `uv sync` puts the gate
+back, and so does any `uv run` that is not group-restricted, which syncs
+the environment before it runs anything; the group-restricted ones leave
+it out again. A shell that entered `.venv` with
+`source .venv/bin/activate` finds no `pre-commit` at all until `uv sync`.
 
 To leave `.venv` alone in the first place, put the other interpreter's
 environment somewhere else:
@@ -439,10 +439,20 @@ The failure message names the command, so there is nothing to remember.
 
 That second command is not a convenience: it is the lint gate itself.
 The lint workflow runs this very configuration, so what CI enforces is
-what a commit enforces, mark-down included
+what that command enforces, mark-down included
 ([markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) is
 one of the hooks, as are ruff, mypy, yamllint, actionlint, and the checks
 on packaging metadata and on `uv.lock`).
+
+**The lint gate is not installed as a git hook.** `pre-commit install`
+writes into the common git directory, which every worktree of this
+repository shares: `git -C <worktree> rev-parse --git-path hooks` answers
+with the primary checkout's `.git/hooks` from every one of them, so one
+session installing it installs it for every other. The hook names an
+interpreter by absolute path, the one that ran the install, so which
+environment a commit runs through is decided by where the hook was
+installed rather than by which tree the commit is made in. Run the gate
+by hand before committing, the `uv run pre-commit run --all-files` above.
 
 One of those hooks needs maintenance, and only one. The test vectors under
 `tests/_data/`, `tests/ecc/_data/` and `tests/script/_data/` are private
@@ -598,9 +608,9 @@ it if the machine has none:
 uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
 ```
 
-That one rebuilds `.venv` with the test group alone, which is what breaks
-the pre-commit hook until the next `uv sync`: see the note under "The
-environment and the gates" above, and `UV_PROJECT_ENVIRONMENT` for
+That one rebuilds `.venv` with the test group alone, which is what leaves
+the environment without pre-commit until the next `uv sync`: see the note
+under "The environment and the gates" above, and `UV_PROJECT_ENVIRONMENT` for
 running it without touching `.venv`. The command is what CI runs,
 verbatim, and CI has no `.venv` to lose.
 
@@ -1101,8 +1111,8 @@ answer.
 
 The pattern matches `#../` as well as `#./` because a link to another file
 here begins one of those two ways and no other: `.pre-commit-config.yaml`'s
-`local-link-prefix` hook refuses the rest in the commit that writes the
-link, so those are the two spellings a broken one can render.
+`local-link-prefix` hook refuses the rest, so those are the two spellings
+a broken one can render.
 
 A link into a heading of another root file carries a fragment spelled the
 way GitHub derives it from the heading text, as in
