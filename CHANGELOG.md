@@ -2539,6 +2539,15 @@ file of the test tree, and no caller acts on it.
   `[tool.uv.build-backend] source-exclude` names the module as
   `tests/build_system_test.py` asks.
 
+### `silent_payments.py`'s citation of another repository's pull request is qualified
+
+- **`_ordered_sp_outputs`'s docstring cites `bitcoin/bips#2207`, not
+  `bips PR 2207`** (closes #1867): the bare form carries neither a
+  qualifier nor a `#`, so the forge renders it as plain text reaching
+  nothing, and a scan keyed on `#N` cannot see it either. `bitcoin/bips`
+  is the spelling `tests/_data/README.md` already uses for that
+  repository.
+
 ## v2026.9.3
 
 ### Repository

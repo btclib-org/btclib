@@ -281,7 +281,7 @@ def _ordered_sp_outputs(psbt: Psbt) -> list[tuple[int, PsbtOut]]:
     produces, the two values swapped in one and three permuted in the
     other. `tests/psbt/silent_payments_test.py` pins each of those facts,
     so a revision of the BIP that settles it the other way fails here
-    rather than passing quietly -- which is what bips PR 2207 proposes,
+    rather than passing quietly -- which is what bitcoin/bips#2207 proposes,
     correcting the vectors and the validator to match the prose.
     """
     return [(i, o) for i, o in enumerate(psbt.outputs) if o.sp_v0_info]
