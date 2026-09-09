@@ -123,6 +123,14 @@ neither has taken a line nobody read -- the union driver lands an entry
 wherever its branch wrote it, anywhere inside the section rather than at
 the edit an exemption was registered for, so an exemption reaching the
 whole section would swallow exactly what is described above.
+
+An entry is evaluated only where its key is among `_released_headings()`,
+which is what the parametrized cases are generated from. A key naming
+anything else -- a mistyped version, a heading since retitled or removed,
+one written against the still-open cycle `_sections` skips -- reaches no
+case at all, so the table is held to those headings as well: an exemption
+the comparison never applies is a claim about this tree that nothing
+would otherwise check (issue #1905).
 """
 
 from __future__ import annotations
@@ -218,6 +226,45 @@ def _released_headings() -> list[tuple[str, str]]:
     for name in _FILES:
         pairs.extend((name, version) for version in _sections(_read(name)))
     return pairs
+
+
+def _exemptions_naming_no_released_heading(
+    drift: dict[tuple[str, str], _Drift],
+) -> list[tuple[str, str]]:
+    """Which of `drift`'s keys name no released heading on disk.
+
+    Each such key reaches none of the cases
+    `test_a_released_section_still_matches_its_own_tag` is generated
+    from, which is where an exemption is applied to the section it
+    names. The table is an argument rather than a read, for the reason
+    `_verdict`'s texts are: a test can plant an entry and ask what this
+    answers about it.
+    """
+    released = set(_released_headings())
+    return [key for key in drift if key not in released]
+
+
+def _comparable_exemptions(
+    drift: dict[tuple[str, str], _Drift],
+) -> list[tuple[tuple[str, str], _Drift, str, str]]:
+    """Each entry of `drift` whose section and its tag's can both be read.
+
+    The two tests that drive `_verdict` from a real exempt section index
+    `_sections` on both sides, and an entry's position does not say
+    whether they can: a key naming no released heading has no section on
+    disk, and one whose tag predates the file's current name has none at
+    the tag, which is the pair `_verify` skips. Taking the first entry
+    instead answers `KeyError` about that entry rather than anything
+    about `_verdict`.
+    """
+    usable: list[tuple[tuple[str, str], _Drift, str, str]] = []
+    for (path, version), entry in drift.items():
+        tagged = _git("show", f"{version}:{path}")
+        at_tag = _sections(tagged.stdout) if tagged.returncode == 0 else {}
+        current = _sections(_read(path))
+        if version in at_tag and version in current:
+            usable.append(((path, version), entry, current[version], at_tag[version]))
+    return usable
 
 
 _ANY_TAG = bool(_git("tag", "-l", "v*").stdout.split())
@@ -339,6 +386,48 @@ def test_a_released_section_still_matches_its_own_tag(path: str, version: str) -
     _answer(_verify(path, version))
 
 
+def test_every_exemption_names_a_released_heading_on_disk() -> None:
+    """`_KNOWN_DRIFT` exempts sections this module actually compares.
+
+    An entry keyed on anything else is never evaluated, and a table read
+    for which sections are excused and why is where that costs most. The
+    planted key is the still-open cycle, which `_sections` skips, and it
+    carries a live entry's own value: the key is then the only thing
+    that differs, so an implementation answering about a digest or a
+    reason instead does not pass this.
+    """
+    assert _KNOWN_DRIFT, "no exemption to ask about"
+    dead = _exemptions_naming_no_released_heading(_KNOWN_DRIFT)
+    assert not dead, (
+        f"_KNOWN_DRIFT exempts {dead}, naming no released heading on disk,"
+        " so no case is generated for it and the comparison never applies it"
+    )
+
+    bogus = ("CHANGELOG.md", "v2026.9")
+    assert bogus not in _KNOWN_DRIFT
+    planted = {**_KNOWN_DRIFT, bogus: next(iter(_KNOWN_DRIFT.values()))}
+    assert _exemptions_naming_no_released_heading(planted) == [bogus]
+
+
+def test_a_comparable_exemption_is_picked_by_readability_not_position() -> None:
+    """An entry neither test below can read is passed over wherever it sits.
+
+    `RELEASE_NOTES.md`'s `v2020.4.7` heading is on disk, so the check
+    above has nothing to say about it, and `git show
+    v2020.4.7:RELEASE_NOTES.md` exits non-zero all the same, that
+    release predating the file's current name. Planted first, it is what
+    picking by position hands the two tests below.
+    """
+    comparable = _comparable_exemptions(_KNOWN_DRIFT)
+    assert comparable, "no exemption whose section and its tag's can both be read"
+    entry = comparable[0][1]
+
+    unreadable = ("RELEASE_NOTES.md", "v2020.4.7")
+    assert unreadable in _released_headings()
+    assert _exemptions_naming_no_released_heading({unreadable: entry}) == []
+    assert _comparable_exemptions({unreadable: entry, **_KNOWN_DRIFT}) == comparable
+
+
 # ---- what `_verify`, `_verdict` and `_answer` answer where no
 # released heading of this repository's own history reaches them
 
@@ -422,10 +511,9 @@ def test_a_line_planted_inside_an_exempt_section_fails() -> None:
     unplanted section is the control: the same call passes on it, so
     what the planted call answers is the line and not the exemption.
     """
-    assert _KNOWN_DRIFT, "no exemption to ask about"
-    (path, version), drift = next(iter(_KNOWN_DRIFT.items()))
-    tagged = _sections(_git("show", f"{version}:{path}").stdout)[version]
-    current = _sections(_read(path))[version]
+    comparable = _comparable_exemptions(_KNOWN_DRIFT)
+    assert comparable, "no exemption whose section and its tag's can both be read"
+    (path, version), drift, current, tagged = comparable[0]
     assert _verdict(path, version, current, tagged) is None
 
     lines = current.splitlines(keepends=True)
@@ -449,9 +537,9 @@ def test_an_exemption_for_a_section_matching_its_tag_fails() -> None:
     entry pinning text nothing holds any more, and the entry is what
     goes.
     """
-    assert _KNOWN_DRIFT, "no exemption to ask about"
-    (path, version), drift = next(iter(_KNOWN_DRIFT.items()))
-    tagged = _sections(_git("show", f"{version}:{path}").stdout)[version]
+    comparable = _comparable_exemptions(_KNOWN_DRIFT)
+    assert comparable, "no exemption whose section and its tag's can both be read"
+    (path, version), drift, _, tagged = comparable[0]
     assert _verdict(path, version, tagged, tagged) == (
         "fail",
         (

@@ -3069,6 +3069,23 @@ file of the test tree, and no caller acts on it.
   fixes no point to a ring, so each stated commitment is asserted at the
   head of its own.
 
+### A drift exemption is held to a heading the comparison actually reaches
+
+- **`tests/changelog_immutability_test.py` checks every `_KNOWN_DRIFT`
+  key against the released `## v<version>` headings CHANGELOG.md and
+  RELEASE_NOTES.md carry** (closes #1905). The comparison is
+  parametrized over those headings, so an entry keyed on anything
+  else -- a mistyped version, a heading since retitled or removed, one
+  written against the still-open cycle -- generated no case, and the
+  comparison never applied it: a dead exemption sat in the table a
+  reader consults to learn which sections are excused and why, with
+  nothing saying so. Such an entry now fails, naming itself.
+- **The two tests that drive `_verdict` from a real exempt section take
+  one whose section and whose tag can both be read**, where they took
+  whichever entry came first. An entry the comparison cannot read is a
+  `KeyError` on the entry rather than an answer about `_verdict`, and
+  which entry that is was decided by insertion order.
+
 ## v2026.9.3
 
 ### Repository
