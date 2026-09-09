@@ -61,6 +61,57 @@ def challenge_(
     return int_from_bits(msg_hash, ec.nlen) % ec.n
 
 
+class _HmacDrbg:
+    """RFC6979 section 3.2's K and V machine, seeded with octets.
+
+    Sections 3.2.b to 3.2.g are the seeding, 3.2.h.2 is `generate`, and
+    the K and V update between two draws is `reseed`. Neither when to
+    reseed nor what makes a draw acceptable is settled here, and the
+    second is not one rule per caller:
+    `_rfc6979_nonce_` below reseeds after a candidate outside 1..n-1 and
+    asks the chain again, and `secp256k1_rangeproof_genrand` does that
+    too for the ring blinding factors a proof of more than one ring
+    draws, while failing outright on a ring member's own draw.
+    `ecc.rangeproof` takes one draw and it is of that second kind, a
+    single ring drawing no blinding factor at all; it seeds this with a
+    commitment and a proof header rather than with a key and a message.
+    secp256k1-zkp's `secp256k1_rfc6979_hmac_sha256` reseeds between
+    every pair of draws whichever kind they are.
+    """
+
+    def __init__(self, seed: bytes, hf: HashF) -> None:
+        self.hf = hf
+        hf_size = hf().digest_size
+        self.v = b"\x01" * hf_size  # 3.2.b
+        self.k = b"\x00" * hf_size  # 3.2.c
+
+        self.k = hmac.new(self.k, self.v + b"\x00" + seed, hf).digest()  # 3.2.d
+        self.v = hmac.new(self.k, self.v, hf).digest()  # 3.2.e
+        self.k = hmac.new(self.k, self.v + b"\x01" + seed, hf).digest()  # 3.2.f
+        self.v = hmac.new(self.k, self.v, hf).digest()  # 3.2.g
+
+    def generate(self, size: int) -> bytes:
+        """Return that many octets, whole hash outputs cut to length.
+
+        `secp256k1_rfc6979_hmac_sha256_generate` sets its retry flag at
+        the end of every call and runs `reseed`'s update at the start of
+        every call after the first, so a caller mirroring
+        `secp256k1_rangeproof_genrand` over more than one draw calls
+        `reseed` between them. Leaving that to the caller is what lets
+        `_rfc6979_nonce_` reseed only where RFC6979 says to.
+        """
+        t = b""  # 3.2.h.1
+        while len(t) < size:  # 3.2.h.2
+            self.v = hmac.new(self.k, self.v, self.hf).digest()
+            t += self.v
+        return t[:size]
+
+    def reseed(self) -> None:
+        """Advance K and V: 3.2.h.3's step, and zkp's between two draws."""
+        self.k = hmac.new(self.k, self.v + b"\x00", self.hf).digest()
+        self.v = hmac.new(self.k, self.v, self.hf).digest()
+
+
 def _rfc6979_nonce_(
     c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes | None
 ) -> int:
@@ -84,20 +135,8 @@ def _rfc6979_nonce_(
     # less entropy -- so a caller holding either passes it unchanged
     bprvbm = q_bytes + c_bytes + (extra_entropy or b"")
 
-    hf_size = hf().digest_size
-    v = b"\x01" * hf_size  # 3.2.b
-    k = b"\x00" * hf_size  # 3.2.c
-
-    k = hmac.new(k, v + b"\x00" + bprvbm, hf).digest()  # 3.2.d
-    v = hmac.new(k, v, hf).digest()  # 3.2.e
-    k = hmac.new(k, v + b"\x01" + bprvbm, hf).digest()  # 3.2.f
-    v = hmac.new(k, v, hf).digest()  # 3.2.g
-
+    drbg = _HmacDrbg(bprvbm, hf)
     while True:  # 3.2.h
-        t = b""  # 3.2.h.1
-        while len(t) < ec.n_size:  # 3.2.h.2
-            v = hmac.new(k, v, hf).digest()
-            t += v
         # reducing the hash mod n -- whether the whole of it or its
         # leftmost nlen bits -- would introduce a bias, which is why
         # neither is done here.
@@ -107,11 +146,11 @@ def _rfc6979_nonce_(
         # However, if the order n is sufficiently close to 2^hf_len,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        nonce = int_from_bits(t, ec.nlen)  # candidate nonce           # 3.2.h.3
+        candidate = drbg.generate(ec.n_size)
+        nonce = int_from_bits(candidate, ec.nlen)  # candidate nonce    # 3.2.h.3
         if 0 < nonce < ec.n:  # acceptable values for nonce
             return nonce  # successful candidate
-        k = hmac.new(k, v + b"\x00", hf).digest()
-        v = hmac.new(k, v, hf).digest()
+        drbg.reseed()
 
 
 def rfc6979_nonce_(

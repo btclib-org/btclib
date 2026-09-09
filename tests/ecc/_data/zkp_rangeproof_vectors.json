@@ -85,5 +85,22 @@
       "min value": 0,
       "max value": 102300
     }
+  },
+  {
+    "id": "public value, zero",
+    "blind": "0606060606060606060606060606060606060606060606060606060606060606",
+    "nonce": "8686868686868686868686868686868686868686868686868686868686868686",
+    "value": 0,
+    "sign arguments": {
+      "exp": -1
+    },
+    "commitment": "09f006a18d5653c4edf5391ff23a61f03ff83d237e880ee61187fa9f379a028e0a",
+    "proof": "0056c634523225ab6a836f68398144623aea3b109692387f62fcf934f37605c2c71bc9a94acf0e13113a4f9ddf2aaab3e0b8a28d3ed3ab5da585730008b610c426",
+    "info": {
+      "exp": -1,
+      "mantissa": 0,
+      "min value": 0,
+      "max value": 0
+    }
   }
 ]

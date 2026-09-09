@@ -19,9 +19,20 @@ is silent about -- the sign bits, the ring commitments and the
 signature; and that the length the mantissa implies is the length zkp
 wrote.
 
+The entries whose `sign arguments` are an `exp` of -1 are asked one
+thing more, and it is the strongest question in this file:
+`sign_public_value`, given such an entry's own `blind`, `value` and
+`nonce`, has to answer its octets. A rangeproof draws nothing, so those
+three are the whole of what produced the recording, and an
+implementation that agrees with zkp at every step is the only one that
+lands on the same octets. Both shapes that proof has are recorded, the
+one carrying a `min_value` field and the one whose value is zero and
+carries none.
+
 The `zkp`-marked tests at the end put the same questions to the library
-itself, and one more the recording needs: that signing again with the
-recorded arguments answers the very octets vendored here.
+itself, and two more the recording cannot answer: that signing again
+with the recorded arguments answers the very octets vendored here, and
+that values no entry carries are written the same way.
 """
 
 from io import BytesIO
@@ -30,9 +41,10 @@ from typing import Any
 import pytest
 
 from btclib.curves import secp256k1
+from btclib.ecc import rangeproof
 from btclib.ecc.borromean import BorromeanSig
-from btclib.ecc.rangeproof import RangeProof
-from btclib.exceptions import BTClibValueError
+from btclib.ecc.rangeproof import RangeProof, sign_public_value
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from tests import load, needs_zkp, replace_unchecked, vector_id
 
 # guarded module scope, the same shape `tests/ecc/pedersen_test.py` uses:
@@ -52,8 +64,23 @@ _HAS_NZ_RANGE = 64
 _HAS_MIN = 32
 
 
+def _vector(id_: str) -> dict[str, Any]:
+    return next(v for v in _VECTORS if v["id"] == id_)
+
+
 def _octets(id_: str) -> bytes:
-    return bytes.fromhex(next(v for v in _VECTORS if v["id"] == id_)["proof"])
+    return bytes.fromhex(_vector(id_)["proof"])
+
+
+# every entry `sign_public_value` can be asked for, and the arguments of
+# one of them, read out of the file rather than repeated as literals: an
+# entry whose `exp` is -1 is the shape this module writes, so the tests
+# below that build a proof instead of reading one ask with arguments the
+# recording names
+_PUBLIC_VALUES = [v for v in _VECTORS if v["sign arguments"] == {"exp": -1}]
+_PUBLIC_VALUE_IDS = [vector_id(i, v["id"]) for i, v in enumerate(_PUBLIC_VALUES)]
+_BLIND = _vector("public value")["blind"]
+_NONCE = _vector("public value")["nonce"]
 
 
 def _header_size(octets: bytes) -> int:
@@ -340,6 +367,154 @@ def test_rsizes_are_the_digits_the_mantissa_asks_for() -> None:
         assert RangeProof.parse(_octets(id_)).rsizes == rsizes
 
 
+class _FixedDraw:
+    """A `_HmacDrbg` whose chain the test wrote.
+
+    `sign_public_value` builds one and asks it once, so a stand-in with
+    a `generate` is the whole of what has to be replaced: the draws
+    below are refused at one in about 2**128 and cannot be reached by
+    choosing a nonce.
+    """
+
+    def __init__(self, octets: bytes) -> None:
+        self.octets = octets
+
+    def generate(self, size: int) -> bytes:
+        return self.octets[:size]
+
+
+@pytest.mark.parametrize("vector", _PUBLIC_VALUES, ids=_PUBLIC_VALUE_IDS)
+def test_sign_public_value_writes_the_octets_zkp_signed(
+    vector: dict[str, Any],
+) -> None:
+    """The vendored entries, asked of this module rather than of the library.
+
+    A rangeproof draws nothing, so an entry's `blind`, `value` and
+    `nonce` are the whole of what produced its proof: writing them again
+    here has to answer those octets. `zkp.rangeproof.verify` accepting
+    the result would say only that it is *a* proof, where this says it
+    is the same one.
+
+    Selected on the `sign arguments` rather than by name, so an entry
+    recorded later with exactly an `exp` of -1 is asked this too. Exact
+    equality and not the `exp` alone: `sign_public_value` takes a
+    blinding factor, a value and a nonce, so an entry recorded with any
+    further argument -- an `extra_commit`, which enters the challenge --
+    is not one it can be held to.
+    """
+    proof = sign_public_value(vector["blind"], vector["value"], vector["nonce"])
+    assert proof.serialize().hex() == vector["proof"]
+
+
+def test_the_proof_written_carries_no_ring_commitment() -> None:
+    """One ring, so there is nothing for a squareness bit to be written on.
+
+    A proof carries one ring commitment per ring but the last, one sign
+    bit each, and the public-value proof has a single ring. So what
+    `sign_public_value` writes exercises neither the digit
+    decomposition nor the residuosity convention on a ring commitment,
+    and that is the distance still ahead of it rather than a property of
+    this test.
+    """
+    proof = sign_public_value(_BLIND, 100000, _NONCE)
+    assert proof.rsizes == (1,)
+    assert proof.signs == ()
+    assert proof.ring_commitments == ()
+    assert tuple(len(ring) for ring in proof.sig.s) == (1,)
+
+
+def test_a_public_value_of_zero_carries_no_min_value_field() -> None:
+    """`min_value ? 32 : 0` is zkp's own flag, and here the value is the min.
+
+    So a public value of zero writes the flags octet, the `e0` and the
+    one `s` with no eight-octet field between them, which is also the
+    shortest buffer `secp256k1_rangeproof_sign_impl` accepts. That zkp
+    writes those octets is the `public value, zero` entry's to say, and
+    the test above is where it says it; what is here is the shape, read
+    off the object rather than off the recording.
+    """
+    vector = _vector("public value, zero")
+    proof = sign_public_value(vector["blind"], vector["value"], vector["nonce"])
+    octets = proof.serialize()
+    assert proof.min_value is None
+    assert octets[0] == 0
+    assert len(octets) == 1 + 32 + 32
+    assert RangeProof.parse(octets).serialize() == octets
+
+
+def test_sign_public_value_refuses_what_it_has_no_octets_for() -> None:
+    """Each argument against what the format and the curve allow."""
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        sign_public_value(0, 1, _NONCE)
+
+    err_msg = "rangeproof value not in 0..2\\*\\*64-1: "
+    with pytest.raises(BTClibValueError, match=f"{err_msg}-1"):
+        sign_public_value(_BLIND, -1, _NONCE)
+    with pytest.raises(BTClibValueError, match=f"{err_msg}18446744073709551616"):
+        sign_public_value(_BLIND, 2**64, _NONCE)
+
+    with pytest.raises(BTClibValueError, match="invalid size: 31 bytes instead of 32"):
+        sign_public_value(_BLIND, 1, _NONCE[:-2])
+
+
+@pytest.mark.parametrize(
+    "draw",
+    [bytes(32), secp256k1.n.to_bytes(32, "big")],
+    ids=["zero", "at n"],
+)
+def test_a_draw_that_is_no_scalar_is_refused_and_not_redrawn(
+    draw: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`genrand`'s rule and not RFC6979's, which is why they are two rules.
+
+    `secp256k1_scalar_set_b32` flags a draw at or past n, refuses zero
+    beside it, and `secp256k1_rangeproof_sign_impl` returns zero on
+    either -- where `rfc6979_nonce` asks the same chain for its next
+    candidate. A proof written from that next block is one zkp does not
+    write.
+    """
+    monkeypatch.setattr(rangeproof, "_HmacDrbg", lambda *_: _FixedDraw(draw))
+    with pytest.raises(BTClibRuntimeError, match="nonce is not a scalar"):
+        sign_public_value(_BLIND, 1, _NONCE)
+
+
+@pytest.mark.parametrize(
+    "challenge",
+    [bytes(32), secp256k1.n.to_bytes(32, "big")],
+    ids=["zero", "at n"],
+)
+def test_a_challenge_that_is_no_scalar_is_refused(
+    challenge: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same refusal a step later, where `ecc.borromean` makes none.
+
+    `secp256k1_borromean_sign` reads its challenge through
+    `secp256k1_scalar_set_b32` too and returns zero on the flag, where
+    `borromean.sign` takes the hash modulo n and carries on. Reducing
+    here would write a proof `secp256k1_borromean_verify` refuses.
+    """
+    monkeypatch.setattr(rangeproof, "_hash", lambda *_: challenge)
+    with pytest.raises(BTClibRuntimeError, match="challenge is not a scalar"):
+        sign_public_value(_BLIND, 1, _NONCE)
+
+
+def test_a_zero_signature_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    """There is one challenge that makes k - e*blind vanish, and zkp refuses it.
+
+    Both halves are handed in, that challenge being k over the blinding
+    factor: `secp256k1_borromean_sign` returns zero rather than write
+    the s, and `secp256k1_borromean_verify` refuses one it is handed.
+    """
+    k = 5
+    e = k * pow(int(_BLIND, 16), -1, secp256k1.n) % secp256k1.n
+    monkeypatch.setattr(
+        rangeproof, "_HmacDrbg", lambda *_: _FixedDraw(k.to_bytes(32, "big"))
+    )
+    monkeypatch.setattr(rangeproof, "_hash", lambda *_: e.to_bytes(32, "big"))
+    with pytest.raises(BTClibRuntimeError, match="signature value is zero"):
+        sign_public_value(_BLIND, 1, _NONCE)
+
+
 # `pragma: no cover` on every `@needs_zkp` below, the marker being the
 # reason: `ZKP_AVAILABLE` is False in every job that measures coverage,
 # and `zkp-oracle.yml`'s own `pytest -m zkp --no-cov` collects none. The
@@ -435,3 +610,25 @@ def test_zkp_refuses_what_this_parse_refuses() -> None:
     assert zkp_rangeproof.info(octets + b"\x00") == whole
     assert zkp_rangeproof.verify(commitment, octets[:65]) is None
     assert zkp_rangeproof.verify(commitment, octets + b"\x00") is None
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to sign the same arguments
+def test_zkp_signs_and_verifies_the_proof_this_module_writes() -> None:
+    """The library asked for the octets `sign_public_value` answers.
+
+    Four values under one blinding factor and one nonce: 100000, which
+    the recording fixes under these same arguments; zero, which it fixes
+    under others; and one and the widest the eight-octet field holds,
+    which no entry fixes at this exponent. `verify` is asked beside
+    `sign`
+    because the two are different questions -- the first says zkp writes
+    these octets, the second that zkp reads them as the range they
+    state.
+    """
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    for value in (0, 1, 100000, 2**64 - 1):
+        commitment = zkp_generator.pedersen_commit(blind, value)
+        octets = sign_public_value(_BLIND, value, _NONCE).serialize()
+        assert octets == zkp_rangeproof.sign(commitment, blind, nonce, value, exp=-1)
+        assert zkp_rangeproof.verify(commitment, octets) == (value, value)
