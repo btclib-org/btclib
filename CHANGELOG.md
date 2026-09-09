@@ -2653,6 +2653,35 @@ file of the test tree, and no caller acts on it.
   `os-macos.yml`'s bytes under three names and reads back the two spellings
   GitHub runs.
 
+### `borromean.py` states its agreement with secp256k1-zkp as an assertion
+
+- **The module docstring says what this module and zkp's rangeproof
+  agree on over secp256k1 with sha256, rather than that each verifies
+  the other's signatures** (closes #1853). The challenge preimage
+  (issue #1070) and the wire layout (issue #1054) are aligned
+  deliberately, and what pins them is `tests/ecc/borromean_test.py`,
+  against zkp's source transcribed by hand rather than against the
+  library: `secp256k1_borromean_verify` and `secp256k1_borromean_sign`
+  are declared `static` in `src/modules/rangeproof/borromean.h`, an
+  internal header with no counterpart under zkp's `include/`, so no
+  cffi `cdef` binds them and the bindings wrap no borromean, the
+  flagged `zkp` extension included.
+- **What would discharge the assertion is named in its place**:
+  btclib-org/btclib-secp256k1#828, which asks the bindings for
+  borromean over serialized arguments, and failing that the rangeproof
+  of issue #1072, whose `secp256k1_rangeproof_sign_impl` and
+  `secp256k1_rangeproof_verify_impl` call the borromean pair and whose
+  `zkp.rangeproof` wrapper is there to reach them through.
+- **The same paragraph stops naming btclib-org/btclib-secp256k1#283 as
+  what issue #1072 waits on**: that work wraps zkp's public headers,
+  and the ring signature under the rangeproof has none, so it gave
+  borromean nothing to check an answer against.
+- **`BorromeanSig`'s class docstring and `parse`'s no longer call the
+  serialization interoperable**: the first points at the module
+  docstring for what the alignment covers and what rests on it
+  unchecked, and the second says that the 32-byte `e0` and 32-byte
+  scalars are the widths zkp's layout fixes.
+
 ## v2026.9.3
 
 ### Repository

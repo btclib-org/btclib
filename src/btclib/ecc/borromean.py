@@ -41,19 +41,40 @@ the two agreeing wherever `ec` is secp256k1, zkp's only curve.
 `BorromeanSig.parse` reads that layout back at secp256k1 and sha256
 always, as `ssa.Sig.parse` reads BIP340's one curve: the serialization
 does not name either, so a `BorromeanSig` on another curve or hash
-function is built directly rather than parsed. With the challenge hash
-aligned too (issue #1070), the *primitive* now interoperates over
-secp256k1 with sha256: a signature this module produces there verifies
-under zkp's `secp256k1_borromean_verify`, and one zkp produces verifies
-here. That is not the same as producing a
-Confidential Transactions rangeproof: `rangeproof_impl.h` wraps this
-signature in a digit decomposition, a value commitment and an
+function is built directly rather than parsed.
+
+With the challenge hash aligned too (issue #1070), this module and
+zkp's rangeproof agree over secp256k1 with sha256 on the challenge
+preimage and on the wire layout of the ring signature itself -- the
+primitive, as against the rangeproof built on top of it. That the two
+therefore accept each other's signatures is an assertion, not a
+measurement: the agreement is with zkp's source, read and transcribed
+by hand, which is what `tests/ecc/borromean_test.py` pins, and no test
+here hands a signature to `secp256k1_borromean_verify` or checks one
+that function produced. Nothing in reach can:
+`secp256k1_borromean_verify` and `secp256k1_borromean_sign` are
+declared `static` in `src/modules/rangeproof/borromean.h`, an internal
+header with no counterpart under zkp's `include/`, and `static` is
+internal linkage, so no cffi `cdef` binds them -- the
+`btclib_secp256k1` bindings wrap no borromean, the flagged `zkp`
+extension included.
+
+Agreeing on the primitive is not the same as producing a Confidential
+Transactions rangeproof: `rangeproof_impl.h` wraps this signature in a
+digit decomposition, a value commitment and an
 exponent/mantissa/min-value/sign-bits header this module has no
 counterpart for, rebuilding its pubkey rings from that commitment
 where this module takes them as an explicit argument. Issue #1072 is
-that remaining distance, filed and decided wanted -- after
-btclib-org/btclib-secp256k1#283 gives it something to check the
-answer against.
+that remaining distance, filed and decided wanted.
+
+btclib-org/btclib-secp256k1#828 asks the bindings for borromean over
+serialized arguments, which is what would discharge the assertion in
+both directions. Where it is declined, issue #1072 would discharge it
+instead: `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are
+wrapped, and the proof they write and read carries this signature
+inside it -- `secp256k1_rangeproof_sign_impl` and
+`secp256k1_rangeproof_verify_impl` call `secp256k1_borromean_sign` and
+`secp256k1_borromean_verify`.
 """
 
 from __future__ import annotations
@@ -173,8 +194,8 @@ class BorromeanSig:
     `ssa.sign`/`verify` take theirs.
 
     `serialize`/`parse` follow secp256k1-zkp's `rangeproof` module's own
-    layout for this signature -- the module docstring has why that is
-    not only a format but, since issue #1070, an interoperable one.
+    layout for this signature -- the module docstring has what that
+    alignment covers, and what about it is asserted rather than checked.
     """
 
     e0: bytes
@@ -267,7 +288,7 @@ class BorromeanSig:
         The serialization does not name its curve or its hash function,
         the same reason `ssa.Sig.parse` reads BIP340's alone: `e0` is a
         32-byte sha256 digest and each `s` is secp256k1's 32-byte
-        scalar, which is what makes this the interoperable spelling. A
+        scalar, which are the widths zkp's own layout fixes. A
         BorromeanSig on another curve or another hash function is built
         directly, as `ssa.Sig.parse`'s docstring says for BIP340's one
         curve.
