@@ -3187,6 +3187,42 @@ file of the test tree, and no caller acts on it.
   message beside them -- is in that blob, read as the octets of its
   `0x` arrays.
 
+### `ecc.rangeproof` derives the chain a proof of more than one ring draws
+
+- **`RangeProof.nonce_chain` answers what
+  `secp256k1_rangeproof_genrand` draws for a proof's rings** (issue
+  #1072), as a `NonceChain`: one blinding factor per ring, and one
+  scalar per public key. Nothing here signs -- writing a proof that
+  states a range, verifying one and rewinding one are all still ahead
+  of the module -- and `sign_public_value` takes the one draw its
+  single ring makes from it.
+- **Two acceptance rules, one per kind of draw.** A ring blinding
+  factor at or past n, or zero, sends the chain on for another block,
+  which is what `rfc6979_nonce_` does with a rejected candidate and by
+  the same two HMACs; a ring member's draw there abandons the proof
+  instead. A proof of one ring meets the second alone.
+- **Every ring but the last spends a block before the one it tests.**
+  `genrand` draws into the buffer it overwrites before reading it, so
+  that block's value is discarded and the chain advance it made is not.
+  Skipping it puts the derivation off by a block from the first ring
+  onward, in scalars that are well formed: what says so is a proof zkp
+  signed.
+- **A last ring of more than one key carries the value inside one of
+  its own draws**, where `secp256k1_rangeproof_rewind_inner` reads it
+  back out of the `s` the proof states: an octet of 128, seven of zero,
+  and the value big-endian three times. It goes on the ring's last key,
+  or the one before it where the value's own digit is that one, and
+  folding it in moves no other draw and no blinding factor.
+- **What holds all of it is octets zkp signed, and it needs no flagged
+  extension.** Every ring commitment an entry of
+  `tests/ecc/_data/zkp_rangeproof_vectors.json` states is rebuilt from
+  that entry's `nonce` -- each is its ring's blinding factor times G
+  plus the digit that ring proves times the generator -- and every `s`
+  the signature did not overwrite is the chain's own draw. The entries
+  record proofs of one ring and of several, and both keys the value
+  encoding can land on are among them; what the flagged job adds is the
+  same two questions over mantissas no entry fixes.
+
 ## v2026.9.3
 
 ### Repository

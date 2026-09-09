@@ -15,7 +15,10 @@ ring holds the key the commitment itself gives. `RangeProof.pubk_rings`
 rebuilds, from a proof and the value commitment it was written against,
 the rings `secp256k1_borromean_verify` is handed, and
 `RangeProof.sign_key_idx` says which key of each ring a value's own
-digit names. Nothing here verifies a proof or rewinds one. Issue #1072
+digit names. `RangeProof.nonce_chain` derives what
+`secp256k1_rangeproof_genrand` draws for those rings: each ring's
+blinding factor, and the scalar behind each of its keys. Nothing here
+verifies a proof or rewinds one. Issue #1072
 is where the rest of that distance is tracked.
 
 Elements and Liquid use this format, and a design starting today would
@@ -89,9 +92,10 @@ rings verifies, this module does not ask.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
+from typing import NamedTuple
 
 from btclib.alias import INF, BinaryData, Integer, Octets, Point
 from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
@@ -108,7 +112,7 @@ from btclib.utils import (
     read_exactly,
 )
 
-__all__ = ["RangeProof", "sign_public_value"]
+__all__ = ["NonceChain", "RangeProof", "sign_public_value"]
 
 # the flags octet, as secp256k1_rangeproof_getheader_impl reads it
 _RESERVED = 128
@@ -130,6 +134,11 @@ _MIN_VALUE_SIZE = 8
 # width every other length here generalizes: `rangeproof_genrand` copies
 # that many octets of the caller's nonce into its seed
 _NONCE_SIZE = 32
+
+# how far apart two rings sit in the octets `sign_impl` hands the nonce
+# chain, which is the widest a ring gets rather than the width of the
+# ring in hand: `genrand` indexes that buffer by `i * 4 + j`
+_RING_STRIDE = 4
 
 
 def _rsizes(mantissa: int) -> tuple[int, ...]:
@@ -290,6 +299,121 @@ def _pub_expand(
     return tuple(rings)
 
 
+class NonceChain(NamedTuple):
+    """What `secp256k1_rangeproof_genrand` answers for one proof's rings.
+
+    `blinding_factors` is one scalar per ring, the one that ring's
+    commitment is written under. Every ring but the last draws its own
+    and the last is minus the sum of those, so once
+    `secp256k1_rangeproof_sign_impl` has added the caller's own to that
+    last one they sum to it -- which is what lets a verifier recover
+    the ring commitment the proof leaves out. What is here is the
+    chain's answer, before that addition.
+
+    `draws` is one scalar per public key, ring-major, the shape
+    `BorromeanSig.s` carries. At the key the value's own digit names,
+    `sign_impl` moves the draw into the nonce it closes that ring with;
+    at every other key the draw is the `s` the proof states.
+    """
+
+    blinding_factors: tuple[int, ...]
+    draws: tuple[tuple[int, ...], ...]
+
+
+def _blocks(seed: bytes) -> Iterator[bytes]:
+    """Yield the blocks of the chain that seed starts, one scalar wide.
+
+    `secp256k1_rfc6979_hmac_sha256_generate` raises a retry flag at the
+    end of every call and performs the K and V update at the start of
+    the next, so every block after the first opens with a reseed. That
+    update is `_HmacDrbg.reseed`, the same two HMACs in the same order
+    that `_rfc6979_nonce_` performs on a rejected candidate.
+    """
+    drbg = _HmacDrbg(seed, sha256)
+    yield drbg.generate(secp256k1.n_size)
+    while True:
+        drbg.reseed()
+        yield drbg.generate(secp256k1.n_size)
+
+
+def _prep(rsizes: Sequence[int], v: int, sign_key_idx: int) -> bytes:
+    """Return the octets `secp256k1_rangeproof_sign_impl` folds into the draws.
+
+    zkp's `prep`, which is where a message a proof embeds would sit.
+    Nothing here embeds one, so the buffer is zero but for one key of
+    the last ring, and that key is written whether there is a message
+    or not: an octet of 128, seven of zero, and the value the mantissa
+    carries big-endian three times, at the eight octets a `min_value`
+    field occupies and for the same reason, both being a uint64. That
+    is what makes the value readable from the proof by whoever holds
+    the nonce, which is `secp256k1_rangeproof_rewind_inner`.
+
+    A last ring of one key has no such position, and the public-value
+    proof is the one shaped that way -- it states its value in the
+    clear anyway. Anywhere else the key is the ring's last, or the one
+    before it where the value's own digit is that one, since the draw
+    at the digit's key is spent as a nonce rather than written into
+    the proof.
+    """
+    prep = bytearray(_RING_STRIDE * secp256k1.n_size * len(rsizes))
+    if rsizes[-1] > 1:
+        j = rsizes[-1] - 1 - (sign_key_idx == rsizes[-1] - 1)
+        offset = ((len(rsizes) - 1) * _RING_STRIDE + j) * secp256k1.n_size
+        prep[offset : offset + secp256k1.n_size] = (
+            bytes([128]) + bytes(7) + v.to_bytes(_MIN_VALUE_SIZE, "big") * 3
+        )
+    return bytes(prep)
+
+
+def _genrand(seed: bytes, rsizes: Sequence[int], prep: bytes) -> NonceChain:
+    """Return the chain `secp256k1_rangeproof_genrand` derives from that seed.
+
+    Two acceptance rules, one per kind of draw. A ring blinding factor
+    at or past n, or zero, sends the chain on for another block, which
+    is what `_rfc6979_nonce_` does with a rejected candidate and by the
+    same two HMACs. A ring member's draw there fails the proof instead:
+    zkp accumulates that into the `ret` it answers with and abandons
+    the proof after the loop, which is the raise here.
+
+    Every ring but the last spends a block before the one it tests, the
+    chain drawing into a buffer it overwrites before reading it. So the
+    value of that block is discarded and the advance it made is not.
+    Skipping it puts the derivation off by a block from the first ring
+    onward, in scalars that are well formed: what says so is a proof
+    zkp signed.
+    """
+    blocks = _blocks(seed)
+    blinding_factors: list[int] = []
+    draws: list[tuple[int, ...]] = []
+    acc = 0
+    for i, size in enumerate(rsizes):
+        if i < len(rsizes) - 1:
+            next(blocks)
+            while True:
+                sec = int.from_bytes(next(blocks), "big")
+                if 0 < sec < secp256k1.n:
+                    break
+            blinding_factors.append(sec)
+            acc = (acc + sec) % secp256k1.n
+        else:
+            blinding_factors.append(-acc % secp256k1.n)
+
+        ring: list[int] = []
+        for j in range(size):
+            offset = (i * _RING_STRIDE + j) * secp256k1.n_size
+            block = zip(
+                next(blocks),
+                prep[offset : offset + secp256k1.n_size],
+                strict=True,
+            )
+            s = int.from_bytes(bytes(a ^ b for a, b in block), "big")
+            if not 0 < s < secp256k1.n:
+                raise BTClibRuntimeError("rangeproof nonce is not a scalar")
+            ring.append(s)
+        draws.append(tuple(ring))
+    return NonceChain(tuple(blinding_factors), tuple(draws))
+
+
 @dataclass(frozen=True, init=False)
 class RangeProof:
     """A Confidential Transactions rangeproof, as its octets state it.
@@ -441,6 +565,67 @@ class RangeProof:
 
         return _pub_expand([*stated, last], self.exp, self.rsizes)
 
+    def nonce_chain(
+        self,
+        commitment: Point,
+        value: int,
+        nonce: Octets,
+        *,
+        check_validity: bool = True,
+    ) -> NonceChain:
+        """Return the scalars this proof's nonce derives.
+
+        `secp256k1_rangeproof_genrand`, seeded as
+        `secp256k1_rangeproof_sign_impl` seeds it: the caller's nonce,
+        then the value commitment and the generator under
+        `_serialize_point`, then the header octets this proof's own
+        exponent, mantissa and `min_value` write. So whoever holds the
+        nonce answers every ring commitment the proof states -- each is
+        its ring's blinding factor times G plus that ring's own digit
+        times the generator -- and every `s` the signature left as the
+        chain drew it.
+
+        `commitment` is the Pedersen commitment the proof was written
+        against, `pubk_rings`'s argument of that name, and `value` what
+        it commits to. The value is read for more than the digits:
+        wherever the last ring holds more than one key, one of them
+        carries the value inside its own draw, so the chain is not a
+        function of the header alone. A value this proof has no digit
+        for is refused, `sign_key_idx`'s own refusal.
+        """
+        if check_validity:
+            self.assert_valid()
+        secp256k1.require_on_curve(commitment)
+        sign_key_idx = self.sign_key_idx(value)
+        seed = bytes_from_octets(nonce, _NONCE_SIZE)
+        seed += _serialize_point(commitment) + _serialize_point(second_generator())
+        seed += _header_octets(self.exp, self.mantissa, self.min_value)
+
+        v = self._mantissa_value(value)
+        return _genrand(seed, self.rsizes, _prep(self.rsizes, v, sign_key_idx[-1]))
+
+    def _mantissa_value(self, value: int) -> int:
+        """Return that value in the units the mantissa's digits count.
+
+        `secp256k1_range_proveparams`' `v`: the value less `min_value`,
+        over ten as many times as the exponent says. The value the
+        proof was written for is what this answers for. A value outside
+        that range, or one the exponent's own scaling cannot reach, is
+        no value of this proof and is refused.
+        """
+        min_value = self.min_value or 0
+        if not min_value <= value <= self.max_value:
+            err_msg = f"rangeproof value not in {min_value}..{self.max_value}: {value}"
+            raise BTClibValueError(err_msg)
+        # mypy reads `int ** int` as `Any`, a negative exponent being
+        # what makes that operator answer a float
+        scale: int = 10 ** max(self.exp, 0)
+        v, remainder = divmod(value - min_value, scale)
+        if remainder:
+            err_msg = f"rangeproof value {value} is not the exponent's own multiple"
+            raise BTClibValueError(err_msg)
+        return v
+
     def sign_key_idx(self, value: int) -> tuple[int, ...]:
         """Return where in each ring the key of that value sits.
 
@@ -451,18 +636,9 @@ class RangeProof:
         leaves over, and the digit there is below two because the value
         is within the range the header states.
 
-        The value the proof was written for is what this answers for. A
-        value outside that range, or one the exponent's own scaling
-        cannot reach, is no digit of this proof and is refused.
+        A value this proof has no digit for is refused.
         """
-        min_value = self.min_value or 0
-        if not min_value <= value <= self.max_value:
-            err_msg = f"rangeproof value not in {min_value}..{self.max_value}: {value}"
-            raise BTClibValueError(err_msg)
-        v, remainder = divmod(value - min_value, 10 ** max(self.exp, 0))
-        if remainder:
-            err_msg = f"rangeproof value {value} is not the exponent's own multiple"
-            raise BTClibValueError(err_msg)
+        v = self._mantissa_value(value)
         return tuple((v >> 2 * i) & 3 for i in range(len(self.rsizes)))
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
@@ -605,15 +781,11 @@ def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
     # sum of the others, and there are no others, so `sec` is zero and
     # the caller's `blind` is the whole of it -- and one block for the
     # ring's one public key, which `sign_impl` then moves into the nonce
-    # the ring is closed with
+    # the ring is closed with. `secp256k1_range_proveparams` answers an
+    # `exp` of -1 with a value of zero at digit zero, which is what
+    # leaves that ring with nothing of `_prep` written into it
     seed = nonce_bytes + points + header
-    k = int.from_bytes(_HmacDrbg(seed, sha256).generate(secp256k1.n_size), "big")
-    if not 0 < k < secp256k1.n:
-        # genrand's answer to a draw it cannot use, not
-        # `rfc6979_nonce`'s: `secp256k1_scalar_set_b32` flags a draw at
-        # or past n, zero is refused beside it, and `sign` returns zero
-        # on either rather than asking the chain again
-        raise BTClibRuntimeError("rangeproof nonce is not a scalar")
+    k = _genrand(seed, (1,), _prep((1,), 0, 0)).draws[0][0]
 
     m = sha256(points + header).digest()
     r = bytes_from_point(mult(k, secp256k1.G, secp256k1), secp256k1)
