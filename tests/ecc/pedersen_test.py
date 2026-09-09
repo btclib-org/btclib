@@ -335,10 +335,10 @@ def test_writing_refuses_what_has_no_x_to_write(
 
 
 # `pragma: no cover` on every `@needs_zkp` below, that marker being the
-# reason: `ZKP_AVAILABLE` is False in every job that measures coverage,
-# `.github/workflows/zkp-oracle.yml` being the one job where it is True,
-# and that job's own `pytest -m zkp --no-cov` collects no coverage data
-# for any report to combine. The marker's line and not the `def` under
+# reason: `tests/conftest.py` turns it into a skip in an unflagged
+# build, and excluding what a build cannot execute is what leaves the
+# floor a measurement of the suite rather than of the build the machine
+# has (issue #1885). The marker's line and not the `def` under
 # it: `ruff format` reflows a `def` line a comment carries past 88
 # columns, splitting `-> None:` across three lines to hang it, and
 # leaves a decorator line alone.
