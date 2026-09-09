@@ -25,18 +25,22 @@ name: zkp-oracle
 # `bindings` marker's own.
 #
 # What it must not do, issue #1679's own words: move any run-time path.
-# `tests/ecc/commit_nonce_test.py`'s `test_dsa_commitment_opens_under_zkp`
-# and `test_zkp_commitment_opens_under_dsa` are the first of the three
-# oracles issue #1679 names, sign-to-contract over random keys, messages
-# and commitments, in both directions. The other two -- the MuSig2
-# adaptor and the rangeproof -- are each their own issue and their own
-# pull request.
+# Every oracle that issue names compares btclib against
+# libsecp256k1-zkp and moves nothing: `tests/ecc/commit_nonce_test.py`'s
+# `test_dsa_commitment_opens_under_zkp` and
+# `test_zkp_commitment_opens_under_dsa`, sign-to-contract over random
+# keys, messages and commitments in both directions;
+# `tests/ecc/musig2_test.py`'s adaptor tests; and
+# `tests/ecc/pedersen_test.py`'s, where `second_generator` and `commit`
+# are asked of `zkp.generator` and the commitment `commit` returns goes
+# to `zkp.rangeproof` to be proved, verified and rewound.
 #
-# Landing that first oracle with the workflow is not, on its own, what
-# keeps a compile-only green run silent: `pytest -m zkp`'s selection is
-# not empty whether or not the flagged extension actually built, because
-# `tests/conftest.py`'s `_skip_what_needs_zkp` marks the two tests skip
-# rather than dropping them, and a skipped test is still a selected one.
+# Landing an oracle with the workflow is not, on its own, what keeps a
+# compile-only green run silent: `pytest -m zkp`'s selection is not
+# empty whether or not the flagged extension actually built, because
+# `tests/conftest.py`'s `_skip_what_needs_zkp` marks the marked tests
+# skip rather than dropping them, and a skipped test is still a selected
+# one.
 # Pytest's own exit 5 ("no tests ran") is real protection against a
 # renamed marker or a moved file, never against `tests.ZKP_AVAILABLE`
 # reading False -- which is what a build that silently kept the
@@ -101,14 +105,24 @@ on:
     # same reason `curves/` does above: a two-field big-endian
     # concatenation, already exhaustively checked by BIP340's own
     # vectors, not the sort of surface a MuSig2-specific oracle exists to
-    # cover a second time
+    # cover a second time.
+    # `pedersen.py` and its own test file join for the rangeproof oracle,
+    # itemized the way `dsa.py` is rather than named whole: of that
+    # module, `second_generator` and `commit` are what
+    # `tests/ecc/pedersen_test.py`'s zkp-marked tests compare against
+    # `zkp.generator`, and the commitment `commit` returns is what
+    # `zkp.rangeproof` then proves, verifies and rewinds. `curves/`,
+    # which `commit` calls and those tests call directly, stays out for
+    # the reason `curves/` stays out above
     paths:
       - .github/workflows/zkp-oracle.yml
       - tests/ecc/commit_nonce_test.py
       - tests/ecc/musig2_test.py
+      - tests/ecc/pedersen_test.py
       - src/btclib/ecc/dsa.py
       - src/btclib/ecc/commit_nonce.py
       - src/btclib/ecc/musig2.py
+      - src/btclib/ecc/pedersen.py
 
 permissions:
   contents: read
@@ -171,7 +185,8 @@ jobs:
       # below what matters here, where `zkp.lib` is the exact attribute
       # `tests.ZKP_AVAILABLE` reads -- so this step fails on precisely
       # the condition that would otherwise leave `pytest -m zkp` below
-      # selecting two tests and skipping both, in silence
+      # selecting the marked tests and skipping every one of them, in
+      # silence
       - name: Assert the flagged extension is loadable
         run: >
           uv run --locked --no-default-groups --group test

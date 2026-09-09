@@ -2682,6 +2682,39 @@ file of the test tree, and no caller acts on it.
   unchecked, and the second says that the 32-byte `e0` and 32-byte
   scalars are the widths zkp's layout fixes.
 
+### zkp's rangeproof rides on a commitment `pedersen.commit` computed
+
+- **`tests/ecc/pedersen_test.py` asks `btclib_secp256k1.zkp.generator`
+  for `second_generator`'s H and for `commit`'s rG + vH, and hands the
+  commitment to `zkp.rangeproof`** (closes #1679). H for (secp256k1,
+  sha256) is the generator libsecp256k1-zkp calls
+  `secp256k1_generator_h`, so `zkp.generator.h()` answers with the value
+  `test_second_generator` pins as a literal transcribed from that
+  library's source. zkp then proves a commitment btclib built,
+  verifies the proof, and rewinds it to the value and the blinding
+  factor btclib chose. btclib gains no rangeproof from any of it:
+  nothing here builds or reads a proof.
+- **The bridge between the two serializations reads quadratic
+  residuosity, not parity.** libsecp256k1-zkp writes a generator as
+  `11 ^ secp256k1_fe_is_square_var(y)` followed by x and a Pedersen
+  commitment as `9 ^` the same bit, where a SEC compressed point's
+  leading octet says whether y is even -- so `bytes_from_point` is not
+  the bridge, and one reading `y & 1` instead agrees wherever the two
+  bits happen to. Where a test loops over commitments it asserts both
+  octets turned up, so a parity bridge cannot pass on a sample that
+  happened to carry only the agreeing cases.
+- **That is the issue's third item re-scoped.** As written it was met
+  once `zkp.rangeproof.verify` and `rewind` were callable from this
+  suite, which is zkp compared against itself: btclib builds no digit
+  decomposition, no exponent/mantissa header and no value-anchored ring
+  set, so it has no rangeproof for that library to check. The Pedersen
+  layer underneath is what both sides do have, and it is what the tests
+  compare.
+- **`.github/workflows/zkp-oracle.yml`'s `pull_request` filter names
+  `src/btclib/ecc/pedersen.py` and its test file**, so a change to what
+  this oracle compares selects the sentinel rather than waiting for the
+  weekly run.
+
 ## v2026.9.3
 
 ### Repository
