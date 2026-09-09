@@ -15,10 +15,10 @@ node agrees with, not merely one that agrees with `Block.assert_valid`.
 
 `test_build_block_reproduces_mainnet_s_genesis` is the third such vector,
 and the one every network shares the coinbase shape of -- the same
-message and the same pubkey `btclib_node.chains.create_genesis` and
-Bitcoin Core's own source both carry. `build_coinbase` cannot build it:
-the genesis predates BIP34, so its script_sig commits to no height at
-all. What the test measures is `build_block`'s own header assembly,
+message and the same pubkey Bitcoin Core's own `CreateGenesisBlock`
+carries, in `src/kernel/chainparams.cpp`. `build_coinbase` cannot build
+it: the genesis predates BIP34, so its script_sig commits to no height
+at all. What the test measures is `build_block`'s own header assembly,
 which is the half a genesis-block builder would still lean on --
 ISS 1602 is where the rest of that decision lives.
 """
@@ -219,10 +219,9 @@ def test_build_block_reproduces_mainnet_s_genesis() -> None:
 
     BIP34 is not in force at height zero, so the genesis commits to no
     height at all. The same message and pubkey `bitcoin/bitcoin`'s own
-    genesis carries, reproduced from `btclib_node.chains.create_genesis`'s
-    own constants; what this checks is build_block's header assembly,
-    over a hand-built coinbase, against the hash `NETWORKS["mainnet"]`
-    ships.
+    genesis carries, which its `CreateGenesisBlock` holds as literals;
+    what this checks is build_block's header assembly, over a hand-built
+    coinbase, against the hash `NETWORKS["mainnet"]` ships.
     """
     script_sig = script.serialize(
         [

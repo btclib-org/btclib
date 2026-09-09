@@ -22,8 +22,7 @@ here reuses.
 
 What is worth asserting instead is what this module decides: that each
 command is spelled the way Bitcoin Core's `NetMsgType` spells it -- a
-misspelling round-trips as well as the real thing, which is how
-btclib_node sent "sendcmpt" to the whole network -- that a `feefilter`
+misspelling round-trips as well as the real thing -- that a `feefilter`
 outside the money range is parsed rather than refused, Core asking
 `MoneyRange` about a value it has already read, and that a
 `sendtxrcncl` version below BIP330's floor of 1 is parsed rather than

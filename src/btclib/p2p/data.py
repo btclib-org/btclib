@@ -65,10 +65,9 @@ read where it is used, which is where `Tx.serialize` reads its own.
 **`TxPayload` and `BlockPayload`, and the suffix is the point.** These
 are the only payload types whose command names a class this library
 already has, and `from btclib.p2p import Tx` shadowing `btclib.tx.Tx` is
-a collision a caller pays for silently. btclib_node has it -- its
-`p2p/messages/data.py` declares `Tx` and `Block` and imports btclib's as
-`TxData` and `BlockData` -- and it is the reader of the two modules
-together who cannot then say which is which.
+a collision a caller pays for silently: a module wanting both has to
+import one of the two under another name, and its reader cannot then say
+which name is which.
 
 **Nothing here bounds a message length.**
 `btclib.p2p.limits.MAX_PROTOCOL_MESSAGE_LENGTH` is the envelope's,

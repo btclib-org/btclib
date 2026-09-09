@@ -22,13 +22,13 @@ reason for the one above (issue #1098):
   command would stop being octets and start being an error. The envelope
   round-tripping what it does not recognize is the property that let it
   be written before any of this, and a table is what takes it away.
-- **payload classes alone, with the caller writing the command**, which
-  is btclib_node's shape: `add_headers("addr", payload)` is a string
-  literal inside each `serialize`, and nothing anywhere compares it with
-  the table the receiving side dispatches on. That is how `"sendcmpt"`
-  and `"cmptblock"` -- both misspelled, both sent to the whole network --
-  survive there. One constant per class, used by both directions, is the
-  whole of the difference.
+- **payload classes alone, with the caller writing the command**: the
+  command is then a string literal wherever a message is built, and
+  nothing anywhere compares it with the table the receiving side
+  dispatches on. A misspelling in one of those literals serializes as
+  readily as the real thing and matches no branch on the receiving side.
+  One constant per class, used by both directions, is the whole of the
+  difference.
 
 **There is no reverse of `to_message` here, and the asymmetry is the
 decision rather than an omission.** Writing a message needs no table: the

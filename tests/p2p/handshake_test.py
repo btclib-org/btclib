@@ -124,8 +124,9 @@ def test_an_absent_relay_flag_is_not_a_refusal_to_relay() -> None:
     peer that omits it is asking for transactions. `is_relay_requested`
     is that reading; `relay` is the field, and a caller reading the field
     for the answer says the opposite of the protocol for every peer that
-    omitted it -- which is the bug btclib_node has, its
-    `int.from_bytes(b"", "little")` answering zero.
+    omitted it. A parser that decodes the absent octet rather than
+    leaving the field `None` says it too, `int.from_bytes(b"", "little")`
+    being zero.
     """
     assert Version(relay=None).is_relay_requested is True
     assert Version(relay=True).is_relay_requested is True

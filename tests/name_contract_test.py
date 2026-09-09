@@ -107,8 +107,8 @@ _CAN_ADDRV1_ASKS_CAPACITY_NOT_VALIDITY = (
     "`is_addrv1` would name the encoding rather than the question asked of"
     " it -- whether an `addr` message, which has no field for the network"
     " id, has room for this peer at all. `can_` is issue #1581's own name"
-    " for it and btclib-node's before that, and it is what `network_address`"
-    " asks first before refusing on the same question"
+    " for it, and it is what `network_address` asks first before refusing"
+    " on the same question"
 )
 
 _ENGLISH_PREDICATE: dict[str, str] = {

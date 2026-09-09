@@ -328,8 +328,7 @@ def test_taproot_is_on_from_the_genesis_block_of_every_chain() -> None:
 
     Core turns the three on for every block and names the blocks that
     fail them one by one, so a table of activation heights has no row
-    for taproot to be wrong about -- which is the value btclib-node's
-    own copy records as a date rather than a height.
+    for taproot to be wrong about.
     """
     for row in CONSENSUS_PARAMS.values():
         assert row.script_flags_at(0) & ScriptFlag.TAPROOT

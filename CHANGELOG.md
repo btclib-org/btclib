@@ -3235,6 +3235,27 @@ file of the test tree, and no caller acts on it.
   that build too**, so the reason a further `@needs_zkp` test copies has
   to hold outside CI. No exclusion moves.
 
+### `btclib.p2p`'s justifications are properties of the format
+
+- **The prose under `src/btclib/p2p/` and the tests that drive it argue
+  from the wire format and from Bitcoin Core, naming no package
+  downstream of this one** (closes #1919): section 9's *a package
+  upstream of another does not name the one downstream* is what decides
+  it, and `docs/source/btclib.p2p.rst` renders those docstrings for a
+  reader who has no such package. Each passage already carried the
+  format-level reason before it named anyone, so what goes is the
+  subject and what stays is the consequence.
+- **`tests/block/build_test.py` attributes the genesis message and
+  pubkey to Bitcoin Core's `CreateGenesisBlock`**,
+  `src/kernel/chainparams.cpp` being where both sit as literals.
+- **The `sendcmpt` anecdote is retired from the p2p tests**: it is an
+  event in another tree, where what it illustrates -- `Message` looks a
+  command up nowhere, so a misspelling round-trips as well as the real
+  thing -- is a property of this one, and is what those tests now say.
+  This supersedes the last bullet of *`compact_blocks`'s two
+  justifications are properties of the format* above, which has the
+  event still told there; the rest of that entry stands.
+
 ## v2026.9.3
 
 ### Repository

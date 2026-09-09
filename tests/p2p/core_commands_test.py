@@ -10,8 +10,7 @@ no table of them, which is `btclib/p2p/payload.py`'s decision (issue
 Core's is what `src/protocol.h` declares, and the two are separately
 valid: only reading them together says they have drifted. A message type
 Core adds is one nothing here is red about, and a command misspelled here
-round-trips as well as the real thing -- which is how btclib_node came to
-send `sendcmpt` to the whole network.
+round-trips as well as the real thing.
 
 Core's set is transcribed below rather than read from a checkout of it.
 A test that goes and fetches its own input has a verdict that depends on

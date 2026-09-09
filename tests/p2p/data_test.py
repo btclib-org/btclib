@@ -343,10 +343,9 @@ def test_the_package_publishes_neither_tx_nor_block() -> None:
 
     `from btclib.p2p import *` must not bind a `Tx` other than
     `btclib.tx.Tx`, and the command a payload travels under is where the
-    unsuffixed name would have come from. btclib_node's
-    `p2p/messages/data.py` declares both and imports btclib's as `TxData`
-    and `BlockData`, which is the collision this avoids rather than
-    renames.
+    unsuffixed name would have come from. A module wanting both would
+    have to import one of them under another name, which is the collision
+    the suffix avoids rather than renames.
     """
     published = set(btclib.p2p.__all__)
     assert {"TxPayload", "BlockPayload"} <= published
