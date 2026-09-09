@@ -2954,6 +2954,46 @@ file of the test tree, and no caller acts on it.
   rangeproof hashes is the value commitment, the generator and the
   proof's own header.
 
+### An issue's state is the tracker's, and an entry gives a tree and a sha
+
+- **This supersedes *`curve_group.toml` and `mutation.yml` report the
+  curve session as sampled* above, whose entry defers the triage of those
+  survivors to issue #1745** (issue btclib-org/.github#946): that issue is
+  closed, on 2026-09-06. `dd36af56` is what closed it, and what it did is
+  what the deferral owed a reader -- `curve_group.toml`'s header states
+  what the two sessions' survivors are rather than naming an issue that
+  will say.
+- **This supersedes *`zkp-oracle` is an integration sentinel, and is
+  scheduled as one* above, whose entry has `tests/grid_test.py` in
+  `btclib-org/.github` reading a disagreement until both halves land**
+  (issue btclib-org/.github#946): btclib-org/.github#926 is closed, on
+  2026-09-08. This repository took `cron: "4 2 * * 3"` in `8f4450e4` and
+  `btclib-org/.github` took section 10's row in
+  btclib-org/.github@b4fb6b7, which is the pair that sentence was waiting
+  on.
+- **This supersedes *`btclib.electrum`, the Electrum protocol codec, and
+  `ElectrumFetcher`* above, whose entry names issue #1127 as still to be
+  answered for the transport half** (issue btclib-org/.github#946): what
+  that sentence owed a reader is `febc2c47`, which landed the codec, the
+  fetcher and a `LineTransport` declared with no implementation, and the
+  reference alone for the rest, that issue being where the transport and
+  its default are written down. It answered open when read on 2026-09-09,
+  and the tracker is where that answer is current.
+- **This supersedes *`ssa.py`'s sign-to-contract tags switch to
+  `s2c/schnorr/…`* above, whose entry rests the spelling's mutability on
+  bitcoin-core/secp256k1#1140 being unmerged** (issue
+  btclib-org/.github#946): `c2d23636` is where `s2c/schnorr/point` and
+  `s2c/schnorr/data` were frozen here, and what they match is that pull
+  request at its head `49c31379`, which stays checkable whatever it does
+  next. It answered open and unmerged when read on 2026-09-09, on a
+  tracker outside this organization, so nothing here is told when it
+  merges.
+- **One entry above is itself a repair that repeated what it repaired**:
+  *`curve_group.toml` and `mutation.yml` report the curve session as
+  sampled* replaced a deferral to a closed issue with a deferral to one
+  that closed later in this same section, where a tree and a sha would
+  have stayed true.
+
 ## v2026.9.3
 
 ### Repository
