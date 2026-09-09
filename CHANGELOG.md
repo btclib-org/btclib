@@ -2819,6 +2819,36 @@ file of the test tree, and no caller acts on it.
   beside them put the same questions to the library, and check that
   signing again with the recorded arguments answers the recorded octets.
 
+### `CONTRIBUTING.md` says what installing the lint gate as a git hook costs
+
+- **`pre-commit install` writes into the common git directory, which
+  every worktree of this repository shares, and the hook it writes names
+  by absolute path the interpreter that ran the install** (issue
+  btclib-org/.github#949, issue btclib-org/.github#677): one session
+  installing it installs it for every other, and which environment a
+  commit runs through is then decided by where the install was run
+  rather than by which tree the commit is made in. The gate is run by
+  hand instead.
+- **The `--python` paragraph gives a group-restricted rebuild's cost as
+  the environment it leaves, not as a `git commit` dying inside that
+  hook**: which `.venv` the hook reaches for is fixed when the hook is
+  installed and need not be the one a rebuild replaced, so a rebuild does
+  not by itself make the next commit die. What it leaves instead is an
+  environment `uv sync` restores and a group-restricted `uv run` does
+  not, and that a shell entering `.venv` by activation finds without
+  `pre-commit` until `uv sync`.
+- **The lint gate's paragraph says what CI enforces is what that command
+  enforces**: a commit enforces the list only where a hook has been
+  installed, and the command is the `uv run pre-commit run --all-files`
+  the paragraph is about. `.pre-commit-config.yaml`'s header comment says
+  the same thing about a commit and is untouched: it stands in those
+  words in other trees of the organization, so changing it here would
+  open a divergence rather than close one.
+- **The `local-link-prefix` sentence says the hook refuses the other
+  spellings, and no longer says a commit is where it does**: which two
+  spellings a broken local link can render is what that sentence is
+  about, and it does not turn on when the refusal lands.
+
 ## v2026.9.3
 
 ### Repository
