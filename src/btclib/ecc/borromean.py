@@ -13,8 +13,7 @@ first; they are here because the module is what one arrives at.
 
 `_hash`'s challenge preimage matches secp256k1-zkp's `rangeproof`
 module -- `secp256k1_borromean_hash`,
-`src/modules/rangeproof/borromean_impl.h` -- which is the only other
-implementation of this construction anything reads, Elements and
+`src/modules/rangeproof/borromean_impl.h` -- Elements and
 Confidential Transactions among its callers: `e || m || ring || pos`,
 the point or `e0` bytes first, then the message hash, then the ring
 index and the position each as 4 bytes big-endian. It did not always:
