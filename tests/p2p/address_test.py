@@ -132,10 +132,10 @@ def test_an_ipv4_address_has_one_object_however_it_is_spelled() -> None:
     """Every spelling of one peer builds the one address.
 
     The alternative -- holding four octets and a tag for a v4 address and
-    sixteen for a v6 one -- is what btclib_node does, and it makes
-    `::ffff:10.0.0.1` and `10.0.0.1` two objects with one serialization,
-    so a set of peers holds the same peer twice and a round trip is not
-    the identity. Sixteen octets throughout is the answer.
+    sixteen for a v6 one -- makes `::ffff:10.0.0.1` and `10.0.0.1` two
+    objects with one serialization, so a set of peers holds the same peer
+    twice and a round trip is not the identity. Sixteen octets throughout
+    is the answer.
     """
     mapped = NetworkAddress(0, "10.0.0.1", 8333)
     spellings = (
@@ -334,8 +334,7 @@ def test_the_count_is_bounded_before_anything_is_built() -> None:
 
     The count is the peer's to choose and btclib's own `var_int.parse`
     allows 33,554,432 of them, so a parser that builds first turns nine
-    octets into as many thirty-octet objects -- which is what
-    btclib_node's `Addr.deserialize` does. The refusal here reads the
+    octets into as many thirty-octet objects. The refusal here reads the
     count and stops, with no payload behind it at all, and it does not
     answer to `check_validity`.
     """

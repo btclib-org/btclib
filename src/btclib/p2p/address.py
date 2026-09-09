@@ -15,15 +15,15 @@ octets are not the same: a `version` message's two addresses carry no
 timestamp and an `addr` message's carry four octets of one in front. Core
 writes that as a serialization parameter -- `CAddress::SerParams` with
 `Format::Disk`, `Format::Network` -- and its test framework as
-`CAddress.deserialize(f, with_time=True)`. A parameter is what btclib_node
-has too, and it is where that implementation loses a round trip: a
-`NetworkAddress` parsed with `version_msg=True` is *forced* to `time=0`
-rather than left without one, so the field says zero where it means
-absent, and an `addr` entry cannot be told from a `version` one by looking
-at it. Here `Version.addr_recv` is annotated `NetworkAddress` and
-`Addr.addresses` holds `TimestampedNetworkAddress`, so putting one where
-the other belongs is a call mypy refuses rather than octets a peer
-refuses.
+`CAddress.deserialize(f, with_time=True)`. A parameter is where one class
+loses a round trip: the class has the timestamp field whichever way the
+octets were read, so an address parsed out of a `version` message is
+*forced* to a timestamp of zero rather than left without one -- the field
+then says zero where it means absent, and an `addr` entry cannot be told
+from a `version` one by looking at it. Here `Version.addr_recv` is
+annotated `NetworkAddress` and `Addr.addresses` holds
+`TimestampedNetworkAddress`, so putting one where the other belongs is a
+call mypy refuses rather than octets a peer refuses.
 
 **The port is big-endian and it is the only field of this protocol that
 is.** Core writes it through `Using<BigEndianFormatter<2>>(obj.port)`,
@@ -39,14 +39,12 @@ other.
 `::ffff:a.b.c.d` -- ten NUL octets, two 0xff, then the four of the v4
 address -- is what a v4 peer is on the wire, and the sixteen octets are
 what is held here rather than a narrower form plus a tag for which it is.
-That is the second thing btclib_node departs from and the second round
-trip it loses: it stores four octets for a v4 address and sixteen for a
-v6 one, so an IPv6 address that happens to begin with the mapping prefix
-parses back as the IPv4 address it is not, and its own test works around
-the collision with an unexplained `49`. `ipaddress.IPv6Address` is
-`.packed` in one direction and the constructor in the other, exactly and
-for every value, and `.ipv4_mapped` is what answers the question the tag
-was for.
+The narrower form is what loses a round trip: four octets for a v4
+address and sixteen for a v6 one makes an IPv6 address that happens to
+begin with the mapping prefix parse back as the IPv4 address it is not.
+`ipaddress.IPv6Address` is `.packed` in one direction and the
+constructor in the other, exactly and for every value, and
+`.ipv4_mapped` is what answers the question the tag was for.
 """
 
 from __future__ import annotations

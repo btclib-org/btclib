@@ -111,17 +111,17 @@ all; a `.onion` name is SHA3-256 and a checksum over them, and a
 
 **`network_address`, `addr_entry` and `peer_from_addr_entry` are the
 translation to and from `btclib.p2p.address`'s two classes, and
-`can_addrv1` is the question a caller asks first.** btclib-node holds a
-peer as a `NetworkAddressV2` -- BIP155's record being the only encoding
-wide enough for every network a peer can be on -- and still speaks `addr`
-to a peer that has not sent `sendaddrv2`, so it wrote the translation.
-Each is a function of the two types this package already owns and of the
-BIP that relates them, which is why it belongs here rather than beside a
-socket: `network_address` refuses a network `addr` cannot carry, on
-`can_addrv1`'s own question, and `addr_entry` and `peer_from_addr_entry`
-are what stand on either side of that refusal, adding and reading the
-timestamp `TimestampedNetworkAddress` carries and `NetworkAddressV2`
-already has.
+`can_addrv1` is the question a caller asks first.** BIP155's record is
+the only encoding wide enough for every network a peer can be on, so it
+is what a peer is held in, and `addr` is still what a peer that has not
+sent `sendaddrv2` is spoken to in: the translation is what stands
+between the two. Each is a function of the two types this package
+already owns and of the BIP that relates them, which is why it belongs
+here rather than beside a socket: `network_address` refuses a network
+`addr` cannot carry, on `can_addrv1`'s own question, and `addr_entry`
+and `peer_from_addr_entry` are what stand on either side of that
+refusal, adding and reading the timestamp `TimestampedNetworkAddress`
+carries and `NetworkAddressV2` already has.
 """
 
 from __future__ import annotations

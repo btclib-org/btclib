@@ -27,10 +27,10 @@ makes of it -- an unparsable message is one
 
 What this does not do is complete the handshake: nothing here sends a
 `verack` back, and the connection is closed once Core's own has been
-read. `btclib-org/btclib-node#374` is where the two-way exchange, the
-connection promoting, and a synced tip are already exercised, against
-that repository's own connection loop -- reproducing it here would only
-say that loop still works, not this library's wire format.
+read. The two-way exchange, the connection promoting and a synced tip
+are a connection loop's behaviour rather than a wire format's, and this
+library holds no connection loop -- driving one here would say that loop
+still works and nothing about the octets.
 """
 
 from __future__ import annotations

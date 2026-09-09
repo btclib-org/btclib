@@ -19,15 +19,15 @@ consensus rule, so none of them is in `btclib.consensus` -- and
 is, which is the coincidence this module exists to keep from becoming an
 import.
 
-An envelope without `MAX_PROTOCOL_MESSAGE_LENGTH` is what btclib_node has
--- `verify_headers` reads the four octets and waits for `24 +
-payload_len` with nothing between the peer's number and the buffer -- and
-the bound is the difference between refusing such a header at once and
-holding whatever the peer dribbles in against a length it will never
-reach. Every count bound here has the same shape one layer up: `parse`
-reads the count before it builds anything, where btclib_node's own
-message classes loop over whatever `var_int.parse` allowed them, and
-btclib's var_int cap is 33,554,432.
+An envelope without `MAX_PROTOCOL_MESSAGE_LENGTH` reads the four octets
+of the length field and waits for `24 + payload_len`, with nothing
+between the peer's number and the buffer, and the bound is the
+difference between refusing such a header at once and holding whatever
+the peer dribbles in against a length it will never reach. Every count
+bound here has the same shape one layer up: `parse` reads the count
+before it builds anything, where a `parse` that loops over whatever
+`var_int.parse` allowed it is bounded only by btclib's var_int cap,
+33,554,432.
 
 Not every name here is checked by something, and BIP157's are where the
 difference shows: a bound on a *range* whose far end is a block hash

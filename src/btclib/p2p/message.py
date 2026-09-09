@@ -103,14 +103,13 @@ class Message:
     one and where that decision is argued.
 
     It is a field of the message and not something a connection puts in
-    front of it, which is where this departs from btclib_node: there
-    `messages.add_headers` writes the other three fields and
-    `p2p.connection.Connection._send` prepends the magic, so what the
-    codec serializes is not a message and is not what its own
-    `verify_headers` reads back -- that one indexes the length at 16,
-    which is where it sits once the magic is there. One header across two
-    layers is also the one shape unavailable to a package that holds no
-    connection.
+    front of it. A header split across two layers -- a codec writing the
+    other three fields, whatever sends them prepending the magic -- means
+    the codec never serializes a message: the length field sits twelve
+    octets into what it writes and sixteen into the header that reaches
+    the wire, so the two layers index one header differently. One header
+    across two layers is also the one shape unavailable to a package that
+    holds no connection.
 
     `command` is the message type as text, "version" or "verack", without
     the NUL padding the wire puts after it, and an unknown one round-trips

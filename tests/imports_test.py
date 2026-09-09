@@ -166,8 +166,6 @@ def test_the_codec_does_not_pay_for_the_rpc_package() -> None:
     one. It is arithmetic and text -- it imports `functools` and nothing
     else -- where `socket.inet_pton`, which is the other way to write the
     same conversion, would put the C library's resolver behind a codec.
-    btclib_node uses `socket.inet_pton`, and it is a package that does
-    open connections.
     """
     package_name = "'bitcoin_core_rpc'"
     transport_cost = "'urllib.request'"

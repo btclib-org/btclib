@@ -140,9 +140,10 @@ def test_a_payload_knows_the_command_that_carries_it(payload: Payload) -> None:
     """The constant is on the class, so the two directions read one name.
 
     Which is the whole of what a payload type adds to an ordinary wire
-    class here: btclib_node writes the command as a string literal inside
-    each `serialize` and dispatches on a separate table, and two of its
-    literals are misspellings nothing compares against.
+    class here: writing the command as a string literal inside each
+    `serialize` and dispatching on a separate table puts one name in two
+    places with nothing comparing them, so a misspelling in either is
+    invisible to both.
     """
     command = type(payload).command
     assert isinstance(command, str)

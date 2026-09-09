@@ -278,9 +278,10 @@ def test_the_command_each_class_travels_under() -> None:
 
     One constant per class, read by both directions, is what keeps the
     name a payload serializes under and the name a caller matches on from
-    drifting apart -- which is how btclib_node came to send `"sendcmpt"`
-    and `"cmptblock"` to the whole network, both misspelled and neither
-    compared with anything.
+    drifting apart. `tests/p2p/core_commands_test.py` asks whether a
+    command is one Core declares; which class carries which is asked
+    here, so a swap between two of Core's own spellings passes that
+    census.
     """
     # `Any`, because `Payload` declares no `parse` and no two of these
     # answer with the same type: `tests/p2p/payload_test.py` reads the
