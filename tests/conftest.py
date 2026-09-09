@@ -331,15 +331,23 @@ def _skip_what_needs_the_bindings(
             item.add_marker(skip)
 
 
-def _skip_what_needs_zkp(items: list[pytest.Item]) -> None:
+def _skip_what_needs_zkp(
+    items: list[pytest.Item],
+) -> None:  # pragma: no cover -- an unflagged build is what calls this
     """Skip every test marked `zkp`, naming why once.
 
     Runs wherever `btclib_secp256k1.zkp.lib` is not the flagged
-    extension -- every job but `zkp-oracle.yml`'s, `ZKP_AVAILABLE` being
-    set once at import from that same attribute access, in
-    `tests/__init__.py`. The reason is worded like `bindings`' own rather
-    than naming the extension by name: a contributor reading a skip
-    report wants to know what to build, not which cffi module answered.
+    extension, `ZKP_AVAILABLE` being set once at import from that same
+    attribute access, in `tests/__init__.py`. The reason is worded like
+    `bindings`' own rather than naming the extension by name: a
+    contributor reading a skip report wants to know what to build, not
+    which cffi module answered.
+
+    The pragma is the other half of the pair `tests/__init__.py` carries
+    on the guard itself: a build with the extension never calls this,
+    and excluding what a build cannot execute is what leaves the floor a
+    measurement of the suite rather than of the build the machine has
+    (issue #1885).
     """
     skip = pytest.mark.skip(
         reason="btclib_secp256k1.zkp is not built with BTCLIB_LIBSECP256K1_ZKP"
@@ -362,13 +370,12 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         _skip_what_needs_the_bindings(
             items
         )  # pragma: no cover -- only the no-bindings job reaches this
-    # `no branch` rather than a pragma on the function above, the two
-    # being each other's mirror image: `ZKP_AVAILABLE` is False in every
-    # job that measures coverage, `zkp-oracle.yml`'s own `pytest -m zkp
-    # --no-cov` run being the one place it is True, and that run carries
-    # no coverage instrumentation to combine -- there is no `coverage`
-    # counterpart here for a `coverage-union` to lean on, unlike
-    # `INSTALLED` above. So this line runs, and is covered, in every
-    # measured job; only the branch that skips it never is
+    # `no branch`: the build decides which way this goes, so an
+    # unflagged run never takes the branch around the body and a flagged
+    # one never takes the branch into it. The line itself runs either
+    # way; what a flagged run leaves uncovered is the call, and the
+    # function it calls (issue #1885)
     if not ZKP_AVAILABLE:  # pragma: no branch
-        _skip_what_needs_zkp(items)
+        _skip_what_needs_zkp(
+            items
+        )  # pragma: no cover -- a flagged build has nothing to skip
