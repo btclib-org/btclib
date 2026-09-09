@@ -3314,6 +3314,42 @@ and `id-token: write`.
   comment beside the interpreter axis already said of the release
   before it.
 
+### One codec writes and reads libsecp256k1-zkp's residuosity octet
+
+- **`ecc.rangeproof` reaches `ecc.pedersen`'s private pair at its own
+  tag** (closes #1910). zkp xors the bit that reports the residuosity of
+  y into a tag of its own for each thing it serializes:
+  `secp256k1_pedersen_commitment_save` into 9,
+  `secp256k1_generator_serialize` into 11, both in
+  `src/modules/generator/main_impl.h`, and
+  `secp256k1_rangeproof_serialize_point` into 1, in
+  `src/modules/rangeproof/rangeproof_impl.h`. The rangeproof carried
+  that arithmetic itself, so a correction to it reached only the copy it
+  was made in, each side having its own tests. Every tag is odd, which
+  is what makes bit 0 the bit complemented, and the tags now sit
+  together under the comment that says so.
+- **Lifting an x is one function too.** `_point_from_octets` unpacks a
+  tagged octet and calls it, and `RangeProof.pubk_rings` calls it with
+  the bit already in hand, a proof carrying its sign bits in a packed
+  field rather than in front of an x. It answers what
+  `secp256k1_ge_set_xquad` answers, negated where the bit says y is not
+  a square.
+- **The octets are what they were.** `sign_public_value` writes the
+  proof zkp signed for the same arguments, which
+  `tests/ecc/rangeproof_test.py` asks of it against a vendored
+  recording and against the library itself, and the ring commitments of
+  the proofs zkp publishes resolve to the same points, which
+  `tests/ecc/rangeproof_fixed_vectors_test.py` asks.
+- **`RangeProof.nonce_chain` refuses a commitment at infinity.** The
+  shared writer turns down a pair that is no point of secp256k1 and
+  the infinity point. The first is out of reach from `ecc.rangeproof`:
+  `nonce_chain` requires the commitment on the curve before any seed
+  exists, and `sign_public_value` writes points it computed itself.
+  The second is not, `Curve.is_on_curve` answering `True` for `(x, 0)`,
+  which is how a point at infinity is spelled in affine coordinates, so
+  requiring the commitment on the curve is no guard against it.
+  `pubk_rings` is unaffected, writing no point at all.
+
 ## v2026.9.3
 
 ### Repository

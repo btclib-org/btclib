@@ -35,8 +35,7 @@ from typing import Any
 import pytest
 
 from btclib.curves import mult, secp256k1
-from btclib.ecc import rangeproof
-from btclib.ecc.pedersen import bytes_from_commitment, commit
+from btclib.ecc.pedersen import _point_from_x, bytes_from_commitment, commit
 from btclib.ecc.rangeproof import RangeProof
 from tests import load, vector_id
 
@@ -102,7 +101,7 @@ def test_the_rings_open_at_the_published_blinding_factor(
 
     rings = proof.pubk_rings(commitment)
     stated = tuple(
-        rangeproof._point_from_ring_commitment(x, sign)
+        _point_from_x(x, sign)
         for x, sign in zip(proof.ring_commitments, proof.signs, strict=True)
     )
     assert tuple(ring[0] for ring in rings[: len(stated)]) == stated
