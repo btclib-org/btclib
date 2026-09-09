@@ -90,6 +90,27 @@ def public_classes_with(method_name: str) -> set[str]:
     return found
 
 
+def workflow_files(directory: Path) -> tuple[Path, ...]:
+    """Return the workflow files in `directory`, `.yml` and `.yaml` alike.
+
+    GitHub reads both extensions, so a glob matching one spelling drops
+    a workflow written with the other and leaves it out of whatever the
+    caller holds the set to (issue #1874).
+
+    The two are named rather than globbed as `*.y*ml`, which is `y`,
+    anything, `ml`: that matches `test.yXml` and `test.ymml` as well,
+    which GitHub does not run, and a caller comparing this set with
+    `CONTRIBUTING.md`'s *What runs when* table would ask for a row
+    naming a file no run exists for (issue #1879).
+
+    Here rather than in each caller: `what_runs_when_test.py` compares
+    the set with that table, `interpreters_test.py` reads each file for
+    the interpreters it names, and a rule stated at both sites is a rule
+    that gets corrected at one.
+    """
+    return tuple(sorted((*directory.glob("*.yml"), *directory.glob("*.yaml"))))
+
+
 def load(*relative_path: str, encoding: str = "ascii") -> Any:
     """Read a vendored JSON vector file, named relative to `tests/`.
 

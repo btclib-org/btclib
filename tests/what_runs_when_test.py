@@ -53,15 +53,15 @@ which is what makes the reading above this table's own.
 import re
 from pathlib import Path
 
+from tests import workflow_files
+
 _ROOT = Path(__file__).parents[1]
 _CONTRIBUTING = (_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
 
-# both extensions GitHub reads, rather than the `.yml` every file here
-# happens to use: a workflow added as `.yaml` runs, and a comparison
-# that could not see it would leave open the same thing a missing row
-# leaves open
+# the stems: the table's first column writes `release`, where the file
+# is `release.yml`
 _WORKFLOWS = frozenset(
-    path.stem for path in (_ROOT / ".github/workflows").glob("*.y*ml")
+    path.stem for path in workflow_files(_ROOT / ".github/workflows")
 )
 
 # scoped to the one table, its heading and its header row included: a
