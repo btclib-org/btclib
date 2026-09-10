@@ -336,6 +336,30 @@ documented at release-notes length in the first place, and are still in
   that imports the bindings at runtime, so the surface is read there
   rather than matched for.
 
+### `CLAUDE.md` carries the shared primary-checkout section byte for byte
+
+- **`CLAUDE.md`'s `## The primary checkout is the maintainer's` matches
+  `btclib-org/.github`'s `CLAUDE.md` at `97947a6`, heading to heading**
+  (issue btclib-org/.github#1010): section 14 of the organization
+  standard compares that section byte for byte in every repository. The
+  section defers the environment step to `CONTRIBUTING.md`'s *The
+  environment and the gates*, so the sentence saying no `uv sync` follows
+  `git worktree add` goes with it.
+- **Nothing moves below the section.** What the copy said beyond the
+  standard's text is the wording that text replaces: `pre-commit run` in
+  the list of what never runs in the checkout, the checkout as the
+  maintainer's window on the tree, and the list of reads that leave it
+  alone. Or it is git's or uv's behaviour rather than this tree's: the
+  worktree's own `.venv`, `git stash pop` after a push that created
+  nothing, `git fsck --unreachable`, and `git update-ref` moving the base
+  under every working tree. Or it is stated elsewhere: the rebase onto
+  `origin/main` before the push is `CONTRIBUTING.md`'s *Landing it*, with
+  `.gitattributes`' `merge=union` resolving `CHANGELOG.md`, and the pointer
+  at `CONTRIBUTING.md`'s *Pull requests* is `CLAUDE.md`'s own opening
+  paragraph. The sentence naming `btclib-org/.github`'s `CLAUDE.md` at
+  `20ad654` as what the fence converged on goes too, the section itself
+  being that comparison now.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
