@@ -72,19 +72,6 @@ nothing here rewraps markdown -- `markdownlint`'s MD013 has no fixer and
 prettier's own hook does not take markdown -- so a correction is
 surgical, and the guards below name the line they are unhappy about.
 
-The other rule is about the paths this README cites rather than the
-numerals it states. A backticked path that reads as this tree's own -- a
-file this tree has, under a directory this tree has -- is a path
-`git ls-files` must confirm, a citation being what a reader follows to
-check a verdict. Neither of the two cheaper rules answers it. The entry's
-own `repo` line does not say whose a path is: the BIP387, BIP390 and Core
-descriptor entries pin bitcoin/bips and bitcoin/bitcoin and cite
-`tests/descriptors/descriptors_test.py` all the same, so a rule reading
-the pin takes every path in those entries for upstream's. A list of the
-paths upstream owns does not either: it is a list to keep, and the day a
-vendored file is added without it the red lands on a correct citation
-(issue #1934).
-
 A test rather than a hook, for the reasons `docs_test.py` gives: no
 environment the suite does not already have, every interpreter of the
 matrix rather than one runner, and `tests-passed` gates it without a line
@@ -92,18 +79,11 @@ in any `needs` list.
 """
 
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
 
-_ROOT = Path(__file__).parents[1]
-_README = _ROOT / "tests" / "_data" / "README.md"
-
-# resolved once, for the reason `declared_version_test.py`'s own `_GIT`
-# is: a bare "git" in a subprocess list is a partial executable path
-_GIT = shutil.which("git") or "git"
+_README = Path(__file__).parents[1] / "tests" / "_data" / "README.md"
 
 # a digit run, or a spelled-out cardinal as a whole word ("one" and "zero"
 # excepted -- see the module docstring)
@@ -677,99 +657,3 @@ def test_a_summary_transcribed_read_needs_a_transcribed_bullet() -> None:
         _summary_transcribed_files(
             "### `tests/_data/kept.json`\n\n## Summary\n\n- identical: `kept.json`.\n"
         )
-
-
-# a backticked span of path characters, with a directory in it and a
-# suffix on the name. What the character class leaves out is what makes
-# the span a citation rather than something shaped like one:
-# `bitcoin/bitcoin#15437` is an issue, `api/tx/<txid>` an endpoint, and
-# `tests/tx/_data/*.bin` a set of files rather than one, so none of the
-# three is a path `git ls-files` could answer for
-_CITED_PATH = re.compile(r"`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]+)`")
-
-
-def _cited_paths(text: str) -> set[str]:
-    """Every path `text` cites in backticks."""
-    return {match.group(1) for match in _CITED_PATH.finditer(text)}
-
-
-def _tracked() -> set[str]:
-    """Every path this repository tracks."""
-    listed = subprocess.run(  # noqa: S603
-        [_GIT, "ls-files"],
-        cwd=_ROOT,
-        capture_output=True,
-        encoding="utf-8",
-        check=False,
-    )
-    return set(listed.stdout.splitlines())
-
-
-def _misresolved(cited: set[str], tracked: set[str]) -> list[str]:
-    """Return the cited paths naming a file `tracked` holds elsewhere.
-
-    Both halves of a path are read, and each answers one of the two ways
-    another project's path reads like one of ours. A vendored file keeps
-    the name upstream publishes it under, which the README's own *Naming*
-    section requires, so upstream's path for it carries our basename and
-    only the directory tells the two apart; and another project's tests
-    sit under `tests/` as ours do, so there only the name does.
-    """
-    names = {path.rsplit("/", 1)[-1] for path in tracked}
-    directories = {path.rsplit("/", 1)[0] for path in tracked if "/" in path}
-    return sorted(
-        path
-        for path in cited - tracked
-        if path.rsplit("/", 1)[-1] in names and path.rsplit("/", 1)[0] in directories
-    )
-
-
-def test_every_path_the_readme_cites_of_this_tree_is_one_this_tree_has() -> None:
-    """A citation is what a reader follows to check a verdict.
-
-    An entry that closes on a transcribed verdict states it by naming the
-    module holding the values, so a path resolving to nothing sends
-    whoever re-checks the pin looking for a file that is not there.
-    """
-    cited = _cited_paths(_README.read_text(encoding="utf-8"))
-    tracked = _tracked()
-    # what a sweep answering zero has to be held to: `git ls-files` gives
-    # an empty set where git is missing, and a pattern can stop matching
-    # without anything else here changing
-    assert _README.relative_to(_ROOT).as_posix() in tracked
-    assert cited & tracked
-    offenders = _misresolved(cited, tracked)
-    assert not offenders, (
-        "tests/_data/README.md cites a path this tree does not have, under"
-        f" a name and a directory it does have: {offenders!r}"
-    )
-
-
-def test_a_path_of_this_tree_is_told_from_a_path_of_upstream() -> None:
-    """The check above passes for free if it cannot tell the two apart.
-
-    One synthetic tracked set and four citations against it, which is
-    every arm the rule has: `tests/descriptors_test.py` is this tree's
-    own module at a path this tree does not have and is caught; the same
-    module at its own path is not; Core's `src/test/data/script_tests.json`
-    carries the name our vendored copy keeps and is left to the directory,
-    which this tree does not have; and electrum's `tests/test_mnemonic.py`
-    sits in a directory this tree does have and is left to the name.
-
-    The set holds a file directly under `tests/` because two of those
-    four turn on that directory being one this tree has: without it the
-    caught arm is excused for the wrong reason and the electrum arm
-    proves nothing, which is what the expectation naming the offender --
-    rather than an empty list -- is here to keep visible.
-    """
-    tracked = {
-        "tests/vendored_data_test.py",
-        "tests/descriptors/descriptors_test.py",
-        "tests/script_engine/_data/script_tests.json",
-    }
-    cited = _cited_paths(
-        "`tests/descriptors_test.py`, `tests/descriptors/descriptors_test.py`,"
-        " Core's `src/test/data/script_tests.json` and electrum's"
-        " `tests/test_mnemonic.py`."
-    )
-    assert _misresolved(cited, tracked) == ["tests/descriptors_test.py"]

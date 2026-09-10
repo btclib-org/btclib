@@ -3723,6 +3723,38 @@ name that library and the symbol each of them paraphrases (closes #1932).
   what a citation carries is the repository and the path, both of which
   keep their names, so a paraphrase of a header needs no revision.
 
+### Every tracked markdown file is held to the paths it cites of this tree
+
+- **`tests/markdown_citations_test.py` reads every tracked `*.md`, and a
+  citation of this tree resolves or the suite is red** (closes #1963). A
+  backticked path this tree does not have, whose file name it does have,
+  under a directory it does have, is one of this tree's own files cited
+  where it is not; a path another project owns fails one half or the
+  other. The rule moves here from `tests/vendored_data_test.py`, which
+  keeps the numeral guard `tests/_data/README.md` is its subject for and
+  gives up the `source-exclude` entry the `git ls-files` call earned it.
+- **Both halves are load-bearing over this population, and each is
+  measured by dropping it.** Without the directory half, a path written
+  relative to `src/` or to `src/btclib/` is left to a file name this tree
+  does have -- `CLAUDE.md`'s `curves/curve_group.py`, `RELEASE_NOTES.md`'s
+  `btclib/b58.py`. Without the file name half, another project's tests
+  are left to `tests/`, the directory everyone puts them in --
+  `REVIEWING.md`'s citation of the organization standard's own
+  `tests/verbatim_test.py`, `tests/_data/README.md`'s spesmilo/electrum
+  vector sources.
+- **`_EXEMPT` is what the guard does with the path both halves accept and
+  this tree does not own**: a sibling repository's file whose name and
+  directory this tree also has, or a rename cited by a released
+  `CHANGELOG.md` section, which `changelog_immutability_test.py` holds
+  byte for byte against its own tag and so leaves nobody able to correct
+  the citation where it sits. It is empty, this tree having no such path,
+  and a synthetic control is what says it works on the day one arrives.
+- **A citation broken across the eighty-column wrap is not read**, so the
+  guard's silence about such a path is not a verdict on it. Folding the
+  wrap away first is not the repair: joining the halves with nothing sees
+  a wrapped path and also fuses a command wrapped at a space, which this
+  file carries, while joining them with a space sees neither.
+
 ## v2026.9.3
 
 ### Repository
