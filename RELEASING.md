@@ -315,6 +315,26 @@ to `deps-latest`'s own result.
    that precedes the tag's, and the tag always carries a day where the
    placeholder never does, so the two forms cannot collide.
 
+   **That new heading names the cycle of the release being cut** — the
+   `YYYY.M` of the version the section just retitled now carries, so
+   retitling to `v2026.9.3` opens `## v2026.9 (work in progress, not
+   released yet)`. It is not a guess at the month the next release will
+   fall in. *Open the next cycle's version* below sets `pyproject.toml`
+   from this heading and records that the placeholder sorts below the
+   release just cut, which holds because the month it names has come; a
+   heading naming a month that has not makes a checkout of `main`
+   declare a version sorting above every release that ships before that
+   month arrives, `2026.10` above `2026.9.10`. The asymmetry is the
+   rule: a heading that ends up a month behind the release it names is
+   corrected at the next retitle, where one naming a month ahead stands
+   for the whole cycle and nothing reports it.
+
+   So a cycle running past the end of its month costs nothing and is not
+   a case to plan for. The retitle step of *that* release renames this
+   heading to the version being cut then, exactly as this one renames
+   the section it is opened above, and nothing is bumped while the cycle
+   runs.
+
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
    the above onto `main` through the usual pull request. The local gates
