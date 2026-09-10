@@ -45,18 +45,36 @@ function is built directly rather than parsed.
 With the challenge hash aligned too (issue #1070), this module and
 zkp's rangeproof agree over secp256k1 with sha256 on the challenge
 preimage and on the wire layout of the ring signature itself -- the
-primitive, as against the rangeproof built on top of it. That the two
-therefore accept each other's signatures is an assertion, not a
-measurement: the agreement is with zkp's source, read and transcribed
-by hand, which is what `tests/ecc/borromean_test.py` pins, and no test
-here hands a signature to `secp256k1_borromean_verify` or checks one
-that function produced. One direction of it is in reach:
-`zkp.rangeproof.borromean_verify` wraps that function over serialized
-arguments, in the flagged `zkp` extension alone. The other is not --
+primitive, as against the rangeproof built on top of it. They still
+refuse each other's signatures, and `tests/ecc/borromean_test.py`
+measures the direction in reach rather than transcribing it:
+`zkp.rangeproof.borromean_verify` wraps `secp256k1_borromean_verify`
+over serialized arguments in the flagged `zkp` extension, and what is
+put to it there is a signature ``sign_`` wrote, under a ring and under
+that same ring negated key by key.
+
+Two differences stand between the two, and answering either on its own
+still leaves the signature refused. The public key of a ring is the
+other one of the pair: this module recovers a ring point as `s*G -
+e*Q` and gives the real signer `s = k + q*e`, where
+`secp256k1_borromean_verify_impl` recovers `s*G + e*P` and
+`secp256k1_borromean_sign` gives `s = k - sec*e`, so what one calls
+`P` the other calls `-P` and only a ring negated key by key meets the
+equation that closes it (issue #1895). And `e0` takes the message at
+the other end of its preimage: this one is `hf(m || r_0 || ... ||
+r_last)` where zkp's is `sha256(r_0 || ... || r_last || m)`, which no
+ring a verifier is handed can reach, `e0` being written into the
+signature before any verifier sees it (issue #1940).
+
+Verifying is the only direction in reach at all.
 `secp256k1_borromean_sign` is declared `static` in
 `src/modules/rangeproof/borromean.h`, an internal header with no
 counterpart under zkp's `include/`, and `static` is internal linkage,
-so no cffi `cdef` binds it.
+so no cffi `cdef` binds it. Reaching the verifier takes a fork: the
+`secp256k1-zkp` submodule of the bindings is `fametrano/secp256k1-zkp`,
+which declares a wrapper of that name in
+`include/secp256k1_rangeproof.h` and has it proposed upstream as
+`BlockstreamResearch/secp256k1-zkp#373`, unmerged there.
 
 Agreeing on the primitive is not the same as producing a Confidential
 Transactions rangeproof: `rangeproof_impl.h` wraps this signature in a
@@ -73,11 +91,14 @@ and holds the `e0` and the `s` values inside the proof as a
 `BorromeanSig` of this module's. `sign_public_value` writes the proof
 whose ring structure is one ring of one key -- the value in the clear,
 so no digit decomposition and no ring commitment -- and it closes that
-ring on its own rather than through `sign` here, `_get_msg_format`
-being a message format a rangeproof does not have: what it hashes is
-the value commitment, the generator and the proof's own header, with
-no pubkey ring in the preimage. Verifying a proof and rewinding one
-are still ahead of it.
+ring on its own rather than through this module. The message format is
+one reason, and it is what ``sign_`` answers: a rangeproof hashes the
+value commitment, the generator and the proof's own header, with no
+pubkey ring in the preimage. The ring convention and the `e0` preimage
+above are two more, and they are why that function writes an `e0` and
+an `s` of its own; `ecc.rangeproof` names the rest beside the code that
+carries them. Verifying a proof and rewinding one are still ahead of
+it.
 
 The signing direction is issue #1072's to discharge:
 `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are wrapped, and the
@@ -121,6 +142,7 @@ __all__ = [
     "SValues",
     "assert_as_valid",
     "sign",
+    "sign_",
     "verify",
 ]
 
@@ -406,8 +428,23 @@ def _assert_sign_key_idx_in_range(
             raise BTClibValueError(err_msg)
 
 
-def sign(
-    msg: Octets,
+def _assert_valid_pubk_rings(pubk_rings: Sequence[PubkeyRing], ec: Curve) -> None:
+    """Refuse a ring key that is no point of ec.
+
+    The refusal `sign` gets on its way through `_get_msg_format`, which
+    serializes every ring key into the message hash it builds. `sign_`
+    is handed that hash already made, and nothing in the signing walk
+    would look at a key without this: a ring of a single key, signed at
+    its own position, is walked at no forged position at all, so
+    neither of the walk's two loops reaches it.
+    """
+    for pubk_ring in pubk_rings:
+        for Q in pubk_ring:
+            bytes_from_point(Q, ec)
+
+
+def sign_(
+    msg_hash: Octets,
     ks: Sequence[Integer],
     sign_key_idx: Sequence[int],
     sign_keys: Sequence[Integer],
@@ -415,33 +452,40 @@ def sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> BorromeanSig:
-    """Sign msg with a borromean ring signature, one key per ring.
+    """Sign a prepared message hash, one key per ring.
 
-    https://github.com/ElementsProject/borromean-signatures-writeup
-    https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
+    `msg_hash` is the value every position of the ring walk hashes,
+    `hf().digest_size` octets of it; `sign` is the spelling that builds
+    one from `msg` and `pubk_rings` with `_get_msg_format`.
 
-    `ks` is one nonce per ring, `sign_key_idx` the position of the real
-    key in each ring, `sign_keys` the real private key of each ring --
-    `sign_keys[i]` signs at `pubk_rings[i][sign_key_idx[i]]` -- and
-    `pubk_rings` the full public rings, real key included.
+    Binding the rings into that hash is the caller's, and it is what a
+    borromean signature proves nothing without: zkp says so of the same
+    argument -- "Message must contain pubkeys or a pubkey commitment",
+    the header comment on `secp256k1_borromean_verify_impl` -- because a
+    preimage that does not reach `pubk_rings` leaves the ring free to be
+    swapped for another one under the signature made over it.
 
-    `ks` and `sign_keys` are scalars, spelled as `Integer` the way `dsa`
-    and `ssa` spell one, and each is read through
-    `curves.scalar_from_prv_key`: in 1..n-1, or refused (issue #1243).
-    `sign_key_idx` is not one of them and stays `int` -- it indexes a
-    ring, and an index is not a scalar written in hex.
-    `sign_key_idx[i]` must be a valid index into `pubk_rings[i]`, refused
-    with `BTClibValueError` naming the ring, the index and the ring's
-    size otherwise -- a ring with no keys has none, whatever the index
-    (issue #1094), and a value the ring's size does not reach either
-    (issue #1095).
+    A rangeproof is the caller that wants this, and is why the hash
+    cannot be built from the two arguments here: its preimage is the
+    value commitment, the generator and the proof's own header, with no
+    pubkey ring in it at all, and `ecc.rangeproof` rebuilds the rings
+    from that commitment instead. What this offers that caller is the
+    message format alone: the module docstring above measures the two
+    differences that still stand between a signature written here and
+    one `secp256k1_borromean_verify` takes.
 
-    A `BorromeanSig`, because that is what it is: the result verifies
-    with `assert_as_valid`/`verify`, serializes with
-    `BorromeanSig.serialize`, and handing back a bare `(bytes,
-    SValues)` tuple would only make the caller build one to do either.
+    `pubk_rings` is an argument here as it is in `sign`: the walk
+    multiplies by those points, and a hash cannot give them back. So
+    what the trailing underscore offers is the preimage the caller has
+    already built, never a ring it has already checked -- every key of
+    every ring is read as a point of `ec` before anything is signed.
+
+    Every other argument is `sign`'s, and is read the way `sign` reads
+    it.
     """
-    msg, m, e = _initialize(msg, pubk_rings, ec, hf)
+    m = bytes_from_octets(msg_hash, hf().digest_size)
+    _assert_valid_pubk_rings(pubk_rings, ec)
+    e = [[0] * len(pubk_ring) for pubk_ring in pubk_rings]
     e0bytes = m
     # drawn uniformly in [0, ec.n), the same distribution the real
     # s-value has once step 2 reduces it: randbits(256) is uniform over
@@ -561,6 +605,50 @@ def sign(
         # so this changes no signature, only what it discloses.
         s[i][j_star] = (k + q_ints[i] * e[i][j_star]) % ec.n
     return BorromeanSig(e0, s, ec)
+
+
+def sign(
+    msg: Octets,
+    ks: Sequence[Integer],
+    sign_key_idx: Sequence[int],
+    sign_keys: Sequence[Integer],
+    pubk_rings: Sequence[PubkeyRing],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> BorromeanSig:
+    """Sign msg with a borromean ring signature, one key per ring.
+
+    https://github.com/ElementsProject/borromean-signatures-writeup
+    https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
+
+    `ks` is one nonce per ring, `sign_key_idx` the position of the real
+    key in each ring, `sign_keys` the real private key of each ring --
+    `sign_keys[i]` signs at `pubk_rings[i][sign_key_idx[i]]` -- and
+    `pubk_rings` the full public rings, real key included.
+
+    `ks` and `sign_keys` are scalars, spelled as `Integer` the way `dsa`
+    and `ssa` spell one, and each is read through
+    `curves.scalar_from_prv_key`: in 1..n-1, or refused (issue #1243).
+    `sign_key_idx` is not one of them and stays `int` -- it indexes a
+    ring, and an index is not a scalar written in hex.
+    `sign_key_idx[i]` must be a valid index into `pubk_rings[i]`, refused
+    with `BTClibValueError` naming the ring, the index and the ring's
+    size otherwise -- a ring with no keys has none, whatever the index
+    (issue #1094), and a value the ring's size does not reach either
+    (issue #1095).
+
+    `msg` and `pubk_rings` are reduced here to the one hash the ring
+    walk binds, `_get_msg_format`'s; ``sign_`` is the spelling that
+    takes that hash instead, for a caller whose own preimage has
+    another shape.
+
+    A `BorromeanSig`, because that is what it is: the result verifies
+    with `assert_as_valid`/`verify`, serializes with
+    `BorromeanSig.serialize`, and handing back a bare `(bytes,
+    SValues)` tuple would only make the caller build one to do either.
+    """
+    m = _get_msg_format(bytes_from_octets(msg), pubk_rings, ec, hf)
+    return sign_(m, ks, sign_key_idx, sign_keys, pubk_rings, ec, hf)
 
 
 def verify(

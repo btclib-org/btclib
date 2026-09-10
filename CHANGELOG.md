@@ -3470,6 +3470,38 @@ name that library and the symbol each of them paraphrases (closes #1932).
   contributor who builds it reads a reason that holds on their own
   machine. No vector, no test and no exclusion moves.
 
+### `ecc.borromean` gains `sign_`, and zkp answers about what it signs
+
+- **`sign_` is the prepared spelling of `sign`** (issue #1895): it takes
+  the one hash the ring walk binds, where `sign` builds that hash from
+  `msg` and `pubk_rings` with `_get_msg_format` and calls it. A
+  rangeproof is the caller it exists for, its preimage being the value
+  commitment, the generator and the proof's own header, with no pubkey
+  ring in it at all -- a shape the two arguments `sign` takes cannot
+  produce. Binding the rings into the hash is then the caller's, and the
+  docstring says what a signature over one that does not reach them is
+  worth. Every key of every ring is still read as a point of `ec` before
+  anything is signed, which `sign` gets on its way through
+  `_get_msg_format` and the prepared spelling has to ask for.
+- **Whether secp256k1-zkp takes a signature this module writes is
+  measured rather than asserted, and the answer is that it does not.**
+  `zkp.rangeproof.borromean_verify` wraps `secp256k1_borromean_verify`
+  over serialized arguments in the flagged `zkp` extension, and
+  `tests/ecc/borromean_test.py` puts a signature `sign_` wrote to it
+  under a ring and under that same ring negated key by key. Both are
+  refused, and two differences are why. The public key of a ring is the
+  other one of the pair, `s*G - e*Q` here against `s*G + e*P` there
+  (issue #1895), which a negated ring answers. And `e0` takes the
+  message at the other end of its preimage, `hf(m || r_0 || ... ||
+  r_last)` here against `sha256(r_0 || ... || r_last || m)` there
+  (issue #1940), which no ring a verifier is handed can reach, `e0`
+  being written into the signature before any verifier sees it.
+- **The bindings floor moves to 0.8.0.6**, in both of the places
+  `pyproject.toml` states it: that is the release carrying
+  `zkp.rangeproof.borromean_verify`, and the first whose `secp256k1-zkp`
+  submodule is the `fametrano/secp256k1-zkp` fork that wraps a function
+  BlockstreamResearch keeps internal.
+
 ## v2026.9.3
 
 ### Repository
