@@ -911,11 +911,11 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **transcribed**, and cited inline rather than vendored: they are
 descriptors and scripts read where they are used, in
-`tests/descriptors_test.py`'s `BIP387_VECTORS` and `BIP387_INVALID`. Every
-descriptor of the BIP's Test Vectors section is there with the
-scriptPubKey it produces, at each index the BIP lists, and every invalid
-one with the message btclib refuses it with — two of those refusals
-answering the uncompressed key before the threshold the BIP was
+`tests/descriptors/descriptors_test.py`'s `BIP387_VECTORS` and
+`BIP387_INVALID`. Every descriptor of the BIP's Test Vectors section is
+there with the scriptPubKey it produces, at each index the BIP lists, and
+every invalid one with the message btclib refuses it with — two of those
+refusals answering the uncompressed key before the threshold the BIP was
 illustrating, which the entries say. Each value was matched against the
 pinned text on 2026-08-06.
 
@@ -930,13 +930,13 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**, complete for both lists and cited inline, in
-`tests/descriptors_test.py`'s `BIP390_VECTORS` and `BIP390_INVALID`: the
-six valid descriptors with the scripts they produce at each index listed,
-and all fourteen invalid ones with the message each is refused with. Five
-further invalid cases there are btclib's own, for what the BIP states in
-prose rather than listing — no nesting, no key origin in front of one, at
-least one participant, no x-only participant, and a `musig()` where a tree
-leaf belongs.
+`tests/descriptors/descriptors_test.py`'s `BIP390_VECTORS` and
+`BIP390_INVALID`: the six valid descriptors with the scripts they produce
+at each index listed, and all fourteen invalid ones with the message each
+is refused with. Five further invalid cases there are btclib's own, for
+what the BIP states in prose rather than listing — no nesting, no key
+origin in front of one, at least one participant, no x-only participant,
+and a `musig()` where a tree leaf belongs.
 
 The pin is the tip and it is the day it was taken: that commit is
 `bip390: fix missing parenthesis in test vector`, which closed the last
@@ -1261,9 +1261,9 @@ Verdict: **composed locally**, not vendored. Descriptors appear
 verbatim in the pinned document; none of their checksums does, because
 Core's document does not list them. They were computed with a third
 implementation, `bdk`'s `descriptor::checksum::get_checksum`, as
-`tests/descriptors_test.py` records — which is the point of the file: the
-checksums are an independent oracle, so recomputing them with btclib
-would void the test.
+`tests/descriptors/descriptors_test.py` records — which is the point of
+the file: the checksums are an independent oracle, so recomputing them
+with btclib would void the test.
 
 Nothing to refresh from upstream. A new descriptor needs a checksum from
 somewhere other than btclib.
@@ -1329,12 +1329,13 @@ pulled  2026-09-10, rawtr() added 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, a subset by design. `tests/descriptors_test.py`
-holds the `Check(prv, pub, ...)` cases of the `descriptor_test` case as
-`CORE_VECTORS` — the descriptor in both spellings and the scriptPubKey
-each expands to, at every index the case lists — plus the public spellings
-of the four Core expands from the private form alone, and the two
-`rawtr()` cases, which no BIP publishes and only this file has.
+Verdict: **transcribed**, a subset by design.
+`tests/descriptors/descriptors_test.py` holds the `Check(prv, pub, ...)`
+cases of the `descriptor_test` case as `CORE_VECTORS` — the descriptor in
+both spellings and the scriptPubKey each expands to, at every index the
+case lists — plus the public spellings of those Core expands from the
+private form alone, which are `HARDENED_PUBLIC` there, and the `rawtr()`
+cases, which no BIP publishes and only this file has.
 
 Not vendored as a file because there is no file: the values are literals
 in C++ source, so a copy of it would be a copy of a test program. What
@@ -1343,9 +1344,10 @@ function moves the commit, and the weekly run says so.
 
 The subset is deliberate and is what a refresh would revisit: Core's file
 also holds `CheckUnparsable` cases, which this module has as `UNPARSABLE`
-with btclib's own messages, and the `musig()` cases of BIP390, which are
-transcribed from the BIP itself above rather than from here. Matched
-against the file as it stood on 2026-08-06.
+with btclib's own messages, and `musig()` cases. Those BIP390 publishes
+are transcribed from the BIP itself above rather than from here; those it
+does not -- `rawtr(musig(...))` among them -- are transcribed from
+neither. Matched against the file as it stood on 2026-08-06.
 
 The cases upstream added after that comparison are not here, and
 [ISS 1334](https://github.com/btclib-org/btclib/issues/1334) is where

@@ -3668,6 +3668,49 @@ name that library and the symbol each of them paraphrases (closes #1932).
   collection that found nothing, so the assertion refuses the condition
   that produces the state instead.
 
+### `tests/_data/README.md` cites the descriptors module at the path it has
+
+- **Four entries cite `tests/descriptors/descriptors_test.py`, the module
+  this tree has** (closes #1934): BIP387's `multi_a()` vectors, BIP390's
+  `musig()` vectors, `descriptor_checksums.json` and Core's descriptor
+  derivation vectors. Each closes on a verdict, a verdict is checked by
+  opening the module that holds the values, and the path they carried
+  resolved to nothing.
+- **`tests/vendored_data_test.py` holds the README's citations to paths
+  this tree has.** A
+  backticked path this tree does not have, under a file name and a
+  directory it does have, is one of this tree's own files cited where it
+  is not; a path another project owns fails one half or the other --
+  upstream's own directory for a file whose name our vendored copy keeps,
+  and `tests/` for a project that does not name its test modules as we
+  do. Not an exemption list, which the next vendored file makes stale,
+  and not the entry's own `repo` line: the entries carrying these
+  citations pin bitcoin/bips and bitcoin/bitcoin, so reading the pin
+  takes every path in them for upstream's. The module asks `git
+  ls-files` which paths this tree has, so `source-exclude` keeps it out
+  of the sdist beside the modules already there for that: a tree
+  stripped to its tracked files has no index to ask.
+- **Core's descriptor derivation entry names `HARDENED_PUBLIC` rather
+  than counting what is in it**, and
+  `tests/descriptors/descriptors_test.py` counts them nowhere either:
+  of the sites that put a number on them one agreed with the list and
+  the rest did not, and what they counted was this tree's own list,
+  which CLAUDE.md forbids stating. Core's `descriptor_test` flags `HARDENED`
+  cases this tree does not transcribe -- the `wsh(and_v(...))` one, and
+  the `musig()` ones -- so it was never a count of what upstream
+  published.
+- **The module's docstring says which `rawtr()` vectors are read from
+  where**: Core's are read from `descriptor_tests.cpp` and no BIP
+  publishes them, where the `rawtr()` vectors BIP390 does publish are
+  `musig()` ones this module reads from the BIP.
+- **The same entry gives Core's unpublished `musig()` cases a place**
+  (closes #1968): those BIP390 publishes are transcribed from the BIP's
+  own entry above, and those it does not are transcribed from neither,
+  `rawtr(musig(...))` cases being among the second. Read by parsing the
+  `Check()` calls of `descriptor_test` and comparing every spelling each
+  passes against the descriptors BIP390 publishes; a call spanning lines
+  is invisible to a reading keyed on the line its name sits on.
+
 ## v2026.9.3
 
 ### Repository

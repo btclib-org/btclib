@@ -10,8 +10,9 @@ The derivation vectors are Bitcoin Core's own, transcribed from the
 public spelling and the scriptPubKey each expands to, at index 0, 1 and 2
 where the descriptor is ranged. Both spellings are exercised, so a WIF
 and an xprv are checked to reach the script the public key and the xpub
-beside them reach. The two ``rawtr()`` vectors are read there too, no BIP
-having any.
+beside them reach. Core's ``rawtr()`` vectors are read there too, no BIP
+publishing them: the ``rawtr()`` vectors BIP390 does publish are
+``musig()`` ones, and are read from the BIP instead.
 
 Not vendored as files, those and BIP387's and BIP390's alike: the values
 are read out of C++ source and mediawiki prose rather than copied from a
@@ -19,7 +20,7 @@ data file, so what this module cites is the path and the case, and
 `tests/_data/README.md` carries the revision each is pinned to -- which
 is also what the weekly upstream re-check reads.
 
-Four of those descriptors have no public spelling to check, and Core's
+Where one of those descriptors has no public spelling to check, Core's
 own flags say why: HARDENED and DERIVE_HARDENED mark a derivation that
 needs the private key, so Core expands the private form alone and this
 module expects the public one to be refused.
@@ -472,8 +473,8 @@ CORE_VECTORS: list[tuple[str, str | None, list[list[str]]]] = [
     ),
 ]
 
-# the public spelling of the five descriptors that derive hardened: Core
-# flags them HARDENED or DERIVE_HARDENED and expands the private one only
+# the public spelling of the descriptors that derive hardened: Core flags
+# them HARDENED or DERIVE_HARDENED and expands the private one only
 HARDENED_PUBLIC = [
     "rawtr(xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/86'/1'/0'/1/*)",
     "pkh(xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/2147483647'/0)",
@@ -498,9 +499,9 @@ def test_core_derivation_vector(
     addresses are the addresses of those very scripts.
 
     The private material `parse` hands back goes into every expansion,
-    which four of these vectors need and the rest do not: a hardened step
-    under an xprv is the one thing an xpub cannot take, and the four
-    public spellings of those are `HARDENED_PUBLIC` below.
+    which the hardened vectors need and the rest do not: a hardened step
+    under an xprv is the one thing an xpub cannot take, and the public
+    spellings of those are `HARDENED_PUBLIC` below.
     """
     for descriptor in (private, public):
         if descriptor is None:
@@ -526,7 +527,7 @@ def test_hardened_derivation_needs_the_private_key(descriptor: str) -> None:
     """An xpub cannot answer a hardened step, so the descriptor cannot.
 
     Bitcoin Core says the same by expanding only the private spelling of
-    these four, and BIP380 states it as a rule of the language.
+    these, and BIP380 states it as a rule of the language.
     """
     parsed = parse(descriptor)
     with pytest.raises(BTClibValueError, match="hardened derivation"):
