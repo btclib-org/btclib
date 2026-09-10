@@ -192,7 +192,18 @@ jobs:
       # already-satisfied venv is keyed on this environment variable,
       # only on the sdist's own content -- measured here, a plain
       # `uv sync --no-binary-package` left a previously installed,
-      # unflagged 0.8.0.5 in place under the flag, saying nothing
+      # unflagged 0.8.0.5 in place under the flag, saying nothing.
+      # The same key is the same key from either side, so the same pair
+      # is what takes an environment back out of this arm: a plain `uv
+      # sync --locked` leaves the flagged extension where it is, and
+      # `uv sync --locked --reinstall-package btclib-secp256k1 --no-cache`
+      # is what puts the published wheel back. The symmetry is written
+      # out here rather than left to be read backwards because the
+      # runner this job gets is fresh either way -- who needs the way
+      # out is whoever copies this step into a worktree, where every
+      # later `uv run pytest` measures the flagged build and says which
+      # one it measured in the line `tests/conftest.py`'s report header
+      # prints (issue #1937)
       - name: Sync the environment, building btclib-secp256k1 from the sdist
         env:
           BTCLIB_LIBSECP256K1_ZKP: "true"

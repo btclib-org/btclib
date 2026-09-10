@@ -3427,6 +3427,26 @@ which of the two it means.
   by their tags. Without the sentence the sort order reads as a defect,
   and repairing it means going back to the month after the release.
 
+### A run says which `btclib_secp256k1` build it measured
+
+- **`tests/conftest.py` names the build in a `pytest_report_header`,
+  under the flagged build and the unflagged one alike** (closes #1937).
+  Which of the two answered decides whether the tests marked `zkp`
+  compare btclib against libsecp256k1-zkp or skip, and a report
+  otherwise carries the answer only where there is a skip: `-ra` names
+  the missing build once per test an unflagged run skips, where a
+  flagged run skips none of them and leaves it to a subtraction over the
+  passed and the skipped totals. The exit code and the coverage total
+  read the same either way. Printing the line under the flagged build
+  alone would leave its absence carrying the other answer, which a
+  report written before the line carries just as well.
+- **`.github/workflows/zkp-oracle.yml` says what the flagged sync's
+  `--reinstall-package` and `--no-cache` undo as well as what they do**:
+  the same pair is what takes an environment back out of that arm, a
+  plain `uv sync --locked` leaving the flagged extension where it is.
+  The runner this job gets is fresh either way, so who needs the way out
+  is whoever copies those two lines into a worktree.
+
 ## v2026.9.3
 
 ### Repository

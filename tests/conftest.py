@@ -197,6 +197,38 @@ def pytest_configure(config: pytest.Config) -> None:
     )
 
 
+def pytest_report_header() -> str:
+    """State which `btclib_secp256k1` build this run measured.
+
+    Beside the interpreter, the rootdir and the plugins pytest already
+    announces there: which of the two builds answered is a fact about
+    the same run, and the report otherwise carries it only where there
+    is a skip. `-ra` names the missing build once per test an unflagged
+    run skips, where a flagged run skips none of them and leaves the
+    answer to a subtraction over the passed and the skipped totals --
+    the exit code, the coverage total and the floor it clears reading
+    the same either way (issue #1937).
+
+    Printed under both builds and not under the flagged one alone,
+    because a line that appears only one way makes its own absence carry
+    the other answer, which a report written before this line carries
+    just as well.
+
+    What it names is what `ZKP_AVAILABLE` measured, whether
+    `btclib_secp256k1.zkp.lib` resolves, so the second arm covers a
+    build made without the flag and an environment without the bindings
+    at all alike. A conditional expression rather than an `if`, which
+    keeps this one statement: the guard in `tests/__init__.py` needs a
+    `pragma` in each of its arms because the build decides which one a
+    run takes, and a branch here would need the same twice over.
+    """
+    return "btclib_secp256k1.zkp: " + (
+        "built with BTCLIB_LIBSECP256K1_ZKP, so the tests marked zkp run"
+        if ZKP_AVAILABLE
+        else "no BTCLIB_LIBSECP256K1_ZKP build, so the tests marked zkp skip"
+    )
+
+
 @pytest.fixture
 def generated_files_dir(request: pytest.FixtureRequest) -> Path:
     """Locate the `_generated_files` directory beside the asking module.
