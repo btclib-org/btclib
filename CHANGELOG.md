@@ -3648,6 +3648,26 @@ name that library and the symbol each of them paraphrases (closes #1932).
   `version` message carries, which is `NetworkAddress` rather than what
   a `CAddress` writes.
 
+### `zkp-oracle.yml` triggers on what decides run-or-skip, and asserts it
+
+- **`.github/workflows/zkp-oracle.yml`'s `paths:` filter names
+  `tests/__init__.py` and `tests/conftest.py`** (closes #1958): the first
+  sets `ZKP_AVAILABLE` and the second turns a False flag into a skip on
+  every `zkp`-marked test, so between them they decide whether what this
+  job selects runs or skips. A change leaving them skipping under the
+  flagged build reads as no change at all on an unflagged run, which
+  skips those tests already, and both arms of the flag carry a `pragma:
+  no cover`, so no coverage total moves with them either.
+- **The step before the run asserts `tests.ZKP_AVAILABLE`**, the flag
+  `tests/conftest.py` reads, rather than the `btclib_secp256k1.zkp.lib`
+  access it is derived from: a change to the derivation is the one shape
+  an assertion on that attribute cannot see, and an unloadable extension
+  leaves the flag False, so asking the flag alone loses nothing.
+- **That step's comment names the switch pytest does not have**: a
+  selection every test of which skipped exits 0, where exit 5 answers a
+  collection that found nothing, so the assertion refuses the condition
+  that produces the state instead.
+
 ## v2026.9.3
 
 ### Repository
