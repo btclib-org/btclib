@@ -419,13 +419,13 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "bitcoin-core-rpc", specifier = ">=2026.9.3" },
-    { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.5" },
+    { name = "btclib-secp256k1", marker = "extra == 'secp256k1'", specifier = ">=0.8.0.6" },
     { name = "typing-extensions", specifier = ">=4.10" },
 ]
 provides-extras = ["secp256k1"]
 
 [package.metadata.requires-dev]
-bindings = [{ name = "btclib-secp256k1", specifier = ">=0.8.0.5" }]
+bindings = [{ name = "btclib-secp256k1", specifier = ">=0.8.0.6" }]
 check = [
     { name = "check-sdist" },
     { name = "check-wheel-contents" },
@@ -433,7 +433,7 @@ check = [
     { name = "twine" },
 ]
 dev = [
-    { name = "btclib-secp256k1", specifier = ">=0.8.0.5" },
+    { name = "btclib-secp256k1", specifier = ">=0.8.0.6" },
     { name = "check-sdist" },
     { name = "check-wheel-contents" },
     { name = "cosmic-ray" },
@@ -453,7 +453,7 @@ dev = [
     { name = "twine" },
 ]
 docs = [
-    { name = "btclib-secp256k1", specifier = ">=0.8.0.5" },
+    { name = "btclib-secp256k1", specifier = ">=0.8.0.6" },
     { name = "furo" },
     { name = "myst-parser" },
     { name = "sphinx" },
@@ -467,14 +467,14 @@ harness = [
     { name = "pytest-xdist" },
 ]
 lint = [
-    { name = "btclib-secp256k1", specifier = ">=0.8.0.5" },
+    { name = "btclib-secp256k1", specifier = ">=0.8.0.6" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "ruff" },
 ]
 mutation = [{ name = "cosmic-ray" }]
 test = [
-    { name = "btclib-secp256k1", specifier = ">=0.8.0.5" },
+    { name = "btclib-secp256k1", specifier = ">=0.8.0.6" },
     { name = "coverage" },
     { name = "hypothesis" },
     { name = "pytest" },

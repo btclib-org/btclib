@@ -14,15 +14,32 @@ from io import BytesIO
 import pytest
 
 from btclib.alias import Point
-from btclib.curves import Curve, mult, secp256k1
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    double_mult_var,
+    mult,
+    secp256k1,
+)
 from btclib.ecc import borromean, dsa
-from btclib.ecc.borromean import BorromeanSig
+from btclib.ecc.borromean import BorromeanSig, _get_msg_format, _hash
 from btclib.exceptions import (
     BorromeanRingError,
     BTClibTypeError,
     BTClibValueError,
 )
+from btclib.utils import int_from_bits
+from tests import needs_zkp
 from tests.curves.curve_test import low_card_curves
+
+# guarded module scope, the same shape `tests/ecc/pedersen_test.py` uses
+# and for its reason: this file is collected in every job, the
+# no-bindings one included, and pytest imports every module it collects
+# before `tests.needs_zkp` can skip anything in it
+try:
+    from btclib_secp256k1.zkp import rangeproof as zkp_rangeproof
+except ImportError:  # pragma: no cover -- only the no-bindings job reaches this
+    zkp_rangeproof = None  # type: ignore[assignment]
 
 
 def test_borromean() -> None:
@@ -223,12 +240,13 @@ def test_challenge_hash_matches_zkps_preimage_order() -> None:
     `src/modules/rangeproof/borromean_impl.h`, read at its current tip
     on 2026-08-20): the point -- or the `e0` closing the rings -- first,
     then the message hash, then the ring index and the position each as
-    4 bytes big-endian (issue #1070). There is no vendored zkp in this
-    tree to call, so this pins that order computed by hand from zkp's
-    documented source rather than from any live cross-check against
-    zkp's own code -- and pins it against a `m || R || i || j` order,
-    which is what this function computed, and what this test would have
-    caught, before #1070.
+    4 bytes big-endian (issue #1070). This pins that order computed by
+    hand from zkp's documented source, and runs in every build, where
+    `test_zkp_reads_this_challenge_and_refuses_this_signature` below
+    puts the same preimage to zkp's own verifier and needs the flagged
+    extension for it. It pins the order against a `m || R || i || j`
+    one, which is what this function computed, and what this test would
+    have caught, before #1070.
     """
     m = hashlib.sha256(b"message hash, pretending to be one").digest()
     r = hashlib.sha256(b"nonce point, or e0, pretending to be one").digest()
@@ -700,3 +718,148 @@ def test_no_statistic_of_s_correlates_with_the_signer_on_a_low_cardinality_curve
     _assert_no_statistic_of_s_correlates_with_the_signer(
         ec, ring_size=4, trials=300, tolerance=0.25
     )
+
+
+def test_sign_signs_the_hash_it_is_handed() -> None:
+    """`sign` is `sign_` over `_get_msg_format`, and nothing else.
+
+    The prepared spelling takes the one hash the ring walk binds, so a
+    caller that computes that hash the way `sign` does gets a signature
+    `verify` accepts -- and one that computes it any other way gets a
+    signature about that other hash, which is the whole of what the
+    argument buys and the whole of what it costs.
+    """
+    keys = [dsa.gen_keys(i) for i in (2, 3)]
+    pubk_rings = [[keys[0][1], keys[1][1]]]
+    msg = b"Borromean ring signature"
+
+    m = _get_msg_format(msg, pubk_rings, secp256k1, sha256)
+    sig = borromean.sign_(m, [1], [0], [keys[0][0]], pubk_rings)
+    assert borromean.verify(msg, sig, pubk_rings)
+
+    # another hash is another message: the signature is valid about it,
+    # and `verify` -- which recomputes `_get_msg_format` from `msg` --
+    # is asking about something else
+    other = _get_msg_format(b"another message", pubk_rings, secp256k1, sha256)
+    sig = borromean.sign_(other, [1], [0], [keys[0][0]], pubk_rings)
+    assert not borromean.verify(msg, sig, pubk_rings)
+    assert borromean.verify(b"another message", sig, pubk_rings)
+
+
+def test_sign_reads_a_prepared_hash_and_a_ring_key() -> None:
+    """Prepared is the hash, never the ring, so both are still checked.
+
+    `sign` reads every ring key on its way through `_get_msg_format`,
+    which `sign_` is handed the output of; a ring of one key signed at
+    its own position is walked at no forged position, so without the
+    check here nothing would look at that key at all.
+    """
+    prv_key, pub_key = dsa.gen_keys(2)
+    m = sha256(b"a prepared message hash").digest()
+
+    with pytest.raises(BTClibValueError, match="point not on curve"):
+        borromean.sign_(m, [1], [0], [prv_key], [[(1, 2)]])
+
+    # and the hash itself, which is hf's digest and not octets of any size
+    with pytest.raises(BTClibValueError, match="invalid size"):
+        borromean.sign_(m + b"\x00", [1], [0], [prv_key], [[pub_key]])
+    with pytest.raises(BTClibTypeError, match="invalid octets type: int"):
+        borromean.sign_(0, [1], [0], [prv_key], [[pub_key]])  # type: ignore[arg-type]
+
+
+def _last_ring_points(
+    m: bytes, sig: BorromeanSig, pubk_rings: list[list[Point]]
+) -> bytes:
+    """Walk each ring forward from sig.e0 and return its last point, joined.
+
+    `assert_as_valid`'s own walk, which hashes these bytes together with
+    `m` to answer whether the signature closes -- repeated here so that
+    the two orders can be compared, since the module hashes them in only
+    one of them.
+    """
+    out = b""
+    for i, pubk_ring in enumerate(pubk_rings):
+        e = int_from_bits(_hash(m, sig.e0, i, 0, sha256), secp256k1.nlen)
+        e %= secp256k1.n
+        points = []
+        for j, Q in enumerate(pubk_ring):
+            point = double_mult_var(-e, Q, sig.s[i][j], secp256k1.G, secp256k1)
+            points.append(bytes_from_point(point, secp256k1))
+            if j != len(pubk_ring) - 1:
+                e = int_from_bits(
+                    _hash(m, points[-1], i, j + 1, sha256), secp256k1.nlen
+                )
+                e %= secp256k1.n
+        out += points[-1]
+    return out
+
+
+def test_e0_hashes_the_message_before_the_ring_points() -> None:
+    """`e0` is `hf(m || r_0 || ... || r_last)`, where zkp's is the reverse.
+
+    secp256k1-zkp writes each ring's last point into its `e0` hash first
+    and the message only after the ring loop ends
+    (`secp256k1_borromean_sign`, `src/modules/rangeproof/borromean_impl.h`),
+    so the two preimages hold the same bytes in the other order. This
+    module is self-consistent -- `assert_as_valid` builds the preimage
+    the way `sign` does -- and a signature written here is one zkp's
+    verifier refuses whatever ring it is given, which is issue #1940 and
+    what `test_zkp_reads_this_challenge_and_refuses_this_signature`
+    below measures.
+    """
+    keys = [dsa.gen_keys(i) for i in (2, 3, 4, 5)]
+    pubk_rings = [[keys[0][1], keys[1][1]], [keys[2][1], keys[3][1]]]
+    msg = b"Borromean ring signature"
+    sig = borromean.sign(msg, [1, 2], [0, 1], [keys[0][0], keys[3][0]], pubk_rings)
+
+    m = _get_msg_format(msg, pubk_rings, secp256k1, sha256)
+    points = _last_ring_points(m, sig, pubk_rings)
+    assert sha256(m + points).digest() == sig.e0
+    assert sha256(points + m).digest() != sig.e0
+
+
+# `pragma: no cover` on the `@needs_zkp` below, the marker being the
+# reason: `tests/conftest.py` turns it into a skip in an unflagged
+# build, and excluding what a build cannot execute is what leaves the
+# floor a measurement of the suite rather than of the build the machine
+# has (issue #1885). The marker's line and not the `def` under it, as
+# `tests/ecc/pedersen_test.py` does and for the reason it gives there.
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof.borromean_verify to ask
+def test_zkp_reads_this_challenge_and_refuses_this_signature() -> None:
+    """A signature `sign_` writes is one zkp's own verifier refuses.
+
+    `zkp.rangeproof.borromean_verify` wraps `secp256k1_borromean_verify`
+    over serialized arguments, so the module docstring's account of
+    where the two implementations part is measured here instead of
+    transcribed.
+
+    The ring closed first is closed under zkp's own two conventions --
+    `e0` over `r || m`, and `s = k - q*e` -- and through this module's
+    `_hash` for the challenge, which is the preimage the two do share.
+    That it verifies is what makes the refusals below statements about
+    the two differences rather than about this call, and that its
+    negation does not verify is zkp holding `s*G + e*P` where this
+    module holds `s*G - e*Q`.
+
+    What `sign_` writes is then refused under the ring and under that
+    ring negated key by key: the negation answers the equation, and
+    `e0` -- already written into the signature -- is still over the
+    other preimage.
+    """
+    prv_key, pub_key = dsa.gen_keys(2)
+    sec = bytes_from_point(pub_key, secp256k1)
+    negated_sec = bytes_from_point((pub_key[0], secp256k1.p - pub_key[1]), secp256k1)
+    m = sha256(b"a message a rangeproof could have built").digest()
+
+    k = 1 + secrets.randbelow(secp256k1.n - 1)
+    r = bytes_from_point(mult(k, secp256k1.G, secp256k1), secp256k1)
+    e0 = sha256(r + m).digest()
+    e = int_from_bits(_hash(m, e0, 0, 0, sha256), secp256k1.nlen) % secp256k1.n
+    s = ((k - prv_key * e) % secp256k1.n).to_bytes(32, "big")
+    assert zkp_rangeproof.borromean_verify(e0, s, m, [sec], [1])
+    assert not zkp_rangeproof.borromean_verify(e0, s, m, [negated_sec], [1])
+
+    sig = borromean.sign_(m, [k], [0], [prv_key], [[pub_key]])
+    s_values = sig.serialize()[sha256().digest_size :]
+    assert not zkp_rangeproof.borromean_verify(sig.e0, s_values, m, [sec], [1])
+    assert not zkp_rangeproof.borromean_verify(sig.e0, s_values, m, [negated_sec], [1])

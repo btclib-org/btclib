@@ -256,6 +256,17 @@ _CASES = (
         },
     ),
     _Case(
+        "btclib.ecc.borromean.sign_",
+        borromean.sign_,
+        {
+            "msg_hash": _MSG_HASH,
+            "ks": [1, 2],
+            "sign_key_idx": _SIGN_KEY_IDX,
+            "sign_keys": _SIGN_KEYS,
+            "pubk_rings": _PUBK_RINGS,
+        },
+    ),
+    _Case(
         "btclib.ecc.borromean.verify",
         borromean.verify,
         {"msg": _MSG, "sig": _BORROMEAN_SIG, "pubk_rings": _PUBK_RINGS},
