@@ -511,8 +511,8 @@ def _libsecp256k1_serves(ec: Curve, hf: HashF | None) -> bool:
 
     Every dispatch to the bindings asks here, so that the predicates
     cannot drift apart the way hand-written copies would; a caller
-    with a further condition of its own -- mult, whose bindings take the
-    generator and a non-zero scalar alone -- ands it on top.
+    with a further condition of its own -- mult, whose bindings take
+    neither a zero scalar nor the point at infinity -- ands it on top.
 
     hf is compared by identity, deliberately: nothing short of running
     the two functions tells sha256 from a look-alike, so a wrapper such

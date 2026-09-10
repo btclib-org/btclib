@@ -56,8 +56,8 @@ wNAF makes one per bit however wide its table is and however thoroughly
 it is cached, the factor holding over the memoized odd multiples of G at
 w=8, w=10 and w=12 alike. So the arm every key derivation, every BIP32
 child and every signing nonce runs has no variable-time alternative to
-offer. What is left is a variable-base mult with a secret scalar, which
-in this package is ecc.dh: 1.13x on secp256k1 and 1.03x on nistp256, the
+offer. What is left is a variable-base mult with a secret scalar,
+measured over ecc.dh: 1.13x on secp256k1 and 1.03x on nistp256, the
 second being that measurement's own noise. Beside it, the blinded nonce
 inverse is a fraction of a percent of a signature, the projective
 blinding of curve_group._blinded_jac is 1%, and every verification is
@@ -70,8 +70,8 @@ They are implementations of one operation, kept side by side to be measured
 against each other, and a menu of them is not an API: a caller reading them
 would find every way of multiplying a point this package implements and
 nothing to say that mult is the one to use, that it dispatches to
-libsecp256k1 for secp256k1 and the generator, and that _mult_jac_var is
-not the faster alternative its name suggests.
+libsecp256k1 for secp256k1, and that _mult_jac_var is not the faster
+alternative its name suggests.
 
 The underscore says the second thing too, which is what decided it: each
 takes a point it assumes to be on the curve and checks nothing, so a
