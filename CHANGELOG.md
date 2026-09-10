@@ -3711,6 +3711,18 @@ name that library and the symbol each of them paraphrases (closes #1932).
   passes against the descriptors BIP390 publishes; a call spanning lines
   is invisible to a reading keyed on the line its name sits on.
 
+### Which library `tests/_data/README.md`'s header example names
+
+- **The example is `include/secp256k1_ecdsa_s2c.h` of
+  BlockstreamResearch/secp256k1-zkp** (closes #1965), the attribution
+  `btclib.ecc.dsa`'s `anti_exfil_host_commit` docstring carries for that
+  header. bitcoin-core/secp256k1 publishes no sign-to-contract header,
+  and the kinds of upstream prose listed beside the example named a
+  libsecp256k1 header alone, so the example read as one of those.
+- **The list names a kind of prose and the citation names the library**:
+  what a citation carries is the repository and the path, both of which
+  keep their names, so a paraphrase of a header needs no revision.
+
 ## v2026.9.3
 
 ### Repository
