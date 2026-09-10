@@ -50,13 +50,13 @@ therefore accept each other's signatures is an assertion, not a
 measurement: the agreement is with zkp's source, read and transcribed
 by hand, which is what `tests/ecc/borromean_test.py` pins, and no test
 here hands a signature to `secp256k1_borromean_verify` or checks one
-that function produced. Nothing in reach can:
-`secp256k1_borromean_verify` and `secp256k1_borromean_sign` are
-declared `static` in `src/modules/rangeproof/borromean.h`, an internal
-header with no counterpart under zkp's `include/`, and `static` is
-internal linkage, so no cffi `cdef` binds them -- the
-`btclib_secp256k1` bindings wrap no borromean, the flagged `zkp`
-extension included.
+that function produced. One direction of it is in reach:
+`zkp.rangeproof.borromean_verify` wraps that function over serialized
+arguments, in the flagged `zkp` extension alone. The other is not --
+`secp256k1_borromean_sign` is declared `static` in
+`src/modules/rangeproof/borromean.h`, an internal header with no
+counterpart under zkp's `include/`, and `static` is internal linkage,
+so no cffi `cdef` binds it.
 
 Agreeing on the primitive is not the same as producing a Confidential
 Transactions rangeproof: `rangeproof_impl.h` wraps this signature in a
@@ -79,14 +79,13 @@ the value commitment, the generator and the proof's own header, with
 no pubkey ring in the preimage. Verifying a proof and rewinding one
 are still ahead of it.
 
-btclib-org/btclib-secp256k1#828 asks the bindings for borromean over
-serialized arguments, which is what would discharge the assertion in
-both directions. Where it is declined, issue #1072 would discharge it
-instead: `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are
-wrapped, and the proof they write and read carries this signature
-inside it -- `secp256k1_rangeproof_sign_impl` and
+The signing direction is issue #1072's to discharge:
+`zkp.rangeproof.sign` and `zkp.rangeproof.verify` are wrapped, and the
+proof they write and read carries this signature inside it --
+`secp256k1_rangeproof_sign_impl` and
 `secp256k1_rangeproof_verify_impl` call `secp256k1_borromean_sign` and
-`secp256k1_borromean_verify`.
+`secp256k1_borromean_verify_impl`, which is what the wrapped
+`secp256k1_borromean_verify` delegates to.
 """
 
 from __future__ import annotations

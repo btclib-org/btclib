@@ -684,11 +684,11 @@ repos:
     # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
     # workspace-relative references the thing to flag instead.
     #
-    # `autoupdate` offers 1.30.0 on every run, and the marker on the rev
-    # line is what declines it: `held-rev` above reads the value and the
-    # marker as one line and fails wherever the two differ. `pinned-rev`
-    # cannot, being a refusal of a shape -- a bare major, a prerelease --
-    # and a hold naming a version is not one
+    # `autoupdate` offers the newest release on every run, and the marker
+    # on the rev line is what declines it: `held-rev` above reads the
+    # value and the marker as one line and fails wherever the two differ.
+    # `pinned-rev` cannot, being a refusal of a shape -- a bare major, a
+    # prerelease -- and a hold naming a version is not one
     rev: v1.29.0 # hold: v1.29.0 -- issue #1563
     hooks:
       - id: zizmor
@@ -789,7 +789,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.10
+    rev: 0.12.12
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock

@@ -13,7 +13,7 @@ writes those octets back.
 range: `exp` is -1, the value is stated in the clear, and the single
 ring holds the key the commitment itself gives. `RangeProof.pubk_rings`
 rebuilds, from a proof and the value commitment it was written against,
-the rings `secp256k1_borromean_verify` is handed, and
+the rings `secp256k1_borromean_verify_impl` is handed, and
 `RangeProof.sign_key_idx` says which key of each ring a value's own
 digit names. `RangeProof.nonce_chain` derives what
 `secp256k1_rangeproof_genrand` draws for those rings: each ring's
@@ -51,8 +51,8 @@ rather than an `e0` and an `s` of this module's own: `ecc.borromean`
 already writes and reads that layout. What the rangeproof adds is
 `rsizes` -- how the mantissa decides the ring structure -- which
 `secp256k1_rangeproof_verify_impl` computes and hands to
-`secp256k1_borromean_verify` rather than reading out of the proof, and
-which `_rsizes` below computes the same way.
+`secp256k1_borromean_verify_impl` rather than reading out of the proof,
+and which `_rsizes` below computes the same way.
 
 **The sign bit is quadratic residuosity, not parity.**
 `secp256k1_rangeproof_serialize_point` writes
@@ -151,7 +151,7 @@ def _rsizes(mantissa: int) -> tuple[int, ...]:
     and there is nothing blinded to choose between.
 
     `secp256k1_rangeproof_verify_impl` computes this and passes it to
-    `secp256k1_borromean_verify`, so a `BorromeanSig` inside a proof is
+    `secp256k1_borromean_verify_impl`, so a `BorromeanSig` inside a proof is
     read against the mantissa where a free-standing one is read against
     a caller's `rsizes`.
     """
@@ -521,7 +521,7 @@ class RangeProof:
         """Return the rings of keys this proof's signature is over.
 
         `secp256k1_rangeproof_verify_impl` up to the point where it hands
-        those rings to `secp256k1_borromean_verify`: every ring
+        those rings to `secp256k1_borromean_verify_impl`: every ring
         commitment the proof states, resolved against the residuosity
         convention the module docstring gives; the one it does not state,
         recovered from `commitment`; and `_pub_expand` over all of them.
@@ -805,6 +805,6 @@ def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
     if s == 0:
         # a zero s is the one `BorromeanSig` holds and zkp does not
         # write: `secp256k1_borromean_sign` returns zero on it, and
-        # `secp256k1_borromean_verify` refuses one it is handed
+        # `secp256k1_borromean_verify_impl` refuses one it is handed
         raise BTClibRuntimeError("rangeproof signature value is zero")
     return RangeProof(-1, 0, min_value, (), (), BorromeanSig(e0, [[s]]))

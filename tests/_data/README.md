@@ -2145,8 +2145,14 @@ Not vendored as the file itself because there is no data file upstream
 and none anywhere: this format has no published vector file, which is
 what the entry below says of it too, so the blob above is that C source
 and the weekly re-check reports a proof added to it. The bindings
-`uv.lock` resolves carry that same blob, their `secp256k1-zkp` submodule
-being `037cc6d74cbb4a89e443117459b577d56a582e54`.
+`uv.lock` resolves vendor a fork of that repository: their
+`secp256k1-zkp` submodule is `a8f6b86a804cdfd455dfb943937d254ec6ccc70a`
+of `fametrano/secp256k1-zkp`, which exposes
+`secp256k1_borromean_verify` as public API, so the blob at this path
+there is `02276b1b8745b90c7b6a50a0e3a89b9438e30397` and not the one
+above. Both functions this entry transcribes read the same in the fork's
+blob, byte for byte, so the transcription's source is the code the
+bindings run.
 
 The message a rewind also answers is left out, and so is the nonce it is
 read with: what reads this file is a parse.
@@ -2573,9 +2579,9 @@ rather than a refreshed one.
 ### `tests/ecc/_data/zkp_rangeproof_vectors.json`
 
 ```text
-program   btclib-secp256k1 0.8.0.5, the version uv.lock resolves, built
-          from its sdist with BTCLIB_LIBSECP256K1_ZKP=true; its
-          secp256k1-zkp submodule is 037cc6d74cbb4a89e443117459b577d56a582e54
+program   btclib-secp256k1 0.8.0.5, built from its sdist with
+          BTCLIB_LIBSECP256K1_ZKP=true; its secp256k1-zkp submodule is
+          037cc6d74cbb4a89e443117459b577d56a582e54
 calls     zkp.generator.pedersen_commit(blind, value)
           zkp.rangeproof.sign(commitment, blind, nonce, value, **args)
           zkp.rangeproof.info(proof)
