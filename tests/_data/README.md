@@ -164,11 +164,13 @@ beside them, the BIP374 csv files, BIP352's
 `send_and_receive_test_vectors.json` and BIP375's
 `bip375_test_vectors.json` on 2026-08-13, and Core's `siphash.json` on
 2026-08-20. BIP375's `bip375_test_vectors.json`, Core's
-`miniscript_fixed_tests.json` pin and `descriptor_tests.cpp` pin, and
-Wycheproof's `ecdsa_secp256k1_sha256_bitcoin_test.json` were pulled again
-on 2026-08-25, each at the tip of its path that day, and Core's
+`miniscript_fixed_tests.json` pin and Wycheproof's
+`ecdsa_secp256k1_sha256_bitcoin_test.json` were pulled again on
+2026-08-25, each at the tip of its path that day, Core's
 `chacha20_vectors.json` and `muhash_vectors.json`, both transcribed from
-`crypto_tests.cpp`, were pulled on 2026-09-03, at the tip of that path.
+`crypto_tests.cpp`, on 2026-09-03, at the tip of that path, and Core's
+`descriptor_tests.cpp` pin on 2026-09-10, at the tip of its path that
+day.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1322,8 +1324,8 @@ measure.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/descriptor_tests.cpp
-commit  994c17d6c0a1453a1d7cc44ee2bbc49afa2d1155  2026-08-24
-pulled  2026-08-25, rawtr() added 2026-08-06
+commit  e2b2f1c5c6f720381b8cc182e750aadd703e4b4f  2026-08-25
+pulled  2026-09-10, rawtr() added 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
@@ -1343,13 +1345,20 @@ The subset is deliberate and is what a refresh would revisit: Core's file
 also holds `CheckUnparsable` cases, which this module has as `UNPARSABLE`
 with btclib's own messages, and the `musig()` cases of BIP390, which are
 transcribed from the BIP itself above rather than from here. Matched
-against the pinned file on 2026-08-06.
+against the file as it stood on 2026-08-06.
 
-Not matched since: the commit above adds five cases -- a `musig()`
-duplicate-key check fix and a PSBT origin-path doubling fix, neither a
-refactor -- which
-[ISS 1334](https://github.com/btclib-org/btclib/issues/1334) tracks,
-including whether btclib's own musig derivation shares either defect.
+The cases upstream added after that comparison are not here, and
+[ISS 1334](https://github.com/btclib-org/btclib/issues/1334) is where
+they were weighed: it measured btclib against both defects they cover --
+a `musig()` duplicate-key check that reads distinct participants as the
+same key when neither of them derives, and a key origin prepended once
+per expression rather than once per participant -- and found neither in
+this tree, so none of those cases is owed here.
+
+The revisions this refresh crosses reach no case: the file's `DoCheck`
+helper takes on an assertion of the canonical serialization, and
+`DescriptorID` becomes `CompatDescriptorHash`, a rename that reaches each
+case's named-argument comment and no value in it.
 
 ### Not vendored as a file: the message types of Core's `NetMsgType`
 

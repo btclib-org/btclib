@@ -299,7 +299,6 @@ _EXEMPT: dict[str, str] = {
     "p2wsh ops, stack and script-size limits, and the two nestings that reach a": _UPSTREAM_FACT,
     "thousand elements on the stack. `tests/descriptors/miniscript_test.py`": _UPSTREAM_FACT,
     "of the four Core expands from the private form alone, and the two": _UPSTREAM_FACT,
-    "Not matched since: the commit above adds five cases -- a `musig()`": _UPSTREAM_FACT,
     "before. The two hold the same names, compared on 2026-09-03, and the": _UPSTREAM_FACT,
     "directions in `bitcoin/bitcoin#15437`. `src/btclib/p2p/reject.py` says": _UPSTREAM_FACT,
     "but an *interface*, and the two entries are the two halves of it: the": _UPSTREAM_FACT,

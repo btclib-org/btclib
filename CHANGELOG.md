@@ -3539,6 +3539,23 @@ name that library and the symbol each of them paraphrases (closes #1932).
 - **`SECURITY.md`'s citation of `commit_nonce.commit_nonce_` names the
   line the read sits on.**
 
+### Core's descriptor derivation vectors are pinned at the path's tip
+
+- **`tests/_data/README.md` pins `src/test/descriptor_tests.cpp` at
+  `e2b2f1c5c6f720381b8cc182e750aadd703e4b4f`** (2026-08-25), which is the
+  tip of that path (closes #1916). The revisions this refresh crosses
+  reach no case: the file's `DoCheck` helper takes on an assertion of the
+  canonical serialization, and `DescriptorID` becomes
+  `CompatDescriptorHash`, a rename that reaches each case's
+  named-argument comment and no value in it.
+- **The cases upstream added before them stay out, and the entry says
+  why.** [ISS 1334](https://github.com/btclib-org/btclib/issues/1334)
+  measured btclib against both defects those cases cover -- a `musig()`
+  duplicate-key check that reads distinct participants as the same key
+  when neither of them derives, and a key origin prepended once per
+  expression rather than once per participant -- and found neither in
+  this tree, so `CORE_VECTORS` is owed none of them.
+
 ## v2026.9.3
 
 ### Repository
