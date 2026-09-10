@@ -253,6 +253,28 @@ documented at release-notes length in the first place, and are still in
   answers with is the group arithmetic rather than an answer the header
   states: `tests/bip32/bip32_test.py` said the header states it.
 
+### The bindings dispatch is stated by its shape, not by a population
+
+- **A comment on `dsa.gen_keys` and the `btclib.curves` census each
+  named a population that is not one** (closes #1994). The generator was
+  "the one multiplication libsecp256k1 is dispatched to", where
+  `curves.curve.mult` delegates every point that is neither the
+  generator nor infinity; and a variable-base multiplication of a secret
+  scalar was `ecc.dh` in this package, where BIP374's proof, the ECDH
+  share of a BIP375 input and the key generation of BIP38's EC-multiply
+  mode each write one too. `SECURITY.md` publishes that population, so
+  neither site restates it. The docstrings of
+  `curves.curve._libsecp256k1_serves` and of `tests/all_test.py`'s export
+  test named the generator the same way, and are repaired with them.
+- **What is kept at the generator is what is true of it alone**, which
+  is the call: `secp256k1_ec_pubkey_create`, constant time in its
+  scalar, where every other point is `secp256k1_ec_pubkey_tweak_mul`.
+- **The issue #849 figure stays with what was measured.** 1.13x is
+  `ecc.dh` with the bindings switched off, and it says nothing about a
+  call it did not time, so the census names `ecc.dh` as the subject of
+  the measurement rather than as the place such a multiplication
+  happens.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

@@ -395,9 +395,9 @@ def defined_public_names(module: ModuleType) -> set[str]:
 def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
     """One multiplication, not fourteen ways to spell it.
 
-    mult dispatches to libsecp256k1 for secp256k1 and the generator, which
-    is exactly what a caller choosing _mult_jac_var from the same namespace --
-    on the strength of its name -- gives up.
+    mult dispatches to libsecp256k1 for secp256k1, which is exactly what a
+    caller choosing _mult_jac_var from the same namespace -- on the
+    strength of its name -- gives up.
     """
     assert sorted(btclib.curves.__all__) == [
         "CURVES",

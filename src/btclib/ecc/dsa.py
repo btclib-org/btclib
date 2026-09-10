@@ -435,9 +435,9 @@ def gen_keys(
         q = scalar_from_prv_key(prv_key, ec)
 
     # mult, not the _mult under it: the scalar is the private key and the
-    # point is the generator, which is the one multiplication libsecp256k1
-    # is dispatched to -- constant time there, and two orders of
-    # magnitude under the Python arithmetic.
+    # point is the generator, which libsecp256k1 multiplies with
+    # secp256k1_ec_pubkey_create -- constant time in the scalar, and two
+    # orders of magnitude under the Python arithmetic.
     # ssa.gen_keys computes this very point the same way
     return q, mult(q, ec=ec)
 
