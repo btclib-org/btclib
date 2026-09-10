@@ -306,6 +306,37 @@ used to teach and to prototype as much as to build:
     is Bos-Coster, whose shape is the scalars themselves.
     Using it on key material that matters is a choice, and this is the
     notice of it
+- **the delegated multiplication of a point that is not the generator is
+    variable time in its scalar**, and that scalar is a private key.
+    `secp256k1_ec_pubkey_tweak_mul` is the call, and it runs
+    `secp256k1_ecmult`, whose windowed NAF holds at most one more digit
+    than the scalar has bits — so the work follows the scalar rather
+    than the order of the curve. The multiplication libsecp256k1
+    documents as constant time in its scalar is `secp256k1_ecmult_const`;
+    `secp256k1_ecdh` is what reaches it, and nothing here calls that for
+    the reason `btclib.ecc.dh`'s module docstring gives. `ellswift.xdh`
+    is not an exception to that: it is delegated to
+    `secp256k1_ellswift_xdh`, which multiplies with
+    `secp256k1_ecmult_const_xonly` — constant time in its scalar, and a
+    different function from `secp256k1_ecmult_const`. Which call a
+    multiplication takes is decided by its shape and not by the module
+    that writes it: any point a caller supplied, multiplied by a secret
+    scalar, arrives here, `curves.curve.mult` delegating every point
+    that is neither the generator nor infinity —
+    `return _libsecp256k1_multi_mult([m], [Q])`
+    (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman`
+    (`src/btclib/ecc/dh.py:107`) is the one this bullet was written
+    from, and is an example rather than the population: key agreement,
+    a BIP374 discrete-log equality proof and the key generation of
+    BIP38's EC-multiply mode all reach the same multiplication.
+    The other delegations the bullet above names are different calls:
+    a multiple of the generator is `secp256k1_ec_pubkey_create`, which
+    runs `secp256k1_ecmult_gen`, and the tweaking of a key is
+    `secp256k1_ec_seckey_tweak_add` or
+    `secp256k1_keypair_xonly_tweak_add`, which add scalars. Those three
+    are among the entry points libsecp256k1's own `src/ctime_tests.c`
+    declassifies a secret for, and `secp256k1_ec_pubkey_tweak_mul` is
+    named nowhere in that file
 - a sign-to-contract commitment is the signer's to open, and opening it
     twice over one message is safe only because the committed value
     reaches the nonce derivation: that is what keeps two such signatures

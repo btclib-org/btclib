@@ -148,10 +148,11 @@ def test_a_normal_dU_reaches_the_bindings(monkeypatch: pytest.MonkeyPatch) -> No
     zero for every `dU` below `n`, which is every caller, and the guard
     then falls through to `mult(dU, QV, ec)` instead. That call still
     reaches libsecp256k1: it reduces `dU` on its own and dispatches
-    through `_libsecp256k1_multi_mult`/`pubkey_tweak_mul_sum`, a second
-    constant-time binding rather than the Python endomorphism arithmetic
-    -- so the mutant costs this line's direct entry point and not the
-    constant-time guarantee itself. `ansi_x9_63_kdf` derives the same
+    through `_libsecp256k1_multi_mult`/`pubkey_tweak_mul_sum`, which is
+    a `secp256k1_ec_pubkey_tweak_mul` per term and so the same C
+    multiplication one wrapper further out, rather than the Python
+    endomorphism arithmetic -- so the mutant costs this line's direct
+    entry point and not the delegation. `ansi_x9_63_kdf` derives the same
     bytes off either binding's point, so no assertion on the shared key
     tells the two apart (issue 975); this records the call into
     `pubkey_tweak_mul` instead of the answer it returns, so a mutant that
