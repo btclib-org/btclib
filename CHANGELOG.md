@@ -79,6 +79,50 @@ documented at release-notes length in the first place, and are still in
   sentence is about the tree the audit found: renaming a module inside a
   past-tense description would make it false in the other direction.
 
+### The gate runs section 4's local hooks
+
+- **`reasonless-coverage-pragma` refuses a `#`-comment `pragma: no cover`
+  or `pragma: no branch` with nothing after it on its line** (issue
+  btclib-org/.github#965): the hook's `entry:` and `types:` are
+  `btclib-org/.github`'s at `69a47e6`. Every `no cover` here carried its
+  reason inline already; every `no branch` carried it in the comment
+  above the line, which section 8 names as the rejected alternative the
+  port rewrites, so each of those takes the inline half naming the case
+  and keeps the comment above it.
+- **`unquoted-placeholder` refuses a placeholder standing as a whole
+  argument in quotes, in every markdown file but `CHANGELOG.md` and
+  `RELEASE_NOTES.md`** (issue btclib-org/.github#706): section 9 of the
+  organization standard keeps the rule and section 4 names the quotes
+  the pattern exempts and the three shapes it cannot see; the exclusion
+  is the standard's own, both files being append-only. The tree is green
+  under the hook at the run that adds it.
+- **`check-changelog` refuses a `###` heading repeated in this file's
+  open section, an issue `(closes #N)` by two entries, and a heading
+  with no blank line above it** (issue btclib-org/.github#21):
+  `.github/scripts/check_changelog.py` is `btclib-org/.github`'s at
+  `69a47e6` byte for byte, which section 14 owes every repository, and
+  the hook sits ahead of `markdownlint-cli2`, whose `--fix` repairs the
+  seam the third check names. `pyproject.toml` lets the script print as
+  it lets the scripts beside it: what it prints is its report. The
+  script's `_BLANK_LINE` carries an attribute docstring that
+  `check-docstring-first` reads as a second module docstring
+  (btclib-org/.github#995), so that hook's `exclude:` names the script,
+  the file being owed byte for byte rather than this tree's to edit.
+- **`toml-comment-width`'s `name:` states the pattern's own predicate,
+  an unbroken final token past byte 80** (issue btclib-org/.github#843,
+  issue btclib-org/.github#885): the width is bytes, pygrep matching the
+  pattern against the raw line, and the comment above the hook says
+  "byte 80" where it said "column 80"; the `entry:` is unchanged.
+  v2026.9.10's *`toml-comment-width`'s comment describes the pattern and
+  no other tool* left the `name:` to a decision every tree carrying the
+  hook takes together, and `btclib-org/.github` took it at `51f717e`.
+- **`.yamllint.yaml`'s `allow-non-breakable-words` comment states only
+  the setting's own predicate** (issue btclib-org/.github#883): the
+  clause comparing it to MD013's exemption for a bare URL goes rather
+  than being corrected, which is what btclib-org/.github#883 settled,
+  and the file matches `btclib-org/.github`'s at `69a47e6` byte for
+  byte, which is section 14's comparison.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

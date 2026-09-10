@@ -438,7 +438,7 @@ def _rules(text: str) -> list[tuple[set[str], set[str]]]:
         # other way out, and the markdown read here has none -- MD012
         # refuses two blank lines in a row, and the flush above is what
         # every list ends on
-        elif paragraph:  # pragma: no branch
+        elif paragraph:  # pragma: no branch -- MD012: no blank with nothing pending
             lead, paragraph = paragraph, []
     return rules
 

@@ -407,7 +407,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     # one never takes the branch into it. The line itself runs either
     # way; what a flagged run leaves uncovered is the call, and the
     # function it calls (issue #1885)
-    if not ZKP_AVAILABLE:  # pragma: no branch
+    if not ZKP_AVAILABLE:  # pragma: no branch -- the build decides which way it goes
         _skip_what_needs_zkp(
             items
         )  # pragma: no cover -- a flagged build has nothing to skip

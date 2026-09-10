@@ -289,7 +289,13 @@ repos:
       - id: check-vcs-permalinks
       - id: detect-private-key
       - id: debug-statements
+      # `.github/scripts/check_changelog.py`'s `_BLANK_LINE` carries an
+      # attribute docstring, which this hook reads as a second module
+      # docstring (btclib-org/.github#995). Section 14 of the organization
+      # standard owes that file byte for byte, so the exclusion is the
+      # one place its finding can be answered
       - id: check-docstring-first
+        exclude: ^\.github/scripts/check_changelog\.py$
       # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
@@ -416,6 +422,22 @@ repos:
         args: [--write-changes, --force-exclude]
         types: [text]
         stages: [pre-commit, pre-merge-commit, pre-push, manual]
+  # `merge=union` stays on `CHANGELOG.md` (btclib-org/.github#21), and
+  # this is the gate its price bought back -- `.github/scripts/
+  # check_changelog.py`'s own docstring carries what the three checks
+  # catch, what they still cannot, and the alternatives declined
+  # (btclib-org/.github#305, btclib-org/.github#516). It runs ahead of
+  # markdownlint-cli2 below on purpose: that hook's `--fix` repairs the
+  # very seam the third check exists to name, so a hook reading the
+  # file after it would find nothing left to report.
+  - repo: local
+    hooks:
+      - id: check-changelog
+        name: the open CHANGELOG.md repeats no heading, closes no issue twice
+        entry: python3 .github/scripts/check_changelog.py
+        language: system
+        pass_filenames: false
+        files: ^(CHANGELOG\.md|\.github/scripts/check_changelog\.py)$
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
@@ -532,6 +554,34 @@ repos:
         language: pygrep
         entry: "[A-Za-z0-9]-$"
         types: [markdown]
+      # a placeholder that is a whole argument, in quotes. Section 9 of
+      # the organization standard is the rule and what the quoting costs
+      # a paste; section 4 is where this hook is, which quotes it
+      # exempts, and the three things this pattern cannot see. The
+      # discrimination is read off the line and not off the fence around
+      # it, because a fence-aware pattern has to consume everything
+      # before the match and pygrep then reports the file's first line
+      # and prints the whole prefix. A shell assignment takes no space
+      # around its `=`, so a line carrying one is another language's
+      # value; and a quote inside a quote of the other kind is a nested
+      # program's -- both read off one line, which is also where the
+      # three blind spots come from. Same `\x20` as above, and the same
+      # reason.
+      # `CHANGELOG.md` and `RELEASE_NOTES.md` are out of reach because
+      # section 9 makes them append-only: a refused shape in an entry
+      # that has landed has no repair, and there would be no green state
+      # to reach. `exclude:` selects files and pygrep reads whole ones,
+      # so an exclusion keyed on the older entries alone cannot be
+      # written; and check-useless-excludes asks the pattern to match
+      # some file the hook selects rather than each name in it, which is
+      # what lets a tree with no release notes carry the same line
+      - id: unquoted-placeholder
+        name: a placeholder standing as a whole argument is unquoted
+        language: pygrep
+        entry: |-
+          ^(?![\x20\t]*[A-Za-z_][A-Za-z0-9_.-]*[\x20\t]+=[\x20\t])(?:(?:[^"'\n]|'[^'\n]*')*"<[^<>"'`\n]*>"|(?:[^"'\n]|"[^"\n]*")*'<[^<>"'`\n]*>')
+        types: [markdown]
+        exclude: ^(CHANGELOG|RELEASE_NOTES)\.md$
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,
   # so the linter judges the formatted file and not the one that was typed.
@@ -600,7 +650,7 @@ repos:
   # formats values and leaves comments alone, by design, a formatter that
   # reflowed prose being a formatter that rewrites it.
   # `.{80}\S*[ \t]` reports a line only when whitespace is left past
-  # column 80: a comment whose overflow is one unbroken token is exempt.
+  # byte 80: a comment whose overflow is one unbroken token is exempt.
   # The `#` after optional indent selects a comment and not a long value:
   # `addopts` and `skip` in pyproject.toml are single tokens no width can
   # break, and a value is not prose.
@@ -611,7 +661,7 @@ repos:
   - repo: local
     hooks:
       - id: toml-comment-width
-        name: toml comment width (80 columns, unbreakable links exempt)
+        name: toml comment width (80 bytes, an unbroken final token exempt)
         language: pygrep
         entry: '^(?=[ \t]*#).{80}\S*[ \t]'
         files: \.toml$
@@ -757,6 +807,19 @@ repos:
         language: pygrep
         entry: '\b(text|universal_newlines)=True'
         files: \.py$
+      # section 8 of the organization standard's own acceptance command,
+      # run at the gate: a pragma with nothing after it on its line
+      # carries no reason, for no cover and no branch alike. The `#`
+      # immediately before pragma is what a comment always carries and a
+      # backticked reference to the rule in prose never does, section 8
+      # already saying prose drops it -- so this does not refuse a
+      # docstring quoting the rule, which a pygrep reading one line could
+      # not otherwise tell from a site
+      - id: reasonless-coverage-pragma
+        name: a coverage pragma with no inline reason is refused
+        language: pygrep
+        entry: '#\s*pragma: no (cover|branch)$'
+        types: [python]
   # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where every

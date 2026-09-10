@@ -325,7 +325,7 @@ def test_load_lang_is_not_a_race() -> None:
             # never false here. It is what keeps the block to the
             # assignment the race needs, another language or the empty
             # value of a failed load being neither
-            if key == "en" and value:  # pragma: no branch
+            if key == "en" and value:  # pragma: no branch -- one language is loaded
                 paused.set()
                 release.wait(10)
             super().__setitem__(key, value)

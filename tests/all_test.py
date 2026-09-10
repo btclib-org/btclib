@@ -746,7 +746,7 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
             # walked twice, and nothing here is -- which is what the
             # `no branch` says, the tree being one and the filter being
             # what would keep a future re-export from doubling the walk
-            if value.__name__ not in seen:  # pragma: no branch
+            if value.__name__ not in seen:  # pragma: no branch -- the tree is one
                 seen.add(value.__name__)
                 frontier.append(value)
     # the root, the nine packages, the nested one, and the modules they
