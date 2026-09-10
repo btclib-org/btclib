@@ -3502,6 +3502,25 @@ name that library and the symbol each of them paraphrases (closes #1932).
   submodule is the `fametrano/secp256k1-zkp` fork that wraps a function
   BlockstreamResearch keeps internal.
 
+### `RELEASING.md`'s new cycle heading names the release just cut
+
+- **The retitle step says which number the "work in progress" section it
+  opens takes** (closes #1944): the cycle of the release being cut, the
+  `YYYY.M` of the version the section it is opened above was just
+  retitled to. The number was left to whoever was cutting the release,
+  and that heading is the one place the cycle is decided now that *Open
+  the next cycle's version* reads `pyproject.toml`'s placeholder off it.
+- **The step gives the reason the choice is not free**: a heading naming a
+  month that has not arrived makes a checkout of `main` declare a version
+  sorting above every release that ships before that month does, `2026.10`
+  above `2026.9.10`. A heading that ends up a month behind the release it
+  names is corrected at the next retitle, where one naming a month ahead
+  stands for the whole cycle.
+- **It says that a cycle running past the end of its month is not a case
+  to plan for**, so that the rule is not read as a claim about when the
+  next release falls: the retitle step of that release renames the
+  heading, and nothing is bumped meanwhile.
+
 ## v2026.9.3
 
 ### Repository
