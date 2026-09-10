@@ -3411,6 +3411,22 @@ its example naming the month after the release rather than the cycle the
 two headings are open at; issue #1941 is where that step is made to say
 which of the two it means.
 
+### `RELEASING.md`'s placeholder is the open cycle's own heading
+
+- **The *Open the next cycle's version* step says which cycle
+  `pyproject.toml` carries between releases, and its example is one where
+  the two readings of it differ** (closes #1941). The placeholder is the
+  number the `## v<cycle> (work in progress, not released yet)` headings
+  of CHANGELOG.md and RELEASE_NOTES.md already carry, so after `2026.9.3`
+  it is `2026.9` and not `2026.10`. The example it replaces, `2026.9`
+  after `2026.8.4`, is what both readings answer, so it could not tell
+  the rule from its alternative.
+- **The step states that such a placeholder sorts below the newest
+  release under PEP 440, and why that is the rule working rather than
+  failing**: it names a cycle and not a release, and releases are ordered
+  by their tags. Without the sentence the sort order reads as a defect,
+  and repairing it means going back to the month after the release.
+
 ## v2026.9.3
 
 ### Repository

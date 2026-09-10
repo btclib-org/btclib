@@ -613,15 +613,37 @@ to `deps-latest`'s own result.
    of this one. Actions → pypi-install → Run workflow is for asking between
    those runs, with no particular version in mind.
 
-1. Open the next cycle's version: set a generic next version without
-   the day (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, through
-   a pull request like any other. The two "work in progress" sections
-   this step used to create are already there, the retitle step above
-   having made them in the release's own pull request. What stays here
-   is the version, which cannot move earlier with them: `version-check`
+1. Open the next cycle's version: set `pyproject.toml`'s `version` to the
+   number the two "work in progress" sections already carry, through a
+   pull request like any other. The retitle step above opens those
+   sections in the release's own pull request, so
+   `## v<cycle> (work in progress, not released yet)` is standing in
+   CHANGELOG.md and RELEASE_NOTES.md by the time this step runs, and what
+   is set here is that same cycle: one value, pyproject.toml being the
+   file it reaches last. It cannot reach it any earlier — `version-check`
    reads `uv version --short` at tag time, and a pyproject.toml already
-   bumped would offer it the next cycle's number instead of the one
-   being released.
+   bumped would offer it the next cycle's number instead of the one being
+   released.
+
+   **The placeholder is that cycle, not the month after the release.**
+   After `2026.9.3` it is `2026.9`, which is what those two headings say,
+   and it is not `2026.10`. The two readings name the same month for as
+   long as a cycle holds a single release, which is what makes "the month
+   after" look like the rule; a cycle that ships twice separates them.
+   Taking the month after would also declare a cycle neither notes file
+   has a section for, so the next change to land would file its entry
+   under a heading the declared version disagrees with — issue #1458's
+   shape one file over.
+
+   `2026.9` sorts below `2026.9.3` under PEP 440, which follows from the
+   rule rather than arguing against it: a placeholder names the cycle
+   whose notes the tree is accumulating, not a release, and releases are
+   ordered by their tags — and `version-check` refuses a tag on the
+   placeholder shape (*Which version string is which* above). What a
+   reader can trip on is that `pip install --upgrade btclib` in an
+   environment holding such a checkout resolves to the published release,
+   which is the right answer for anybody who did not mean to be running a
+   working tree.
 
    Those two sections are where the next release's notes accumulate, one
    landed change at a time, and the merge step above is what reads them
