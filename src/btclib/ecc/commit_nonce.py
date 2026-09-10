@@ -44,13 +44,14 @@ key only, so two signatures over one message with two commitments have
 nonces differing by e2-e1 -- a value the openings make public. Two ECDSA
 signatures over one message with a known nonce difference are two
 equations in the two unknowns k and the private key, and the same holds
-for BIP340. libsecp256k1's own s2c module states it as the reason it
-refuses a custom nonce function: "an attacker can exfiltrate the secret
-key by signing the same message thrice with different commitments". So
-`commit_entropy_` is not optional garnish, and the two schemes each feed
-it to their nonce derivation before calling `commit_nonce_`: dsa through
-RFC6979's section 3.6 additional data, ssa through BIP340's auxiliary
-randomness.
+for BIP340. secp256k1-zkp states it in `secp256k1_ecdsa_sign_inner`
+(`src/secp256k1.c`) as the reason a sign-to-contract commitment works
+only with the default nonce function: "an attacker can exfiltrate the
+secret key by signing the same message thrice with different
+commitments". So `commit_entropy_` is not optional garnish, and the two
+schemes each feed it to their nonce derivation before calling
+`commit_nonce_`: dsa through RFC6979's section 3.6 additional data, ssa
+through BIP340's auxiliary randomness.
 
 Both hashes are tagged, and the tags are the scheme's: they are what
 keeps a tweak from being read as a challenge, or an ECDSA commitment as a
@@ -114,11 +115,13 @@ def _tweak(
         tweak = int_from_bits(t, ec.nlen)  # candidate tweak
         if 0 < tweak < ec.n:  # acceptable value for tweak
             return tweak  # successful candidate
-        # libsecp256k1 fails here instead of asking the hash again, and
-        # on secp256k1 the two agree: the first candidate is out of range
-        # about once in 2^128. It is the low-cardinality curves that need
-        # a second candidate -- with nlen of 4 bits an out-of-range tweak
-        # is one in three -- and there the reference has no answer at all
+        # secp256k1-zkp's `secp256k1_ec_commit` (`src/eccommit_impl.h`)
+        # fails here instead of asking the hash again, and on secp256k1
+        # the two agree: the first candidate is out of range about once
+        # in 2^128. It is the low-cardinality curves that need a second
+        # candidate -- with nlen of 4 bits an out-of-range tweak is one
+        # in three -- and a derivation that fails rather than drawing
+        # again would refuse one commitment in three
 
 
 def commit_nonce_(

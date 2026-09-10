@@ -145,7 +145,7 @@ used to teach and to prototype as much as to build:
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `bip32.__prv_key_derivation`
     (`src/btclib/bip32/bip32.py:842`), `commit_nonce.commit_nonce_`
-    (`src/btclib/ecc/commit_nonce.py:155`) and `taproot._tweaked_prvkey`
+    (`src/btclib/ecc/commit_nonce.py:159`) and `taproot._tweaked_prvkey`
     (`src/btclib/script/taproot.py:479`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless — the
