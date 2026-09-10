@@ -419,7 +419,7 @@ def tonelli_var(a: int, p: int) -> int:
         # bound is the loop's termination and not a fallback -- there is
         # no value of i to take past it -- which is why nothing follows
         # the loop but the `while` that reads the new t
-        for i in range(1, s):  # pragma: no branch
+        for i in range(1, s):  # pragma: no branch -- a non-residue is ruled out above
             t2i = t2i * t2i % p
             if t2i == 1:
                 # Update next value to iterate

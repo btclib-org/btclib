@@ -162,7 +162,9 @@ def test_slip132_test_vectors() -> None:
         # `no branch`: the three versions above are the three the local
         # vector list holds, so the chain is exhaustive over it and the
         # last arm never falls through
-        elif version == NETWORKS["mainnet"].slip132_p2wpkh_prv:  # pragma: no branch
+        elif (
+            version == NETWORKS["mainnet"].slip132_p2wpkh_prv
+        ):  # pragma: no branch -- the chain is exhaustive over the vectors
             address = b32.p2wpkh(sec_from_xpub)
             assert addr == address
             address = b32.p2wpkh(sec_from_xprv)

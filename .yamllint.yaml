@@ -53,8 +53,7 @@ rules:
     #     -d '{rules: {line-length: {max: 80}}}'
     max: 100
     # allow-non-breakable-words stays at its default, true: a line that
-    # is one long token has nowhere to break, which is the exemption
-    # MD013 already makes for a bare URL
+    # is one long token has nowhere to break
   # the "---" every yaml file here opens with, one line each. What it buys
   # is that the files answer the question the same way instead of each
   # beginning however its author left it. On line 1, above the header

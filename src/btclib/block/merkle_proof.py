@@ -81,7 +81,7 @@ def _assert_inner_node_is_not_a_tx(inner_node: bytes) -> None:
     # its own. The comparison stays because that is a property of the
     # parser rather than of this module, and a parser that stopped
     # refusing that shape would need it here
-    if is_a_tx:  # pragma: no branch
+    if is_a_tx:  # pragma: no branch -- what parses round-trips
         err_msg = "inner node of the merkle branch is a valid transaction"
         raise BTClibValueError(err_msg)
 

@@ -1194,9 +1194,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # flake8-no-pep420: each of these is a standalone entry point a workflow
-# step invokes with "python .github/scripts/<name>.py", never an import
-# -- the directory holds no __init__.py because it is not a package, and
-# adding one to satisfy this rule would make it look like one
+# step or a hook invokes by path, never an import -- the directory holds
+# no __init__.py because it is not a package, and adding one to satisfy
+# this rule would make it look like one
 ".github/scripts/*.py" = ["INP001"]
 # sphinx imports this one by its own convention, reading docs/source/
 # as a configuration directory rather than a package; the same reason
@@ -1252,6 +1252,11 @@ ignore = [
 # measuring, one line per disagreement found, and the all-clear or count
 # at the end are what a weekly run's log says happened
 ".github/scripts/check_py_arm_authority.py" = ["T201"]
+# and the changelog check, run by the check-changelog hook and read on
+# the terminal of whoever's commit it refused: one line per finding,
+# naming the line and the reason, or the all-clear, is the whole of
+# its report
+".github/scripts/check_changelog.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

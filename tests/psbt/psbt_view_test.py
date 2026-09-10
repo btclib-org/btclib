@@ -112,7 +112,7 @@ def _read_everything(view: PsbtView) -> None:
     # `no branch` on the loop: every caller is an invalid vector inside
     # `pytest.raises`, so the walk is stopped by the refusal it is there
     # to provoke and never reaches the end of the outputs
-    for i in range(view.output_count):  # pragma: no branch
+    for i in range(view.output_count):  # pragma: no branch -- the refusal stops it
         view.output(i)
 
 
