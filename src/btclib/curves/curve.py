@@ -902,11 +902,10 @@ class PreparedPoint:
 
     Both are the Python arithmetic. On secp256k1 with the bindings
     available neither is reached -- libsecp256k1 verifies in a fraction
-    of either and holds its own tables in its own context -- so what this
-    is for is the Python path: another curve, another hash function, or
-    a deployment without the compiled bindings. Handing one in on the
-    delegated path is not an error and costs nothing; it simply buys
-    nothing.
+    of either and holds its own tables -- so what this is for is the
+    Python path: another curve, another hash function, or a deployment
+    without the compiled bindings. Handing one in on the delegated path
+    is not an error and costs nothing; it simply buys nothing.
 
     Preparing is a caller's word and never inferred, and the memory is
     why: the tables are per distinct point, so a library that memoized
@@ -1289,8 +1288,8 @@ def _jac_double_mult(
         return _double_mult_python(u, HJ, v, QJ, ec, fixed)
 
     # `fixed` is dropped on this arm and nothing is lost: libsecp256k1
-    # holds its own tables in its own context, and what a caller prepared
-    # here is a table of the Python arithmetic
+    # holds its own tables, and what a caller prepared here is a table of
+    # the Python arithmetic
     R = double_mult_var(u, ec.aff_from_jac_var(HJ), v, ec.aff_from_jac_var(QJ), ec)
     return _jac_from_aff(R)
 

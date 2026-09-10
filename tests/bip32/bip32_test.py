@@ -958,9 +958,11 @@ def test_the_py_arm_answers_what_the_primitive_answers(
     dropped the walk would still pass a one-step comparison.
 
     The spread holds what a derivation's own tweaks never will, those
-    being hmac output: a zero tweak, which libsecp256k1's header says it
-    answers with the key unchanged; a tweak of n-1; and the two sums it
-    declines, the zero child and the child at infinity.
+    being hmac output: a zero tweak, which libsecp256k1's header admits
+    beside the tweaks `secp256k1_ec_seckey_verify` accepts; a tweak of
+    n-1; and the two sums it declines, the zero child and the child at
+    infinity. Adding zero leaves the key alone, which is the group
+    arithmetic rather than an answer the header states.
     """
     keys = [bytes_from_prv_key_int(q) for q in (1, 2, 7, ec.n // 2, ec.n - 1)]
     tweaks = [0, 1, 2, 7, ec.n // 2, ec.n - 1]

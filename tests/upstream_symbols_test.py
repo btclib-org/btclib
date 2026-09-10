@@ -2,7 +2,14 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""A `secp256k1_*` name credited to libsecp256k1 is one that library has.
+"""Two sweeps over what this tree's prose credits to libsecp256k1.
+
+A `secp256k1_*` name credited to that library is one it has, and the
+wording of a refusal credited to it is `btclib_secp256k1`'s: the C
+library answers a call with a return code, and turning one into a
+sentence is the wrapper's work. The two are keyed differently -- the
+first on the name a paragraph spells, the second on the shape of the
+attribution -- and neither reads the sentence for anything more.
 
 A credit is followed, and following it has to arrive somewhere.
 `secp256k1_ecdsa_sign` is bitcoin-core/secp256k1's and a reader
@@ -10,9 +17,9 @@ following it lands on the function; `secp256k1_ecdsa_s2c_opening` is
 BlockstreamResearch/secp256k1-zkp's, so a paragraph that names the
 first library and spells the second name sends a reader to a library
 that has neither the name nor the behaviour argued from it. That is one
-question with an answer, and it is the only one this asks: it does not
-read the sentence the name sits in, and it does not decide whether a
-credit is fair.
+question with an answer, and it is the only one the name-keyed sweep
+asks: it does not read the sentence the name sits in, and it does not
+decide whether a credit is fair.
 
 The names that library has are vendored in
 `tests/_data/secp256k1_symbols.txt`, pinned to a revision there, so
@@ -50,20 +57,20 @@ That is the whole of what this is permissive by, and the vendoring
 command run again over a `src` whose comments have been blanked out is
 what re-derives it.
 
-**The population is the paragraph that names the library.** A paragraph
-naming BlockstreamResearch/secp256k1-zkp is left alone, whether or not
-it names libsecp256k1 too: the fork carries the library's names and its
-own, so a paragraph naming both is one where nothing decides which name
-belongs to which, and a verdict there would be a guess. That is where
-this is weakest, and the ways it loses are worth naming rather than
-inferring:
+**The name-keyed population is the paragraph that names the library.**
+A paragraph naming BlockstreamResearch/secp256k1-zkp is left alone,
+whether or not it names libsecp256k1 too: the fork carries the
+library's names and its own, so a paragraph naming both is one where
+nothing decides which name belongs to which, and a verdict there would
+be a guess. That is where it is weakest, and the ways it loses are
+worth naming rather than inferring:
 
 - a credit that names **no symbol** is invisible.
   [ISS 1932](https://github.com/btclib-org/btclib/issues/1932),
   [ISS 1946](https://github.com/btclib-org/btclib/issues/1946) and
   [ISS 1949](https://github.com/btclib-org/btclib/issues/1949) were
   each that shape -- "libsecp256k1's own `grind`", the s2c module, the
-  opening -- so this would have caught none of them, and it exists for
+  opening -- so it would have caught none of them, and it exists for
   the next one that does spell a name;
 - a credit that names **no library** -- "the reference implementation",
   "the C library", "upstream" -- is invisible for the same reason from
@@ -92,6 +99,35 @@ inferring:
   files are `src/btclib` and `tests`, where a credit sits beside the
   code it describes and can still be edited.
 
+**The attribution sweep is part of the first of those bullets.** A
+credit that spells no name is outside the sweep above whatever it
+claims; where what it claims is that a message, a wording or an error
+is the library's, or that the library raises, the claim is itself the
+key and no name is wanted. That much follows from the layering alone,
+so it is decidable here with no upstream read at all, which is what
+makes it a test rather than a report. It reads a paragraph naming the
+fork too: which of the two C libraries is meant does not decide it.
+
+**Its zero says less than the other's.** The pattern is fitted to the
+phrasings it lists rather than derived from the claim -- the possessive
+gap it spans admits a comma, and `coarser one` is among the nouns it
+accepts, neither of which a reading of the shape alone arrives at -- so
+a zero over it says that none of those phrasings is in the swept files
+and never that no such credit is there. Recall against a phrasing
+nobody has written is not measurable, the claim being expressible in
+unbounded ways. Narrowness is what the fitting buys: the library named
+beside the word message is the *correct* form of the same sentence --
+"libsecp256k1 answers a bool and this is btclib's own wording for it"
+-- so a rule keyed on the two co-occurring would report this tree's
+correct prose paragraph after paragraph, and be worse than none.
+
+**A credit that has gone stale is outside both.** What it asserts is a
+fact about another project's present source, and nothing this tree runs
+decides it: what settles one is a read of upstream at the revision
+`tests/_data/README.md` pins, taken on the occasion
+`.github/workflows/vendored-vectors.yml` gives by reporting that the
+revision has moved.
+
 **A paragraph is read as one string, not line by line.** The files
 wrap at eighty columns, so the library and a name credited to it are
 routinely on either side of a break: `_blinded_jac`'s docstring in
@@ -110,11 +146,12 @@ environment the suite does not already have, every interpreter of the
 matrix rather than one runner, and `tests-passed` gates it without a
 line in any `needs` list.
 
-The module's own prose obeys the rule it enforces, which is why the
+The module's own prose obeys both rules it enforces, which is why the
 controls below build their planted paragraphs out of pieces: a
 paragraph here that names the library and spells a name the library
-does not have would be an offender of this very sweep, and exempting
-the file would leave its real prose unread.
+does not have, or that hands it the wording of a refusal, would be an
+offender of the very sweeps defined below it, and exempting the file
+would leave its real prose unread.
 """
 
 import io
@@ -157,6 +194,18 @@ _LIBRARY = re.compile(
 # of them, and matching it as a word is deliberately wide: a paragraph
 # that mentions the fork at all is one this cannot adjudicate
 _FORK = re.compile(r"(?i)secp256k1-zkp|blockstreamresearch|\bzkp\b")
+
+# the library named as the owner of a refusal's wording, or as what
+# raises one. `btclib_secp256k1` is what carries a sentence: the C
+# library answers a call with a return code, so a possessive here hands
+# the wrapper's words to what it wraps. The fork is not spared the way
+# it is above, which of the two is meant deciding nothing here; and the
+# gap the possessive spans admits a comma, `own, coarser message` being
+# one of the shapes this is fitted to
+_ATTRIBUTION = re.compile(
+    r"libsecp256k1(-zkp)?'s[\s,\w]{0,30}?(message|wording|error|coarser one)"
+    r"|libsecp256k1(-zkp)? (raises|raised)"
+)
 
 # a comment's own `#` and the space after it, which is what a fold has to
 # drop before the words on either side of a wrap can meet
@@ -235,6 +284,19 @@ def _offenders(source: str) -> list[tuple[int, str, str]]:
             found += [
                 (paragraph[0][0], name, folded)
                 for name in sorted(set(_NAME.findall(folded)) - _PUBLISHED)
+            ]
+    return found
+
+
+def _attributions(source: str) -> list[tuple[int, str, str]]:
+    """Return each (line, phrase, paragraph) handing the library a sentence."""
+    found = []
+    for block in _blocks(source):
+        for paragraph in _paragraphs(block):
+            folded = _fold(paragraph)
+            found += [
+                (paragraph[0][0], match.group(), folded)
+                for match in _ATTRIBUTION.finditer(folded)
             ]
     return found
 
@@ -388,3 +450,81 @@ def test_btclib_s_own_dispatch_name_is_not_read_as_the_library() -> None:
     ours = "`_libsecp256k1_sign_` reaches `" + absent + "` and nothing else."
 
     assert not _offenders('"""' + ours + '"""')
+
+
+def test_no_paragraph_credits_the_c_library_with_a_sentence_of_its_own() -> None:
+    """The attribution sweep, over the same files as the name-keyed one."""
+    offenders = [
+        f"{path.relative_to(_ROOT)}:{line} credits {phrase!r}: {folded}"
+        for directory in _SWEPT
+        for path in sorted((_ROOT / directory).rglob("*.py"))
+        for line, phrase, folded in _attributions(path.read_text(encoding="utf-8"))
+    ]
+    assert not offenders, (
+        "the C library answers a call with a return code, so the wording a"
+        f" caller catches is the wrapper's: {offenders!r}"
+    )
+
+
+def test_a_sentence_credited_to_the_c_library_is_what_fails() -> None:
+    """The shapes it keys on, each planted as a paragraph of its own.
+
+    Out of pieces, for the reason the module docstring gives: a single
+    literal carrying one of them would be an offender of the sweep
+    above, this module being one of the files it reads.
+    """
+    owner = "libsecp256k1" + "'s"
+    subject = "libsecp256k1" + " raises"
+    planted = [
+        owner + " own, coarser message for whatever else it catches.",
+        owner + " coarser message for whatever else it refuses.",
+        "the message those two give it, rather than " + owner + " coarser one.",
+        "The two `ValueError`s " + subject + " here are both about the key.",
+    ]
+
+    for text in planted:
+        assert _attributions('"""' + text + '"""'), text
+
+
+def test_the_correct_form_of_the_same_sentence_is_left_alone() -> None:
+    """Co-occurrence is not the signal, and this is what it would report.
+
+    The library beside the word message, with the sentence attributed
+    where it belongs, which is the shape most of this tree's paragraphs
+    about the delegated path have.
+    """
+    kept = (
+        "libsecp256k1 answers a bool, and the message a caller reads for"
+        " it is this library's own wording."
+    )
+
+    assert _LIBRARY.search(kept)
+    assert not _attributions('"""' + kept + '"""')
+
+
+def test_an_attribution_wrapped_across_lines_is_read_as_one_paragraph() -> None:
+    """The possessive at the end of one line and its noun on the next.
+
+    The files wrap at eighty columns, so this is the ordinary shape
+    rather than the corner one, exactly as it is for a name.
+    """
+    owner = "libsecp256k1" + "'s"
+    wrapped = '"""rather than\n' + owner + " coarser\none." + '"""'
+
+    assert _attributions(wrapped)
+
+
+def test_a_possessive_the_gap_does_not_span_reads_as_clean() -> None:
+    """Which is what the module docstring means by fitted.
+
+    The same claim with more words between the library and the noun is
+    not reported, and nothing here tells that apart from a tree with no
+    such claim in it.
+    """
+    owner = "libsecp256k1" + "'s"
+    spread = owner + (
+        " own account of what it refuses, phrased at length and at last"
+        " reaching the word message."
+    )
+
+    assert not _attributions('"""' + spread + '"""')

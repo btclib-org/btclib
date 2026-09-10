@@ -499,7 +499,8 @@ def _sign_recoverable_(
         s = ec.n - s  # s = - s % ec.n
         # negating s mirrors K, so the parity bit flips while j does not:
         # x_K is the one coordinate the reflection leaves alone.
-        # libsecp256k1 has the same `*recid ^= 1` beside the same negation
+        # libsecp256k1 spells the flip as `*recid ^= high`, `high` being
+        # the flag its `secp256k1_scalar_cond_negate` negates s by
         key_id ^= 1
 
     # check_validity=False, and the provenance is again the argument
