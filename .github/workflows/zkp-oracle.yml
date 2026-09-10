@@ -19,10 +19,10 @@ name: zkp-oracle
 # is why this is `zkp-oracle.yml` rather than a job of theirs.
 #
 # `tests.needs_zkp` is the marker this job selects on, `tests.ZKP_AVAILABLE`
-# the probe that skips it everywhere else: an attribute access on
-# `btclib_secp256k1.zkp.lib`, not the import, which always succeeds --
-# `tests/__init__.py` has the reasoning in full, alongside the existing
-# `bindings` marker's own.
+# the flag that skips it everywhere else, set from a probe that is an
+# attribute access on `btclib_secp256k1.zkp.lib` and not the import,
+# which always succeeds -- `tests/__init__.py` has the reasoning in
+# full, alongside the existing `bindings` marker's own.
 #
 # What it must not do, issue #1679's own words: move any run-time path.
 # Every oracle that issue names compares btclib against
@@ -46,10 +46,9 @@ name: zkp-oracle
 # reading False -- which is what a build that silently kept the
 # unflagged wheel in place (the hazard the sync step's own comment below
 # measures) would do, and it is not a shape `-m`'s own selection can see.
-# What actually closes that gap is the step below the sync, asserting on
-# the same attribute the marker's own probe reads before pytest ever
-# runs -- see its comment for why that one and not the raw extension
-# module.
+# What actually closes that gap is the step below the sync, asserting
+# that flag itself before pytest ever runs -- see its comment for why the
+# flag and not the attribute it is derived from.
 
 on:
   schedule:
@@ -143,9 +142,25 @@ on:
     # compare against `zkp.generator`, and the commitment `commit`
     # returns is what `zkp.rangeproof` then proves, verifies and
     # rewinds. `curves/`, which `commit` calls and those tests call
-    # directly, stays out for the reason `curves/` stays out above
+    # directly, stays out for the reason `curves/` stays out above.
+    # `tests/__init__.py` and `tests/conftest.py` are named for that
+    # same reason read the other way round, shared by every test in the
+    # tree though they are: the first sets `ZKP_AVAILABLE` from the
+    # attribute access the marker's probe makes, the second turns a
+    # False flag into a skip on every `zkp`-marked test, so between them
+    # they decide whether what this job selects runs or skips. A run on
+    # an unflagged build -- every other job here, and a contributor's
+    # own unless they built the extension on purpose -- skips those
+    # tests already, so a change leaving them skipping under the flagged
+    # build reads there exactly as no change at all. Coverage says
+    # nothing either, both arms of the flag carrying a `pragma: no
+    # cover` for the reason issue #1885 records. Where a break in
+    # `curves/` is loud somewhere else, a change to these two that
+    # leaves the marked tests skipping is silent everywhere but here
     paths:
       - .github/workflows/zkp-oracle.yml
+      - tests/__init__.py
+      - tests/conftest.py
       - tests/ecc/borromean_test.py
       - tests/ecc/commit_nonce_test.py
       - tests/ecc/musig2_test.py
@@ -224,19 +239,29 @@ jobs:
       # a link error -- so what this step has to catch is the one thing
       # that would not fail there: the sync succeeding, quietly, against
       # an unflagged extension it already had (the hazard the sync
-      # step's own comment measures). `btclib_secp256k1.zkp.lib` rather
-      # than `_btclib_secp256k1_zkp` directly, the assertion
-      # btclib-secp256k1's own `zkp` job in `test.yml` makes on its own
-      # editable build: that name is the raw extension module one layer
-      # below what matters here, where `zkp.lib` is the exact attribute
-      # `tests.ZKP_AVAILABLE` reads -- so this step fails on precisely
-      # the condition that would otherwise leave `pytest -m zkp` below
-      # selecting the marked tests and skipping every one of them, in
-      # silence
-      - name: Assert the flagged extension is loadable
+      # step's own comment measures). `tests.ZKP_AVAILABLE` and not the
+      # `btclib_secp256k1.zkp.lib` access that flag is derived from, nor
+      # the `_btclib_secp256k1_zkp` extension module a layer below that
+      # again: the flag is what `tests/conftest.py` reads to decide
+      # whether the tests this job selects run or skip, and a change to
+      # how it is derived is the one shape an assertion on the attribute
+      # cannot see. Nothing is lost by asking the flag alone, an
+      # unloadable extension leaving it False.
+      # It also stands in for a switch pytest does not have: nothing
+      # fails a selection every test of which skipped. Exit 5, which the
+      # step below leans on, is not that switch -- it answers a
+      # collection that found nothing, where a selection that collects
+      # and skips exits 0, `pytest -m zkp` on an unflagged build being
+      # that case. Asserting the flag refuses the condition that
+      # produces that state, before pytest is asked anything, so the run
+      # below is not where to look for a guard it does not carry.
+      # `--group test` is what puts `tests/__init__.py`'s own imports in
+      # the environment, and the checkout root a step runs from is what
+      # puts the package on `sys.path`
+      - name: Assert the marked tests will run rather than skip
         run: >
           uv run --locked --no-default-groups --group test
-          python -c "from btclib_secp256k1 import zkp; assert zkp.lib"
+          python -c "import tests; assert tests.ZKP_AVAILABLE"
       # nothing here tolerates pytest's own exit 5 ("no tests ran"): a
       # selection that collects nothing -- a renamed marker, a moved
       # file -- is a real failure, and the step above is what keeps a
