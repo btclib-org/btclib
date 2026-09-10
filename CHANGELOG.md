@@ -2813,9 +2813,10 @@ file of the test tree, and no caller acts on it.
   distance being closed.
 - **`tests/ecc/_data/zkp_rangeproof_vectors.json` records proofs
   libsecp256k1-zkp signed**, with the arguments that produced them and
-  with what `info` answers for each. The flagged extension exists in
-  `.github/workflows/zkp-oracle.yml`'s job alone, so vendored proofs are
-  what exercise the parser in an ordinary run; the `zkp`-marked tests
+  with what `info` answers for each. The flagged extension is what a
+  btclib-secp256k1 installed from its sdist with
+  `BTCLIB_LIBSECP256K1_ZKP` has, so vendored proofs are what exercise
+  the parser in an unflagged build; the `zkp`-marked tests
   beside them put the same questions to the library, and check that
   signing again with the recorded arguments answers the recorded octets.
 
@@ -3456,6 +3457,18 @@ in its `secp256k1_ecdsa_sign_inner`, the word "opening" is its
 carries no `secp256k1_ecdsa_s2c.h` for either of them to be in. `sign_`'s
 comment on the nonce it refuses and `anti_exfil_host_verify`'s docstring
 name that library and the symbol each of them paraphrases (closes #1932).
+
+### The rangeproof vectors' reason for existing names the build
+
+- **`tests/ecc/rangeproof_test.py`'s module docstring and
+  `tests/_data/README.md`'s entry for the zkp rangeproof vectors name
+  the build that has the flagged extension** (closes #1929): a
+  btclib-secp256k1 installed from its sdist with
+  `BTCLIB_LIBSECP256K1_ZKP`, which is what `tests/__init__.py` names for
+  the `@needs_zkp` pragmas.
+- **The extension is a property of a build and not of a job**, so a
+  contributor who builds it reads a reason that holds on their own
+  machine. No vector, no test and no exclusion moves.
 
 ## v2026.9.3
 
