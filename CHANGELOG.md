@@ -3382,6 +3382,35 @@ answer the convention asks for rather than a comment nobody has looked
 at, and the calls that say whether that tag has moved or a point release
 has appeared stand beside them (closes #1931).
 
+### A declared version whose tag resolves must resolve to this commit
+
+`tests/declared_version_test.py` reads `pyproject.toml`'s own version and
+resolves `refs/tags/v<version>`: the placeholder a cycle is opened with
+must name no tag, a version carrying the day may name none, and one whose
+tag does resolve must name this commit (closes #1927).
+
+That last arm is what nothing else asks. `version-check` reads the same
+declaration, and reads it at tag time -- `release.yml` triggers on a `v*`
+push and on the dispatch of a rehearsal -- so a version left naming a
+release that is already tagged at an older commit is the shape it is
+built to accept, while `btclib.__version__` reads that declaration back
+from the installed metadata and reports a release the checkout is not.
+
+`git describe --exact-match HEAD` is the shorter spelling of that arm and
+exits 128 naming no tag in both of the cases it has to tell apart, a
+commit that carries none and a checkout that has none at all, so a
+shallow or archived clone would read as agreement. The tag ref is
+resolved and peeled instead, `git tag -s` writing a tag object rather
+than a commit, and a checkout whose tag namespace is empty skips with
+that as its stated reason.
+
+`pyproject.toml` declares `2026.9`, the cycle this file and
+`RELEASE_NOTES.md` are both open at. RELEASING.md's *Open the next
+cycle's version* reads two ways where a cycle carries a second release,
+its example naming the month after the release rather than the cycle the
+two headings are open at; issue #1941 is where that step is made to say
+which of the two it means.
+
 ## v2026.9.3
 
 ### Repository
