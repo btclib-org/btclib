@@ -3447,6 +3447,16 @@ which of the two it means.
   The runner this job gets is fresh either way, so who needs the way out
   is whoever copies those two lines into a worktree.
 
+### Which library `btclib.ecc.dsa`'s sign-to-contract prose names
+
+Sign-to-contract is BlockstreamResearch/secp256k1-zkp's: the
+`VERIFY_CHECK` that binds a commitment to the default nonce function is
+in its `secp256k1_ecdsa_sign_inner`, the word "opening" is its
+`secp256k1_ecdsa_s2c_opening`, and bitcoin-core/secp256k1's `include/`
+carries no `secp256k1_ecdsa_s2c.h` for either of them to be in. `sign_`'s
+comment on the nonce it refuses and `anti_exfil_host_verify`'s docstring
+name that library and the symbol each of them paraphrases (closes #1932).
+
 ## v2026.9.3
 
 ### Repository
