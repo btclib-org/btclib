@@ -171,7 +171,8 @@ beside them, the BIP374 csv files, BIP352's
 `chacha20_vectors.json` and `muhash_vectors.json`, both transcribed from
 `crypto_tests.cpp`, on 2026-09-03, at the tip of that path, and Core's
 `descriptor_tests.cpp` pin on 2026-09-10, at the tip of its path that
-day.
+day, as was bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt`,
+pulled the same day.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1554,6 +1555,50 @@ visible commits are the prune, not the additions — and the SHA will not
 survive the next prune. The blob SHA-1 above will, and it is what a
 re-check should compare.
 
+## bitcoin-core/secp256k1
+
+### `tests/_data/secp256k1_symbols.txt`
+
+```text
+repo    bitcoin-core/secp256k1
+path    src
+commit  99ae231231f5e9c5fce672eb11b06013d4ed0fd7  2026-09-09
+pulled  2026-09-10
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically: every `secp256k1_*` name the
+pinned tree's own `src` spells, sorted and deduplicated. The pin stands
+for a directory rather than for one upstream file, which is why the
+block above carries no `blob` line and why what the weekly workflow
+reports on it is a commit touching `src` — what a name added there or
+taken away from it looks like from outside.
+
+```shell
+commit=<the pin this entry gives>
+```
+
+```shell
+git grep -ohP '(?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+' "${commit:?}" -- src \
+    | sort -u
+```
+
+The names and not the headers holding them, because what reads the file
+asks whether upstream has a name and never what its signature is:
+`tests/upstream_symbols_test.py` refuses a docstring crediting
+libsecp256k1 with a name that library does not have, `secp256k1_ecdsa_sign`
+passing and secp256k1-zkp's `secp256k1_ecdsa_s2c_opening` failing. A copy
+of the headers would answer that for the published part of the family and
+leave C prototypes to be re-pinned for the rest of it.
+
+`src` and not `include` for the same reason. `include` is what the library
+publishes, where this tree names what it reads: `curves.curve`'s
+`secp256k1_ge_x_on_curve_var` and `number_theory`'s `secp256k1_ctz64_var`
+are that library's own and are declared in no header of `include`, only
+in one under `src`. Nothing is lost at the other end — every name
+`include` declares is spelled in `src` too, the difference being names a
+header comment wraps in prose rather than declares.
+
 ## Other projects
 
 ### `tests/curves/_data/pubkey.json`
@@ -2739,7 +2784,7 @@ Not checked byte for byte against one:
   `chacha20_vectors.json`, `muhash_vectors.json`,
   `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`, `bolt9.py`,
   `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`,
-  `anti_exfil_test.py`.
+  `anti_exfil_test.py`, `secp256k1_symbols.txt`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole

@@ -3755,6 +3755,36 @@ name that library and the symbol each of them paraphrases (closes #1932).
   a wrapped path and also fuses a command wrapped at a space, which this
   file carries, while joining them with a space sees neither.
 
+### A gate reads the `secp256k1_*` names this tree credits to libsecp256k1
+
+- **`tests/upstream_symbols_test.py` refuses a docstring or a comment
+  crediting libsecp256k1 with a name that library does not have**
+  (closes #1955). What it has is `tests/_data/secp256k1_symbols.txt`,
+  every name bitcoin-core/secp256k1's own `src` spells at the revision
+  `tests/_data/README.md` pins it to, so the suite reaches no network and
+  `.github/workflows/vendored-vectors.yml` is what says the pin has moved.
+  `src` and not `include`: this tree names internal functions it reads,
+  `curves.curve`'s `secp256k1_ge_x_on_curve_var` among them, and a
+  published-surface listing answers "absent" for every one of those.
+- **A paragraph naming BlockstreamResearch/secp256k1-zkp is left alone**,
+  the fork carrying the library's names and its own, so a paragraph naming
+  both is one where nothing decides which name belongs to which. The
+  module's docstring is where the rest of what the check cannot see is
+  written down, rather than left to be inferred from the check passing.
+- **`number_theory.mod_inv_batch_var`'s docstring names
+  `secp256k1_ge_set_all_gej_var` for Montgomery's trick**, which is the
+  function libsecp256k1 runs it inside: the name the docstring carried,
+  `secp256k1_fe_inv_all_var`, is one upstream removed in `75d2ae14`, so a
+  reader following it reached a library without it.
+- **`curves.curve_group` credits `secp256k1_ecmult_gen_gej` for the
+  blinded Z and for the comb**, that being the function which calls
+  `secp256k1_gej_rescale` on its first table lookup and which sums the
+  looked-up entries: `secp256k1_ecmult_gen`, the name the two docstrings
+  carried, is what upstream calls the operation in its own prose and is
+  no function of it. `_mult_fixed_base` says what the two algorithms do
+  not share, the comb doubling between its offsets where a table per
+  digit position has nothing to double.
+
 ## v2026.9.3
 
 ### Repository
