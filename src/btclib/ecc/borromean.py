@@ -24,6 +24,16 @@ switch on, `sign` and `assert_as_valid` compute this hash the same way
 every time, and RELEASE_NOTES.md's breaking-changes list has the
 "before" and "after" this cost.
 
+`e0` is `hf(r_0 || ... || r_last || m)`, the order
+`secp256k1_borromean_sign` writes its own `sha256_e0` in: each ring's
+last point as the ring loop closes that ring, the message once the loop
+ends, and `secp256k1_borromean_verify_impl` recomputes it the same way
+(issue #1940). No ring a verifier is handed reaches it -- `e0` is
+written into the signature before any verifier sees it -- so a
+signature carrying an `e0` over any other order is refused here and
+there alike, and RELEASE_NOTES.md's breaking-changes list has what
+settling on this one cost.
+
 `_get_msg_format` was checked against zkp too, in the same issue, and
 has nothing to align with: zkp's rangeproof never hashes a caller's
 message together with caller-supplied pubkey rings the way this
@@ -42,29 +52,24 @@ always, as `ssa.Sig.parse` reads BIP340's one curve: the serialization
 does not name either, so a `BorromeanSig` on another curve or hash
 function is built directly rather than parsed.
 
-With the challenge hash aligned too (issue #1070), this module and
-zkp's rangeproof agree over secp256k1 with sha256 on the challenge
-preimage and on the wire layout of the ring signature itself -- the
-primitive, as against the rangeproof built on top of it. They still
-refuse each other's signatures, and `tests/ecc/borromean_test.py`
-measures the direction in reach rather than transcribing it:
-`zkp.rangeproof.borromean_verify` wraps `secp256k1_borromean_verify`
-over serialized arguments in the flagged `zkp` extension, and what is
-put to it there is a signature ``sign_`` wrote, under a ring and under
-that same ring negated key by key.
+This module and zkp's rangeproof therefore agree over secp256k1 with
+sha256 on both challenge preimages and on the wire layout of the ring
+signature itself -- the primitive, as against the rangeproof built on
+top of it. That `secp256k1_borromean_verify` then takes what ``sign_``
+writes is measured rather than asserted:
+`zkp.rangeproof.borromean_verify` wraps it over serialized arguments in
+the flagged `zkp` extension, and `tests/ecc/borromean_test.py` puts a
+signature to it under a ring and under that same ring negated key by
+key, over one ring of one key and over several rings alike. The negated
+ring is the one it takes.
 
-Two differences stand between the two, and answering either on its own
-still leaves the signature refused. The public key of a ring is the
-other one of the pair: this module recovers a ring point as `s*G -
-e*Q` and gives the real signer `s = k + q*e`, where
-`secp256k1_borromean_verify_impl` recovers `s*G + e*P` and
-`secp256k1_borromean_sign` gives `s = k - sec*e`, so what one calls
-`P` the other calls `-P` and only a ring negated key by key meets the
-equation that closes it (issue #1895). And `e0` takes the message at
-the other end of its preimage: this one is `hf(m || r_0 || ... ||
-r_last)` where zkp's is `sha256(r_0 || ... || r_last || m)`, which no
-ring a verifier is handed can reach, `e0` being written into the
-signature before any verifier sees it (issue #1940).
+Negating the ring is what a crossing signature asks for, and what it
+answers is the public key of a ring being the other one of the pair: this
+module recovers a ring point as `s*G - e*Q` and gives the real signer
+`s = k + q*e`, where `secp256k1_borromean_verify_impl` recovers `s*G +
+e*P` and `secp256k1_borromean_sign` gives `s = k - sec*e`, so what one
+calls `P` the other calls `-P`, and only a ring negated key by key
+meets the equation that closes it (issue #1895).
 
 Verifying is the only direction in reach at all.
 `secp256k1_borromean_sign` is declared `static` in
@@ -92,13 +97,13 @@ and holds the `e0` and the `s` values inside the proof as a
 whose ring structure is one ring of one key -- the value in the clear,
 so no digit decomposition and no ring commitment -- and it closes that
 ring on its own rather than through this module. The message format is
-one reason, and it is what ``sign_`` answers: a rangeproof hashes the
-value commitment, the generator and the proof's own header, with no
-pubkey ring in the preimage. The ring convention and the `e0` preimage
-above are two more, and they are why that function writes an `e0` and
-an `s` of its own; `ecc.rangeproof` names the rest beside the code that
-carries them. Verifying a proof and rewinding one are still ahead of
-it.
+what ``sign_`` answers: a rangeproof hashes the value commitment, the
+generator and the proof's own header, with no pubkey ring in the
+preimage. The ring convention above is still a reason, and beside it
+the challenge `sign_public_value` leaves unreduced and the zero `s` it
+refuses to write, both of which `ecc.rangeproof` states beside the code
+that carries them. Verifying a proof and rewinding one are still
+ahead of it.
 
 The signing direction is issue #1072's to discharge:
 `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are wrapped, and the
@@ -470,9 +475,9 @@ def sign_(
     value commitment, the generator and the proof's own header, with no
     pubkey ring in it at all, and `ecc.rangeproof` rebuilds the rings
     from that commitment instead. What this offers that caller is the
-    message format alone: the module docstring above measures the two
-    differences that still stand between a signature written here and
-    one `secp256k1_borromean_verify` takes.
+    message format alone: the module docstring above measures what still
+    stands between a signature written here and one
+    `secp256k1_borromean_verify` takes.
 
     `pubk_rings` is an argument here as it is in `sign`: the walk
     multiplies by those points, and a hash cannot give them back. So
@@ -486,7 +491,7 @@ def sign_(
     m = bytes_from_octets(msg_hash, hf().digest_size)
     _assert_valid_pubk_rings(pubk_rings, ec)
     e = [[0] * len(pubk_ring) for pubk_ring in pubk_rings]
-    e0bytes = m
+    e0bytes = b""
     # drawn uniformly in [0, ec.n), the same distribution the real
     # s-value has once step 2 reduces it: randbits(256) is uniform over
     # [0, 2**256), not over the scalars, and the two ranges diverge by
@@ -567,6 +572,10 @@ def sign_(
                 t = double_mult_var(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
                 r = _bytes_from_ring_point(t, ec, i, j)
         e0bytes += r
+    # the message closes the preimage the ring points opened, which is
+    # where `secp256k1_borromean_sign` writes it into its own `sha256_e0`:
+    # after the ring loop, not before it (issue #1940)
+    e0bytes += m
     hasher = hf()
     hasher.update(e0bytes)
     e0 = hasher.digest()
@@ -736,7 +745,7 @@ def assert_as_valid(
     _assert_matches_pubk_rings(pubk_rings, sig.s)
 
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
-    e0bytes = m
+    e0bytes = b""
 
     for i, pubk_ring in enumerate(pubk_rings):
         keys_size = len(pubk_ring)
@@ -759,6 +768,8 @@ def assert_as_valid(
                     raise BorromeanRingError(err_msg, i, j + 1)
             else:
                 e0bytes += r
+    # the message last, the order ``sign_`` writes it in
+    e0bytes += m
     hasher = hf()
     hasher.update(e0bytes)
     e0_prime = hasher.digest()

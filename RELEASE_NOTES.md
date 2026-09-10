@@ -260,6 +260,19 @@ full year, short month, short day (YYYY-M-D)
   offering `payment_secret` at bit 15 meets `basic_mpp`'s dependency as
   one requiring it at bit 14 does.
 
+- **`borromean.sign` and `borromean.assert_as_valid` compute a different
+  `e0`** (closes #1940). The preimage has been `m || r_0 || ... ||
+  r_last` since `v2023.7.12`, the message hash before the ring points;
+  it is `r_0 || ... || r_last || m` now, matching secp256k1-zkp's
+  `rangeproof` module.
+
+  Act on it if you hold a borromean signature this module wrote:
+  re-signing is the whole of the migration, and nothing else is on
+  offer. There is no version byte in the wire format to switch on, and
+  `sign` and `assert_as_valid` compute the preimage the same way every
+  time, so no argument makes either of them read an older signature.
+  CHANGELOG.md has why the break was worth paying.
+
 ### Worth knowing, though nothing raises
 
 - **`psbt_signer_contract.optional_protocols` returns `OptionalProtocols`,
