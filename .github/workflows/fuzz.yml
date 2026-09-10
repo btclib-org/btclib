@@ -107,6 +107,24 @@ jobs:
       # cross it -- the disable-line escape hatch that comment describes
       # cannot carry the tag text too, its own regex admitting nothing
       # else on the line
+      #
+      # `v1` is the whole of what that comment can name: it is the only
+      # tag google/clusterfuzzlite publishes, so there is no point release
+      # to name in its place. A major is a name its owner is free to move,
+      # which leaves the comment reading the same on either side of a
+      # bump -- what says whether the pin is current is then the tag and
+      # not the comment:
+      #
+      #   gh api repos/google/clusterfuzzlite/git/refs/tags --paginate \
+      #     --jq '.[].ref'
+      #   gh api repos/google/clusterfuzzlite/commits/v1 --jq .sha
+      #
+      # A tag beyond `v1` is the point release the comment names in its
+      # place; a sha other than the one both steps below carry is `v1`
+      # having moved; either is the day this pin is bumped. The second
+      # call peels the annotated tag to the commit a runner checks out,
+      # where `git/ref/tags/v1` answers the tag object's own sha and pins
+      # nothing that exists in the action's history
       - name: Build fuzzers
         # v1
         uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1
