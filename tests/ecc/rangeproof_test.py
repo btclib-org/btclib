@@ -57,10 +57,17 @@ from typing import Any
 
 import pytest
 
+from btclib.alias import INF
 from btclib.curves import mult, secp256k1
 from btclib.ecc import rangeproof
 from btclib.ecc.borromean import BorromeanSig
-from btclib.ecc.pedersen import commit, second_generator
+from btclib.ecc.pedersen import (
+    _RANGEPROOF_TAG,
+    _bytes_from_point,
+    _point_from_x,
+    commit,
+    second_generator,
+)
 from btclib.ecc.rangeproof import RangeProof, sign_public_value
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from tests import load, needs_zkp, replace_unchecked, vector_id
@@ -415,17 +422,17 @@ def test_pubk_rings_open_at_the_recorded_blinding_factor(
     proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
     commitment = commit(vector["blind"], vector["value"])
     # the entry's own commitment octets, which zkp writes under the same
-    # residuosity bit at another base: `9 ^ is_square(y)` for a Pedersen
-    # commitment where `_serialize_point` writes `1 ^ is_square(y)`
+    # residuosity bit at another tag: `9 ^ is_square(y)` for a Pedersen
+    # commitment, `1 ^` it at `_RANGEPROOF_TAG`
     recorded = bytes.fromhex(vector["commitment"])
-    assert rangeproof._serialize_point(commitment) == (
+    assert _bytes_from_point(commitment, _RANGEPROOF_TAG) == (
         bytes([recorded[0] ^ 8]) + recorded[1:]
     )
 
     rings = proof.pubk_rings(commitment)
     assert tuple(len(ring) for ring in rings) == proof.rsizes
     stated = tuple(
-        rangeproof._point_from_ring_commitment(x, sign)
+        _point_from_x(x, sign)
         for x, sign in zip(proof.ring_commitments, proof.signs, strict=True)
     )
     assert tuple(ring[0] for ring in rings[: len(stated)]) == stated
@@ -456,11 +463,11 @@ def test_sign_key_idx_is_the_value_s_own_base_four_digits(
 
 
 def test_a_ring_commitment_x_resolves_against_residuosity() -> None:
-    """`_serialize_point` read the other way, over every x vendored here.
+    """The rangeproof's tag read the other way, over every x vendored here.
 
     `secp256k1_ge_set_xquad` answers the y that is a square and
     `secp256k1_rangeproof_verify_impl` negates it where the sign bit is
-    set, so the round trip through `_serialize_point` is what says the
+    set, so the round trip back to the octets is what says the
     resolution is that serialization's own inverse. Reading the bit as
     parity would answer a different point wherever the two conventions
     disagree, and `test_the_sign_bit_is_residuosity_and_not_parity` is
@@ -469,9 +476,9 @@ def test_a_ring_commitment_x_resolves_against_residuosity() -> None:
     for vector in _VECTORS:
         proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
         for x, sign in zip(proof.ring_commitments, proof.signs, strict=True):
-            point = rangeproof._point_from_ring_commitment(x, sign)
+            point = _point_from_x(x, sign)
             octets = bytes([sign]) + x.to_bytes(secp256k1.p_size, "big")
-            assert rangeproof._serialize_point(point) == octets
+            assert _bytes_from_point(point, _RANGEPROOF_TAG) == octets
 
 
 def test_sign_key_idx_refuses_a_value_this_proof_has_no_digit_for() -> None:
@@ -545,8 +552,8 @@ def _seed(vector: dict[str, Any]) -> bytes:
     octets = bytes.fromhex(vector["proof"])
     return (
         bytes.fromhex(vector["nonce"])
-        + rangeproof._serialize_point(commit(vector["blind"], vector["value"]))
-        + rangeproof._serialize_point(second_generator())
+        + _bytes_from_point(commit(vector["blind"], vector["value"]), _RANGEPROOF_TAG)
+        + _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
         + octets[: _header_size(octets)]
     )
 
@@ -605,7 +612,7 @@ def test_the_nonce_chain_writes_the_ring_commitments_a_proof_states(
             )
         )
 
-    stated = [rangeproof._serialize_point(head) for head in heads[:-1]]
+    stated = [_bytes_from_point(head, _RANGEPROOF_TAG) for head in heads[:-1]]
     assert tuple(int.from_bytes(o[1:], "big") for o in stated) == proof.ring_commitments
     assert tuple(bool(o[0]) for o in stated) == proof.signs
     assert tuple(ring[0] for ring in proof.pubk_rings(commitment)) == tuple(heads)
@@ -635,18 +642,34 @@ def test_the_nonce_chain_answers_every_s_the_signature_did_not_write(
 
 
 def test_nonce_chain_refuses_a_commitment_that_is_no_point() -> None:
-    """The seed hashes the commitment, and hashing it checks nothing.
+    """The commitment is required on the curve, before any seed exists.
 
-    `_serialize_point` asks the y for its residuosity and writes the x,
-    which a pair off the curve answers as readily as a point: absent
-    the check, a commitment naming no public key derives a chain like
-    any other. The refusal is `pubk_rings`' own, on the argument of the
-    same name.
+    The refusal is the explicit one, `pubk_rings`' on the argument of
+    the same name. `_bytes_from_point` would turn the same pair down
+    where the seed is written, so what the explicit check fixes is
+    where the refusal happens rather than whether it happens.
     """
     vector = _vector("odd mantissa")
     proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
     with pytest.raises(BTClibValueError, match="point not on curve"):
         proof.nonce_chain((1, 2), vector["value"], vector["nonce"])
+
+
+def test_nonce_chain_refuses_a_commitment_at_infinity() -> None:
+    """Infinity has no x, and the seed is written from one.
+
+    `is_on_curve` answers `True` for any `(x, 0)`, that being how a
+    point at infinity is spelled in affine coordinates, so the
+    `require_on_curve` above the seed lets it through and
+    `_bytes_from_point` is what turns it down. `match` is on that
+    refusal's own message, the off-curve one above raising a different
+    one from the same method.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
+    assert secp256k1.is_on_curve(INF)
+    with pytest.raises(BTClibValueError, match="no bytes representation"):
+        proof.nonce_chain(INF, vector["value"], vector["nonce"])
 
 
 def test_nonce_chain_does_not_check_the_proof_twice() -> None:
@@ -1056,7 +1079,7 @@ def test_the_nonce_chain_answers_proofs_zkp_signs_at_other_shapes() -> None:
                 mult(chain.blinding_factors[i], secp256k1.G, secp256k1),
                 mult(sign_key_idx[i] * scale << 2 * i, second_generator(), secp256k1),
             )
-            assert rangeproof._serialize_point(head) == bytes(
+            assert _bytes_from_point(head, _RANGEPROOF_TAG) == bytes(
                 [proof.signs[i]]
             ) + x.to_bytes(secp256k1.p_size, "big")
 

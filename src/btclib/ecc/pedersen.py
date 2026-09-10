@@ -29,10 +29,12 @@ octet reports whether y is a quadratic residue:
 `secp256k1_pedersen_commitment_save` writes
 `9 ^ secp256k1_fe_is_square_var(&ge->y)` and
 `secp256k1_generator_serialize` writes `11 ^` the same bit, both in
-`src/modules/generator/main_impl.h`. `ecc.rangeproof` carries that same
-convention at a third base, `1 ^` it: `_serialize_point` writes what
-`sign_public_value` hashes, and `_point_from_ring_commitment` lifts a
-ring commitment's x against it. Lifting such an octet by the parity the
+`src/modules/generator/main_impl.h`;
+`secp256k1_rangeproof_serialize_point` writes `1 ^` it, in
+`src/modules/rangeproof/rangeproof_impl.h`. That third tag is the base
+`ecc.rangeproof` hashes a point under and lifts a ring commitment's x
+against, and that module reaches the codec below for both rather than
+carrying one of its own. Lifting such an octet by the parity the
 `02`/`03` of `curves.point_from_octets` carries answers the same point
 for some x and its negation for others, with nothing in the octets to
 say which reading wrote them, so the two are not one function under two
@@ -195,13 +197,23 @@ def verify(
     return True
 
 
-# the leading octet of each of libsecp256k1-zkp's two serializations,
-# before the bit that reports the residuosity of y is xored into it.
-# Both tags are odd, so bit 0 of the octet is that bit complemented: it
-# is set exactly where y is not a square, which is what
+# the leading octet of each of libsecp256k1-zkp's serializations, before
+# the bit that reports the residuosity of y is xored into it. Every tag
+# is odd, so bit 0 of the octet is that bit complemented: it is set
+# exactly where y is not a square, which is what
 # `secp256k1_pedersen_commitment_load` reads to decide whether to negate
-# the point `secp256k1_ge_set_xquad` lifted. An even tag would leave bit
-# 0 the bit itself, and that negation would take the wrong half
+# the point `secp256k1_ge_set_xquad` lifted, and what
+# `secp256k1_rangeproof_verify_impl` reads for the same decision. An
+# even tag would leave bit 0 the bit itself, and that negation would
+# take the wrong half.
+#
+# 1 is the tag whose other bits are all zero, so a rangeproof's octet is
+# the residuosity bit alone: `secp256k1_rangeproof_serialize_point`
+# writes `data[0] = !secp256k1_fe_is_square_var(&point->y)`, and a proof
+# carries that bit in a packed field rather than in front of an x, which
+# is why `ecc.rangeproof` calls `_bytes_from_point` and `_point_from_x`
+# and never `_point_from_octets`
+_RANGEPROOF_TAG = 1
 _COMMITMENT_TAG = 9
 _GENERATOR_TAG = 11
 
@@ -209,10 +221,10 @@ _GENERATOR_TAG = 11
 def _bytes_from_point(Q: Point, tag: int) -> bytes:
     """Return `tag ^ is_square(y)` and then x, at whichever tag.
 
-    The tag is the whole of what a commitment's octets and a
-    generator's do not share, so what both refuse is asked here rather
-    than once each: a pair that is no point of secp256k1, and the
-    infinity point, which has no x to write.
+    The tag is the whole of what the encodings do not share, so what
+    they all refuse is asked here rather than once each: a pair that is
+    no point of secp256k1, and the infinity point, which has no x to
+    write.
 
     The Legendre symbol is what `secp256k1_fe_is_square_var` answers,
     and each computes it as a gcd rather than as an exponentiation.
@@ -225,19 +237,30 @@ def _bytes_from_point(Q: Point, tag: int) -> bytes:
     return bytes([tag ^ int(residue)]) + Q[0].to_bytes(secp256k1.p_size, "big")
 
 
+def _point_from_x(x: int, not_square: bool) -> Point:
+    """Return the point x names, with the y the residuosity bit asks for.
+
+    `secp256k1_ge_set_xquad` answers the y that is a square, and the
+    negation is the one `secp256k1_pedersen_commitment_load` makes on
+    bit 0 of a tagged octet and `secp256k1_rangeproof_verify_impl` on a
+    ring commitment's own sign bit. Both refusals are
+    `y_quadratic_residue_var`'s, which says which: an x at or past p,
+    read there through `secp256k1_fe_set_b32_limit`, and an x that is
+    the x-coordinate of no point, which is what `secp256k1_ge_set_xquad`
+    fails on -- `secp256k1_pedersen_commitment_parse` asking
+    `secp256k1_ge_x_on_curve_var` ahead of any lift instead.
+    """
+    y = secp256k1.y_quadratic_residue_var(x)
+    return x, secp256k1.p - y if not_square else y
+
+
 def _point_from_octets(octets: Octets, tag: int, name: str) -> Point:
     """Return the point those octets name, lifted by residuosity.
 
-    `secp256k1_pedersen_commitment_parse`'s own refusals, at whichever
+    `secp256k1_pedersen_commitment_parse`'s own refusal, at whichever
     tag: `(input[0] & 0xFE) != 8` is the leading octet outside the pair,
-    written here against the tag it is given, and
-    `secp256k1_fe_set_b32_limit` with `secp256k1_ge_x_on_curve_var` are
-    an x past p and an x that is the x-coordinate of no point --
-    `y_quadratic_residue_var` refuses those two and says which.
-
-    The lift is `secp256k1_ge_set_xquad` and the negation
-    `secp256k1_pedersen_commitment_load` makes on bit 0: the y that is a
-    square, negated where the octet says y is not one.
+    written here against the tag it is given. The lift, and what else
+    it turns down, are `_point_from_x`'s, on bit 0 of the prefix.
     """
     octets = bytes_from_octets(octets, secp256k1.p_size + 1)
     prefix = octets[0]
@@ -245,8 +268,7 @@ def _point_from_octets(octets: Octets, tag: int, name: str) -> Point:
         raise BTClibValueError(f"not a {name}: prefix 0x{prefix:02x}")
 
     x = int.from_bytes(octets[1:], byteorder="big")
-    y = secp256k1.y_quadratic_residue_var(x)
-    return x, secp256k1.p - y if prefix & 1 else y
+    return _point_from_x(x, bool(prefix & 1))
 
 
 def bytes_from_commitment(Q: Point) -> bytes:

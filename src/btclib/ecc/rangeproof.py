@@ -62,14 +62,14 @@ convention `curves.bytes_from_point`, BIP340 and the `02`/`03` SEC
 prefix carry, and the two disagree on the vectors
 `tests/ecc/rangeproof_test.py` reads. No ring commitment's bit is
 computed here -- a parse reads it and a serialize writes it back, so
-what a `RangeProof` holds is the octets' own answer -- while
-`_serialize_point` is that function of zkp's, and what
-`sign_public_value` hashes the value commitment and the generator
-under. Resolving an x back to a point is the same convention read the
-other way, and `_point_from_ring_commitment` is where this module does
-it: `secp256k1_ge_set_xquad` takes the y that is a square, and
-`secp256k1_rangeproof_verify_impl` negates it where the sign bit says
-the y is not one.
+what a `RangeProof` holds is the octets' own answer -- while what
+`sign_public_value` hashes the value commitment and the generator under
+is `ecc.pedersen._bytes_from_point` at `_RANGEPROOF_TAG`, the codec a
+commitment's octets and a generator's are written with too. Resolving
+an x back to a point is that convention read the other way, and
+`ecc.pedersen._point_from_x` is what does it: `secp256k1_ge_set_xquad`
+takes the y that is a square, and `secp256k1_rangeproof_verify_impl`
+negates it where the sign bit says the y is not one.
 
 The digit decomposition is `rangeproof_pub_expand`: a ring's keys step
 down from the ring commitment by the weight of the digit that ring
@@ -100,10 +100,15 @@ from typing import NamedTuple
 from btclib.alias import INF, BinaryData, Integer, Octets, Point
 from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
 from btclib.ecc.borromean import BorromeanSig, PubkeyRing, _hash
-from btclib.ecc.pedersen import commit, second_generator
+from btclib.ecc.pedersen import (
+    _RANGEPROOF_TAG,
+    _bytes_from_point,
+    _point_from_x,
+    commit,
+    second_generator,
+)
 from btclib.ecc.rfc6979_nonce import _HmacDrbg
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.number_theory import legendre_symbol_var
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -238,35 +243,6 @@ def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
     if min_value is not None:
         out += min_value.to_bytes(_MIN_VALUE_SIZE, byteorder="big")
     return out
-
-
-def _serialize_point(Q: Point) -> bytes:
-    """Return the encoding a rangeproof hashes a point under.
-
-    `secp256k1_rangeproof_serialize_point`: one octet saying the y is
-    not a square, then the x. The octet is the residuosity the module
-    docstring above distinguishes from parity, so this is not
-    `curves.bytes_from_point` with another name: a proof hashed under
-    the parity convention verifies nowhere, and nothing in the octets
-    says which of the two wrote them.
-    """
-    residue = legendre_symbol_var(Q[1], secp256k1.p) == 1
-    return bytes([0 if residue else 1]) + Q[0].to_bytes(secp256k1.p_size, "big")
-
-
-def _point_from_ring_commitment(x: int, sign: bool) -> Point:
-    """Return the point a ring commitment's x and sign bit name.
-
-    `secp256k1_rangeproof_verify_impl` reads its x through
-    `secp256k1_ge_set_xquad`, which is the y that is a square, and
-    negates the result where the sign bit is set. The parity convention
-    coincides with this one only where the square y is also the even
-    one, so reading the bit that way answers a different point on some x
-    coordinates and the same point on others, with nothing in the octets
-    saying which was read.
-    """
-    y = secp256k1.y_quadratic_residue_var(x)
-    return x, secp256k1.p - y if sign else y
 
 
 def _pub_expand(
@@ -532,8 +508,8 @@ class RangeProof:
         against, `ecc.pedersen.commit`'s own point rather than octets --
         the ones `secp256k1_pedersen_commitment_serialize` hands back
         carry the residuosity bit too, `secp256k1_pedersen_commitment_save`
-        writing it at `9 ^ is_square(y)` where `_serialize_point` writes
-        `1 ^ is_square(y)`.
+        writing it at `9 ^ is_square(y)` where
+        `secp256k1_rangeproof_serialize_point` writes `1 ^ is_square(y)`.
 
         A commitment that leaves the last ring at infinity is refused,
         as `secp256k1_rangeproof_verify_impl` refuses it where its own
@@ -546,7 +522,7 @@ class RangeProof:
         secp256k1.require_on_curve(commitment)
 
         stated = [
-            _point_from_ring_commitment(x, sign)
+            _point_from_x(x, sign)
             for x, sign in zip(self.ring_commitments, self.signs, strict=True)
         ]
         # zkp's own order: the offset and the stated commitments are
@@ -577,8 +553,8 @@ class RangeProof:
 
         `secp256k1_rangeproof_genrand`, seeded as
         `secp256k1_rangeproof_sign_impl` seeds it: the caller's nonce,
-        then the value commitment and the generator under
-        `_serialize_point`, then the header octets this proof's own
+        then the value commitment and the generator at
+        `_RANGEPROOF_TAG`, then the header octets this proof's own
         exponent, mantissa and `min_value` write. So whoever holds the
         nonce answers every ring commitment the proof states -- each is
         its ring's blinding factor times G plus that ring's own digit
@@ -592,13 +568,21 @@ class RangeProof:
         carries the value inside its own draw, so the chain is not a
         function of the header alone. A value this proof has no digit
         for is refused, `sign_key_idx`'s own refusal.
+
+        A commitment at infinity is refused too, where `pubk_rings`
+        answers rings for one: the seed carries the octets
+        `secp256k1_rangeproof_serialize_point` writes, and infinity
+        has no x to write. The `require_on_curve` above lets it through,
+        `(x, 0)` being how this library spells infinity in affine
+        coordinates.
         """
         if check_validity:
             self.assert_valid()
         secp256k1.require_on_curve(commitment)
         sign_key_idx = self.sign_key_idx(value)
         seed = bytes_from_octets(nonce, _NONCE_SIZE)
-        seed += _serialize_point(commitment) + _serialize_point(second_generator())
+        seed += _bytes_from_point(commitment, _RANGEPROOF_TAG)
+        seed += _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
         seed += _header_octets(self.exp, self.mantissa, self.min_value)
 
         v = self._mantissa_value(value)
@@ -773,8 +757,8 @@ def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
     # value itself: `min_value ? 32 : 0`, so zero carries no field
     min_value = value or None
     header = _header_octets(-1, 0, min_value)
-    points = _serialize_point(commit(blind_int, value))
-    points += _serialize_point(second_generator())
+    points = _bytes_from_point(commit(blind_int, value), _RANGEPROOF_TAG)
+    points += _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
 
     # the one draw a single ring takes. `rangeproof_genrand` draws
     # nothing for the last ring's blinding factor -- that is minus the
