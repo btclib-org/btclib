@@ -34,12 +34,18 @@ per-key challenges its own borromean walk produced, commented there as
 used during a rewind alone -- so `_verify_rings` answers the challenges
 where `verify` answers a bool.
 
-Two arguments of zkp's own `sign`, `verify` and `rewind` are absent
-here. `extra_commit`, which binds octets of a caller's outside the
-proof into the challenge, is issue #1984; `gen_bytes`, which names the
-generator the commitment was made under, is issue #1986 -- every call
-below reaches for `second_generator()`, and `ecc.pedersen.commit` takes
-no generator to pass one through either.
+`extra_commit` binds octets of a caller's outside the proof into the
+challenge, and it enters the ring message alone:
+`secp256k1_rangeproof_sign_impl` and
+`secp256k1_rangeproof_verify_impl` write it into their `sha256_m`
+after the ring commitments and immediately before finalizing, and hand
+`secp256k1_rangeproof_genrand` no such argument. So a proof's octets
+change with it and the chain behind them does not.
+
+`gen_bytes`, zkp's name for the generator the commitment was made
+under, is absent here and is issue #1986 -- every call below reaches
+for `second_generator()`, and `ecc.pedersen.commit` takes no generator
+to pass one through either.
 
 Elements and Liquid use this format, and a design starting today would
 choose bulletproofs, which zkp carries as its `bppp` module.
@@ -298,6 +304,11 @@ def _hashed_prefix(
     One function because `sign`, `RangeProof.nonce_chain`, `_ring_message`
     and `rewind` each need exactly these octets, and a proof and the
     chain behind it are bound to the same three.
+
+    `extra_commit` is not among them. `secp256k1_rangeproof_genrand`
+    takes no such argument, so what a caller binds into the proof
+    reaches the message the rings are signed over and leaves the chain
+    where it was.
     """
     return (
         _bytes_from_point(commitment, _RANGEPROOF_TAG)
@@ -989,6 +1000,7 @@ def sign(
     exp: int = 0,
     min_bits: int = 0,
     message: Octets = b"",
+    extra_commit: Octets = b"",
 ) -> RangeProof:
     """Return the proof that a blinded value lies in a stated range.
 
@@ -1018,8 +1030,18 @@ def sign(
     `message` is embedded for `rewind` to read back out: it rides at the
     head of the buffer `_prep` builds, one scalar per key of every ring
     before the last. `_message_room` is what bounds it, and the octets
-    are otherwise those of a proof carrying none. No `extra_commit` and
-    no generator of the caller's, which are issues #1984 and #1986.
+    are otherwise those of a proof carrying none.
+
+    `extra_commit` is octets of the caller's own -- the output a
+    commitment belongs to, say -- bound into the proof rather than
+    carried by it, and a verifier is handed them again or the proof
+    does not hold for it. It closes the message the rings are signed
+    over and nothing else: `secp256k1_rangeproof_sign_impl` writes it
+    into `sha256_m` after the ring commitments and immediately before
+    finalizing, where `secp256k1_rangeproof_genrand` takes no such
+    argument, so the draws are the same and what a rewind reads back
+    out is unchanged. No generator of the caller's, which is issue
+    #1986.
     """
     blind_int = scalar_from_prv_key(blind, secp256k1)
     if not 0 <= value <= _UINT64_MAX:
@@ -1033,6 +1055,7 @@ def sign(
         raise BTClibValueError(f"rangeproof min bits not in 0..64: {min_bits}")
     nonce_bytes = bytes_from_octets(nonce, _NONCE_SIZE)
     message_bytes = bytes_from_octets(message)
+    extra_commit_bytes = bytes_from_octets(extra_commit)
 
     params = _prove_params(value, min_value, exp, min_bits)
     genp = second_generator()
@@ -1077,7 +1100,7 @@ def sign(
 
     # every ring commitment but the last, which the verifier recovers
     stated = [_bytes_from_point(head, _RANGEPROOF_TAG) for head in heads[:-1]]
-    m = sha256(prefix + b"".join(stated)).digest()
+    m = sha256(prefix + b"".join(stated) + extra_commit_bytes).digest()
     sig = _borromean_sign(
         m,
         _pub_expand(heads, params.exp, params.rsizes),
@@ -1169,24 +1192,27 @@ def _borromean_verify(
     return tuple(challenges)
 
 
-def _ring_message(commitment: Point, proof: RangeProof) -> bytes:
+def _ring_message(commitment: Point, proof: RangeProof, extra_commit: bytes) -> bytes:
     """Return the message this proof's rings are signed over.
 
     `secp256k1_rangeproof_verify_impl` closes the same `sha256_m`
     `sign` opens: `_hashed_prefix`, then the sign bit and the x of
-    every ring commitment the proof states. Those are the octets
-    already on the wire, which is why they are written out here rather
-    than resolved to points and handed back to `_bytes_from_point`.
+    every ring commitment the proof states, then `extra_commit`. Those
+    first are the octets already on the wire, which is why they are
+    written out here rather than resolved to points and handed back to
+    `_bytes_from_point`.
     """
     stated = b"".join(
         bytes([sign_bit]) + x.to_bytes(secp256k1.p_size, "big")
         for x, sign_bit in zip(proof.ring_commitments, proof.signs, strict=True)
     )
     prefix = _hashed_prefix(commitment, proof.exp, proof.mantissa, proof.min_value)
-    return sha256(prefix + stated).digest()
+    return sha256(prefix + stated + extra_commit).digest()
 
 
-def _verify_rings(commitment: Point, proof: RangeProof) -> tuple[tuple[int, ...], ...]:
+def _verify_rings(
+    commitment: Point, proof: RangeProof, extra_commit: bytes
+) -> tuple[tuple[int, ...], ...]:
     """Return the challenge behind every key of a proof that holds.
 
     `secp256k1_rangeproof_verify_impl`, assembled from what this module
@@ -1202,7 +1228,9 @@ def _verify_rings(commitment: Point, proof: RangeProof) -> tuple[tuple[int, ...]
     it answers.
     """
     return _borromean_verify(
-        _ring_message(commitment, proof), proof.pubk_rings(commitment), proof.sig
+        _ring_message(commitment, proof, extra_commit),
+        proof.pubk_rings(commitment),
+        proof.sig,
     )
 
 
@@ -1211,7 +1239,9 @@ def _proof_from(proof: RangeProof | Octets) -> RangeProof:
     return proof if isinstance(proof, RangeProof) else RangeProof.parse(proof)
 
 
-def assert_as_valid(commitment: Point, proof: RangeProof | Octets) -> None:
+def assert_as_valid(
+    commitment: Point, proof: RangeProof | Octets, *, extra_commit: Octets = b""
+) -> None:
     """Refuse a proof that does not hold for that commitment.
 
     `commitment` is the Pedersen commitment the proof was written
@@ -1226,16 +1256,29 @@ def assert_as_valid(commitment: Point, proof: RangeProof | Octets) -> None:
     `zkp.rangeproof.verify` answers that range instead of a verdict,
     having only the octets to answer from. `verify` here is the boolean
     answer, as `ecc.borromean.verify` is to `ecc.borromean.assert_as_valid`.
+
+    `extra_commit` is what the proof was written under, and a proof
+    holds for the octets `sign` was given and for no others: they
+    close the message the rings are signed over, so any other value
+    walks the rings to some `e0` the signature does not state.
+    Keyword-only, as the sign-to-contract `commit` of `ecc.dsa` and
+    `ecc.ssa` is on the same pair of calls.
     """
-    _ = _verify_rings(commitment, _proof_from(proof))
+    _ = _verify_rings(commitment, _proof_from(proof), bytes_from_octets(extra_commit))
 
 
-def verify(commitment: Point, proof: RangeProof | Octets) -> bool:
-    """Return whether the proof holds for that commitment."""
+def verify(
+    commitment: Point, proof: RangeProof | Octets, *, extra_commit: Octets = b""
+) -> bool:
+    """Return whether the proof holds for that commitment.
+
+    `assert_as_valid`'s docstring has what `extra_commit` is, and a
+    proof holds for the octets `sign` was given and for no others.
+    """
     # ValueError and BTClibRuntimeError, as `ecc.borromean.verify` catches
     # them and for the reasons `ecc.dsa.verify_` states
     try:
-        assert_as_valid(commitment, proof)
+        assert_as_valid(commitment, proof, extra_commit=extra_commit)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -1316,7 +1359,13 @@ class Rewound(NamedTuple):
     message: bytes
 
 
-def rewind(commitment: Point, proof: RangeProof | Octets, nonce: Octets) -> Rewound:
+def rewind(
+    commitment: Point,
+    proof: RangeProof | Octets,
+    nonce: Octets,
+    *,
+    extra_commit: Octets = b"",
+) -> Rewound:
     """Return what the author of that proof put in it for its recipient.
 
     `secp256k1_rangeproof_rewind_inner`, which
@@ -1357,9 +1406,14 @@ def rewind(commitment: Point, proof: RangeProof | Octets, nonce: Octets) -> Rewo
     open `commitment`, which is what says the nonce was the proof's
     own: `secp256k1_rangeproof_verify_impl` rebuilds the commitment
     from them and compares.
+
+    `extra_commit` is `assert_as_valid`'s argument of that name, and
+    it is spent on the verification this opens with: the chain
+    re-derived below is seeded by `_hashed_prefix`, which carries none
+    of it.
     """
     proof = _proof_from(proof)
-    ev = _verify_rings(commitment, proof)
+    ev = _verify_rings(commitment, proof, bytes_from_octets(extra_commit))
     rsizes = proof.rsizes
     seed = bytes_from_octets(nonce, _NONCE_SIZE) + _hashed_prefix(
         commitment, proof.exp, proof.mantissa, proof.min_value
