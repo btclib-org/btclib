@@ -642,8 +642,8 @@ def _delegated_output_keys(
     except ValueError as e:
         # `prv_key_sum` and `input_hash` already ran, above, and are what
         # give a caller the specific "sum to zero" or "no outpoint"
-        # wording for the two common refusals -- what reaches here is
-        # libsecp256k1's own, coarser message for whatever else its own
+        # wording for the two common refusals -- what reaches here is the
+        # bindings' own, coarser message for whatever else their
         # validation catches, kept a BTClibValueError rather than left a
         # bare one so a caller catching this library's exceptions still
         # does
@@ -897,8 +897,8 @@ def _delegated_scan_outputs(
         )
     except ValueError as e:
         # mirrors `_delegated_output_keys`'s own wrapping: the specific
-        # refusals already ran above, so what reaches here is
-        # libsecp256k1's coarser message for whatever else it refuses
+        # refusals already ran above, so what reaches here is the
+        # bindings' coarser message for whatever else they refuse
         raise BTClibValueError(str(e)) from e
 
     return [
@@ -939,8 +939,8 @@ def scan_transaction_outputs(
     `pub_key_sum` and `input_hash` run unconditionally, before either arm
     is chosen, for the same reason `output_keys` computes `a` and `h`
     either way: a zero-sum refusal or an empty outpoint sequence gets the
-    specific message those two functions already give it, rather than
-    libsecp256k1's coarser one.
+    specific message those two functions already give it, rather than the
+    bindings' coarser one.
 
     `labels` is `label_lookup`'s map -- 33-byte label to 32-byte tweak,
     the bindings' own spelling -- and reaches the delegated arm

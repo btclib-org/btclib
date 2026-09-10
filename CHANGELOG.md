@@ -224,6 +224,35 @@ documented at release-notes length in the first place, and are still in
   carry the sentence btclib's came from, and are corrected in
   btclib-org/btclib-secp256k1#864.
 
+### An upstream credit is answered for, and one shape of it is gated
+
+- **The wording of a refusal is the bindings' and not the C library's**
+  (closes #1964). `silent_payments`' two delegated arms and the
+  docstring of `tests/ecc/dsa_test.py`'s fallback case credited
+  libsecp256k1 with a message: the C library answers a call with a
+  return code, and `btclib_secp256k1` is what turns one into a
+  sentence.
+- **`tests/upstream_symbols_test.py` gains the sweep keyed on that
+  attribution**, beside the one keyed on a `secp256k1_*` name, and the
+  module docstring says what its zero means. The pattern is fitted to
+  the phrasings it lists, so a zero says that none of those is in the
+  swept files and never that no such credit is there; recall against a
+  phrasing nobody has written is not measurable. Each shape it does key
+  on is planted back by a control, a pattern landing on a tree just
+  cleaned of it being green from its first run.
+- **A credit that has gone stale gets no gate**, and the ones here are
+  corrected by hand: libsecp256k1 keeps its precomputed tables as
+  file-scope statics rather than in the context `curves.curve` named,
+  and it flips the recovery id by the same flag its
+  `secp256k1_scalar_cond_negate` negates s with, where `ecc.dsa` quoted
+  a `*recid ^= 1` beside a conditional negation. What such a credit
+  asserts is a fact about another project's present source, which only
+  a read of upstream at the pinned revision settles.
+- **A zero tweak is one libsecp256k1's header admits**, beside the
+  tweaks its `secp256k1_ec_seckey_verify` accepts, and the key it
+  answers with is the group arithmetic rather than an answer the header
+  states: `tests/bip32/bip32_test.py` said the header states it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

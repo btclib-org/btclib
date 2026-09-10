@@ -2362,7 +2362,7 @@ def test_a_refusal_that_is_not_about_the_key_still_leaves_as_btclib(
 ) -> None:
     """A `ValueError` the bindings raise for anything else is translated too.
 
-    The two `ValueError`s libsecp256k1 raises here are both about the
+    The two `ValueError`s the bindings raise here are both about the
     supplied public key -- octets that are no point, and a key that is
     not this private key's -- so with `pub_key=None` nothing that arm can
     say reaches the fallback `raise`, and it went unmeasured. That is
