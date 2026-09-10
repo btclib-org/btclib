@@ -560,14 +560,17 @@ def _grind_low_r(attempt: Callable[[int], Sig], grind: bool, ec: Curve) -> Sig:
     `extra_entropy[32]` for every counter it reaches, electrum-ecc's
     `counter.to_bytes(32, "little")` and embit's the same.
 
-    The implementation that matters to this file, though, is
-    libsecp256k1's own `grind`: `sign_`'s delegated arm asks for it and
+    The implementation that matters to this file, though, is the
+    bindings' own `dsa._grind`: `sign_`'s delegated arm asks for it and
     the signature it answers with *is* its output, so this loop is what
-    btclib walks where that arm cannot be taken -- a nonce of the
-    caller's, a commitment, a curve of its own, or no bindings at all.
-    The two are held to the same signature by
-    `test_the_delegated_grind_is_the_sequence_the_py_arm_walks`, and
-    that test is why the sequence may be written twice at all.
+    btclib walks where that arm cannot be taken, which `sign_`'s own
+    dispatch decides: a nonce of the caller's, a commitment,
+    `lower_s=False`, a curve or hash function of its own, or no bindings
+    at all. libsecp256k1 has no grind of its own to delegate to, so both
+    copies of the counter are Python: what licenses writing the sequence
+    twice is `test_the_delegated_grind_is_the_sequence_the_py_arm_walks`
+    holding the two to the same signature, and not either of them being
+    in C.
 
     No attempt cap. Core has none, and one would answer an event of
     probability 2**-k with an error a caller can do nothing about; embit
@@ -634,13 +637,13 @@ def _abort_unless_checked(
     """Refuse a signature that does not verify, and say which way it failed.
 
     The rule, not the only place it is obeyed. The delegated arm never
-    reaches this function -- libsecp256k1 grinds, checks and
-    discriminates inside one call, `dsa._checked` there being this rule
-    written in the package that holds the parsed objects. What is shared
-    is therefore the contract and not the code: a bare verification under
-    the signer's own public key, a supplied key taken on trust, and the
-    two causes of a failure told apart rather than guessed at. This is
-    the Python arm's copy of it, and
+    reaches this function -- the bindings grind, check and discriminate
+    inside one call, `dsa._checked` there being this rule written in the
+    package that holds the parsed objects. What is shared is therefore
+    the contract and not the code: a bare verification under the
+    signer's own public key, a supplied key taken on trust, and the two
+    causes of a failure told apart rather than guessed at. This is the
+    Python arm's copy of it, and
     `test_the_two_arms_answer_the_same_refusals` is what holds the two to
     the same exception and the same words.
 
@@ -703,13 +706,16 @@ def _libsecp256k1_sign_(
     # own, no commitment, and lower_s.
     #
     # One call, and that is the whole point of it. Grinding is Core's
-    # `CKey::Sign` counter and libsecp256k1's own `grind` walks the same
-    # sequence, so a loop here would be btclib re-deriving what the
-    # bindings already do -- and would pay a crossing per attempt. What
-    # that is worth is under a microsecond at the draw counts a signature
-    # actually takes, which is small and is the figure rather than the
-    # argument: the argument is that Core's counter stopped being written
-    # twice on the one arm that has a library implementing it.
+    # `CKey::Sign` counter and the bindings' own `dsa._grind` walks the
+    # same sequence, so a loop here would be btclib re-deriving what the
+    # bindings already do -- and would pay btclib's own crossing per
+    # attempt. Not the foreign call: `dsa._grind` is Python too and signs
+    # once per retry, so what one call buys is this boundary crossed once
+    # and not the signing done once. What btclib's own crossing is worth
+    # is under a microsecond at the draw counts a signature actually
+    # takes, which is small and is the figure rather than the argument:
+    # the argument is that the one arm with a package implementing
+    # Core's counter does not write it a second time.
     # The two are held to the same signature by
     # `test_the_delegated_grind_is_the_sequence_the_py_arm_walks`,
     # which is the defence this delegation rests on: identical on 500 of

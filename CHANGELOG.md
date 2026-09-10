@@ -3599,6 +3599,27 @@ name that library and the symbol each of them paraphrases (closes #1932).
   challenge preimage are read from zkp's source by hand and run in every
   build.
 
+### The low-R grind `btclib.ecc.dsa` delegates is Core's and the bindings'
+
+- **`_grind_low_r`'s docstring names the `btclib_secp256k1` bindings'
+  `dsa._grind` as the implementation the delegated arm reaches** (closes
+  #1949). libsecp256k1 has no grind, so the paragraph's argument for
+  writing the sequence twice does not rest on the delegated grind being
+  the C's own output: both copies of the counter are Python, and what
+  licenses the duplication is the test holding them to the same
+  signature. That docstring also names `sign_`'s dispatch as what decides
+  when this loop is walked, `lower_s=False` included.
+- **`_libsecp256k1_sign_`'s comment names Core's counter and that same
+  `dsa._grind`**, and prices a loop there as btclib's own crossing per
+  attempt rather than as the foreign call, which `dsa._grind` makes per
+  retry itself.
+- **`_abort_unless_checked`'s docstring has the bindings as the subject
+  of the one call that grinds, checks and discriminates**, which is what
+  the rest of its sentence already calls the package holding the parsed
+  objects.
+- **`SECURITY.md`'s citation of `dsa.Signer.__init__` names the line the
+  `to_bytes` call sits on.**
+
 ## v2026.9.3
 
 ### Repository

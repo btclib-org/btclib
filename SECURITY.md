@@ -165,7 +165,7 @@ used to teach and to prototype as much as to build:
     `dsa.Signer.__init__` crosses the same boundary the other way,
     once, at construction: the plain `int` `scalar_from_prv_key` already
     produced becomes a transient `bytes` via
-    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1356`) on the
+    `self._q.to_bytes(32, "big")` (`src/btclib/ecc/dsa.py:1362`) on the
     way into the owned buffer `wipe` overwrites afterwards. That
     `bytes` is dropped rather than erased, same as the `int` it
     replaces — one call rather than the buffer's whole lifetime, which

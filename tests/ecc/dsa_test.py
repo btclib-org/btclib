@@ -2029,10 +2029,11 @@ def test_a_fault_is_not_reported_as_a_wrong_key() -> None:
 def test_the_delegated_grind_is_the_sequence_the_py_arm_walks() -> None:
     """The defence the delegation rests on, and the reason it is here.
 
-    `sign_` no longer grinds on the delegated arm: libsecp256k1's own
-    `grind` walks Core's `CKey::Sign` counter and so does
+    `sign_` does not grind on the delegated arm: the bindings' own
+    `dsa._grind` walks Core's `CKey::Sign` counter and so does
     `_grind_low_r`, so looping here would re-derive what the bindings
-    already do and pay a crossing per attempt -- two on average.
+    already do and pay btclib's own crossing per attempt -- two on
+    average.
 
     What that costs is Core's sequence living in two places, and it is
     only affordable while the two agree. They are held equal here over
@@ -2068,17 +2069,18 @@ def test_the_delegated_grind_is_the_sequence_the_py_arm_walks() -> None:
 def test_the_delegated_arm_asks_the_bindings_to_verify(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`verify` reaches `secp256k1_ecdsa_sign` once, as the caller wrote it.
+    """`verify` reaches the bindings' `sign` once, as the caller wrote it.
 
     Nothing before this recorded it: the crossing above shows the two
     arms agree on the signature `grind=True, verify=False` produces, not
     that `verify` is the argument deciding whether a check follows it, or
     that grinding pays for one crossing and not one per attempt (issue
     986). `_grind_low_r`'s own loop is the Python arm's; the delegated
-    arm's grinding is `secp256k1_ecdsa_sign`'s own, which this call does
-    not see -- what it can see, and what this asserts, is that btclib
-    crosses into it once per `sign_` call, whether that call grinds or
-    not.
+    arm's grinding is the bindings' `dsa._grind`, which runs below the
+    `sign` this patches and so is invisible here -- it reaches
+    `secp256k1_ecdsa_sign` once per attempt, where what this counts is
+    btclib crossing into `sign` once per `sign_` call, whether that call
+    grinds or not.
     """
     real_sign = libsecp256k1_dsa.sign
     calls: list[bool] = []
@@ -2097,8 +2099,8 @@ def test_the_delegated_arm_asks_the_bindings_to_verify(
                 calls.clear()
                 dsa.sign_(msg_hash, q, grind=grind, verify=verify)
                 # one crossing, carrying the caller's own verify -- not
-                # zero, which is #982's bill, and not two, which is the
-                # grinding loop this arm no longer walks
+                # zero, which is #982's bill, and not one per attempt,
+                # which is the grinding loop this arm does not walk
                 assert calls == [verify]
 
 
