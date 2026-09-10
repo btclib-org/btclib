@@ -2,16 +2,19 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The Confidential Transactions rangeproof, and the one shape btclib writes.
+"""The Confidential Transactions rangeproof, and what btclib writes of it.
 
 `RangeProof.parse` reads what secp256k1-zkp's `rangeproof` module
 writes -- `secp256k1_rangeproof_sign_impl`,
 `src/modules/rangeproof/rangeproof_impl.h` -- and `RangeProof.serialize`
 writes those octets back.
 
-`sign_public_value` writes one proof, and it is the one that proves no
-range: `exp` is -1, the value is stated in the clear, and the single
-ring holds the key the commitment itself gives. `RangeProof.pubk_rings`
+`sign` writes a proof for a blinded value: `_prove_params` chooses the
+header, the mantissa decides the rings and the value's digits which key
+of each one the prover opens, and `_borromean_sign` closes them.
+`sign_public_value` is that walk at an `exp` of -1, where
+the value is stated in the clear and the single ring holds the key the
+commitment itself gives. `RangeProof.pubk_rings`
 rebuilds, from a proof and the value commitment it was written against,
 the rings `secp256k1_borromean_verify_impl` is handed, and
 `RangeProof.sign_key_idx` says which key of each ring a value's own
@@ -60,12 +63,12 @@ and which `_rsizes` below computes the same way.
 the ring commitment's y is not a square. That is not the even/odd
 convention `curves.bytes_from_point`, BIP340 and the `02`/`03` SEC
 prefix carry, and the two disagree on the vectors
-`tests/ecc/rangeproof_test.py` reads. No ring commitment's bit is
-computed here -- a parse reads it and a serialize writes it back, so
-what a `RangeProof` holds is the octets' own answer -- while what
-`sign_public_value` hashes the value commitment and the generator under
-is `ecc.pedersen._bytes_from_point` at `_RANGEPROOF_TAG`, the codec a
-commitment's octets and a generator's are written with too. Resolving
+`tests/ecc/rangeproof_test.py` reads. `ecc.pedersen._bytes_from_point`
+at `_RANGEPROOF_TAG` is that codec, and every point entering a proof's
+hash goes through it: the value commitment, the generator, and each
+ring commitment `sign` states. A parse reads those bits back and a
+serialize writes them out, so what a `RangeProof` holds is the octets'
+own answer. Resolving
 an x back to a point is that convention read the other way, and
 `ecc.pedersen._point_from_x` is what does it: `secp256k1_ge_set_xquad`
 takes the y that is a square, and `secp256k1_rangeproof_verify_impl`
@@ -98,7 +101,13 @@ from hashlib import sha256
 from typing import NamedTuple
 
 from btclib.alias import INF, BinaryData, Integer, Octets, Point
-from btclib.curves import bytes_from_point, mult, scalar_from_prv_key, secp256k1
+from btclib.curves import (
+    bytes_from_point,
+    double_mult_var,
+    mult,
+    scalar_from_prv_key,
+    secp256k1,
+)
 from btclib.ecc.borromean import BorromeanSig, PubkeyRing, _hash
 from btclib.ecc.pedersen import (
     _RANGEPROOF_TAG,
@@ -117,7 +126,7 @@ from btclib.utils import (
     read_exactly,
 )
 
-__all__ = ["NonceChain", "RangeProof", "sign_public_value"]
+__all__ = ["NonceChain", "RangeProof", "sign", "sign_public_value"]
 
 # the flags octet, as secp256k1_rangeproof_getheader_impl reads it
 _RESERVED = 128
@@ -130,6 +139,12 @@ _EXP_MASK = 31
 _MAX_EXP = 18
 _MAX_MANTISSA = 64
 _UINT64_MAX = 2**64 - 1
+
+# the ceiling `secp256k1_range_proveparams` reads the value and the
+# min_value against, and it reads them against it twice: once to refuse
+# a range whose proven maximum would wrap, and once to decide that the
+# exponent is not worth keeping for a value this large
+_INT64_MAX = 2**63 - 1
 
 # what a min_value field occupies: zkp writes it at a fixed width rather
 # than behind a length, and reads it back the same way
@@ -228,11 +243,11 @@ def _assert_valid_header(exp: int, mantissa: int, min_value: int | None) -> None
 def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
     """Return the flags octet and the fields its own bits say follow it.
 
-    A function of the header alone, because `sign_public_value` needs
-    these octets before it has a signature to put after them:
+    A function of the header alone, because `sign` needs these octets
+    before it has a signature to put after them:
     `secp256k1_rangeproof_sign_impl` writes the header first and then
-    hashes it, into the nonce chain's seed and into the message the ring
-    is signed over.
+    hashes it, into the nonce chain's seed and into the message the
+    rings are signed over.
     """
     flags = _HAS_NZ_RANGE | exp if mantissa else 0
     if min_value is not None:
@@ -243,6 +258,102 @@ def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
     if min_value is not None:
         out += min_value.to_bytes(_MIN_VALUE_SIZE, byteorder="big")
     return out
+
+
+class _ProveParams(NamedTuple):
+    """What `secp256k1_range_proveparams` answers for a set of arguments.
+
+    `exp`, `mantissa` and `min_value` are the header the proof carries,
+    and none of the three need be what the caller asked for: the
+    exponent is lowered until the range fits a uint64, the mantissa is
+    raised to the precision asked for, and `min_value` is rewritten to
+    whatever the rescaled value leaves under it.
+
+    `v` is the value the mantissa's digits count, `scale` the `10**exp`
+    each of them weighs, `rsizes` how many keys each ring holds and
+    `sign_key_idx` the digit each ring proves.
+    """
+
+    v: int
+    rsizes: tuple[int, ...]
+    sign_key_idx: tuple[int, ...]
+    min_value: int
+    mantissa: int
+    scale: int
+    exp: int
+
+
+def _prove_params(value: int, min_value: int, exp: int, min_bits: int) -> _ProveParams:
+    """Return the header and the ring structure zkp writes for those arguments.
+
+    `secp256k1_range_proveparams`. What the caller asks for is a
+    request: an exponent buys range at the cost of precision, so it is
+    lowered wherever the range it asks for would not fit a uint64, and
+    `min_bits` buys precision inside whatever range is left, so it is
+    lowered to what the `min_value` already claims. The two limits meet
+    at the exponent, which is why one function answers all of it --
+    reading either from the arguments alone would be reading a request
+    rather than what the proof states.
+
+    A `min_value` at the ceiling of the field is where no range can be
+    coded at all, and the exponent is held at -1 there: what comes back
+    is the proof of an exact value, which is `sign_public_value`'s.
+
+    The refusal below has two arms and they are not symmetric: a
+    nonzero floor under a value past `2**63-1`, or a nonzero value over
+    a floor at or past it. So a value exactly at that ceiling is proven
+    where one a step above it is not, and zkp signs the same octets for
+    it. What both arms guard is zkp's own comment: either end of the
+    range that large leaves the other none, and the maximum the header
+    states would overflow the uint64 a verifier reads it as.
+    """
+    if min_value == _UINT64_MAX:
+        exp = -1
+    if exp < 0:
+        # the exact value, whose one ring holds the single key the
+        # commitment itself gives. zkp writes a zero exponent into its
+        # own out-parameter here and the header carries none, `rsizes[0]`
+        # being 1; -1 is what a `RangeProof` states for that header
+        return _ProveParams(0, (1,), (0,), value, 0, 1, -1)
+
+    if (min_value and value > _INT64_MAX) or (value and min_value >= _INT64_MAX):
+        err_msg = f"rangeproof range {min_value}..{value} does not fit 2**64"
+        raise BTClibValueError(err_msg)
+
+    # precision above what the floor leaves is precision about octets
+    # the header already states
+    max_bits = 64 - min_value.bit_length() if min_value else 64
+    min_bits = min(min_bits, max_bits)
+    # ten is not a power of two, so dividing by ten and writing the
+    # result in base two times ten widens the range the digits reach,
+    # past the 0..2**64 a verifier requires. Rather than work out how
+    # much of the exponent survives that, zkp drops it outright for a
+    # value in the top half of the field or a precision within a few
+    # bits of the whole of it
+    if min_bits > 61 or value > _INT64_MAX:
+        exp = 0
+
+    v = value - min_value
+    # the range the mantissa will have to cover, carried through the
+    # same divisions as the value: it is what says how many of the
+    # exponent's steps there is room for, and the loop ends at the
+    # first one there is not
+    v2 = _UINT64_MAX >> (64 - min_bits) if min_bits else 0
+    reached = 0
+    while reached < exp and v2 <= _UINT64_MAX // 10:
+        v //= 10
+        v2 *= 10
+        reached += 1
+    exp = reached
+
+    scale = 10**exp
+    # the divisions above are what the floor absorbs: whatever the
+    # rescaled value no longer reaches is stated in the clear
+    min_value = value - v * scale
+    mantissa = max(v.bit_length() or 1, min_bits)
+    rsizes = _rsizes(mantissa)
+    sign_key_idx = tuple((v >> 2 * i) & 3 for i in range(len(rsizes)))
+    return _ProveParams(v, rsizes, sign_key_idx, min_value, mantissa, scale, exp)
 
 
 def _pub_expand(
@@ -722,73 +833,209 @@ class RangeProof:
         )
 
 
-def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
-    """Return the proof that states its value in the clear.
+def _challenge(m: bytes, r: bytes, i: int, j: int) -> int:
+    """Return the scalar `secp256k1_borromean_sign` hashes at that position.
 
-    `secp256k1_rangeproof_sign_impl` with an `exp` of -1, which
-    `secp256k1_range_proveparams` answers with one ring holding the
-    single key the commitment itself gives. So this proof asserts no
-    range: it says what the commitment commits to, and that whoever
-    wrote it knows the blinding factor. The mantissa, the digit
-    decomposition, `rangeproof_pub_expand` and the sign bits are all
-    absent from it, a proof carrying one ring commitment per ring but
-    the last and this one having a single ring.
+    `secp256k1_borromean_hash` over the ring's running point and the
+    message, read as a scalar the way `secp256k1_scalar_set_b32` reads
+    one: a digest at or past n raises the overflow flag and zkp
+    abandons the proof, where `ecc.borromean` reduces it and carries
+    on. Reducing here would write a proof
+    `secp256k1_borromean_verify_impl` refuses.
+    """
+    e = int_from_bits(_hash(m, r, i, j, sha256), secp256k1.nlen)
+    if not 0 < e < secp256k1.n:
+        raise BTClibRuntimeError("rangeproof challenge is not a scalar")
+    return e
 
-    A value of zero writes the flags octet and nothing after it; any
-    other writes `min_value` in the eight octets behind bit 5.
 
-    secp256k1 and sha256, which `parse` fixes for the reason it gives.
-    `blind` is a scalar, read through `curves.scalar_from_prv_key`;
-    `value` is what those eight octets carry; `nonce` is the 32 octets
-    `rangeproof_genrand` seeds its chain with.
+def _borromean_sign(
+    m: bytes,
+    pubk_rings: Sequence[PubkeyRing],
+    ks: Sequence[int],
+    secs: Sequence[int],
+    sign_key_idx: Sequence[int],
+    draws: Sequence[Sequence[int]],
+) -> BorromeanSig:
+    """Close every ring over that message, as `secp256k1_borromean_sign` does.
 
-    Deterministic in all three, so what comes back is the octets
-    `zkp.rangeproof.sign` answers for the same arguments -- which is
-    what `tests/ecc/rangeproof_test.py` asks of it, against a vendored
-    proof where the flagged extension is absent and against the library
-    where it is.
+    `ecc.borromean.sign_` is the same walk, differing where a
+    rangeproof cannot follow it. It draws every forged `s` from
+    `secrets`, where here they are `draws` -- what
+    `secp256k1_rangeproof_genrand` derived from the caller's nonce, so
+    that a proof is a function of its arguments and a recipient holding
+    the nonce reads the value back out. And it carries the real
+    signer's `s` as `k + e*q` against a ring walked at `-e`, where zkp
+    walks at `+e` and answers `k - e*sec`: `ecc.borromean`'s module
+    docstring has what one calling `P` where the other calls `-P`
+    costs. `_challenge` is a third such difference.
+
+    `ks[i]` is the nonce ring `i` is closed with, `secs[i]` the scalar
+    its commitment is written under, and `sign_key_idx[i]` the position
+    of the key those two open. The point at every other position is
+    forged from the draw already at it, which is why `draws` is the
+    signature this returns but for one scalar per ring.
+    """
+    s = [list(ring) for ring in draws]
+    e0_preimage = b""
+    for i, (ring, k, j_star) in enumerate(
+        zip(pubk_rings, ks, sign_key_idx, strict=True)
+    ):
+        r = bytes_from_point(mult(k, secp256k1.G, secp256k1), secp256k1)
+        for j in range(j_star + 1, len(ring)):
+            t = double_mult_var(
+                _challenge(m, r, i, j), ring[j], s[i][j], secp256k1.G, secp256k1
+            )
+            r = bytes_from_point(t, secp256k1)
+        e0_preimage += r
+    # the message closes the preimage the ring points opened, which is
+    # `ecc.borromean.sign_`'s order too
+    e0 = sha256(e0_preimage + m).digest()
+
+    for i, (ring, k, j_star) in enumerate(
+        zip(pubk_rings, ks, sign_key_idx, strict=True)
+    ):
+        e = _challenge(m, e0, i, 0)
+        for j in range(j_star):
+            t = double_mult_var(e, ring[j], s[i][j], secp256k1.G, secp256k1)
+            e = _challenge(m, bytes_from_point(t, secp256k1), i, j + 1)
+        s[i][j_star] = (k - e * secs[i]) % secp256k1.n
+        if s[i][j_star] == 0:
+            # a zero s is the one `BorromeanSig` holds and zkp does not
+            # write: `secp256k1_borromean_sign` returns zero on it, and
+            # `secp256k1_borromean_verify_impl` refuses one it is handed
+            raise BTClibRuntimeError("rangeproof signature value is zero")
+    return BorromeanSig(e0, s)
+
+
+def sign(
+    blind: Integer,
+    value: int,
+    nonce: Octets,
+    *,
+    min_value: int = 0,
+    exp: int = 0,
+    min_bits: int = 0,
+) -> RangeProof:
+    """Return the proof that a blinded value lies in a stated range.
+
+    `secp256k1_rangeproof_sign_impl`. The commitment the proof is
+    written against is `ecc.pedersen.commit` over `blind` and `value`,
+    the same point `secp256k1_pedersen_commit` answers, and the range
+    the header states is `_prove_params`' rather than the caller's:
+    `min_value`, `exp` and `min_bits` are what is asked for, and the
+    proof carries what the format has room for.
+
+    `value` and `min_value` are what a uint64 holds and `min_value` no
+    more than `value`, `nonce` the 32 octets `rangeproof_genrand` seeds
+    its chain with, `exp` in -1..18 and `min_bits` in 0..64 -- the
+    bounds `secp256k1_rangeproof_sign_impl` reads before it asks for a
+    header.
+
+    `blind` is a scalar, read through `curves.scalar_from_prv_key`,
+    which refuses at or past n as zkp does and refuses zero where zkp
+    signs one: a zero blinding factor leaves the last ring's own
+    commitment blinded by the chain's factor alone, and zkp turns that
+    down only where the sum vanishes, which is the single-ring proof.
+
+    Deterministic in every one of them, a rangeproof drawing nothing,
+    so what comes back over the arguments both accept is the octets
+    `zkp.rangeproof.sign` answers for those same arguments.
+
+    No message and no `extra_commit`. A message rides in the buffer
+    `_prep` builds, at the head of every ring but the last, and exists
+    to be read back out, so it belongs with the rewind that reads it;
+    `extra_commit` enters the challenge and nothing here has a second
+    commitment to bind. Issue #1072 is where both are tracked.
     """
     blind_int = scalar_from_prv_key(blind, secp256k1)
     if not 0 <= value <= _UINT64_MAX:
         raise BTClibValueError(f"rangeproof value not in 0..2**64-1: {value}")
+    if not 0 <= min_value <= value:
+        err_msg = f"rangeproof min value not in 0..{value}: {min_value}"
+        raise BTClibValueError(err_msg)
+    if not -1 <= exp <= _MAX_EXP:
+        raise BTClibValueError(f"rangeproof exponent not in -1..18: {exp}")
+    if not 0 <= min_bits <= _MAX_MANTISSA:
+        raise BTClibValueError(f"rangeproof min bits not in 0..64: {min_bits}")
     nonce_bytes = bytes_from_octets(nonce, _NONCE_SIZE)
 
-    # zkp sets bit 5 from the value, this path's `min_value` being the
-    # value itself: `min_value ? 32 : 0`, so zero carries no field
-    min_value = value or None
-    header = _header_octets(-1, 0, min_value)
+    params = _prove_params(value, min_value, exp, min_bits)
+    # zkp's `min_value ? 32 : 0`, over the rewritten floor: a range
+    # starting at zero carries no field
+    header = _header_octets(params.exp, params.mantissa, params.min_value or None)
+
+    genp = second_generator()
     points = _bytes_from_point(commit(blind_int, value), _RANGEPROOF_TAG)
-    points += _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
+    points += _bytes_from_point(genp, _RANGEPROOF_TAG)
 
-    # the one draw a single ring takes. `rangeproof_genrand` draws
-    # nothing for the last ring's blinding factor -- that is minus the
-    # sum of the others, and there are no others, so `sec` is zero and
-    # the caller's `blind` is the whole of it -- and one block for the
-    # ring's one public key, which `sign_impl` then moves into the nonce
-    # the ring is closed with. `secp256k1_range_proveparams` answers an
-    # `exp` of -1 with a value of zero at digit zero, which is what
-    # leaves that ring with nothing of `_prep` written into it
-    seed = nonce_bytes + points + header
-    k = _genrand(seed, (1,), _prep((1,), 0, 0)).draws[0][0]
+    chain = _genrand(
+        nonce_bytes + points + header,
+        params.rsizes,
+        _prep(params.rsizes, params.v, params.sign_key_idx[-1]),
+    )
+    # the draw at the true digit is spent as that ring's nonce, so it is
+    # the one `s` per ring the signature overwrites rather than states
+    ks = [ring[j] for ring, j in zip(chain.draws, params.sign_key_idx, strict=True)]
+    secs = list(chain.blinding_factors)
+    # the chain answers the last ring's factor as minus the sum of the
+    # others, so adding the caller's own leaves the whole set summing to
+    # it -- which is what lets a verifier recover the ring commitment
+    # the proof does not state
+    secs[-1] = (secs[-1] + blind_int) % secp256k1.n
+    if secs[-1] == 0:
+        raise BTClibRuntimeError("rangeproof last ring blinding factor is zero")
 
-    m = sha256(points + header).digest()
-    r = bytes_from_point(mult(k, secp256k1.G, secp256k1), secp256k1)
-    e0 = sha256(r + m).digest()
-    # `secp256k1_borromean_sign` over one ring of one key: `e0` hashes
-    # the nonce point and then the message, and the challenge that
-    # closes the ring is `e0`'s own at ring 0, position 0, which
-    # `borromean._hash` is the preimage of. Not reduced modulo n the
-    # way `ecc.borromean` reduces it -- zkp refuses a challenge at or
-    # past n here, and a proof it would not have written is a proof its
-    # verifier does not take
-    e = int_from_bits(_hash(m, e0, 0, 0, sha256), secp256k1.nlen)
-    if not 0 < e < secp256k1.n:
-        raise BTClibRuntimeError("rangeproof challenge is not a scalar")
+    heads = []
+    for i, (sec, j) in enumerate(zip(secs, params.sign_key_idx, strict=True)):
+        # `secp256k1_pedersen_ecmult`: the ring's own blinding factor,
+        # and the digit it proves at the weight of its place
+        head = secp256k1.add_aff_var(
+            mult(sec, secp256k1.G, secp256k1),
+            mult(j * params.scale << 2 * i, genp, secp256k1),
+        )
+        if head == INF:
+            err_msg = "rangeproof ring commitment is the point at infinity"
+            raise BTClibRuntimeError(err_msg)
+        heads.append(head)
 
-    s = (k - e * blind_int) % secp256k1.n
-    if s == 0:
-        # a zero s is the one `BorromeanSig` holds and zkp does not
-        # write: `secp256k1_borromean_sign` returns zero on it, and
-        # `secp256k1_borromean_verify_impl` refuses one it is handed
-        raise BTClibRuntimeError("rangeproof signature value is zero")
-    return RangeProof(-1, 0, min_value, (), (), BorromeanSig(e0, [[s]]))
+    # every ring commitment but the last, which the verifier recovers
+    stated = [_bytes_from_point(head, _RANGEPROOF_TAG) for head in heads[:-1]]
+    m = sha256(points + header + b"".join(stated)).digest()
+    sig = _borromean_sign(
+        m,
+        _pub_expand(heads, params.exp, params.rsizes),
+        ks,
+        secs,
+        params.sign_key_idx,
+        chain.draws,
+    )
+    return RangeProof(
+        params.exp,
+        params.mantissa,
+        params.min_value or None,
+        [bool(octets[0]) for octets in stated],
+        [int.from_bytes(octets[1:], "big") for octets in stated],
+        sig,
+    )
+
+
+def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
+    """Return the proof that states its value in the clear.
+
+    `sign` at an `exp` of -1, which `secp256k1_range_proveparams`
+    answers with one ring holding the single key the commitment itself
+    gives. So this proof asserts no range: it says what the commitment
+    commits to, and that whoever wrote it knows the blinding factor.
+    The mantissa, the digit decomposition, `rangeproof_pub_expand` and
+    the sign bits are all absent from it, a proof carrying one ring
+    commitment per ring but the last and this one having a single ring.
+
+    A value of zero writes the flags octet and nothing after it; any
+    other writes `min_value` in the eight octets behind bit 5, the
+    value being its own floor here.
+
+    A spelling of its own because `min_value`, `exp` and `min_bits`
+    name nothing this proof has: its header is fixed.
+    """
+    return sign(blind, value, nonce, exp=-1)

@@ -22,6 +22,35 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
+
+- **A Confidential Transactions rangeproof over a range, and not only
+  over a value stated in the clear** (issue #1072). `sign` takes a
+  blinding factor, a value and a nonce, and `min_value`, `exp` and
+  `min_bits` beside them; what comes back is the proof
+  `secp256k1_rangeproof_sign_impl` writes for those arguments, octet
+  for octet. `sign_public_value` is that walk at an exponent of -1.
+- **The header is what the format has room for, not what was asked
+  for.** `secp256k1_range_proveparams` lowers the exponent until the
+  proven range fits a uint64, lowers `min_bits` to the precision the
+  floor leaves, sets the mantissa to the wider of that precision and
+  the bits the rescaled value needs, and rewrites `min_value` to what
+  that value no longer reaches. A `min_value` at the ceiling of the
+  field codes no range at all and writes the exact-value proof; a
+  nonzero floor under a value past `2**63-1`, or a nonzero value over a
+  floor at or past it, is refused.
+- **Each stated ring commitment's sign bit is computed as quadratic
+  residuosity, not parity.** `secp256k1_rangeproof_serialize_point` writes
+  `!secp256k1_fe_is_square_var(&point->y)`, which the `02`/`03` SEC
+  prefix and BIP340's x-only convention disagree with on some points
+  and agree with on others, so the familiar reading writes a proof that
+  verifies nowhere and fails nothing locally.
+- **No message and no `extra_commit`.** A message rides in the buffer
+  the nonce chain is folded with and exists to be read back out, so it
+  belongs with the rewind that reads it; `extra_commit` binds a second
+  commitment nothing here has. Issue #1072 tracks both, and verifying a
+  proof with them.
+
 ### `docs/proposals/cli.md` states no count, and its module list is current
 
 - **The four figures that document stated are gone** (closes #1977),
