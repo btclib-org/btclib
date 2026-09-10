@@ -3521,6 +3521,24 @@ name that library and the symbol each of them paraphrases (closes #1932).
   next release falls: the retitle step of that release renames the
   heading, and nothing is bumped meanwhile.
 
+### `ecc.commit_nonce` names secp256k1-zkp for sign-to-contract
+
+- **The module docstring credits BlockstreamResearch/secp256k1-zkp with
+  the sentence it quotes** (closes #1946): the words are
+  `secp256k1_ecdsa_sign_inner`'s in `src/secp256k1.c`, giving the reason
+  a sign-to-contract commitment works only with the default nonce
+  function. bitcoin-core/secp256k1 publishes neither a sign-to-contract
+  header nor a commitment module, so the name the sentence carried sent
+  a reader to a library that has neither.
+- **`_tweak`'s comment on the out-of-range candidate names
+  `secp256k1_ec_commit`** (`src/eccommit_impl.h`), which hashes once and
+  fails where the tweak is refused. Its closing clause names the
+  derivation that fails rather than drawing again, that being what
+  leaves a low-cardinality curve with no tweak; a library name there
+  read as a claim about upstream.
+- **`SECURITY.md`'s citation of `commit_nonce.commit_nonce_` names the
+  line the read sits on.**
+
 ## v2026.9.3
 
 ### Repository
