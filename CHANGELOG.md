@@ -45,11 +45,6 @@ documented at release-notes length in the first place, and are still in
   prefix and BIP340's x-only convention disagree with on some points
   and agree with on others, so the familiar reading writes a proof that
   verifies nowhere and fails nothing locally.
-- **No message and no `extra_commit`.** A message rides in the buffer
-  the nonce chain is folded with and exists to be read back out, so it
-  belongs with the rewind that reads it; `extra_commit` binds a second
-  commitment nothing here has. Issue #1072 tracks both, and verifying a
-  proof with them.
 
 ### `docs/proposals/cli.md` states no count, and its module list is current
 
@@ -151,11 +146,32 @@ documented at release-notes length in the first place, and are still in
   ring spends on the value encoding and on the key its own digit opens.
   So what comes back is the message and then the zeros behind it, with
   nothing in a proof saying where one ends.
-- **`extra_commit` and a generator of the caller's are still not taken**
-  (issue #1984, issue #1986). A proof written or read here binds the
-  commitment, the header and the stated ring commitments and nothing
-  outside itself, and it is written against `ecc.pedersen`'s own second
-  generator.
+- **A generator of the caller's is still not taken** (issue #1986). A
+  proof written or read here is written against `ecc.pedersen`'s own
+  second generator.
+
+### `ecc.rangeproof` binds octets of a caller's own into a proof
+
+- **`sign`, `assert_as_valid`, `verify` and `rewind` take
+  `extra_commit`** (closes #1984): octets of the caller's own -- the
+  output a commitment belongs to, say -- bound into the proof rather
+  than carried by it, so a verifier is handed them again or the proof
+  does not hold for it. `include/secp256k1_rangeproof.h` states what
+  the binding buys: without it a prover can move a scalar from one
+  digit commitment to another and obtain a second valid proof for the
+  same commitment and witness.
+- **It closes the message the rings are signed over and reaches
+  nothing else.** `secp256k1_rangeproof_sign_impl` and
+  `secp256k1_rangeproof_verify_impl` write it into `sha256_m` after
+  the ring commitments and immediately before finalizing, where
+  `secp256k1_rangeproof_genrand` takes no such argument -- so the
+  header, the sign bits and the ring commitments a proof states are
+  those of a proof written under none, the signature over them is not,
+  and a rewind answers the same blinding factor, value and message.
+- **Keyword-only, as the sign-to-contract `commit` of `ecc.dsa` and
+  `ecc.ssa` is.** The octets have to be the same where a proof is
+  written and where it is read, and naming the argument at both call
+  sites is what shows they are.
 
 ## v2026.9.10
 

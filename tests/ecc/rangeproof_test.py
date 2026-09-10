@@ -77,6 +77,7 @@ the two implementations write the same octets, refuse the same
 arguments, and each read what the other wrote.
 """
 
+from inspect import Parameter, signature
 from io import BytesIO
 from typing import Any
 
@@ -126,10 +127,15 @@ def _octets(id_: str) -> bytes:
 # rather than repeated as literals, so the tests below that build a
 # proof instead of reading one ask with arguments the recording names.
 # `sign` takes an entry whose arguments are its own keyword ones, and
-# `sign_public_value` one whose `exp` of -1 is the whole of them
-_WRITABLE = [
-    v for v in _VECTORS if set(v["sign arguments"]) <= {"min_value", "exp", "min_bits"}
-]
+# `sign_public_value` one whose `exp` of -1 is the whole of them. The
+# names are asked of the signature rather than written out, an argument
+# gained there being one an entry may then be recorded with
+_SIGN_KEYWORDS = {
+    name
+    for name, parameter in signature(sign).parameters.items()
+    if parameter.kind is Parameter.KEYWORD_ONLY
+}
+_WRITABLE = [v for v in _VECTORS if set(v["sign arguments"]) <= _SIGN_KEYWORDS]
 _WRITABLE_IDS = [vector_id(i, v["id"]) for i, v in enumerate(_WRITABLE)]
 _PUBLIC_VALUES = [v for v in _VECTORS if v["sign arguments"] == {"exp": -1}]
 _PUBLIC_VALUE_IDS = [vector_id(i, v["id"]) for i, v in enumerate(_PUBLIC_VALUES)]
@@ -830,9 +836,10 @@ def test_sign_writes_the_octets_zkp_signed(vector: dict[str, Any]) -> None:
     `zkp.rangeproof.verify` accepting the result would say only that it
     is *a* proof, where this says it is the same one.
 
-    Selected on the `sign arguments` being ones `sign` takes: an entry
-    recorded with a further argument -- an `extra_commit`, which enters
-    the challenge -- is not one it can be held to.
+    Selected on the `sign arguments` being keyword ones `sign` takes:
+    an entry recorded with an argument it has no parameter for -- a
+    `gen_bytes`, which names the generator -- is not one it can be
+    held to.
     """
     proof = sign(
         vector["blind"], vector["value"], vector["nonce"], **vector["sign arguments"]
@@ -1474,6 +1481,87 @@ def test_a_message_longer_than_the_rings_hold_is_refused() -> None:
     assert filled.rsizes == (4, 4)
 
 
+@pytest.mark.parametrize(
+    "value, kwargs",
+    [
+        (100000, {"exp": -1}),
+        (3, {"min_bits": 4}),
+        (100000, {"min_bits": 8, "message": b"bound and carried"}),
+    ],
+    ids=["public value", "odd mantissa", "message too"],
+)
+def test_extra_commit_binds_a_proof_to_octets_it_does_not_carry(
+    value: int, kwargs: dict[str, Any]
+) -> None:
+    """A proof holds under the octets it was written under, and not others.
+
+    They are the caller's own and the proof carries none of them, so a
+    verifier is handed them again or walks the rings to an `e0` the
+    signature does not state. `assert_as_valid` raises the borromean
+    walk's own refusal, `verify` answers False, and `rewind` refuses
+    before it reads anything, the verification being what it opens
+    with.
+
+    Nothing else about the proof moves: the header and the ring
+    commitments are those of a proof written under no `extra_commit`,
+    the signature over them is not, and a rewind under the right
+    octets answers the same blinding factor, value and message. That
+    is `secp256k1_rangeproof_genrand` taking no such argument, so the
+    draws it derives are the same and only the message the rings are
+    signed over changes.
+    """
+    extra_commit = b"the output this belongs to"
+    commitment = commit(_BLIND, value)
+    bound = sign(_BLIND, value, _NONCE, extra_commit=extra_commit, **kwargs)
+    plain = sign(_BLIND, value, _NONCE, **kwargs)
+
+    assert rangeproof.verify(commitment, bound, extra_commit=extra_commit)
+    rewound = rangeproof.rewind(commitment, bound, _NONCE, extra_commit=extra_commit)
+    assert rewound == rangeproof.rewind(commitment, plain, _NONCE)
+
+    assert (bound.exp, bound.mantissa, bound.min_value) == (
+        plain.exp,
+        plain.mantissa,
+        plain.min_value,
+    )
+    assert bound.signs == plain.signs
+    assert bound.ring_commitments == plain.ring_commitments
+    assert bound.sig != plain.sig
+
+    err_msg = "rangeproof signature verification failed"
+    for wrong in (b"", extra_commit + b"!", extra_commit[:-1]):
+        assert not rangeproof.verify(commitment, bound, extra_commit=wrong)
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            rangeproof.assert_as_valid(commitment, bound, extra_commit=wrong)
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            rangeproof.rewind(commitment, bound, _NONCE, extra_commit=wrong)
+    # and the proof written under none is refused under these
+    assert not rangeproof.verify(commitment, plain, extra_commit=extra_commit)
+
+
+def test_extra_commit_is_read_as_octets_wherever_it_is_taken() -> None:
+    """A hex string says what the same octets say, `Octets` being the type.
+
+    `verify` catches the `ValueError` a spelling that is no octets
+    raises, as it catches a parse's, where the three that raise their
+    reason let it out.
+    """
+    value = 100000
+    commitment = commit(_BLIND, value)
+    proof = sign(_BLIND, value, _NONCE, min_bits=8, extra_commit="cafe")
+    assert (
+        proof.serialize()
+        == sign(_BLIND, value, _NONCE, min_bits=8, extra_commit=b"\xca\xfe").serialize()
+    )
+    assert rangeproof.verify(commitment, proof, extra_commit=b"\xca\xfe")
+    assert rangeproof.rewind(commitment, proof, _NONCE, extra_commit="cafe").value == (
+        value
+    )
+    assert not rangeproof.verify(commitment, proof, extra_commit="not hex")
+    with pytest.raises(ValueError, match="non-hexadecimal number found"):
+        rangeproof.assert_as_valid(commitment, proof, extra_commit="not hex")
+
+
 # `pragma: no cover` on every `@needs_zkp` below, the marker being the
 # reason: `tests/conftest.py` turns it into a skip in an unflagged
 # build, and excluding what a build cannot execute is what leaves the
@@ -1877,3 +1965,70 @@ def test_zkp_refuses_the_rewinds_this_module_refuses(
     assert zkp_rangeproof.verify(commitment, octets) is not None
     with pytest.raises(ValueError, match="rewind failed"):
         zkp_rangeproof.rewind(commitment, octets, bytes(32))
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to bind the same octets
+@pytest.mark.parametrize(
+    "value, kwargs",
+    [
+        (100000, {"exp": -1}),
+        (3, {"min_bits": 4}),
+        (100000, {"min_bits": 8, "message": b"bound and carried"}),
+    ],
+    ids=["public value", "odd mantissa", "message too"],
+)
+def test_a_nonempty_extra_commit_crosses_in_both_directions(
+    value: int, kwargs: dict[str, Any]
+) -> None:
+    """The same octets bound here and there, and refused where they differ.
+
+    A proof written here under a nonempty `extra_commit` is the one
+    `zkp.rangeproof.sign` writes for those arguments, and
+    `zkp.rangeproof.verify` and `zkp.rangeproof.rewind` answer for it
+    when handed the same octets. The other direction is the same
+    proof read back: `verify` here says the rings close, and `rewind`
+    answers the blinding factor and the value zkp's own rewind
+    answers.
+
+    The control is a second value of the argument, since a proof that
+    verified under the octets it was written with would say nothing
+    about whether either implementation reads them at all. Both refuse
+    it, and zkp's refusal is `None` from `verify` and `rewind failed`
+    from `rewind`.
+    """
+    extra_commit = b"the output this belongs to"
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    commitment = zkp_generator.pedersen_commit(blind, value)
+    point = commit(_BLIND, value)
+
+    octets = zkp_rangeproof.sign(
+        commitment, blind, nonce, value, extra_commit=extra_commit, **kwargs
+    )
+    proof = sign(_BLIND, value, _NONCE, extra_commit=extra_commit, **kwargs)
+    assert proof.serialize() == octets
+
+    blind_out, value_out, message_out, _, _ = zkp_rangeproof.rewind(
+        commitment, octets, nonce, extra_commit
+    )
+    assert blind_out == blind
+    assert value_out == value
+    assert zkp_rangeproof.verify(commitment, octets, extra_commit) == (
+        proof.min_value or 0,
+        proof.max_value,
+    )
+
+    assert rangeproof.verify(point, octets, extra_commit=extra_commit)
+    rewound = rangeproof.rewind(point, octets, nonce, extra_commit=extra_commit)
+    assert rewound.blind == int.from_bytes(blind_out, "big")
+    assert rewound.value == value_out
+    assert len(rewound.message) >= len(message_out)
+    assert rewound.message[: len(message_out)] == message_out
+
+    other = extra_commit + b"!"
+    assert zkp_rangeproof.verify(commitment, octets, other) is None
+    with pytest.raises(ValueError, match="rewind failed"):
+        zkp_rangeproof.rewind(commitment, octets, nonce, other)
+    assert not rangeproof.verify(point, octets, extra_commit=other)
+    with pytest.raises(BTClibRuntimeError, match="verification failed"):
+        rangeproof.rewind(point, octets, nonce, extra_commit=other)
