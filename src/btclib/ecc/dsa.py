@@ -908,9 +908,10 @@ def sign_(
     # untweaked nonce is a function of the message and the key alone and
     # two commitments over one message hand out the private key -- see
     # commit_nonce. A nonce of the caller's leaves nowhere to put it, so
-    # it is refused rather than silently not committed to; libsecp256k1
-    # spells the same rule as a VERIFY_CHECK that s2c goes with the
-    # default nonce function and no other
+    # it is refused rather than silently not committed to;
+    # BlockstreamResearch/secp256k1-zkp spells the same rule as a
+    # VERIFY_CHECK in `secp256k1_ecdsa_sign_inner` that s2c goes with
+    # the default nonce function and no other
     if commit_hash is not None and nonce is not None:
         raise BTClibValueError("a commitment derives its own nonce")
 
@@ -1893,7 +1894,8 @@ def anti_exfil_host_verify(
     not a signature. Which ``verify_`` already does in one call, both
     checks running against the same r.
 
-    receipt is the R of step 2, what libsecp256k1 calls the opening.
+    receipt is the R of step 2, what secp256k1-zkp's
+    `secp256k1_ecdsa_s2c_opening` holds.
     False and not an exception for everything that fails, as ``verify_``
     answers: a rho of the wrong size is a rho this commitment does
     not open to.
