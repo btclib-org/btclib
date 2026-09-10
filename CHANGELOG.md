@@ -3368,6 +3368,20 @@ and `id-token: write`.
   docstring that reasoning is in rather than on each `anti_exfil_*`
   function.
 
+### What a pinned action's comment names where upstream has no point release
+
+`CLAUDE.md` says what a pinned action's comment names: the point
+release, and, where the action's repository publishes only a floating
+major, that tag with the call that peels it beside the pin. A name its
+owner is free to move reads the same on either side of a bump, so what
+answers whether such a pin is current is the tag rather than the comment.
+
+`.github/workflows/fuzz.yml` is where that holds: `v1` is the only tag
+`google/clusterfuzzlite` publishes, so `# v1` above its pins is the
+answer the convention asks for rather than a comment nobody has looked
+at, and the calls that say whether that tag has moved or a point release
+has appeared stand beside them (closes #1931).
+
 ## v2026.9.3
 
 ### Repository

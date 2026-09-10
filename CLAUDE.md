@@ -398,6 +398,20 @@ Do not use Fable unless explicitly instructed.
   `persist-credentials: false`; uv commands pass `--locked`, never
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.
+- **A pin's comment names the point release, and where the action's
+  repository publishes only a floating major it names that tag with the
+  calls that resolve it beside the pin.** What the comment buys is a
+  legible bump: a point release changes with the sha it names, where a
+  bare major reads the same on either side of one and leaves the sha as
+  the whole of the diff. Where the major is the only tag upstream has,
+  nothing else names the commit, so the comment keeps it and the
+  workflow carries the calls that list the tags and peel the one the
+  comment names: those calls, and not the comment, are what say whether
+  a point release has appeared and whether the pin is still current.
+  Beside is not always trailing: a pin that already fills
+  `.yamllint.yaml`'s width takes the comment on the line above.
+  `.github/workflows/fuzz.yml`'s `google/clusterfuzzlite` pins are both
+  cases at once.
 - **The prose style — tone, comments, docstrings, no history — is
   section 9 of the organization standard**, which
   `CONTRIBUTING.md`'s *Documentation and comments* is the pointer to.
