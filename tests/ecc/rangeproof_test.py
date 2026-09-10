@@ -8,9 +8,10 @@ The vectors are proofs libsecp256k1-zkp signed, recorded with the
 arguments that produced them and with what `zkp.rangeproof.info`
 answers for each -- `tests/_data/README.md` has the recording and how
 to make another. They are here so that the parser is exercised
-wherever the suite runs: the flagged extension exists in
-`.github/workflows/zkp-oracle.yml`'s job alone, so a test that can only
-ask the library leaves the parser unmeasured in every ordinary run.
+wherever the suite runs: the flagged extension is what a
+btclib-secp256k1 installed from its sdist with `BTCLIB_LIBSECP256K1_ZKP`
+has, so a test that can only ask the library leaves the parser
+unmeasured in an unflagged build.
 
 What the vectors are asked: that a parse of the header says what `info`
 said about the same octets, field for field; that `serialize` writes

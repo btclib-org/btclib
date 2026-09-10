@@ -2620,10 +2620,10 @@ libsecp256k1-zkp signed for this tree, kept verbatim, beside the
 arguments that produced it and what that library then said about it.
 
 It is here because `tests/ecc/rangeproof_test.py` would otherwise
-measure nothing wherever the suite usually runs: the flagged extension
-those calls need is built in `.github/workflows/zkp-oracle.yml`'s job
-alone, and `btclib.ecc.rangeproof` reads a format no other vector file
-in this tree carries.
+measure nothing in an unflagged build: the flagged extension those
+calls need is what a btclib-secp256k1 installed from its sdist with
+`BTCLIB_LIBSECP256K1_ZKP` has, and `btclib.ecc.rangeproof` reads a
+format no other vector file in this tree carries.
 
 **Recording another is this file's own arguments.** A rangeproof draws
 nothing -- its nonces are the hash chain `rangeproof_genrand` derives
