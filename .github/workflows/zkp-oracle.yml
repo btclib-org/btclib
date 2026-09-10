@@ -125,9 +125,16 @@ on:
     # `borromean.py` joins for a narrower reason than
     # `pedersen.py`'s below: `BorromeanSig.parse` reads the `e0` and the
     # `s` values inside every proof this oracle parses, and that call
-    # site has no zkp octets to reach it anywhere else --
-    # `tests/ecc/borromean_test.py` holds the wire format against zkp's
-    # source, read by hand, and not against a proof zkp wrote.
+    # site has no zkp octets to reach it anywhere else -- the octets
+    # `tests/ecc/borromean_test.py` hands `parse` are this tree's own.
+    # That file joins on its own account, for the zkp-marked test it
+    # holds: `zkp.rangeproof.borromean_verify` is asked about what
+    # `borromean.sign_` writes, under a ring and under that ring negated
+    # key by key, so which side verifies and which ring the call is
+    # handed are what this job compares there and an edit to either is
+    # an edit to the comparison. The file's other checks of zkp's layout
+    # and of its challenge preimage read zkp's source by hand and run in
+    # every build, so they are not what earns it a place here.
     # `pedersen.py` and its own test file join for the rangeproof oracle,
     # itemized the way `dsa.py` is rather than named whole: of that
     # module, `second_generator`, `commit` and the codec that writes and
@@ -139,6 +146,7 @@ on:
     # directly, stays out for the reason `curves/` stays out above
     paths:
       - .github/workflows/zkp-oracle.yml
+      - tests/ecc/borromean_test.py
       - tests/ecc/commit_nonce_test.py
       - tests/ecc/musig2_test.py
       - tests/ecc/pedersen_test.py
