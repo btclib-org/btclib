@@ -3620,6 +3620,34 @@ name that library and the symbol each of them paraphrases (closes #1932).
 - **`SECURITY.md`'s citation of `dsa.Signer.__init__` names the line the
   `to_bytes` call sits on.**
 
+### `p2p.address` cites the type Core gives a `version` message's address
+
+- **The paragraph justifying `NetworkAddress` and
+  `TimestampedNetworkAddress` names what Core does with a `version`
+  message's address, where it named `CAddress::SerParams` with
+  `Format::Disk` and `Format::Network`** (closes #1930). `CAddress`
+  reads and writes `nTime` outside both branches of the switch on that
+  parameter, so the timestamp is in the octets whichever `SerParams` the
+  object is given; what the parameter selects is the
+  `stored_format_version` prefix and how V1/V2 is determined. A reader
+  following that citation found a parameter that does not make the
+  difference the paragraph rests on.
+- **`net_processing.cpp` writes and reads a `version` message's address
+  through `CNetAddr::V1` into a `CService`**, the service flags beside
+  it, and an `addr` entry into a `CAddress`. Core answers that
+  difference with a narrower type, which is the answer
+  `Version.addr_recv` and `Addr.addresses` give with a class each.
+- **The citation of Core's test framework names its file and leaves the
+  revision to `TF2.md`**, the form issue #1726 settled. That half is
+  exact: one class with a `with_time` parameter, whose `__init__` sets
+  `self.time = 0`, so an address read out of a `version` message is left
+  holding the zero the sentence after it is about.
+- **The docstring's opening enumeration of `CAddress`'s version-1 octets
+  names the timestamp `SERIALIZE_METHODS` writes in front of the service
+  flags.** Without it that enumeration is the `CService` and the flags a
+  `version` message carries, which is `NetworkAddress` rather than what
+  a `CAddress` writes.
+
 ## v2026.9.3
 
 ### Repository
