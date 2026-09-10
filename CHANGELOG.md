@@ -3587,6 +3587,18 @@ name that library and the symbol each of them paraphrases (closes #1932).
   message signs and which nonce reaches the guard are both answers to a
   search over `e0`.
 
+### `zkp-oracle.yml` triggers on the borromean test file it runs
+
+- **`.github/workflows/zkp-oracle.yml`'s `paths:` filter names
+  `tests/ecc/borromean_test.py`** (closes #1956): that file holds a
+  `zkp`-marked test, so a pull request changing what it asks of
+  `zkp.rangeproof.borromean_verify` selects this job rather than waiting
+  for the weekly cron.
+- **The comment above the list says what earns the file its place**: the
+  marked test, where the file's pins on zkp's layout and on its
+  challenge preimage are read from zkp's source by hand and run in every
+  build.
+
 ## v2026.9.3
 
 ### Repository
