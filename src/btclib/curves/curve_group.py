@@ -71,10 +71,11 @@ def _blinded_jac(Q: JacPoint, ec: CurveGroup) -> JacPoint:
     A Jacobian point has a coordinate more than the curve needs: (X, Y, Z)
     and (l^2*X, l^3*Y, l*Z) are the same affine point for every nonzero l.
     Spending that freedom on a random l is what libsecp256k1's
-    `secp256k1_ecmult_gen` does with `secp256k1_gej_rescale`, so that the
-    values a multiplication forms are not a function of the scalar alone:
-    without it the same scalar produces the same integers on every call
-    and in every process, and a table of them can be built offline.
+    `secp256k1_ecmult_gen_gej` does with `secp256k1_gej_rescale` on its
+    first table lookup, so that the values a multiplication forms are not
+    a function of the scalar alone: without it the same scalar produces
+    the same integers on every call and in every process, and a table of
+    them can be built offline.
 
     It is not what makes a multiplication constant-time and does not
     claim to be -- SECURITY.md publishes the Python path as
@@ -1151,11 +1152,13 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     be measured against and gains the more for it. The two curves hold
     tables of the same size.
 
-    It is libsecp256k1's `secp256k1_ecmult_gen`, which sums one
-    precomputed entry per digit position and doubles nothing, and it
-    applies for the same reason: the point is the curve's generator, the
-    same on every call, so its table is built once and kept.
-    `curves.mult` is what recognizes that case.
+    It is libsecp256k1's `secp256k1_ecmult_gen_gej` up to a difference
+    worth naming: that one is a signed-digit multi-comb, so it sums a
+    looked-up entry per block and still doubles between comb offsets,
+    where a table per digit position leaves it nothing to double. What
+    they share is the reason, and the reason is the point rather than the
+    algorithm: the generator is the same on every call, so its table is
+    built once and kept. `curves.mult` is what recognizes that case.
 
     The reason is the point repeating and not the point being the
     generator, so `curve.PreparedPoint` reaches here as well, for a

@@ -235,12 +235,13 @@ def mod_inv_batch_var(a: Sequence[int], m: int) -> list[int]:
     m does not have to be a prime, and every element has to be invertible
     modulo it, as `mod_inv_var` requires of its one operand.
 
-    Montgomery's trick, which libsecp256k1 spells `secp256k1_fe_inv_all_var`:
-    the running products a[0], a[0]*a[1], ..., a[0]*...*a[n-1] are formed,
-    the last of them is inverted once, and the individual inverses are
-    peeled back off it. So n inverses cost one inverse and 3(n-1)
-    products, where n calls to `mod_inv_var` are n extended Euclids -- an
-    inverse modulo a 256-bit prime being some thirty times a product.
+    Montgomery's trick, which libsecp256k1 runs inside
+    `secp256k1_ge_set_all_gej_var`: the running products a[0], a[0]*a[1],
+    ..., a[0]*...*a[n-1] are formed, the last of them is inverted once,
+    and the individual inverses are peeled back off it. So n inverses
+    cost one inverse and 3(n-1) products, where n calls to `mod_inv_var`
+    are n extended Euclids -- an inverse modulo a 256-bit prime being
+    some thirty times a product.
 
     An empty sequence has no inverses and is not an error: it is what a
     caller that filtered its own input is left with.
