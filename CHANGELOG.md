@@ -3785,6 +3785,23 @@ name that library and the symbol each of them paraphrases (closes #1932).
   not share, the comb doubling between its offsets where a table per
   digit position has nothing to double.
 
+### `docs/proposals/cli.md`'s wallet paragraph cites `btclib.wallet`
+
+- **The paragraph on what a command line is not for cites
+  `btclib.wallet`** (closes #1967), rather than
+  `src/btclib/keystore.py`, a path this tree does not have. The
+  negatives beside it are the wallet package's rather than the
+  library's, and are the ones that package states for itself under
+  *What no wallet here does*, so the proposal repeats no list of its
+  own. The citation names a module and not a `path:line`, which a
+  document still under edit would drift away from.
+- **Two further claims in that document about a withdrawn name are
+  repointed**: `KeyStore.prv_key`, which the tree has only as Electrum's
+  `Old_KeyStore`, becomes `KeyWallet.prv_key`, and the persistence
+  decision the configuration paragraph invokes is `btclib.wallet`'s.
+  Both are present tense and sit outside the surface the document's
+  opening disclaims, so both are claims about the library as it stands.
+
 ## v2026.9.3
 
 ### Repository
