@@ -22,6 +22,34 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### `docs/proposals/cli.md` states no count, and its module list is current
+
+- **The four figures that document stated are gone** (closes #1977),
+  and each sentence keeps the claim they sat in front of. The
+  `rootxprv`/`mxprv` argument was "at 53 occurrences of `rootxprv` and
+  51 of `mxprv` over library and tests"; over that same scope the tree
+  answers 43 and 16, so one of the two was wrong by roughly three
+  times. Those are occurrences of the whole word, which is
+  `git grep -oh --perl-regexp '\brootxprv\b' -- src tests | wc -l` and
+  its `mxprv` twin. Both halves of that command carry the figure:
+  `git grep -E` drops `\b` in silence and answers zero, and counting
+  matching lines rather than occurrences answers 113 and 61 instead.
+  What the sentence is actually about -- two names for one object, and
+  `mxprv` the one matching the `m/...` notation -- needs no arithmetic
+  in front of it. The `__all__` paragraph stated two more,
+  "the twenty-two at the top level" and "the fifty-nine below the
+  packages", and those are worse than drifted: the sentence is past
+  tense, describing the tree before any module declared an `__all__`,
+  so nothing re-derives them and nothing can.
+- **`descriptors` and `keystore` leave that paragraph's list of
+  top-level modules**, which named them to illustrate what "at the top
+  level" meant. `descriptors` is a package now, and there is no
+  `keystore` at all -- the package is `btclib.wallet`. The five that
+  remain, `b58`, `b32`, `network`, `amount` and `fee`, are each still a
+  `src/btclib/*.py`. They are dropped rather than repointed because the
+  sentence is about the tree the audit found: renaming a module inside a
+  past-tense description would make it false in the other direction.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

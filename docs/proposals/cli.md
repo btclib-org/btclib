@@ -271,15 +271,14 @@ bodies, and the three modules whose only finding is a rename are issues:
 \#335 `base58`, #336 `descriptors`, #337 `tx` with the psbt trio. #338 asks
 the question none of them can answer.
 
-The larger gap was that no module declared an `__all__` at all — the
-twenty-two at the top level, `b58`, `b32`, `descriptors`, `keystore`,
-`network`, `amount`, `fee` and the rest, and the fifty-nine below the
-packages. There "public" was a naming convention rather than a
-declaration, and a command line reading the library's own word for it
-would have been the first thing to depend on the difference. Issue #338
-asked which of the two the library meant, and the answer is a declaration
-everywhere: the contract above, with `btclib.__all__` the root a walker
-starts from.
+The larger gap was that no module declared an `__all__` at all — neither
+the ones at the top level, `b58`, `b32`, `network`, `amount`, `fee` and
+the rest, nor the ones below the packages. There "public" was a naming
+convention rather than a declaration, and a command line reading the
+library's own word for it would have been the first thing to depend on
+the difference. Issue #338 asked which of the two the library meant, and
+the answer is a declaration everywhere: the contract above, with
+`btclib.__all__` the root a walker starts from.
 
 ## Renamings worth making
 
@@ -309,10 +308,10 @@ the audit above.
    same stutter and the same remedy at the import site. `extract_tx`
    keeps its noun, which names what comes out rather than what goes in.
 1. **One name for the master extended key.** `bip32.rootxprv_from_seed`
-   against `mnemonic.*.mxprv_from_mnemonic`, at 53 occurrences of
-   `rootxprv` and 51 of `mxprv` over library and tests: two names for one
-   object, not a stray. `mxprv` is the one that matches the `m/...`
-   notation the derivation paths already use.
+   against `mnemonic.*.mxprv_from_mnemonic`, both spellings alive across
+   library and tests: two names for one object, not a stray. `mxprv` is
+   the one that matches the `m/...` notation the derivation paths already
+   use.
 1. **`mnemonic.dispatch` stops being a name.** The module says how it
    works rather than what it answers; its two functions belong in
    `mnemonic.__all__` beside the rest, and the module drops out of it.
