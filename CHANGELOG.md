@@ -22,6 +22,8 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.9.10
+
 ### Section 9's comment and placeholder rules land in this tree's own docs
 
 - **A trailing `#` comment inside a `shell` fence of `CLAUDE.md`,

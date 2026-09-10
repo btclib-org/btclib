@@ -21,6 +21,8 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+## v2026.9.10
+
 ### Breaking changes
 
 - **`ssa`'s sign-to-contract tags change** (closes #1680). They were
