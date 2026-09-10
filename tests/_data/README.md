@@ -2207,7 +2207,9 @@ array of `test_rangeproof_fixed_vectors` and
 `test_rangeproof_fixed_vectors_reproducible`, which is where
 libsecp256k1-zkp publishes fixed rangeproofs: `proof` and `commitment`
 are that array and the `commit_<n>` beside it, `blind` is the `blind_<n>`
-of the first function and the `vector_blind` the second shares, and
+of the first function and the `vector_blind` the second shares, `nonce`
+is the `nonce_3` the first rewinds its `vector_3` under and the
+`vector_nonce` the second shares, and
 `value` and `verify` are what those functions' own `CHECK`s state about
 the octets -- the value a rewind answers, and the range
 `secp256k1_rangeproof_verify` answers. `id` is the function and the array
@@ -2225,16 +2227,25 @@ of `fametrano/secp256k1-zkp`, which exposes
 `secp256k1_borromean_verify` as public API, so the blob at this path
 there is `02276b1b8745b90c7b6a50a0e3a89b9438e30397` and not the one
 above. Both functions this entry transcribes read the same in the fork's
-blob, byte for byte, so the transcription's source is the code the
+blob, byte for byte, as do the `vector_blind` and `vector_nonce`
+declared between them, so the transcription's source is the code the
 bindings run.
 
-The message a rewind also answers is left out, and so is the nonce it is
-read with, so nothing here can be rewound.
-`tests/ecc/rangeproof_fixed_vectors_test.py` asks for the octets back
-out, the range the header proves, the rings the value's digits index,
-and `ecc.rangeproof.verify` against the commitment published beside
-each proof. A rewind is asked of the entries of
-`tests/ecc/_data/zkp_rangeproof_vectors.json`, which record a nonce.
+`vector_1` and `vector_2` of `test_rangeproof_fixed_vectors` carry no
+`nonce` field because upstream declares no array for them: it rewinds
+those under `pc.data`, and `secp256k1_pedersen_commitment_parse` ends by
+copying its input into `commit->data` verbatim, so what a rewind reads
+there is the leading octets of the `commitment` above, one scalar wide.
+The message a rewind also answers is left out,
+`tests/ecc/rangeproof_fixed_vectors_test.py` holding what upstream
+signed each entry with instead.
+
+That module asks for the octets back out, the range the header proves,
+the rings the value's digits index, `ecc.rangeproof.verify` against the
+commitment published beside each proof, and a rewind of every entry.
+The entries of
+`tests/ecc/_data/zkp_rangeproof_vectors.json` record a nonce of their
+own, and `tests/ecc/rangeproof_test.py` is where those are rewound.
 
 ### `tests/ecc/anti_exfil_test.py`
 

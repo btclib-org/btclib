@@ -173,6 +173,30 @@ documented at release-notes length in the first place, and are still in
   written and where it is read, and naming the argument at both call
   sites is what shows they are.
 
+### The vendored fixed rangeproofs are rewound under the nonces upstream uses
+
+- **All six can now be rewound** (closes #1988). The transcription of
+  libsecp256k1-zkp's `test_rangeproof_fixed_vectors` and
+  `test_rangeproof_fixed_vectors_reproducible` left the nonce out,
+  written when this tree held only a parse, so nothing in it could be
+  asked the rewind direction at all. `nonce_3` and the `vector_nonce`
+  the reproducible entries share are read out of that C source at the
+  commit `tests/_data/README.md` pins the file to.
+- **Two entries have no nonce array, and are rewound under the
+  commitment.** Upstream rewinds `vector_1` and `vector_2` of the first
+  function under `pc.data`, and
+  `secp256k1_pedersen_commitment_parse` ends `memcpy(commit->data,
+  input, 33)` -- so that buffer is the published commitment itself and
+  the 32 octets a rewind reads out of it are its own first 32. One of
+  the two carries an embedded message of upstream's own -- ASCII, 113
+  characters and the terminator its `sizeof` covers -- where the five
+  entries beside it carry uniform `0xFF` or nothing.
+- **`vector_0` is a maximum-length message at the widest mantissa**, a
+  shape no recording here carries: it answers
+  `SECP256K1_RANGEPROOF_MAX_MESSAGE_LEN` octets of `0xFF` and then the
+  padding its last ring leaves. The run and the padding are asserted
+  separately, so a rewind answering the run alone fails.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

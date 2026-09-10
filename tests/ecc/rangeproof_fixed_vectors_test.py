@@ -21,16 +21,23 @@ extension.
 They also reach shapes no recording here has: a mantissa filling the
 width the format allows, over as many rings as that takes; an exponent
 the signer lowered from the one it was asked for; a `min_value` a step
-below the signed ceiling; and the proof of a value stated in the clear
-that zkp itself wrote.
+below the signed ceiling; the proof of a value stated in the clear that
+zkp itself wrote; and a message filling the room the widest of them
+leaves for one, which is what `vector_0` of
+`test_rangeproof_fixed_vectors_reproducible` carries. The recordings
+beside them are signed with no message at all.
 
 What is asked of them is the parse, the range the header states, the
-rings the value's digits index, and the signature over those rings.
-That last one is the strongest question here and the one no recording
-can be asked as well: the octets were published by the implementation
-this format comes from, so a walk that closes on their own `e0` is this
-module agreeing with zkp. A rewind is the one direction they cannot be
-asked, none of them recording the nonce it was signed under.
+rings the value's digits index, the signature over those rings, and a
+rewind. Those last two are the questions a recording answers with less
+force: the octets and the nonces are the implementation's own, so a
+walk that closes on their own `e0`, and a rewind that opens the
+commitment published beside the proof, are this module agreeing with
+zkp. `nonce_3` is what `test_rangeproof_fixed_vectors` rewinds its
+`vector_3` under and `vector_nonce` what the entries of
+`test_rangeproof_fixed_vectors_reproducible` share; the two entries
+with no nonce field are rewound by upstream under the commitment
+itself, which `_nonce` has.
 """
 
 from typing import Any
@@ -44,11 +51,58 @@ from btclib.ecc.pedersen import (
     commit,
     commitment_from_octets,
 )
-from btclib.ecc.rangeproof import RangeProof, verify
+from btclib.ecc.rangeproof import RangeProof, rewind, verify
 from tests import load, vector_id
 
 _VECTORS = load("ecc", "_data", "zkp_rangeproof_fixed_vectors.json")
 _IDS = [vector_id(i, v["id"]) for i, v in enumerate(_VECTORS)]
+_BY_ID = {v["id"]: v for v in _VECTORS}
+
+# zkp's own `SECP256K1_RANGEPROOF_MAX_MESSAGE_LEN`, of
+# `include/secp256k1_rangeproof.h`, which states it as the message a
+# maximally-sized rangeproof holds and any embeddable message fits in.
+# It is the buffer `test_rangeproof_fixed_vectors_reproducible` fills
+# with `0xFF`, and the room `vector_0`'s own rings have for one
+_MAX_MESSAGE_LEN = 3968
+
+# `message_2` of `test_rangeproof_fixed_vectors`, a C string literal, so
+# what its `sizeof` covers and its `CHECK` compares is the terminator too
+_ASCII = (
+    b"When I see my own likeness in the depths of someone else's "
+    b"consciousness,  I always experience a moment of panic.\x00"
+)
+
+# what upstream embedded in each entry, as octets rather than a length.
+# `test_rangeproof_fixed_vectors_reproducible` signs its three, so theirs
+# is the `message` buffer its own block passes `secp256k1_rangeproof_sign`;
+# `test_rangeproof_fixed_vectors` signs none of its three and states
+# theirs in the `CHECK`s beside its rewinds instead
+_SIGNED_WITH = {
+    "test_rangeproof_fixed_vectors vector_1": b"",
+    "test_rangeproof_fixed_vectors vector_2": _ASCII,
+    "test_rangeproof_fixed_vectors vector_3": b"",
+    "test_rangeproof_fixed_vectors_reproducible vector_0": b"\xff" * _MAX_MESSAGE_LEN,
+    "test_rangeproof_fixed_vectors_reproducible vector_1": b"\xff" * 128,
+    "test_rangeproof_fixed_vectors_reproducible vector_2": b"",
+}
+
+
+def _nonce(vector: dict[str, Any]) -> bytes:
+    """Return the octets upstream rewinds that entry under.
+
+    `nonce_3` and the `vector_nonce` three entries share are published
+    as their own arrays and transcribed. The two entries without one
+    are rewound by upstream under `pc.data`, and
+    `secp256k1_pedersen_commitment_parse` ends `memcpy(commit->data,
+    input, 33)` -- so that buffer is the published commitment itself,
+    and the 32 octets `secp256k1_rangeproof_rewind` reads out of it are
+    that commitment's own first 32. Nothing is derived here that
+    upstream does not publish; the field is absent because upstream
+    declares no array, not because the octets are out of reach.
+    """
+    if "nonce" in vector:
+        return bytes.fromhex(vector["nonce"])
+    return bytes.fromhex(vector["commitment"])[:32]
 
 
 @pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
@@ -141,3 +195,54 @@ def test_the_signature_holds_for_the_published_commitment(
     turned = bytearray(octets)
     turned[-1] ^= 1
     assert not verify(commitment, bytes(turned))
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_the_published_nonce_reads_back_what_upstream_reads_back(
+    vector: dict[str, Any],
+) -> None:
+    """`secp256k1_rangeproof_rewind`'s three out-parameters, and its nonce.
+
+    Upstream holds the blinding factor to the `blind_<n>` or the
+    `vector_blind` published beside the proof, and the value and the
+    message to what its own block states -- the buffer it passed
+    `secp256k1_rangeproof_sign` where it signs the entry, the `CHECK`s
+    beside its rewind where it does not -- so those are what is asked
+    here. What comes back past the message is the rest of the
+    sidechannel, which a signer leaves zero.
+
+    The commitment is lifted from the octets published beside the
+    proof rather than rebuilt from the blinding factor: a rewind
+    refuses whatever does not open the commitment it is handed, so
+    reading it out of the vector is what leaves the nonce as the only
+    thing the recovery hangs from.
+    """
+    commitment = commitment_from_octets(vector["commitment"])
+    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector))
+    assert rewound.blind == int(vector["blind"], 16)
+    assert rewound.value == vector["value"]
+
+    signed_with = _SIGNED_WITH[vector["id"]]
+    assert rewound.message[: len(signed_with)] == signed_with
+    assert not any(rewound.message[len(signed_with) :])
+
+
+def test_the_maximum_length_message_comes_back_with_its_padding() -> None:
+    """`vector_0`'s message: the `0xFF` run, then what the rings pad it with.
+
+    The shape this file has and no recording beside it does, which is
+    why it is asked for on its own: a message at
+    `SECP256K1_RANGEPROOF_MAX_MESSAGE_LEN` over the widest mantissa the
+    format carries. The run is asserted at that length and the padding
+    for being there and being zero, rather than the two together as a
+    total, so that a rewind returning the run alone -- or a message of
+    the right length that is not this one -- fails here.
+    """
+    vector = _BY_ID["test_rangeproof_fixed_vectors_reproducible vector_0"]
+    commitment = commitment_from_octets(vector["commitment"])
+    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector))
+
+    assert rewound.message[:_MAX_MESSAGE_LEN] == b"\xff" * _MAX_MESSAGE_LEN
+    padding = rewound.message[_MAX_MESSAGE_LEN:]
+    assert padding
+    assert not any(padding)

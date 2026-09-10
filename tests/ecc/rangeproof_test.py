@@ -58,8 +58,9 @@ And every entry is verified and rewound, which the nonce on file is
 what makes possible: `verify` walks the rings `pubk_rings` rebuilds
 back to the `e0` zkp wrote, and `rewind` answers the blinding factor
 and the value the entry records from that nonce alone.
-`zkp_rangeproof_fixed_vectors.json` records no nonce, so a rewind is a
-question only this file's entries can be asked.
+These are the proofs this tree asked zkp to write;
+`tests/ecc/rangeproof_fixed_vectors_test.py` puts the same question to
+the ones zkp published on its own.
 
 The refusals a rewind has are constructed rather than waited for. A
 value encoding for a value the proof was not written for is put in by
@@ -1204,8 +1205,6 @@ def test_rewind_reads_a_recorded_proof_back(vector: dict[str, Any]) -> None:
     Every entry carries the nonce it was signed under, which is what
     makes a rewind a question the suite can put wherever it runs rather
     than one the flagged extension has to answer.
-    `zkp_rangeproof_fixed_vectors.json` records no nonce and is asked
-    nothing of this kind.
 
     Nothing was embedded in these, so what the rings carry past the
     value encoding is the zeros `_prep` left.
