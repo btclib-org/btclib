@@ -197,6 +197,33 @@ documented at release-notes length in the first place, and are still in
   padding its last ring leaves. The run and the padding are asserted
   separately, so a rewind answering the run alone fails.
 
+### `ecc.dh` states the timing of the multiplication it delegates
+
+- **The delegated shared point is variable time in the private key**
+  (closes #1992). `secp256k1_ec_pubkey_tweak_mul` reaches
+  `secp256k1_ecmult`, whose windowed NAF holds at most one more digit
+  than the scalar has bits, so the work follows the scalar; the module
+  docstring, `diffie_hellman`'s own and the mutation docstring of
+  `tests/ecc/dh_test.py` said constant time. The delegation is
+  unchanged, and so is what it buys: the speed and libsecp256k1's
+  answer.
+- **`secp256k1_ecmult_const` is the multiplication that is constant
+  time in its scalar, and `secp256k1_ecdh` is what reaches it.**
+  Nothing here calls that entry point, for the reason `ecc.dh`'s module
+  docstring already gave: it hashes the shared point with SHA256, where
+  every derivation here differs.
+- **`SECURITY.md` publishes it among the limitations of the delegated
+  path**, and `README.md` carries the short form. What is published is
+  the shape of the multiplication and not a list of call sites:
+  `curves.curve.mult` delegates every point that is neither the
+  generator nor infinity, so any point a caller supplied, multiplied by
+  a secret scalar, arrives at the same call. `ecc.ellswift.xdh` is not
+  an exception — `secp256k1_ellswift_xdh` multiplies with
+  `secp256k1_ecmult_const_xonly`, which is constant time in its scalar
+  and is not `secp256k1_ecmult_const`. The bindings' own docstrings
+  carry the sentence btclib's came from, and are corrected in
+  btclib-org/btclib-secp256k1#864.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

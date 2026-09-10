@@ -18,9 +18,13 @@ and hashes in one call, and the hash is SHA256 of the compressed shared
 point with no way to change it: libsecp256k1 takes it as a C callback, so
 exposing it would mean calling back into python from the middle of the
 computation. Every ECDH-shaped computation here derives differently, so
-what is delegated is the multiplication -- `keys.pubkey_tweak_mul`, which
-is that same C multiplication, in constant time -- and the derivation
-stays in python:
+what is delegated is the multiplication -- `keys.pubkey_tweak_mul`, and
+not the `secp256k1_ecmult_const` that `ecdh.shared_secret` multiplies
+with: that one is constant time in the scalar, where the
+`secp256k1_ec_pubkey_tweak_mul` under `keys.pubkey_tweak_mul` runs
+`secp256k1_ecmult` and is not. The point is the same either way, and
+what the difference costs is in `diffie_hellman`'s docstring below and
+in SECURITY.md. The derivation stays in python:
 
 - `diffie_hellman` below runs SEC 1's ANSI-X9.63-KDF over the
   x-coordinate, under the hash function the caller passed;
@@ -71,11 +75,17 @@ def diffie_hellman(
 
     http://www.secg.org/sec1-v2.pdf, section 6.1
 
-    The shared point is the multiplication of a point that is not the
-    generator, which is the one case `mult` does not delegate: on
-    secp256k1 it is `secp256k1_ec_pubkey_tweak_mul` that computes it
-    here, at a fraction of what the Python endomorphism path costs and,
-    dU being a secret, in constant time -- which that path is not.
+    The shared point is a point that is not the generator multiplied by
+    a secret, and on secp256k1 `secp256k1_ec_pubkey_tweak_mul` computes
+    it here, at a fraction of what the Python endomorphism path costs.
+    Speed and libsecp256k1's own answer are what that buys, and not a
+    timing property in dU: the call runs `secp256k1_ecmult`, whose
+    windowed NAF holds at most one more digit than the scalar has bits,
+    so the work follows the scalar. `secp256k1_ecmult_const` is the
+    multiplication that is constant time in its scalar, and
+    `secp256k1_ecdh` is what reaches it; SECURITY.md publishes the
+    limitation, and the module docstring above says why nothing here
+    calls that function.
 
     `ecdh.shared_secret` of the bindings is a different function and not
     a substitute: it hashes the compressed shared point with SHA256,

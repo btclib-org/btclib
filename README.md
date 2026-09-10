@@ -266,6 +266,13 @@ recipient's scan private key, the same as `output_keys` above — a
 caller holding the transaction itself gets the delegated path a light
 client cannot reach.
 
+Crossing that call is not the same as constant time. `mult` sends every
+point that is not the generator to `secp256k1_ec_pubkey_tweak_mul`,
+whose work follows the scalar, so a secret multiplied by a point you
+supplied — the shared point of a key agreement, among others — carries
+no timing guarantee on the delegated path either; `SECURITY.md` has the
+accounting.
+
 What that path does about it is in the names, and it is worth knowing
 before calling one. **A function whose duration follows the value it is
 given ends in `_var`, and the plain name beside it is the one a secret may
