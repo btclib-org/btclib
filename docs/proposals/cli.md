@@ -22,13 +22,14 @@ Three audiences, in the order they matter:
    cross-checks against Bitcoin Core's `bitcoin-cli` where both tools
    answer the same question.
 
-What it is not for is being a wallet. `src/btclib/keystore.py` already
-draws that line for the library — no utxo tracking, no balances, no persistence
-to disk, no encryption at rest — and the command line inherits it whole:
-a tool that cannot see the chain cannot spend, and one that writes no
-file cannot remember. Every command is a pure function of its arguments,
-the `fetch` group excepted, and that is the property that makes the whole
-surface testable in process.
+What it is not for is being a wallet. The library's wallets are
+`btclib.wallet`, and that package draws the line for itself under *What no
+wallet here does*: no utxos, no balances, no transaction building, no
+persistence to disk, no encryption at rest. The command line inherits that
+whole: a tool that cannot see the chain cannot spend, and one that writes
+no file cannot remember. Every command is a pure function of its
+arguments, the `fetch` group excepted, and that is the property that makes
+the whole surface testable in process.
 
 ## Electrum as the feature list, not as the shape
 
@@ -405,7 +406,7 @@ Each of the three is named in the help text of the parameter itself, not
 only in the manual page nobody opens. And a command never prints a
 private key it was not explicitly asked for: `keystore address-info`
 reports the derivation path, `keystore prv-key` is the separate request,
-exactly as `AddressInfo` and `KeyStore.prv_key` already split it.
+exactly as `AddressInfo` and `KeyWallet.prv_key` already split it.
 
 ## The framework
 
@@ -671,11 +672,10 @@ reason, never a predicate over what a module exports.
 The `Fetcher` implementations are option sets, not command trees:
 `--rpc-url` with a cookie file for `bitcoind`, `--rest-url` for a node
 started with `-rest`, `--esplora-url` defaulting to `BLOCKSTREAM_INFO`.
-No configuration file. That is the same
-decision `keystore` took for persistence and for the same reason — a
-config file is a format and a search path that outlive the release that
-chose them — and click's environment variables cover the case a file
-would have been for.
+No configuration file. That is the same decision `btclib.wallet` took for
+persistence and for the same reason — a config file is a format and a
+search path that outlive the release that chose them — and click's
+environment variables cover the case a file would have been for.
 
 ## What Electrum has and this will not
 
