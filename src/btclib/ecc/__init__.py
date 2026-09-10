@@ -6,13 +6,13 @@
 
 **The schemes.** btclib.ecc holds what is built *on* an elliptic curve:
 dsa, ssa, bms and borromean signatures, the MuSig2 aggregation of many
-ssa signers into one, pedersen commitments, the reader for the
-Confidential Transactions rangeproof built over one and the writer for
-the one shape of it that proves no range, the Diffie-Hellman
-key agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
-of a public key with the x-only ECDH on it, the BIP374 proof that two
-points share one discrete logarithm, and the RFC6979, BIP340 and
-sign-to-contract nonces. The curve arithmetic underneath is
+ssa signers into one, pedersen commitments, the Confidential
+Transactions rangeproof built over one and the rewind that reads a
+value, a blinding factor and a message back out of it, the
+Diffie-Hellman key agreement, the BIE1 ECIES built on top of it, the
+ElligatorSwift encoding of a public key with the x-only ECDH on it, the
+BIP374 proof that two points share one discrete logarithm, and the
+RFC6979, BIP340 and sign-to-contract nonces. The curve arithmetic underneath is
 btclib.curves, and the rule between the two is that direction: ecc
 imports curves, never the other way round. The key derivation functions
 the agreement uses are btclib.kdf: a KDF is a hash construction with no

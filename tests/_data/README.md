@@ -2229,11 +2229,12 @@ blob, byte for byte, so the transcription's source is the code the
 bindings run.
 
 The message a rewind also answers is left out, and so is the nonce it is
-read with: what reads this file is a parse.
+read with, so nothing here can be rewound.
 `tests/ecc/rangeproof_fixed_vectors_test.py` asks for the octets back
-out, the range the header proves, and the rings the value's digits index.
-[ISS 1072](https://github.com/btclib-org/btclib/issues/1072) is where
-rewinding a proof and verifying one are tracked.
+out, the range the header proves, the rings the value's digits index,
+and `ecc.rangeproof.verify` against the commitment published beside
+each proof. A rewind is asked of the entries of
+`tests/ecc/_data/zkp_rangeproof_vectors.json`, which record a nonce.
 
 ### `tests/ecc/anti_exfil_test.py`
 

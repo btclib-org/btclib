@@ -123,6 +123,40 @@ documented at release-notes length in the first place, and are still in
   and the file matches `btclib-org/.github`'s at `69a47e6` byte for
   byte, which is section 14's comparison.
 
+### `ecc.rangeproof` verifies a proof and rewinds it
+
+- **A proof is checked against the commitment it was written for**
+  (closes #1072). `verify` answers whether it holds and
+  `assert_as_valid` raises the reason;
+  `RangeProof.pubk_rings` already rebuilt the rings
+  `secp256k1_borromean_verify_impl` is handed, and what is added is the
+  walk over them. The range proven stays the proof's own `min_value`
+  and `max_value`, which the header states and a parse reads, where
+  `zkp.rangeproof.verify` answers it from the octets for want of
+  anything else to answer from.
+- **`rewind` reads the value, the blinding factor and the message back
+  out of a proof.** `secp256k1_rangeproof_rewind_inner` is called from
+  inside `secp256k1_rangeproof_verify_impl` and consumes the per-key
+  challenges that walk produced, so verification retaining them is what
+  a rewind is built on rather than a second pass: whoever holds the
+  nonce re-derives the chain over a zeroed buffer, reads the value out
+  of the last ring, recovers the scalars the real signatures were
+  written under, and is refused where what comes back does not open the
+  commitment.
+- **`sign` embeds a message for that rewind to find.** It rides at the head
+  of the buffer the chain is folded with, one scalar per key at the stride
+  the chain indexes them by; the rings before the last are the whole of the
+  room, and a proof of one ring carries none. Where the header states a
+  range, a rewind answers every key of every ring, less the two the last
+  ring spends on the value encoding and on the key its own digit opens.
+  So what comes back is the message and then the zeros behind it, with
+  nothing in a proof saying where one ends.
+- **`extra_commit` and a generator of the caller's are still not taken**
+  (issue #1984, issue #1986). A proof written or read here binds the
+  commitment, the header and the stated ring commitments and nothing
+  outside itself, and it is written against `ecc.pedersen`'s own second
+  generator.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

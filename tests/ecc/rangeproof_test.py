@@ -54,10 +54,27 @@ and refused no ring member's draw answers every entry here, and each of
 those draws is reached at one in about 2**128. What puts them is a
 chain a test writes.
 
+And every entry is verified and rewound, which the nonce on file is
+what makes possible: `verify` walks the rings `pubk_rings` rebuilds
+back to the `e0` zkp wrote, and `rewind` answers the blinding factor
+and the value the entry records from that nonce alone.
+`zkp_rangeproof_fixed_vectors.json` records no nonce, so a rewind is a
+question only this file's entries can be asked.
+
+The refusals a rewind has are constructed rather than waited for. A
+value encoding for a value the proof was not written for is put in by
+monkeypatching `_prep`, which decides the forged `s` values and nothing
+else, so each such proof is a valid signature that a rewind has to turn
+down: at the last ring's own digit, at a digit an odd mantissa's last
+ring has no key for, and at one that opens no commitment.
+
 The `zkp`-marked tests at the end put the same questions to the library
-itself, and two more the recording cannot answer: that signing again
-with the recorded arguments answers the very octets vendored here, and
-that values and headers no entry carries are written the same way.
+itself, and more the recording cannot answer: that signing again with
+the recorded arguments answers the very octets vendored here, that
+values and headers no entry carries are written the same way, and that
+over a grid of `value`, `min_value`, `exp`, `min_bits` and `message`
+the two implementations write the same octets, refuse the same
+arguments, and each read what the other wrote.
 """
 
 from io import BytesIO
@@ -747,7 +764,7 @@ def test_the_last_ring_carries_the_value_in_one_of_its_draws(
     sign_key_idx = proof.sign_key_idx(value)
     v = proof._mantissa_value(value)
 
-    prep = rangeproof._prep(proof.rsizes, v, sign_key_idx[-1])
+    prep = rangeproof._prep(proof.rsizes, v, sign_key_idx[-1], b"")
     seed = _seed(vector)
     written = rangeproof._genrand(seed, proof.rsizes, prep)
     plain = rangeproof._genrand(seed, proof.rsizes, bytes(len(prep)))
@@ -1144,6 +1161,319 @@ def test_a_ring_commitment_at_infinity_is_refused(
         sign(blind, 3, _NONCE, min_bits=2)
 
 
+# --------------------------------------------------------------------------
+# Verification, and the rewind built on it
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_a_recorded_proof_holds_for_its_own_commitment(vector: dict[str, Any]) -> None:
+    """Every entry verified against the commitment its arguments make.
+
+    The proof is octets zkp signed and the commitment is built here from
+    the entry's own blinding factor and value, so what this asks is
+    whether the walk over the rings `pubk_rings` rebuilds closes on the
+    `e0` those octets carry. A commitment to another value is asked
+    beside it: the last ring commitment is recovered from the
+    commitment, so every ring's message changes with it and nothing
+    closes.
+    """
+    commitment = commit(vector["blind"], vector["value"])
+    octets = bytes.fromhex(vector["proof"])
+    rangeproof.assert_as_valid(commitment, octets)
+    assert rangeproof.verify(commitment, octets)
+    assert rangeproof.verify(commitment, RangeProof.parse(octets))
+
+    other = commit(vector["blind"], vector["value"] + 1)
+    assert not rangeproof.verify(other, octets)
+    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+        rangeproof.assert_as_valid(other, octets)
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_rewind_reads_a_recorded_proof_back(vector: dict[str, Any]) -> None:
+    """The blinding factor and the value the entry states, from its nonce.
+
+    Every entry carries the nonce it was signed under, which is what
+    makes a rewind a question the suite can put wherever it runs rather
+    than one the flagged extension has to answer.
+    `zkp_rangeproof_fixed_vectors.json` records no nonce and is asked
+    nothing of this kind.
+
+    Nothing was embedded in these, so what the rings carry past the
+    value encoding is the zeros `_prep` left.
+    """
+    commitment = commit(vector["blind"], vector["value"])
+    rewound = rangeproof.rewind(
+        commitment, bytes.fromhex(vector["proof"]), vector["nonce"]
+    )
+    assert rewound.blind == int(vector["blind"], 16)
+    assert rewound.value == vector["value"]
+    assert not any(rewound.message)
+
+
+def test_verify_refuses_a_turned_octet_of_the_signature() -> None:
+    """One bit of the last `s`, which is the mutation a proof has to fail on."""
+    octets = bytearray(_octets("odd mantissa"))
+    commitment = commit(
+        _vector("odd mantissa")["blind"], _vector("odd mantissa")["value"]
+    )
+    assert rangeproof.verify(commitment, bytes(octets))
+    octets[-1] ^= 1
+    assert not rangeproof.verify(commitment, bytes(octets))
+
+
+def test_verify_refuses_a_signature_value_of_zero() -> None:
+    """The one `s` zkp writes none of, and `BorromeanSig` holds.
+
+    `secp256k1_borromean_sign` answers zero rather than put a zero `s`
+    in a proof, and `secp256k1_borromean_verify_impl` turns one down
+    where it is handed it. `BorromeanSig.assert_valid` reads `s` against
+    0..n-1 and so accepts it, which is what leaves the refusal to the
+    walk.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(_octets("odd mantissa"))
+    zeroed = [list(ring) for ring in proof.sig.s]
+    zeroed[0][0] = 0
+    mutated = replace_unchecked(proof, sig=replace_unchecked(proof.sig, s=zeroed))
+    commitment = commit(vector["blind"], vector["value"])
+    with pytest.raises(BTClibRuntimeError, match="signature value is zero"):
+        rangeproof.assert_as_valid(commitment, mutated)
+    assert not rangeproof.verify(commitment, mutated)
+
+
+def test_verify_refuses_a_ring_key_at_infinity() -> None:
+    """The key `secp256k1_borromean_verify_impl` turns down before its ecmult.
+
+    A ring's key at position j is that ring's commitment less j times
+    the weight of the digit the ring proves, so a stated commitment
+    sitting exactly on one of those multiples leaves a key at infinity.
+    The first ring's second key is the cheapest of them: at an exponent
+    of zero the weight is the generator itself, so the commitment whose
+    octets are the generator's puts it there.
+
+    Nothing later in the walk would turn it down. The point a walk
+    reaches at that key is `e*Q + s*G`, which is `s*G` for a `Q` at
+    infinity -- an ordinary point, and one the prover picks by picking
+    `s`.
+    """
+    vector = _vector("odd mantissa")
+    proof = RangeProof.parse(_octets("odd mantissa"))
+    assert proof.exp == 0
+    octets = _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
+    holed = replace_unchecked(
+        proof,
+        signs=(bool(octets[0]), *proof.signs[1:]),
+        ring_commitments=(
+            int.from_bytes(octets[1:], "big"),
+            *proof.ring_commitments[1:],
+        ),
+    )
+    commitment = commit(vector["blind"], vector["value"])
+    rings = holed.pubk_rings(commitment)
+    assert rings[0][1] == INF
+    with pytest.raises(BTClibRuntimeError, match="ring key is the point at infinity"):
+        rangeproof.assert_as_valid(commitment, holed)
+    assert not rangeproof.verify(commitment, holed)
+
+
+def test_rewind_refuses_a_nonce_that_is_not_the_proof_s() -> None:
+    """A wrong nonce draws a different chain, and no key then reads as a value.
+
+    `_value_encoding` looks at two keys of the last ring and takes
+    neither: the xor of a proof's own `s` with a draw that never wrote
+    it opens with bit 7 clear, or repeats none of its three eight-octet
+    runs. The proof still verifies -- a rewind is what the nonce is for,
+    and nothing else in it depends on one.
+    """
+    vector = _vector("odd mantissa")
+    commitment = commit(vector["blind"], vector["value"])
+    octets = _octets("odd mantissa")
+    assert rangeproof.verify(commitment, octets)
+    with pytest.raises(BTClibRuntimeError, match="reads no value encoding"):
+        rangeproof.rewind(commitment, octets, bytes(32))
+
+
+def _with_encoded_value(monkeypatch: pytest.MonkeyPatch, v: int) -> None:
+    # `_prep` writing an encoding for a value the proof is not written
+    # for, at the key the true value's own digit would have put it at.
+    # A rewind reads that value back and is refused on it; the octets
+    # are a valid signature either way, the buffer deciding only what
+    # the forged `s` values are
+    real_prep = rangeproof._prep
+
+    def fake_prep(rsizes: Any, _v: int, sign_key_idx: int, message: bytes) -> bytes:
+        return real_prep(rsizes, v, sign_key_idx, message)
+
+    monkeypatch.setattr(rangeproof, "_prep", fake_prep)
+
+
+def test_rewind_refuses_a_value_encoding_at_the_last_ring_s_digit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`secp256k1_rangeproof_rewind_inner`'s "value is in wrong position".
+
+    `_prep` writes the encoding at whichever of the last ring's two
+    candidate keys the ring's own digit does not take, so a value whose
+    top digit names the key the encoding was found at is a value the
+    proof was not written for. A mantissa of four gives two rings of
+    four keys: the value three has digits three and zero, so the
+    encoding goes at the last key and a rewind reading a value whose top
+    digit is three lands on it.
+    """
+    _with_encoded_value(monkeypatch, 12)
+    proof = sign(_BLIND, 3, _NONCE, min_bits=4)
+    commitment = commit(_BLIND, 3)
+    assert rangeproof.verify(commitment, proof)
+    with pytest.raises(BTClibRuntimeError, match="reads the value at the digit"):
+        rangeproof.rewind(commitment, proof, _NONCE)
+
+
+def test_rewind_refuses_a_digit_the_last_ring_has_no_key_for(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An odd mantissa ends in a ring of two, which proves one bit.
+
+    A value whose top digit is two or three names a position that ring
+    does not have. zkp indexes its own arrays at that position anyway,
+    and they end before it: `secp256k1_rangeproof_genrand` fills as many
+    as the rings hold keys, and `secp256k1_borromean_verify_impl` saves
+    as many challenges.
+    """
+    _with_encoded_value(monkeypatch, 8)
+    proof = sign(_BLIND, 3, _NONCE, min_bits=3)
+    commitment = commit(_BLIND, 3)
+    assert proof.rsizes == (4, 2)
+    assert rangeproof.verify(commitment, proof)
+    with pytest.raises(BTClibRuntimeError, match="has no key for"):
+        rangeproof.rewind(commitment, proof, _NONCE)
+
+
+def test_rewind_refuses_what_does_not_open_the_commitment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The check `secp256k1_rangeproof_verify_impl` makes after the rewind.
+
+    A value encoding naming a digit that is neither the key it sits at
+    nor the ring's own passes both refusals above, and what comes back
+    is a blinding factor recovered at a key nobody signed at: the pair
+    is arithmetic on forged scalars, and rebuilding the commitment from
+    it is what says so.
+    """
+    _with_encoded_value(monkeypatch, 4)
+    proof = sign(_BLIND, 3, _NONCE, min_bits=4)
+    commitment = commit(_BLIND, 3)
+    assert rangeproof.verify(commitment, proof)
+    with pytest.raises(BTClibRuntimeError, match="does not open the commitment"):
+        rangeproof.rewind(commitment, proof, _NONCE)
+
+
+def test_a_public_value_proof_rewinds_to_its_blinding_factor_alone() -> None:
+    """One ring of one key, and only the blinding factor is recoverable.
+
+    There is no digit to read and no second key to carry a message: the
+    value is the header's own `min_value`, stated in the clear, and what
+    the rewind adds is that whoever holds the nonce also holds the
+    factor the commitment was written under.
+    """
+    proof = sign_public_value(_BLIND, 100000, _NONCE)
+    commitment = commit(_BLIND, 100000)
+    rewound = rangeproof.rewind(commitment, proof, _NONCE)
+    assert rewound == (int(_BLIND, 16), 100000, b"")
+
+
+@pytest.mark.parametrize(
+    "value, min_bits",
+    [(3, 4), (100000, 8), (100000, 20), (2**32, 33)],
+    ids=["two rings", "odd mantissa", "padded sign bits", "wide mantissa"],
+)
+def test_sign_embeds_a_message_rewind_reads_back(value: int, min_bits: int) -> None:
+    """The message written into the draws, and read back out of them.
+
+    What comes back is every octet the rings before the last carry, and
+    whatever the last ring has left once the value encoding and the key
+    its own digit opens are taken out of it -- two keys where it holds
+    four, none where an odd mantissa leaves it holding two: the message
+    first and the zeros `_prep` left after it. Nothing in a proof says
+    where the message ends, which is what makes the padding the
+    caller's to know the length of.
+    """
+    message = b"btclib reads what it writes"
+    proof = sign(_BLIND, value, _NONCE, min_bits=min_bits, message=message)
+    commitment = commit(_BLIND, value)
+    rewound = rangeproof.rewind(commitment, proof, _NONCE)
+    assert rewound.blind == int(_BLIND, 16)
+    assert rewound.value == value
+    assert rewound.message[: len(message)] == message
+    assert not any(rewound.message[len(message) :])
+
+    keys = sum(proof.rsizes)
+    assert len(rewound.message) == secp256k1.n_size * (keys - 2)
+    # the octets are a proof carrying no message everywhere else
+    plain = sign(_BLIND, value, _NONCE, min_bits=min_bits)
+    assert (plain.exp, plain.mantissa, plain.min_value) == (
+        proof.exp,
+        proof.mantissa,
+        proof.min_value,
+    )
+    assert plain.ring_commitments == proof.ring_commitments
+    assert plain.serialize() != proof.serialize()
+
+
+def test_the_nonce_chain_answers_the_draws_of_a_proof_carrying_a_message() -> None:
+    """A message is in the draws, so the chain needs it to answer them.
+
+    Every `s` the signature did not overwrite is the chain's own draw,
+    with the message folded into it at the keys the message reaches,
+    which is the same question that
+    `test_the_nonce_chain_answers_every_s_the_signature_did_not_write`
+    puts to a proof carrying none. The message here is shorter than one
+    scalar, so it reaches the first key of the first ring and no other,
+    and the assertion is over every key either way.
+    """
+    message = b"in the draws"
+    value = 100000
+    proof = sign(_BLIND, value, _NONCE, min_bits=8, message=message)
+    commitment = commit(_BLIND, value)
+    chain = proof.nonce_chain(commitment, value, _NONCE, message)
+    plain = proof.nonce_chain(commitment, value, _NONCE)
+    reached = [
+        (i, j)
+        for i, (a, b) in enumerate(zip(plain.draws, chain.draws, strict=True))
+        for j, (x, y) in enumerate(zip(a, b, strict=True))
+        if x != y
+    ]
+    assert reached == [(0, 0)]
+
+    sign_key_idx = proof.sign_key_idx(value)
+    for i, (drawn, written) in enumerate(zip(chain.draws, proof.sig.s, strict=True)):
+        for j, (a, b) in enumerate(zip(drawn, written, strict=True)):
+            assert (a == b) == (j != sign_key_idx[i])
+
+
+def test_a_message_longer_than_the_rings_hold_is_refused() -> None:
+    """`secp256k1_rangeproof_sign_impl`'s own bound, `128 * (rings - 1)`.
+
+    The last ring carries the value encoding and the key a rewind
+    recovers the blinding factor at, so what is left is every ring
+    before it -- and a proof of a single ring has none, which is what a
+    small `min_bits` and the public-value proof both give.
+    """
+    err_msg = "message is longer than the"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sign(_BLIND, 1, _NONCE, min_bits=1, message=b"x")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sign(_BLIND, 3, _NONCE, min_bits=4, message=bytes(129))
+    # the same bound reached through the chain rather than through `sign`
+    proof = sign(_BLIND, 3, _NONCE, min_bits=4)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        proof.nonce_chain(commit(_BLIND, 3), 3, _NONCE, bytes(129))
+    # and what it does hold
+    filled = sign(_BLIND, 3, _NONCE, min_bits=4, message=bytes(128))
+    assert filled.rsizes == (4, 4)
+
+
 # `pragma: no cover` on every `@needs_zkp` below, the marker being the
 # reason: `tests/conftest.py` turns it into a skip in an unflagged
 # build, and excluding what a build cannot execute is what leaves the
@@ -1346,3 +1676,204 @@ def test_zkp_signs_and_verifies_the_proofs_this_module_writes() -> None:
         turned = bytearray(octets)
         turned[-1] ^= 1
         assert zkp_rangeproof.verify(commitment, bytes(turned)) is None
+
+
+# The grid the two `@needs_zkp` sweeps below are taken over, and it is a
+# product rather than a list of interesting cases: what a header comes
+# out as is `secp256k1_range_proveparams`' answer to four arguments at
+# once, so the combinations that matter are the ones nobody would think
+# to write down. Most of the grid is refused by both implementations --
+# a floor above the value, a message longer than the rings hold, a
+# range that would wrap -- and the sweeps assert that agreement rather
+# than skipping past it
+_GRID_VALUES = (
+    0,
+    1,
+    3,
+    42,
+    255,
+    5000,
+    100000,
+    2**32,
+    2**40 + 7,
+    2**63 - 1,
+    2**63,
+    2**64 - 1,
+)
+_GRID = [
+    (min_value, exp, min_bits, message)
+    for min_value in (0, 1000, 2**40, 2**64 - 1)
+    for exp in (-1, 0, 2, 18)
+    for min_bits in (0, 8, 13, 64)
+    for message in (b"", b"btclib embeds this")
+]
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to write the proofs read here
+@pytest.mark.parametrize("value", _GRID_VALUES)
+def test_this_module_reads_what_zkp_writes(value: int) -> None:
+    """Proofs the library signed, verified and rewound here.
+
+    Each is asked three things. `verify` says the rings close on the
+    `e0` zkp wrote, over a commitment built here rather than parsed
+    from zkp's octets; the range the header states is the one
+    `zkp.rangeproof.verify` answers; and `rewind` answers the blinding
+    factor, the value and the message `zkp.rangeproof.rewind` answers
+    for the same proof and nonce.
+
+    The message is compared to zkp's own where the two buffers can
+    differ in length: zkp fills a caller's, which
+    `btclib_secp256k1.zkp.rangeproof` sizes at `MAX_MESSAGE_LEN`, where
+    a rewind here answers every octet the rings carry -- 32 for each
+    key that is neither the value encoding nor the one the last ring's
+    digit opens. Only the widest mantissa has more of them than that
+    constant allows, and the assertion says which case is which rather
+    than comparing prefixes and calling it agreement.
+    """
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    commitment = zkp_generator.pedersen_commit(blind, value)
+    point = commit(_BLIND, value)
+    read = 0
+    for min_value, exp, min_bits, message in _GRID:
+        why = (min_value, exp, min_bits, message)
+        try:
+            octets = zkp_rangeproof.sign(
+                commitment,
+                blind,
+                nonce,
+                value,
+                min_value=min_value,
+                exp=exp,
+                min_bits=min_bits,
+                message=message,
+            )
+        except ValueError:
+            continue
+        read += 1
+        assert rangeproof.verify(point, octets), why
+        proof = RangeProof.parse(octets)
+        assert zkp_rangeproof.verify(commitment, octets) == (
+            proof.min_value or 0,
+            proof.max_value,
+        ), why
+
+        blind_out, value_out, message_out, _, _ = zkp_rangeproof.rewind(
+            commitment, octets, nonce
+        )
+        rewound = rangeproof.rewind(point, octets, nonce)
+        assert rewound.blind == int.from_bytes(blind_out, "big"), why
+        assert rewound.value == value_out, why
+        assert len(message_out) == min(
+            len(rewound.message), zkp_rangeproof.MAX_MESSAGE_LEN
+        ), why
+        assert rewound.message[: len(message_out)] == message_out, why
+        assert rewound.message[: len(message)] == message, why
+    assert read
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to read the proofs written here
+@pytest.mark.parametrize("value", _GRID_VALUES)
+def test_zkp_reads_what_this_module_writes(value: int) -> None:
+    """Proofs written here, handed back to the library over the same grid.
+
+    `sign` says zkp writes these very octets, `zkp.rangeproof.verify`
+    that it reads them as the range the header states, and
+    `zkp.rangeproof.rewind` that it recovers from them the blinding
+    factor, the value and the message they were written with -- padded
+    with the zeros `_prep` left, which is what the library answers a
+    caller's buffer with.
+
+    Where the two refuse is asserted rather than skipped: an argument
+    zkp turns down is one this module has to turn down as well, which
+    is most of the grid and is the half a sweep of accepted cases
+    cannot see.
+    """
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    commitment = zkp_generator.pedersen_commit(blind, value)
+    written = refused = 0
+    for min_value, exp, min_bits, message in _GRID:
+        why = (min_value, exp, min_bits, message)
+        try:
+            octets = zkp_rangeproof.sign(
+                commitment,
+                blind,
+                nonce,
+                value,
+                min_value=min_value,
+                exp=exp,
+                min_bits=min_bits,
+                message=message,
+            )
+        except ValueError:
+            refused += 1
+            with pytest.raises((BTClibValueError, BTClibRuntimeError)):
+                sign(
+                    _BLIND,
+                    value,
+                    _NONCE,
+                    min_value=min_value,
+                    exp=exp,
+                    min_bits=min_bits,
+                    message=message,
+                )
+            continue
+        written += 1
+        proof = sign(
+            _BLIND,
+            value,
+            _NONCE,
+            min_value=min_value,
+            exp=exp,
+            min_bits=min_bits,
+            message=message,
+        )
+        assert proof.serialize() == octets, why
+        assert zkp_rangeproof.verify(commitment, octets) == (
+            proof.min_value or 0,
+            proof.max_value,
+        ), why
+
+        blind_out, value_out, message_out, _, _ = zkp_rangeproof.rewind(
+            commitment, octets, nonce
+        )
+        assert blind_out == blind, why
+        assert value_out == value, why
+        assert message_out[: len(message)] == message, why
+        assert not any(message_out[len(message) :]), why
+    assert written and refused
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to put the crafted proofs to
+def test_zkp_refuses_the_rewinds_this_module_refuses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The three crafted proofs above, and a nonce that is not the proof's.
+
+    Each carries a value encoding for a value it was not written for,
+    and each is a valid signature: `zkp.rangeproof.verify` answers the
+    range, which is what says the refusal is the rewind's and not the
+    verification's.
+    """
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    for encoded, min_bits, header in (
+        (12, 4, (0, 15)),
+        (8, 3, (0, 7)),
+        (4, 4, (0, 15)),
+    ):
+        _with_encoded_value(monkeypatch, encoded)
+        octets = sign(_BLIND, 3, _NONCE, min_bits=min_bits).serialize()
+        monkeypatch.undo()
+        commitment = zkp_generator.pedersen_commit(blind, 3)
+        assert zkp_rangeproof.verify(commitment, octets) == header
+        with pytest.raises(ValueError, match="rewind failed"):
+            zkp_rangeproof.rewind(commitment, octets, nonce)
+
+    octets = _octets("odd mantissa")
+    vector = _vector("odd mantissa")
+    commitment = bytes.fromhex(vector["commitment"])
+    assert zkp_rangeproof.verify(commitment, octets) is not None
+    with pytest.raises(ValueError, match="rewind failed"):
+        zkp_rangeproof.rewind(commitment, octets, bytes(32))
