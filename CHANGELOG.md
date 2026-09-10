@@ -3350,6 +3350,24 @@ and `id-token: write`.
   requiring the commitment on the curve is no guard against it.
   `pubk_rings` is unaffected, writing no point at all.
 
+### What a paraphrase's citation carries is decided by what it names
+
+- **`tests/_data/README.md`'s opening states the boundary, beside the
+  categories it already places** (closes #1917). An entry there is for a
+  byte comparison, which a paraphrase admits none of, so upstream prose
+  btclib paraphrases gets no entry and what its citation carries is
+  decided by what the citation names: a file needs no revision, the path
+  keeping its name and a reader who opens it reading the reasoning
+  upstream holds now; a line needs one, a line number being the one thing
+  that moves under a file that keeps its name.
+- **`btclib.ecc.dsa`'s `anti_exfil_host_commit` cites the header it
+  paraphrases**, `include/secp256k1_ecdsa_s2c.h` of
+  BlockstreamResearch/secp256k1-zkp, where the handshake's steps and the
+  scale a selective abort is weighed on are specified. The citation is
+  the repository and the path and nothing else, and it sits in the one
+  docstring that reasoning is in rather than on each `anti_exfil_*`
+  function.
+
 ## v2026.9.3
 
 ### Repository

@@ -4,8 +4,8 @@
 
 """Tests for the ECDSA Anti-Exfil Protocol of `btclib.ecc.dsa`.
 
-The protocol is libsecp256k1-zkp's, and its `ecdsa_s2c` module carries
-the vectors: the fixture below is that module's `ecdsa_s2c_tests`, whose
+BlockstreamResearch/secp256k1-zkp's `ecdsa_s2c` module carries the
+vectors: the fixture below is that module's `ecdsa_s2c_tests`, whose
 third column, `expected_s2c_exfil_opening`, is the R that
 `anti_exfil_signer_commit` has to answer with.
 
@@ -20,9 +20,9 @@ Which revision of `src/modules/ecdsa_s2c/tests_impl.h` those columns
 are is `tests/_data/README.md`'s entry for this module, beside the
 vendored files, and none is recorded here: a pin in that ledger is what
 `.github/workflows/vendored-vectors.yml` re-checks weekly, opening an
-issue where it is no longer the tip of its path. The protocol rationale
-quoted in `btclib.ecc.dsa`'s docstrings is
-`include/secp256k1_ecdsa_s2c.h` of the same repository.
+issue where it is no longer the tip of its path. `btclib.ecc.dsa`'s
+`anti_exfil_host_commit` cites the header its docstring paraphrases, and
+that README's opening says why the citation carries no revision.
 """
 
 from hashlib import sha1, sha256

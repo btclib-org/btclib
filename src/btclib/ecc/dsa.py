@@ -105,12 +105,13 @@ __all__ = [
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
 
-# libsecp256k1's own sign-to-contract tags, byte for byte, so that a
-# commitment made here opens under secp256k1_ecdsa_s2c_verify_commit and
-# the two fixed vectors of its test suite are reproduced. They are what
-# makes this construction that one and not a lookalike, so they are
-# frozen: a different string is a different scheme, and every signature
-# already made would stop opening
+# BlockstreamResearch/secp256k1-zkp's own sign-to-contract tags, byte for
+# byte -- `src/modules/ecdsa_s2c/main_impl.h` -- so that a commitment made
+# here opens under secp256k1_ecdsa_s2c_verify_commit and the two fixed
+# vectors of its test suite are reproduced. They are what makes this
+# construction that one and not a lookalike, so they are frozen: a
+# different string is a different scheme, and every signature already made
+# would stop opening
 _S2C_POINT_TAG = b"s2c/ecdsa/point"
 _S2C_DATA_TAG = b"s2c/ecdsa/data"
 
@@ -1761,6 +1762,9 @@ def verify(
 def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
     """Return the host's commitment to rho: step 1 of the anti-exfil protocol.
 
+    The protocol is specified in `include/secp256k1_ecdsa_s2c.h` of
+    BlockstreamResearch/secp256k1-zkp.
+
     A signing device that picks its own nonce can leak the private key
     through the nonces themselves, a few bits per signature, and no
     signature says that it did. The ECDSA Anti-Exfil Protocol takes that
@@ -1787,10 +1791,11 @@ def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
     checks that the device answers step 2 with exactly the same R. A
     device that could make the host draw again by failing would be
     choosing which nonces reach real signatures, one abort at a time --
-    selective aborting is a bias like any other, and libsecp256k1 puts
-    the scale on it: some hundred aborts before there is a plausible
-    attack, accumulating across a replacement of every device involved,
-    though not across a replacement of the keys.
+    selective aborting is a bias like any other, and
+    `secp256k1_ecdsa_s2c.h` puts the scale on it: some hundred aborts
+    before there is a plausible attack, accumulating across a replacement
+    of every device involved, though not across a replacement of the
+    keys.
 
     The commitment is the committed value as it enters the nonce
     derivation -- ``commit_entropy_`` under the sign-to-contract data
