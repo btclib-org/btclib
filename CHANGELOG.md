@@ -3556,6 +3556,37 @@ name that library and the symbol each of them paraphrases (closes #1932).
   expression rather than once per participant -- and found neither in
   this tree, so `CORE_VECTORS` is owed none of them.
 
+### `ecc.borromean`'s `e0` hashes the ring points before the message
+
+- **`sign_`, `sign` and `assert_as_valid` build `e0` over `r_0 || ... ||
+  r_last || m`** (closes #1940): the order `secp256k1_borromean_sign`
+  writes its own `sha256_e0` in and `secp256k1_borromean_verify_impl`
+  recomputes it in, each ring's last point as the ring loop closes that
+  ring and the message once the loop ends. The signing site and the
+  verifying site move together, so nothing this module signs is refused
+  by it. RELEASE_NOTES.md has what a holder of an older signature is
+  left with.
+- **`zkp.rangeproof.borromean_verify` takes what `sign_` writes**
+  (closes #1895), under the ring negated key by key, over one ring of
+  one key and over several rings alike. `tests/ecc/borromean_test.py`
+  asks the flagged extension, and keeps beside that question the control
+  it needs: a ring closed by hand under zkp's own conventions, which the
+  same call verifies under its plain ring and refuses under the
+  negation, so an answer about `sign_` is an answer about the signature
+  rather than about the call.
+- **Negating the ring is what a caller reaching for that verifier is
+  left to do**: this module recovers a ring point as `s*G - e*Q` where
+  `secp256k1_borromean_verify_impl` recovers `s*G + e*P`, so what one
+  calls `P` the other calls `-P`. `ecc.rangeproof.sign_public_value`
+  goes on closing its own ring, and `ecc.borromean`'s module docstring
+  says what that would still cost beyond the negation.
+- **The low-cardinality inputs `tests/ecc/borromean_test.py` signs with
+  are `e0`'s to decide**: the challenge that opens each ring is
+  `_hash(m, e0, i, 0)`, and a curve of small order makes a zero
+  challenge a one-in-n event rather than a `2**-255` one, so which
+  message signs and which nonce reaches the guard are both answers to a
+  search over `e0`.
+
 ## v2026.9.3
 
 ### Repository
