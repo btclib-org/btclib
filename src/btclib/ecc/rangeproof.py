@@ -20,9 +20,26 @@ the rings `secp256k1_borromean_verify_impl` is handed, and
 `RangeProof.sign_key_idx` says which key of each ring a value's own
 digit names. `RangeProof.nonce_chain` derives what
 `secp256k1_rangeproof_genrand` draws for those rings: each ring's
-blinding factor, and the scalar behind each of its keys. Nothing here
-verifies a proof or rewinds one. Issue #1072
-is where the rest of that distance is tracked.
+blinding factor, and the scalar behind each of its keys.
+
+`verify` answers whether a proof holds for a commitment, and
+`assert_as_valid` is the same question raising its reason; the range
+proven is the proof's own `min_value` and `max_value`, which the header
+states and a parse reads. `rewind` is what a recipient holding the
+nonce calls: it answers the blinding factor, the value and the message
+`sign` embedded. Those two are one piece and not two --
+`secp256k1_rangeproof_verify_impl` calls
+`secp256k1_rangeproof_rewind_inner` from inside itself and hands it the
+per-key challenges its own borromean walk produced, commented there as
+used during a rewind alone -- so `_verify_rings` answers the challenges
+where `verify` answers a bool.
+
+Two arguments of zkp's own `sign`, `verify` and `rewind` are absent
+here. `extra_commit`, which binds octets of a caller's outside the
+proof into the challenge, is issue #1984; `gen_bytes`, which names the
+generator the commitment was made under, is issue #1986 -- every call
+below reaches for `second_generator()`, and `ecc.pedersen.commit` takes
+no generator to pass one through either.
 
 Elements and Liquid use this format, and a design starting today would
 choose bulletproofs, which zkp carries as its `bppp` module.
@@ -126,7 +143,16 @@ from btclib.utils import (
     read_exactly,
 )
 
-__all__ = ["NonceChain", "RangeProof", "sign", "sign_public_value"]
+__all__ = [
+    "NonceChain",
+    "RangeProof",
+    "Rewound",
+    "assert_as_valid",
+    "rewind",
+    "sign",
+    "sign_public_value",
+    "verify",
+]
 
 # the flags octet, as secp256k1_rangeproof_getheader_impl reads it
 _RESERVED = 128
@@ -258,6 +284,26 @@ def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
     if min_value is not None:
         out += min_value.to_bytes(_MIN_VALUE_SIZE, byteorder="big")
     return out
+
+
+def _hashed_prefix(
+    commitment: Point, exp: int, mantissa: int, min_value: int | None
+) -> bytes:
+    """Return the octets a proof's message and its nonce chain open with.
+
+    `secp256k1_rangeproof_sign_impl` writes the value commitment, the
+    generator and the header into the `sha256_m` the rings are signed
+    over, and hands the same three to `secp256k1_rangeproof_genrand`,
+    which seeds its chain with the caller's nonce and then with them.
+    One function because `sign`, `RangeProof.nonce_chain`, `_ring_message`
+    and `rewind` each need exactly these octets, and a proof and the
+    chain behind it are bound to the same three.
+    """
+    return (
+        _bytes_from_point(commitment, _RANGEPROOF_TAG)
+        + _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
+        + _header_octets(exp, mantissa, min_value)
+    )
 
 
 class _ProveParams(NamedTuple):
@@ -423,17 +469,30 @@ def _blocks(seed: bytes) -> Iterator[bytes]:
         yield drbg.generate(secp256k1.n_size)
 
 
-def _prep(rsizes: Sequence[int], v: int, sign_key_idx: int) -> bytes:
+def _message_room(rsizes: Sequence[int]) -> int:
+    """Return how many octets of message those rings carry.
+
+    `secp256k1_rangeproof_sign_impl`'s own bound. A message rides in
+    the draws, one scalar per key at the stride
+    `secp256k1_rangeproof_genrand` indexes them by, and the last ring
+    is where the value encoding sits and where a rewind recovers the
+    blinding factor -- so what is left is every ring before it, and a
+    proof of one ring carries no message at all.
+    """
+    return _RING_STRIDE * secp256k1.n_size * (len(rsizes) - 1)
+
+
+def _prep(rsizes: Sequence[int], v: int, sign_key_idx: int, message: bytes) -> bytes:
     """Return the octets `secp256k1_rangeproof_sign_impl` folds into the draws.
 
-    zkp's `prep`, which is where a message a proof embeds would sit.
-    Nothing here embeds one, so the buffer is zero but for one key of
-    the last ring, and that key is written whether there is a message
-    or not: an octet of 128, seven of zero, and the value the mantissa
-    carries big-endian three times, at the eight octets a `min_value`
-    field occupies and for the same reason, both being a uint64. That
-    is what makes the value readable from the proof by whoever holds
-    the nonce, which is `secp256k1_rangeproof_rewind_inner`.
+    zkp's `prep`: the message at the head of the buffer, and the value
+    encoding at one key of the last ring, which is written whether
+    there is a message or not -- an octet of 128, seven of zero, and
+    the value the mantissa carries big-endian three times, at the eight
+    octets a `min_value` field occupies and for the same reason, both
+    being a uint64. That is what makes the value readable from the
+    proof by whoever holds the nonce, which is
+    `secp256k1_rangeproof_rewind_inner`.
 
     A last ring of one key has no such position, and the public-value
     proof is the one shaped that way -- it states its value in the
@@ -441,8 +500,16 @@ def _prep(rsizes: Sequence[int], v: int, sign_key_idx: int) -> bytes:
     before it where the value's own digit is that one, since the draw
     at the digit's key is spent as a nonce rather than written into
     the proof.
+
+    The two never share a key: `_message_room` ends where the last ring
+    begins, so the value encoding is written over no message octet.
     """
+    room = _message_room(rsizes)
+    if len(message) > room:
+        err_msg = f"rangeproof message is longer than the {room} octets its rings hold"
+        raise BTClibValueError(err_msg)
     prep = bytearray(_RING_STRIDE * secp256k1.n_size * len(rsizes))
+    prep[: len(message)] = message
     if rsizes[-1] > 1:
         j = rsizes[-1] - 1 - (sign_key_idx == rsizes[-1] - 1)
         offset = ((len(rsizes) - 1) * _RING_STRIDE + j) * secp256k1.n_size
@@ -657,6 +724,7 @@ class RangeProof:
         commitment: Point,
         value: int,
         nonce: Octets,
+        message: Octets = b"",
         *,
         check_validity: bool = True,
     ) -> NonceChain:
@@ -686,18 +754,22 @@ class RangeProof:
         has no x to write. The `require_on_curve` above lets it through,
         `(x, 0)` being how this library spells infinity in affine
         coordinates.
+
+        `message` is what `sign` embedded, and it belongs here because
+        the draws carry it: one scalar per key of every ring before the
+        last. `_message_room` bounds it.
         """
         if check_validity:
             self.assert_valid()
         secp256k1.require_on_curve(commitment)
         sign_key_idx = self.sign_key_idx(value)
-        seed = bytes_from_octets(nonce, _NONCE_SIZE)
-        seed += _bytes_from_point(commitment, _RANGEPROOF_TAG)
-        seed += _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
-        seed += _header_octets(self.exp, self.mantissa, self.min_value)
+        seed = bytes_from_octets(nonce, _NONCE_SIZE) + _hashed_prefix(
+            commitment, self.exp, self.mantissa, self.min_value
+        )
 
         v = self._mantissa_value(value)
-        return _genrand(seed, self.rsizes, _prep(self.rsizes, v, sign_key_idx[-1]))
+        prep = _prep(self.rsizes, v, sign_key_idx[-1], bytes_from_octets(message))
+        return _genrand(seed, self.rsizes, prep)
 
     def _mantissa_value(self, value: int) -> int:
         """Return that value in the units the mantissa's digits count.
@@ -916,6 +988,7 @@ def sign(
     min_value: int = 0,
     exp: int = 0,
     min_bits: int = 0,
+    message: Octets = b"",
 ) -> RangeProof:
     """Return the proof that a blinded value lies in a stated range.
 
@@ -942,11 +1015,11 @@ def sign(
     so what comes back over the arguments both accept is the octets
     `zkp.rangeproof.sign` answers for those same arguments.
 
-    No message and no `extra_commit`. A message rides in the buffer
-    `_prep` builds, at the head of every ring but the last, and exists
-    to be read back out, so it belongs with the rewind that reads it;
-    `extra_commit` enters the challenge and nothing here has a second
-    commitment to bind. Issue #1072 is where both are tracked.
+    `message` is embedded for `rewind` to read back out: it rides at the
+    head of the buffer `_prep` builds, one scalar per key of every ring
+    before the last. `_message_room` is what bounds it, and the octets
+    are otherwise those of a proof carrying none. No `extra_commit` and
+    no generator of the caller's, which are issues #1984 and #1986.
     """
     blind_int = scalar_from_prv_key(blind, secp256k1)
     if not 0 <= value <= _UINT64_MAX:
@@ -959,20 +1032,23 @@ def sign(
     if not 0 <= min_bits <= _MAX_MANTISSA:
         raise BTClibValueError(f"rangeproof min bits not in 0..64: {min_bits}")
     nonce_bytes = bytes_from_octets(nonce, _NONCE_SIZE)
+    message_bytes = bytes_from_octets(message)
 
     params = _prove_params(value, min_value, exp, min_bits)
+    genp = second_generator()
     # zkp's `min_value ? 32 : 0`, over the rewritten floor: a range
     # starting at zero carries no field
-    header = _header_octets(params.exp, params.mantissa, params.min_value or None)
-
-    genp = second_generator()
-    points = _bytes_from_point(commit(blind_int, value), _RANGEPROOF_TAG)
-    points += _bytes_from_point(genp, _RANGEPROOF_TAG)
+    prefix = _hashed_prefix(
+        commit(blind_int, value),
+        params.exp,
+        params.mantissa,
+        params.min_value or None,
+    )
 
     chain = _genrand(
-        nonce_bytes + points + header,
+        nonce_bytes + prefix,
         params.rsizes,
-        _prep(params.rsizes, params.v, params.sign_key_idx[-1]),
+        _prep(params.rsizes, params.v, params.sign_key_idx[-1], message_bytes),
     )
     # the draw at the true digit is spent as that ring's nonce, so it is
     # the one `s` per ring the signature overwrites rather than states
@@ -1001,7 +1077,7 @@ def sign(
 
     # every ring commitment but the last, which the verifier recovers
     stated = [_bytes_from_point(head, _RANGEPROOF_TAG) for head in heads[:-1]]
-    m = sha256(points + header + b"".join(stated)).digest()
+    m = sha256(prefix + b"".join(stated)).digest()
     sig = _borromean_sign(
         m,
         _pub_expand(heads, params.exp, params.rsizes),
@@ -1039,3 +1115,296 @@ def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
     name nothing this proof has: its header is fixed.
     """
     return sign(blind, value, nonce, exp=-1)
+
+
+def _borromean_verify(
+    m: bytes, pubk_rings: Sequence[PubkeyRing], sig: BorromeanSig
+) -> tuple[tuple[int, ...], ...]:
+    """Walk every ring back to `e0`, answering the challenge at each key.
+
+    `secp256k1_borromean_verify_impl`, and what comes back is its
+    `evalues` -- the challenges it saves only where a caller asked to
+    rewind. `ecc.borromean.assert_as_valid` is the same walk answering
+    a bool over rings a caller supplies, and differs where a rangeproof
+    cannot follow it: it hashes those rings into a message of its own,
+    it walks at `-e` where zkp walks at `+e`, and it reduces a
+    challenge zkp refuses. `_borromean_sign` states the second of those
+    from the signing side and `_challenge` the third.
+
+    Two refusals of zkp's own, checked before the walk goes on from a
+    key. An `s` of zero, which `BorromeanSig.assert_valid` reads
+    against 0..n-1 and so accepts, and which
+    `secp256k1_borromean_sign` answers zero rather than write. And a
+    ring key at infinity, which is no public key: the walk point
+    `e*Q + s*G` is `s*G` for one, a point the prover chooses, so
+    nothing later in the walk turns it down.
+    """
+    challenges: list[tuple[int, ...]] = []
+    e0_preimage = b""
+    for i, ring in enumerate(pubk_rings):
+        e = _challenge(m, sig.e0, i, 0)
+        ring_challenges: list[int] = []
+        for j, Q in enumerate(ring):
+            s = sig.s[i][j]
+            if s == 0:
+                raise BTClibRuntimeError("rangeproof signature value is zero")
+            if Q == INF:
+                err_msg = "rangeproof ring key is the point at infinity"
+                raise BTClibRuntimeError(err_msg)
+            ring_challenges.append(e)
+            # zkp turns down a walk point at infinity too, and here
+            # `bytes_from_point` is what does: infinity has no octet
+            # encoding, and the next challenge is over one
+            t = double_mult_var(e, Q, s, secp256k1.G, secp256k1)
+            r = bytes_from_point(t, secp256k1)
+            if j != len(ring) - 1:
+                e = _challenge(m, r, i, j + 1)
+            else:
+                e0_preimage += r
+        challenges.append(tuple(ring_challenges))
+    # the message closes the preimage the ring points opened, which is
+    # `_borromean_sign`'s order too
+    if sha256(e0_preimage + m).digest() != sig.e0:
+        raise BTClibRuntimeError("rangeproof signature verification failed")
+    return tuple(challenges)
+
+
+def _ring_message(commitment: Point, proof: RangeProof) -> bytes:
+    """Return the message this proof's rings are signed over.
+
+    `secp256k1_rangeproof_verify_impl` closes the same `sha256_m`
+    `sign` opens: `_hashed_prefix`, then the sign bit and the x of
+    every ring commitment the proof states. Those are the octets
+    already on the wire, which is why they are written out here rather
+    than resolved to points and handed back to `_bytes_from_point`.
+    """
+    stated = b"".join(
+        bytes([sign_bit]) + x.to_bytes(secp256k1.p_size, "big")
+        for x, sign_bit in zip(proof.ring_commitments, proof.signs, strict=True)
+    )
+    prefix = _hashed_prefix(commitment, proof.exp, proof.mantissa, proof.min_value)
+    return sha256(prefix + stated).digest()
+
+
+def _verify_rings(commitment: Point, proof: RangeProof) -> tuple[tuple[int, ...], ...]:
+    """Return the challenge behind every key of a proof that holds.
+
+    `secp256k1_rangeproof_verify_impl`, assembled from what this module
+    already has: `RangeProof.pubk_rings` rebuilds the rings that
+    function hands to `secp256k1_borromean_verify_impl`,
+    `_ring_message` the message they are signed over, and
+    `_borromean_verify` walks them.
+
+    The challenges come back rather than a bool because
+    `secp256k1_rangeproof_rewind_inner` consumes them and is called
+    from inside `verify_impl` itself: a rewind is verification that
+    kept them, so `rewind` calls this and `assert_as_valid` drops what
+    it answers.
+    """
+    return _borromean_verify(
+        _ring_message(commitment, proof), proof.pubk_rings(commitment), proof.sig
+    )
+
+
+def _proof_from(proof: RangeProof | Octets) -> RangeProof:
+    """Return the proof, parsing octets as `RangeProof.parse` reads them."""
+    return proof if isinstance(proof, RangeProof) else RangeProof.parse(proof)
+
+
+def assert_as_valid(commitment: Point, proof: RangeProof | Octets) -> None:
+    """Refuse a proof that does not hold for that commitment.
+
+    `commitment` is the Pedersen commitment the proof was written
+    against, `RangeProof.pubk_rings`'s argument of that name. The range
+    proven is the proof's own `min_value` and `max_value`, which the
+    header states and a parse reads; what this adds is that the header
+    is that commitment's, the last ring commitment being recovered from
+    it and the whole signature walked against the rings that follow. So
+    a commitment a proof holds for opens at some value in
+    `min_value..max_value`.
+
+    `zkp.rangeproof.verify` answers that range instead of a verdict,
+    having only the octets to answer from. `verify` here is the boolean
+    answer, as `ecc.borromean.verify` is to `ecc.borromean.assert_as_valid`.
+    """
+    _ = _verify_rings(commitment, _proof_from(proof))
+
+
+def verify(commitment: Point, proof: RangeProof | Octets) -> bool:
+    """Return whether the proof holds for that commitment."""
+    # ValueError and BTClibRuntimeError, as `ecc.borromean.verify` catches
+    # them and for the reasons `ecc.dsa.verify_` states
+    try:
+        assert_as_valid(commitment, proof)
+    except (ValueError, BTClibRuntimeError):
+        return False
+
+    return True
+
+
+def _recover_x(k: int, e: int, s: int) -> int:
+    """Return the scalar a real signature was written under.
+
+    `secp256k1_rangeproof_recover_x`. `_borromean_sign` answers `k - e*x`
+    at the one key of a ring the prover opens, so `(k - s) / e` is that
+    `x` wherever the `k` behind it is in hand -- which is what holding
+    the nonce buys, the chain drawing it. `e` is a challenge and
+    `_challenge` refuses zero, so the inverse exists.
+    """
+    return (k - s) * pow(e, -1, secp256k1.n) % secp256k1.n
+
+
+def _recover_k(x: int, e: int, s: int) -> int:
+    """Return the nonce a real signature was closed with.
+
+    `secp256k1_rangeproof_recover_k`, the same equation read the other
+    way: `s + x*e`. A rewind takes this rather than `_recover_x` at
+    every ring but the last, where what it wants is the nonce itself --
+    the message is xored into it, and no inversion is needed to get it
+    back.
+    """
+    return (s + x * e) % secp256k1.n
+
+
+def _ch32xor(a: int, b: int) -> bytes:
+    """Return the xor of two scalars, one scalar width wide.
+
+    `secp256k1_rangeproof_ch32xor`, which is how a message and the
+    value encoding both enter and leave the draws.
+    """
+    size = secp256k1.n_size
+    return bytes(
+        x ^ y
+        for x, y in zip(a.to_bytes(size, "big"), b.to_bytes(size, "big"), strict=True)
+    )
+
+
+def _value_encoding(
+    rsizes: Sequence[int], written: Sequence[int], drawn: Sequence[int]
+) -> tuple[int, int] | None:
+    """Return where the last ring carries the value, and the value.
+
+    `secp256k1_rangeproof_rewind_inner`'s own search, and it looks at
+    two keys because `_prep` writes at one of two: the ring's last, or
+    the one before it where the value's own digit is that one. A key
+    whose xor opens with bit 7 set and repeats the same eight octets
+    three times is taken as the encoding, and the value is the last of
+    the three. Where neither key matches this answers None, and `rewind`
+    is what turns that into a refusal.
+    """
+    for j in range(2):
+        position = rsizes[-1] - 1 - j
+        tmp = _ch32xor(written[position], drawn[position])
+        if tmp[0] & 128 and tmp[8:16] == tmp[16:24] == tmp[24:32]:
+            return position, int.from_bytes(tmp[24:32], "big")
+    return None
+
+
+class Rewound(NamedTuple):
+    """What whoever holds a proof's nonce reads back out of it.
+
+    `blind` is the blinding factor the commitment was written under and
+    `value` what it commits to, so the two open the commitment.
+    `message` is what the draws carry: what `sign` embedded, followed by
+    the zeros `_prep` left after it. Nothing in a proof states how long
+    a message was, so the padding is the caller's to know the length of
+    or to strip.
+    """
+
+    blind: int
+    value: int
+    message: bytes
+
+
+def rewind(commitment: Point, proof: RangeProof | Octets, nonce: Octets) -> Rewound:
+    """Return what the author of that proof put in it for its recipient.
+
+    `secp256k1_rangeproof_rewind_inner`, which
+    `secp256k1_rangeproof_verify_impl` calls from inside itself: the
+    proof is verified first, by `_verify_rings`, and the per-key
+    challenges that walk answers are half of what this needs. The other
+    half is the chain re-derived from `nonce` over a `prep` of zeros,
+    which answers the draws themselves -- the proof's own `s` at a
+    forged key is one of those draws with a message octet or the value
+    encoding xored into it, and at the one key a ring opens it is the
+    nonce that key was closed with.
+
+    A single ring of a single key is the public-value proof, and only
+    the blinding factor is recoverable from it: the value is the
+    header's `min_value`, stated in the clear, and there is no second
+    key to carry a message.
+
+    Everywhere else `_value_encoding` reads the value out of the last
+    ring, and two refusals follow it. The position it was found at and
+    the last ring's own digit have to differ -- `_prep` writes the
+    encoding at whichever of the two keys the digit does not take, so a
+    proof stating a value that lands on it states a value it was not
+    written for. And a digit above the last ring's own size names no
+    key of it, which is where an odd mantissa leaves a ring of two.
+
+    The blinding factor is then `_recover_x` at the last ring's digit,
+    less the chain's own factor for that ring: what the ring was signed
+    under is the sum of the two, which is what lets a verifier recover
+    the ring commitment the proof leaves out.
+
+    The message is every remaining key of every ring, the two the last
+    ring spends excepted: the nonce at the key a ring opens, recovered
+    by `_recover_k`, and the stated `s` everywhere else, each xored
+    against the draw behind it. `Rewound.message` has what that buffer
+    holds past the message itself.
+
+    Refused where the value and the blinding factor recovered do not
+    open `commitment`, which is what says the nonce was the proof's
+    own: `secp256k1_rangeproof_verify_impl` rebuilds the commitment
+    from them and compares.
+    """
+    proof = _proof_from(proof)
+    ev = _verify_rings(commitment, proof)
+    rsizes = proof.rsizes
+    seed = bytes_from_octets(nonce, _NONCE_SIZE) + _hashed_prefix(
+        commitment, proof.exp, proof.mantissa, proof.min_value
+    )
+    # the zeroed `prep` `rewind_inner` calls the chain with: what comes
+    # back is then the draws themselves, no message and no value
+    # encoding folded into any of them
+    chain = _genrand(seed, rsizes, bytes(_RING_STRIDE * secp256k1.n_size * len(rsizes)))
+    s = proof.sig.s
+
+    last = len(rsizes) - 1
+    if rsizes == (1,):
+        blind = _recover_x(chain.draws[0][0], ev[0][0], s[0][0])
+        value, message = proof.min_value or 0, b""
+    else:
+        found = _value_encoding(rsizes, s[last], chain.draws[last])
+        if found is None:
+            raise BTClibRuntimeError("rangeproof rewind reads no value encoding")
+        skip1, v = found
+        skip2 = (v >> 2 * last) & 3
+        if skip1 == skip2:
+            raise BTClibRuntimeError("rangeproof rewind reads the value at the digit")
+        if skip2 >= rsizes[last]:
+            raise BTClibRuntimeError(
+                "rangeproof rewind reads a digit the last ring has no key for"
+            )
+        value = v * 10**proof.exp + (proof.min_value or 0)
+        blind = (
+            _recover_x(chain.draws[last][skip2], ev[last][skip2], s[last][skip2])
+            - chain.blinding_factors[last]
+        ) % secp256k1.n
+        message = b"".join(
+            _ch32xor(
+                _recover_k(chain.blinding_factors[i], ev[i][j], s[i][j])
+                if (v >> 2 * i) & 3 == j
+                else s[i][j],
+                chain.draws[i][j],
+            )
+            for i, size in enumerate(rsizes)
+            for j in range(size)
+            if i != last or j not in (skip1, skip2)
+        )
+
+    if double_mult_var(value, second_generator(), blind, secp256k1.G, secp256k1) != (
+        commitment
+    ):
+        raise BTClibRuntimeError("rangeproof rewind does not open the commitment")
+    return Rewound(blind, value, message)

@@ -86,27 +86,33 @@ Transactions rangeproof: `rangeproof_impl.h` wraps this signature in a
 digit decomposition, a value commitment and an
 exponent/mantissa/min-value/sign-bits header this module has no
 counterpart for, rebuilding its pubkey rings from that commitment
-where this module takes them as an explicit argument. Issue #1072 is
-that remaining distance, filed and decided wanted.
+where this module takes them as an explicit argument.
 
-`ecc.rangeproof` is where that distance is being closed.
-`RangeProof.parse` takes the flags, the exponent, the mantissa, the
-`min_value`, the sign bits and the ring commitments of such a header,
-and holds the `e0` and the `s` values inside the proof as a
-`BorromeanSig` of this module's, and `sign` writes one -- the digit
-decomposition, the ring commitments and the header included.
+`ecc.rangeproof` is that wrapping. `RangeProof.parse` takes the flags,
+the exponent, the mantissa, the `min_value`, the sign bits and the ring
+commitments of such a header, and holds the `e0` and the `s` values
+inside the proof as a `BorromeanSig` of this module's, and `sign` writes
+one -- the digit decomposition, the ring commitments and the header
+included.
 
 It closes those rings on its own rather than through this module, and
 `ecc.rangeproof._borromean_sign` is where the differences are stated:
 the ring convention above, the forged `s` values taken from the proof's
 own nonce chain where ``sign_`` draws them, and, in
 `ecc.rangeproof._challenge`, a challenge at or past n abandoning the
-proof where this module reduces it. The message format is shared, a
-rangeproof hashing the value commitment, the generator and the proof's
-own header with no pubkey ring in the preimage. Verifying a proof and
-rewinding one are still ahead of it.
+proof where this module reduces it. What the rings are signed over is
+a rangeproof's own: the value commitment, the generator, the proof's
+header and the ring commitments it states, with no pubkey ring in the
+preimage, where `_get_msg_format` below hashes the caller's rings into
+the caller's message.
 
-The signing direction is issue #1072's to discharge:
+`ecc.rangeproof`'s own `_borromean_verify` is the verifying walk.
+Separating it from `assert_as_valid` below are the ring convention, the
+challenge at or past n, that preimage, and the challenges themselves: a
+rangeproof rewind consumes the per-key challenges the walk produces,
+where `verify` below answers a bool. Its own docstring has the refusals
+it makes before the walk goes on from a key.
+
 `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are wrapped, and the
 proof they write and read carries this signature inside it --
 `secp256k1_rangeproof_sign_impl` and

@@ -24,10 +24,13 @@ the signer lowered from the one it was asked for; a `min_value` a step
 below the signed ceiling; and the proof of a value stated in the clear
 that zkp itself wrote.
 
-What is asked of them is the parse, the range the header states, and
-the rings the value's digits index. The borromean signature is read
-back byte for byte and not verified, which is
-[ISS 1072](https://github.com/btclib-org/btclib/issues/1072).
+What is asked of them is the parse, the range the header states, the
+rings the value's digits index, and the signature over those rings.
+That last one is the strongest question here and the one no recording
+can be asked as well: the octets were published by the implementation
+this format comes from, so a walk that closes on their own `e0` is this
+module agreeing with zkp. A rewind is the one direction they cannot be
+asked, none of them recording the nonce it was signed under.
 """
 
 from typing import Any
@@ -35,8 +38,13 @@ from typing import Any
 import pytest
 
 from btclib.curves import mult, secp256k1
-from btclib.ecc.pedersen import _point_from_x, bytes_from_commitment, commit
-from btclib.ecc.rangeproof import RangeProof
+from btclib.ecc.pedersen import (
+    _point_from_x,
+    bytes_from_commitment,
+    commit,
+    commitment_from_octets,
+)
+from btclib.ecc.rangeproof import RangeProof, verify
 from tests import load, vector_id
 
 _VECTORS = load("ecc", "_data", "zkp_rangeproof_fixed_vectors.json")
@@ -110,3 +118,26 @@ def test_the_rings_open_at_the_published_blinding_factor(
     for ring, j in zip(rings, proof.sign_key_idx(vector["value"]), strict=True):
         total = ring[j] if total is None else secp256k1.add_aff_var(total, ring[j])
     assert total == mult(vector["blind"], secp256k1.G, secp256k1)
+
+
+@pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
+def test_the_signature_holds_for_the_published_commitment(
+    vector: dict[str, Any],
+) -> None:
+    """The rings walked back to the `e0` upstream published.
+
+    The commitment is the one published beside the proof, lifted with
+    `ecc.pedersen.commitment_from_octets` rather than recomputed from
+    the blinding factor: everything the walk hangs from is then read
+    out of the vector, the last ring commitment it recovers included.
+
+    A turned octet of the signature beside it, because a walk that
+    accepts everything accepts these too.
+    """
+    commitment = commitment_from_octets(vector["commitment"])
+    octets = bytes.fromhex(vector["proof"])
+    assert verify(commitment, octets)
+
+    turned = bytearray(octets)
+    turned[-1] ^= 1
+    assert not verify(commitment, bytes(turned))
