@@ -5,25 +5,31 @@
 """Where a peer is, what it offers, and the `addr` message that gossips it.
 
 Bitcoin Core's `CAddress`, of src/protocol.h, in the version-1 encoding
-its `SERIALIZE_METHODS` writes with `Encoding::V1`: eight octets of
-service flags, then the sixteen of address and two of port that
-`CService` writes under it. BIP155's `addrv2` is a different
-encoding of the same idea and is `btclib.p2p.addrv2`, not this module.
+its `SERIALIZE_METHODS` writes with `Encoding::V1` and `Format::Network`:
+four octets of timestamp, eight of service flags, then the sixteen of
+address and two of port that `CService` writes under it. `Format::Disk`
+writes a `stored_format_version` in front of the same fields. BIP155's
+`addrv2` is a different encoding of the same idea and is
+`btclib.p2p.addrv2`, not this module.
 
 **Two classes for what Core's prose calls one structure**, because the
 octets are not the same: a `version` message's two addresses carry no
 timestamp and an `addr` message's carry four octets of one in front. Core
-writes that as a serialization parameter -- `CAddress::SerParams` with
-`Format::Disk`, `Format::Network` -- and its test framework as
-`CAddress.deserialize(f, with_time=True)`. A parameter is where one class
-loses a round trip: the class has the timestamp field whichever way the
-octets were read, so an address parsed out of a `version` message is
-*forced* to a timestamp of zero rather than left without one -- the field
-then says zero where it means absent, and an `addr` entry cannot be told
-from a `version` one by looking at it. Here `Version.addr_recv` is
-annotated `NetworkAddress` and `Addr.addresses` holds
-`TimestampedNetworkAddress`, so putting one where the other belongs is a
-call mypy refuses rather than octets a peer refuses.
+writes that difference as a narrower type rather than as a parameter: an
+`addr` entry is a `CAddress`, whose `SERIALIZE_METHODS` of src/protocol.h
+writes `nTime` whichever `SerParams` it is given, and a `version`
+message's address is a `CService`, written and read through `CNetAddr::V1`
+with the service flags beside it in src/net_processing.cpp. Core's test
+framework takes the other route, one class with a `with_time` parameter,
+in test/functional/test_framework/messages.py, whose revision `TF2.md`
+pins. A parameter is where one class loses a round trip: the class has the
+timestamp field whichever way the octets were read, so an address parsed
+out of a `version` message is *forced* to a timestamp of zero rather than
+left without one -- the field then says zero where it means absent, and an
+`addr` entry cannot be told from a `version` one by looking at it. Here
+`Version.addr_recv` is annotated `NetworkAddress` and `Addr.addresses`
+holds `TimestampedNetworkAddress`, so putting one where the other belongs
+is a call mypy refuses rather than octets a peer refuses.
 
 **The port is big-endian and it is the only field of this protocol that
 is.** Core writes it through `Using<BigEndianFormatter<2>>(obj.port)`,
@@ -217,13 +223,12 @@ def _assert_valid_body(services: int, port: int) -> None:
 class NetworkAddress:
     """Where a peer is and what it offers: (services, ip, port).
 
-    Bitcoin Core's `CService` with the service flags in front of it, in
-    the twenty-six octets a `CAddress` writes under `Encoding::V1` with
-    no timestamp in front -- which is what a `version` message's
-    `addr_recv` and
-    `addr_from` are. `TimestampedNetworkAddress` is the thirty-octet form
-    an `addr` message carries, and the module docstring is why they are
-    two classes.
+    Bitcoin Core's `CService` with the service flags in front of it, in the
+    twenty-six octets that follow a `CAddress`'s timestamp under
+    `Encoding::V1` -- which is what a `version` message's `addr_recv` and
+    `addr_from` are. `TimestampedNetworkAddress` is the thirty-octet form an
+    `addr` message carries, and the module docstring is why they are two
+    classes.
 
     `ip` is an `ipaddress.IPv6Address` and is always sixteen octets, an
     IPv4 peer being `::ffff:a.b.c.d`: `ip.ipv4_mapped` is the v4 address
