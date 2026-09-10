@@ -20,15 +20,22 @@ is silent about -- the sign bits, the ring commitments and the
 signature; and that the length the mantissa implies is the length zkp
 wrote.
 
-The entries whose `sign arguments` are an `exp` of -1 are asked one
-thing more, and it is the strongest question in this file:
-`sign_public_value`, given such an entry's own `blind`, `value` and
-`nonce`, has to answer its octets. A rangeproof draws nothing, so those
-three are the whole of what produced the recording, and an
+Every entry is asked one thing more, and it is the strongest question
+in this file: `sign`, given an entry's own `blind`, `value`, `nonce`
+and `sign arguments`, has to answer its octets. A rangeproof draws
+nothing, so those are the whole of what produced the recording, and an
 implementation that agrees with zkp at every step is the only one that
-lands on the same octets. Both shapes that proof has are recorded, the
-one carrying a `min_value` field and the one whose value is zero and
-carries none.
+lands on the same octets. The entries reach the shapes the header can
+take: a blinded range at an exponent the signer kept, one at an
+exponent it raised the mantissa for, an odd mantissa whose last ring
+holds two keys, a `min_value` field with sign bits padded above it, and
+both shapes of the proof that states its value in the clear.
+
+What the recording does not reach is the header a request does not
+get -- an exponent lowered, a `min_bits` clamped, a range refused --
+and those are put to `_prove_params` against numbers
+`secp256k1_range_proveparams` can be read for, with the `zkp`-marked
+tests at the end holding the same arguments to the library.
 
 Every entry is asked something further still, and this one needs no
 signature at all: `pubk_rings` and `sign_key_idx`, given the entry's own
@@ -50,7 +57,7 @@ chain a test writes.
 The `zkp`-marked tests at the end put the same questions to the library
 itself, and two more the recording cannot answer: that signing again
 with the recorded arguments answers the very octets vendored here, and
-that values no entry carries are written the same way.
+that values and headers no entry carries are written the same way.
 """
 
 from io import BytesIO
@@ -69,7 +76,7 @@ from btclib.ecc.pedersen import (
     commit,
     second_generator,
 )
-from btclib.ecc.rangeproof import RangeProof, sign_public_value
+from btclib.ecc.rangeproof import RangeProof, sign, sign_public_value
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from tests import load, needs_zkp, replace_unchecked, vector_id
 
@@ -98,11 +105,15 @@ def _octets(id_: str) -> bytes:
     return bytes.fromhex(_vector(id_)["proof"])
 
 
-# every entry `sign_public_value` can be asked for, and the arguments of
-# one of them, read out of the file rather than repeated as literals: an
-# entry whose `exp` is -1 is the shape this module writes, so the tests
-# below that build a proof instead of reading one ask with arguments the
-# recording names
+# every entry a writer here can be asked for, read out of the file
+# rather than repeated as literals, so the tests below that build a
+# proof instead of reading one ask with arguments the recording names.
+# `sign` takes an entry whose arguments are its own keyword ones, and
+# `sign_public_value` one whose `exp` of -1 is the whole of them
+_WRITABLE = [
+    v for v in _VECTORS if set(v["sign arguments"]) <= {"min_value", "exp", "min_bits"}
+]
+_WRITABLE_IDS = [vector_id(i, v["id"]) for i, v in enumerate(_WRITABLE)]
 _PUBLIC_VALUES = [v for v in _VECTORS if v["sign arguments"] == {"exp": -1}]
 _PUBLIC_VALUE_IDS = [vector_id(i, v["id"]) for i, v in enumerate(_PUBLIC_VALUES)]
 _BLIND = _vector("public value")["blind"]
@@ -178,10 +189,10 @@ def test_the_sign_bit_is_residuosity_and_not_parity() -> None:
     seen = set()
     for vector in _VECTORS:
         proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
-        for sign, x in zip(proof.signs, proof.ring_commitments, strict=True):
+        for sign_bit, x in zip(proof.signs, proof.ring_commitments, strict=True):
             y_residue = secp256k1.y_quadratic_residue_var(x)
-            y = secp256k1.p - y_residue if sign else y_residue
-            seen.add(bool(y & 1) == sign)
+            y = secp256k1.p - y_residue if sign_bit else y_residue
+            seen.add(bool(y & 1) == sign_bit)
     assert seen == {True, False}
 
 
@@ -476,9 +487,9 @@ def test_a_ring_commitment_x_resolves_against_residuosity() -> None:
     """
     for vector in _VECTORS:
         proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
-        for x, sign in zip(proof.ring_commitments, proof.signs, strict=True):
-            point = _point_from_x(x, sign)
-            octets = bytes([sign]) + x.to_bytes(secp256k1.p_size, "big")
+        for x, sign_bit in zip(proof.ring_commitments, proof.signs, strict=True):
+            point = _point_from_x(x, sign_bit)
+            octets = bytes([sign_bit]) + x.to_bytes(secp256k1.p_size, "big")
             assert _bytes_from_point(point, _RANGEPROOF_TAG) == octets
 
 
@@ -791,6 +802,27 @@ def test_a_ring_blinding_factor_that_is_no_scalar_is_redrawn(
     assert chain.draws == ((1, 2), (3, 4))
 
 
+@pytest.mark.parametrize("vector", _WRITABLE, ids=_WRITABLE_IDS)
+def test_sign_writes_the_octets_zkp_signed(vector: dict[str, Any]) -> None:
+    """The recording asked of the writer, over every shape it holds.
+
+    An entry's `blind`, `value`, `nonce` and `sign arguments` are the
+    whole of what produced its proof, so writing them again here has to
+    answer those octets -- the header, the sign bits, the ring
+    commitments and the borromean signature alike.
+    `zkp.rangeproof.verify` accepting the result would say only that it
+    is *a* proof, where this says it is the same one.
+
+    Selected on the `sign arguments` being ones `sign` takes: an entry
+    recorded with a further argument -- an `extra_commit`, which enters
+    the challenge -- is not one it can be held to.
+    """
+    proof = sign(
+        vector["blind"], vector["value"], vector["nonce"], **vector["sign arguments"]
+    )
+    assert proof.serialize().hex() == vector["proof"]
+
+
 @pytest.mark.parametrize("vector", _PUBLIC_VALUES, ids=_PUBLIC_VALUE_IDS)
 def test_sign_public_value_writes_the_octets_zkp_signed(
     vector: dict[str, Any],
@@ -921,6 +953,195 @@ def test_a_zero_signature_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(rangeproof, "_hash", lambda *_: e.to_bytes(32, "big"))
     with pytest.raises(BTClibRuntimeError, match="signature value is zero"):
         sign_public_value(_BLIND, 1, _NONCE)
+
+
+# what `secp256k1_range_proveparams` answers, argument by argument: each
+# row is `(value, min_value, exp, min_bits)` asked for, the
+# `(exp, mantissa, min_value, max_value)` written, and why the two
+# differ. The written column is what that function computes and not
+# what `_prove_params` answered for it, and the `zkp`-marked test at
+# the end asks the library for the same headers
+_Header = tuple[int, int, int, int]
+_HEADER_CASES: list[tuple[_Header, _Header, str]] = [
+    ((0, 0, 0, 0), (0, 1, 0, 1), "value zero"),
+    ((3, 0, 0, 2), (0, 2, 0, 3), "a single ring"),
+    ((5000, 0, 0, 13), (0, 13, 0, 8191), "odd mantissa"),
+    ((100000, 0, 0, 0), (0, 17, 0, 131071), "mantissa from the value"),
+    ((100000, 0, 5, 0), (5, 1, 0, 100000), "exponent takes the value"),
+    (
+        (100000, 0, 18, 20),
+        (13, 20, 100000, 10485750000000100000),
+        "exponent lowered",
+    ),
+    ((100000, 0, 3, 62), (0, 62, 0, 4611686018427387903), "min bits past 61"),
+    ((2**63, 0, 5, 0), (0, 64, 0, 2**64 - 1), "value past 2**63-1"),
+    ((2**40 + 7, 2**40, 0, 64), (0, 23, 2**40, 1099520016383), "min bits clamped"),
+    ((2**40, 2**40 - 1, 0, 0), (0, 1, 2**40 - 1, 2**40), "a range of one step"),
+    (
+        (2**64 - 1, 2**64 - 1, 0, 0),
+        (-1, 0, 2**64 - 1, 2**64 - 1),
+        "min value at the ceiling",
+    ),
+    ((2**64 - 1, 0, 0, 0), (0, 64, 0, 2**64 - 1), "the whole field"),
+]
+_HEADERS = [
+    pytest.param(arguments, header, id=why) for arguments, header, why in _HEADER_CASES
+]
+
+
+def _written(arguments: _Header) -> RangeProof:
+    value, min_value, exp, min_bits = arguments
+    return sign(_BLIND, value, _NONCE, min_value=min_value, exp=exp, min_bits=min_bits)
+
+
+@pytest.mark.parametrize("arguments, header", _HEADERS)
+def test_the_header_is_what_the_format_has_room_for(
+    arguments: _Header, header: _Header
+) -> None:
+    """What a caller asks for is a request, and the header is the answer.
+
+    `secp256k1_range_proveparams` lowers the exponent until the range
+    it would prove fits a uint64, lowers `min_bits` to the precision
+    the floor leaves, raises the mantissa to that precision where the
+    value needs fewer bits than it, and rewrites `min_value` to what
+    the rescaled value no longer reaches.
+    A `min_value` at the ceiling of the field is where no range can be
+    coded at all, and what comes back there is the proof of an exact
+    value.
+    """
+    proof = _written(arguments)
+    assert (proof.exp, proof.mantissa) == header[:2]
+    assert (proof.min_value or 0, proof.max_value) == header[2:]
+
+
+@pytest.mark.parametrize("arguments, header", _HEADERS)
+def test_a_proof_written_here_opens_at_its_own_blinding_factor(
+    arguments: _Header, header: _Header
+) -> None:
+    """The proof read back against the commitment it was written for.
+
+    Nothing outside the octets states the ring commitments, so what
+    says they are the ones the digits ask for is that the keys
+    `sign_key_idx` names across the rings sum to `blind * G` -- the
+    same question `tests/ecc/rangeproof_fixed_vectors_test.py` puts to
+    proofs zkp published, put here to proofs this module wrote. The
+    value has to lie in the range the header states for those digits to
+    exist at all, which is the first assertion below.
+    """
+    value = arguments[0]
+    proof = _written(arguments)
+    assert header[2] <= value <= proof.max_value
+
+    rings = proof.pubk_rings(commit(_BLIND, value))
+    stated = tuple(
+        _point_from_x(x, sign_bit)
+        for x, sign_bit in zip(proof.ring_commitments, proof.signs, strict=True)
+    )
+    assert tuple(ring[0] for ring in rings[: len(stated)]) == stated
+
+    total = None
+    for ring, j in zip(rings, proof.sign_key_idx(value), strict=True):
+        total = ring[j] if total is None else secp256k1.add_aff_var(total, ring[j])
+    assert total == mult(_BLIND, secp256k1.G, secp256k1)
+
+
+def test_sign_refuses_what_it_has_no_octets_for() -> None:
+    """Each argument against what the format and the curve allow.
+
+    The bounds on the exponent and on `min_bits` are the ones
+    `secp256k1_rangeproof_sign_impl` reads before it asks for a header
+    at all, and so is `min_value` above the value: a floor over the
+    thing it is a floor of proves nothing.
+    """
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
+        sign(0, 1, _NONCE)
+
+    err_msg = "rangeproof value not in 0..2\\*\\*64-1: "
+    with pytest.raises(BTClibValueError, match=f"{err_msg}-1"):
+        sign(_BLIND, -1, _NONCE)
+    with pytest.raises(BTClibValueError, match=f"{err_msg}18446744073709551616"):
+        sign(_BLIND, 2**64, _NONCE)
+
+    with pytest.raises(BTClibValueError, match="min value not in 0..7: 8"):
+        sign(_BLIND, 7, _NONCE, min_value=8)
+    with pytest.raises(BTClibValueError, match="exponent not in -1..18: 19"):
+        sign(_BLIND, 7, _NONCE, exp=19)
+    with pytest.raises(BTClibValueError, match="exponent not in -1..18: -2"):
+        sign(_BLIND, 7, _NONCE, exp=-2)
+    with pytest.raises(BTClibValueError, match="min bits not in 0..64: 65"):
+        sign(_BLIND, 7, _NONCE, min_bits=65)
+
+    with pytest.raises(BTClibValueError, match="invalid size: 31 bytes instead of 32"):
+        sign(_BLIND, 1, _NONCE[:-2])
+
+
+@pytest.mark.parametrize(
+    "value, min_value",
+    [(2**63, 1), (2**63 - 1, 2**63 - 1)],
+    ids=["value past the sign bit", "min value at it"],
+)
+def test_a_range_leaving_its_other_end_no_room_is_refused(
+    value: int, min_value: int
+) -> None:
+    """`secp256k1_range_proveparams`' own refusal, and it has two arms.
+
+    The digits prove `value - min_value` and the header states the
+    floor, so the largest a proof can assert is the sum of the two, and
+    zkp answers zero rather than write a maximum that would wrap. The
+    arms are a nonzero floor under a value past `2**63-1` and a nonzero
+    value over a floor at or past it, which are not one rule: the
+    control below is a value exactly at that ceiling, which is proven,
+    where the same value a step higher is not.
+    """
+    with pytest.raises(BTClibValueError, match="does not fit 2\\*\\*64"):
+        sign(_BLIND, value, _NONCE, min_value=min_value)
+
+    proof = sign(_BLIND, 2**63 - 1, _NONCE, min_value=1)
+    assert (proof.exp, proof.mantissa, proof.min_value) == (0, 63, 1)
+
+
+def test_a_last_ring_blinding_factor_of_zero_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The caller's blinding factor cancelling the chain's own.
+
+    `secp256k1_rangeproof_sign_impl` adds the caller's to the last
+    ring's and returns zero on a sum of zero: that ring's commitment
+    would then be the digit alone, with nothing blinding it. The chain
+    answers the last factor as minus the sum of the others, so the sum
+    is zero exactly where the caller's blinding factor is that sum, and
+    a chain the test wrote is what puts it -- a nonce whose chain
+    reached it is a one-in-n accident and cannot be chosen.
+    """
+    chain = rangeproof.NonceChain((-int(_BLIND, 16) % secp256k1.n,), ((1, 2, 3, 4),))
+    monkeypatch.setattr(rangeproof, "_genrand", lambda *_: chain)
+    with pytest.raises(BTClibRuntimeError, match="last ring blinding factor is zero"):
+        sign(_BLIND, 3, _NONCE, min_bits=2)
+
+
+def test_a_ring_commitment_at_infinity_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`secp256k1_pedersen_ecmult` landing on infinity, which is no key.
+
+    A ring commitment is its blinding factor times G plus its digit at
+    the weight of its place, and the two cancel only for a blinding
+    factor that is the discrete logarithm of the digit's point. Nobody
+    has one for the generator this module uses -- `second_generator` is
+    derived precisely so that nobody does -- so the generator is put on
+    a known multiple of G here and the blinding factor read off it.
+    """
+    log_of_generator = 12345
+    monkeypatch.setattr(
+        rangeproof,
+        "second_generator",
+        lambda: mult(log_of_generator, secp256k1.G, secp256k1),
+    )
+    # the single ring of a mantissa of two, whose digit is the value
+    blind = -3 * log_of_generator % secp256k1.n
+    err_msg = "ring commitment is the point at infinity"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        sign(blind, 3, _NONCE, min_bits=2)
 
 
 # `pragma: no cover` on every `@needs_zkp` below, the marker being the
@@ -1089,3 +1310,39 @@ def test_the_nonce_chain_answers_proofs_zkp_signs_at_other_shapes() -> None:
         ):
             for j, (a, b) in enumerate(zip(drawn, written, strict=True)):
                 assert (a == b) == (j != sign_key_idx[i])
+
+
+@needs_zkp  # pragma: no cover -- no zkp.rangeproof to sign the same headers
+def test_zkp_signs_and_verifies_the_proofs_this_module_writes() -> None:
+    """The library asked for the octets `sign` answers, header by header.
+
+    The rows of `_HEADERS`, which are where a request and what the
+    format has room for come apart: an exponent lowered, a `min_bits`
+    clamped, a range that swallows the value into its floor. Each is
+    asked three things, and they are three different questions. `sign`
+    says zkp writes these very octets; `verify` says zkp reads them as
+    the range they state, and answers that range; and the same call
+    over a proof with one octet of the signature turned says it is not
+    reading them as a range whatever they are.
+    """
+    blind = bytes.fromhex(_BLIND)
+    nonce = bytes.fromhex(_NONCE)
+    for arguments, header, _ in _HEADER_CASES:
+        value, min_value, exp, min_bits = arguments
+        commitment = zkp_generator.pedersen_commit(blind, value)
+        octets = _written(arguments).serialize()
+        assert octets == zkp_rangeproof.sign(
+            commitment,
+            blind,
+            nonce,
+            value,
+            min_value=min_value,
+            exp=exp,
+            min_bits=min_bits,
+        )
+        assert zkp_rangeproof.info(octets) == header
+        assert zkp_rangeproof.verify(commitment, octets) == header[2:]
+
+        turned = bytearray(octets)
+        turned[-1] ^= 1
+        assert zkp_rangeproof.verify(commitment, bytes(turned)) is None

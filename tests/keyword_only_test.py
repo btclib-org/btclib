@@ -174,6 +174,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
     "btclib.ecc.rangeproof:RangeProof.parse": ["check_validity"],
     "btclib.ecc.rangeproof:RangeProof.pubk_rings": ["check_validity"],
     "btclib.ecc.rangeproof:RangeProof.serialize": ["check_validity"],
+    "btclib.ecc.rangeproof:sign": ["min_value", "exp", "min_bits"],
     "btclib.ecc.dsa:Sig.__init__": ["check_validity"],
     "btclib.ecc.dsa:Sig.parse": ["check_validity", "strict"],
     "btclib.ecc.dsa:Sig.serialize": ["check_validity"],

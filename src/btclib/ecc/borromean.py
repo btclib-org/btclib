@@ -93,17 +93,18 @@ that remaining distance, filed and decided wanted.
 `RangeProof.parse` takes the flags, the exponent, the mantissa, the
 `min_value`, the sign bits and the ring commitments of such a header,
 and holds the `e0` and the `s` values inside the proof as a
-`BorromeanSig` of this module's. `sign_public_value` writes the proof
-whose ring structure is one ring of one key -- the value in the clear,
-so no digit decomposition and no ring commitment -- and it closes that
-ring on its own rather than through this module. The message format is
-what ``sign_`` answers: a rangeproof hashes the value commitment, the
-generator and the proof's own header, with no pubkey ring in the
-preimage. The ring convention above is still a reason, and beside it
-the challenge `sign_public_value` leaves unreduced and the zero `s` it
-refuses to write, both of which `ecc.rangeproof` states beside the code
-that carries them. Verifying a proof and rewinding one are still
-ahead of it.
+`BorromeanSig` of this module's, and `sign` writes one -- the digit
+decomposition, the ring commitments and the header included.
+
+It closes those rings on its own rather than through this module, and
+`ecc.rangeproof._borromean_sign` is where the differences are stated:
+the ring convention above, the forged `s` values taken from the proof's
+own nonce chain where ``sign_`` draws them, and, in
+`ecc.rangeproof._challenge`, a challenge at or past n abandoning the
+proof where this module reduces it. The message format is shared, a
+rangeproof hashing the value commitment, the generator and the proof's
+own header with no pubkey ring in the preimage. Verifying a proof and
+rewinding one are still ahead of it.
 
 The signing direction is issue #1072's to discharge:
 `zkp.rangeproof.sign` and `zkp.rangeproof.verify` are wrapped, and the
@@ -470,14 +471,14 @@ def sign_(
     preimage that does not reach `pubk_rings` leaves the ring free to be
     swapped for another one under the signature made over it.
 
-    A rangeproof is the caller that wants this, and is why the hash
-    cannot be built from the two arguments here: its preimage is the
-    value commitment, the generator and the proof's own header, with no
-    pubkey ring in it at all, and `ecc.rangeproof` rebuilds the rings
-    from that commitment instead. What this offers that caller is the
-    message format alone: the module docstring above measures what still
-    stands between a signature written here and one
-    `secp256k1_borromean_verify` takes.
+    A rangeproof is where a preimage of that shape comes from: it is
+    the value commitment, the generator and the proof's own header,
+    with no pubkey ring in it at all, and `ecc.rangeproof` rebuilds the
+    rings from that commitment instead. It closes its own rings rather
+    than calling this, for the reasons
+    `ecc.rangeproof._borromean_sign` gives; what stands between a
+    signature written here and one `secp256k1_borromean_verify` takes
+    is the module docstring above.
 
     `pubk_rings` is an argument here as it is in `sign`: the walk
     multiplies by those points, and a hash cannot give them back. So

@@ -2688,15 +2688,16 @@ from the caller's -- so `sign` called again with an entry's `blind`,
 `nonce`, `value` and `sign arguments` answers that entry's `proof`,
 byte for byte. `test_the_vectors_are_what_zkp_signs_today` is that
 check, so the procedure is a test rather than a note here, and it runs
-wherever the extension does. The same determinism makes the entries
-signed at a negative `exp` an oracle for what btclib writes:
-`sign_public_value` builds those proofs from an entry's own `blind`,
-`value` and `nonce`, and
-`test_sign_public_value_writes_the_octets_zkp_signed` holds it to these
-octets wherever the suite runs, extension or not. Both shapes such a
-proof has are recorded, `public value` carrying a `min_value` field and
-`public value, zero` carrying none, so neither is left to the weekly
-sentinel.
+wherever the extension does. The same determinism makes the entries an
+oracle for what btclib writes: `ecc.rangeproof.sign` builds a proof
+from an entry's own `blind`, `value`, `nonce` and `sign arguments`, and
+`test_sign_writes_the_octets_zkp_signed` holds it to these octets
+wherever the suite runs, extension or not.
+`test_sign_public_value_writes_the_octets_zkp_signed` asks the same of
+the spelling that fixes the exponent for a value stated in the clear,
+and both shapes that proof has are recorded, `public value` carrying a
+`min_value` field and `public value, zero` carrying none, so neither is
+left to the weekly sentinel.
 
 **The `info` key is why a run without the extension still compares
 against something.** Those are `zkp.rangeproof.info`'s own answers for
