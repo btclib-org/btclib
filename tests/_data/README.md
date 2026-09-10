@@ -28,14 +28,15 @@ upstream to pin, and nothing to compare against but ourselves —
 `BTCLIB_REGENERATE_GOLDEN=1 uv run pytest` rewrites them on purpose.
 
 Upstream prose that btclib *paraphrases* has no entry here either: a
-BIP's reasoning, a Core comment, a libsecp256k1 header's rationale are
+BIP's reasoning, a Core comment, a C library header's rationale are
 cited in the docstring or the comment that paraphrases them, and a
 paraphrase admits no byte comparison, so there is nothing for the weekly
 job to ask. What such a citation carries is decided by what it names. A
-file needs no revision -- the path keeps its name, and a reader who opens
-it reads the reasoning upstream holds now, which is what a paraphrase
-sends them for -- and `btclib.ecc.dsa`'s anti-exfil docstrings cite
-`include/secp256k1_ecdsa_s2c.h` that way. A line needs one: a line number
+file needs no revision -- the repository and the path keep their names,
+and a reader who opens it reads the reasoning upstream holds now, which
+is what a paraphrase sends them for -- and `btclib.ecc.dsa`'s anti-exfil
+docstrings cite `include/secp256k1_ecdsa_s2c.h` of
+BlockstreamResearch/secp256k1-zkp that way. A line needs one: a line number
 is the one thing that moves under a file that keeps its name, so without
 a revision the citation degrades into pointing at whatever now occupies
 it. The revision sits in the citation or in the module docstring that
