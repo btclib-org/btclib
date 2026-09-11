@@ -427,6 +427,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      # what posting the reply takes
       pull-requests: write
       # the same startup OIDC token the review job above needs
       id-token: write

@@ -403,6 +403,22 @@ documented at release-notes length in the first place, and are still in
   is asserted in both directions against libsecp256k1-zkp over a
   generator `zkp.generator.generate` derives.
 
+### The `mention` job's `pull-requests: write` carries its reason
+
+- **`claude-review.yml`'s `mention` job says at its `pull-requests: write`
+  line what the grant is for** (issue btclib-org/.github#915): the
+  `review` job's grant and the `id-token: write` beside this one each
+  carry a reason at their line, and this grant carried none. The
+  sentence is the one `btclib-node` and `btclib-benchmarks` carry above
+  theirs, `# what posting the reply takes`, taken byte for byte so that
+  one reason is not worded two ways across the copies. Section 14 of the
+  organization standard keeps the file out of `tests/verbatim_test.py`'s
+  comparison -- `claude-review.yml` "is owed by every repository section
+  11 governs, and section 15's existence loop is what checks that — not
+  this list" -- so a copy carrying the comment beside one that does not
+  turns nothing red. The other copies are owed the same line, which is
+  why this entry cites the issue rather than closing it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
