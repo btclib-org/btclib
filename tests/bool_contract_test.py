@@ -63,6 +63,7 @@ import pytest
 
 from btclib import b58, bip322
 from btclib.block import merkle_proof
+from btclib.curves import mult, secp256k1
 from btclib.ecc import bms, dleq, dsa, pedersen, ssa
 from btclib.hashes import reduce_to_hlen
 from btclib.key import PrvKeyData
@@ -89,7 +90,8 @@ _DLEQ_B = pub_keyinfo_from_prv_key(2)[0]
 _DLEQ_C = pub_keyinfo_from_prv_key(2 * _Q)[0]
 _DLEQ_PROOF = dleq.generate_proof(_Q, _DLEQ_B)
 # rG + vH for the very (r, v) its case opens it with
-_COMMITMENT = pedersen.commit(1, 2)
+_GEN = pedersen.second_generator()
+_COMMITMENT = pedersen.commit(1, 2, _GEN)
 
 # a value of a declared type that no valid input carries. The same split
 # `input_validation_test.py` makes, spelled per position because a
@@ -161,11 +163,18 @@ _CASES = (
     _Case(
         "pedersen.verify",
         pedersen.verify,
-        (1, 2, _COMMITMENT),
+        (1, 2, _COMMITMENT, _GEN),
         # every value of an int is one, so the wrong value here is a
         # different number rather than a malformed one, and a commitment
-        # those two do not open
-        {0: 999, 1: 999, 2: pedersen.commit(9, 9)},
+        # those two do not open. The wrong generator is a point of the
+        # curve like any other, and a commitment made under one does not
+        # open under another
+        {
+            0: 999,
+            1: 999,
+            2: pedersen.commit(9, 9, _GEN),
+            3: mult(2, _GEN, secp256k1),
+        },
     ),
     _Case(
         "merkle_proof.verify",
