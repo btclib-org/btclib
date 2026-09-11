@@ -1599,6 +1599,51 @@ in one under `src`. Nothing is lost at the other end — every name
 `include` declares is spelled in `src` too, the difference being names a
 header comment wraps in prose rather than declares.
 
+The revision is one of bitcoin-core/secp256k1's own, and not the one the
+bindings vendor. `btclib-secp256k1` compiles the library a caller loads
+from a submodule of that repository, so what the suite links is the
+submodule of the release `uv.lock` resolves:
+
+```shell
+version=<the btclib-secp256k1 version `uv.lock` resolves>
+```
+
+```shell
+gh api \
+    "repos/btclib-org/btclib-secp256k1/contents/secp256k1?ref=v${version:?}" \
+    --jq .sha
+```
+
+A name upstream has added since that revision is in this set and not in
+the library the suite runs against, and a name upstream has renamed away
+is in that library and not in this set. The names are what the entry's own
+re-derivation prints when it is run again at the submodule's revision
+and compared with the vendored set. `comm` compares byte for byte on
+input it takes as already sorted, so the vendored side is sorted again
+under the collation the left side is being built in rather than trusted
+to be in it: with the file's own order, a `sort` of another collation
+answers a longer difference, and the `comm` macOS ships prints nothing
+to say so.
+
+```shell
+submodule=<the sha the call above prints>
+symbols=<the path to `tests/_data/secp256k1_symbols.txt`>
+```
+
+```shell
+git grep -ohP '(?<![A-Za-z0-9_])secp256k1_[a-z0-9_]+' "${submodule:?}" \
+    -- src | sort -u | comm -3 - <(sort "${symbols:?}")
+```
+
+Upstream is what the set is of, because that is the read a credit asks
+for: `tests/upstream_symbols_test.py` refuses a credit a reader cannot
+follow, and following one is a read of bitcoin-core/secp256k1's source.
+Pinning to the submodule would answer for the library the bindings ship
+and give that up — a renamed-away name would stay in the set, so a
+credit spelling it would pass and land its reader on a function upstream
+does not have. What neither pin answers is whether the installed
+bindings expose a name, that being a fact about their own surface.
+
 ## Other projects
 
 ### `tests/curves/_data/pubkey.json`

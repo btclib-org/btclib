@@ -31,6 +31,19 @@ reminder about; `.github/workflows/vendored-vectors.yml` is what says
 the pin has moved, weekly and outside the suite, the way it does for
 every other pin that README carries.
 
+**The revision pinned there is upstream's own, not the one the bindings
+vendor.** `btclib-secp256k1` builds the library a caller loads from a
+submodule of bitcoin-core/secp256k1, so a name upstream has added since
+that submodule's last bump is in this set and absent from the library
+the suite runs against. Upstream is what a credit asks about: it is
+followed into that repository's source, and the set is of what is there
+to be found. Pinning to the submodule would answer for the library the
+bindings ship and give that up, a name upstream has renamed away
+staying in the set and a credit spelling it passing. Whether the
+installed bindings expose a name is a third question, and neither pin
+answers it. `tests/_data/README.md`'s entry carries the choice and the
+command that names the difference.
+
 **The authority is the library's own `src`, not its `include`.**
 Publishing is a different question from having, and a credit raises the
 second: `curves.curve` names `secp256k1_ge_x_on_curve_var`,
