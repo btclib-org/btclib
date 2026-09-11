@@ -291,6 +291,51 @@ documented at release-notes length in the first place, and are still in
   `taproot` citation keeps its dotted name, which cannot reject a drift
   within `_tweaked_prvkey` either (issue #2001).
 
+### `docs/source/guide.rst` states the delegation by what a caller passes
+
+- **`ssa.sign` and `dsa.sign` dispatch on no message size, and the
+  guide's constant-time bullet said they did** (closes #1993).
+  `ssa.sign` asks `_libsecp256k1_serves(ec, hf) and commit_hash is None`,
+  the bindings' `sign_custom` beside their `sign` taking BIP340's
+  message of any size (issue #169); `dsa.sign`'s guard names no size
+  either. A caller's own nonce, listed in the same sentence, is
+  `dsa.sign`'s condition alone -- `ssa.sign` takes an `aux` and has no
+  nonce to impose.
+- **What the bullet gives instead is what a reader can apply to the
+  call they are about to make**, rather than the operations it named.
+  `curves.curve._libsecp256k1_serves` is the predicate every dispatch
+  asks, and only its curve half is absolute: another curve is the
+  Python path whatever the call. The hash function is a condition of
+  the operations that pass the predicate one, compared there by
+  identity, so a wrapper around `sha256` declines; a guard passing
+  `None` does not consult it at all. `ecc.commit_nonce.commit_nonce_`
+  and `ecc.dh.diffie_hellman` are where the difference shows: each
+  takes an `hf` and asks `_libsecp256k1_serves(ec, None)`, so
+  `hf=sha512` on secp256k1 still delegates the tweak of the secret
+  nonce and the multiplication by the secret scalar. Those
+  per-operation conditions are `SECURITY.md`'s *Limitations, not
+  vulnerabilities* section, which the bullet already links to; the
+  guide gives none of them a second wording.
+
+### `SECURITY.md`'s routing sentence states a condition, not a roster
+
+- **The opening section named three delegated operations where the
+  dispatch is wider** (closes #1999), disagreeing with the same file's
+  *Limitations, not vulnerabilities* bullet, which states the
+  delegation by shape -- `curves.curve.mult` delegates every point that
+  is neither the generator nor infinity. What routes a report is the
+  condition, so that is what the sentence gives: the installation, the
+  curve, the hash function and the arguments of the operation, with
+  that section named as where it is spelled out. Nothing of it is
+  restated.
+- **A `libsecp256k1_*.*` grep is a floor and not the surface.** It
+  reads a call made through one of the bindings' modules and misses
+  every one made through a flat alias, `curves.curve`'s generator arm
+  and `_libsecp256k1_multi_mult` among them.
+  `src/btclib/_libsecp256k1.py` binds both kinds, being the one module
+  that imports the bindings at runtime, so the surface is read there
+  rather than matched for.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

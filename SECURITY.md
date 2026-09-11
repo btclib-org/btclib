@@ -18,14 +18,16 @@ equally welcome.
 
 ## What belongs here, and what belongs upstream
 
-Signing, verification and generator multiplication on secp256k1 are
-delegated to
+secp256k1 arithmetic is delegated to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1/security/advisories/new),
 the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
-itself, which has its own security policy and its own address. A flaw in
-the elliptic curve arithmetic, or in how the bindings drive it, most
-likely belongs to one of those.
+itself, which has its own security policy and its own address. Not every
+call: the installation, the curve, the hash function and the arguments
+of the operation decide which, and *Limitations, not vulnerabilities*
+below is where that condition is stated. A flaw in the elliptic curve
+arithmetic, or in how the bindings drive it, most likely belongs to one
+of those.
 
 What belongs here is everything btclib does around them:
 

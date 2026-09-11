@@ -40,10 +40,15 @@ particular btclib does **not**:
   use it with a key that holds value: private keys live in ordinary,
   immutable python objects that are never zeroized, and — the least
   obvious limitation — **not every operation reaches the constant-time
-  C library**. secp256k1 signing and generator multiplication are
-  delegated to the libsecp256k1 bindings; another curve, another hash
-  function, a nonce of your own, or a message that is not 32 bytes takes
-  the pure python path instead, which is double-and-add and makes no
+  C library**. With the bindings installed, what you pass decides
+  whether a given call does. A curve other than secp256k1 takes the
+  pure python path whatever the call; on secp256k1 an operation may
+  carry a further condition of its own, and that section gives them.
+  The hash function is one of those conditions rather than a second
+  absolute: where an operation has one, ``sha256`` itself is what
+  counts and ``functools.partial(sha256)`` is not it; where an
+  operation has none, hashing with something else leaves the call
+  delegated. The pure python path is double-and-add and makes no
   attempt to be constant-time
 
 .. warning::
