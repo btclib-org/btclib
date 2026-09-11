@@ -419,6 +419,19 @@ documented at release-notes length in the first place, and are still in
   turns nothing red. The other copies are owed the same line, which is
   why this entry cites the issue rather than closing it.
 
+### An anchor in `SECURITY.md` is chosen by what its sentence claims
+
+- **`bip32.__prv_key_derivation`, `taproot._tweaked_prvkey` and
+  `dh.diffie_hellman` carry a quotation of the line cited, beside the
+  name** (closes #2001). `tests/security_citations_test.py` matches a
+  quotation against that line and a dotted name against the definition
+  holding it, so a name is satisfied by every line of the definition --
+  and each of these holds a Python arm that the sentence around the
+  citation is not about.
+- **`ellswift.xdh` is named rather than quoted**, its sentence being
+  about the function: it returns octets rather than an `int`, and what
+  an `into=` buffer would cost there is `xdh`'s public signature.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

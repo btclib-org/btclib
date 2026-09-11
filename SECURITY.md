@@ -145,10 +145,12 @@ used to teach and to prototype as much as to build:
     `ecdh.shared_secret`, `ellswift.xdh`, `dsa.nonce_rfc6979` and
     `ssa.nonce_bip340`. btclib passes none of them, and that is a
     decision, not an oversight. These call sites read one of those
-    straight into a Python `int`: `bip32.__prv_key_derivation`
+    straight into a Python `int`: `bip32.__prv_key_derivation` at
+    `int.from_bytes(key, byteorder="big", signed=False)`
     (`src/btclib/bip32/bip32.py:842`), `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
     (`src/btclib/ecc/commit_nonce.py:158`) and `taproot._tweaked_prvkey`
+    at `int.from_bytes(tweaked, "big")`
     (`src/btclib/script/taproot.py:480`). A caller-owned buffer can be
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless — the
@@ -327,7 +329,8 @@ used to teach and to prototype as much as to build:
     scalar, arrives here, `curves.curve.mult` delegating every point
     that is neither the generator nor infinity —
     `return _libsecp256k1_multi_mult([m], [Q])`
-    (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman`
+    (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman` at
+    `sec = libsecp256k1_keys.pubkey_tweak_mul(`
     (`src/btclib/ecc/dh.py:107`) is the one this bullet was written
     from, and is an example rather than the population: key agreement,
     a BIP374 discrete-log equality proof and the key generation of
