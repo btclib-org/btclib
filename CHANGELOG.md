@@ -275,6 +275,22 @@ documented at release-notes length in the first place, and are still in
   the measurement rather than as the place such a multiplication
   happens.
 
+### `SECURITY.md` cites the line that reads a buffer into a Python `int`
+
+- **The read is at `src/btclib/ecc/commit_nonce.py:158` and at
+  `src/btclib/script/taproot.py:480`** (closes #1995). The citations
+  named the blank line after the first, and the `prvkey_tweak_add` call
+  that fills the buffer ahead of the second; the sentence around them is
+  about the read.
+- **The anchor in front of the `commit_nonce` citation is the quoted
+  line rather than `commit_nonce.commit_nonce_`.**
+  `tests/security_citations_test.py` matches a dotted name against the
+  definition holding the cited line, which a line elsewhere in that
+  definition satisfies too, and matches a quotation against the line
+  itself, so that citation fails on a drift the name passes. The
+  `taproot` citation keeps its dotted name, which cannot reject a drift
+  within `_tweaked_prvkey` either (issue #2001).
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
