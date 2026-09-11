@@ -21,6 +21,27 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.9 (work in progress, not released yet)
 
+### Breaking changes
+
+- **`btclib.ecc.pedersen` and `btclib.ecc.rangeproof` take the generator
+  they work at** (closes #1986). `pedersen.commit(r, v, ec: Curve =
+  secp256k1, hf: HashF = sha256)` -- the spelling at `v2023.7.12` but
+  for `r` and `v`, which widened to `Integer` -- derived `H` from `ec`
+  and `hf` and is `commit(r, v, gen: Point, ec: Curve = secp256k1)` now;
+  `pedersen.verify(r, v, commitment, ec, hf)` and the
+  `pedersen.assert_as_valid` beside it take `gen` after the commitment
+  and no `hf`. In `ecc.rangeproof`, `sign_public_value(blind, value,
+  nonce)` and `RangeProof.nonce_chain(commitment, value, nonce,
+  message)` take it fourth, ahead of `message` in the second, and
+  `RangeProof.pubk_rings(commitment)` takes it second.
+
+  Act on it if you called any of them. `btclib.ecc.pedersen.second_generator()`
+  is the generator those calls used to derive, so passing it keeps every
+  answer the same; `btclib.ecc.pedersen.second_generator(ec, hf)` is the
+  argument for a curve or a hash function other than the defaults, and
+  `btclib.ecc.pedersen.generator_from_seed(seed, blind)` is the other
+  way to make one.
+
 ## v2026.9.10
 
 ### Breaking changes

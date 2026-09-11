@@ -2247,6 +2247,43 @@ The entries of
 `tests/ecc/_data/zkp_rangeproof_vectors.json` record a nonce of their
 own, and `tests/ecc/rangeproof_test.py` is where those are rewound.
 
+### `tests/ecc/_data/zkp_generator_vectors.json`
+
+```text
+repo    BlockstreamResearch/secp256k1-zkp
+path    src/modules/generator/tests_impl.h
+commit  d111d31293b479832c767946145702151897785d  2026-03-03
+blob    14ec95dc94780126a796866b05eeafa2093bf22f
+pulled  2026-09-11
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically. One json object per element of
+each `secp256k1_ge_storage results[]` array upstream declares in that
+file, `x` and `y` being the halves of a `SECP256K1_GE_STORAGE_CONST`.
+`shallue van de woestijne` is `test_shallue_van_de_woestijne`'s array
+and `t` the field element that function maps -- its loop counter, then
+that counter negated, which is the order the array is indexed in;
+`generator generate` is `test_generator_generate`'s and `seed` the `v`
+that function fills with its own counter. `id` names the argument rather
+than the position. The pass that produced the file is not committed -- a
+one-off read of C source is not a tool -- and what re-derives it is
+reading those arrays again.
+
+Not vendored as the file itself for the reason the entry above gives:
+this map has no published vector file anywhere, upstream stating its own
+against the sage program it keeps beside the code. The bindings
+`uv.lock` resolves vendor a fork of that repository,
+`fametrano/secp256k1-zkp` at
+`a8f6b86a804cdfd455dfb943937d254ec6ccc70a`; the blob at this path there
+is the one above, where the entry above has to name its own, so the
+transcription's source is the code the bindings run.
+
+`tests/ecc/pedersen_test.py` is what reads it: the first array against
+`ecc.pedersen._shallue_van_de_woestijne` and the second against
+`generator_from_seed`, at no blinding factor and at a zero one, which is
+the pair of calls upstream's own loop makes of each entry.
+
 ### `tests/ecc/anti_exfil_test.py`
 
 ```text
@@ -2797,6 +2834,7 @@ Not checked byte for byte against one:
   `chacha20_vectors.json`, `muhash_vectors.json`,
   `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`, `bolt9.py`,
   `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`,
+  `zkp_generator_vectors.json`,
   `anti_exfil_test.py`, `secp256k1_symbols.txt`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and

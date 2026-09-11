@@ -360,6 +360,49 @@ documented at release-notes length in the first place, and are still in
   `20ad654` as what the fence converged on goes too, the section itself
   being that comparison now.
 
+### `ecc.pedersen` derives a generator from a seed
+
+- **The Shallue-van de Woestijne map, which is how a generator that is
+  not `second_generator` is made** (closes #1989).
+  `generator_from_seed` hashes a seed under
+  `secp256k1_generator_generate_internal`'s two prefixes, maps each
+  digest onto the curve and sums the points, so the result has no known
+  discrete logarithm with respect to `G` or to any other generator it
+  answers -- which is what a confidential transaction committing each
+  of several assets under its own generator needs. A blinding factor
+  adds `blind*G` to that sum, one function taking it where the C
+  publishes `secp256k1_generator_generate` and
+  `secp256k1_generator_generate_blinded`.
+- **sqrt(-3) and (sqrt(-3) - 1)/2 are derived, not transcribed.**
+  libsecp256k1-zkp writes both as field literals; for a p of 3 mod 4
+  `number_theory.mod_sqrt_var` answers the root that is itself a
+  square, and that is the root those literals hold.
+- **The candidates are tried in order rather than selected with a
+  constant-time move.** zkp forms all three square roots and chooses
+  among them with `secp256k1_fe_cmov`; this asks
+  `curves.curve._is_x_coordinate_var` for existence and forms the one
+  root it needs, a generator's seed being published.
+
+### `ecc.pedersen` and `ecc.rangeproof` take the generator they work at
+
+- **`commit(r, v, gen, ec)` takes the generator and no longer derives
+  one** (closes #1986), as `secp256k1_pedersen_commit` takes its own
+  `gen`; `assert_as_valid` and `verify` take it beside the commitment.
+  The hash function is gone from all three: a hash is how a generator is
+  derived and says nothing about a sum of points, and
+  `second_generator(ec, hf)` is what a caller wanting the old default
+  passes.
+- **`ecc.rangeproof.sign`, `sign_public_value`, `assert_as_valid`,
+  `verify` and `rewind` take it too**, as zkp's own three entry points
+  take `gen_bytes`, and thread it to the octets hashed into the message
+  every ring is signed over, the weight each ring's keys step down by,
+  and the `min_value` offset a verifier subtracts.
+  `RangeProof.pubk_rings` and `RangeProof.nonce_chain` take it for the
+  same reason.
+- **A proof written under one generator holds under no other**, which
+  is asserted in both directions against libsecp256k1-zkp over a
+  generator `zkp.generator.generate` derives.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

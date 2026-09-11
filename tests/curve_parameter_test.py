@@ -128,7 +128,8 @@ _DSA_SIG = dsa.sign(_MSG, _PRV_KEY)
 _SSA_SIG = ssa.sign(_MSG, _PRV_KEY)
 _ELL = ellswift.encode_var(_PUB_KEY)
 _ELL_2 = ellswift.encode_var(_PUB_KEY_2)
-_COMMITMENT = pedersen.commit(1, 2)
+_GEN = pedersen.second_generator()
+_COMMITMENT = pedersen.commit(1, 2, _GEN)
 
 # two rings of two keys, the smallest borromean signature there is: what
 # this file asks of it is the curve, and a wider ring would only be a
@@ -348,16 +349,20 @@ _CASES = (
         {"ell_a": _ELL, "ell_b": _ELL_2, "prv_key": _PRV_KEY, "party": 0},
     ),
     _Case("btclib.ecc.pedersen.second_generator", pedersen.second_generator),
-    _Case("btclib.ecc.pedersen.commit", pedersen.commit, {"r": 1, "v": 2}),
+    _Case(
+        "btclib.ecc.pedersen.commit",
+        pedersen.commit,
+        {"r": 1, "v": 2, "gen": _GEN},
+    ),
     _Case(
         "btclib.ecc.pedersen.assert_as_valid",
         pedersen.assert_as_valid,
-        {"r": 1, "v": 2, "commitment": _COMMITMENT},
+        {"r": 1, "v": 2, "commitment": _COMMITMENT, "gen": _GEN},
     ),
     _Case(
         "btclib.ecc.pedersen.verify",
         pedersen.verify,
-        {"r": 1, "v": 2, "commitment": _COMMITMENT},
+        {"r": 1, "v": 2, "commitment": _COMMITMENT, "gen": _GEN},
     ),
     _Case("btclib.ecc.rfc6979_nonce.challenge_", challenge_, {"msg_hash": _MSG_HASH}),
     _Case(

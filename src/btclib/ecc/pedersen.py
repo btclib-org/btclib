@@ -40,23 +40,30 @@ for some x and its negation for others, with nothing in the octets to
 say which reading wrote them, so the two are not one function under two
 names.
 
-The codec below is secp256k1's and takes no `ec`: the tags and the width
-of x are libsecp256k1-zkp's format, and that library is secp256k1's. The
-commitment functions above take one because rG+vH is a sum of points,
-which every curve has.
+The codec below is secp256k1's and takes no `ec`: the tags and the
+width of x are libsecp256k1-zkp's format, and that library is
+secp256k1's. `generator_from_seed` takes none for a different reason:
+the map it runs is written around sqrt(-3) and the curve's own b, so it
+is a construction of this field rather than a format read in it.
+`commit` takes an `ec` because rG+v*gen is a sum of points, which every
+curve has, and takes the generator rather than deriving one because a
+commitment is only as binding as the generator behind it and a caller
+with several assets has one per asset.
 """
 
 from functools import lru_cache
 from hashlib import sha256
 
 from btclib.alias import HashF, Integer, Octets, Point
-from btclib.curves import Curve, bytes_from_point, double_mult_var, secp256k1
-from btclib.curves.curve import _assert_valid_ec
+from btclib.curves import Curve, bytes_from_point, double_mult_var, mult, secp256k1
+from btclib.curves.curve import _assert_valid_ec, _is_x_coordinate_var
+from btclib.curves.curve_group import HEX_THRESHOLD
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.number_theory import legendre_symbol_var
+from btclib.number_theory import legendre_symbol_var, mod_sqrt_var
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
+    hex_string,
     int_from_bits,
     int_from_integer,
 )
@@ -68,6 +75,7 @@ __all__ = [
     "commit",
     "commitment_from_octets",
     "generator_from_octets",
+    "generator_from_seed",
     "second_generator",
     "verify",
 ]
@@ -97,8 +105,8 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     The result is cached on (ec, hf): it is a constant for that pair,
     recomputing it on every call cost 71% of a commitment (issue #287).
 
-    For (secp256k1, sha256), the pair used everywhere else in this
-    module by default, the derived H equals the H hardcoded as
+    For (secp256k1, sha256), this function's own default pair, the
+    derived H equals the H hardcoded as
     `secp256k1_generator_h` in libsecp256k1-zkp -- the H of Elements and
     of Confidential Transactions.
     `tests/ecc/pedersen_test.py::test_second_generator` pins that value
@@ -116,10 +124,10 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     https://github.com/BlockstreamResearch/secp256k1-zkp/blob/master/src/modules/generator/main_impl.h
     """
     # the generator is read off the curve before anything is done with
-    # it, so this is where the three functions below first reach theirs;
-    # and it is inside the cache rather than in front of it, an ec of no
-    # curve type being a key like any other -- hashable, so lru_cache
-    # would take it, and never stored, exceptions not being cached
+    # it, so an ec of no curve type is turned down here; and the
+    # refusal is inside the cache rather than in front of it, such an
+    # ec being a key like any other -- hashable, so lru_cache would
+    # take it, and never stored, exceptions not being cached
     _assert_valid_ec(ec)
     G_bytes = bytes_from_point(ec.G, ec, compressed=False)
     hash_ = hf()
@@ -136,12 +144,154 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
             return x_H, y_H
 
 
-def commit(r: Integer, v: Integer, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
-    """Commit to v under blinding factor r, returning rG+vH.
+# what a seed occupies: `secp256k1_generator_generate`'s own `key32`
+_SEED_SIZE = 32
 
-    H is `second_generator`, whose docstring has why nobody can open
-    this to a different (r, v). r=0 mod n is refused: it commits with no
-    blinding at all, Q is then v*H, a point anyone who guesses v can
+# the prefixes `secp256k1_generator_generate_internal` hashes the seed
+# under, the trailing space of each included: the C declares each an
+# octet longer than what it writes, so no terminator is hashed
+_FIRST_GENERATION = b"1st generation: "
+_SECOND_GENERATION = b"2nd generation: "
+
+# sqrt(-3) and (sqrt(-3) - 1)/2, the two field constants the map below
+# is written around. libsecp256k1-zkp writes them as literals, `negc`
+# there being the negation of the first, where the field answers them:
+# for a p of 3 mod 4 `mod_sqrt_var` returns the root that is itself a
+# square, and `test_the_map_constants_are_derived` holds that root
+# against the literal. `ecc.ellswift._constants` derives the same root
+# the same way, SwiftEC being written around it too.
+_SQRT_MINUS_3 = mod_sqrt_var(-3 % secp256k1.p, secp256k1.p)
+_HALF_SQRT_MINUS_3_LESS_1 = (_SQRT_MINUS_3 - 1) * pow(2, -1, secp256k1.p) % secp256k1.p
+
+
+def _shallue_van_de_woestijne(t: int) -> Point:
+    """Return the point of the curve that field element maps to.
+
+    `shallue_van_de_woestijne` in `src/modules/generator/main_impl.h`,
+    which is Fouque and Tibouchi's *Indifferentiable Hashing to
+    Barreto-Naehrig Curves*: for `w = c*t/(1 + b + t**2)` the three
+    candidates `d - t*w`, `-(d - t*w + 1)` and `1 + 1/w**2` are
+    x-coordinates of which at least one is the curve's, and the first
+    that is names the point. `c` is sqrt(-3) and `d` is `(c - 1)/2`.
+
+    The joint denominator `j = (1 + b + t**2) * (-3*t**2)` is what
+    spares the second inversion, and it vanishes at t = 0 alone --
+    `1 + b + t**2` cannot, -8 being no square modulo p. The C reads
+    `secp256k1_fe_inv`'s own answer of zero for an inverse of zero and
+    so lands on `(d, f(d))` there, which is what the zero below writes
+    out.
+
+    The y is the one that is a quadratic residue, negated where t is
+    odd. The paper turns it on the Jacobi symbol of t; the C uses the
+    parity instead and gives the reason, which holds here: nothing above
+    reads t except through t**2, so any criterion that turns with the
+    sign of t answers a point of the same pair, and the parity is
+    cheaper than the symbol.
+
+    zkp forms all three roots and selects among them with
+    `secp256k1_fe_cmov`, which is what makes its walk constant-time;
+    this asks `curves.curve._is_x_coordinate_var` for existence instead
+    and forms the one root it needs. What is walked here is a digest of
+    the seed alone: `generator_from_seed` adds the blinding factor as
+    `blind*G` to the sum of the points, so no secret of a caller's
+    reaches this function.
+
+    An integer outside 0..p-1 is no field element and is refused, which
+    is `secp256k1_fe_set_b32_limit`'s own refusal of the digest
+    `generator_from_seed` hands it.
+    """
+    p = secp256k1.p
+    if not 0 <= t < p:
+        err_msg = "field element not in 0..p-1: "
+        err_msg += f"{hex_string(t)}" if t > HEX_THRESHOLD else f"{t}"
+        raise BTClibValueError(err_msg)
+
+    t_2 = t * t % p
+    wd = (t_2 + secp256k1._b + 1) % p
+    x3d = -3 * t_2 % p
+    j = wd * x3d % p
+    j_inv = pow(j, -1, p) if j else 0
+    x_1 = (_HALF_SQRT_MINUS_3_LESS_1 - _SQRT_MINUS_3 * t_2 % p * x3d % p * j_inv) % p
+    x_2 = -(x_1 + 1) % p
+    x_3 = (1 + pow(wd, 3, p) * j_inv) % p
+
+    # the cascade `secp256k1_fe_cmov` writes: the second candidate where
+    # the first is no x-coordinate, and the third where neither is
+    if _is_x_coordinate_var(x_1, secp256k1):
+        x = x_1
+    elif _is_x_coordinate_var(x_2, secp256k1):
+        x = x_2
+    else:
+        x = x_3
+    y = secp256k1.y_quadratic_residue_var(x)
+    return x, p - y if t % 2 else y
+
+
+def generator_from_seed(seed: Octets, blind: Integer | None = None) -> Point:
+    """Return the generator that seed derives, blinded where asked.
+
+    `secp256k1_generator_generate_internal`: the seed is hashed under
+    two prefixes, each digest is read as a field element and mapped to
+    the curve by `_shallue_van_de_woestijne`, and the two points are
+    summed. `secp256k1_generator.h` publishes the result as distributed
+    uniformly over the curve, with no known discrete logarithm with
+    respect to G or to any other generator this answers -- which is what
+    a confidential transaction committing each of several assets under
+    its own generator asks for, `commit` and `ecc.rangeproof` taking the
+    generator they work at.
+
+    `blind` adds `blind*G` to that sum, and one function takes it where
+    the C publishes a call per case: `secp256k1_generator_generate_blinded`
+    at a blinding factor of zero is `secp256k1_generator_generate`, which
+    is what `test_generator_generate` asserts of each of its own vectors.
+    A factor at or past n is refused, `secp256k1_scalar_set_b32`'s
+    overflow being what refuses it there; zero is not, a generator being
+    public where `commit`'s own blinding factor is secret.
+
+    `second_generator` is the other generator this module names, and the
+    two are unrelated constructions: that one increments the hash of G
+    until it lands on the curve, where this maps a digest onto it.
+
+    source:
+    https://github.com/BlockstreamResearch/secp256k1-zkp/blob/master/src/modules/generator/main_impl.h
+    """
+    seed_bytes = bytes_from_octets(seed, _SEED_SIZE)
+    Q = secp256k1.add_aff_var(
+        _shallue_van_de_woestijne(
+            int.from_bytes(sha256(_FIRST_GENERATION + seed_bytes).digest(), "big")
+        ),
+        _shallue_van_de_woestijne(
+            int.from_bytes(sha256(_SECOND_GENERATION + seed_bytes).digest(), "big")
+        ),
+    )
+    if blind is None:
+        return Q
+
+    blind_int = int_from_integer(blind)
+    if not 0 <= blind_int < secp256k1.n:
+        err_msg = "blinding factor not in 0..n-1: "
+        err_msg += (
+            f"{hex_string(blind_int)}" if blind_int > HEX_THRESHOLD else f"{blind_int}"
+        )
+        raise BTClibValueError(err_msg)
+    return secp256k1.add_aff_var(Q, mult(blind_int, secp256k1.G, secp256k1))
+
+
+def commit(r: Integer, v: Integer, gen: Point, ec: Curve = secp256k1) -> Point:
+    """Commit to v under blinding factor r, returning rG+v*gen.
+
+    `gen` is the generator the commitment is made under and the caller
+    names it, as `secp256k1_pedersen_commit` takes its own `gen`:
+    `second_generator` is the one this library derives for a curve and a
+    hash function, `generator_from_seed` the map that derives any other,
+    and nobody can open the commitment to a different (r, v) for as long
+    as log_G(gen) is unknown, which is what both derivations buy.
+
+    No hash function, where `second_generator` takes one: a hash is how
+    a generator is derived and says nothing about a sum of points.
+
+    r=0 mod n is refused: it commits with no
+    blinding at all, Q is then v*gen, a point anyone who guesses v can
     recompute. The check is on r alone and not on its range, because the
     sum of two blinding factors is a blinding factor too -- a Pedersen
     commitment is additively homomorphic -- and is routinely >= ec.n
@@ -155,15 +305,17 @@ def commit(r: Integer, v: Integer, ec: Curve = secp256k1, hf: HashF = sha256) ->
     already turns the `BTClibValueError` this raises into `False`, the
     same way it does for every other invalid (r, v).
     """
-    H = second_generator(ec, hf)
+    # ahead of the check below, which reads ec.n: `double_mult_var`
+    # asks the same of the same ec, and only after that read
+    _assert_valid_ec(ec)
     if int_from_integer(r) % ec.n == 0:
         err_msg = "invalid (unblinded) commitment: r is 0 mod n"
         raise BTClibValueError(err_msg)
-    return double_mult_var(v, H, r, ec.G, ec)
+    return double_mult_var(v, gen, r, ec.G, ec)
 
 
 def assert_as_valid(
-    r: Integer, v: Integer, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
+    r: Integer, v: Integer, commitment: Point, gen: Point, ec: Curve = secp256k1
 ) -> None:
     """Refuse a commitment that (r, v) does not open.
 
@@ -179,18 +331,18 @@ def assert_as_valid(
     """
     assert_type(commitment, tuple, "commitment")
 
-    if commitment != commit(r, v, ec, hf):
+    if commitment != commit(r, v, gen, ec):
         raise BTClibRuntimeError("commitment verification failed")
 
 
 def verify(
-    r: Integer, v: Integer, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
+    r: Integer, v: Integer, commitment: Point, gen: Point, ec: Curve = secp256k1
 ) -> bool:
     """Open the commitment and return True if valid."""
     # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
     # and for its reasons, which it states
     try:
-        assert_as_valid(r, v, commitment, ec, hf)
+        assert_as_valid(r, v, commitment, gen, ec)
     except (ValueError, BTClibRuntimeError):
         return False
 

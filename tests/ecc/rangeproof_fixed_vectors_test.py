@@ -50,9 +50,15 @@ from btclib.ecc.pedersen import (
     bytes_from_commitment,
     commit,
     commitment_from_octets,
+    second_generator,
 )
 from btclib.ecc.rangeproof import RangeProof, rewind, verify
 from tests import load, vector_id
+
+# the generator every commitment and every proof below is made under:
+# libsecp256k1-zkp wrote these vectors at its own `secp256k1_generator_h`,
+# which is what `second_generator` derives
+_GEN = second_generator()
 
 _VECTORS = load("ecc", "_data", "zkp_rangeproof_fixed_vectors.json")
 _IDS = [vector_id(i, v["id"]) for i, v in enumerate(_VECTORS)]
@@ -158,10 +164,10 @@ def test_the_rings_open_at_the_published_blinding_factor(
     are asserted directly rather than left to it.
     """
     proof = RangeProof.parse(bytes.fromhex(vector["proof"]))
-    commitment = commit(vector["blind"], vector["value"])
+    commitment = commit(vector["blind"], vector["value"], _GEN)
     assert bytes_from_commitment(commitment) == bytes.fromhex(vector["commitment"])
 
-    rings = proof.pubk_rings(commitment)
+    rings = proof.pubk_rings(commitment, _GEN)
     stated = tuple(
         _point_from_x(x, sign)
         for x, sign in zip(proof.ring_commitments, proof.signs, strict=True)
@@ -190,11 +196,11 @@ def test_the_signature_holds_for_the_published_commitment(
     """
     commitment = commitment_from_octets(vector["commitment"])
     octets = bytes.fromhex(vector["proof"])
-    assert verify(commitment, octets)
+    assert verify(commitment, octets, _GEN)
 
     turned = bytearray(octets)
     turned[-1] ^= 1
-    assert not verify(commitment, bytes(turned))
+    assert not verify(commitment, bytes(turned), _GEN)
 
 
 @pytest.mark.parametrize("vector", _VECTORS, ids=_IDS)
@@ -218,7 +224,7 @@ def test_the_published_nonce_reads_back_what_upstream_reads_back(
     thing the recovery hangs from.
     """
     commitment = commitment_from_octets(vector["commitment"])
-    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector))
+    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector), _GEN)
     assert rewound.blind == int(vector["blind"], 16)
     assert rewound.value == vector["value"]
 
@@ -240,7 +246,7 @@ def test_the_maximum_length_message_comes_back_with_its_padding() -> None:
     """
     vector = _BY_ID["test_rangeproof_fixed_vectors_reproducible vector_0"]
     commitment = commitment_from_octets(vector["commitment"])
-    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector))
+    rewound = rewind(commitment, bytes.fromhex(vector["proof"]), _nonce(vector), _GEN)
 
     assert rewound.message[:_MAX_MESSAGE_LEN] == b"\xff" * _MAX_MESSAGE_LEN
     padding = rewound.message[_MAX_MESSAGE_LEN:]

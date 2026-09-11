@@ -42,10 +42,14 @@ after the ring commitments and immediately before finalizing, and hand
 `secp256k1_rangeproof_genrand` no such argument. So a proof's octets
 change with it and the chain behind them does not.
 
-`gen_bytes`, zkp's name for the generator the commitment was made
-under, is absent here and is issue #1986 -- every call below reaches
-for `second_generator()`, and `ecc.pedersen.commit` takes no generator
-to pass one through either.
+`gen`, `secp256k1_rangeproof.h`'s own argument of that name and
+`zkp.rangeproof`'s `gen_bytes`, is the generator the commitment was
+made under, and every entry point below takes it: it enters the
+octets hashed into the message every ring is signed over, the weight
+each ring's keys step down by in `_pub_expand`, and the `min_value`
+offset `pubk_rings` subtracts. `ecc.pedersen.commit` takes it too, so
+a caller holding one generator per asset commits and proves under
+each of them.
 
 Elements and Liquid use this format, and a design starting today would
 choose bulletproofs, which zkp carries as its `bppp` module.
@@ -137,7 +141,6 @@ from btclib.ecc.pedersen import (
     _bytes_from_point,
     _point_from_x,
     commit,
-    second_generator,
 )
 from btclib.ecc.rfc6979_nonce import _HmacDrbg
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -293,7 +296,7 @@ def _header_octets(exp: int, mantissa: int, min_value: int | None) -> bytes:
 
 
 def _hashed_prefix(
-    commitment: Point, exp: int, mantissa: int, min_value: int | None
+    commitment: Point, gen: Point, exp: int, mantissa: int, min_value: int | None
 ) -> bytes:
     """Return the octets a proof's message and its nonce chain open with.
 
@@ -312,7 +315,7 @@ def _hashed_prefix(
     """
     return (
         _bytes_from_point(commitment, _RANGEPROOF_TAG)
-        + _bytes_from_point(second_generator(), _RANGEPROOF_TAG)
+        + _bytes_from_point(gen, _RANGEPROOF_TAG)
         + _header_octets(exp, mantissa, min_value)
     )
 
@@ -414,7 +417,10 @@ def _prove_params(value: int, min_value: int, exp: int, min_bits: int) -> _Prove
 
 
 def _pub_expand(
-    ring_commitments: Sequence[Point], exp: int, rsizes: Sequence[int]
+    ring_commitments: Sequence[Point],
+    gen: Point,
+    exp: int,
+    rsizes: Sequence[int],
 ) -> tuple[PubkeyRing, ...]:
     """Return each ring's keys, from the commitment that ring opens at.
 
@@ -431,7 +437,7 @@ def _pub_expand(
     """
     # zkp holds a negative exponent at zero here, `pub_expand` being
     # reached with the -1 of a proof that states its value
-    base = secp256k1.negate(mult(10 ** max(exp, 0), second_generator(), secp256k1))
+    base = secp256k1.negate(mult(10 ** max(exp, 0), gen, secp256k1))
     rings: list[PubkeyRing] = []
     for i, size in enumerate(rsizes):
         ring = [ring_commitments[i]]
@@ -681,7 +687,7 @@ class RangeProof:
             raise BTClibValueError(err_msg)
 
     def pubk_rings(
-        self, commitment: Point, *, check_validity: bool = True
+        self, commitment: Point, gen: Point, *, check_validity: bool = True
     ) -> tuple[PubkeyRing, ...]:
         """Return the rings of keys this proof's signature is over.
 
@@ -692,6 +698,10 @@ class RangeProof:
         recovered from `commitment`; and `_pub_expand` over all of them.
         Nothing here reads `e0` or an `s`, so a proof whose signature is
         wrong answers the same rings as one whose signature is right.
+
+        `gen` is the generator that commitment was made under, and both
+        the `min_value` offset below and `_pub_expand`'s own weights are
+        multiples of it.
 
         `commitment` is the Pedersen commitment the proof was written
         against, `ecc.pedersen.commit`'s own point rather than octets --
@@ -716,11 +726,7 @@ class RangeProof:
         ]
         # zkp's own order: the offset and the stated commitments are
         # accumulated, the sum negated, and the commitment added to it
-        acc = (
-            mult(self.min_value, second_generator(), secp256k1)
-            if self.min_value
-            else INF
-        )
+        acc = mult(self.min_value, gen, secp256k1) if self.min_value else INF
         for point in stated:
             acc = secp256k1.add_aff_var(acc, point)
         last = secp256k1.add_aff_var(commitment, secp256k1.negate(acc))
@@ -728,13 +734,14 @@ class RangeProof:
             err_msg = "rangeproof last ring commitment is the point at infinity"
             raise BTClibValueError(err_msg)
 
-        return _pub_expand([*stated, last], self.exp, self.rsizes)
+        return _pub_expand([*stated, last], gen, self.exp, self.rsizes)
 
     def nonce_chain(
         self,
         commitment: Point,
         value: int,
         nonce: Octets,
+        gen: Point,
         message: Octets = b"",
         *,
         check_validity: bool = True,
@@ -752,12 +759,13 @@ class RangeProof:
         chain drew it.
 
         `commitment` is the Pedersen commitment the proof was written
-        against, `pubk_rings`'s argument of that name, and `value` what
-        it commits to. The value is read for more than the digits:
-        wherever the last ring holds more than one key, one of them
-        carries the value inside its own draw, so the chain is not a
-        function of the header alone. A value this proof has no digit
-        for is refused, `sign_key_idx`'s own refusal.
+        against, `pubk_rings`'s argument of that name, `gen` the
+        generator it was made under, and `value` what it commits to.
+        The value is read for more than the digits: wherever the last
+        ring holds more than one key, one of them carries the value
+        inside its own draw, so the chain is not a function of the
+        header alone. A value this proof has no digit for is refused,
+        `sign_key_idx`'s own refusal.
 
         A commitment at infinity is refused too, where `pubk_rings`
         answers rings for one: the seed carries the octets
@@ -775,7 +783,7 @@ class RangeProof:
         secp256k1.require_on_curve(commitment)
         sign_key_idx = self.sign_key_idx(value)
         seed = bytes_from_octets(nonce, _NONCE_SIZE) + _hashed_prefix(
-            commitment, self.exp, self.mantissa, self.min_value
+            commitment, gen, self.exp, self.mantissa, self.min_value
         )
 
         v = self._mantissa_value(value)
@@ -995,6 +1003,7 @@ def sign(
     blind: Integer,
     value: int,
     nonce: Octets,
+    gen: Point,
     *,
     min_value: int = 0,
     exp: int = 0,
@@ -1040,8 +1049,14 @@ def sign(
     into `sha256_m` after the ring commitments and immediately before
     finalizing, where `secp256k1_rangeproof_genrand` takes no such
     argument, so the draws are the same and what a rewind reads back
-    out is unchanged. No generator of the caller's, which is issue
-    #1986.
+    out is unchanged.
+
+    `gen` is the generator the commitment this proof is written against
+    is made under, which `secp256k1_rangeproof.h` documents on each of
+    its calls as the "additional generator 'h'". It reaches the
+    commitment, the octets `_hashed_prefix` writes and the weight each
+    ring's keys step down by, so a proof is bound to it: `verify` and
+    `rewind` are handed it again or the proof does not hold.
     """
     blind_int = scalar_from_prv_key(blind, secp256k1)
     if not 0 <= value <= _UINT64_MAX:
@@ -1058,11 +1073,11 @@ def sign(
     extra_commit_bytes = bytes_from_octets(extra_commit)
 
     params = _prove_params(value, min_value, exp, min_bits)
-    genp = second_generator()
     # zkp's `min_value ? 32 : 0`, over the rewritten floor: a range
     # starting at zero carries no field
     prefix = _hashed_prefix(
-        commit(blind_int, value),
+        commit(blind_int, value, gen),
+        gen,
         params.exp,
         params.mantissa,
         params.min_value or None,
@@ -1091,7 +1106,7 @@ def sign(
         # and the digit it proves at the weight of its place
         head = secp256k1.add_aff_var(
             mult(sec, secp256k1.G, secp256k1),
-            mult(j * params.scale << 2 * i, genp, secp256k1),
+            mult(j * params.scale << 2 * i, gen, secp256k1),
         )
         if head == INF:
             err_msg = "rangeproof ring commitment is the point at infinity"
@@ -1103,7 +1118,7 @@ def sign(
     m = sha256(prefix + b"".join(stated) + extra_commit_bytes).digest()
     sig = _borromean_sign(
         m,
-        _pub_expand(heads, params.exp, params.rsizes),
+        _pub_expand(heads, gen, params.exp, params.rsizes),
         ks,
         secs,
         params.sign_key_idx,
@@ -1119,7 +1134,9 @@ def sign(
     )
 
 
-def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
+def sign_public_value(
+    blind: Integer, value: int, nonce: Octets, gen: Point
+) -> RangeProof:
     """Return the proof that states its value in the clear.
 
     `sign` at an `exp` of -1, which `secp256k1_range_proveparams`
@@ -1137,7 +1154,7 @@ def sign_public_value(blind: Integer, value: int, nonce: Octets) -> RangeProof:
     A spelling of its own because `min_value`, `exp` and `min_bits`
     name nothing this proof has: its header is fixed.
     """
-    return sign(blind, value, nonce, exp=-1)
+    return sign(blind, value, nonce, gen, exp=-1)
 
 
 def _borromean_verify(
@@ -1192,7 +1209,9 @@ def _borromean_verify(
     return tuple(challenges)
 
 
-def _ring_message(commitment: Point, proof: RangeProof, extra_commit: bytes) -> bytes:
+def _ring_message(
+    commitment: Point, proof: RangeProof, gen: Point, extra_commit: bytes
+) -> bytes:
     """Return the message this proof's rings are signed over.
 
     `secp256k1_rangeproof_verify_impl` closes the same `sha256_m`
@@ -1206,12 +1225,12 @@ def _ring_message(commitment: Point, proof: RangeProof, extra_commit: bytes) -> 
         bytes([sign_bit]) + x.to_bytes(secp256k1.p_size, "big")
         for x, sign_bit in zip(proof.ring_commitments, proof.signs, strict=True)
     )
-    prefix = _hashed_prefix(commitment, proof.exp, proof.mantissa, proof.min_value)
+    prefix = _hashed_prefix(commitment, gen, proof.exp, proof.mantissa, proof.min_value)
     return sha256(prefix + stated + extra_commit).digest()
 
 
 def _verify_rings(
-    commitment: Point, proof: RangeProof, extra_commit: bytes
+    commitment: Point, proof: RangeProof, gen: Point, extra_commit: bytes
 ) -> tuple[tuple[int, ...], ...]:
     """Return the challenge behind every key of a proof that holds.
 
@@ -1228,8 +1247,8 @@ def _verify_rings(
     it answers.
     """
     return _borromean_verify(
-        _ring_message(commitment, proof, extra_commit),
-        proof.pubk_rings(commitment),
+        _ring_message(commitment, proof, gen, extra_commit),
+        proof.pubk_rings(commitment, gen),
         proof.sig,
     )
 
@@ -1240,12 +1259,19 @@ def _proof_from(proof: RangeProof | Octets) -> RangeProof:
 
 
 def assert_as_valid(
-    commitment: Point, proof: RangeProof | Octets, *, extra_commit: Octets = b""
+    commitment: Point,
+    proof: RangeProof | Octets,
+    gen: Point,
+    *,
+    extra_commit: Octets = b"",
 ) -> None:
     """Refuse a proof that does not hold for that commitment.
 
     `commitment` is the Pedersen commitment the proof was written
-    against, `RangeProof.pubk_rings`'s argument of that name. The range
+    against and `gen` the generator it was made under, both
+    `RangeProof.pubk_rings`'s arguments of those names: a proof written
+    under one generator does not hold under another, the whole
+    structure hanging from it. The range
     proven is the proof's own `min_value` and `max_value`, which the
     header states and a parse reads; what this adds is that the header
     is that commitment's, the last ring commitment being recovered from
@@ -1264,11 +1290,17 @@ def assert_as_valid(
     Keyword-only, as the sign-to-contract `commit` of `ecc.dsa` and
     `ecc.ssa` is on the same pair of calls.
     """
-    _ = _verify_rings(commitment, _proof_from(proof), bytes_from_octets(extra_commit))
+    _ = _verify_rings(
+        commitment, _proof_from(proof), gen, bytes_from_octets(extra_commit)
+    )
 
 
 def verify(
-    commitment: Point, proof: RangeProof | Octets, *, extra_commit: Octets = b""
+    commitment: Point,
+    proof: RangeProof | Octets,
+    gen: Point,
+    *,
+    extra_commit: Octets = b"",
 ) -> bool:
     """Return whether the proof holds for that commitment.
 
@@ -1278,7 +1310,7 @@ def verify(
     # ValueError and BTClibRuntimeError, as `ecc.borromean.verify` catches
     # them and for the reasons `ecc.dsa.verify_` states
     try:
-        assert_as_valid(commitment, proof, extra_commit=extra_commit)
+        assert_as_valid(commitment, proof, gen, extra_commit=extra_commit)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -1363,6 +1395,7 @@ def rewind(
     commitment: Point,
     proof: RangeProof | Octets,
     nonce: Octets,
+    gen: Point,
     *,
     extra_commit: Octets = b"",
 ) -> Rewound:
@@ -1407,16 +1440,20 @@ def rewind(
     own: `secp256k1_rangeproof_verify_impl` rebuilds the commitment
     from them and compares.
 
+    `gen` is `assert_as_valid`'s argument of that name, and it is what
+    the recovered value and blinding factor are put back against in
+    the refusal above.
+
     `extra_commit` is `assert_as_valid`'s argument of that name, and
     it is spent on the verification this opens with: the chain
     re-derived below is seeded by `_hashed_prefix`, which carries none
     of it.
     """
     proof = _proof_from(proof)
-    ev = _verify_rings(commitment, proof, bytes_from_octets(extra_commit))
+    ev = _verify_rings(commitment, proof, gen, bytes_from_octets(extra_commit))
     rsizes = proof.rsizes
     seed = bytes_from_octets(nonce, _NONCE_SIZE) + _hashed_prefix(
-        commitment, proof.exp, proof.mantissa, proof.min_value
+        commitment, gen, proof.exp, proof.mantissa, proof.min_value
     )
     # the zeroed `prep` `rewind_inner` calls the chain with: what comes
     # back is then the draws themselves, no message and no value
@@ -1457,8 +1494,6 @@ def rewind(
             if i != last or j not in (skip1, skip2)
         )
 
-    if double_mult_var(value, second_generator(), blind, secp256k1.G, secp256k1) != (
-        commitment
-    ):
+    if double_mult_var(value, gen, blind, secp256k1.G, secp256k1) != commitment:
         raise BTClibRuntimeError("rangeproof rewind does not open the commitment")
     return Rewound(blind, value, message)
