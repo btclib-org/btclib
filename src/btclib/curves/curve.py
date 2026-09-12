@@ -1260,12 +1260,18 @@ def _jac_double_mult(
     """Return u*HJ + v*QJ in Jacobian coordinates, delegated where it can be.
 
     double_mult_var for a caller whose equation is written in projective
-    coordinates: dsa's and ssa's _assert_as_valid_, which are the two
-    verifications the bindings' own decline -- a hash function that is not
-    sha256, a BIP340 message that is not 32 bytes (issue 169), a
-    caller-imposed nonce, another curve -- and which paid a Python
-    double_mult_var underneath whatever the reason, some thirty-five
-    times the delegated one on secp256k1.
+    coordinates, dsa's and ssa's _assert_as_valid_ among them. What put
+    such a caller on the Python arithmetic is that caller's own guard,
+    which is not this function's: a verification asks
+    _libsecp256k1_serves and nothing else, where each module's sign_
+    asks it beside conditions of its own and reaches _assert_as_valid_
+    anyway, to check the signature it has just written. Either way the
+    predicate is asked again below, with no hash function, so what sent
+    a caller here decides nothing about the double multiplication
+    unless it was the dispatch switch or the curve -- a hash function
+    of its own leaves the multiplication delegated. A Python
+    double_mult_var is some thirty-five times the delegated one on
+    secp256k1.
 
     Jacobian in and Jacobian out, rather than those two rewritten in
     affine coordinates, because it is not only their arithmetic that is

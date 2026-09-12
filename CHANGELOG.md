@@ -471,6 +471,24 @@ documented at release-notes length in the first place, and are still in
   under `ISSUE_TEMPLATE/` moves. The other copies are owed the same pair,
   which is why this entry cites the issue rather than closing it.
 
+### `_jac_double_mult` names the guard its callers asked
+
+- **The docstring gave four reasons dsa's and ssa's verifications are
+  on the Python arithmetic, and two of them are conditions of neither**
+  (closes #2003): a BIP340 message that is not 32 bytes, which the gate
+  imposing it no longer exists to impose, and a caller-imposed nonce,
+  which a verification does not take. What stands in a verification's
+  guard is `curves.curve._libsecp256k1_serves` and nothing else, and
+  what the predicate tests is the dispatch switch, the curve and the
+  hash function.
+- **A signer reaches the same function, on a guard of its own**, and
+  the docstring now says so rather than describing the verification's
+  guard as the only way in: a nonce or a sign-to-contract commitment
+  puts `sign_` on the Python arm, which checks the signature it wrote
+  through the same `_assert_as_valid_`. Which reason brought a caller
+  decides nothing about the double multiplication, the predicate being
+  asked again with no hash function.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
