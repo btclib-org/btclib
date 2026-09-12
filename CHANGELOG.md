@@ -730,6 +730,35 @@ documented at release-notes length in the first place, and are still in
   docstrings across `p2p`, `psbt`, `tx`, `wallet` and the test suite,
   each rejoined at the word its own hyphen split.
 
+### `README.md` states the timing of a delegated multiplication
+
+- **The *Secrets, and where constant time ends* section gave `mult` as
+  sending every point that is not the generator to
+  `secp256k1_ec_pubkey_tweak_mul`** (closes #2026), which asserts the
+  delegation for those points instead of resting on it. The arm
+  `curves.curve._mult_checked` delegates from is behind
+  `curves.curve._libsecp256k1_serves`, a nonzero scalar and a point that
+  is not infinity, so the predicate stated one paragraph above decides
+  the call before any point does. The sentence rests on the delegation
+  now, and `mult` stays its subject: where that conjunction delegates a
+  `mult` of a point that is not the generator, its work follows the
+  scalar.
+- **The subject is a `mult` and not whatever the conjunction
+  delegates.** `ellswift.xdh` guards on the same predicate
+  (`src/btclib/ecc/ellswift.py:364`) and delegates a secret times a
+  point the caller encoded, so a claim about every delegation would
+  cover it — and what it delegates to is `secp256k1_ellswift_xdh`, whose
+  `secp256k1_ecmult_const_xonly` is constant time in the scalar.
+  `SECURITY.md` states that call and this one apart, and the README
+  sentence carries the scope that keeps them apart.
+- **The C entry point is named where the accounting is.** What that arm
+  calls is the bindings' `keys.pubkey_tweak_mul_sum`, whose terms are
+  `secp256k1_ec_pubkey_tweak_mul` and whose sum is
+  `secp256k1_ec_pubkey_combine`, so a reader grepping the tree for the
+  name the section carried does not find it at the call.
+  `SECURITY.md`'s "Limitations, not vulnerabilities" keeps the name and
+  what the timing claim rests on, and the section points there.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
