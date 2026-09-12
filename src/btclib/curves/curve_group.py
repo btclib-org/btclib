@@ -1135,9 +1135,10 @@ def _mult_fixed_base(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoint:
     the zero digits: that one holds one table and doubles w times between
     digits, this one holds a table per position and only adds. So a
     256-bit scalar costs `ceil(ec.scalar_len / w)` additions and nothing
-    else -- 43 of them at w=6, against 71 additions and 253 doublings --
-    and the count is the same for every scalar of the curve, which is
-    what the regular window is for and what this keeps.
+    else -- 43 of them at w=6, against the 71 additions and 253 doublings
+    `_mult_regular_window` makes at w=4 -- and the count is the same for every
+    scalar of the curve, which is what the regular window is for and what
+    this keeps.
 
     w=6 by measurement, over 30 random 256-bit scalars on secp256k1, best
     of seven alternating rounds. The window buys time and is paid in
@@ -1344,10 +1345,13 @@ def _mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int) -> JacPoin
     runs one window less. Here the digits are the signed odd ones of
     signed_odd_digits, none of them zero, and there are
     ceil(ec.scalar_len / w) of them whatever m is: one addition and w
-    doublings per window, for every scalar of every size. Measured on
-    secp256k1 over 200 random scalars: 68 to 70 additions and 251 to 259
-    doublings for the fixed window, and 71 and 253 for this one on every
-    one of them.
+    doublings per window, for every scalar of every size. On secp256k1
+    that is 71 additions and 253 doublings at w=4, the same for every
+    scalar and counted at the curve's own scalar_len of 256, where the
+    fixed window's count follows the size of the scalar it is given. What
+    counts them is `_CountingGroup` in tests/curves/curve_group_test.py,
+    which carries the command in its docstring and the reason for that
+    length where it sets it.
 
     Uniformity for free, in other words -- indistinguishable in cost from
     the fixed window over 30 random 256-bit scalars, best of five -- which
