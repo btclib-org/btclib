@@ -315,22 +315,25 @@ jobs:
           # the fail_under comment in pyproject.toml names this version,
           # and the two have to move together
           python-version: "3.14"
-      # `--cov` and nothing after it: what is measured is tool.coverage.run's
-      # source and how it is reported is tool.coverage.report, so naming
-      # either here would be a second copy of a list that already exists --
-      # and the copy a contributor cannot run, this file not being what
-      # anyone types locally. One command, one scope, one report
+      # `pytest` with nothing after it, which is section 8 of the
+      # organization standard: pyproject.toml's addopts carries `--cov`,
+      # tool.coverage.run what is measured, tool.coverage.report how it is
+      # reported and the floor it is gated at. A flag typed here is one a
+      # contributor cannot run, this file not being what anyone types
+      # locally, so the local gate and this one would be two measurements
+      # that can disagree with nothing turning red. One command, one
+      # scope, one report
       - name: Run pytest under coverage
         run: >
           uv run --locked --no-default-groups --group test
-          pytest --cov
+          pytest
         env:
           # not the default `.coverage`: the `coverage-union` job downloads
           # this artifact beside the `no-bindings` job's, and two files
           # named alike would overwrite each other on the runner that
           # combines them. `COVERAGE_FILE` is `--data-file`'s environment
-          # variable, coverage's own, so `pytest --cov` writes here without
-          # a second flag naming what the report step above already reads
+          # variable, coverage's own, so the run writes here without a
+          # second flag naming what the report step above already reads
           # from tool.coverage.run
           COVERAGE_FILE: coverage-data-bindings
       # issue #1002: this run already fails at 100% on its own, unchanged
@@ -360,12 +363,16 @@ jobs:
   # and uv's `--no-group` suppresses a group that was selected, not one
   # another group includes. So the split in pyproject.toml is what this
   # job is, and there is no second lock file.
-  # `--cov --cov-fail-under=0`, not `--no-cov`, since issue #1002: the
+  # `--cov-fail-under=0`, not `--no-cov`, since issue #1002: the
   # delegated arms are still unreachable here by construction, and a
   # report of this run *alone* would still fail the 100% gate for the one
   # reason the run exists to create -- `--cov-fail-under=0` is what keeps
   # this job from being that report, collecting the data without gating
-  # this run on it. The data goes into `coverage-union` below, which
+  # this run on it. It is the one argument this step types, and it is the
+  # job's own rather than a second copy: nothing in pyproject.toml states
+  # it, where `--cov` is in addopts and `[tool.coverage.report]`'s
+  # `fail_under` is the floor this lifts.
+  # The data goes into `coverage-union` below, which
   # gates the union of this run and the `coverage` job's at 100% as well,
   # answering the question this job's own comment used to leave open: a
   # test marked `needs_bindings` too broadly, or a Python arm no test
@@ -413,7 +420,7 @@ jobs:
       - name: Run pytest
         run: >
           uv run --locked --no-default-groups --group harness
-          pytest --cov --cov-fail-under=0
+          pytest --cov-fail-under=0
         env:
           # the `coverage` job's comment on its own `COVERAGE_FILE` is why
           # this is not `.coverage` either: the two artifacts land beside
