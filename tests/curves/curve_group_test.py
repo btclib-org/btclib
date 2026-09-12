@@ -426,20 +426,43 @@ def test_add_jac_aff_answers_add_jac_on_every_pair() -> None:
 
 
 class _CountingGroup(CurveGroup):
-    """secp256k1's group, counting the point additions it is asked for.
+    """secp256k1's group, counting the additions and doublings asked of it.
 
     The number of additions is what the scalar used to decide (issue 254),
     and counting them is how the test below says it no longer does: a
     wall-clock timing per multiplication is too noisy to resolve a spread
-    of one addition in seventy, which is why the test counts additions
-    directly instead.
+    of one addition in seventy, which is why the test counts the
+    operations directly instead.
+
+    The docstrings that name this class -- `_mult_regular_window` in
+    `curve_group` and `_mult_endomorphism_secp256k1_var` in
+    `curve_group_2` -- state figures taken here, at the scalar_len set
+    below:
+
+        uv run python -c "
+        from btclib.curves import secp256k1
+        from btclib.curves.curve_group import _mult_regular_window
+        from btclib.curves.curve_group_2 import _mult_endomorphism_secp256k1
+        from tests.curves.curve_group_test import _CountingGroup
+        for mult in (_mult_regular_window, _mult_endomorphism_secp256k1):
+            ec = _CountingGroup()
+            mult(secp256k1.n - 1, secp256k1.GJ, ec, 4)
+            print(mult.__name__, ec.additions, ec.doublings)"
     """
 
     def __init__(self) -> None:
         # secp256k1's own p, a and b, which is the curve every measurement
         # in curve_group's docstrings is taken on
         super().__init__(secp256k1.p, 0, 7)
+        # and its own scalar_len, which the group cannot derive: with no n
+        # to read, CurveGroup takes the Hasse bound plen + 1, where Curve
+        # narrows it to nlen. A multiplication's digits being
+        # ceil(scalar_len / w), a group left at the wider bound recodes one
+        # digit more at w=4, so _mult_regular_window answers 72 and 257
+        # there against the 71 and 253 its docstring states
+        self.scalar_len = secp256k1.scalar_len
         self.additions = 0
+        self.doublings = 0
 
     @override
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
@@ -455,18 +478,30 @@ class _CountingGroup(CurveGroup):
         self.additions += 1
         return super().add_jac_aff(Q, R)
 
+    @override
+    def double_jac(self, Q: JacPoint) -> JacPoint:
+        self.doublings += 1
+        return super().double_jac(Q)
+
 
 def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
-    """Issue 254, as the property it is: one count, not a range of them.
+    """Issue 254, as the property it is: one count of each, not a range.
 
     The fixed window over the same scalars is the control, and what varies
     for it is the *size* of the scalar: its digit count is
     ceil(m.bit_length() / w), so it makes one addition and w doublings
     fewer for every window the scalar is short of a full one. Hence the
     scalars of distant sizes here beside the full-length random ones --
-    over 256-bit scalars alone the control would be constant too, a
-    quarter of the 20 the seed picks being needed to reach a shorter
-    digit count at all.
+    over 256-bit scalars alone the control would be constant too, a digit
+    count falling only for a scalar short of a whole window, four bits at
+    w=4.
+
+    Additions and doublings are asserted as the pair a window is made of,
+    one addition and w doublings, so that the doublings are held to the
+    property too rather than only the additions. The control keeps its own
+    assertion on the additions alone: a pair that varies in either member
+    is a weaker statement than the additions varying, and it is the
+    additions the scalar used to decide.
     """
     ec = _CountingGroup()
     rnd = random.Random(0x9EC0DE)
@@ -476,15 +511,16 @@ def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
     regular = set()
     fixed = set()
     for m in scalars:
-        ec.additions = 0
+        ec.additions = ec.doublings = 0
         _mult_regular_window(m, secp256k1.GJ, ec, w=4)
-        regular.add(ec.additions)
-        ec.additions = 0
+        regular.add((ec.additions, ec.doublings))
+        ec.additions = ec.doublings = 0
         _mult_fixed_window_var(m, secp256k1.GJ, ec, w=4, cached=False)
-        fixed.add(ec.additions)
+        fixed.add((ec.additions, ec.doublings))
 
     assert len(regular) == 1, regular
     assert len(fixed) > 1, fixed
+    assert len({additions for additions, _ in fixed}) > 1, fixed
 
 
 def test_mult_fixed_base() -> None:

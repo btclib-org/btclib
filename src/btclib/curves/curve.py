@@ -850,7 +850,7 @@ def _mult_checked(m: int, Q: Point | None, ec: Curve, *, prepared: bool) -> Poin
     # of point additions either makes is the same for every scalar, which
     # is what a private key or a nonce arriving here needs and what issue
     # 254 is about -- the endomorphism over interleaved wNAFs would cost
-    # a little less again, with 51 to 64 additions.
+    # a little less again, and would not be regular.
     # Not spelled as _libsecp256k1_serves, though it is the same
     # test today: what decides here is whether the curve has that
     # endomorphism, so switching the bindings off must leave this arm --

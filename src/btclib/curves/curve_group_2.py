@@ -537,11 +537,12 @@ def _mult_endomorphism_secp256k1_var(
     The same decomposition as `_mult_endomorphism_secp256k1`, over
     `_double_mult_w_NAF_var` rather than the regular windows, and the
     faster of the two, by 16%, over 30 random 256-bit scalars, best of
-    five, at w=4. What that 16% buys is 51 to 64 additions and 124 to 131
-    doublings over 200 random scalars, where the regular windows make 79
-    and 126 for every one of them -- a quarter more work for the worst
-    scalar than for the best, and which it is is a property of the
-    scalar.
+    five, at w=4. What that 16% buys is a cost the scalar decides: a wNAF
+    adds on a nonzero digit, so its additions follow the recoded weight of
+    the halves the split makes, where the regular windows make 79
+    additions and 126 doublings for every scalar of the curve -- at w=4,
+    counted by the `_CountingGroup` of tests/curves/curve_group_test.py,
+    whose docstring carries the command.
 
     So nothing signs with this one, and it is here to be measured against
     the other. A verification's coefficients are public and go to

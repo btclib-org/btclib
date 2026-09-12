@@ -155,8 +155,8 @@ used to teach and to prototype as much as to build:
     wiped once the call that filled it returns; the `int` it is read
     into cannot be, and outlives the call regardless — the
     `_BIP32KeyData` working copy keeps `prv_key_int` for the whole of
-    a path derivation — so taking the buffer at these three would cost
-    a public signature and buy nothing, short of btclib no longer
+    a path derivation — so taking the buffer at these call sites would
+    cost a public signature and buy nothing, short of btclib no longer
     holding a private key as a Python `int`, which is a change to that
     representation and not to a call site. `ellswift.xdh`
     (`src/btclib/ecc/ellswift.py:365`) is the one of them that returns
@@ -174,8 +174,8 @@ used to teach and to prototype as much as to build:
     owned buffer `wipe` overwrites afterwards. That `bytes` is dropped
     rather than erased, same as the `int` it replaces — one call rather
     than the buffer's whole lifetime, which is the trade this class
-    exists to make, and stated here for the same reason the other three
-    call sites are
+    exists to make, and stated here for the same reason the call sites
+    above are
 - the boundary is not always there, and an install decides whether it
     is. `pip install "btclib[secp256k1]"` -- the spelling README.md and
     the guide give -- installs the bindings, and everything the next
@@ -298,16 +298,16 @@ used to teach and to prototype as much as to build:
     and always `ceil(nlen / w)` of them, and starts the accumulator at a
     table entry rather than at the identity, so every scalar of the curve
     costs the same additions and the same doublings, and its size is
-    hidden as its bits are. Measured over 200 random scalars: 71 additions
-    and 253 doublings for every one of them, where the plain fixed window
-    makes 68 to 70 and 251 to 259; and on secp256k1, whose endomorphism
-    halves the doublings, 79 and 126 for every one of them, where the
-    interleaved wNAFs of the same decomposition make 51 to 64 and 124 to
-    131. Those wNAFs add on a nonzero digit and so once per unit of the
-    recoded weight of the coefficient, which is why they are not what
-    `mult` reaches for; they are what `double_mult_var` and signature
-    verification reach, where the coefficients are a signature and a
-    message hash rather than a secret.
+    hidden as its bits are. The plain fixed window is the contrast: its
+    digits are `ceil(m.bit_length() / w)` of them, so a scalar short of a
+    full top window costs one window less there and its size is what the
+    count shows. On secp256k1, whose endomorphism halves the doublings,
+    the regular windows of its decomposition are uniform the same way.
+    The interleaved wNAFs of that same decomposition add on a nonzero
+    digit and so once per unit of the recoded weight of the coefficient,
+    which is why they are not what `mult` reaches for; they are what
+    `double_mult_var` and signature verification reach, where the
+    coefficients are a signature and a message hash rather than a secret.
 
     What is left is out of reach from pure Python, and is enough to
     matter: the windowed multiplications index a table of precomputed

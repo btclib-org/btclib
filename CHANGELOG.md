@@ -895,6 +895,59 @@ documented at release-notes length in the first place, and are still in
   stopped matching the run is the required check failing* -- and that
   half is a change to another repository.
 
+### `SECURITY.md` refers to the call sites it names without counting them
+
+- **Two sentences over one roster stated how many call sites it holds**
+  (closes #2038), the roster being the places a binding's output is read
+  straight into a Python `int`: a numeral counting a population of this
+  codebase rather than a structure the sentence closes, which is what
+  `CLAUDE.md` forbids of prose that lands and what no gate reads this
+  file for. The names are in the same sentence and carry it alone, so the
+  numeral goes and nothing is lost.
+- **The second sentence refers back to those call sites, not to *the*
+  others.** "The other call sites" would claim a completeness nothing
+  here holds, where "the call sites above" names the ones the bullet has
+  just named.
+- **One numeral in the file stays.** "Those three" counts the
+  libsecp256k1 entry points the sentence before it names, so it
+  summarises an enumeration that passage closes rather than a roster this
+  library adds to.
+
+### The stated addition and doubling counts name what counts them
+
+- **The figures for what a scalar multiplication costs had no command
+  beside them** (closes #2040), which `CLAUDE.md` asks of a number that
+  lands. `_CountingGroup` in `tests/curves/curve_group_test.py` is what
+  counts them and its docstring carries the command; the figures that are
+  one value for every scalar come back from it exactly, so this is a
+  stated instrument and not a corrected number.
+- **A counting group built the obvious way recodes a digit more at
+  w=4.** With no n to read, `CurveGroup` takes the Hasse bound plen + 1
+  for its scalar_len where `Curve` narrows it to nlen, and a
+  multiplication's digits being ceil(scalar_len / w), a subclass of the
+  group left at that bound gives a 256-bit scalar one digit more at that
+  width: `_mult_regular_window` answers 72 additions and 257 doublings
+  there against the 71 and 253 its docstring states, which reads as prose
+  that drifted. The delta is the `ceil`'s rather than the bound's -- at
+  w=5 and w=6 both bounds recode the same digit count -- and
+  `_mult_endomorphism_secp256k1` passes a scalar_len of its own, so its
+  figures are the same either way. The class takes the curve's own length
+  and says why, and counts doublings beside additions -- the pair a
+  window is made of, and what the property test now asserts a single
+  value of.
+- **`SECURITY.md` states the relation rather than the figures.** What the
+  argument there needs is that the cost is one value for every scalar of
+  the curve, so that the size of a secret is hidden; a figure in a
+  security file invites a reader to take it for a measurement of the
+  library as it stands, and the ranges among those it stated were over a
+  sample whose seed it did not give, which nothing reproduces. The
+  contrast with the plain fixed window stays as the recoding it comes
+  from, ceil(m.bit_length() / w) digits against ceil(nlen / w).
+- **The dispatch comment that offers the interleaved wNAFs as cheaper no
+  longer prices them.** `curves.curve` stated the same unseeded range
+  this entry withdraws, and what refuses them there is regularity, which
+  the sentence above it already carries.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
