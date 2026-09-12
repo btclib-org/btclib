@@ -57,7 +57,8 @@ on:
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
-    # this is reachable through the dispatch below alone
+    # this is reachable through the dispatch below, and through the
+    # pull_request trigger further down.
     - cron: "4 5 * * 2"
   # the same trigger set as the other gates: main so that the commit a
   # merge creates is asked the question too -- and so that a cache is
