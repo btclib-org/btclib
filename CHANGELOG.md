@@ -567,6 +567,45 @@ documented at release-notes length in the first place, and are still in
   does not point into, which no definition holding the cited line
   answers for; `tests/security_citations_test.py`'s docstring states the rule.
 
+### The prose around the bindings dispatch states its guard
+
+- **The `btclib.ecc` package docstring made secp256k1, sha256 and a
+  nonce btclib derives sufficient for a delegated signature** (closes
+  #2015). `dsa.sign_` ands `nonce is None`, `lower_s` and `commit_hash
+  is None` onto `curves.curve._libsecp256k1_serves`, so a signature
+  asked for with `lower_s=False` and one carrying a sign-to-contract
+  commitment each answer that description and each run the Python
+  arithmetic `SECURITY.md` publishes as not constant-time. What the *Secrets*
+  paragraph gives instead is the predicate -- the process-wide dispatch
+  switch, the curve and the hash function -- with the conditions of the
+  call site anded onto it, and it leaves those conditions to
+  `SECURITY.md`, which the paragraph already points at.
+- **`curves.PreparedPoint`'s docstring gave a deployment without the
+  compiled bindings as what puts a caller on the Python arithmetic**
+  (closes #2016). The first test `_libsecp256k1_serves` makes is the
+  process-wide switch, which `set_libsecp256k1_serving` and
+  `BTCLIB_NO_LIBSECP256K1` move in a process that has the bindings
+  installed: `tests/script_engine/python_path_test.py` clears
+  `curve._libsecp256k1_available` and reruns the consensus vectors
+  under it, skipping where the bindings are absent.
+- **A hash function of the caller's is not a way onto those tables**,
+  which that sentence gave as one. `mult` and `_jac_double_mult` ask
+  the predicate with no hash function, so a verification the hash
+  function alone sent to the Python equation has its multiplication
+  delegated still, and the tables a prepared point handed down are
+  dropped there.
+- **`ssa._assert_as_valid_`'s comment gave a declined verification as
+  the way in** (closes #2018). `sign_` reaches the same function to
+  check the signature it has just written, on a guard of its own --
+  `_libsecp256k1_serves(ec, hf) and commit_hash is None` -- so a BIP340
+  signature carrying a sign-to-contract commitment is verified there.
+  The comment names each reach with the guard that brought it, and
+  leaves what the multiplication does to `_jac_double_mult`.
+- **The clause dating the message-size condition is gone.** The comment
+  above `assert_as_valid_`'s own guard states in the present tense that
+  the curve and the hash function decide the dispatch and the size of
+  the message does not.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

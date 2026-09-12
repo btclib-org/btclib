@@ -55,13 +55,15 @@ the library with nothing else in sys.modules, which is the order that
 would find it if it did not.
 
 **Secrets.** This is the package a private key is handed to, and what
-holds around it is conditional. A signature of secp256k1 with sha256 and
-a nonce btclib derives is one libsecp256k1 call; another curve, another
-hash function or a nonce of the caller's runs the Python arithmetic,
-which the suite validates against the bindings but which is not
-constant-time. Nor is a Python object holding a secret zeroized, on
-either path. SECURITY.md's limitations section states each condition,
-argument by argument, and README.md carries the short form.
+holds around it is conditional. What decides whether an operation here
+is one libsecp256k1 call is `curves.curve._libsecp256k1_serves` -- the
+process-wide dispatch switch, the curve and the hash function -- with
+the conditions of the call site anded onto it; whatever the conjunction
+declines runs the Python arithmetic, which the suite validates against
+the bindings but which is not constant-time. Nor is a Python object
+holding a secret zeroized, on either path. SECURITY.md's limitations
+section states each condition, argument by argument, and README.md
+carries the short form.
 """
 
 from btclib.ecc import (

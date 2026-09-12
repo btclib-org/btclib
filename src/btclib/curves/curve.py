@@ -900,12 +900,21 @@ class PreparedPoint:
       BIP340 alike. Break-even is 22 signatures under the one key, the
       first verification costing several times what a bare key's does.
 
-    Both are the Python arithmetic. On secp256k1 with the bindings
-    available neither is reached -- libsecp256k1 verifies in a fraction
-    of either and holds its own tables -- so what this is for is the
-    Python path: another curve, another hash function, or a deployment
-    without the compiled bindings. Handing one in on the delegated path
-    is not an error and costs nothing; it simply buys nothing.
+    Both are the Python arithmetic, and what puts a call on them is that
+    call's own guard: `_libsecp256k1_serves` -- the process-wide switch,
+    which an installation without the bindings leaves off and which
+    `set_libsecp256k1_serving` and `BTCLIB_NO_LIBSECP256K1` turn off in a
+    process that has them, and the curve -- with whatever that call ands
+    onto it, `mult` taking this arm for a zero scalar besides,
+    libsecp256k1 having no scalar for one. Neither call passes a hash
+    function: a verification's is spent on its own module's guard, and
+    `_jac_double_mult` under that guard asks the predicate again with
+    none, so a hash function the bindings do not serve leaves the
+    multiplication delegated and the tables handed to it unused. Where a
+    call's whole guard holds there is nothing here to reach --
+    libsecp256k1 verifies in a fraction of either arm and holds tables of
+    its own -- so handing a prepared point in on that path is not an
+    error and costs nothing; it simply buys nothing.
 
     Preparing is a caller's word and never inferred, and the memory is
     why: the tables are per distinct point, so a library that memoized
