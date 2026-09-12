@@ -672,6 +672,22 @@ documented at release-notes length in the first place, and are still in
   answers `1` in every one of them, and so does the same search for
   `check-github-issue-forms`.
 
+### A `SECURITY.md` citation with no line number carries no anchor
+
+- **A dotted name in front of a path cited with no line number was
+  paired with it and checked against nothing** (closes #2021).
+  `_defect` answers before it looks at an anchor wherever the line is
+  empty, so `tests/security_citations_test.py` parametrized that name
+  as a case of its own and passed it whatever it said. A path-only
+  citation carries no anchor now, and what it is held to is naming a
+  file that exists.
+- **Reading the name instead would hold the prose to a claim it does
+  not make.** `btclib.ecc.musig2` in front of the citation of
+  `src/btclib/psbt/musig2.py` names the public API a delegation would
+  grow, where the file cited holds the decision against carrying
+  session state, and a pairing that fails that sentence names the prose
+  for what the pairing did.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
