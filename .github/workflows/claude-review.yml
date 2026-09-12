@@ -146,7 +146,7 @@ jobs:
           fi
       - name: Review against REVIEWING.md
         id: review
-        uses: anthropics/claude-code-action@19dda84776b3518d98b8798e591daee763049ed3 # v1.0.220
+        uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520 # v1.0.223
         # a diff read and a comment posted; a review past this is hung
         # on the API or on its own reasoning, and either way it has
         # written no verdict. On the step rather than on the job for the
@@ -450,6 +450,6 @@ jobs:
             exit 1
           fi
       - name: Answer the mention
-        uses: anthropics/claude-code-action@19dda84776b3518d98b8798e591daee763049ed3 # v1.0.220
+        uses: anthropics/claude-code-action@9cdae7f0d995e3ba7c33f226087fdf82a59cd520 # v1.0.223
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

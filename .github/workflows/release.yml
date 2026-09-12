@@ -101,7 +101,7 @@ jobs:
       # Spelled out rather than left off: the input defaults to "auto",
       # which means enabled on a GitHub-hosted runner
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: false
       # every other uv command in these workflows passes --locked, which
@@ -311,7 +311,7 @@ jobs:
       # written by a run this one cannot vouch for
       - name: Setup uv
         if: steps.previous.outputs.has-previous == 'true'
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: false
       # griffe runs from PyPI through uvx rather than from a pyproject.toml
@@ -830,7 +830,7 @@ jobs:
       # wrote. There is little to cache here in any case, the step below
       # installing nothing
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: false
       # --no-project, so it runs on the interpreter uv fetches and

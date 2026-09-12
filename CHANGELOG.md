@@ -981,6 +981,49 @@ documented at release-notes length in the first place, and are still in
   of the `markdownlint-cli2` autofix, which would otherwise repair the
   seam before anything named it.
 
+### Dependencies are refreshed, and neither a floor nor a hold moves
+
+- **`uv lock --upgrade` takes `build` to 1.6.1 and `ruff` to 0.16.7**,
+  and moves nothing else. Neither sibling has anywhere to move to:
+  `uv lock --upgrade-package btclib-secp256k1 --dry-run` and the same for
+  `bitcoin-core-rpc` each detect no lockfile change, so the floors
+  `[project.dependencies]` and `[project.optional-dependencies]` name
+  stay where they are, each coinciding with what the lock pins.
+- **`pre-commit autoupdate` takes `astral-sh/ruff-pre-commit` to v0.16.7
+  and `astral-sh/uv-pre-commit` to 0.12.13.** That hook and `uv.lock`
+  resolve the same ruff, so the lint gate and a bare `uv run ruff`
+  answer alike; `[build-system]`'s `uv_build` range is what the build
+  has to satisfy rather than a pin at the uv hook's rev, and it is
+  unchanged.
+- **The two revisions `autoupdate` also offers are declined by the gate
+  and not only by the comment beside them.** Walked to
+  `zizmorcore/zizmor-pre-commit` v1.30.1 and `regebro/pyroma` 5.1b1, the
+  lint gate exits 1 on `pinned-rev`, on `held-rev` and on `zizmor`
+  itself. `autoupdate` walks past the hold because the marker sits on
+  the `rev:` line it rewrites, leaving a value and a marker that
+  disagree, which is what `held-rev` reads; 5.1b1 is a prerelease,
+  which `pinned-rev` refuses.
+- **zizmor 1.30.1 is what the hold is against** (issue #1563): its
+  `self-repository` audit flags the workspace-relative `uses: ./...`
+  form wherever `.github/workflows/` writes it, and actionlint 1.7.12
+  does not parse the `$/...` form the auto-fix offers in its place.
+- **`astral-sh/setup-uv` moves to v10.1.0**, sha and trailing comment
+  together wherever a workflow sets uv up.
+- **`anthropics/claude-code-action` moves to v1.0.223**, sha and comment
+  together in the review step and in the mention step. Issue #1924 asks
+  this pin for the commit the newest `v1.0.<n>` tag resolves to, peeled
+  from the annotated tag rather than read off `git/ref/tags`; the commits
+  it advances over move the Claude Code release that action installs and
+  the `@anthropic-ai/claude-agent-sdk` its own code runs on, and touch
+  nothing else.
+- **`github/codeql-action` stays at v4.38.0.** Its `releases/latest`
+  answers a `codeql-bundle-` tag, a different naming series rather than
+  a newer release of what is pinned, and the newest `v4` tag is the one
+  the pin carries.
+- **`google/clusterfuzzlite` stays where it is.** `v1` is still the only
+  tag it publishes and still peels to the pinned commit, which the calls
+  `fuzz.yml` carries beside that pin re-derive.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
