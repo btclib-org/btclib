@@ -890,7 +890,7 @@ exclude = [
 # `--force-exclude` semantics for that hook. Without it, the named form
 # rewrites a comment's spacing inside a tag-sealed `## v2026.8.27` section,
 # which `tests/changelog_immutability_test.py` then reads as drift (issue
-# #1530). Measured on the pinned ruff 0.16.4: `ruff format --diff --no-cache
+# #1530). Measured on the pinned ruff 0.16.7: `ruff format --diff --no-cache
 # CHANGELOG.md` exits 1 without this key and 0 with it, a control with nothing
 # excluded also exiting 1 so the difference is the exclusion and not a file
 # needing no reformatting. The key lives here rather than under
@@ -978,8 +978,8 @@ extend-select = ["unspecified-encoding"]
 # member" rather than an arbitrary list of the members measured today
 ignore = [
     # ruff's own docs/formatter.md, under "Conflicting lint rules",
-    # fetched at the ruff revision this file and .pre-commit-config.yaml
-    # both pin (v0.16.3): each of these is undone by the formatter's own
+    # fetched at the ruff revision `.pre-commit-config.yaml` pins and
+    # `uv.lock` resolves: each of these is undone by the formatter's own
     # rewriting, so selecting it is a lint failure the next `ruff format`
     # produces again. The list is the vendor's, and does not change with
     # this tree. `incorrect-blank-line-before-class` (D203) needs no

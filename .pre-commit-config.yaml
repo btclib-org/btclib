@@ -738,15 +738,16 @@ repos:
   #
   #   uvx zizmor@1.29.0 --persona=auditor --no-progress .github/workflows/
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    # not 1.30.0 yet: its new self-repository audit flags every reusable-
-    # workflow and composite-action reference below that still reads
-    # `uses: ./...`, and its own auto-fix rewrites them to `uses: $/...`.
-    # That syntax is real GitHub, live since July 2026, but actionlint
-    # 1.7.12 (pinned further down) does not parse it and fails every one
-    # of those references as a malformed action reference instead. The
-    # bump waits on whichever lands first: an actionlint release that
-    # understands `$/`, or GitHub's runner requirement (>=2.336.0) making
-    # workspace-relative references the thing to flag instead.
+    # not 1.30.0 yet: its new self-repository audit flags every
+    # reusable-workflow and composite-action reference under
+    # .github/workflows/ that still reads `uses: ./...`, and its own
+    # auto-fix rewrites them to `uses: $/...`. That syntax is real
+    # GitHub, live since July 2026, but actionlint 1.7.12 (pinned above)
+    # does not parse it and fails every one of those references as a
+    # malformed action reference instead. The bump waits on whichever
+    # lands first: an actionlint release that understands `$/`, or
+    # GitHub's runner requirement (>=2.336.0) making workspace-relative
+    # references the thing to flag instead.
     #
     # `autoupdate` offers the newest release on every run, and the marker
     # on the rev line is what declines it: `held-rev` above reads the
@@ -775,7 +776,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.6
+    rev: v0.16.7
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -866,7 +867,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.12
+    rev: 0.12.13
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock

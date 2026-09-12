@@ -120,7 +120,7 @@ jobs:
           # at, a pointer being what this checkout already had.
           fetch-tags: true
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           # a week where nothing moved is a full hit, and a week where
           # something did is the week this job has work to do anyway
@@ -206,7 +206,7 @@ jobs:
           # at, a pointer being what this checkout already had.
           fetch-tags: true
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
@@ -287,7 +287,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
       # ImageOS is set by the runner image, not by this workflow, so the
@@ -350,7 +350,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
       - name: Upgrade every dependency to its latest release
