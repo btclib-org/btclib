@@ -684,6 +684,16 @@ repos:
     hooks:
       - id: check-dependabot
       - id: check-readthedocs
+      # .github/ISSUE_TEMPLATE/ is read the same way and by nothing else
+      # here either: a form whose `type:` is misspelt is still yaml, and
+      # the reader who meets it is a person on the New issue page rather
+      # than a run. Each brings its own files: and types: -- config.yml
+      # under that spelling for the first, the directory's yaml that is
+      # neither config.yml nor config.yaml for the second, a markdown
+      # template for neither -- so check-hooks-apply above is what says
+      # this tree still holds one of each
+      - id: check-github-issue-config
+      - id: check-github-issue-forms
   # the workflows are 3, 6 and 8 KB of yaml with expressions in it, and
   # nothing validated them: an unknown key, a typo in a context reference,
   # an action input that does not exist, a job depending on a job that is

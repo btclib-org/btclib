@@ -456,6 +456,21 @@ documented at release-notes length in the first place, and are still in
   bindings expose a name is a third question, and neither pin answers
   it.
 
+### The issue-form hooks join the `check-jsonschema` block
+
+- **`check-github-issue-config` and `check-github-issue-forms` run beside
+  `check-dependabot` and `check-readthedocs`, in the `check-jsonschema`
+  block at `rev: 0.38.0`** (issue btclib-org/.github#767): the pair
+  section 4's *schemas* bullet of the organization standard names. Both
+  select under `types: [yaml]` -- `.github/ISSUE_TEMPLATE/config.yml`
+  under that spelling for the first, the directory's other yaml for the
+  second, here `bug_report.yml`, `feature_request.yml` and
+  `question.yml` -- so `check-hooks-apply` finds a file for each. The
+  comment above the pair is `btclib-org/.github`'s own, byte for byte.
+  `config.yml` and the forms validate clean as they stand, so nothing
+  under `ISSUE_TEMPLATE/` moves. The other copies are owed the same pair,
+  which is why this entry cites the issue rather than closing it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
