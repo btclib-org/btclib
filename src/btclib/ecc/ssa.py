@@ -868,14 +868,17 @@ def _assert_as_valid_(
 
     # Let K = sG - eQ.
     # in Jacobian coordinates, and through the dispatching double_mult_var of
-    # curves.curve rather than the Python arithmetic under it: what
-    # reaches here is the verification the bindings' own declined, which
-    # is another curve or another hash function -- the size of the message
-    # was the third of those and is not any more -- and on secp256k1 the
-    # multiplication is still theirs, some thirty-five times under the
-    # Python arithmetic. The whole verification follows it, the two lifts
-    # around it -- the r of the signature and the x-only key -- being
-    # theirs as well
+    # curves.curve rather than the Python arithmetic under it. What put a
+    # caller here is that caller's own guard: `assert_as_valid_` asks
+    # `_libsecp256k1_serves` and nothing else, where `sign_` asks it
+    # beside a commitment of its own and reaches this function anyway,
+    # to check the signature it has just written. Whichever guard it was
+    # settles nothing about the multiplication, `_jac_double_mult`
+    # asking the predicate again below: on secp256k1 with the dispatch
+    # on the multiplication is still theirs, some thirty-five times
+    # under the Python arithmetic. The whole verification follows it,
+    # the two lifts around it -- the r of the signature and the x-only
+    # key -- being theirs as well
     KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec, fixed)
 
     # The following check is prescribed by BIP340 but it is useless:
