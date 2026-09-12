@@ -504,6 +504,36 @@ documented at release-notes length in the first place, and are still in
   sentence around the citation reaches that arm through `mult`, and the
   quotation of the line is unchanged.
 
+### `ecc.dsa`'s dispatch comments name the guard of the reach they are about
+
+- **`lower_s` was missing from the conditions `_sign_recoverable_`'s
+  comment gave for a signature the bindings did not make** (closes
+  #2010), and it is a conjunct of `sign_`'s guard and of
+  `sign_recoverable_`'s alike: a caller asking for the s that was
+  computed signs through that function, on the Python arm. The same
+  list named a sign-to-contract commitment, which is `sign_`'s
+  condition and not the other's -- `sign_recoverable_` takes no
+  commitment at all, and its docstring says why. What the comment gives
+  instead is the guard itself: `curves.curve._libsecp256k1_serves`,
+  which every caller's guard asks, and the conditions each spelling adds
+  beside it.
+- **`_libsecp256k1_sign_`'s comment promised a count its own list did
+  not match**, and states none now. What it lists is what `sign_`'s
+  guard settles before the call, which is the one guard that reaches
+  it.
+- **A commitment to check and a caller-imposed nonce were given as
+  reasons `ecdsa_verify` declined the verification `_assert_as_valid_`
+  answers** (closes #2007): `_assert_commitment_` runs ahead of that
+  dispatch and on both arms, and `assert_as_valid_` takes no nonce, a
+  verification being independent of how the signature it checks was
+  made. Both belong to a signer's guard, which reaches the same function
+  through the check a signer makes on the signature it has just written,
+  so they are attributed there rather than struck. What a verification's
+  guard asks is `curves.curve._libsecp256k1_serves` and nothing else,
+  and what sent a caller in decides nothing about the double
+  multiplication unless it was the dispatch switch or the curve,
+  `_jac_double_mult` asking that predicate itself.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
