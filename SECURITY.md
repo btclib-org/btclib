@@ -23,11 +23,11 @@ secp256k1 arithmetic is delegated to
 the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
 itself, which has its own security policy and its own address. Not every
-call: the installation, the curve, the hash function and the arguments
-of the operation decide which, and *Limitations, not vulnerabilities*
-below is where that condition is stated. A flaw in the elliptic curve
-arithmetic, or in how the bindings drive it, most likely belongs to one
-of those.
+call: one predicate decides — a process-wide dispatch switch, the curve
+and the hash function — with whatever further conditions the call site
+ands onto it, and *Limitations, not vulnerabilities* below states each of
+them. A flaw in the elliptic curve arithmetic, or in how the bindings
+drive it, most likely belongs to one of those.
 
 What belongs here is everything btclib does around them:
 
@@ -193,7 +193,19 @@ used to teach and to prototype as much as to build:
     something other than libsecp256k1. With the dispatch off, every
     operation named below is the Python arithmetic, whichever way the
     library was installed
-- not every operation crosses that boundary. `mult`, `double_mult_var` and
+- not every operation crosses that boundary, and one predicate decides
+    whether it can: `curve._libsecp256k1_serves` asks for the switch
+    above, then for secp256k1 as the curve, then for a hash function
+    that is sha256 or absent — `hf is None or hf is sha256`
+    (`src/btclib/curves/curve.py:526`) — with whatever further
+    conditions the call site ands onto it. The hash function is matched
+    by identity rather than by what it computes, so
+    `functools.partial(sha256)`, or any other wrapper a caller writes to
+    fit an interface, is one the predicate declines, and the call it is
+    passed to runs the Python arithmetic — conservative for the
+    arithmetic, silent for the caller. The condition each operation below
+    states as sha256 is that identity.
+    `mult`, `double_mult_var` and
     `multi_mult_var` reach the bindings for secp256k1 and any point of it, a
     zero scalar and the point at infinity excepted — libsecp256k1 has no
     scalar for the one and no public key for the other; `dsa.sign` for
@@ -204,7 +216,7 @@ used to teach and to prototype as much as to build:
     half of `bip32.derive` for secp256k1, the tweaking of a key, the
     shared point of a key agreement, the tweaking of a sign-to-contract
     nonce and the offsetting of a parent key by the left half of an hmac
-    being four other places a secret meets the curve.
+    being other places a secret meets the curve.
     Verification crosses it whole, not only in its multiplication:
     `dsa.verify` and `ssa.verify` are one libsecp256k1 call each, where
     the dispatch is on, for
@@ -264,9 +276,8 @@ used to teach and to prototype as much as to build:
     with `b_scan`, the recipient's scan private key, built once for a
     whole transaction rather than once per input; off that path it falls
     back to `scan_outputs` above and stays Python's alone.
-    Anything else — another
-    curve, another hash function, a nonce of your own — runs the Python
-    implementation, whose scalar multiplication is
+    Whatever the predicate above and a call's own conditions decline
+    runs the Python implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
     bindings, which are the authority on the answer, but it is not
     constant-time. It tries, which is not the same claim. The Jacobian
@@ -326,9 +337,12 @@ used to teach and to prototype as much as to build:
     different function from `secp256k1_ecmult_const`. Which call a
     multiplication takes is decided by its shape and not by the module
     that writes it: any point a caller supplied, multiplied by a secret
-    scalar, arrives here, `curves.curve.mult` delegating every point
-    that is neither the generator nor infinity in the arm it shares with
-    `PreparedPoint.mult` — `curve._mult_checked` at
+    scalar, arrives here. The arm `curves.curve.mult` shares with
+    `PreparedPoint.mult` asks for a non-zero reduced scalar and then for
+    the predicate above, with no hash function, so the switch and the
+    curve are the whole of what the predicate asks; the generator is a
+    different call inside that arm and infinity is not delegated at
+    all — `curve._mult_checked` at
     `return _libsecp256k1_multi_mult([m], [Q])`
     (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman` at
     `sec = libsecp256k1_keys.pubkey_tweak_mul(`
