@@ -449,11 +449,11 @@ def _sign_recoverable_(
     # a test can explore every value of it on a low-cardinality curve.
     # c is assumed in 0..n-1, q and nonce in 1..n-1
     # Steps numbering follows SEC 1 v.2 section 4.1.3
-    # affine coordinates of K (field elements); mult dispatches the
-    # generator to libsecp256k1 on secp256k1, which is where this
-    # function is reached from whenever the bindings decline the whole
-    # signature -- another hash function, another curve, a nonce the
-    # caller imposed, a sign-to-contract commitment. The nonce is secret,
+    # affine coordinates of K (field elements); mult dispatches the generator
+    # to libsecp256k1 on secp256k1, and what sent a signer here is its caller's
+    # own guard: every one asks `_libsecp256k1_serves`, the free functions
+    # beside it for a nonce nobody imposed, lower_s and, where one is taken, no
+    # sign-to-contract commitment. The nonce is secret,
     # and what multiplies it is regular in it either way: constant-time C
     # on secp256k1, and `_mult_fixed_base` on every other curve, whose
     # additions are the same for every scalar. The affine conversion the
@@ -702,9 +702,9 @@ def _libsecp256k1_sign_(
     verify: bool,
     pub_key: PubKey | None,
 ) -> Sig:
-    # Private function: the caller has asked `_libsecp256k1_serves` and
-    # settled the four things this arm cannot answer -- no nonce of its
-    # own, no commitment, and lower_s.
+    # Private function: `sign_`'s guard has asked `_libsecp256k1_serves`
+    # and settled what this arm cannot answer -- no nonce of the
+    # caller's, no commitment, and lower_s.
     #
     # One call, and that is the whole point of it. Grinding is Core's
     # `CKey::Sign` counter and the bindings' own `dsa._grind` walks the
@@ -1508,12 +1508,18 @@ def _assert_as_valid_(
     v = r * w % ec.n  # 4
     # Let K = u*G + v*Q.
     # the dispatching double_mult_var of curves.curve, not the Python
-    # arithmetic under it: what reaches here is the verification the
-    # bindings' own ecdsa_verify declined -- another hash function, a
-    # commitment to check, a caller-imposed nonce, a curve of its own --
-    # and on secp256k1 the multiplication is theirs all the same, some
-    # thirty-five times under the Python arithmetic, which is the whole
-    # of the gap between the two verifications
+    # arithmetic under it: `_jac_double_mult` decides that again on the
+    # dispatch switch and the curve alone, so a caller declined here for
+    # its hash function still multiplies in C on secp256k1, some
+    # thirty-five times under the Python arithmetic -- the whole of the
+    # gap between the two verifications. What sent a caller here is its
+    # own guard and not this function's: `assert_as_valid_` asks
+    # `_libsecp256k1_serves` and nothing else, a signer checking the
+    # signature it has just written asks that predicate beside whatever
+    # its own spelling takes -- `sign_` a nonce of the caller's, lower_s
+    # and a commitment, `Signer` nothing, its arm settled at
+    # construction -- and `_recover_pub_key_` reaches step 1.6.2 only on
+    # a curve of cofactor above 1, which the predicate declines outright
     KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec, fixed)  # 5
 
     # Fail if infinite(K).
