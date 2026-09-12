@@ -432,6 +432,30 @@ documented at release-notes length in the first place, and are still in
   about the function: it returns octets rather than an `int`, and what
   an `into=` buffer would cost there is `xdh`'s public signature.
 
+### The vendored symbol set states which library it is a set of
+
+- **`tests/_data/README.md` says which question the set answers**
+  (closes #1997), where the entry gave the reason for `src` over
+  `include` and was silent on which revision. The pin is
+  bitcoin-core/secp256k1's own, and `btclib-secp256k1` builds the
+  library a caller loads from a submodule of that repository, so the
+  two differ in both directions: a name upstream has added since the
+  last bump is in the set and not in that library, and a name upstream
+  has renamed away is in that library and not in the set. The entry
+  carries the call that prints the submodule's revision and the command
+  that names the difference from it.
+- **Upstream is what a credit asks about, and that is what decides the
+  pin.** A credit is followed into bitcoin-core/secp256k1's source, so
+  a set taken from the submodule would keep a renamed-away name and
+  pass a credit landing its reader on a function upstream does not
+  have. Neither direction of the difference is spelled in a `.py` of
+  `src/btclib` or `tests`, so no paragraph here rests on which of the
+  two runs.
+- **`tests/upstream_symbols_test.py`'s docstring carries the choice**,
+  beside the blind spots it already enumerates. Whether the installed
+  bindings expose a name is a third question, and neither pin answers
+  it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
