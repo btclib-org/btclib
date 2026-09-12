@@ -22,6 +22,33 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.10 (work in progress, not released yet)
 
+### A schedule comment names the `pull_request` trigger below it
+
+- **`integration-bitcoind.yml`, `links.yml`, `py-arm-authority.yml`,
+  `vendored-vectors.yml` and `zkp-oracle.yml` say a branch reaches the
+  workflow through the dispatch below the comment and through the
+  `pull_request` trigger further down** (closes btclib-org/.github#736).
+  Each of them declares that trigger, so *alone* claimed an exclusivity
+  the same file refuses a few lines lower, and it sent a reader asking
+  how to see the run before it lands to a hand dispatch their own pull
+  request had already made unnecessary.
+- **The wording is `btclib-secp256k1`'s**, taken there under this issue
+  at `8b174ce5` and `a7236b9d`. That tree's `codeql.yml` ends the clause
+  *pull_request trigger above*, its `pull_request:` standing ahead of its
+  `schedule:`; here the trigger sits below the comment in each of the
+  files named, which is what *further down* is derived from, file by
+  file.
+- **The other workflow files carrying the sentence are untouched**:
+  `deps-latest.yml`, `integration-hwi.yml`, `os-macos.yml`,
+  `os-ubuntu.yml`, `os-windows.yml` and `pypi-install.yml` declare no
+  `pull_request:` trigger at all, so the contradiction this issue is
+  about does not arise in them. `os-macos.yml`, `os-ubuntu.yml` and
+  `os-windows.yml` each declare `workflow_call:` below that sentence,
+  and `release.yml` calls all three in jobs with no `if:`, which a
+  `workflow_dispatch` rehearsal reaches from any branch:
+  btclib-org/.github#1040 is where that is filed, for this tree and for
+  `btclib-secp256k1`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

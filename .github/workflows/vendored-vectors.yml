@@ -31,7 +31,8 @@ on:
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
-    # this is reachable through the dispatch below alone
+    # this is reachable through the dispatch below, and through the
+    # pull_request trigger further down.
     - cron: "4 3 * * 1"
   workflow_dispatch:
   pull_request:
