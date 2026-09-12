@@ -80,18 +80,19 @@ of RFC 6979. `tests/_data/README.md` pins each vendored file to the
 upstream commit it was copied from, and says whether the two still match —
 including the few vectors that are btclib's own, having no upstream.
 
-The library is not limited to secp256k1, and for that curve it always
-calls
+The library is not limited to secp256k1, and for that curve it delegates
+to
 [btclib-secp256k1](https://github.com/btclib-org/btclib-secp256k1),
 FFI bindings to Bitcoin Core's optimized C library
-[libsecp256k1](https://github.com/bitcoin-core/secp256k1). They are the
-recommended install and what `pip install "btclib[secp256k1]"` asks for,
-needing one of their wheels or a C toolchain; without them btclib still
-answers, on the Python arithmetic, tens of times more slowly and not in
-constant time — `SECURITY.md` publishes both. That Python arithmetic
-serves every other curve anyway, and the suite validates it against the
-bindings: libsecp256k1 says what the right answer is, being what bitcoin
-consensus relies on.
+[libsecp256k1](https://github.com/bitcoin-core/secp256k1), wherever a
+call's own guard admits them. They are the recommended install and what
+`pip install "btclib[secp256k1]"` asks for, needing one of their wheels
+or a C toolchain; without them, or with the delegation turned off in a
+process that has them, btclib still answers, on the Python arithmetic,
+tens of times more slowly and not in constant time — `SECURITY.md`
+publishes both. That Python arithmetic serves every other curve anyway,
+and the suite validates it against the bindings: libsecp256k1 says what
+the right answer is, being what bitcoin consensus relies on.
 
 Included features are:
 
@@ -249,19 +250,26 @@ may have copied it meanwhile. The constant-time properties are
 libsecp256k1's, and they hold on the C side of the call — not before it,
 and not after.
 
-Not every operation crosses that call. `dsa.sign`, `ssa.sign` and
-`silent_payments.output_keys` reach the bindings for secp256k1 with sha256
-and no nonce of the caller's; another curve, another hash function, or a
-nonce you supply runs the Python arithmetic instead, which the suite
-validates against the bindings but which is not constant-time. So a caller
-whose threat model includes timing should stay on the delegated paths, or
-keep the key out of the process altogether: `btclib.hwi` drives a hardware
-wallet through HWI, behind the same `PsbtSigner` contract a software
-signer answers. `silent_payments.scan_outputs`, BIP352's light-client
-scan, is Python-only regardless: it accepts the shared secret already
-reduced, the shape a light client has and the bindings have no entry
-point for. `scan_transaction_outputs`, its full-node sibling, is not:
-where the bindings serve secp256k1 it reaches them with `b_scan`, the
+Not every operation crosses that call, and what decides is one
+predicate — a process-wide dispatch switch, secp256k1 as the curve,
+and sha256 or no hash function at all — with whatever further
+conditions the call site ands onto it. Those conditions differ from
+one function to the next, and `SECURITY.md` states each of them, for
+`dsa.sign`, `ssa.sign` and `silent_payments.output_keys` alike.
+Whatever that conjunction declines runs the Python arithmetic, which
+the suite validates against the bindings but which is not
+constant-time. A process that has the bindings turns that switch off
+with `curves.set_libsecp256k1_serving(serving=False)`, or with
+`BTCLIB_NO_LIBSECP256K1` in the environment, and every operation here
+is then the Python arithmetic. So a caller whose threat model includes
+timing should stay on the delegated paths, or keep the key out of the
+process altogether: `btclib.hwi` drives a hardware wallet through HWI,
+behind the same `PsbtSigner` contract a software signer answers.
+`silent_payments.scan_outputs`, BIP352's light-client scan, is
+Python-only regardless: it accepts the shared secret already reduced,
+the shape a light client has and the bindings have no entry point for.
+`scan_transaction_outputs`, its full-node sibling, is not: where the
+bindings serve secp256k1 it reaches them with `b_scan`, the
 recipient's scan private key, the same as `output_keys` above — a
 caller holding the transaction itself gets the delegated path a light
 client cannot reach.

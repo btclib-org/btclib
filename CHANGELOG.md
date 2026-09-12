@@ -688,6 +688,30 @@ documented at release-notes length in the first place, and are still in
   session state, and a pairing that fails that sentence names the prose
   for what the pairing did.
 
+### `README.md` states the predicate the bindings dispatch asks
+
+- **The *Secrets, and where constant time ends* section made secp256k1,
+  sha256 and a nonce btclib derives sufficient for a delegated
+  signature** (closes #2023), and gave another curve, another hash
+  function or a nonce of the caller's as the ways out of it. Each
+  function it named ands conditions of its own onto
+  `curves.curve._libsecp256k1_serves`, and those differ: `dsa.sign`
+  declines a signature asked for with `lower_s=False` and one carrying a
+  sign-to-contract commitment, `ssa.sign` declines the commitment and
+  takes no nonce at all, and `silent_payments.output_keys` takes none of
+  those arguments. The section gives the predicate and leaves the
+  per-function conditions to `SECURITY.md`, which it already points at.
+- **The runtime switch is named beside the Python arithmetic it selects.**
+  `curves.set_libsecp256k1_serving(serving=False)` and
+  `BTCLIB_NO_LIBSECP256K1` put a process holding the bindings on that
+  arithmetic for every operation, and for `silent_payments.output_keys`,
+  whose guard fixes the curve and passes no hash function, it is the
+  whole of what decides.
+- **The opening paragraph gave the install as what decides**, secp256k1
+  always calling the bindings. The delegation is a runtime switch
+  besides an install, and a call reaches the bindings where its own
+  guard admits them.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
