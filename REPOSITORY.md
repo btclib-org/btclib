@@ -106,11 +106,13 @@ the measurement the gate and the weekly sweeps are arranged around.
 `codeql.yml` carries no required check at all. It runs on `main`, on its
 schedule and on every pull request now — the OpenSSF Scorecard's `SAST`
 check is why, and `codeql.yml`'s own `on:` block comment carries that
-story — but neither cell of its `analyze` job's matrix can be named in
-the branch rule on its own, the bullet above being why, and the workflow
-has no aggregate job that could be. The Code scanning section below
-states that in its own terms, at the point where default setup's own
-`CodeQL` context is dropped from the rule instead.
+story — and neither cell of its `analyze` job's matrix can be named in
+the branch rule on its own, the bullet above being why. What the rule
+could name is `codeql: every job passed`, the aggregate at the end of
+that file, whose result is one context however many languages the matrix
+grows to (btclib-org/.github#459). Whether the rule asks for it is the
+`checks` array above, which does not name it: that is a settings change
+and a decision of its own, and the option is what the aggregate makes.
 
 What still reads a branch before it merges, `codeql.yml` itself included
 now, is the workflow half of the same question: `zizmor` is a pre-commit
@@ -192,8 +194,8 @@ rather than a pull request, so only a human can perform them:
 1. merge.
 
 There is no fifth step adding a `codeql.yml` check to the rule: neither
-matrix cell is required, and this workflow carries no aggregate that
-could be either.
+matrix cell may be named in one, and whether `codeql: every job passed`
+is named is *Required checks on main* above, not this exchange.
 
 Step 2 is what makes the setting let go of the analysis. It is not the
 command that enabled default setup and there is no need to keep that one:
@@ -539,10 +541,12 @@ itself needs. `test.yml` has one such declaration of its own, on
 `codeql.yml`'s `analyze` has one: `security-events: write` is
 what uploading a SARIF to code scanning takes, with `actions: read` beside
 it — redundant while this repository is public, and written down so that
-the file does not quietly stop working the day it is not. Every
-workflow's aggregate job needs none of that and declares none of it: one
-elevation per job is the shape to keep — the job that writes releases holds
-no OIDC token, and the job that signs writes no release.
+the file does not quietly stop working the day it is not.
+`codeql.yml`'s `codeql-passed` takes `actions: read` on its own account,
+to ask the run's own job listing back, which `contents: read` does not
+carry; `test.yml`'s aggregate reads `needs` and so declares nothing. One
+elevation per job is the shape to keep — the job that writes releases
+holds no OIDC token, and the job that signs writes no release.
 `vendored-vectors.yml`'s `vectors` job has one such declaration of its
 own: `issues: write`, for the `gh issue create`/`edit`/`close` calls its
 script makes on the tracking issue of each ledger its matrix checks, one

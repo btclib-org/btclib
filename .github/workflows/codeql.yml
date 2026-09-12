@@ -47,7 +47,7 @@ name: codeql
 # matters, because the setting does not refuse to let this file run: the
 # analysis completes and the SARIF uploads, and processing then answers
 # "CodeQL analyses from advanced configurations cannot be processed when
-# the default setup is enabled". Both jobs below are therefore red rather
+# the default setup is enabled". Every job below is therefore red rather
 # than absent while the setting is on, so the branch rule stops naming
 # `CodeQL` before the setting goes off rather than after.
 
@@ -98,9 +98,10 @@ on:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job
 # (actions, dependencies, the CodeQL bundle itself) can read the token, so
-# the workflow default must not be able to write to the repository. The
-# analysis job elevates for itself, one elevation on the one job that
-# needs it, which is the shape REPOSITORY.md keeps
+# the workflow default must not be able to write to the repository. A job
+# below that needs more declares it for itself and declares only that --
+# the analysis its `security-events: write`, the aggregate its
+# `actions: read` -- which is the shape REPOSITORY.md keeps
 permissions:
   contents: read
 
@@ -139,16 +140,16 @@ jobs:
     # far above what either language needs; what it bounds is a hung job
     # holding a runner for six hours
     timeout-minutes: 20
-    # the elevation, on the job that needs it and nowhere else: no other
-    # job in this workflow declares permissions, so no other job elevates.
-    # security-events: write is what uploading a SARIF to code scanning
-    # takes, and the whole reason this job cannot run on the read-only
-    # token. actions: read is redundant while this repository is public --
-    # it is what the CodeQL action needs to read run metadata in a
-    # *private* one -- and it is written down so that the file does not
-    # quietly stop working the day the repository stops being public. No
-    # packages: read, which fetching a private CodeQL pack would want and
-    # the default query suite does not.
+    # the elevation, on the job that needs it: security-events: write is
+    # this job's alone, the aggregate below declaring only the read its
+    # own question takes. The write is what uploading a SARIF to code
+    # scanning takes, and the whole reason this job cannot run on the
+    # read-only token. actions: read is redundant while this repository
+    # is public -- it is what the CodeQL action needs to read run
+    # metadata in a *private* one -- and it is written down so that the
+    # file does not quietly stop working the day the repository stops
+    # being public. No packages: read, which fetching a private CodeQL
+    # pack would want and the default query suite does not.
     # The trailing comments below are not that paragraph again for its own
     # sake: zizmor's undocumented-permissions audit reads the line a
     # permission is on and not the prose above the block, so one word there
@@ -214,14 +215,122 @@ jobs:
           # rather than starting again
           category: "/language:${{ matrix.language }}"
 
-  # no aggregate job, where test.yml has one. REPOSITORY.md's "Required
-  # checks on main" states "Never name matrix contexts in the branch
-  # rule": a matrix cell's own name is not a context a branch rule can
-  # bind to safely, so neither `Analyze actions` nor `Analyze python` can
-  # be required on its own, the same reason test.yml needs
-  # `test: every job passed` while lint.yml and docs.yml, each a single
-  # job, need no aggregate of their own. This workflow has none, so
-  # `analyze`'s two matrix cells are the whole of the checks list it
-  # contributes to a commit and neither gates a merge; adding an
-  # aggregate, and naming it in the branch rule, is REPOSITORY.md's own
-  # section to decide
+  # what a branch rule can name, where no cell of the matrix above can
+  # be. REPOSITORY.md's "Required checks on main" states "Never name
+  # matrix contexts in the branch rule": the rule lives outside the
+  # repository, so a context that stops being produced blocks every merge
+  # with nothing here to explain it, and the matrix reports a context per
+  # language, so a rule naming the cells it finds goes silently short the
+  # day a language joins. lint.yml and docs.yml need no aggregate of
+  # their own while each has one job, the job being the context there,
+  # which is the same reason test.yml has one.
+  # Naming this job in the branch rule is a settings change and
+  # REPOSITORY.md's own section to decide; what this job makes is the
+  # option, which a workflow reporting its cells and nothing else does
+  # not have (btclib-org/.github#459)
+  codeql-passed:
+    # the name and not the id is what such a rule matches, and it carries
+    # the workflow on purpose: a context is keyed by name alone, so two
+    # workflows with a job named "every job passed" would produce one
+    # ambiguous check, and test.yml's aggregate is a required check
+    name: "codeql: every job passed"
+    # ordering, and nothing else: nothing in this tree calls this
+    # workflow, so the step below reads the run's own job listing rather
+    # than `needs.*.result`, which is section 10 of the organization
+    # standard's shape for a workflow only ever run directly -- a called
+    # workflow's listing is the caller's run and holds jobs waiting on
+    # this one, which is why test.yml, being release.yml's own call,
+    # keeps `needs`. Here `needs` sequences this job after the matrix and
+    # decides nothing, so a language added above is covered without
+    # touching this
+    needs: [analyze]
+    # not success(): a job whose dependencies failed is skipped, and a
+    # skipped check reports "skipped", which a rule naming this context
+    # counts as satisfied -- the gate has to run to be able to fail. Not
+    # always() either: a run superseded by the concurrency group above is
+    # one the newer run already speaks for, and reaching this job would
+    # turn that cancellation into a red check with no defect behind it.
+    # The draft and closed halves are the analysis job's own condition,
+    # so a draft skips uniformly rather than reporting a failure for an
+    # analysis this workflow declined to run
+    if: >-
+      ${{ !cancelled()
+      && !github.event.pull_request.draft
+      && github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      # what asking the API for this run's own jobs takes, and the same
+      # read test.yml's aggregate would hold if it ever asked that
+      # question. REPOSITORY.md's "Token permissions" is where the
+      # elevation is read back. The trailing comment repeats it in one
+      # line for the reason the analysis job's block gives: zizmor's
+      # undocumented-permissions audit reads the permission's own line
+      actions: read # the run's job listing, which contents: read misses
+    steps:
+      # `needs.analyze.result` cannot tell a matrix cell that died in
+      # *Set up job* from one that ran and passed (issue #1001); asking
+      # the run's own listing instead reads what actually happened, at
+      # the price of a step per workflow rather than one shared with
+      # test.yml's aggregate, `needs` reaching nothing outside its own
+      # workflow
+      #
+      # the allowlist below names "success" and "skipped", which is what
+      # section 10 asks of a listing step, rather than "success" alone.
+      # Narrowing it reads well against the jobs this file holds -- none
+      # is conditional on what a pull request touched, and a superseded
+      # run skips this job before the step runs -- but that is a claim
+      # about today's jobs and not about the shape: a `changes` job, or
+      # an `if:` on a job narrower than this one's own, makes a
+      # legitimate "skipped" row reachable, and the first run carrying
+      # one is then a red required check with no defect under it and
+      # nothing in the tree pointing here. btclib-org/.github#990 is
+      # where the aggregates that narrow are swept
+      - name: Fail unless every other job of this run succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # `.status` beside the conclusion so that an unfinished job says
+          # which kind it is: queued and running are one word to
+          # `.conclusion` and two facts to a reader of the log
+          jobs=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
+            --jq '.jobs[] | "\(.conclusion // "unfinished")\t\(.status)\t\(.name)"')
+          # printed before it is judged: the job whose purpose is to be
+          # trusted is the one that has to be able to say what it saw
+          printf '%s\n' "${jobs}"
+          # awk and not grep: a tab in a grep pattern is one
+          # implementation's extension and a literal "t" in another's,
+          # where awk's field separator is POSIX
+          bad=$(printf '%s\n' "${jobs}" |
+            awk -F'\t' '$1 != "success" && $1 != "skipped" && $1 != "unfinished"')
+          unfinished=$(printf '%s\n' "${jobs}" |
+            awk -F'\t' '$1 == "unfinished"' | wc -l | tr -d ' ')
+          # each annotation names the rows it is about, an annotation
+          # being what the checks page shows without the log being
+          # opened. `%0A` is a newline to one, and the tab goes with it:
+          # the columns line up in a log and not in this
+          annotate() {
+            printf '::error::%s' "$1"
+            printf '%s' "$2" | tr '\t' ' ' | awk '{ printf "%%0A%s", $0 }'
+            printf '\n'
+          }
+          verdict=0
+          if [ -n "${bad}" ]; then
+            annotate "these jobs of the run did not succeed:" "${bad}"
+            verdict=1
+          fi
+          # exactly one job of the run may be unfinished, and it is this
+          # one. Counted rather than excluded by name, a name being what
+          # goes stale when this job is renamed -- and none unfinished at
+          # all is refused too, a listing with no job running not being a
+          # listing of the run this step is running in
+          if [ "${unfinished}" -ne 1 ]; then
+            annotate \
+              "this check should be the run's one unfinished job; ${unfinished} are" \
+              "$(printf '%s\n' "${jobs}" | awk -F'\t' '$1 == "unfinished"')"
+            verdict=1
+          fi
+          exit "${verdict}"

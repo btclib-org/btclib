@@ -553,9 +553,10 @@ wall clock is the wait for a slot rather than the suite. `os-macos.yml` and
 queueing and the runner seconds. `codeql` spends against that same
 ceiling on every pull request too now, for the OpenSSF Scorecard's
 `SAST` check rather than for this table's arithmetic — REPOSITORY.md has
-that trade — but it still does not gate the merge, no matrix cell of its
-`analyze` job being nameable in the branch rule on its own and the
-workflow carrying no aggregate that could be. `zizmor` in `lint` reads
+that trade — but it still does not gate the merge: no matrix cell of its
+`analyze` job is nameable in the branch rule on its own, and the
+aggregate that is nameable, `codeql: every job passed`, is a name the
+rule does not ask for. `zizmor` in `lint` reads
 these same workflow files for an injected expression on every pull
 request, which is a different question from what `codeql` asks.
 

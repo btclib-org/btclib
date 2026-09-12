@@ -606,6 +606,46 @@ documented at release-notes length in the first place, and are still in
   the curve and the hash function decide the dispatch and the size of
   the message does not.
 
+### `codeql.yml` ends in an aggregate a branch rule can name
+
+- **`codeql: every job passed` is the one context this workflow offers a
+  branch rule** (closes btclib-org/.github#459). A cell of the `analyze`
+  matrix is a context per language, and `REPOSITORY.md`'s "Never name
+  matrix contexts in the branch rule" is why none of them may be named:
+  the rule lives outside the repository, so a language joining the matrix
+  falls outside it with nothing red to say so. Whether the rule asks for
+  the aggregate is the `checks` array `REPOSITORY.md` reads back live,
+  which does not name it; what this adds is the option.
+- **The step reads the run's own job listing rather than
+  `needs.*.result`**, which is section 10 of the organization standard's
+  shape for a workflow only ever run directly. `release.yml` calls
+  `test.yml`, so that aggregate keeps `needs` — a called workflow's
+  listing is the caller's run, and holds jobs waiting on the aggregate
+  itself — and nothing in this tree calls `codeql.yml`. What the listing
+  buys beside that is the shape issue #1001 recorded: a matrix cell that
+  dies in *Set up job* is a `failure` row there while
+  `needs.analyze.result` does not carry it.
+- **The allowlist accepts `skipped` beside `success`**, which is what
+  section 10 asks of a listing step. Nothing in this workflow is
+  conditional on what a pull request touched and a superseded run skips
+  the aggregate before its step runs, so a legitimate `skipped` row is
+  unreachable — but that is a claim about the jobs the file holds rather
+  than about the shape, and a `changes` job or an `if:` narrower than the
+  aggregate's own makes it false without anything going red.
+  btclib-org/.github#990 is where the aggregates narrowed to `success`
+  alone are swept.
+- **`REPOSITORY.md` and `CONTRIBUTING.md` said this workflow carried no
+  aggregate a rule could name**, in `REPOSITORY.md`'s *Required checks on
+  main* and *Code scanning* and in `CONTRIBUTING.md`'s *What runs when*;
+  each says what the rule could name and that it does not.
+  `REPOSITORY.md`'s *Token permissions* gains the aggregate's
+  `actions: read`, which is what asking the API for a run's own jobs
+  takes and what `contents: read` does not carry. `codeql.yml`'s own
+  comments said it too, in their own words — no other job elevating,
+  one elevation on the one job that needs it, both jobs below going red
+  while the default setup is on — and each now describes a file with an
+  aggregate in it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
