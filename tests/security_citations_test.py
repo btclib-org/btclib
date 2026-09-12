@@ -28,9 +28,12 @@ The prose writes either of those, and it writes both: the name, the
 word `at`, the quotation and then the citation. Both are read, each
 against what it claims -- a quotation in front of a citation takes the
 dotted name in front of *it* as the second anchor of the same citation.
-That adjacency is what holds the two together, so a name the prose puts
-further back than the quotation is a sentence about the definition
-rather than an anchor of the citation, and is not read.
+That adjacency is what holds the two together, so a dotted name the
+prose puts further back than the quotation is not read. A claim about
+the definition a cited line sits in is written as the pair for that
+reason, and what the prose leaves further back names something the
+citation does not point into, which no definition holding the cited
+line answers for.
 
 A path with no line number is held to naming a file that exists, which
 is the whole of what it claims.

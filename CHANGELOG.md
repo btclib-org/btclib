@@ -554,6 +554,19 @@ documented at release-notes length in the first place, and are still in
   `COVERAGE_FILE` of a combining job as the arguments of that kind, and
   btclib-org/.github#1021 is where a third one is put to the standard.
 
+### `SECURITY.md` names the definition its `ecc/dsa.py` citation lands in
+
+- **`dsa.Signer.__init__` is written beside the line the citation
+  quotes** (closes #2017): the name, the word `at`, the quotation and
+  then the path and line number, which is the pair
+  `tests/security_citations_test.py` reads. The name was the subject of
+  the sentence instead, behind the spans that check reads, so a rename
+  of the definition left the pointer green.
+- **A dotted name further back than the quotation stays unread by
+  decision.** What the prose leaves there names something the citation
+  does not point into, which no definition holding the cited line
+  answers for; `tests/security_citations_test.py`'s docstring states the rule.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
