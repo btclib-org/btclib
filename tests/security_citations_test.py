@@ -14,8 +14,8 @@ sentence names, and learns that the file's pointers cannot be followed.
 That is worse than a file with no pointers (issue #1690).
 
 The grammar read here is the file's own. A citation is a backticked
-path, with or without a line number, and what it claims is written in
-the backticked spans in front of it:
+path, with or without a line number, and where it carries one, what it
+claims is written in the backticked spans in front of it:
 
 - a dotted name, `dsa.Signer.__init__`, and then the definition holding
   the cited line must be the one named, read off the module's own `ast`;
@@ -36,7 +36,12 @@ citation does not point into, which no definition holding the cited
 line answers for.
 
 A path with no line number is held to naming a file that exists, which
-is the whole of what it claims.
+is the whole of what it claims, so the spans in front of it are not
+read: an anchor is a claim about the line cited, and a citation carrying
+no line gives it nothing to be about. Holding a name to the file beside
+it instead would read a claim the prose does not make -- a sentence
+naming one module and citing the file of another is sound, and a pairing
+that fails it names the prose for what the pairing did.
 
 Two things this does not check. Which line inside a named definition is
 the right one: a dotted name pins the function and leaves every line of
@@ -105,11 +110,18 @@ def _citations(prose: str) -> tuple[tuple[str, str, str], ...]:
     for free. The index is what says there is a span in front at all: a
     negative one reaches the tail of the prose, and would anchor a
     citation to whatever the file happens to end with.
+
+    A citation carrying no line number is returned with no anchor: what
+    it claims is that its file exists, and no span in front of it adds
+    to that.
     """
     spans = _SPAN.findall(prose)
     anchored: list[tuple[str, str, str]] = []
     for index, span in enumerate(spans):
         if not (match := _CITATION.match(span)):
+            continue
+        if not (line := match["line"]):
+            anchored.append(("", match["path"], ""))
             continue
         anchors = [spans[index - 1] if index else ""]
         if (
@@ -118,7 +130,7 @@ def _citations(prose: str) -> tuple[tuple[str, str, str], ...]:
             and _SYMBOL.match(spans[index - 2])
         ):
             anchors.append(spans[index - 2])
-        anchored += [(anchor, match["path"], match["line"] or "") for anchor in anchors]
+        anchored += [(anchor, match["path"], line) for anchor in anchors]
     return tuple(anchored)
 
 
@@ -220,9 +232,7 @@ _SOUND = (
     pytest.param(
         "answer = 1 + 1", "src/control.py", "9", id="the quotation is on the line"
     ),
-    pytest.param(
-        "control.Klass.method", "src/control.py", "", id="a path claims only to exist"
-    ),
+    pytest.param("", "src/control.py", "", id="a path claims only to exist"),
 )
 
 _BROKEN = (
@@ -255,9 +265,10 @@ _CONTROL_PROSE = """\
 (`src/control.py:9`) opens the prose with nothing in front of it, where
 `answer = 1 + 1` (`src/control.py:9`) quotes the line, `Klass.method`
 (`src/control.py:9`) names the definition holding it, `Klass.method` at
-`answer = 1 + 1` (`src/control.py:9`) writes both, and `answer` at
+`answer = 1 + 1` (`src/control.py:9`) writes both, `answer` at
 `answer = 1 + 1` (`src/control.py:9`) puts a span that is no dotted name in
-front of the quotation.
+front of the quotation, and `Klass.method` (`src/control.py`) writes a name
+in front of a path with no line number.
 """
 
 _ANCHORED = (
@@ -267,6 +278,7 @@ _ANCHORED = (
     ("answer = 1 + 1", "src/control.py", "9"),
     ("Klass.method", "src/control.py", "9"),
     ("answer = 1 + 1", "src/control.py", "9"),
+    ("", "src/control.py", ""),
 )
 
 
