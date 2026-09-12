@@ -632,19 +632,20 @@ The `coverage` job, gated by `fail_under` in pyproject.toml:
 
 ```shell
 COVERAGE_FILE=coverage-data-bindings \
-    uv run --locked --no-default-groups --group test pytest --cov
+    uv run --locked --no-default-groups --group test pytest
 ```
 
-What `--cov` measures and how it reports are `tool.coverage.run`'s
-`source` and `tool.coverage.report` in pyproject.toml, so this command
-and the bare `uv run pytest` above are the same measurement: the job
-cannot gate on a scope a contributor's run does not have. The flag is
-written out here even though addopts already carries it, this being the
-job's command verbatim. `COVERAGE_FILE` is `--data-file`'s environment
-variable, coverage's own, and is the job's real step verbatim too, not a
-local-reproduction addition: the two artifacts this job and `no-bindings`
-below produce would overwrite each other under the default `.coverage`
-name once both land in the `coverage-union` job that reads them. The job
+The job types `pytest` and nothing after it, which is section 8 of the
+organization standard: addopts carries `--cov`, and what it measures and
+how it reports are `tool.coverage.run`'s `source` and
+`tool.coverage.report` in pyproject.toml. So this command and the bare
+`uv run pytest` above are the same measurement, the job being unable to
+gate on a scope a contributor's run does not have. `COVERAGE_FILE` is
+`--data-file`'s environment variable, coverage's own, and is the job's
+real step verbatim too, not a local-reproduction addition: the two
+artifacts this job and `no-bindings` below produce would overwrite each
+other under the default `.coverage` name once both land in the
+`coverage-union` job that reads them. The job
 then uploads the data file this command wrote as an artifact, for
 `coverage-union` to read; that step has no command of its own to
 reproduce, being a plain `actions/upload-artifact`.
@@ -665,7 +666,7 @@ uv run --locked --no-default-groups --group harness \
       assert not is_libsecp256k1_serving()"
 COVERAGE_FILE=coverage-data-no-bindings \
     uv run --locked --no-default-groups --group harness \
-    pytest --cov --cov-fail-under=0
+    pytest --cov-fail-under=0
 uv sync
 ```
 
@@ -679,15 +680,18 @@ group includes, so the split in pyproject.toml is what this job is.
 `--group test` in place of `harness` installs the bindings back and runs
 the whole suite with them present, reporting it as a passing no-bindings
 run with nothing to say it was not one.
-`--cov --cov-fail-under=0`, not `--no-cov` (issue #1002): the delegated
-arms are still unreachable in this configuration by construction, so a
-report of this run *alone* would still fail the 100% gate for the one
-reason the run exists to create — `--cov-fail-under=0` collects the data
-without gating this run on it. The tests that hold both implementations
-and compare them carry the `bindings` marker and skip themselves;
-everything else runs. This job's data is uploaded as an artifact too,
-under the name `COVERAGE_FILE` gave it above, so it does not collide
-with the `coverage` job's when both are downloaded into the same job.
+`--cov-fail-under=0`, not `--no-cov` (issue #1002): the delegated arms
+are still unreachable in this configuration by construction, so a report
+of this run *alone* would still fail the 100% gate for the one reason
+the run exists to create — `--cov-fail-under=0` collects the data
+without gating this run on it. It is the one argument the job types, and
+it is the job's own rather than a second copy: nothing in pyproject.toml
+names it, where `--cov` is in addopts. The tests that hold both
+implementations and compare them carry the `bindings` marker and skip
+themselves; everything else runs. This job's data is uploaded as an
+artifact too, under the name `COVERAGE_FILE` gave it above, so it does
+not collide with the `coverage` job's when both are downloaded into the
+same job.
 
 The `coverage-union` job, which combines the two data files above and
 gates their union at 100% as well — beside the `coverage` job's own

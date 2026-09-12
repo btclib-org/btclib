@@ -534,6 +534,26 @@ documented at release-notes length in the first place, and are still in
   multiplication unless it was the dispatch switch or the curve,
   `_jac_double_mult` asking that predicate itself.
 
+### `test.yml` types `pytest` and takes the suite's flags from `pyproject.toml`
+
+- **The `coverage` job runs `pytest` with nothing after it** (closes
+  btclib-org/.github#433): `addopts` carries `--cov`, so a copy of it in
+  the workflow is a flag a contributor's own `uv run pytest` does not
+  have, and the CI gate and the local gate can stop being the same
+  measurement with nothing turning red. Section 8 of the organization
+  standard is where the flags are put in one file.
+  `CONTRIBUTING.md`'s *Reproducing what CI runs* quotes that job's
+  command verbatim, so it moves with the step.
+- **`--cov-fail-under=0` is the whole of what the `no-bindings` job
+  types**: nothing in `pyproject.toml` names it, so it is that job's own
+  argument rather than a second copy of a tree-wide setting.
+  `[tool.coverage.report]`'s `fail_under` is the floor it lifts for a run
+  whose delegated arms are unreachable by construction, and the
+  instrumentation reaches that job from `addopts` like the `coverage`
+  job's. Section 8 names the `--no-cov` of a platform sentinel and the
+  `COVERAGE_FILE` of a combining job as the arguments of that kind, and
+  btclib-org/.github#1021 is where a third one is put to the standard.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
