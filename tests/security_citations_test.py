@@ -14,9 +14,8 @@ sentence names, and learns that the file's pointers cannot be followed.
 That is worse than a file with no pointers (issue #1690).
 
 The grammar read here is the file's own. A citation is a backticked
-path, with or without a line number, and its anchor is the backticked
-span in front of it -- the prose puts one there either way it writes a
-citation:
+path, with or without a line number, and what it claims is written in
+the backticked spans in front of it:
 
 - a dotted name, `dsa.Signer.__init__`, and then the definition holding
   the cited line must be the one named, read off the module's own `ast`;
@@ -25,14 +24,22 @@ citation:
   cited. Whitespace is flowed on both sides, the eighty-column wrap of
   the markdown being a fact of the margin and not of the code.
 
+The prose writes either of those, and it writes both: the name, the
+word `at`, the quotation and then the citation. Both are read, each
+against what it claims -- a quotation in front of a citation takes the
+dotted name in front of *it* as the second anchor of the same citation.
+That adjacency is what holds the two together, so a name the prose puts
+further back than the quotation is a sentence about the definition
+rather than an anchor of the citation, and is not read.
+
 A path with no line number is held to naming a file that exists, which
 is the whole of what it claims.
 
 Two things this does not check. Which line inside a named definition is
 the right one: a dotted name pins the function and leaves every line of
 it equally acceptable, so a citation that drifts within its own function
-passes here -- a citation wanting the stricter check quotes its line
-instead of naming its function. And whether the sentence around a
+passes on its name -- a citation wanting the stricter check quotes its
+line, beside the name or in place of it. And whether the sentence around a
 citation is true of the line it points at, which no test can read; what
 this keeps true is that the pointer still points at the code the
 sentence was written about.
@@ -86,18 +93,33 @@ def _prose() -> str:
     return _flow("\n".join(lines))
 
 
-_SPANS = _SPAN.findall(_prose())
-# each span paired with the span in front of it, and the first with
-# nothing: `strict=False` is what drops the head that has no span after
-# it. A citation opening the file carries an empty anchor, and `_defect`
-# refuses that rather than checking a line against nothing -- the empty
-# string is in every line, so a fall-through here would pass a citation
-# for free
-_CITATIONS = tuple(
-    (anchor, match["path"], match["line"] or "")
-    for anchor, span in zip(["", *_SPANS], _SPANS, strict=False)
-    if (match := _CITATION.match(span))
-)
+def _citations(prose: str) -> tuple[tuple[str, str, str], ...]:
+    """Return every citation of the prose, once for each anchor in front of it.
+
+    A citation opening the prose carries an empty anchor, and `_defect`
+    refuses that rather than checking a line against nothing -- the empty
+    string is in every line, so a fall-through here would pass a citation
+    for free. The index is what says there is a span in front at all: a
+    negative one reaches the tail of the prose, and would anchor a
+    citation to whatever the file happens to end with.
+    """
+    spans = _SPAN.findall(prose)
+    anchored: list[tuple[str, str, str]] = []
+    for index, span in enumerate(spans):
+        if not (match := _CITATION.match(span)):
+            continue
+        anchors = [spans[index - 1] if index else ""]
+        if (
+            not _SYMBOL.match(anchors[0])
+            and index > 1
+            and _SYMBOL.match(spans[index - 2])
+        ):
+            anchors.append(spans[index - 2])
+        anchored += [(anchor, match["path"], match["line"] or "") for anchor in anchors]
+    return tuple(anchored)
+
+
+_CITATIONS = _citations(_prose())
 
 
 def _enclosing(source: Path, lineno: int) -> str:
@@ -187,40 +209,75 @@ class Klass:
 
 _SOUND = (
     pytest.param(
-        "control.Klass.method", "control.py", "9", id="the name holds the line"
+        "control.Klass.method", "src/control.py", "9", id="the name holds the line"
     ),
     pytest.param(
-        "Klass.method", "control.py", "9", id="the name is a tail of the definition"
+        "Klass.method", "src/control.py", "9", id="the name is a tail of the definition"
     ),
     pytest.param(
-        "answer = 1 + 1", "control.py", "9", id="the quotation is on the line"
+        "answer = 1 + 1", "src/control.py", "9", id="the quotation is on the line"
     ),
     pytest.param(
-        "control.Klass.method", "control.py", "", id="a path claims only to exist"
+        "control.Klass.method", "src/control.py", "", id="a path claims only to exist"
     ),
 )
 
 _BROKEN = (
     pytest.param(
-        "control.Klass.other", "control.py", "9", id="a name that does not hold it"
+        "control.Klass.other", "src/control.py", "9", id="a name that does not hold it"
     ),
-    pytest.param("control.Klass", "control.py", "1", id="a line in no definition"),
-    pytest.param("answer = 2 + 2", "control.py", "9", id="a quotation not on the line"),
+    pytest.param("control.Klass", "src/control.py", "1", id="a line in no definition"),
     pytest.param(
-        "control.Klass.method", "control.py", "99", id="a line the file lacks"
+        "answer = 2 + 2", "src/control.py", "9", id="a quotation not on the line"
     ),
     pytest.param(
-        "control.Klass.method", "control.py", "0", id="a line below the first"
+        "control.Klass.method", "src/control.py", "99", id="a line the file lacks"
     ),
-    pytest.param("control.Klass.method", "absent.py", "1", id="a file that is gone"),
-    pytest.param("", "control.py", "9", id="a citation with nothing in front of it"),
+    pytest.param(
+        "control.Klass.method", "src/control.py", "0", id="a line below the first"
+    ),
+    pytest.param(
+        "control.Klass.method", "src/absent.py", "1", id="a file that is gone"
+    ),
+    pytest.param(
+        "", "src/control.py", "9", id="a citation with nothing in front of it"
+    ),
+)
+
+
+# the prose the anchoring controls read, written here for the reason the
+# module above is: prose taken from SECURITY.md would stop controlling
+# the pairing the day that file stopped writing one of these shapes
+_CONTROL_PROSE = """\
+(`src/control.py:9`) opens the prose with nothing in front of it, where
+`answer = 1 + 1` (`src/control.py:9`) quotes the line, `Klass.method`
+(`src/control.py:9`) names the definition holding it, `Klass.method` at
+`answer = 1 + 1` (`src/control.py:9`) writes both, and `answer` at
+`answer = 1 + 1` (`src/control.py:9`) puts a span that is no dotted name in
+front of the quotation.
+"""
+
+_ANCHORED = (
+    ("", "src/control.py", "9"),
+    ("answer = 1 + 1", "src/control.py", "9"),
+    ("Klass.method", "src/control.py", "9"),
+    ("answer = 1 + 1", "src/control.py", "9"),
+    ("Klass.method", "src/control.py", "9"),
+    ("answer = 1 + 1", "src/control.py", "9"),
 )
 
 
 @pytest.fixture
 def control(tmp_path: Path) -> Path:
-    """Write the module the controls cite, and answer its directory."""
-    (tmp_path / "control.py").write_text(_CONTROL_SOURCE, encoding="utf-8")
+    """Write the module the controls cite, and answer the root it sits under.
+
+    Under a directory of its own, because `_CITATION` asks a path for a
+    slash -- which is what keeps a dotted name from reading as one -- and
+    the prose the pairing is controlled with is read through that pattern.
+    """
+    source = tmp_path / "src" / "control.py"
+    source.parent.mkdir()
+    source.write_text(_CONTROL_SOURCE, encoding="utf-8")
     return tmp_path
 
 
@@ -247,6 +304,28 @@ def test_every_citation_answers_for_what_it_names(
     """
     defect = _defect(anchor, path, line)
     assert not defect, f"{_SECURITY.name} {defect}"
+
+
+def test_the_anchors_of_a_citation_are_the_spans_in_front_of_it() -> None:
+    """Every shape the prose writes, against what the pairing reads off it.
+
+    The equality is of the whole tuple, order included: a citation
+    writing both forms is read twice, and which anchor is dropped is
+    exactly what a pairing gets wrong.
+    """
+    assert _citations(_CONTROL_PROSE) == _ANCHORED
+
+
+def test_a_name_wrong_beside_a_right_quotation_is_named(control: Path) -> None:
+    """The two claims of one citation are held one at a time.
+
+    The quotation is on the line cited and the name is of another
+    definition, so a pairing stopping at the span in front of the
+    citation answers that this citation is sound.
+    """
+    quoted, named = _citations("`Klass.other` at `answer = 1 + 1` (`src/control.py:9`)")
+    assert not _defect(*quoted, control)
+    assert _defect(*named, control)
 
 
 @pytest.mark.parametrize("anchor, path, line", _SOUND)
