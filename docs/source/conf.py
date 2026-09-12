@@ -67,9 +67,10 @@ extensions = [
 
 source_suffix = [".rst", ".md"]
 
-# anchors for h1 to h4, which is what makes a link into a heading of
+# anchors down to h6, which is what makes a link into a heading of
 # another root markdown file resolve here: README.md links into
-# CONTRIBUTING.md's "Breaking a caller is not an argument" that way.
+# CONTRIBUTING.md's "Breaking a caller is not an argument" that way, and
+# CONTRIBUTING.md into REVIEWING.md's "The gates are the evidence".
 # Left unset this defaults to 0, myst generates no anchor at all, and
 # the fragment becomes an xref to a target no page has -- -W fails on a
 # link the forge renders correctly, which is what makes the failure
@@ -77,9 +78,23 @@ source_suffix = [".rst", ".md"]
 # is the one GitHub derives from the heading text, so the spelling
 # written for where these files are read is the spelling this build
 # accepts; the id it reaches is the one docutils gives the section, and
-# need not be spelled the same. Four levels, because that is how deep
-# the root markdown files head their sections
-myst_heading_anchors = 4
+# need not be spelled the same.
+#
+# Six is every level markdown heads at, which makes the number a fixed
+# point rather than a value re-derived from files that move -- and part
+# of what such a re-derivation would read belongs to no one tree:
+# section 14 of the organization standard ports CONTRIBUTING.md's shared
+# half into every repository, so a heading added there moves the depth
+# in each of them at once, and which tree finds out is whichever carries
+# a link into it (btclib-org/.github#715).
+#
+# Whether the depth is wide enough is not read off two builds: docutils
+# gives every section an id whatever myst accepts as a target, so the
+# pages this source renders at 4 and at 6 differ by no byte, and would
+# differ by none if a heading here did reach h5. What answers is a link
+# into such a heading: too narrow a depth makes it the same unresolved
+# xref an unset key makes of every one of them
+myst_heading_anchors = 6
 
 # -n on the build (CONTRIBUTING.md's documented command, and docs.yml)
 # turns an unresolved cross-reference into a warning for -W to fail on.

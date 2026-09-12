@@ -284,7 +284,7 @@ jobs:
       # about today's jobs and not about the shape: a `changes` job, or
       # an `if:` on a job narrower than this one's own, makes a
       # legitimate "skipped" row reachable, and the first run carrying
-      # one is then a red required check with no defect under it and
+      # one is then this job going red with no defect under it and
       # nothing in the tree pointing here. btclib-org/.github#990 is
       # where the aggregates that narrow are swept
       - name: Fail unless every other job of this run succeeded
