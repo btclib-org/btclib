@@ -231,11 +231,14 @@ Do not use Fable unless explicitly instructed.
   The backticked spans in front of a citation are what it claims: a
   dotted name (`ellswift.xdh`) is matched with `ast` against the
   definition enclosing the cited line, and a quotation of that line —
-  the way musig2.py's sum and dsa.py's `to_bytes` call are written —
-  verbatim against the line itself. A citation carrying both, the name
-  and then the quotation, is held to each of them. A dotted-name anchor
-  is satisfied by any line inside the right function, so a citation that
-  drifts a few lines within its own function still passes on its name.
+  the way musig2.py's sum is written — verbatim against the line itself.
+  A citation carrying both, the name and then the quotation, is held to
+  each of them, which is how dsa.py's `to_bytes` call is written; a name
+  the prose puts further back than the quotation is read by nothing, so a
+  claim about the definition a cited line sits in is written as that pair.
+  A dotted-name anchor is satisfied by any line inside the right function,
+  so a citation that drifts a few lines within its own function still
+  passes on its name.
   `awk 'NR==N' <file>` verified against the claimed content, not against
   which function the line lands in, is still the check for a dotted-name
   citation — a citation landing inside the right function has still been
