@@ -19,7 +19,9 @@ behind this file.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.9 (work in progress, not released yet)
+## v2026.10 (work in progress, not released yet)
+
+## v2026.9.13
 
 ### Breaking changes
 
@@ -40,7 +42,8 @@ full year, short month, short day (YYYY-M-D)
   answer the same; `btclib.ecc.pedersen.second_generator(ec, hf)` is the
   argument for a curve or a hash function other than the defaults, and
   `btclib.ecc.pedersen.generator_from_seed(seed, blind)` is the other
-  way to make one.
+  way to make one. CHANGELOG.md has why the generator became an
+  argument, and the rest of what this cycle changed.
 
 ## v2026.9.10
 

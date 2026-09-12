@@ -98,13 +98,13 @@ every tag cut afterwards simply inherited it unchanged. So no already-tagged
 heading can receive a bullet without gaining text its own sealed
 tag never had, which is the identical failure this module exists to
 catch, moved rather than fixed. The one heading with no tag to violate
-is the currently open one, `## v2026.9 (work in progress, not released
-yet)`, in the subsection each bullet already belonged to -- and once
-that cycle is itself tagged, the bullet is part of its tag from day one,
-unlike every prior placement. Each relocated bullet carries its own
-trailing "(shipped in v<version>)", the tag `merge-base --is-ancestor`
-found, so a reader can still tell it apart from what this cycle actually
-added.
+is whichever section is open when the move is made -- the placeholder,
+whose own name the next retitle takes -- in the subsection each bullet
+already belonged to; and once that section is retitled and tagged, the
+bullet is part of its tag from day one, unlike every prior placement.
+Each relocated bullet carries its own trailing "(shipped in
+v<version>)", the tag `merge-base --is-ancestor` found, so a reader can
+still tell it apart from what this cycle actually added.
 
 `v2026.8.7` keeps its exemption, now to `13941fd1` and `0744d3f4` alone:
 `237c86d4`'s bullets, the section's only relocatable content, are gone
@@ -455,7 +455,7 @@ def test_every_exemption_names_a_released_heading_on_disk() -> None:
         " so no case is generated for it and the comparison never applies it"
     )
 
-    bogus = ("CHANGELOG.md", "v2026.9")
+    bogus = ("CHANGELOG.md", "v2026.10")
     assert bogus not in _KNOWN_DRIFT
     planted = {**_KNOWN_DRIFT, bogus: next(iter(_KNOWN_DRIFT.values()))}
     assert _exemptions_naming_no_released_heading(planted) == [bogus]
