@@ -24,11 +24,11 @@ request and no memory of how the last review went. Read the other way
 round, before a pull request is opened, it is what that pull request
 will be answered against.
 
-A review produces comments on a pull request and issues filed against
-the repository. **A reviewer writes nothing to the branch**: no push, no
-amend, no merge. The one commit a review can lead to is the author's own
-click on a suggestion, below, which is theirs to make and theirs to
-decline.
+A review produces a verdict and comments on a pull request, and issues
+filed against the repository. **A reviewer writes nothing to the
+branch**: no push, no amend, no merge. The one commit a review can lead
+to is the author's own click on a suggestion, below, which is theirs to
+make and theirs to decline.
 
 ## The standard an ack is given against
 
@@ -120,8 +120,8 @@ comment about one of them is either wrong or a bug in the hook.
 
 A review notices more than its subject: a defect the diff did not cause,
 a document that has gone stale, a rule the tree quietly stopped
-following. **None of it is a review comment, and every one of it is an
-issue.** File it, and go back to the diff.
+following. **Most of it does not belong as a review comment: file it as
+an issue**, and go back to the diff.
 
 The reason is the author's round trip. A finding they cannot address
 without leaving the subject is a round of review spent on something the
@@ -129,6 +129,17 @@ pull request was not for, and asking for it anyway is how a branch stops
 converging. Filing costs the reviewer one command and loses nothing: the
 defect is recorded, with its evidence, where the next person to touch
 that code will find it.
+
+**Not every finding is filed.** A finding about the *wording* of prose no
+user reads — `CLAUDE.md`, a test's docstring or message, a comment in a
+workflow, a yaml or a toml, a `CHANGELOG.md` entry, a pull request body —
+is named at the foot of the review instead and left there: the diff's
+author fixes it where the diff already touches that file, and otherwise
+the note is the record of it. What is filed stays as above: a defect a
+test or a hook can measure, a decision the standard has to take, or a
+functional defect. btclib-org/.github#976 is where a tracker of prose
+findings about prose was found not to converge, and is the authority for
+this line.
 
 What is *not* collateral, and stays in the review, is what this diff
 introduces or breaks, and what was already wrong and this diff makes
@@ -155,9 +166,9 @@ Both blocks leave their placeholders unquoted, which section 9 of the
 standard asks for: quoted, a paste of the second files an issue whose
 title is the placeholder.
 
-Name the issues filed at the foot of the summary comment, under a line
-saying they are **not** findings against this pull request. Without that
-line the list reads as more things to fix before merging, which is the
+Name the issues filed at the foot of the summary, under a line saying
+they are **not** findings against this pull request. Without that line
+the list reads as more things to fix before merging, which is the
 opposite of what filing them was for.
 
 ## What a finding says
@@ -206,12 +217,9 @@ is what to use when a review leaves more than one.
 The author may apply one directly through the interface, which is why a
 suggestion is offered where a description would do.
 
-Two properties make this the right shape here and not merely a
-convenience: the commit GitHub writes is signed with its web-flow key,
-and `main` requires a valid signature rather than one particular
-signer; and it lands as a commit of its own on top of the branch,
-which is the shape section 11 of the standard asks a correction to take,
-so the shas the review is attached to survive it.
+What makes this the right shape here and not merely a convenience is the
+signature: the commit GitHub writes carries its web-flow key, and `main`
+requires a valid signature rather than one particular signer.
 
 Two properties decide when not to:
 
@@ -366,23 +374,34 @@ a gap.
 
 ## The verdict
 
-Inline comments for the line-anchored findings, then exactly one summary
-comment. **A review that decides whether the pull request lands** ends
-that comment with one of two lines:
+Inline comments for the line-anchored findings, then exactly one
+summary. **A review that decides whether the pull request lands** posts
+that summary to the forge as a review, and ends it with one of three
+lines:
+
+```text
+ACK <sha>
+```
 
 ```text
 CHANGES REQUESTED <sha>
 ```
 
 ```text
-ACK <sha>
+NACK <sha>
 ```
 
-Nothing else is an ack — not "looks good", and not a forge approval by
-the author of the pull request, which section 11 of the standard records
-GitHub as refusing. The ack of record is an approving review and section
-11 says whose; a verdict from anybody else is this comment, and either
-names the sha because an ack belongs to a tree and not to a branch.
+The ack of record carries whichever of the three applies and is posted
+as a review of type COMMENT — `gh pr review --comment` — never as a
+forge approval or a forge request for changes. Section 11 of the
+standard says whose verdict the ack of record is, what each of the three
+concludes, and what forbids the workflow an approval; a forge approval
+is a person's, and it is not the ack.
+
+Every other summary is a comment. Nothing else is an ack — not "looks
+good", and not a forge approval by the author of the pull request, which
+section 11 records GitHub as refusing. Every line names the sha, because
+an ack belongs to a tree and not to a branch.
 
 **A review that does not decide ends without one, and is not an
 unfinished review.** Somebody who reads a diff and says what they found
@@ -392,11 +411,21 @@ having are the ones nobody was assigned. What a pull request lands on is
 the ack of record; every other comment on it is evidence a person weighs
 before pressing.
 
+**A `NACK` is a decision and ending without a verdict is not.** Both
+leave the pull request unacked, which is what makes them easy to read as
+one thing, and they say opposite things: the first concludes, and
+section 11 has what it concludes; the second declines to conclude, which
+is what a reading does. Silence is not a refusal, so a reviewer who
+means to refuse writes the line.
+
 The summary says, in a few lines, what was reviewed — the sha, the gates
 and their exit codes —, lists the blocking findings, and names the
-issues filed. **In a verdict**, no blocking findings and no ack is a
-contradiction: either the finding is blocking or the ack is due. In a
-reading it is neither, the reading having declined to say.
+issues filed. **In a verdict**, `CHANGES REQUESTED` with no blocking
+finding is a contradiction: either the finding is blocking or the ack is
+due. In a reading neither is owed, the reading having declined to say. A
+`NACK` need not carry a blocking finding at all: its ground is the
+change rather than a defect in it, and that ground is what the summary
+states.
 
 And, in either, **what was not checked**: a command that could not be
 run, an issue that could not be read, a part of the tree left unopened.
@@ -413,10 +442,10 @@ before its child, and otherwise the oldest.
 
 ## Re-review
 
-The delta is `git diff <old-sha>..<new-sha>`, and there is one to read
-because section 11 of the standard has corrections added as commits
-rather than amended in: the shas the review was attached to are still
-there.
+The delta is `git diff <old-sha>..<new-sha>`, and the old sha is the one
+the previous round's verdict named. An amend and a rebase each leave it
+off the branch, so it is read from that verdict rather than from the
+branch's history.
 
 - **Resolve every thread the author addressed, and only those.** A
   thread they declined stays open only if it is still blocking; where

@@ -948,6 +948,39 @@ documented at release-notes length in the first place, and are still in
   this entry withdraws, and what refuses them there is regularity, which
   the sentence above it already carries.
 
+### `REVIEWING.md` and `.gitattributes` carry `btclib-org/.github`'s copies
+
+- **`REVIEWING.md` above `## This repository in particular` is
+  `btclib-org/.github`'s at `6a47f845` byte for byte** (issue
+  btclib-org/.github#353): section 14 of the organization standard
+  compares the file up to that heading and leaves what stands below it
+  to this tree, so the half above it is replaced whole rather than
+  difference by difference. What it says that the copy it replaces did
+  not: a finding about the wording of prose no user reads is named at
+  the foot of the review rather than filed, on btclib-org/.github#976's
+  authority; `NACK` stands beside `ACK` and `CHANGES REQUESTED` as a
+  verdict, and the ack of record is posted as a review of type COMMENT
+  rather than as a forge approval; and *Re-review* reads the old sha off
+  the previous round's verdict, an amend or a rebase leaving it off the
+  branch. `.github/workflows/claude-review.yml`'s prompt already tells a
+  reviewer that `REVIEWING.md` has the three lines and why a reading
+  ending without one is not a `NACK`, which is a claim about this tree's
+  own copy. Every heading is one the half already carried, so
+  `CONTRIBUTING.md`'s link into *The gates are the evidence* points at a
+  heading that is there.
+- **`.gitattributes` says what the union driver charges at the seam, and
+  what rejects not setting the driver at all** (issue
+  btclib-org/.github#1026): above `## This repository in particular` the
+  file is `btclib-org/.github`'s `.gitattributes` at `6a47f845` byte for
+  byte, and below the heading the `-whitespace` attribute on
+  `src/btclib/mnemonic/_data/electrum_portuguese.txt` is this tree's and
+  unchanged. Union joins the two sides' added lines directly, so a block
+  opening with a heading lands against the line above it while `git
+  rebase` exits 0 and nothing conflicts; `check-changelog` is the hook
+  that paragraph names, and `.pre-commit-config.yaml` here runs it ahead
+  of the `markdownlint-cli2` autofix, which would otherwise repair the
+  seam before anything named it.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

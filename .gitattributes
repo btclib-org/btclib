@@ -25,6 +25,21 @@
 # standard, btclib-org/.github's README.md, is where this rule is
 # recorded.
 #
+# The seam between the two sides has a price of its own: union joins
+# their added lines directly, so the blank line that separated the two
+# blocks is gone, and a block opening with a heading leaves that
+# heading sitting against the line above it. `git rebase` exits 0,
+# nothing conflicts, the tree is clean and each entry's own text is
+# untouched, so the rebase reports nothing. Section 4 of that README.md
+# has the `check-changelog` hook and puts it ahead of the markdownlint
+# autofix, which would otherwise repair the seam before anything named
+# it.
+#
+# Not setting the driver at all is the alternative, and what rejects it
+# is the first paragraph: a branch rebasing over a landing that wrote
+# an entry would resolve that one anchor by hand, in exchange for a
+# seam that hook reports.
+#
 # Both lines are in every repository's copy, a tree carrying no
 # RELEASE_NOTES.md included: section 2 of that README.md gives the
 # release notes to a repository that publishes, and an attribute on a
