@@ -73,8 +73,8 @@ Core carries commented out.
 headers.** The message holds a previous filter header and a vector of
 hashes; the headers are what a client computes from the two, and BIP157
 sends the hashes precisely so that it has to. Storing the derived headers
-instead would be the question issue #1101 answered for `headers`' always-
-zero transaction count, and the answer is the same: keep what the wire
+instead would be the question issue #1101 answered for `headers`' always-zero
+transaction count, and the answer is the same: keep what the wire
 holds, so that every payload serializes back to the octets it came from.
 `filter_headers` is the derivation, as `Inventory.is_witness` is the
 reading of a bit rather than a second field -- and it is the same

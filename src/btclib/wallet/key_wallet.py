@@ -281,8 +281,8 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
     `xkey` is the master key, the account key, or any key between the
     two; `der_path` is always the whole account path from the master,
     `m/purpose'/coin_type'/account'`, because the purpose lives at the
-    top of it and is what says whether the addresses are p2pkh, p2wpkh-
-    p2sh, p2wpkh or p2tr. What is left of the path below the key is
+    top of it and is what says whether the addresses are p2pkh, p2wpkh-p2sh,
+    p2wpkh or p2tr. What is left of the path below the key is
     derived once, at construction.
 
     Addresses come from the two unhardened levels BIP44 puts under an

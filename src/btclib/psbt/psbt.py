@@ -3179,8 +3179,8 @@ def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
     0x07 Finalized scriptSig and 0x08 Finalized scriptWitness and place
     them into the input key-value map.
 
-    All other data except the UTXO and unknown fields in the input key-
-    value map should be dropped from the wire representation. The UTXO
+    All other data except the UTXO and unknown fields in the input key-value
+    map should be dropped from the wire representation. The UTXO
     is kept to allow Transaction Extractors to verify the final network
     serialized transaction. This function does not clear those fields on
     the input it returns: `PsbtIn.serialize` drops them, guarded on the

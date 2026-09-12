@@ -196,8 +196,8 @@ def assert_sequence_locks(
 def assert_coinbase_maturity(prevouts: Sequence[Coin], spend_height: int) -> None:
     """Refuse a spend of a coinbase output not yet `COINBASE_MATURITY` deep.
 
-    Core's `Consensus::CheckTxInputs`, `bad-txns-premature-spend-of-
-    coinbase` (`src/consensus/tx_verify.cpp`, at
+    Core's `Consensus::CheckTxInputs`, `bad-txns-premature-spend-of-coinbase`
+    (`src/consensus/tx_verify.cpp`, at
     bitcoin/bitcoin@9be056a8a7): `spend_height - coin.height <
     COINBASE_MATURITY`, for whichever of `prevouts` is a coinbase output.
 
