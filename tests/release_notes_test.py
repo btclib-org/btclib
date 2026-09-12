@@ -39,6 +39,14 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).parents[1]
+
+# the files whose `merge=union` driver makes a restored count silent, which
+# is what a test rather than a reading answers for. `SECURITY.md` is
+# governed by the same rule and is not here: `git check-attr merge` answers
+# `unspecified` for it, and the patterns below are keyed on the paragraph
+# each forbids, so naming it adds a guard that cannot fail on it. CLAUDE.md's
+# *Never state how many of anything a file holds* carries that decision
+# (issue #2035)
 _FILES = (_ROOT / "CHANGELOG.md", _ROOT / "RELEASE_NOTES.md")
 
 # The three claims the two files used to make, keyed on the number word

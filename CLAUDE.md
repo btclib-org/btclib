@@ -440,6 +440,24 @@ Do not use Fable unless explicitly instructed.
   RELEASE_NOTES.md, `tests/vendored_data_test.py` for
   `tests/_data/README.md` — failing on a stated count rather than on a
   wrong one.
+
+  `SECURITY.md` is governed by the same rule and kept by hand, which is a
+  decision rather than a gap (issue #2035). What makes a test the
+  instrument for the files above is a defect a reading cannot see: the
+  `merge=union` driver restores a count paragraph on a rebase with
+  nothing in the merge output to say so, and `tests/_data/README.md`'s
+  count is an edit every branch vendoring a vector makes.
+  `git check-attr merge -- SECURITY.md` answers `unspecified`, and its
+  numerals sit in prose rather than at an append point. Naming the file in
+  `tests/release_notes_test.py`'s `_FILES` is the small move and an inert
+  one: those patterns are keyed on the paragraph each forbids, and match
+  nothing here. A guard of `tests/vendored_data_test.py`'s shape asks for
+  an exemption per `path:line` citation and per protocol constant, each
+  pinned verbatim, where an edit anywhere in a cited module moves the
+  line number `tests/security_citations_test.py` reads; and a numeral
+  summarising a roster the sentence itself lists is what a pattern cannot
+  tell from a sentence naming a structure, so the allowlist would carry
+  the judgement rather than check it.
 - **A wall clock and a linter's findings are counts too**, and nothing
   fails on those: pyproject.toml's comments and tests/README.md state
   none, and keeping it that way is by hand. What a comment carries
