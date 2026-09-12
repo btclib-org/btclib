@@ -1265,9 +1265,8 @@ def _mult_fixed_window_var(
 ) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
-    This implementation uses 'multiple-double & add' algorithm, 'left-
-    to-right' window decomposition of the m coefficient, Jacobian
-    coordinates.
+    This implementation uses 'multiple-double & add' algorithm, 'left-to-right'
+    window decomposition of the m coefficient, Jacobian coordinates.
 
     For 256-bit scalars it is suggested to choose w=4 or w=5.
 
@@ -1302,9 +1301,8 @@ def _mult_fixed_window_cached_var(
 ) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
 
-    This implementation uses 'multiple-double & add' algorithm, 'left-
-    to-right' window decomposition of the m coefficient, Jacobian
-    coordinates.
+    This implementation uses 'multiple-double & add' algorithm, 'left-to-right'
+    window decomposition of the m coefficient, Jacobian coordinates.
 
     For 256-bit scalars it is suggested to choose w=4. Thanks to the
     pre-computed values, it just needs addictions.
@@ -1436,9 +1434,8 @@ def _double_mult_var(
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q).
 
-    This implementation uses the Shamir-Strauss algorithm, 'left-to-
-    right' binary decomposition of the u and v coefficients, Jacobian
-    coordinates.
+    This implementation uses the Shamir-Strauss algorithm, 'left-to-right'
+    binary decomposition of the u and v coefficients, Jacobian coordinates.
 
     Strauss algorithm consists of a single 'double & add' loop for the
     parallel calculation of u*H and v*Q, efficiently using a single

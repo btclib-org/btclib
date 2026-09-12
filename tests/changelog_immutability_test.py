@@ -94,8 +94,8 @@ that heading was checked directly and lacks the bullet too, because each
 commit wrote it under an already-released heading as measured above,
 and nothing has touched it since: the mistake was never a rebase
 disturbing a settled tag, it is what that one commit itself wrote, and
-every tag cut afterwards simply inherited it unchanged. So no already-
-tagged heading can receive a bullet without gaining text its own sealed
+every tag cut afterwards simply inherited it unchanged. So no already-tagged
+heading can receive a bullet without gaining text its own sealed
 tag never had, which is the identical failure this module exists to
 catch, moved rather than fixed. The one heading with no tag to violate
 is the currently open one, `## v2026.9 (work in progress, not released

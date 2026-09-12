@@ -163,8 +163,8 @@ def legacy_vectors(fname: str) -> list[Any]:
     `_legacy` in the file names would read as a subsetting that never
     happens; nor is the content legacy, 2 valid and 14 invalid vectors
     naming WITNESS in their flags (issue 168). The `legacy` of the test
-    names below is another matter and stays: it distinguishes the pre-
-    taproot validation path these vectors drive from the BIP341 ones
+    names below is another matter and stays: it distinguishes the pre-taproot
+    validation path these vectors drive from the BIP341 ones
     above, and issue 129 cites `test_invalid_legacy` by name.
 
     Nothing is filtered here: skipping whatever `Tx.parse` refuses hides

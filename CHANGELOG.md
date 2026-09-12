@@ -712,6 +712,24 @@ documented at release-notes length in the first place, and are still in
   besides an install, and a call reaches the bindings where its own
   guard admits them.
 
+### The hyphen hook reads Python and rst beside markdown
+
+- **`no-hyphen-at-end-of-line` carries `types_or: [markdown, python, rst]`,
+  under `btclib-org/.github`'s own comment with its `README.md` read as
+  the organization standard, the phrase the comments beside it use for
+  the standard** (closes btclib-org/.github#921): section 4 of the
+  organization standard gives the hook the file types whose prose a
+  build renders, and a docstring reaches that rendering through
+  docutils, which leaves the source break inside the paragraph it
+  builds and lets html collapse it to a space, as it does markdown's
+  join.
+- **The lines the widened hook refused hold their token whole**: the
+  module docstring of `docs/source/conf.py` wrapped its Sphinx URL at
+  `sphinx-`, `curves/curve_group.py`'s function docstrings each wrapped
+  `left-to-right` at one of its own hyphens, and the rest are comments or
+  docstrings across `p2p`, `psbt`, `tx`, `wallet` and the test suite,
+  each rejoined at the word its own hyphen split.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

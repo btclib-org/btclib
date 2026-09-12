@@ -259,8 +259,8 @@ class DescriptorWallet(RangedWallet):
         """Return the position paying to this output, None where none is.
 
         `Descriptor.index_of` per chain, in `branches` order, rather than
-        a comparison written a second time here: it is the same whole-
-        script comparison, it refuses the same spellings that name no
+        a comparison written a second time here: it is the same whole-script
+        comparison, it refuses the same spellings that name no
         output, and it is what bounds the search of a chain that is not
         ranged to the one script it has.
         """

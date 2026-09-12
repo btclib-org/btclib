@@ -127,8 +127,8 @@ MAX_ADDRV2_SIZE = 512
 MAX_INV_SZ = 50000
 
 # The most headers one `headers` message carries, Core's
-# src/net_processing.h, whose comment adds what the number is load-
-# bearing for: "We rely on the assumption that if a peer sends less than
+# src/net_processing.h, whose comment adds what the number is load-bearing
+# for: "We rely on the assumption that if a peer sends less than
 # this number, we reached its tip. Changing this value is a protocol
 # upgrade."
 #

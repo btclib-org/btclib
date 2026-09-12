@@ -548,12 +548,16 @@ repos:
       # Section 4 of the organization standard is the rule: what such a
       # line renders as, why nothing else here catches it, what this
       # pattern cannot see, and what the measurement was before it was
-      # proposed
+      # proposed. The types are where a build renders prose from --
+      # markdown, and what docutils reads, an rst page and a Python
+      # docstring -- so a comment sharing a Python file with a docstring
+      # is refused alongside it, one line at a time being all pygrep
+      # reads
       - id: no-hyphen-at-end-of-line
         name: a word is not wrapped at its own hyphen
         language: pygrep
         entry: "[A-Za-z0-9]-$"
-        types: [markdown]
+        types_or: [markdown, python, rst]
       # a placeholder that is a whole argument, in quotes. Section 9 of
       # the organization standard is the rule and what the quoting costs
       # a paste; section 4 is where this hook is, which quotes it
