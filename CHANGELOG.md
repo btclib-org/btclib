@@ -826,6 +826,23 @@ documented at release-notes length in the first place, and are still in
   should reach this file is the other half of the issue and is not
   decided here.
 
+### `CLAUDE.md` says which files a test keeps free of a stated count
+
+- **`CLAUDE.md`'s *Never state how many of anything a file holds* named
+  the tests that enforce it and no file the rule governs without one**
+  (closes #2035): `SECURITY.md` is such a file, so the sentence reads as
+  coverage the suite does not give. That bullet names it, and the reason,
+  where it names the tests.
+- **The instrument that fits the files it does name does not fit this
+  one.** `merge=union` restores a count paragraph on a rebase with
+  nothing in the merge output to say so, and
+  `git check-attr merge -- SECURITY.md` answers `unspecified`. Naming
+  the file in `tests/release_notes_test.py`'s `_FILES` is inert, those
+  patterns being keyed on the paragraph each forbids; a guard of
+  `tests/vendored_data_test.py`'s shape asks for an exemption per
+  `path:line` citation, pinned verbatim, where an edit anywhere in a
+  cited module moves the line number.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
