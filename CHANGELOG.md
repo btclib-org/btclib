@@ -646,6 +646,32 @@ documented at release-notes length in the first place, and are still in
   while the default setup is on — and each now describes a file with an
   aggregate in it.
 
+### Open-section sentences a landing has since made false are superseded
+
+- **This supersedes *`ecc.rangeproof` verifies a proof and rewinds it*
+  above, whose entry says a generator of the caller's is still not taken
+  and that a proof written or read here is written against
+  `ecc.pedersen`'s own second generator** (issue btclib-org/.github#946):
+  issue #1986 is closed, on 2026-09-11. `f0358d56` is what closed it, and
+  *`ecc.pedersen` and `ecc.rangeproof` take the generator they work at*
+  above is its entry -- `ecc.rangeproof`'s entry points take a `gen`, and
+  a proof is written against the generator its caller passes.
+- **This supersedes *The `mention` job's `pull-requests: write` carries
+  its reason* above, whose entry says the other copies are owed the same
+  line** (issue btclib-org/.github#946): btclib-org/.github#915 is
+  closed, on 2026-09-12, and no copy is owed it. `git grep -c 'what
+  posting the reply takes' origin/main --
+  .github/workflows/claude-review.yml` answers `1` in every repository of
+  the organization that carries the file, with `permissions:` in the same
+  pathspec as the control that the search reads.
+- **This supersedes *The issue-form hooks join the `check-jsonschema`
+  block* above, whose entry says the other copies are owed the same
+  pair** (issue btclib-org/.github#946): btclib-org/.github#767 is
+  closed, on 2026-09-12, and no copy is owed it. `git grep -c
+  'check-github-issue-config' origin/main -- .pre-commit-config.yaml`
+  answers `1` in every one of them, and so does the same search for
+  `check-github-issue-forms`.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
