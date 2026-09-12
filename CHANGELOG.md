@@ -759,6 +759,73 @@ documented at release-notes length in the first place, and are still in
   `SECURITY.md`'s "Limitations, not vulnerabilities" keeps the name and
   what the timing claim rests on, and the section points there.
 
+### `SECURITY.md` closes its dispatch account with the predicate, not a roster
+
+- **The closing sentence gave another curve, another hash function or a
+  nonce of the caller's as the ways onto the Python arithmetic** (closes
+  #2028), where the same bullet states more above it: the process-wide
+  switch, which no argument of a caller's reaches; `dsa.sign`, which
+  declines a signature asked for with `lower_s=False` and one carrying a
+  sign-to-contract commitment; and `silent_payments.output_keys`, whose
+  guard fixes the curve and passes no hash function, so nothing a caller
+  passes selects either path for it. What the predicate and a call's own
+  conditions decline is what runs the Python implementation.
+- **The predicate opens the bullet the per-function conditions are anded
+  onto.** `curve._libsecp256k1_serves` asks for the switch, then for the
+  curve, then for the hash function, and this file is where the chain
+  ends: `README.md` and `src/btclib/ecc/__init__.py` state the predicate
+  and leave the conditions here, so a summary in this file cannot answer
+  by pointing on.
+- **The routing sentence of *What belongs here, and what belongs
+  upstream* gave the installation as a term of the decision**, where what
+  decides is the process-wide dispatch switch — an install without the
+  bindings is one state of it — and it folded the conditions of each call
+  site into the arguments of the operation.
+
+### `SECURITY.md` states that the hash function is matched by identity
+
+- **The condition written for each delegated operation is sha256, and
+  the test is `hf is sha256`** (closes #2029), so
+  `functools.partial(sha256)`, or any other wrapper a caller writes to
+  fit an interface, reads as delegated and is on the Python arithmetic
+  this file publishes as not constant-time. The identity is stated where
+  the predicate is, the wrapper named, and the fallback given as silent.
+- **Stated once, and not at each operation that names sha256.** The hash
+  function is a conjunct of the shared predicate rather than a condition
+  a call site ands onto it, so a copy at each operation would put one
+  fact where it is not decided and give it that many places to drift. A
+  reader checking one operation meets it on the way in, the predicate
+  opening the bullet those conditions are written in.
+
+### `SECURITY.md` states `mult`'s delegated arm as its guard tests it
+
+- **The arm was given as every point that is neither the generator nor
+  infinity** (closes #2033), a set of points with no condition in front
+  of it, where the bullet's subject is which multiplications are not
+  constant time and a reader uses it to decide whether their own key
+  agreement is on the C path. `_mult_checked` opens that arm asking for
+  a non-zero reduced scalar and then for the predicate, so a scalar that
+  reduces to zero, a process with the dispatch switch off and any curve
+  but secp256k1 are the Python arithmetic whatever the point is.
+- **The predicate is asked there with no hash function**, which leaves
+  the switch and the curve as the whole of what the predicate decides
+  for this multiplication. The two excepted points are the right two: the
+  generator is a different libsecp256k1 call inside the same arm, and
+  infinity is no public key, so `m*INF` is answered where every other
+  declined multiplication is.
+
+### `SECURITY.md` names the places a secret meets the curve, not how many
+
+- **The roster of call sites where a secret meets the curve stated how
+  many it names** (issue #2035), which `CLAUDE.md` forbids of prose that
+  lands and which no gate reads this file for:
+  `tests/release_notes_test.py` names `CHANGELOG.md` and
+  `RELEASE_NOTES.md`, and the tests that do read `SECURITY.md` read its
+  citations and its links. The names are in the same sentence and carry
+  it alone, so the numeral goes and nothing is lost. Whether that guard
+  should reach this file is the other half of the issue and is not
+  decided here.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
