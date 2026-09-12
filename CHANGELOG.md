@@ -489,6 +489,21 @@ documented at release-notes length in the first place, and are still in
   decides nothing about the double multiplication, the predicate being
   asked again with no hash function.
 
+### A citation in `SECURITY.md` is held to every anchor written for it
+
+- **A dotted name in front of a quoted line is read** (closes #2009).
+  `tests/security_citations_test.py` took the span immediately in front
+  of a citation and no other, so where the prose writes the name, the
+  word `at`, the quotation and then the citation, the quotation was the
+  anchor and the name was checked against nothing. Both are now read,
+  the name against the definition holding the cited line and the
+  quotation against the line itself.
+- **The citation at `src/btclib/curves/curve.py:823` names
+  `curve._mult_checked`**, which is the definition that line sits in:
+  the arm `curves.curve.mult` and `PreparedPoint.mult` share. The
+  sentence around the citation reaches that arm through `mult`, and the
+  quotation of the line is unchanged.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

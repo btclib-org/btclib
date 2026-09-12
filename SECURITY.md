@@ -327,7 +327,8 @@ used to teach and to prototype as much as to build:
     multiplication takes is decided by its shape and not by the module
     that writes it: any point a caller supplied, multiplied by a secret
     scalar, arrives here, `curves.curve.mult` delegating every point
-    that is neither the generator nor infinity —
+    that is neither the generator nor infinity in the arm it shares with
+    `PreparedPoint.mult` — `curve._mult_checked` at
     `return _libsecp256k1_multi_mult([m], [Q])`
     (`src/btclib/curves/curve.py:823`). `dh.diffie_hellman` at
     `sec = libsecp256k1_keys.pubkey_tweak_mul(`

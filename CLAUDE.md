@@ -228,16 +228,16 @@ Do not use Fable unless explicitly instructed.
   does skip.
 - **`tests/security_citations_test.py` checks every `path:line` citation
   `SECURITY.md` carries, but a symbol anchor pins only the function.**
-  The anchor is the backticked span in front of a citation: a dotted
-  name (`dsa.Signer.__init__`) is matched with `ast` against the
-  definition enclosing the cited line, while a citation that quotes its
-  line instead of naming a symbol — the way musig2.py's sum and dsa.py's
-  `to_bytes` call do — is matched verbatim against that line. A
-  dotted-name anchor is satisfied by any line inside the right function,
-  which is most of what `SECURITY.md` cites, so a citation that drifts a
-  few lines within its own function still passes there. `awk 'NR==N'
-  <file>` verified against the claimed content, not against which
-  function the line lands in, is still the check for a dotted-name
+  The backticked spans in front of a citation are what it claims: a
+  dotted name (`ellswift.xdh`) is matched with `ast` against the
+  definition enclosing the cited line, and a quotation of that line —
+  the way musig2.py's sum and dsa.py's `to_bytes` call are written —
+  verbatim against the line itself. A citation carrying both, the name
+  and then the quotation, is held to each of them. A dotted-name anchor
+  is satisfied by any line inside the right function, so a citation that
+  drifts a few lines within its own function still passes on its name.
+  `awk 'NR==N' <file>` verified against the claimed content, not against
+  which function the line lands in, is still the check for a dotted-name
   citation — a citation landing inside the right function has still been
   off by several lines; a quoted-line citation already gets that from
   the gate.
