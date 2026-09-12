@@ -843,6 +843,58 @@ documented at release-notes length in the first place, and are still in
   `path:line` citation, pinned verbatim, where an edit anywhere in a
   cited module moves the line number.
 
+### The anchor depth, the gate's closure and one codeql clause converge
+
+- **`docs/source/conf.py`'s `myst_heading_anchors` is 6** (issue
+  btclib-org/.github#715): section 2 of the organization standard makes
+  six every level markdown heads at, which is what makes the number a
+  fixed point rather than a depth re-derived from the files it covers.
+  `CONTRIBUTING.md`'s shared half is ported to every repository by
+  section 14, so a heading added there moves a tree-derived depth in
+  each of them at once, and which tree finds out is whichever carries a
+  link into it. The key is already load-bearing here -- `README.md`
+  links into `CONTRIBUTING.md`'s *Breaking a caller is not an argument*
+  and `CONTRIBUTING.md` into `REVIEWING.md`'s *The gates are the
+  evidence* -- so the widening reaches a depth no link needs today
+  rather than repairing one that was broken. What says the depth is wide
+  enough is a link into a heading and not a comparison of two builds:
+  docutils gives every section an id whatever myst accepts as a target,
+  so the pages this source renders are the same bytes at either value,
+  and would be with a heading at `#####` in them.
+- **`tests/interpreters_test.py` takes the free-threading
+  biconditional's second side from the aggregate's `needs:` closure**
+  (issue btclib-org/.github#634): section 3 of the standard makes the
+  second side the jobs the required check waits on, and names reading
+  the workflow file as the rejected alternative, an interpreter a job
+  outside the closure names being the "it passed somewhere" that section
+  refuses. `test: every job passed` waits on every job `test.yml`
+  declares, so the two readings do not disagree over this tree's own
+  workflow; the workflow text they do disagree over is built in the
+  module, a job the aggregate waits on, one beside it, and one reached
+  only through a block-sequence `needs:`. That third job is what holds
+  the closure's own reading of `needs:` to a block list under the key as
+  well as the flow shapes beside it: with `coverage-union`'s `needs:`
+  rewritten as a block list and a free-threaded job reachable only
+  through it, the flow-only pattern answers `3.14` where the closure
+  runs `3.14t` as well, and a closure short of an edge is short of the
+  jobs behind it.
+- **`.github/workflows/codeql.yml` says this job goes red, not that a
+  required check fails** (issue btclib-org/.github#1028). The comment
+  above *Fail unless every other job of this run succeeded* argues the
+  allowlist into naming `success` and `skipped` both, and that argument
+  is untouched: a `changes` job, or an `if:` narrower than the
+  aggregate's own, makes a legitimate `skipped` row reachable. What was
+  false is the consequence drawn from it. No required context of `main`
+  comes from this workflow, which `REPOSITORY.md` already says in its
+  own words, and the classic `branches/main/protection` endpoint is
+  where that is read -- this repository's rulesets carry no
+  `required_status_checks` rule at all, so a rulesets-only read answers
+  that nothing here is required. The citation advances the issue rather
+  than closing it because the same clause is section 10 of the
+  organization standard's own sentence -- *what says the allowlist has
+  stopped matching the run is the required check failing* -- and that
+  half is a change to another repository.
+
 ## v2026.9.10
 
 ### Section 9's comment and placeholder rules land in this tree's own docs

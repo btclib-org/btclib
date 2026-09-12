@@ -64,20 +64,67 @@ _PYTHONS = re.compile(
 # -- would drop out of the comparison below in silence, leaving the
 # remaining two to agree with each other and the test green
 _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
-# the merge gate, which its own header says is one cell rather than a
-# matrix: each job writes the interpreter it runs into itself, as
-# `python-version: "3.14"` or `--python 3.14`, so the gate's interpreters
-# are read as tokens off the file rather than out of a matrix block. A
-# free-threaded build there is a "3.14t" of the same shape. Comments go
-# first, so that a sentence about a sweep's free-threaded cell does not
-# read as the gate running one. The `dist` job is the exception: its
-# `astral-sh/setup-uv` step passes no `python-version:`, and its bare
-# `uv build` and "Smoke-test the wheel" step's `uv venv` take their
-# interpreter from `.python-version` instead of naming it in the job, so
-# a change to that file would move `dist`'s interpreter unseen here
+# the merge gate, and inside it the jobs a landing waits on. Section 3
+# of the organization standard declares a free-threading classifier
+# where the gate exercises that build, a gate being what refuses the
+# landing that breaks it, so what answers below is the aggregate's own
+# `needs:` closure rather than the file: a job of this workflow that no
+# required check waits on reports what a sweep reports, which is the
+# ground that section declines. Reading the file is the alternative that
+# section names as rejected, and it answers the same wherever every job
+# of the gating workflow sits inside the closure; what the closure buys
+# is that a job added outside it does not begin deciding this.
+#
+# Each job of the closure writes the interpreter it runs into itself, as
+# `python-version: "3.14"` or `--python 3.14`, so those interpreters are
+# read as tokens off the job's own block rather than out of a matrix
+# block. A free-threaded build there is a "3.14t" of the same shape.
+# Comments go first, so that a sentence about a sweep's free-threaded
+# cell does not read as the gate running one. Where this read stops is
+# the `dist` job, whose `astral-sh/setup-uv` step passes no
+# `python-version:` and whose bare `uv build` and "Smoke-test the wheel"
+# step's `uv venv` take the interpreter `.python-version` pins instead
+# of naming one in the job, so a change to that file would move `dist`'s
+# interpreter unseen here
 _GATE = _ROOT / ".github/workflows/test.yml"
+# the aggregate, found by the name `main`'s required contexts hold,
+# which is a job's `name:` and not its key
+_AGGREGATE = "test: every job passed"
 _COMMENT = re.compile(r"(?:^|\s)#.*$", re.MULTILINE)
 _INTERPRETER = re.compile(r"\b3\.\d+t?\b")
+# `jobs:` and everything under it: the trigger keys of `on:` sit at the
+# same indent as a job key, so a read that did not cut here would offer
+# `pull_request` to the closure below as though it were a job
+_JOBS = re.compile(r"^jobs:\n(?P<block>.*)\Z", re.MULTILINE | re.DOTALL)
+# a job key at the one indent `jobs:` gives them
+_JOB = re.compile(r"^  (?P<key>[a-z0-9_-]+):$", re.MULTILINE)
+# whatever follows `needs:` on the key's own line, plus the items below
+# it written `      - `, which is the spelling `btclib-secp256k1`
+# carries. The shapes that reads are one job after the key, a flow list
+# there, and a block list indented six.
+#
+# What it does not read, it drops without saying so, and the cases are
+# named because they are not equally bad. A flow list wrapped across
+# lines keeps only what sat on the key line: nothing where the bracket
+# stands alone, the first entry alone where it does not. A block list at
+# any other indent, and a flow list exploded under the key, keep none of
+# it. So does a comment among the items, and that one is this module's
+# own doing -- `_COMMENT` takes one whitespace away with the `#`, so a
+# comment on a line of its own arrives as a short run of spaces, and a
+# trailing comment written with two spaces before the `#` leaves one
+# behind; either ends the run of items where it stands.
+#
+# The empty closure is the loud failure: `_gating` then finds no
+# interpreter and the assertion below fires on it. A closure short of
+# only some of its edges is the quiet one, and it is why the block shape
+# is read rather than the flow ones alone -- a free-threaded build
+# behind a dropped edge goes unseen, and the biconditional below passes
+# on a gate it has not read
+_NEEDS = re.compile(
+    r"^    needs:(?P<inline>[^\n]*)\n(?P<items>(?:^      - \S+\n)*)", re.MULTILINE
+)
+_ITEM = re.compile(r"^      - (?P<key>\S+)$", re.MULTILINE)
+_NAME = re.compile(r'^    name: "?(?P<name>[^"\n]*)"?', re.MULTILINE)
 
 
 def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
@@ -101,10 +148,58 @@ def _declared() -> dict[str, tuple[str, ...]]:
     return found
 
 
-def _gate_interpreters() -> tuple[str, ...]:
-    """Return every interpreter the merge gate names outside its comments."""
-    text = _COMMENT.sub("", _GATE.read_text(encoding="utf-8"))
-    return tuple(sorted(set(_INTERPRETER.findall(text))))
+def _jobs(text: str) -> dict[str, str]:
+    """Return each job of a workflow, its comments dropped, keyed by key."""
+    jobs = _JOBS.search(_COMMENT.sub("", text))
+    assert jobs, "the workflow declares no jobs"
+    block = jobs["block"]
+    keys = list(_JOB.finditer(block))
+    bounds = [key.start() for key in keys[1:]] + [len(block)]
+    return {
+        key["key"]: block[key.end() : bound]
+        for key, bound in zip(keys, bounds, strict=True)
+    }
+
+
+def _waits_on(block: str) -> list[str]:
+    """Return the jobs one job's `needs:` names, in whichever shape."""
+    needs = _NEEDS.search(block)
+    if not needs:
+        return []
+    listed = needs["inline"].strip("[] ").replace(",", " ").split()
+    return listed + _ITEM.findall(needs["items"])
+
+
+def _needed(jobs: dict[str, str], key: str) -> set[str]:
+    """Return `key` and every job it waits on, however deep."""
+    found = {key}
+    pending = [key]
+    while pending:
+        for name in _waits_on(jobs[pending.pop()]):
+            if name not in found:
+                found.add(name)
+                pending.append(name)
+    return found
+
+
+def _found(jobs: dict[str, str], closure: set[str]) -> tuple[str, ...]:
+    """Return every interpreter the jobs of `closure` name."""
+    found: set[str] = set()
+    for key in closure:
+        found.update(_INTERPRETER.findall(jobs[key]))
+    return tuple(sorted(found))
+
+
+def _gating() -> tuple[str, ...]:
+    """Return every interpreter the jobs the merge gate waits on name."""
+    jobs = _jobs(_GATE.read_text(encoding="utf-8"))
+    keyed: dict[str, str] = {}
+    for key, block in jobs.items():
+        name = _NAME.search(block)
+        assert name, f"{_GATE.name}'s `{key}` job carries no name"
+        keyed[name["name"]] = key
+    assert _AGGREGATE in keyed, f"{_GATE.name} carries no job named {_AGGREGATE!r}"
+    return _found(jobs, _needed(jobs, keyed[_AGGREGATE]))
 
 
 def _matrix() -> tuple[str, ...]:
@@ -180,18 +275,58 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
     The organization standard declares one where the gate exercises the
     free-threaded build: a gate refuses the landing that breaks that
     build, where a sweep runs beside a landing and blocks nothing. So the
-    second side here is test.yml alone and not `_MATRIX` -- the sweeps
-    name "3.14t" as readily as the gate would, and a sweep passing is the
-    ground the standard declines.
+    second side here is the jobs the required check waits on, and not
+    `_MATRIX` -- the sweeps name "3.14t" as readily as the gate would,
+    and a sweep passing is the ground the standard declines.
     """
-    gate = _gate_interpreters()
-    assert gate, "test.yml names no interpreter"
+    gating = _gating()
+    assert gating, f"no job {_AGGREGATE!r} waits on names an interpreter"
     classified = bool(_FREE_THREADING_CLASSIFIER.search(_PYPROJECT))
-    run = [v for v in gate if v.endswith("t")]
+    run = [v for v in gating if v.endswith("t")]
     assert classified == bool(run), (
         f"the free-threading classifier is {'present' if classified else 'absent'}"
-        f" and test.yml names {', '.join(run) or 'no free-threaded interpreter'}"
+        f" and the jobs {_AGGREGATE!r} waits on name"
+        f" {', '.join(run) or 'no free-threaded interpreter'}"
     )
+
+
+def test_a_job_outside_the_closure_answers_for_no_gate() -> None:
+    """The closure and the file are read apart, on text where they differ.
+
+    `test.yml` cannot show the difference: its aggregate waits on every
+    job in it, and every `needs:` it writes is a flow one. So the reading
+    the organization standard rejects agrees with the one it asks for,
+    and a `needs:` shape this module cannot see costs nothing there. The
+    workflow below is where both cost something -- a job the aggregate
+    waits on, one it does not, and one reached only through a block
+    `needs:` -- and each names an interpreter of its own.
+    """
+    text = (
+        "jobs:\n"
+        "  waited-on:\n"
+        "    name: Waited on\n"
+        "    steps:\n"
+        "      - run: uv run --python 3.11 pytest\n"
+        "  beside:\n"
+        "    name: Beside\n"
+        "    steps:\n"
+        "      - run: uv run --python 3.12t pytest\n"
+        "  between:\n"
+        "    name: Between\n"
+        "    needs:\n"
+        "      - waited-on\n"
+        "    steps:\n"
+        "      - run: uv run --python 3.13 pytest\n"
+        "  aggregate:\n"
+        f'    name: "{_AGGREGATE}"\n'
+        "    needs: [between]\n"
+    )
+    jobs = _jobs(text)
+    assert sorted(jobs) == ["aggregate", "beside", "between", "waited-on"]
+    closure = _needed(jobs, "aggregate")
+    assert closure == {"aggregate", "between", "waited-on"}
+    assert _found(jobs, closure) == ("3.11", "3.13")
+    assert _found(jobs, set(jobs)) == ("3.11", "3.12t", "3.13")
 
 
 def test_workflow_files_reads_the_names_github_runs(tmp_path: Path) -> None:
