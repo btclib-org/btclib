@@ -390,6 +390,14 @@ def test_needed_reads_needs_in_each_of_its_three_shapes(
     assert closure(scalar) == {"aggregate", "changes"}
     for shape, block in under_the_key.items():
         assert closure(block) == whole, shape
+    # a job key may carry a hyphen, and an item token stopping at one
+    # loses the job (btclib-org/.github#1063)
+    hyphenated = {
+        "aggregate": "    needs:\n      - test-passed\n      - free-threaded\n",
+        "test-passed": "",
+        "free-threaded": "",
+    }
+    assert _needed(hyphenated, "aggregate") == set(hyphenated)
     # the one job dict here that is not flat: with every dict flat one
     # hop is the whole closure, so a `_needed` that read a job's direct
     # `needs:` and stopped would answer every row above correctly

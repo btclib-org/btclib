@@ -653,6 +653,12 @@ documented at release-notes length in the first place, and are still in
 - **`REPOSITORY.md` records both as `false`** (issue
   btclib-org/.github#550), the settings having been turned off.
 
+### The `needs:` shape test reads hyphenated job keys
+
+- **A block list of `test-passed` and `free-threaded` is read whole**
+  (closes btclib-org/.github#1063), so an item token narrowed to stop
+  at a hyphen fails the test.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
