@@ -869,8 +869,9 @@ view.
 ## Features
 
 ```shell
-gh api repos/btclib-org/btclib --jq '{visibility, has_issues}'
-# {"has_issues":true,"visibility":"public"}
+gh api repos/btclib-org/btclib \
+  --jq '{visibility, has_issues, wiki: .has_wiki, projects: .has_projects}'
+# {"has_issues":true,"projects":false,"visibility":"public","wiki":false}
 ```
 
 Section 10's `scorecard` sentinel rests on the first answer: public is
@@ -881,6 +882,11 @@ what it reads at all, so a flip to private leaves `scorecard.yml` and
 `has_issues` is what `CONTRIBUTING.md`'s *The issue tracker* rests on —
 an issue about this tree alone stays here — and so does the
 `.github/ISSUE_TEMPLATE/` section 16's checklist gives every repository.
+
+Section 11 turns the wiki and the projects board off on every tree: an
+unused wiki is a second place a reader can land looking for what the
+tracker already records, and the projects board is a per-user view of
+the same issues.
 
 ## Topics
 
@@ -945,12 +951,6 @@ printf '%s' "$std" | grep -c delete_branch_on_merge
 
 Recording a field on no rule grows this file with GitHub's API rather
 than with the standard.
-
-**The wiki and the projects board are outside the perimeter by section
-11's own sentence**, which states no rule about either, so this file
-neither reads `has_wiki` and `has_projects` back nor explains an answer
-to them; that sentence is what the loop above would count, which is why
-the pair is not in its list.
 
 **A credential this repository does not hold.** `claude-review.yml`
 spends `secrets.CLAUDE_CODE_OAUTH_TOKEN`, and section 11 of the standard

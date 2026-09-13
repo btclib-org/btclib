@@ -648,6 +648,11 @@ documented at release-notes length in the first place, and are still in
   installs the bindings the `lint` group includes and not btclib itself**
   (closes #2094).
 
+### The wiki and the projects board are off
+
+- **`REPOSITORY.md` records both as `false`** (issue
+  btclib-org/.github#550), the settings having been turned off.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
