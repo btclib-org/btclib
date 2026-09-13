@@ -890,10 +890,10 @@ exclude = [
 # `--force-exclude` semantics for that hook. Without it, the named form
 # rewrites a comment's spacing inside a tag-sealed `## v2026.8.27` section,
 # which `tests/changelog_immutability_test.py` then reads as drift (issue
-# #1530). Measured on the pinned ruff 0.16.7: `ruff format --diff --no-cache
-# CHANGELOG.md` exits 1 without this key and 0 with it, a control with nothing
-# excluded also exiting 1 so the difference is the exclusion and not a file
-# needing no reformatting. The key lives here rather than under
+# #1530). Measured on ruff 0.16.7: `ruff format --diff --no-cache
+# CHANGELOG.md` exits 1 without this key and 0 with it, a control with
+# nothing excluded also exiting 1 so the difference is the exclusion and
+# not a file needing no reformatting. The key lives here rather than under
 # `[tool.ruff.format]` because ruff reads it for every subcommand;
 # `[tool.ruff]` carries no `exclude` or `extend-exclude` of its own, so the
 # only patterns it enforces against an explicit path are the formatter's own

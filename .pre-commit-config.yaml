@@ -314,11 +314,11 @@ repos:
       - id: name-tests-test
       - id: check-toml
       # only files being *added* are measured, the hook intersecting its
-      # arguments with git's added set, so the 9 MB of
-      # script_assets_test.json already vendored does not trip it and the
-      # next one that size does. The default 500 KB is left alone: it is
-      # the threshold at which a blob deserves a sentence in
-      # tests/_data/README.md saying where it came from
+      # arguments with git's added set, so script_assets_test.json,
+      # already vendored, does not trip it and the next blob its size
+      # does. The default 500 KB is left alone: it is the threshold at
+      # which a blob deserves a sentence in tests/_data/README.md saying
+      # where it came from
       - id: check-added-large-files
       # there are none, and a submodule is the one dependency that would
       # not be in uv.lock, not be pinned by dependabot, and not be
@@ -679,9 +679,13 @@ repos:
   # check-github-workflows is not added beside it: actionlint already
   # reads every workflow and goes further than the schema does, into
   # expressions, contexts and runner labels
-  # .readthedocs.yaml is the same argument again: 2.7 KB that check-yaml
-  # reads as yaml and nothing reads as a build definition, on a service
-  # whose failure mode is a docs build that stops happening
+  # .readthedocs.yaml is the same argument again, less one exception:
+  # tests/docs_commands_test.py reads the sphinx-build line out of it
+  # against the other sites that spell that command. What that leaves
+  # unread, check-yaml included, is the file as a build definition -- the
+  # key names, the interpreter under build.tools, the lines that run
+  # before that one -- on a service whose failure mode is a docs build
+  # that stops happening
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.38.0
     hooks:
@@ -697,10 +701,13 @@ repos:
       # this tree still holds one of each
       - id: check-github-issue-config
       - id: check-github-issue-forms
-  # the workflows are 3, 6 and 8 KB of yaml with expressions in it, and
-  # nothing validated them: an unknown key, a typo in a context reference,
-  # an action input that does not exist, a job depending on a job that is
-  # not there are all things a run discovers by failing.
+  # the workflows are yaml with expressions in it, and an expression is
+  # what check-yaml and yamllint above cannot read: one asks whether the
+  # file parses, the other how the yaml is written, and a key whose
+  # meaning is GitHub's is well formed whatever it says. An unknown key,
+  # a typo in a context reference, an action input that does not exist, a
+  # job depending on a job that is not there are what a run discovers by
+  # failing instead.
   # The Python packaging of actionlint rather than the upstream hook, whose
   # only non-docker id is language: golang, i.e. a go toolchain on every
   # machine that commits and on pre-commit.ci
@@ -741,9 +748,9 @@ repos:
     # reusable-workflow and composite-action reference under
     # .github/workflows/ that still reads `uses: ./...`, and its own
     # auto-fix rewrites them to `uses: $/...`. That syntax is real
-    # GitHub, live since July 2026, but actionlint 1.7.12 (pinned above)
-    # does not parse it and fails every one of those references as a
-    # malformed action reference instead. The bump waits on whichever
+    # GitHub, live since July 2026, but the actionlint pinned above does
+    # not parse it and fails every one of those references as a malformed
+    # action reference instead. The bump waits on whichever
     # lands first: an actionlint release that understands `$/`, or
     # GitHub's runner requirement (>=2.336.0) making workspace-relative
     # references the thing to flag instead.

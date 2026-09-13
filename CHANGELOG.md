@@ -366,6 +366,55 @@ documented at release-notes length in the first place, and are still in
   build and reaches no resolver in it, and that build asks the filesystem
   where the test asks the index.
 
+### A comment points at a pinned tool's revision instead of copying it
+
+- **`CLAUDE.md`'s *Conventions to match* asks a comment that needs a
+  pinned tool's revision to name the places the revision lives, rather
+  than the version itself** (closes #2046). A copied version is a second
+  place to remember and the first to go stale: a refresh moves the `rev:`
+  and nothing points at the comment, which goes on reading as provenance.
+- **A numeral stamping a measurement stays legitimate, and so does a
+  floor.** "Measured on ruff 0.16.7" dates what was measured and survives
+  the bump; "not below actionlint 1.7.12" is a requirement on the pin
+  rather than a copy of it, and a `rev:` below it is what falsifies it.
+- **No hook reads the convention.** A pattern cannot tell a measurement's
+  stamp from an assertion about the pin, so a check would need the
+  spelling to separate them first or an allowlist of judgements, which is
+  the trade `CLAUDE.md` refuses for `SECURITY.md`'s counts (issue #2035).
+- **The comments in `pyproject.toml`, `.pre-commit-config.yaml` and
+  `.github/workflows/docs.yml` drop the assertion and keep what they
+  measured.** The `force-exclude` comment reads "Measured on ruff
+  0.16.7"; the docs gate's grep step is measured on myst-parser 5.1.0 and
+  sphinx 9.1.0 rather than on "the currently pinned toolchain"; the
+  zizmor hold names the actionlint pinned above instead of 1.7.12, that
+  pin reading `rev: v1.7.12.24` where 1.7.12 is the floor the
+  `actionlint-py` entry states as a floor.
+
+### `.pre-commit-config.yaml`'s preambles state no file size
+
+- **The `check-readthedocs` and `actionlint` preambles stated a size for
+  `.readthedocs.yaml` and for the workflows, and neither number was what
+  `git cat-file -s` answered** (closes #2076). Section 9 of the
+  organization standard asks a number in prose to carry the command that
+  produces it, and re-measuring these two would leave the same sentences
+  to go stale again.
+- **What each preamble states now is why its hook is there, in the
+  present tense, by naming what its neighbours do not read.** `check-yaml`
+  above asks whether `.readthedocs.yaml` is yaml and
+  `tests/docs_commands_test.py` reads the `sphinx-build` line out of it,
+  which leaves the file as a build definition to `check-readthedocs`; an
+  expression is what `check-yaml` and `yamllint` cannot read in a
+  workflow, which is what `actionlint` is there for.
+- **The `actionlint` preamble says in the present tense what a run
+  discovers by failing.** *nothing validated them* was past tense, and
+  the hook it introduces is what makes it false.
+- **The `check-added-large-files` preamble drops the size of the blob it
+  names**, keeping what that size was there to show: the already vendored
+  `script_assets_test.json` does not trip a hook that measures only what
+  is being added, and the next blob its size does. The default the hook
+  is configured with stays named, being a threshold rather than a
+  measurement of this tree.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
