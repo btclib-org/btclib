@@ -64,12 +64,12 @@ from btclib.curves.curve import (
     _libsecp256k1_serves,
     _y_even_var,
 )
+from btclib.curves.sec_point import _sec_from_pub_key
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import _assert_valid_hf, reduce_to_hlen
 from btclib.number_theory import mod_inv, mod_inv_var
-from btclib.to_pub_key import _sec_from_pub_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -756,7 +756,7 @@ def _libsecp256k1_sign_(
     # caught as a ValueError and re-raised as a new one, btclib
     # translating its own exception into itself and blaming the library
     # for it in the `__cause__` chain
-    sec = None if pub_key is None else _sec_from_pub_key(pub_key)
+    sec = None if pub_key is None else _sec_from_pub_key(pub_key, ec)
     try:
         compact = libsecp256k1_dsa.sign(
             msg_hash, q, None, compact=True, grind=grind, verify=verify, pubkey=sec
@@ -1228,7 +1228,8 @@ def _delegated_sign_(
 
     `Signer.sign_` calls this rather than `_libsecp256k1_sign_`: that one
     takes `pub_key` however a caller spelled it and derives its SEC
-    encoding, `_sec_from_pub_key(pub_key)`, on every signature it checks.
+    encoding, `_sec_from_pub_key(pub_key, ec)`, on every signature it
+    checks.
     A `Signer` derives its own public key once, at construction, so
     handing it in already encoded is the second half of the floor it
     exists for -- the parse `_libsecp256k1_sign_`'s own comment prices at
@@ -1350,7 +1351,7 @@ class Signer:
         # dispatch is decided once, at construction, and not
         # reconsidered against a switch that may have moved since
         self._pub_key_sec: bytes | None = (
-            _sec_from_pub_key(Q) if _libsecp256k1_serves(ec, hf) else None
+            _sec_from_pub_key(Q, ec) if _libsecp256k1_serves(ec, hf) else None
         )
 
         # the buffer `_delegated_sign_` hands the bindings on every
@@ -1640,7 +1641,7 @@ def assert_as_valid_(
         # field square root, and doing it here as well lifts the same x
         # twice -- a tenth of a verification for nothing (issue 887). So a
         # key that is no point leaves through the ValueError caught below
-        sec = _sec_from_pub_key(key)
+        sec = _sec_from_pub_key(key, sig.ec)
         # the compact form, which is the signature: `Sig.serialize` would
         # write the DER the wire carries for a call whose first act is to
         # take it apart again, an order of magnitude over what the

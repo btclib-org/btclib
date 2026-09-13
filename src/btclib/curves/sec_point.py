@@ -295,8 +295,53 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
         raise BTClibValueError("not a public key") from e
 
 
+def _sec_from_pub_key(pub_key: PubKey, ec: Curve) -> bytes:
+    """Return the SEC octets of a public key, unproven, however spelled.
+
+    `point_from_pub_key` proves the octets a point of the curve -- for a
+    compressed key a field square root -- and a caller going on to verify
+    a signature under them, to tweak a taproot key with them, or to
+    multiply them by a scalar for a shared point, hands them to a call
+    whose own parse is that same proof: the two together lift one x
+    twice, which is issue 887. `ecc.dsa.verify_` is one such caller and
+    `ecc.ecies.derive_keys` another, the second through `_mult_sec_var`
+    below rather than directly.
+
+    So this is that conversion with the proof left out, and it is private
+    because the guarantee is the caller's to complete: whatever these
+    octets are handed to is what refuses a key that is no point, and it is
+    the caller that turns the `ValueError` into btclib's own.
+
+    A `Point` comes back uncompressed, which is the cheap form to parse --
+    both coordinates are there to read, where a compressed key pays the
+    field square root that lifts x -- while
+    `to_pub_key.pub_keyinfo_from_pub_key` answers the compressed one for
+    the same input, `compressed=None` meaning "whatever the key says" and
+    a point saying nothing. Which encoding a caller below receives makes
+    no difference to what it computes: a parse recovers the same point
+    from either, and `ecies.derive_keys` re-serializes its own answer
+    compressed regardless of what its inputs carried. No network either,
+    which is what every caller here asks for: a verification or a
+    multiplication takes the key as the key says it is, and the curve it
+    is asked about is the caller's own.
+    """
+    _assert_pub_key_type(pub_key)
+    if isinstance(pub_key, PreparedPoint):
+        return _sec_from_pub_key(pub_key.point, ec)
+    if isinstance(pub_key, tuple):
+        # bytes_from_point is btclib's own arithmetic and not a parse: it
+        # refuses what is not a point of the curve, and infinity
+        return bytes_from_point(pub_key, ec, False)
+    try:
+        return bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
+    except (TypeError, ValueError) as e:
+        # never echo the input: it may be private material passed by
+        # mistake; the chained exception carries the parsing reason
+        raise BTClibValueError("not a public key") from e
+
+
 def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
-    """Return m*P, for a point given as the SEC octets that prove it one.
+    """Return m*P, for a point given as the SEC octets that name it.
 
     `mult(m, point_from_octets(sec, ec), ec)` is the same answer, and pays
     a round trip this does not: the octets are lifted to a point on the
@@ -304,10 +349,12 @@ def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
     secp256k1_ec_pubkey_tweak_mul, which is the call libsecp256k1 would
     have made on the bytes it was handed.
 
-    The caller has proved these octets a point already -- they are what
-    `pub_keyinfo_from_pub_key` answers -- so nothing here re-proves it:
-    what the bindings decline falls through to the lift, which raises
-    where the octets are no point.
+    The octets need not be proved a point first -- `_sec_from_pub_key`
+    hands them in unproven, the same trade `ecc.dsa` makes for its own
+    delegated calls (issue 887) -- because the call below is the proof:
+    the bindings' own parse refuses what is not a point, and what they
+    decline falls through to the lift, whose `point_from_octets` is that
+    same refusal on the Python arm.
     """
     if m and _libsecp256k1_serves(ec, None):
         with contextlib.suppress(ValueError):
@@ -332,9 +379,8 @@ def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
     answers the octets this already has. The parse is also the very
     call libsecp256k1 will make on these bytes if they are on their way to
     its dsa.verify -- which is why a caller that is about to make it does
-    not come through here at all, but through
-    `to_pub_key._sec_from_pub_key`, and lets that call be the proof
-    (issue 887).
+    not come through here at all, but through `_sec_from_pub_key`, and
+    lets that call be the proof (issue 887).
 
     Anything the bindings refuse falls through to the round trip, and so
     does every 65-byte form: the message that names what is wrong with
