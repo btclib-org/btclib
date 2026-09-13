@@ -74,8 +74,9 @@ documented at release-notes length in the first place, and are still in
   gated on `needs.publish-pypi.result == 'success'`, which a skipped job
   does not give. Run 34723411299, dispatched on a branch, skipped both
   of those jobs and ran the platform workflows above.
-- **`btclib-secp256k1` owes the same change**, which is why this cites
-  the issue rather than closing it.
+- **`btclib-secp256k1` already carries the same wording**, its own
+  commit `68432dd6` having closed the issue, which is why this cites it
+  rather than closing it.
 
 ### A run coverage's configuration never reached is refused
 
@@ -116,12 +117,12 @@ documented at release-notes length in the first place, and are still in
   run pytest-cov leaves ungated. `test.yml` meets the guard from the
   root either way: its `no-bindings` job names `--cov-fail-under=0`, and
   `coverage-union` runs `coverage report` and no pytest at all.
-- **`btclib-node`, `bitcoin-core-rpc` and `btclib-benchmarks` are owed
-  the same guard**, btclib-org/.github#443 having taken that decision for
-  the family, and `btclib-secp256k1` landed it at `bd71d7c8`. What lands
-  with the last of them is the sentence recording which limb of section
-  8 the family took, which is why this cites the issue rather than
-  closing it.
+- **`btclib-node`, `bitcoin-core-rpc` and `btclib-benchmarks` all carry
+  the guard now**, btclib-org/.github#443 having taken that decision for
+  the family: `btclib-secp256k1` landed it at `bd71d7c8`, and
+  `btclib-benchmarks` landed it last, its own commit `63435e87` closing
+  the issue rather than this entry, which is why this cites it instead
+  of closing it.
 
 ### A root-file link's dead target warns, then falls back to an anchor
 
@@ -195,9 +196,10 @@ documented at release-notes length in the first place, and are still in
   `tests/changelog_immutability_test.py` from skipping, a skip leaving
   uncovered lines of `tests/` under the 100% floor; `--no-cov` here
   leaves no floor for the skip to fall under.
-- **`btclib-secp256k1` owes the same workflow**, which is why this cites
-  the issue rather than closing it: the `BACKLOG` row keyed on it lives
-  in `btclib-org/.github` and is that tree's to narrow.
+- **`btclib-secp256k1` already carries the same workflow, at
+  `af788bf2`**, and btclib-org/.github#323 was closed at `f235da30`,
+  the commit that deleted the `BACKLOG` row keyed on it -- which is why
+  this cites the issue rather than closing it.
 
 ### Three operation-count comments in `curves/` state a relation or a command instead
 
