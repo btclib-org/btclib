@@ -49,7 +49,8 @@ on:
     # The time is section 10's grid in btclib-org/.github and not this
     # file's to restate.
     # Only the default branch schedules workflows, so on any other branch
-    # this is reachable through the dispatch below alone
+    # this is reachable through the dispatch below, and through the
+    # workflow_call trigger above it.
     - cron: "4 5 * * 5"
   # lets release.yml gate a publication on this platform too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
