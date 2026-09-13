@@ -5,10 +5,11 @@ name: deps-latest
 # release that satisfies pyproject.toml, and then put through the suite,
 # the lint gate and the packaging checks.
 #
-# Nothing else covers this. The dependency groups declare no version at
-# all, so the whole drift of pytest, mypy, coverage and twine lives in
-# uv.lock, and every command in every other workflow passes --locked: what
-# CI runs is the resolution someone locked, not the one PyPI holds today.
+# Nothing else covers this. The dependency groups declare a floor and no
+# ceiling, so the whole drift of pytest, mypy, coverage and twine above it
+# lives in uv.lock, and every command in every other workflow passes
+# --locked: what CI runs is the resolution someone locked, not the one
+# PyPI holds today.
 # uv.lock moves on a weekly dependabot pull request. A break upstream
 # therefore surfaces a week or more later, inside a pull request that has
 # to be reviewed anyway, and its cause is one entry in a diff of many.

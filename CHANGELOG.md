@@ -182,15 +182,9 @@ documented at release-notes length in the first place, and are still in
   them; `lowest-direct` puts `btclib-secp256k1` on the single release
   `>=0.8.0.6` names, which is another claim of the same kind rather than
   a second point on a range.
-- **The resolution fails today, and the cell stays at 3.10 rather than
-  moving to an interpreter that passes.** `uv lock --resolution
-  lowest-direct --dry-run`, with `--python 3.10` and without, warns on
-  each `[dependency-groups]` entry that declares no lower bound and then
-  fails building `coverage==3.0`, whose setup script is Python 2. `uv
-  lock --help` lists one option naming a group, `--upgrade-group`, and
-  none that selects or excludes one, so a lock is over every group there
-  is; what bound each entry owes is #2061, this tree's question rather
-  than this file's.
+- **The resolution is over every group, and each `[dependency-groups]`
+  entry declares a lower bound.** `uv lock --help` lists one option
+  naming a group, `--upgrade-group`, and none that selects or excludes one.
 - **The checkout passes no `fetch-tags`, where `deps-latest.yml`'s suite
   job does.** There the tags are what keeps
   `tests/changelog_immutability_test.py` from skipping, a skip leaving
@@ -641,6 +635,12 @@ documented at release-notes length in the first place, and are still in
 - **Comments and documentation point at `.python-version`, `HWI_VERSION`
   and `fail_under` rather than copy their values** (closes #2079): the
   convention `CLAUDE.md` holds for a tool's `rev:` reaches any pinned value.
+
+### Every `[dependency-groups]` entry declares a lower bound
+
+- **Each is the release `uv.lock` resolves, under a comment naming the run
+  behind it, and the docs tooling is declared from 3.12** (closes #2061):
+  `uv lock --resolution lowest-direct` completes rather than failing.
 
 ## v2026.9.13
 

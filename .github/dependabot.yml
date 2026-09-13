@@ -49,11 +49,11 @@ updates:
       default-days: 7
 
   # uv.lock is committed and the workflows install from it with --locked,
-  # while the dependency groups declare no version at all: the whole
-  # drift of ruff, mypy, pytest and sphinx lives in the lock file, and
-  # this is the only thing that moves it. The uv-lock pre-commit hook
-  # only re-locks what pyproject.toml changed, it does not upgrade, and
-  # the latest workflow tests an upgrade it deliberately never commits
+  # while the dependency groups declare a floor and no ceiling: the whole
+  # drift of ruff, mypy, pytest and sphinx above it lives in the lock
+  # file, and this is the only thing that moves it. The uv-lock pre-commit
+  # hook only re-locks what pyproject.toml changed, it does not upgrade,
+  # and the latest workflow tests an upgrade it deliberately never commits
   - package-ecosystem: uv
     directory: /
     schedule:
