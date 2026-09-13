@@ -173,17 +173,18 @@ html_theme = "furo"
 # that makes it correct, and myst resolves not one of those links.
 #
 # What it emits instead is the reason this needs code rather than a
-# warning filter: a target myst cannot resolve becomes an anchor on the
-# page it is already on, href="#./SECURITY.md", an id nothing has. The
-# build succeeds, -W sees nothing, and lychee reads the sources, where the
-# path is right (issue #195).
+# warning filter: what myst emits for a target it cannot resolve is a
+# warning, and then an anchor on the page the link is already on,
+# href="#./SECURITY.md", an id nothing has. A filter on the subtype would
+# take the warning and leave the anchor, and lychee reads the sources,
+# where the path is right (issue #195).
 #
 # The transform below answers each link from the repository rather than
 # from a table that would have to be kept in step with this directory: a
 # path a *_link.md shim includes becomes a reference to that page, any
 # other path that exists in the tree becomes a link to the file on GitHub,
 # and a path that exists nowhere is left to myst -- which reports it, and
-# -W then fails, now that suppress_warnings no longer hides the subtype.
+# -W then fails.
 #
 # It also reads a link written this way *outside* a shim, resolved
 # against the document that wrote it rather than against ROOT. A page
