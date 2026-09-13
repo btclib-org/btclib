@@ -67,11 +67,39 @@ UNEXPORTED = {
     "btclib.network": ["datadir"],
 }
 
+
+def _reexports(*groups: tuple[ModuleType, list[str]]) -> dict[str, ModuleType]:
+    """Turn a module's own re-export groups into one name-to-canonical map.
+
+    A re-exporting module can alias more than one canonical, each for its
+    own reason -- `btclib.exceptions` will, once it re-exports the
+    exception classes of several packages at once -- and a plain
+    `{**a, **b}` merge of one `{name: module}` dict per group would drop a
+    name both groups declare rather than say so. This raises instead, so a
+    name recorded against two canonicals fails here rather than resolving
+    to whichever group happened to come last.
+    """
+    merged: dict[str, ModuleType] = {}
+    for canonical, names in groups:
+        for name in names:
+            assert name not in merged, (
+                f"{name} is reexported from both {merged[name].__name__} and"
+                f" {canonical.__name__}"
+            )
+            merged[name] = canonical
+    return merged
+
+
 # what a module exports without defining it, which for a module rather than a
 # package is a leak -- and REEXPORTED below is the exception, one entry per
-# re-exporting module, grouped here by the decision each belongs to rather
-# than counted: a module recorded there is not leaking, it is aliasing the
-# canonical object under the name a caller already had.
+# re-exporting module, mapping each re-exported name to its canonical
+# module: a module recorded there is not leaking, it is aliasing the
+# canonical object under the name a caller already had. Keying on the name
+# rather than pairing one canonical with a whole module is what lets one
+# re-exporting module alias several canonicals at once, each name to its
+# own -- the case `btclib.exceptions` will be once the package
+# decomposition gives it the re-exported exception classes of more than
+# one package, which a single `(canonical, names)` pair cannot record.
 #
 # The `bitcoin-core-rpc` package is the canonical source of the rpc client
 # and of the transport under it, and btclib depends on it rather than
@@ -101,43 +129,43 @@ UNEXPORTED = {
 # not listed here, or a listed module exporting a name its recorded
 # canonical module does not
 REEXPORTED = {
-    "btclib.fetch.bitcoin_core": (
-        bitcoin_core_rpc,
-        [
-            "COOKIE_USER",
-            "DEFAULT_DATADIR",
-            "BitcoinCoreRpcClient",
-            "chain_from_network",
-            "cookie_auth",
-        ],
+    "btclib.fetch.bitcoin_core": _reexports(
+        (
+            bitcoin_core_rpc,
+            [
+                "COOKIE_USER",
+                "DEFAULT_DATADIR",
+                "BitcoinCoreRpcClient",
+                "chain_from_network",
+                "cookie_auth",
+            ],
+        ),
     ),
-    "btclib.fetch.bitcoin_core_rest": (
-        bitcoin_core_rpc,
-        ["BitcoinCoreRestClient"],
+    "btclib.fetch.bitcoin_core_rest": _reexports(
+        (bitcoin_core_rpc, ["BitcoinCoreRestClient"]),
     ),
-    "btclib.fetch.transport": (
-        bitcoin_core_rpc,
-        [
-            "DEFAULT_MAX_BODY_SIZE",
-            "DEFAULT_TIMEOUT",
-            "MAX_ERROR_BODY_SIZE",
-            "HttpTransport",
-            "SessionTransport",
-            "http_request",
-            "urlopen_transport",
-        ],
+    "btclib.fetch.transport": _reexports(
+        (
+            bitcoin_core_rpc,
+            [
+                "DEFAULT_MAX_BODY_SIZE",
+                "DEFAULT_TIMEOUT",
+                "MAX_ERROR_BODY_SIZE",
+                "HttpTransport",
+                "SessionTransport",
+                "http_request",
+                "urlopen_transport",
+            ],
+        ),
     ),
-    "btclib.p2p.magic": (
-        bitcoin_core_rpc,
-        ["magic_from_chain", "magic_from_signet_challenge"],
+    "btclib.p2p.magic": _reexports(
+        (bitcoin_core_rpc, ["magic_from_chain", "magic_from_signet_challenge"]),
     ),
-    "btclib.block.limits": (
-        consensus,
-        ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"],
+    "btclib.block.limits": _reexports(
+        (consensus, ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"]),
     ),
-    "btclib.psbt.psbt": (
-        psbt_utils,
-        ["PSBT_V0", "PSBT_V2"],
+    "btclib.psbt.psbt": _reexports(
+        (psbt_utils, ["PSBT_V0", "PSBT_V2"]),
     ),
 }
 
@@ -668,22 +696,23 @@ def test_no_module_exports_a_name_it_imported() -> None:
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
 
-    `REEXPORTED` is that conversation, grouped by decision rather than by
-    module: every module aliasing an object the `bitcoin-core-rpc` package
-    canonically holds keeps the name a caller already had, a transport
-    having one bounded-read policy to keep; `btclib.block.limits` names the
-    two constants `btclib.consensus` defines below the package, which is
-    where a caller reading a block's rules looks for them; and
-    `btclib.psbt.psbt` names the two psbt versions that `psbt_utils` defines
-    below the maps taking one as an argument.
+    `REEXPORTED` is that conversation, one name-to-canonical mapping per
+    re-exporting module: every module aliasing an object the
+    `bitcoin-core-rpc` package canonically holds keeps the name a caller
+    already had, a transport having one bounded-read policy to keep;
+    `btclib.block.limits` names the two constants `btclib.consensus`
+    defines below the package, which is where a caller reading a block's
+    rules looks for them; and `btclib.psbt.psbt` names the two psbt
+    versions that `psbt_utils` defines below the maps taking one as an
+    argument.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
     so dropping one of these aliases from an `__all__` would have been
     invisible to every test in this file. The recorded names and the
     re-exported ones must be the same set, and each must be the canonical
-    object of the module the entry records rather than a same-named one --
-    which is the property the whole arrangement exists for.
+    object its own entry names, not merely a same-named one -- which is
+    the property the whole arrangement exists for.
     """
     for module in library_modules():
         if hasattr(module, "__path__"):  # a package re-exports for a living
@@ -694,16 +723,34 @@ def test_no_module_exports_a_name_it_imported() -> None:
         if recorded is None:
             assert not leaked, f"{module.__name__} re-exports {sorted(leaked)}"
             continue
-        canonical, allowed = recorded
-        assert leaked == set(allowed), (
+        assert leaked == set(recorded), (
             f"{module.__name__} re-exports {sorted(leaked)}, where REEXPORTED"
-            f" records {sorted(allowed)}"
+            f" records {sorted(recorded)}"
         )
-        for name in allowed:
+        for name, canonical in recorded.items():
             assert getattr(module, name) is getattr(canonical, name), (
                 f"{module.__name__}.{name} is not the canonical"
                 f" {canonical.__name__}.{name}"
             )
+
+
+def test_reexports_refuses_a_name_recorded_against_two_canonicals() -> None:
+    """`REEXPORTED`'s own building block, exercised where no real entry does.
+
+    Every entry above is collision-free today, so `_reexports`'s guard
+    never fires under the suite: a regression back toward a `{**a, **b}`
+    merge, which drops a repeated key rather than refusing it, would
+    pass every test in this file and still resolve a name to whichever
+    group happened to come last. This is the control on the guard
+    itself, two synthetic modules sharing a name, and the message is
+    checked to name that name rather than merely to have raised.
+    """
+    mod_a = ModuleType("modA")
+    mod_b = ModuleType("modB")
+    with pytest.raises(
+        AssertionError, match=r"^FOO is reexported from both modA and modB"
+    ):
+        _reexports((mod_a, ["FOO"]), (mod_b, ["FOO", "BAR"]))
 
 
 def test_the_export_tree_is_walkable_to_its_leaves() -> None:
