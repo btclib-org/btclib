@@ -603,6 +603,12 @@ documented at release-notes length in the first place, and are still in
   `btclib-org/.github`** (issue btclib-org/.github#1075): what is filed
   is one test, and an entry's body past three lines is refused.
 
+### A test pins where `pytest_configure` writes the coverage threshold
+
+- **`tests/conftest_test.py` pins where `pytest_configure` writes the
+  threshold** (closes #2056): on `known_args_namespace`, the copy
+  pytest-cov holds, and not on `config.option`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

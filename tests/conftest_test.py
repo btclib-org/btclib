@@ -766,6 +766,30 @@ def test_a_selection_does_not_excuse_the_configuration_missing() -> None:
         pytest_configure(config)
 
 
+def test_the_threshold_is_written_where_pytest_cov_reads_it() -> None:
+    """The decided threshold lands on the copy pytest-cov holds.
+
+    A selective run is gated at zero, and `known_args_namespace` is
+    where that has to land for pytest-cov to see it; `config.option`
+    stays exactly what the command line put there, which is what makes
+    the two namespaces distinguishable. Writing the threshold to
+    `config.option` instead leaves the assertion on
+    `known.cov_fail_under` unmet.
+    """
+    known = argparse.Namespace(cov_fail_under=100.0)
+    config = _config(
+        ["bip32/bip32_test.py"],
+        known,
+        _controller("/somewhere/setup.cfg"),
+        keyword="derive",
+    )
+
+    pytest_configure(config)
+
+    assert known.cov_fail_under == 0
+    assert config.option.cov_fail_under is None
+
+
 def test_a_run_started_from_tests_says_it_is_ungated(tmp_path: Path) -> None:
     """The guard stops a real run started from `tests/`.
 
