@@ -2,14 +2,33 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The documentation job's commands are spelled one way each.
+"""A command CI runs is spelled one way wherever it is written down.
 
-The build is written in `.github/workflows/docs.yml`, which is what the
-merge gate runs; in `.readthedocs.yaml`, which is what the published site
-is built with; in `CONTRIBUTING.md`, which is what a contributor is told
-to run; and in `docs/README.rst`, which is where `RELEASING.md` sends a
-release. The grep over the pages that build wrote is in the workflow and
-in `CONTRIBUTING.md`.
+The documentation build is written in `.github/workflows/docs.yml`,
+which is what the merge gate runs; in `.readthedocs.yaml`, which is what
+the published site is built with; in `CONTRIBUTING.md`, which is what a
+contributor is told to run; and in `docs/README.rst`, which is where
+`RELEASING.md` sends a release. The grep over the pages that build wrote
+is in the workflow and in `CONTRIBUTING.md`.
+
+`CONTRIBUTING.md`'s *Reproducing what CI runs* prints a command per job,
+and the suite's own are read here as well: the cell of the platform
+matrices, which `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
+run; the pair `test.yml`'s `coverage-union` job runs, which combines the
+two coverage data files and reports their union; and the names those
+data files carry, which the section writes in front of the command that
+produces each.
+
+The union pair is compared with nothing set aside. The cell is not: the
+workflows leave the interpreter to `astral-sh/setup-uv`, which takes it
+from the matrix, where whoever reproduces a cell has to type `--python`,
+so that argument is read against the site that holds it as the build's
+output directory is -- named rather than normalised away. The data files
+are read as values for the same kind of reason: `test.yml` sets
+`COVERAGE_FILE` as a step's `env:` mapping where the section writes a
+shell assignment in front of the command, so the assignment itself is
+what the two sites cannot share. A name they disagree on leaves one of
+them combining a file nothing wrote.
 
 Each of those files is separately valid, so only reading them together
 says they have diverged, and a divergence is not reported by any run: a
@@ -17,9 +36,10 @@ contributor whose local build passes a flag the gate does not, or a
 published site built by a command no merge ever ran, is a difference the
 green everywhere hides.
 
-Both commands are here because the failure is one -- a command spelled in
-more than one place with nothing comparing the spellings -- and the
-reading that finds either finds both.
+Everything read here is read because the failure is one -- a command, or
+an argument it is given, spelled in more than one place with nothing
+comparing the spellings -- and the reading that finds any of them finds
+the rest.
 
 `docs/Makefile` and `docs/make.bat` are not sites of the build.
 `docs/README.rst` says they drive the same build "without the flags", and
@@ -58,6 +78,21 @@ _BUILD = re.compile(r"uv run\b.*\bsphinx-build\b.*")
 # the line: the workflow wraps it in an `if ...; then`, and the `;` is
 # where the command a reader is given stops
 _GREP = re.compile(r"grep -r.*?(?=;|$)")
+# one cell of the platform matrices, from `uv run` to the end of the line
+# it is written on. `--no-cov` is what tells it from the `coverage` job's
+# own run of the same suite, which is typed with nothing after `pytest`
+_CELL = re.compile(r"uv run\b.*\bpytest --no-cov\b.*")
+# the interpreter a cell names, which the comparison sets aside before
+# making it and reads on its own afterwards
+_INTERPRETER = re.compile(r" --python (\S+)")
+# the `coverage-union` job's two commands, each to the end of the line it
+# is written on: `combine` names the data files it reads and `report` is
+# typed with nothing after it, so neither ends before its line does
+_COVERAGE = re.compile(r"uv run\b.*\bcoverage (?:combine|report)\b.*")
+# the data file a coverage run writes, matched as the value alone: the
+# separator in front of it is the half of the spelling the two sites
+# cannot share
+_DATA_FILE = re.compile(r"(?<=COVERAGE_FILE[=:])\s*\S+")
 
 # where each site writes, which is the one argument that does not agree
 # and must not: read the docs names its destination in an environment
@@ -72,9 +107,24 @@ _BUILD_SITES = {
 }
 _GREP_SITES = (".github/workflows/docs.yml", "CONTRIBUTING.md")
 
+# the interpreter each site names, which is the other argument that does
+# not agree and must not: a workflow takes it from `astral-sh/setup-uv`,
+# one cell of the matrix per run, where whoever reproduces a cell locally
+# has to say which one. So a workflow that started naming an interpreter
+# of its own is red here, and so is a section that stopped naming one
+_CELL_SITES = {
+    ".github/workflows/os-ubuntu.yml": "",
+    ".github/workflows/os-macos.yml": "",
+    ".github/workflows/os-windows.yml": "",
+    "CONTRIBUTING.md": "3.10",
+}
+# the union job and the section that tells a reader how to run it again,
+# which are also the two sites of the data files that job combines
+_COVERAGE_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
 
-def _commands(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
-    """Return every distinct command `pattern` finds in `path`.
+
+def _spellings(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
+    """Return every distinct spelling `pattern` finds in `path`.
 
     Each line is offered to the pattern alone, and joined to the one
     above it where that one held no command of its own: a folded yaml
@@ -106,8 +156,11 @@ def _one(found: tuple[str, ...]) -> str:
     return " ".join(found)
 
 
-_BUILDS = {path: _commands(path, _BUILD) for path in _BUILD_SITES}
-_GREPS = {path: _commands(path, _GREP) for path in _GREP_SITES}
+_BUILDS = {path: _spellings(path, _BUILD) for path in _BUILD_SITES}
+_GREPS = {path: _spellings(path, _GREP) for path in _GREP_SITES}
+_CELLS = {path: _spellings(path, _CELL) for path in _CELL_SITES}
+_COVERAGES = {path: _spellings(path, _COVERAGE) for path in _COVERAGE_SITES}
+_DATA_FILES = {path: _spellings(path, _DATA_FILE) for path in _COVERAGE_SITES}
 
 
 def test_every_site_was_read() -> None:
@@ -124,6 +177,18 @@ def test_every_site_was_read() -> None:
     greps = {path: len(found) for path, found in _GREPS.items()}
     assert set(greps.values()) == {1}, (
         f"one unresolved-link grep per site, and instead: {greps}"
+    )
+    cells = {path: len(found) for path, found in _CELLS.items()}
+    assert set(cells.values()) == {1}, (
+        f"one matrix cell command per site, and instead: {cells}"
+    )
+    coverages = {path: len(found) for path, found in _COVERAGES.items()}
+    assert set(coverages.values()) == {2}, (
+        f"the combine and the report per site, and instead: {coverages}"
+    )
+    data_files = {path: len(found) for path, found in _DATA_FILES.items()}
+    assert set(data_files.values()) == {2}, (
+        f"a data file per coverage run per site, and instead: {data_files}"
     )
 
 
@@ -149,4 +214,40 @@ def test_the_documented_grep_is_the_one_the_job_runs() -> None:
     spellings = {path: _one(found) for path, found in _GREPS.items()}
     assert len(set(spellings.values())) == 1, (
         f"the unresolved-link grep is spelled more than one way: {spellings}"
+    )
+
+
+def test_every_site_spells_one_matrix_cell_command() -> None:
+    """What a platform workflow runs is what a reader is told to run."""
+    spellings = {
+        path: _INTERPRETER.sub("", _one(found)) for path, found in _CELLS.items()
+    }
+    assert len(set(spellings.values())) == 1, (
+        f"the matrix cell is spelled more than one way: {spellings}"
+    )
+
+
+def test_only_the_documented_cell_names_an_interpreter() -> None:
+    """The argument that differs differs by site, and by no other."""
+    interpreters = {
+        path: "".join(_INTERPRETER.findall(_one(found)))
+        for path, found in _CELLS.items()
+    }
+    assert interpreters == _CELL_SITES, (
+        f"the matrix cell names the interpreters {interpreters}, where the"
+        f" sites are {_CELL_SITES}"
+    )
+
+
+def test_the_documented_union_is_the_one_the_job_runs() -> None:
+    """A reader who combines and reports gates what the job gates."""
+    assert len(set(_COVERAGES.values())) == 1, (
+        f"the coverage union is spelled more than one way: {_COVERAGES}"
+    )
+
+
+def test_the_documented_data_files_are_the_ones_the_jobs_write() -> None:
+    """`COVERAGE_FILE` names there what `test.yml`'s own `env:` names."""
+    assert len(set(_DATA_FILES.values())) == 1, (
+        f"the coverage data files are named more than one way: {_DATA_FILES}"
     )

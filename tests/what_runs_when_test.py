@@ -15,8 +15,8 @@ the reader it misleads is the one who went to the table to find out
 
 Nothing else compares the two. For the interpreters their matrices name,
 `interpreters_test.py` reads the workflows; for a command spelled in
-several places, `docs_commands_test.py` reads one of them. Neither asks
-which workflows exist.
+several places, `docs_commands_test.py` reads the workflows that spell
+it. Neither asks which workflows exist.
 
 Both directions are checked, because a renamed workflow is both failures
 at once -- a row naming a file that is gone, and a file no row names --

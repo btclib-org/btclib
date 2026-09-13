@@ -613,8 +613,15 @@ uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
 That one rebuilds `.venv` with the test group alone, which is what leaves
 the environment without pre-commit until the next `uv sync`: see the note
 under "The environment and the gates" above, and `UV_PROJECT_ENVIRONMENT` for
-running it without touching `.venv`. The command is what CI runs,
-verbatim, and CI has no `.venv` to lose.
+running it without touching `.venv`. CI has no `.venv` to lose.
+
+`--python` is the whole of what that line adds to the step
+`os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each run: each gives
+its cell's interpreter to `astral-sh/setup-uv` through `python-version`,
+so the command itself names none.
+`tests/docs_commands_test.py` reads the block above against those three
+steps with the interpreter set aside, so a flag added at one of the sites
+and not at the others fails the suite.
 
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
@@ -643,14 +650,14 @@ how it reports are `tool.coverage.run`'s `source` and
 `tool.coverage.report` in pyproject.toml. So this command and the bare
 `uv run pytest` above are the same measurement, the job being unable to
 gate on a scope a contributor's run does not have. `COVERAGE_FILE` is
-`--data-file`'s environment variable, coverage's own, and is the job's
-real step verbatim too, not a local-reproduction addition: the two
-artifacts this job and `no-bindings` below produce would overwrite each
-other under the default `.coverage` name once both land in the
-`coverage-union` job that reads them. The job
-then uploads the data file this command wrote as an artifact, for
-`coverage-union` to read; that step has no command of its own to
-reproduce, being a plain `actions/upload-artifact`.
+`--data-file`'s environment variable, coverage's own, and names here what
+the step's own `env:` names there, not a local-reproduction addition: the
+two artifacts this job and `no-bindings` below produce would overwrite
+each other under the default `.coverage` name once both land in the
+`coverage-union` job that reads them. The job then uploads the data file
+this command wrote as an artifact, for `coverage-union` to read; that
+step has no command of its own to reproduce, being a plain
+`actions/upload-artifact`.
 
 The `no-bindings` job runs the suite against a btclib that has no
 `btclib_secp256k1` to delegate to. CI starts it from an empty
@@ -721,6 +728,13 @@ step is: `fail_under` in pyproject.toml is what gates the union, and
 coverage reads that configuration from the directory the command starts
 in, so both commands above are run from the repository root, on the
 runner and locally alike.
+
+`tests/docs_commands_test.py` reads the block above against this job's
+combine and report steps, and the `COVERAGE_FILE` in front of each
+command further up against the `env:` `test.yml`'s `coverage` and
+`no-bindings` jobs set. What it compares there is the value: a workflow
+writes the assignment as a yaml mapping where a shell writes it as a
+prefix, so that is the half of the spelling the two sites cannot share.
 
 The `dist` job, which builds the distribution files, checks them and
 then installs one. This is the one build there is (issue #1166):
