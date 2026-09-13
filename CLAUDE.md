@@ -398,6 +398,23 @@ Do not use Fable unless explicitly instructed.
   `.yamllint.yaml`'s width takes the comment on the line above.
   `.github/workflows/fuzz.yml`'s `google/clusterfuzzlite` pins are both
   cases at once.
+- **A comment does not copy a pinned tool's version; where it needs the
+  revision it points at the places the revision lives.** `[tool.ruff]`'s
+  `ignore` list gives its provenance as the ruff revision
+  `.pre-commit-config.yaml` pins and `uv.lock` resolves, so a bump leaves
+  it nothing to correct. An action's pin comment names a point release
+  for the opposite reason: a sha is illegible where a `rev:` is not. A
+  numeral stays legitimate as a measurement's own stamp — the
+  `force-exclude` comment's "Measured on ruff 0.16.7" dates what was
+  measured and survives the bump, where "the pinned ruff 0.16.7" asserts
+  what the pin is and dies at it. A floor is the other legitimate form,
+  being a requirement on the pin rather than a copy of it: the
+  `actionlint-py` entry's "not below actionlint 1.7.12" is what a refresh
+  has to read the `rev:` against. No hook reads any of this, which is the
+  decision rather than a gap (issue #2046): a pattern cannot tell the
+  stamp from the assertion, so a check needs either this spelling to
+  separate them first or an allowlist of judgements, the trade refused
+  for `SECURITY.md`'s counts (issue #2035).
 - **The prose style — tone, comments, docstrings, no history — is
   section 9 of the organization standard**, which
   `CONTRIBUTING.md`'s *Documentation and comments* is the pointer to.

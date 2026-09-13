@@ -115,11 +115,11 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -n -W -b html docs/source docs/build/html
-      # a second defense against issue 195, not the only one: measured,
-      # sphinx-build -n -W already fails on its own on every link myst
-      # cannot resolve, in the currently pinned toolchain (myst-parser
-      # 5.1.0, sphinx 9.1.0) -- myst_refs.py's MystReferenceResolver logs a
-      # warning unconditionally, independent of -n, before falling back to
+      # a second defense against issue 195, not the only one: measured on
+      # myst-parser 5.1.0 and sphinx 9.1.0, sphinx-build -n -W already
+      # fails on its own on every link myst cannot resolve --
+      # myst_refs.py's MystReferenceResolver logs a warning
+      # unconditionally, independent of -n, before falling back to
       # the anchor-only node the html then carries (issue #1574). What this
       # step still answers for is a regression the build's own warning would
       # stop catching without it: conf.py's suppress_warnings staying empty

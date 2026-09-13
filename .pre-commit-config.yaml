@@ -741,9 +741,9 @@ repos:
     # reusable-workflow and composite-action reference under
     # .github/workflows/ that still reads `uses: ./...`, and its own
     # auto-fix rewrites them to `uses: $/...`. That syntax is real
-    # GitHub, live since July 2026, but actionlint 1.7.12 (pinned above)
-    # does not parse it and fails every one of those references as a
-    # malformed action reference instead. The bump waits on whichever
+    # GitHub, live since July 2026, but the actionlint pinned above does
+    # not parse it and fails every one of those references as a malformed
+    # action reference instead. The bump waits on whichever
     # lands first: an actionlint release that understands `$/`, or
     # GitHub's runner requirement (>=2.336.0) making workspace-relative
     # references the thing to flag instead.

@@ -365,6 +365,29 @@ documented at release-notes length in the first place, and are still in
   `REPOSITORY.md` or in `RELEASING.md` is rendered by no page of that
   build and reaches no resolver in it, and that build asks the filesystem
   where the test asks the index.
+### A comment points at a pinned tool's revision instead of copying it
+
+- **`CLAUDE.md`'s *Conventions to match* asks a comment that needs a
+  pinned tool's revision to name the places the revision lives, rather
+  than the version itself** (closes #2046). A copied version is a second
+  place to remember and the first to go stale: a refresh moves the `rev:`
+  and nothing points at the comment, which goes on reading as provenance.
+- **A numeral stamping a measurement stays legitimate, and so does a
+  floor.** "Measured on ruff 0.16.7" dates what was measured and survives
+  the bump; "not below actionlint 1.7.12" is a requirement on the pin
+  rather than a copy of it, and a `rev:` below it is what falsifies it.
+- **No hook reads the convention.** A pattern cannot tell a measurement's
+  stamp from an assertion about the pin, so a check would need the
+  spelling to separate them first or an allowlist of judgements, which is
+  the trade `CLAUDE.md` refuses for `SECURITY.md`'s counts (issue #2035).
+- **The comments in `pyproject.toml`, `.pre-commit-config.yaml` and
+  `.github/workflows/docs.yml` drop the assertion and keep what they
+  measured.** The `force-exclude` comment reads "Measured on ruff
+  0.16.7"; the docs gate's grep step is measured on myst-parser 5.1.0 and
+  sphinx 9.1.0 rather than on "the currently pinned toolchain"; the
+  zizmor hold names the actionlint pinned above instead of 1.7.12, that
+  pin reading `rev: v1.7.12.24` where 1.7.12 is the floor the
+  `actionlint-py` entry states as a floor.
 
 ## v2026.9.13
 
