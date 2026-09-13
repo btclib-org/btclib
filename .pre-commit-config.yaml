@@ -1,16 +1,12 @@
 ---
-# Skip execution of one or more hooks using the SKIP environment variable:
-# $ SKIP=mypy git commit -m "foo"
+# Skip one or more hooks with the SKIP environment variable:
 # $ SKIP=mypy,ruff-check pre-commit run --all-files
-#
-# If want to disable all hooks while committing, use the --no-verify/-n option:
-# $ git commit -n -m "foo"
 
 # these hooks are the lint gate: the lint workflow runs this very file, so
-# what CI enforces is exactly what a commit enforces, with no second list
-# of tools and versions to keep in step. What pre-commit.ci provides on
-# top of that, and what it is kept for, is the periodic pull request
-# bumping the revisions pinned below
+# what CI enforces is exactly what a local run of this file enforces, with
+# no second list of tools and versions to keep in step. What pre-commit.ci
+# provides on top of that, and what it is kept for, is the periodic pull
+# request bumping the revisions pinned below
 ci:
   # a bot committing to a branch is at odds with the rest of this setup,
   # where no workflow token can write and every action is pinned to a
