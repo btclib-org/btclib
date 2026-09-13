@@ -500,15 +500,18 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group harness
           coverage combine coverage-data-bindings coverage-data-no-bindings
-      # `fail_under` in pyproject.toml is what the `coverage` job's report
-      # already reads; asked for explicitly here too, since this report is
-      # of the combined file the block comment above argues for gating
-      # rather than of the one `tool.coverage.run`'s default location
-      # would have produced
+      # `coverage report` with nothing after it, which is section 8 of the
+      # organization standard as the `coverage` job's `pytest` above is:
+      # `[tool.coverage.report]`'s `fail_under` is the floor this report is
+      # gated at, and a `--fail-under=100` typed here would be a second
+      # line to keep equal to it. coverage reads that configuration from
+      # the directory the run starts in, which for this step is the
+      # checkout root, so what such a flag would gate is a run that found
+      # no configuration, not the one this step makes
       - name: Report the union, gated at 100%
         run: >
           uv run --locked --no-default-groups --group harness
-          coverage report --fail-under=100
+          coverage report
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a

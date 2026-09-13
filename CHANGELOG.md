@@ -262,6 +262,32 @@ documented at release-notes length in the first place, and are still in
   -- it replaces the two `squash_merge_commit_*` defaults with a title and body
   chosen on purpose.
 
+### `coverage-union`'s report step types `coverage report` and no flag
+
+- **`test.yml`'s `coverage-union` job asks for no `--fail-under` of its
+  own** (closes #2057). Section 8 of the organization standard tells an
+  argument a job's own construction asks for from a copy of a tree-wide
+  setting by whether the run does anything differently without it, and
+  this run does not: from the checkout root, against a coverage data file
+  short of 100, `coverage report` and `coverage report --fail-under=100`
+  both refuse the report, and the floor the first of them names is
+  `[tool.coverage.report]`'s `fail_under`, no flag having named one.
+- **The step's comment states what makes `fail_under` reach a
+  `coverage report`**, which is where the run starts: coverage reads its
+  configuration from the process's own directory and this step starts at
+  the checkout root, so a flag naming 100 would gate a run that found
+  no configuration rather than the one this step makes. The same command
+  against the same data file, from a directory holding no configuration,
+  reports and exits 0.
+- **`CONTRIBUTING.md`'s reproduction of `coverage-union` drops the flag
+  too**, and says the two commands there are run from the repository
+  root, which is what puts a local run under the floor the job's own run
+  is held to.
+- **`--cov-fail-under=0` in the `no-bindings` job stays.** Nothing in
+  `pyproject.toml` names that argument, and the run it lifts the floor
+  for is one whose own report cannot reach 100 by construction, the
+  delegated arms being unreachable with the bindings absent.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
