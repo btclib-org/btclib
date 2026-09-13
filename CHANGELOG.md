@@ -199,6 +199,82 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### The `needs:` reader is the spelling the organization's copies share
+
+- **`_NEEDS` and `_ITEM` are `bitcoin-core-rpc@b2b9d114`'s, byte for
+  byte** (closes btclib-org/.github#1038): the run of items takes a
+  comment line and a blank one as well as an item's own trailing
+  comment, and the inline half stops at a `#` rather than reading the
+  rest of the key's own line. Each of those is one thing to a yaml
+  reader, and a run of adjacent item lines ends at it and drops every
+  item below. `btclib-node`, `bitcoin-core-rpc` and `btclib-secp256k1`
+  carry it already, so this tree is the last and the citation closes
+  where each of theirs cites.
+- **The comment above them is `btclib-node@c14dec30`'s, byte for
+  byte**, and its last paragraph replaces the one this tree wrote for
+  itself: of what that one named as dropped, a comment among the items
+  and a trailing comment leaving one space behind are read now, so
+  porting it whole would land a sentence the same diff makes false. Its
+  first paragraph names both of the things a reader blind to the block
+  shape does and its third ends in a full stop, which is
+  btclib-org/.github#1057's correction; `bitcoin-core-rpc` took that at
+  `96c6529` and carries neither the second paragraph's
+  direction-neutral form nor the last paragraph, so what stands here is
+  `btclib-node`'s text rather than a text all the copies share.
+- **The paragraph naming the empty closure as the loud failure goes**:
+  `_needed` opens with the key itself, so a closure is never the empty
+  thing, and what the free-threading check reads is an empty
+  interpreter tuple. The argument that paragraph also made -- that the
+  block shape is read because a free-threaded build behind a dropped
+  edge goes unseen -- is the family comment's first paragraph, which is
+  section 9's *One fact in one place*.
+- **`test_needed_reads_needs_in_each_of_its_three_shapes` asserts the
+  closure each shape's own text earns against a flat job dict** (closes
+  btclib-org/.github#1053), the shapes written under the key standing
+  as a named dict asserted in a loop so that a red names the
+  shape, and each comment case's stripped form spelled out beside the
+  comment itself. A dict in which `changes` waited on `coverage` would
+  give every case a second route to `coverage`, so an item dropped
+  below a residue is reached anyway and the comment and blank-line rows
+  hold under a reader with no whole-line alternative at all. Measured
+  by rebinding `_NEEDS` and `_ITEM` to mutants of the pattern as
+  written: an item alternative with no trailing-comment tolerance is
+  killed by *a comment on an item*, one with no `[ \t]*` by *a comment
+  on an item* and *that one stripped*, a whole-line alternative with no
+  comment tolerance by *a comment among the items*, and no whole-line
+  alternative at all by *a comment among the items*, *that comment
+  stripped* and *a blank line between two items*. The shape is
+  `bitcoin-core-rpc@ca9db975`'s and the assertions are
+  `btclib-secp256k1@a10aa5a8`'s, that tree's walk raising where
+  `btclib-node`'s absorbs.
+- **One chained dict stands below the flat rows**: flat, one hop is the
+  whole closure, and `test.yml`'s own aggregate names each job it waits
+  on directly, so a `_needed` reading a job's direct `needs:` and
+  stopping would answer every row above and the real gate alike. What
+  the other copies say beside that dict -- that it is the module's only
+  assertion of a job reached through another -- is not said here:
+  *A job outside the closure answers for no gate* below asserts one
+  too, and rebinding `_needed` to that one-hop reader turns both red.
+- **`test_needed_reads_no_step_of_a_job_as_a_job_it_waits_on` and
+  `test_needed_takes_no_token_of_a_comment_on_the_needs_line` assert on
+  the `KeyError`'s own argument**, each with a widened reader
+  monkeypatched in as the control. `_needed` indexes `jobs` by every
+  name it reads, so a step line where an item goes and a comment on the
+  key's own line each raise, and a bare `pytest.raises` would answer as
+  readily to a job dict the test spelled wrong.
+- **What the reader answers for this tree's workflows is unchanged**:
+  every job block of every workflow, read under the spelling this
+  replaces and under this one, agrees. The control is one `needs:` line
+  per workflow spiked with a trailing comment *after* `_COMMENT` has
+  run, which makes the two disagree wherever a workflow has one --
+  spiked before the strip they agree, `_COMMENT` taking the comment
+  away, and that is why nothing here changed in the first place.
+- **The docstring of *A job outside the closure answers for no gate*
+  names the shape rather than the spelling**: what makes `test.yml`
+  unable to show the difference is that every `needs:` it writes stands
+  on the key's own line, where *a flow one* is false of the ones naming
+  a single job after the key.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

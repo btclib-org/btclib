@@ -27,7 +27,10 @@ carries a parser for that either.
 """
 
 import re
+import sys
 from pathlib import Path
+
+import pytest
 
 from tests import workflow_files
 
@@ -98,32 +101,46 @@ _INTERPRETER = re.compile(r"\b3\.\d+t?\b")
 _JOBS = re.compile(r"^jobs:\n(?P<block>.*)\Z", re.MULTILINE | re.DOTALL)
 # a job key at the one indent `jobs:` gives them
 _JOB = re.compile(r"^  (?P<key>[a-z0-9_-]+):$", re.MULTILINE)
-# whatever follows `needs:` on the key's own line, plus the items below
-# it written `      - `, which is the spelling `btclib-secp256k1`
-# carries. The shapes that reads are one job after the key, a flow list
-# there, and a block list indented six.
+# `needs:` in each of the three shapes GitHub takes -- one job after the
+# key, a flow list there, and a block list under it -- read as whatever
+# follows the key on its own line plus the items below it. A reader blind
+# to the block shape answers a closure short of whatever sits behind an
+# edge written that way. Where the jobs the narrowing keeps still name an
+# interpreter it answers short in silence, the biconditional below
+# passing on a gate it has not read; where the narrowing leaves the
+# aggregate alone, the aggregate's own job names none and the `no job
+# ... names an interpreter` assertion ahead of that biconditional fires
+# instead (btclib-org/.github#1031).
 #
-# What it does not read, it drops without saying so, and the cases are
-# named because they are not equally bad. A flow list wrapped across
+# The run of items takes a comment line and a blank one as well, and an
+# item's own trailing comment with it: a whole-line comment among the
+# items, a blank line between two of them and a `#` after an item are one
+# thing to a yaml reader, and a run of adjacent item lines ends at each of
+# them and drops every item below. A copy whose `_jobs` strips comments
+# before the job blocks are read meets whitespace where one that leaves
+# them meets the comment itself; the run takes both, and one spelling
+# answers for the organization's copies of this module rather than for
+# this tree (btclib-org/.github#1038).
+#
+# What the run must not take is a step: `steps:` entries sit at the item
+# indent, and `      - name: Setup uv` is kept out by an item being the
+# whole line up to its comment.
+#
+# What it still does not read, it drops without saying so, and the cases
+# are named because they are not equally bad. A flow list wrapped across
 # lines keeps only what sat on the key line: nothing where the bracket
-# stands alone, the first entry alone where it does not. A block list at
-# any other indent, and a flow list exploded under the key, keep none of
-# it. So does a comment among the items, and that one is this module's
-# own doing -- `_COMMENT` takes one whitespace away with the `#`, so a
-# comment on a line of its own arrives as a short run of spaces, and a
-# trailing comment written with two spaces before the `#` leaves one
-# behind; either ends the run of items where it stands.
-#
-# The empty closure is the loud failure: `_gating` then finds no
-# interpreter and the assertion below fires on it. A closure short of
-# only some of its edges is the quiet one, and it is why the block shape
-# is read rather than the flow ones alone -- a free-threaded build
-# behind a dropped edge goes unseen, and the biconditional below passes
-# on a gate it has not read
+# stands alone, the first entry alone where it does not. A flow list
+# exploded under the key, and a block list at any other indent, keep none
+# of it.
 _NEEDS = re.compile(
-    r"^    needs:(?P<inline>[^\n]*)\n(?P<items>(?:^      - \S+\n)*)", re.MULTILINE
+    r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n"
+    r"(?P<items>(?:^      - \S+[ \t]*(?:#[^\n]*)?\n|^[ \t]*(?:#[^\n]*)?\n)*)",
+    re.MULTILINE,
 )
-_ITEM = re.compile(r"^      - (?P<key>\S+)$", re.MULTILINE)
+# one item of the block list above, the key picked off a line the run has
+# already read as an item
+_ITEM = re.compile(r"^      - (?P<key>\S+)", re.MULTILINE)
+_NAME = re.compile(r'^    name: "?(?P<name>[^"\n]*)"?', re.MULTILINE)
 _NAME = re.compile(r'^    name: "?(?P<name>[^"\n]*)"?', re.MULTILINE)
 
 
@@ -290,16 +307,220 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
     )
 
 
+def test_needed_reads_needs_in_each_of_its_three_shapes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One job after the key, a flow list there, a block list under it.
+
+    GitHub takes all three and they name the same jobs, so a reader of
+    two of them answers a closure short of whatever sits behind an edge
+    written in the third. Short in silence wherever the jobs the
+    narrowing keeps still name an interpreter: what the free-threading
+    check above reads is an empty interpreter tuple and not a short
+    closure, `_needed` opening with the key itself, so a closure is
+    never the empty thing. A narrowing reaching past every job that
+    names one is caught there and a narrowing short of that is not
+    (btclib-org/.github#1031). No job of `test.yml` writes a block list,
+    so the job text below is its own rather than the gate's.
+
+    A whole-line comment among the items, a blank line between two of
+    them and a trailing comment on one each end a run of adjacent item
+    lines, and a yaml parser reads each of them as the same two items
+    (btclib-org/.github#1038). None of the forms below is invented:
+    `_jobs` leaves a whole-line comment as a run of spaces one short of
+    the indent it was written at, and a trailing comment written with
+    two spaces before the `#` as a single space, where a copy of this
+    module that keeps comments hands the same pattern the `#` itself --
+    so both forms stand below, each spelled out rather than one reached
+    from the other.
+
+    The job dict is flat, so every case asserts the closure its own text
+    earns: the aggregate and the one job a scalar names, where a list of
+    either shape reaches both. A dict in which `changes` waited on
+    `coverage` buys comparable expectations with a second route to
+    `coverage`, and an item dropped below a residue is reached by that
+    route anyway: the rows a whole-line comment and a blank line are
+    written for then hold under a reader carrying no whole-line
+    alternative at all (btclib-org/.github#1053). What the chain was also
+    pinning is that `_needed` walks: flat, one hop is the whole closure,
+    and the gate's own aggregate names each job it waits on directly, so
+    a reader taking a job's direct `needs:` and stopping answers every
+    row here and the real gate alike. One chained dict stands below the
+    flat rows for that, asserting its own closure and nothing about a
+    shape.
+    """
+
+    def closure(needs: str) -> set[str]:
+        jobs = {"aggregate": needs, "changes": "", "coverage": ""}
+        return _needed(jobs, "aggregate")
+
+    whole = {"aggregate", "changes", "coverage"}
+    flow = "    needs: [changes, coverage]\n"
+    scalar = "    needs: changes\n"
+    under_the_key = {
+        "a block list": "    needs:\n      - changes\n      - coverage\n",
+        "a comment among the items": (
+            "    needs:\n"
+            "      - changes\n"
+            "      # the cell the coverage floor is measured on\n"
+            "      - coverage\n"
+        ),
+        "that comment stripped": (
+            "    needs:\n      - changes\n     \n      - coverage\n"
+        ),
+        "a comment on an item": (
+            "    needs:\n      - changes  # the gate\n      - coverage\n"
+        ),
+        "that one stripped": "    needs:\n      - changes \n      - coverage\n",
+        "a blank line between two items": (
+            "    needs:\n      - changes\n\n      - coverage\n"
+        ),
+    }
+    # what the docstring says the stripped pair is: `_COMMENT` takes one
+    # whitespace character with the `#` it removes, so the two forms
+    # spelled out above stay the two a run through `_jobs` produces
+    assert (
+        _COMMENT.sub("", under_the_key["a comment among the items"])
+        == under_the_key["that comment stripped"]
+    )
+    assert (
+        _COMMENT.sub("", under_the_key["a comment on an item"])
+        == under_the_key["that one stripped"]
+    )
+    assert closure(flow) == whole
+    assert closure(scalar) == {"aggregate", "changes"}
+    for shape, block in under_the_key.items():
+        assert closure(block) == whole, shape
+    # the one job dict here that is not flat: with every dict flat one
+    # hop is the whole closure, so a `_needed` that read a job's direct
+    # `needs:` and stopped would answer every row above correctly
+    chained = {
+        "aggregate": scalar,
+        "changes": "    needs: coverage\n",
+        "coverage": "",
+    }
+    assert _needed(chained, "aggregate") == whole
+    # the control: a reader of the key's own line and nothing under it
+    # answers the same for the two shapes that write the list there and
+    # the aggregate alone for those that write it under the key, so what
+    # the assertions above turn on is the items being read rather than
+    # the jobs merely being in the dict
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_NEEDS",
+        re.compile(
+            r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n(?P<items>)", re.MULTILINE
+        ),
+    )
+    assert closure(flow) == whole
+    assert closure(scalar) == {"aggregate", "changes"}
+    for shape, block in under_the_key.items():
+        assert closure(block) == {"aggregate"}, shape
+
+
+def test_needed_reads_no_step_of_a_job_as_a_job_it_waits_on(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `steps:` entry sits at the item indent and is not an item.
+
+    `      - name: Setup uv` differs from an item in what follows the
+    dash and in nothing else, so a run widened to take the rest of the
+    line reads its first token as a job and goes on reading below it.
+    What ends the run ahead of a real job's steps is the `steps:` key,
+    written at the shallower indent a job's own attributes take, so the
+    text the two readings disagree about is a step line where an item
+    goes; the widened reader below is what says so, both readings
+    answering alike on the job whose steps follow its `needs:`.
+
+    `_needed` indexes `jobs` by each name it reads, so the widened
+    reading costs a `KeyError` naming the step's own first token rather
+    than a closure carrying it. The assertion is on that token: a
+    `KeyError` alone would answer as readily to a job dict this test
+    spelled wrong.
+    """
+
+    def closure(needs: str) -> set[str]:
+        jobs = {"aggregate": needs, "changes": "", "coverage": ""}
+        return _needed(jobs, "aggregate")
+
+    steps = (
+        "    needs:\n"
+        "      - changes\n"
+        "      - coverage\n"
+        "    steps:\n"
+        "      - name: Setup uv\n"
+        "        uses: astral-sh/setup-uv@v7\n"
+    )
+    misplaced = (
+        "    needs:\n      - changes\n      - name: Setup uv\n      - coverage\n"
+    )
+    assert closure(steps) == {"aggregate", "changes", "coverage"}
+    assert closure(misplaced) == {"aggregate", "changes"}
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_NEEDS",
+        re.compile(
+            r"^    needs:(?P<inline>[^#\n]*)(?:#[^\n]*)?\n"
+            r"(?P<items>(?:^      - \S+[^\n]*\n|^[ \t]*(?:#[^\n]*)?\n)*)",
+            re.MULTILINE,
+        ),
+    )
+    assert closure(steps) == {"aggregate", "changes", "coverage"}
+    with pytest.raises(KeyError) as widened:
+        closure(misplaced)
+    assert widened.value.args == ("name:",)
+
+
+def test_needed_takes_no_token_of_a_comment_on_the_needs_line(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A `#` on the key's own line names no job the aggregate waits on.
+
+    The inline half stops at the `#`, so a trailing comment there leaves
+    the job before it and nothing else (btclib-org/.github#1038). A half
+    reading the rest of the line -- the reader below -- hands the walk
+    every word of the comment as a job key, and `_needed` indexes
+    `jobs` by each of them, so the walk raises on the last word rather
+    than returning a closure carrying all four. Both halves of that are
+    asserted: `_waits_on` names the four tokens, and the `KeyError`
+    names the one the walk reached first, which a bare `pytest.raises`
+    would not tell from a dict this test spelled wrong.
+    """
+
+    def closure(needs: str) -> set[str]:
+        # unstripped, which is what a copy of this module that keeps
+        # comments hands the pattern
+        return _needed({"aggregate": needs, "changes": ""}, "aggregate")
+
+    annotated = "    needs: changes  # the gate\n"
+    assert _waits_on(annotated) == ["changes"]
+    assert closure(annotated) == {"aggregate", "changes"}
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "_NEEDS",
+        re.compile(
+            r"^    needs:(?P<inline>[^\n]*)\n"
+            r"(?P<items>(?:^      - \S+[ \t]*(?:#[^\n]*)?\n|^[ \t]*(?:#[^\n]*)?\n)*)",
+            re.MULTILINE,
+        ),
+    )
+    assert _waits_on(annotated) == ["changes", "#", "the", "gate"]
+    with pytest.raises(KeyError) as widened:
+        closure(annotated)
+    assert widened.value.args == ("gate",)
+
+
 def test_a_job_outside_the_closure_answers_for_no_gate() -> None:
     """The closure and the file are read apart, on text where they differ.
 
     `test.yml` cannot show the difference: its aggregate waits on every
-    job in it, and every `needs:` it writes is a flow one. So the reading
-    the organization standard rejects agrees with the one it asks for,
-    and a `needs:` shape this module cannot see costs nothing there. The
-    workflow below is where both cost something -- a job the aggregate
-    waits on, one it does not, and one reached only through a block
-    `needs:` -- and each names an interpreter of its own.
+    job in it, and every `needs:` it writes stands on the key's own
+    line. So the reading the organization standard rejects agrees with
+    the one it asks for, and a `needs:` shape this module cannot see
+    costs nothing there. The workflow below is where both cost something
+    -- a job the aggregate waits on, one it does not, and one reached
+    only through a block `needs:` -- and each names an interpreter of
+    its own.
     """
     text = (
         "jobs:\n"
