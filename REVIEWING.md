@@ -116,60 +116,42 @@ In priority order, stopping at what this diff can be wrong about:
 line length and the rest are decided by `.pre-commit-config.yaml`, and a
 comment about one of them is either wrong or a bug in the hook.
 
-## Every collateral finding becomes an issue
+## What is filed, and what is not
 
-A review notices more than its subject: a defect the diff did not cause,
-a document that has gone stale, a rule the tree quietly stopped
-following. **Most of it does not belong as a review comment: file it as
-an issue**, and go back to the diff.
+A review notices more than its subject: a defect the diff did not
+cause, a rule the tree quietly stopped following. It does not go in the
+review — a finding the author cannot address without leaving the
+subject is a round spent on what the pull request was not for.
 
-The reason is the author's round trip. A finding they cannot address
-without leaving the subject is a round of review spent on something the
-pull request was not for, and asking for it anyway is how a branch stops
-converging. Filing costs the reviewer one command and loses nothing: the
-defect is recorded, with its evidence, where the next person to touch
-that code will find it.
+**It is filed only if a user, a build or a release is affected**: a
+wrong command, a red gate, a wrong setting, a packaging or a security
+defect. Prose is never filed — `README.md` included, and even where a
+grep can measure it. Wrong prose that leads to a wrong action is a
+functional defect, and is filed as one. A wording finding is named at
+the foot of the review and left there: the author fixes it where the
+diff already touches that file, and otherwise the note is the record.
+btclib-org/.github#1075 is where a tracker of prose findings was found
+not to converge.
 
-**Not every finding is filed.** A finding about the *wording* of prose no
-user reads — `CLAUDE.md`, a test's docstring or message, a comment in a
-workflow, a yaml or a toml, a `CHANGELOG.md` entry, a pull request body —
-is named at the foot of the review instead and left there: the diff's
-author fixes it where the diff already touches that file, and otherwise
-the note is the record of it. What is filed stays as above: a defect a
-test or a hook can measure, a decision the standard has to take, or a
-functional defect. btclib-org/.github#976 is where a tracker of prose
-findings about prose was found not to converge, and is the authority for
-this line.
+What stays in the review is what this diff introduces or breaks, and
+what was already wrong and this diff makes materially worse.
 
-What is *not* collateral, and stays in the review, is what this diff
-introduces or breaks, and what was already wrong and this diff makes
-materially worse. The test is not whether the code sits on a changed
-line; it is whether this change is what put it there or made it worse.
-
-Look for the issue already open before filing another:
+Look for the issue already open before filing another, and write the
+issue for somebody who never sees this pull request — what is wrong,
+where, how it is known, why it matters; no fix, and no reference to the
+pull request as a blocker:
 
 ```shell
 gh issue list --state open --search <the thing, in a word or two>
 ```
-
-The issue stands on its own, read by somebody who never sees this pull
-request: what is wrong, where — `file:line` —, how it is known, and why
-it matters. No fix, and no reference to the pull request as a blocker,
-because it is not one.
 
 ```shell
 gh issue create --title <the finding, as a claim> \
   --body <what was noticed and where, how it is known, why it matters>
 ```
 
-Both blocks leave their placeholders unquoted, which section 9 of the
-standard asks for: quoted, a paste of the second files an issue whose
-title is the placeholder.
-
 Name the issues filed at the foot of the summary, under a line saying
-they are **not** findings against this pull request. Without that line
-the list reads as more things to fix before merging, which is the
-opposite of what filing them was for.
+they are **not** findings against this pull request.
 
 ## What a finding says
 
