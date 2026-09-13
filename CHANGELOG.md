@@ -342,6 +342,30 @@ documented at release-notes length in the first place, and are still in
   above***: the hook immediately above `yamllint` is `taplo`, and markdown
   is held to 80 columns by `markdownlint-cli2` further up.
 
+### A markdown link target's own path is resolved against the tracked set
+
+- **`tests/markdown_citations_test.py` reads the path half of a link
+  target as well as the `#fragment` on it, resolving what the link reaches
+  against `git ls-files`** (closes #2075). A link is the citation form a
+  reader clicks rather than retypes, and a typo in its destination left
+  such a citation dead in both halves at once: the fragment rule leaves a
+  target this tree does not track alone, a file this tree does not have
+  carrying no headings to read, and the path rule read a backticked span
+  and no link target at all.
+- **A local destination is what carries a `./` or a `../`**, which
+  `.pre-commit-config.yaml`'s `local-link-prefix` hook is what keeps true,
+  so that prefix is what tells one from a url and from a fragment naming a
+  heading of the citing file itself. A link quoted inside a backticked
+  span is prose about the shape of one, so the spans go before the targets
+  are read -- which is the distinction that hook already spells as a
+  lookbehind.
+- **`docs/source/conf.py`'s `RootFileLinks` answers the same question over
+  the root files the `*_link.md` shims render**, an `-n -W` build failing
+  on a target that is no file of the tree. A link written in
+  `REPOSITORY.md` or in `RELEASING.md` is rendered by no page of that
+  build and reaches no resolver in it, and that build asks the filesystem
+  where the test asks the index.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

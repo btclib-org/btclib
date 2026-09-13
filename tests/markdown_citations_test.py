@@ -7,10 +7,9 @@
 A citation is what a reader follows to check a claim, so one resolving to
 nothing sends whoever follows it looking for a file that is not there, or
 for a section the file it reaches does not have. The path is one half and
-the `#fragment` on it the other, and the two are read from different
-spellings: a backticked span carrying a directory is where a path is
-checked, a link target only where its fragment is, so a link target's own
-path is read here for nothing but that.
+the `#fragment` on it the other. A backticked span carrying a directory is
+a path and is resolved as one; a link's own target is both halves, and each
+of them is resolved.
 The population is every tracked `*.md`, citing being what these files do
 rather than a property of any one of them: `tests/_data/README.md` and
 `CHANGELOG.md` name the module a verdict's values sit in, `CONTRIBUTING.md`
@@ -79,6 +78,25 @@ held to more than this, and this rule does not stand in for that:
 well as against the root, which is available to it because that ledger
 says which of the two each path is written from.
 
+A link's own target is the other spelling, and its path is resolved against
+`git ls-files` itself rather than through the file name and the directory a
+backticked span is held to. A local target is written with a `./` or a `../`
+in front of it, which `.pre-commit-config.yaml`'s `local-link-prefix` hook is
+what keeps true, so it names a path of this tree and there is no other
+project's path to tell it from; that prefix is also what tells a local
+destination from a url and from a fragment standing alone. A backticked span
+is taken out of the text before a target is read, run of backticks against
+run of backticks, so that prose can quote the shape of a link rather than
+write one: `CHANGELOG.md` illustrates a badge as `[![alt](./src)](./href)`,
+and the same distinction is the lookbehind that hook carries; a run
+of backticks left unpaired takes what follows it into the span, which is
+the shape `_anchors` has where an opening fence marker is not told from a
+closing one. `git ls-files` answers for files, so a target naming a
+directory reads as unreachable, this tree linking to files. The
+reference-definition form, `[label]: destination`, is a link this does not
+read, and so is a target carrying a title: the pattern wants the `)` against
+the path, so a title leaves no match rather than a shortened one.
+
 A cited `#fragment` is resolved against the headings of the file the
 citation reaches, and that is a different question from the path: a heading
 moves on a schedule where a path moves when somebody moves a file. A
@@ -117,6 +135,13 @@ the `docs` group, which no workflow's own pytest step installs, so
 importing it here would be a test that only reproduces where the
 documentation is built (issue #1538).
 
+The path half falls to that same resolver: `RootFileLinks` rewrites a target
+that is a file of the tree and leaves one that is not to myst, whose warning
+the `-n -W` build fails on -- measured by planting `./CONTRIBUTNG.md` in
+README.md's link to CONTRIBUTING.md. It asks the filesystem where this asks
+the index, and it reaches the rendered root files alone, so a link target
+written in `REPOSITORY.md` or in `RELEASING.md` reaches no resolver in it.
+
 What the slug does is lowercase the heading, drop every character that is
 neither a word character nor a hyphen nor a space, and hyphenate the spaces,
 which is how `## Plan-gated settings` answers to `plan-gated-settings` and how
@@ -134,9 +159,11 @@ fenced block is a comment rather than a heading, REPOSITORY.md's shell fences
 being full of them: a line opening a fence toggles whether what follows it is
 read, and an opening marker is not told from a closing one, so an odd number of
 markers nested in a longer fence inverts that state for the rest of the file.
-That skipping is the target's side only -- a citation written inside a fence is
-still read, the convention here being a backticked span for an illustrative
-one.
+That skipping is the target's side only. On the citing side a fence is read
+unevenly: a backticked citation inside one is still read, where a link inside
+one is not, the span strip matching a fence's opening run of backticks against
+its closing one and taking the block whole. The convention here is a backticked
+span for an illustrative citation.
 
 The module asks `git ls-files` which paths this repository has, so
 `source-exclude` keeps it out of the sdist: a tree stripped to its tracked
@@ -176,11 +203,13 @@ _CITED_PATH = re.compile(r"`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]+)
 # widening the rule to excuse it would excuse the next real defect with it
 _EXEMPT: dict[str, str] = {}
 
-# a link target carrying a fragment: the path the link is written with,
-# empty where the fragment stands alone, and the fragment itself. Neither
-# half holds a bracket or a space, a link target ending at the first of
-# either
-_CITED_FRAGMENT = re.compile(r"]\(([^()\s#]*)#([^()\s]+)\)")
+# a link's own target, which is a path, a `#fragment` on one, or a
+# fragment standing alone. It holds neither a bracket nor a space, a link
+# target ending at the first of either
+_LINK_TARGET = re.compile(r"]\(([^()\s]+)\)")
+
+# a backticked span, closed by the run of backticks that opened it
+_CODE_SPAN = re.compile(r"(`+).*?\1", re.DOTALL)
 
 # an ATX heading, and the text a fragment is made of
 _HEADING = re.compile(r"^#{1,6} +(.+?)\s*$")
@@ -192,6 +221,15 @@ _FENCE = re.compile(r"^ {0,3}(?:`{3,}|~{3,})")
 def _cited_paths(text: str) -> set[str]:
     """Every path `text` cites in backticks."""
     return {match.group(1) for match in _CITED_PATH.finditer(text)}
+
+
+def _link_targets(text: str) -> set[str]:
+    """Every target a link of `text` is written with.
+
+    A target quoted inside a backticked span is prose about the shape of a
+    link, so the spans go before the targets are read.
+    """
+    return set(_LINK_TARGET.findall(_CODE_SPAN.sub("", text)))
 
 
 def _slug(heading: str) -> str:
@@ -231,7 +269,36 @@ def _cited_fragments(markdown: str, text: str) -> set[tuple[str, str]]:
     """Every heading `text` cites, as the file holding it and the fragment."""
     return {
         (_resolved(markdown, written), fragment)
-        for written, fragment in _CITED_FRAGMENT.findall(text)
+        for written, _, fragment in (
+            target.partition("#") for target in _link_targets(text)
+        )
+        if fragment
+    }
+
+
+def _cited_files(markdown: str, text: str) -> set[str]:
+    """Every file of this tree a link of `text` reaches.
+
+    The `./` or `../` a local destination carries is what tells one from a
+    url and from a fragment naming a heading of the citing file itself.
+    """
+    return {
+        _resolved(markdown, written)
+        for target in _link_targets(text)
+        if (written := target.partition("#")[0]).startswith(("./", "../"))
+    }
+
+
+def _unreachable(texts: Mapping[str, str], tracked: set[str]) -> dict[str, list[str]]:
+    """Return what each file of `texts` links to and this tree has not.
+
+    Keyed on the citing file for the reason `_offenders` is: the link is
+    corrected in the paragraph carrying it.
+    """
+    return {
+        markdown: dead
+        for markdown, text in texts.items()
+        if (dead := sorted(_cited_files(markdown, text) - tracked))
     }
 
 
@@ -433,6 +500,51 @@ def test_a_misresolved_citation_is_reported_under_the_file_citing_it() -> None:
     }
 
 
+def test_every_file_a_markdown_link_reaches_is_one_this_tree_has() -> None:
+    """A link is the citation form a reader clicks rather than retypes.
+
+    The documentation build resolves the same target for the root files its
+    shims render and fails an `-n -W` build on one naming no file; a link
+    written in a file no page of that build renders reaches nothing else.
+    """
+    tracked = _tracked()
+    texts = _markdown(tracked)
+    # what a sweep answering zero has to be held to: the pattern can stop
+    # matching, and `git ls-files` gives an empty set where git is missing
+    assert {
+        target
+        for markdown, text in texts.items()
+        for target in _cited_files(markdown, text)
+    } & tracked
+
+    unreachable = _unreachable(texts, tracked)
+    assert not unreachable, (
+        f"a markdown file links to a path this tree has not: {unreachable!r}"
+    )
+
+
+def test_a_link_target_is_resolved_against_the_paths_this_tree_tracks() -> None:
+    """One text per citing file, and a citation for each arm the rule has.
+
+    The target naming a file the tracked set has resolves and the one a typo
+    takes off it is caught, each read past the fragment on it; a url and a
+    fragment standing alone carry no `./`, so neither is a path to resolve;
+    the badge quoted in a backticked span is prose about a link rather than
+    one; and a `../` is resolved from the directory of the file writing it.
+    """
+    tracked = {"README.md", "CONTRIBUTING.md"}
+    texts = {
+        "README.md": (
+            "[here](./CONTRIBUTING.md#a-heading), [gone](./CONTRIBUTNG.md#a-heading),"
+            " [away](https://example.org/page.md), [own](#a-heading-here) and"
+            " `[![alt](./src)](./href)`, which is the shape of a badge.\n"
+        ),
+        "docs/source/package-content-policy.md": "[up](../../README.md).",
+    }
+
+    assert _unreachable(texts, tracked) == {"README.md": ["CONTRIBUTNG.md"]}
+
+
 def test_every_heading_a_markdown_file_cites_is_one_its_target_has() -> None:
     """A citation's heading goes stale on the release schedule.
 
@@ -464,14 +576,15 @@ def test_a_cited_heading_is_resolved_against_the_file_the_link_names() -> None:
     The heading `REVIEWING.md` has resolves and the one it has not is
     caught; a fragment alone is resolved against the citing file; a target
     outside this tree has no headings to read, so the url is left alone;
-    and the backticked span is prose about a link rather than one.
+    and the link quoted in a backticked span is prose about the shape of
+    one, so the heading it names joins neither the verdict nor this tree.
     """
     texts = {
         "README.md": (
             "[here](./REVIEWING.md#the-gates-are-the-evidence) and"
             " [gone](./REVIEWING.md#the-gates), [own](#a-heading-of-its-own)"
             " and [away](https://example.org/page.md#anchor), which"
-            " `./REVIEWING.md#the-gates` does not join.\n"
+            " `[quoted](./REVIEWING.md#quoted-away)` does not join.\n"
             "\n"
             "## A heading of its own\n"
         ),
