@@ -1108,11 +1108,15 @@ grep -rnE 'href="#\.\.?/' docs/build/html --include='*.html'
 A link between the root markdown files — `./SECURITY.md` in README.md, the
 spelling GitHub and PyPI need and the one lychee checks — is
 one sphinx cannot resolve on its own, and what MyST emits for a target it
-cannot resolve is an anchor on the page it is already on rather than a
-warning. `docs/source/conf.py` resolves those links and suppresses no
+cannot resolve is a warning, before falling back to an anchor on the page it
+is already on. `docs/source/conf.py` resolves those links and suppresses no
 `myst.xref_missing`, so `-W` fails on the next one that has no target; the
-grep asks the same question of the HTML, where no suppression can hide the
-answer.
+grep asks the same question of the HTML.
+
+The grep is a second defense rather than the only one: `conf.py`'s
+`suppress_warnings` staying empty is a configuration it does not depend on,
+and a myst-parser upgrade could stop warning unconditionally the way the
+pinned one does.
 
 The pattern matches `#../` as well as `#./` because a link to another file
 here begins one of those two ways and no other: `.pre-commit-config.yaml`'s
@@ -1158,7 +1162,7 @@ found six to change, not a trade-off to price. What the measurement is
 for is knowing the blast radius and writing RELEASE_NOTES.md's
 breaking-changes entry, which is how a user is told: read
 [RELEASE_NOTES.md](./RELEASE_NOTES.md) for what that entry looks like,
-and note that `v2026.9`'s list is long on purpose.
+and note that `v2026.8.7`'s list is long on purpose.
 
 The one thing this does not license is a break nobody can act on. An
 entry says the old spelling, the new one, and what a caller does about

@@ -123,6 +123,24 @@ documented at release-notes length in the first place, and are still in
   8 the family took, which is why this cites the issue rather than
   closing it.
 
+### A root-file link's dead target warns, then falls back to an anchor
+
+- **The docs gate's second step is documented as a second defense, not
+  the only one** (closes #2044). `CONTRIBUTING.md` said MyST emits an
+  anchor on the page it is already on "rather than a warning" for a
+  root-file link it cannot resolve; `MystReferenceResolver` warns
+  unconditionally before that fallback, which is what `-n -W` already
+  fails the build on, and the grep instead guards the fallback node
+  against a regression: `conf.py`'s `suppress_warnings` staying empty,
+  or a myst-parser upgrade no longer warning unconditionally.
+
+### `CONTRIBUTING.md`'s breaking-changes example names a released heading
+
+- **The worked example pointed at `` `v2026.9` ``, a heading that never
+  carried a long breaking-changes list and stops existing at every
+  release** (closes #2052). It now names `` `v2026.8.7` ``, a released
+  heading whose list is long and does not move.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
