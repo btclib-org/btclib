@@ -1,0 +1,190 @@
+---
+name: deps-oldest
+
+# the floor sentinel: every direct dependency taken down to the oldest
+# release its own specifier in pyproject.toml still allows, on the
+# interpreter requires-python names, and then put through the suite.
+# deps-latest.yml asks whether a newer release still works; this asks
+# whether the oldest one this tree still claims does -- section 10 of
+# btclib-org/.github calls the two a mirrored pair.
+#
+# The claim it reaches is the one made to whoever installs: two required
+# dependencies, the bindings as the secp256k1 extra, and every
+# [dependency-groups] entry, which uv resolves as a direct dependency
+# too. Each is a >= with no ceiling, so what an install gets is the
+# oldest release the specifier admits and never the one uv.lock pins.
+# Nothing else here installs an old release of anything: every other
+# workflow passes --locked and gets the one resolution somebody wrote
+# down, and deps-latest.yml resolves the other way.
+#
+# --resolution lowest-direct, not lowest: lowest takes every transitive
+# dependency to its own minimum as well, resolving environments nothing
+# published has ever run and turning a red into noise about a release
+# this tree never claimed to support. lowest-direct moves what
+# pyproject.toml itself declares a floor for, which is the claim being
+# checked. Where the mode is declared, and why it is not a flag on the
+# step that resolves, is beside the job below.
+#
+# A group entry declaring no lower bound has no floor to verify, and uv
+# warns on each one it finds. Those warnings are what the run reports,
+# and the resolution then fails among the releases they name rather than
+# at any declared floor: run by hand here, it warns on every
+# [dependency-groups] entry but the bindings' own
+# btclib-secp256k1>=0.8.0.6, and then fails building coverage==3.0,
+# whose setup script is Python 2. uv lock --help lists one option naming
+# a group, --upgrade-group, and none that selects or excludes one -- uv
+# sync --help's six group options being the control that the absence is
+# real -- so a lock is necessarily over every group there is. What bound
+# each entry owes is #2061, this tree's question rather than this file's.
+#
+# 3.10, and not the 3.14 .python-version pins: that file's own header
+# calls the pin the newest the test matrix covers rather than the oldest
+# the package supports, and requires-python's >=3.10 is the end a floor
+# run asks about. That header leaves the oldest end to "the matrix's job
+# and the two linters'", and only half of that survives this workflow
+# existing: the platform sweeps do run a 3.10 cell, while ruff's target
+# and mypy's python_version read 3.10 as a language level, and every one
+# of them takes its dependencies from the lock. So the interpreter half
+# is covered and the specifier half was covered by nothing.
+#
+# One cell and one image, because a floor is one claim to verify rather
+# than a range to scan, and the range is already deps-latest.yml's and
+# the three platform sweeps'. That is also what refuses a bindings job
+# of this file's own: suite-bindings-latest exists beside deps-latest's
+# broad upgrade because a dozen packages move there at once and a
+# bindings release would be one suspect among them, where lowest-direct
+# puts btclib-secp256k1 on the single release its specifier names --
+# a second claim of the same kind rather than a second point on a range.
+# What that job's shape does carry over is its assertion, as a step of
+# this one; the reason is beside it.
+#
+# No lint job, unlike deps-latest.yml's. That job is there because mypy
+# is a local hook shelling out to uv, so a new mypy release adds a check
+# this code base fails before the next re-lock catches it. A floor
+# resolution moves mypy backward instead, which is a different question,
+# and section 10 gives this sentinel the claim a floor makes to whoever
+# installs rather than a second opinion on the tooling.
+#
+# No dist job either, and it is the same reason read from the other end:
+# the check group declares no floor, so a mirror of dist-latest would
+# run the oldest twine, check-wheel-contents and pyroma an index still
+# serves, over metadata this resolution does not move. The floor a
+# distribution does declare is [build-system]'s uv_build range, which
+# uv.lock does not carry, so the step below cannot reach it either;
+# pyproject.toml's comment over that range names the hook call that
+# measures it.
+#
+# Nothing here gates anything, by construction: a separate workflow, with
+# no aggregate job, named by no branch protection rule. This job is
+# expected to go red for reasons no pull request introduced, and a red
+# check nobody can act on from a branch is noise. It opens no issue on
+# failure either, which would cost issues: write in a job that needs
+# nothing but read; a failed scheduled run notifies the last person to
+# have touched the cron below, and that is the signal
+
+on:
+  schedule:
+    # The time is section 10's grid in btclib-org/.github -- the
+    # workflow's day and hour in one of its two tables and this
+    # repository's minute in the other -- and not this file's to restate.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "4 3 * * 4"
+  # the escape hatch: worth reaching for on a branch that moves a floor
+  # in pyproject.toml, which is the one edit whose effect this workflow
+  # is the only thing that measures
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies, build scripts) can read the token, so it must
+# not be able to write to the repository
+permissions:
+  contents: read
+
+# named literally rather than with github.workflow: nothing calls this
+# workflow today, but that expression is the caller's name when something
+# does, and the convention is what keeps the groups distinct
+concurrency:
+  group: deps-oldest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  suite-oldest:
+    name: Run the suite, dependencies at their declared floor
+    runs-on: ubuntu-latest
+    # the resolution mode, declared once for the whole job rather than
+    # passed to the step that resolves. `uv lock` records a non-default
+    # mode inside uv.lock, and a later uv command running under the
+    # default `highest` reads that lock as stale -- so the --locked below
+    # would refuse the lock the step above it had just written, before
+    # installing anything and before reaching pytest. Setting it here is
+    # what makes every command of the job agree, and keeps --locked
+    # meaning what it says
+    env:
+      UV_RESOLUTION: lowest-direct
+    # far above what a run of the suite needs, the resolution below and
+    # the source builds an old release may want included: what it bounds
+    # is a hung job
+    timeout-minutes: 30
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the coverage job in test.yml
+          persist-credentials: false
+          # no fetch-tags, where deps-latest.yml's suite job passes it:
+          # there it buys the tags tests/changelog_immutability_test.py
+          # needs, because that test skipping itself leaves uncovered
+          # lines of tests/ and the 100% floor fails the job on them.
+          # The pytest step below passes --no-cov, so there is no floor
+          # here for a skip to fall under, and the tags would be fetched
+          # for a comparison this sentinel is not asking for
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          # cached for the reason deps-latest.yml gives beside its own
+          enable-cache: true
+          python-version: "3.10"
+      # re-resolves every direct dependency to the oldest release its own
+      # specifier in pyproject.toml allows, the mode coming from the
+      # job's env above; the header says what that reaches and what it
+      # structurally cannot. This rewrites uv.lock, harmless on an
+      # ephemeral checkout and worth knowing before running the same
+      # command in a working tree
+      - name: Resolve every direct dependency to its declared floor
+        run: uv lock
+      # deps-latest.yml's suite-bindings-latest job asks this of the
+      # newest bindings; at a floor it is what keeps the step below from
+      # answering green about the wrong suite. btclib._libsecp256k1
+      # imports the whole surface in one `try` whose `except ImportError`
+      # sets INSTALLED = False, so a floor release short of one name
+      # loses every delegation rather than that one, and
+      # tests/conftest.py's pytest_collection_modifyitems then skips
+      # every `bindings`-marked test. There the two files part: that job
+      # keeps the --cov addopts carries, so the same fallback reports a
+      # coverage shortfall against the 100% ratchet, where --no-cov below
+      # leaves a green run over a floor that installed and did not serve.
+      # is_libsecp256k1_serving and not INSTALLED, for the reason that
+      # job gives: serving is installed and not refused, and nothing here
+      # sets BTCLIB_NO_LIBSECP256K1, so False leaves only the import
+      - name: Assert the bindings are serving
+        run: >
+          uv run --locked --no-default-groups --group test
+          python -c "from btclib.curves import is_libsecp256k1_serving;
+          assert is_libsecp256k1_serving(),
+          'btclib_secp256k1 at its declared floor does not import'"
+      # still --locked, which is not a contradiction: the resolution step
+      # wrote that lock under this job's own mode, so this asserts
+      # nothing moved between the two.
+      # --no-cov, against the --cov that addopts carries: the ratchet is
+      # section 8's claim about one interpreter on one image, measured
+      # and gated by the coverage and coverage-union jobs of test.yml,
+      # where what this cell asks is whether the declared floors install
+      # and the suite holds on them. A floor resolution taking a branch
+      # the locked one does not would report a number under the ratchet
+      # and name the ratchet, with the finding in the resolution
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest --no-cov
