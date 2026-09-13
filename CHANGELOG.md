@@ -597,6 +597,12 @@ documented at release-notes length in the first place, and are still in
   `lint.yml` say what a local run enforces and the inert `git commit` recipe
   goes** (issue btclib-org/.github#966).
 
+### A changelog entry is its title and at most three lines
+
+- **`REVIEWING.md`, `CONTRIBUTING.md` and `check_changelog.py` follow
+  `btclib-org/.github`** (issue btclib-org/.github#1075): what is filed
+  is one test, and an entry's body past three lines is refused.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

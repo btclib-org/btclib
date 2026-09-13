@@ -14,7 +14,8 @@ of the file where there is no second, section 9 of README.md giving the
 boundary the same way.
 
 Three checks, all of them shapes a `merge=union` rebase produces and a
-`git rebase` exit code does not report:
+`git rebase` exit code does not report -- and a fourth, below them, that
+is section 9's own bound on an entry:
 
 - a `### ` heading repeated within the section -- measured against real
   rebases under `merge=union`, not assumed from the driver's name. Two
@@ -103,6 +104,14 @@ until this file's own review found them:
   `markdownlint-cli2`'s MD022/MD032 nor this file's third check, both
   keyed on a heading's own blank line, has a line to object to.
 
+The fourth check is an entry's length: section 9 of README.md bounds an
+entry to its `### ` title and three lines of body, from the entry that
+brought the rule in. Entries above the heading `RULE_HEADING` names
+predate the rule and stay as written; where the open section no longer
+holds that heading -- a release closed over it -- every entry is
+measured. A heading-less entry is outside it, as it is outside the
+three above.
+
 A tree with no release carries one open section for the whole file, this
 repository's own `CHANGELOG.md` among them; a tree that releases keeps
 everything from the first `## ` heading to the line before the second as
@@ -144,6 +153,14 @@ _CODE_SPAN = re.compile(r"`[^`\n]*`")
 
 _BLANK_LINE = "\n\n"
 """Two newlines: the empty line above a heading, read as a literal pair."""
+
+RULE_HEADING = "A changelog entry is its title and at most three lines"
+"""The entry section 9's bound enters with; entries above it predate it."""
+_MAX_BODY_LINES = 3
+# a reference-style link definition is plumbing an entry's text points
+# at, not a line of the entry; btclib-benchmarks keeps a block of them at
+# the end of the file, inside whatever entry is last
+_LINK_DEFINITION = re.compile(r"^\[[^\]]+\]:\s")
 
 
 def open_section(text: str) -> tuple[str, int]:
@@ -263,9 +280,9 @@ def duplicate_closes(text: str, section: str, base: int) -> list[str]:
     """Report two entries of the open section closing the same issue.
 
     A citation repeated across the bullets of *one* entry is not
-    reported: section 9 of README.md lets a list body make several
-    related claims about the issue its heading answers, each bullet
-    citing it again. What this asks is whether two different entries --
+    reported: section 9 of README.md has the body cite the issue in its
+    own text, so a list body cites it in each bullet that claims
+    something of it. What this asks is whether two different entries --
     two different `### ` headings, or the one heading-less entry
     against a headed one -- each `(closes #N)` the same issue, which
     `merge=union` keeping both sides of an append is what produces.
@@ -314,8 +331,41 @@ def unblanked_headings(text: str, section: str, base: int) -> list[str]:
     return problems
 
 
+def long_bodies(text: str, section: str, base: int) -> list[str]:
+    """Report an entry whose body runs past `_MAX_BODY_LINES` non-blank lines.
+
+    Measured from the entry titled `RULE_HEADING` onward, and from the
+    section's first entry where that heading is not in it. A blank line
+    and a reference-style link definition are not lines of the body.
+
+    :param text: the whole file, for the line numbers reported.
+    :param section: the open section's own text.
+    :param base: the offset `section` starts at within `text`.
+    :returns: one message per entry past the bound.
+    """
+    found = entries(section)
+    measuring = all(title != RULE_HEADING for title, _, _ in found)
+    problems = []
+    for title, body, offset in found:
+        measuring = measuring or title == RULE_HEADING
+        if not measuring or title is None:
+            continue
+        kept = [
+            line
+            for line in body.splitlines()[1:]
+            if line.strip() and not _LINK_DEFINITION.match(line)
+        ]
+        if len(kept) > _MAX_BODY_LINES:
+            line = line_at(text, base + offset)
+            problems.append(
+                f"line {line}: heading {title!r} has {len(kept)} lines of body,"
+                f" section 9 allowing {_MAX_BODY_LINES}",
+            )
+    return problems
+
+
 def problems(text: str) -> list[str]:
-    """Return every way the open section fails the three checks.
+    """Return every way the open section fails the four checks.
 
     :param text: the whole file.
     :returns: one message per finding, in the order the checks run.
@@ -325,6 +375,7 @@ def problems(text: str) -> list[str]:
         *repeated_headings(text, section, base),
         *duplicate_closes(text, section, base),
         *unblanked_headings(text, section, base),
+        *long_bodies(text, section, base),
     ]
 
 
@@ -339,8 +390,8 @@ def main() -> int:
     if not found:
         print(
             f"{_CHANGELOG}: the open section repeats no heading, no two"
-            " entries close the same issue, and no heading has lost its"
-            " blank line.",
+            " entries close the same issue, no heading has lost its blank"
+            " line, and no entry runs past three lines.",
         )
     return 1 if found else 0
 

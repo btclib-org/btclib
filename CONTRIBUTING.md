@@ -22,9 +22,8 @@ repositories, or whose subject is the standard, goes to
 [btclib-org/.github](https://github.com/btclib-org/.github/issues), and
 one about this tree alone stays here.
 
-A finding noticed while doing something else is filed, not carried.
-`REVIEWING.md`'s *Every collateral finding becomes an issue* is the whole
-of what to do with one, and it applies to an author as much as to a
+A finding noticed while doing something else goes where `REVIEWING.md`'s
+*What is filed, and what is not* says, for an author as much as for a
 reviewer: a pull request answering two questions cannot be accepted for
 either.
 
