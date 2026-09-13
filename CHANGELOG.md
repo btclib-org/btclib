@@ -304,6 +304,28 @@ documented at release-notes length in the first place, and are still in
   of `suppress_warnings`**: `conf.py`'s own `no suppress_warnings` comment
   is where that setting's absence is stated.
 
+### A cited `#heading` is resolved against the headings its target has
+
+- **`tests/markdown_citations_test.py` reads the fragment half of a
+  citation too, resolving `path#heading` against the headings the file the
+  link reaches carries** (closes #2059). A release renames the open
+  cycle's own heading of `CHANGELOG.md` and of `RELEASE_NOTES.md`, so a
+  citation naming that heading stops resolving on a schedule rather than
+  by accident, and with nothing in the file carrying the citation having
+  changed.
+- **The fragment is read off a link's own target**, a backticked
+  `path#anchor` being prose about the shape of a link rather than a link,
+  and the slug is GitHub's: lowercased, every character that is not a word
+  character, a hyphen or a space dropped, the spaces hyphenated, and the
+  `-1`, `-2` suffix on a heading that several releases repeat.
+  `docs/source/conf.py`'s `myst_heading_anchors` answers the same question
+  over the root files the `*_link.md` shims include, where an `-n -W`
+  build fails on a fragment myst cannot find; a fragment naming a heading
+  of a file that build does not render reaches no resolver there, and
+  resolving those is what the test adds. myst's slugifier is not what it
+  reads either: `myst-parser` is in the `docs` group, which no workflow's
+  own pytest step installs.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

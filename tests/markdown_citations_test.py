@@ -2,10 +2,15 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Every path a markdown file cites of this tree is one this tree has.
+"""Every citation a markdown file makes of this tree resolves.
 
 A citation is what a reader follows to check a claim, so one resolving to
-nothing sends whoever follows it looking for a file that is not there.
+nothing sends whoever follows it looking for a file that is not there, or
+for a section the file it reaches does not have. The path is one half and
+the `#fragment` on it the other, and the two are read from different
+spellings: a backticked span carrying a directory is where a path is
+checked, a link target only where its fragment is, so a link target's own
+path is read here for nothing but that.
 The population is every tracked `*.md`, citing being what these files do
 rather than a property of any one of them: `tests/_data/README.md` and
 `CHANGELOG.md` name the module a verdict's values sit in, `CONTRIBUTING.md`
@@ -74,6 +79,65 @@ held to more than this, and this rule does not stand in for that:
 well as against the root, which is available to it because that ledger
 says which of the two each path is written from.
 
+A cited `#fragment` is resolved against the headings of the file the
+citation reaches, and that is a different question from the path: a heading
+moves on a schedule where a path moves when somebody moves a file. A
+release renames the open cycle's heading to its own version, so
+`CHANGELOG.md` and `RELEASE_NOTES.md` each carry one heading a release
+takes away, where a released section's headings are held byte for byte
+against its own tag by `changelog_immutability_test.py`.
+
+The fragment is read off a link's own target and not off a backticked span,
+a link being what a reader clicks where a backticked `path#anchor` is prose
+about the shape of one: `CHANGELOG.md` writes `./page.md#anchor` for a link
+planted in a documentation build and `href="#README.md#build"` for the
+rendered HTML a grep of that build passes over. A target this tree does not
+track is left alone, a file this tree does not have carrying no headings to
+read, and that is what keeps an `https://` url out as well, no tracked path
+being spelled with a scheme. A fragment written alone,
+`](#code-scanning)` as REPOSITORY.md writes it, names a heading of the
+citing file. A heading named in prose rather than in a link target is not
+read at all, which is the shape issue #2052 was: CONTRIBUTING.md names
+`v2026.8.7`'s breaking-changes list by version, and a version in backticks
+is not mechanically a citation of a heading -- RELEASING.md writes
+`v2026.7` to illustrate how `git tag` sorts, and no heading of either file
+answers to that.
+
+The documentation build answers the same question over part of the same
+population. `docs/source/conf.py` sets `myst_heading_anchors`, and its
+`RootFileLinks` hands the fragment to myst for the root files the
+`*_link.md` shims include: a fragment myst cannot find there is a
+`myst.xref_missing` warning, which the `-n -W` build fails on -- measured
+by planting `./CONTRIBUTING.md#no-such-heading-at-all` in README.md. Every
+other link it rewrites into a `BLOB` url with the fragment appended
+verbatim, and REPOSITORY.md is no page of that build at all, so a fragment
+naming a heading of a file the build does not render reaches no resolver
+in it. Nor is myst's own slugifier what this reads: `myst-parser` is in
+the `docs` group, which no workflow's own pytest step installs, so
+importing it here would be a test that only reproduces where the
+documentation is built (issue #1538).
+
+What the slug does is lowercase the heading, drop every character that is
+neither a word character nor a hyphen nor a space, and hyphenate the spaces,
+which is how `## Plan-gated settings` answers to `plan-gated-settings` and how
+a backticked span in a heading keeps its text while the backticks go. The
+second and later heading sharing a slug takes GitHub's `-1`, `-2` suffix, which
+is how a fragment naming one of `RELEASE_NOTES.md`'s repeated `### Breaking
+changes` resolves. What is not implemented: whatever GitHub does with a
+character outside that class -- an emoji, a footnote marker -- a heading
+holding a markdown link, whose target GitHub drops and this keeps, and a
+literal slug colliding with another heading's numbered one, which GitHub
+numbers again and this does not. A heading of any of those shapes is what
+widens this. A heading is read as ATX, `.markdownlint.jsonc`'s `MD003` being
+what makes that the only spelling here, and a heading-shaped line inside a
+fenced block is a comment rather than a heading, REPOSITORY.md's shell fences
+being full of them: a line opening a fence toggles whether what follows it is
+read, and an opening marker is not told from a closing one, so an odd number of
+markers nested in a longer fence inverts that state for the rest of the file.
+That skipping is the target's side only -- a citation written inside a fence is
+still read, the convention here being a backticked span for an illustrative
+one.
+
 The module asks `git ls-files` which paths this repository has, so
 `source-exclude` keeps it out of the sdist: a tree stripped to its tracked
 files has no index to ask.
@@ -84,9 +148,11 @@ matrix rather than one runner, and `tests-passed` gates it without a line
 in any `needs` list.
 """
 
+import posixpath
 import re
 import shutil
 import subprocess
+from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -110,10 +176,83 @@ _CITED_PATH = re.compile(r"`([A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+\.[A-Za-z0-9]+)
 # widening the rule to excuse it would excuse the next real defect with it
 _EXEMPT: dict[str, str] = {}
 
+# a link target carrying a fragment: the path the link is written with,
+# empty where the fragment stands alone, and the fragment itself. Neither
+# half holds a bracket or a space, a link target ending at the first of
+# either
+_CITED_FRAGMENT = re.compile(r"]\(([^()\s#]*)#([^()\s]+)\)")
+
+# an ATX heading, and the text a fragment is made of
+_HEADING = re.compile(r"^#{1,6} +(.+?)\s*$")
+
+# a fenced block's marker, in either spelling and at either end
+_FENCE = re.compile(r"^ {0,3}(?:`{3,}|~{3,})")
+
 
 def _cited_paths(text: str) -> set[str]:
     """Every path `text` cites in backticks."""
     return {match.group(1) for match in _CITED_PATH.finditer(text)}
+
+
+def _slug(heading: str) -> str:
+    """Return the fragment GitHub answers `heading` to."""
+    return re.sub(r"[^\w\- ]", "", heading.strip().lower()).replace(" ", "-")
+
+
+def _anchors(text: str) -> set[str]:
+    """Every fragment the headings of `text` answer to."""
+    anchors: set[str] = set()
+    taken: Counter[str] = Counter()
+    fenced = False
+    for line in text.splitlines():
+        if _FENCE.match(line):
+            fenced = not fenced
+        elif not fenced and (heading := _HEADING.match(line)):
+            slug = _slug(heading.group(1))
+            taken[slug] += 1
+            repeat = taken[slug] - 1
+            anchors.add(f"{slug}-{repeat}" if repeat else slug)
+    return anchors
+
+
+def _resolved(markdown: str, written: str) -> str:
+    """Return the file a link of `markdown` written as `written` reaches.
+
+    A link target is written from the directory of the file carrying it,
+    and an empty one names that file itself.
+    """
+    if not written:
+        return markdown
+    directory = posixpath.dirname(markdown)
+    return posixpath.normpath(posixpath.join(directory, written))
+
+
+def _cited_fragments(markdown: str, text: str) -> set[tuple[str, str]]:
+    """Every heading `text` cites, as the file holding it and the fragment."""
+    return {
+        (_resolved(markdown, written), fragment)
+        for written, fragment in _CITED_FRAGMENT.findall(text)
+    }
+
+
+def _unresolved(texts: Mapping[str, str]) -> dict[str, list[str]]:
+    """Return what each file of `texts` cites and its target does not have.
+
+    Keyed on the citing file for the reason `_offenders` is: the link is
+    corrected in the paragraph carrying it.
+    """
+    anchors = {markdown: _anchors(text) for markdown, text in texts.items()}
+    return {
+        markdown: unresolved
+        for markdown, text in texts.items()
+        if (
+            unresolved := sorted(
+                f"{target}#{fragment}"
+                for target, fragment in _cited_fragments(markdown, text)
+                if target in anchors and fragment not in anchors[target]
+            )
+        )
+    }
 
 
 def _tracked() -> set[str]:
@@ -164,6 +303,15 @@ def _offenders(
     }
 
 
+def _markdown(tracked: set[str]) -> dict[str, str]:
+    """Every tracked markdown file of this tree, keyed on its path."""
+    return {
+        path: (_ROOT / path).read_text(encoding="utf-8")
+        for path in sorted(tracked)
+        if path.endswith(".md")
+    }
+
+
 def test_every_path_a_markdown_file_cites_of_this_tree_is_one_this_tree_has() -> None:
     """A citation is what a reader follows to check a claim.
 
@@ -172,11 +320,7 @@ def test_every_path_a_markdown_file_cites_of_this_tree_is_one_this_tree_has() ->
     the claim standing on nothing a reader can reach.
     """
     tracked = _tracked()
-    texts = {
-        path: (_ROOT / path).read_text(encoding="utf-8")
-        for path in sorted(tracked)
-        if path.endswith(".md")
-    }
+    texts = _markdown(tracked)
     # what a sweep answering zero has to be held to: `git ls-files` gives
     # an empty set where git is missing, and the pattern can stop matching
     # without anything else here changing
@@ -287,3 +431,98 @@ def test_a_misresolved_citation_is_reported_under_the_file_citing_it() -> None:
     assert _offenders(texts, tracked, {}) == {
         "CONTRIBUTING.md": ["tests/descriptors_test.py"]
     }
+
+
+def test_every_heading_a_markdown_file_cites_is_one_its_target_has() -> None:
+    """A citation's heading goes stale on the release schedule.
+
+    A release renames the open cycle's heading of `CHANGELOG.md` and of
+    `RELEASE_NOTES.md`, so a citation naming that heading stops resolving
+    with nothing in the file carrying the citation having changed.
+    """
+    texts = _markdown(_tracked())
+    # what a sweep answering zero has to be held to: a fragment resolving
+    # to a file of this tree is what the rule reads, and the pattern can
+    # stop matching, or every resolution land outside `texts`, without
+    # anything else here changing
+    assert {
+        target
+        for markdown, text in texts.items()
+        for target, _ in _cited_fragments(markdown, text)
+        if target in texts
+    }
+
+    unresolved = _unresolved(texts)
+    assert not unresolved, (
+        f"a markdown file cites a heading its target has not: {unresolved!r}"
+    )
+
+
+def test_a_cited_heading_is_resolved_against_the_file_the_link_names() -> None:
+    """One text, and a citation for each arm the rule has.
+
+    The heading `REVIEWING.md` has resolves and the one it has not is
+    caught; a fragment alone is resolved against the citing file; a target
+    outside this tree has no headings to read, so the url is left alone;
+    and the backticked span is prose about a link rather than one.
+    """
+    texts = {
+        "README.md": (
+            "[here](./REVIEWING.md#the-gates-are-the-evidence) and"
+            " [gone](./REVIEWING.md#the-gates), [own](#a-heading-of-its-own)"
+            " and [away](https://example.org/page.md#anchor), which"
+            " `./REVIEWING.md#the-gates` does not join.\n"
+            "\n"
+            "## A heading of its own\n"
+        ),
+        "REVIEWING.md": "## The gates are the evidence\n",
+    }
+
+    assert _unresolved(texts) == {"README.md": ["REVIEWING.md#the-gates"]}
+
+
+def test_a_repeated_heading_answers_to_the_numbered_fragment() -> None:
+    """`RELEASE_NOTES.md` repeats `### Breaking changes` under releases.
+
+    Measured against the fragment past the last such heading, which
+    nothing answers to: an implementation numbering none of them would
+    answer the bare fragment and fail the numbered one, and one numbering
+    from the first heading rather than the second would answer the
+    numbered fragments and fail the bare one.
+    """
+    texts = {
+        "RELEASE_NOTES.md": (
+            "[a](#breaking-changes), [b](#breaking-changes-1) and"
+            " [c](#breaking-changes-2).\n"
+            "\n"
+            "### Breaking changes\n"
+            "\n"
+            "### Breaking changes\n"
+        )
+    }
+
+    assert _unresolved(texts) == {
+        "RELEASE_NOTES.md": ["RELEASE_NOTES.md#breaking-changes-2"]
+    }
+
+
+def test_a_heading_shaped_line_inside_a_fence_is_a_comment() -> None:
+    """REPOSITORY.md's shell fences are full of them.
+
+    Read as headings they would answer fragments no reader can follow, a
+    comment being no place a link lands.
+    """
+    fenced = "```shell\n# grep -n x\n```\n\n## A heading\n"
+
+    assert _anchors(fenced) == {"a-heading"}
+
+
+def test_the_slug_keeps_a_word_character_a_hyphen_and_a_space() -> None:
+    """What is dropped is everything else, backticks with it.
+
+    `## Plan-gated settings` is the hyphen, and a backticked span in a
+    heading is what keeps its text while the backticks go.
+    """
+    heading = "## `mult`, and Plan-gated (x)\n"
+
+    assert _anchors(heading) == {"mult-and-plan-gated-x"}
