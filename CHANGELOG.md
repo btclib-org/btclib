@@ -199,6 +199,39 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### The symlink case's pragma takes the case, not the handler alone
+
+- **The `# pragma: no cover` sits on the case's `def`** (closes
+  btclib-org/.github#1042): an exclusion on a line that introduces a
+  block takes the whole block, so it reaches the assertions after the
+  skip as well. On the `except` it reaches the handler and the
+  `pytest.skip` alone, which are the lines that do not run wherever the
+  link is made, and a platform refusing `os.symlink` then meets the skip
+  and a coverage floor it cannot reach in the same run -- the exit code
+  the floor's and the failure naming a percentage rather than a symlink.
+  Measured with a plugin making `Path.symlink_to` raise `OSError`: with
+  the pragma on the `except` the documented `uv run pytest` exits 1 with
+  the lines after the skip named missing, and with it on the `def` the
+  same run meets the floor and the case reports `SKIPPED`.
+- **The comment above the line says why coverage can ask nothing of the
+  case, and what the exclusion costs**: the body is reachable only where
+  the platform makes a symbolic link, so a floor over a `source` naming
+  `tests` asks about the runner rather than about the suite, and dead
+  code inside the case stops being flagged in exchange. The inline half
+  names the case and the rest of the reason stands above the line, which
+  is the shape CONTRIBUTING.md's *The environment and the gates* gives a
+  reason too long for the line it belongs to.
+- **The docstring's sentence -- a platform that refuses says so as a
+  skip, which `-ra` reports -- is what the move makes true of the run**:
+  the case skips either way, and with the pragma on the `except` the run
+  it skips in fails the floor.
+- **The comment's wording is `bitcoin-core-rpc`'s at `45824228` and
+  `btclib-benchmarks`' at `ef96af25` byte for byte**, the plural those
+  two carry holding here where `btclib-node`'s singular would not.
+  `btclib-node`, `bitcoin-core-rpc` and `btclib-benchmarks` have landed
+  the shape, so this tree is the last the issue names and the citation
+  closes where each of theirs cites.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

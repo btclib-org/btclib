@@ -206,7 +206,17 @@ def test_a_path_that_collects_the_suite_is_a_whole_run(
     assert gate == 100.0
 
 
-def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(
+# the pragma sits on the `def` because an exclusion on a line that
+# introduces a block takes the whole block: this case's body is reachable
+# only where the platform makes a symbolic link, so a floor over a
+# `source` naming `tests` asks about the runner rather than about the
+# suite. An exclusion on the `except` reaches the handler and the
+# `pytest.skip` alone, which are the lines that do not run wherever the
+# link is made, and the platform the guard is for then meets a skip and a
+# floor it cannot reach in the same run. What it costs is that dead code
+# inside the case stops being flagged; the case's assertions are its
+# whole subject, so the trade is cheap and is still a trade.
+def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(  # pragma: no cover -- the body needs a symlink
     tmp_path: Path,
 ) -> None:
     """Both sides are resolved, so one directory named twice is one path.
@@ -236,7 +246,7 @@ def test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite(
     link = base / "link"
     try:
         link.symlink_to(real, target_is_directory=True)
-    except OSError as refused:  # pragma: no cover -- Windows without the privilege
+    except OSError as refused:
         pytest.skip(f"this platform will not create a symlink: {refused}")
 
     named_through_the_link = coverage_fail_under(
