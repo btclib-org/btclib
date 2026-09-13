@@ -591,6 +591,12 @@ documented at release-notes length in the first place, and are still in
   on the key's own line, where *a flow one* is false of the ones naming
   a single job after the key.
 
+### The lint gate's prose names a local run, not a commit
+
+- **`.pre-commit-config.yaml`, `.vscode/extensions.json`, `CONTRIBUTING.md` and
+  `lint.yml` say what a local run enforces and the inert `git commit` recipe
+  goes** (issue btclib-org/.github#966).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

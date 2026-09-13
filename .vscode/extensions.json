@@ -1,6 +1,6 @@
 {
   // one entry per tool the lint gate already runs, so the editor reports
-  // what .pre-commit-config.yaml would report at commit time. Nothing here
+  // what a local run of .pre-commit-config.yaml would report. Nothing here
   // is a tool the gate does not have: an extension with no hook behind it
   // is a second opinion, and a finding no workflow enforces is noise
   "recommendations": [
@@ -30,7 +30,7 @@
     // wraps -- shellcheck inside a `run:` block stays a hook finding
     "github.vscode-github-actions",
     // the prettier hook, so what formats yaml and jsonc on save is the tool
-    // that formats it at commit time and not the copy the yaml extension
+    // that formats it on a local run and not the copy the yaml extension
     // embeds
     "esbenp.prettier-vscode",
     // check-toml, the pyproject.toml schema over it, and the taplo hook:
@@ -45,7 +45,7 @@
   // the reflex installs that would each fight a hook: ruff formats, ruff
   // sorts the imports with "I", and ruff's "PL" set is the pylint rules the
   // gate selected. A second formatter on save reformats what ruff-format
-  // just wrote, and the commit hook writes it back
+  // just wrote, and the ruff-format hook writes it back
   "unwantedRecommendations": [
     "ms-python.black-formatter",
     "ms-python.isort",

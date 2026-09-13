@@ -6,9 +6,9 @@ name: lint
 # badges and two lines in the checks list, so a lint failure does not
 # read as "the build is red".
 # What runs here is .pre-commit-config.yaml itself rather than a second
-# list of the same tools: CI therefore enforces exactly what a commit
-# enforces, every hook included, and no hook is gated by pre-commit.ci
-# alone
+# list of the same tools: CI therefore enforces exactly what a local run
+# of it enforces, every hook included, and no hook is gated by
+# pre-commit.ci alone
 
 on:
   push:
