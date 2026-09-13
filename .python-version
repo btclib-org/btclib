@@ -3,9 +3,11 @@
 # both linters are aimed at that end deliberately -- ruff infers py310 from
 # requires-python, and pyproject.toml pins mypy to python_version = "3.10"
 # to match it. So a bare "uv run" here means "the newest", and checking the
-# oldest is the matrix's job and the two linters'. Since 3.9 was dropped
-# they aim at the same version the floor names, which is what the comment
-# on [tool.mypy] is about.
+# oldest is the matrix's job, the two linters' and deps-oldest.yml's, which
+# is the one of the three that also takes the dependencies down to the
+# floors their specifiers declare. Since 3.9 was dropped they aim at the
+# same version the floor names, which is what the comment on [tool.mypy]
+# is about.
 #
 # A whole-line comment only: uv skips one of these, but a trailing comment
 # on the version line makes it ignore the file with "Ignoring unsupported

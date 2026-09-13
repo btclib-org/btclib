@@ -511,6 +511,7 @@ read by every checkout of this repository.
 | `os-macos` | weekly, a release | macOS images and interpreters |
 | `os-windows` | weekly, a release | Windows images and interpreters |
 | `deps-latest` | weekly | platforms sampled, deps upgraded |
+| `deps-oldest` | weekly | the floor interpreter, deps at their floors |
 | `integration-hwi` | weekly, push to main | two device emulators |
 | `zkp-oracle` | weekly | a bindings build carrying `secp256k1-zkp` |
 | `links`, `mutation` | weekly | — |

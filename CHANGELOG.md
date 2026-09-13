@@ -141,6 +141,64 @@ documented at release-notes length in the first place, and are still in
   release** (closes #2052). It now names `` `v2026.8.7` ``, a released
   heading whose list is long and does not move.
 
+### The tree gains the `deps-oldest` sentinel
+
+- **`.github/workflows/deps-oldest.yml` resolves every direct dependency
+  to the oldest release its own specifier allows and runs the suite on
+  it, weekly** (issue btclib-org/.github#323). Section 10's *Which trees
+  carry which sentinel* names this repository for that row, and
+  `git grep -l 'lowest-direct' -- .github/workflows/` at `e2c534ac`
+  answered nothing with `uv lock` in `deps-latest.yml` as the control
+  that the path was read: every `>=` `pyproject.toml` declares was a
+  claim no run had installed.
+- **The cron is `4 3 * * 4`**, read off section 10's two tables: the
+  workflow table's `deps-oldest` row gives Thursday and hour 03, the
+  repository table's `btclib` row gives minute 04.
+- **The cell is 3.10, the end `requires-python` names, and not the 3.14
+  `.python-version` pins.** That file's header leaves checking the
+  oldest to "the matrix's job and the two linters'", and only the
+  interpreter half of it holds: the platform sweeps do run a 3.10 cell
+  and ruff and mypy do read 3.10, but each of them takes its
+  dependencies from `uv.lock`, so no run reached a declared floor.
+- **`UV_RESOLUTION` is declared on the job rather than passed to the
+  step that resolves.** `uv lock` records a non-default mode inside
+  `uv.lock`, and a later uv command under the default `highest` reads
+  that lock as stale, so `uv run --locked` would refuse the lock the
+  step above it had just written.
+- **The pytest step passes `--no-cov`, and the assertion in front of it
+  is what that costs.** Section 10 gives a sentinel cell running the
+  suite that flag, the ratchet being section 8's claim about one
+  interpreter on one image; but `btclib._libsecp256k1` imports the
+  bindings' surface in one `try` that sets `INSTALLED = False` on any
+  `ImportError`, and `tests/conftest.py` then skips every
+  `bindings`-marked test, so a floor that installs and does not serve
+  passes a run with no coverage number to fall under.
+  `deps-latest.yml`'s `suite-bindings-latest` asks the same question of
+  the newest release and is where the step's wording comes from.
+- **No second job for the bindings floor, where `deps-latest.yml` has
+  one.** That job is there because a broad upgrade moves a dozen
+  packages at once and a bindings release would be one suspect among
+  them; `lowest-direct` puts `btclib-secp256k1` on the single release
+  `>=0.8.0.6` names, which is another claim of the same kind rather than
+  a second point on a range.
+- **The resolution fails today, and the cell stays at 3.10 rather than
+  moving to an interpreter that passes.** `uv lock --resolution
+  lowest-direct --dry-run`, with `--python 3.10` and without, warns on
+  each `[dependency-groups]` entry that declares no lower bound and then
+  fails building `coverage==3.0`, whose setup script is Python 2. `uv
+  lock --help` lists one option naming a group, `--upgrade-group`, and
+  none that selects or excludes one, so a lock is over every group there
+  is; what bound each entry owes is #2061, this tree's question rather
+  than this file's.
+- **The checkout passes no `fetch-tags`, where `deps-latest.yml`'s suite
+  job does.** There the tags are what keeps
+  `tests/changelog_immutability_test.py` from skipping, a skip leaving
+  uncovered lines of `tests/` under the 100% floor; `--no-cov` here
+  leaves no floor for the skip to fall under.
+- **`btclib-secp256k1` owes the same workflow**, which is why this cites
+  the issue rather than closing it: the `BACKLOG` row keyed on it lives
+  in `btclib-org/.github` and is that tree's to narrow.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
