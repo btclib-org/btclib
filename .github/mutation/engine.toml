@@ -3,7 +3,7 @@
 # opened it lived -- 1016 of 3737 vectors filtered out of the engine's
 # reach, with every line of it still covered by the other 2721.
 # sig_hash.toml beside it carries the reasoning the two share -- why this
-# directory, why two files, why no coverage.
+# directory, why two files, why coverage fails no mutant.
 
 [cosmic-ray]
 # 2768 mutants, against sig_hash.py's 727, and this is the run that does

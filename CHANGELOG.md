@@ -636,6 +636,12 @@ documented at release-notes length in the first place, and are still in
   btclib-org/.github#35): this file keeps the trigger, the schedule and
   the files it checks.
 
+### Comments and prose name the file a pinned value lives in
+
+- **Comments and documentation point at `.python-version`, `HWI_VERSION`
+  and `fail_under` rather than copy their values** (closes #2079): the
+  convention `CLAUDE.md` holds for a tool's `rev:` reaches any pinned value.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

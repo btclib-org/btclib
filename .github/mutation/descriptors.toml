@@ -24,7 +24,7 @@ module-path = "src/btclib/descriptors"
 # -n0 and -p no:randomly for the reasons sig_hash.toml gives: xdist's
 # worker per core is startup paid once per mutant, and with -x a shuffled
 # collection order makes both the killing test and the runtime
-# irreproducible. No --cov, same file
+# irreproducible. Coverage runs and fails no mutant, same file
 test-command = "python -m pytest -x -q -n0 -p no:randomly tests/descriptors"
 
 # seconds of wall clock, wide for the reason sig_hash.toml measures -- a

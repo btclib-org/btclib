@@ -45,7 +45,8 @@ module-path = [
 # -n0 overrides the `-n auto` of tool.pytest.ini_options, xdist's worker
 # per core being startup paid once per mutant; -p no:randomly makes the
 # collection order fixed, which with -x is what decides both the killing
-# test and the runtime. No --cov, for the reason sig_hash.toml gives
+# test and the runtime. Coverage runs and fails no mutant, for the reason
+# sig_hash.toml gives
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/tx tests/var_int_test.py tests/var_bytes_test.py \
   tests/parse_contract_test.py tests/integer_policy_test.py \

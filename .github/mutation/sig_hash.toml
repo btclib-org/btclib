@@ -25,12 +25,9 @@ module-path = "src/btclib/script/sig_hash.py"
 # with -x the collection order decides which test does the killing, so a
 # shuffled order makes the runtime, and a timeout verdict, irreproducible.
 #
-# No --cov, and that is not an omission: the ratchet in pyproject.toml
-# fails a run under 99.99%, and a mutant is code no test reaches on
-# purpose, so coverage would fail every job and report every mutant as
-# killed by the wrong thing. addopts carries no --cov, so nothing has to
-# be switched off here; a --cov added there would have to be answered with
-# -p no:cacheprovider and --no-cov in this line.
+# Coverage runs here, --cov being in addopts, and fails no mutant: a run
+# naming paths is gated at zero by `coverage_fail_under` in
+# tests/conftest.py rather than at the `fail_under` pyproject.toml sets.
 #
 # tests/script first and the engine after, because -x stops at the first
 # failure and the cheap suite is where most mutants die: the marginal cost

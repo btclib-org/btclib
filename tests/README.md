@@ -26,8 +26,9 @@ how `tool.coverage.report` says, and is gated at the `fail_under` there.
 It is the same measurement the `coverage` job makes — the job cannot gate
 on a scope a contributor's run does not have — and it is what a change
 has to pass before it is pushed rather than after. It costs nothing to
-have it there: the suite takes the same time either way on the 3.14
-`.python-version` pins, coverage.py using `sys.monitoring` from 3.12 on.
+have it there: the suite takes the same time either way on the
+interpreter `.python-version` pins, coverage.py using `sys.monitoring`
+from 3.12 on.
 
 **A run that selects a subset is not gated.** `fail_under` applies to
 every report coverage writes, so `uv run pytest tests/bip32` would fail

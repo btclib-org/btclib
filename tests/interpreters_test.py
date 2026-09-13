@@ -79,9 +79,9 @@ _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 # is that a job added outside it does not begin deciding this.
 #
 # Each job of the closure writes the interpreter it runs into itself, as
-# `python-version: "3.14"` or `--python 3.14`, so those interpreters are
+# `python-version: "3.N"` or `--python 3.N`, so those interpreters are
 # read as tokens off the job's own block rather than out of a matrix
-# block. A free-threaded build there is a "3.14t" of the same shape.
+# block. A free-threaded build there is a "3.Nt" of the same shape.
 # Comments go first, so that a sentence about a sweep's free-threaded
 # cell does not read as the gate running one. Where this read stops is
 # the `dist` job, whose `astral-sh/setup-uv` step passes no
@@ -229,7 +229,7 @@ def _matrix() -> tuple[str, ...]:
 _CLASSIFIED = _versions(_CLASSIFIER, _PYPROJECT)
 _MATRIX = _matrix()
 # the free-threaded build and PyPy are the same interpreter version as
-# far as a classifier is concerned: "3.14t" is CPython 3.14, and
+# far as a classifier is concerned: "3.Nt" is CPython 3.N, and
 # "pypy3.11" is what the PyPy classifier covers rather than a version
 # of its own
 _CPYTHON = tuple(sorted({v.rstrip("t") for v in _MATRIX if not v.startswith("pypy")}))
@@ -292,7 +292,7 @@ def test_free_threading_is_classified_exactly_when_the_gate_runs_it() -> None:
     free-threaded build: a gate refuses the landing that breaks that
     build, where a sweep runs beside a landing and blocks nothing. So the
     second side here is the jobs the required check waits on, and not
-    `_MATRIX` -- the sweeps name "3.14t" as readily as the gate would,
+    `_MATRIX` -- the sweeps name a "3.Nt" as readily as the gate would,
     and a sweep passing is the ground the standard declines.
     """
     gating = _gating()

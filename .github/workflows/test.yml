@@ -305,15 +305,14 @@ jobs:
           # the cache holds the wheels uv.lock resolves, which every run
           # of every commit otherwise fetches again
           enable-cache: true
-          # 3.14, i.e. what .python-version pins and what a bare `uv run`
-          # gives a maintainer locally: the number this job gates on is a
-          # ratio of statements, and the statement count moves between
+          # what .python-version pins and what a bare `uv run` gives a
+          # maintainer locally: the number this job gates on is a ratio of
+          # statements, and the statement count moves between
           # interpreters, so a threshold checked on one version is not the
           # one another measures. Pinned rather than inherited from
           # .python-version even so, because the coupling belongs where
-          # the gate runs:
-          # the fail_under comment in pyproject.toml names this version,
-          # and the two have to move together
+          # the gate runs: the fail_under comment in pyproject.toml names
+          # this job, and the value here moves with .python-version
           python-version: "3.14"
       # `pytest` with nothing after it, which is section 8 of the
       # organization standard: pyproject.toml's addopts carries `--cov`,

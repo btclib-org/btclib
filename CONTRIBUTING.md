@@ -338,8 +338,8 @@ Every command is run inside that environment prefixing it with `uv run`
 The dependency groups defined in pyproject.toml can also be installed
 individually, e.g. `uv sync --no-default-groups --group test`.
 
-`.python-version` pins 3.14, so that is the interpreter `uv sync` picks and
-the one `uv run` uses. To reproduce a failure that only one cell of the
+The interpreter `.python-version` pins is the one `uv sync` picks and the
+one `uv run` uses. To reproduce a failure that only one cell of the
 matrix shows, name the interpreter instead of editing that file:
 
 ```shell
@@ -398,13 +398,13 @@ covered by patching what stands in the way, as the ripemd160 fallback
 and electrum's round-trip check are, or marked `pragma: no cover --`
 with the reason on that same line, and a reason too long for the line
 above it as well, the inline half naming the case. `--cov` is in
-pyproject.toml's addopts, so `uv run
-pytest` prints the total and enforces the ratchet on every whole run, on
-the 3.14 the gate is checked on — a run that selects a subset reports
-without gating, since `fail_under` would otherwise fail it on the tree's
-coverage rather than on its own. Which flags select is section 8 of the
-organization standard's, and `tests/README.md` is where this tree states
-it.
+pyproject.toml's addopts, so `uv run pytest` prints the total and
+enforces the ratchet on every whole run, on the interpreter
+`.python-version` pins, which the gate is checked on — a run that
+selects a subset reports without gating, since `fail_under` would
+otherwise fail it on the tree's coverage rather than on its own. Which
+flags select is section 8 of the organization standard's, and
+`tests/README.md` is where this tree states it.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
@@ -631,9 +631,10 @@ cell and has no coverage job of its own, so the ratchet meeting an
 upgraded coverage.py is one of the things that workflow exists to find
 out.
 
-The `(3.14, ubuntu-latest)` cell of those matrices is the gate, and the
-job below is it: same image, same interpreter, same suite, and the only
-difference is the instrumentation. Reproducing that cell is therefore the
+The `ubuntu-latest` cell of those matrices on the interpreter
+`.python-version` pins is the gate, and the job below is it: same image,
+same interpreter, same suite, and the only difference is the
+instrumentation. Reproducing that cell is therefore the
 coverage command rather than this one.
 
 The `coverage` job, gated by `fail_under` in pyproject.toml:

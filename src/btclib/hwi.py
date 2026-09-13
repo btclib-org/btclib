@@ -25,10 +25,10 @@ no HWI at all.
 
 An optional extra importing `hwilib` beside this was weighed and refused
 (#469), and the reason is that Python range: HWI declares `^3.9,<3.13`,
-where this library supports 3.10 to 3.14 and pypy, so an extra nobody can
-install on the two newest interpreters is a second and narrower support
-matrix rather than an option. A subprocess has no such problem, the
-executable living in an environment of its own. What a caller who does hold
+where this library's `requires-python` is `>=3.10`, so an extra nobody
+can install on 3.13 or later is a second and narrower support matrix
+rather than an option. A subprocess has no such problem, the executable
+living in an environment of its own. What a caller who does hold
 an open `hwilib` device writes instead is a `psbt_signer.PsbtSigner` of
 their own: that contract names an in-process driver as one of its shapes,
 and it is met in the caller's environment rather than in this one.
@@ -80,12 +80,12 @@ and `signmessage` are wrapped: one request, one opaque answer, nothing
 here to check it against.
 
 No HWI release through 3.2.0 carries that subcommand -- it is on
-`master` -- and `.github/workflows/integration-hwi.yml` installs 3.2.0,
-so the weekly `integration-hwi` job runs a command line
-`register_descriptor` cannot reach. Raising that workflow's
-`HWI_VERSION` to the first release whose `hwilib/_cli.py` adds
-`registerdescriptor` is what ends the wait, and what makes this paragraph
-removable.
+`master` -- and `.github/workflows/integration-hwi.yml` installs the
+release its `HWI_VERSION` names, one of those, so the weekly
+`integration-hwi` job runs a command line `register_descriptor` cannot
+reach. Raising that value to the first release whose `hwilib/_cli.py`
+adds `registerdescriptor` is what ends the wait, and what makes this
+paragraph removable.
 
 `displayaddress`'s BIP388 policy mode -- `--registration`, `--index`,
 `--multipath-index` -- is `HwiSigner.display_policy_address`, on the same
@@ -179,8 +179,7 @@ NO_CAPABILITIES = SignerCapabilities()
 # goes out as `test`, HWI's own `testnet4`, which its parser takes, being
 # the rejected alternative.
 #
-# Both decide the same bytes. In 3.2.0, the release
-# `.github/workflows/integration-hwi.yml` pins, a chain is compared with
+# Both decide the same bytes. In HWI 3.2.0 a chain is compared with
 # `Chain.MAIN` and with no other, `JadeClient.NETWORKS` excepted, so an
 # xpub comes back under the testnet version prefix and BIP44 coin type 1
 # for either name -- and that exception is what decides: it holds `test`

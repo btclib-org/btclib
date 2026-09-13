@@ -37,9 +37,9 @@ version: 2
 # the interpreter is declared rather than left to whatever read the docs
 # defaults to: conf.py reads the version out of pyproject.toml with
 # tomllib, which is standard library from 3.11 on. Which version above that
-# floor is `.python-version`'s to say, 3.14 -- these docs are built twice,
-# here and by docs.yml, and one interpreter is what keeps the build read on
-# the website and the build that gates a merge from being two different
+# floor is `.python-version`'s to say -- these docs are built twice, here
+# and by docs.yml, and one interpreter is what keeps the build read on the
+# website and the build that gates a merge from being two different
 # questions
 build:
   os: ubuntu-24.04
