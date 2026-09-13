@@ -659,6 +659,12 @@ documented at release-notes length in the first place, and are still in
   (closes btclib-org/.github#1063), so an item token narrowed to stop
   at a hyphen fails the test.
 
+### `sdist-rebuild.yml` verifies the latest release's sdist weekly
+
+- **The sdist is rebuilt from the tag as `RELEASING.md` rebuilds it**
+  (issue btclib-org/.github#523), and `gh attestation verify` fails the
+  run where no attestation `release.yml` signed carries its digest.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
