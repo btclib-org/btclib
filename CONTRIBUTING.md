@@ -705,7 +705,7 @@ the union reached it:
 uv run --locked --no-default-groups --group harness \
     coverage combine coverage-data-bindings coverage-data-no-bindings
 uv run --locked --no-default-groups --group harness \
-    coverage report --fail-under=100
+    coverage report
 ```
 
 Reproducing this one locally needs the two data files the commands above
@@ -714,6 +714,13 @@ renaming step, since `COVERAGE_FILE` on each command is what named them
 that way in the first place. The two commands above run in two passes
 either way, one `.venv` not being able to hold and lack the bindings at
 once.
+
+The report step types `coverage report` and nothing after it, which is
+section 8 of the organization standard as the `coverage` job's `pytest`
+step is: `fail_under` in pyproject.toml is what gates the union, and
+coverage reads that configuration from the directory the command starts
+in, so both commands above are run from the repository root, on the
+runner and locally alike.
 
 The `dist` job, which builds the distribution files, checks them and
 then installs one. This is the one build there is (issue #1166):
