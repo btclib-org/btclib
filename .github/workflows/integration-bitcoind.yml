@@ -70,6 +70,13 @@ on:
   push:
     branches: [main]
   workflow_call:
+    inputs:
+      concurrency-suffix:
+        description: >
+          Appended to the concurrency group, and the release workflow is
+          the only caller that passes one. See the group below.
+        type: string
+        default: ""
   # the escape hatch, and the way to ask a node about a Core version
   # other than the one pinned below
   workflow_dispatch:
@@ -91,12 +98,12 @@ on:
     # what makes it do, cancel-in-progress above turning the landing
     # into the cancellation. A closed pull request has nothing left to
     # ask this workflow, the merge commit being main's own push
-    # trigger's question. The group below keys on github.head_ref rather
-    # than plain github.ref for exactly this event: a merged pull
-    # request's closed event sets github.ref to the base branch, not the
-    # merge ref, which used to land it in main's own push group and race
-    # the merge commit's run for cancellation (PR 1023's bug) instead of
-    # the PR's own group as intended
+    # trigger's question. The group below keys on the pull request's own
+    # number rather than plain github.ref for exactly this event: a
+    # merged pull request's closed event sets github.ref to the base
+    # branch, not the merge ref, which used to land it in main's own
+    # push group and race the merge commit's run for cancellation
+    # (PR 1023's bug) instead of the PR's own group as intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
     # no `paths` filter any more: the regtest job below is a required
     # check on main, and a required check that never runs blocks a merge
@@ -125,13 +132,24 @@ env:
 # cancel superseded runs. Named literally rather than through
 # github.workflow, as everywhere else here: in a called workflow that
 # expression is the caller's name.
-# head_ref falls back to ref rather than being used bare: it is set only
-# for pull_request events, to the PR's head branch, so a push run (ref
-# refs/heads/main) still gets its own group -- and a pull_request event
-# always groups by the PR's branch, closed and merged ones included, so
-# it never collides with a push's group the way bare ref did
+# github.ref has the same shape of problem one level down, and it is why
+# the suffix is there. Inside a called workflow that context is the
+# caller's ref, so a rehearsal -- a workflow_dispatch of release.yml on a
+# branch -- computes integration-bitcoind-refs/heads/<branch>, the very
+# group a push to that branch or a direct dispatch of this workflow
+# computes. One then kills the other. release.yml passes a suffix of its
+# own, which keeps the release path out of the branch groups
+# (issue btclib-org/.github#1083).
+# github.event.pull_request.number, not github.head_ref, is the key: a
+# pull_request event always groups by the PR's own number, closed and
+# merged ones included, so it never collides with a push's group the way
+# bare ref did, and it also survives two forks whose head branches share a
+# name -- head_ref does not, being the branch's name rather than the pull
+# request's own number (issue #1158)
 concurrency:
-  group: integration-bitcoind-${{ github.head_ref || github.ref }}
+  group: >-
+    integration-bitcoind-${{ github.event.pull_request.number ||
+    github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

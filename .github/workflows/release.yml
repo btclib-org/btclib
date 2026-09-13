@@ -416,6 +416,11 @@ jobs:
   docs:
     name: Run the docs workflow
     uses: ./.github/workflows/docs.yml
+    with:
+      # a rehearsal computes the same group a push to the dispatching
+      # branch holds otherwise: see the group in docs.yml
+      # (issue btclib-org/.github#1083)
+      concurrency-suffix: "-release"
 
   # and the three platform sweeps, which between them are every image
   # and every interpreter this package claims: the gate runs one cell of
@@ -426,14 +431,23 @@ jobs:
   os-ubuntu:
     name: Run the os-ubuntu workflow
     uses: ./.github/workflows/os-ubuntu.yml
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   os-macos:
     name: Run the os-macos workflow
     uses: ./.github/workflows/os-macos.yml
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   os-windows:
     name: Run the os-windows workflow
     uses: ./.github/workflows/os-windows.yml
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   # and the one required check on main this workflow was not asking for.
   # `Regtest against Bitcoin Core` gates every merge, which is why it was
@@ -446,6 +460,9 @@ jobs:
   integration-bitcoind:
     name: Run the integration-bitcoind workflow
     uses: ./.github/workflows/integration-bitcoind.yml
+    with:
+      # see the docs job above
+      concurrency-suffix: "-release"
 
   publish-testpypi:
     name: Publish to TestPyPI
