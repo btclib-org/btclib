@@ -642,6 +642,12 @@ documented at release-notes length in the first place, and are still in
   behind it, and the docs tooling is declared from 3.12** (closes #2061):
   `uv lock --resolution lowest-direct` completes rather than failing.
 
+### `lint.yml` says its pre-commit step installs the bindings
+
+- **The comment above *Run the pre-commit hooks* says `--only-group lint`
+  installs the bindings the `lint` group includes and not btclib itself**
+  (closes #2094).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
