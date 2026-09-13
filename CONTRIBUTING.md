@@ -516,6 +516,7 @@ read by every checkout of this repository.
 | `links`, `mutation` | weekly | — |
 | `vendored-vectors` | weekly | the pin ledgers |
 | `pypi-install` | weekly, a release | what PyPI serves |
+| `sdist-rebuild` | weekly | the latest release's sdist, rebuilt |
 | `py-arm-authority` | weekly, push to main | the arm-authority table |
 | `release` | a tag | the workflows `release.yml` names in a `uses:` |
 
