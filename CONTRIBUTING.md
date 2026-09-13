@@ -709,9 +709,10 @@ the union reached it:
 
 ```shell
 uv run --locked --no-default-groups --group harness \
-    coverage combine coverage-data-bindings coverage-data-no-bindings
+    coverage combine --rcfile=pyproject.toml \
+    coverage-data-bindings coverage-data-no-bindings
 uv run --locked --no-default-groups --group harness \
-    coverage report
+    coverage report --rcfile=pyproject.toml
 ```
 
 Reproducing this one locally needs the two data files the commands above
@@ -721,12 +722,23 @@ that way in the first place. The two commands above run in two passes
 either way, one `.venv` not being able to hold and lack the bindings at
 once.
 
-The report step types `coverage report` and nothing after it, which is
-section 8 of the organization standard as the `coverage` job's `pytest`
-step is: `fail_under` in pyproject.toml is what gates the union, and
-coverage reads that configuration from the directory the command starts
-in, so both commands above are run from the repository root, on the
-runner and locally alike.
+The report step types `coverage report` and nothing after it but
+`--rcfile`, which is section 8 of the organization standard as the
+`coverage` job's `pytest` step is: `fail_under` in pyproject.toml is
+what gates the union, and `--rcfile` names no number of its own, so a
+change to the ratchet leaves both commands above untouched. Run from
+the repository root it names the file coverage already finds unasked,
+so it changes nothing there; run from anywhere else, `coverage report`
+with no `--rcfile` reads no configuration at all and still reports, at
+no floor, where with the flag it fails outright — `Couldn't read
+'pyproject.toml' as a config file` — rather than passing over a
+measurement the tree's own ratchet never saw. `combine` carries the
+same flag for the same reason, one command short of where the wrong
+directory would otherwise first show. Naming the file also means a
+configuration file added at the root later, ahead of
+`pyproject.toml` in coverage's own search order, cannot start
+shadowing it for either command
+(btclib-org/.github#443, issue #2072).
 
 `tests/docs_commands_test.py` reads the block above against this job's
 combine and report steps, and the `COVERAGE_FILE` in front of each

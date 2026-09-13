@@ -15,20 +15,23 @@ is in the workflow and in `CONTRIBUTING.md`.
 and the suite's own are read here as well: the cell of the platform
 matrices, which `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
 run; the pair `test.yml`'s `coverage-union` job runs, which combines the
-two coverage data files and reports their union; and the names those
-data files carry, which the section writes in front of the command that
-produces each.
+two coverage data files and reports their union; the names those data files
+carry, which the section writes in front of the command that produces each;
+the `Lint and type-check` job's own command; the `coverage` job's `pytest`;
+the `no-bindings` job's `pytest --cov-fail-under=0`; and the `python -c`
+assertion that job makes before running it.
 
-The union pair is compared with nothing set aside. The cell is not: the
+The union pair, the lint command, the two `pytest` steps and the bindings
+assertion are each compared with nothing set aside. The cell is not: the
 workflows leave the interpreter to `astral-sh/setup-uv`, which takes it
-from the matrix, where whoever reproduces a cell has to type `--python`,
-so that argument is read against the site that holds it as the build's
-output directory is -- named rather than normalised away. The data files
-are read as values for the same kind of reason: `test.yml` sets
-`COVERAGE_FILE` as a step's `env:` mapping where the section writes a
-shell assignment in front of the command, so the assignment itself is
-what the two sites cannot share. A name they disagree on leaves one of
-them combining a file nothing wrote.
+from the matrix, where whoever reproduces a cell has to type `--python`, so
+that argument is read against the site that holds it as the build's output
+directory is -- named rather than normalised away. The data files are read
+as values for the same kind of reason: `test.yml` sets `COVERAGE_FILE` as a
+step's `env:` mapping where the section writes a shell assignment in front
+of the command, so the assignment itself is what the two sites cannot
+share. A name they disagree on leaves one of them combining a file nothing
+wrote.
 
 Each of those files is separately valid, so only reading them together
 says they have diverged, and a divergence is not reported by any run: a
@@ -56,6 +59,17 @@ what keeps a closing fence off the end of a command already read. A site
 yielding anything other than one command is `test_every_site_was_read`'s
 failure, which is what keeps the comparisons below from passing over a
 file they could not read.
+
+The bindings assertion is the one construct a single join does not
+reach: `test.yml` folds it over several lines and none of them, alone or
+joined to its neighbour, reads as the command. It is read as a whole
+file instead, `_CONTINUATION` collapsing the shell script's own
+backslash breaks first and a single pattern spanning the rest, anchored
+at both ends on text neither a shorter nor a longer command would carry
+-- so what the pattern must skip in between is read along with it,
+which is what lets a clause missing from one side and not the other
+show up as a difference in the string rather than a match either way
+agrees to.
 """
 
 import re
@@ -93,6 +107,66 @@ _COVERAGE = re.compile(r"uv run\b.*\bcoverage (?:combine|report)\b.*")
 # separator in front of it is the half of the spelling the two sites
 # cannot share
 _DATA_FILE = re.compile(r"(?<=COVERAGE_FILE[=:])\s*\S+")
+# the `Lint and type-check` job's own command. `CONTRIBUTING.md` carries
+# a second, shorter `pre-commit run --all-files` with neither flag, for
+# the environment note above this section, so the literal
+# `--show-diff-on-failure` is what tells the two apart, and a leading
+# wildcard reaching for it would reach the shorter one too. What follows
+# it is a run of `-flag` tokens rather than a trailing `.*`: `.*` would
+# also close over whatever `_spellings` folds this line to wherever it
+# does not match alone, which is a different, unrelated command for the
+# two pytest patterns below. The run of `-flag` tokens still lets a flag
+# appended on the *same* line through -- `pytest -q` where the source
+# read `pytest` -- and the trailing `$` is what closes the line there
+# rather than stopping at the first token starting with `-`. A flag
+# added as a *new* line of its own is a gap this shares with every
+# pattern here, `_spellings` itself joining at most one line to the
+# next: not closed by this construction, and not this branch's to close
+_PRE_COMMIT = re.compile(
+    r"uv run --locked --only-group lint\s+"
+    r"pre-commit run --all-files --show-diff-on-failure(?:\s+-\S+)*\s*$"
+)
+# the `coverage` job's bare `pytest`. `deps-latest.yml`'s own
+# `suite-bindings-latest` job types the identical string in
+# `CONTRIBUTING.md` too -- `uv run --locked --no-default-groups
+# --group test pytest`, byte for byte, with nothing after `pytest`
+# either -- so no pattern over the line's own text tells the two apart,
+# only where each sits: this job's own line is the one carrying
+# `COVERAGE_FILE=coverage-data-bindings`, which the `deps-latest`
+# reproduction never does. `_job_pytest_doc` below reads `CONTRIBUTING.md`
+# scoped to that line; `test.yml` needs no such scoping, that string
+# occurring there once
+_JOB_PYTEST = re.compile(
+    r"uv run --locked --no-default-groups --group test\s+"
+    r"pytest\b(?:\s+-\S+)*\s*$"
+)
+# the `no-bindings` job's `pytest --cov-fail-under=0`. In `test.yml` the
+# line before it is that step's own `uv run --locked --no-default-groups
+# --group harness`, which the fold above joins it to; in `CONTRIBUTING.md`,
+# already one line after `_CONTINUATION` collapses its own backslash
+# breaks, the line above that is the bindings assertion's closing
+# `is_libsecp256k1_serving()"`. Neither is a command this pattern could
+# be folded into by mistake, so the trailing `(?:\s+-\S+)*\s*$` is here
+# for the same reason `_PRE_COMMIT` above has it -- a flag appended on
+# this line's own end -- not to keep this pattern from reaching a
+# neighbour
+_HARNESS_PYTEST = re.compile(
+    r"uv run --locked --no-default-groups --group harness\s+"
+    r"pytest --cov-fail-under=0\b(?:\s+-\S+)*\s*$"
+)
+# the `python -c` that asserts the bindings are absent, anchored on the
+# import `INSTALLED` is bound from and the call that closes the
+# argument's quote: `test.yml` folds the four clauses in between over
+# four lines with none of them, alone or joined to one neighbour, ending
+# in a valid command -- `_spellings`'s one-line join never reaches a
+# match, so this one is read whole-file instead, by
+# `_whole_text_spellings` below
+_BINDINGS_ASSERT = re.compile(
+    r"uv run --locked --no-default-groups --group harness\s+"
+    r'python -c "from btclib\._libsecp256k1 import INSTALLED;'
+    r".*?is_libsecp256k1_serving\(\)\"",
+    re.DOTALL,
+)
 
 # where each site writes, which is the one argument that does not agree
 # and must not: read the docs names its destination in an environment
@@ -121,6 +195,11 @@ _CELL_SITES = {
 # the union job and the section that tells a reader how to run it again,
 # which are also the two sites of the data files that job combines
 _COVERAGE_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
+# the lint job and the two pytest steps, each against the section that
+# tells a reader how to run it again
+_PRE_COMMIT_SITES = (".github/workflows/lint.yml", "CONTRIBUTING.md")
+_HARNESS_PYTEST_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
+_BINDINGS_ASSERT_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
 
 
 def _spellings(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
@@ -144,6 +223,49 @@ def _spellings(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
     return tuple(sorted({" ".join(m.group().split()) for m in found if m}))
 
 
+def _whole_text_spellings(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
+    """Return every distinct spelling `pattern` finds across the whole file.
+
+    `_spellings` above offers the pattern one line, and at most one join,
+    at a time, which is what the bindings assertion does not fit: none of
+    its own lines in `test.yml` matches alone, and joining two of them
+    still leaves two more outside the string. Matched against the
+    continuation-collapsed text as a whole instead, with the same
+    whitespace folding `_spellings` applies to what it finds, so a
+    command spread over any number of lines reads the same as one written
+    on a single line already.
+    """
+    text = _CONTINUATION.sub(" ", (_ROOT / path).read_text(encoding="utf-8"))
+    return tuple(sorted({" ".join(m.group().split()) for m in pattern.finditer(text)}))
+
+
+def _job_pytest_doc() -> tuple[str, ...]:
+    """Return the coverage job's `pytest`, read out of its own line only.
+
+    `CONTRIBUTING.md` also carries `_JOB_PYTEST`'s exact string for
+    `deps-latest.yml`'s `suite-bindings-latest` job, so searching the
+    whole file finds both. `COVERAGE_FILE=coverage-data-bindings` is the
+    coverage job's own env assignment, and the only line of the file
+    that carries it; searching that line alone is what the `deps-latest`
+    job's line, carrying no such marker, cannot reach. A lookbehind on
+    the marker cannot express this match: the source carries one literal
+    space before the line's own backslash break, `_CONTINUATION`
+    substitutes one more for the break itself, and Python's `re`
+    lookbehind has to be a fixed width, which two spaces only sometimes
+    is.
+    """
+    text = _CONTINUATION.sub(
+        " ", (_ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    )
+    lines = [
+        line
+        for line in text.splitlines()
+        if "COVERAGE_FILE=coverage-data-bindings" in line
+    ]
+    found = [_JOB_PYTEST.search(line) for line in lines]
+    return tuple(sorted({" ".join(m.group().split()) for m in found if m}))
+
+
 def _one(found: tuple[str, ...]) -> str:
     """Return the command of a site that holds exactly one.
 
@@ -161,6 +283,18 @@ _GREPS = {path: _spellings(path, _GREP) for path in _GREP_SITES}
 _CELLS = {path: _spellings(path, _CELL) for path in _CELL_SITES}
 _COVERAGES = {path: _spellings(path, _COVERAGE) for path in _COVERAGE_SITES}
 _DATA_FILES = {path: _spellings(path, _DATA_FILE) for path in _COVERAGE_SITES}
+_PRE_COMMITS = {path: _spellings(path, _PRE_COMMIT) for path in _PRE_COMMIT_SITES}
+_JOB_PYTESTS = {
+    ".github/workflows/test.yml": _spellings(".github/workflows/test.yml", _JOB_PYTEST),
+    "CONTRIBUTING.md": _job_pytest_doc(),
+}
+_HARNESS_PYTESTS = {
+    path: _spellings(path, _HARNESS_PYTEST) for path in _HARNESS_PYTEST_SITES
+}
+_BINDINGS_ASSERTS = {
+    path: _whole_text_spellings(path, _BINDINGS_ASSERT)
+    for path in _BINDINGS_ASSERT_SITES
+}
 
 
 def test_every_site_was_read() -> None:
@@ -189,6 +323,22 @@ def test_every_site_was_read() -> None:
     data_files = {path: len(found) for path, found in _DATA_FILES.items()}
     assert set(data_files.values()) == {2}, (
         f"a data file per coverage run per site, and instead: {data_files}"
+    )
+    pre_commits = {path: len(found) for path, found in _PRE_COMMITS.items()}
+    assert set(pre_commits.values()) == {1}, (
+        f"one lint command per site, and instead: {pre_commits}"
+    )
+    job_pytests = {path: len(found) for path, found in _JOB_PYTESTS.items()}
+    assert set(job_pytests.values()) == {1}, (
+        f"one coverage-job pytest per site, and instead: {job_pytests}"
+    )
+    harness_pytests = {path: len(found) for path, found in _HARNESS_PYTESTS.items()}
+    assert set(harness_pytests.values()) == {1}, (
+        f"one no-bindings pytest per site, and instead: {harness_pytests}"
+    )
+    bindings_asserts = {path: len(found) for path, found in _BINDINGS_ASSERTS.items()}
+    assert set(bindings_asserts.values()) == {1}, (
+        f"one bindings assertion per site, and instead: {bindings_asserts}"
     )
 
 
@@ -250,4 +400,32 @@ def test_the_documented_data_files_are_the_ones_the_jobs_write() -> None:
     """`COVERAGE_FILE` names there what `test.yml`'s own `env:` names."""
     assert len(set(_DATA_FILES.values())) == 1, (
         f"the coverage data files are named more than one way: {_DATA_FILES}"
+    )
+
+
+def test_the_documented_lint_command_is_the_one_the_job_runs() -> None:
+    """The command every contributor is told to run before pushing."""
+    assert len(set(_PRE_COMMITS.values())) == 1, (
+        f"the lint command is spelled more than one way: {_PRE_COMMITS}"
+    )
+
+
+def test_the_documented_coverage_pytest_is_the_one_the_job_runs() -> None:
+    """A reader reproducing the `coverage` job runs what it runs."""
+    assert len(set(_JOB_PYTESTS.values())) == 1, (
+        f"the coverage job's pytest is spelled more than one way: {_JOB_PYTESTS}"
+    )
+
+
+def test_the_documented_no_bindings_pytest_is_the_one_the_job_runs() -> None:
+    """A reader reproducing the `no-bindings` job runs what it runs."""
+    assert len(set(_HARNESS_PYTESTS.values())) == 1, (
+        f"the no-bindings job's pytest is spelled more than one way: {_HARNESS_PYTESTS}"
+    )
+
+
+def test_the_documented_bindings_assertion_is_the_one_the_job_runs() -> None:
+    """The assertion a reader is told to run is the one the job runs."""
+    assert len(set(_BINDINGS_ASSERTS.values())) == 1, (
+        f"the bindings assertion is spelled more than one way: {_BINDINGS_ASSERTS}"
     )

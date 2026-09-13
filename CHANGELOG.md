@@ -611,6 +611,18 @@ documented at release-notes length in the first place, and are still in
   threshold** (closes #2056): on `known_args_namespace`, the copy
   pytest-cov holds, and not on `config.option`.
 
+### The lint command and two `pytest` steps are compared to their sites too
+
+- **`tests/docs_commands_test.py` also compares the lint job's command,
+  the two `pytest` steps and the bindings assertion against
+  `CONTRIBUTING.md`'s own spelling of each** (closes #2081).
+
+### `coverage combine` and `coverage report` name their own configuration file
+
+- **Both take `--rcfile=pyproject.toml`, in `test.yml` and in
+  `CONTRIBUTING.md` alike** (closes #2072): a directory holding no
+  configuration used to pass `coverage report` at no floor at all.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
