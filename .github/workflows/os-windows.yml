@@ -55,6 +55,13 @@ on:
   # lets release.yml gate a publication on this platform too, which is what
   # keeps a weekly sentinel from being the only thing that ever asks
   workflow_call:
+    inputs:
+      concurrency-suffix:
+        description: >
+          Appended to the concurrency group, and the release workflow is
+          the only caller that passes one. See the group below.
+        type: string
+        default: ""
   # the escape hatch: the platform on demand, for a branch that touches a
   # path, a line ending or anything a subprocess reaches
   workflow_dispatch:
@@ -69,9 +76,11 @@ permissions:
 # supersedes. Named literally rather than with github.workflow, which in a
 # called workflow is the caller's name -- release.yml calls this one
 # alongside test.yml, and with that expression the two would share a group
-# and cancel each other
+# and cancel each other. The suffix is the second half of the same
+# problem, github.ref inside a called workflow being the caller's
+# ref: see lint.yml
 concurrency:
-  group: os-windows-${{ github.ref }}
+  group: os-windows-${{ github.ref }}${{ inputs.concurrency-suffix }}
   cancel-in-progress: true
 
 jobs:

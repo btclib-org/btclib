@@ -671,6 +671,18 @@ documented at release-notes length in the first place, and are still in
   certificate by default** (closes #1127); `btclib.fetch`'s docstring says
   where a protocol's codec, client and server live (closes #1193).
 
+### A release rehearsal no longer cancels `main`'s docs and platform runs
+
+- **`docs.yml`, the three `os-*.yml` sweeps and `integration-bitcoind.yml`
+  take the `concurrency-suffix` `release.yml` passes as `-release`**
+  (issue btclib-org/.github#1083), matching `test.yml` and `lint.yml`.
+
+### `docs.yml` and `integration-bitcoind.yml` key on the pull request's number
+
+- **The group no longer keys on `github.head_ref`** (issue #1158),
+  matching `test.yml` and `lint.yml`: two forks pushing a same-named
+  branch collide under a name and not under a number.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
