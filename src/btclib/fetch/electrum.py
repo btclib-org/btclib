@@ -11,13 +11,11 @@ turning each question into a request line and a line back into a btclib
 type, the way `EsploraFetcher` and `BitcoinCoreRestFetcher` do over their
 own transports.
 
-**`transport` is required, keyword-only, and has no default in this
-half.** `LineTransport` (`btclib.fetch.transport`) is declared and not
-implemented yet -- its own docstring says why -- so a default here would
-either be a lax placeholder, which the trust measurement behind this
-issue argues against, or a strict one this half cannot yet build. Every
-caller supplies a transport of its own until issue #1127's second half
-ships one.
+**`transport` is required, keyword-only, and has no default.**
+`LineTransport` (`btclib.fetch.transport`) carries no host, so a
+transport that reaches a server is one constructed with that server's
+host -- `TlsLineTransport(host, port)` is the one shipped -- and a default
+transport would be a default server, which the next paragraph refuses.
 
 **No `base_url` and no default server.** Unlike `EsploraFetcher`, which
 takes a required url with no default, this fetcher takes none at all:

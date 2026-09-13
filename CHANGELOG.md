@@ -665,6 +665,12 @@ documented at release-notes length in the first place, and are still in
   (issue btclib-org/.github#523), and `gh attestation verify` fails the
   run where no attestation `release.yml` signed carries its digest.
 
+### `TlsLineTransport` ships, and `ElectrumFetcher` takes no default transport
+
+- **`btclib.fetch.TlsLineTransport(host, port)` verifies the server's
+  certificate by default** (closes #1127); `btclib.fetch`'s docstring says
+  where a protocol's codec, client and server live (closes #1193).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

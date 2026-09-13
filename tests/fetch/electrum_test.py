@@ -5,8 +5,8 @@
 """Tests for `ElectrumFetcher`, against a scripted `LineTransport`.
 
 No socket anywhere here, `LineRecorded` below being the whole of what
-answers: this half ships no implementation of `LineTransport`, so a test
-reaching a real server is not merely undesirable, it is not possible.
+answers: `tests/fetch/transport_test.py` is where `TlsLineTransport`
+is tested, over a fake connection of its own.
 `tests/electrum_test.py` is the codec these calls are built on; the
 literals below are that module's own, repeated rather than imported, so
 that the two suites agree on what a real server would answer without one
@@ -158,7 +158,7 @@ def transport_of(endpoint: ElectrumFetcher) -> LineRecorded:
 
 
 def test_transport_is_required() -> None:
-    """No default in this half: no transport is a `TypeError`, no fallback."""
+    """No default: no transport is a `TypeError`, no fallback server."""
     with pytest.raises(TypeError, match="transport"):
         ElectrumFetcher()  # type: ignore[call-arg]
 

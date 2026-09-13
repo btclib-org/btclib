@@ -22,12 +22,28 @@ read-only, and a protocol lets that asymmetry be a fact of the type
 rather than a `NotImplementedError` written into a class that never
 promised the capability.
 
-**It adds no dependency.** `urllib.request`, `json` and `base64` from the
-standard library are the whole of the client. Its canonical implementation is
-the `bitcoin-core-rpc` package, which btclib depends on and does not
-contain; the transport exports here are aliases to that same source, not
-another implementation. The seam lets the test suite exercise all of this
-while opening no socket.
+**It adds no dependency.** The standard library is the whole of every
+client: `urllib.request`, `json` and `base64` over HTTP, `socket` and `ssl`
+for the Electrum protocol's line. The HTTP client's canonical
+implementation is the `bitcoin-core-rpc` package, which btclib depends on
+and does not contain, and its transport exports here are aliases to that
+same source, not another implementation; `TlsLineTransport` is implemented
+in `btclib.fetch.transport` itself. The seam lets the test suite exercise
+all of this while opening no socket.
+
+**A protocol's code is split in three, and where each part lives is one
+rule for every protocol.** The codec -- the framing, the envelope and the
+shape of each answer -- is pure and sits beside `btclib.p2p`, outside this
+package, as `btclib.electrum` does: this `__init__` imports every fetcher,
+so a server importing anything under `btclib.fetch` would load `urllib`,
+`ssl` and `socket` with it. The client transport is this package's, in
+`btclib.fetch.transport`, which states its network policy once. The socket
+a server listens on is not btclib's at all: btclib-node holds its own, over
+`btclib.p2p`'s codec. The HTTP transport is `bitcoin-core-rpc`'s instead,
+because a transport useful without btclib belongs to that package: it is a
+standalone client depending on nothing beyond the standard library, and a
+caller with no bitcoin library has a use for an HTTP transport and none for
+a line transport without btclib's codec.
 
 **The exceptions a `Fetcher` raises are btclib's**, and that costs one
 translation. The package declares a `FetchError`, an `HttpError` and an
@@ -52,13 +68,13 @@ what raises if there is nothing to connect to.
 they implement, `Broadcaster` beside it, the clients a Bitcoin Core
 node is reached through -- `BitcoinCoreRpcClient` for the JSON-RPC
 server, `BitcoinCoreRestClient` for `-rest` -- and the transport seam:
-the timeout, the protocols a substitute has to satisfy and the HTTP
-implementations of one of them that open a socket -- one connection per
-call, and one kept open across calls. `LineTransport`,
-`ElectrumFetcher`'s own protocol, has no implementation here yet; its
-own docstring in `btclib.fetch.transport` says why. That last group is
+the timeout, the protocols a substitute has to satisfy and the
+implementations that open a socket -- over HTTP one connection per call
+and one kept open across calls, and `TlsLineTransport` for
+`LineTransport`, `ElectrumFetcher`'s own protocol. That last group is
 here because the seam is the supported way to test calling code without
-a node, which is not a detail of the fetcher implementations.
+a node, and because a transport is how `ElectrumFetcher` is told which
+server to reach, neither being a detail of the fetcher implementations.
 
 `bitcoin_core.cookie_auth` is deliberately not here:
 `BitcoinCoreRpcClient` takes a `cookie_path` and reads that file at every
@@ -100,6 +116,7 @@ from btclib.fetch.transport import (
     HttpTransport,
     LineTransport,
     SessionTransport,
+    TlsLineTransport,
     urlopen_transport,
 )
 
@@ -119,5 +136,6 @@ __all__ = [
     "HttpTransport",
     "LineTransport",
     "SessionTransport",
+    "TlsLineTransport",
     "urlopen_transport",
 ]

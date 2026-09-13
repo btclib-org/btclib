@@ -231,7 +231,7 @@ class Fetcher(ABC):
         the height asked for, and not that it is the tip: a backend
         serving a real header from the wrong chain, or from the wrong
         height, passes it just the same. Only a chain of headers answers
-        that, which is issue #1127's territory and not this method's.
+        that, which is not this method's question.
         """
 
     def get_tx_out(self, out_point: OutPoint) -> TxOut:
