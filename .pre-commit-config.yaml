@@ -627,11 +627,12 @@ repos:
       - id: taplo-format
         name: taplo (toml, in place fixes)
         exclude: ^uv\.lock$
-  # the width of a yaml line, which nothing else here measured: the hook
-  # above holds markdown to 80 columns and ruff holds a docstring and a
-  # comment on a line of its own to the same, and the workflows were a
-  # place prose could grow without a limit -- 117 columns at the worst.
-  # Toml was the other, and the hook below is what closed it.
+  # the width of a yaml line, which nothing else here measures but for the
+  # inline sequence prettier above explodes:
+  # markdownlint above holds markdown to 80 columns and ruff holds a
+  # docstring and a comment on a line of its own to the same, and the
+  # workflows carry prose in their comments. Toml is the other, and the
+  # hook below is what holds it.
   # Width is the half of this a sibling gate could in principle have
   # covered; a key written twice, a block indented under nothing, a value
   # that is octal by accident are read by nothing else at all.
@@ -645,11 +646,9 @@ repos:
     hooks:
       - id: yamllint
         name: yamllint (the default rule set, less two)
-  # the width of a toml comment, which was the last prose here held to
-  # nothing. pyproject.toml carries more reasoning than any single file
-  # the rules above cover, and one of its comments had reached 118
-  # columns -- found by reading, which is the only thing that was
-  # looking.
+  # the width of a toml comment, which nothing else here measures either:
+  # pyproject.toml carries its reasoning in comments, and that is prose
+  # the way a docstring and a markdown paragraph are.
   # A local pygrep rule because nothing off the shelf does it: taplo
   # formats values and leaves comments alone, by design, a formatter that
   # reflowed prose being a formatter that rewrites it.

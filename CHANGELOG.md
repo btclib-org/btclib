@@ -326,6 +326,22 @@ documented at release-notes length in the first place, and are still in
   reads either: `myst-parser` is in the `docs` group, which no workflow's
   own pytest step installs.
 
+### The yamllint and `toml-comment-width` preambles state no column count
+
+- **`.pre-commit-config.yaml`'s `yamllint` and `toml-comment-width`
+  preambles stated a column width for a workflow's yaml and for a
+  `pyproject.toml` comment, and said the second was found by reading**
+  (issue btclib-org/.github#880). Once each hook holds its own files no
+  command re-derives either width, and section 9 of the organization
+  standard asks a number in prose to carry the command that produces it.
+- **What each preamble states now is why its hook is there, in the present
+  tense**: nothing else the lint config runs measures a yaml line's width --
+  but for the inline sequence prettier explodes -- or a toml comment's at
+  all, and the yaml and the toml here both carry prose in their comments.
+- **The yaml preamble names `markdownlint` where it said *the hook
+  above***: the hook immediately above `yamllint` is `taplo`, and markdown
+  is held to 80 columns by `markdownlint-cli2` further up.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
