@@ -49,6 +49,34 @@ documented at release-notes length in the first place, and are still in
   btclib-org/.github#1040 is where that is filed, for this tree and for
   `btclib-secp256k1`.
 
+### A schedule comment names the `workflow_call` trigger below it
+
+- **`os-macos.yml`, `os-ubuntu.yml` and `os-windows.yml` say a branch
+  reaches the workflow through the dispatch below the comment and
+  through the `workflow_call` trigger above that dispatch** (issue
+  btclib-org/.github#1040). Each declares that trigger, and
+  `release.yml` calls each of them in a job with no `if:`, so a
+  `workflow_dispatch` rehearsal reaches them from whatever branch it is
+  dispatched on -- which is what *alone* denied.
+- **The clause is the one btclib-org/.github#736 landed in
+  `links.yml`**, with `workflow_call` where that one says `pull_request`
+  and *above it* where it says *further down*: in each of these files the
+  trigger stands ahead of the dispatch the sentence has just named, where
+  in `links.yml` it follows it. The clause does not name `release.yml`:
+  the comment introducing that trigger already says a call is what lets
+  that workflow gate a publication, and section 9's *One fact in one
+  place* is the reason.
+- **`pypi-install.yml` carries the sentence beside a `workflow_call:`
+  too and keeps it, the claim being true there.** `release.yml`'s
+  `publish-pypi` job requires `github.event_name == 'push'` and the only
+  push that starts that workflow is a `v*` tag, so a rehearsal
+  dispatched from a branch skips it; the `pypi-install` job beside it is
+  gated on `needs.publish-pypi.result == 'success'`, which a skipped job
+  does not give. Run 34723411299, dispatched on a branch, skipped both
+  of those jobs and ran the platform workflows above.
+- **`btclib-secp256k1` owes the same change**, which is why this cites
+  the issue rather than closing it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
