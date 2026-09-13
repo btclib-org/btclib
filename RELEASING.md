@@ -28,7 +28,7 @@ happen after it, still before the tag. It also means such a workflow reaches
 Telling these apart is most of what can go wrong when cutting a release.
 
 - **`pyproject.toml`'s own `version`** takes three shapes over one
-  cycle, never two at once: `2026.8`, month only, between releases —
+  cycle, never two at once: `2026.9`, month only, between releases —
   the placeholder "Open the next cycle" sets, so a checkout of `main`
   reports itself as work in progress rather than as a release it is
   not; `2026.8.4`, with the day added on release day — calendar
@@ -315,25 +315,26 @@ to `deps-latest`'s own result.
    that precedes the tag's, and the tag always carries a day where the
    placeholder never does, so the two forms cannot collide.
 
-   **That new heading names the cycle of the release being cut** — the
-   `YYYY.M` of the version the section just retitled now carries, so
-   retitling to `v2026.9.3` opens `## v2026.9 (work in progress, not
-   released yet)`. It is not a guess at the month the next release will
-   fall in. *Open the next cycle's version* below sets `pyproject.toml`
-   from this heading and records that the placeholder sorts below the
-   release just cut, which holds because the month it names has come; a
-   heading naming a month that has not makes a checkout of `main`
-   declare a version sorting above every release that ships before that
-   month arrives, `2026.10` above `2026.9.10`. The asymmetry is the
-   rule: a heading that ends up a month behind the release it names is
-   corrected at the next retitle, where one naming a month ahead stands
-   for the whole cycle and nothing reports it.
+   **That new heading names the month the next release is expected to fall in**,
+   not the cycle of the release just cut: retitling to `v2026.9.3`, expecting
+   the next release in October, opens `## v2026.10 (work in progress, not
+   released yet)`. *Open the next cycle's version* below sets `pyproject.toml`
+   from this heading, and while it stands a checkout of `main` declares a
+   version above the release just cut and above any further release the same
+   cycle still ships: `2026.10` sorts above both `2026.9.3` and a later
+   `2026.9.10` under PEP 440. That ordering is one cost of naming the month
+   ahead rather than the month just cut, and it is accepted rather than avoided.
+   The other is the mirror image: a further release landing in the month already
+   left behind retitles this heading back down at that release's own retitle
+   step — `## v2026.10` becomes `## v2026.9.20` if a second release in September
+   is cut after `2026.10` was opened — which is as ordinary as the upward case,
+   the same rule read the other way.
 
-   So a cycle running past the end of its month costs nothing and is not
-   a case to plan for. The retitle step of *that* release renames this
-   heading to the version being cut then, exactly as this one renames
-   the section it is opened above, and nothing is bumped while the cycle
-   runs.
+   Whichever release lands next — the one expected in the guessed month, or a
+   further release in the month already left behind — its own retitle step
+   renames this heading to the version being cut then, exactly as this one
+   renames the section it is opened above, and nothing else changes while the
+   cycle runs.
 
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
@@ -398,14 +399,13 @@ to `deps-latest`'s own result.
    measured directly here across #1111, #1113, #1114 and #1133, each
    landing from `BLOCKED` and `REVIEW_REQUIRED` with a verified
    signature, one of them (#1113) `BEHIND` as well and cleared the same
-   way. Name the release commit's title and body explicitly when using
-   it — `gh pr merge <n> --squash --admin --body-file <path>
-   --subject <title>` — rather than leave them to
-   `squash_merge_commit_message`'s repository default, recorded in
-   REPOSITORY.md's *Merge methods*: this branch carries more than one
-   commit every time (the paragraph below this one), and that default
-   composes the commit under the tag from all of them rather than from
-   what step 3 wrote.
+   way. Name the release commit's title and body explicitly when using it — `gh
+   pr merge <n> --squash --admin --body-file <path> --subject <title>` — rather
+   than leave them to `squash_merge_commit_message`'s repository default,
+   recorded in REPOSITORY.md's *Merge methods*: that default composes the commit
+   under the tag from the branch's own commit or commits rather than from what
+   the pull request's own title and body say, and the two are different accounts
+   of the same change — the paragraph below this one has why.
 
    `gh api -X PUT repos/{owner}/{repo}/pulls/<n>/merge -f
    merge_method=squash` is the fallback for when `--admin` is
@@ -416,11 +416,15 @@ to `deps-latest`'s own result.
    commit's own message were the same string; a multi-commit release
    branch without the two parameters would not be so lucky.
 
-   This branch carries more than one commit every time, a version bump
-   and two retitles never being one, so the commit that lands is one
-   GitHub composes at the button and no local object matches it. That
-   is why the checks are read again below, on what `main` ends up at
-   rather than on the branch head they ran against.
+   The commit that lands under the tag is one GitHub composes at the button: a
+   squash always mints a fresh commit object, so no local commit is ever what
+   ends up on `main`, whatever the branch held. Naming `--subject` and
+   `--body-file` explicitly is harmless at any commit count — it simply replaces
+   `squash_merge_commit_message`'s default, `COMMIT_MESSAGES`, which composes
+   that new commit's message from the branch's own commit or commits, with the
+   title and body chosen on purpose. That is why the checks are read again
+   below, on what `main` ends up at rather than on the branch head they ran
+   against.
 
    Then read `lint` and `test` on the commit `main` ends up at before
    tagging, rather than trust the pull request's own green run:
@@ -591,23 +595,20 @@ to `deps-latest`'s own result.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
 
-   **Neither sibling repository carries one, on purpose.**
-   bitcoin-core-rpc declares `dependencies = []`, and `pypi-install.yml`
-   already asserts that against the installed package on every run; a
-   bill of materials there would be an empty `components` list restating
-   a fact CI checks more directly. btclib-secp256k1's interesting
-   dependency is the vendored libsecp256k1 C library at the commit its
-   `secp256k1` submodule pins. That holds for both wheel kinds it ships
-   and not only the static one: a static build links the library into the
-   extension, a dynamic (ABI-mode) build ships it as a shared object
-   beside the extension instead, and `Requires-Dist` says nothing about
-   the pin either way. Naming the linkage would invite the opposite
-   conclusion, that the dynamic build escapes the gap — where what is
-   missing is the pinned commit however the object code arrives. A bill
-   of materials built from `Requires-Dist` alone would name `cffi` and
-   say nothing about the pin a verifier of that package would most want
-   described, which is worse than omitting the document — issue #1159
-   has that evaluation.
+   **bitcoin-core-rpc's release workflow builds, attests and attaches one as of
+   btclib-org/bitcoin-core-rpc#441, no release of it having been cut since that
+   merged; btclib-secp256k1 has no such workflow yet.** btclib-secp256k1's
+   interesting dependency is the vendored libsecp256k1 C library at the commit
+   its `secp256k1` submodule pins. That holds for both wheel kinds it ships and
+   not only the static one: a static build links the library into the
+   extension, a dynamic (ABI-mode) build ships it as a shared object beside the
+   extension instead, and `Requires-Dist` says nothing about the pin either
+   way. Naming the linkage would invite the opposite conclusion, that the
+   dynamic build escapes the gap — where what is missing is the pinned commit
+   however the object code arrives. A bill of materials built from
+   `Requires-Dist` alone would name `cffi` and say nothing about the pin a
+   verifier of that package would most want described, which is worse than
+   omitting the document — issue #1159 has that evaluation.
 
    `generate_sbom.py` no longer has the limitation that evaluation rested
    on: it reads a commit-pinned submodule from `.gitmodules` and the
@@ -645,25 +646,32 @@ to `deps-latest`'s own result.
    bumped would offer it the next cycle's number instead of the one being
    released.
 
-   **The placeholder is that cycle, not the month after the release.**
-   After `2026.9.3` it is `2026.9`, which is what those two headings say,
-   and it is not `2026.10`. The two readings name the same month for as
-   long as a cycle holds a single release, which is what makes "the month
-   after" look like the rule; a cycle that ships twice separates them.
-   Taking the month after would also declare a cycle neither notes file
-   has a section for, so the next change to land would file its entry
-   under a heading the declared version disagrees with — issue #1458's
-   shape one file over.
+   **The placeholder is the month the next release is expected to fall in, not
+   the cycle of the release just cut.** After `2026.9.3`, expecting the next
+   release in October, it is `2026.10`, which is what those two headings already
+   say, and it is not `2026.9`. The two readings coincide only when the next
+   release is expected in the same month just cut, which is what a cycle
+   shipping more than once looks like, and they differ whenever the next release
+   is expected in a later month. This step sets `pyproject.toml` to match
+   whatever the two headings already carry, however the retitle step above set
+   them. A downward retitle is a case of that rather than an exception to it:
+   the further release doing it sets `pyproject.toml` to its own three-component
+   version on release day, and this step then sets it to the fresh placeholder
+   that release's own retitle opened, whichever month that names.
 
-   `2026.9` sorts below `2026.9.3` under PEP 440, which follows from the
-   rule rather than arguing against it: a placeholder names the cycle
-   whose notes the tree is accumulating, not a release, and releases are
-   ordered by their tags — and `version-check` refuses a tag on the
-   placeholder shape (*Which version string is which* above). What a
-   reader can trip on is that `pip install --upgrade btclib` in an
-   environment holding such a checkout resolves to the published release,
-   which is the right answer for anybody who did not mean to be running a
-   working tree.
+   `2026.10` sorts above `2026.9.3` under PEP 440, which is one of the costs the
+   retitle step above states rather than a defect of this step: a placeholder
+   names the month the tree expects to release in next, and releases are ordered
+   by their tags regardless of what `pyproject.toml` declares on `main` —
+   `version-check` refuses a tag on the placeholder shape either way (*Which
+   version string is which* above), so nothing confuses the two. What a reader
+   can trip on is that such a checkout declares a version above the release
+   just cut, so `pip install --upgrade btclib` in an environment holding it
+   reports the requirement already satisfied and does nothing — the reverse of
+   the rescue a placeholder sorting below that release would give, and it
+   leaves a reader on a version PyPI never served. A placeholder naming the
+   month just cut sorts below it and does give that rescue, which is the
+   coincidence above rather than the rule.
 
    Those two sections are where the next release's notes accumulate, one
    landed change at a time, and the merge step above is what reads them

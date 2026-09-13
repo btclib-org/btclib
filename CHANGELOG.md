@@ -199,6 +199,36 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### RELEASING.md's placeholder names the month the next release falls in
+
+- **The retitle step and *Open the next cycle's version* say the "work in
+  progress" heading opened after a retitle names the month the next release is
+  expected to fall in, not the cycle of the release just cut** (closes #2047). A
+  checkout of `main` then declares a version above the release just cut and
+  above any further release the same cycle still ships -- `2026.10` sorts above
+  both `2026.9.3` and a later `2026.9.10` under PEP 440 -- and a further release
+  in the month already left behind retitles the heading back down at its own
+  retitle step, both costs stated rather than dropped.
+
+### RELEASING.md names the sibling whose workflow ships a bill of materials
+
+- **`RELEASING.md` says bitcoin-core-rpc's release workflow builds, attests and
+  attaches a bill of materials, no release of it having been cut since that
+  landed, and that btclib-secp256k1 has no such workflow yet** (closes #2050).
+  `generate_sbom.py`'s two issue references are qualified as
+  `btclib-org/btclib#1280` and `btclib-org/btclib#1194`, so a repository that
+  takes the same file reads a citation that resolves in its own tracker rather
+  than in btclib's.
+
+### RELEASING.md's reason for naming a release commit is count-independent
+
+- **The reason for passing `--subject` and `--body-file` explicitly no longer
+  rests on a release branch carrying more than one commit** (closes #2051). A
+  squash always mints a fresh commit object at the button, whatever the branch
+  held, and naming the title and body explicitly is harmless at any commit count
+  -- it replaces `squash_merge_commit_message`'s default, `COMMIT_MESSAGES`,
+  with a title and body chosen on purpose.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
