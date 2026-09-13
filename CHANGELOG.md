@@ -199,6 +199,38 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### Three operation-count comments in `curves/` state a relation or a command instead
+
+- **`curve_group.py`'s tangent-law comment states the relation the
+  argument needs instead of a doubling count**: the spelling is decided
+  in `CurveGroup.__init__` rather than inside `_double_jac_helper`,
+  which every Jacobian doubling reaches -- `double_jac`'s own, and
+  `add_jac`'s and `add_jac_aff`'s when the two points they are given
+  coincide -- which holds at any window width and needs nothing kept in
+  step with one.
+- **`_double_mult_regular_window`'s docstring states its 143 additions
+  and 254 doublings at a stated `w` and `scalar_len`, counted by the
+  `_CountingGroup` instrument `curve_group.py`'s own regular-window
+  figure already cites**, rather than "over 200 random pairs" with no
+  seed; `_CountingGroup`'s own docstring now runs the function and
+  prints the pair. `_double_mult_w_NAF_var`'s range beside it is gone
+  instead of corrected: the docstring's own 101 to 116 carried no seed
+  at all, and re-deriving over the issue's own stated seed
+  (`random.Random(0x2040)`) independently, twice, answered two
+  different pairs of endpoints -- 99 to 117 in the issue, 99 to 116
+  here. A seed does not pin "200 random pairs" on its own, so the
+  endpoints are a property of the script rather than of the function,
+  and what the comparison needs is the relation already beside it: that
+  the wNAF's additions follow the recoded weight of the two coefficients
+  rather than being constant, and that is what stays.
+- **`_additions_by_position`'s docstring stops pricing the pre-issue-906
+  loop it no longer runs.** 512 is the GLV split's own nominal width
+  (four halves of 128 positions) and stands as that rather than as a
+  count the loop made; the 79 answered and 433 not were a property of the
+  coefficients that loop happened to be timed against, not re-derivable
+  without reconstructing code this tree deleted, and CHANGELOG.md's own
+  entry for issue #906 already has them (closes #2041).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

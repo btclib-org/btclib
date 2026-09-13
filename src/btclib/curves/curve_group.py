@@ -176,10 +176,12 @@ class CurveGroup:
         self._b = b
         # which spelling of the tangent law _double_jac_helper runs. The
         # curve decides it and a curve does not change, so it is decided
-        # here rather than by a test inside the function a multiplication
-        # calls 253 times: the a*Z^4 term is zero for the k1 family, and
-        # for the a == p - 3 of most catalogued curves it is a difference
-        # of two squares that costs one product instead of three
+        # here rather than by a test inside the function every Jacobian
+        # doubling reaches -- double_jac's own, and add_jac's and
+        # add_jac_aff's when the two points they are given coincide -- the
+        # a*Z^4 term being zero for the k1 family, and the tangent
+        # numerator a difference of two squares for the a == p - 3 of most
+        # catalogued curves, costing one product instead of three
         self._a_is_zero = a == 0
         self._a_is_minus_3 = a == p - 3
         # what add_jac feeds its formula in place of an operand at
@@ -1526,11 +1528,12 @@ def _additions_by_position(
     digit there names -- negated where the digit is, a signed digit naming a
     point and its opposite. What it replaces is every wNAF being asked for a
     digit at every position: a wNAF has one nonzero digit in w+1, so a
-    secp256k1 double multiplication asked 512 questions -- 128 positions
-    over the four halves the GLV split makes -- and answered 79 of them with
-    an addition. The 433 that answered nothing were a `zip` step, a
-    comparison against a `len` recomputed per iteration, and an index that
-    found a zero (issue 906).
+    secp256k1 double multiplication asked a question at every position of all
+    four halves the GLV split makes -- 512 at the split's nominal 128 a half --
+    and most of them were answered by a `zip` step, a comparison against a
+    `len` recomputed per iteration, and an index that found a zero, rather than
+    by an addition (issue 906). CHANGELOG.md has how many of the 512 answered
+    which way, this being a docstring about a loop no longer here.
 
     Read this way round the digits are walked once, where each one was read
     at the position it belongs to and skipped at every other, and the loop
@@ -1549,8 +1552,8 @@ def _additions_by_position(
 
     The gain is CPython's: the loop control this removes is what a tracing
     JIT flattens on its own, and under PyPy the two spellings measure the
-    same. CHANGELOG.md has the figures, this being a docstring and they
-    being about code that is no longer here.
+    same. CHANGELOG.md has the CPython and PyPy figures, this being a
+    docstring and they being about code that is no longer here.
     """
     at_position: list[list[Point]] = [[] for _ in range(max(len(naf) for naf in nafs))]
     for naf, T in zip(nafs, tables, strict=True):

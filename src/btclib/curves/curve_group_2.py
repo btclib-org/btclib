@@ -353,10 +353,12 @@ def _double_mult_regular_window(
     table of signed odd multiples per coefficient, and a loop of w
     doublings and two additions per window, both of them made whatever the
     digits are. So the cost is the same for every pair (u, v) of a given
-    scalar_len -- 143 additions and 254 doublings on secp256k1, over 200
-    random pairs -- where _double_mult_w_NAF_var's is the recoded weight of the
-    two coefficients and is 101 to 116 additions over the same pairs, and
-    this function costs about a tenth less overall.
+    scalar_len -- 143 additions and 254 doublings on secp256k1 at w=4 and
+    scalar_len=256, counted by the `_CountingGroup` of
+    tests/curves/curve_group_test.py, whose docstring carries the command
+    for this function and not for the wNAF one -- where
+    _double_mult_w_NAF_var's cost follows the recoded weight of the two
+    coefficients instead and varies with the pair.
 
     Which is _mult_regular_window's trade, twice: a table of 2^(w-1) points
     per coefficient, and their opposites, to make one addition per window
