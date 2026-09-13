@@ -37,9 +37,10 @@ on:
 permissions:
   contents: read
 
-# grouped by branch, for the reason links.yml gives beside its own group
+# grouped by pull request, for the reason links.yml gives beside its own
+# group (issue #2101)
 concurrency:
-  group: sdist-rebuild-${{ github.head_ref || github.ref }}
+  group: sdist-rebuild-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

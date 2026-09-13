@@ -178,11 +178,11 @@ on:
 permissions:
   contents: read
 
-# head_ref falls back to ref so a scheduled or dispatched run still gets
-# its own group, and a pull request always groups by its own branch --
+# github.event.pull_request.number, not github.head_ref, is the key --
 # vendored-vectors.yml's own concurrency block has the reasoning in full
+# (issue #2101)
 concurrency:
-  group: zkp-oracle-${{ github.head_ref || github.ref }}
+  group: zkp-oracle-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -88,12 +88,13 @@ on:
     # PR's own concurrency group is still holding survives either unless
     # the closed event lands in that same group -- which this type is
     # what makes it do, cancel-in-progress above turning the landing
-    # into the cancellation. The group below keys on github.head_ref
-    # rather than plain github.ref for exactly this event: a merged pull
-    # request's closed event sets github.ref to the base branch, not the
-    # merge ref, which would land it in the scheduled run's own group
-    # and race it for cancellation (PR 1023's bug, PR 1026's fix) instead
-    # of the PR's own group as intended
+    # into the cancellation. The group below keys on
+    # github.event.pull_request.number rather than plain github.ref for
+    # exactly this event: a merged pull request's closed event sets
+    # github.ref to the base branch, not the merge ref, which would land
+    # it in the scheduled run's own group and race it for cancellation
+    # (PR 1023's bug, PR 1026's fix) instead of the PR's own group as
+    # intended
     types: [opened, reopened, synchronize, ready_for_review, closed]
     paths:
       - .github/workflows/py-arm-authority.yml
@@ -103,14 +104,15 @@ on:
 permissions:
   contents: read
 
-# head_ref falls back to ref rather than being used bare: it is set only
-# for pull_request events, to the PR's head branch, so a scheduled or
-# dispatched run (ref refs/heads/main) still gets its own group -- and a
-# pull_request event always groups by the PR's branch, closed and
-# merged ones included, so it never collides with that group the way
-# bare ref did
+# github.event.pull_request.number, not github.head_ref, is the key: it
+# is set only for pull_request events, to the PR's own number, so a
+# scheduled or dispatched run (ref refs/heads/main) still gets its own
+# group -- and a pull_request event always groups by the PR's own
+# number, closed and merged ones included, so it never collides with
+# that group the way bare ref did, and it also survives two forks whose
+# head branches share a name, which head_ref does not (issue #2101)
 concurrency:
-  group: py-arm-authority-${{ github.head_ref || github.ref }}
+  group: py-arm-authority-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
