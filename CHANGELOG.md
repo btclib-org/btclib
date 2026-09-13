@@ -415,6 +415,24 @@ documented at release-notes length in the first place, and are still in
   is configured with stays named, being a threshold rather than a
   measurement of this tree.
 
+### The reproduction commands are read against the steps they quote
+
+- **`tests/docs_commands_test.py` reads the platform matrices' cell, the
+  `coverage-union` pair and the data file each coverage job writes
+  against the way `CONTRIBUTING.md`'s *Reproducing what CI runs* prints
+  them** (closes #2071). The section said of the cell, and of the
+  `COVERAGE_FILE` in front of the coverage job's command, that CI runs it
+  verbatim, and nothing read either spelling against the step it quotes.
+- **`--python` is what the documented cell adds**:
+  a matrix cell takes its interpreter from `astral-sh/setup-uv`. The
+  section says so where it claimed identity, and the comparison reads
+  that argument against the site that holds it, as it already does the
+  directory the documentation build writes to.
+- **`COVERAGE_FILE` is compared as its value**: `test.yml` writes the
+  assignment as a step's `env:` mapping and the section as a shell prefix
+  in front of the command, so the value is the whole of what the two
+  sites can share.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
