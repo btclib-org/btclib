@@ -199,6 +199,28 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### `source-exclude` names the `.hypothesis` a run from inside `tests/` leaves
+
+- **`[tool.uv.build-backend]`'s `source-exclude` gains `.hypothesis`**
+  (closes btclib-org/.github#1058). Hypothesis puts its storage at
+  `Path.cwd() / ".hypothesis"`, so `pytest` started from inside `tests/`
+  writes `tests/.hypothesis` and `source-include`'s `"tests/**"` packs
+  it. Measured against the directory such a run left in this tree: the
+  sdist built without the line carries `tests/.hypothesis/constants/`
+  and `uv run pre-commit run check-sdist --all-files` exits 1 on `SDist
+  does not match git`, and with the line the two member lists differ by
+  those paths alone and the hook exits 0.
+- **`.gitignore` names `.hypothesis/` and the backend does not read
+  that file**, so `git status` is clean while the build packs the
+  directory, and the sdist is the only place it shows.
+- **Its own entry rather than a fourth name under the comment above
+  `.mypy_cache`.** That comment is about a cache written beside the file
+  its tool has just checked, which is why it names an extension putting
+  one under `src/btclib/` and `tests/` alike; this directory follows the
+  working directory of the run instead.
+- **`btclib-node` landed its half at `0f777682`**, which is why this
+  citation closes the issue where that one cited it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

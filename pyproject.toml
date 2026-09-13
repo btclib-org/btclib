@@ -362,6 +362,14 @@ source-exclude = [
     # it runs, which is how these patterns are known to hold rather than
     # believed to
     "*.egg-info",
+    # hypothesis's example database and constants cache, which the
+    # library places at `Path.cwd() / ".hypothesis"` -- under the working
+    # directory rather than beside anything it read -- so a `pytest`
+    # started from inside tests/ leaves it where `tests/**` ships it.
+    # Measured, as the patterns above are: after such a run
+    # tests/.hypothesis/constants/ was there and the sdist built next
+    # carried every file of it (btclib-org/.github#1058)
+    ".hypothesis",
     # tracked, one at the root and one under src/btclib/ where the module
     # is copied wholesale, and of no use to anyone unpacking an sdist
     ".gitignore",
