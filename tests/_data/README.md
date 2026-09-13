@@ -1423,10 +1423,11 @@ re-check is the alignment, and `tests/hwi_test.py` carries the
 transcription it is checked against.
 
 Both pins are read against `master`, and
-`.github/workflows/integration-hwi.yml` installs release 3.2.0, so two
-interfaces are in play and each entry below says what the release does
-not carry. `tests/hwi_test.py` answers from a stand-in it writes itself
-and is green against either; the weekly jobs are what run the release.
+`.github/workflows/integration-hwi.yml` installs the release its
+`HWI_VERSION` names, so two interfaces are in play and each entry below
+says what the release does not carry. `tests/hwi_test.py` answers from a
+stand-in it writes itself and is green against either; the weekly jobs
+are what run the release.
 
 ### Not vendored as a file: the commands and flags of HWI's JSON CLI
 

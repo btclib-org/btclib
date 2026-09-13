@@ -37,7 +37,7 @@ name: deps-oldest
 # real -- so a lock is necessarily over every group there is. What bound
 # each entry owes is #2061, this tree's question rather than this file's.
 #
-# 3.10, and not the 3.14 .python-version pins: that file's own header
+# 3.10, and not the interpreter .python-version pins: that file's header
 # calls the pin the newest the test matrix covers rather than the oldest
 # the package supports, and requires-python's >=3.10 is the end a floor
 # run asks about. That header leaves the oldest end to "the matrix's job

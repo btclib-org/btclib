@@ -398,12 +398,15 @@ Do not use Fable unless explicitly instructed.
   `.yamllint.yaml`'s width takes the comment on the line above.
   `.github/workflows/fuzz.yml`'s `google/clusterfuzzlite` pins are both
   cases at once.
-- **A comment does not copy a pinned tool's version; where it needs the
-  revision it points at the places the revision lives.** `[tool.ruff]`'s
-  `ignore` list gives its provenance as the ruff revision
-  `.pre-commit-config.yaml` pins and `uv.lock` resolves, so a bump leaves
-  it nothing to correct. An action's pin comment names a point release
-  for the opposite reason: a sha is illegible where a `rev:` is not. A
+- **A comment or a sentence of prose does not copy a value a file of this
+  tree pins; where it needs the value it points at the file that holds
+  it.** `[tool.ruff]`'s `ignore` list gives its provenance as the ruff
+  revision `.pre-commit-config.yaml` pins and `uv.lock` resolves, so a
+  bump leaves it nothing to correct. A tool's revision is one such value
+  and not the only one (issue #2079): a sentence that needs the
+  interpreter a bare `uv run` picks names `.python-version` rather than
+  its version. An action's pin comment names a point release for the
+  opposite reason: a sha is illegible where a `rev:` is not. A
   numeral stays legitimate as a measurement's own stamp — the
   `force-exclude` comment's "Measured on ruff 0.16.7" dates what was
   measured and survives the bump, where "the pinned ruff 0.16.7" asserts

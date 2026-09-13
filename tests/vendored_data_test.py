@@ -302,7 +302,7 @@ _EXEMPT: dict[str, str] = {
     "before. The two hold the same names, compared on 2026-09-03, and the": _UPSTREAM_FACT,
     "directions in `bitcoin/bitcoin#15437`. `src/btclib/p2p/reject.py` says": _UPSTREAM_FACT,
     "but an *interface*, and the two entries are the two halves of it: the": _UPSTREAM_FACT,
-    "`.github/workflows/integration-hwi.yml` installs release 3.2.0, so two": _UPSTREAM_FACT,
+    "`HWI_VERSION` names, so two interfaces are in play and each entry below": _UPSTREAM_FACT,
     "`HWI_COMMAND_FLAGS` table above, `displayaddress`'s two modes taking": _UPSTREAM_FACT,
     "`--multipath-index 1` -- `HwiSigner.display_policy_address` always": _UPSTREAM_FACT,
     "whose `hwilib/_cli.py` adds them is what makes the two interfaces one.": _UPSTREAM_FACT,
@@ -498,8 +498,9 @@ def test_a_numeral_that_names_something_is_subtracted_and_a_count_is_not() -> No
     A shape that stops matching puts its lines back in front of `_NUMERAL`,
     and the guard above says which; a shape that reaches past what it names
     swallows the count beside it and the guard goes quiet. The second group
-    is that half: each line states a count *and* carries a date, an
-    identifier or a version, and each is exempted for the count alone.
+    is that half: each line states a numeral `_NUMERAL` reads as a count
+    *and* carries a date, an identifier or a version, and each is exempted
+    for that numeral alone.
     """
     for named in (
         "Pulled 2020-06-08, except `block_200000.bin`, 2020-06-09.",
@@ -518,7 +519,7 @@ def test_a_numeral_that_names_something_is_subtracted_and_a_count_is_not() -> No
         '(2024-05-14, "Fix the four test vectors"); and `sig_agg_vectors.json`',
         "The twelve `scriptPubKey`s reported in issue #123, the five transactions",
         "Verdict: **identical**. SLIP-0039's 1024 words, ten bits each, and the",
-        "`.github/workflows/integration-hwi.yml` installs release 3.2.0, so two",
+        "3.2.0, where -4 carries the misspelling this pin's commit corrects — a",
     ):
         assert _NUMERAL.search(_countable(counted)), counted
 

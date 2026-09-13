@@ -60,7 +60,7 @@ excluded-modules = []
 # point back here for: an annotation is not evaluated where it is
 # written, so `str | bytes | None` rewritten `str + bytes + None` is
 # never built and no call changes. `bitcoin_core.py` has that from PEP
-# 649 and the 3.14 `.python-version` pins, `esplora.py` and
+# 649 under the interpreter `.python-version` pins, `esplora.py` and
 # `bitcoin_core_rest.py` from `from __future__ import annotations` as
 # well. The filter is what keeps them out of a session that would
 # otherwise run them and find every one of them surviving.
