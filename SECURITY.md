@@ -462,12 +462,15 @@ used to teach and to prototype as much as to build:
     is in the block that header names, not merely that some server said
     so. It establishes nothing about that header being the right chain's
     or the right height's, `Fetcher.get_block_header`'s own caveat and
-    unaffected by the branch matching underneath it. `transport:
-    LineTransport` is required and carries no default in this half — its
-    own docstring in `btclib.fetch.transport` says why — so nothing here
-    contacts a server until a caller supplies both a transport and, once
-    one exists, a host: the same refusal to name one `BLOCKSTREAM_INFO`
-    already carries
+    unaffected by the branch matching underneath it. `transport` is
+    required and `TlsLineTransport`, the one shipped, is constructed with
+    the host it connects to, so nothing here contacts a server until a
+    caller names one: the same refusal to name one `BLOCKSTREAM_INFO`
+    already carries. It verifies the server's certificate and host name by
+    default, against the CA certificates `ssl.create_default_context`
+    loads; a server those do not trust is reached through a `context`
+    trusting its certificate, and what a context the caller supplies
+    accepts is the caller's to decide
 - **rpc credentials.** They are passed as arguments and refused in the
     url, so that a password is not carried in a string that ends up in
     config files, tracebacks and logs. bitcoind's `.cookie` needs none at

@@ -282,6 +282,7 @@ KEYWORD_ONLY: dict[str, list[str]] = {
         "transport",
     ],
     "btclib.fetch:SessionTransport.__init__": ["max_body_size", "connection_factory"],
+    "btclib.fetch:TlsLineTransport.__init__": ["context", "max_line_size"],
     "btclib.fetch:urlopen_transport": ["max_body_size"],
     "btclib.hwi:HwiSigner.__init__": [
         "executable",
