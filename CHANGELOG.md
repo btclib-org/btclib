@@ -683,6 +683,12 @@ documented at release-notes length in the first place, and are still in
   matching `test.yml` and `lint.yml`: two forks pushing a same-named
   branch collide under a name and not under a number.
 
+### `tests/imports_test.py` checks a substrate candidate's own closure
+
+- **Each substrate candidate asserts its own import closure against an
+  allowlist, and the application slab asserts that nothing imports it**
+  (issue #1192).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
