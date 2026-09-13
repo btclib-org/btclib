@@ -435,19 +435,25 @@ class _CountingGroup(CurveGroup):
     operations directly instead.
 
     The docstrings that name this class -- `_mult_regular_window` in
-    `curve_group` and `_mult_endomorphism_secp256k1_var` in
-    `curve_group_2` -- state figures taken here, at the scalar_len set
-    below:
+    `curve_group`, and `_double_mult_regular_window` and
+    `_mult_endomorphism_secp256k1_var` in `curve_group_2` -- state figures
+    taken here, at the scalar_len set below:
 
         uv run python -c "
         from btclib.curves import secp256k1
         from btclib.curves.curve_group import _mult_regular_window
-        from btclib.curves.curve_group_2 import _mult_endomorphism_secp256k1
+        from btclib.curves.curve_group_2 import (
+            _double_mult_regular_window, _mult_endomorphism_secp256k1)
         from tests.curves.curve_group_test import _CountingGroup
         for mult in (_mult_regular_window, _mult_endomorphism_secp256k1):
             ec = _CountingGroup()
             mult(secp256k1.n - 1, secp256k1.GJ, ec, 4)
-            print(mult.__name__, ec.additions, ec.doublings)"
+            print(mult.__name__, ec.additions, ec.doublings)
+        ec = _CountingGroup()
+        _double_mult_regular_window(
+            secp256k1.n - 1, secp256k1.GJ, secp256k1.n - 2, secp256k1.GJ,
+            ec, w=4, scalar_len=ec.scalar_len)
+        print('_double_mult_regular_window', ec.additions, ec.doublings)"
     """
 
     def __init__(self) -> None:
