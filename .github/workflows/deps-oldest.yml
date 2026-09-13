@@ -25,17 +25,15 @@ name: deps-oldest
 # checked. Where the mode is declared, and why it is not a flag on the
 # step that resolves, is beside the job below.
 #
-# A group entry declaring no lower bound has no floor to verify, and uv
-# warns on each one it finds. Those warnings are what the run reports,
-# and the resolution then fails among the releases they name rather than
-# at any declared floor: run by hand here, it warns on every
-# [dependency-groups] entry but the bindings' own
-# btclib-secp256k1>=0.8.0.6, and then fails building coverage==3.0,
-# whose setup script is Python 2. uv lock --help lists one option naming
-# a group, --upgrade-group, and none that selects or excludes one -- uv
-# sync --help's six group options being the control that the absence is
-# real -- so a lock is necessarily over every group there is. What bound
-# each entry owes is #2061, this tree's question rather than this file's.
+# A group entry declaring no lower bound has no floor to verify: uv warns
+# on it and takes it to the oldest release the index serves, where the
+# resolution can fail on a release this tree never claimed rather than at
+# any declared floor. So every [dependency-groups] entry declares one, and
+# pyproject.toml's comment over that table names the run behind each
+# number. uv lock --help lists one option naming a group, --upgrade-group,
+# and none that selects or excludes one -- uv sync --help's six group
+# options being the control that the absence is real -- so a lock is
+# necessarily over every group there is.
 #
 # 3.10, and not the interpreter .python-version pins: that file's header
 # calls the pin the newest the test matrix covers rather than the oldest
@@ -66,13 +64,12 @@ name: deps-oldest
 # installs rather than a second opinion on the tooling.
 #
 # No dist job either, and it is the same reason read from the other end:
-# the check group declares no floor, so a mirror of dist-latest would
-# run the oldest twine, check-wheel-contents and pyroma an index still
-# serves, over metadata this resolution does not move. The floor a
-# distribution does declare is [build-system]'s uv_build range, which
-# uv.lock does not carry, so the step below cannot reach it either;
-# pyproject.toml's comment over that range names the hook call that
-# measures it.
+# the check group's floors are releases some run has installed, and a
+# mirror of dist-latest would run them again over metadata this
+# resolution does not move. The floor a distribution does declare is
+# [build-system]'s uv_build range, which uv.lock does not carry, so the
+# step below cannot reach it either; pyproject.toml's comment over that
+# range names the hook call that measures it.
 #
 # Nothing here gates anything, by construction: a separate workflow, with
 # no aggregate job, named by no branch protection rule. This job is

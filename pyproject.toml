@@ -199,6 +199,42 @@ repository = "https://github.com/btclib-org/btclib"
 issues = "https://github.com/btclib-org/btclib/issues"
 pull_requests = "https://github.com/btclib-org/btclib/pulls"
 
+# Every entry below declares a lower bound, and `uv lock --resolution
+# lowest-direct` is what reads them: deps-oldest.yml takes each entry down
+# to its own bound, where an entry declaring none goes as far down as the
+# index serves and the resolution can fail there, before any floor.
+#
+# What decides a number is a run: the bound is the release uv.lock
+# resolved when it was written, and the run that installed that release is
+# the group's own consumer. deps-oldest.yml installs `--group test`, so
+# `harness` and `bindings` are installed at their floors there. lint.yml's
+# `uv run --locked --only-group lint pre-commit run` step is the consumer
+# of `pre-commit`, and of `mypy`, which the local mypy hook runs out of
+# the `lint` group. test.yml's `dist` job is the consumer of `twine`,
+# `check-wheel-contents` and `pyroma`; mutation.yml's cosmic-ray session
+# is the consumer of `mutation`; the sphinx-build of docs.yml and
+# .readthedocs.yaml is the consumer of `docs`.
+#
+# A tool pre-commit runs as a hook of its own comes from an environment
+# pre-commit builds out of .pre-commit-config.yaml rather than out of this
+# table, so its floor is that file's `rev:`: `ruff`, `check-sdist` and
+# `pyroma`.
+#
+# The docs entries carry a marker. Both consumers build under the
+# interpreter .python-version names, and the `sphinx` release installed
+# there declares Requires-Python >=3.12, so an unmarked bound leaves
+# requires-python's older interpreters no release to resolve and `uv lock`
+# fails. The three entries share the marker, and below it `docs` holds the
+# bindings alone: no run builds the docs there.
+#
+# A bound that has fallen below the lock is by design: `uv lock`, the
+# uv-lock hook and deps-latest.yml's `uv lock --upgrade` move uv.lock's
+# resolution past it and leave this file's text alone. The defect is a
+# bound no run has installed, which claims a compatibility nothing tested;
+# a number that was the resolution when it was written stays one a run
+# installed. What a reader checks against this table is therefore that the
+# consumer named for an entry is still its consumer, not that the digits
+# still match uv.lock.
 [dependency-groups]
 # The extra of `project.optional-dependencies` again, as a group. uv has
 # no default extra -- `[tool.uv]` takes `default-groups` and nothing that
@@ -219,27 +255,37 @@ bindings = ["btclib-secp256k1>=0.8.0.6"]
 # second lock file -- uv's `--no-group` suppresses a group that was
 # selected, not one another group includes
 harness = [
-    "coverage",
-    "hypothesis",
-    "pytest",
-    "pytest-cov",
-    "pytest-randomly",
-    "pytest-xdist",
+    "coverage>=7.16.0",
+    "hypothesis>=6.168.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "pytest-xdist>=3.8.0",
 ]
 test = [{ include-group = "harness" }, { include-group = "bindings" }]
-lint = [{ include-group = "bindings" }, "mypy", "pre-commit", "ruff"]
+lint = [
+    { include-group = "bindings" },
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+    "ruff>=0.16.7",
+]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the
 # version. Named `check`, not `build`, so `--only-group build` means the
 # same thing here as in btclib-secp256k1, which already has both names:
 # the tools that build a distribution, not the ones that inspect one
-check = ["check-sdist", "check-wheel-contents", "pyroma", "twine"]
-mutation = ["cosmic-ray"]
+check = [
+    "check-sdist>=1.6.0",
+    "check-wheel-contents>=0.6.3",
+    "pyroma>=5.0.1",
+    "twine>=7.0.0",
+]
+mutation = ["cosmic-ray>=8.7.0"]
 docs = [
     { include-group = "bindings" },
-    "furo",
-    "myst-parser",
-    "sphinx",
+    "furo>=2025.12.19; python_full_version >= '3.12'",
+    "myst-parser>=5.1.0; python_full_version >= '3.12'",
+    "sphinx>=9.1.0; python_full_version >= '3.12'",
 ]
 dev = [
     { include-group = "test" },
