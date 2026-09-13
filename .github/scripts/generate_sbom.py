@@ -43,7 +43,8 @@ case; the sha rather than an upstream tag name, because the sha is what
 the gitlink actually stores and every commit has one, where resolving a
 tag would be a network call this script otherwise makes none of, for a
 result that may not exist. btclib vendors no submodule, so this is a
-no-op here and exists for a repository that does (issue #1280).
+no-op here and exists for a repository that does
+(issue btclib-org/btclib#1280).
 
 Run it on a freshly built dist directory, after `uv build` and after the
 sdist normalizer, whose rewrite changes the digest this records:
@@ -228,7 +229,8 @@ def component(readings: list[Reading]) -> dict[str, Any]:
     schema and keeps that graph, at the price of a `bom-ref` that is no
     longer the purl a consumer resolves the package by; the document is
     read to resolve a dependency graph, so the graph is what has to be
-    right, and the lines survive as properties either way (issue #1194).
+    right, and the lines survive as properties either way
+    (issue btclib-org/btclib#1194).
     """
     version = agreed([entry.version for entry in readings])
     url = agreed([entry.url for entry in readings])
