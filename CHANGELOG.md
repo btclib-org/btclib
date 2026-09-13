@@ -288,6 +288,22 @@ documented at release-notes length in the first place, and are still in
   for is one whose own report cannot reach 100 by construction, the
   delegated arms being unreachable with the bindings absent.
 
+### `conf.py`'s `RootFileLinks` comment states that myst warns and `-W` fails
+
+- **The comment block above the `RootFileLinks` post-transform in
+  `docs/source/conf.py` said the build succeeds and `-W` sees nothing for
+  a target myst cannot resolve, where the same block also said myst
+  reports a path that exists nowhere and `-W` then fails** (closes
+  #2060). What the block states now is the pair myst emits -- the
+  warning, and then the anchor on the page the link is already on -- with
+  the anchor as what a filter on `myst.xref_missing` would leave: a dead
+  relative link appended to `README.md` makes `sphinx-build -n -W` exit 1
+  on that subtype and still renders the anchor, which is what `docs.yml`
+  greps the built html for.
+- **The sentence saying `-W` fails no longer dates itself to the removal
+  of `suppress_warnings`**: `conf.py`'s own `no suppress_warnings` comment
+  is where that setting's absence is stated.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
