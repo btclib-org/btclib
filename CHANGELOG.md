@@ -494,6 +494,7 @@ documented at release-notes length in the first place, and are still in
   `Path.symlink_to` made to refuse, the module is green without this
   case and fails on this case alone with it.
 - **`btclib-node` landed its half at `fa86147a`**, which is why this
+  citation closes the issue where that one cited it.
 
 ### `source-exclude` names the `.hypothesis` a run from inside `tests/` leaves
 
@@ -622,6 +623,12 @@ documented at release-notes length in the first place, and are still in
 - **Both take `--rcfile=pyproject.toml`, in `test.yml` and in
   `CONTRIBUTING.md` alike** (closes #2072): a directory holding no
   configuration used to pass `coverage report` at no floor at all.
+
+### `CHANGELOG.md` regains the `..`-segment entry's closing bullet
+
+- **The bullet naming `fa86147a` as `btclib-node`'s half of issue
+  btclib-org/.github#1049 is whole again** (issue #2089): a rebase's
+  union merge had split it around another entry's own new heading.
 
 ## v2026.9.13
 
