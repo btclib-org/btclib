@@ -630,6 +630,12 @@ documented at release-notes length in the first place, and are still in
   btclib-org/.github#1049 is whole again** (issue #2089): a rebase's
   union merge had split it around another entry's own new heading.
 
+### `links.yml` calls the organization's reusable workflow
+
+- **The lychee job lives in `btclib-org/.github`** (issue
+  btclib-org/.github#35): this file keeps the trigger, the schedule and
+  the files it checks.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

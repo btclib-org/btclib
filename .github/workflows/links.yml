@@ -86,94 +86,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # the job itself is btclib-org/.github's, called at @main so a fix there
+  # reaches this tree in one landing (section 10 of its README.md); what
+  # stays here is the trigger, the schedule and which files are this
+  # tree's documentation
   links:
-    name: Check the documentation links
-    # a draft pull request is work in progress and spends no runner
-    # here either: a draft is work its author is not asking anyone to
-    # read yet. The same condition lint.yml and test.yml carry, and
-    # ready_for_review is a trigger type above for the same reason.
-    # A closed pull request spends none either -- the trigger above takes
-    # the closed event only to supersede a run this ref's group is still
-    # holding
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    # a few hundred requests with retries; a job past this is hung on one
-    timeout-minutes: 15
-    steps:
-      # every action pinned to a commit SHA with the tag in the comment: a
-      # tag, let alone a branch, is a name its owner can move
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Check the links
-        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
-        with:
-          # the prose, not the code: the source files cite papers and RFCs
-          # in comments and docstrings by the hundred, and a citation is a
-          # reference rather than a link a reader clicks. What is checked
-          # is what a user is invited to follow -- the README, which is
-          # also the PyPI long description, the other root markdown files,
-          # the documentation sources, and the markdown kept under tests/,
-          # next to what it documents
-          # rather than at the root: README.md is how the suite is run and
-          # profiled, _data/README.md pins every vendored vector to a
-          # commit, and both are prose for a reader rather than a citation
-          # in a comment.
-          # --no-progress because the log is not a terminal; the retries,
-          # the wait and the timeout are what keep a slow or throttling
-          # host from being reported as a dead one.
-          # No --cache: lychee keeps it on disk under the workspace, a
-          # run starts from a fresh one and no step here restores it, so
-          # across runs the flag decides nothing -- and a restore step
-          # would not make it decide much, lychee's default
-          # --max-cache-age of 1d discarding the whole of it on a weekly
-          # schedule. Within a run lychee collapses repeated URLs by
-          # itself: `lychee --offline --no-progress "*.md"` answers more
-          # links in Total than Unique with no cache anywhere.
-          # `--accept` is lychee's own default range with 429 added to it,
-          # rather than a list of codes: the flag replaces the default
-          # instead of extending it, and `lychee --help` gives that
-          # default as 100..=103,200..=299, so a list naming fewer, a
-          # "200,206,429", makes a 201 or a 204 a dead link -- a host
-          # that starts answering 204 to a HEAD does it with nobody
-          # touching the tree -- to add a 206 the default already covers.
-          # 429 is the one code worth adding, a rate limit being an
-          # answer from a host that is alive.
-          # --timeout 45, against lychee's default of 20, is not a guess:
-          # www.esat.kuleuven.be timed out three times in one run -- 20
-          # seconds each, so the retries did happen -- while answering in
-          # 0.6 s from a developer machine, and the three runs before and
-          # after that one reached it with no timeout at all. A live host
-          # unreachable for one minute is the failure mode this workflow was
-          # built not to gate on, and 45 seconds is the cheapest way to stop
-          # reporting it. If a URL times out run after run it belongs in
-          # .lycheeignore with that measurement, and not here.
-          # --include-fragments, so a link into a heading is checked as
-          # an anchor and not only as a page: the forge serves the page
-          # and drops a fragment it cannot resolve, so a heading renamed
-          # in the tree a link here points into is red here and nowhere
-          # else. The check reads a page already fetched for the link
-          # above, so it adds no request. REPOSITORY.md's links into the
-          # standard carry blob/main/README.md and are checked; the
-          # root-shape github.com/<owner>/<repo>#heading links
-          # CONTRIBUTING.md carries are not, a missing fragment there
-          # being overridden by the token below -- lychee falls back to
-          # the repositories API on the failed link and takes the
-          # repository's existence as the answer.
-          # btclib-org/.github#630 is where that is weighed
-          args: >-
-            --no-progress
-            --max-retries 3
-            --retry-wait-time 10
-            --timeout 45
-            --accept 100..=103,200..=299,429
-            --include-fragments
-            "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
-          # fail the job, rather than only summarizing: a green run that
-          # found dead links is the state this workflow exists to end
-          fail: true
-        env:
-          # for github.com links only, per the permissions comment above
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    uses: btclib-org/.github/.github/workflows/reusable-links.yml@main
+    with:
+      targets: '"*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"'
