@@ -199,6 +199,34 @@ documented at release-notes length in the first place, and are still in
   the issue rather than closing it: the `BACKLOG` row keyed on it lives
   in `btclib-org/.github` and is that tree's to narrow.
 
+### A command-line `..` segment reads as the whole suite, and a case pins it
+
+- **`tests/conftest_test.py` gains
+  `test_a_parent_directory_segment_names_the_whole_suite_too`** (closes
+  btclib-org/.github#1049), the name `bitcoin-core-rpc` and
+  `btclib-benchmarks` already carry for it. It asks `coverage_fail_under`
+  the two commands their copies ask -- `pytest tests/../tests` from the
+  rootdir, and `pytest ../tests` from inside `tests/` -- against a
+  `tmp_path` rootdir, a positional being read against the working
+  directory where a `testpaths` entry is read against `rootpath`.
+- **`Path.resolve` on the command line's side makes the path absolute,
+  collapses a `..` segment and follows a link, and this file pinned the
+  first and the last.** Measured over the whole module by writing each
+  rewrite of the comprehension into the tree, asserted before use and
+  the file restored by blob id after: `Path(path)` fails the relative
+  spellings of `test_a_path_that_collects_the_suite_is_a_whole_run`,
+  which is the first, and `Path(os.path.abspath(path))` fails
+  `test_a_symlinked_spelling_of_one_tree_is_still_the_whole_suite`
+  alone, which is the last. What separates that rewrite from
+  `Path(path).absolute()` is the collapsing, and this case is what one
+  of the two passes and the other does not.
+- **The symlinked case is behind a `pytest.skip` and this one asks for
+  no privilege.** With `.absolute()` written into the tree and
+  `Path.symlink_to` made to refuse, the module is green without this
+  case and fails on this case alone with it.
+- **`btclib-node` landed its half at `fa86147a`**, which is why this
+  citation closes the issue where that one cited it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

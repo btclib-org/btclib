@@ -297,6 +297,65 @@ def test_a_testpaths_entry_is_the_directory_its_parent_segment_reaches(
     assert gate == 0
 
 
+def test_a_parent_directory_segment_names_the_whole_suite_too(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`tests/../tests`, and `../tests` from inside `tests/`, are the suite.
+
+    `pathlib` keeps the segment, so each spelling here is a path that
+    neither equals the directory it names nor is above it until the
+    command line's side is resolved. The relative spellings of the case
+    above are collapsed as they are built and ask nothing of that half:
+    what they hold the call against is being dropped, not being weakened
+    to one that makes a path absolute and leaves the segment standing.
+
+    The same spelling on the `testpaths` side is invisible, which is
+    what the case just above says of it. Containment asks whether a path
+    from the command line is among the target's parents, so a `..` in
+    the target only lengthens that list, while a `..` in the path is
+    among no target's parents at all.
+
+    The two commands differ in where the shell stood. A positional is
+    read against the working directory, which is what `Path.resolve`
+    joins a relative one onto, while `rootpath` is the rootdir pytest
+    computes from the configuration file -- so starting inside `tests/`
+    moves the first and leaves the second where it was.
+
+    It asks for no symlink and no privilege, so it is what pins the
+    command line's call on a platform where the symlinked case can only
+    skip: there `Path(path).absolute()` answers every other case in this
+    file as the call does.
+    """
+    base = tmp_path.resolve()
+    (base / "tests").mkdir()
+
+    monkeypatch.chdir(base)
+    from_the_rootdir = coverage_fail_under(
+        None,
+        100.0,
+        ["tests/../tests"],
+        "",
+        "",
+        *_NO_FURTHER_SELECTION,
+        _TESTPATHS,
+        base,
+    )
+    assert from_the_rootdir == 100.0
+
+    monkeypatch.chdir(base / "tests")
+    from_inside_tests = coverage_fail_under(
+        None,
+        100.0,
+        ["../tests"],
+        "",
+        "",
+        *_NO_FURTHER_SELECTION,
+        _TESTPATHS,
+        base,
+    )
+    assert from_inside_tests == 100.0
+
+
 @pytest.mark.parametrize(
     "file_or_dir, keyword, markexpr",
     [
