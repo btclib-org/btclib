@@ -689,6 +689,12 @@ documented at release-notes length in the first place, and are still in
   allowlist, and the application slab asserts that nothing imports it**
   (issue #1192).
 
+### The concurrency group is keyed on the pull request's number, not `github.head_ref`
+
+- **`links.yml`, `py-arm-authority.yml`, `vendored-vectors.yml`,
+  `zkp-oracle.yml` and `sdist-rebuild.yml`** (closes #2101), matching
+  `docs.yml`, `integration-bitcoind.yml`, `test.yml` and `lint.yml`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
