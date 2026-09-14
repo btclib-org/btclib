@@ -35,17 +35,19 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.key import PrvKeyData
 from btclib.number_theory import mod_inv_var
-from tests import load, needs_bindings, vector_id
-from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
-from tests.key_vectors_test import Q as pub_key_point
-from tests.key_vectors_test import Q_compressed as pub_key_compressed
-from tests.key_vectors_test import q as prv_key_int
-from tests.key_vectors_test import q_hexstring as prv_key_hexstring
-from tests.key_vectors_test import (
+from tests import Q as pub_key_point
+from tests import Q_compressed as pub_key_compressed
+from tests import (
+    load,
+    needs_bindings,
+    vector_id,
     wif_compressed_string,
     wif_uncompressed_string,
     xprv_string,
 )
+from tests import q as prv_key_int
+from tests import q_hexstring as prv_key_hexstring
+from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 
 
 def test_signature_on_an_equal_curve() -> None:
