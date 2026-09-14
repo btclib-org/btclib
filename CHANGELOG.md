@@ -830,12 +830,6 @@ file per release is what keeps each of them under it.
   `.github/mutation/wallet.toml` each named a converter no module still
   defines** (closes #2121): each now cites the call site that replaced it.
 
-### `key_vectors_test.py`'s vectors move into `tests/__init__.py`
-
-- **The one key pair's spellings `ecc/dsa_test.py` and `hashes_test.py`
-  read live in `tests/__init__.py` now, beside the loaders its own
-  docstring already named** (closes #2120).
-
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
