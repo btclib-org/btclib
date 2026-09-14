@@ -800,6 +800,18 @@ file per release is what keeps each of them under it.
   #1188), where the one `network` argument the call used to take filled
   the first key's in for all of them.
 
+### `[tool.mypy] exclude` is anchored to the `build/` directory it means
+
+- **`"build"` was an unanchored regex, matching any path containing that
+  substring rather than only its own directory** (closes #2115), and it
+  dropped test files from the type gate as a result.
+
+### `block.build_coinbase` takes a `ScriptPubKey` for its output script
+
+- **Its `script_pub_key` was annotated `Octets` while forwarding straight
+  into a `TxOut`, which has always taken either** (issue #2115): the
+  annotation was narrower than the call the function already made.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
