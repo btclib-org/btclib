@@ -848,6 +848,12 @@ file per release is what keeps each of them under it.
   reinstalled the bindings** (closes #2132): the flags move onto
   `uv run` itself, and `measure()` refuses to run where they are installed.
 
+### `Sig.serialize` writes DER length octets, not CompactSize ones
+
+- **The sequence length was CompactSize, which diverges from X.690 at
+  128 octets** (closes #2130): `bpp512r1`, `nistp521` and `secp521r1`
+  reach it; `parse` still refuses the long form it never wrote.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
