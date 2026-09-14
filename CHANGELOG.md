@@ -707,6 +707,12 @@ documented at release-notes length in the first place, and are still in
   `btclib-org/.github`'s `reusable-docs.yml`** (issue
   btclib-org/.github#35): this file keeps the trigger and the group.
 
+### `REPOSITORY.md` reads the required checks back in the endpoint's order
+
+- **The required-checks table and the `PATCH` example put
+  `Lint and type-check` before `test: every job passed`, and
+  `Regtest against Bitcoin Core` before `docs`** (issue btclib-org/.github#35).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
