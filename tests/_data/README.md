@@ -1114,7 +1114,7 @@ behind  0 revisions; that commit is the tip of the path
 Verdict: **identical**, 70 strings, each a one-element array. All 70 are
 refused by all four of the entry points that could be handed one —
 `b58.h160_from_address`, `b32.witness_from_address`,
-`ScriptPubKey.from_address` and `prv_keyinfo_from_prv_key` — every
+`ScriptPubKey.from_address` and `b58.prv_key_data_from_wif` — every
 refusal a `BTClibValueError`.
 
 ### `tests/_data/base58_encode_decode.json`

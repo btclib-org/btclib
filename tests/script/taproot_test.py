@@ -470,11 +470,11 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
     message, so with no bindings installed there is no such arm to reach
     and nothing to compare the second against.
 
-    `_sec_from_key` leaves the octets unproven for the reason the arm
-    itself does, and `bytes_from_octets(pub_key, (33, 65))` is the whole
-    of what it checks, so what reaches `tweak_add` can be wrong in more
-    than one place. The arm names the x only where the x is the only
-    place left, which these three are not:
+    `PubKeyData(check_validity=False)` leaves the octets unproven for the
+    reason the arm itself does: `assert_valid`, which checks a length and
+    a prefix, is what `check_validity=False` skips, so what reaches
+    `tweak_add` can be wrong in more than one place. The arm names the x
+    only where the x is the only place left, which these three are not:
 
     - `04 || x || y`, a good x and a y that is not its own. The x is the
       half that is right, and naming it would be false.
