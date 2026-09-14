@@ -116,11 +116,27 @@ _S2C_POINT_TAG = b"s2c/ecdsa/point"
 _S2C_DATA_TAG = b"s2c/ecdsa/data"
 
 
+def _der_length(n: int) -> bytes:
+    """Return the X.690 8.1.3 length octets for a body of n octets.
+
+    Below 128 that is one octet, n itself; at 128 and above it is
+    `0x80 | k` followed by the k big-endian octets of n -- CompactSize's
+    `var_int.serialize` diverges from this at the same threshold, which
+    is issue 2130: no catalogued curve's element reaches it, and every
+    catalogued curve but bpp512r1, nistp521 and secp521r1 keeps the
+    sequence under it too.
+    """
+    if n < 0x80:
+        return bytes([n])
+    length_bytes = n.to_bytes((n.bit_length() + 7) // 8, byteorder="big")
+    return bytes([0x80 | len(length_bytes)]) + length_bytes
+
+
 def _serialize_scalar(scalar: int) -> bytes:
     # 'highest bit set' padding included here
     scalar_size = scalar.bit_length() // 8 + 1
     scalar_bytes = scalar.to_bytes(scalar_size, byteorder="big", signed=False)
-    return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
+    return _DER_SCALAR_MARKER + _der_length(len(scalar_bytes)) + scalar_bytes
 
 
 def _parse_der_value(stream: BytesIO) -> bytes:
@@ -206,6 +222,15 @@ class Sig:
     Bitcoin has a "low s" rule for the s value to be below ec.n,
     but it is only a standardness rule miners are allowed to ignore.
     Moreover, no such rule exists for r.
+
+    The size descriptors above are one octet each because BIP66 fixes
+    the format to secp256k1, whose widest signature body is 70 octets --
+    DER's one-octet length form covers up to 127. `serialize` takes any
+    `Curve`, and a sequence or an element reaching 128 octets writes
+    X.690 8.1.3's long form instead: `0x80 | k` followed by k octets of
+    length. `parse` binds `ec = secp256k1` and refuses that long form,
+    matching Core's `IsValidSignatureEncoding`, so the length forms
+    `serialize` can write are not all forms `parse` reads (issue 2130).
 
     **The encoding is not delegated, and it is the one thing about a
     signature that is not** (issue 911). The bindings have the same
@@ -308,7 +333,7 @@ class Sig:
 
         out = _serialize_scalar(self.r)
         out += _serialize_scalar(self.s)
-        return _DER_SIG_MARKER + var_bytes.serialize(out)
+        return _DER_SIG_MARKER + _der_length(len(out)) + out
 
     @classmethod
     def parse(

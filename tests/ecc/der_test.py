@@ -8,9 +8,11 @@ import pytest
 
 from btclib._libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib.curves import secp256k1
+from btclib.curves.curve import CURVES
+from btclib.ecc import dsa
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError
-from tests import needs_bindings
+from tests import load, needs_bindings
 
 ec = secp256k1
 
@@ -35,6 +37,116 @@ def test_der_size() -> None:
         sig_bin = sig.serialize()
         assert len(sig_bin) == length
         assert sig == Sig.parse(sig_bin)
+
+
+def _der_length(n: int) -> bytes:
+    """Return the X.690 8.1.3 length octets for a body of n octets.
+
+    A second, redundant reading of the rule `dsa._der_length` writes,
+    used only to check that `Sig.serialize`'s own length octets are
+    internally consistent (short form below 128, `0x80 | k` at and
+    above it). It shares its author with `dsa._der_length`, so it is not
+    what stands as the independent oracle for whether that rule is
+    itself correct DER -- `test_der_matches_a_vendored_der_oracle`
+    below, held to bytes `cryptography` produced outside this tree, is
+    (issue 2130).
+    """
+    if n < 0x80:
+        return bytes([n])
+    length_bytes = n.to_bytes((n.bit_length() + 7) // 8, byteorder="big")
+    return bytes([0x80 | len(length_bytes)]) + length_bytes
+
+
+def _read_der_length(data: bytes, offset: int) -> tuple[int, int]:
+    """Return (length, offset past it), read by X.690 8.1.3 alone."""
+    first = data[offset]
+    if first < 0x80:
+        return first, offset + 1
+    size = first & 0x7F
+    return int.from_bytes(
+        data[offset + 1 : offset + 1 + size], "big"
+    ), offset + 1 + size
+
+
+def _independent_parse(der: bytes) -> tuple[int, int]:
+    """Return (r, s), read by X.690 alone rather than by var_int/var_bytes.
+
+    `Sig.parse` reads a length back with the same CompactSize codec
+    `Sig.serialize` used to write it, which is blind by construction to
+    a divergence between the two (issue 2130). This re-derives every
+    length octet with `_der_length` and refuses trailing data instead --
+    a self-consistency check on `serialize`'s output, not a check that
+    the rule it and `_der_length` share is the right one.
+    """
+    assert der[0] == 0x30
+    seq_len, offset = _read_der_length(der, 1)
+    assert der[1:offset] == _der_length(seq_len)
+    assert offset + seq_len == len(der)
+
+    values = []
+    for _ in range(2):
+        assert der[offset] == 0x02
+        length, value_offset = _read_der_length(der, offset + 1)
+        assert der[offset + 1 : value_offset] == _der_length(length)
+        values.append(int.from_bytes(der[value_offset : value_offset + length], "big"))
+        offset = value_offset + length
+    assert offset == len(der)
+    r, s = values
+    return r, s
+
+
+def test_der_sequence_length_is_der_for_every_curve() -> None:
+    """Every catalogued curve's sequence length is X.690, not CompactSize.
+
+    secp256k1 and every other bitcoin curve stay under the 128-octet
+    threshold where the two agree; `bpp512r1`, `nistp521` and
+    `secp521r1` do not (issue 2130). A self-consistency check across the
+    whole catalogue, not the oracle: see
+    `test_der_matches_a_vendored_der_oracle` for that.
+    """
+    for name, curve in sorted(CURVES.items()):
+        sig = dsa.sign(b"msg", 0x1234567890ABCDEF, ec=curve)
+        raw = sig.serialize()
+        assert _independent_parse(raw) == (sig.r, sig.s), name
+
+
+def test_der_matches_a_vendored_der_oracle() -> None:
+    """`serialize` matches bytes an outside DER encoder wrote, per curve.
+
+    Outside means written by nobody in this change: `_der_length` above
+    and `dsa._der_length` share an author and an afternoon, so a decoder
+    or a copy of the encoder written beside the fix could share a
+    misreading of X.690 and prove nothing (issue 2130). This asserts
+    against `tests/ecc/_data/der_length_vectors.json` alone --
+    `cryptography`'s `encode_dss_signature`, run once outside this tree
+    and vendored rather than imported live, since `cryptography` is not
+    a dependency any group the suite installs resolves. See
+    `tests/_data/README.md` for the producing command.
+    """
+    for vector in load("ecc", "_data", "der_length_vectors.json"):
+        curve = CURVES[vector["curve"]]
+        r, s = int(vector["r"], 16), int(vector["s"], 16)
+        check_validity = vector["check_validity"]
+        sig = Sig(r, s, curve, check_validity=check_validity)
+        raw = sig.serialize(check_validity=check_validity)
+        assert raw == bytes.fromhex(vector["der"]), vector["curve"]
+
+
+def test_der_sequence_length_refuses_the_long_form() -> None:
+    """BIP66 fixes the length at one octet; `Sig.parse` still refuses more.
+
+    `81 44` is the DER long form of 0x44 = 68, an encoding no shorter
+    DER ever needs and no secp256k1 signature reaches. Core's
+    `IsValidSignatureEncoding` accepts only the short form, and
+    accepting both would be new malleability (issue 2130).
+    """
+    sig = Sig(2**247 - 1, 2**247 - 1)
+    good = sig.serialize()
+    assert good[1] < 0x80
+    long_form = good[:1] + bytes([0x81, good[1]]) + good[2:]
+    err_msg = "invalid DER length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Sig.parse(long_form)
 
 
 def test_der_deserialize() -> None:

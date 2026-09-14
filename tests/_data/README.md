@@ -2802,6 +2802,53 @@ libsecp256k1-zkp's rather than to btclib's own; what `info` says
 nothing about -- the sign bits, the ring commitments and the borromean
 signature -- is held by the proof going back out byte for byte.
 
+### `tests/ecc/_data/der_length_vectors.json`
+
+```text
+program   cryptography (pyca/cryptography)
+calls     encode_dss_signature(r, s)
+recorded  2026-09-14
+```
+
+Verdict: **recorded**. There is no upstream vector file and no
+repository: an outside DER encoder's own bytes, recorded once for a
+fixed `(r, s)` on each of `bpp512r1`, `nistp521` and `secp521r1` -- the
+catalogued curves whose signature reaches DER's long length form -- and
+for a scalar pair on `secp256k1` wide enough that no catalogued curve's
+own element does
+([ISS 2130](https://github.com/btclib-org/btclib/issues/2130)).
+
+It is here because nothing else in this tree can hold `Sig.serialize`'s
+length octets to a parser it did not write: `libsecp256k1_dsa` answers
+for `secp256k1` alone, and a decoder or a copy of the encoder written
+beside the fix would share its author and the same reading of the
+standard, proving nothing about whether that reading is the standard's
+own. `tests/ecc/der_test.py`'s `test_der_matches_a_vendored_der_oracle`
+compares `serialize()` to each entry's `der` field, byte for byte.
+
+**Recording another** is `dsa.sign`'s own deterministic nonce for each
+curve entry, and a synthetic scalar pair for the wide-element one:
+
+```shell
+uv run --locked --with cryptography python - <<'EOF'
+from btclib.curves.curve import CURVES
+from btclib.ecc import dsa
+from cryptography.hazmat.primitives.asymmetric.utils import (
+    encode_dss_signature)
+
+for name in ("bpp512r1", "nistp521", "secp521r1"):
+    sig = dsa.sign(b"msg", 0x1234567890ABCDEF, ec=CURVES[name])
+    print(name, hex(sig.r), hex(sig.s),
+          encode_dss_signature(sig.r, sig.s).hex())
+
+r = s = (1 << 1023) + 1
+print("secp256k1", hex(r), hex(s), encode_dss_signature(r, s).hex())
+EOF
+```
+
+Nothing upstream will ever refresh this file: `cryptography`'s encoder
+is the fixed point being checked against, not a moving target.
+
 ## What is not pinned, and why
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
@@ -2894,8 +2941,8 @@ Not checked byte for byte against one:
 - not vendored: `electrum_test_vectors.json`,
   `electrum_language_vectors.json`, `fakeenglish.txt`,
   `gettxoutsetinfo_regtest.json`, `zkp_rangeproof_vectors.json`,
-  `descriptor_checksums.json` and `btclib_test_vectors.json` (btclib's
-  own). `descriptor_checksums.json`,
+  `der_length_vectors.json`, `descriptor_checksums.json` and
+  `btclib_test_vectors.json` (btclib's own). `descriptor_checksums.json`,
   `fakeenglish.txt` and `btclib_test_vectors.json` are composed rather
   than recorded: `descriptor_checksums.json`'s checksums come from a
   third implementation run over Core's own descriptors, `fakeenglish.txt`
