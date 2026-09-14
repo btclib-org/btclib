@@ -95,7 +95,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   (bms.toml states the class), and `len(indexes) is not
 #   _ACCOUNT_LEVELS`, where CPython interns both small ints.
 #
-# The last one, `_account_sec`'s `pub_keyinfo_from_key(xkey)[0]` weakened
+# The last one, `_account_sec`'s `pub_keyinfo_from_xkey(xkey)[0]` weakened
 # to `[-1]` -- the network beside the key, which every participant of a
 # wallet shares, so the sort becomes a no-op -- is closed too (#561), and
 # what it took is worth writing down: not a wallet with `order="account"`,

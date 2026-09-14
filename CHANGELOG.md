@@ -824,6 +824,12 @@ file per release is what keeps each of them under it.
   goes** (issue btclib-org/.github#1098): the reason is now that a
   version should not depend on whether the project happens to be installed.
 
+### Three prose sites are re-pointed at the identifiers they now name
+
+- **`tests/_data/README.md`, `tests/script/taproot_test.py` and
+  `.github/mutation/wallet.toml` each named a converter no module still
+  defines** (closes #2121): each now cites the call site that replaced it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
