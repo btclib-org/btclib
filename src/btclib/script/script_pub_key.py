@@ -23,9 +23,11 @@ from typing_extensions import override
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
+from btclib.b32 import _v0_witness_program_from_key
 from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
+from btclib.key import PubKeyData
 from btclib.network import (
     _normalized_network_name,
     _validated_network_name,
@@ -33,7 +35,6 @@ from btclib.network import (
 )
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import assert_type, bytes_from_octets, bytesio_from_binarydata
 
 __all__ = [
@@ -141,7 +142,7 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
         raise BTClibValueError("invalid p2ms script_pub_key size")
 
     for pub_key in pub_keys:
-        pub_keyinfo_from_key(pub_key)
+        point_from_octets(pub_key)
 
     return m, pub_keys
 
@@ -149,7 +150,14 @@ def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
 def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
     """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
     _, pub_keys = p2ms_m_and_keys(script_pub_key)
-    return [b58.p2pkh(pub_key, network) for pub_key in pub_keys]
+    # check_validity=False: `p2ms_m_and_keys` has just parsed each of
+    # these as a curve point, which settles the size and the prefix
+    # `assert_valid` reads, and the network name is resolved by
+    # `b58.address_from_h160` one call down
+    return [
+        b58.p2pkh(PubKeyData(pub_key, network, check_validity=False))
+        for pub_key in pub_keys
+    ]
 
 
 def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) -> bool:
@@ -672,23 +680,19 @@ class ScriptPubKey(Script):
     @classmethod
     def p2pk(
         cls,
-        key: Key,
-        network: str | None = None,
+        key: PubKeyData,
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
-        """Return the p2pk ScriptPubKey of the provided Key."""
-        payload, network = pub_keyinfo_from_key(key, network)
-        script = serialize([payload, "OP_CHECKSIG"])
-        return cls(script, network, check_validity=check_validity)
+        """Return the p2pk ScriptPubKey of the provided public key."""
+        script = serialize([key.sec, "OP_CHECKSIG"])
+        return cls(script, key.network, check_validity=check_validity)
 
     @classmethod
     def p2ms(
         cls,
         m: int,
-        keys: Sequence[Key],
-        network: str | None = None,
-        compressed: bool | None = None,
+        keys: Sequence[PubKeyData],
         lexicographic_sorting: bool = True,
         *,
         check_validity: bool = True,
@@ -715,11 +719,18 @@ class ScriptPubKey(Script):
         if not 0 < m <= n:
             raise BTClibValueError(f"invalid m in m-of-n: {m}-of-{n}")
 
-        # if network is None, then first key sets the network
-        pub_key, network = pub_keyinfo_from_key(keys[0], network, compressed)
-        pub_keys = [pub_key] + [
-            pub_keyinfo_from_key(k, network, compressed)[0] for k in keys[1:]
-        ]
+        # the first key names the network and the rest have to agree:
+        # each key carries its own, where the `Key` spellings this used to
+        # take carried none and were filled in from one argument for all
+        # of them (issue #1188). A script mixing them is a caller's
+        # mistake, and the address the network decides is the whole
+        # script's
+        network = keys[0].network
+        for key in keys[1:]:
+            if key.network != network:
+                err_msg = f"mixed networks in m-of-n: {network} and {key.network}"
+                raise BTClibValueError(err_msg)
+        pub_keys = [key.sec for key in keys]
         if lexicographic_sorting:
             # btclib_secp256k1's keys.pubkey_sort is not called here:
             # on compressed keys it gives the identical order, byte for
@@ -758,18 +769,15 @@ class ScriptPubKey(Script):
     @classmethod
     def p2pkh(
         cls,
-        key: Key,
-        compressed: bool | None = None,
-        network: str | None = None,
+        key: PubKeyData,
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
-        """Return the p2pkh ScriptPubKey of the provided key."""
-        pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
+        """Return the p2pkh ScriptPubKey of the provided public key."""
         script = serialize(
-            ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
+            ["OP_DUP", "OP_HASH160", hash160(key.sec), "OP_EQUALVERIFY", "OP_CHECKSIG"]
         )
-        return cls(script, network, check_validity=check_validity)
+        return cls(script, key.network, check_validity=check_validity)
 
     @classmethod
     def p2sh(
@@ -787,17 +795,17 @@ class ScriptPubKey(Script):
     @classmethod
     def p2wpkh(
         cls,
-        key: Key,
+        key: PubKeyData,
         *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
-        """Return the p2wpkh ScriptPubKey of the provided key.
+        """Return the p2wpkh ScriptPubKey of the provided public key.
 
-        If the provided key is a public one, it must be compressed.
+        The key must be compressed, which is BIP141's rule and
+        `b32._v0_witness_program_from_key`'s refusal.
         """
-        pub_key, network = pub_keyinfo_from_key(key, compressed=True)
-        script = serialize(["OP_0", hash160(pub_key)])
-        return cls(script, network, check_validity=check_validity)
+        script = serialize(["OP_0", _v0_witness_program_from_key(key)])
+        return cls(script, key.network, check_validity=check_validity)
 
     @classmethod
     def p2wsh(
@@ -815,7 +823,7 @@ class ScriptPubKey(Script):
     @classmethod
     def p2tr(
         cls,
-        internal_key: Key | None = None,
+        internal_key: PubKeyData | None = None,
         script_path: TaprootScriptTree | None = None,
         network: str = "mainnet",
         *,

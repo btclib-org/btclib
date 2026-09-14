@@ -21,8 +21,8 @@ from btclib.exceptions import (
     NotAPrvKeyError,
 )
 from btclib.hashes import hash160, sha256
+from btclib.key import PubKeyData
 from btclib.script.script import serialize
-from btclib.to_pub_key import pub_keyinfo_from_key
 
 ec = secp256k1
 
@@ -133,29 +133,22 @@ def test_a_mistyped_wif_is_reported_as_one() -> None:
     # never the input itself, which is candidate key material
     assert mistyped not in message
 
-    # the address functions answer otherwise, and that is the contract
-    # rather than a gap: the checksum is verified before any prefix is
-    # read, so nothing there knows a WIF was meant, and there are other
-    # spellings left to try the text as
-    with pytest.raises(BTClibValueError, match="not a private or public key"):
-        b58.p2pkh(mistyped)
 
-
-def test_a_faulty_wif_keeps_its_diagnosis_through_an_address() -> None:
+def test_a_faulty_wif_keeps_its_diagnosis() -> None:
     """A WIF a network has claimed does not degrade to "not a key".
 
-    `NotAPrvKeyError` says another spelling is worth trying and
-    `_pub_keyinfo_from_key` tries it. `InvalidPrvKeyError` says the
-    format was recognised, so there is nothing left to try and the
-    diagnosis already computed is the answer.
+    `NotAPrvKeyError` says the text is no WIF and another spelling is
+    worth trying; `InvalidPrvKeyError` says the format was recognised, so
+    what is wrong with the WIF is the answer and there is nothing left to
+    try it as.
     """
     uncompressed = "5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf"
     with pytest.raises(InvalidPrvKeyError, match="compression requirement mismatch"):
-        b58.p2wpkh_p2sh(uncompressed)
+        b58.prv_key_data_from_wif(uncompressed, compressed=True)
 
     testnet_wif = "cMahea7zqjxrtgAbB7LSGbcQUr1uX1ojuat9jZodMN87JcbXMTcA"
     with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif"):
-        b58.p2pkh(testnet_wif, network="mainnet")
+        b58.prv_key_data_from_wif(testnet_wif, network="mainnet")
 
 
 def test_address_from_h160() -> None:
@@ -188,8 +181,7 @@ def test_p2pkh_from_wif() -> None:
     q, network, compressed = bip32.prv_keyinfo_from_xprv(xprv)
     wif = b58.wif_from_prv_key(q, network, compressed)
     assert wif == "L2L1dqRmkmVtwStNf5wg8nnGaRn3buoQr721XShM4VwDbTcn9bpm"
-    pub_key = b58.prv_key_data_from_wif(wif).pub.sec
-    address = b58.p2pkh(pub_key)
+    address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     xpub = bip32.xpub_from_xprv(xprv)
     assert address == slip132.address_from_xpub(xpub)
 
@@ -199,35 +191,33 @@ def test_p2pkh_from_wif() -> None:
 
 
 def test_p2pkh_from_pub_key() -> None:
-    """Reproduce the bitcoin wiki's p2pkh example, both compressions."""
+    """Reproduce the bitcoin wiki's p2pkh example, both compressions.
+
+    Which of the two the address is built from is the octets the caller
+    hands over and not a flag beside them: a `PubKeyData` is a key in one
+    SEC form, and `is_compressed` reads that form off it rather than
+    filtering on it (issue #1188).
+    """
     # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    assert address == b58.p2pkh(pub_key)
-    assert address == b58.p2pkh(pub_key, compressed=True)
+    assert address == b58.p2pkh(PubKeyData(pub_key))
+    assert PubKeyData(pub_key).is_compressed
     _, h160, _ = b58.h160_from_address(address)
     assert h160 == hash160(pub_key)
 
     # trailing/leading spaces in address string
-    assert address == b58.p2pkh(f" {pub_key}")
+    assert address == b58.p2pkh(PubKeyData(f" {pub_key}"))
     assert h160 == hash160(f" {pub_key}")
-    assert address == b58.p2pkh(f"{pub_key} ")
+    assert address == b58.p2pkh(PubKeyData(f"{pub_key} "))
     assert h160 == hash160(f"{pub_key} ")
 
     uncompr_pub_key = bytes_from_point(point_from_octets(pub_key), compressed=False)
     uncompr_address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
-    assert uncompr_address == b58.p2pkh(uncompr_pub_key, compressed=False)
-    assert uncompr_address == b58.p2pkh(uncompr_pub_key)
+    assert uncompr_address == b58.p2pkh(PubKeyData(uncompr_pub_key))
+    assert not PubKeyData(uncompr_pub_key).is_compressed
     _, uncompr_h160, _ = b58.h160_from_address(uncompr_address)
     assert uncompr_h160 == hash160(uncompr_pub_key)
-
-    err_msg = "not a private or uncompressed public key"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        assert uncompr_address == b58.p2pkh(pub_key, compressed=False)
-
-    err_msg = "not a private or compressed public key"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        assert address == b58.p2pkh(uncompr_pub_key, compressed=True)
 
 
 def test_p2sh() -> None:
@@ -262,10 +252,12 @@ def test_p2sh() -> None:
 
 def test_p2w_p2sh() -> None:
     """Verify p2wpkh-p2sh and p2wsh-p2sh addresses from one public key."""
-    pub_key_str = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-    pub_key, network = pub_keyinfo_from_key(pub_key_str, compressed=True)
-    witness_program = hash160(pub_key)
-    b58addr = b58.p2wpkh_p2sh(pub_key, network)
+    key = PubKeyData(
+        "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    )
+    network = key.network
+    witness_program = hash160(key.sec)
+    b58addr = b58.p2wpkh_p2sh(key)
     assert b58addr == "36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
 
     script_pub_key = serialize(
@@ -288,7 +280,9 @@ def test_v0_witness_redeem_script() -> None:
     pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     wit_prg = hash160(pub_key)
     assert len(wit_prg) == 20
-    assert b58.p2wpkh_p2sh(pub_key) == b58.p2sh(serialize(["OP_0", wit_prg]))
+    assert b58.p2wpkh_p2sh(PubKeyData(pub_key)) == b58.p2sh(
+        serialize(["OP_0", wit_prg])
+    )
 
     redeem_script = serialize(["OP_1", "OP_CHECKSIG"])
     wit_prg = sha256(redeem_script)
@@ -330,32 +324,29 @@ def test_address_from_wif() -> None:
         assert wif == b58.wif_from_prv_key(q, network, compressed)
         data = b58.prv_key_data_from_wif(wif)
         assert (data.q, data.network, data.compressed) == (q, network, compressed)
-        assert address == b58.p2pkh(wif)
+        assert address == b58.p2pkh(data.pub)
         script_type, payload, net = b58.h160_from_address(address)
         assert net == network
         assert script_type == "p2pkh"
 
         if compressed:
-            # b58 reads the WIF itself; b32 sits below it and cannot, so
-            # the pub key it derives is handed over instead (issue #1188)
-            pub_key = data.pub.sec
-            b32_address = b32.p2wpkh(pub_key, network)
+            # the public key the WIF derives, which is what an address
+            # builder takes: neither encoder reads a WIF (issue #1188)
+            b32_address = b32.p2wpkh(data.pub)
             assert (0, payload, net) == b32.witness_from_address(b32_address)
 
-            b58_address = b58.p2wpkh_p2sh(wif)
+            b58_address = b58.p2wpkh_p2sh(data.pub)
             script_bin = hash160(b"\x00\x14" + payload)
             assert ("p2sh", script_bin, net) == b58.h160_from_address(b58_address)
 
         else:
-            # b32 cannot read a WIF, so an uncompressed one reaches it as
-            # text no spelling resolves; b58 reads it, finds a WIF that a
-            # p2wpkh cannot use, and says which of the two it is
-            err_msg = "not a private or compressed public key"
+            # segwit has no uncompressed form, and both encodings say so
+            # about the key rather than about the WIF it came from
+            err_msg = "not a compressed public key"
             with pytest.raises(BTClibValueError, match=err_msg):
-                b32.p2wpkh(wif)
-            err_msg = "compression requirement mismatch"
-            with pytest.raises(InvalidPrvKeyError, match=err_msg):
-                b58.p2wpkh_p2sh(wif)
+                b32.p2wpkh(data.pub)
+            with pytest.raises(BTClibValueError, match=err_msg):
+                b58.p2wpkh_p2sh(data.pub)
 
 
 def test_exceptions() -> None:
@@ -366,8 +357,8 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
         b58.h160_from_address(invalid_address)
 
-    with pytest.raises(BTClibValueError, match="not a private or public key"):
-        b58.p2pkh(f"{pub_key}0A")
+    with pytest.raises(BTClibValueError, match="invalid SEC key size: 34"):
+        b58.p2pkh(PubKeyData(f"{pub_key}0A"))
 
 
 @given(

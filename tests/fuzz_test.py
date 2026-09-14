@@ -43,6 +43,7 @@ from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.ecc.rangeproof import RangeProof
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData
 from btclib.p2p.address import Addr, NetworkAddress, TimestampedNetworkAddress
 from btclib.p2p.addrv2 import AddrV2, NetworkAddressV2, SendAddrV2
 from btclib.p2p.block_filters import (
@@ -564,7 +565,7 @@ def test_mutated_serialization_honors_the_exception_contract(
 # transaction being fixed: it is the one field of a valid spend that the
 # consensus code indexes into before it has validated anything
 _P2TR_PRV_KEY = 0x4242424242424242424242424242424242424242424242424242424242424242
-_P2TR_SCRIPT_PUB_KEY = ScriptPubKey.p2tr(_P2TR_PRV_KEY)
+_P2TR_SCRIPT_PUB_KEY = ScriptPubKey.p2tr(PrvKeyData(_P2TR_PRV_KEY).pub)
 _P2TR_PREVOUTS = [TxOut(100_000, _P2TR_SCRIPT_PUB_KEY)]
 
 

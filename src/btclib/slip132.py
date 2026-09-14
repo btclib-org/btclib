@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Callable
-from typing import Any
 
 from btclib import b32, b58
 from btclib.alias import NetworkField
@@ -24,6 +23,7 @@ from btclib.bip32.bip32 import (
 )
 from btclib.bip32.der_path import DerPath
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.network import (
     NETWORKS,
     Network,
@@ -71,18 +71,20 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         "slip132_p2wpkh_pub",
         "slip132_p2wpkh_p2sh_pub",
     ]
-    function_list: list[Callable[[Any, str], str]] = [
+    function_list: list[Callable[[PubKeyData], str]] = [
         b58.p2pkh,
         b32.p2wpkh,
         b58.p2wpkh_p2sh,
     ]
     for version, function in zip(version_list, function_list, strict=True):
         if network := network_from_key_value(version, xpub.version):
-            # `BIP32KeyData.key`, which for an xpub is the SEC octets and
-            # is what the encoders take: an extended key is not a `Key`
-            # (issue #1188), and the prefix check above is what makes the
-            # field readable as a public key here
-            return function(xpub.key, network)
+            # `BIP32KeyData.key`, which for an xpub is the SEC octets an
+            # encoder builds an address from: an extended key is not what
+            # one takes (issue #1188), and the prefix check above is what
+            # makes the field readable as a public key here.
+            # check_validity=False: that check is the prefix, and the size
+            # is `BIP32KeyData`'s own
+            return function(PubKeyData(xpub.key, network, check_validity=False))
     # reachable: b58decode accepts the p2wsh versions too, and a p2wsh
     # address is not a function of the public key alone
     err_msg = f"unknown xpub version: {xpub.version.hex()}"

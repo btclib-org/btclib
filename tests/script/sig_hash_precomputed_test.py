@@ -19,18 +19,18 @@ import pytest
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256
+from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, Witness, sig_hash
 from btclib.script.engine import ALL_FLAGS, verify_transaction
 from btclib.script.script import serialize
 from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.taproot import output_prvkey
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 PRV_KEY = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
-PUB_KEY = pub_keyinfo_from_prv_key(PRV_KEY)[0]
+PUB_KEY = PrvKeyData(PRV_KEY).pub
 
-WITNESS_SCRIPT = serialize([PUB_KEY, "OP_CHECKSIG"])
+WITNESS_SCRIPT = serialize([PUB_KEY.sec, "OP_CHECKSIG"])
 P2WPKH_SCRIPT = ScriptPubKey.p2wpkh(PUB_KEY).script
 P2WSH_SCRIPT = ScriptPubKey.p2wsh(WITNESS_SCRIPT).script
 
@@ -268,7 +268,7 @@ def signed_tx(kind: str) -> tuple[Tx, list[TxOut]]:
         if p2wpkh:
             msg_hash = sig_hash.from_tx(prevouts, tx, i, sig_hash.ALL)
             der = dsa.sign_(msg_hash, PRV_KEY).serialize()
-            tx.vin[i].script_witness = Witness([der + b"\x01", PUB_KEY])
+            tx.vin[i].script_witness = Witness([der + b"\x01", PUB_KEY.sec])
         else:
             msg_hash = sig_hash.from_tx(prevouts, tx, i, sig_hash.DEFAULT)
             signature = ssa.sign_(msg_hash, output_prvkey(PRV_KEY)).serialize()

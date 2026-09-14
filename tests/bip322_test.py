@@ -60,6 +60,10 @@ GENERATED = load("_data", "generated-test-vectors.json", encoding="utf-8")
 WIF = "L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k"
 OTHER_WIF = "L4DksdGZ4KQJfcLHD5Dv25fu8Rxyv7hHi2RjZR4TYzr8c6h9VNrp"
 
+# the public key of the first, which is what an address builder takes:
+# none of the four reads a WIF (issue #1188)
+WIF_PUB = b58.prv_key_data_from_wif(WIF).pub
+
 # native segwit: the script types whose signature the simple variant may
 # carry, the rest of `to_sign` being fixed for them
 _NATIVE_SEGWIT = frozenset({"p2wpkh", "p2wsh", "p2tr"})
@@ -68,11 +72,10 @@ _NATIVE_SEGWIT = frozenset({"p2wpkh", "p2wsh", "p2tr"})
 def _address(wif: str, script_type: str) -> str:
     """Return the address of one of the four types a single key owns.
 
-    The pub key and not the WIF: `b32.p2wpkh` sits below `b58` and has
-    no way to read one, where `b58.p2pkh` and `b58.p2wpkh_p2sh` would
-    (issue #1188) -- the octets work for all four alike.
+    The public key and not the WIF: no address builder reads one
+    (issue #1188), and the parsed key works for all four alike.
     """
-    pub_key = b58.prv_key_data_from_wif(wif, compressed=True).pub.sec
+    pub_key = b58.prv_key_data_from_wif(wif, compressed=True).pub
     if script_type == "p2tr":
         return p2tr(output_pubkey(pub_key)[0])
     return {"p2pkh": p2pkh, "p2wpkh": p2wpkh, "p2sh-p2wpkh": p2wpkh_p2sh}[script_type](
@@ -290,9 +293,8 @@ def test_sign_refuses_an_uncompressed_key_for_segwit() -> None:
     wif = wif_from_prv_key(
         b58.prv_key_data_from_wif(WIF).q, "mainnet", compressed=False
     )
-    assert bip322.verify(
-        b"", p2pkh(wif), bip322.sign(b"", b58.prv_key_data_from_wif(wif), p2pkh(wif))
-    )
+    data = b58.prv_key_data_from_wif(wif)
+    assert bip322.verify(b"", p2pkh(data.pub), bip322.sign(b"", data, p2pkh(data.pub)))
     for script_type in ("p2wpkh", "p2sh-p2wpkh", "p2tr"):
         with pytest.raises(BTClibValueError, match="mismatch between private key"):
             bip322.sign(b"", b58.prv_key_data_from_wif(wif), _address(WIF, script_type))
@@ -344,20 +346,18 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     whatever `ecc.bms` would say of it.
     """
     msg = b"legacy"
-    # b32.p2wpkh sits below b58 and cannot read a WIF (issue #1188)
-    wif_pub_key = b58.prv_key_data_from_wif(WIF).pub.sec
     legacy = bms.sign(msg, b58.prv_key_data_from_wif(WIF)).b64encode()
-    assert bms.verify(msg, p2wpkh(wif_pub_key), legacy)
+    assert bms.verify(msg, p2wpkh(WIF_PUB), legacy)
 
-    assert bip322.verify(msg, p2pkh(WIF), legacy)
-    assert not bip322.verify(msg, p2wpkh(wif_pub_key), legacy)
-    assert not bip322.verify(msg, p2pkh(WIF), legacy, legacy=False)
-    assert not bip322.verify(b"another", p2pkh(WIF), legacy)
+    assert bip322.verify(msg, p2pkh(WIF_PUB), legacy)
+    assert not bip322.verify(msg, p2wpkh(WIF_PUB), legacy)
+    assert not bip322.verify(msg, p2pkh(WIF_PUB), legacy, legacy=False)
+    assert not bip322.verify(b"another", p2pkh(WIF_PUB), legacy)
 
     # assert_as_valid's own legacy default, not verify's: verify always
     # forwards its own `legacy` argument explicitly, so nothing above
     # reaches assert_as_valid's default unless called directly
-    bip322.assert_as_valid(msg, p2pkh(WIF), legacy)
+    bip322.assert_as_valid(msg, p2pkh(WIF_PUB), legacy)
 
     # and the variant does not depend on how the signature is held.
     # Which branch runs was decided by `isinstance(sig, (str, bytes))`,
@@ -367,8 +367,8 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     # all (issue #1238)
     octets = legacy.encode("ascii")
     for spelling in (octets, bytearray(octets), memoryview(octets)):
-        assert bip322.verify(msg, p2pkh(WIF), spelling)
-        assert not bip322.verify(msg, p2wpkh(wif_pub_key), spelling)
+        assert bip322.verify(msg, p2pkh(WIF_PUB), spelling)
+        assert not bip322.verify(msg, p2wpkh(WIF_PUB), spelling)
 
 
 def test_a_simple_signature_is_not_65_octets() -> None:
@@ -590,7 +590,7 @@ def test_proof_of_funds_reuses_an_earlier_non_witness_utxo() -> None:
         2,
         0,
         [TxIn(OutPoint("00" * 31 + "01", 0), b"", 0xFFFFFFFF)],
-        [TxOut(1000, ScriptPubKey.from_address(p2pkh(WIF)).script)] * 2,
+        [TxOut(1000, ScriptPubKey.from_address(p2pkh(WIF_PUB)).script)] * 2,
     )
     msg, addr = b"pof", _address(WIF, "p2wpkh")
     spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)

@@ -21,6 +21,41 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.10 (work in progress, not released yet)
 
+### Breaking changes
+
+- **An address is built from a `btclib.key.PubKeyData`, not from any
+  spelling of a key** (issue #1188). At `v2023.7.12`,
+  `btclib.b58.p2pkh(key: Key, network: str | None = None, compressed:
+  bool | None = None)`, `btclib.b58.p2wpkh_p2sh(key: Key, network: str |
+  None = None)` and `btclib.b32.p2wpkh(key: Key, network: str | None =
+  None)` took the `Key` union -- `int, bytes, str, BIP32KeyData, Point`,
+  with `str` reading as hex octets, as a WIF or as an extended key --
+  and they are `p2pkh(key: PubKeyData)`,
+  `p2wpkh_p2sh(key: PubKeyData)` and `p2wpkh(key: PubKeyData)` now, the
+  key carrying the network the arguments used to supply.
+  `ScriptPubKey.p2pk`, `.p2pkh`, `.p2ms`, `.p2wpkh` and `.p2tr` narrow
+  the same way, and the `network` and
+  `compressed` arguments `p2pk`, `p2pkh` and `p2ms` carried go with it;
+  `script.taproot.output_pubkey` and `input_script_sig` take a
+  `PubKeyData` internal key; `btclib.wallet.KeyWallet` and its `add` take
+  a `btclib.key.PrvKeyData` or a `PubKeyData`, which is what says whether
+  the wallet can sign for the address it hands back.
+
+  Act on it wherever you passed a key to one of them.
+  `btclib.key.PubKeyData(sec, network)` wraps SEC octets or their hex;
+  `btclib.key.PrvKeyData(q, network, compressed).pub` derives the public
+  key of a scalar and `btclib.b58.prv_key_data_from_wif(wif).pub` that
+  of a WIF; and
+  `btclib.key.PubKeyData(*btclib.bip32.pub_keyinfo_from_xkey(xkey))` is
+  the extended-key spelling. Where the key was a public one
+  `compressed` filtered the octets handed over rather than converting
+  them, so the form a `PubKeyData` carries is what it used to select and
+  `PubKeyData.is_compressed` answers it; where the key was a private one
+  it chose which SEC form to derive, and `PrvKeyData.compressed` is that
+  choice. A private key no longer reaches an address builder
+  unannounced, which is the point: `SECURITY.md` publishes that the
+  Python scalar multiplication is not constant-time.
+
 ## v2026.9.13
 
 ### Breaking changes

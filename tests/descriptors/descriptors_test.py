@@ -82,6 +82,7 @@ from btclib.descriptors.miniscript import _ARITY, Miniscript
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
+from btclib.key import PubKeyData
 from btclib.psbt.musig2 import nonce_gen, partial_sign, partial_sigs_agg
 from btclib.psbt.psbt import (
     Psbt,
@@ -1125,7 +1126,7 @@ def test_redeem_script() -> None:
     key = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
     parsed = parse(f"sh(wpkh({key}))")
     assert isinstance(parsed, ShDescriptor)
-    assert parsed.inner.redeem_script() == ScriptPubKey.p2wpkh(key).script
+    assert parsed.inner.redeem_script() == ScriptPubKey.p2wpkh(PubKeyData(key)).script
     assert parsed.script_pub_key() == ScriptPubKey.p2sh(parsed.inner.redeem_script())
 
 
@@ -3045,7 +3046,9 @@ def test_a_rawtr_key_is_the_output_key_and_a_tr_key_is_not() -> None:
     # holds an x-only one as and what the tweak is computed from
     sec = bytes.fromhex(f"02{XONLY_A}")
     tweaked = parse(f"tr({XONLY_A})")
-    assert tweaked.script_pub_key().script[2:] == taproot.output_pubkey(sec)[0]
+    assert (
+        tweaked.script_pub_key().script[2:] == taproot.output_pubkey(PubKeyData(sec))[0]
+    )
     assert raw_tr.script_pub_key() != tweaked.script_pub_key()
 
 

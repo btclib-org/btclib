@@ -124,7 +124,7 @@ from btclib.ecc import dsa
 from btclib.ecc.dsa import _libsecp256k1_recover_sec_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, reduce_to_hlen
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_name
 from btclib.utils import (
     assert_no_trailing,
@@ -274,7 +274,10 @@ def gen_keys(network: str = "mainnet", compressed: bool = True) -> tuple[str, st
     # `wif_from_prv_key` is what refuses a `compressed` that is no bool,
     # ahead of the derivation below reading it
     wif = wif_from_prv_key(q, network, compressed)
-    return wif, p2pkh(bytes_from_prv_key_int(q, ec, compressed), network)
+    sec = bytes_from_prv_key_int(q, ec, compressed)
+    # check_validity=False: the octets are the serialization just made,
+    # and the network is the one they were drawn on
+    return wif, p2pkh(PubKeyData(sec, network, check_validity=False))
 
 
 def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
@@ -306,13 +309,19 @@ def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
     # bytes_from_prv_key_int, not bytes_from_point(mult(q)): the address
     # wants the octets, and on secp256k1 they come out of the bindings'
     # own serialization without a point in between (issue #127)
-    pub_key = bytes_from_prv_key_int(q, compressed=compressed)
+    # check_validity=False: the octets are the serialization above, and
+    # the network is the one the key says it is on
+    pub_key = PubKeyData(
+        bytes_from_prv_key_int(q, compressed=compressed),
+        network,
+        check_validity=False,
+    )
 
     if addr is not None:
         addr = str_from_string(addr, "address").strip()
 
     # finally, calculate the recovery flag
-    if addr is None or addr == p2pkh(pub_key, network, compressed):
+    if addr is None or addr == p2pkh(pub_key):
         rf = key_id + 27
         # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0
@@ -320,12 +329,12 @@ def sign(msg: Octets, prv_key: PrvKeyData, addr: String | None = None) -> Sig:
     # which has no uncompressed form, so an uncompressed key can own a
     # p2pkh address and nothing else. Without the guard the two calls
     # below would be reached with an uncompressed pub_key and raise out
-    # of p2wpkh_p2sh -- "not a private or compressed public key for
-    # mainnet", which names neither what was passed (a private key, for
-    # mainnet) nor what failed (the address is not this key's)
-    elif compressed and addr == p2wpkh_p2sh(pub_key, network):
+    # of p2wpkh_p2sh -- "not a compressed public key", which says what
+    # the key is and not what failed, the address simply not being this
+    # key's
+    elif compressed and addr == p2wpkh_p2sh(pub_key):
         rf = key_id + 35
-    elif compressed and addr == p2wpkh(pub_key, network):
+    elif compressed and addr == p2wpkh(pub_key):
         rf = key_id + 39
     else:
         raise BTClibValueError("mismatch between private key and address")

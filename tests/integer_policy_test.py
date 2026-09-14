@@ -25,8 +25,7 @@ import pytest
 from btclib import base58, bech32, var_int
 from btclib.alias import TaprootScriptTree
 from btclib.amount import valid_sats_amount
-from btclib.b32 import p2wpkh
-from btclib.b58 import p2pkh, wif_from_prv_key
+from btclib.b58 import wif_from_prv_key
 from btclib.bip32 import BIP32KeyData
 from btclib.bip32.bip32 import (
     derive,
@@ -210,17 +209,18 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     # the key path, which this census did not reach until issue #1206.
     # Two lines of the library stand behind all of it: `int_from_integer`,
     # and `to_prv_key`'s type gate for the int branch that does not reach
-    # the coercion. Neither is alone everywhere -- `point_from_key`,
-    # `p2pkh` and `p2wpkh` meet `to_pub_key`'s gate before either -- so
-    # dropping one line lets a bool back through only where nothing else
-    # stands behind it, and these cases are here for the reach of the
-    # policy and not as a test apiece. `to_pub_key`'s gate is a third line
-    # and not a third refusal: drop it and `to_prv_key`'s answers those
-    # three one frame down, which is why the wordings below are what pin
-    # it. `bms.sign` is not among them any more: it takes a `PrvKeyData`
-    # and nothing else, so a bool is refused by `assert_type` before
-    # either line runs, on the same terms as any other wrong type
-    # (issue #1188) -- a refusal `key_test.py` holds, not this census
+    # the coercion. Neither is alone everywhere -- `point_from_key` meets
+    # `to_pub_key`'s gate before either -- so dropping one line lets a
+    # bool back through only where nothing else stands behind it, and
+    # these cases are here for the reach of the policy and not as a test
+    # apiece. `to_pub_key`'s gate is a third line and not a third
+    # refusal: drop it and `to_prv_key`'s answers one frame down, which
+    # is why the wording below is what pins it. The address builders are
+    # not among them: they take a `PubKeyData`, so a bool is refused by
+    # `bytes_from_octets` on the same terms as any other wrong type, and
+    # `bms.sign` likewise takes a `PrvKeyData` and refuses one through
+    # `assert_type` (issue #1188) -- refusals `key_test.py` holds, not
+    # this census
     ("integer coercion", int_from_integer),
     ("hex string", hex_string),
     ("curve multiplier", mult),
@@ -228,8 +228,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("private key record", prv_keyinfo_from_prv_key),
     ("public key converter", point_from_key),
     ("WIF private key", wif_from_prv_key),
-    ("base58 address key", p2pkh),
-    ("bech32 address key", p2wpkh),
     ("BIP340 x-only key", point_from_bip340pub_key),
     # not the converter twice: `verify` answers False where it cannot
     # verify, so what this pins is that the refusal is not one of those
@@ -335,8 +333,6 @@ _WORDINGS = [
     ("WIF private key", wif_from_prv_key, "non-integer: True"),
     ("private key record", prv_keyinfo_from_prv_key, "not a private key"),
     ("public key converter", point_from_key, "not a private or public key"),
-    ("base58 address key", p2pkh, "not a private or public key"),
-    ("bech32 address key", p2wpkh, "not a private or public key"),
     ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
     # separate from the three families above too: the trailing-underscore
     # layer's own type gate on a bare `int` (issue #1248), one sentence per
@@ -414,7 +410,7 @@ def test_which_check_refuses_the_bool_decides_the_sentence(
 
     `to_pub_key._assert_key_type`'s bool line has nothing else to be
     tested by: dropping it leaves every one of these a refusal, and
-    moves the three it answers for onto "not a private key".
+    moves the one it answers for onto "not a private key".
     """
     with pytest.raises(BTClibTypeError, match=message):
         call(True)
@@ -450,8 +446,6 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert prv_keyinfo_from_prv_key(1) == (1, "mainnet", True)
     assert point_from_key(1) == secp256k1.G
     assert wif_from_prv_key(1).startswith("Kw")
-    assert p2pkh(1).startswith("1")
-    assert p2wpkh(1).startswith("bc1")
     assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)
     assert ssa_challenge_(b"msg", 1, 1, secp256k1, hashlib.sha256)

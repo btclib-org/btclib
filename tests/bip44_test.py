@@ -27,6 +27,7 @@ from btclib.bip44 import (
 )
 from btclib.descriptors import account_descriptors
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 
 # the "abandon abandon ... about" seed of BIP39, which BIP84 and BIP86
 # publish as a root key: the same key, spelled with two versions
@@ -178,8 +179,8 @@ def test_unknown_purpose() -> None:
     der_path = "m/48h/0h/0h/0/0"
     address = address_from_der_path(_XPRV_ROOT, der_path, "p2wpkh")
     # `b32.p2wpkh` takes a public key and no extended key (issue #1188)
-    derived = bip32.pub_keyinfo_from_xkey(bip32.derive(_XPRV_ROOT, der_path))[0]
-    assert address == b32.p2wpkh(derived)
+    derived = bip32.pub_keyinfo_from_xkey(bip32.derive(_XPRV_ROOT, der_path))
+    assert address == b32.p2wpkh(PubKeyData(*derived))
 
     # it overrides a known purpose too, and the p2wpkh of BIP84's path is
     # BIP84's address whichever way it is asked for

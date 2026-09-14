@@ -58,8 +58,8 @@ from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
+from btclib.key import PubKeyData
 from btclib.network import NETWORKS, network_from_key_value, network_from_name
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
@@ -190,10 +190,25 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key
 
 
-def p2wpkh(key: Key, network: str | None = None) -> str:
+def _v0_witness_program_from_key(key: PubKeyData) -> bytes:
+    """Return the v0 witness program of a public key.
+
+    hash160 of the SEC octets, and the refusal above it: BIP141 states
+    that a version 0 program built from an uncompressed key is
+    unspendable, so the three encodings that build one -- `p2wpkh` here,
+    `b58.p2wpkh_p2sh` and `script.script_pub_key.ScriptPubKey.p2wpkh` --
+    ask this rather than each carrying the rule.
+
+    https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki
+    """
+    if not key.is_compressed:
+        raise BTClibValueError("not a compressed public key")
+    return hash160(key.sec)
+
+
+def p2wpkh(key: PubKeyData) -> str:
     """Return the p2wpkh bech32 address corresponding to a public key."""
-    pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
-    return address_from_witness(0, hash160(pub_key), network)
+    return address_from_witness(0, _v0_witness_program_from_key(key), key.network)
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:

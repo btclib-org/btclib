@@ -62,6 +62,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.ecc.musig2 import key_agg
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
+from btclib.key import PubKeyData
 from btclib.network import NETWORKS
 from tests import load, needs_bindings, replace_unchecked, vector_id
 from tests.curves.curve_test import no_bindings, no_bindings_anywhere
@@ -77,8 +78,7 @@ def _p2pkh_of(xkey: BIP32Key) -> str:
     version bytes being where it is stated and the SEC octets carrying
     no network at all.
     """
-    sec, network = pub_keyinfo_from_xkey(xkey)
-    return p2pkh(sec, network)
+    return p2pkh(PubKeyData(*pub_keyinfo_from_xkey(xkey)))
 
 
 def test_the_three_key_reads_answer_for_one_half_each() -> None:

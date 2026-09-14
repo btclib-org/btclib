@@ -22,6 +22,7 @@ from btclib.bip32.bip32 import derive, pub_keyinfo_from_xkey
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.mnemonic import bip39
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import PsbtSigner, SignerCapabilities, SoftwareSigner
@@ -84,7 +85,7 @@ def _signable() -> Psbt:
         bip39.mxprv_from_mnemonic(_MNEMONIC, "", "mainnet"), f"{_ACCOUNT}/0/0"
     )
     pub_key = pub_keyinfo_from_xkey(xprv)[0]
-    script_pub_key = ScriptPubKey.p2wpkh(pub_key)
+    script_pub_key = ScriptPubKey.p2wpkh(PubKeyData(pub_key))
 
     tx_in = TxIn(OutPoint(b"\xbb" * 32, 0))
     tx_out = TxOut(9_000, script_pub_key)

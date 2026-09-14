@@ -43,10 +43,14 @@ which is the single most important thing to know before touching
 Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
 bms, borromean, pedersen, rfc6979/bip340 nonces). At the key boundary,
 `base58` and `bech32` are the low-level codecs; `bip32/` depends on
-`base58`; `b58` and `b32` depend on `to_pub_key`, which depends on
-`to_prv_key`, and neither converter depends on `bip32/` -- so importing
+`base58`; `b58` and `b32` depend on `key`, and `key` on `curves` and
+`network` -- none of the three reaching `bip32/`, so importing
 `btclib.b58` does not put `btclib.bip32` in `sys.modules`, which is the
-measurement behind the arrow. What each spelling of a key resolves
+measurement behind the arrow. `key.PubKeyData` is the (SEC-bytes,
+network) pair an address builder takes, and `key.PrvKeyData` the
+(scalar, network, compressed) triple `ecc.bms` signs with: a caller
+states which half of a pair it holds rather than leaving a size or a
+format to decide it (issue #1188). What each spelling of a key resolves
 through is the module that defines it: a WIF is Base58Check with a prefix
 and a flag, so `b58.prv_key_data_from_wif` reads it and
 `b58.wif_from_prv_key` writes it; an extended key is BIP32's format, so

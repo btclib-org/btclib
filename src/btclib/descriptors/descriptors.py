@@ -187,6 +187,7 @@ from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
+from btclib.key import PubKeyData
 from btclib.network import (
     NETWORKS,
     _normalized_network_name,
@@ -254,6 +255,16 @@ GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FF
 # the lookup a plain int and doubles as the validity check, since a
 # digit is never negative
 _INPUT_INDEX = {c: i for i, c in enumerate(INPUT_CHARSET)}
+
+
+def _pub_key_data(sec: bytes, network: str) -> PubKeyData:
+    """Return the parsed public key an address or a script is built from.
+
+    check_validity=False: `key_expression` proves every KEY expression's
+    key a point of the curve when it parses one, which is more than
+    `assert_valid` reads off it (issue #1188).
+    """
+    return PubKeyData(sec, network, check_validity=False)
 
 
 def __descsum_polymod(symbols: list[int]) -> int:
@@ -1121,7 +1132,10 @@ class PkDescriptor(Descriptor):
 
     @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
-        return [ScriptPubKey.p2pk(self.key.sec(index, self.network, prv_keys)).script]
+        pub_key = _pub_key_data(
+            self.key.sec(index, self.network, prv_keys), self.network
+        )
+        return [ScriptPubKey.p2pk(pub_key).script]
 
     @override
     def _stack(
@@ -1156,7 +1170,10 @@ class PkhDescriptor(Descriptor):
 
     @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
-        return [ScriptPubKey.p2pkh(self.key.sec(index, self.network, prv_keys)).script]
+        pub_key = _pub_key_data(
+            self.key.sec(index, self.network, prv_keys), self.network
+        )
+        return [ScriptPubKey.p2pkh(pub_key).script]
 
     @override
     def _stack(
@@ -1190,7 +1207,10 @@ class WpkhDescriptor(Descriptor):
 
     @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
-        return [ScriptPubKey.p2wpkh(self.key.sec(index, self.network, prv_keys)).script]
+        pub_key = _pub_key_data(
+            self.key.sec(index, self.network, prv_keys), self.network
+        )
+        return [ScriptPubKey.p2wpkh(pub_key).script]
 
     @override
     def _stack(
@@ -1424,8 +1444,10 @@ class MultiDescriptor(Descriptor):
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         script_pub_key = ScriptPubKey.p2ms(
             self.threshold,
-            self._pub_keys(index, prv_keys),
-            self.network,
+            [
+                _pub_key_data(sec, self.network)
+                for sec in self._pub_keys(index, prv_keys)
+            ],
             lexicographic_sorting=False,
         )
         return [script_pub_key.script]
@@ -1485,7 +1507,9 @@ class ComboDescriptor(Descriptor):
 
     @override
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
-        pub_key = self.key.sec(index, self.network, prv_keys)
+        pub_key = _pub_key_data(
+            self.key.sec(index, self.network, prv_keys), self.network
+        )
         scripts = [
             ScriptPubKey.p2pk(pub_key).script,
             ScriptPubKey.p2pkh(pub_key).script,
@@ -1657,7 +1681,9 @@ class TrDescriptor(Descriptor):
             if self.tree is None
             else _taproot_script_tree(self.tree, index, self.network, prv_keys)
         )
-        internal_key = self.internal_key.sec(index, self.network, prv_keys)
+        internal_key = _pub_key_data(
+            self.internal_key.sec(index, self.network, prv_keys), self.network
+        )
         return [ScriptPubKey.p2tr(internal_key, script_tree).script]
 
     def _leaf(
@@ -1674,7 +1700,9 @@ class TrDescriptor(Descriptor):
         callers have computed it already -- and because a ``tr()`` with no
         tree has no leaf, which they answer for themselves.
         """
-        internal_key = self.internal_key.sec(index, self.network, prv_keys)
+        internal_key = _pub_key_data(
+            self.internal_key.sec(index, self.network, prv_keys), self.network
+        )
         script, control_block = input_script_sig(internal_key, script_tree, leaf)
         return serialize(script), control_block
 

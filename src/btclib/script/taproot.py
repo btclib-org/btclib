@@ -45,7 +45,6 @@ from btclib.script.op_codes_tapscript import (
     _serialize_str_command,
 )
 from btclib.script.script import _serialize_bytes_command, _serialize_int_command
-from btclib.to_pub_key import Key, _sec_from_key
 from btclib.utils import (
     assert_type,
     bytes_from_octets,
@@ -249,7 +248,7 @@ def _tap_tweak(pub_key: bytes, h: bytes) -> int:
 
 
 def _output_pubkey_and_internal_key(
-    internal_pubkey: Key | None, script_tree: TaprootScriptTree | None
+    internal_pubkey: PubKeyData | None, script_tree: TaprootScriptTree | None
 ) -> tuple[bytes, int, bytes]:
     """Return the output key, its parity, and the x-only internal key.
 
@@ -265,7 +264,7 @@ def _output_pubkey_and_internal_key(
     the control block that proves it would be refused one call after being
     accepted, and one reader cannot drift from another.
 
-    The key travels as a `PubKeyData`, so that neither arm has to say how
+    The key arrives as a `PubKeyData`, so that neither arm has to say how
     much of it is worth building (issue #1188): the octets are the field
     and `point` is a `cached_property`. The bindings arm wants the octets
     unproven, the tweak's own parse being the proof and a second lift
@@ -276,11 +275,9 @@ def _output_pubkey_and_internal_key(
     if not internal_pubkey and not script_tree:
         raise BTClibValueError("missing data")
     if internal_pubkey:
-        # `_sec_from_key` and not `pub_keyinfo_from_key`: unproven octets
-        # are what both arms want, and `PubKeyData` proves them in `point`
-        # or not at all. It accepts the 33-byte and the 65-byte form, and
-        # `[1:33]` is the x-coordinate of either.
-        sec = _sec_from_key(internal_pubkey)
+        # the 33-byte and the 65-byte form both arrive here, and `[1:33]`
+        # is the x-coordinate of either
+        sec = internal_pubkey.sec
         # A hybrid prefix is refused here, above the arm split, rather
         # than left to whichever arm's own parse runs: it is a third
         # spelling of a compressed or uncompressed key and not a
@@ -289,20 +286,13 @@ def _output_pubkey_and_internal_key(
         # this function takes would otherwise be `pip install`'s
         # decision rather than btclib's (issue #1227). key.py's
         # paragraph on `_HYBRID_PREFIXES` is why the answer is refusal.
+        # A key built with `check_validity=False` reaches here carrying
+        # one, `assert_valid` being what would otherwise have refused it
         if sec[0] in _HYBRID_PREFIXES:
             raise BTClibValueError(
                 f"invalid internal public key: hybrid SEC prefix {sec[0]:#04x}"
             )
-        #
-        # check_validity=False, and not because what arrives is known
-        # good: `assert_valid` reads a length and a prefix, and
-        # `_sec_from_key` answers any prefix at those two lengths the
-        # check above does not -- so some of what reaches here it would
-        # still refuse. It is skipped because it is half a proof bought
-        # early: whatever these octets are handed to parses them, which is
-        # `_sec_from_key`'s own reason for not proving them, and it names
-        # what is wrong with the key where a prefix check names the prefix
-        key_data = PubKeyData(sec, check_validity=False)
+        key_data = internal_pubkey
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
         # BIP341's unspendable point is published as an x-only key and
@@ -318,7 +308,7 @@ def _output_pubkey_and_internal_key(
 
 
 def output_pubkey(
-    internal_pubkey: Key | None = None,
+    internal_pubkey: PubKeyData | None = None,
     script_tree: TaprootScriptTree | None = None,
 ) -> tuple[bytes, int]:
     """Return a taproot output key and its parity, per BIP341.
@@ -393,8 +383,8 @@ def _tweaked_pubkey(pub_key: PubKeyData, h: bytes) -> tuple[bytes, int]:
             # y is unproven for the same reason as its x, and a valid x
             # with a y that is not its own is refused here too, where
             # naming the x would name the half that is right; and
-            # `_sec_from_key` answers any prefix at either length, a
-            # prefix being the fault of neither coordinate.
+            # a key built unchecked carries any prefix at either
+            # length, a prefix being the fault of neither coordinate.
             # `check_output_pubkey`'s arm already says that in these
             # words, its refusal being one it cannot decompose either
             if not (pub_key.is_compressed and pub_key.sec[0] in (0x02, 0x03)):
@@ -425,9 +415,8 @@ def output_pubkey_from_merkle_root(
     An empty root is key path only, as an empty tree is.
 
     The internal key is x-only and 32 bytes, which is what BIP341 tweaks
-    and what the psbt field holds; `output_pubkey` takes the wider `Key`
-    because a caller building an output has the key in whatever form it
-    reached them in.
+    and what the psbt field holds; `output_pubkey` takes a `PubKeyData`,
+    which is the whole key and not only the x BIP341 tweaks.
     """
     internal_pubkey = bytes_from_octets(internal_pubkey, 32)
     # 02 and not 03: x-only octets are all this caller has, and BIP341's
@@ -507,7 +496,9 @@ def output_prvkey_from_merkle_root(prv_key: Integer, merkle_root: Octets = b"") 
 
 
 def input_script_sig(
-    internal_pubkey: Key | None, script_tree: TaprootScriptTree, script_num: int
+    internal_pubkey: PubKeyData | None,
+    script_tree: TaprootScriptTree,
+    script_num: int,
 ) -> tuple[ScriptList, bytes]:
     """Return (leaf script, control block) for a script-path spend.
 

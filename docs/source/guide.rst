@@ -154,8 +154,9 @@ The four aliases:
     building it; an extended key is ``bip32``'s, and
     ``bip32.prv_keyinfo_from_xprv`` answers the same
     ``(scalar, network, compressed)`` triple from an ``xprv``.
-    ``b58.p2pkh(wif)`` still knows which address to build: it tries a WIF
-    itself, ahead of anything this type covers.
+    An address builder takes neither spelling: it takes the public key,
+    which ``b58.prv_key_data_from_wif(wif).pub`` and
+    ``bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways to reach.
 
     **The arithmetic layer spells it** ``Integer``, which is the same
     union of types: ``curves.scalar_from_prv_key`` is what reads a scalar
@@ -169,31 +170,34 @@ The four aliases:
     a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the
     one, ``btclib.key.PrvKeyData(q)`` for the other.
 
-``Key``
-    A public key in its spellings — SEC bytes compressed or not, an
-    ``(x, y)`` tuple — and also anything that is a ``PrvKey``, from which
-    the public key is computed. An ``xpub`` is not one of them:
-    ``bip32.pub_keyinfo_from_xkey`` answers the SEC octets and the
-    network of an extended key, from either half of a pair, and that is
-    what the address builders take. Convert once with
-    ``btclib.to_pub_key.pub_keyinfo_from_key`` if you are about to use
-    it repeatedly.
+``btclib.key.PubKeyData``
+    A public key parsed once and carried: the SEC octets, compressed or
+    not, and the network they are read on. It is what ``b58.p2pkh``,
+    ``b58.p2wpkh_p2sh``, ``b32.p2wpkh`` and the ``ScriptPubKey``
+    constructors take, and a caller says which half of a key pair it
+    holds rather than leaving the size and the format to decide
+    (issue #1188). ``btclib.key.PrvKeyData(q).pub`` derives it from a
+    scalar, ``b58.prv_key_data_from_wif(wif).pub`` from a WIF, and
+    ``bip32.pub_keyinfo_from_xkey(xkey)`` answers the pair a
+    ``PubKeyData`` is built from for an extended key.
 
 >>> from btclib import b58
+>>> from btclib.key import PrvKeyData
 >>> wif = b58.wif_from_prv_key(1)
 >>> wif
 'KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn'
->>> b58.p2pkh(wif)
+>>> b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
 '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH'
->>> b58.p2pkh(1)
+>>> b58.p2pkh(PrvKeyData(1).pub)
 '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH'
 >>> b58.wif_from_prv_key(1, compressed=False)
 '5HpHagT65TZzG1PH3CSu63k8DbpvD8s5ip4nEB3kEsreAnchuDf'
->>> b58.p2pkh(b58.wif_from_prv_key(1, compressed=False))
+>>> b58.p2pkh(PrvKeyData(1, compressed=False).pub)
 '1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm'
 
-The same scalar, three addresses: the WIF is what remembers whether the
-public key was compressed, and the address follows from that.
+The same scalar, two addresses: ``compressed`` is what decides which
+public key it derives, and the address follows from that. A WIF carries
+that flag, which is why ``prv_key_data_from_wif`` answers it.
 
 A mnemonic, and the seed underneath it
 --------------------------------------
@@ -390,9 +394,11 @@ another wallet find your coins from the same mnemonic.
 
 The address functions take a public key, so the derived extended key is
 resolved with ``bip32.pub_keyinfo_from_xkey`` first — it answers the SEC
-octets and the network, from either half of a key pair.
+octets and the network, from either half of a key pair, which is the
+pair a ``PubKeyData`` is built from.
 
 >>> from btclib import b32, b58
+>>> from btclib.key import PubKeyData
 >>> from btclib.script import taproot
 >>> for purpose, address in [
 ...     (44, lambda k: b58.p2pkh(k)),
@@ -402,7 +408,7 @@ octets and the network, from either half of a key pair.
 ... ]:
 ...     acct = bip32.xpub_from_xprv(bip32.derive(rootxprv, f"m/{purpose}h/0h/0h"))
 ...     xkey = bip32.derive_from_account(acct, 0, 0)
-...     print(purpose, address(bip32.pub_keyinfo_from_xkey(xkey)[0]))
+...     print(purpose, address(PubKeyData(*bip32.pub_keyinfo_from_xkey(xkey))))
 44 1PEha8dk5Me5J1rZWpgqSt5F4BroTBLS5y
 49 3Aho3kS7vgVWKTpRHjcqBoPXiCujiSuTaZ
 84 bc1qv5rmq0kt9yz3pm36wvzct7p3x6mtgehjul0feu
@@ -604,11 +610,12 @@ Signing, and checking the result without a node
 The private key below is BIP143's, published in the specification.
 
 >>> prv_key = "619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9"
->>> from btclib.to_pub_key import pub_keyinfo_from_prv_key
->>> pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+>>> from btclib.curves import scalar_from_prv_key
+>>> key = PrvKeyData(scalar_from_prv_key(prv_key))
+>>> pub_key = key.pub.sec
 >>> pub_key.hex()
 '025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357'
->>> b32.p2wpkh(prv_key)
+>>> b32.p2wpkh(key.pub)
 'bc1qr583w2swedy2acd7rung055k8t3n7udp7vyzyg'
 
 Sign the hash from the previous section. Note ``sign_``, with the
@@ -760,7 +767,7 @@ byte for byte, with no trimming of your own.
 
 >>> from btclib.ecc import bms
 >>> wif = b58.wif_from_prv_key(prv_key)
->>> address = b58.p2pkh(wif)
+>>> address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
 >>> address
 '13eeg4y5wYGxNTxBEuWLPFauoMJQLxdoip'
 >>> signature = bms.sign(
