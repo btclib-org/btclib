@@ -22,11 +22,12 @@ from btclib.hashes import (
     merkle_root_from_branch,
     ripemd160,
 )
-from tests.key_vectors_test import (
-    net_unaware_compressed_pub_keys,
-    net_unaware_uncompressed_pub_keys,
-    plain_prv_keys,
-)
+from tests import key_pair_spellings
+
+_KEYS = key_pair_spellings()
+net_unaware_compressed_pub_keys = _KEYS.net_unaware_compressed_pub_keys
+net_unaware_uncompressed_pub_keys = _KEYS.net_unaware_uncompressed_pub_keys
+plain_prv_keys = _KEYS.plain_prv_keys
 
 
 def test_ripemd160_wherever_hashlib_has_none(monkeypatch: pytest.MonkeyPatch) -> None:

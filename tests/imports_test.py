@@ -216,6 +216,34 @@ def test_electrum_codec_does_not_import_fetch() -> None:
     assert "btclib.fetch" not in loaded
 
 
+def test_the_tests_package_imports_no_btclib_submodule() -> None:
+    """Importing the `tests` package alone must reach no `btclib` submodule.
+
+    `tests/__init__.py` is imported by every test module before that
+    module's own body runs -- before any fixture, `unimported_btclib`
+    included, so this probe is a subprocess rather than that fixture, the
+    same way the two tests above are. Neither the suite's coverage floor
+    nor the weekly no-bindings census reads what a test body goes on to
+    call, only what the import itself reaches: a value built at
+    `tests/__init__.py`'s own module scope by calling into `btclib`'s
+    curve arithmetic showed up in the census as reached by a module that
+    asks no question about a scalar multiplication (issue #2120).
+    """
+    probe = (
+        "import sys, tests; "
+        "print(sorted(m for m in sys.modules "
+        "if m == 'btclib' or m.startswith('btclib.')))"
+    )
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe],
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        cwd=Path(__file__).resolve().parents[1],
+    ).stdout
+    assert ast.literal_eval(loaded) == ["btclib"]
+
+
 def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     """b58 and b32 must not import btclib.script.
 
@@ -229,6 +257,21 @@ def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     importlib.import_module("btclib.b58")
     importlib.import_module("btclib.b32")
     assert not [name for name in btclib_modules() if name.startswith("btclib.script")]
+
+
+def test_b58_stays_below_bip32(unimported_btclib: None) -> None:
+    """b58 and b32 must not import btclib.bip32.
+
+    A WIF is Base58Check with a prefix and a flag, and `b58` parses and
+    writes the whole of it; an extended key is BIP32's own format, so
+    reading one is `bip32`'s job, not `b58`'s (CLAUDE.md's *Architecture*,
+    issue #1188). `tests/b58_test.py` imports `btclib.bip32` at module
+    scope for a refusal test of its own, so the fixture is what keeps
+    that import from making this assertion pass for the wrong reason.
+    """
+    importlib.import_module("btclib.b58")
+    importlib.import_module("btclib.b32")
+    assert "btclib.bip32" not in btclib_modules()
 
 
 def test_network_stays_below_block(unimported_btclib: None) -> None:

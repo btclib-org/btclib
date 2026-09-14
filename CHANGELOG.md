@@ -830,6 +830,18 @@ file per release is what keeps each of them under it.
   `.github/mutation/wallet.toml` each named a converter no module still
   defines** (closes #2121): each now cites the call site that replaced it.
 
+### `tests/__init__.py` builds one key pair's spellings on call, not at import
+
+- **A module named `..._test.py` holding no test is the shape
+  `tests/__init__.py`'s own docstring rejects** (closes #2120): the
+  spellings move into a `key_pair_spellings` function, called on demand.
+
+### `tests/imports_test.py` asserts `b58` and `b32` import no `btclib.bip32`
+
+- **CLAUDE.md's *Architecture* states the arrow and nothing tested it**
+  (closes #2125): `test_b58_stays_below_bip32` is built the way
+  `test_address_encodings_stay_below_script` already is.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

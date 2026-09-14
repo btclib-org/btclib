@@ -26,6 +26,14 @@ though it held tests, so the loaders live in the package `__init__`,
 beside the helpers of `tests/script/__init__.py` and
 `tests/script_engine/__init__.py`: shared test code lives in the package
 `__init__` at all three levels.
+
+This package is imported by every test module, before that module's own
+body runs. Whatever this file executes at import time therefore executes
+inside every module's own measured reach: the suite's coverage floor and
+the weekly no-bindings census both read what the import reaches, never
+what a test body goes on to call. A literal is safe to share here at
+module scope. Anything that calls into btclib's own arithmetic is shared
+as a function instead, computed only when a caller invokes it.
 """
 
 import csv
@@ -35,7 +43,7 @@ import pkgutil
 import re
 from dataclasses import fields
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -182,6 +190,120 @@ def replace_unchecked(instance: Any, **changes: Any) -> Any:
     current = {field.name: getattr(instance, field.name) for field in fields(instance)}
     current.update(changes)
     return type(instance)(**current, check_validity=False)
+
+
+# --------------------------------------------------------------------------
+# One key pair's spellings, shared by `ecc/dsa_test.py` and `hashes_test.py`.
+#
+# Built inside a function rather than at module scope: this package is
+# imported by every test module before that module's own body runs, so a
+# value computed here at import time would run inside every module's own
+# measured reach. `key_pair_spellings` below is not called until
+# `ecc/dsa_test.py` or `hashes_test.py` calls it, so a module that asks no
+# question about a key pair never reaches the curve arithmetic that builds
+# one (issue #2120).
+# --------------------------------------------------------------------------
+
+
+class KeyPairSpellings(NamedTuple):
+    """One key pair, in every spelling ecc/dsa_test.py and hashes_test.py read.
+
+    The WIF and the xprv are here for the refusals alone: `ecc` takes a
+    scalar and a point, and a spelling that carries a network is read
+    where its format is defined -- a WIF by `b58`, an xprv by `bip32`
+    (issue #1188).
+    """
+
+    q: int
+    q_hexstring: str
+    plain_prv_keys: list[bytes | str]
+    wif_compressed_string: str
+    wif_uncompressed_string: str
+    xprv_string: str
+    Q: tuple[int, int]
+    Q_compressed: bytes
+    net_unaware_compressed_pub_keys: list[bytes | str]
+    net_unaware_uncompressed_pub_keys: list[bytes | str]
+
+
+def key_pair_spellings() -> KeyPairSpellings:
+    """Build one `KeyPairSpellings`, computed on call rather than at import.
+
+    `btclib.base58`, `btclib.bip32` and `btclib.curves` are imported
+    inside this function rather than at the top of the module, for the
+    reason the block comment above gives: a top-level import would run at
+    collection, the same moment `Q = mult(q)` would.
+    """
+    from btclib.base58 import encode as b58encode  # noqa: PLC0415
+    from btclib.bip32 import BIP32KeyData  # noqa: PLC0415
+    from btclib.curves import mult  # noqa: PLC0415
+
+    q = 12
+    q_bytes = q.to_bytes(32, byteorder="big", signed=False)
+    q_hexstring = q_bytes.hex()
+    q_hexstring2 = " " + q_hexstring + " "
+
+    # the private-key spellings a curve reads: the scalar's octets and
+    # their hex, naming neither a network nor a compression
+    plain_prv_keys: list[bytes | str] = [q_hexstring, q_hexstring2]
+
+    wif_compressed_string = b58encode(b"\x80" + q_bytes + b"\x01").decode("ascii")
+    wif_uncompressed_string = b58encode(b"\x80" + q_bytes).decode("ascii")
+
+    xprv_data = BIP32KeyData(
+        version=bytes.fromhex("04 88 ad e4"),
+        depth=0,
+        parent_fingerprint=bytes.fromhex("00000000"),
+        index=0,
+        chain_code=32 * b"\x00",
+        key=b"\x00" + q_bytes,
+    )
+    xprv_string = xprv_data.b58encode(check_validity=False)
+
+    Q = mult(q)
+    x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)
+    Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
+    Q_compressed_hexstring = Q_compressed.hex()
+    Q_compressed_hexstring2 = " " + Q_compressed_hexstring + " "
+    Q_compressed_hexstring3 = ("03" if (Q[1] & 1) else "02") + " " + x_Q_bytes.hex()
+    Q_uncompressed = (
+        b"\x04" + x_Q_bytes + Q[1].to_bytes(32, byteorder="big", signed=False)
+    )
+    Q_uncompressed_hexstring = Q_uncompressed.hex()
+    Q_uncompressed_hexstring2 = " " + Q_uncompressed_hexstring + " "
+    Q_uncompressed_hexstring3 = (
+        "04 "
+        + x_Q_bytes.hex()
+        + " "
+        + Q[1].to_bytes(32, byteorder="big", signed=False).hex()
+    )
+
+    # an xpub is the only public spelling that names a network, and it is
+    # `bip32.pub_keyinfo_from_xpub`'s to read (issue #1188), so every
+    # family here is network-unaware
+    net_unaware_compressed_pub_keys: list[bytes | str] = [
+        Q_compressed_hexstring,
+        Q_compressed_hexstring2,
+        Q_compressed_hexstring3,
+    ]
+    net_unaware_uncompressed_pub_keys: list[bytes | str] = [
+        Q_uncompressed_hexstring,
+        Q_uncompressed_hexstring2,
+        Q_uncompressed_hexstring3,
+    ]
+
+    return KeyPairSpellings(
+        q=q,
+        q_hexstring=q_hexstring,
+        plain_prv_keys=plain_prv_keys,
+        wif_compressed_string=wif_compressed_string,
+        wif_uncompressed_string=wif_uncompressed_string,
+        xprv_string=xprv_string,
+        Q=Q,
+        Q_compressed=Q_compressed,
+        net_unaware_compressed_pub_keys=net_unaware_compressed_pub_keys,
+        net_unaware_uncompressed_pub_keys=net_unaware_uncompressed_pub_keys,
+    )
 
 
 # What a test asking libsecp256k1 for the right answer is marked with.
