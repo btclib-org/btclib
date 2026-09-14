@@ -1532,8 +1532,9 @@ def _additions_by_position(
     four halves the GLV split makes -- 512 at the split's nominal 128 a half --
     and most of them were answered by a `zip` step, a comparison against a
     `len` recomputed per iteration, and an index that found a zero, rather than
-    by an addition (issue 906). CHANGELOG.md has how many of the 512 answered
-    which way, this being a docstring about a loop no longer here.
+    by an addition (issue 906). changelog/v2026.8.21.md has how many of
+    the 512 answered which way, this being a docstring about a loop no
+    longer here.
 
     Read this way round the digits are walked once, where each one was read
     at the position it belongs to and skipped at every other, and the loop
@@ -1552,8 +1553,8 @@ def _additions_by_position(
 
     The gain is CPython's: the loop control this removes is what a tracing
     JIT flattens on its own, and under PyPy the two spellings measure the
-    same. CHANGELOG.md has the CPython and PyPy figures, this being a
-    docstring and they being about code that is no longer here.
+    same. changelog/v2026.8.21.md has the CPython and PyPy figures, this
+    being a docstring and they being about code that is no longer here.
     """
     at_position: list[list[Point]] = [[] for _ in range(max(len(naf) for naf in nafs))]
     for naf, T in zip(nafs, tables, strict=True):

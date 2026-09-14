@@ -333,6 +333,24 @@ to `deps-latest`'s own result.
    the version being cut then, exactly as this one renames the section it is
    opened above, and nothing is bumped while the cycle runs.
 
+   In the same pull request the window moves down by one: the release below
+   the one just retitled leaves CHANGELOG.md for `changelog/v<version>.md`,
+   carrying its own section unchanged under a title and a line pointing back,
+   and the index in CHANGELOG.md's preamble gains a link to that file at the
+   top of its list. Past a size ceiling GitHub's contents API answers a file
+   with an empty `content` at HTTP 200, which reads as an empty file rather
+   than as an error, and one file per release is what keeps each of them
+   under it (issue #2109).
+
+   The section is still held to its own tag:
+   `tests/changelog_immutability_test.py` reads the archived releases with
+   the tag-side path mapped back to CHANGELOG.md, every tag carrying the
+   section there. So moving one is a copy of its text and not a retyping of
+   it, with the links it carries corrected for the directory it lands in —
+   `./RELEASE_NOTES.md` becomes `../RELEASE_NOTES.md` — and that correction
+   is an edit to sealed text, which takes a `_KNOWN_DRIFT` entry of its own
+   in that module.
+
 1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
    follow docs/README.rst to check that the documentation builds, and get
    the above onto `main` through the usual pull request. The local gates

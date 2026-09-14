@@ -34,6 +34,10 @@ on:
     # so a push touching only those skips the two tests whose whole
     # subject they are -- the pull_request trigger below carries no such
     # filter, which is where they are answered.
+    # The archived releases under changelog/ are read off disk by
+    # changelog_immutability_test.py as well, and the same `*` is what
+    # leaves them out of this list: a push touching one of them runs the
+    # gate rather than skipping the test it is the subject of.
     # Only on push: the same list on pull_request would be wrong, because
     # the aggregate below is a required check on main, and a required check
     # that produces no run at all blocks the merge instead of passing it
@@ -174,7 +178,11 @@ jobs:
   #   tests/docs_test.py and tests/docs_examples_test.py read directly.
   #   Nor are CHANGELOG.md or RELEASE_NOTES.md: tests/release_notes_test.py
   #   parses and validates their format, in the very suite this job would
-  #   otherwise skip
+  #   otherwise skip. Nor are the archived releases under changelog/,
+  #   which tests/changelog_immutability_test.py holds to their own tags:
+  #   both halves of the allowlist below are anchored, at the root and at
+  #   .github, so a path under changelog/ is outside it without being
+  #   named
   # - test-passed takes this job as a `needs` too, so a failure here
   #   fails the gate instead of skipping every job below and being read
   #   as a pass. So does every job that reads its output, `coverage-union`

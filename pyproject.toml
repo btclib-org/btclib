@@ -464,6 +464,14 @@ package = ["src/btclib"]
 # list: ClusterFuzzLite's own build configuration and the atheris
 # harnesses it builds are CI-only, read by fuzz.yml and by nothing a
 # package installed from the sdist runs
+#
+# changelog/ is here for a reason of its own: `source-include`'s `*.md`
+# is anchored at the root, so shipping the archived releases would take
+# an entry in .github/scripts/verify_dist_contents.py's
+# SDIST_DIRECTORIES and a paragraph in
+# docs/source/package-content-policy.md -- a packaging decision, where
+# what an unpacked sdist needs of the changelog is the window
+# CHANGELOG.md carries and the index pointing at the rest
 git-only = [
     ".claude/",
     ".clusterfuzzlite/",
@@ -471,6 +479,7 @@ git-only = [
     ".lycheeignore",
     ".vscode/",
     "COPYRIGHT",
+    "changelog/",
     "fuzz/",
 ]
 
@@ -691,6 +700,16 @@ extend-exclude = [
     # pre-commit names files explicitly on its command line, and typos
     # otherwise overrides an exclude for a path named that way
     "fuzz/corpus/**",
+    # a released section of the changelog, which its own tag sealed and
+    # tests/changelog_immutability_test.py holds to that tag. A finding
+    # there has no repair -- correcting it is the drift that test
+    # reports -- so the hook is asked not to read those files rather
+    # than to read them and be overruled, and --write-changes above is
+    # what makes the difference between the two a rewrite of sealed
+    # text. The words this covers were quoted in CHANGELOG.md while the
+    # releases holding them were in it, which is what
+    # [tool.typos.type.verbatim] below reads as a type instead
+    "changelog/**",
 ]
 
 [tool.typos.default]
@@ -773,22 +792,32 @@ ser = "ser"
 unser = "unser"
 
 [tool.typos.type.verbatim]
-# the three files that quote a word rather than use it: CHANGELOG.md names
-# the `certifi` a dependency would have pulled in, an extended key's
-# `ThmBZ`, the mypy message that offers `digest` for `digets`, and the
-# singular `addopt` of a pytest option -- each right where it stands, and
-# each one this hook's dictionary offers to correct; .pre-commit-config.yaml
-# quotes the misspellings the two spell checkers found, and the exception
-# message a test pins. This is the backtick convention of
-# [tool.codespell] above, honoured on the files that need it rather than
-# on all of them: outside these three a backticked word is an identifier,
-# and identifiers are what this hook is here for.
+# the three files that quote a word rather than use it: an entry of
+# CHANGELOG.md or of RELEASE_NOTES.md quotes the misspelling it is about
+# -- a mypy message offering `digest` for `digets`, an extended key's
+# `ThmBZ`, the singular `addopt` of a pytest option -- right where it
+# stands, and this hook's dictionary offers to correct each one;
+# .pre-commit-config.yaml quotes the misspellings the two spell checkers
+# found, and the exception message a test pins. The two prose files are
+# named for what an entry does rather than for a word standing in them at
+# any moment: an entry quoting a misspelling is written into the open
+# cycle, and a release seals it where it stands -- the three above are in
+# releases `[tool.typos.files]`'s `changelog/**` now excludes. This is
+# the backtick convention of [tool.codespell] above, honoured on the
+# files that need it rather than on all of them: outside these three a
+# backticked word is an identifier, and identifiers are what this hook is
+# here for.
 # Not a preference either: with --write-changes and without this section,
 # the hook corrects those quotations into nonsense -- prose saying
 # `lenght` is now `length` reads as prose saying nothing, and a key or a
 # message quoted from elsewhere stops being the thing quoted. Narrow enough
 # that `y-simmetry`, unquoted in RELEASE_NOTES.md, was still found and
-# fixed with the rule already in place
+# fixed with the rule already in place.
+# Three names and no glob: typos matches a type's globs against the file
+# name alone, so `changelog/*.md` selects nothing -- measured, the four
+# findings in the archived releases standing with it in place -- and
+# tests/typos_verbatim_backtick_parity_test.py reads each name here as a
+# path from the root to count its backticks
 extend-glob = ["CHANGELOG.md", "RELEASE_NOTES.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
@@ -978,7 +1007,15 @@ force-exclude = true
 #
 # Named one by one, so a .md file that gains a python fence later is not
 # covered until it is added here.
-exclude = ["CHANGELOG.md", "RELEASE_NOTES.md"]
+#
+# `changelog/*.md` is a glob where those two are names, and what differs
+# is what can still change: a live .md file gaining a python fence is a
+# file somebody may want formatted, where an archived release is held to
+# its own tag by tests/changelog_immutability_test.py and cannot be
+# edited at all. Measured with `ruff format --diff --no-cache`, which
+# names changelog/v2026.8.27.md and no other file on a tree without this
+# pattern.
+exclude = ["CHANGELOG.md", "RELEASE_NOTES.md", "changelog/*.md"]
 
 [tool.ruff.lint]
 # preview and explicit-preview-rules only make sense as a pair. Naming a
