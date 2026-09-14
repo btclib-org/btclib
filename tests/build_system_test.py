@@ -169,7 +169,7 @@ def _reaches_outside_the_sdist(tree: ast.Module) -> bool:
     ".github" / "scripts" / "<name>.py"` and `_ROOT /
     ".github/workflows"` hold it, or a dict key read out by name and
     joined once a comprehension binds it, the way
-    `tests/docs_commands_test.py` reaches ".github/workflows/docs.yml".
+    `tests/docs_commands_test.py` reaches ".github/workflows/test.yml".
 
     Exempted is a literal that never leaves a closed membership test --
     an element of the tuple, list or set an `in` or `not in` comparison

@@ -4,12 +4,14 @@
 
 """A command CI runs is spelled one way wherever it is written down.
 
-The documentation build is written in `.github/workflows/docs.yml`,
-which is what the merge gate runs; in `.readthedocs.yaml`, which is what
-the published site is built with; in `CONTRIBUTING.md`, which is what a
-contributor is told to run; and in `docs/README.rst`, which is where
-`RELEASING.md` sends a release. The grep over the pages that build wrote
-is in the workflow and in `CONTRIBUTING.md`.
+The documentation build is written in `btclib-org/.github`'s
+`reusable-docs.yml`, which `.github/workflows/docs.yml` calls and which
+this suite, reading only this tree, does not; in `.readthedocs.yaml`,
+which is what the published site is built with; in `CONTRIBUTING.md`,
+which is what a contributor is told to run; and in `docs/README.rst`,
+which is where `RELEASING.md` sends a release. The grep over the pages
+that build wrote moved with it, and is compared against nothing here now
+(issue btclib-org/.github#35).
 
 `CONTRIBUTING.md`'s *Reproducing what CI runs* prints a command per job,
 and the suite's own are read here as well: the cell of the platform
@@ -88,10 +90,6 @@ _CONTINUATION = re.compile(r"\\\n[ \t]*")
 # well: `--group docs` is what installs the toolchain, and a site that
 # dropped it would build against a different environment
 _BUILD = re.compile(r"uv run\b.*\bsphinx-build\b.*")
-# the grep over the built pages, to the end of the command rather than of
-# the line: the workflow wraps it in an `if ...; then`, and the `;` is
-# where the command a reader is given stops
-_GREP = re.compile(r"grep -r.*?(?=;|$)")
 # one cell of the platform matrices, from `uv run` to the end of the line
 # it is written on. `--no-cov` is what tells it from the `coverage` job's
 # own run of the same suite, which is typed with nothing after `pytest`
@@ -174,12 +172,10 @@ _BINDINGS_ASSERT = re.compile(
 # holds it rather than across the sites, and one that changes where it
 # builds to is red here rather than agreeing with itself
 _BUILD_SITES = {
-    ".github/workflows/docs.yml": "docs/build/html",
     ".readthedocs.yaml": "$READTHEDOCS_OUTPUT/html",
     "CONTRIBUTING.md": "docs/build/html",
     "docs/README.rst": "docs/build/html",
 }
-_GREP_SITES = (".github/workflows/docs.yml", "CONTRIBUTING.md")
 
 # the interpreter each site names, which is the other argument that does
 # not agree and must not: a workflow takes it from `astral-sh/setup-uv`,
@@ -279,7 +275,6 @@ def _one(found: tuple[str, ...]) -> str:
 
 
 _BUILDS = {path: _spellings(path, _BUILD) for path in _BUILD_SITES}
-_GREPS = {path: _spellings(path, _GREP) for path in _GREP_SITES}
 _CELLS = {path: _spellings(path, _CELL) for path in _CELL_SITES}
 _COVERAGES = {path: _spellings(path, _COVERAGE) for path in _COVERAGE_SITES}
 _DATA_FILES = {path: _spellings(path, _DATA_FILE) for path in _COVERAGE_SITES}
@@ -307,10 +302,6 @@ def test_every_site_was_read() -> None:
     builds = {path: len(found) for path, found in _BUILDS.items()}
     assert set(builds.values()) == {1}, (
         f"one documentation build command per site, and instead: {builds}"
-    )
-    greps = {path: len(found) for path, found in _GREPS.items()}
-    assert set(greps.values()) == {1}, (
-        f"one unresolved-link grep per site, and instead: {greps}"
     )
     cells = {path: len(found) for path, found in _CELLS.items()}
     assert set(cells.values()) == {1}, (
@@ -356,14 +347,6 @@ def test_every_site_names_its_own_output_directory() -> None:
     assert outdirs == _BUILD_SITES, (
         f"the documentation build writes to {outdirs}, where the sites are"
         f" {_BUILD_SITES}"
-    )
-
-
-def test_the_documented_grep_is_the_one_the_job_runs() -> None:
-    """A reader who runs it and sees nothing has run the job's question."""
-    spellings = {path: _one(found) for path, found in _GREPS.items()}
-    assert len(set(spellings.values())) == 1, (
-        f"the unresolved-link grep is spelled more than one way: {spellings}"
     )
 
 
