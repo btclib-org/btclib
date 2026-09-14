@@ -172,7 +172,8 @@ beside them, the BIP374 csv files, BIP352's
 `crypto_tests.cpp`, on 2026-09-03, at the tip of that path, and Core's
 `descriptor_tests.cpp` pin on 2026-09-10, at the tip of its path that
 day, as was bitcoin-core/secp256k1's `src` for `secp256k1_symbols.txt`,
-pulled the same day.
+pulled the same day and refreshed again on 2026-09-14, at the tip of
+its path that day too.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -1563,8 +1564,8 @@ re-check should compare.
 ```text
 repo    bitcoin-core/secp256k1
 path    src
-commit  99ae231231f5e9c5fce672eb11b06013d4ed0fd7  2026-09-09
-pulled  2026-09-10
+commit  46db787112beabdb5e17e0dc35680716f1057e7b  2026-09-11
+pulled  2026-09-10, refreshed 2026-09-14
 behind  0 revisions; that commit is the tip of the path
 ```
 
