@@ -466,8 +466,8 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **covered**. `ecc/dsa.py` and `ecc/ssa.py` sign and verify,
 `ecc/rfc6979_nonce.py` and `ecc/bip340_nonce.py` derive the nonces,
-`key.py`, `to_prv_key.py` and `to_pub_key.py` are the key objects Core's
-`ECKey` and `ECPubKey` are, `hashes.tagged_hash` is `TaggedHash`, and
+`key.py` holds the key objects Core's `ECKey` and `ECPubKey` are,
+`hashes.tagged_hash` is `TaggedHash`, and
 `script/taproot.py` holds the x-only tweak. What the signatures are
 asserted against is BIP340's own vectors and the `btclib_secp256k1`
 bindings, which are the authority on the answer.

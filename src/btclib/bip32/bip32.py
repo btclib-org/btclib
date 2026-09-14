@@ -586,9 +586,6 @@ def prv_keyinfo_from_xprv(
     `network` and `compressed` are consistency checks and not choices --
     a BIP32 key is always compressed, and its version bytes say which
     network claims it. `None` is "whatever the key says" for both.
-
-    The triple is spelled out rather than named: `to_prv_key.PrvkeyInfo`
-    is the name for it, and that module sits above this one.
     """
     # None is a declared value here and means "whatever the key says", so
     # it is the one non-bool this position takes
@@ -632,9 +629,7 @@ def pub_keyinfo_from_xpub(
     """Return the SEC octets and the network of an xpub.
 
     `prv_keyinfo_from_xprv` above for a public extended key, and its
-    `network` and `compressed` mean the same thing here. The pair is
-    spelled out for the same reason the triple is: `to_pub_key.PubkeyInfo`
-    is the name for it, above this module.
+    `network` and `compressed` mean the same thing here.
 
     An xprv is refused rather than neutered: this answers about the key
     it is handed, and `pub_keyinfo_from_xkey` below is the spelling for a

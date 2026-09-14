@@ -247,20 +247,6 @@ btclib.slip132 module
    :members:
    :show-inheritance:
 
-btclib.to\_prv\_key module
---------------------------
-
-.. automodule:: btclib.to_prv_key
-   :members:
-   :show-inheritance:
-
-btclib.to\_pub\_key module
---------------------------
-
-.. automodule:: btclib.to_pub_key
-   :members:
-   :show-inheritance:
-
 btclib.tx\_builder module
 -------------------------
 

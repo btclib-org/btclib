@@ -125,10 +125,8 @@ _WRONG_TYPE: dict[str, tuple[Any, ...]] = {
         bytearray(b"\xaa\xbb\xcc\xdd"),
         memoryview(b"\xaa\xbb\xcc\xdd"),
     ),
-    "Key": (None, 1.5),
     "Octets": (None, 1.5, tuple(range(4))),
     "Point": (None, 1.5, "not a point"),
-    "PrvKey": (None, 1.5),
     "PubKey": (None, 1.5),
     "ScriptList": (None, 1.5, "not a list"),
     "Sequence[Octets]": (
@@ -153,7 +151,6 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
     # the four bytes a BIP32 index has
     "DerPath": ("m/x", -1, [2**32]),
     "Integer": ("not hex at all",),
-    "Key": ("not a key",),
     # a hex string that is not hex, and one of odd length
     "Octets": ("not hex at all", "9"),
     # a tuple of the wrong arity, and a pair of ints that is no point:
@@ -161,7 +158,6 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
     # is a value here and not a type
     "Iterable[Octets]": (["not hex at all"],),
     "Point": ((1,), (1, 2)),
-    "PrvKey": ("not a key",),
     "PubKey": ("not a key",),
     "ScriptList": (["OP_NOT_AN_OP_CODE"],),
     "Sequence[Octets]": (["not hex at all"],),
@@ -391,7 +387,6 @@ def test_the_walk_reaches_what_it_claims() -> None:
     """
     assert _DRIVABLE["btclib.hashes.sha256"] == ["Octets"]
     assert _DRIVABLE["btclib.bip32.bip32.derive"] == ["BIP32Key", "DerPath"]
-    assert _DRIVABLE["btclib.to_pub_key.pub_keyinfo_from_key"] == ["Key"]
     # `network` and `compressed` carry defaults and are not driven
     assert _DRIVABLE["btclib.b58.prv_key_data_from_wif"] == ["String"]
 

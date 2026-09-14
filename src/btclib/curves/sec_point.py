@@ -10,7 +10,6 @@ from btclib._libsecp256k1 import (
     pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
 )
 from btclib._libsecp256k1 import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
-from btclib._libsecp256k1 import pubkey_verify as libsecp256k1_pubkey_verify
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
     Curve,
@@ -44,8 +43,8 @@ __all__ = [
 PubKey = Octets | Point | PreparedPoint
 
 # the union at run time, with the buffers bytes_from_octets accepts beside
-# bytes. `to_pub_key._KEY_TYPES` is this list plus the int that names a
-# private key, and is built from this one rather than repeating it
+# bytes. No int: in this library an int is a private key and never a
+# public one
 _PUB_KEY_TYPES = (bytes, bytearray, memoryview, str, tuple, PreparedPoint)
 
 
@@ -314,11 +313,8 @@ def _sec_from_pub_key(pub_key: PubKey, ec: Curve) -> bytes:
 
     A `Point` comes back uncompressed, which is the cheap form to parse --
     both coordinates are there to read, where a compressed key pays the
-    field square root that lifts x -- while
-    `to_pub_key.pub_keyinfo_from_pub_key` answers the compressed one for
-    the same input, `compressed=None` meaning "whatever the key says" and
-    a point saying nothing. Which encoding a caller below receives makes
-    no difference to what it computes: a parse recovers the same point
+    field square root that lifts x. Which encoding a caller below receives
+    makes no difference to what it computes: a parse recovers the same point
     from either, and `ecies.derive_keys` re-serializes its own answer
     compressed regardless of what its inputs carried. No network either,
     which is what every caller here asks for: a verification or a
@@ -361,40 +357,3 @@ def _mult_sec_var(sec: bytes, m: int, ec: Curve) -> Point:
             return _point_from_sec(libsecp256k1_pubkey_tweak_mul(sec, m, False))
 
     return mult(m, point_from_octets(sec, ec), ec)
-
-
-def _sec_from_octets(pub_key: bytes, ec: Curve) -> bytes:
-    """Return SEC octets of a p-size or 2*p-size length, verified.
-
-    Verified and not converted: bytes_from_point(point_from_octets(sec))
-    asked for the form sec already has is the identity on it, so what
-    that round trip does for a caller that wants octets back is prove
-    them a point of the curve -- which is the whole of what
-    to_pub_key.pub_keyinfo_from_pub_key wants of it.
-
-    For a compressed key on secp256k1 that proof is `keys.pubkey_verify`,
-    which is ec_pubkey_parse and a verdict, cheaper than a round trip
-    that lifts x, re-proves the point it lifted on the curve and
-    serializes it again, and cheaper than `keys.reserialize`, which
-    answers the octets this already has. The parse is also the very
-    call libsecp256k1 will make on these bytes if they are on their way to
-    its dsa.verify -- which is why a caller that is about to make it does
-    not come through here at all, but through `_sec_from_pub_key`, and
-    lets that call be the proof (issue 887).
-
-    Anything the bindings refuse falls through to the round trip, and so
-    does every 65-byte form: the message that names what is wrong with
-    the octets is point_from_octets's, and the hybrid prefixes are the
-    reason the fallthrough cannot be skipped for a length ec_pubkey_parse
-    accepts -- it takes 0x06 and 0x07, point_from_octets only when asked,
-    and there is nothing to ask here.
-    """
-    compressed = len(pub_key) == ec.p_size + 1
-    if (
-        compressed
-        and _libsecp256k1_serves(ec, None)
-        and libsecp256k1_pubkey_verify(pub_key)
-    ):
-        return pub_key
-
-    return bytes_from_point(point_from_octets(pub_key, ec), ec, compressed)

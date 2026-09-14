@@ -82,7 +82,7 @@ from btclib.descriptors.miniscript import _ARITY, Miniscript
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
-from btclib.key import PubKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.psbt.musig2 import nonce_gen, partial_sign, partial_sigs_agg
 from btclib.psbt.psbt import (
     Psbt,
@@ -96,7 +96,6 @@ from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
-from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, replace_unchecked, vector_id
 
@@ -1918,7 +1917,7 @@ def test_too_many_keys_for_a_multi_a() -> None:
 # checked against parses every partial signature it is handed, so a
 # placeholder would not reach the comparison
 PRV_KEYS = (1, 2, 3)
-SEC_KEYS = [pub_keyinfo_from_key(prv_key)[0].hex() for prv_key in PRV_KEYS]
+SEC_KEYS = [PrvKeyData(prv_key).pub.sec.hex() for prv_key in PRV_KEYS]
 SIGNATURES = {
     sec: (dsa.sign(bytes([i]) * 32, prv_key).serialize() + b"\x01").hex()
     for i, (sec, prv_key) in enumerate(zip(SEC_KEYS, PRV_KEYS, strict=True))

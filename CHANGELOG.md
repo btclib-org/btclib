@@ -812,6 +812,12 @@ file per release is what keeps each of them under it.
   into a `TxOut`, which has always taken either** (issue #2115): the
   annotation was narrower than the call the function already made.
 
+### `to_prv_key` and `to_pub_key` are deleted
+
+- **Each spelling of a key is read by the module that owns the format,
+  and the record above it is `key.PrvKeyData` or `key.PubKeyData`**
+  (closes #1188): the two aggregators are a layer with nothing left in it.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

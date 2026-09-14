@@ -331,9 +331,9 @@ The rest, roughly bottom-up. `alias` holds the types the public API
 accepts, much of it taking anything convertible rather than one type, and
 `exceptions` the errors it raises. The scalar and the curve point in
 their octet spellings are `curves`' own, read by
-`curves.scalar_from_prv_key` and `curves.point_from_pub_key`; what is
-left to `to_prv_key` and `to_pub_key` is the network and compression a
-record carries and a key does not. `key` holds those records as objects:
+`curves.scalar_from_prv_key` and `curves.point_from_pub_key`. The network
+and the compression a record carries and a key does not are `key`'s,
+which holds those records as objects:
 `key.PubKeyData` is what an address builder takes and `key.PrvKeyData`
 what `ecc.bms` signs with, so a caller states which half of a pair it
 holds. A spelling that carries either belongs

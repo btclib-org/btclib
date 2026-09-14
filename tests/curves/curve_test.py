@@ -34,6 +34,7 @@ from btclib.curves import (
     double_mult_var,
     mult,
     multi_mult_var,
+    scalar_from_prv_key,
     secp256k1,
 )
 from btclib.curves.curve import (
@@ -62,8 +63,8 @@ from btclib.curves.curve import (
 from btclib.curves.curve_group import _cached_multiples, _jac_from_aff, _mult_jac_var
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData
 from btclib.number_theory import mod_inv_var, mod_sqrt_var
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import load, needs_bindings, vector_id
 
 # test curves: very low cardinality. The name is p and n, in that order,
@@ -134,8 +135,9 @@ def test_secp256k1_py_vectors(vector: dict[str, str]) -> None:
     pubkey_comp = bytes.fromhex(vector["compressed"])
     assert len(pubkey_comp) == 33
 
-    assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
-    assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
+    q = scalar_from_prv_key(prv_key)
+    assert PrvKeyData(q, compressed=False).pub.sec == pubkey_uncp
+    assert PrvKeyData(q, compressed=True).pub.sec == pubkey_comp
 
 
 def test_exceptions() -> None:

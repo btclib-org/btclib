@@ -16,9 +16,7 @@ address encoding.
 A WIF is this module's object in both directions. `wif_from_prv_key` writes
 one from a scalar, a network and a compression flag, and
 `prv_key_data_from_wif` reads one back into a `key.PrvKeyData`. Nothing
-above this module parses the format, and `to_prv_key` does not spell it:
-that converter sits below this module and has no way to reach a parser
-living here (issue #1188).
+else in this library parses the format (issue #1188).
 """
 
 from __future__ import annotations

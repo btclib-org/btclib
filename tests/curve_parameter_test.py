@@ -109,7 +109,6 @@ from btclib.ecc.dh import diffie_hellman
 from btclib.ecc.rfc6979_nonce import challenge_, rfc6979_nonce_
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS, Network
-from btclib.to_pub_key import point_from_key
 from tests.curves.curve_test import low_card_curves
 
 _LIBRARY = Path(__file__).parents[1] / "src" / "btclib"
@@ -404,7 +403,6 @@ _CASES = (
     # the extended-key parse, which compares `ec` against the curve the
     # version bytes name rather than computing in it
     _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),
-    _Case("btclib.to_pub_key.point_from_key", point_from_key, {"key": _SEC}),
     # the one curve parameter that is a field rather than an argument to
     # compute with, and the one not called `ec`. `to_dict`'s keys are the
     # constructor's parameter names, so the valid call is mainnet rebuilt
@@ -548,24 +546,19 @@ def test_the_walk_reaches_what_it_claims() -> None:
 def test_the_curve_a_key_names_is_still_a_value() -> None:
     """The second rule, which is the one the guard sits in front of.
 
-    A key that names a network names its curve, so an ec that is not that
-    curve is a fact about the pair and a `BTClibValueError`. Both compare
-    rather than parse, which is why the type check comes first: an ec of
-    no curve type compares unequal to every network's curve, so without it
-    a caller's own mistake leaves as this same mismatch -- a statement
-    about the key, about which nothing was wrong.
+    An extended key names its network in its version bytes, so an ec that
+    is not that network's curve is a fact about the pair and a
+    `BTClibValueError`. It compares rather than parses, which is why the
+    type check comes first: an ec of no curve type compares unequal to
+    every network's curve, so without it a caller's own mistake leaves as
+    this same mismatch -- a statement about the key, about which nothing
+    was wrong.
+
+    An xpub is the only key spelling that names a network: a scalar and
+    a point carry none, and each is read on the curve the caller hands
+    (issue #1188).
     """
     ec = low_card_curves["ec23_31"]
-
-    # the scalar's octets, whose network is mainnet because that is what
-    # `to_prv_key` fills in for a spelling naming none: the curve of that
-    # network is what `ec` is held against
-    with pytest.raises(BTClibValueError, match="Curve mismatch"):
-        point_from_key("00" * 31 + "0c", ec)
-
-    # an extended key names its network in its version bytes, and `bip32`
-    # is where that is read: no converter resolves one any more (issue
-    # #1188)
     xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv_from_seed("00" * 32)))
     with pytest.raises(BTClibValueError, match="ec/xpub version"):
         point_from_xpub(xpub, ec)

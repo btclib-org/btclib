@@ -47,10 +47,11 @@ name: py arm authority
 #
 # Which pull request can invalidate the table is not a path list. An arm
 # is any function calling `_libsecp256k1_serves`, and what reaches one
-# changes above it: `bip32/bip32_test.py` reaches
-# `curves.sec_point._sec_from_octets` through `to_pub_key`, which holds
-# no arm of its own. That is the push trigger's reasoning below, where a
-# filter naming this surface honestly "would be `every merge`".
+# changes above it: `script_engine/script_test.py` reaches
+# `curves.sec_point.bytes_from_prv_key_int` through `key.PrvKeyData`,
+# which holds no arm of its own. That is the push trigger's reasoning
+# below, where a filter naming this surface honestly "would be `every
+# merge`".
 
 on:
   # a merge creates a commit no pull request measured, and this census is

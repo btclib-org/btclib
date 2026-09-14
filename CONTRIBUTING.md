@@ -817,24 +817,24 @@ cd "$tmp" && uv venv &&
     .venv/bin/python -c "import btclib; \
       from btclib.curves import is_libsecp256k1_serving; \
       from btclib.ecc import dsa; \
-      from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+      from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
       assert is_libsecp256k1_serving(), \
         'the secp256k1 extra resolved, the bindings do not serve'; \
-      assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+      assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
         dsa.sign(b'btclib', 1))"
 cd "$OLDPWD" &&
     uv run --isolated --no-project --with "$(echo dist/*.whl)[secp256k1]" \
     python -c "import btclib; \
       from btclib.curves import is_libsecp256k1_serving; \
       from btclib.ecc import dsa; \
-      from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+      from btclib.key import PrvKeyData; \
       print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'; \
       assert is_libsecp256k1_serving(), \
         'the secp256k1 extra resolved, the bindings do not serve'; \
-      assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+      assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
         dsa.sign(b'btclib', 1))"
 ```
 
@@ -911,8 +911,8 @@ vector and a BIP39 one whose values are fixed forever:
 python -m pip install btclib
 python -c "import btclib; \
     from btclib.ecc import dsa; \
-    from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
-    assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+    from btclib.key import PrvKeyData; \
+    assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
 python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
     m = 'abandon abandon abandon abandon abandon abandon abandon ' \
@@ -939,10 +939,10 @@ python -m pip install --only-binary btclib --only-binary btclib-secp256k1 \
 python -c "import btclib; \
     from btclib.curves import is_libsecp256k1_serving; \
     from btclib.ecc import dsa; \
-    from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+    from btclib.key import PrvKeyData; \
     assert is_libsecp256k1_serving(), \
       'the secp256k1 extra resolved, the bindings do not serve'; \
-    assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+    assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
       dsa.sign(b'btclib', 1))"
 ```
 

@@ -288,10 +288,10 @@ jobs:
         run: |
           uv run --no-project python -c "import btclib; \
             from btclib.ecc import dsa; \
-            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
-            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+            assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
               dsa.sign(b'btclib', 1))"
       # the trezor test vector, whose seed is fixed forever: this is the
       # check the header describes, the one that touches a _data/ file a
@@ -389,10 +389,10 @@ jobs:
           uv run --no-project python -c "import btclib; \
             from btclib.curves import is_libsecp256k1_serving; \
             from btclib.ecc import dsa; \
-            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
             assert is_libsecp256k1_serving(), \
               'the secp256k1 extra resolved, the bindings do not serve'; \
-            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+            assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
               dsa.sign(b'btclib', 1))"

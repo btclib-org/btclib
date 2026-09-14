@@ -65,7 +65,7 @@ from btclib.descriptors.miniscript import (
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.key import PubKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.psbt.psbt import Psbt, finalize, taproot_sig_hash
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_size import estimated_input_sizes
@@ -75,7 +75,6 @@ from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import leaf_hash
 from btclib.script.witness import Witness
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -86,10 +85,7 @@ VECTORS: list[dict[str, Any]] = load("_data", "miniscript_fixed_tests.json")
 
 # Core's own test keys: the public keys of the private keys 1 to 255, which
 # is what its `TestData` generates and what the vectors above name
-KEYS = [
-    pub_keyinfo_from_prv_key((31 * b"\x00" + bytes([i])).hex())[0].hex()
-    for i in range(1, 256)
-]
+KEYS = [PrvKeyData(i).pub.sec.hex() for i in range(1, 256)]
 
 # the six keys of the two custody expressions
 CUSTODY_KEYS = [

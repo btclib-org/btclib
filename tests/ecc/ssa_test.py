@@ -299,11 +299,9 @@ def test_an_extended_key_is_no_longer_a_bip340_key() -> None:
     """The three spellings of a public xpub, refused (issue #1188).
 
     An extended key is bip32's object, and turning one into a public key
-    is bip32's call to make; `ssa` reaching it was `to_pub_key`'s doing,
-    through a `point_from_pub_key` whose own union names `BIP32KeyData`.
-    Dropping that import is what withdraws all three at once, and the
-    annotation would otherwise say so while the code went on accepting
-    them.
+    is bip32's call to make. `ssa` parses the spellings it takes with
+    `curves`, whose `PubKey` union names no extended key, so all three
+    are refused as octets rather than resolved.
 
     The key field is replaced with a point of the curve, so what refuses
     these is their being extended keys and not their contents. Only the
@@ -338,9 +336,9 @@ def test_a_buffer_is_octets_at_every_size_this_takes() -> None:
     """A bytearray and a memoryview, at all three sizes (issue #1188).
 
     They are what `bytes_from_octets` accepts beside `Octets` and copies
-    into `bytes`, and what `to_pub_key` names at run time beside the
-    static union -- the asymmetry `alias` states and this module
-    inherits.
+    into `bytes`, and what `curves.sec_point._PUB_KEY_TYPES` names at run
+    time beside the static union -- the asymmetry `alias` states and this
+    module inherits.
 
     All three sizes because two of them worked and one did not: the
     dispatch this replaces reached `point_from_octets` for a SEC key,

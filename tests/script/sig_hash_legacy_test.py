@@ -15,9 +15,9 @@ import pytest
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, hash256
+from btclib.key import PrvKeyData
 from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
@@ -168,7 +168,7 @@ def test_wrapped_p2pkh() -> None:
     script rather than through `from_tx`.
     """
     prv_key = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA9988
-    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    pub_key = PrvKeyData(prv_key).pub.sec
     redeem_script = serialize(
         ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
@@ -189,7 +189,7 @@ def test_wrapped_p2pkh() -> None:
 def test_missing_redeem_script() -> None:
     """Refuse a p2sh input with no, or the wrong, redeem script."""
     prv_key = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA9988
-    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    pub_key = PrvKeyData(prv_key).pub.sec
     redeem_script = serialize(
         ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )

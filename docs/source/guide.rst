@@ -143,10 +143,11 @@ The four aliases:
     and this is what addresses, WIFs and extended keys are. The alias a
     function names tells you which reading applies.
 
-``PrvKey``
-    An ``int``, or an ``Octets`` scalar. Neither carries a network or a
-    compressed-public-key flag, so everything downstream is told mainnet
-    and compressed, or is told otherwise by an argument.
+``Integer = Octets | int``
+    An ``int``, or an ``Octets`` scalar: what a private key is spelled as.
+    Neither spelling carries a network or a compressed-public-key flag,
+    so everything downstream is told mainnet and compressed, or is told
+    otherwise by an argument.
 
     The two spellings that do carry both are read where they are defined
     (issue #1188). A WIF is ``b58``'s own object,
@@ -158,13 +159,11 @@ The four aliases:
     which ``b58.prv_key_data_from_wif(wif).pub`` and
     ``bip32.pub_keyinfo_from_xkey(xkey)`` are the two ways to reach.
 
-    **The arithmetic layer spells it** ``Integer``, which is the same
-    union of types: ``curves.scalar_from_prv_key`` is what reads a scalar
-    there, and a second name for one union would be nothing a type
-    checker could tell apart (issue #1188). ``PrvKey`` is the name
-    ``to_prv_key.prv_keyinfo_from_prv_key`` keeps, for the record above
-    the scalar. Neither takes an extended key: ``dsa.sign(msg, xprv)``
-    does not work; pass ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
+    **The arithmetic layer reads it with** ``curves.scalar_from_prv_key``,
+    and a second name for the same union of types would be nothing a type
+    checker could tell apart (issue #1188). It does not take an extended
+    key: ``dsa.sign(msg, xprv)`` does not work; pass
+    ``bip32.prv_keyinfo_from_xprv(xprv)[0]``. ``ecc.bms``
     is narrower still: message signing wants the network and the
     compression too, so it takes the ``btclib.key.PrvKeyData`` a WIF and
     a scalar both resolve to — ``b58.prv_key_data_from_wif(wif)`` for the

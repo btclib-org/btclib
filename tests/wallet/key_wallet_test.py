@@ -168,8 +168,7 @@ def test_a_bip32keydata_is_validated_even_when_already_one() -> None:
 
     A string went through `BIP32KeyData.b58decode`, which validates by
     default; an already-built `BIP32KeyData` was trusted as it stood,
-    unlike the four `to_prv_key`/`to_pub_key`/`bip32` functions the same
-    census names as compliant.
+    unlike the `bip32` functions the same census names as compliant.
     """
     bad = replace_unchecked(bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPUB), index=-1)
     err_msg = "invalid index: -1"

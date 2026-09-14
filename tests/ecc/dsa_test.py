@@ -23,6 +23,8 @@ from btclib.curves import (
     double_mult_var,
     mult,
     point_from_octets,
+    point_from_pub_key,
+    scalar_from_prv_key,
     secp256k1,
 )
 from btclib.curves.curve import CURVES
@@ -31,15 +33,15 @@ from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
+from btclib.key import PrvKeyData
 from btclib.number_theory import mod_inv_var
-from btclib.to_pub_key import pub_keyinfo_from_prv_key, pub_keyinfo_from_pub_key
 from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
-from tests.to_key_test import Q as pub_key_point
-from tests.to_key_test import Q_compressed as pub_key_compressed
-from tests.to_key_test import q as prv_key_int
-from tests.to_key_test import q_hexstring as prv_key_hexstring
-from tests.to_key_test import (
+from tests.key_vectors_test import Q as pub_key_point
+from tests.key_vectors_test import Q_compressed as pub_key_compressed
+from tests.key_vectors_test import q as prv_key_int
+from tests.key_vectors_test import q_hexstring as prv_key_hexstring
+from tests.key_vectors_test import (
     wif_compressed_string,
     wif_uncompressed_string,
     xprv_string,
@@ -1496,12 +1498,11 @@ def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
     # comparison below says in the same breath
     sig = dsa.sign_(msg_hash, prv_key, grind=False)
     assert sig.serialize() == sig_raw[:-1]
-    pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
+    pub_key = PrvKeyData(scalar_from_prv_key(prv_key)).pub.sec
     assert dsa.verify_(msg_hash, pub_key, sig)
 
     sig_der = libsecp256k1_dsa.sign(msg_hash, prv_key)
     assert sig_der == sig_raw[:-1]
-    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
     assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
 
 
@@ -1521,10 +1522,9 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
 
     sig = dsa.sign_(msg_hash, prv_key, nonce, grind=False)
     assert sig.serialize() == sig_der
-    pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
+    pub_key = PrvKeyData(scalar_from_prv_key(prv_key)).pub.sec
     assert dsa.verify_(msg_hash, pub_key, sig_der)
 
-    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
     assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
 
 
@@ -1664,7 +1664,7 @@ def test_verification_under_a_prepared_key(monkeypatch: pytest.MonkeyPatch) -> N
         assert not dsa.verify(msg, PreparedPoint(dsa.gen_keys(prv_key + 1)[1]), sig)
         # and it is a public key wherever one is read, the tables being
         # the only thing about it that is not the point's
-        assert pub_keyinfo_from_pub_key(prepared) == pub_keyinfo_from_pub_key(Q)
+        assert point_from_pub_key(prepared) == point_from_pub_key(Q)
         no_bindings(monkeypatch)
 
 
@@ -2194,7 +2194,7 @@ def test_a_signer_derives_and_parses_the_public_key_once(
     # refuses the plain attribute read even though `setattr` below patches
     # the same name -- and has to, `Signer.__init__` reading the copy
     # `from ... import` bound in `dsa`'s own namespace and not a fresh
-    # lookup in `to_pub_key`
+    # lookup in `curves.sec_point`
     real_sec = getattr(dsa, "_sec_from_pub_key")  # noqa: B009
     sec_calls: list[object] = []
 

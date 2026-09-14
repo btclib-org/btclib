@@ -55,6 +55,28 @@ full year, short month, short day (YYYY-M-D)
   choice. A private key no longer reaches an address builder
   unannounced, which is the point: `SECURITY.md` publishes that the
   Python scalar multiplication is not constant-time.
+- **`btclib.to_prv_key` and `btclib.to_pub_key` are gone** (closes
+  #1188). At `v2023.7.12` the first declared `PrvKey = Union[int, bytes,
+  str, BIP32KeyData]`, `PrvkeyInfo = Tuple[int, str, bool]` and
+  `prv_keyinfo_from_prv_key(prv_key: PrvKey, network: str | None = None,
+  compressed: bool | None = None)`, and the second `Key = Union[int,
+  bytes, str, BIP32KeyData, Point]`, `PubkeyInfo = Tuple[bytes, str]`,
+  `point_from_key(key: Key, ec: Curve = secp256k1)`,
+  `pub_keyinfo_from_key`, `pub_keyinfo_from_pub_key` and
+  `pub_keyinfo_from_prv_key`, each of the last three with that same
+  `(network, compressed)` pair. Importing either module raises
+  `ImportError`.
+
+  Act on it wherever you imported one of those names.
+  `btclib.key.PrvKeyData(q, network, compressed)` is the record
+  `prv_keyinfo_from_prv_key` answered and `btclib.key.PubKeyData(sec,
+  network)` the one `pub_keyinfo_from_pub_key` did, each carrying the
+  fields the tuples held; `btclib.key.PrvKeyData(q).pub` is
+  `pub_keyinfo_from_prv_key`. `btclib.curves.scalar_from_prv_key` reads
+  a scalar and `btclib.curves.point_from_pub_key` a public key, which is
+  `point_from_key` for the half the caller holds. The `Key` union has no
+  replacement by design: a caller states which half of a key pair it
+  has, rather than leaving a size or a format to decide it.
 
 ## v2026.9.13
 
