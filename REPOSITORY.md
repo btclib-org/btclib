@@ -59,10 +59,10 @@ repos/btclib-org/btclib/branches/main/protection --jq
 
 | Check | Produced by |
 | --- | --- |
-| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its own jobs |
 | `Regtest against Bitcoin Core` | `integration-bitcoind.yml`, its regtest job |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
+| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
 `test.yml` is the one with several, and a context naming any one of them
@@ -144,10 +144,10 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {
   "strict": true,
   "checks": [
-    {"context": "lint / Lint and type-check", "app_id": 15368},
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Regtest against Bitcoin Core", "app_id": 15368},
-    {"context": "docs / Build the documentation", "app_id": 15368}
+    {"context": "docs / Build the documentation", "app_id": 15368},
+    {"context": "lint / Lint and type-check", "app_id": 15368}
   ]
 }
 JSON
