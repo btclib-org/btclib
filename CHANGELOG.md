@@ -818,6 +818,12 @@ file per release is what keeps each of them under it.
   and the record above it is `key.PrvKeyData` or `key.PubKeyData`**
   (closes #1188): the two aggregators are a layer with nothing left in it.
 
+### `conf.py`'s version comment no longer blames read the docs
+
+- **`.readthedocs.yaml` installs btclib, so the comment's false clause
+  goes** (issue btclib-org/.github#1098): the reason is now that a
+  version should not depend on whether the project happens to be installed.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
