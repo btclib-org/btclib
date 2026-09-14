@@ -695,6 +695,12 @@ documented at release-notes length in the first place, and are still in
   `zkp-oracle.yml` and `sdist-rebuild.yml`** (closes #2101), matching
   `docs.yml`, `integration-bitcoind.yml`, `test.yml` and `lint.yml`.
 
+### `codeql.yml` calls the organization's reusable workflow
+
+- **The analysis job lives in `btclib-org/.github`** (issue
+  btclib-org/.github#35): this file keeps the trigger, the schedule and
+  the aggregate job, and declares the permissions the called job needs.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

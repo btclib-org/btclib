@@ -121,106 +121,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # the analysis itself is btclib-org/.github's, called at @main so a fix
+  # there reaches this tree in one landing (section 10 of its README.md);
+  # what stays here is the trigger, the schedule, the concurrency group
+  # and the aggregate job below. No inputs: this tree and every sibling
+  # carrying codeql.yml scan the same two languages the same way, and an
+  # input for a difference none of them has would be a copy in disguise
+  # (btclib-org/.github#35)
   analyze:
-    # one job per language rather than one job analysing both, so a
-    # failure names the language in the checks list instead of sending a
-    # reader into the log to find out which half broke -- and so the two
-    # run in parallel, which is what default setup did too
-    name: Analyze ${{ matrix.language }}
-    # a draft pull request is work in progress: every push to one would
-    # spend this analysis on a tree its author is not asking anyone to
-    # review yet. A run on the merge result still happens the moment the
-    # pull request is marked ready, which is why ready_for_review is a
-    # trigger type above.
-    # A closed pull request spends no runner either, for the reason the
-    # trigger above gives: closed is taken only to supersede a run this
-    # ref's group is still holding
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    # far above what either language needs; what it bounds is a hung job
-    # holding a runner for six hours
-    timeout-minutes: 20
-    # the elevation, on the job that needs it: security-events: write is
-    # this job's alone, the aggregate below declaring only the read its
-    # own question takes. The write is what uploading a SARIF to code
-    # scanning takes, and the whole reason this job cannot run on the
-    # read-only token. actions: read is redundant while this repository
-    # is public -- it is what the CodeQL action needs to read run
-    # metadata in a *private* one -- and it is written down so that the
-    # file does not quietly stop working the day the repository stops
-    # being public. No packages: read, which fetching a private CodeQL
-    # pack would want and the default query suite does not.
-    # The trailing comments below are not that paragraph again for its own
-    # sake: zizmor's undocumented-permissions audit reads the line a
-    # permission is on and not the prose above the block, so one word there
-    # is what keeps `--persona=auditor` at zero findings for this file
+    uses: btclib-org/.github/.github/workflows/reusable-codeql.yml@main
+    # permissions do not inherit through a call, and the called workflow
+    # names what it needs in its own header: security-events: write for
+    # the SARIF upload, contents: read to check out the tree, and
+    # actions: read for CodeQL to read run metadata in a private
+    # repository -- redundant while this repository is public, and kept
+    # so that the file does not quietly stop working the day it stops
+    # being one
     permissions:
-      security-events: write # the SARIF upload, and nothing else needs it
+      security-events: write
       contents: read
-      actions: read # run metadata, which only a private repository gates
-    strategy:
-      # one language failing must not cancel the other: which of the two
-      # is red is the information, and cancelling throws half of it away
-      fail-fast: false
-      matrix:
-        language:
-          - actions
-          - python
-    steps:
-      # every action is pinned to a commit SHA, the tag in the comment: a
-      # tag, let alone a branch, is a name its owner can move, and these
-      # run in a job that can write security events
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # see the checkout of the coverage job in test.yml
-          persist-credentials: false
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
-        with:
-          languages: ${{ matrix.language }}
-          # both languages are interpreted, so no build step sits between
-          # init and analyze and no autobuild is attempted. Written out
-          # rather than left to the default because it is the input that
-          # would have to change first if a compiled language ever joined
-          # the matrix, and because it is what default setup used here:
-          # every analysis default setup produced carries
-          # `"build-mode":"none"` in its environment, and not one this
-          # workflow has produced does. What an analysis records there
-          # changed when the analysis moved into the tree, so the newest
-          # answers `{"language":"python"}` and says nothing either way
-          # about the input below --
-          #   gh api --paginate \
-          #     "repos/btclib-org/btclib/code-scanning/analyses?per_page=100" \
-          #     --jq '.[] | .environment | test("build-mode")' \
-          #     | sort | uniq -c        # 1046 false, 2896 true
-          build-mode: none
-          # no `queries`, no `packs` and no `config`, which is not an
-          # omission: `query_suite: "default"` is precisely the state in
-          # which nothing has been added, the action running the default
-          # code-scanning suite when the default queries are not disabled
-          # and no packs, queries or query-filters are named. Neither
-          # init nor analyze takes a `query_suite` input to say it with,
-          # so anything written here would widen the analysis rather than
-          # pin it -- `queries: security-extended` is the widening, and
-          # it is a decision separate from moving the file into the tree
-      - name: Analyze
-        uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
-        with:
-          # code scanning keys an analysis by category, so without one
-          # per language the second upload of a commit replaces the first
-          # and every alert of the other language reads as fixed. The
-          # spelling is default setup's own, from the `category` its
-          # analyses carry, so the history of alerts survives the switch
-          # rather than starting again
-          category: "/language:${{ matrix.language }}"
+      actions: read
 
-  # what a branch rule can name, where no cell of the matrix above can
-  # be. REPOSITORY.md's "Required checks on main" states "Never name
-  # matrix contexts in the branch rule": the rule lives outside the
-  # repository, so a context that stops being produced blocks every merge
-  # with nothing here to explain it, and the matrix reports a context per
-  # language, so a rule naming the cells it finds goes silently short the
+  # what a branch rule can name, where no cell of the matrix the called
+  # workflow runs can be. REPOSITORY.md's "Required checks on main"
+  # states "Never name matrix contexts in the branch rule": the rule
+  # lives outside the repository, so a context that stops being produced
+  # blocks every merge with nothing here to explain it, and the matrix
+  # reports a context per language, under a name this job's own id
+  # prefixes, so a rule naming the cells it finds goes silently short the
   # day a language joins. lint.yml and docs.yml need no aggregate of
   # their own while each has one job, the job being the context there,
   # which is the same reason test.yml has one.
@@ -240,9 +168,9 @@ jobs:
     # standard's shape for a workflow only ever run directly -- a called
     # workflow's listing is the caller's run and holds jobs waiting on
     # this one, which is why test.yml, being release.yml's own call,
-    # keeps `needs`. Here `needs` sequences this job after the matrix and
-    # decides nothing, so a language added above is covered without
-    # touching this
+    # keeps `needs`. Here `needs` sequences this job after the call above
+    # and decides nothing, so a language the called workflow's own matrix
+    # adds is covered without touching this
     needs: [analyze]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which a rule naming this context
@@ -275,6 +203,13 @@ jobs:
       # the price of a step per workflow rather than one shared with
       # test.yml's aggregate, `needs` reaching nothing outside its own
       # workflow
+      #
+      # under the call above, the listing carries the called workflow's
+      # rows under a name this job's own id prefixes -- reusable-codeql.yml's
+      # own header has the reason -- and the filter below reads `.jobs[]`
+      # whole and judges each row on its conclusion column alone, so the
+      # rename changes what a row is called and nothing the filter or the
+      # count below reads
       #
       # the allowlist below names "success" and "skipped", which is what
       # section 10 asks of a listing step, rather than "success" alone.
