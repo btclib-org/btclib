@@ -154,7 +154,13 @@ jobs:
       # measurement and of the interpreter rather than of the resolver,
       # so a job that silently kept the bindings would report every arm
       # reached by the bindings-serving path and not the Python one --
-      # exactly the failure this step exists to make impossible
+      # exactly the failure this step exists to make impossible.
+      # check_py_arm_authority.py's own measure() asks the same question
+      # again, and neither check makes the other redundant: this step is
+      # what fails the job here, by name, before the next step even
+      # builds its own environment; the script's own refusal is what
+      # still catches the same mistake for a caller that reaches
+      # measure() by some route this workflow does not run.
       - name: Assert the bindings are absent
         run: >
           uv run --locked --no-default-groups --group harness

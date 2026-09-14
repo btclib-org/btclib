@@ -7,8 +7,8 @@
 That file's docstring documents the measurement by hand: per third-party
 test module, in an environment with no bindings installed,
 
-    uv sync --no-default-groups --group harness
-    pytest <one module> --cov=btclib --cov-report=json --cov-fail-under=0
+    uv run --locked --no-default-groups --group harness \
+        pytest <one module> --cov=btclib --cov-report=json --cov-fail-under=0
 
 reading back which lines of each Python arm ran, the `def` line excluded
 since it runs at import regardless of whether the function is ever
@@ -49,8 +49,8 @@ repository files is called then sits in the workflow that files it,
 beside the trigger and the permission that let it, rather than in a
 script the workflow only names.
 
-    uv sync --no-default-groups --group harness
-    python .github/scripts/check_py_arm_authority.py "<issue title>"
+    uv run --locked --no-default-groups --group harness \
+        python .github/scripts/check_py_arm_authority.py "<issue title>"
 
 Not a gate: `.github/workflows/py-arm-authority.yml` runs this on a
 schedule, with no branch rule attached, for the reason `vendored-vectors`
@@ -66,6 +66,8 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+from btclib._libsecp256k1 import INSTALLED
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
@@ -123,13 +125,43 @@ def _reached(
     return reached
 
 
+def _assert_bindings_absent() -> None:
+    """Refuse to measure where btclib_secp256k1 is installed at all.
+
+    Presence rather than delegation, which is the broader of the two on
+    purpose: `BTCLIB_NO_LIBSECP256K1` leaves the package installed with
+    the Python arithmetic answering, and `_AUTHORITY` is measured in an
+    environment holding no bindings. Refusing presence is what holds a
+    run by hand to that environment instead of to one a reader has
+    argued is equivalent to it.
+
+    One condition and not two: `is_libsecp256k1_serving` answers
+    installed and not refused, and `set_libsecp256k1_serving` refuses
+    `serving=True` where the bindings are absent, so it cannot answer
+    true wherever this returns.
+
+    `py-arm-authority.yml`'s own "Assert the bindings are absent" step
+    asks this before the workflow builds anything past it, so a
+    silently-kept binding fails the job there, by name, before a single
+    module is measured. Here it is asked for every other route to
+    `measure()`: the commands this file's and
+    `tests/py_arm_authority_test.py`'s docstrings give a reader to run by
+    hand, and any caller importing this module directly.
+    """
+    if INSTALLED:
+        raise SystemExit("btclib_secp256k1 is installed")
+
+
 def measure() -> dict[str, frozenset[str]]:
     """Return, for every arm, the third-party modules that actually reach it.
 
     One coverage run per module named in `_THIRD_PARTY_VECTORS`, each
     against a fresh report file so one module's measurement cannot leak
-    into another's.
+    into another's. Refuses first, through `_assert_bindings_absent`,
+    to run at all where the bindings would answer in the Python arm's
+    place.
     """
+    _assert_bindings_absent()
     locations = _arm_locations()
     actual: dict[str, set[str]] = {arm: set() for arm in locations}
     with tempfile.TemporaryDirectory() as tmp:

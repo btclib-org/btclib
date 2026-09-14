@@ -842,6 +842,12 @@ file per release is what keeps each of them under it.
   (closes #2125): `test_b58_stays_below_bip32` is built the way
   `test_address_encodings_stay_below_script` already is.
 
+### The census's documented local recipe keeps the bindings out
+
+- **A bare `uv run` after `uv sync --no-default-groups --group harness`
+  reinstalled the bindings** (closes #2132): the flags move onto
+  `uv run` itself, and `measure()` refuses to run where they are installed.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
