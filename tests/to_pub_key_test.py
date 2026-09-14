@@ -23,14 +23,15 @@ from btclib.curves import (
     mult,
     point_from_octets,
     point_from_pub_key,
+    secp256k1,
 )
 from btclib.curves.curve import CURVES
+from btclib.curves.sec_point import _sec_from_pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.to_pub_key import (
     Key,
     PubkeyInfo,
     _sec_from_key,
-    _sec_from_pub_key,
     point_from_key,
     pub_keyinfo_from_key,
     pub_keyinfo_from_pub_key,
@@ -320,7 +321,9 @@ def test_a_prepared_point_is_a_key_wherever_a_point_is() -> None:
 
     # the uncompressed form, which is what that conversion answers for a
     # point: the cheap one for whatever call proves it
-    assert _sec_from_pub_key(prepared) == bytes_from_point(Q, compressed=False)
+    assert _sec_from_pub_key(prepared, secp256k1) == bytes_from_point(
+        Q, compressed=False
+    )
 
     # and a prepared point of another curve is refused where a bare point
     # of it is: preparing validates against its own curve, so what is

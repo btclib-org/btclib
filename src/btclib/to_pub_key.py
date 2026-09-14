@@ -36,6 +36,7 @@ from btclib.curves.sec_point import (
     _PUB_KEY_TYPES,
     _assert_pub_key_type,
     _sec_from_octets,
+    _sec_from_pub_key,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import network_from_name
@@ -189,11 +190,11 @@ def _sec_from_key(key: Key) -> bytes:
     if isinstance(key, PreparedPoint):
         return _sec_from_key(key.point)
     if isinstance(key, tuple):
-        return _sec_from_pub_key(key)
+        return _sec_from_pub_key(key, secp256k1)
     if isinstance(key, int):
         return pub_keyinfo_from_prv_key(key)[0]
     with contextlib.suppress(BTClibValueError):
-        return _sec_from_pub_key(key)
+        return _sec_from_pub_key(key, secp256k1)
     try:
         return pub_keyinfo_from_prv_key(key)[0]
     except BTClibValueError as e:
@@ -223,46 +224,14 @@ def pub_keyinfo_from_pub_key(
     return _sec_from_octets(sec, network_from_name(net).curve), net
 
 
-def _sec_from_pub_key(pub_key: PubKey) -> bytes:
-    """Return the SEC octets of a public key, unproven, however spelled.
-
-    `pub_keyinfo_from_pub_key` proves the octets a point of the curve --
-    for a compressed key a field square root -- and a caller going on to
-    verify a signature under them, or to tweak a taproot key with them,
-    hands them to a call whose own parse is that same proof: the two
-    together lift one x twice, which is issue 887.
-
-    So this is that conversion with the proof left out, and it is private
-    because the guarantee is the caller's to complete: whatever these
-    octets are handed to is what refuses a key that is no point, and it is
-    the caller that turns the `ValueError` into btclib's own.
-
-    A `Point` comes back uncompressed, which is the cheap form to parse --
-    both coordinates are there to read, where a compressed key pays the
-    field square root that lifts x -- while `pub_keyinfo_from_pub_key`
-    answers the compressed one, `compressed=None` meaning "whatever the
-    key says" and
-    a point saying nothing. No network and no compressed filter either,
-    which is what the callers ask for: a verification takes the key as the
-    key says it is, and the curve it is asked about is the signature's.
-    """
-    if isinstance(pub_key, PreparedPoint):
-        return _sec_from_pub_key(pub_key.point)
-    if isinstance(pub_key, tuple):
-        # bytes_from_point is btclib's own arithmetic and not a parse: it
-        # refuses what is not a point of the curve, and infinity
-        return bytes_from_point(pub_key, secp256k1, False)
-    return _pub_keyinfo_from_pub_key(pub_key, None, None)[0][0]
-
-
 def _pub_keyinfo_from_pub_key(
     pub_key: PubKey, network: str | None, compressed: bool | None
 ) -> tuple[PubkeyInfo, bool]:
     """Return the pub key tuple, and whether it is still to be proved a point.
 
-    The body of `pub_keyinfo_from_pub_key`, and of `_sec_from_pub_key`
-    above: the dispatch over the spellings of a public key stays written
-    once, and the two differ in what they do with the answer.
+    The body of `pub_keyinfo_from_pub_key` above, kept apart from it so
+    that the proof below -- `_sec_from_octets`'s round trip or cheap
+    parse -- runs only where `to_prove` says the caller still needs it.
 
     True for octets, which arrive unproven and are proved by the public
     spelling; False for a `Point`, which `bytes_from_point` has just

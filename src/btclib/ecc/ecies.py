@@ -85,9 +85,8 @@ from btclib.curves import (
     scalar_from_prv_key,
     secp256k1,
 )
-from btclib.curves.sec_point import _mult_sec_var
+from btclib.curves.sec_point import _mult_sec_var, _sec_from_pub_key
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.to_pub_key import pub_keyinfo_from_pub_key
 from btclib.utils import assert_type, bytes_from_octets, str_from_string
 
 __all__ = [
@@ -135,8 +134,12 @@ def derive_keys(prv_key: Integer, pub_key: PubKey) -> tuple[bytes, bytes, bytes]
     """
     q = scalar_from_prv_key(prv_key)
     # the public key stays octets: no coordinate of it is read here, and
-    # `_mult_sec_var` is the multiplication without the point in between
-    sec = pub_keyinfo_from_pub_key(pub_key)[0]
+    # `_mult_sec_var` is the multiplication without the point in between.
+    # `_sec_from_pub_key` hands them over unproven -- the multiplication
+    # below is the proof, its own parse refusing what is not a point of
+    # the curve, the same trade `ecc.dsa` makes for its own delegated
+    # calls (issue 887)
+    sec = _sec_from_pub_key(pub_key, secp256k1)
     shared_point_bytes = bytes_from_point(
         _mult_sec_var(sec, q, secp256k1), compressed=True
     )

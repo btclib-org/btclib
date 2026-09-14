@@ -731,6 +731,12 @@ documented at release-notes length in the first place, and are still in
   btclib-org/.github#35), whose own comment does not repeat this tree's
   claim about the bindings the `lint` group installs.
 
+### `ecc.dsa` and `ecc.ecies` stop importing `btclib.to_pub_key`
+
+- **A public key's unproven SEC octets are `curves.sec_point._sec_from_pub_key`'s**
+  (issue #1188); `ecc.ecies.derive_keys` also stops proving the key twice,
+  the same redundant lift issue 887 fixed for `ecc.dsa`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
