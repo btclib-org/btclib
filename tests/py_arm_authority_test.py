@@ -25,8 +25,8 @@ call to `_libsecp256k1_serves` is an arm, which is the same definition
 issue #968 made by hand -- so one added without an entry here fails.
 And the entries were measured, not reasoned:
 
-    uv sync --no-default-groups --group harness
-    pytest <one module> --cov=btclib --cov-report=json --cov-fail-under=0
+    uv run --locked --no-default-groups --group harness \
+        pytest <one module> --cov=btclib --cov-report=json --cov-fail-under=0
 
 in an environment with no bindings installed, reading back which lines of
 each arm ran. A module is named here when its run reached the arm's body,
