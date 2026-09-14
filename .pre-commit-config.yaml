@@ -768,7 +768,7 @@ repos:
     # value and the marker as one line and fails wherever the two differ.
     # `pinned-rev` cannot, being a refusal of a shape -- a bare major, a
     # prerelease -- and a hold naming a version is not one
-    rev: v1.29.0 # hold: v1.29.0 -- issue #1563
+    rev: v1.30.1 # hold: v1.29.0 -- issue #1563
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -930,7 +930,7 @@ repos:
     # having no notion of one -- it did so here and in pull request #315
     # before it. What a beta of the packaging checker would gate is the
     # release workflow, on a judgement its own author has not settled yet
-    rev: "5.0.1"
+    rev: "5.1b1"
     hooks:
       - id: pyroma
         # the backend, in pyroma's own environment. pyroma's command line
