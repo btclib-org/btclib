@@ -50,6 +50,7 @@ from btclib.coin_selection import (
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import DUST_RELAY_FEE_RATE, FeeRate, dust_threshold, fee_from_vsize
+from btclib.key import PubKeyData
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, TxOut, input_weight
@@ -60,8 +61,8 @@ from btclib.tx_builder import _target_overhead_vsize, build_psbt
 # dust-checked
 PAY_KEY = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 CHANGE_KEY = "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
-PAY_SCRIPT = ScriptPubKey.p2wpkh(PAY_KEY)
-CHANGE_SCRIPT = ScriptPubKey.p2wpkh(CHANGE_KEY)
+PAY_SCRIPT = ScriptPubKey.p2wpkh(PubKeyData(PAY_KEY))
+CHANGE_SCRIPT = ScriptPubKey.p2wpkh(PubKeyData(CHANGE_KEY))
 
 # a p2wpkh input's own weight: no scriptSig, a DER signature and a
 # compressed public key in the witness -- the same worst-case satisfaction

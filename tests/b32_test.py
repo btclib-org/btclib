@@ -43,6 +43,7 @@ from btclib.alias import ScriptList
 from btclib.curves import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.script import op_int, output_pubkey, serialize
 
 
@@ -260,14 +261,14 @@ def test_p2wpkh_p2sh() -> None:
     """Reproduce published p2wpkh-p2sh addresses, testnet included."""
     # https://matthewdowney.github.io/create-segwit-address.html
     pub = " 03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-    address = b58.p2wpkh_p2sh(pub)
+    address = b58.p2wpkh_p2sh(PubKeyData(pub))
     assert address == "36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
-    address = b58.p2wpkh_p2sh(pub, "testnet")
+    address = b58.p2wpkh_p2sh(PubKeyData(pub, "testnet"))
     assert address == "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
 
     # http://bitcoinscri.pt/pages/segwit_p2sh_p2wpkh
     pub = "02 f118cc409775419a931c57664d0c19c405e856ac0ee2f0e2a4137d8250531128"
-    address = b58.p2wpkh_p2sh(pub)
+    address = b58.p2wpkh_p2sh(PubKeyData(pub))
     assert address == "3Mwz6cg8Fz81B7ukexK8u8EVAW2yymgWNd"
 
 
@@ -277,24 +278,23 @@ def test_p2wpkh() -> None:
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     addr = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
-    assert addr == b32.p2wpkh(pub)
+    assert addr == b32.p2wpkh(PubKeyData(pub))
     addr = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
-    assert addr == b32.p2wpkh(pub, "testnet")
+    assert addr == b32.p2wpkh(PubKeyData(pub, "testnet"))
 
     # http://bitcoinscri.pt/pages/segwit_native_p2wpkh
     pub = "02 530c548d402670b13ad8887ff99c294e67fc18097d236d57880c69261b42def7"
     addr = "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
-    assert addr == b32.p2wpkh(pub)
+    assert addr == b32.p2wpkh(PubKeyData(pub))
 
     _, wit_prg, _ = b32.witness_from_address(addr)
     assert wit_prg == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
-    err_msg = "not a private or compressed public key"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        b32.p2wpkh(uncompr_pub)
-    with pytest.raises(BTClibValueError, match=err_msg):
-        b32.p2wpkh(f"{pub}0A")
+    with pytest.raises(BTClibValueError, match="not a compressed public key"):
+        b32.p2wpkh(PubKeyData(uncompr_pub))
+    with pytest.raises(BTClibValueError, match="invalid SEC key size: 34"):
+        b32.p2wpkh(PubKeyData(f"{pub}0A"))
 
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -335,8 +335,9 @@ def test_p2wsh() -> None:
 
 def test_p2tr() -> None:
     """Verify a p2tr address decodes back to its taproot output key."""
-    key = 1
-    pub_key = output_pubkey(key)[0]
+    # a caller holding a scalar derives the public key and says so, an
+    # address builder taking one half of a pair (issue #1188)
+    pub_key = output_pubkey(PrvKeyData(1).pub)[0]
     addr = b32.p2tr(pub_key)
     wit_ver, wit_prg, _ = b32.witness_from_address(addr)
 

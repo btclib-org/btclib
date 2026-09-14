@@ -87,14 +87,13 @@ from btclib.curves.curve import (
     _tweak_add_var,
     _TweakChain,
 )
-from btclib.curves.sec_point import _mult_sec_var
+from btclib.curves.sec_point import _mult_sec_var, _sec_from_pub_key
 from btclib.ecc.ssa import point_from_bip340pub_key
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
 from btclib.network import network_type_from_network
 from btclib.script.script_pub_key import is_p2pkh, is_p2sh, is_p2tr, is_p2wpkh
 from btclib.script.witness import Witness
-from btclib.to_pub_key import pub_keyinfo_from_pub_key
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, is_integer, is_octets, str_from_string
 
@@ -566,8 +565,13 @@ def shared_secret(scalar: Integer, point: PubKey) -> Point:
     it hashes, and BIP352 tags this point with a counter of its own;
     :mod:`btclib.ecc.dh` has that verdict for all four of the library's
     ECDH-shaped computations.
+
+    The octets arrive unproven, as `ecc.ecies.derive_keys` takes them:
+    `_mult_sec_var`'s own call is the proof, refusing what is not a point
+    of the curve, so proving them here would lift one x twice (issue
+    887).
     """
-    sec = pub_keyinfo_from_pub_key(point)[0]
+    sec = _sec_from_pub_key(point, secp256k1)
     return _mult_sec_var(sec, scalar_from_prv_key(scalar), secp256k1)
 
 

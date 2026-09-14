@@ -30,10 +30,13 @@ from btclib.fee import (
     fee_from_vsize,
     package_fee,
 )
+from btclib.key import PubKeyData
 from btclib.script import ScriptPubKey, serialize
 from btclib.script.limits import MAX_SCRIPT_SIZE
 
-_PUB_KEY = "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+_PUB_KEY = PubKeyData(
+    "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+)
 
 
 def test_the_unit_is_in_the_name() -> None:

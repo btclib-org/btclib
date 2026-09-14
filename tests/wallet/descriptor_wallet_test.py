@@ -36,6 +36,7 @@ from btclib.descriptors import (
     parse,
 )
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PubKeyData
 from btclib.psbt.psbt import Psbt
 from btclib.script import script
 from btclib.script.script_pub_key import ScriptPubKey
@@ -228,9 +229,11 @@ def test_the_two_pre_images_are_the_wrapped_descriptors_own() -> None:
     assert (
         sh_wpkh.redeem_script(0, 3)
         == ScriptPubKey.p2wpkh(
-            parse(_descriptor(f"wpkh({_XPUB}/0/*)"))
-            .key_expressions[0]
-            .sec(3, "mainnet")
+            PubKeyData(
+                parse(_descriptor(f"wpkh({_XPUB}/0/*)"))
+                .key_expressions[0]
+                .sec(3, "mainnet")
+            )
         ).script
     )
     assert not sh_wpkh.witness_script(0, 3)

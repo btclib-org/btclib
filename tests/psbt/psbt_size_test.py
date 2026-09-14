@@ -32,6 +32,7 @@ from btclib.curves import mult
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.psbt import Psbt, PsbtIn, PsbtOut, extract_tx
 from btclib.psbt.psbt_size import (
     SCHNORR_SIG_SIZE,
@@ -129,7 +130,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
 
     if stack:
         if len(stack) == 2 and len(stack[1]) in {33, 65}:
-            program = ScriptPubKey.p2wpkh(stack[1]).script
+            program = ScriptPubKey.p2wpkh(PubKeyData(stack[1])).script
             witness_script = b""
         elif is_p2ms(stack[-1]):
             program = ScriptPubKey.p2wsh(stack[-1]).script
@@ -157,7 +158,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
     if len(script_sig_pushes) == 2 and len(script_sig_pushes[1]) in {33, 65}:
         pub_key = script_sig_pushes[1]
         psbt_in = PsbtIn(hd_key_paths={pub_key: DUMMY_KEY_ORIGIN}, check_validity=False)
-        return psbt_in, ScriptPubKey.p2pkh(pub_key).script
+        return psbt_in, ScriptPubKey.p2pkh(PubKeyData(pub_key)).script
 
     if is_p2ms(redeem_script):
         psbt_in = PsbtIn(redeem_script=redeem_script, check_validity=False)
@@ -596,7 +597,7 @@ def test_the_key_of_a_p2pkh_is_looked_up_past_the_ones_that_miss() -> None:
     """
     uncompressed = bytes_from_point(mult(3), compressed=False)
     miss = bytes_from_point(mult(4))
-    script_pub_key = ScriptPubKey.p2pkh(uncompressed).script
+    script_pub_key = ScriptPubKey.p2pkh(PubKeyData(uncompressed)).script
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
 
     def sizes(*pub_keys: bytes) -> int:

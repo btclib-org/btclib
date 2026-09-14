@@ -788,6 +788,18 @@ file per release is what keeps each of them under it.
   what an unpacked sdist holds of the changelog is the window and the
   index into the rest.
 
+### An address is built from a `key.PubKeyData`, not from a key union
+
+- **The base58 and bech32 address builders, the `ScriptPubKey`
+  constructors, `script.taproot`'s internal key and `wallet.KeyWallet`
+  take the half of a key pair a caller states** (issue #1188).
+
+### `ScriptPubKey.p2ms` refuses keys of several networks
+
+- **A multisig output's keys have to agree on their network** (issue
+  #1188), where the one `network` argument the call used to take filled
+  the first key's in for all of them.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

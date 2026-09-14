@@ -393,7 +393,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     assert _DRIVABLE["btclib.bip32.bip32.derive"] == ["BIP32Key", "DerPath"]
     assert _DRIVABLE["btclib.to_pub_key.pub_keyinfo_from_key"] == ["Key"]
     # `network` and `compressed` carry defaults and are not driven
-    assert _DRIVABLE["btclib.b58.p2pkh"] == ["Key"]
+    assert _DRIVABLE["btclib.b58.prv_key_data_from_wif"] == ["String"]
 
     assert "btclib.hashes._assert_valid_hf" not in _DRIVABLE
     # a required parameter the vocabulary cannot build: a Tx, a Psbt

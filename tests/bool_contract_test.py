@@ -66,7 +66,7 @@ from btclib.block import merkle_proof
 from btclib.curves import mult, secp256k1
 from btclib.ecc import bms, dleq, dsa, pedersen, ssa
 from btclib.hashes import reduce_to_hlen
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -77,7 +77,7 @@ _X_ONLY = _PUB[1:]
 _MSG = b"Satoshi Nakamoto"
 _OTHER_MSG = b"another message"
 _MSG_HASH = reduce_to_hlen(_MSG)
-_ADDR = b58.p2pkh(_PUB)
+_ADDR = b58.p2pkh(PubKeyData(_PUB))
 _DSA_SIG = dsa.sign(_MSG, _Q)
 _SSA_SIG = ssa.sign(_MSG, _Q)
 _BMS_SIG = bms.sign(_MSG, PrvKeyData(_Q))

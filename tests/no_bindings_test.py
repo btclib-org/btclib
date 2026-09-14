@@ -60,6 +60,7 @@ from btclib.curves import (
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibException, BTClibValueError
+from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 from tests import needs_bindings
 
@@ -293,7 +294,8 @@ _Y = _Q[1].to_bytes(32, "big")
 #
 # "bad-prefix internal key" is held to the class alone. `0x05 || x` is a
 # SEC length with no SEC prefix, the fault of neither coordinate, and
-# `_sec_from_key` leaves it unproven for `_tweaked_pubkey`'s own parse
+# a `PubKeyData` built unchecked leaves it unproven for
+# `_tweaked_pubkey`'s own parse
 # to refuse (issue #887): the bindings arm learns of it from
 # `tweak_add`'s bare `ValueError`, the Python one from `PubKeyData.
 # point`'s lift, and neither call can say what the other would have
@@ -306,10 +308,15 @@ _Y = _Q[1].to_bytes(32, "big")
 _REFUSALS: dict[str, tuple[Callable[[], object], bool]] = {
     "bool private key": (lambda: dsa.sign(_MSG_HASH, True), True),
     "hybrid internal key": (
-        lambda: output_pubkey(bytes([0x06]) + _X + _Y),
+        lambda: output_pubkey(
+            PubKeyData(bytes([0x06]) + _X + _Y, check_validity=False)
+        ),
         True,
     ),
-    "bad-prefix internal key": (lambda: output_pubkey(bytes([0x05]) + _X), False),
+    "bad-prefix internal key": (
+        lambda: output_pubkey(PubKeyData(bytes([0x05]) + _X, check_validity=False)),
+        False,
+    ),
 }
 
 # a second child, built the same way as `_CHILD` above: the finder
@@ -336,6 +343,7 @@ from btclib._libsecp256k1 import INSTALLED
 from btclib.curves import curve
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibException
+from btclib.key import PubKeyData
 from btclib.script.taproot import output_pubkey
 
 assert "btclib_secp256k1" not in sys.modules, "the finder let the bindings in"
@@ -354,10 +362,14 @@ print(json.dumps({{
     "dispatch": curve._libsecp256k1_available,
     "bool private key": refused(lambda: dsa.sign({msg_hash!r}, True)),
     "hybrid internal key": refused(
-        lambda: output_pubkey(bytes.fromhex({hybrid_sec!r}))
+        lambda: output_pubkey(
+            PubKeyData(bytes.fromhex({hybrid_sec!r}), check_validity=False)
+        )
     ),
     "bad-prefix internal key": refused(
-        lambda: output_pubkey(bytes.fromhex({bad_prefix_sec!r}))
+        lambda: output_pubkey(
+            PubKeyData(bytes.fromhex({bad_prefix_sec!r}), check_validity=False)
+        )
     ),
 }}))
 """

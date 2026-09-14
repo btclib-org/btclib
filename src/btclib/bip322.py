@@ -101,7 +101,7 @@ from btclib.exceptions import (
     InconclusiveError,
 )
 from btclib.hashes import hash160, tagged_hash
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.psbt import Psbt, extract_tx
 from btclib.script import serialize
 from btclib.script.engine import ALL_FLAGS, ScriptFlag, verify_transaction
@@ -653,7 +653,13 @@ def _assert_key_owns(script_type: str, payload: bytes, pub_key: bytes) -> None:
         "p2pkh": hash160(pub_key),
         "p2wpkh": hash160(pub_key),
         "p2sh": hash160(_redeem_script(pub_key)),
-        "p2tr": output_pubkey(pub_key)[0] if len(pub_key) == 33 else b"",
+        # check_validity=False: the length is the line's own test and
+        # the octets are what `PrvKeyData.pub` has just derived
+        "p2tr": (
+            output_pubkey(PubKeyData(pub_key, check_validity=False))[0]
+            if len(pub_key) == 33
+            else b""
+        ),
     }
     if owned.get(script_type) != payload:
         raise BTClibValueError("mismatch between private key and address")

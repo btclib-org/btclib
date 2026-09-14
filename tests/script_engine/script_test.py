@@ -18,6 +18,7 @@ from btclib.ecc import ssa
 from btclib.ecc.dsa import Sig, sign_
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import hash160, sha256
+from btclib.key import PrvKeyData
 from btclib.script import ScriptPubKey, sig_hash
 from btclib.script.engine import (
     ALL_FLAGS,
@@ -1209,7 +1210,7 @@ def test_hash_types_report_every_signature_the_interpreter_checked() -> None:
     leaf_script = serialize_tapscript(tap_script)
     prevouts = [
         TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script))),
-        TxOut(1000, ScriptPubKey.p2tr(keys[0])),
+        TxOut(1000, ScriptPubKey.p2tr(PrvKeyData(keys[0]).pub)),
         TxOut(
             1000, ScriptPubKey(serialize(["OP_1", output_pubkey(None, script_tree)[0]]))
         ),

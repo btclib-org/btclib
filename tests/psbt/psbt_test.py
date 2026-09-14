@@ -19,6 +19,7 @@ from btclib.curves import sec_point
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256, tagged_hash
+from btclib.key import PubKeyData
 from btclib.psbt import (
     Psbt,
     PsbtIn,
@@ -1254,7 +1255,7 @@ def test_an_input_may_carry_both_utxos() -> None:
     # valid psbts carry one UTXO type per input and none the previous
     # transaction of a segwit one
     pub_key = "02 1e0f2b3f28d7b4a4c4ae4f0b3e2c6f9e5d8a7c1b0f2e3d4c5b6a798877665544"
-    redeem_script = ScriptPubKey.p2wpkh(pub_key).script
+    redeem_script = ScriptPubKey.p2wpkh(PubKeyData(pub_key)).script
     script_pub_key = ScriptPubKey.p2sh(redeem_script)
     prev_tx = Tx(
         vin=[TxIn(OutPoint(bytes.fromhex("11" * 32), 0))],
@@ -2204,7 +2205,9 @@ def _spending_tx(prev_out: TxOut) -> tuple[Tx, Tx]:
         2, 0, [TxIn(OutPoint("00" * 31 + "01", 0), b"", 0xFFFFFFFF)], [prev_out]
     )
     tx_in = TxIn(OutPoint(prev_tx.id, 0), b"", 0xFFFFFFFF)
-    return Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey.p2wpkh(_PUB_KEY))]), prev_tx
+    return Tx(
+        2, 0, [tx_in], [TxOut(90_000, ScriptPubKey.p2wpkh(PubKeyData(_PUB_KEY)))]
+    ), prev_tx
 
 
 def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
@@ -2218,14 +2221,16 @@ def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
     p2pk = serialize([_PUB_KEY, "OP_CHECKSIG"])
     witness_script = p2pk if "p2wsh" in kind else b""
     script_pub_key = {
-        "p2pkh": ScriptPubKey.p2pkh(_PUB_KEY),
-        "p2wpkh": ScriptPubKey.p2wpkh(_PUB_KEY),
+        "p2pkh": ScriptPubKey.p2pkh(PubKeyData(_PUB_KEY)),
+        "p2wpkh": ScriptPubKey.p2wpkh(PubKeyData(_PUB_KEY)),
         "p2wsh": ScriptPubKey.p2wsh(p2pk),
-        "p2sh-p2wpkh": ScriptPubKey.p2sh(ScriptPubKey.p2wpkh(_PUB_KEY).script),
+        "p2sh-p2wpkh": ScriptPubKey.p2sh(
+            ScriptPubKey.p2wpkh(PubKeyData(_PUB_KEY)).script
+        ),
         "p2sh-p2wsh": ScriptPubKey.p2sh(ScriptPubKey.p2wsh(p2pk).script),
     }[kind]
     redeem_script = (
-        ScriptPubKey.p2wpkh(_PUB_KEY).script
+        ScriptPubKey.p2wpkh(PubKeyData(_PUB_KEY)).script
         if kind == "p2sh-p2wpkh"
         else ScriptPubKey.p2wsh(p2pk).script
         if kind == "p2sh-p2wsh"
@@ -2362,7 +2367,7 @@ def _multisig_psbt(
     1-of-2, which is more signatures than the script pops, and one
     signer of a 2-of-2, which is fewer.
     """
-    keys = [_PUB_KEY, _OTHER_PUB_KEY]
+    keys = [PubKeyData(_PUB_KEY), PubKeyData(_OTHER_PUB_KEY)]
     multisig = ScriptPubKey.p2ms(threshold, keys, lexicographic_sorting=False).script
     witness_script = multisig if "wsh" in kind else b""
     script_pub_key = {
@@ -3239,7 +3244,7 @@ def test_a_taproot_input_is_checked_whichever_utxo_it_carries() -> None:
     psbt is signable at all is the two spellings agreeing on this key.
     """
     internal_key = _PUB_KEY[1:]
-    prev_out = TxOut(100_000, ScriptPubKey.p2tr(_PUB_KEY))
+    prev_out = TxOut(100_000, ScriptPubKey.p2tr(PubKeyData(_PUB_KEY)))
     tx, prev_tx = _spending_tx(prev_out)
     psbt = Psbt.from_tx(tx)
     psbt.inputs[0].non_witness_utxo = prev_tx
@@ -3450,7 +3455,7 @@ def _taproot_key_path_psbt(
     by: the psbt itself carries the root and not the tree, as BIP371
     has it, and `sign` is never told the tree either.
     """
-    script_pub_key = ScriptPubKey.p2tr(_TAPROOT_PUB_KEY, script_tree)
+    script_pub_key = ScriptPubKey.p2tr(PubKeyData(_TAPROOT_PUB_KEY), script_tree)
     prev_out = TxOut(100_000, script_pub_key)
     tx, _ = _spending_tx(prev_out)
 
@@ -3488,10 +3493,10 @@ def _taproot_script_path_psbt(
     with_leaf_script drops `PSBT_IN_TAP_LEAF_SCRIPT` alone, leaving the
     derivation naming a leaf the psbt does not carry the script of.
     """
-    script_pub_key = ScriptPubKey.p2tr(_TAPROOT_PUB_KEY, _LEAF_TREE)
+    script_pub_key = ScriptPubKey.p2tr(PubKeyData(_TAPROOT_PUB_KEY), _LEAF_TREE)
     prev_out = TxOut(100_000, script_pub_key)
     tx, _ = _spending_tx(prev_out)
-    control_block = input_script_sig(_TAPROOT_PUB_KEY, _LEAF_TREE, 0)[1]
+    control_block = input_script_sig(PubKeyData(_TAPROOT_PUB_KEY), _LEAF_TREE, 0)[1]
 
     psbt = Psbt.from_tx(tx)
     psbt.inputs[0].witness_utxo = prev_out

@@ -33,7 +33,7 @@ from btclib.curves.curve import CURVES
 from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import magic_message
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.mnemonic import bip39
 from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import no_bindings_anywhere
@@ -107,7 +107,7 @@ def test_signature() -> None:
 
     # bms_sig taken from (Electrum and) Bitcoin Core
     wif = "5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
-    addr = b58.p2pkh(wif)
+    addr = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     bms_sig = bms.sign(msg, b58.prv_key_data_from_wif(wif))
     bms.assert_as_valid(msg, addr, bms_sig)
     assert bms.verify(msg, addr, bms_sig)
@@ -142,7 +142,7 @@ def test_exceptions() -> None:
     """Refuse bad addresses, flags, encodings and key/address pairs."""
     msg = b"test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
-    address = b58.p2pkh(wif)
+    address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
     bms.assert_as_valid(msg, address, exp_sig)
     bms_sig = bms.Sig.b64decode(exp_sig)
@@ -217,9 +217,9 @@ def test_exceptions() -> None:
 
     msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    b58_p2pkh = b58.p2pkh(wif)
-    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub.sec)
-    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
+    b58_p2pkh = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
+    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(b58.prv_key_data_from_wif(wif).pub)
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     err_msg = "mismatch between private key and address"
@@ -269,10 +269,10 @@ def test_every_recovery_flag_is_ruled_on_by_range_alone() -> None:
     """
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
     dummy_pub_key = b"\x02" + 32 * b"\x00"
-    b58_p2pkh = b58.p2pkh(wif)
+    b58_p2pkh = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     _, h160_p2pkh, _ = h160_from_address(b58_p2pkh)
-    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub.sec)
-    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
+    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(b58.prv_key_data_from_wif(wif).pub)
     _, h160_p2sh, _ = h160_from_address(b58_p2wpkh_p2sh)
 
     checks: list[tuple[Callable[[int], None], set[int], str, str]] = [
@@ -318,7 +318,7 @@ def test_the_address_is_read_the_same_however_it_is_held() -> None:
     """
     msg = b"however it is held"
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
-    address = b58.p2pkh(wif)
+    address = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     expected = bms.sign(msg, b58.prv_key_data_from_wif(wif), address)
 
     padded = f"  {address}  "
@@ -343,9 +343,9 @@ def test_one_prv_key_multiple_addresses() -> None:
 
     # Compressed WIF
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
-    b58_p2pkh_compressed = b58.p2pkh(wif)
-    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
-    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub.sec)
+    b58_p2pkh_compressed = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(b58.prv_key_data_from_wif(wif).pub)
+    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub)
 
     # sign with no address
     sig1 = bms.sign(msg, b58.prv_key_data_from_wif(wif))
@@ -415,7 +415,7 @@ def test_one_prv_key_multiple_addresses() -> None:
     # uncompressed WIF / p2pkh address
     data = b58.prv_key_data_from_wif(wif)
     wif2 = b58.wif_from_prv_key(data.q, data.network, False)
-    b58_p2pkh_uncompressed = b58.p2pkh(wif2)
+    b58_p2pkh_uncompressed = b58.p2pkh(b58.prv_key_data_from_wif(wif2).pub)
 
     # sign with uncompressed p2pkh
     sig4 = bms.sign(msg, b58.prv_key_data_from_wif(wif2), b58_p2pkh_uncompressed)
@@ -442,9 +442,9 @@ def test_one_prv_key_multiple_addresses() -> None:
 
     # unrelated different wif
     wif3 = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    b58_p2pkh_compressed = b58.p2pkh(wif3)
-    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif3)
-    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif3).pub.sec)
+    b58_p2pkh_compressed = b58.p2pkh(b58.prv_key_data_from_wif(wif3).pub)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(b58.prv_key_data_from_wif(wif3).pub)
+    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif3).pub)
 
     # False for Bitcoin Core compressed p2pkh
     with pytest.raises(BTClibValueError, match="invalid p2pkh address: "):
@@ -481,7 +481,7 @@ def test_msgsign_p2pkh() -> None:
     # uncompressed
     wif1u = b58.wif_from_prv_key(q, "mainnet", False)
     assert wif1u == "5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw"
-    add1u = b58.p2pkh(wif1u)
+    add1u = b58.p2pkh(b58.prv_key_data_from_wif(wif1u).pub)
     assert add1u == "1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
     bms_sig1u = bms.sign(msg, b58.prv_key_data_from_wif(wif1u))
     assert bms.verify(msg, add1u, bms_sig1u)
@@ -492,7 +492,7 @@ def test_msgsign_p2pkh() -> None:
     # compressed
     wif1c = b58.wif_from_prv_key(q, "mainnet", True)
     assert wif1c == "L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
-    add1c = b58.p2pkh(wif1c)
+    add1c = b58.p2pkh(b58.prv_key_data_from_wif(wif1c).pub)
     assert add1c == "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
     bms_sig1c = bms.sign(msg, b58.prv_key_data_from_wif(wif1c))
     assert bms.verify(msg, add1c, bms_sig1c)
@@ -620,9 +620,9 @@ def test_segwit() -> None:
     """Reproduce Electrum and BIP137 signatures for segwit addresses."""
     msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
-    b58_p2pkh = b58.p2pkh(wif)
-    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub.sec)
-    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
+    b58_p2pkh = b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
+    b32_p2wpkh = b32.p2wpkh(b58.prv_key_data_from_wif(wif).pub)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(b58.prv_key_data_from_wif(wif).pub)
 
     # p2pkh base58 address (Core, Electrum, BIP137)
     exp_sig = "IBFyn+h9m3pWYbB4fBFKlRzBD4eJKojgCIZSNdhLKKHPSV2/WkeV7R7IOI0dpo3uGAEpCz9eepXLrA5kF35MXuU="
@@ -826,7 +826,7 @@ def test_ledger() -> None:
     assert dsa.verify(magic_msg, sec, dsa_sig)
 
     # compressed address
-    addr = b58.p2pkh(sec)
+    addr = b58.p2pkh(PubKeyData(sec))
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
@@ -865,7 +865,7 @@ def test_ledger() -> None:
     assert dsa.verify(magic_msg, sec, dsa_sig)
 
     # compressed address
-    addr = b58.p2pkh(sec)
+    addr = b58.p2pkh(PubKeyData(sec))
 
     # equivalent Bitcoin Message Signature
     rec_flag = 27 + 4 + (key_id & 0x01)
@@ -1204,6 +1204,6 @@ def test_a_drawn_key_takes_the_network_it_is_asked_for() -> None:
     wif, addr = bms.gen_keys("testnet")
 
     assert b58.prv_key_data_from_wif(wif).network == "testnet"
-    assert addr == b58.p2pkh(wif)
+    assert addr == b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     # and the default, which is the same call with the name left out
     assert b58.prv_key_data_from_wif(bms.gen_keys()[0]).network == "mainnet"

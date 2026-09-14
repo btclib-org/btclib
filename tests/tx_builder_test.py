@@ -31,6 +31,7 @@ import pytest
 from btclib.descriptors import Descriptor
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.fee import FeeRate, dust_threshold, fee_from_vsize
+from btclib.key import PubKeyData
 from btclib.psbt.psbt import extract_tx, finalize
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_size import SIG_SIZE
@@ -53,8 +54,8 @@ XPRV_ROOT = (
 PAY_KEY = "02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 CHANGE_KEY = "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
-PAY_SCRIPT = ScriptPubKey.p2wpkh(PAY_KEY)
-CHANGE_SCRIPT = ScriptPubKey.p2wpkh(CHANGE_KEY)
+PAY_SCRIPT = ScriptPubKey.p2wpkh(PubKeyData(PAY_KEY))
+CHANGE_SCRIPT = ScriptPubKey.p2wpkh(PubKeyData(CHANGE_KEY))
 
 # a satoshi a virtual byte, so that a fee read against a size needs no
 # conversion in the head of whoever reads a failure here
@@ -349,7 +350,7 @@ def test_an_input_of_no_readable_type_is_answered_by_a_sizer() -> None:
 
 def test_a_legacy_input_is_priced_from_the_transaction_that_created_it() -> None:
     """The other utxo field: a non-segwit output is not a witness utxo."""
-    prev_out = TxOut(100_000, ScriptPubKey.p2pkh(PAY_KEY))
+    prev_out = TxOut(100_000, ScriptPubKey.p2pkh(PubKeyData(PAY_KEY)))
     prev_tx = Tx(vin=[TxIn(OutPoint(b"\x06" * 32, 0))], vout=[prev_out])
     psbt_in = PsbtIn(
         non_witness_utxo=prev_tx, previous_tx_id=prev_tx.id, output_index=0
@@ -422,7 +423,7 @@ def account_input(
     redeem_script = b""
     if purpose == 49:
         redeem_script = ScriptPubKey.p2wpkh(
-            receive.key_expressions[0].sec(index)
+            PubKeyData(receive.key_expressions[0].sec(index))
         ).script
     return (
         PsbtIn(

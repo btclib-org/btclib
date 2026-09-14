@@ -51,9 +51,9 @@ from btclib.bip32.der_path import (
     str_from_index_int,
 )
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.network import network_from_xkeyversion, network_type_from_xkeyversion
 from btclib.script.taproot import output_pubkey
-from btclib.to_pub_key import Key
 
 __all__ = [
     "SCRIPT_TYPE_FROM_PURPOSE",
@@ -96,7 +96,7 @@ with _PURPOSES_FILE.open(encoding="ascii") as _purposes:
 _NETWORK_TYPE_FROM_COIN_TYPE: dict[int, NetworkType] = {0: "main", 1: "test"}
 
 
-def _p2tr(key: Key, network: str) -> str:
+def _p2tr(key: PubKeyData) -> str:
     """Return the p2tr address of a key, tweaked as BIP86 prescribes.
 
     BIP86 is BIP44 for taproot and the tweak is the whole of it: the
@@ -107,7 +107,7 @@ def _p2tr(key: Key, network: str) -> str:
     `b32.p2tr` -- which expects the output key already tweaked -- is not
     in the table below.
     """
-    return b32.p2tr(output_pubkey(key)[0], network)
+    return b32.p2tr(output_pubkey(key)[0], key.network)
 
 
 # a key and the network in, the address out: four encodings that already
@@ -115,10 +115,10 @@ def _p2tr(key: Key, network: str) -> str:
 # BIP44ScriptType, so the alias and this table are checked against each
 # other -- a fifth encoding is a key mypy does not know.
 #
-# The key is a Key and not the SEC octets every caller passes, because
-# all four encoders take one and narrowing it here would make the table
-# this module's rather than the library's, for no check gained
-_ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[Key, str], str]] = {
+# The key carries the network, so each of the four takes one argument and
+# not two: a `PubKeyData` is the SEC octets and the network they are read
+# on, which is what an address is built from (issue #1188)
+_ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[PubKeyData], str]] = {
     "p2pkh": b58.p2pkh,
     "p2wpkh-p2sh": b58.p2wpkh_p2sh,
     "p2wpkh": b32.p2wpkh,
@@ -300,10 +300,15 @@ def address_from_der_path(
 
     _assert_valid_coin_type(indexes[1] - _HARDENED_OFFSET, xkey)
 
-    # the derived key stays decoded: an extended key is not a `Key`
-    # (issue #1188), so what the encoder is handed is its public key, and
-    # the public `derive` would serialize this one here for
-    # `pub_keyinfo_from_xkey` to decode straight back
+    # the derived key stays decoded: an extended key is not what an
+    # address builder takes (issue #1188), so what the encoder is handed
+    # is its public key, and the public `derive` would serialize this one
+    # here for `pub_keyinfo_from_xkey` to decode straight back
     key = _derive(xkey, _indexes_left_to_derive(xkey, indexes), None)
     network = network_from_xkeyversion(xkey.version)
-    return address_funct(pub_keyinfo_from_xkey(key, network)[0], network)
+    # check_validity=False: `pub_keyinfo_from_xkey` answers the SEC
+    # octets of an extended key it has parsed, and `network` is the name
+    # that key's own version bytes resolve to
+    return address_funct(
+        PubKeyData(*pub_keyinfo_from_xkey(key, network), check_validity=False)
+    )

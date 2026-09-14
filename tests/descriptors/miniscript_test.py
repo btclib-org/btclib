@@ -65,6 +65,7 @@ from btclib.descriptors.miniscript import (
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
+from btclib.key import PubKeyData
 from btclib.psbt.psbt import Psbt, finalize, taproot_sig_hash
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_size import estimated_input_sizes
@@ -997,7 +998,7 @@ def spendable(node: Miniscript, locktime: int, sequence: int) -> list[bytes] | N
         version=2,
         lock_time=locktime,
         vin=[TxIn(OutPoint(b"\x02" * 32, 0), sequence=sequence)],
-        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(PubKeyData(KEYS[0])))],
     )
     msg_hash = sig_hash.segwit_v0(script, tx, 0, 1, prevout.value)
     signatures: dict[Octets, Octets] = {
@@ -1130,7 +1131,7 @@ def signed_psbt(
         version=2,
         lock_time=locktime,
         vin=[TxIn(OutPoint(b"\x05" * 32, 0), sequence=sequence)],
-        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(PubKeyData(KEYS[0])))],
     )
     psbt = Psbt.from_tx(tx)
     psbt.inputs[0].witness_utxo = prevout
@@ -1279,7 +1280,7 @@ def test_a_tr_miniscript_leaf_is_spent_on_the_script_path() -> None:
     tx = Tx(
         version=2,
         vin=[TxIn(OutPoint(b"\x07" * 32, 0), sequence=36)],
-        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(PubKeyData(KEYS[0])))],
     )
     psbt = Psbt.from_tx(tx)
     psbt.inputs[0].witness_utxo = prevout

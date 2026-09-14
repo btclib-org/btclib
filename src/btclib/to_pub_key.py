@@ -2,14 +2,15 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""The key record an address is built from, and the key union it takes.
+"""The (SEC-bytes, network) record of a public key, and the union above it.
 
 The curve point itself is not read here: `curves.point_from_pub_key` is
 what takes a `Point`, a `PreparedPoint` or the SEC octets of one, a point
 of the curve being a fact about the curve (issue #1188). What is left to
 this module is the (SEC-bytes, network) record above it, which a point
-carries no network for, and the `Key` union that lets an address builder
-be handed either half of a key pair.
+carries no network for, and the `Key` union of either half of a key
+pair. An address is built from a `key.PubKeyData`, which is that record
+parsed once and carried.
 
 An extended key is not among the spellings: it is `bip32`'s object, read
 by `bip32.point_from_xpub` and `bip32.pub_keyinfo_from_xkey`, which sit

@@ -16,6 +16,7 @@ from btclib.bip32 import bip32
 from btclib.curves import curve, sec_point
 from btclib.ecc import bms
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.wallet import AddressInfo, BIP32KeyWallet, KeyWallet
 from tests import needs_bindings, replace_unchecked
 
@@ -366,7 +367,7 @@ def test_the_derivation_bounds_are_bip32s_own() -> None:
 )
 def test_individual_keys(script_type: BIP44ScriptType, address: str) -> None:
     """Verify one WIF gives one address per script type, and it signs."""
-    wallet = KeyWallet([_WIF_COMPRESSED], script_type)
+    wallet = KeyWallet([b58.prv_key_data_from_wif(_WIF_COMPRESSED)], script_type)
     assert wallet.addresses == (address,)
     assert not wallet.is_watch_only
     assert wallet.prv_key(address) == _WIF_COMPRESSED
@@ -375,25 +376,26 @@ def test_individual_keys(script_type: BIP44ScriptType, address: str) -> None:
 
 
 def test_a_key_that_says_what_it_is_by_its_type() -> None:
-    """An int is a scalar, a point is a pair: neither needs the guess."""
+    """The type is the answer to "can this wallet sign", and nothing else is.
+
+    A `PrvKeyData` and a `PubKeyData` of the same pair reach the same
+    address, and only the first of them leaves a WIF behind: which half
+    a wallet was handed is what the caller stated (issue #1188).
+    """
     q = 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB
     address = "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
-    wallet = KeyWallet([q], "p2pkh")
+    wallet = KeyWallet([PrvKeyData(q)], "p2pkh")
     assert wallet.addresses == (address,)
     assert wallet.prv_key(address) == _WIF_COMPRESSED
 
-    point = (
-        0x30D54FD0DD420A6E5F8D3624F5F3482CAE350F79D5F0753BF5BEEF9C2D91AF3C,
-        0x04717159CE0828A7F686C2C7510B7AA7D4C685EBC2051642CCBEBC7099E2F679,
-    )
-    watching = KeyWallet([point], "p2wpkh")
+    watching = KeyWallet([PrvKeyData(q).pub], "p2pkh")
     assert watching.is_watch_only
-    assert watching.addresses == ("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",)
+    assert watching.addresses == (address,)
 
 
 def test_a_public_key_makes_a_watch_only_entry() -> None:
     """Verify an entry built from a public key alone cannot sign."""
-    wallet = KeyWallet([_PUB_KEY])
+    wallet = KeyWallet([PubKeyData(_PUB_KEY)])
     address = wallet.addresses[0]
     assert wallet.is_watch_only
     assert address == "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
@@ -405,11 +407,12 @@ def test_a_public_key_makes_a_watch_only_entry() -> None:
 
 def test_an_uncompressed_key_can_only_be_p2pkh() -> None:
     """Segwit has no uncompressed form, so the address would be a lie."""
-    address = KeyWallet([_WIF_UNCOMPRESSED], "p2pkh").addresses[0]
+    key = b58.prv_key_data_from_wif(_WIF_UNCOMPRESSED)
+    address = KeyWallet([key], "p2pkh").addresses[0]
     assert address == "1GAehh7TsJAHuUAeKZcXf5CnwuGuGgyX2S"
     for script_type in ("p2wpkh-p2sh", "p2wpkh", "p2tr"):
         with pytest.raises(BTClibValueError, match="uncompressed key cannot be"):
-            KeyWallet([_WIF_UNCOMPRESSED], script_type)
+            KeyWallet([key], script_type)
 
 
 def test_add_takes_a_script_type_of_its_own() -> None:
@@ -417,34 +420,47 @@ def test_add_takes_a_script_type_of_its_own() -> None:
     wallet = KeyWallet(script_type="p2pkh")
     assert not wallet.addresses
     assert wallet.is_watch_only
-    p2pkh = wallet.add(_WIF_COMPRESSED)
-    p2wpkh = wallet.add(_WIF_COMPRESSED, "p2wpkh")
+    key = b58.prv_key_data_from_wif(_WIF_COMPRESSED)
+    p2pkh = wallet.add(key)
+    p2wpkh = wallet.add(key, "p2wpkh")
     assert wallet.addresses == (p2pkh, p2wpkh)
     assert wallet.address_info(p2wpkh).script_type == "p2wpkh"
     assert not wallet.is_watch_only
 
 
 def test_add_refuses_an_extended_key() -> None:
-    """An extended key is `bip32`'s object and no `Key` at all.
+    """An extended key is `bip32`'s object and neither key type.
 
-    Both spellings of one: the text, which is base58 and no scalar's
-    octets, and the decoded `BIP32KeyData`, whose type the union does not
-    declare. A caller holding either resolves it with `bip32` and adds
-    what comes back (issue #1188).
+    Both spellings of one: the base58 text and the decoded
+    `BIP32KeyData`. A caller holding either resolves it with
+    `bip32.prv_keyinfo_from_xprv` or `bip32.pub_keyinfo_from_xkey` and
+    adds what comes back (issue #1188).
     """
     wallet = KeyWallet()
-    with pytest.raises(BTClibValueError, match="not a private key"):
-        wallet.add(_ACCOUNT_44_XPRV)
+    with pytest.raises(BTClibTypeError, match="invalid key type: str"):
+        wallet.add(_ACCOUNT_44_XPRV)  # type: ignore[arg-type]
     xkey = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPRV)
-    with pytest.raises(BTClibTypeError, match="not a public key"):
+    with pytest.raises(BTClibTypeError, match="invalid key type: BIP32KeyData"):
         wallet.add(xkey)  # type: ignore[arg-type]
+
+
+def test_add_refuses_a_key_of_another_network() -> None:
+    """A wallet's network is not overridden by the key it is handed.
+
+    The key carries one and the wallet was built on one; where they
+    disagree the address would be on the key's and the wallet's records
+    on its own, so the disagreement is the answer (issue #1188).
+    """
+    wallet = KeyWallet(network="testnet")
+    with pytest.raises(BTClibValueError, match="not a testnet key: mainnet"):
+        wallet.add(b58.prv_key_data_from_wif(_WIF_COMPRESSED))
 
 
 def test_a_key_added_to_a_bip32_wallet_is_not_derived() -> None:
     """Verify an added key signs while the derived ones stay watch-only."""
     wallet = BIP32KeyWallet(_ACCOUNT_44_XPUB, "m/44h/0h/0h")
     derived = wallet.next_address()
-    added = wallet.add(_WIF_COMPRESSED, "p2pkh")
+    added = wallet.add(b58.prv_key_data_from_wif(_WIF_COMPRESSED), "p2pkh")
     # the account is still watch-only, but the wallet now holds a key
     assert not wallet.is_watch_only
     assert wallet.prv_key(added) == _WIF_COMPRESSED
@@ -516,18 +532,19 @@ def test_add_derives_the_public_key_once(
     """A private key handed to a wallet is multiplied once, not twice.
 
     `add` computes the public key through `PrvKeyData.pub`, which
-    memoizes, and builds the address out of the SEC octets that answered
-    rather than out of the key that would derive them again -- one scalar
-    multiplication on the secret where there were two (issue #1188).
+    memoizes, and hands the address builder that key rather than one it
+    would derive the octets from again (issue #1188).
 
     What makes that a gate rather than a claim is *where* this counts.
     Every caller of `bytes_from_prv_key_int` binds it with a from-import,
     so patching one caller's name leaves the others multiplying
-    uncounted -- which is exactly what the address builder does, through
-    `to_pub_key`'s own binding. Counted here instead are the two calls
-    that name is a wrapper around, in the module that defines it, so
-    every derivation reaching that function is counted whichever caller
-    spelled it -- and both of the ones at issue here do reach it.
+    uncounted. Counted here instead are the two calls that name is a
+    wrapper around, in the module that defines it, so every derivation
+    reaching that function is counted whichever caller spelled it.
+
+    A key of its own, built inside this test: `pub` memoizes on the
+    object, so one shared between tests would be multiplied by whichever
+    ran first and by nothing here.
 
     One of those two calls answers per install, which is why both arms
     run: the bindings for the one that has them, `mult` for the one that
@@ -548,7 +565,7 @@ def test_add_derives_the_public_key_once(
         monkeypatch.setattr(sec_point, name, counting)
 
     wallet = KeyWallet()
-    wallet.add(_WIF_COMPRESSED)
+    wallet.add(b58.prv_key_data_from_wif(_WIF_COMPRESSED))
 
     assert calls == 1
     assert not wallet.is_watch_only

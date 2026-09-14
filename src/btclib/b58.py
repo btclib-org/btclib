@@ -27,14 +27,14 @@ from typing import Literal
 
 from btclib import b32
 from btclib.alias import Integer, Octets, ScriptType, String
+from btclib.b32 import _v0_witness_program_from_key
 from btclib.base58 import decode as b58decode
 from btclib.base58 import encode as b58encode
 from btclib.curves import scalar_from_prv_key
 from btclib.exceptions import BTClibValueError, InvalidPrvKeyError, NotAPrvKeyError
 from btclib.hashes import hash160, sha256
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_key_value, network_from_name
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import assert_type, bytes_from_octets
 
 __all__ = [
@@ -226,43 +226,21 @@ def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
 # 1.+2. = 3. base58 address from pub_key/script_pub_key
 
 
-def _pub_keyinfo_from_key(
-    key: Key, network: str | None, compressed: bool | None
-) -> tuple[bytes, str]:
-    """Return (SEC octets, network) from a `Key`, a WIF included.
+def p2pkh(key: PubKeyData) -> str:
+    """Return the p2pkh base58 address corresponding to a public key.
 
-    A WIF is tried first: it is this module's own object, and disjoint
-    from every other spelling `Key` carries -- 51 or 52 base58
-    characters, where the shortest of the others is 64 hex digits, so
-    trying it ahead of `to_pub_key.pub_keyinfo_from_key` costs nothing an
-    ambiguous input could exploit. `to_pub_key` resolves everything else,
-    and cannot resolve a WIF itself: it sits below this module and has no
-    way back up to `prv_key_data_from_wif` (issue #1188).
+    A public key and not either half of a pair: a caller holding a
+    private key derives the public one and says so, `PrvKeyData.pub`
+    being that derivation (issue #1188). What it buys is that a scalar
+    multiplication no longer happens inside a function named for an
+    address, reached through a failed parse rather than through a branch
+    the caller wrote -- and SECURITY.md publishes that this library's
+    arithmetic is not constant-time.
 
-    What falls through to `pub_keyinfo_from_key` is text that is no WIF
-    at all -- a checksum that does not verify, a version prefix no
-    network claims -- because there is another spelling left to try it
-    as, and that call fails on the same text with the message callers
-    already see. A WIF a network has claimed and that is then faulty --
-    the wrong compression, a network other than the one asked for --
-    raises here: `InvalidPrvKeyError` is what says the format was
-    recognised, and swallowing it would answer "not a key" about
-    something that is one.
+    A WIF is the same call one step further back:
+    `prv_key_data_from_wif(wif).pub`.
     """
-    if isinstance(key, (str, bytes, bytearray, memoryview)):
-        try:
-            data = prv_key_data_from_wif(key, network, compressed)
-        except NotAPrvKeyError:
-            pass
-        else:
-            return data.pub.sec, data.network
-    return pub_keyinfo_from_key(key, network, compressed=compressed)
-
-
-def p2pkh(key: Key, network: str | None = None, compressed: bool | None = None) -> str:
-    """Return the p2pkh base58 address corresponding to a public key."""
-    pub_key, network = _pub_keyinfo_from_key(key, network, compressed)
-    return address_from_h160("p2pkh", hash160(pub_key), network)
+    return address_from_h160("p2pkh", hash160(key.sec), key.network)
 
 
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
@@ -294,11 +272,9 @@ def _address_from_v0_witness(wit_prg: Octets, network: str) -> str:
 # 1.+2b. = 3b. base58 (p2sh-wrapped) segwit address from pub_key/script_pub_key
 
 
-def p2wpkh_p2sh(key: Key, network: str | None = None) -> str:
+def p2wpkh_p2sh(key: PubKeyData) -> str:
     """Return the base58 p2sh-wrapped address of a p2wpkh."""
-    pub_key, network = _pub_keyinfo_from_key(key, network, True)
-    witness_program = hash160(pub_key)
-    return _address_from_v0_witness(witness_program, network)
+    return _address_from_v0_witness(_v0_witness_program_from_key(key), key.network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:

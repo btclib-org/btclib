@@ -1604,13 +1604,13 @@ def assert_as_valid_(
     # key is a PubKey, not a Key: verification is where a private key
     # accepted for a public one does real harm, silently checking a
     # signature against a public key derived from the very secret handed
-    # in — a check that proves nothing about the signer. The Key union
-    # and its point_from_key/pub_keyinfo_from_key helpers keep the
-    # convenience for address and script builders, where deriving from
-    # one's own private key is what the caller asked for. The narrowing
-    # is not just an annotation: the helpers called below reject a WIF
-    # and an xprv too, which a PubKey annotation cannot rule out, both
-    # being strings
+    # in — a check that proves nothing about the signer. The address and
+    # script builders take a `key.PubKeyData` and no private half at
+    # all, so a caller building an address for its own private key
+    # derives the public one and says so (issue #1188). The narrowing is
+    # not just an annotation: the helpers called below reject a WIF and
+    # an xprv too, which a PubKey annotation cannot rule out, both being
+    # strings
     # a `Sig` handed in is validated again, and this is not the redundancy
     # it looks like (issue 888). The class is frozen, so an instance that
     # validated at construction stays valid -- but `check_validity=False`

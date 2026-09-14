@@ -22,6 +22,7 @@ from btclib._libsecp256k1 import xonly as libsecp256k1_xonly
 from btclib.alias import Octets, ScriptList
 from btclib.curves import bytes_from_point, curve, curve_group, mult, secp256k1
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.number_theory import mod_sqrt_var
 from btclib.script import (
     TaprootScriptTree,
@@ -43,7 +44,6 @@ from btclib.script.taproot import (
     serialize,
     tree_helper,
 )
-from btclib.to_pub_key import Key
 from btclib.tx import TxOut
 from tests import load, needs_bindings, vector_id
 from tests.curves.curve_test import low_card_curves, no_bindings_anywhere
@@ -103,7 +103,7 @@ SCRIPT_TREES: list[TaprootScriptTree | None] = [
 def test_taproot_key_tweaking() -> None:
     """Verify the tweaked private key generates the tweaked public key."""
     prv_key = 123456
-    pub_key = mult(prv_key)
+    pub_key = PrvKeyData(prv_key).pub
 
     for script_tree in SCRIPT_TREES:
         tweaked_prvkey = output_prvkey(prv_key, script_tree)
@@ -117,13 +117,9 @@ def test_one_internal_key_however_it_is_spelled(
 ) -> None:
     """Every spelling of an internal key names the same output key (issue 896).
 
-    The 65-byte SEC form is the one that moved: `output_pubkey` read its key
-    through `pub_keyinfo_from_key(..., compressed=True)`, where the flag was
-    a filter as well as a conversion and refused that length, and it reads
-    `compressed=None` now because that is what has the point to hand down.
-    Nothing in this file built an uncompressed key, so the widening had no
-    assertion and statement coverage could not supply one: the same lines
-    run for a 33-byte key.
+    Both SEC forms of one point, because `[1:33]` is the x of either: 65
+    octets and 33 are one internal key, and an output key is BIP341's
+    tweak of that x.
 
     `input_script_sig` is asserted beside it because the two take one
     internal key between them -- it reads the parity of the output key and
@@ -140,29 +136,29 @@ def test_one_internal_key_however_it_is_spelled(
     prv_key = 0xC0FFEE
     point = mult(prv_key)
     sec = bytes_from_point(point, compressed=True)
-    spellings: tuple[Key, ...] = (
-        point,
+    spellings: tuple[Octets, ...] = (
         sec,
+        sec.hex(),
         bytes_from_point(point, compressed=False),
         bytearray(sec),
         memoryview(sec),
     )
 
     for script_tree in SCRIPT_TREES:
-        expected = output_pubkey(point, script_tree)
+        expected = output_pubkey(PubKeyData(sec), script_tree)
         for key in spellings:
-            assert output_pubkey(key, script_tree) == expected
+            assert output_pubkey(PubKeyData(key), script_tree) == expected
             with monkeypatch.context() as no_bindings:
                 no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
-                assert output_pubkey(key, script_tree) == expected
+                assert output_pubkey(PubKeyData(key), script_tree) == expected
 
     # and the control block carries the same internal key from any of them,
     # which is the half a second reader of the key could get wrong
     for script_tree in SCRIPT_TREES[1:]:
         assert script_tree is not None  # the None of SCRIPT_TREES is key path only
-        expected_sig = input_script_sig(point, script_tree, 0)
+        expected_sig = input_script_sig(PubKeyData(sec), script_tree, 0)
         for key in spellings:
-            assert input_script_sig(key, script_tree, 0) == expected_sig
+            assert input_script_sig(PubKeyData(key), script_tree, 0) == expected_sig
 
 
 def test_the_python_tweak_is_the_bindings_tweak(
@@ -182,8 +178,8 @@ def test_the_python_tweak_is_the_bindings_tweak(
     over a negation neither of them performed.
     """
     prv_key = 0xC0FFEE
-    pub_key = mult(prv_key)
-    assert pub_key[1] % 2 == 1
+    assert mult(prv_key)[1] % 2 == 1
+    pub_key = PrvKeyData(prv_key).pub
 
     for script_tree in SCRIPT_TREES:
         delegated = output_pubkey(pub_key, script_tree)
@@ -230,8 +226,14 @@ def test_the_python_output_key_lifts_the_internal_x_once(
     silencing taproot alone leaves the square root being taken in C where
     `mod_sqrt_var` never sees it. A count needs every arm Python; a test
     asserting zero, as that one does, does not.
+
+    A key of its own per measured call, and that is the measurement
+    rather than bookkeeping: `PubKeyData.point` memoizes, so one key
+    handed to several calls is lifted by the first of them and by none
+    of the rest -- which would count zero here and say nothing about
+    what one call costs.
     """
-    pub_key = bytes_from_point(mult(0xC0FFEE), compressed=compressed)
+    sec = bytes_from_point(mult(0xC0FFEE), compressed=compressed)
     roots_taken = 0
 
     # `number_theory` and not the `curve_group` binding being patched: the
@@ -249,12 +251,12 @@ def test_the_python_output_key_lifts_the_internal_x_once(
             no_bindings.setattr(curve_group, "mod_sqrt_var", counting)
 
             roots_taken = 0
-            output_pubkey(pub_key, tree)
+            output_pubkey(PubKeyData(sec), tree)
             assert roots_taken == roots
 
             if tree is not None:
                 roots_taken = 0
-                input_script_sig(pub_key, tree, 0)
+                input_script_sig(PubKeyData(sec), tree, 0)
                 assert roots_taken == roots
 
 
@@ -322,7 +324,7 @@ def test_the_py_arm_reaches_no_bindings(monkeypatch: pytest.MonkeyPatch) -> None
     module and already-bound name alike, and switches the dispatch off.
     """
     prv_key = 0xC0FFEE
-    pub_key = mult(prv_key)
+    pub_key = PrvKeyData(prv_key).pub
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     # what the bindings answer, taken while they are still in reach
     delegated = (
@@ -354,7 +356,7 @@ def test_the_python_commitment_check_is_the_bindings_one(
     that says nothing: the false one is the same output key with a byte
     flipped, which commits to nothing and must fail on either path.
     """
-    pub_key = mult(0xC0FFEE)
+    pub_key = PrvKeyData(0xC0FFEE).pub
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     q = output_pubkey(pub_key, script_tree)[0]
     not_q = bytes([q[0] ^ 1]) + q[1:]
@@ -499,12 +501,13 @@ def test_the_tweak_names_no_half_of_a_sec_it_cannot_blame(
         (b"\x05" + x, "not a point: prefix 0x05"),
         (b"\x02" + x + Q[1].to_bytes(32, "big"), "invalid size for compressed point"),
     ):
+        key = PubKeyData(sec, check_validity=False)
         with pytest.raises(BTClibValueError, match="invalid internal public key"):
-            output_pubkey(sec)
+            output_pubkey(key)
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
             with pytest.raises(BTClibValueError, match=python_msg):
-                output_pubkey(sec)
+                output_pubkey(key)
 
 
 @needs_bindings
@@ -534,12 +537,16 @@ def test_a_hybrid_internal_key_is_refused_on_both_arms(
     """
     Q = mult(7)
     sec = bytes([prefix]) + Q[0].to_bytes(32, "big") + Q[1].to_bytes(32, "big")
+    # check_validity=False: a hybrid prefix is what `assert_valid` would
+    # refuse, and the refusal under test is the one taproot makes above
+    # its own arm split
+    key = PubKeyData(sec, check_validity=False)
     with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
-        output_pubkey(sec)
+        output_pubkey(key)
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(taproot, "_libsecp256k1_serves", lambda *_: False)
         with pytest.raises(BTClibValueError, match="hybrid SEC prefix"):
-            output_pubkey(sec)
+            output_pubkey(key)
 
 
 @pytest.mark.parametrize("spelling", [bytes, bytearray, memoryview])
@@ -558,8 +565,9 @@ def test_check_output_pubkey_takes_every_buffer_the_door_accepts(
     refused halfway (issue 1220).
     """
     tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
-    q, _ = output_pubkey(0xC0FFEE, tree)
-    witness = input_script_sig(0xC0FFEE, tree, 0)
+    internal_key = PrvKeyData(0xC0FFEE).pub
+    q, _ = output_pubkey(internal_key, tree)
+    witness = input_script_sig(internal_key, tree, 0)
     script, control = serialize(witness[0]), witness[1]
 
     assert check_output_pubkey(spelling(q), spelling(script), spelling(control))
@@ -645,7 +653,7 @@ def test_control_block() -> None:
     assert check_output_pubkey(pub_key, serialize(script), control)
 
     prv_key = 123456
-    internal_pubkey = mult(prv_key)
+    internal_pubkey = PrvKeyData(prv_key).pub
     script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     pub_key = output_pubkey(internal_pubkey, script_tree)[0]
     script, control = input_script_sig(internal_pubkey, script_tree, 0)
@@ -665,8 +673,8 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     missing one is not this function's business: the psbt field it
     serves is either present or the input says nothing to check.
     """
-    internal_pubkey = mult(123456)
-    x_only = bytes_from_point(internal_pubkey)[1:]
+    internal_pubkey = PrvKeyData(123456).pub
+    x_only = internal_pubkey.sec[1:]
     assert output_pubkey_from_merkle_root(x_only) == output_pubkey(internal_pubkey)
 
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
@@ -729,7 +737,7 @@ def test_bip_test_vector(test: dict[str, Any]) -> None:
     pub_key = test["given"]["internalPubkey"]
     script_tree = convert_script_tree(test["given"]["scriptTree"])
 
-    tweaked_pubkey = output_pubkey(f"02{pub_key}", script_tree)[0]
+    tweaked_pubkey = output_pubkey(PubKeyData(f"02{pub_key}"), script_tree)[0]
     address = b32.p2tr(tweaked_pubkey)
 
     assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
@@ -887,7 +895,7 @@ def test_the_control_block_commits_to_the_output_key_parity(
     them the bit is asserted in both directions rather than in whichever
     one this tree happens to produce.
     """
-    pub_key = mult(internal_key)
+    pub_key = PrvKeyData(internal_key).pub
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     q, parity = output_pubkey(pub_key, script_tree)
     script, control = input_script_sig(pub_key, script_tree, 0)

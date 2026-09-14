@@ -333,7 +333,10 @@ accepts, much of it taking anything convertible rather than one type, and
 their octet spellings are `curves`' own, read by
 `curves.scalar_from_prv_key` and `curves.point_from_pub_key`; what is
 left to `to_prv_key` and `to_pub_key` is the network and compression a
-record carries and a key does not. A spelling that carries either belongs
+record carries and a key does not. `key` holds those records as objects:
+`key.PubKeyData` is what an address builder takes and `key.PrvKeyData`
+what `ecc.bms` signs with, so a caller states which half of a pair it
+holds. A spelling that carries either belongs
 to the module that defines it, so a WIF is `b58`'s, an extended key is
 `bip32`'s, and a Casascius minikey is `minikey`'s, read-only. `bip32` and
 `mnemonic` derive keys.

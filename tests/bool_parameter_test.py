@@ -135,7 +135,7 @@ from btclib.fetch.bitcoin_core_rest import BitcoinCoreRestClient, BitcoinCoreRes
 from btclib.fetch.electrum import ElectrumFetcher
 from btclib.fetch.esplora import EsploraFetcher
 from btclib.hwi import HwiSigner, enumerate_devices
-from btclib.key import PrvKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.mnemonic import bip39, slip39
 from btclib.mnemonic.entropy import (
     bin_str_entropy_from_random,
@@ -235,7 +235,7 @@ _SMALL_CURVE = dict(
 )
 _XPUB = xpub_from_xprv(_ROOT_XPRV)
 _DESCRIPTOR = descriptor_from_string(f"wpkh({_XPUB}/0/*)")
-_ADDRESS = b58.p2pkh(_PUB_KEY)
+_ADDRESS = b58.p2pkh(PubKeyData(_SEC))
 _BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_PRV_KEY), _ADDRESS)
 
 # a transaction with an input, which is what the engine and the psbt
@@ -357,7 +357,6 @@ _KINDS = (
         {"wif": b58.wif_from_prv_key(_PRV_KEY)},
         optional=True,
     ),
-    _Case("btclib.b58.p2pkh", "compressed", b58.p2pkh, {"key": _SEC}, optional=True),
     _Case(
         "btclib.bip38.encrypt",
         "compressed",
@@ -390,24 +389,10 @@ _KINDS = (
         bms.gen_keys,
     ),
     _Case(
-        "btclib.script.script_pub_key.ScriptPubKey.p2pkh",
-        "compressed",
-        ScriptPubKey.p2pkh,
-        {"key": _SEC},
-        optional=True,
-    ),
-    _Case(
-        "btclib.script.script_pub_key.ScriptPubKey.p2ms",
-        "compressed",
-        ScriptPubKey.p2ms,
-        {"m": 1, "keys": [_SEC, _SEC_2]},
-        optional=True,
-    ),
-    _Case(
         "btclib.script.script_pub_key.ScriptPubKey.p2ms",
         "lexicographic_sorting",
         ScriptPubKey.p2ms,
-        {"m": 1, "keys": [_SEC, _SEC_2]},
+        {"m": 1, "keys": [PubKeyData(_SEC), PubKeyData(_SEC_2)]},
     ),
     # `lower_s` chooses which of the two signatures is returned, `grind`
     # whether the nonce is searched until r is short
@@ -1286,7 +1271,7 @@ def test_the_walk_reaches_what_it_claims() -> None:
     # a defaulted flag, a required one, an optional annotation, a method
     assert ("btclib.ecc.dsa.sign", "lower_s") in found
     assert ("btclib.tx.tx.join", "shuffle_inp") in found
-    assert ("btclib.b58.p2pkh", "compressed") in found
+    assert ("btclib.b58.prv_key_data_from_wif", "compressed") in found
     assert ("btclib.tx.tx.Tx.serialize", "include_witness") in found
 
     # the convention with a file of its own

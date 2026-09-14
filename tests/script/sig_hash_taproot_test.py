@@ -29,6 +29,7 @@ from btclib.exceptions import (
     BTClibValueError,
 )
 from btclib.hashes import hash160, sha256
+from btclib.key import PrvKeyData
 from btclib.script import (
     ScriptPubKey,
     Witness,
@@ -384,7 +385,7 @@ def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
     are the ones that half invites.
     """
     prv_key = 0x4242424242424242424242424242424242424242424242424242424242424242
-    script_pub_key = ScriptPubKey.p2tr(prv_key, script_tree)
+    script_pub_key = ScriptPubKey.p2tr(PrvKeyData(prv_key).pub, script_tree)
     prevouts = [TxOut(100_000, script_pub_key)]
 
     vin = TxIn(OutPoint(b"\x11" * 32, 0))
@@ -543,7 +544,7 @@ def test_taproot_sighash_single_past_the_last_output() -> None:
     passes the whole file (issue #252).
     """
     prv_key = 0x4242424242424242424242424242424242424242424242424242424242424242
-    script_pub_key = ScriptPubKey.p2tr(prv_key)
+    script_pub_key = ScriptPubKey.p2tr(PrvKeyData(prv_key).pub)
     prevouts = [TxOut(100_000, script_pub_key) for _ in range(3)]
 
     vin = [TxIn(OutPoint(bytes([i + 1]) * 32, 0)) for i in range(3)]
@@ -589,8 +590,9 @@ def test_script_path_spend_round_trip(annex: bytes) -> None:
     leaf_pub_key = pub_keyinfo_from_prv_key(leaf_prv_key)[0][1:]
 
     script_tree: TaprootScriptTree = [(0xC0, [leaf_pub_key.hex(), "OP_CHECKSIG"])]
-    script_pub_key = ScriptPubKey.p2tr(internal_key, script_tree)
-    leaf, control = input_script_sig(internal_key, script_tree, 0)
+    internal_pub_key = PrvKeyData(internal_key).pub
+    script_pub_key = ScriptPubKey.p2tr(internal_pub_key, script_tree)
+    leaf, control = input_script_sig(internal_pub_key, script_tree, 0)
     leaf_bytes = taproot_serialize(leaf)
 
     prevouts = [TxOut(100_000, script_pub_key)]

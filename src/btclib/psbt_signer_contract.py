@@ -52,6 +52,7 @@ from typing import TYPE_CHECKING, NamedTuple, NoReturn
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.psbt import Psbt
 from btclib.psbt_signer import (
     AddressDisplay,
@@ -106,7 +107,7 @@ def unsignable_psbt(fingerprint: bytes) -> Psbt:
     what the signer does with a psbt that is not its business.
     """
     other = bytes([fingerprint[0] ^ 0xFF, *fingerprint[1:]])
-    script_pub_key = ScriptPubKey.p2wpkh(_SOMEBODY_ELSES_KEY)
+    script_pub_key = ScriptPubKey.p2wpkh(PubKeyData(_SOMEBODY_ELSES_KEY))
 
     tx_in = TxIn(OutPoint(b"\xaa" * 32, 0))
     tx_out = TxOut(9_000, script_pub_key)

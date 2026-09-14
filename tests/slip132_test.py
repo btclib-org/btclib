@@ -11,6 +11,7 @@ import pytest
 from btclib import b32, b58, slip132
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
+from btclib.key import PubKeyData
 from btclib.mnemonic import bip39
 from btclib.network import NETWORKS
 from tests import replace_unchecked
@@ -146,8 +147,8 @@ def test_slip132_test_vectors() -> None:
         # each is handed is `bip32.pub_keyinfo_from_xkey` of the pair --
         # the same octets from either half, which is what makes the two
         # answers one address (issue #1188)
-        sec_from_xpub = bip32.pub_keyinfo_from_xkey(xpub)[0]
-        sec_from_xprv = bip32.pub_keyinfo_from_xkey(xprv)[0]
+        sec_from_xpub = PubKeyData(*bip32.pub_keyinfo_from_xkey(xpub))
+        sec_from_xprv = PubKeyData(*bip32.pub_keyinfo_from_xkey(xprv))
         assert sec_from_xpub == sec_from_xprv
         if version == NETWORKS["mainnet"].bip32_prv:
             address = b58.p2pkh(sec_from_xpub)

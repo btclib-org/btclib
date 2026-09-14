@@ -64,14 +64,12 @@ from btclib.bip32.der_path import (
     str_from_der_path,
 )
 from btclib.bip44 import _ADDRESS_FROM_SCRIPT_TYPE, _script_type_from_purpose
-from btclib.curves import PreparedPoint
 from btclib.ecc import bms
-from btclib.exceptions import BTClibValueError, NotAPrvKeyError
+from btclib.exceptions import BTClibValueError
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.network import network_from_xkeyversion
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import Key, pub_keyinfo_from_pub_key
+from btclib.utils import assert_type
 from btclib.wallet.wallet import AddressInfo, RangedWallet, Wallet
 
 __all__ = [
@@ -107,63 +105,6 @@ def _checked_script_type(script_type: str) -> BIP44ScriptType:
     return script_type
 
 
-def _key_data(key: Key, network: str) -> PrvKeyData | PubKeyData:
-    """Return the canonical form of a key, and which half it is.
-
-    The spellings `to_pub_key.Key` admits stop here: what leaves is one
-    of the two `btclib.key` types, parsed once, and which of them it is
-    is the answer to "can this wallet sign", which `add` therefore reads
-    off a type instead of walking the spellings for it.
-
-    Two of them say which half they are by their type, and are taken
-    first because the ambiguous test below cannot be asked of them: an
-    int is a scalar, so it is a private key, and a point is a pair of
-    coordinates, so it is a public one -- a `PreparedPoint` with it, that
-    being a point and a caller's word about how often it will be
-    multiplied, which says nothing about who can sign.
-
-    The rest -- octets or a WIF -- are told apart public first: a public
-    key is a complete answer here, the wallet watching that address and
-    unable to sign for it, while anything that is not one has to be a
-    private key, and the error raised for a malformed one is the
-    diagnosis the caller needs rather than a silent demotion to
-    watch-only. Only the converter's refusal is caught, and not
-    `PubKeyData`'s own: what the type refused would otherwise fall
-    through to the private branch and come back as "not a private key",
-    its own diagnosis lost. Nothing reaches that today, and the narrow
-    `try` is so that nothing can rather than that nothing does.
-
-    A WIF is tried ahead of `to_prv_key.prv_keyinfo_from_prv_key`, which
-    cannot resolve one itself: `b58` is where a WIF is read, and this
-    module already imports it for the direction `add` below writes. It is
-    tried unguarded, the two branches above having left `Octets` as the
-    whole of what reaches it -- an extended key is not a `Key` at all,
-    `bip32` being where one is read (issue #1188).
-
-    Both types re-check what the converter that fed them has already
-    guaranteed, which looks redundant and is not: `to_prv_key` admits a
-    `bool` and `PrvKeyData` refuses one, so without this second check
-    `add(True)` is the scalar 1 and an address handed back for it.
-    """
-    if isinstance(key, int):
-        return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
-    if isinstance(key, (tuple, PreparedPoint)):
-        return PubKeyData(*pub_keyinfo_from_pub_key(key, network))
-
-    try:
-        pub_key_info = pub_keyinfo_from_pub_key(key, network)
-    except BTClibValueError:
-        pass
-    else:
-        return PubKeyData(*pub_key_info)
-
-    try:
-        return b58.prv_key_data_from_wif(key, network)
-    except NotAPrvKeyError:
-        pass
-    return PrvKeyData(*prv_keyinfo_from_prv_key(key, network))
-
-
 class KeyWallet(Wallet):
     """Individual keys, the address of each, and who signs for it.
 
@@ -184,7 +125,7 @@ class KeyWallet(Wallet):
 
     def __init__(
         self,
-        keys: Iterable[Key] = (),
+        keys: Iterable[PrvKeyData | PubKeyData] = (),
         script_type: BIP44ScriptType = _DEFAULT_SCRIPT_TYPE,
         network: str = "mainnet",
     ) -> None:
@@ -205,8 +146,21 @@ class KeyWallet(Wallet):
         """Whether the wallet holds no private key at all."""
         return not self._prv_keys
 
-    def add(self, key: Key, script_type: BIP44ScriptType | None = None) -> str:
-        """Take one key into the wallet, and return its address."""
+    def add(
+        self,
+        key: PrvKeyData | PubKeyData,
+        script_type: BIP44ScriptType | None = None,
+    ) -> str:
+        """Take one key into the wallet, and return its address.
+
+        Which half of a key pair this is, is the type and not something
+        worked out from the spelling: "can this wallet sign for that
+        address" is answered by the caller, who knows, rather than by
+        trying the octets as a public key and falling back to a private
+        one (issue #1188). A caller holding a WIF calls
+        `b58.prv_key_data_from_wif`, one holding an extended key
+        `bip32.prv_keyinfo_from_xprv` or `bip32.pub_keyinfo_from_xkey`.
+        """
         # one call for both paths, and it is what narrows the str
         # `Wallet.script_type` carries back to the Literal the table below
         # is keyed by: what every wallet answers is a script type, and
@@ -214,13 +168,22 @@ class KeyWallet(Wallet):
         checked = _checked_script_type(
             self.script_type if script_type is None else script_type
         )
-        # parsed once, and the type of what comes back is what says
-        # whether this wallet can sign: `data.pub` derives at most once
-        # and memoizes, so the address builder below is handed those
-        # octets rather than a key it would derive them from again
-        # (issue #1188)
-        data = _key_data(key, self.network)
-        pub = data.pub if isinstance(data, PrvKeyData) else data
+        # what the annotation says, asked at run time: the two types are
+        # what a caller states this key's half with, and any other value
+        # would be read for fields it has not got
+        assert_type(key, (PrvKeyData, PubKeyData), "key")
+        # the key carries a network of its own, where the spellings this
+        # used to take carried none and were filled in from the wallet's.
+        # A disagreement is refused rather than overridden: the address
+        # would be on the key's network and the wallet's records say
+        # otherwise
+        if key.network != self.network:
+            err_msg = f"not a {self.network} key: {key.network}"
+            raise BTClibValueError(err_msg)
+        # `key.pub` derives at most once and memoizes, so the address
+        # builder below is handed those octets rather than a key it would
+        # derive them from again
+        pub = key.pub if isinstance(key, PrvKeyData) else key
         # segwit has no uncompressed form, so the three segwit encodings
         # would silently answer an uncompressed key with the address of
         # its compressed twin -- an address bms cannot then sign for,
@@ -230,9 +193,9 @@ class KeyWallet(Wallet):
             err_msg += " segwit has no uncompressed form"
             raise BTClibValueError(err_msg)
 
-        address = _ADDRESS_FROM_SCRIPT_TYPE[checked](pub.sec, self.network)
-        if isinstance(data, PrvKeyData):
-            wif = b58.wif_from_prv_key(data.q, data.network, data.compressed)
+        address = _ADDRESS_FROM_SCRIPT_TYPE[checked](pub)
+        if isinstance(key, PrvKeyData):
+            wif = b58.wif_from_prv_key(key.q, key.network, key.compressed)
             self._prv_keys[address] = wif
         return self._record(AddressInfo(address, checked, ""))
 
@@ -390,28 +353,35 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         them build it and read it back inside one line (issue 886).
         Which call it is, is what the caller wants of the key: the
         address builders and `ScriptPubKey.p2wpkh` take a public key, so
-        `_derived_sec` below is what feeds them, and
+        `_derived_pub_key` below is what feeds them, and
         `b58.wif_from_prv_key` wants the scalar an xprv resolves to
         (issue #1188).
         """
         return derive_from_account_(self._xkey, branch, index)
 
-    def _derived_sec(self, branch: int, index: int) -> bytes:
-        """Return the SEC public key of a position, whichever half derives it.
+    def _derived_pub_key(self, branch: int, index: int) -> PubKeyData:
+        """Return the public key of a position, whichever half derives it.
 
         An account xprv and its xpub derive to the same public key, so
         this is what an address is built from either way, and the wallet
         being watch-only is a question about signing rather than about
         the address.
+
+        check_validity=False: `pub_keyinfo_from_xkey` answers the SEC
+        octets of an extended key it has parsed, and the network name
+        that key's own version bytes resolve to.
         """
-        return pub_keyinfo_from_xkey(self._derived_xkey(branch, index))[0]
+        return PubKeyData(
+            *pub_keyinfo_from_xkey(self._derived_xkey(branch, index)),
+            check_validity=False,
+        )
 
     @override
     def _address(self, branch: int, index: int) -> str:
         # checked again for the narrowing and not for the check, which the
         # constructor already made: see `add` above
         return _ADDRESS_FROM_SCRIPT_TYPE[_checked_script_type(self.script_type)](
-            self._derived_sec(branch, index), self.network
+            self._derived_pub_key(branch, index)
         )
 
     @override
@@ -443,7 +413,7 @@ class BIP32KeyWallet(KeyWallet, RangedWallet):
         if self.script_type != "p2wpkh-p2sh":
             return super().redeem_script(branch, index)
         self._assert_position(branch, index)
-        return ScriptPubKey.p2wpkh(self._derived_sec(branch, index)).script
+        return ScriptPubKey.p2wpkh(self._derived_pub_key(branch, index)).script
 
     @override
     def prv_key(self, address: String) -> str:
