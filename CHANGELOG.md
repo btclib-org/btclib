@@ -737,6 +737,12 @@ documented at release-notes length in the first place, and are still in
   (issue #1188); `ecc.ecies.derive_keys` also stops proving the key twice,
   the same redundant lift issue 887 fixed for `ecc.dsa`.
 
+### `REPOSITORY.md` puts the lint rename's check at the rule's tail
+
+- **The required-checks table and the `PATCH` example put `lint / Lint and
+  type-check` last** (issue btclib-org/.github#35); the preceding entry's
+  claim that it came before `test: every job passed` no longer holds.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
