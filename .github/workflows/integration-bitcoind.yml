@@ -157,7 +157,7 @@ jobs:
     name: Regtest against Bitcoin Core
     # a draft pull request is work in progress and spends no runner
     # here either: a draft is work its author is not asking anyone to
-    # read yet. The same condition lint.yml and test.yml carry, and
+    # read yet. The same condition test.yml carries, and
     # ready_for_review is a trigger type above for the same reason.
     # A closed pull request spends none either -- the trigger above takes
     # the closed event only to supersede a run this ref's group is still

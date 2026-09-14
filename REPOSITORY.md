@@ -59,7 +59,7 @@ repos/btclib-org/btclib/branches/main/protection --jq
 
 | Check | Produced by |
 | --- | --- |
-| `Lint and type-check` | `lint.yml`, its only job |
+| `lint / Lint and type-check` | `lint.yml`, calling `reusable-lint.yml` |
 | `test: every job passed` | `test.yml`, aggregate over its own jobs |
 | `Regtest against Bitcoin Core` | `integration-bitcoind.yml`, its regtest job |
 | `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
@@ -80,13 +80,13 @@ workflow whose *whole* answer becomes required needs an aggregate, and this
 table with it.
 
 `docs / Build the documentation` is named on its own on purpose: a rule
-naming `Lint and type-check` alone would leave a red docs build outside the
-required checks entirely. It moved from `lint.yml` to a workflow of its own
-without the rule changing, which is worth knowing before renaming anything:
-a context is matched by name, not by the workflow that reported it, so
-moving a job is free and renaming one is not — the pull request that renames
-a required check stops producing the old name and never produces one the
-rule is waiting for.
+naming `lint / Lint and type-check` alone would leave a red docs build
+outside the required checks entirely. It moved from `lint.yml` to a
+workflow of its own without the rule changing, which is worth knowing
+before renaming anything: a context is matched by name, not by the
+workflow that reported it, so moving a job is free and renaming one is
+not — the pull request that renames a required check stops producing the
+old name and never produces one the rule is waiting for.
 
 `docs.yml`'s own job contributes no name of its own: its whole body is a
 call to `btclib-org/.github`'s `reusable-docs.yml`, so the context joins
@@ -94,6 +94,13 @@ the calling job's id to the called job's own name, `docs.yml`'s `docs` job
 calling `reusable-docs.yml` whose own job is still named
 `Build the documentation`, together producing
 `docs / Build the documentation` (issue btclib-org/.github#35).
+
+`lint.yml`'s own job contributes no name of its own either, for the same
+reason: its whole body is a call to `btclib-org/.github`'s
+`reusable-lint.yml`, so the context joins the calling job's id to the
+called job's own name, `lint.yml`'s `lint` job calling `reusable-lint.yml`
+whose own job is still named `Lint and type-check`, together producing
+`lint / Lint and type-check` (issue btclib-org/.github#35).
 
 `Regtest against Bitcoin Core` is the newest of the four, and it is here
 because its cost was measured rather than assumed: 36 seconds of work for a
@@ -137,7 +144,7 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
 {
   "strict": true,
   "checks": [
-    {"context": "Lint and type-check", "app_id": 15368},
+    {"context": "lint / Lint and type-check", "app_id": 15368},
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Regtest against Bitcoin Core", "app_id": 15368},
     {"context": "docs / Build the documentation", "app_id": 15368}

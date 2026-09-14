@@ -13,18 +13,26 @@ which is where `RELEASING.md` sends a release. The grep over the pages
 that build wrote moved with it, and is compared against nothing here now
 (issue btclib-org/.github#35).
 
+The lint command is written in `btclib-org/.github`'s `reusable-lint.yml`,
+which `.github/workflows/lint.yml` calls and which this suite, reading
+only this tree, does not; and in `CONTRIBUTING.md`, which is what a
+contributor is told to run. Comparing `CONTRIBUTING.md` against the one
+site left in this tree would compare it against itself, which passes
+vacuously, so the comparison goes rather than staying as coverage that
+cannot fail (issue btclib-org/.github#35).
+
 `CONTRIBUTING.md`'s *Reproducing what CI runs* prints a command per job,
 and the suite's own are read here as well: the cell of the platform
 matrices, which `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
 run; the pair `test.yml`'s `coverage-union` job runs, which combines the
 two coverage data files and reports their union; the names those data files
 carry, which the section writes in front of the command that produces each;
-the `Lint and type-check` job's own command; the `coverage` job's `pytest`;
-the `no-bindings` job's `pytest --cov-fail-under=0`; and the `python -c`
-assertion that job makes before running it.
+the `coverage` job's `pytest`; the `no-bindings` job's
+`pytest --cov-fail-under=0`; and the `python -c` assertion that job makes
+before running it.
 
-The union pair, the lint command, the two `pytest` steps and the bindings
-assertion are each compared with nothing set aside. The cell is not: the
+The union pair, the two `pytest` steps and the bindings assertion are each
+compared with nothing set aside. The cell is not: the
 workflows leave the interpreter to `astral-sh/setup-uv`, which takes it
 from the matrix, where whoever reproduces a cell has to type `--python`, so
 that argument is read against the site that holds it as the build's output
@@ -105,25 +113,6 @@ _COVERAGE = re.compile(r"uv run\b.*\bcoverage (?:combine|report)\b.*")
 # separator in front of it is the half of the spelling the two sites
 # cannot share
 _DATA_FILE = re.compile(r"(?<=COVERAGE_FILE[=:])\s*\S+")
-# the `Lint and type-check` job's own command. `CONTRIBUTING.md` carries
-# a second, shorter `pre-commit run --all-files` with neither flag, for
-# the environment note above this section, so the literal
-# `--show-diff-on-failure` is what tells the two apart, and a leading
-# wildcard reaching for it would reach the shorter one too. What follows
-# it is a run of `-flag` tokens rather than a trailing `.*`: `.*` would
-# also close over whatever `_spellings` folds this line to wherever it
-# does not match alone, which is a different, unrelated command for the
-# two pytest patterns below. The run of `-flag` tokens still lets a flag
-# appended on the *same* line through -- `pytest -q` where the source
-# read `pytest` -- and the trailing `$` is what closes the line there
-# rather than stopping at the first token starting with `-`. A flag
-# added as a *new* line of its own is a gap this shares with every
-# pattern here, `_spellings` itself joining at most one line to the
-# next: not closed by this construction, and not this branch's to close
-_PRE_COMMIT = re.compile(
-    r"uv run --locked --only-group lint\s+"
-    r"pre-commit run --all-files --show-diff-on-failure(?:\s+-\S+)*\s*$"
-)
 # the `coverage` job's bare `pytest`. `deps-latest.yml`'s own
 # `suite-bindings-latest` job types the identical string in
 # `CONTRIBUTING.md` too -- `uv run --locked --no-default-groups
@@ -145,9 +134,8 @@ _JOB_PYTEST = re.compile(
 # breaks, the line above that is the bindings assertion's closing
 # `is_libsecp256k1_serving()"`. Neither is a command this pattern could
 # be folded into by mistake, so the trailing `(?:\s+-\S+)*\s*$` is here
-# for the same reason `_PRE_COMMIT` above has it -- a flag appended on
-# this line's own end -- not to keep this pattern from reaching a
-# neighbour
+# for a flag appended on this line's own end, not to keep this pattern
+# from reaching a neighbour
 _HARNESS_PYTEST = re.compile(
     r"uv run --locked --no-default-groups --group harness\s+"
     r"pytest --cov-fail-under=0\b(?:\s+-\S+)*\s*$"
@@ -191,9 +179,8 @@ _CELL_SITES = {
 # the union job and the section that tells a reader how to run it again,
 # which are also the two sites of the data files that job combines
 _COVERAGE_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
-# the lint job and the two pytest steps, each against the section that
-# tells a reader how to run it again
-_PRE_COMMIT_SITES = (".github/workflows/lint.yml", "CONTRIBUTING.md")
+# the two pytest steps, each against the section that tells a reader how
+# to run it again
 _HARNESS_PYTEST_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
 _BINDINGS_ASSERT_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
 
@@ -278,7 +265,6 @@ _BUILDS = {path: _spellings(path, _BUILD) for path in _BUILD_SITES}
 _CELLS = {path: _spellings(path, _CELL) for path in _CELL_SITES}
 _COVERAGES = {path: _spellings(path, _COVERAGE) for path in _COVERAGE_SITES}
 _DATA_FILES = {path: _spellings(path, _DATA_FILE) for path in _COVERAGE_SITES}
-_PRE_COMMITS = {path: _spellings(path, _PRE_COMMIT) for path in _PRE_COMMIT_SITES}
 _JOB_PYTESTS = {
     ".github/workflows/test.yml": _spellings(".github/workflows/test.yml", _JOB_PYTEST),
     "CONTRIBUTING.md": _job_pytest_doc(),
@@ -314,10 +300,6 @@ def test_every_site_was_read() -> None:
     data_files = {path: len(found) for path, found in _DATA_FILES.items()}
     assert set(data_files.values()) == {2}, (
         f"a data file per coverage run per site, and instead: {data_files}"
-    )
-    pre_commits = {path: len(found) for path, found in _PRE_COMMITS.items()}
-    assert set(pre_commits.values()) == {1}, (
-        f"one lint command per site, and instead: {pre_commits}"
     )
     job_pytests = {path: len(found) for path, found in _JOB_PYTESTS.items()}
     assert set(job_pytests.values()) == {1}, (
@@ -383,13 +365,6 @@ def test_the_documented_data_files_are_the_ones_the_jobs_write() -> None:
     """`COVERAGE_FILE` names there what `test.yml`'s own `env:` names."""
     assert len(set(_DATA_FILES.values())) == 1, (
         f"the coverage data files are named more than one way: {_DATA_FILES}"
-    )
-
-
-def test_the_documented_lint_command_is_the_one_the_job_runs() -> None:
-    """The command every contributor is told to run before pushing."""
-    assert len(set(_PRE_COMMITS.values())) == 1, (
-        f"the lint command is spelled more than one way: {_PRE_COMMITS}"
     )
 
 

@@ -590,8 +590,9 @@ Every job of every workflow is a `uv` command, and `uv` fetches what it
 needs: no interpreter, no linter and no packaging tool has to be
 installed by hand.
 
-The `Lint and type-check` job of the `lint` workflow, in full — the same
-pre-commit the lock pins, which is what `uv run` above gives you too:
+`lint / Lint and type-check` is `lint.yml`, calling `btclib-org/.github`'s
+`reusable-lint.yml`, whose command is this, in full — the same pre-commit
+the lock pins, which is what `uv run` above gives you too:
 
 ```shell
 uv run --locked --only-group lint \
