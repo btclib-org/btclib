@@ -45,6 +45,7 @@ from btclib.block.block import (
 )
 from btclib.block.mining import VERSION, candidate_block_header
 from btclib.consensus import subsidy
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -62,7 +63,7 @@ _ZERO_WITNESS_NONCE = b"\x00" * 32
 
 def build_coinbase(
     height: int,
-    script_pub_key: Octets,
+    script_pub_key: Octets | ScriptPubKey,
     *,
     fees: int = 0,
     halving_interval: int = 210_000,
