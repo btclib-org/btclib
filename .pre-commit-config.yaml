@@ -441,15 +441,15 @@ repos:
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
-  # how a link destination is spelled, which markdownlint has no rule for
-  # and the documentation build depends on. docs.yml greps the built html
-  # for `href="#./`: that is what myst renders in place of a link the
-  # RootFileLinks transform in docs/source/conf.py cannot resolve -- an
-  # anchor to an id no page has, which -W reports today and would stop
-  # reporting the day suppress_warnings took myst.xref_missing back. A
-  # grep can key on one spelling, so the destinations are spelled one way
-  # and this hook is what keeps them that way, in the commit that writes
-  # the link rather than in the artifact built from it.
+  # how a link destination is spelled, which markdownlint has no rule for and
+  # the documentation build depends on. reusable-docs.yml, which docs.yml calls,
+  # greps the built html for `href="#./`: that is what myst renders in place of
+  # a link the RootFileLinks transform in docs/source/conf.py cannot resolve --
+  # an anchor to an id no page has, which -W reports today and would stop
+  # reporting the day suppress_warnings took myst.xref_missing back. A grep can
+  # key on one spelling, so the destinations are spelled one way and this hook
+  # is what keeps them that way, in the commit that writes the link rather than
+  # in the artifact built from it.
   #
   # The rule is the prefix and not the extension, and issue #1175's
   # table is what decides that: "DOES_NOT_EXIST.txt",
@@ -480,9 +480,14 @@ repos:
   # directly, rather than reaching the silent href="#../page.md"
   # fallback that the old transform's decline used to hand it.
   # Measured: `sphinx-build -n -W` alone, with neither lychee nor the
-  # grep in docs.yml running, already fails on an intentionally broken
-  # "../" link, so refusing the shape here no longer buys anything the
-  # build does not already catch on its own.
+  # unresolved-link grep running, already fails on an intentionally
+  # broken "../" link, so refusing the shape here no longer buys
+  # anything the build does not already catch on its own -- which is
+  # also why that grep, `reusable-docs.yml`'s own since docs.yml became
+  # a caller, matches only "#./" and not "#../" (issue
+  # btclib-org/.github#35): this hook still accepts "../", but nothing
+  # left in this tree's own CI checks the built artifact for a broken
+  # one, `-W` above being the whole of what still does.
   #
   # The first branch steps over a nested image, and it has to: a badge is
   # "[![alt](src)](href)", and link text written "[^]]*" stops at the "]"

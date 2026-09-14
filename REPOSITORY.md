@@ -61,7 +61,7 @@ repos/btclib-org/btclib/branches/main/protection --jq
 | --- | --- |
 | `test: every job passed` | `test.yml`, aggregate over its own jobs |
 | `Lint and type-check` | `lint.yml`, its only job |
-| `Build the documentation` | `docs.yml`, its only job |
+| `docs / Build the documentation` | `docs.yml`, calling `reusable-docs.yml` |
 | `Regtest against Bitcoin Core` | `integration-bitcoind.yml`, its regtest job |
 
 A workflow needs an aggregate when every one of its jobs has to gate:
@@ -79,14 +79,21 @@ a job added back to `integration-bitcoind.yml` would still cost is a rename: a
 workflow whose *whole* answer becomes required needs an aggregate, and this
 table with it.
 
-`Build the documentation` is named on its own on purpose: a rule naming
-`Lint and type-check` alone would leave a red docs build outside the
+`docs / Build the documentation` is named on its own on purpose: a rule
+naming `Lint and type-check` alone would leave a red docs build outside the
 required checks entirely. It moved from `lint.yml` to a workflow of its own
 without the rule changing, which is worth knowing before renaming anything:
 a context is matched by name, not by the workflow that reported it, so
 moving a job is free and renaming one is not — the pull request that renames
 a required check stops producing the old name and never produces one the
 rule is waiting for.
+
+`docs.yml`'s own job contributes no name of its own: its whole body is a
+call to `btclib-org/.github`'s `reusable-docs.yml`, so the context joins
+the calling job's id to the called job's own name, `docs.yml`'s `docs` job
+calling `reusable-docs.yml` whose own job is still named
+`Build the documentation`, together producing
+`docs / Build the documentation` (issue btclib-org/.github#35).
 
 `Regtest against Bitcoin Core` is the newest of the four, and it is here
 because its cost was measured rather than assumed: 36 seconds of work for a
@@ -132,7 +139,7 @@ gh api -X PATCH "$branch"/protection/required_status_checks --input - <<'JSON'
   "checks": [
     {"context": "test: every job passed", "app_id": 15368},
     {"context": "Lint and type-check", "app_id": 15368},
-    {"context": "Build the documentation", "app_id": 15368},
+    {"context": "docs / Build the documentation", "app_id": 15368},
     {"context": "Regtest against Bitcoin Core", "app_id": 15368}
   ]
 }

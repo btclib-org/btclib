@@ -701,6 +701,12 @@ documented at release-notes length in the first place, and are still in
   btclib-org/.github#35): this file keeps the trigger, the schedule and
   the aggregate job, and declares the permissions the called job needs.
 
+### `docs.yml` calls the organization's reusable workflow
+
+- **The checkout, the build and the unresolved-link check move to
+  `btclib-org/.github`'s `reusable-docs.yml`** (issue
+  btclib-org/.github#35): this file keeps the trigger and the group.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

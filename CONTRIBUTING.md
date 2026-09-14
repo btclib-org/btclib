@@ -598,8 +598,9 @@ uv run --locked --only-group lint \
     pre-commit run --all-files --show-diff-on-failure
 ```
 
-`Build the documentation` is a workflow of its own, `docs.yml`, and its
-command is the one below under "The documentation".
+`docs / Build the documentation` is `docs.yml`, calling
+`btclib-org/.github`'s `reusable-docs.yml`, and its command is the one
+below under "The documentation".
 
 One cell of the matrix `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
 carry. The interpreter is chosen with `--python`, which accepts any of the
@@ -1113,31 +1114,31 @@ All three jobs install the node through `.github/actions/install-bitcoind`,
 the repository's own composite action, so the release and its checksum
 are pinned once.
 
-The documentation, which the `Build the documentation` job of `docs.yml`
-runs with this same command, as read the docs does. `-W` is what makes an
-`automodule` whose module does not import a failure rather than an empty
-page — and what catches invalid reStructuredText in a docstring, which no
-hook can: markdownlint does not read `.rst`, and ruff's pydocstyle rules
-check the form of a docstring rather than whether its body parses. A name
-ending in an underscore is the trap to know about, rst reading it as a link
-reference, so write it in double backticks. `-n` is what turns an
-unresolved cross-reference — a renamed class in a `:class:` role, a moved
-function — into a warning for `-W` to fail the build on, rather than a
-link that resolves to nothing on a green build; `conf.py`'s
-`intersphinx_mapping` is what it resolves the standard library against,
-and its `nitpick_ignore` carries the entries that reason cannot reach,
-each with the reason beside it:
+The documentation, which the `docs` job of `docs.yml` runs with this same
+command by calling `reusable-docs.yml`, as read the docs does. `-W` is what
+makes an `automodule` whose module does not import a failure rather than an
+empty page — and what catches invalid reStructuredText in a docstring, which no
+hook can: markdownlint does not read `.rst`, and ruff's pydocstyle rules check
+the form of a docstring rather than whether its body parses. A name ending in
+an underscore is the trap to know about, rst reading it as a link reference, so
+write it in double backticks. `-n` is what turns an unresolved cross-reference
+— a renamed class in a `:class:` role, a moved function — into a warning for
+`-W` to fail the build on, rather than a link that resolves to nothing on a
+green build; `conf.py`'s `intersphinx_mapping` is what it resolves the standard
+library against, and its `nitpick_ignore` carries the entries that reason
+cannot reach, each with the reason beside it:
 
 ```shell
 uv run --locked --no-default-groups --group docs \
     sphinx-build -n -W -b html docs/source docs/build/html
 ```
 
-That job has a second step, which reads the pages the first one wrote and
-must find nothing — the job fails if this grep exits 0:
+That job's second step, `reusable-docs.yml`'s own now that `docs.yml` calls it,
+reads the pages the first one wrote and must find nothing — the job fails if
+this grep exits 0:
 
 ```shell
-grep -rnE 'href="#\.\.?/' docs/build/html --include='*.html'
+grep -rn 'href="#\./' docs/build/html --include='*.html'
 ```
 
 A link between the root markdown files — `./SECURITY.md` in README.md, the
@@ -1153,10 +1154,16 @@ The grep is a second defense rather than the only one: `conf.py`'s
 and a myst-parser upgrade could stop warning unconditionally the way the
 pinned one does.
 
-The pattern matches `#../` as well as `#./` because a link to another file
-here begins one of those two ways and no other: `.pre-commit-config.yaml`'s
-`local-link-prefix` hook refuses the rest, so those are the two spellings
-a broken one can render.
+Unlike three other repositories of the organization,
+`.pre-commit-config.yaml`'s `local-link-prefix` hook here accepts a
+`../`-prefixed destination as well as a `./`-prefixed one, so a link may
+still begin either way. The grep above no longer matches `#../`, the way
+this tree's own step did before it moved to `reusable-docs.yml`: a broken
+`../` link already fails `-W` on its own, through `docs/source/conf.py`'s
+`RootFileLinks` (issue #1562), rather than degrading to the anchor the
+pattern above catches for `./` — so the shared grep's narrower pattern
+still drops the artifact-level backstop for that case if `-W`'s own
+defense is ever weakened (issue btclib-org/.github#35).
 
 A link into a heading of another root file carries a fragment spelled the
 way GitHub derives it from the heading text, as in
