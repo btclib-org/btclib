@@ -743,6 +743,12 @@ documented at release-notes length in the first place, and are still in
   type-check` last** (issue btclib-org/.github#35); the preceding entry's
   claim that it came before `test: every job passed` no longer holds.
 
+### The libsecp256k1 symbol pin follows upstream's `ge_parse` split
+
+- **`tests/_data/secp256k1_symbols.txt` is re-extracted at `46db7871`**
+  (closes #2104), where `ge_parse` has become a size-keyed family; neither
+  name the split removed is one this tree's prose credits.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
