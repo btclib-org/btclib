@@ -22,7 +22,7 @@ name: claude-review
 # repository in it, and REPOSITORY.md measures what a commit at that
 # ceiling costs in wall clock. It earns the slot by being short -- it
 # reads a diff, it does not build a matrix -- and by skipping a draft,
-# which is the condition test.yml and lint.yml already carry.
+# which is the condition test.yml already carries.
 
 on:
   pull_request:

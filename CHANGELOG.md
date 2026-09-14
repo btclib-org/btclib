@@ -713,6 +713,24 @@ documented at release-notes length in the first place, and are still in
   `Lint and type-check` before `test: every job passed`, and
   `Regtest against Bitcoin Core` before `docs`** (issue btclib-org/.github#35).
 
+### `lint.yml` calls the organization's reusable workflow
+
+- **The checkout, the uv setup and the pre-commit run move to
+  `btclib-org/.github`'s `reusable-lint.yml`** (issue btclib-org/.github#35):
+  `main`'s required check renames to `lint / Lint and type-check`.
+
+### `tests/docs_commands_test.py`'s lint-command comparison goes
+
+- **`lint.yml` holds no command left to compare** (issue
+  btclib-org/.github#35): the comparison against `CONTRIBUTING.md` would
+  pass vacuously, so it goes.
+
+### `lint.yml` no longer says its pre-commit step installs the bindings
+
+- **The step moved to `btclib-org/.github`'s `reusable-lint.yml`** (issue
+  btclib-org/.github#35), whose own comment does not repeat this tree's
+  claim about the bindings the `lint` group installs.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
