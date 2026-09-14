@@ -18,9 +18,21 @@ So the one thing an already-released section can still be checked
 against is not the working tree at all: it is the tag `git tag -s`
 cut for that release, which is why this module shells out to `git`
 rather than reading only what `Path.read_text` returns. For every
-`## v<version>` heading in CHANGELOG.md and RELEASE_NOTES.md that is not
-"work in progress", `git show <version>:<path>` is that section's own
-authority, and the two must still agree byte for byte.
+`## v<version>` heading that is not "work in progress", in either of the
+two live files or in an archived release, `git show <version>:<path at
+that tag>` is that section's own authority, and the two must still agree
+byte for byte.
+
+CHANGELOG.md keeps the cycle in progress and the release it follows, and
+every release before those holds its own section in a file of its own
+under `changelog/` (issue #2109). The path a section is read from on disk
+is then not the path its tag holds it at: every tag holds it inside
+CHANGELOG.md, which is what `_tag_path` answers and what keeps the
+comparison the move would otherwise end. Ending it is the quiet outcome
+rather than the loud one -- a section that leaves the file set below is
+not compared any more, and there is no failure and no named skip to say
+so -- which is why that set is discovered from the directory rather than
+listed by hand.
 
 **Two ways for that comparison to be answered rather than performed,
 and both are read as a name rather than as a verdict:**
@@ -157,7 +169,20 @@ from typing import NamedTuple
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-_FILES = ("CHANGELOG.md", "RELEASE_NOTES.md")
+# where an open cycle is written and where a release retitles its heading
+_LIVE = ("CHANGELOG.md", "RELEASE_NOTES.md")
+# one file per release, holding the section CHANGELOG.md's window has
+# moved past. Discovered rather than listed: a release archived without
+# its name being written here would leave this file set short of it,
+# which is the silence this module is against -- a section that stops
+# being compared fails nothing
+_ARCHIVE = "changelog"
+_ARCHIVED = tuple(
+    sorted(
+        path.relative_to(_ROOT).as_posix() for path in (_ROOT / _ARCHIVE).glob("v*.md")
+    )
+)
+_FILES = (*_LIVE, *_ARCHIVED)
 _WIP = "work in progress, not released yet"
 _HEADING = re.compile(r"^## (\S+)(.*)$", re.MULTILINE)
 
@@ -180,7 +205,23 @@ class _Drift(NamedTuple):
 # and the failing message prints the digest a section reads at, so a
 # reviewed edit costs its entry one line
 _KNOWN_DRIFT: dict[tuple[str, str], _Drift] = {
-    ("CHANGELOG.md", "v2026.8.7"): _Drift(
+    ("changelog/v2026.9.10.md", "v2026.9.10"): _Drift(
+        digest="d2b0b5b4ce430170ae31e1addb3621eef25262c9bce0f700235d2c7eee7d9ff8",
+        reason=(
+            "RELEASE_NOTES.md is linked as ../RELEASE_NOTES.md inside it,"
+            " ./RELEASE_NOTES.md naming no file from changelog/ (issue"
+            " #2109)"
+        ),
+    ),
+    ("changelog/v2026.9.3.md", "v2026.9.3"): _Drift(
+        digest="bb9f044398f19a0d684519777b2fec2dc4fa99c37f56d87e320619ec350703d6",
+        reason=(
+            "RELEASE_NOTES.md is linked as ../RELEASE_NOTES.md inside it,"
+            " ./RELEASE_NOTES.md naming no file from changelog/ (issue"
+            " #2109)"
+        ),
+    ),
+    ("changelog/v2026.8.7.md", "v2026.8.7"): _Drift(
         digest="8cb4a0458fc3da3484fe493b28ee28b103fbc9d7f76bd7245cb4464664ff0884",
         reason=(
             "13941fd1 de-linked [HISTORY.md](...) inside it, the file"
@@ -191,6 +232,17 @@ _KNOWN_DRIFT: dict[tuple[str, str], _Drift] = {
         ),
     ),
 }
+
+
+def _tag_path(path: str) -> str:
+    """Return the file `path`'s section is read from at its own tag.
+
+    An archived release was a section of CHANGELOG.md at the tag that
+    sealed it, and every tag holds it there still, so that is what
+    `git show <version>:<path>` is asked for whatever file the section
+    is read from on disk.
+    """
+    return "CHANGELOG.md" if path.startswith(f"{_ARCHIVE}/") else path
 
 
 def _digest(section: str) -> str:
@@ -208,7 +260,18 @@ def _sections(text: str) -> dict[str, str]:
 
     A block runs from its own heading line up to (not including) the
     next `## ` heading or the end of the text, so the same heading in two
-    different snapshots of a file is comparable block for block.
+    different snapshots of a file is comparable block for block, and it
+    ends with its last line's own newline whichever of the two it ran
+    into.
+
+    That last part is the blank line before the next heading, and it
+    belongs to the file rather than to the section: a section standing
+    last in its file has none, because `end-of-file-fixer` and
+    markdownlint's MD012 each take it off -- measured on an archive file
+    written with it, which the first rewrote and the second reported. So
+    a section that moves to the end of a file of its own would otherwise
+    differ from its tag by that one byte, and the exemption it would take
+    excuses every other difference inside it as well.
     """
     matches = list(_HEADING.finditer(text))
     blocks: dict[str, str] = {}
@@ -217,7 +280,7 @@ def _sections(text: str) -> dict[str, str]:
         if _WIP in rest:
             continue
         end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
-        blocks[version] = text[match.start() : end]
+        blocks[version] = text[match.start() : end].rstrip("\n") + "\n"
     return blocks
 
 
@@ -271,7 +334,7 @@ def _comparable_exemptions(
     """
     usable: list[tuple[tuple[str, str], _Drift, str, str]] = []
     for (path, version), entry in drift.items():
-        tagged = _git("show", f"{version}:{path}")
+        tagged = _git("show", f"{version}:{_tag_path(path)}")
         at_tag = _sections(tagged.stdout) if tagged.returncode == 0 else {}
         current = _sections(_read(path))
         if version in at_tag and version in current:
@@ -293,7 +356,18 @@ pytestmark = pytest.mark.skipif(
 
 
 def _newest_released(path: str) -> str | None:
-    """`path`'s topmost heading that is not "work in progress"."""
+    """`path`'s topmost heading that is not "work in progress".
+
+    `None` for an archived release, whose own heading is the whole
+    file: a retitle happens in the two live files, and a section is
+    archived from a release whose tag is already pushed, so the window
+    the callers read this for does not reach one. Without that, an
+    archive file's only heading is its topmost one by construction,
+    and a tag that stopped resolving would read as a release being
+    cut.
+    """
+    if path not in _LIVE:
+        return None
     return next(iter(_sections(_read(path))), None)
 
 
@@ -410,7 +484,7 @@ def _verify(path: str, version: str) -> tuple[str, str] | None:
         # case above, and is not waved through as though it were.
         return "fail", f"{version!r} does not resolve, though other v* tags do"
 
-    tagged = _git("show", f"{version}:{path}")
+    tagged = _git("show", f"{version}:{_tag_path(path)}")
     if tagged.returncode != 0:
         return "skip", f"{path!r} did not carry this name at {version} (a rename)"
 
@@ -500,6 +574,11 @@ def test_an_exemption_may_name_the_release_being_cut(
     newest is the control, named under that same stub, so what the
     newest one answers is the window rather than the stub.
 
+    An archived release is the control, named under that same stub: its
+    heading is the only one its own file carries, so a rule reading the
+    topmost heading would excuse it too, and what the newest one answers
+    is the window rather than the stub or the position.
+
     What excuses that heading is the tag it has yet to name and not its
     position, and a permanent skip can sit on it: at `13941fd1` the
     newest released heading of `RELEASE_NOTES.md` is `v2026.8.9`, whose
@@ -521,11 +600,11 @@ def test_an_exemption_may_name_the_release_being_cut(
     released = list(_sections(_read("CHANGELOG.md")))
     entry = next(iter(_KNOWN_DRIFT.values()))
     window = ("CHANGELOG.md", released[0])
-    older = ("CHANGELOG.md", released[1])
+    archived = (_ARCHIVED[0], next(iter(_sections(_read(_ARCHIVED[0])))))
 
     monkeypatch.setattr(subprocess, "run", no_tag_yet)
     assert _exemptions_no_verdict_can_reach({window: entry}) == []
-    assert _exemptions_no_verdict_can_reach({older: entry}) == [older]
+    assert _exemptions_no_verdict_can_reach({archived: entry}) == [archived]
 
     monkeypatch.setattr(subprocess, "run", tag_pushed)
     assert _exemptions_no_verdict_can_reach({window: entry}) == [window]

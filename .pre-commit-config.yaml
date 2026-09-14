@@ -579,14 +579,21 @@ repos:
       # so an exclusion keyed on the older entries alone cannot be
       # written; and check-useless-excludes asks the pattern to match
       # some file the hook selects rather than each name in it, which is
-      # what lets a tree with no release notes carry the same line
+      # what lets a tree with no release notes carry the same line.
+      # `changelog/` is that same reach over the releases CHANGELOG.md's
+      # window has moved past, where the file is the entry rather than
+      # holding it: each is sealed by its own tag and compared against it
+      # by tests/changelog_immutability_test.py, so rewriting a refused
+      # shape there is itself the drift that comparison reports --
+      # `changelog/v2026.8.27.md` carries one, a `"<summary>"` in a
+      # `gh pr review` command
       - id: unquoted-placeholder
         name: a placeholder standing as a whole argument is unquoted
         language: pygrep
         entry: |-
           ^(?![\x20\t]*[A-Za-z_][A-Za-z0-9_.-]*[\x20\t]+=[\x20\t])(?:(?:[^"'\n]|'[^'\n]*')*"<[^<>"'`\n]*>"|(?:[^"'\n]|"[^"\n]*")*'<[^<>"'`\n]*>')
         types: [markdown]
-        exclude: ^(CHANGELOG|RELEASE_NOTES)\.md$
+        exclude: ^(CHANGELOG|RELEASE_NOTES)\.md$|^changelog/
   # what ruff-format is for Python, on the structured files ruff does not
   # read: yaml, and the jsonc that carries a comment. Before yamllint below,
   # so the linter judges the formatted file and not the one that was typed.
