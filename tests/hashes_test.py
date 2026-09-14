@@ -22,7 +22,7 @@ from btclib.hashes import (
     merkle_root_from_branch,
     ripemd160,
 )
-from tests.to_key_test import (
+from tests.key_vectors_test import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
     plain_prv_keys,

@@ -25,7 +25,7 @@ from btclib.curves import (
     secp256k1,
 )
 from btclib.curves.curve import CURVES
-from btclib.curves.sec_point import _mult_sec_var, _sec_from_octets
+from btclib.curves.sec_point import _mult_sec_var
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from tests import needs_bindings
 
@@ -154,63 +154,6 @@ def test_hybrid_prefixes_are_admitted_only_when_asked() -> None:
     # and 0x04 does not acquire a parity rule it never had
     assert point_from_octets(b"\x04" + body, ec, hybrid=True) == Q
     assert point_from_octets(b"\x04" + body, ec) == Q
-
-
-@pytest.mark.parametrize(
-    "bindings",
-    [
-        pytest.param(True, marks=needs_bindings, id="bindings"),
-        pytest.param(False, id="python"),
-    ],
-)
-def test_sec_from_octets(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Octets in, the same octets out, and the refusals unmoved.
-
-    `_sec_from_octets` skips the round trip through a point that
-    to_pub_key.pub_keyinfo_from_pub_key used to make of it (issue 284), so
-    what has to be asserted is the identity it claims -- for both forms,
-    both parities, and the low-cardinality curves the bindings never see
-    -- and that everything the round trip refuses is still refused, with
-    the message point_from_octets phrases. The hybrid prefixes are the
-    trap: ec_pubkey_parse takes 0x06 and 0x07, and nothing here asks for
-    them.
-    """
-    if not bindings:
-        monkeypatch.setattr(curve, "_libsecp256k1_available", False)
-
-    for ec in all_curves.values():
-        for Q in (ec.G, mult(2, ec.G, ec), mult(3, ec.G, ec)):
-            for compressed in (True, False):
-                sec = bytes_from_point(Q, ec, compressed)
-                assert _sec_from_octets(sec, ec) == sec
-
-    ec = CURVES["secp256k1"]
-    # both prefixes, i.e. both answers of the parity rule: 6G is the first
-    # of the small multiples to have an odd y
-    assert {
-        _sec_from_octets(bytes_from_point(mult(q, ec.G, ec), ec), ec)[0]
-        for q in range(1, 13)
-    } == {0x02, 0x03}
-
-    # an x that is not a coordinate, which is where the two implementations
-    # could disagree and where the message has to be btclib's
-    x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
-    for prefix in (b"\x02", b"\x03"):
-        with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-            _sec_from_octets(prefix + x_Q.to_bytes(ec.p_size, "big"), ec)
-
-    body = ec.G[0].to_bytes(ec.p_size, "big") + ec.G[1].to_bytes(ec.p_size, "big")
-    # the hybrid prefixes ec_pubkey_parse accepts and this must not
-    for prefix in (b"\x06", b"\x07"):
-        with pytest.raises(BTClibValueError, match="not a point: prefix "):
-            _sec_from_octets(prefix + body, ec)
-    # nor an uncompressed point that is not on the curve, nor infinity
-    with pytest.raises(BTClibValueError, match="point not on curve: "):
-        _sec_from_octets(b"\x04" + 2 * x_Q.to_bytes(ec.p_size, "big"), ec)
-    with pytest.raises(
-        BTClibValueError, match="no bytes representation for infinity point"
-    ):
-        _sec_from_octets(b"\x04" + bytes(2 * ec.p_size), ec)
 
 
 def test_bytes_from_prv_key_int() -> None:
@@ -363,9 +306,9 @@ def test_a_public_key_is_a_point_or_its_octets_and_nothing_else() -> None:
     library an int is a private key and never a public one, so it is
     refused as a type rather than reported as a key that does not verify.
 
-    Which spellings the two conversions of `to_pub_key` build on this one
-    then accept, crossed with network and compression, is
-    `tests/to_pub_key_test.py`; what is here is the parse itself.
+    What a caller does with the point afterwards -- an address, a
+    verification -- is its own module's test; what is here is the parse
+    itself.
     """
     q = 0xC0FFEE
     point = mult(q)

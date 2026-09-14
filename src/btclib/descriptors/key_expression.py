@@ -518,9 +518,9 @@ def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
     """
     if _HEX.fullmatch(key):
         return _pub_key_from_hex(key, x_only=x_only)
-    # what is left is a WIF, which is b58's object and not to_pub_key's
-    # (issue #1188); prv_key_data_from_wif answers both for it and for
-    # characters that are no key expression at all
+    # what is left is a WIF, which is b58's object (issue #1188):
+    # prv_key_data_from_wif answers both for it and for characters that
+    # are no key expression at all
     try:
         return b58.prv_key_data_from_wif(key).pub.sec, x_only
     except (TypeError, ValueError) as e:

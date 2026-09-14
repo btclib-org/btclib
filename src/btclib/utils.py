@@ -142,8 +142,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
         # library runs through, so it is the one place worth saying it in.
         # The message is fromhex's own, which names a position and never
         # the string: an Octets parameter is candidate key material as
-        # often as not, and `to_prv_key` puts this very message inside its
-        # own "not a private key" (issue #137)
+        # often as not (issue #137)
         try:
             octets = bytes.fromhex(octets)
         except ValueError as e:

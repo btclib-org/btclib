@@ -69,10 +69,9 @@ from btclib.hashes import reduce_to_hlen
 from btclib.key import PrvKeyData, PubKeyData
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 
 _Q = 12
-_PUB = pub_keyinfo_from_prv_key(_Q)[0]
+_PUB = PrvKeyData(_Q).pub.sec
 _X_ONLY = _PUB[1:]
 _MSG = b"Satoshi Nakamoto"
 _OTHER_MSG = b"another message"
@@ -86,8 +85,8 @@ _BMS_SIG = bms.sign(_MSG, PrvKeyData(_Q))
 _BIP322_SIG = bip322.sign(_MSG, PrvKeyData(_Q), _ADDR)
 _TX_ID = bytes.fromhex("01" * 32)
 # a DLEQ triple: A = a*G and C = a*B, so the proof holds for (A, B, C)
-_DLEQ_B = pub_keyinfo_from_prv_key(2)[0]
-_DLEQ_C = pub_keyinfo_from_prv_key(2 * _Q)[0]
+_DLEQ_B = PrvKeyData(2).pub.sec
+_DLEQ_C = PrvKeyData(2 * _Q).pub.sec
 _DLEQ_PROOF = dleq.generate_proof(_Q, _DLEQ_B)
 # rG + vH for the very (r, v) its case opens it with
 _GEN = pedersen.second_generator()

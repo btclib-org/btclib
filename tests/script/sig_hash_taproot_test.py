@@ -43,7 +43,6 @@ from btclib.script import (
 )
 from btclib.script.engine import verify_transaction
 from btclib.script.taproot import serialize as taproot_serialize
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
@@ -587,7 +586,7 @@ def test_script_path_spend_round_trip(annex: bytes) -> None:
     """
     internal_key = 0x4242424242424242424242424242424242424242424242424242424242424242
     leaf_prv_key = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
-    leaf_pub_key = pub_keyinfo_from_prv_key(leaf_prv_key)[0][1:]
+    leaf_pub_key = PrvKeyData(leaf_prv_key).pub.sec[1:]
 
     script_tree: TaprootScriptTree = [(0xC0, [leaf_pub_key.hex(), "OP_CHECKSIG"])]
     internal_pub_key = PrvKeyData(internal_key).pub

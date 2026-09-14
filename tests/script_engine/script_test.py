@@ -47,7 +47,6 @@ from btclib.script.taproot import (
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
 from btclib.script.witness import Witness
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -885,7 +884,7 @@ def codeseparator_witness_script() -> tuple[bytes, bytes]:
     re-serialization of a parse, the hazard of #176, and the one outside
     it is what a cut off by one occurrence would take in.
     """
-    pub_key = pub_keyinfo_from_prv_key(CODESEP_PRV_KEY)[0]
+    pub_key = PrvKeyData(CODESEP_PRV_KEY).pub.sec
     non_minimal = bytes.fromhex("4c01ff") + b"\x75"  # the push, then OP_DROP
     before = b"\x51\x75" + b"\xab" + non_minimal + b"\xab"
     script_code = non_minimal + b"\x21" + pub_key + b"\xac"
@@ -1202,7 +1201,7 @@ def test_hash_types_report_every_signature_the_interpreter_checked() -> None:
         0x4242424242424242424242424242424242424242424242424242424242424242,
         0x1111111111111111111111111111111111111111111111111111111111111111,
     ]
-    sec_keys = [pub_keyinfo_from_prv_key(key)[0] for key in keys]
+    sec_keys = [PrvKeyData(key).pub.sec for key in keys]
 
     witness_script = serialize(["OP_2", *sec_keys, "OP_2", "OP_CHECKMULTISIG"])
     script_tree: TaprootScriptTree = [(0xC0, [sec_keys[0][1:].hex(), "OP_CHECKSIG"])]

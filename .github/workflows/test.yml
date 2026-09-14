@@ -798,12 +798,12 @@ jobs:
           .venv/bin/python -c "import btclib; \
             from btclib.curves import is_libsecp256k1_serving; \
             from btclib.ecc import dsa; \
-            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            from btclib.key import PrvKeyData; \
             print(btclib.__version__); \
             assert btclib.__version__ != 'unknown'; \
             assert is_libsecp256k1_serving(), \
               'the secp256k1 extra resolved, the bindings do not serve'; \
-            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+            assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
               dsa.sign(b'btclib', 1))"
       # release.yml's own copy of this question, moved here now that
       # there is only one build for it to ask about. Unconstrained, where
@@ -830,12 +830,12 @@ jobs:
             python -c "import btclib; \
               from btclib.curves import is_libsecp256k1_serving; \
               from btclib.ecc import dsa; \
-              from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+              from btclib.key import PrvKeyData; \
               print(btclib.__version__); \
               assert btclib.__version__ != 'unknown'; \
               assert is_libsecp256k1_serving(), \
                 'the secp256k1 extra resolved, the bindings do not serve'; \
-              assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+              assert dsa.verify(b'btclib', PrvKeyData(1).pub.sec, \
                 dsa.sign(b'btclib', 1))"
 
   # the single check main's branch protection requires from this

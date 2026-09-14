@@ -59,7 +59,7 @@ excepted -- `Block.serialize` and `Tx.serialize` were gated with
 
 ```text
 dsa.sign(msg, q, lower_s="no")        -> a low-s signature, "no" being true
-pub_keyinfo_from_prv_key(q, "no")     -> the compressed key, and its address
+PrvKeyData(q, compressed="no")        -> the compressed key, and its address
 ```
 
 ## The walk, and the one name it subtracts
@@ -159,12 +159,6 @@ from btclib.script.engine.flags import NO_FLAGS, ScriptFlag
 from btclib.script.script import serialize as serialize_script
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import parse as taproot_parse
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import (
-    pub_keyinfo_from_key,
-    pub_keyinfo_from_prv_key,
-    pub_keyinfo_from_pub_key,
-)
 from btclib.tx.coin import Coin
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -315,34 +309,6 @@ _KINDS = (
         "compressed",
         PrvKeyData,
         {"q": _PRV_KEY},
-    ),
-    _Case(
-        "btclib.to_prv_key.prv_keyinfo_from_prv_key",
-        "compressed",
-        prv_keyinfo_from_prv_key,
-        {"prv_key": _PRV_KEY},
-        optional=True,
-    ),
-    _Case(
-        "btclib.to_pub_key.pub_keyinfo_from_key",
-        "compressed",
-        pub_keyinfo_from_key,
-        {"key": _SEC},
-        optional=True,
-    ),
-    _Case(
-        "btclib.to_pub_key.pub_keyinfo_from_pub_key",
-        "compressed",
-        pub_keyinfo_from_pub_key,
-        {"pub_key": _SEC},
-        optional=True,
-    ),
-    _Case(
-        "btclib.to_pub_key.pub_keyinfo_from_prv_key",
-        "compressed",
-        pub_keyinfo_from_prv_key,
-        {"prv_key": _PRV_KEY},
-        optional=True,
     ),
     _Case(
         "btclib.b58.wif_from_prv_key",

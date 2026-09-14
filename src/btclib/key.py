@@ -6,12 +6,13 @@
 
 **What this is for.** A public key has several spellings -- SEC octets, a
 hex string of them, a point, an xpub -- and a private key has as many.
-Every converter in this library takes all of them and answers a tuple, so
-the canonical form is what comes *out* of a conversion and never what
-goes *in*: a caller that has one has to spell it back for the next call,
-which parses it again. That round trip is what `bip32.derive_` and
-`to_pub_key._sec_from_pub_key` work around locally -- issues 886 and
-887. Issue 896 is the same round trip where `script.taproot` reads an
+Each is read where its format is defined, and what a read answers is a
+scalar, a point or a tuple of them with a network: the canonical form is
+what comes *out* of a conversion and never what goes *in*, so a caller
+that has one has to spell it back for the next call, which parses it
+again. That round trip is what `bip32.derive_` and
+`curves.sec_point._sec_from_pub_key` work around locally -- issues 886
+and 887. Issue 896 is the same round trip where `script.taproot` reads an
 internal key, and there it is this module that answers it.
 
 `PubKeyData` and `PrvKeyData` are that cut: the spellings stay at the
@@ -34,7 +35,7 @@ them: one fact in one place, and this is not the place.
 That is not only a cache. **`point` is also the proof**: a length and a
 prefix are what the constructor checks, and whether those octets are a
 point of the curve is the question `point` answers. It is the contract
-`to_pub_key._sec_from_pub_key` already states -- "the guarantee is the
+`curves.sec_point._sec_from_pub_key` already states -- "the guarantee is the
 caller's to complete" -- made explicit and paid once, rather than left to
 each caller and paid again at every one.
 
@@ -162,9 +163,8 @@ class PubKeyData:
         prefix, and whether what they frame is a point of the curve is
         what this answers. A key nobody asks this of has never been
         proved one -- deliberately, that being the trade
-        `to_pub_key._sec_from_pub_key` already makes for the callers
-        that hand the octets straight to a call which parses them
-        anyway.
+        `curves.sec_point._sec_from_pub_key` already makes for the callers
+        that hand the octets straight to a call which parses them anyway.
         """
         return point_from_octets(self.sec, self.curve)
 

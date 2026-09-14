@@ -82,8 +82,7 @@ def test_an_already_built_key_is_validated_too() -> None:
 
     A string went through `BIP32KeyData.b58decode`, which validates by
     default; an already-built `BIP32KeyData` was trusted as it stood,
-    unlike the four `to_prv_key`/`to_pub_key`/`bip32` functions the same
-    census names as compliant.
+    unlike the `bip32` functions the same census names as compliant.
     """
     xpub = "xpub6C6uNUWrxKLNyNLy6CJgx2SkUvx7yynLVrZ79zrCseWHyGKtj8sUGZUq3dw9fqJGETSEeX1iztXAfRvxh6Gk2m7yVjDCx5cbRP2So559Hb5"
     good = bip32.BIP32KeyData.b58decode(xpub)

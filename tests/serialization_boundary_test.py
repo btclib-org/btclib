@@ -92,6 +92,7 @@ from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.ecc.borromean import BorromeanSig
 from btclib.ecc.rangeproof import RangeProof
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.key import PrvKeyData
 from btclib.network import NETWORKS, Network
 from btclib.p2p import (
     Addr,
@@ -138,7 +139,6 @@ from btclib.p2p import (
 from btclib.psbt import Psbt, PsbtIn, PsbtOut
 from btclib.psbt.psbt_utils import PSBT_V0, PSBT_V2
 from btclib.script import Witness, script, taproot
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load_bin, module_names, public_classes_with
 from tests.psbt import psbt_cases
@@ -175,7 +175,7 @@ _PSBT = next(
 # framed rather than encrypted: `ecies.encrypt` takes a block cipher this
 # library does not carry, and the framing is all this file is about
 _ENVELOPE = ecies.Envelope.from_ciphertext(
-    pub_keyinfo_from_prv_key(1)[0], b"\x00" * 16, b"key material"
+    PrvKeyData(1).pub.sec, b"\x00" * 16, b"key material"
 )
 
 
@@ -733,7 +733,7 @@ def test_a_descriptor_is_parsed_for_a_network_that_exists() -> None:
     work rather than driven -- a statement about the signature, and the
     one `built_object_contract_test.py` records as `optional`.
     """
-    descriptor = f"pk({pub_keyinfo_from_prv_key(1)[0].hex()})"
+    descriptor = f"pk({PrvKeyData(1).pub.sec.hex()})"
     assert descriptors.parse(descriptor, "testnet").network == "testnet"
     assert descriptors.parse(descriptor, prv_keys={}).network == "mainnet"
     assert descriptors.parse(descriptor, prv_keys=None).network == "mainnet"
@@ -758,7 +758,7 @@ def test_a_miniscript_is_parsed_in_a_context_that_exists() -> None:
     a third value was the p2wsh one silently: the expression was
     type-checked and sized under rules it was not offered to.
     """
-    expression = f"pk({pub_keyinfo_from_prv_key(1)[0].hex()})"
+    expression = f"pk({PrvKeyData(1).pub.sec.hex()})"
     for context in (miniscript.P2WSH, miniscript.TAPSCRIPT):
         assert miniscript.parse(expression, context).context == context
     assert miniscript.parse(expression, prv_keys=None).context == miniscript.P2WSH

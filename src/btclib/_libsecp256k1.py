@@ -72,7 +72,6 @@ __all__ = [
     "pubkey_tweak_add",
     "pubkey_tweak_mul",
     "pubkey_tweak_mul_sum",
-    "pubkey_verify",
     "recovery",
     "silentpayments",
     "ssa",
@@ -109,7 +108,6 @@ try:
         pubkey_tweak_add,
         pubkey_tweak_mul,
         pubkey_tweak_mul_sum,
-        pubkey_verify,
     )
     from btclib_secp256k1.ssa import verify as ssa_verify
     from btclib_secp256k1.xonly import pubkey_verify as xonly_pubkey_verify
@@ -141,7 +139,7 @@ except ImportError:  # pragma: no cover -- only the no-bindings job reaches this
     PubkeyTweakChain = None  # type: ignore[misc, assignment]
     dsa_verify = pubkey_from_prvkey = None  # type: ignore[assignment]
     pubkey_sum = pubkey_tweak_add = pubkey_tweak_mul = None  # type: ignore[assignment]
-    pubkey_tweak_mul_sum = pubkey_verify = ssa_verify = None  # type: ignore[assignment]
+    pubkey_tweak_mul_sum = ssa_verify = None  # type: ignore[assignment]
     xonly_pubkey_verify = xonly_to_pubkey = None  # type: ignore[assignment]
 
     INSTALLED = False

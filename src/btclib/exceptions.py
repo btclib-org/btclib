@@ -310,12 +310,9 @@ class NotAPrvKeyError(BTClibValueError):
     A caller resolving a private key has more than one format to try, so
     a failed attempt has to say which kind of failure it was, and this is
     the kind that means "wrong format, keep going". Each raiser asks it
-    of the one format it reads: `to_prv_key` for what is not the octets
-    of a scalar, `b58.prv_key_data_from_wif` for text that is no WIF, `bip38`
-    for a record no version prefix claims, `minikey` for text of no
-    minikey shape. `b58._pub_keyinfo_from_key` and
-    `wallet.key_wallet._key_data` are what catch it, to try the spelling
-    after the one that declined.
+    of the one format it reads: `b58.prv_key_data_from_wif` for text that
+    is no WIF, `bip38` for a record no version prefix claims, `minikey`
+    for text of no minikey shape.
 
     A BTClibValueError, so code catching that keeps catching this.
     """

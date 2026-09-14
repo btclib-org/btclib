@@ -219,7 +219,7 @@ package's list:
 **Two findings did not survive being checked**, which is the other half of
 what an audit is for. `bip32.slip132` could not be exported at all: it
 imports `b58` and `b32`, which at the time reached `btclib.bip32` through
-`to_pub_key`, so naming it meant importing it and that closed a cycle — 73
+a key converter, so naming it meant importing it and that closed a cycle — 73
 tests failed with `cannot import name 'BIP32Key' from partially initialized
 module`. That chain is gone, an extended key being `bip32`'s to read rather
 than a converter's (issue #1188), so `import btclib.b58` now puts no
@@ -319,15 +319,6 @@ the audit above.
 Not to be renamed, with the reason: `point_from_octets` beside
 `bytes_from_point` reads asymmetric and is exact — `Octets` is the union
 the function accepts, `bytes` is what it hands back.
-
-One open question, larger than the six: `to_prv_key` and `to_pub_key`
-read as verbs and stutter under the mirror, `btclib to-pub-key
-pub-keyinfo-from-key` being the worst command in the tree. `to_pub_key`
-already imports `to_prv_key`, so a single `btclib.keys` holding
-`prv_keyinfo_from_prv_key`, `pub_keyinfo_from_key` and `point_from_key`
-would be acyclic. How many import sites it is, is
-`git grep -c "from btclib.to_p" -- "src/btclib/*.py" "src/btclib/**/*.py"`;
-it is not part of this proposal.
 
 ## Argument and option types
 

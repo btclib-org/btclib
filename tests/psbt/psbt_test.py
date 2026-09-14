@@ -19,7 +19,7 @@ from btclib.curves import sec_point
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256, tagged_hash
-from btclib.key import PubKeyData
+from btclib.key import PrvKeyData, PubKeyData
 from btclib.psbt import (
     Psbt,
     PsbtIn,
@@ -62,7 +62,6 @@ from btclib.script import (
 )
 from btclib.script.engine import verify_transaction
 from btclib.script.taproot import input_script_sig, tree_helper
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from tests import load
@@ -2185,7 +2184,7 @@ _PUB_KEY = bytes.fromhex(
 )
 # a second key, for the inputs that hold more than one signature
 _OTHER_PRV_KEY = _PRV_KEY + 1
-_OTHER_PUB_KEY = pub_keyinfo_from_prv_key(_OTHER_PRV_KEY)[0]
+_OTHER_PUB_KEY = PrvKeyData(_OTHER_PRV_KEY).pub.sec
 
 
 def _p2pkh_script_code(pub_key_hash: bytes) -> bytes:
@@ -2401,8 +2400,7 @@ def _multisig_psbt(
         msg_hash = sig_hash.legacy(multisig, tx, 0, 1)
     prv_keys = [_PRV_KEY, _OTHER_PRV_KEY][: threshold if signers is None else signers]
     psbt.inputs[0].partial_sigs = {
-        pub_keyinfo_from_prv_key(prv_key)[0]: dsa.sign_(msg_hash, prv_key).serialize()
-        + b"\x01"
+        PrvKeyData(prv_key).pub.sec: dsa.sign_(msg_hash, prv_key).serialize() + b"\x01"
         for prv_key in prv_keys
     }
     return psbt, [prev_out]
@@ -2463,8 +2461,7 @@ def test_the_dummy_is_the_multisig_script_and_not_a_second_signature() -> None:
     psbt.inputs[0].non_witness_utxo = prev_tx
     msg_hash = sig_hash.legacy(p2pk, tx, 0, 1)
     sigs = {
-        pub_keyinfo_from_prv_key(prv_key)[0]: dsa.sign_(msg_hash, prv_key).serialize()
-        + b"\x01"
+        PrvKeyData(prv_key).pub.sec: dsa.sign_(msg_hash, prv_key).serialize() + b"\x01"
         for prv_key in (_PRV_KEY, _OTHER_PRV_KEY)
     }
     psbt.inputs[0].partial_sigs = sigs
@@ -2591,7 +2588,7 @@ def test_a_signature_of_a_key_the_multisig_script_omits_is_dropped() -> None:
     expected = _spent_with(psbt.inputs[0], signed)
     msg_hash = sig_hash.legacy(prev_outs[0].script_pub_key.script, psbt.tx, 0, 1)
     stranger = _PRV_KEY + 2
-    psbt.inputs[0].partial_sigs[pub_keyinfo_from_prv_key(stranger)[0]] = (
+    psbt.inputs[0].partial_sigs[PrvKeyData(stranger).pub.sec] = (
         dsa.sign_(msg_hash, stranger).serialize() + b"\x01"
     )
 
@@ -3439,7 +3436,7 @@ def _unsigned_multisig_psbt() -> Psbt:
 
 
 _TAPROOT_PRV_KEY = _PRV_KEY + 2
-_TAPROOT_PUB_KEY = pub_keyinfo_from_prv_key(_TAPROOT_PRV_KEY)[0]
+_TAPROOT_PUB_KEY = PrvKeyData(_TAPROOT_PRV_KEY).pub.sec
 # x-only, dropping the parity byte compressed carries and x-only never
 # does: PSBT_IN_TAP_INTERNAL_KEY is 32 bytes, and so is a KeyManager's
 # pub_key for a schnorr candidate
@@ -3469,7 +3466,7 @@ def _taproot_key_path_psbt(
 
 
 _LEAF_PRV_KEY = _PRV_KEY + 3
-_LEAF_KEY = pub_keyinfo_from_prv_key(_LEAF_PRV_KEY)[0][1:]
+_LEAF_KEY = PrvKeyData(_LEAF_PRV_KEY).pub.sec[1:]
 # the leaf spent below, and the one shape a Finalizer can build a witness
 # for: `single_leaf_key`'s <32-byte key> OP_CHECKSIG
 _LEAF_TREE: TaprootScriptTree = [(0xC0, [_LEAF_KEY, "OP_CHECKSIG"])]

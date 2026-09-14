@@ -147,7 +147,7 @@ used to teach and to prototype as much as to build:
     decision, not an oversight. These call sites read one of those
     straight into a Python `int`: `bip32.__prv_key_derivation` at
     `int.from_bytes(key, byteorder="big", signed=False)`
-    (`src/btclib/bip32/bip32.py:842`), `commit_nonce.commit_nonce_` at
+    (`src/btclib/bip32/bip32.py:837`), `commit_nonce.commit_nonce_` at
     `int.from_bytes(tweaked, byteorder="big", signed=False)`
     (`src/btclib/ecc/commit_nonce.py:158`) and `taproot._tweaked_prvkey`
     at `int.from_bytes(tweaked, "big")`

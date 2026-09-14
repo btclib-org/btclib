@@ -66,8 +66,6 @@ from btclib.mnemonic.entropy import bin_str_entropy_from_wordlist_indexes
 from btclib.number_theory import mod_inv, mod_inv_batch_var, mod_inv_var
 from btclib.psbt.psbt import PSBT_V2, Psbt
 from btclib.script import input_script_sig, sig_hash
-from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import point_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from btclib.utils import (
     bytes_from_octets,
@@ -207,16 +205,11 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hash rate timespan", lambda v: hash_rate(1.0, v)),
     ("hash rate block count", lambda v: hash_rate(1.0, 600.0, v)),
     # the key path, which this census did not reach until issue #1206.
-    # Two lines of the library stand behind all of it: `int_from_integer`,
-    # and `to_prv_key`'s type gate for the int branch that does not reach
-    # the coercion. Neither is alone everywhere -- `point_from_key` meets
-    # `to_pub_key`'s gate before either -- so dropping one line lets a
-    # bool back through only where nothing else stands behind it, and
-    # these cases are here for the reach of the policy and not as a test
-    # apiece. `to_pub_key`'s gate is a third line and not a third
-    # refusal: drop it and `to_prv_key`'s answers one frame down, which
-    # is why the wording below is what pins it. The address builders are
-    # not among them: they take a `PubKeyData`, so a bool is refused by
+    # One line of the library stands behind all of it, `int_from_integer`:
+    # `scalar_from_prv_key` reads an int through it, and `wif_from_prv_key`
+    # reaches it through that. These cases are here for the reach of the
+    # policy and not as a test apiece. The address builders are not among
+    # them: they take a `PubKeyData`, so a bool is refused by
     # `bytes_from_octets` on the same terms as any other wrong type, and
     # `bms.sign` likewise takes a `PrvKeyData` and refuses one through
     # `assert_type` (issue #1188) -- refusals `key_test.py` holds, not
@@ -225,8 +218,6 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("hex string", hex_string),
     ("curve multiplier", mult),
     ("curve scalar", scalar_from_prv_key),
-    ("private key record", prv_keyinfo_from_prv_key),
-    ("public key converter", point_from_key),
     ("WIF private key", wif_from_prv_key),
     ("BIP340 x-only key", point_from_bip340pub_key),
     # not the converter twice: `verify` answers False where it cannot
@@ -331,8 +322,6 @@ _WORDINGS = [
     ("curve scalar", scalar_from_prv_key, "non-integer: True"),
     ("dsa signing key", lambda v: dsa_sign(b"msg", v), "non-integer: True"),
     ("WIF private key", wif_from_prv_key, "non-integer: True"),
-    ("private key record", prv_keyinfo_from_prv_key, "not a private key"),
-    ("public key converter", point_from_key, "not a private or public key"),
     ("BIP340 x-only key", point_from_bip340pub_key, "non-integer: True"),
     # separate from the three families above too: the trailing-underscore
     # layer's own type gate on a bare `int` (issue #1248), one sentence per
@@ -406,12 +395,7 @@ _WORDINGS = [
 def test_which_check_refuses_the_bool_decides_the_sentence(
     call: Callable[[Any], object], message: str
 ) -> None:
-    """The wordings the release notes promise, held to what is raised.
-
-    `to_pub_key._assert_key_type`'s bool line has nothing else to be
-    tested by: dropping it leaves every one of these a refusal, and
-    moves the one it answers for onto "not a private key".
-    """
+    """The wordings the release notes promise, held to what is raised."""
     with pytest.raises(BTClibTypeError, match=message):
         call(True)
 
@@ -443,8 +427,6 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert hex_string(1) == "01"
     assert mult(1) == secp256k1.G
     assert scalar_from_prv_key(1) == 1
-    assert prv_keyinfo_from_prv_key(1) == (1, "mainnet", True)
-    assert point_from_key(1) == secp256k1.G
     assert wif_from_prv_key(1).startswith("Kw")
     assert point_from_bip340pub_key(secp256k1.G[0]) == secp256k1.G
     assert ssa_verify(b"msg", secp256k1.G[0], _SSA_SIG)

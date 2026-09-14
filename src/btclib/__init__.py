@@ -121,8 +121,6 @@ __all__ = [
     "script",
     "silent_payments",
     "slip132",
-    "to_prv_key",
-    "to_pub_key",
     "tx",
     "tx_builder",
     "tx_or_psbt",
