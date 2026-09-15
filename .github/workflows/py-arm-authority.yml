@@ -179,8 +179,9 @@ jobs:
       # through a `${{ }}` inside the script, which would be text pasted
       # into it: the value is this file's own, and the habit is what
       # zizmor's template-injection rule is asking for. The array built
-      # from it, rather than an unquoted expansion, is release.yml's own
-      # shape for an optional flag (its "Check the public API against the
+      # from it, rather than an unquoted expansion, is the shape
+      # btclib-org/.github's reusable-public-api.yml uses for
+      # an optional flag (its "Check the public API against the
       # previous release" step).
       # The title is written here rather than in the script, so what this
       # run files is named beside the trigger and the permission that let
