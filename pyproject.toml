@@ -969,8 +969,10 @@ python_version = "3.10"
 # tests/wait_for_readthedocs_build_test.py, tests/block/build_test.py
 # and .github/scripts/wait_for_readthedocs_build.py from the gate with
 # no diagnostic (issue #2115). mypy's own --exclude help text anchors
-# its own example the same way. `^` is what ties the match to the
-# start of the path matches_exclude builds (a plain os.path.relpath, no
+# its own example too, but at the other end: its own example is
+# `/setup\.py$`, pinning a trailing `$` to one filename rather than a
+# leading `^` to a directory. `^` is what ties the match to the start
+# of the path matches_exclude builds (a plain os.path.relpath, no
 # leading "./"), and the trailing "/" is what stops it also matching a
 # file merely named build
 exclude = [
