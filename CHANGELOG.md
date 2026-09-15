@@ -860,6 +860,12 @@ file per release is what keeps each of them under it.
   at the other end** (closes #2137): `/setup\.py$` pins a trailing `$`
   to one filename, `^build/` a leading `^` to a directory.
 
+### `release.yml`'s three release-only jobs become calls into `btclib-org/.github`
+
+- **`version-check`, `public-api` and `documented` now call
+  `btclib-org/.github`'s reusable workflows, pinned at `@main`**
+  (issue btclib-org/.github#35): the fan and the publishing jobs stay.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
