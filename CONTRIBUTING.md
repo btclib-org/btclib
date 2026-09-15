@@ -1139,7 +1139,7 @@ reads the pages the first one wrote and must find nothing — the job fails if
 this grep exits 0:
 
 ```shell
-grep -rn 'href="#\./' docs/build/html --include='*.html'
+grep -rn 'href="#\.\.\?/' docs/build/html --include='*.html'
 ```
 
 A link between the root markdown files — `./SECURITY.md` in README.md, the
@@ -1158,13 +1158,12 @@ pinned one does.
 Unlike three other repositories of the organization,
 `.pre-commit-config.yaml`'s `local-link-prefix` hook here accepts a
 `../`-prefixed destination as well as a `./`-prefixed one, so a link may
-still begin either way. The grep above no longer matches `#../`, the way
-this tree's own step did before it moved to `reusable-docs.yml`: a broken
-`../` link already fails `-W` on its own, through `docs/source/conf.py`'s
-`RootFileLinks` (issue #1562), rather than degrading to the anchor the
-pattern above catches for `./` — so the shared grep's narrower pattern
-still drops the artifact-level backstop for that case if `-W`'s own
-defense is ever weakened (issue btclib-org/.github#35).
+still begin either way. The grep above matches `#../` as well as `#./`,
+the way this tree's own step did before it moved to `reusable-docs.yml`:
+a broken `../` link already fails `-W` on its own, through
+`docs/source/conf.py`'s `RootFileLinks` (issue #1562), and the grep is
+the artifact-level backstop for that case too, `reusable-docs.yml`
+itself having widened to catch it (issue btclib-org/.github#35).
 
 A link into a heading of another root file carries a fragment spelled the
 way GitHub derives it from the heading text, as in

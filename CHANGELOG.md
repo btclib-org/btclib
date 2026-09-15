@@ -866,6 +866,18 @@ file per release is what keeps each of them under it.
   `btclib-org/.github`'s reusable workflows, pinned at `@main`**
   (issue btclib-org/.github#35): the fan and the publishing jobs stay.
 
+### `links.yml`'s `targets:` reaches every tracked markdown file
+
+- **`targets:` left `changelog/*.md`, `.claude/` and `.github/` outside
+  lychee's reach** (issue btclib-org/.github#1104): it becomes
+  `"**/*.md" ".github/**/*.md" ".claude/**/*.md" "docs/**/*.rst"`.
+
+### `CONTRIBUTING.md`'s docs-gate grep matches the widened pattern
+
+- **The local reproduction still read the pre-widening `href="#\./`**
+  (issue btclib-org/.github#1105): it now reads `href="#\.\.\?/`, and
+  the prose explaining it is corrected to match.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
