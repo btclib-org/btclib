@@ -854,6 +854,12 @@ file per release is what keeps each of them under it.
   128 octets** (closes #2130): `bpp512r1`, `nistp521` and `secp521r1`
   reach it; `parse` still refuses the long form it never wrote.
 
+### The `[tool.mypy] exclude` comment no longer claims one shared anchoring
+
+- **mypy's own `--exclude` help text anchors its own example too, but
+  at the other end** (closes #2137): `/setup\.py$` pins a trailing `$`
+  to one filename, `^build/` a leading `^` to a directory.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
