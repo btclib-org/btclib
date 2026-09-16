@@ -896,6 +896,12 @@ file per release is what keeps each of them under it.
   of `reusable-os-suite.yml` will carry, beside `_PYTHONS`'s own block
   sequence** (issue btclib-org/.github#1119): no such caller exists yet.
 
+### `docs_commands_test.py` decides what it is once its subjects move
+
+- **The module had no written answer for the comparisons
+  `btclib-org/.github#35` empties** (closes #2141): a comparison left
+  with one site goes, and the module goes with the last of them.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

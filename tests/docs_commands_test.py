@@ -54,6 +54,40 @@ an argument it is given, spelled in more than one place with nothing
 comparing the spellings -- and the reading that finds any of them finds
 the rest.
 
+A comparison goes when it is left with one site, and the module goes
+with the last comparison. One site is compared against itself, which
+passes however the command is written: the lint command's paragraph
+above is that rule's instance rather than that one command's story, and
+a comparison still reaching two sites stays whatever has left the tree
+around it.
+
+`btclib-org/.github#35` takes the matrix cell and the `coverage` job's
+`pytest` out of this tree. The cell is written in
+`reusable-os-suite.yml` once `os-ubuntu.yml`, `os-macos.yml` and
+`os-windows.yml` call it -- the files stay, each naming its own
+interpreters -- leaving `CONTRIBUTING.md` as the one site, so the cell
+goes and the interpreter with it: with no workflow here spelling a cell
+there is nothing for that section's `--python` to be the difference
+from. The `coverage` job's `pytest` and the `COVERAGE_FILE` beside it
+move the same way, so that `pytest` goes too, and the data files are
+compared on the `no-bindings` pair alone or on the caller's `with:`,
+which `tests/interpreters_test.py` already reads beside a block
+sequence -- the converting branch's to settle, both shapes keeping two
+sites. The union pair, the `no-bindings` `pytest` and the bindings
+assertion keep theirs for as long as those two jobs are written here,
+and no site of the build is a workflow file, so that issue reaches none
+of them.
+
+Deleting the module is what the rule says once the last comparison
+goes, and not before: it would cost the build, the union pair, the
+`no-bindings` `pytest` and the bindings assertion, which that issue
+does not move. Following the commands out instead -- comparing
+`CONTRIBUTING.md` against the reusable workflows themselves -- is
+refused by what this suite is: it reads only this tree, the suite that
+reads across repositories is `btclib-org/.github`'s own `tests/`, and
+the callers name `@main`, so a red here would arrive from a landing no
+pull request of this tree makes.
+
 `docs/Makefile` and `docs/make.bat` are not sites of the build.
 `docs/README.rst` says they drive the same build "without the flags", and
 `SPHINXOPTS` is empty in each, so they spell nothing there is to agree
