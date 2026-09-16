@@ -932,6 +932,12 @@ file per release is what keeps each of them under it.
   `btclib-org/.github`'s `reusable-changes.yml`** (issue
   btclib-org/.github#35): this file keeps which files are its own prose.
 
+### `CONTRIBUTING.md` and `REVIEWING.md` gain the entry-position instrument
+
+- **`check-changelog` reads no position, so `CONTRIBUTING.md` now prints
+  the open section's headings in order and `REVIEWING.md` asks whether
+  the branch's own entry is last** (issue btclib-org/.github#1097).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
