@@ -950,6 +950,12 @@ file per release is what keeps each of them under it.
   heading no tree carries** (issue btclib-org/.github#1137): the docstring now
   states what the rebase comparison does, in its own words.
 
+### zizmor's `self-repository` audit is declined per site, and the pin follows
+
+- **`zizmor-pre-commit` moves to v1.30.1, and each `uses: ./` site
+  carries its own `# zizmor: ignore[self-repository]`** (closes #2156):
+  the form goes red when a thirteenth site appears with none.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
