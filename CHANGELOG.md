@@ -890,6 +890,12 @@ file per release is what keeps each of them under it.
   btclib-secp256k1 SBOM exemption** (closes #2142): all four publishers
   attach one, naming the vendored library at the commit its gitlink pins.
 
+### `interpreters_test.py` reads a caller's `with:` beside the block
+
+- **`_PYTHONS_CALLER` reads the JSON-encoded interpreter list a caller
+  of `reusable-os-suite.yml` will carry, beside `_PYTHONS`'s own block
+  sequence** (issue btclib-org/.github#1119): no such caller exists yet.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
