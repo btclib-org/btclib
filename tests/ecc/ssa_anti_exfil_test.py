@@ -6,7 +6,7 @@
 
 bitcoin-core/secp256k1#1140 proposes the same handshake for
 `schnorrsig`, carrying over the ECDSA one BlockstreamResearch/secp256k1-zkp's
-`secp256k1_ecdsa_s2c.h` specifies -- `tests/ecc/anti_exfil_test.py` is
+`secp256k1_ecdsa_s2c.h` specifies -- `tests/ecc/dsa_anti_exfil_test.py` is
 that module's test, and its own docstring is where the two are put side
 by side. The pull request is open and unmerged, so unlike that one this
 file pins no vendored vector: its own `test_s2c_anti_exfil` draws its
