@@ -400,6 +400,16 @@ _CASES = (
     ),
     _Case("btclib.ecc.ssa.sign_", ssa.sign_, {"msg": _MSG, "prv_key": _PRV_KEY}),
     _Case("btclib.ecc.ssa.sign", ssa.sign, {"msg": _MSG, "prv_key": _PRV_KEY}),
+    _Case(
+        "btclib.ecc.ssa.anti_exfil_signer_commit",
+        ssa.anti_exfil_signer_commit,
+        {"msg": _MSG, "prv_key": _PRV_KEY, "host_commitment": _MSG_HASH},
+    ),
+    _Case(
+        "btclib.ecc.ssa.anti_exfil_sign",
+        ssa.anti_exfil_sign,
+        {"msg": _MSG, "prv_key": _PRV_KEY, "rho": _MSG_HASH},
+    ),
     # the extended-key parse, which compares `ec` against the curve the
     # version bytes name rather than computing in it
     _Case("btclib.bip32.bip32.point_from_xpub", point_from_xpub, {"xpub": _XPUB}),

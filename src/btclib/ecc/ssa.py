@@ -48,6 +48,13 @@ with t = q xor TaggedHash('BIP0340/aux', a), a the auxiliary randomness
 The serialization is the fixed-size [r][s] -- p-size plus n-size
 bytes, 64 on secp256k1 -- not the loosely specified ASN.1 DER of
 ECDSA.
+
+``sign_`` also takes a value to commit to inside the nonce,
+sign-to-contract style (see btclib.ecc.commit_nonce for the tweak), and
+the ``anti_exfil_*`` functions here are the protocol that construction
+exists to support: the handshake bitcoin-core/secp256k1#1140 proposes
+for BIP340, whose five steps and reasoning are in
+``anti_exfil_host_commit``.
 """
 
 from __future__ import annotations
@@ -101,6 +108,10 @@ __all__ = [
     "BIP340PubKey",
     "Sig",
     "Signer",
+    "anti_exfil_host_commit",
+    "anti_exfil_host_verify",
+    "anti_exfil_sign",
+    "anti_exfil_signer_commit",
     "assert_as_valid",
     "assert_as_valid_",
     "assert_batch_as_valid",
@@ -417,6 +428,92 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     return Sig(r, s, ec)
 
 
+def _checked_sign_(c: int, signature: Sig, x_Q: int, ec: Curve, verify: bool) -> Sig:
+    # the same contract as the single call into the bindings above,
+    # the same default and the same refusal: a fallback answering
+    # differently from the arm it stands in for is two libraries
+    # wearing one name, and the answer to a check that failed is half
+    # of what it answers. The challenge is passed in because the
+    # commitment path recomputes it after the tweak, and it is the
+    # tweaked one the signature commits to.
+    #
+    # The lift is the one thing this arm pays that the delegated one
+    # does not: `bip340_nonce_` computes Q to answer x_Q and keeps
+    # only the x, so the even-y point has to be recovered here --
+    # `assert_as_valid_` does the same and for the same reason. No
+    # `pub_key` argument would remove it, the caller's key being
+    # x-only in this scheme, which is the second half of why the
+    # docstring declines one
+    if not verify:
+        return signature
+    QJ = x_Q, _y_even_var(x_Q, ec), 1
+    try:
+        _assert_as_valid_(c, QJ, signature.r, signature.s, ec, ec._fixed_points)
+    except (ValueError, BTClibRuntimeError) as e:
+        # its words are a verifier's -- `y_K is odd`, `signature
+        # verification failed`, `INF has no y-coordinate` -- and are
+        # not this caller's: they say what the check saw, where a
+        # signer needs to hear what happened, which is that the
+        # computation went wrong. They cannot be changed either, the
+        # public `assert_as_valid_` sharing them, so the signing
+        # sentence is raised over them and they are kept as the
+        # cause. It is the bindings' own sentence and `dsa`'s on both
+        # of its arms.
+        #
+        # Both hierarchies, which is the pair this file catches at
+        # `verify_` and `verify` and `dsa` catches at the same
+        # helper: a K that lands on infinity has no y to answer with
+        # and is a ValueError, and that is the shape a nonce zeroed
+        # after its point was computed takes -- s = c*q, so
+        # sG - cQ is the point at infinity. `BTClibRuntimeError` by
+        # name and not `RuntimeError`, because a RecursionError is
+        # one and is not an answer about a signature
+        raise BTClibRuntimeError(
+            "signing produced a signature that does not verify"
+        ) from e
+    return signature
+
+
+def _sign_commit_(
+    msg: Octets,
+    prv_key: Integer,
+    nonce_aux: bytes,
+    commit_hash: Octets,
+    ec: Curve,
+    hf: HashF,
+    verify: bool,
+) -> tuple[Sig, Point]:
+    """Return the sign-to-contract signature and its receipt.
+
+    ``nonce_aux`` is what reaches ``bip340_nonce_`` as auxiliary
+    randomness. ``sign_``'s own commitment path passes its mix of the
+    caller's aux and commit_hash; the anti-exfil protocol below passes
+    commit_hash alone, already hashed by ``anti_exfil_host_commit``, so
+    that the nonce a signature reaches depends on nothing a caller
+    supplied on the side.
+    """
+    # k is the nonce: an integer in the range 1..n-1.
+    k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, nonce_aux, ec, hf)
+
+    # the tweak moves the nonce's point, and BIP340 signs with the
+    # even-y one: k comes back from bip340_nonce_ already normalized,
+    # so it is the tweaked point whose parity is still to be settled --
+    # and x_K, which the challenge commits to, is the tweaked one.
+    # The receipt keeps the even-y point the tweak hashed
+    k, receipt = commit_nonce_(commit_hash, k, _S2C_POINT_TAG, ec, hf)
+    x_K, y_K = mult(k, ec=ec)
+    if y_K % 2:
+        k = ec.n - k
+
+    c = challenge_(msg, x_Q, x_K, ec, hf)
+
+    # the signature is checked and the receipt is not: what opens the
+    # commitment is `commit_point_` under the same r, which the caller
+    # verifies with commit_hash and receipt in hand
+    sig = _checked_sign_(c, _sign_(c, q, k, x_K, ec), x_Q, ec, verify)
+    return sig, receipt
+
+
 @overload
 def sign_(
     msg: Octets,
@@ -543,80 +640,18 @@ def sign_(
             # which is `dsa`'s rule at its own call into the bindings: a
             # caller catching BTClibException should not have to know
             # which arm answered. Their sentence is kept rather than
-            # reworded, `_checked` below raising the same one, so the two
+            # reworded, `_checked_sign_` raising the same one, so the two
             # arms refuse in the same words as well as under the same type
             raise BTClibRuntimeError(str(e)) from e
         return Sig.parse(signature)
 
-    # k is the nonce: an integer in the range 1..n-1.
-    k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
-
-    def _checked(c: int, signature: Sig) -> Sig:
-        # the same contract as the single call into the bindings above,
-        # the same default and the same refusal: a fallback answering
-        # differently from the arm it stands in for is two libraries
-        # wearing one name, and the answer to a check that failed is half
-        # of what it answers. The challenge is passed in because the
-        # commitment path recomputes it after the tweak, and it is the
-        # tweaked one the signature commits to.
-        #
-        # The lift is the one thing this arm pays that the delegated one
-        # does not: `bip340_nonce_` computes Q to answer x_Q and keeps
-        # only the x, so the even-y point has to be recovered here --
-        # `assert_as_valid_` does the same and for the same reason. No
-        # `pub_key` argument would remove it, the caller's key being
-        # x-only in this scheme, which is the second half of why the
-        # docstring declines one
-        if not verify:
-            return signature
-        QJ = x_Q, _y_even_var(x_Q, ec), 1
-        try:
-            _assert_as_valid_(c, QJ, signature.r, signature.s, ec, ec._fixed_points)
-        except (ValueError, BTClibRuntimeError) as e:
-            # its words are a verifier's -- `y_K is odd`, `signature
-            # verification failed`, `INF has no y-coordinate` -- and are
-            # not this caller's: they say what the check saw, where a
-            # signer needs to hear what happened, which is that the
-            # computation went wrong. They cannot be changed either, the
-            # public `assert_as_valid_` sharing them, so the signing
-            # sentence is raised over them and they are kept as the
-            # cause. It is the bindings' own sentence and `dsa`'s on both
-            # of its arms.
-            #
-            # Both hierarchies, which is the pair this file catches at
-            # `verify_` and `verify` and `dsa` catches at the same
-            # helper: a K that lands on infinity has no y to answer with
-            # and is a ValueError, and that is the shape a nonce zeroed
-            # after its point was computed takes -- s = c*q, so
-            # sG - cQ is the point at infinity. `BTClibRuntimeError` by
-            # name and not `RuntimeError`, because a RecursionError is
-            # one and is not an answer about a signature
-            raise BTClibRuntimeError(
-                "signing produced a signature that does not verify"
-            ) from e
-        return signature
-
     if commit_hash is None:
-        # the challenge
+        # k is the nonce: an integer in the range 1..n-1.
+        k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
         c = challenge_(msg, x_Q, x_K, ec, hf)
-        return _checked(c, _sign_(c, q, k, x_K, ec))
+        return _checked_sign_(c, _sign_(c, q, k, x_K, ec), x_Q, ec, verify)
 
-    # the tweak moves the nonce's point, and BIP340 signs with the
-    # even-y one: k comes back from bip340_nonce_ already normalized,
-    # so it is the tweaked point whose parity is still to be settled --
-    # and x_K, which the challenge commits to, is the tweaked one.
-    # The receipt keeps the even-y point the tweak hashed
-    k, receipt = commit_nonce_(commit_hash, k, _S2C_POINT_TAG, ec, hf)
-    x_K, y_K = mult(k, ec=ec)
-    if y_K % 2:
-        k = ec.n - k
-
-    c = challenge_(msg, x_Q, x_K, ec, hf)
-
-    # the signature is checked and the receipt is not: what opens the
-    # commitment is `commit_point_` under the same r, which the caller
-    # verifies with commit_hash and receipt in hand
-    return _checked(c, _sign_(c, q, k, x_K, ec)), receipt
+    return _sign_commit_(msg, prv_key, aux, commit_hash, ec, hf, verify)
 
 
 @overload
@@ -1116,6 +1151,132 @@ def verify(
         return False
 
     return True
+
+
+def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
+    """Return the host's commitment to rho: step 1 of the anti-exfil protocol.
+
+    The protocol is proposed for `include/secp256k1_schnorrsig.h` of
+    bitcoin-core/secp256k1#1140, carrying over the ECDSA Anti-Exfil
+    Protocol BlockstreamResearch/secp256k1-zkp's `secp256k1_ecdsa_s2c.h`
+    specifies -- see `dsa.anti_exfil_host_commit` -- to BIP340.
+
+    A signing device that picks its own nonce can leak the private key
+    through the nonces themselves, and the protocol takes that choice
+    away by having the host contribute randomness to the nonce
+    derivation before the device commits to a nonce point, in a
+    commit-reveal handshake of five steps:
+
+    1. the host draws rho and sends ``anti_exfil_host_commit(rho)``
+    2. the device answers with ``anti_exfil_signer_commit(msg, prv_key,
+       commitment)``, the point R its nonce will have
+    3. the host reveals rho
+    4. the device signs, ``anti_exfil_sign(msg, prv_key, rho)``
+    5. the host checks ``anti_exfil_host_verify`` against the R of step 2
+       and the rho it drew in step 1
+
+    rho is hf_len bytes from a cryptographically secure generator, and it
+    stays secret until step 2 has been answered: revealed earlier it is
+    the device's to grind, which is the whole of what this prevents.
+
+    **Restarting the protocol takes exactly the same rho**, and the host
+    checks that the device answers step 2 with exactly the same R -- see
+    `dsa.anti_exfil_host_commit` for what a device that could dodge this
+    check would buy itself.
+
+    The commitment is the committed value as it enters the nonce
+    derivation -- ``commit_entropy_`` under the sign-to-contract data
+    tag, and nothing else -- which is what lets step 2 and step 4 reach
+    one nonce: the device derives it from this hash, and recomputes the
+    same hash from rho when it signs. ``sign_``'s own commit_hash
+    argument reaches the nonce mixed with the caller's own aux instead,
+    which is the right shape for an ordinary sign-to-contract commitment
+    and the wrong one for this handshake: step 2 has nothing to mix in
+    but the commitment, so the four functions here derive the nonce
+    directly rather than going through ``sign_``.
+    """
+    return commit_entropy_(bytes_from_octets(rho, hf().digest_size), _S2C_DATA_TAG, hf)
+
+
+def anti_exfil_signer_commit(
+    msg: Octets,
+    prv_key: Integer,
+    host_commitment: Octets,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Point:
+    """Return the signer's public nonce R: step 2 of the anti-exfil protocol.
+
+    The point of the nonce the device is going to use, published before
+    the host reveals what its commitment commits to. Nothing is signed
+    here, and that is the shape the protocol needs: R is a promise, and
+    step 4 is what keeps it.
+
+    The commitment travels as BIP340's own auxiliary randomness, alone --
+    exactly what it becomes inside ``anti_exfil_sign``'s nonce derivation
+    -- so the two reach one nonce and the R below is the receipt that
+    signature will open with.
+    """
+    aux = bytes_from_octets(host_commitment, hf().digest_size)
+    _, x_K, _, _ = bip340_nonce_(msg, prv_key, aux, ec, hf)
+    return x_K, _y_even_var(x_K, ec)
+
+
+def anti_exfil_sign(
+    msg: Octets,
+    prv_key: Integer,
+    rho: Octets,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Sig:
+    """Sign committing to the host's rho: step 4 of the anti-exfil protocol.
+
+    Sign-to-contract with rho as the committed value and nothing else
+    reaching the nonce derivation -- ``sign_(msg, prv_key, commit_hash=rho)``
+    would mix in a fresh random aux instead, breaking the property this
+    function exists for. The receipt is dropped rather than passed on,
+    because the host has it already -- it is the R of step 2, and a host
+    taking the device's word for it here would be accepting a nonce point
+    chosen *after* rho was revealed, which is the one thing the ordering
+    exists to rule out.
+
+    **The device keeps no state between step 2 and step 4.** It does not
+    check rho against the commitment it was given: it re-derives the
+    commitment from rho, and the nonce from that. A rho that does not
+    match yields a different nonce, so the host's step 5 fails and the
+    exchange is over -- and because the R of step 2 belonged to the
+    commitment it was derived from, no nonce is ever used twice and the
+    device's key is never the thing at risk.
+    """
+    rho = bytes_from_octets(rho, hf().digest_size)
+    nonce_aux = commit_entropy_(rho, _S2C_DATA_TAG, hf)
+    sig, _receipt = _sign_commit_(msg, prv_key, nonce_aux, rho, ec, hf, True)
+    return sig
+
+
+def anti_exfil_host_verify(
+    msg: Octets,
+    Q: BIP340PubKey,
+    sig: Sig | Octets,
+    rho: Octets,
+    receipt: Point,
+    hf: HashF = sha256,
+) -> bool:
+    """Check the signature against R and rho: step 5 of the anti-exfil protocol.
+
+    Two questions answered as one, and the host needs both: that this is
+    a valid signature, and that its nonce is the R of step 2 tweaked by
+    the rho of step 1. Either alone is worth nothing -- a valid signature
+    over a nonce nobody constrained is the exfiltration this protects
+    against, and a commitment that opens under an invalid signature is
+    not a signature. Which ``verify_`` already does in one call, both
+    checks running against the same r.
+
+    receipt is the R of step 2. False and not an exception for everything
+    that fails, as ``verify_`` answers: a rho of the wrong size is a rho
+    this commitment does not open to.
+    """
+    return verify_(msg, Q, sig, hf, commit_hash=rho, receipt=receipt)
 
 
 def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
