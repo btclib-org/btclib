@@ -938,6 +938,12 @@ file per release is what keeps each of them under it.
   the open section's headings in order and `REVIEWING.md` asks whether
   the branch's own entry is last** (issue btclib-org/.github#1097).
 
+### `check-changelog` runs on every invocation of the gate
+
+- **`always_run: true`, and no `files:`** (issue btclib-org/.github#1138):
+  the script reads the open section off disk, and the rebase that eats
+  the seam stages nothing.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
