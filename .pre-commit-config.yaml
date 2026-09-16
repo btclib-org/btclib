@@ -426,6 +426,11 @@ repos:
   # markdownlint-cli2 below on purpose: that hook's `--fix` repairs the
   # very seam the third check exists to name, so a hook reading the
   # file after it would find nothing left to report.
+  #
+  # `always_run: true`, and no `files:`: the rebase that eats the seam
+  # stages nothing, so a hook keyed on the diff is unreachable after the
+  # event the blank-line check exists to name. Section 4 carries the
+  # rest.
   - repo: local
     hooks:
       - id: check-changelog
@@ -433,7 +438,7 @@ repos:
         entry: python3 .github/scripts/check_changelog.py
         language: system
         pass_filenames: false
-        files: ^(CHANGELOG\.md|\.github/scripts/check_changelog\.py)$
+        always_run: true
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
