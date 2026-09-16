@@ -22,26 +22,19 @@ vacuously, so the comparison goes rather than staying as coverage that
 cannot fail (issue btclib-org/.github#35).
 
 `CONTRIBUTING.md`'s *Reproducing what CI runs* prints a command per job,
-and the suite's own are read here as well: the cell of the platform
-matrices, which `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
-run; the pair `test.yml`'s `coverage-union` job runs, which combines the
-two coverage data files and reports their union; the names those data files
-carry, which the section writes in front of the command that produces each;
-the `coverage` job's `pytest`; the `no-bindings` job's
-`pytest --cov-fail-under=0`; and the `python -c` assertion that job makes
-before running it.
+and the suite's own are read here as well: the pair `test.yml`'s
+`coverage-union` job runs, which combines the two coverage data files and
+reports their union; the names those data files carry, which the section
+writes in front of the command that produces each; the `coverage` job's
+`pytest`; the `no-bindings` job's `pytest --cov-fail-under=0`; and the
+`python -c` assertion that job makes before running it.
 
 The union pair, the two `pytest` steps and the bindings assertion are each
-compared with nothing set aside. The cell is not: the
-workflows leave the interpreter to `astral-sh/setup-uv`, which takes it
-from the matrix, where whoever reproduces a cell has to type `--python`, so
-that argument is read against the site that holds it as the build's output
-directory is -- named rather than normalised away. The data files are read
-as values for the same kind of reason: `test.yml` sets `COVERAGE_FILE` as a
-step's `env:` mapping where the section writes a shell assignment in front
-of the command, so the assignment itself is what the two sites cannot
-share. A name they disagree on leaves one of them combining a file nothing
-wrote.
+compared with nothing set aside. The data files are read as values: `test.yml`
+sets `COVERAGE_FILE` as a step's `env:` mapping where the section writes a
+shell assignment in front of the command, so the assignment itself is what
+the two sites cannot share. A name they disagree on leaves one of them
+combining a file nothing wrote.
 
 Each of those files is separately valid, so only reading them together
 says they have diverged, and a divergence is not reported by any run: a
@@ -61,22 +54,18 @@ above is that rule's instance rather than that one command's story, and
 a comparison still reaching two sites stays whatever has left the tree
 around it.
 
-`btclib-org/.github#35` takes the matrix cell and the `coverage` job's
-`pytest` out of this tree. The cell is written in
-`reusable-os-suite.yml` once `os-ubuntu.yml`, `os-macos.yml` and
-`os-windows.yml` call it -- the files stay, each naming its own
-interpreters -- leaving `CONTRIBUTING.md` as the one site, so the cell
-goes and the interpreter with it: with no workflow here spelling a cell
-there is nothing for that section's `--python` to be the difference
-from. The `coverage` job's `pytest` and the `COVERAGE_FILE` beside it
-move the same way, so that `pytest` goes too, and the data files are
-compared on the `no-bindings` pair alone or on the caller's `with:`,
-which `tests/interpreters_test.py` already reads beside a block
-sequence -- the converting branch's to settle, both shapes keeping two
-sites. The union pair, the `no-bindings` `pytest` and the bindings
-assertion keep theirs for as long as those two jobs are written here,
-and no site of the build is a workflow file, so that issue reaches none
-of them.
+The cell of the platform matrices is written once, in
+`btclib-org/.github`'s `reusable-os-suite.yml`, which `os-ubuntu.yml`,
+`os-macos.yml` and `os-windows.yml` each call, naming only their own
+interpreters and runners in the `with:` block `tests/interpreters_test.py`
+reads. No workflow here spells a cell any more, so there is nothing left
+for a local `--python` line to be compared against, and that comparison
+goes the way the lint command's did above (issue btclib-org/.github#35).
+
+The `coverage` job's `pytest` is still `test.yml`'s own, so it, the union
+pair, the `no-bindings` `pytest` and the bindings assertion keep their two
+sites for as long as those jobs are written here, and no site of the
+build is a workflow file, so that issue reaches none of them.
 
 Deleting the module is what the rule says once the last comparison
 goes, and not before: it would cost the build, the union pair, the
@@ -132,13 +121,6 @@ _CONTINUATION = re.compile(r"\\\n[ \t]*")
 # well: `--group docs` is what installs the toolchain, and a site that
 # dropped it would build against a different environment
 _BUILD = re.compile(r"uv run\b.*\bsphinx-build\b.*")
-# one cell of the platform matrices, from `uv run` to the end of the line
-# it is written on. `--no-cov` is what tells it from the `coverage` job's
-# own run of the same suite, which is typed with nothing after `pytest`
-_CELL = re.compile(r"uv run\b.*\bpytest --no-cov\b.*")
-# the interpreter a cell names, which the comparison sets aside before
-# making it and reads on its own afterwards
-_INTERPRETER = re.compile(r" --python (\S+)")
 # the `coverage-union` job's two commands, each to the end of the line it
 # is written on: `combine` names the data files it reads and `report` is
 # typed with nothing after it, so neither ends before its line does
@@ -199,17 +181,6 @@ _BUILD_SITES = {
     "docs/README.rst": "docs/build/html",
 }
 
-# the interpreter each site names, which is the other argument that does
-# not agree and must not: a workflow takes it from `astral-sh/setup-uv`,
-# one cell of the matrix per run, where whoever reproduces a cell locally
-# has to say which one. So a workflow that started naming an interpreter
-# of its own is red here, and so is a section that stopped naming one
-_CELL_SITES = {
-    ".github/workflows/os-ubuntu.yml": "",
-    ".github/workflows/os-macos.yml": "",
-    ".github/workflows/os-windows.yml": "",
-    "CONTRIBUTING.md": "3.10",
-}
 # the union job and the section that tells a reader how to run it again,
 # which are also the two sites of the data files that job combines
 _COVERAGE_SITES = (".github/workflows/test.yml", "CONTRIBUTING.md")
@@ -296,7 +267,6 @@ def _one(found: tuple[str, ...]) -> str:
 
 
 _BUILDS = {path: _spellings(path, _BUILD) for path in _BUILD_SITES}
-_CELLS = {path: _spellings(path, _CELL) for path in _CELL_SITES}
 _COVERAGES = {path: _spellings(path, _COVERAGE) for path in _COVERAGE_SITES}
 _DATA_FILES = {path: _spellings(path, _DATA_FILE) for path in _COVERAGE_SITES}
 _JOB_PYTESTS = {
@@ -322,10 +292,6 @@ def test_every_site_was_read() -> None:
     builds = {path: len(found) for path, found in _BUILDS.items()}
     assert set(builds.values()) == {1}, (
         f"one documentation build command per site, and instead: {builds}"
-    )
-    cells = {path: len(found) for path, found in _CELLS.items()}
-    assert set(cells.values()) == {1}, (
-        f"one matrix cell command per site, and instead: {cells}"
     )
     coverages = {path: len(found) for path, found in _COVERAGES.items()}
     assert set(coverages.values()) == {2}, (
@@ -363,28 +329,6 @@ def test_every_site_names_its_own_output_directory() -> None:
     assert outdirs == _BUILD_SITES, (
         f"the documentation build writes to {outdirs}, where the sites are"
         f" {_BUILD_SITES}"
-    )
-
-
-def test_every_site_spells_one_matrix_cell_command() -> None:
-    """What a platform workflow runs is what a reader is told to run."""
-    spellings = {
-        path: _INTERPRETER.sub("", _one(found)) for path, found in _CELLS.items()
-    }
-    assert len(set(spellings.values())) == 1, (
-        f"the matrix cell is spelled more than one way: {spellings}"
-    )
-
-
-def test_only_the_documented_cell_names_an_interpreter() -> None:
-    """The argument that differs differs by site, and by no other."""
-    interpreters = {
-        path: "".join(_INTERPRETER.findall(_one(found)))
-        for path, found in _CELLS.items()
-    }
-    assert interpreters == _CELL_SITES, (
-        f"the matrix cell names the interpreters {interpreters}, where the"
-        f" sites are {_CELL_SITES}"
     )
 
 

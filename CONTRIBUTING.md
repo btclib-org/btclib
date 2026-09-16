@@ -603,10 +603,11 @@ uv run --locked --only-group lint \
 `btclib-org/.github`'s `reusable-docs.yml`, and its command is the one
 below under "The documentation".
 
-One cell of the matrix `os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each
-carry. The interpreter is chosen with `--python`, which accepts any of the
-ones those workflows list, `3.14t` and `pypy3.11` included, and downloads
-it if the machine has none:
+One cell of the platform sweep the `python-versions` list `os-ubuntu.yml`,
+`os-macos.yml` and `os-windows.yml` each pass to `btclib-org/.github`'s
+`reusable-os-suite.yml` names. The interpreter is chosen with `--python`,
+which accepts any of the ones those workflows list, `3.14t` and
+`pypy3.11` included, and downloads it if the machine has none:
 
 ```shell
 uv run --locked --no-default-groups --group test --python 3.10 pytest --no-cov
@@ -617,22 +618,14 @@ the environment without pre-commit until the next `uv sync`: see the note
 under "The environment and the gates" above, and `UV_PROJECT_ENVIRONMENT` for
 running it without touching `.venv`. CI has no `.venv` to lose.
 
-`--python` is the whole of what that line adds to the step
-`os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` each run: each gives
-its cell's interpreter to `astral-sh/setup-uv` through `python-version`,
-so the command itself names none.
-`tests/docs_commands_test.py` reads the block above against those three
-steps with the interpreter set aside, so a flag added at one of the sites
-and not at the others fails the suite.
-
 `--no-cov` is the matrix asking about the platform and not about the
 number: it undoes the `--cov` addopts carries, so what a cell reports is
 whether that (os, architecture, interpreter) triple passes. The job below
-is where coverage is measured, which is the reason `os-ubuntu.yml` gives and
-the other two cite. `deps-latest.yml` does not pass the flag: it runs no PyPy
-cell and has no coverage job of its own, so the ratchet meeting an
-upgraded coverage.py is one of the things that workflow exists to find
-out.
+is where coverage is measured, which is the reason `reusable-os-suite.yml`'s
+header gives, beside section 8's floor. `deps-latest.yml` does not pass the
+flag: it runs no PyPy cell and has no coverage job of its own, so the
+ratchet meeting an upgraded coverage.py is one of the things that
+workflow exists to find out.
 
 The `ubuntu-latest` cell of those matrices on the interpreter
 `.python-version` pins is the gate, and the job below is it: same image,
