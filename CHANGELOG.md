@@ -926,6 +926,12 @@ file per release is what keeps each of them under it.
   (issue btclib-org/.github#1070), and `tests/sdist_dotted_names_test.py`
   refuses a dotted path a shipped tree means to carry.
 
+### `test.yml`'s `changes` job calls the organization's reusable workflow
+
+- **The event handling, the pagination and the decision move to
+  `btclib-org/.github`'s `reusable-changes.yml`** (issue
+  btclib-org/.github#35): this file keeps which files are its own prose.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
