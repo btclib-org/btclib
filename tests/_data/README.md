@@ -392,6 +392,155 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **identical**.
 
+### BIP445 (FROST signing): files under `tests/ecc/_data/bip445/`
+
+The signing-algorithm vectors of `bip-0445/python/vectors/`, vendored
+whole and under upstream's own names, in a subdirectory rather than
+flat under `tests/ecc/_data/`: BIP327 above already publishes files of
+these same names there, and a vendored file keeps the name upstream
+gave it rather than losing it to that collision. `ValidateThresholdInfo`
+ships no vector file, `bip-0445/python/vectors/test_vectors_summary.md`
+giving the reason RFC 9591 gives for shipping none over `vss_verify`: it
+checks key material a key generation protocol produced, and this BIP
+specifies no key generation.
+
+The BIP is a draft: `bitcoin/bips#2070`, not on that repository's
+`master`, at version 0.10.0. The version and the pull request go in the
+citation because a path that has never landed on the default branch has
+no commit there for a reader to find otherwise. The files below live on
+the pull request's own branch, `siv2r:bip-frost-signing`, so `repo`
+below names that fork rather than `bitcoin/bips`. Most are pinned at
+the pull request's own head,
+`8e25d57911c33f1daadcadb0161a60a56ef7145a` (2026-08-26);
+`nonce_gen_vectors.json` and `nonce_agg_vectors.json` were last touched
+earlier on that branch and are pinned instead to the commit that
+touched each -- `f0cc3aec157f9a0a1a290e8b835b242312a9ee53` (2026-07-27)
+and `4343f72cbccc3a6b032279c5ac1dc4a46672c87c` (2026-06-10) respectively
+-- the same distinction the BIP327 entry above draws for
+`sign_verify_vectors.json` and `sig_agg_vectors.json`.
+
+266 cases between them, and `tests/ecc/frost_test.py` runs every one: 5
+nonce derivations, 2 + 3 nonce aggregations valid and failing, 29 + 52 +
+12 + 8 signatures (valid, refused at signing, false on verification,
+refused on verification), 28 + 16 tweaked, 37 + 48 deterministic, 18 + 8
+aggregated. An error case carries what should be raised -- which party
+contributed what, or the text of a plain value error -- and is checked
+against it, the same discipline the BIP327 entry above states.
+
+None of them carries a `behind` a re-check can earn.
+`.github/scripts/check_vendored_vectors.py` asks GitHub's "commits
+touching a path" API with no ref, which answers against a repository's
+*default* branch alone; `bip-0445/` exists on `bip-frost-signing` and
+not on `siv2r/bips`' own default branch, `master`, so the call the
+weekly job makes finds no commit touching any of these paths regardless
+of whether the pin below is current, and would report every one of them
+as upstream having deleted the file. Each entry's `behind` line says so
+instead of the zero the job would read as a license to ask -- ISS 2160
+is the checker's own gap, filed rather than worked around inside it.
+
+`src/btclib/ecc/frost.py` follows `bip-0445/python/frost_ref/signing.py`
+function for function, checked against it rather than assumed from the
+BIP327 ancestry the reference's own header claims: several shapes that
+read alike are not the same function, the tweak-range error message
+among them. That file is not vendored -- it is an implementation, not
+data, and btclib's is the one under test.
+
+### `tests/ecc/_data/bip445/nonce_gen_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/nonce_gen_vectors.json
+commit  f0cc3aec157f9a0a1a290e8b835b242312a9ee53  2026-07-27
+blob    2ba04502ebd28a839d12bb787f5ea093a9125005
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 4,613 bytes
+are that blob's 4,612 plus the `\n` the `end-of-file-fixer` hook added,
+so our blob is `a5ebaa65`.
+
+### `tests/ecc/_data/bip445/nonce_agg_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/nonce_agg_vectors.json
+commit  4343f72cbccc3a6b032279c5ac1dc4a46672c87c  2026-06-10
+blob    92a223927318b18681ec269a5735b07692094147
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 2,768 bytes
+are that blob's 2,767 plus the `\n` the `end-of-file-fixer` hook added,
+so our blob is `3b5e5f57`.
+
+### `tests/ecc/_data/bip445/sign_verify_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/sign_verify_vectors.json
+commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
+blob    622d859bcd742e9caf37e1541bf2409aa7c6c333
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 88,802 bytes
+are that blob's 88,801 plus the `\n` the `end-of-file-fixer` hook
+added, so our blob is `ead53ab1`.
+
+### `tests/ecc/_data/bip445/tweak_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/tweak_vectors.json
+commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
+blob    ed876b4eeca7ee18e9918cd18f59141870670f12
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 48,941 bytes
+are that blob's 48,940 plus the `\n` the `end-of-file-fixer` hook
+added, so our blob is `6451ef70`.
+
+### `tests/ecc/_data/bip445/det_sign_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/det_sign_vectors.json
+commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
+blob    57ce53754a413b4087486bbbe16c641b5edfc245
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 88,987 bytes
+are that blob's 88,986 plus the `\n` the `end-of-file-fixer` hook
+added, so our blob is `a6def920`.
+
+### `tests/ecc/_data/bip445/sig_agg_vectors.json`
+
+```text
+repo    siv2r/bips
+path    bip-0445/python/vectors/sig_agg_vectors.json
+commit  8e25d57911c33f1daadcadb0161a60a56ef7145a  2026-08-26
+blob    4f20b42562a79b4443736269184ebec7870a7e0c
+pulled  2026-09-17
+behind  not checked: the path lives on a pull request branch, not on
+        siv2r/bips' own default branch (ISS 2160)
+```
+
+Verdict: **identical but for a trailing newline** -- our 30,915 bytes
+are that blob's 30,914 plus the `\n` the `end-of-file-fixer` hook
+added, so our blob is `a9b9140d`.
+
 ### BIP324 (ElligatorSwift): files under `tests/ecc/_data/`
 
 `ellswift_decode_test_vectors.csv` and `xswiftec_inv_test_vectors.csv`,
@@ -2906,10 +3055,11 @@ Against a pinned upstream blob:
   `base58_encode_decode.json`, `siphash.json`, `blockfilters.json`,
   `checkblock_valid.json`, `checkblock_invalid.json`,
   `bip39_test_vectors.json`, the BIP327 vector files,
-  `send_and_receive_test_vectors.json`, `bip375_test_vectors.json`, and
-  the Wycheproof vector files.
+  `send_and_receive_test_vectors.json`, `bip375_test_vectors.json`,
+  and the Wycheproof vector files.
 - identical but for a trailing newline:
-  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`.
+  `script_assets_test.json`, `vectors.json`, `WYCHEPROOF_COPYING`, and
+  the BIP445 vector files.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`, the
   BIP324 vector files and the BIP374 vector files -- every csv
   vendored from bitcoin/bips, so far.
