@@ -920,6 +920,12 @@ file per release is what keeps each of them under it.
   it** (closes #2149): `.github/mutation/signatures.toml` and
   `tests/_data/README.md` follow the `git mv`.
 
+### `source-exclude` drops a dot-prefixed name under a shipped tree
+
+- **The shape replaces the cache names, `.hypothesis` among them**
+  (issue btclib-org/.github#1070), and `tests/sdist_dotted_names_test.py`
+  refuses a dotted path a shipped tree means to carry.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

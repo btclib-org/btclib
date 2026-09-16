@@ -392,32 +392,59 @@ source-exclude = [
     # file that is there, and a tree stripped to its tracked files has no
     # index to ask
     "/tests/markdown_citations_test.py",
+    # `git ls-files` again, over a different question: which tracked
+    # paths lie under the trees the shape entries below take a
+    # dot-prefixed name out of, so that a dotted file one of those trees
+    # means to ship is a red test rather than a release missing a file.
+    # A tree stripped to its tracked files has no index to ask, and no
+    # cache in it to take out either
+    "/tests/sdist_dotted_names_test.py",
     # where `make html` writes, docs/Makefile's BUILDDIR being `build`
     "/docs/build",
-    # a cache a linter or type checker writes beside the file it has
-    # just checked, and not something anyone puts there on purpose: the
-    # VS Code mypy extension writes one per directory it type-checks, so
-    # it can appear under src/btclib/ and tests/ alike, and a nested one
-    # was shipped whole (issue #985). __pycache__, *.pyc and *.pyo are the
-    # backend's own default excludes, and are not repeated here
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    # the same kind of leftover one directory over, where `tests/**`
-    # would ship it: the check-sdist hook plants one under tests/ while
-    # it runs, which is how these patterns are known to hold rather than
-    # believed to
+    # a cache a tool writes beside what it has just read, taken out by a
+    # property such caches share -- a dot-prefixed basename, at any depth
+    # under a tree the archive carries whole -- rather than by the name
+    # of the tool that wrote it. A name is one somebody has already
+    # thought of, and the gate over the list, check-sdist, compares the
+    # archive against the tree it was built from, so it refuses only a
+    # cache that is on disk while it runs; the lint workflow runs the
+    # hooks over a checkout and no step of it runs the suite
+    # (btclib-org/.github#1070).
+    # Three anchors rather than tests/ alone: the VS Code mypy extension
+    # writes a cache per directory it type-checks, so one appears under
+    # src/btclib/ as readily as under tests/ (issue #985), and docs/ is
+    # carried whole by a pattern of the same shape as tests/'s.
+    # The anchors are what leave the root's own dotted files in the
+    # archive: unanchored, ".*" takes .python-version and
+    # .secrets.baseline with it, an exclusion dropping what an include
+    # above asks for.
+    # These three lines were measured by planting and building, which is
+    # btclib-node's method for its own list: a planted
+    # tests/.hypothesis/, tests/ecc/.ruff_cache/,
+    # docs/source/.pytest_cache/ and src/btclib/.mypy_cache/ are each
+    # absent from the sdist built next, and each is carried by the sdist
+    # the same tree builds with these lines taken out.
+    # What a property costs is the other direction, and it is as silent:
+    # a dotted file one of these trees means to carry goes at a release
+    # rather than in a gate. tests/sdist_dotted_names_test.py is that
+    # direction's gate, and it asks git rather than the disk, so it
+    # answers where check-sdist cannot.
+    # __pycache__, *.pyc and *.pyo are the backend's own default
+    # excludes, and are not repeated here
+    "/docs/**/.*",
+    "/src/btclib/**/.*",
+    "/tests/**/.*",
+    # a leftover of the same kind whose name carries no leading dot, so
+    # the shape above does not reach it: the check-sdist hook plants one
+    # under tests/ while it runs, which is how this pattern is known to
+    # hold rather than believed to
     "*.egg-info",
-    # hypothesis's example database and constants cache, which the
-    # library places at `Path.cwd() / ".hypothesis"` -- under the working
-    # directory rather than beside anything it read -- so a `pytest`
-    # started from inside tests/ leaves it where `tests/**` ships it.
-    # Measured, as the patterns above are: after such a run
-    # tests/.hypothesis/constants/ was there and the sdist built next
-    # carried every file of it (btclib-org/.github#1058)
-    ".hypothesis",
     # tracked, one at the root and one under src/btclib/ where the module
-    # is copied wholesale, and of no use to anyone unpacking an sdist
+    # is copied wholesale, and of no use to anyone unpacking an sdist.
+    # The shape above reaches the second of the two and this entry still
+    # names it: what the test beside it asks is that a tracked dotted
+    # path under a shipped tree be named here in its own right, so that
+    # dropping one is a decision rather than a side effect
     ".gitignore",
 ]
 
