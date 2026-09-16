@@ -2331,7 +2331,7 @@ transcription's source is the code the bindings run.
 `generator_from_seed`, at no blinding factor and at a zero one, which is
 the pair of calls upstream's own loop makes of each entry.
 
-### `tests/ecc/anti_exfil_test.py`
+### `tests/ecc/dsa_anti_exfil_test.py`
 
 ```text
 repo    BlockstreamResearch/secp256k1-zkp
@@ -2929,7 +2929,7 @@ Not checked byte for byte against one:
   `miniscript_fixed_tests.json`, `bolt11_test_vectors.json`, `bolt9.py`,
   `rfc6979.json`, `zkp_rangeproof_fixed_vectors.json`,
   `zkp_generator_vectors.json`,
-  `anti_exfil_test.py`, `secp256k1_symbols.txt`.
+  `dsa_anti_exfil_test.py`, `secp256k1_symbols.txt`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole

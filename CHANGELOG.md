@@ -914,6 +914,12 @@ file per release is what keeps each of them under it.
   (issue btclib-org/.github#35). This bears on *`interpreters_test.py` reads a
   caller's `with:` beside the block* above: that caller now exists.
 
+### `tests/ecc/anti_exfil_test.py` is renamed `dsa_anti_exfil_test.py`
+
+- **The name named no module, unlike `ssa_anti_exfil_test.py` beside
+  it** (closes #2149): `.github/mutation/signatures.toml` and
+  `tests/_data/README.md` follow the `git mv`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

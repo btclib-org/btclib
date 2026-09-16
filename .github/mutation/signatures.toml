@@ -23,7 +23,7 @@ module-path = [
     "src/btclib/ecc/dsa.py",
 ]
 
-# anti_exfil_test.py and commit_nonce_test.py are the sign-to-contract
+# dsa_anti_exfil_test.py and commit_nonce_test.py are the sign-to-contract
 # and anti-exfiltration paths, which sig_hash.toml's docstring notes
 # `ssa.sign` itself never takes -- they are what still calls
 # `ssa.sign_custom` and are the only tests that do. parse_contract_test.py
@@ -35,7 +35,7 @@ module-path = [
 # killed, uncredited for want of being asked
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/ecc/ssa_test.py tests/ecc/dsa_test.py tests/ecc/der_test.py \
-  tests/ecc/anti_exfil_test.py tests/ecc/commit_nonce_test.py \
+  tests/ecc/dsa_anti_exfil_test.py tests/ecc/commit_nonce_test.py \
   tests/parse_contract_test.py"""
 
 timeout = 300
