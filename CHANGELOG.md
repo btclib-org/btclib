@@ -944,6 +944,12 @@ file per release is what keeps each of them under it.
   the script reads the open section off disk, and the rebase that eats
   the seam stages nothing.
 
+### `check_changelog.py` states its own rebase comparison, not a dead citation
+
+- **The citation to `CONTRIBUTING.md`'s *Committing and rebasing* pointed at a
+  heading no tree carries** (issue btclib-org/.github#1137): the docstring now
+  states what the rebase comparison does, in its own words.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
