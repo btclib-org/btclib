@@ -162,78 +162,52 @@ jobs:
   # skipped, not failed, leaving it to try downloading artifacts neither
   # produced
   #
-  # Three things this must not get wrong:
+  # Two things this must not get wrong:
   #
-  # - it runs on every trigger, and answers `true` on all but
-  #   `pull_request`: a push to main, the release workflow's call, and a
-  #   manual dispatch have no base to diff against, and a `changes` that
-  #   skipped itself there would leave every dependent reading an empty
-  #   output, not 'true', and the whole workflow -- the release path
-  #   included -- would skip
-  # - README.md is not prose for this purpose: pyproject.toml reads it as
-  #   the package's long description, which the `dist` job's twine and
-  #   pyroma checks actually render and rate. Nor is anything under
-  #   docs/, which the sdist carries ([tool.uv.build-backend])
-  #   and which
-  #   tests/docs_test.py and tests/docs_examples_test.py read directly.
-  #   Nor are CHANGELOG.md or RELEASE_NOTES.md: tests/release_notes_test.py
-  #   parses and validates their format, in the very suite this job would
-  #   otherwise skip. Nor are the archived releases under changelog/,
-  #   which tests/changelog_immutability_test.py holds to their own tags:
-  #   both halves of the allowlist below are anchored, at the root and at
-  #   .github, so a path under changelog/ is outside it without being
-  #   named
   # - test-passed takes this job as a `needs` too, so a failure here
   #   fails the gate instead of skipping every job below and being read
   #   as a pass. So does every job that reads its output, `coverage-union`
   #   included, for the same reason: `needs.changes.outputs.code` is
   #   undefined in an expression unless the job is named in its own
   #   `needs`
+  # - the event handling, the pagination and the decision are
+  #   btclib-org/.github's own, called at @main so a fix there reaches
+  #   this tree in one landing (section 10 of its README.md); what stays
+  #   here is which files are this tree's own prose, below
+  #   (issue btclib-org/.github#35)
   changes:
     name: Decide whether the jobs below have anything to check
-    if: ${{ !github.event.pull_request.draft && github.event.action != 'closed' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    # the file list of a pull request, which contents: read does not carry
+    uses: btclib-org/.github/.github/workflows/reusable-changes.yml@main
+    # A job's permissions replace the workflow's rather than adding to
+    # them, so contents: read is named here too, alongside
+    # pull-requests: read, which the callee's own job needs to list a
+    # pull request's files: a block here that left off contents: read
+    # would bound the whole call to contents: none, and the callee's own
+    # `contents: read` would be refused before any job in it starts
     permissions:
+      contents: read
       pull-requests: read
-    outputs:
-      code: ${{ steps.decide.outputs.code }}
-
-    steps:
-      - name: Ask which files the pull request touches
-        id: decide
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT: ${{ github.event_name }}
-          REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          # a push to main, a release call and a dispatch build
-          # everything: only a pull request has a base to be a diff
-          # against
-          if [ "$EVENT" != pull_request ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "$EVENT is not a pull request: everything runs"
-            exit 0
-          fi
-          gh api "repos/$REPO/pulls/$NUMBER/files" --paginate \
-            --jq '.[].filename' > files.txt
-          echo "files changed:"
-          cat files.txt
-          # the allowlist is what nothing built or tested reads: the
-          # prose files of the root and of .github, none of README.md,
-          # CHANGELOG.md or RELEASE_NOTES.md among them. An empty list is not
-          # a documentation change, it is a question this could not
-          # answer, so the count is checked before the pattern
-          prose='^(AUTHORS|CLAUDE|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$'
-          if [ ! -s files.txt ] || grep -qvE "$prose" files.txt; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-            echo "something the jobs below read changed: everything runs"
-          else
-            echo "code=false" >> "$GITHUB_OUTPUT"
-            echo "prose only: the jobs below have nothing to check"
-          fi
+    with:
+      # the allowlist is what nothing built or tested reads: the prose
+      # files of the root and of .github, none of README.md among them --
+      # pyproject.toml reads it as the package's long description, which
+      # the `dist` job's twine and pyroma checks actually render and
+      # rate. Nor is anything under docs/, which the sdist carries
+      # ([tool.uv.build-backend]) and which tests/docs_test.py and
+      # tests/docs_examples_test.py read directly. Nor are CHANGELOG.md
+      # or RELEASE_NOTES.md: tests/release_notes_test.py parses and
+      # validates their format, in the very suite a prose-only run would
+      # otherwise skip. Nor are the archived releases under changelog/,
+      # which tests/changelog_immutability_test.py holds to their own
+      # tags: both halves of the allowlist below are anchored, at the
+      # root and at .github, so a path under changelog/ is outside it
+      # without being named
+      # a literal block scalar rather than a quoted one on the key's own
+      # line: the pattern has no space in it, which is what keeps
+      # yamllint's line-length rule off a line a quoted string on the
+      # `prose-pattern:` line itself would put well past it
+      prose-pattern: |-
+        ^(AUTHORS|CLAUDE|CONTRIBUTING|RELEASING|REPOSITORY|REVIEWING|SECURITY)\.md$|^\.github/[^/]*\.md$
 
   # the one cell a merge waits for, and the one place coverage is
   # measured: ubuntu-latest on the interpreter below, which is what the
