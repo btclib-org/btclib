@@ -902,6 +902,12 @@ file per release is what keeps each of them under it.
   `btclib-org/.github#35` empties** (closes #2141): a comparison left
   with one site goes, and the module goes with the last of them.
 
+### `ecc.ssa` gains the anti-exfil protocol
+
+- **`anti_exfil_host_commit`, `anti_exfil_signer_commit`, `anti_exfil_sign`
+  and `anti_exfil_host_verify` mirror `dsa`'s own** (closes #2147): BIP340's
+  nonce derives from the host's commitment alone, not `sign_`'s aux mix.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
