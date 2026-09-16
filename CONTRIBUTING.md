@@ -78,6 +78,23 @@ pull request will be answered against.
 release notes move only for something a user has to *act* on, in the
 repositories that publish.
 
+Where that entry goes is [section 9][s9]'s — the end of the open
+section — and no gate reads it: `check-changelog` is handed the file and
+no base, so it cannot tell which entry the branch wrote. The open
+section's headings, in the order the file holds them, a branch's own
+last:
+
+```shell
+awk '/^## /{n++} n==1 && /^### /' CHANGELOG.md
+```
+
+`n==1` takes the open section, from the first `##` heading to the next,
+and the scan is `/^## /` rather than `/^## v/`: a section headed
+`## Unreleased` is no match for `/^## v/`, which counts from the first
+release heading instead and prints a released section's entries — or
+nothing, where the tree has released nothing — while reading as a
+check that passed.
+
 ### One subject, opened as soon as it is written
 
 A pull request answers one question. Issues that share a subject are one
