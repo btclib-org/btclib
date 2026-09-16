@@ -878,6 +878,12 @@ file per release is what keeps each of them under it.
   (issue btclib-org/.github#1105): it now reads `href="#\.\.\?/`, and
   the prose explaining it is corrected to match.
 
+### `deps-oldest.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **The floor sentinel's own job becomes a call to
+  `btclib-org/.github`'s `reusable-deps-oldest.yml`** (issue
+  btclib-org/.github#35): the bindings assertion becomes `pre-suite-script`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
