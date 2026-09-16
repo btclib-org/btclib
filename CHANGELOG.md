@@ -884,6 +884,12 @@ file per release is what keeps each of them under it.
   `btclib-org/.github`'s `reusable-deps-oldest.yml`** (issue
   btclib-org/.github#35): the bindings assertion becomes `pre-suite-script`.
 
+### `RELEASING.md`'s bill-of-materials step no longer contradicts itself
+
+- **RELEASING.md's bill-of-materials step contradicted itself about the
+  btclib-secp256k1 SBOM exemption** (closes #2142): all four publishers
+  attach one, naming the vendored library at the commit its gitlink pins.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
