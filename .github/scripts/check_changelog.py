@@ -73,10 +73,10 @@ an issue's `NOT_PLANNED` closure. That is one API call per citation, and
 a `pre-commit` hook that reaches the network is the wrong place to put
 one; btclib-org/.github#21's own ruling says so. Nor does this compare a
 section against its branch's own base to catch a misplacement or a
-revived, previously-refuted paragraph -- reconstruction against the
-base is a discipline for the rebase itself
-(CONTRIBUTING.md's *Committing and rebasing*), not a property of the
-file its tip leaves behind, which is all a `pre-commit` hook ever reads.
+revived, previously-refuted paragraph. That comparison splices the entry
+as it stood before the rebase into the file at the new base and reads
+the result against the rebased tip byte for byte; those two inputs are
+the rebase's own, and a `pre-commit` hook has one file at one revision.
 Nor, for the reason the second check gives, does it see two entries that
 merely *advance* the same issue without either closing it -- a tree that
 never releases lives with that shape by design, and refusing it would
