@@ -592,7 +592,7 @@ jobs:
       # dispatch agrees on it
       - name: Make the version unique for TestPyPI (rehearsal only)
         if: inputs.version-suffix != ''
-        uses: ./.github/actions/dev-version
+        uses: ./.github/actions/dev-version # zizmor: ignore[self-repository]
         with:
           suffix: ${{ inputs.version-suffix }}
       # uv build builds the sdist first and then the wheel from it, not

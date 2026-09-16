@@ -61,7 +61,7 @@ jobs:
   test:
     name: Run the test workflow
     needs: version-check
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/test.yml # zizmor: ignore[self-repository]
     # this block bounds test.yml rather than standing in for what test.yml
     # declares: a job over there with no block of its own is granted
     # test.yml's own top-level contents: read and not the pull-requests:
@@ -104,7 +104,7 @@ jobs:
   # version-check: this is the cheap one, and it runs in parallel with it
   lint:
     name: Run the lint workflow
-    uses: ./.github/workflows/lint.yml
+    uses: ./.github/workflows/lint.yml # zizmor: ignore[self-repository]
     with:
       # see the test job above
       concurrency-suffix: "-release"
@@ -115,7 +115,7 @@ jobs:
   # own now, so calling lint.yml no longer covers it
   docs:
     name: Run the docs workflow
-    uses: ./.github/workflows/docs.yml
+    uses: ./.github/workflows/docs.yml # zizmor: ignore[self-repository]
     with:
       # a rehearsal computes the same group a push to the dispatching
       # branch holds otherwise: see the group in docs.yml
@@ -130,21 +130,21 @@ jobs:
   # wall clock, which a release is the one place worth paying for
   os-ubuntu:
     name: Run the os-ubuntu workflow
-    uses: ./.github/workflows/os-ubuntu.yml
+    uses: ./.github/workflows/os-ubuntu.yml # zizmor: ignore[self-repository]
     with:
       # see the docs job above
       concurrency-suffix: "-release"
 
   os-macos:
     name: Run the os-macos workflow
-    uses: ./.github/workflows/os-macos.yml
+    uses: ./.github/workflows/os-macos.yml # zizmor: ignore[self-repository]
     with:
       # see the docs job above
       concurrency-suffix: "-release"
 
   os-windows:
     name: Run the os-windows workflow
-    uses: ./.github/workflows/os-windows.yml
+    uses: ./.github/workflows/os-windows.yml # zizmor: ignore[self-repository]
     with:
       # see the docs job above
       concurrency-suffix: "-release"
@@ -159,7 +159,7 @@ jobs:
   # this from the day it became a gate; nothing had ever called it
   integration-bitcoind:
     name: Run the integration-bitcoind workflow
-    uses: ./.github/workflows/integration-bitcoind.yml
+    uses: ./.github/workflows/integration-bitcoind.yml # zizmor: ignore[self-repository]
     with:
       # see the docs job above
       concurrency-suffix: "-release"
@@ -279,7 +279,7 @@ jobs:
     # sentinel never ran on v2026.8.27, and #1461's fix to publish-pypi
     # itself was not enough (issue #1470)
     if: always() && needs.publish-pypi.result == 'success'
-    uses: ./.github/workflows/pypi-install.yml
+    uses: ./.github/workflows/pypi-install.yml # zizmor: ignore[self-repository]
     with:
       version: ${{ github.ref_name }}
 

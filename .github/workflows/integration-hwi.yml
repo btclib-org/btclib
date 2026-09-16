@@ -122,7 +122,7 @@ jobs:
       # node integration-bitcoind.yml's regtest job needs, from the same pin
       - name: Install bitcoind
         id: bitcoind
-        uses: ./.github/actions/install-bitcoind
+        uses: ./.github/actions/install-bitcoind # zizmor: ignore[self-repository]
         with:
           version: ${{ env.BITCOIND_VERSION }}
           sha256: ${{ env.BITCOIND_SHA256 }}
@@ -357,7 +357,7 @@ jobs:
           enable-cache: true
       - name: Install bitcoind
         id: bitcoind
-        uses: ./.github/actions/install-bitcoind
+        uses: ./.github/actions/install-bitcoind # zizmor: ignore[self-repository]
         with:
           version: ${{ env.BITCOIND_VERSION }}
           sha256: ${{ env.BITCOIND_SHA256 }}

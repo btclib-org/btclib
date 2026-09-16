@@ -190,7 +190,7 @@ jobs:
       # in the file
       - name: Install bitcoind
         id: bitcoind
-        uses: ./.github/actions/install-bitcoind
+        uses: ./.github/actions/install-bitcoind # zizmor: ignore[self-repository]
         with:
           version: ${{ env.BITCOIND_VERSION }}
           sha256: ${{ env.BITCOIND_SHA256 }}
