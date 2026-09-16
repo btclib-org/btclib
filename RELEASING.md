@@ -605,27 +605,19 @@ to `deps-latest`'s own result.
    Attested with the distribution files, so `gh attestation verify` below
    covers it too.
 
-   **bitcoin-core-rpc's release workflow builds, attests and attaches one as of
-   btclib-org/bitcoin-core-rpc#441; btclib-secp256k1 has no bill-of-materials
-   workflow yet.** btclib-secp256k1's interesting dependency is the vendored
-   libsecp256k1 C library at the commit its `secp256k1` submodule pins. That
-   holds for both wheel kinds it ships and not only the static one: a static
-   build links the library into the extension, a dynamic (ABI-mode) build ships
-   it as a shared object beside the extension instead, and `Requires-Dist` says
-   nothing about the pin either way. Naming the linkage would invite the
-   opposite conclusion, that the dynamic build escapes the gap — where what is
-   missing is the pinned commit however the object code arrives. A bill of
-   materials built from `Requires-Dist` alone would name `cffi` and say nothing
-   about the pin a verifier of that package would most want described, which is
-   worse than omitting the document — issue #1159 has that evaluation.
-
-   `generate_sbom.py` no longer has the limitation that evaluation rested
-   on: it reads a commit-pinned submodule from `.gitmodules` and the
-   tree's own gitlink, and reports it as a `pkg:github/<owner>/<repo>@<sha>`
-   component (issue #1280). The premise `btclib-org/.github#24` named as
-   what would reopen the question has therefore changed; whether
-   btclib-secp256k1 adopts this and what its own `RELEASING.md` then says
-   is that repository's decision, tracked at issue #1159.
+   **All four publishers attach one** — `btclib`, `bitcoin-core-rpc`,
+   `btclib-secp256k1` and `btclib-node` — one answer rather than an answer
+   and an exemption. btclib-secp256k1's interesting dependency is the
+   vendored libsecp256k1 C library at the commit its `secp256k1` submodule
+   pins, and that holds for both wheel kinds it ships and not only the
+   static one: a static build links the library into the extension, a
+   dynamic (ABI-mode) build ships it as a shared object beside the
+   extension instead, and `Requires-Dist` says nothing about the pin
+   either way. `generate_sbom.py` reads each vendored submodule's gitlink
+   and reports it as a `pkg:github/<owner>/<repo>@<sha>` component beside
+   the `cffi` that `Requires-Dist` alone would have named (issue #1280),
+   so the interesting dependency is described whichever wheel kind
+   carries it.
 
 1. Read the release run's `pypi-install` job, which is this workflow called
    with the tag rather than a dispatch to remember: the jobs that install
