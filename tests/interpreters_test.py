@@ -61,18 +61,16 @@ _FREE_THREADING_CLASSIFIER = re.compile(
 _PYTHONS = re.compile(
     r"^        python:\n(?P<block>(?:^          - \"\S+\"\n)+)", re.MULTILINE
 )
-# the shape a caller of the `os-*` sweeps' own reusable-os-suite.yml will
-# carry, once one of them becomes a caller (btclib-org/.github#35). No
-# such caller exists yet -- this is derived, not read off a landed file:
-# reusable-deps-oldest.yml's own five callers already establish the
-# `with:` indent and the quoting for one interpreter,
-# `python-version: "3.10"`, and a `workflow_call` input can only be a
-# string, so the list a caller will pass arrives JSON-encoded inside
-# one -- `python-versions: '["3.10", "3.11"]'`. Read alongside
-# `_PYTHONS` rather than instead of it: every sweep still declares the
-# block sequence above until that merge lands, and a pattern that read
-# only the caller shape would turn the suite red today
-# (btclib-org/.github#1119)
+# the shape a caller of the `os-*` sweeps' own reusable-os-suite.yml
+# carries: `os-macos.yml`, `os-ubuntu.yml` and `os-windows.yml` are that
+# caller now (btclib-org/.github#35). reusable-deps-oldest.yml's own
+# five callers already establish the `with:` indent and the quoting for
+# one interpreter, `python-version: "3.10"`, and a `workflow_call` input
+# can only be a string, so the list a caller passes arrives JSON-encoded
+# inside one -- `python-versions: '["3.10", "3.11"]'`. Read alongside
+# `_PYTHONS` rather than instead of it: no workflow here still declares
+# the block sequence, so that pattern matches nothing in this tree now,
+# and costs nothing kept beside one that does (btclib-org/.github#1119)
 _PYTHONS_CALLER = re.compile(
     r"^      python-versions: '(?P<block>\[.*?\])'$", re.MULTILINE
 )
@@ -166,11 +164,11 @@ def _versions(pattern: re.Pattern[str], text: str) -> tuple[str, ...]:
 def _interpreters(text: str) -> set[str]:
     """Return every interpreter one workflow's text declares, in either shape.
 
-    `_PYTHONS`'s block sequence, still what every sweep writes today,
-    and `_PYTHONS_CALLER`'s JSON-encoded list, the shape a caller of
-    `reusable-os-suite.yml` will carry once one exists
+    `_PYTHONS`'s block sequence and `_PYTHONS_CALLER`'s JSON-encoded
+    list, the shape a caller of `reusable-os-suite.yml` carries
     (btclib-org/.github#1119) -- both read here so a tree on either side
-    of that migration is read correctly.
+    of that migration is read correctly, this tree's three sweeps all
+    being callers now.
     """
     listed: set[str] = set()
     for match in _PYTHONS.finditer(text):
@@ -624,16 +622,17 @@ def test_every_sweep_runs_the_same_interpreters() -> None:
 
 
 def test_a_caller_shaped_with_reads_the_same_interpreters_as_a_block() -> None:
-    """The shape a caller of `reusable-os-suite.yml` will carry.
+    """The shape a caller of `reusable-os-suite.yml` carries.
 
-    No such caller exists yet: `os-macos.yml`, `os-ubuntu.yml` and
-    `os-windows.yml` still declare `_PYTHONS`'s own block sequence
-    (btclib-org/.github#1119). This constructs the shape
-    `reusable-deps-oldest.yml`'s own five callers already establish for
-    one interpreter -- `python-version: "3.10"` -- widened the only way
-    a `workflow_call` input can carry a list, JSON-encoded inside a
-    quoted string, and checks that `_interpreters` reads it the same as
-    the block sequence it stands beside.
+    `os-macos.yml`, `os-ubuntu.yml` and `os-windows.yml` are that caller
+    now (btclib-org/.github#35), and none of the three, or any other
+    workflow here, still declares `_PYTHONS`'s own block sequence. This
+    constructs the shape `reusable-deps-oldest.yml`'s own five callers
+    already establish for one interpreter -- `python-version: "3.10"` --
+    widened the only way a `workflow_call` input can carry a list,
+    JSON-encoded inside a quoted string, and checks that `_interpreters`
+    reads it the same as the block sequence it stands beside
+    (btclib-org/.github#1119).
     """
     block = (
         '        python:\n          - "3.10"\n          - "3.11"\n          - "3.12"\n'

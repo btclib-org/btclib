@@ -908,6 +908,12 @@ file per release is what keeps each of them under it.
   and `anti_exfil_host_verify` mirror `dsa`'s own** (closes #2147): BIP340's
   nonce derives from the host's commitment alone, not `sign_`'s aux mix.
 
+### The three `os-*.yml` sweeps call `reusable-os-suite.yml`
+
+- **`os-ubuntu.yml`, `os-macos.yml` and `os-windows.yml` are that caller now**
+  (issue btclib-org/.github#35). This bears on *`interpreters_test.py` reads a
+  caller's `with:` beside the block* above: that caller now exists.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
