@@ -78,9 +78,10 @@ jobs:
   # the checkout, the uv setup, the build and the unresolved-link check are
   # btclib-org/.github's: reusable-docs.yml, called at @main so a fix there
   # reaches this tree in one landing (section 10 of its README.md). What
-  # stays here is the trigger, the concurrency group and the draft/closed
-  # declines the called workflow reads off this caller's own event
-  # (btclib-org/.github#35).
+  # stays here is the trigger, the concurrency group and the workflow-level
+  # permissions; the draft and closed declines are the called workflow's
+  # own, reading github.event.pull_request.draft and github.event.action off
+  # this caller's trigger (btclib-org/.github#35).
   #
   # This tree has no git submodule for the build to check out, so
   # `submodules` is left at its default; and no script of its own to run

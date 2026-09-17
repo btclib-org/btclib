@@ -1052,6 +1052,12 @@ file per release is what keeps each of them under it.
   arm yields** (closes #2179): pytest calls the hook only where it
   writes a session header, so a `-q` run missed the statement.
 
+### `docs.yml` says the draft and closed declines are `reusable-docs.yml`'s
+
+- **The `jobs:` comment names the called workflow as what declines a draft
+  and a closed pull request, reading the event off this caller's
+  trigger** (closes btclib-org/.github#1179).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
