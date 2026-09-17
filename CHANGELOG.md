@@ -1010,6 +1010,12 @@ file per release is what keeps each of them under it.
   path" API as its `sha` parameter** (closes #2160): a pin standing on a
   fork's pull-request branch is checked rather than permanently excused.
 
+### The documentation says where a threshold lives
+
+- **`docs/source/where-the-threshold-lives.md` compares the script
+  threshold, MuSig2 and FROST** (closes #2175): what each costs, where
+  each lives in this tree, and why *t* = *n* FROST is not MuSig2.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
