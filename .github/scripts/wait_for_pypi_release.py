@@ -4,29 +4,32 @@
 
 """Wait until the index serves the version a release just published.
 
-`pypi-install.yml` installs whatever the resolver picks, and the index
-does not serve a new file the instant the upload returns: a run that
-starts too early installs the version the release replaces and reports a
-pass for it, which is worse than reporting nothing. So a run with a
-release behind it waits for the version its tag names, and fails rather
-than let the matrix measure the wrong thing.
+Every cell of `pypi-install.yml` installs whatever the resolver picks,
+and the index does not serve a new file the instant the upload returns: a
+run that starts too early installs the version the release replaces and
+reports a pass for it, which is worse than reporting nothing. So a run
+with a release behind it waits for the version its tag names, and fails
+rather than let the matrix measure the wrong thing.
 
 The budget is a deadline and not a count of attempts. A wait stated as
 attempts times an interval is a product to be multiplied out before it
 can be compared with the job's own `timeout-minutes`, and a wait that
 outlasts that is killed inside itself: the run then carries the runner's
 message about a cancelled job where this was written to name the page to
-go and read (issue #1165). Every request is bounded by what is left of
-the deadline as well as by its own timeout, so the whole wait ends
-within `--timeout` of its first request for anything the index does
-between answers. What is not bounded here is a single answer arriving a
-byte at a time: `urlopen`'s timeout is a socket timeout and applies per
-blocking read, so that case is the job's `timeout-minutes` to end.
+go and read (btclib-org/btclib#1165). `DEFAULT_TIMEOUT` below states the
+deadline once and the job header states its own timeout, so what decides
+whether the wait fits inside the job is one number against one number.
+Every request is bounded by what is left of the deadline as well as by
+its own timeout, so the whole wait ends within `--timeout` of its first
+request whatever the index does between answers. What is not bounded
+here is a single answer arriving a byte at a time: `urlopen`'s timeout
+is a socket timeout and applies per blocking read, so that case is the
+job's `timeout-minutes` to end.
 
 No trigger reaches the verdict this exists for. What is waited on is
 somebody else's upload, so neither a release nor a rehearsal can arrange
-for it to be late, and a trigger added to reach the loop reaches its
-first attempt instead. `tests/wait_for_pypi_release_test.py` is
+for the index to be late, and a trigger added to reach the retry reaches
+its first attempt instead. `tests/wait_for_pypi_release_test.py` is
 therefore the only thing that drives the retry, the deadline and the
 error path: it substitutes the transport and the clock, and advances the
 clock past the deadline itself.
@@ -37,13 +40,12 @@ runnable on a schedule and a dispatch, where a step only a release runs
 is a step whose defect ships with a release.
 
     uv run --no-project --python 3.14 \
-        .github/scripts/wait_for_pypi_release.py btclib "$TAG"
+        .github/scripts/wait_for_pypi_release.py "$PACKAGE" "$TAG"
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
 import time
 from http import HTTPStatus
 from http.client import HTTPException
@@ -55,7 +57,9 @@ from urllib.request import Request, urlopen
 INDEX = "https://pypi.org/pypi"
 
 # what a release has to arrive within, in seconds, and the one number the
-# job's `timeout-minutes` is compared against
+# job's `timeout-minutes` is compared against. Chosen rather than
+# measured: nothing here times how long the index takes to serve an
+# upload, and what this bounds is the case where it never serves it at all
 DEFAULT_TIMEOUT = 300.0
 # between two questions to the index: long enough not to hammer it, short
 # enough that the wait ends near the upload rather than near the deadline
@@ -75,8 +79,18 @@ def served(url: str, timeout: float) -> bool:
     # a 404 while the upload is still landing is an HTTPError, a
     # connection refused or timed out is an OSError, and a truncated
     # answer is an HTTPException. None of them is this script's verdict,
-    # which the deadline alone decides
-    except (OSError, HTTPException):
+    # which the deadline alone decides.
+    #
+    # Two clauses and not one parenthesised tuple, this file being
+    # shared: `ruff-format` rewrites `except (OSError, HTTPException):`
+    # into PEP 758's unparenthesised form wherever `requires-python` is
+    # 3.14, and that form is a syntax error to mypy and to the
+    # interpreter wherever it is 3.10 -- so the tuple cannot hold still
+    # in all four trees at once and two clauses can
+    # (btclib-org/.github#1160)
+    except OSError:
+        return False
+    except HTTPException:
         return False
     return status == HTTPStatus.OK
 
@@ -125,4 +139,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

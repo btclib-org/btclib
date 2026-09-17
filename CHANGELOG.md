@@ -1124,6 +1124,12 @@ file per release is what keeps each of them under it.
   identifier, which no other wallet reads and which are dropped rather
   than aliased once a psbt BIP assigns FROST type bytes** (closes #2174).
 
+### `wait_for_pypi_release.py` carries the body the four trees can share
+
+- **This copy keeps what any copy said and says nowhere else, qualifies
+  its citation, passes `"$PACKAGE"`, drops `import sys`, and splits the
+  `except` into two clauses** (issue btclib-org/.github#1160).
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
