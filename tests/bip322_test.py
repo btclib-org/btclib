@@ -218,10 +218,11 @@ def test_error_vector(case: dict[str, str]) -> None:
     to check, and `verify` refuses it rather than reporting it as a
     forgery (issue #2181).
 
-    Both exceptions of the parse contract are expected: a truncated
-    buffer is a `BTClibRuntimeError` where a value that cannot mean what
-    it says is a `BTClibValueError`, and this file is not the place that
-    decides which of the two malformed base64 turns into.
+    Both exceptions of the parse contract are expected, a
+    `BTClibValueError` or a `BTClibRuntimeError`, and this file is not
+    the place that decides which of the two malformed base64 turns into:
+    the empty signature and the truncated `ful` payload both run out of
+    octets, and answer one each (issue #2197).
     """
     msg, addr = case["message"].encode(), case["address"]
     with pytest.raises((BTClibValueError, BTClibRuntimeError)):

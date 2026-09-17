@@ -1154,6 +1154,18 @@ file per release is what keeps each of them under it.
   templates `USER_AGENT` on the project `unserved` now takes as a third
   argument, and qualifies its citation** (issue btclib-org/.github#1186).
 
+### `bip322`'s module docstring names both classes an invalid signature raises
+
+- **Invalid is a `BTClibValueError` or a `BTClibRuntimeError`, where the
+  docstring named the first alone** (closes #2195): one `ful` payload
+  over too few octets raises the second, and no rule is stated about which.
+
+### `CONTRIBUTING.md` names both classes `bip322.verify` raises on unreadable input
+
+- **The carve-out named `BTClibValueError` alone** (closes #2197): the
+  same `ful` payload over too few octets draws `BTClibRuntimeError`
+  too, and no rule is stated about which.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
