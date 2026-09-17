@@ -68,6 +68,11 @@ WIF_PUB = b58.prv_key_data_from_wif(WIF).pub
 # carry, the rest of `to_sign` being fixed for them
 _NATIVE_SEGWIT = frozenset({"p2wpkh", "p2wsh", "p2tr"})
 
+# the `error_substr` an error vector carries where the reference had a
+# signature and the check on it failed; every other value of that field
+# names the reading of the signature instead
+_CHECKED_AND_FAILED = "invalid signature"
+
 
 def _address(wif: str, script_type: str) -> str:
     """Return the address of one of the four types a single key owns.
@@ -203,20 +208,30 @@ def test_proof_of_funds_vector(case: dict[str, Any]) -> None:
 
 @pytest.mark.parametrize("case", _cases("error"), ids=_ids("error"))
 def test_error_vector(case: dict[str, str]) -> None:
-    """Every error vector is refused, and `verify` says so without raising.
+    """Every error vector is refused, in the way its own `error_substr` says.
+
+    That field is the vectors', and it splits them without a list of our
+    own: where it reads "invalid signature" the reference had a
+    signature to check and the check failed, which is `verify`'s False,
+    and where it names the reading itself -- the base64, a length, a
+    variant whose payload does not parse -- there was never a signature
+    to check, and `verify` refuses it rather than reporting it as a
+    forgery (issue #2181).
 
     Both exceptions of the parse contract are expected: a truncated
     buffer is a `BTClibRuntimeError` where a value that cannot mean what
     it says is a `BTClibValueError`, and this file is not the place that
     decides which of the two malformed base64 turns into.
     """
-    assert not bip322.verify(
-        case["message"].encode(), case["address"], case["signature"]
-    )
+    msg, addr = case["message"].encode(), case["address"]
     with pytest.raises((BTClibValueError, BTClibRuntimeError)):
-        bip322.assert_as_valid(
-            case["message"].encode(), case["address"], case["signature"]
-        )
+        bip322.assert_as_valid(msg, addr, case["signature"])
+
+    if case["error_substr"] == _CHECKED_AND_FAILED:
+        assert not bip322.verify(msg, addr, case["signature"])
+    else:
+        with pytest.raises((BTClibValueError, BTClibRuntimeError)):
+            bip322.verify(msg, addr, case["signature"])
 
 
 @pytest.mark.parametrize("script_type", ["p2pkh", "p2wpkh", "p2sh-p2wpkh", "p2tr"])

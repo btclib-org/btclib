@@ -39,9 +39,10 @@ Issue #814 settled the second against issue #745's "total over everything
 it is handed", and this is where the decision is held to. Issue #2170 is
 where the third was carved out of the second, for the `ecc` verifications:
 a signature, a key, an address or an opening whose size or encoding makes
-it impossible is refused there, while `bip322.verify`,
-`merkle_proof.verify` and the two script-engine spellings are outside that
-issue and answer a structurally invalid argument with `False` still.
+it impossible is refused there, and issue #2181 carried the same line into
+`bip322.verify`, where the encoding stands in for the size. What is left
+on the other side is `merkle_proof.verify` and the two script-engine
+spellings, which answer a structurally invalid argument with `False`.
 
 ## Both rules hold, and they did not when this file was written
 
@@ -188,7 +189,11 @@ _CASES = (
         "bip322.verify",
         bip322.verify,
         (_MSG, _ADDR, _BIP322_SIG),
-        {0: _WRONG_OCTETS_VALUE, 1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
+        {0: _WRONG_OCTETS_VALUE},
+        # the address is the challenge `to_spend` is built from, and the
+        # signature is written in one of the encodings this module reads
+        # or in none
+        {1: _WRONG_STRING_VALUE, 2: _WRONG_STRING_VALUE},
     ),
     _Case(
         "pedersen.verify",

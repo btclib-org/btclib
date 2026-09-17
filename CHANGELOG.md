@@ -1106,6 +1106,18 @@ file per release is what keeps each of them under it.
   each value of `INSTALLED` and `ZKP_AVAILABLE`** (closes #2185): no
   `pragma` stands in for the arm a machine's own build cannot reach.
 
+### `bip322.verify` raises on a structurally invalid address or signature
+
+- **A string that decodes to no address, and text written in none of the
+  encodings this module reads, are refused** (closes #2181); a real
+  address the signature does not spend is `False`.
+
+### `bip322.verify`'s comment states its own split
+
+- **What is refused ahead of the try, and what the try answers `False`
+  for** (closes #2177), in place of a sentence `ecc.dsa.verify_` no
+  longer carries.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
