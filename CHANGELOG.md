@@ -986,6 +986,12 @@ file per release is what keeps each of them under it.
   `gh attestation verify` move to `btclib-org/.github`'s own
   `reusable-sdist-rebuild.yml`** (issue btclib-org/.github#35).
 
+### `deps-latest.yml` calls `btclib-org/.github`'s reusable workflow
+
+- **`lint-latest` and `suite-latest` become one `reusable-deps-latest.yml`
+  call** (issue btclib-org/.github#35), the other two jobs staying:
+  `measure-coverage: true` keeps this tree's 100% ratchet through the upgrade.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value

@@ -75,10 +75,14 @@ _PYTHONS_CALLER = re.compile(
     r"^      python-versions: '(?P<block>\[.*?\])'$", re.MULTILINE
 )
 # the platform sweeps, named rather than counted: the pattern above reads
-# a block sequence, so one sweep rewritten as a flow sequence -- which is
-# how deps-latest.yml writes its own, and why that file is skipped here
-# -- would drop out of the comparison below in silence, leaving the
-# remaining two to agree with each other and the test green
+# a block sequence, so one of the three rewritten as a flow sequence would
+# drop out of the comparison below in silence, leaving the remaining two
+# to agree with each other and the test green. deps-latest.yml carries
+# that same caller shape too now (issue btclib-org/.github#35), its own
+# python-versions naming the floor and the ceiling of what a sweep runs
+# in full rather than the sweep itself -- `_declared` below excludes it
+# by name for that reason, a shape it shares rather than a shape of its
+# own being why it is not counted here
 _SWEEPS = ("os-macos.yml", "os-ubuntu.yml", "os-windows.yml")
 # the merge gate, and inside it the jobs a landing waits on. Section 3
 # of the organization standard declares a free-threading classifier
@@ -182,9 +186,21 @@ def _interpreters(text: str) -> set[str]:
 
 
 def _declared() -> dict[str, tuple[str, ...]]:
-    """Return each workflow's interpreter list, those that declare one."""
+    """Return each platform sweep's interpreter list, those that declare one.
+
+    deps-latest.yml is excluded by name rather than left to the pattern:
+    its own call to `reusable-deps-latest.yml` carries `python-versions`
+    in the same caller shape `_PYTHONS_CALLER` reads off the three sweeps,
+    but that list deliberately names the floor and the ceiling of what a
+    sweep runs in full rather than the sweep itself (issue
+    btclib-org/.github#35), and counting it here would fail both
+    assertions `test_every_sweep_runs_the_same_interpreters` makes rather
+    than the one divergence it exists to catch.
+    """
     found: dict[str, tuple[str, ...]] = {}
     for workflow in _WORKFLOWS:
+        if workflow.name == "deps-latest.yml":
+            continue
         listed = _interpreters(workflow.read_text(encoding="utf-8"))
         if listed:
             found[workflow.name] = tuple(sorted(listed))
@@ -602,8 +618,11 @@ def test_every_sweep_runs_the_same_interpreters() -> None:
     """One interpreter set, however many platforms sweep it.
 
     The gate runs one, so the list is declared once per platform sweep
-    and nowhere else. Three copies of a list is three chances for one of
-    them to be left behind, and a platform quietly running a narrower set
+    and nowhere the comparison counts: `deps-latest.yml` declares one in
+    the same caller shape and `_declared` excludes it by name, its two
+    interpreters being that list's floor and ceiling rather than a sweep
+    of its own. Three copies of a list is three chances for one of them
+    to be left behind, and a platform quietly running a narrower set
     than another reads, from the outside, as that platform passing.
 
     Every sweep has to be read for that to mean anything, which is the
