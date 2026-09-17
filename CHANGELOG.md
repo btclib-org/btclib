@@ -1094,6 +1094,12 @@ file per release is what keeps each of them under it.
   (issue btclib-org/.github#1182): the workflow-level group can now
   cancel a still-running review, which the callee's own `if:` declines.
 
+### `ecc.rangeproof` asks a `RangeProof` argument its own validity
+
+- **`assert_as_valid` and `rewind` refuse a proof built with
+  `check_validity=False` in a state `RangeProof.assert_valid` names, and
+  `verify` answers `False`** (closes #2182), as `ecc.bms` does a `Sig`.
+
 ## v2026.9.13
 
 ### `ecc.rangeproof.sign` writes the rangeproof of a blinded value
