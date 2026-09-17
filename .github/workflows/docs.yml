@@ -18,7 +18,7 @@ on:
     branches: [main]
   pull_request:
     # ready_for_review, so a pull request marked ready gets the run the
-    # draft condition below withheld while it was a draft.
+    # draft condition in reusable-docs.yml withheld while it was a draft.
     # closed too, though the job below declines the real work on it: a
     # merge or a close is neither a push nor a synchronize, so a run this
     # PR's own concurrency group is still holding survives either unless
