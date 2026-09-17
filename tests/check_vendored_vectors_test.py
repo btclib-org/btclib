@@ -130,6 +130,37 @@ def test_a_checkable_entry_is_returned(checker: ModuleType) -> None:
     ]
 
 
+def test_a_ref_field_is_read_onto_the_entry(checker: ModuleType) -> None:
+    """A pin naming a `ref` carries it, for a path off the default branch."""
+    text = readme(
+        entry(
+            "`f.json`",
+            repo="siv2r/bips",
+            path="bip-0445/python/vectors/f.json",
+            ref=" bip-frost-signing ",
+            commit="deadbeef  2026-01-01",
+            behind="0 revisions; that commit is the tip of the path",
+        )
+    )
+    (found,) = checker._entries_at_tip(text)[0]
+    assert found.ref == "bip-frost-signing"
+
+
+def test_no_ref_field_leaves_the_entry_s_ref_none(checker: ModuleType) -> None:
+    """A pin with no `ref` line is a default-branch pin, as before ISS 2160."""
+    text = readme(
+        entry(
+            "`f.json`",
+            repo="btclib-org/btclib",
+            path="tests/f.json",
+            commit="deadbeef  2026-01-01",
+            behind="0",
+        )
+    )
+    (found,) = checker._entries_at_tip(text)[0]
+    assert found.ref is None
+
+
 def test_a_placeholder_path_is_skipped(checker: ModuleType) -> None:
     """A `<name>` path is a group pin, not a checkable single path."""
     text = readme(
@@ -440,6 +471,28 @@ def test_latest_commit_asks_for_one_commit_touching_the_path(
     assert call[1:5] == ["api", "--method", "GET", "repos/btclib-org/btclib/commits"]
     assert "path=tests/f.json" in call
     assert "per_page=1" in call
+    assert not any(arg.startswith("sha=") for arg in call)
+
+
+def test_latest_commit_asks_the_named_ref_when_the_entry_carries_one(
+    checker: ModuleType, fake_gh: FakeGh
+) -> None:
+    """A `ref` becomes the call's own `sha` parameter, GitHub's name for it.
+
+    Off the repository's default branch is where `commits?path=` answers
+    an empty list for a path that is, in fact, still there (ISS 2160):
+    naming the branch is what makes the same path findable.
+    """
+    fake_gh.commits["siv2r/bips", "bip-0445/python/vectors/f.json"] = (
+        "cafe1234",
+        "2026-08-01",
+    )
+    sha, date = checker._latest_commit(
+        "siv2r/bips", "bip-0445/python/vectors/f.json", "bip-frost-signing"
+    )
+    assert (sha, date) == ("cafe1234", "2026-08-01")
+    (call,) = fake_gh.calls
+    assert "sha=bip-frost-signing" in call
 
 
 def test_latest_commit_is_none_when_upstream_has_no_commit_for_the_path(
@@ -583,6 +636,42 @@ def test_find_drift_tells_moved_pins_from_still_current_ones(
     (drift,) = drifted
     assert drift.entry.heading == "`moved.json`"
     assert (drift.latest_commit, drift.latest_date) == ("new0000", "2026-01-01")
+
+
+def test_find_drift_asks_a_pinned_ref_rather_than_the_default_branch(
+    checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
+) -> None:
+    """A pin's own `ref` reaches `_latest_commit` through `find_drift` too.
+
+    `FakeGh` answers by (repo, path) alone, so what this proves is the
+    call itself carries the ref -- not that ref changes what comes
+    back, which is GitHub's own answer to give.
+    """
+    path = tmp_path / "README.md"
+    path.write_text(
+        readme(
+            entry(
+                "`f.json`",
+                repo="siv2r/bips",
+                path="bip-0445/python/vectors/f.json",
+                ref="bip-frost-signing",
+                commit="old0000  2026-01-01",
+                behind="0",
+            )
+        ),
+        encoding="utf-8",
+    )
+    fake_gh.commits["siv2r/bips", "bip-0445/python/vectors/f.json"] = (
+        "old0000",
+        "2026-01-01",
+    )
+
+    drifted, skipped = checker.find_drift(path)
+
+    assert not drifted
+    assert skipped == []
+    (call,) = fake_gh.calls
+    assert "sha=bip-frost-signing" in call
 
 
 def _entry(checker: ModuleType, heading: str, commit: str = "old0000") -> object:
