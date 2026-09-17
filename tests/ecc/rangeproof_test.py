@@ -1250,6 +1250,38 @@ def test_rewind_reads_a_recorded_proof_back(vector: dict[str, Any]) -> None:
     assert not any(rewound.message)
 
 
+def test_verify_tells_octets_that_are_no_proof_from_one_that_fails() -> None:
+    """Issue 2170's two sides, over the proof's own octets.
+
+    `RangeProof.parse` is the whole of the parse here, `assert_valid`
+    included, because every state that refuses is one `serialize` could
+    not have written -- its own docstring says so of the object's half
+    and `_assert_valid_header` of the header's. So the encoding and what
+    it decodes to are one question, and a defect in either is material
+    the range question was never asked of.
+    """
+    vector = _vector("odd mantissa")
+    octets = _octets("odd mantissa")
+    commitment = commit(vector["blind"], vector["value"], _GEN)
+    assert rangeproof.verify(commitment, octets, _GEN)
+
+    # a truncated buffer, one with an octet too many, and a first octet
+    # whose reserved bit 7 the format holds at zero
+    for damaged in (octets[:-1], octets + b"\x00", bytes([octets[0] | 0x80])):
+        for call in (rangeproof.verify, rangeproof.assert_as_valid):
+            with pytest.raises(BTClibValueError):
+                call(commitment, damaged, _GEN)
+
+    # and a spelling that is no octets at all
+    with pytest.raises(BTClibValueError):
+        rangeproof.verify(commitment, "not hex at all", _GEN)
+
+    # well formed, and merely not this commitment's proof: an answer
+    # about the proof rather than a refusal of it
+    other = commit(vector["blind"], vector["value"] + 1, _GEN)
+    assert not rangeproof.verify(other, octets, _GEN)
+
+
 def test_verify_refuses_a_turned_octet_of_the_signature() -> None:
     """One bit of the last `s`, which is the mutation a proof has to fail on."""
     octets = bytearray(_octets("odd mantissa"))
@@ -1576,8 +1608,10 @@ def test_extra_commit_is_read_as_octets_wherever_it_is_taken() -> None:
     """A hex string says what the same octets say, `Octets` being the type.
 
     `verify` catches the `ValueError` a spelling that is no octets
-    raises, as it catches a parse's, where the three that raise their
-    reason let it out.
+    raises: `extra_commit` is what the proof is written *about*, so it
+    stays on issue #814's side of the line, where the proof's own octets
+    moved to the other one (issue 2170). The three spellings that raise
+    their reason let it out either way.
     """
     value = 100000
     commitment = commit(_BLIND, value, _GEN)

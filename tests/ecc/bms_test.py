@@ -176,17 +176,19 @@ def test_exceptions() -> None:
     # anything out of the alphabet, and handing over the 63 bytes left
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc="
     err_msg = "invalid base64 encoding: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, address, exp_sig)
-    assert not bms.verify(msg, address, exp_sig)
+    # both spellings: an encoding that is no signature is refused rather
+    # than answered about, `verify` letting it out since issue 2170
+    for call in (bms.assert_as_valid, bms.verify):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            call(msg, address, exp_sig)
 
     # well formed base64 this time, but 60 bytes: too few for the
     # [1-byte rf][32-bytes r][32-bytes s] the slices below assume
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2e"
     err_msg = "invalid decoded length: 60"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        bms.assert_as_valid(msg, address, exp_sig)
-    assert not bms.verify(msg, address, exp_sig)
+    for call in (bms.assert_as_valid, bms.verify):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            call(msg, address, exp_sig)
 
     exp_sig = "GpNLHqEKSzwXV+KwwBfQthQ848mn5qSkmGDXpqshDuPYJELOnSuRYGQQgBR4PpI+w2tJdD4v+hxElvAaUSqv2eU="
     err_msg = "invalid recovery flag: "
@@ -1207,3 +1209,41 @@ def test_a_drawn_key_takes_the_network_it_is_asked_for() -> None:
     assert addr == b58.p2pkh(b58.prv_key_data_from_wif(wif).pub)
     # and the default, which is the same call with the name left out
     assert b58.prv_key_data_from_wif(bms.gen_keys()[0]).network == "mainnet"
+
+
+def test_verify_tells_a_malformed_argument_from_a_signature_that_fails() -> None:
+    """Issue 2170's two sides, over the address and the signature.
+
+    The address is what names the signer here -- no public key is passed
+    at all, the candidates being recovered from the signature -- so a
+    string that decodes to no address is the same unanswerable question
+    `ecc.dsa.verify` refuses for a key spelling that is no key. The
+    compact serialization is 65 octets, and a base64 spelling of any
+    other length is no signature either.
+    """
+    msg = b"test"
+    wif, addr = bms.gen_keys()
+    sig = bms.sign(msg, b58.prv_key_data_from_wif(wif))
+    assert bms.verify(msg, addr, sig)
+
+    # no address at all, and no signature at all
+    with pytest.raises(BTClibValueError):
+        bms.verify(msg, "not an address", sig)
+    with pytest.raises(BTClibValueError):
+        bms.verify(msg, addr, "not a signature")
+
+    # a real address, and one this signature does not open to
+    _other_wif, other_addr = bms.gen_keys()
+    assert not bms.verify(msg, other_addr, sig)
+
+    # a real address of a type the recovery flag does not name: an
+    # answer about the signature, not a refusal of the address
+    assert not bms.verify(msg, b32.p2wsh(32 * b"\x00"), sig)
+
+    # a well-formed 65-octet signature whose recovery flag is outside
+    # 27..42: a value the encoding carries, so False with the rest
+    out_of_range = bms.Sig(99, sig.dsa_sig, check_validity=False)
+    assert not bms.verify(msg, addr, out_of_range)
+
+    # and a message that is not the one signed
+    assert not bms.verify(b"another message", addr, sig)

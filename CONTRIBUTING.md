@@ -1294,16 +1294,32 @@ own mistake, it is a call mypy already refuses, and it leaves as a
 12 being a private key in this library and never a public one, where a
 well-formed public key that simply did not sign is False.
 
-**`ecc.ssa` and `ecc.dsa` carve one case out of that**, as `ecc.musig2`
-and `ecc.frost` already did: a value of a declared type whose size or
-encoding makes it impossible to read as a signature or a key raises
-`BTClibValueError` rather than answering False. The function is not
-saying the signature is forged, it is saying it has no way to find out
-(issue #2170). So `dsa.verify(msg, "not a key", sig)` raises, where it
-was False before, while a signature that is well formed and simply does
-not verify is False as it always was. `ecc.dsa`'s malformed DER encoding
-is the one case left on the other side, its own wycheproof vectors
-measuring it as False.
+**`ecc`'s verifications carve one case out of that**, as `ecc.musig2`
+and `ecc.frost` do: a value of a declared type whose size or encoding
+makes it impossible to read as a signature, a key, an address, a digest
+or an opening raises `BTClibValueError` rather than answering False. The
+function is not saying the signature is forged, it is saying it has no
+way to find out (issue #2170). So `dsa.verify(msg, "not a key", sig)`
+raises, and `bms.verify(msg, "not an address", sig)` with it, while a
+signature that is well formed and simply does not verify is False.
+
+**What decides is whether the parameter declares a size**, which is what
+makes the carve-out one rule rather than a judgement per call site. A
+message of any length is a message, so nothing about it can be the wrong
+length and the rule never fires: `ssa.verify_` answers False for a short
+one, an ordinary message that was not signed. A digest is of its hash
+function's size and a BIP374 message is of 32 octets, so `dsa.verify_`
+and `dleq.verify_proof` refuse any other length — 31 octets are no
+SHA-256 digest, and the equation has nothing to be about. BIP374's own
+reference reads the same way: `dleq_verify_proof` asserts
+`len(proof) == 64`, and the `dleq_challenge` it reaches at its last step
+asserts `len(m) == 32`, while `s >= GE.ORDER` and a challenge that does
+not match are its False.
+
+`ecc.dsa`'s malformed DER encoding is the one thing on the other side of
+the line, and it is there because a measurement put it there rather than
+because the rule reaches it: its own wycheproof vectors ask that question
+over profiles built for it, and answer False.
 
 The line is the annotation, and deliberately not which built-in a helper
 happens to derive from: those two coincide only by accident, which is

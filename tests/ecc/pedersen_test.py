@@ -712,3 +712,30 @@ def test_a_blinding_factor_past_n_is_refused_on_both_sides() -> None:
     assert pedersen.bytes_from_generator(
         pedersen.generator_from_seed(seed)
     ) == zkp_generator.generate(seed)
+
+
+def test_verify_tells_an_opening_that_is_no_number_from_one_that_fails() -> None:
+    """Issue 2170's two sides, over the opening.
+
+    An `Integer` is an int, or the octets or the hex text of one, and
+    text that is no number leaves nothing to recompute the commitment
+    from: the question is not answered `False`, it is refused. An r of 0
+    mod n is the other side -- an integer this scheme turns down for
+    what it is worth rather than for what it is spelled.
+    """
+    r, v = 5, 7
+    commitment = pedersen.commit(r, v, _H)
+    assert pedersen.verify(r, v, commitment, _H)
+
+    for call in (pedersen.verify, pedersen.assert_as_valid):
+        with pytest.raises(BTClibValueError):
+            call("not a number", v, commitment, _H)
+        with pytest.raises(BTClibValueError):
+            call(r, "not a number", commitment, _H)
+
+    # an opening that is well formed and simply does not open this
+    # commitment, an unblinded r, and a pair of ints that is no point of
+    # the curve: all three answers about the value (issue #814)
+    assert not pedersen.verify(r, v + 1, commitment, _H)
+    assert not pedersen.verify(0, v, commitment, _H)
+    assert not pedersen.verify(r, v, (1, 1), _H)

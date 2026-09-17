@@ -667,6 +667,46 @@ def sign(
     return sign_(m, ks, sign_key_idx, sign_keys, pubk_rings, ec, hf)
 
 
+def _assert_structurally_valid_(
+    sig: BorromeanSig | Octets, pubk_rings: Sequence[PubkeyRing]
+) -> BorromeanSig:
+    """Raise for octets that are no signature over these rings.
+
+    Ahead of the try that turns everything else -- an s at or above the
+    group order, a ring shape that is not `pubk_rings`'s, a walk that
+    does not close on `sig.e0` -- into False (issue 2170).
+
+    The serialization is `e0` and then one scalar per key, with nothing
+    in it saying how many of either: `pubk_rings` is what says, so the
+    octets are a signature of that shape or they are no signature at
+    all, and `BorromeanSig.parse` is where that is read. A buffer of
+    another length is then the same unanswerable question a 63-octet
+    BIP340 signature is in `ecc.ssa`, and it is refused rather than
+    reported as rings that failed to close.
+
+    `check_validity=False` leaves the value half where it belongs: each
+    `s` occupies `ec.n_size` octets and so can encode a scalar at or
+    above the group order, which is a value a signature carries and not
+    a length it cannot have. `assert_as_valid` asks
+    `BorromeanSig.assert_valid` for it below, on the object this
+    returns, as it already does for one a caller builds.
+
+    A `BorromeanSig` argument is handed back untouched. Its octets were
+    never read, so there is no encoding of one to be wrong; its shape
+    against `pubk_rings` is a disagreement between two arguments rather
+    than a property of either, which is the line `ecc.ssa`'s own batch
+    check draws, and it stays False.
+
+    The message is not asked here, as in `ecc.dsa` and `ecc.ssa`: it is
+    what the signature is verified about, and issue #814 is where that
+    was settled.
+    """
+    if isinstance(sig, BorromeanSig):
+        return sig
+    rsizes = [len(pubk_ring) for pubk_ring in pubk_rings]
+    return BorromeanSig.parse(sig, rsizes, check_validity=False)
+
+
 def verify(
     msg: Octets,
     sig: BorromeanSig | Octets,
@@ -676,6 +716,10 @@ def verify(
 ) -> bool:
     """Return whether sig is a valid borromean ring signature of msg.
 
+    Raises where `sig` is octets that are no signature over
+    `pubk_rings`, and answers False for a signature that is well formed
+    and merely does not verify. See `_assert_structurally_valid_`.
+
     `sig` is a `BorromeanSig`, or its `serialize`d octets -- parsed with
     `BorromeanSig.parse`, secp256k1 and sha256 always, as `ssa.verify`
     parses a `Sig | Octets` over BIP340's one curve. A `BorromeanSig`
@@ -683,10 +727,14 @@ def verify(
     function defaults to; `assert_as_valid`'s docstring has what `ec`
     and `hf` are for either way.
     """
-    # ValueError and BTClibRuntimeError, as `ecc.dsa.verify_` catches them
-    # and for its reasons, which it states
+    parsed_sig = _assert_structurally_valid_(sig, pubk_rings)
+    # ValueError and BTClibRuntimeError: a well-formed signature whose
+    # rings do not close on their own e0 is False, and so is an s at or
+    # above the group order or a ring shape that is not `pubk_rings`'s;
+    # a caller's own mistake in the signature's octets is refused above
+    # rather than excluded from the except
     try:
-        assert_as_valid(msg, sig, pubk_rings, ec, hf)
+        assert_as_valid(msg, parsed_sig, pubk_rings, ec, hf)
     except (ValueError, BTClibRuntimeError):
         return False
 

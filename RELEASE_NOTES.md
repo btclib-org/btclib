@@ -95,6 +95,42 @@ full year, short month, short day (YYYY-M-D)
   exception. Parse the signature first -- `ssa.Sig.parse`/`dsa.Sig.parse`,
   which already raise -- to tell a malformed argument from a forged
   signature ahead of calling `verify`.
+- **`ecc.bms.verify`, `ecc.borromean.verify`, `ecc.pedersen.verify`,
+  `ecc.dleq.verify_proof` and `ecc.rangeproof.verify` raise on a
+  structurally invalid argument instead of answering `False`** (closes
+  #2170), which is the same split over the rest of `ecc`. An address
+  that decodes to no address, a base64 spelling that is no 65-octet
+  compact signature, octets that are no borromean signature over the
+  rings given or no rangeproof at all, a point spelled in a way no
+  conversion reads, a proof that is not 64 octets, and an `Integer` that
+  is no number, each raise `BTClibValueError`. What stays `False` is
+  everything well formed that merely does not verify: another key's
+  address, a recovery flag or a scalar out of range, a ring shape that
+  is not the signature's, and an opening that does not recompute the
+  commitment.
+
+  Act on it wherever a caller treats `False` from one of these as proof
+  of nothing but a bad signature. `bms.Sig.b64decode`,
+  `borromean.BorromeanSig.parse`, `rangeproof.RangeProof.parse` and
+  `curves.point_from_pub_key` are the parses that answer the structural
+  question on their own, ahead of the call, for a caller that wants to
+  keep filtering on a bool.
+- **A message whose size the function declares raises where it is not
+  that size** (issue #2170): `ecc.dsa.verify_` takes a digest of `hf`'s
+  size and `ecc.dleq.verify_proof` a 32-octet message, and any other
+  length now raises `BTClibValueError` on either. Both arms of
+  `dsa.verify_` are covered, the one the libsecp256k1 bindings answer
+  and the pure-Python one. A message of no declared size is untouched
+  and still answers `False`: `ecc.dsa.verify`, `ecc.ssa.verify`,
+  `verify_` and the batch spellings, `ecc.bms.verify`,
+  `ecc.borromean.verify`, and `ecc.rangeproof.verify`'s `extra_commit`.
+
+  Act on it wherever a caller passes a truncated or foreign hash to a
+  prepared spelling — reading `False` for it today and an exception
+  after. `hashes.reduce_to_hlen(msg, hf)` is what produces the digest
+  those functions declare; a caller holding one from elsewhere checks
+  its length, or calls the unprepared `verify`, which reduces the
+  message itself and has no length to miss.
 
 ## v2026.9.13
 

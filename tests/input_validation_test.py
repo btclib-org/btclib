@@ -18,8 +18,8 @@ distinction issue #814 settled, so this file drives the two separately:
 - **a value of a declared type that no valid input carries** is a fact
   about the input, and leaves as a `BTClibException` -- unless the
   function answers a `bool` about it, in which case the answer is
-  `False`. `_ANSWERS_FALSE` is that family, and it is a family: nine
-  script predicates, `b32.is_segwit_prefixed` and `ecc.dleq.verify_proof`.
+  `False`. `_ANSWERS_FALSE` is that family, and it is a family: the
+  script predicates, and `b32.is_segwit_prefixed` beside them.
 
 Both are `BTClibException`, which is what makes the second rule one
 predicate instead of a tuple that has to be kept in step with the
@@ -164,16 +164,22 @@ _WRONG_VALUE: dict[str, tuple[Any, ...]] = {
     "String": ("not an address",),
 }
 
-# one reason for eleven functions, nine of which are
+# one reason for the whole family, most of it
 # `script_pub_key._is_funct`'s own: "these bool functions answer 'are
-# these bytes a p2sh script', so bytes that are not are False". The other
-# two answer the same shape of question one layer up -- does this string
-# start as a bech32 address, does this proof hold -- and CONTRIBUTING.md
-# states the rule for all of them beside the validation one.
+# these bytes a p2sh script', so bytes that are not are False".
+# `b32.is_segwit_prefixed` answers the same shape of question one layer
+# up -- does this string start as a bech32 address -- and
+# CONTRIBUTING.md states the rule for all of them beside the validation
+# one.
 #
 # `taproot.check_output_pubkey` is deliberately *not* here, and is the
 # reason `check_` keeps its prefix: it answers a bool and refuses a
-# malformed control block, that being no proof rather than a disproof
+# malformed control block, that being no proof rather than a disproof.
+# `ecc.dleq.verify_proof` and `ecc.pedersen.verify` were here and are
+# not: a point spelled in a way that is no point, a proof that is not 64
+# octets and an opening that is no integer are structurally invalid
+# rather than merely wrong, and issue #2170 is where they became
+# refusals. CONTRIBUTING.md's carve-out states it
 _A_BOOL_ANSWERS_FALSE = (
     "a bool answers about a value of a declared type, so a value that is"
     " not one is False rather than a refusal: issue #814 settled it, and"
@@ -183,8 +189,6 @@ _A_BOOL_ANSWERS_FALSE = (
 
 _ANSWERS_FALSE: dict[str, str] = {
     "btclib.b32.is_segwit_prefixed": _A_BOOL_ANSWERS_FALSE,
-    "btclib.ecc.dleq.verify_proof": _A_BOOL_ANSWERS_FALSE,
-    "btclib.ecc.pedersen.verify": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_nulldata": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2ms": _A_BOOL_ANSWERS_FALSE,
     "btclib.script.script_pub_key.is_p2pk": _A_BOOL_ANSWERS_FALSE,
@@ -291,9 +295,9 @@ def test_a_wrong_value_leaves_as_a_btclib_exception(dotted: str) -> None:
 def test_what_answers_false_still_does(dotted: str) -> None:
     """A line of `_ANSWERS_FALSE` cannot outlive the reason for it.
 
-    `is False` and not a falsy answer: these eleven return a bool, and an
-    empty string or a None passing for one is the shape issue #776 found
-    in `script_pub_key.address`, which answered "" for a None.
+    `is False` and not a falsy answer: every one of these returns a bool,
+    and an empty string or a None passing for one is the shape issue #776
+    found in `script_pub_key.address`, which answered "" for a None.
     """
     for call in _calls(dotted, _WRONG_VALUE):
         assert call() is False
